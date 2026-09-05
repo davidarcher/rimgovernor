@@ -14,6 +14,7 @@ WRITE_NAMES = {
     'post_jobs_make_equip', 'post_pawn_edit_status', 'post_pawn_edit_apparel',
 }
 REQUIRED = {
+    'get_map_things_at': ['map_id', 'position'],
     'post_builder_blueprint': ['map_id', 'position', 'blueprint'],
     'post_things_set_forbidden': ['map_id', 'thing_ids', 'forbidden'],
     'post_map_zone_growing': ['map_id', 'point_a', 'point_b', 'plant_def'],
@@ -70,6 +71,8 @@ class Catalog:
                 props['filters']['description']='Optional definition group names, e.g. ThingsDefs or TerrainDefs. Not building names. Prefer omitting this and selecting the group with query.path.'
             if e['name']=='get_map_things':
                 e['description'] += ' Haulable items only; not a complete map entity list. Does not expose construction blueprints. Use get_map_things_at for exact-cell blueprint readback.'
+            if e['name']=='post_things_set_forbidden':
+                e['description'] += ' Allow / unforbid selected items immediately with forbidden=false, or forbid them with forbidden=true. thing_ids are observed thing_id values from map item queries. No hauling, stockpile, pawn job or labor assignment is needed to change this flag. Verify the selected items is_forbidden field; storage counts do not verify this action.'
             if e['name']=='get_map_things_radius':
                 e['description'] += ' Includes items, buildings and plants; excludes blueprints. Use get_map_things_at to inspect construction at a cell.'
             if e['name']=='get_map_things_at':
@@ -107,7 +110,7 @@ class Catalog:
             raise ValueError(f'Connected RIMAPI does not advertise {name}')
         if write is not None and e['write'] != write:
             if e['write']:
-                raise ValueError(f'{name} changes the game. Do not call it with query. Call submit and put this endpoint and its arguments in actions, with a done check. The controller executes approved actions afterward.')
+                raise ValueError(f'{name} changes the game. Call the native tool named {name} to draft it, with title, arguments and done. Then submit your report. The controller executes approved actions afterward.')
             raise ValueError(f'{name} only reads state; use query, not an action.')
         return e
 

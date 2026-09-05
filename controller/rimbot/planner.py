@@ -125,6 +125,16 @@ class Planner:
                             'Existing orders are not completed work. Keep normal pawn autonomy. Use concise colony notes. '
                             'Finish with submit. Manager responsibilities: '+json.dumps(ROLES)+'\n'+role)
             context = {k:v for k,v in context.items() if k!='capabilities'}
+        elif contract is Decision:
+            tools = [tools[-1]]
+            instructions = ('Arbitrate the supplied manager proposals against player direction and observations. '
+                            'You do not execute orders or rediscover APIs. Validated action payloads are supplied in proposals; '
+                            'absence of command tools in this arbitration step is not a missing game capability. '
+                            'Accept each proposal ID or defer it with a concrete conflict or unmet requirement. '
+                            'A proposal with no actions is only advice: never promise its work has been queued. '
+                            'Do not require pawn labor for an immediate flag change. Resolve competing sites, materials and pawn orders. '
+                            'Use submit for your decision and a concise player response. '+role)
+            context = {k:v for k,v in context.items() if k!='capabilities'}
         elif 'capabilities' in context:
             # Full descriptions remain searchable; don't repeat 100+ long entries
             # in every request. Native schemas supply the actual command shape.
@@ -132,6 +142,7 @@ class Planner:
         allowed_tools = {t['function']['name'] for t in tools}
         role_label = role.split(':',1)[0]
         drafts = {}
+        failed_drafts = {}
         def register_command(name):
             if contract is not Proposal or name not in writable or name in allowed_tools:
                 return
@@ -165,6 +176,8 @@ class Planner:
                 try:
                     value=contract.model_validate_json((reply.get('content') or '').strip().removeprefix('```json').removesuffix('```').strip())
                     if isinstance(value,Proposal):
+                        if failed_drafts and not value.blockers:
+                            raise ValueError('Rejected drafts are not retained. Correct the native calls or report abandoned orders in blockers: '+json.dumps(failed_drafts))
                         value.actions=list(drafts.values())+value.actions
                     return await self.validate_observation(self.validate_submission(role,value,context))
                 except ValueError as e:
@@ -192,6 +205,8 @@ class Planner:
                         raise ValueError('This role uses only these tools: '+', '.join(sorted(allowed_tools))+'. Delegate detailed inspection to the assigned managers.')
                     args = json.loads(f['arguments'])
                     if f['name'] == 'submit':
+                        if contract is Proposal and failed_drafts and not args.get('blockers'):
+                            raise ValueError('These drafts were rejected and are NOT retained: '+json.dumps(failed_drafts)+'. Correct and call the native draft tool again, or explicitly report abandoned orders in blockers. Queries alone do not repair a rejected draft.')
                         value=contract.model_validate(args)
                         if isinstance(value,Proposal):
                             value.actions=list(drafts.values())+value.actions
@@ -203,6 +218,7 @@ class Planner:
                         await self.validate_observation(proposal)
                         draft_key = json.dumps([action.endpoint,action.arguments],sort_keys=True)
                         drafts[draft_key] = action
+                        failed_drafts.pop(f['name'],None)
                         result = {'drafted':action.title,'draft_count':len(drafts),'next':'Draft another needed order or submit your short report. These orders have not executed yet.'}
                     elif f['name'] == 'discover':
                         result = [e for e in self.rt.catalog.listing(args.get('search','')) if not e['write'] or e['name'] in writable]
@@ -218,6 +234,15 @@ class Planner:
                         raise ValueError('Use discover, describe, query or submit.')
                 except (ValueError, KeyError, RuntimeError) as e:
                     result = {'error':str(e)[:1400]}
+                    if f['name'] in writable and contract is Proposal:
+                        failed_drafts[f['name']]=str(e)[:1400]
+                        result['draft_retained']=False
+                        result['retained_draft_count']=len(drafts)
+                        try:
+                            query_endpoint=args['done']['query']['endpoint']
+                            result['completion_query_contract']=self.rt.catalog.get(query_endpoint,False)
+                            result['hint']='Use exact native query arguments. Select rows with query.where, not invented native arguments. Correct this draft and call the same native tool again; it has not been retained.'
+                        except (KeyError,TypeError,ValueError):pass
                     if f['name']=='query' and isinstance(args,dict):
                         try:result['expected_arguments']=self.rt.catalog.get(args.get('endpoint',''))['schema']
                         except ValueError:pass

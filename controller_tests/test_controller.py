@@ -28,6 +28,7 @@ async def test_administrator_can_correct_unknown_proposal_ids(colony):
     calls=[]
     class Model:
         async def complete(self,messages,*args):
+            assert [t['function']['name'] for t in args[0]]==['submit']
             calls.append(1)
             if len(calls)>1:
                 assert 'Workforce' in json.loads(messages[-1]['content'])['error']
@@ -37,6 +38,15 @@ async def test_administrator_can_correct_unknown_proposal_ids(colony):
     await rt.model.close();rt.model=Model()
     result=await rt.planner.arbitrate({}, {'Workforce':Proposal(summary='No action').model_dump()})
     assert result.accepted==['Workforce'] and len(calls)==2
+
+
+async def test_allow_discovery_and_exact_cell_contract(colony):
+    rt,_=colony
+    assert 'post_things_set_forbidden' in [e['name'] for e in rt.catalog.listing('unforbid')]
+    with pytest.raises(ValueError,match='position'):
+        rt.catalog.validate('get_map_things_at',{'map_id':0},False)
+    with pytest.raises(ValueError,match='native tool named post_things_set_forbidden'):
+        rt.catalog.get('post_things_set_forbidden',False)
 
 
 async def test_submission_rejects_nonexistent_completion_field(colony):
@@ -90,6 +100,30 @@ async def test_video_recovers_abandoned_receiver_and_shares_stream():
 
 def allow():
     return Action(title='Allow nearby building timber',endpoint='post_things_set_forbidden',arguments={'thing_ids':[101],'map_id':7,'forbidden':False},done=Check(query=Query(endpoint='get_map_things',arguments={'map_id':7},where={'thing_id':101,'is_forbidden':False}),field='total',op='eq',value=1))
+
+
+async def test_rejected_draft_cannot_silently_become_empty_success(colony):
+    rt,_=colony;rt.cycle_generation=rt.generation
+    class Model:
+        count=0
+        async def complete(self,messages,*args):
+            self.count+=1
+            name='submit';data={'summary':'Order drafted'}
+            if self.count==1:
+                name='post_things_set_forbidden';data=allow().model_dump(exclude={'endpoint'})
+                data['done']['query']['arguments']['made_up']=True
+            elif self.count==2:
+                result=json.loads(messages[-1]['content'])
+                assert result['draft_retained'] is False
+                assert result['completion_query_contract']['name']=='get_map_things'
+            elif self.count==3:
+                assert 'NOT retained' in json.loads(messages[-1]['content'])['error']
+                name='post_things_set_forbidden';data=allow().model_dump(exclude={'endpoint'})
+            return {'role':'assistant','tool_calls':[{'id':str(self.count),'type':'function','function':{'name':name,'arguments':json.dumps(data)}}]},{}
+        async def close(self):pass
+    await rt.model.close();rt.model=Model()
+    result=await rt.planner.ask('Survival',{},Proposal)
+    assert len(result.actions)==1 and rt.model.count==4
 
 
 async def test_discovery_real_map_and_nested_colonists(colony):
