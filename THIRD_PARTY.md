@@ -31,5 +31,10 @@ from that checkout into `controller/rimbot/data/catalog.json`. This is an API
 contract snapshot, not a new game engine or a registry of native gizmos.
 Runtime discovery intersects these contracts with the installed server's routes.
 
+The complete, authored OpenAPI contract is now maintained in
+`integrations/RIMAPI/Contracts/rimapi.openapi.json`. It generates typed Python
+clients and is checked against native route/DTO signatures. The legacy manager
+catalog above remains in use during migration; see `docs/OPENAPI.md`.
+
 No public GitHub forks or pushes were performed. Local source pins make updates
 reviewable; publish our forks explicitly when ready to maintain upstream patches.

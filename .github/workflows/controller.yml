@@ -5,6 +5,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Restore pinned RIMAPI source from the local patch bundle
+        run: |
+          git clone --no-checkout https://github.com/IlyaChichkov/RIMAPI.git integrations/RIMAPI
+          git -C integrations/RIMAPI fetch ../patches/rimapi-local.bundle HEAD
+          git submodule update --init --no-fetch integrations/RIMAPI
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'

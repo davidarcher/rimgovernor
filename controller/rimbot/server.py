@@ -33,6 +33,12 @@ def create_app(runtime=None):
             app.state.rt.store.close()
 
     app = FastAPI(title='RimBot', lifespan=lifespan)
+
+    @app.get('/api/rimapi/openapi.json', include_in_schema=False)
+    async def rimapi_contract():
+        # Available even while the game is closed; this is the pinned native contract.
+        return FileResponse(Path(__file__).parent / 'data/rimapi.openapi.json', media_type='application/json')
+
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=['localhost','127.0.0.1','[::1]','testserver'])
 
     @app.middleware('http')

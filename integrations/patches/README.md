@@ -30,6 +30,10 @@ Changes:
 - Food summaries count non-perishable meals and populate meal/raw-food counts;
   forbidden and unforbidden nutrition are separate observations, not assumptions
   about reachability or safety.
+- Construction v2 uses authored OpenAPI contracts, generated C#/Python models,
+  native placement validation, and blueprint/frame/building identity checks.
+- The complete built-in HTTP surface is documented in OpenAPI, bundled into the
+  native DLL, and served at `/api/openapi.json`.
 
 Build `Source/RIMAPI/RIMAPI.csproj` with configuration `Release-1.6`, then install
 `1.6/Assemblies/RIMAPI.dll` only while RimWorld is closed. The test installation

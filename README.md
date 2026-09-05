@@ -60,6 +60,10 @@ which pinned endpoints the running server actually provides and reports gaps.
 
 ## Develop and test
 
+The native HTTP contract and generated client are documented in
+[docs/OPENAPI.md](docs/OPENAPI.md). Run `build-rimapi.ps1` to check native API drift
+and compile RIMAPI; it does not install the DLL.
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 # Controller hot reload (returns to Manual when code reloads):
