@@ -8,6 +8,17 @@ public static class StateTransferChecks
 {
     public static void Run(Action<bool,string> check)
     {
+        var immediate=new TaskLedger();
+        foreach(string name in new[]{"orders_allow","orders_allow_all"}) {
+            var allow=new ToolCall{Name=name,Arguments=new JObject()};
+            immediate.Record(1,100,allow,"Allowed",true);
+            check(immediate.Rows.Last.Value<string>("state")=="Complete","Allow left waiting for completion");
+            immediate.Rows.Last["state"]="Issued";
+        }
+        var migrated=new TaskLedger(); migrated.Load(immediate.Serialize());
+        check(migrated.Rows.All(t=>t.Value<string>("state")=="Complete"),"Saved Allow entries stayed pending");
+        var failedAllow=new TaskLedger(); failedAllow.Record(1,100,new ToolCall{Name="orders_allow",Arguments=new JObject()},"Missing items",false);
+        check(failedAllow.Rows.Count==0,"Failed Allow recorded as complete");
         var ledger=new TaskLedger();
         var build=new ToolCall{Name="architect_build",Arguments=new JObject{["defName"]="Bed",["x"]=10,["z"]=11,["rotation"]=0,["projectId"]="sleep"}};
         ledger.Record(1,100,build,"Ordered",true);

@@ -10,7 +10,13 @@ namespace RimBot.Colony
     {
         public JArray Rows { get; private set; }=new JArray();
         public string Serialize()=>Rows.ToString(Formatting.None);
-        public void Load(string json) { Rows=string.IsNullOrEmpty(json)?new JArray():JArray.Parse(json); }
+        private static bool Immediate(string tool)=>tool=="orders_allow" || tool=="orders_allow_all";
+        public void Load(string json)
+        {
+            Rows=string.IsNullOrEmpty(json)?new JArray():JArray.Parse(json);
+            foreach(var row in Rows.OfType<JObject>().Where(r=>Immediate(r.Value<string>("tool")) && r.Value<string>("state")=="Issued"))
+                row["state"]="Complete";
+        }
         public void Record(int map,int tick,ToolCall call,string result,bool success)
         {
             if(!success) return; // Failed API attempts belong to error memory/activity, not colony work.
@@ -25,6 +31,8 @@ namespace RimBot.Colony
             if(!success || row["state"]==null || row.Value<string>("state")=="Rejected") {
                 row["state"]=success?"Issued":"Rejected"; row["lastProgressTick"]=tick;
             }
+            // Allow changes a flag synchronously; it does not queue hauling or need approval.
+            if(Immediate(call.Name)) row["state"]="Complete";
             while(Rows.Count>200) {
                 var old=Rows.OfType<JObject>().FirstOrDefault(r=>r.Value<string>("state")=="Complete" || r.Value<string>("state")=="Rejected");
                 if(old==null) break; old.Remove();
