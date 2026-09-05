@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using RimWorld;
@@ -10,13 +10,35 @@ namespace RimBot.Colony
     {
         private Vector2 activityScroll, planScroll;
         private float activityHeight=200, planHeight=400;
+        private const string DirectionControl="RimBot.PlayerDirection";
         private string direction="", goalDraft;
         private int tab;
         private string lastHistoryLine;
         private bool follow=true, options, showCompleted;
         private readonly System.Collections.Generic.HashSet<string> expanded=new System.Collections.Generic.HashSet<string>();
         public override Vector2 InitialSize=>new Vector2(Math.Min(1000,UI.screenWidth-40),Math.Min(780,UI.screenHeight-70));
-        public ManagerWindow() { preventCameraMotion=false; absorbInputAroundWindow=false; }
+        public ManagerWindow() { preventCameraMotion=false; absorbInputAroundWindow=false; closeOnAccept=false; forceCatchAcceptAndCancelEventEvenIfUnfocused=true; }
+        public override void OnAcceptKeyPressed()
+        {
+            // Verse dispatches Accept before drawing the text area. Keep it from closing the tab.
+            HandleDirectionEnter();
+        }
+        private void HandleDirectionEnter()
+        {
+            var input=Event.current;
+            if(input==null || input.type!=EventType.KeyDown || input.shift ||
+                (input.keyCode!=KeyCode.Return && input.keyCode!=KeyCode.KeypadEnter) ||
+                GUI.GetNameOfFocusedControl()!=DirectionControl) return;
+            SubmitDirection();
+            input.Use();
+        }
+        private void SubmitDirection()
+        {
+            var manager=ColonyManager.Current;
+            if(manager==null || string.IsNullOrWhiteSpace(direction)) return;
+            manager.Steer(direction.Trim()); direction=""; follow=true;
+            GUI.FocusControl(DirectionControl);
+        }
         public override void DoWindowContents(Rect rect)
         {
             var manager=ColonyManager.Current;
@@ -60,11 +82,13 @@ namespace RimBot.Colony
             else DrawWork(l,manager);
             planHeight=l.CurHeight+12; l.End(); Widgets.EndScrollView();
             Widgets.DrawLineHorizontal(footer.x,footer.y,footer.width);
-            Widgets.Label(new Rect(footer.x,footer.y+7,footer.width-120,24),manager.Busy?"Give direction - the current decision will be replaced":"Give direction to your colony");
+            Widgets.Label(new Rect(footer.x,footer.y+7,footer.width-120,24),"Give direction  ·  Enter to send, Shift+Enter for a new line");
+            HandleDirectionEnter();
+            GUI.SetNextControlName(DirectionControl);
             direction=Widgets.TextArea(new Rect(footer.x,footer.y+34,footer.width-110,52),direction);
             if(direction.Length>600) direction=direction.Substring(0,600);
             bool previousEnabled=GUI.enabled; GUI.enabled=!string.IsNullOrWhiteSpace(direction);
-            if(Widgets.ButtonText(new Rect(footer.xMax-100,footer.y+34,100,52),"Send")) { manager.Steer(direction); direction=""; follow=true; }
+            if(Widgets.ButtonText(new Rect(footer.xMax-100,footer.y+34,100,52),"Send")) SubmitDirection();
             GUI.enabled=previousEnabled; GUI.color=color; Text.Font=font;
         }
         private void DrawConversation(Rect rect,ColonyManager manager)
@@ -124,13 +148,17 @@ namespace RimBot.Colony
         }
         private void DrawWork(Listing_Standard l,ColonyManager manager)
         {
-            if(l.ButtonText(showCompleted?"Hide completed work":"Include completed work")) showCompleted=!showCompleted;
-            var tasks=manager.TrackedTasks.Where(t=>t.Value<string>("state")!="Rejected" && (showCompleted || t.Value<string>("state")!="Complete")).Reverse().ToList();
+            if(l.ButtonText(showCompleted?"Hide work history":"Include work history")) showCompleted=!showCompleted;
+            var tasks=manager.TrackedTasks.Where(t=>t.Value<string>("state")!="Rejected" && (showCompleted || TaskLedger.IsActive(t))).Reverse().ToList();
             if(tasks.Count==0) l.Label("No tracked orders yet. Plans appear under Today and Strategy.");
             foreach(var task in tasks) {
                 l.GapLine(); string def=task["args"]?.Value<string>("defName");
                 string title=def==null?task.Value<string>("tool").Replace('_',' '):DefDatabase<ThingDef>.GetNamedSilentFail(def)?.label??def;
-                l.Label(title+"  -  "+task["state"]);
+                var titleRow=l.GetRect(28);
+                Widgets.Label(new Rect(titleRow.x,titleRow.y,Math.Max(0,titleRow.width-78),titleRow.height),title+"  -  "+task["state"]);
+                var dismiss=new Rect(titleRow.xMax-74,titleRow.y,74,24);
+                TooltipHandler.TipRegion(dismiss,"Remove this entry from tracking. Does not cancel orders or remove buildings.");
+                if(Widgets.ButtonText(dismiss,"Dismiss")) manager.DismissTrackedTask(task.Value<string>("id"));
                 if(task["args"]?["x"]!=null) l.Label("Location: "+task["args"]["x"]+", "+task["args"]["z"]);
                 if(task["materials"] is JArray materials) foreach(var material in materials.Where(m=>m.Value<int>("needed")>0))
                     l.Label(material["label"]+": need "+material["needed"]+"; "+material["allowedOnMap"]+" allowed, "+material["forbiddenOnMap"]+" forbidden.");

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using RimWorld;
@@ -12,6 +12,8 @@ namespace RimBot.Colony
             PlayerOrders.RequireMap(map);
             int id=args.Value<int>("targetId");
             var target=map.listerThings.AllThings.FirstOrDefault(t=>t.thingIDNumber==id && t.Spawned && !t.Position.Fogged(map));
+            bool retired=target==null;
+            if(retired) target=map.GetComponent<ConstructionTargets>().ResolveReadOnly(id);
             if(target==null) throw new ArgumentException(map.GetComponent<ConstructionTargets>().Missing(id));
             map.GetComponent<ConstructionTargets>().Observe(target);
             var position=target.Position;
@@ -20,8 +22,8 @@ namespace RimBot.Colony
             var needed=materials.Where(m=>m.Value<int>("needed")>0).Select(m=>m.Value<string>("defName")).ToList();
             var supplies=map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver).Where(t=>!t.Position.Fogged(map) && needed.Contains(t.def.defName)).ToList();
             var result=new JObject{
-                ["target"]=new JObject{["id"]=id,["label"]=target.LabelShort,["defName"]=target.def.entityDefToBuild?.defName??target.def.defName,
-                    ["x"]=position.x,["z"]=position.z,["stage"]=target is Blueprint?"blueprint":target is Frame?"frame":"existing",["forbidden"]=target.IsForbidden(Faction.OfPlayer)},
+                ["target"]=new JObject{["id"]=target.thingIDNumber,["label"]=target.LabelShort,["defName"]=target.def.entityDefToBuild?.defName??target.def.defName,
+                    ["x"]=position.x,["z"]=position.z,["stage"]=target is Blueprint?"blueprint":target is Frame?"frame":target is Building?"built":"existing",["forbidden"]=target.IsForbidden(Faction.OfPlayer)},
                 ["materials"]=materials,
                 ["pawnsTargeting"]=workers,
                 ["workStatus"]=(target is Blueprint || target is Frame)?(workers.Count>0?"staffed (includes material delivery)":"no current job targets this order"):"existing object",
@@ -36,7 +38,13 @@ namespace RimBot.Colony
             };
             if((target is Blueprint || target is Frame) && workers.Count>0)
                 result["next"]="Native jobs already target this construction, including material delivery. Let them progress; do not report missing builders merely because no FinishFrame job has started. Recheck if work stalls. Do not re-allow permitted supplies.";
-            if(args["pawnId"]!=null) result["menu"]=PawnDirectOrders.Inspect(map,new JObject{["pawnId"]=args["pawnId"].DeepClone(),["targetId"]=id});
+            if(retired) {
+                result["identity"]=new JObject{["requestedId"]=id,["resolvedId"]=target.thingIDNumber,["retired"]=true,
+                    ["match"]="same observed position, definition, material and rotation; later construction stage",
+                    ["instruction"]="Read-only resolution. Use resolvedId for any new query or action; the retired ID and its old action handles remain invalid."};
+                if(args["pawnId"]!=null) result["menu"]=new JObject{["error"]="retired_target",["instruction"]="Request native orders using resolvedId."};
+            }
+            if(args["pawnId"]!=null && !retired) result["menu"]=PawnDirectOrders.Inspect(map,new JObject{["pawnId"]=args["pawnId"].DeepClone(),["targetId"]=id});
             return result;
         }
     }

@@ -1,4 +1,4 @@
-// Test assembly only. Fixture setup is never compiled into the shipping mod.
+﻿// Test assembly only. Fixture setup is never compiled into the shipping mod.
 using System;
 using System.IO;
 using System.Linq;
@@ -21,7 +21,7 @@ namespace RimBot.Tests
     [StaticConstructorOnStartup]
     public static class BenchmarkBackground
     {
-        static BenchmarkBackground() { if(Environment.GetCommandLineArgs().Contains("-rimbot-benchmark")) { Prefs.RunInBackground=true; Application.runInBackground=true; var driver=new GameObject("RimBot benchmark loading"); UnityEngine.Object.DontDestroyOnLoad(driver); driver.AddComponent<BenchmarkLoading>(); } }
+        static BenchmarkBackground() { if(Environment.GetCommandLineArgs().Any(a=>a=="-rimbot-benchmark" || a=="-rimbot-selftest")) { Prefs.RunInBackground=true; Application.runInBackground=true; var driver=new GameObject("RimBot benchmark loading"); UnityEngine.Object.DontDestroyOnLoad(driver); driver.AddComponent<BenchmarkLoading>(); } }
     }
     public sealed class BenchmarkLoading : MonoBehaviour
     {
@@ -64,7 +64,7 @@ namespace RimBot.Tests
                     foreach(var target in original) map.GetComponent<ConstructionTargets>().Observe(target);
                     RimBotMod.Settings.managerProvider=LLMProviderType.Local;
                     var mode=Environment.GetCommandLineArgs().FirstOrDefault(a=>a.StartsWith("-rimbot-reasoning="));
-                    RimBotMod.Settings.localReasoningEffort=mode==null?"none":mode.Substring("-rimbot-reasoning=".Length);
+                    RimBotMod.Settings.strategicReasoningEffort=mode==null?"none":mode.Substring("-rimbot-reasoning=".Length);
                     manager.Goal="Finish the two existing bed blueprints using normal colony work. Assess and allow needed supplies. Do not add buildings or pursue other projects. Report a blocker if work cannot proceed.";
                     manager.Plan=""; manager.SetControl(ManagerControl.Automate);
                     Find.TickManager.CurTimeSpeed=TimeSpeed.Fast;
@@ -76,9 +76,11 @@ namespace RimBot.Tests
                     foreach(int oldId in originalBlueprintIds) {
                         var hint=JObject.Parse(map.GetComponent<ConstructionTargets>().Missing(oldId));
                         if(!hint["currentObjects"].Any(t=>t.Value<string>("stage")=="built" && t.Value<string>("defName")=="Bed")) throw new Exception("Missing current built bed at original blueprint site");
-                        bool rejected=false;
-                        try { SelectionInspection.Read(map,new JObject{["targetId"]=oldId}); } catch(ArgumentException ex) { rejected=JObject.Parse(ex.Message).Value<string>("error")=="target_gone"; }
-                        if(!rejected) throw new Exception("Stale target was silently accepted");
+                        var inspection=SelectionInspection.Read(map,new JObject{["targetId"]=oldId});
+                        if(inspection["identity"]?.Value<int>("requestedId")!=oldId || inspection["identity"].Value<bool>("retired")!=true ||
+                            inspection["identity"].Value<int>("resolvedId")!=inspection["target"].Value<int>("id") ||
+                            inspection["target"].Value<int>("id")==oldId || inspection["target"].Value<string>("stage")!="built")
+                            throw new Exception("Stale query did not return completed bed with explicit identity metadata");
                     }
                     Complete(true,"Three actual beds completed; stale blueprint queries report current built beds",built); return;
                 }
@@ -111,7 +113,7 @@ namespace RimBot.Tests
             done=true;
             var m=ColonyManager.Current; m?.SetControl(ManagerControl.Manual);
             File.WriteAllText(ResultPath,new JObject{["passed"]=pass,["reason"]=reason,["fixture"]=Fixture,
-                ["model"]=RimBotMod.Settings.managerModel,["reasoning"]=RimBotMod.Settings.localReasoningEffort,
+                ["model"]=RimBotMod.Settings.managerModel,["reasoning"]=RimBotMod.Settings.strategicReasoningEffort,
                 ["builtBeds"]=beds,["toolCalls"]=m?.TotalToolCalls,["repeatedResults"]=m?.RepeatedToolResults,
                 ["recoveries"]=m?.RecoveryRequests,["tokens"]=m?.Tokens,
                 ["gameTicks"]=Find.TickManager.TicksGame-startTick,["seconds"]=Time.realtimeSinceStartup-startTime}.ToString());

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -32,9 +32,9 @@ public static class StateTransferChecks
         ledger.ObserveConstruction(record,7700,"frame",5);
         check(record.Value<string>("state")=="In progress","Frame progress did not clear stall");
         ledger.ObserveConstruction(record,8000,"missing",0);
-        check(record.Value<string>("state")=="Missing","Disappeared order falsely completed");
+        check(record.Value<string>("state")=="Removed","Disappeared order should leave active work");
         ledger.ObserveConstruction(record,8100,"built",0);
-        check(record.Value<string>("state")=="Complete","Observed building not completed");
+        check(record.Value<string>("state")=="Removed","Historical order rebound to a replacement building");
         var restored=new TaskLedger(); restored.Load(ledger.Serialize());
         check(restored.Serialize()==ledger.Serialize(),"Tracked work save round-trip failed");
         check(restored.View(2).Count==0,"Other map's tasks leaked into context");

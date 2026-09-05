@@ -1,4 +1,4 @@
-// Compiled ONLY with -p:GameSmoke=true. Never shipped in the production package.
+﻿// Compiled ONLY with -p:GameSmoke=true. Never shipped in the production package.
 using System;
 using System.IO;
 using System.Linq;
@@ -14,17 +14,30 @@ namespace RimBot.Tests
     public class GameSmoke : GameComponent
     {
         private int stage;
+        private bool guiReady;
         private float doneAt;
         public GameSmoke(Game game) { }
+        public override void GameComponentOnGUI()
+        {
+            if(!Environment.GetCommandLineArgs().Contains("-rimbot-selftest") || guiReady) return;
+            var font=Text.Font; // Native menu labels require Text to initialize inside OnGUI.
+            guiReady=true;
+        }
         public override void GameComponentUpdate()
         {
             if(!Environment.GetCommandLineArgs().Contains("-rimbot-selftest")) return;
-            if(stage==0 && Find.CurrentMap!=null && Find.CurrentMap.mapPawns.FreeColonistsSpawned.Count>0)
+            if(stage==0 && (guiReady || Environment.GetCommandLineArgs().Contains("-rimbot-construction-smoke")) && Find.CurrentMap!=null && Find.CurrentMap.mapPawns.FreeColonistsSpawned.Count>0)
             {
                 stage=1;
                 try {
                     var map=Find.CurrentMap;
                     int pawns=map.mapPawns.FreeColonistsSpawned.Count;
+                    if(Environment.GetCommandLineArgs().Contains("-rimbot-construction-smoke")) {
+                        CheckConstruction(map,map.mapPawns.FreeColonistsSpawned[0]);
+                        if(map.mapPawns.FreeColonistsSpawned.Count!=pawns) throw new Exception("Construction smoke changed pawn count");
+                        Log.Message("[RimBot Smoke] PASS: construction-only lifecycle checks complete.");
+                        stage=3; doneAt=Time.realtimeSinceStartup+2; return;
+                    }
                     var firstPage=PawnQueries.Find(map,new JObject{["group"]="colonists",["limit"]=1});
                     if(firstPage["total"].Value<int>()!=pawns || firstPage["pawns"].Count()!=1) throw new Exception("Pawn query count/pagination failed");
                     int pawnId=firstPage["pawns"][0]["id"].Value<int>();
@@ -40,15 +53,20 @@ namespace RimBot.Tests
                     PawnDirectOrders.Toggle(map,toggle,false);
                     PawnDirectOrders.Toggle(map,toggle,false);
                     if(!orderedPawn.Drafted) throw new Exception("Native draft toggle was not idempotent");
-                    var destination=CellRect.CenteredOn(orderedPawn.Position,3).Cells.First(c=>c.InBounds(map) && !c.Fogged(map) && c.Standable(map));
+                    var destination=CellRect.CenteredOn(orderedPawn.Position,3).Cells.First(c=>c.InBounds(map) && !c.Fogged(map) && c!=orderedPawn.Position && c.Standable(map) && c.GetThingList(map).Count==0 && FloatMenuOptionProvider_DraftedMove.PawnCanGoto(orderedPawn,c).Accepted);
                     var orderArgs=new JObject{["pawnId"]=pawnId,["x"]=destination.x,["z"]=destination.z};
                     var priorProvider=FloatMenuMakerMap.currentProvider;
                     var choices=PawnDirectOrders.Inspect(map,orderArgs);
                     if(FloatMenuMakerMap.currentProvider!=priorProvider) throw new Exception("Native provider context leaked");
-                    var move=choices["orders"].FirstOrDefault(o=>o["enabled"].Value<bool>() && o["label"].Value<string>()=="GoHere".Translate().ToString());
-                    if(move==null) throw new Exception("No native move choice for drafted pawn");
+                    FloatMenuContext moveContext;
+                    var nativeMove=FloatMenuMakerMap.GetOptions(new System.Collections.Generic.List<Pawn>{orderedPawn},destination.ToVector3Shifted(),out moveContext)
+                        .FirstOrDefault(o=>o.isGoto && !o.Disabled && o.action!=null);
+                    var move=choices["orders"].FirstOrDefault(o=>o["enabled"].Value<bool>() && o["label"].Value<string>()==nativeMove?.Label);
+                    if(move==null) throw new Exception("No native move choice for drafted pawn at "+orderedPawn.Position+" toward "+destination+"; menu="+choices);
                     orderArgs["actionId"]=move["actionId"].DeepClone();
                     PawnDirectOrders.Execute(map,orderArgs);
+                    if(orderedPawn.CurJobDef!=JobDefOf.Goto || orderedPawn.CurJob.targetA.Cell!=destination)
+                        throw new Exception("Native move did not issue Goto to the selected empty cell; menu="+choices);
                     var previousJob=orderedPawn.CurJob;
                     orderArgs["actionId"]="not a native handle";
                     bool rejected=false; try { PawnDirectOrders.Execute(map,orderArgs); } catch(ArgumentException) { rejected=true; }
@@ -69,6 +87,7 @@ namespace RimBot.Tests
                     var animals=PawnQueries.Find(map,new JObject{["group"]="animals"});
                     foreach(var animal in animals["pawns"]) PawnQueries.Inspect(map,animal["id"].Value<int>(),"animal");
                     Log.Message("[RimBot Smoke] PASS: pawn pagination and pawn/animal detail sections.");
+                    CheckConstruction(map,orderedPawn);
                     var speed=Find.TickManager.CurTimeSpeed;
                     if(ColonyManager.Current.Automatic) throw new Exception("New games should default to Manual");
                     var manager=ColonyManager.Current;
@@ -157,6 +176,39 @@ namespace RimBot.Tests
                 stage=2; doneAt=Time.realtimeSinceStartup+3;
             }
             else if(stage>=2 && Time.realtimeSinceStartup>doneAt) { stage=4; Application.Quit(); }
+        }
+        private static void CheckConstruction(Map map,Pawn orderedPawn)
+        {
+            int pawnId=orderedPawn.thingIDNumber;
+                    var site=CellRect.CenteredOn(orderedPawn.Position,18).Cells.First(c=>c.InBounds(map) && !c.Fogged(map) &&
+                        c.GetEdifice(map)==null && !c.GetThingList(map).Any(t=>t is Blueprint || t is Frame) &&
+                        GenConstruct.CanPlaceBlueprintAt(ThingDefOf.Wall,c,Rot4.North,map).Accepted);
+                    Thing staged=null;
+                    try {
+                        PlayerConstruction.Place(ThingDefOf.Wall,site,map,Rot4.North,ThingDefOf.Steel);
+                        staged=site.GetThingList(map).First(t=>t is Blueprint && t.def.entityDefToBuild==ThingDefOf.Wall);
+                        int retiredId=staged.thingIDNumber;
+                        map.GetComponent<ConstructionTargets>().Observe(staged); staged.Destroy(); staged=null;
+                        staged=GenSpawn.Spawn(ThingMaker.MakeThing(ThingDefOf.Wall,ThingDefOf.WoodLog),site,map);
+                        if(map.GetComponent<ConstructionTargets>().ResolveReadOnly(retiredId)!=null) throw new Exception("Steel blueprint resolved to wooden replacement");
+                        staged.Destroy(); staged=null;
+                        staged=GenSpawn.Spawn(ThingMaker.MakeThing(ThingDefOf.Wall.frameDef,ThingDefOf.Steel),site,map);
+                        var frameRead=SelectionInspection.Read(map,new JObject{["targetId"]=retiredId});
+                        if(frameRead["target"].Value<int>("id")!=staged.thingIDNumber || frameRead["identity"].Value<int>("requestedId")!=retiredId)
+                            throw new Exception("Blueprint-to-frame read resolution failed");
+                        int frameId=staged.thingIDNumber; staged.Destroy(); staged=null;
+                        staged=GenSpawn.Spawn(ThingMaker.MakeThing(ThingDefOf.Wall,ThingDefOf.Steel),site,map);
+                        foreach(int retired in new[]{retiredId,frameId}) {
+                            var read=SelectionInspection.Read(map,new JObject{["targetId"]=retired,["pawnId"]=pawnId});
+                            if(read["target"].Value<string>("stage")!="built" || read["identity"].Value<int>("resolvedId")!=staged.thingIDNumber ||
+                                read["menu"].Value<string>("error")!="retired_target") throw new Exception("Retired construction did not expose built state without action handles");
+                            bool staleRejected=false;
+                            try { PawnDirectOrders.Inspect(map,new JObject{["pawnId"]=pawnId,["targetId"]=retired}); }
+                            catch(ArgumentException ex) { staleRejected=ex.Message.Contains("target_gone"); }
+                            if(!staleRejected) throw new Exception("Direct-order lookup accepted retired target ID");
+                        }
+                    } finally { if(staged!=null && !staged.Destroyed) staged.Destroy(); }
+                    Log.Message("[RimBot Smoke] PASS: blueprint/frame read resolution, material identity and stale action rejection.");
         }
     }
 }

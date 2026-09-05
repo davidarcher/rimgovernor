@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -20,6 +20,8 @@ internal static class Program
     {
         try {
             DecisionChecks.Run(Check);
+            TaskDismissChecks.Run(Check);
+            ManagementChecks.Run(Check);
             var budget=new ReviewBudget();
             Check(budget.CanReview(0,60),"First review blocked");
             budget.StartReview(0);

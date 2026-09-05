@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
@@ -29,7 +29,12 @@ namespace RimBot.Colony
                 var cell=new IntVec3(p.Value<int>("x"),0,p.Value<int>("z"));
                 if(!cell.InBounds(map) || cell.Fogged(map)) throw new ArgumentException("Placement must be visible and in bounds.");
                 foreach(var c in GenAdj.OccupiedRect(cell,new Rot4(rotation),def.Size).Cells) if(!occupied.Add(c)) throw new ArgumentException("Proposed footprints overlap at "+c);
-                if(cell.GetThingList(map).Any(t=>t.Position==cell && (t.def==def || t.def.entityDefToBuild==def))) continue;
+                var existing=cell.GetThingList(map).FirstOrDefault(t=>t.Position==cell && (t.def==def || t.def.entityDefToBuild==def));
+                if(existing!=null) {
+                    var actualStuff=existing is IConstructible pending?pending.EntityToBuildStuff():existing.Stuff;
+                    if(actualStuff!=(def.MadeFromStuff?stuff:null) || def.rotatable&&existing.Rotation.AsInt!=rotation) throw new ArgumentException("Different material/orientation still occupies "+cell+"; cancel or deconstruct the current object first (id="+existing.thingIDNumber+").");
+                    continue;
+                }
                 PlayerConstruction.Validate(def,cell,map,new Rot4(rotation),def.MadeFromStuff?stuff:null);
             }
         }

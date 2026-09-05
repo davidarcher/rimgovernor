@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using RimWorld;
@@ -9,7 +9,6 @@ namespace RimBot.Colony
     {
         private readonly DecisionMemory decisions=new DecisionMemory();
         private string decisionJson="";
-        private bool recoveryRequested,recoveryAttempted;
         public int TotalToolCalls { get; private set; }
         public int RepeatedToolResults { get; private set; }
         public int RecoveryRequests { get; private set; }

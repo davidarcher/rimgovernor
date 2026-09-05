@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -10,19 +10,27 @@ namespace RimBot.Colony
     {
         public JArray Rows { get; private set; }=new JArray();
         public string Serialize()=>Rows.ToString(Formatting.None);
+        public static bool IsActive(JToken row)=>!new[]{"Complete","Rejected","Removed","Missing"}.Contains(row.Value<string>("state"));
+        public bool Dismiss(int map,string id)
+        {
+            var row=Rows.OfType<JObject>().FirstOrDefault(r=>r.Value<int>("mapId")==map && r.Value<string>("id")==id);
+            if(row==null) return false;
+            row.Remove(); return true;
+        }
         private static bool Immediate(string tool)=>tool=="orders_allow" || tool=="orders_allow_all";
         public void Load(string json)
         {
             Rows=string.IsNullOrEmpty(json)?new JArray():JArray.Parse(json);
             foreach(var row in Rows.OfType<JObject>().Where(r=>Immediate(r.Value<string>("tool")) && r.Value<string>("state")=="Issued"))
                 row["state"]="Complete";
+            foreach(var row in Rows.OfType<JObject>().Where(r=>r.Value<string>("state")=="Missing")) row["state"]="Removed";
         }
         public void Record(int map,int tick,ToolCall call,string result,bool success)
         {
             if(!success) return; // Failed API attempts belong to error memory/activity, not colony work.
             var args=(JObject)(call.Arguments?.DeepClone()??new JObject());
             string project=args.Value<string>("projectId"); args.Remove("projectId");
-            var row=Rows.OfType<JObject>().FirstOrDefault(r=>r.Value<int>("mapId")==map && r.Value<string>("tool")==call.Name && JToken.DeepEquals(r["args"],args));
+            var row=Rows.OfType<JObject>().FirstOrDefault(r=>r.Value<int>("mapId")==map && IsActive(r) && r.Value<string>("tool")==call.Name && JToken.DeepEquals(r["args"],args));
             if(row==null) {
                 row=new JObject{["id"]=Guid.NewGuid().ToString("N"),["mapId"]=map,["tool"]=call.Name,["args"]=args}; Rows.Add(row);
             }
@@ -34,15 +42,15 @@ namespace RimBot.Colony
             // Allow changes a flag synchronously; it does not queue hauling or need approval.
             if(Immediate(call.Name)) row["state"]="Complete";
             while(Rows.Count>200) {
-                var old=Rows.OfType<JObject>().FirstOrDefault(r=>r.Value<string>("state")=="Complete" || r.Value<string>("state")=="Rejected");
+                var old=Rows.OfType<JObject>().FirstOrDefault(r=>!IsActive(r));
                 if(old==null) break; old.Remove();
             }
         }
         public void ObserveConstruction(JObject row,int tick,string stage,float work)
         {
-            if(row.Value<string>("state")=="Rejected") return;
+            if(!IsActive(row)) return;
             if(stage=="built") { row["state"]="Complete"; row["stage"]=stage; return; }
-            if(stage=="missing") { row["state"]="Missing"; row["stage"]=stage; return; }
+            if(stage=="missing") { row["state"]="Removed"; row["stage"]=stage; return; }
             bool progressed=row["stage"]!=null && (row.Value<string>("stage")!=stage || work>(row.Value<float?>("workDone")??0));
             if(progressed) row["lastProgressTick"]=tick;
             row["stage"]=stage; row["workDone"]=work;

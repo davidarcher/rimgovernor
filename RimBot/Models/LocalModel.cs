@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -47,7 +47,7 @@ namespace RimBot.Models
                 using (var request = new HttpRequestMessage(HttpMethod.Post, baseUrl + "/chat/completions"))
                 {
                     if (!string.IsNullOrWhiteSpace(apiKey)) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-                    var body = BuildRequest(messages, tools, model, maxTokens, reasoningEffort);
+                    var body = BuildRequest(messages, tools, model, maxTokens, thinkingLevel==ThinkingLevel.None ? reasoningEffort : "medium");
                     request.Content = new StringContent(body.ToString(Formatting.None), Encoding.UTF8, "application/json");
                     using (var cancellation = new CancellationTokenSource(requestTimeout))
                     using (var response = await Client.SendAsync(request,cancellation.Token).ConfigureAwait(false))

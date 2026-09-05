@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using RimBot.Models;
 using UnityEngine;
@@ -29,7 +29,6 @@ namespace RimBot
             if(Settings.managerProvider==LLMProviderType.Local) {
                 l.Label("LM Studio server address (include /v1):"); Settings.localUrl=l.TextEntry(Settings.localUrl);
                 l.Label("Server API token (optional; leave blank unless authentication is enabled):"); Settings.localApiKey=l.TextEntry(Settings.localApiKey);
-                l.Label("Execution reasoning (none = off; blank = server default):"); Settings.localReasoningEffort=l.TextEntry(Settings.localReasoningEffort);
                 l.Label("Planning reasoning (medium = on for Qwen; on/off aliases accepted):"); Settings.strategicReasoningEffort=l.TextEntry(Settings.strategicReasoningEffort);
                 l.Label("Local output length uses the server/context allowance; no mod token cap.");
                 l.Label("Start the server in LM Studio's Developer tab. Use a model that supports tools.");
@@ -49,7 +48,7 @@ namespace RimBot
                 l.Label("Paid API requests per hour: "+Settings.requestsPerHour); Settings.requestsPerHour=(int)l.Slider(Settings.requestsPerHour,1,120);
             }
             if(Settings.managerProvider!=LLMProviderType.Local) { l.Label("Maximum output tokens per daily request: "+Settings.maxTokens); Settings.maxTokens=(int)l.Slider(Settings.maxTokens,128,2048); l.Label("Strategic paid requests allow 8192 output tokens with medium reasoning."); }
-            l.Label("Local reviews have no turn or action cap. Paid APIs retain 3 steps / 4 actions. Unchanged summaries are skipped. No cloud fallback.");
+            l.Label("Local reviews have no turn or action cap. Paid APIs retain hourly spending and 4-action limits. Unchanged summaries are skipped. No cloud fallback.");
             settingsHeight=l.CurHeight+10; l.End(); Widgets.EndScrollView();
         }
     }

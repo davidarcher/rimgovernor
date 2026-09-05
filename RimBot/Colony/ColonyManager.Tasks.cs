@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using Verse;
@@ -10,6 +10,14 @@ namespace RimBot.Colony
         private readonly TaskLedger taskLedger=new TaskLedger();
         private string taskLedgerJson="";
         public JArray TrackedTasks=>taskLedger.View(mapId<0?(Find.CurrentMap?.uniqueID??-1):mapId);
+        public JArray ActiveTrackedTasks=>new JArray(TrackedTasks.Where(TaskLedger.IsActive));
+        public void DismissTrackedTask(string id)
+        {
+            int activeMap=mapId<0?(Find.CurrentMap?.uniqueID??-1):mapId;
+            if(!taskLedger.Dismiss(activeMap,id)) return;
+            nextObservation=0;
+            Record("Removed work entry from tracking. Colony orders are unchanged.");
+        }
         private void SaveTasks()
         {
             if(Scribe.mode==LoadSaveMode.Saving) taskLedgerJson=taskLedger.Serialize();
@@ -22,7 +30,7 @@ namespace RimBot.Colony
         private void ObserveTasks(Map map,int tick)
         {
             string before=taskLedger.DecisionKey(map.uniqueID);
-            foreach(var row in taskLedger.Rows.OfType<JObject>().Where(r=>r.Value<int>("mapId")==map.uniqueID && r.Value<string>("tool")=="architect_build")) {
+            foreach(var row in taskLedger.Rows.OfType<JObject>().Where(r=>r.Value<int>("mapId")==map.uniqueID && r.Value<string>("tool")=="architect_build" && TaskLedger.IsActive(r))) {
                 var args=row["args"]; var cell=new IntVec3(args.Value<int>("x"),0,args.Value<int>("z"));
                 if(!cell.InBounds(map) || cell.Fogged(map)) continue;
                 var thing=cell.GetThingList(map).FirstOrDefault(t=>t.Position==cell &&

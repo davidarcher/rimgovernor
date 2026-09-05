@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 using System.Collections.Generic;
 
@@ -306,7 +306,7 @@ case "areas_build_roof":
 
                 throw new ArgumentException("Unknown, unavailable, or invalid construction order.");
 
-            if(cell.GetThingList(map).Any(t=>t.def==def || t.def.entityDefToBuild==def)) return "Matching building or construction order already exists. Nothing added.";
+
 
             ThingDef stuff=null;
 
@@ -324,6 +324,12 @@ case "areas_build_roof":
 
             }
 
+            var existing=cell.GetThingList(map).FirstOrDefault(t=>t.def==def || t.def.entityDefToBuild==def);
+            if(existing!=null) {
+                var actualStuff=existing is IConstructible pending?pending.EntityToBuildStuff():existing.Stuff;
+                if(actualStuff==stuff && (!def.rotatable || existing.Rotation.AsInt==rotation)) return "Matching building or construction order already exists. Nothing added.";
+                throw new ArgumentException("A different material/orientation still occupies this cell: "+existing.Label+" (id="+existing.thingIDNumber+"). Cancel its pending blueprint or finish deconstruction before replacement. This is a current map object, not a tracked-work restriction.");
+            }
             var rot=new Rot4(rotation);
 
             var report=GenConstruct.CanPlaceBlueprintAt(def,cell,rot,map);
