@@ -46,9 +46,11 @@ class Planner:
             tool('query', 'Read RIMAPI state with local filtering/paging/sorting. near sorts positions by distance.', Query.model_json_schema()),
             tool('submit', 'Return your complete structured proposal, decision or plan.', contract.model_json_schema()),
         ]
-        instructions = BASE + '\n' + ROLES.get(role, role)
+        result_name = 'proposal' if contract is Proposal else 'decision' if contract is Decision else 'plan'
+        instructions = BASE + '\n' + ROLES.get(role, role) + f'\nFinish by calling submit with your complete {result_name}. A prose reply does not submit it. If blocked, submit the blockers; do not invent actions.'
         messages = [{'role':'system','content':instructions}, {'role':'user','content':json.dumps(context, separators=(',',':'), ensure_ascii=False)}]
         repeats = {}
+        repairs = 0
         while True:
             self.rt.check_generation()
             await self.rt.progress(role=role, phase='Thinking' if thinking else 'Reviewing')
@@ -61,7 +63,13 @@ class Planner:
                 try:
                     return contract.model_validate_json((reply.get('content') or '').strip().removeprefix('```json').removesuffix('```').strip())
                 except ValidationError as e:
-                    raise ModelError(f'{role} returned no usable structured decision.') from e
+                    errors = e.errors(include_input=False,include_url=False)
+                    self.rt.store.event(self.rt.colony, 'model_diagnostic', role=role, expected=result_name, response=reply, errors=errors)
+                    if repairs >= 2:
+                        raise ModelError(f'{role} returned no valid {result_name} after two format corrections. Details are in the exported log.') from e
+                    repairs += 1
+                    messages.extend([reply, {'role':'user','content':f'Your {result_name} was not submitted. Call submit using its schema. Validation errors: '+json.dumps(errors)+'. Keep your findings; correct the format. If no action is possible, report blockers in the submission.'}])
+                    continue
             messages.append(reply)
             submitted = None
             for c in calls:
@@ -85,6 +93,7 @@ class Planner:
                         raise ValueError('Use discover, describe, query or submit.')
                 except (ValueError, KeyError, RuntimeError) as e:
                     result = {'error':str(e)[:1400]}
+                    self.rt.store.event(self.rt.colony, 'model_diagnostic', role=role, call=c, error=str(e))
                 self.rt.counters['tools'] += 1
                 await self.rt.progress(detail=f'{role}: {f["name"]}', tools=self.rt.counters['tools'])
                 messages.append({'role':'tool','tool_call_id':c['id'],'content':json.dumps(compact(result, 14000), separators=(',',':'))})
@@ -93,7 +102,7 @@ class Planner:
             if sum(len(json.dumps(m)) for m in messages) > self.rt.settings.context_chars:
                 # Keep complete assistant/tool groups; never orphan a tool response.
                 last_assistant = max(i for i,m in enumerate(messages) if m['role']=='assistant')
-                messages = messages[:2] + [{'role':'system','content':'Older query results were compacted. Query again if needed; do not invent missing facts.'}] + messages[last_assistant:]
+                messages = messages[:2] + [{'role':'user','content':'Older query results were compacted. Query again if needed; do not invent missing facts.'}] + messages[last_assistant:]
 
     async def proposals(self, context, roles):
         proposals = {}

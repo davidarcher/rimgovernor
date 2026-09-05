@@ -211,7 +211,7 @@ async def test_complete_hierarchy_http_fixture(colony):
                 result=Plans(today=['Use the nearby supplies'],week=['Sustainable food'],season=['Develop production'],year=['Reliable settlement'],horizon='Room to grow',response='Start with nearby supplies.').model_dump()
             elif 'Administrator:' in system:
                 result=Decision(response='Allow the nearby timber; leave cave supplies alone.',accepted=['Infrastructure'],deferred={k:'No immediate order' for k in ['Survival','Security','Development','Workforce']}).model_dump()
-            elif system.endswith('Construction, rooms, storage filters, farms, production bills and power. Coordinate sites and materials using current map observations. Reuse existing structures when suitable.'):
+            elif 'Construction, rooms, storage filters, farms, production bills and power.' in system:
                 result=Proposal(summary='Release the nearby timber.',actions=[allow()]).model_dump()
             else:
                 result=Proposal(summary='No immediate order.').model_dump()
@@ -223,3 +223,57 @@ async def test_complete_hierarchy_http_fixture(colony):
     assert rt.memory['work'][0]['status']=='complete'
     assert rt.memory['chat'][-1]['role']=='manager'
     assert game.writes==['things/set-forbidden']
+
+
+async def test_prose_proposal_repaired_and_diagnostics_exported(colony):
+    rt,game=colony
+    rt.cycle_generation=rt.generation
+    replies=iter([
+        {'role':'assistant','content':'I will inspect supplies.'},
+        {'role':'assistant','content':json.dumps({'summary':'Inspect supplies first.','blockers':['Need supply locations']})},
+    ])
+    class Model:
+        async def complete(self,messages,tools,thinking,progress):
+            assert all(m['role']!='system' for m in messages[1:])
+            return next(replies),{}
+        async def close(self):pass
+    await rt.model.close();rt.model=Model()
+    proposal=await rt.planner.ask('Survival',{},Proposal)
+    assert proposal.blockers==['Need supply locations']
+    assert not game.writes
+    assert not any(e['kind']=='model_diagnostic' for e in rt.store.history(rt.colony))
+    diagnostics=[e for e in rt.store.history(rt.colony,include_diagnostics=True) if e['kind']=='model_diagnostic']
+    assert diagnostics[0]['response']['content']=='I will inspect supplies.'
+
+
+async def test_bad_proposal_format_correction_is_bounded(colony):
+    rt,_=colony
+    rt.cycle_generation=rt.generation
+    calls=[]
+    class Model:
+        async def complete(self,*args):
+            calls.append(1)
+            return {'role':'assistant','content':'No submission'},{}
+        async def close(self):pass
+    await rt.model.close();rt.model=Model()
+    with pytest.raises(ModelError,match='Survival returned no valid proposal after two format corrections'):
+        await rt.planner.ask('Survival',{},Proposal)
+    assert len(calls)==3
+
+
+async def test_compaction_keeps_system_first_and_tool_reply_paired(colony):
+    rt,_=colony
+    rt.cycle_generation=rt.generation
+    rt.settings.context_chars=1
+    calls=[]
+    class Model:
+        async def complete(self,messages,*args):
+            calls.append(1)
+            if len(calls)==1:
+                return {'role':'assistant','content':None,'tool_calls':[{'id':'query1','type':'function','function':{'name':'discover','arguments':'{"search":"beds"}'}}]},{}
+            assert [m['role'] for m in messages]==['system','user','user','assistant','tool']
+            assert messages[-1]['tool_call_id']==messages[-2]['tool_calls'][0]['id']
+            return {'role':'assistant','content':'{"summary":"No orders."}'},{}
+        async def close(self):pass
+    await rt.model.close();rt.model=Model()
+    assert (await rt.planner.ask('Survival',{},Proposal)).summary=='No orders.'

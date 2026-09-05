@@ -149,7 +149,7 @@ def create_app(runtime=None):
     @app.get('/api/history')
     async def export(request: Request):
         rt = request.app.state.rt
-        return Response('\n'.join(json.dumps(e) for e in rt.store.history(rt.colony,100000)), media_type='application/x-ndjson', headers={'Content-Disposition':'attachment; filename="rimbot-history.jsonl"'})
+        return Response('\n'.join(json.dumps(e) for e in rt.store.history(rt.colony,100000,include_diagnostics=True)), media_type='application/x-ndjson', headers={'Content-Disposition':'attachment; filename="rimbot-history.jsonl"'})
 
     @app.websocket('/api/video')
     async def video(ws: WebSocket):
