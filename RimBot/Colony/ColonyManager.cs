@@ -47,6 +47,7 @@ namespace RimBot.Colony
         private readonly NotificationFeed notificationFeed=new NotificationFeed();
         private double nextNotificationCheck;
         public string PlayerNotes="";
+        public string LatestDirection="";
         public bool Busy { get; private set; }
         public string Status="Manual mode. Enable Automate to manage the colony.";
         public int Tokens { get; private set; }
@@ -63,6 +64,11 @@ namespace RimBot.Colony
         public override void ExposeData()
         {
             Scribe_Values.Look(ref PlayerNotes,"managerPlayerNotes","");
+            Scribe_Values.Look(ref LatestDirection,"managerLatestDirection","");
+            if(Scribe.mode==LoadSaveMode.PostLoadInit && string.IsNullOrEmpty(LatestDirection)) {
+                int latest=PlayerNotes.LastIndexOf("\nPlayer: ",StringComparison.Ordinal);
+                if(latest>=0) LatestDirection=PlayerNotes.Substring(latest+9);
+            }
             Scribe_Values.Look(ref Plan,"colonyManagerPlan","");
             Scribe_Values.Look(ref Goal,"colonyManagerGoal",DefaultGoal);
             if(Scribe.mode==LoadSaveMode.PostLoadInit && Goal=="Keep the colony supplied and organized. Reuse shared facilities and let ordinary jobs finish.") Goal=DefaultGoal;
@@ -141,6 +147,7 @@ namespace RimBot.Colony
                 if(!target.Position.Fogged(map)) map.GetComponent<ConstructionTargets>().Observe(target);
             observedIdentifiers.RemoveMissingThings(new HashSet<int>(map.listerThings.AllThings.Where(t=>t.Spawned && !t.Position.Fogged(map)).Select(t=>t.thingIDNumber)));
             snapshot=ColonyTools.Snapshot(map);
+            snapshot["playerDirection"]=LatestDirection;
             snapshot["sleepingCapacity"]=ColonyObjectives.SleepingCapacity(facts);
             snapshot["objectives"]=new JArray(Objectives.Select(o=>o.ToJson()));
             snapshot["trackedTasks"]=taskLedger.View(map.uniqueID);
@@ -162,6 +169,7 @@ namespace RimBot.Colony
             if(text.Length>600) { Status="Keep directions under 600 characters."; return; }
             PlayerNotes=PlayerNotes+"\nPlayer: "+text;
             if(PlayerNotes.Length>1800) PlayerNotes=PlayerNotes.Substring(PlayerNotes.Length-1800);
+            LatestDirection=text; Plan=""; DayBrief=""; briefRequested=true;
             generation++; steerPending=true; lastFingerprint=null; nextObservation=0;
             Record("You: "+text);
             Status=Busy?"Direction queued; replacing the pending decision.":Automatic?"Direction received.":"Direction saved. Enable Automate to act.";
@@ -282,7 +290,7 @@ namespace RimBot.Colony
                         if(decisions.Observe(call,result,success)) { RepeatedToolResults++; recoveryRequested=true; }
                         StepProgress(call.Name,success);
                         if(ColonyTools.IsAction(call.Name)) { toolSession.ClearActions(); observedIdentifiers.ClearActionHandles(); }
-                        if(success && (call.Name=="selection_inspect" || call.Name=="pawns_orders")) toolSession.ObserveMenu(result);
+                        if((success && (call.Name=="selection_inspect" || call.Name=="pawns_orders")) || (!success && call.Name=="equipment_equip")) toolSession.ObserveMenu(result);
                         if(ColonyTools.IsAction(call.Name)) taskLedger.Record(map.uniqueID,Find.TickManager.TicksGame,call,result,success);
                         if(success) observedIdentifiers.Remember(call.Name,result);
                         string display=ActivitySummary.Tool(call,result,success);

@@ -80,8 +80,9 @@ namespace RimBot.Colony
         public string ProjectState(JToken project) => Strategy?.State(project,strategicMetrics,availableTools)??"Unplanned";
         private string TacticalStrategy()
         {
-            if(Strategy==null) return "No strategic plan yet. Handle immediate measured needs; report unsupported actions.";
-            return "Today: "+DayBrief+"\nSeason direction: "+Strategy.Season+"\nReady projects: "+StateTransfer.Projects(Strategy.Tactical(strategicMetrics,availableTools)).ToString(Formatting.None)+
+            string direction=string.IsNullOrEmpty(LatestDirection)?"":"Current player direction: "+LatestDirection+"\nAddress this direction before background projects unless an immediate emergency intervenes. Use game facts to recognize when it is fulfilled.\n";
+            if(Strategy==null) return direction+"No strategic plan yet. Handle immediate measured needs; report unsupported actions.";
+            return direction+"Today: "+DayBrief+"\nSeason direction: "+Strategy.Season+"\nReady projects: "+StateTransfer.Projects(Strategy.Tactical(strategicMetrics,availableTools)).ToString(Formatting.None)+
                 "\nOther projects remain saved. Do not recreate completed work. Urgent needs take precedence; only game measurements establish completion.";
         }
         public void RegenerateStrategy()

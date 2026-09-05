@@ -49,6 +49,9 @@ namespace RimBot.Colony
         {
             RequireMap(map);
             if(pawn==null || !pawn.CanTakeOrder || pawn.equipment==null) throw new ArgumentException("Choose a controllable pawn from pawns_list.");
+            if(item is Apparel && item.Spawned && item.Map==map && !item.Position.Fogged(map))
+                throw new ArgumentException(new JObject{["error"]="apparel_uses_wear",["message"]="This is clothing/armor, not a weapon. Choose the native Wear actionId below and call pawns_order. Nothing equipped by this call.",
+                    ["menu"]=PawnDirectOrders.Inspect(map,new JObject{["pawnId"]=pawn.thingIDNumber,["targetId"]=item.thingIDNumber})}.ToString(Newtonsoft.Json.Formatting.None));
             if(pawn.WorkTagIsDisabled(WorkTags.Violent)) throw new ArgumentException(pawn.LabelShort+" is incapable of violence (canFight=false). Drafting or choosing another weapon cannot remove this incapability.");
             if(item==null || !item.Spawned || item.Map!=map || item.Position.Fogged(map)) throw new ArgumentException("Weapon ID is not a visible item on this map. Query items_list with category=weapon and use items[].id as itemId; never a row number or definition name. Drafting is not required to equip.");
             var previous=FloatMenuMakerMap.currentProvider;

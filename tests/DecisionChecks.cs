@@ -14,6 +14,12 @@ internal static class DecisionChecks
         check(capacity.Value<int>("additionalSlotsNeeded")==0 && capacity.Value<int>("unshelteredBuiltSlots")==3,"Outdoor beds conflated with missing beds");
         sleep.Colonists=4;
         check(ColonyObjectives.SleepingCapacity(sleep).Value<int>("additionalSlotsNeeded")==1,"New colonist's bed demand hidden");
+        var items=ItemQuery.Find(new[]{new ItemRecord{Id=1,DefName="Helmet",Category="apparel",Count=1}},null,"apparel","any",0,0,0,10);
+        check(items["items"][0].Value<string>("category")=="apparel" && items["items"][0].Value<string>("nativeOrder").StartsWith("Wear"),"Apparel query omits native Wear route");
+        var menuSession=new ToolSession();
+        menuSession.ObserveMenu("{error:'apparel_uses_wear',menu:{orders:[{enabled:true,actionId:'wear-current',label:'Force wear helmet'}]}}");
+        var wearSchema=JObject.Parse(System.Linq.Enumerable.First(menuSession.Definitions(),d=>d.Name=="pawns_order").ParametersJson);
+        check(wearSchema["properties"]["actionId"]["enum"][0].Value<string>()=="wear-current","Wear handle in equipment error omitted from next schema");
         var identifiers=new ObservedIdentifiers();
         identifiers.Remember("construction_list","[{id:42,defName:'Bed',stage:'blueprint'},{id:43,defName:'Bed',stage:'frame'}]");
         identifiers.Remember("zones_list","[{id:42,name:'Stockpile'}]");
