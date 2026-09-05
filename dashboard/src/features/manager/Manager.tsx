@@ -1,5 +1,6 @@
 import {useEffect,useRef,useState} from 'react';
 import Camera from './Camera';
+import Diagnostics from './Diagnostics';
 import {useController,ControllerState} from './useController';
 import './Manager.css';
 
@@ -12,6 +13,7 @@ export default function Manager({onInspect}:{onInspect:()=>void}) {
   const [direction,setDirection]=useState(''),[goal,setGoal]=useState(''),[tab,setTab]=useState('today');
   const [details,setDetails]=useState(false),[history,setHistory]=useState(false),[settings,setSettings]=useState(false),[sending,setSending]=useState(false);
   const [now,setNow]=useState(Date.now());
+  const [diagnostics,setDiagnostics]=useState(false);
   const chat=useRef<HTMLDivElement>(null),input=useRef<HTMLTextAreaElement>(null);
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t);},[]);
   useEffect(()=>{if(chat.current)chat.current.scrollTop=chat.current.scrollHeight;},[s?.memory.chat.length]);
@@ -31,6 +33,7 @@ export default function Manager({onInspect}:{onInspect:()=>void}) {
     <section className="mgr-card"><div className="mgr-card-title"><div><span className="mgr-eyebrow">FOLLOWING THROUGH</span><h2>Work <span className="mgr-muted">{work.length}</span></h2></div><label className="mgr-small"><input type="checkbox" checked={history} onChange={e=>setHistory(e.target.checked)}/> Show finished</label></div><div className="mgr-work">{work.length?work.map(w=><div className="mgr-work-row" key={w.id}><span className={w.status==='complete'?'done':''}>{w.status==='complete'?'✓':'◷'}</span><div><b>{w.title}</b><p>{w.detail}</p><small>{w.role} · {w.status}</small></div><button title="Remove from tracking; game orders stay in place" aria-label={`Dismiss ${w.title}`} onClick={()=>act('work/'+w.id,undefined,'DELETE')}>×</button></div>):<p className="mgr-empty">No tracked work. Orders appear here with their observed progress.</p>}</div></section>
     </div></div>
     <section className="mgr-card mgr-activity-card"><div className="mgr-card-title"><div className="mgr-inline"><h2>Activity</h2><span className="mgr-small">{s?.counters.model_calls||0} model calls · {s?.counters.tools||0} tools · {s?.counters.output_tokens||0} output tokens</span></div><div className="mgr-inline"><label className="mgr-small"><input type="checkbox" checked={details} onChange={e=>setDetails(e.target.checked)}/> Details</label><a href="/api/history" download>Export log</a></div></div><div className="mgr-activity">{s?.activity.filter(e=>e.kind!=='progress').slice(-30).reverse().map(e=><div className={'mgr-event '+e.kind} key={e.id}><time>{stamp(e.at)}</time><span>{e.role||e.kind}</span>{details?<details><summary>{e.text}</summary><pre>{JSON.stringify(e,null,2)}</pre></details>:<p>{e.text}</p>}</div>)}</div></section>
+    <section className="mgr-card"><div className="mgr-card-title"><button aria-expanded={diagnostics} onClick={()=>setDiagnostics(v=>!v)}>{diagnostics?'Hide diagnostics':'Diagnostics'}</button><a href="/api/history" download>Export full log</a></div>{diagnostics&&<Diagnostics/>}</section>
     <footer className="mgr-footer"><span>Built on RIMAPI Dashboard · Local colony controller</span><span>{s?.capabilities||0} available capabilities · Events {s?.events_connected?'connected':'reconnecting'}</span></footer></main>
     {settings&&s&&<SettingsDialog state={s} onClose={()=>setSettings(false)} save={async settings=>{if(await act('settings',settings))setSettings(false);}}/>}
     {error&&<div role="alert" className="mgr-toast"><span>{error}</span><button aria-label="Dismiss error" onClick={()=>setError('')}>×</button></div>}

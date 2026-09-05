@@ -151,6 +151,12 @@ def create_app(runtime=None):
         rt = request.app.state.rt
         return Response('\n'.join(json.dumps(e) for e in rt.store.history(rt.colony,100000,include_diagnostics=True)), media_type='application/x-ndjson', headers={'Content-Disposition':'attachment; filename="rimbot-history.jsonl"'})
 
+    @app.get('/api/diagnostics')
+    async def diagnostics(request: Request):
+        rt=request.app.state.rt
+        rows=rt.store.db.execute("SELECT id,at,data FROM events WHERE colony=? AND kind='model_diagnostic' ORDER BY id DESC LIMIT 100",(rt.colony,)).fetchall()
+        return [dict(id=r[0],at=r[1],**json.loads(r[2])) for r in rows]
+
     @app.websocket('/api/video')
     async def video(ws: WebSocket):
         origin = ws.headers.get('origin','')
