@@ -32,7 +32,7 @@ Options:
 .\launch.cmd -NormalGame             # Open the main menu instead of quicktest
 ```
 
-RimWorld must have **Harmony and RIMAPI enabled**, and the old **RimBot mod disabled**.
+RimWorld must have **Harmony and RIMAPI enabled**.
 Enable **Run in background** in RimWorld so it advances while viewing the browser.
 The launcher does not change mod selection, install a DLL, or start LM Studio.
 Start LM Studio's local server with your selected Qwen model. Default addresses
@@ -85,9 +85,8 @@ context size are configurable. No tiny action quota or tool rotation is used.
 
 See `docs/EXTERNAL_CONTROLLER.md` for the architecture, validation boundary and
 remaining integrations; `THIRD_PARTY.md` records source revisions and licenses.
-The retired RimBot C# mod, packaging, and test harness have been removed. Its
-history remains in Git at `bf9a1eb`. Native game integration lives in
-`integrations/RIMAPI`; the Python controller and dashboard are the supported runtime.
+Native game integration lives in `integrations/RIMAPI`; Python runs the controller
+and the web dashboard supplies the player interface.
 
 Tests verify contracts, orchestration, error handling, HTTP transports and UI
 behavior. They do not establish real-model gameplay competence. Real RIMAPI video

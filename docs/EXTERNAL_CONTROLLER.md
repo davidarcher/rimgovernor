@@ -1,10 +1,8 @@
-# External controller migration
+# External controller architecture
 
 The supported runtime is now Python/FastAPI plus a customized React/TypeScript
-RIMAPI Dashboard. RimWorld runs Harmony and RIMAPI; the old RimBot DLL must be
-disabled to avoid two controllers. The retired mod's C# source, tests, and packaging
-have been removed from the working tree; their history remains in Git at
-`bf9a1eb`. The launcher starts the external runtime.
+RIMAPI Dashboard. RimWorld runs Harmony and RIMAPI. The launcher starts the Python
+controller, the game, and the dashboard.
 
 ## Responsibilities
 
