@@ -52,6 +52,12 @@ class Catalog:
                 props['force'] = {'const': False}
             if e['name'] == 'post_builder_blueprint':
                 props['clear_obstacles'] = {'const': False}
+                e['description'] += ' Construct ordinary building blueprints from ThingDefs, not premade structure templates. Discover ThingDefs using get_def_all with query.path=things_defs and query.where={category: Building}. Put furniture and walls in blueprint.buildings; floors are TerrainDefs only. position is the anchor; rel_x/rel_z are offsets. Use observed definitions and terrain, not guessed names or layouts.'
+                props['blueprint']['description']='Payload assembled by the manager using the buildings and floors schemas below; no separate blueprint-definition registry is required.'
+                props['blueprint']['properties']['buildings']['description']='Building ThingDefs (furniture, walls, doors). def_name identifies what to construct; stuff_def_name selects its material when applicable.'
+            if e['name']=='get_def_all':
+                e['description'] += ' Returns definition groups such as things_defs and terrain_defs. filters selects GROUPS, not individual names. Omit filters to use the complete session snapshot. Use query.path=things_defs and query.where={def_name: observed name} or {category: Building} to filter individual definitions. No separate structure-blueprint definitions are needed for construction.'
+                props['filters']['description']='Optional definition group names, e.g. ThingsDefs or TerrainDefs. Not building names. Prefer omitting this and selecting the group with query.path.'
             e['schema']['required'] = sorted(set(e['schema'].get('required', []) + REQUIRED.get(e['name'], [])))
             if e['name'] in ('get_colonist_detailed','get_colonists_detailed'):
                 e['description'] += ' Work priorities include only enabled work (priority > 0) and are sorted by priority; disabling work removes its row. Filter by work_type, never rely on array position. Use query.path=colonist_work_info.work_priorities on a single pawn and where={work_type: observed name}; total=0 means that work is not enabled.'

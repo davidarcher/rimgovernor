@@ -65,6 +65,21 @@ class RimAPI:
 
     async def call(self, name, args, *, write=None, fresh=False):
         e = self.catalog.validate(name, args, write)
+        if name=='get_def_all':
+            # Upstream caches every filter variant under the same key. Always
+            # request one complete snapshot and filter groups locally.
+            key=(name,'{}')
+            if fresh or key not in self.cache:
+                self.cache[key]=await self.request('GET',e['path'],body={})
+            definitions=self.cache[key]
+            filters=args.get('filters') or []
+            if not filters or any(f.lower()=='all' for f in filters):
+                return copy.deepcopy(definitions)
+            groups={k.replace('_','').lower():k for k in definitions}
+            unknown=[f for f in filters if f.replace('_','').lower() not in groups]
+            if unknown:
+                raise ValueError('Definition filters select groups, not item names. Unknown: '+', '.join(unknown)+'. Groups: '+', '.join(definitions))
+            return {groups[f.replace('_','').lower()]:copy.deepcopy(definitions[groups[f.replace('_','').lower()]]) for f in filters}
         cache_key = (name, json.dumps(args, sort_keys=True))
         # Definition data changes at a mod/session boundary, not every review.
         definition = '/def/' in e['path'] or name in ('get_work_list', 'get_time_assignments')

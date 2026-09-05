@@ -48,6 +48,22 @@ async def test_submission_rejects_nonexistent_completion_field(colony):
     assert not game.writes
 
 
+async def test_definition_groups_share_one_unfiltered_snapshot(colony):
+    rt,_=colony
+    requests=[]
+    async def request(method,path,**kwargs):
+        requests.append(kwargs)
+        return {'things_defs':[{'def_name':'ModdedBed'}],'terrain_defs':[{'def_name':'Soil'}]}
+    rt.api.request=request
+    things=await rt.api.call('get_def_all',{'filters':['ThingsDefs']})
+    terrain=await rt.api.call('get_def_all',{'filters':['TerrainDefs']})
+    assert things['things_defs'][0]['def_name']=='ModdedBed'
+    assert terrain['terrain_defs'][0]['def_name']=='Soil'
+    assert requests==[{'body':{}}]
+    with pytest.raises(ValueError,match='groups, not item names'):
+        await rt.api.call('get_def_all',{'filters':['ModdedBed']})
+
+
 async def test_video_recovers_abandoned_receiver_and_shares_stream():
     with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as receiver:
         receiver.bind(('127.0.0.1',0))
