@@ -2,7 +2,7 @@ import {useEffect,useRef,useState} from 'react';
 import {command} from './useController';
 
 export default function Camera({connected}:{connected:boolean}) {
-  const [live,setLive]=useState(false),[image,setImage]=useState(''),[error,setError]=useState('');
+  const [live,setLive]=useState(true),[image,setImage]=useState(''),[error,setError]=useState('');
   const [frames,setFrames]=useState(0),[waiting,setWaiting]=useState(false);
   const [stale,setStale]=useState(false);
   const lastFrame=useRef(0);

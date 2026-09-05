@@ -11,16 +11,18 @@ class ModelError(RuntimeError):
 class LocalModel:
     def __init__(self, settings, transport=None):
         self.settings = settings
+        self.reasoning_style = 'standard'
         self.http = httpx.AsyncClient(base_url=settings.model_url, timeout=httpx.Timeout(600, connect=10), transport=transport, trust_env=False)
 
     async def close(self):
         await self.http.aclose()
 
-    async def complete(self, messages, tools, thinking, progress):
+    async def complete(self, messages, tools, thinking, progress, _retried=False):
+        effort = ('medium' if thinking else 'none') if self.reasoning_style == 'standard' else ('on' if thinking else 'off')
         body = {'model':self.settings.model, 'messages':messages, 'stream':True,
                 'stream_options':{'include_usage':True}, 'temperature':0.35,
                 'max_tokens':self.settings.max_output_tokens,
-                'reasoning_effort':'on' if thinking else 'off',
+                'reasoning_effort':effort,
                 'chat_template_kwargs':{'enable_thinking':thinking}}
         if tools:
             body.update(tools=tools, tool_choice='auto')
@@ -29,7 +31,16 @@ class LocalModel:
         try:
             async with self.http.stream('POST', '/chat/completions', json=body) as r:
                 if r.status_code != 200:
-                    raise ModelError(f'Local model HTTP {r.status_code}: {(await r.aread()).decode()[:600]}')
+                    detail = (await r.aread()).decode()
+                    # Retry only an explicit parameter rejection, before generation.
+                    # Older local servers accept on/off; compatible endpoints use levels.
+                    if r.status_code == 400 and not _retried and 'reasoning_effort' in detail:
+                        import re
+                        supported = detail.split('Supported', 1)[-1]
+                        if re.search(r'\bon\b', supported) and re.search(r'\boff\b', supported):
+                            self.reasoning_style = 'toggle'
+                            return await self.complete(messages, tools, thinking, progress, _retried=True)
+                    raise ModelError(f'Local model HTTP {r.status_code}: {detail[:600]}')
                 async for line in r.aiter_lines():
                     if not line.startswith('data:'):
                         continue
