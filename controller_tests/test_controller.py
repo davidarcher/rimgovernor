@@ -277,3 +277,26 @@ async def test_compaction_keeps_system_first_and_tool_reply_paired(colony):
         async def close(self):pass
     await rt.model.close();rt.model=Model()
     assert (await rt.planner.ask('Survival',{},Proposal)).summary=='No orders.'
+
+
+async def test_submit_missing_action_arguments_can_be_corrected(colony):
+    rt,game=colony
+    rt.cycle_generation=rt.generation
+    calls=[]
+    bad=allow().model_dump();bad['arguments']={}
+    class Model:
+        async def complete(self,messages,*args):
+            calls.append(1)
+            if len(calls)==1:
+                proposal={'summary':'Long but valid prose. '*30,'actions':[bad]}
+            else:
+                feedback=json.loads(messages[-1]['content'])
+                assert 'actions[0]' in feedback['error'] and 'required' in feedback['error']
+                assert '350' not in feedback['error']
+                proposal=Proposal(summary='Allow nearby timber.',actions=[allow()]).model_dump()
+            return {'role':'assistant','tool_calls':[{'id':str(len(calls)),'type':'function','function':{'name':'submit','arguments':json.dumps(proposal)}}]},{}
+        async def close(self):pass
+    await rt.model.close();rt.model=Model()
+    p=await rt.planner.ask('Infrastructure',{},Proposal)
+    assert p.actions[0].arguments['thing_ids']==[101]
+    assert len(calls)==2 and not game.writes

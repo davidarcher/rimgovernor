@@ -8,7 +8,7 @@ class Contract(BaseModel):
 
 class Query(Contract):
     endpoint: str
-    arguments: dict[str, Any] = Field(default_factory=dict)
+    arguments: dict[str, Any] = Field(default_factory=dict, description='Only arguments from the endpoint contract. Filtering, fields, limit and offset belong beside arguments, not inside it.')
     path: str = ''
     where: dict[str, Any] = Field(default_factory=dict)
     fields: list[str] = Field(default_factory=list)
@@ -35,7 +35,7 @@ class Action(Contract):
 
 
 class Proposal(Contract):
-    summary: str = Field(max_length=350)
+    summary: str = Field(description='One or two short sentences. Put detailed work in actions and blockers, not this summary.')
     priority: Literal['urgent','high','normal','low'] = 'normal'
     actions: list[Action] = Field(default_factory=list)
     labor: list[str] = Field(default_factory=list)

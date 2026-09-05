@@ -39,6 +39,23 @@ class Planner:
     def __init__(self, runtime):
         self.rt = runtime
 
+    def validate_submission(self, role, value):
+        if not isinstance(value,Proposal):
+            return value
+        errors=[]
+        for index,action in enumerate(value.actions):
+            try:
+                self.rt.catalog.validate(action.endpoint,action.arguments,True)
+                entry=self.rt.catalog.get(action.done.query.endpoint,False)
+                if entry['path'].startswith('/api/v1/def/'):
+                    raise ValueError('Completion must inspect live colony state, not the definition database.')
+                self.rt.validate_check(action.done)
+                for check in action.requires:self.rt.validate_check(check)
+            except ValueError as e:
+                errors.append(f'actions[{index}] ({action.title}): {e}')
+        if errors:raise ValueError('\n'.join(errors))
+        return value
+
     async def ask(self, role, context, contract, thinking=True):
         tools = [
             tool('discover', 'Find available RIMAPI endpoints by words. Empty search lists all.', {'type':'object','properties':{'search':{'type':'string'}},'required':['search'],'additionalProperties':False}),
@@ -61,9 +78,9 @@ class Planner:
             if not calls:
                 # Some local models return JSON instead of calling submit.
                 try:
-                    return contract.model_validate_json((reply.get('content') or '').strip().removeprefix('```json').removesuffix('```').strip())
-                except ValidationError as e:
-                    errors = e.errors(include_input=False,include_url=False)
+                    return self.validate_submission(role,contract.model_validate_json((reply.get('content') or '').strip().removeprefix('```json').removesuffix('```').strip()))
+                except ValueError as e:
+                    errors = e.errors(include_input=False,include_url=False) if isinstance(e,ValidationError) else [{'msg':str(e)}]
                     self.rt.store.event(self.rt.colony, 'model_diagnostic', role=role, expected=result_name, response=reply, errors=errors)
                     if repairs >= 2:
                         raise ModelError(f'{role} returned no valid {result_name} after two format corrections. Details are in the exported log.') from e
@@ -78,10 +95,11 @@ class Planner:
                 repeats[key] = repeats.get(key, 0)+1
                 if repeats[key] > 3:
                     raise ModelError(f'{role} repeated the same call without progress: {f["name"]}')
+                args = {}
                 try:
                     args = json.loads(f['arguments'])
                     if f['name'] == 'submit':
-                        submitted = contract.model_validate(args)
+                        submitted = self.validate_submission(role,contract.model_validate(args))
                         result = {'received':True}
                     elif f['name'] == 'discover':
                         result = self.rt.catalog.listing(args.get('search',''))
@@ -93,6 +111,10 @@ class Planner:
                         raise ValueError('Use discover, describe, query or submit.')
                 except (ValueError, KeyError, RuntimeError) as e:
                     result = {'error':str(e)[:1400]}
+                    if f['name']=='query' and isinstance(args,dict):
+                        try:result['expected_arguments']=self.rt.catalog.get(args.get('endpoint',''))['schema']
+                        except ValueError:pass
+                        result['hint']='Use this endpoint schema for arguments. Put limit, offset, fields, where and sort_by at the top level of query.'
                     self.rt.store.event(self.rt.colony, 'model_diagnostic', role=role, call=c, error=str(e))
                 self.rt.counters['tools'] += 1
                 await self.rt.progress(detail=f'{role}: {f["name"]}', tools=self.rt.counters['tools'])
