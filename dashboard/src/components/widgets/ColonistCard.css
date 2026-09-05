@@ -1,0 +1,598 @@
+/* src/components/ColonistCard.css */
+
+/* --- HEADER STRUCTURE --- */
+.colonist-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+    /* Removed flex:0 0 auto here because it's inside the scrollable wrapper, 
+       but margin separates it nicely */
+}
+
+/* Gradient underline effect */
+.colonist-card-header::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, #4dabf7, transparent);
+    border-radius: 3px;
+}
+
+.colonist-basic-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex: 1;
+    min-width: 0; /* Prevent text overflow issues */
+}
+
+/* Portrait */
+.colonist-portrait {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 3px solid rgba(255, 255, 255, 0.15); /* Slightly thicker border for emphasis */
+    background: rgba(0, 0, 0, 0.4);
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    position: relative;
+}
+
+.colonist-portrait img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Name & Mood Container */
+.colonist-name-mood {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+}
+
+.colonist-name-mood h3 {
+    margin: 0;
+    color: #fff;
+    font-size: 1.1em;
+    font-weight: 700;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Mood Pill */
+.colonist-mood {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 4px 10px;
+    border-radius: 16px;
+    width: fit-content;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mood-label {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.75em;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.mood-value {
+    font-weight: 700;
+    font-size: 0.9em;
+}
+.mood-value.good { color: #51cf66; }
+.mood-value.bad { color: #ff6b6b; }
+
+/* Change Button */
+.change-colonist-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #e0e0e0;
+    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.change-colonist-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: rotate(15deg);
+    color: #fff;
+}
+
+/* --- CONTENT --- */
+.colonist-card-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Small View */
+.colonist-needs-small {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.need-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.need-label { font-size: 0.85em; color: #ccc; }
+.need-value { font-weight: 600; font-size: 0.9em; }
+
+/* Large View */
+.colonist-large-view {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.mood-breakdown {
+    padding-bottom: 5px;
+}
+
+.mood-bar {
+    height: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.mood-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ff6b6b, #fcc419, #51cf66);
+    border-radius: 5px;
+    transition: width 0.5s ease;
+}
+
+/* Needs Grid */
+.needs-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* Force 3 columns for Hunger/Joy/Sleep */
+    gap: 10px;
+}
+
+.need-card {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.need-card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.need-card-header h5 {
+    margin: 0;
+    font-size: 0.85em;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.need-card-bar {
+    height: 6px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.need-card-fill {
+    height: 100%;
+    border-radius: 3px;
+}
+.need-card-fill.good { background: #51cf66; }
+.need-card-fill.medium { background: #fcc419; }
+.need-card-fill.bad { background: #ff6b6b; }
+
+.need-card-stats { text-align: right; }
+.need-card-value { font-size: 0.9em; font-weight: 700; color: #fff; }
+
+/* Actions */
+.colonist-actions-full {
+    display: flex;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.action-btn {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #4dabf7;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: background 0.2s;
+}
+
+.action-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+/* Selector & Refresh */
+.refresh-indicator {
+    position: absolute;
+    top: 4px; right: 4px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #51cf66;
+    box-shadow: 0 0 5px #51cf66;
+    animation: pulse 2s infinite;
+}
+
+/* Make grid responsive for very small sizes */
+@media (max-width: 400px) {
+    .needs-grid { grid-template-columns: 1fr; }
+}
+
+/* Detailed Need Cards */
+.need-card {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.need-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.need-card-header h5 {
+    margin: 0;
+    font-size: 0.9em;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.8);
+    /* Force Left Align */
+    flex: 1;
+    text-align: left;
+}
+
+.need-card-stats { 
+    display: flex;
+    justify-content: flex-end; /* Align value to right */
+    margin-top: 4px;
+}
+
+.need-card-value { 
+    font-size: 1.1em; 
+    font-weight: 700; 
+    /* Color handled by utility classes above */
+}
+
+/* --- SMALL VIEW LIST --- */
+.colonist-needs-small {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.need-item {
+    display: flex;
+    align-items: center;
+    /* Removed justify-content: space-between; using flex-grow on label instead */
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.need-label {
+    font-size: 0.9em;
+    color: #b0b0b0;
+    font-weight: 500;
+    margin-left: 10px;
+    /* Pushes value to the right and ensures left alignment */
+    flex: 1; 
+    text-align: left; 
+}
+
+.need-value {
+    font-weight: 700;
+    font-size: 0.95em;
+    min-width: 35px;
+    text-align: right;
+}
+
+/* Text Colors for Values */
+.need-value.good, .need-card-value.good { color: #51cf66; text-shadow: 0 0 10px rgba(81, 207, 102, 0.3); }
+.need-value.medium, .need-card-value.medium { color: #fcc419; text-shadow: 0 0 10px rgba(252, 196, 25, 0.3); }
+.need-value.bad, .need-card-value.bad { color: #ff6b6b; text-shadow: 0 0 10px rgba(255, 107, 107, 0.3); }
+
+
+/* --- EMPTY STATE --- */
+.colonist-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 180px;
+    gap: 12px;
+    padding: 20px;
+    text-align: center;
+}
+
+.empty-icon {
+    font-size: 2.5rem;
+    opacity: 0.3;
+    filter: grayscale(1);
+}
+
+.colonist-empty-state p {
+    color: rgba(255, 255, 255, 0.5);
+    margin: 0;
+    font-size: 0.9em;
+    font-style: italic;
+}
+
+.select-pawn-btn {
+    background: #4dabf7;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 15px rgba(77, 171, 247, 0.3);
+}
+
+.select-pawn-btn:hover {
+    background: #339af0;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(77, 171, 247, 0.4);
+}
+
+.select-pawn-btn:active {
+    transform: translateY(0);
+}
+
+/* Ensure selector fills space properly when triggered */
+.colonist-selector {
+    width: 100%;
+}
+
+/* --- SELECTOR MODAL OVERLAY --- */
+.colonist-selector-full-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #1a1b1e; /* Match your dashboard card background */
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    border-radius: 8px; /* Match card radius */
+}
+
+/* Header for the selection window */
+.overlay-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.overlay-header h3 {
+    margin: 0;
+    font-size: 1.1em;
+    color: #fff;
+}
+
+.close-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.5);
+    font-size: 1.2em;
+    cursor: pointer;
+}
+.close-btn:hover { color: #fff; }
+
+/* Adjust existing selector to fit the full overlay */
+.colonist-selector {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Prevent spillover */
+}
+
+.colonist-selector-list {
+    flex: 1;
+    overflow-y: auto;
+    margin-top: 10px;
+    padding-right: 5px; /* Space for scrollbar */
+}
+
+/* src/components/ColonistCard.css */
+
+/* --- SELECTOR MODAL OVERLAY --- */
+.colonist-selector-full-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #1e1e1e; /* Solid background to hide card content */
+    z-index: 50; /* Ensure it is above everything else in the card */
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    border-radius: 8px;
+    box-sizing: border-box; /* Crucial for padding to not break layout */
+}
+
+/* Header */
+.overlay-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    flex-shrink: 0; /* Header shouldn't shrink */
+}
+
+.overlay-header h3 {
+    margin: 0;
+    font-size: 1.1em;
+    color: #fff;
+    font-weight: 600;
+}
+
+.close-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.5);
+    font-size: 1.4em;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 5px;
+}
+.close-btn:hover { color: #fff; }
+
+/* Selector Container */
+.colonist-selector {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Crucial for nested flex scrolling */
+}
+
+/* Search Box Styling */
+.search-box {
+    margin-bottom: 10px;
+    flex-shrink: 0;
+}
+
+/* Specific styling for the input to override any dashboard defaults */
+.search-box input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    color: #e0e0e0;
+    font-size: 0.95em;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.search-box input[type="text"]:focus {
+    border-color: #4dabf7;
+    background: rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 0 2px rgba(77, 171, 247, 0.2);
+}
+
+/* List Container */
+.colonist-selector-list {
+    flex: 1;
+    overflow-y: auto; /* Enable scrolling */
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-right: 5px; /* Room for scrollbar */
+}
+
+/* Scrollbar styling for the list */
+.colonist-selector-list::-webkit-scrollbar {
+    width: 6px;
+}
+.colonist-selector-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+/* List Items */
+.colonist-item {
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.1s ease-in-out;
+    flex-shrink: 0; /* Prevent items from getting squashed */
+}
+
+.colonist-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.colonist-item.selected {
+    background: rgba(77, 171, 247, 0.15);
+    border-color: rgba(77, 171, 247, 0.5);
+}
+
+.colonist-name {
+    font-weight: 500;
+    color: #eee;
+}
+
+.colonist-age {
+    color: #888;
+    font-size: 0.85em;
+}
+
+/* Actions (Cancel button at bottom) */
+.selector-actions {
+    margin-top: 10px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.selector-actions .action-btn {
+    padding: 6px 14px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: 4px;
+    color: #bbb;
+}
+.selector-actions .action-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}

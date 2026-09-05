@@ -1,44 +1,93 @@
-# RimBot Colony Manager
+# RimBot
 
-One AI manages the colony through ordinary player orders. No per-pawn agents, ownership rules, difficulty patches, pawn deletion or spawned buildings. LM Studio is the default; paid APIs are explicit options.
+An external RimWorld colony controller with a local web dashboard. Python runs the
+manager; RIMAPI runs inside the game. The dashboard is customized from RIMAPI
+Dashboard, retaining its colony inspectors alongside our management workspace.
 
-## Play
+## Launch
 
-Open Colony AI and select Automate. Reviews run when colony conditions or your direction change, respecting the configured interval and game pause. Manual stops AI and discards outstanding responses. New games start in Manual; saved Automate mode persists. Old Suggest saves load in Manual and old proposals are ignored.
+From this repository, run:
 
-The default direction is to establish and steadily develop a self-sufficient colony, including equipment, food production, cooking and useful research. Basic survival reserves are not the end goal.
+```powershell
+.\launch.cmd
+```
 
-The overview contains five compact status rows with details on hover, an optional direction, the current plan, and recent activity. Expand activity opens a draggable log window. There is no approval mode, separate automatic-review checkbox, or Run one review button.
+This starts the Python controller in the background, launches RimWorld with
+`-quicktest`, and opens http://127.0.0.1:8787. Existing controller/game processes
+are reused. The game is not restarted or replaced. Choose **Automate** in the
+web dashboard when ready; **Manual** leaves control with you.
 
-Local reviews omit max_tokens, so the server/context allowance governs output. Local reviews have no turn/action cap; the optional hourly cap defaults to unlimited. Context is compacted as reviews grow. Paid adapters retain three requests/four tool actions per review and their hourly budget. A review ends when the model finishes, reports a blocker, reaches a provider/context limit, or is stopped. Daily reasoning defaults to none; strategic reasoning requests medium through a separate configurable setting. Server/model support must still be verified in play.
+Equivalent PowerShell command:
 
-## Current tools and limits
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\launch.ps1
+```
 
-- Query all visible loose items through the map item index, filtered by exact type/category/forbidden status and sorted by distance from a point. Results include stack IDs and pagination. Allow selected IDs without area scanning.
-- Inspect bounded areas, colonists, pending construction, forbidden supplies, and available building materials.
-- Allow items in a selected area, create a shared stockpile, set work priorities, and place individual blueprints.
-- Compare nearby shelter options: reuse ruins and existing beds, enclose rock boundaries, excavate visible shallow rock, or build a new enclosure. Options expose gaps, material/mining/roof needs, distance and overhead mountain. Preparation orders mining first, then enclosure/roofing and cheap temporary sleeping spots after excavation finishes. This currently searches bounded rectangular footprints near the persistent base; it is not a general excavation/layout solver.
-- Construction stays near a persistent colony base. Use returned sites rather than invented coordinates; a selected pawn/building can set a new base explicitly.
-- Equip allowed weapons using normal ordered jobs; incapable colonists and equipment/reachability restrictions are respected.
-- Create growing zones from discovered crops, configure production bills (target count or forever, including butchering), designate wild animals for hunting, and select available research. Normal work, skills, resources, danger and timing still apply.
-- As a fallback, build a validated 7x7 room with a south doorway, zero to four beds, a clear aisle, and roof designation. It requires enough allowed materials for new orders: stone blocks or wood walls, wood beds and door. It never substitutes steel. Colonists still build everything normally. Reachability and competing material demand are not fully audited.
-- Designate a roof using the actual Build Roof area. Roofs are not conduits or researched buildings.
-- Save a short plan or report a visible blocker when capabilities are missing.
+Options:
 
-The model can propose broader goals in its plan, but this is not yet a complete autonomous player. Prisoner/medical room setup, combat commands, general-purpose layout planning and richer project completion checks need further tools. Starter food/research/equipment controls are implemented, but longer autonomous play still needs testing. The five measured needs are baseline status indicators, not a fixed catalog of projects.
+```powershell
+.\launch.cmd -NoGame                 # Dashboard/controller only
+.\launch.cmd -NoBrowser              # Do not open another browser tab
+.\launch.cmd -Port 8788              # Alternate dashboard/controller port
+.\launch.cmd -NormalGame             # Open the main menu instead of quicktest
+```
 
-## Strategic planning
+RimWorld must have **Harmony and RIMAPI enabled**, and the old **RimBot mod disabled**.
+Enable **Run in background** in RimWorld so it advances while viewing the browser.
+The launcher does not change mod selection, install a DLL, or start LM Studio.
+Start LM Studio's local server with your selected Qwen model. Default addresses
+are RIMAPI `http://127.0.0.1:8765` and LM Studio `http://127.0.0.1:1234/v1`.
+Both are configurable in the dashboard.
 
-Automate creates an initial strategy, then revisits it at world quadrum boundaries (15 days). Player direction changes also trigger planning. Finishing the current seasonal projects triggers the next development plan after the one-day interval. The strategy window also has Regenerate strategy: this bypasses scheduling cooldown, preserves the old plan until a valid replacement arrives, and does not change Manual/Automate mode. It still honors the hourly request allowance and single outstanding request. Population changes, collapse from at least two food days to below half a day, or loss of at least 25% of sheltered slots can trigger an earlier review after a one-game-day interval. Medical emergencies and active hostiles defer strategic requests to favor daily execution.
+## First-time setup
 
-The planner makes one reasoning request with only save_strategy available. It saves a concrete next-season direction and up to eight dependency-ordered projects, annual milestones, and a fuzzy three-year direction. Each project has an ID, purpose, priority, required tools, next steps, and measurable completion conditions. The model cannot issue world orders from this request. Invalid plans leave the old strategy intact; failed requests back off for a game day and five real minutes while daily management continues.
+Python 3.12+, Node.js 22+ and pnpm are required to build locally. Existing Codex
+bundled runtimes are detected when available.
 
-The overview shows a compact summary; View strategy opens horizons and project details. Daily reviews receive up to three ready/in-progress projects, with fresh colony facts taking precedence. The game evaluates supported counters; unknown metrics and missing tools show explicit blockers. Completion is only as meaningful as the conditions the planner chooses: building counts alone cannot verify a fully functioning kitchen or hospital. Detailed project semantics still need richer observations and tools.
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1
+.\launch.cmd
+```
 
-Strategy and scheduling baselines persist with the save. Progress is recalculated from current game data, including reopening goals when conditions deteriorate. Strategic local requests have a ten-minute timeout; daily local requests retain two minutes. One model request is outstanding at a time. Paid strategy requests use medium reasoning and an 8192-token output budget under the same hourly request accounting.
+The current RIMAPI contract is pinned in `integrations/RIMAPI`. To retrieve source:
 
-## Development
+```powershell
+git submodule update --init integrations/RIMAPI
+```
 
-Run `build.ps1` to compile, run regression checks, and package `tmp/RimBot-ColonyManager.zip`. Add `-Live` for a synthetic LM Studio tool-use fixture; it does not change the game. No script automatically installs or launches RimWorld. Close the game before replacing its DLL.
+The installed RIMAPI mod remains a separate dependency. The controller discovers
+which pinned endpoints the running server actually provides and reports gaps.
 
-`tests/GameSmoke.cs` compiles only with `-p:GameSmoke=true` and runs only with `-rimbot-selftest`. Never ship that assembly. Production code, ordinary game APIs and saved state remain in the main assembly; hot reload is not implemented.
+## Develop and test
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build.ps1
+# Controller hot reload (returns to Manual when code reloads):
+.\.venv\Scripts\python.exe -m rimbot --reload
+# Frontend development in a second terminal:
+cd dashboard
+pnpm dev
+```
+
+The production build serves both the UI and controller from one loopback port.
+The Vite development server proxies the controller on port 8787. No paid-provider
+fallback exists. Model reasoning uses Qwen's on/off setting; output allowance and
+context size are configurable. No tiny action quota or tool rotation is used.
+
+## State and logs
+
+- `.rimbot/colony.sqlite`: per-colony objectives, plans, tracked work and activity.
+- `.rimbot/logs/`: timestamped controller startup/output/error logs.
+- **Export log** in the dashboard: structured activity history.
+- **Live feed**: locally relayed game-camera JPEG frames; snapshots are also available.
+
+## Migration and provenance
+
+See `docs/EXTERNAL_CONTROLLER.md` for the architecture, validation boundary and
+remaining integrations; `THIRD_PARTY.md` records source revisions and licenses.
+The C# mod is retained as historical source, checkpointed at `bf9a1eb`.
+`build-mod.ps1` builds that legacy package; it is not the current runtime.
+
+Tests verify contracts, orchestration, error handling, HTTP transports and UI
+behavior. They do not establish real-model gameplay competence. Real RIMAPI video
+and colony actions require a loaded-game playtest.

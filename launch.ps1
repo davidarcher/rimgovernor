@@ -1,52 +1,60 @@
-# Run from an elevated PowerShell if the Steam folder requires administrator access.
-# .\launch.ps1              Install the compiled package and launch normally.
-# .\launch.ps1 -QuickTest   Install and launch directly into a test colony.
-# .\launch.ps1 -InstallOnly Install without launching.
+# Starts the external controller, RimWorld quicktest, and the local dashboard.
 [CmdletBinding()]
 param(
     [string]$GamePath = 'C:\Program Files (x86)\Steam\steamapps\common\RimWorld',
-    [switch]$QuickTest,
-    [switch]$InstallOnly
+    [int]$Port = 8787,
+    [switch]$QuickTest = $true,
+    [switch]$NormalGame,
+    [switch]$NoGame,
+    [switch]$NoBrowser,
+    [switch]$Reload
 )
 $ErrorActionPreference = 'Stop'
-if (Get-Process RimWorldWin64 -ErrorAction SilentlyContinue) {
-    throw 'Close RimWorld before installing.'
+$repo = (Resolve-Path -LiteralPath $PSScriptRoot).Path
+$python = Join-Path $repo '.venv\Scripts\python.exe'
+$index = Join-Path $repo 'controller\rimbot\static\index.html'
+if (!(Test-Path -LiteralPath $python) -or !(Test-Path -LiteralPath $index)) {
+    throw 'Run powershell -ExecutionPolicy Bypass -File .\setup.ps1 first to prepare Python and build the dashboard.'
 }
-$source = Join-Path $PSScriptRoot 'tmp\package\RimBot'
-$target = Join-Path $GamePath 'Mods\RimBot'
-$executable = Join-Path $GamePath 'RimWorldWin64.exe'
-if (!(Test-Path -LiteralPath $executable -PathType Leaf)) {
-    throw "RimWorld executable not found: $executable"
+if ($Port -lt 1024 -or $Port -gt 65535) { throw 'Choose a port from 1024 to 65535.' }
+$game = Join-Path $GamePath 'RimWorldWin64.exe'
+if (!$NoGame -and !(Test-Path -LiteralPath $game -PathType Leaf)) { throw "RimWorld not found: $game" }
+$url = "http://127.0.0.1:$Port"
+$health = $null
+try { $health = Invoke-RestMethod "$url/api/health" -TimeoutSec 2 } catch {}
+if ($health -and ($health.service -ne 'rimbot' -or $health.source_root -ne $repo)) {
+    throw "Port $Port belongs to another controller. Use -Port with a free port."
 }
-$files = @(
-    'About\About.xml'
-    '1.6\Assemblies\RimBot.dll'
-    '1.6\Assemblies\Newtonsoft.Json.dll'
-    '1.6\Defs\ColonyManager.xml'
-)
-# Check the entire package before changing the installed mod.
-foreach ($file in $files) {
-    if (!(Test-Path -LiteralPath (Join-Path $source $file) -PathType Leaf)) {
-        throw "Compiled package is missing $file. Run .\build.ps1 first."
+if (!$health) {
+    $logDir = Join-Path $repo '.rimbot\logs'
+    New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+    $run = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $out = Join-Path $logDir "controller-$run.log"
+    $err = Join-Path $logDir "controller-$run.error.log"
+    $argsForController = @('-m','rimbot','--port',"$Port")
+    if ($Reload) { $argsForController += '--reload' }
+    $controller = Start-Process -FilePath $python -ArgumentList $argsForController -WorkingDirectory $repo -WindowStyle Hidden -RedirectStandardOutput $out -RedirectStandardError $err -PassThru
+    for ($attempt=0; $attempt -lt 60; $attempt++) {
+        if ($controller.HasExited) { throw "Controller exited. Check $err" }
+        try { $health = Invoke-RestMethod "$url/api/health" -TimeoutSec 1; break } catch { Start-Sleep -Milliseconds 250 }
+    }
+    if (!$health -or $health.service -ne 'rimbot' -or $health.source_root -ne $repo) { throw "Controller did not become ready. Check $err" }
+    Write-Host "Controller started. Logs: $logDir"
+} else {
+    Write-Host "Reusing RimBot controller on port $Port."
+}
+if (!$NoGame) {
+    $running = Get-Process RimWorldWin64 -ErrorAction SilentlyContinue
+    if ($running) {
+        Write-Host 'RimWorld is already running; keeping the current game.'
+    } else {
+        $launch = @{ FilePath=$game; WorkingDirectory=$GamePath }
+        if ($QuickTest -and !$NormalGame) { $launch.ArgumentList = '-quicktest' }
+        # The game is intentionally visible; the controller above stays hidden.
+        Start-Process @launch
+        Write-Host 'RimWorld launched. Enable Run in background in its settings.'
     }
 }
-$dll = [System.IO.File]::ReadAllBytes((Join-Path $source '1.6\Assemblies\RimBot.dll'))
-if ([System.Text.Encoding]::ASCII.GetString($dll).Contains('GameSmoke')) {
-    throw 'Refusing to install the test harness. Run .\build.ps1 to create a production package.'
-}
-foreach ($file in $files) {
-    $from = Join-Path $source $file
-    $to = Join-Path $target $file
-    New-Item -ItemType Directory -Path (Split-Path $to) -Force | Out-Null
-    Copy-Item -LiteralPath $from -Destination $to -Force
-    if ((Get-FileHash -LiteralPath $from).Hash -ne (Get-FileHash -LiteralPath $to).Hash) {
-        throw "Verification failed: $file"
-    }
-}
-Write-Host 'RimBot installed and verified.'
-if (!$InstallOnly) {
-    $launch = @{ FilePath = $executable; WorkingDirectory = $GamePath }
-    if ($QuickTest) { $launch.ArgumentList = '-quicktest' }
-    # This is the visible game the user requested, not a background helper.
-    Start-Process @launch
-}
+if (!$NoBrowser) { Start-Process $url }
+Write-Host "Dashboard: $url"
+Write-Host 'Use Automate in the dashboard when you want the manager to take control.'

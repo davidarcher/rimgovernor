@@ -1,0 +1,1 @@
+"""RimBot external colony controller."""

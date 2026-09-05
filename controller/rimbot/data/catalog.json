@@ -1,0 +1,5524 @@
+{
+  "source": "https://github.com/IlyaChichkov/RIMAPI",
+  "revision": "dfa4b2909e132081898845d0c4936fcefa86c91c",
+  "endpoints": [
+    {
+      "name": "delete_buildings_bill_remove",
+      "method": "DELETE",
+      "path": "/api/v1/buildings/bill/remove",
+      "category": "Bill",
+      "description": "Delete Bill",
+      "transport": "query",
+      "query_keys": [
+        "building_id",
+        "bill_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "building_id": {
+            "type": "integer"
+          },
+          "bill_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "bill_id",
+          "building_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "delete_buildings_bills_remove",
+      "method": "DELETE",
+      "path": "/api/v1/buildings/bills/remove",
+      "category": "Bill",
+      "description": "Clear Bills",
+      "transport": "query",
+      "query_keys": [
+        "building_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "building_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "building_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "delete_map_zone_stockpile_delete",
+      "method": "DELETE",
+      "path": "/api/v1/map/zone/stockpile/delete",
+      "category": "Map",
+      "description": "Delete Stockpile",
+      "transport": "query",
+      "query_keys": [
+        "zone_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "zone_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "zone_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "delete_pawns_relations_remove",
+      "method": "DELETE",
+      "path": "/api/v1/pawns/relations/remove",
+      "category": "PawnSocial",
+      "description": "Remove Relation",
+      "transport": "query",
+      "query_keys": [
+        "pawn1_id",
+        "pawn2_id",
+        "relation_def_name"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn1_id": {
+            "type": "integer"
+          },
+          "pawn2_id": {
+            "type": "integer"
+          },
+          "relation_def_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pawn1_id",
+          "pawn2_id",
+          "relation_def_name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_api_v2_colonist_detailed",
+      "method": "GET",
+      "path": "/api/v2/colonist/detailed",
+      "category": "Pawn",
+      "description": "Get Colonist Detailed",
+      "transport": "query",
+      "query_keys": [
+        "id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_api_v2_colonists_detailed",
+      "method": "GET",
+      "path": "/api/v2/colonists/detailed",
+      "category": "Pawn",
+      "description": "Get Colonists Detailed",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_buildings_bill",
+      "method": "GET",
+      "path": "/api/v1/buildings/bill",
+      "category": "Bill",
+      "description": "Get Bill",
+      "transport": "query",
+      "query_keys": [
+        "building_id",
+        "bill_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "building_id": {
+            "type": "integer"
+          },
+          "bill_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "bill_id",
+          "building_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_buildings_bills",
+      "method": "GET",
+      "path": "/api/v1/buildings/bills",
+      "category": "Bill",
+      "description": "Get Bills",
+      "transport": "query",
+      "query_keys": [
+        "building_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "building_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "building_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_buildings_recipes",
+      "method": "GET",
+      "path": "/api/v1/buildings/recipes",
+      "category": "Bill",
+      "description": "Get Available Recipes",
+      "transport": "query",
+      "query_keys": [
+        "building_id",
+        "only_researched"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "building_id": {
+            "type": "integer"
+          },
+          "only_researched": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "building_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_camera_stream_status",
+      "method": "GET",
+      "path": "/api/v1/camera/stream/status",
+      "category": "Camera",
+      "description": "Get Stream Status",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_client_learning_active",
+      "method": "GET",
+      "path": "/api/v1/client/learning/active",
+      "category": "Learning",
+      "description": "Get Active Concepts",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_client_learning_all",
+      "method": "GET",
+      "path": "/api/v1/client/learning/all",
+      "category": "Learning",
+      "description": "Get All Concepts",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_client_learning_concept",
+      "method": "GET",
+      "path": "/api/v1/client/learning/concept",
+      "category": "Learning",
+      "description": "Get Concept",
+      "transport": "query",
+      "query_keys": [
+        "def_name"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "def_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "def_name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_client_learning_defs",
+      "method": "GET",
+      "path": "/api/v1/client/learning/defs",
+      "category": "Learning",
+      "description": "Get Concepts Defs",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_colonist",
+      "method": "GET",
+      "path": "/api/v1/colonist",
+      "category": "Pawn",
+      "description": "Get Colonist",
+      "transport": "query",
+      "query_keys": [
+        "id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_colonist_body_image",
+      "method": "GET",
+      "path": "/api/v1/colonist/body/image",
+      "category": "Pawn",
+      "description": "Get Pawn Body Image",
+      "transport": "query",
+      "query_keys": [
+        "id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_colonist_detailed",
+      "method": "GET",
+      "path": "/api/v1/colonist/detailed",
+      "category": "Pawn",
+      "description": "Get Colonist Detailed V1",
+      "transport": "query",
+      "query_keys": [
+        "id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_colonist_inventory",
+      "method": "GET",
+      "path": "/api/v1/colonist/inventory",
+      "category": "Pawn",
+      "description": "Get Colonist Inventory",
+      "transport": "query",
+      "query_keys": [
+        "id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_colonist_opinion_about",
+      "method": "GET",
+      "path": "/api/v1/colonist/opinion-about",
+      "category": "Pawn",
+      "description": "Get Pawn Opinion About Pawn",
+      "transport": "query",
+      "query_keys": [
+        "id",
+        "other_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "other_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "other_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_colonists",
+      "method": "GET",
+      "path": "/api/v1/colonists",
+      "category": "Pawn",
+      "description": "Get Colonists",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_colonists_detailed",
+      "method": "GET",
+      "path": "/api/v1/colonists/detailed",
+      "category": "Pawn",
+      "description": "Get Colonists Detailed V1",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_colonists_positions",
+      "method": "GET",
+      "path": "/api/v1/colonists/positions",
+      "category": "Pawn",
+      "description": "Get Colonist Positions",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_datetime",
+      "method": "GET",
+      "path": "/api/v1/datetime",
+      "category": "Map",
+      "description": "Get Current Map Datetime",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_datetime_tile",
+      "method": "GET",
+      "path": "/api/v1/datetime/tile",
+      "category": "Map",
+      "description": "Get World Tile Datetime",
+      "transport": "query",
+      "query_keys": [
+        "tile_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "tile_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tile_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_def_all",
+      "method": "GET",
+      "path": "/api/v1/def/all",
+      "category": "Game",
+      "description": "Get All Defs",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "filters": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "get_dev_endpoints",
+      "method": "GET",
+      "path": "/api/v1/dev/endpoints",
+      "category": "DevTools",
+      "description": "Get Endpoints",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_dev_materials_atlas",
+      "method": "GET",
+      "path": "/api/v1/dev/materials-atlas",
+      "category": "DevTools",
+      "description": "Get Materials Atlas List",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_faction",
+      "method": "GET",
+      "path": "/api/v1/faction",
+      "category": "Faction",
+      "description": "Get Faction",
+      "transport": "query",
+      "query_keys": [
+        "id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_faction_def",
+      "method": "GET",
+      "path": "/api/v1/faction/def",
+      "category": "Faction",
+      "description": "Get Faction Def",
+      "transport": "query",
+      "query_keys": [
+        "name"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_faction_icon",
+      "method": "GET",
+      "path": "/api/v1/faction/icon",
+      "category": "Faction",
+      "description": "Get Faction Icon",
+      "transport": "query",
+      "query_keys": [
+        "id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_faction_player",
+      "method": "GET",
+      "path": "/api/v1/faction/player",
+      "category": "Faction",
+      "description": "Get Player Faction",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_faction_relation_with",
+      "method": "GET",
+      "path": "/api/v1/faction/relation-with",
+      "category": "Faction",
+      "description": "Get Faction Relation With",
+      "transport": "query",
+      "query_keys": [
+        "id",
+        "other_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "other_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "other_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_faction_relations",
+      "method": "GET",
+      "path": "/api/v1/faction/relations",
+      "category": "Faction",
+      "description": "Get Faction Relations",
+      "transport": "query",
+      "query_keys": [
+        "id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_factions",
+      "method": "GET",
+      "path": "/api/v1/factions",
+      "category": "Faction",
+      "description": "Get Factions",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_game_defs_interactions",
+      "method": "GET",
+      "path": "/api/v1/game/defs/interactions",
+      "category": "PawnSocial",
+      "description": "Get Interaction Defs",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_game_settings",
+      "method": "GET",
+      "path": "/api/v1/game/settings",
+      "category": "Game",
+      "description": "Get Game Settings",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_game_settings_run_in_background",
+      "method": "GET",
+      "path": "/api/v1/game/settings/run-in-background",
+      "category": "Game",
+      "description": "Get Run In Background",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_game_state",
+      "method": "GET",
+      "path": "/api/v1/game/state",
+      "category": "Game",
+      "description": "Get Game State",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_incident_chance",
+      "method": "GET",
+      "path": "/api/v1/incident/chance",
+      "category": "GameEvents",
+      "description": "Get Incident Chance",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "incident_def_name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "get_incidents",
+      "method": "GET",
+      "path": "/api/v1/incidents",
+      "category": "GameEvents",
+      "description": "Get Incidents Data",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_incidents_top",
+      "method": "GET",
+      "path": "/api/v1/incidents/top",
+      "category": "GameEvents",
+      "description": "Get Incidents Top Chance",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_item_image",
+      "method": "GET",
+      "path": "/api/v1/item/image",
+      "category": "Images",
+      "description": "Get Item Image",
+      "transport": "query",
+      "query_keys": [
+        "name"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_item_recipes",
+      "method": "GET",
+      "path": "/api/v1/item/recipes",
+      "category": "Things",
+      "description": "Get Item Recipe",
+      "transport": "query",
+      "query_keys": [
+        "def_name"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "def_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "def_name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_item_sources",
+      "method": "GET",
+      "path": "/api/v1/item/sources",
+      "category": "Things",
+      "description": "Get Item Source",
+      "transport": "query",
+      "query_keys": [
+        "def_name"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "def_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "def_name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_lords",
+      "method": "GET",
+      "path": "/api/v1/lords",
+      "category": "GameEvents",
+      "description": "Get Lords Data",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_map_animals",
+      "method": "GET",
+      "path": "/api/v1/map/animals",
+      "category": "Map",
+      "description": "Get Map Animals",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_map_building_info",
+      "method": "GET",
+      "path": "/api/v1/map/building/info",
+      "category": "Map",
+      "description": "Get Building Info",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_map_buildings",
+      "method": "GET",
+      "path": "/api/v1/map/buildings",
+      "category": "Map",
+      "description": "Get Map Buildings",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_map_creatures_summary",
+      "method": "GET",
+      "path": "/api/v1/map/creatures/summary",
+      "category": "Map",
+      "description": "Get Map Creatures Summary",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_map_farm_summary",
+      "method": "GET",
+      "path": "/api/v1/map/farm/summary",
+      "category": "Map",
+      "description": "Get Map Farm Summary",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_map_fog_grid",
+      "method": "GET",
+      "path": "/api/v1/map/fog-grid",
+      "category": "Map",
+      "description": "Get Map Fog Grid",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_map_ore",
+      "method": "GET",
+      "path": "/api/v1/map/ore",
+      "category": "Map",
+      "description": "Get Map Ore",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_map_pawns",
+      "method": "GET",
+      "path": "/api/v1/map/pawns",
+      "category": "Map",
+      "description": "Get Pawns On Map",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_map_plants",
+      "method": "GET",
+      "path": "/api/v1/map/plants",
+      "category": "Map",
+      "description": "Get Map Plants",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_map_power_info",
+      "method": "GET",
+      "path": "/api/v1/map/power/info",
+      "category": "Map",
+      "description": "Get Map Power Info",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_map_rooms",
+      "method": "GET",
+      "path": "/api/v1/map/rooms",
+      "category": "Map",
+      "description": "Get Map Rooms",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_map_terrain",
+      "method": "GET",
+      "path": "/api/v1/map/terrain",
+      "category": "Map",
+      "description": "Get Map Terrain",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_map_things",
+      "method": "GET",
+      "path": "/api/v1/map/things",
+      "category": "Map",
+      "description": "Get Map Things",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_map_things_at",
+      "method": "GET",
+      "path": "/api/v1/map/things-at",
+      "category": "Map",
+      "description": "Get Things At Cell",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "position": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "get_map_things_radius",
+      "method": "GET",
+      "path": "/api/v1/map/things/radius",
+      "category": "Map",
+      "description": "Get Map Things In Radius",
+      "transport": "query",
+      "query_keys": [
+        "map_id",
+        "x",
+        "z",
+        "radius"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "x": {
+            "type": "integer"
+          },
+          "z": {
+            "type": "integer"
+          },
+          "radius": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id",
+          "radius",
+          "x",
+          "z"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_map_weather",
+      "method": "GET",
+      "path": "/api/v1/map/weather",
+      "category": "Map",
+      "description": "Get Map Weather",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_map_work_tables",
+      "method": "GET",
+      "path": "/api/v1/map/work-tables",
+      "category": "Bill",
+      "description": "Get Work Tables",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_map_zone_growing",
+      "method": "GET",
+      "path": "/api/v1/map/zone/growing",
+      "category": "Map",
+      "description": "Get Map Growing Zone By Id",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_map_zones",
+      "method": "GET",
+      "path": "/api/v1/map/zones",
+      "category": "Map",
+      "description": "Get Map Zones",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_maps",
+      "method": "GET",
+      "path": "/api/v1/maps",
+      "category": "Map",
+      "description": "Get Game State",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_mods_info",
+      "method": "GET",
+      "path": "/api/v1/mods/info",
+      "category": "Game",
+      "description": "Get Mod Info",
+      "transport": "query",
+      "query_keys": [
+        "package_id",
+        "uid"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "package_id": {
+            "type": "string"
+          },
+          "uid": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "package_id",
+          "uid"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_mods_list",
+      "method": "GET",
+      "path": "/api/v1/mods/list",
+      "category": "Game",
+      "description": "Get Mods Info",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_mods_preview",
+      "method": "GET",
+      "path": "/api/v1/mods/preview",
+      "category": "Game",
+      "description": "Get Mod Preview",
+      "transport": "query",
+      "query_keys": [
+        "package_id",
+        "uid"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "package_id": {
+            "type": "string"
+          },
+          "uid": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "package_id",
+          "uid"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_outfits",
+      "method": "GET",
+      "path": "/api/v1/outfits",
+      "category": "Pawn",
+      "description": "Get Outfits",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_pawn_portrait_image",
+      "method": "GET",
+      "path": "/api/v1/pawn/portrait/image",
+      "category": "Pawn",
+      "description": "Get Pawn Portrait Image",
+      "transport": "query",
+      "query_keys": [
+        "pawn_id",
+        "width",
+        "height",
+        "direction"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          },
+          "width": {
+            "type": "integer"
+          },
+          "height": {
+            "type": "integer"
+          },
+          "direction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "direction",
+          "height",
+          "pawn_id",
+          "width"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_pawns_details",
+      "method": "GET",
+      "path": "/api/v1/pawns/details",
+      "category": "PawnInfo",
+      "description": "Get Pawn Details",
+      "transport": "query",
+      "query_keys": [
+        "id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_pawns_interactions",
+      "method": "GET",
+      "path": "/api/v1/pawns/interactions",
+      "category": "PawnSocial",
+      "description": "Get Pawn Interaction Status",
+      "transport": "query",
+      "query_keys": [
+        "pawn_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pawn_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_pawns_interactions_log",
+      "method": "GET",
+      "path": "/api/v1/pawns/interactions/log",
+      "category": "PawnSocial",
+      "description": "Get Pawn Interaction Log",
+      "transport": "query",
+      "query_keys": [
+        "pawn_id",
+        "limit"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limit",
+          "pawn_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_pawns_inventory",
+      "method": "GET",
+      "path": "/api/v1/pawns/inventory",
+      "category": "PawnInfo",
+      "description": "Get Pawn Inventory",
+      "transport": "query",
+      "query_keys": [
+        "id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_pawns_opinions",
+      "method": "GET",
+      "path": "/api/v1/pawns/opinions",
+      "category": "PawnSocial",
+      "description": "Get Pawn Opinions",
+      "transport": "query",
+      "query_keys": [
+        "pawn_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pawn_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_pawns_relations",
+      "method": "GET",
+      "path": "/api/v1/pawns/relations",
+      "category": "PawnSocial",
+      "description": "Get Pawn Relations",
+      "transport": "query",
+      "query_keys": [
+        "pawn_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pawn_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_quests",
+      "method": "GET",
+      "path": "/api/v1/quests",
+      "category": "GameEvents",
+      "description": "Get Quests Data",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_research_finished",
+      "method": "GET",
+      "path": "/api/v1/research/finished",
+      "category": "Research",
+      "description": "Get Research Finished",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_research_progress",
+      "method": "GET",
+      "path": "/api/v1/research/progress",
+      "category": "Research",
+      "description": "Get Research Progress",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_research_project",
+      "method": "GET",
+      "path": "/api/v1/research/project",
+      "category": "Research",
+      "description": "Get Research Project By Name",
+      "transport": "query",
+      "query_keys": [
+        "name"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_research_summary",
+      "method": "GET",
+      "path": "/api/v1/research/summary",
+      "category": "Research",
+      "description": "Get Research Summary",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_research_tree",
+      "method": "GET",
+      "path": "/api/v1/research/tree",
+      "category": "Research",
+      "description": "Get Research Tree",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_resources_storages_summary",
+      "method": "GET",
+      "path": "/api/v1/resources/storages/summary",
+      "category": "Things",
+      "description": "Get Storages Summary",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_resources_stored",
+      "method": "GET",
+      "path": "/api/v1/resources/stored",
+      "category": "Things",
+      "description": "Get Resources Stored",
+      "transport": "query",
+      "query_keys": [
+        "map_id",
+        "category"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "category": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_resources_summary",
+      "method": "GET",
+      "path": "/api/v1/resources/summary",
+      "category": "Things",
+      "description": "Get Resources Summary",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_terrain_image",
+      "method": "GET",
+      "path": "/api/v1/terrain/image",
+      "category": "Images",
+      "description": "Get Terrain Image",
+      "transport": "query",
+      "query_keys": [
+        "name"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_time_assignments",
+      "method": "GET",
+      "path": "/api/v1/time-assignments",
+      "category": "Pawn",
+      "description": "Get Time Assignments List",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_traders_defs",
+      "method": "GET",
+      "path": "/api/v1/traders/defs",
+      "category": "Trade",
+      "description": "Get Traders Defs",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_trait_def",
+      "method": "GET",
+      "path": "/api/v1/trait-def",
+      "category": "Pawn",
+      "description": "Get Trait Def",
+      "transport": "query",
+      "query_keys": [
+        "name"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_ui_alerts",
+      "method": "GET",
+      "path": "/api/v1/ui/alerts",
+      "category": "UI",
+      "description": "Get Active Alerts",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_ui_windows",
+      "method": "GET",
+      "path": "/api/v1/ui/windows",
+      "category": "UI",
+      "description": "List Windows",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_version",
+      "method": "GET",
+      "path": "/api/v1/version",
+      "category": "Game",
+      "description": "Get Version",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_work_list",
+      "method": "GET",
+      "path": "/api/v1/work-list",
+      "category": "Pawn",
+      "description": "Get Work List",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_world_caravan_path",
+      "method": "GET",
+      "path": "/api/v1/world/caravan/path",
+      "category": "GlobalMap",
+      "description": "Get Caravan Path",
+      "transport": "query",
+      "query_keys": [
+        "id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_world_caravans",
+      "method": "GET",
+      "path": "/api/v1/world/caravans",
+      "category": "GlobalMap",
+      "description": "Get Caravans",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_world_grid",
+      "method": "GET",
+      "path": "/api/v1/world/grid",
+      "category": "GlobalMap",
+      "description": "Get World Grid",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_world_grid_area",
+      "method": "GET",
+      "path": "/api/v1/world/grid/area",
+      "category": "GlobalMap",
+      "description": "Get World Grid Area",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_world_player_settlements",
+      "method": "GET",
+      "path": "/api/v1/world/player/settlements",
+      "category": "GlobalMap",
+      "description": "Get Player Settlements",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_world_settlements",
+      "method": "GET",
+      "path": "/api/v1/world/settlements",
+      "category": "GlobalMap",
+      "description": "Get Settlements",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_world_sites",
+      "method": "GET",
+      "path": "/api/v1/world/sites",
+      "category": "GlobalMap",
+      "description": "Get Sites",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_world_tile",
+      "method": "GET",
+      "path": "/api/v1/world/tile",
+      "category": "GlobalMap",
+      "description": "Get Tile",
+      "transport": "query",
+      "query_keys": [
+        "id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_world_tile_coordinates",
+      "method": "GET",
+      "path": "/api/v1/world/tile/coordinates",
+      "category": "GlobalMap",
+      "description": "Get Tile Coordinates",
+      "transport": "query",
+      "query_keys": [
+        "id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_world_tile_details",
+      "method": "GET",
+      "path": "/api/v1/world/tile/details",
+      "category": "GlobalMap",
+      "description": "Get Tile Details",
+      "transport": "query",
+      "query_keys": [
+        "id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_builder_blueprint",
+      "method": "POST",
+      "path": "/api/v1/builder/blueprint",
+      "category": "Builder",
+      "description": "Place Blueprints",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "position": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          },
+          "blueprint": {
+            "type": "object",
+            "properties": {
+              "width": {
+                "type": "integer"
+              },
+              "height": {
+                "type": "integer"
+              },
+              "floors": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "def_name": {
+                      "type": "string"
+                    },
+                    "rel_x": {
+                      "type": "integer"
+                    },
+                    "rel_z": {
+                      "type": "integer"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "buildings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "def_name": {
+                      "type": "string"
+                    },
+                    "stuff_def_name": {
+                      "type": "string"
+                    },
+                    "rel_x": {
+                      "type": "integer"
+                    },
+                    "rel_z": {
+                      "type": "integer"
+                    },
+                    "rotation": {
+                      "type": "integer"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "clear_obstacles": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_builder_check_zone",
+      "method": "POST",
+      "path": "/api/v1/builder/check-zone",
+      "category": "Builder",
+      "description": "Check Zone",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "point_a": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          },
+          "point_b": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_builder_copy",
+      "method": "POST",
+      "path": "/api/v1/builder/copy",
+      "category": "Builder",
+      "description": "Copy Area",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "point_a": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          },
+          "point_b": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_builder_paste",
+      "method": "POST",
+      "path": "/api/v1/builder/paste",
+      "category": "Builder",
+      "description": "Paste Area",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "position": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          },
+          "blueprint": {
+            "type": "object",
+            "properties": {
+              "width": {
+                "type": "integer"
+              },
+              "height": {
+                "type": "integer"
+              },
+              "floors": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "def_name": {
+                      "type": "string"
+                    },
+                    "rel_x": {
+                      "type": "integer"
+                    },
+                    "rel_z": {
+                      "type": "integer"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "buildings": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "def_name": {
+                      "type": "string"
+                    },
+                    "stuff_def_name": {
+                      "type": "string"
+                    },
+                    "rel_x": {
+                      "type": "integer"
+                    },
+                    "rel_z": {
+                      "type": "integer"
+                    },
+                    "rotation": {
+                      "type": "integer"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "clear_obstacles": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_buildings_bills_add",
+      "method": "POST",
+      "path": "/api/v1/buildings/bills/add",
+      "category": "Bill",
+      "description": "Create Bill",
+      "transport": "json",
+      "query_keys": [
+        "building_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "recipe_def_name": {
+            "type": "string"
+          },
+          "repeat_mode": {
+            "type": "string"
+          },
+          "repeat_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "store_mode": {
+            "type": "string"
+          },
+          "suspended": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pause_when_satisfied": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unpause_when_you_have": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "include_equipped": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "include_tainted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hp_range": {
+            "type": "object",
+            "properties": {
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false
+          },
+          "quality_range": {
+            "type": "object",
+            "properties": {
+              "min": {
+                "type": "integer"
+              },
+              "max": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          },
+          "limit_to_allowed_stuff": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ingredient_search_radius": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "allowed_skill_range": {
+            "type": "object",
+            "properties": {
+              "min": {
+                "type": "integer"
+              },
+              "max": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          },
+          "pawn_restriction_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "player_custom_name": {
+            "type": "string"
+          },
+          "allowed_materials": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "building_id": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "building_id"
+        ]
+      }
+    },
+    {
+      "name": "post_camera_change_position",
+      "method": "POST",
+      "path": "/api/v1/camera/change/position",
+      "category": "Camera",
+      "description": "Move To Position",
+      "transport": "query",
+      "query_keys": [
+        "x",
+        "y"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "integer"
+          },
+          "y": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_camera_change_zoom",
+      "method": "POST",
+      "path": "/api/v1/camera/change/zoom",
+      "category": "Camera",
+      "description": "Change Zoom",
+      "transport": "query",
+      "query_keys": [
+        "zoom"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "zoom": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "zoom"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_camera_follow_pawn",
+      "method": "POST",
+      "path": "/api/v1/camera/follow/pawn",
+      "category": "Camera",
+      "description": "Jump To Pawn",
+      "transport": "query",
+      "query_keys": [
+        "pawn_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pawn_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_camera_screenshot",
+      "method": "POST",
+      "path": "/api/v1/camera/screenshot",
+      "category": "Camera",
+      "description": "Make Screenshot",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "format": {
+            "type": "string"
+          },
+          "quality": {
+            "type": "integer"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hide_ui": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_camera_screenshot_native",
+      "method": "POST",
+      "path": "/api/v1/camera/screenshot/native",
+      "category": "Camera",
+      "description": "Trigger Native Screenshot",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "file_name": {
+            "type": "string"
+          },
+          "center_x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "center_z": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "zoom_level": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hide_ui": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_camera_stream_setup",
+      "method": "POST",
+      "path": "/api/v1/camera/stream/setup",
+      "category": "Camera",
+      "description": "Post Stream Setup",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "port": {
+            "type": "integer"
+          },
+          "address": {
+            "type": "string"
+          },
+          "frame_width": {
+            "type": "integer"
+          },
+          "frame_height": {
+            "type": "integer"
+          },
+          "target_fps": {
+            "type": "integer"
+          },
+          "jpeg_quality": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_camera_stream_start",
+      "method": "POST",
+      "path": "/api/v1/camera/stream/start",
+      "category": "Camera",
+      "description": "Post Stream Start",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_camera_stream_stop",
+      "method": "POST",
+      "path": "/api/v1/camera/stream/stop",
+      "category": "Camera",
+      "description": "Post Stream Stop",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_client_learning_mark_learned",
+      "method": "POST",
+      "path": "/api/v1/client/learning/mark-learned",
+      "category": "Learning",
+      "description": "Mark Learned",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "def_name": {
+            "type": "string"
+          },
+          "is_completed": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_colonist_time_assignment",
+      "method": "POST",
+      "path": "/api/v1/colonist/time-assignment",
+      "category": "Pawn",
+      "description": "Set Time Assignment",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          },
+          "hour": {
+            "type": "integer"
+          },
+          "assignment": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_colonist_work_priority",
+      "method": "POST",
+      "path": "/api/v1/colonist/work-priority",
+      "category": "Pawn",
+      "description": "Set Colonist Work Priority",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "work": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_colonists_work_priority",
+      "method": "POST",
+      "path": "/api/v1/colonists/work-priority",
+      "category": "Pawn",
+      "description": "Set Colonists Work Priority",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "priorities": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "work": {
+                  "type": "string"
+                },
+                "priority": {
+                  "type": "integer"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_deselect",
+      "method": "POST",
+      "path": "/api/v1/deselect",
+      "category": "Game",
+      "description": "Deselect All",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_dev_console",
+      "method": "POST",
+      "path": "/api/v1/dev/console",
+      "category": "DevTools",
+      "description": "Post Console Action",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_dev_materials_atlas_clear",
+      "method": "POST",
+      "path": "/api/v1/dev/materials-atlas/clear",
+      "category": "DevTools",
+      "description": "Post Materials Atlas Pool Clear",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_dev_stuff_color",
+      "method": "POST",
+      "path": "/api/v1/dev/stuff/color",
+      "category": "DevTools",
+      "description": "Post Stuff Color",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "hex": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_faction_change_goodwill",
+      "method": "POST",
+      "path": "/api/v1/faction/change/goodwill",
+      "category": "Faction",
+      "description": "Change Faction Relation With",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "other_id": {
+            "type": "integer"
+          },
+          "value": {
+            "type": "integer"
+          },
+          "send_message": {
+            "type": "boolean"
+          },
+          "can_send_hostility_letter": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_faction_goodwill",
+      "method": "POST",
+      "path": "/api/v1/faction/goodwill",
+      "category": "Faction",
+      "description": "Set Faction Goodwill",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "other_id": {
+            "type": "integer"
+          },
+          "value": {
+            "type": "integer"
+          },
+          "send_message": {
+            "type": "boolean"
+          },
+          "can_send_hostility_letter": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_game_load",
+      "method": "POST",
+      "path": "/api/v1/game/load",
+      "category": "Game",
+      "description": "Game Load",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "file_name": {
+            "type": "string"
+          },
+          "check_version": {
+            "type": "boolean"
+          },
+          "skip_mod_mismatch": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_game_main_menu",
+      "method": "POST",
+      "path": "/api/v1/game/main-menu",
+      "category": "Game",
+      "description": "Go To Main Menu",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_game_quit",
+      "method": "POST",
+      "path": "/api/v1/game/quit",
+      "category": "Game",
+      "description": "Quit Game",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_game_save",
+      "method": "POST",
+      "path": "/api/v1/game/save",
+      "category": "Game",
+      "description": "Game Save",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "file_name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_game_select_area",
+      "method": "POST",
+      "path": "/api/v1/game/select-area",
+      "category": "Game",
+      "description": "Select Area",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "position_a": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          },
+          "position_b": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_game_send_letter",
+      "method": "POST",
+      "path": "/api/v1/game/send/letter",
+      "category": "Game",
+      "description": "Post Letter",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "letter_def": {
+            "type": "string"
+          },
+          "map_id": {
+            "type": "string"
+          },
+          "look_target_thing_id": {
+            "type": "string"
+          },
+          "faction_order_id": {
+            "type": "string"
+          },
+          "hyperlink_thing_defs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "quest_id": {
+            "type": "string"
+          },
+          "debug_info": {
+            "type": "string"
+          },
+          "delay_ticks": {
+            "type": "integer"
+          },
+          "play_sound": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_game_settings_toggle_run_in_background",
+      "method": "POST",
+      "path": "/api/v1/game/settings/toggle/run-in-background",
+      "category": "Game",
+      "description": "Toggle Run In Background",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_game_speed",
+      "method": "POST",
+      "path": "/api/v1/game/speed",
+      "category": "Game",
+      "description": "Set Game Speed",
+      "transport": "query",
+      "query_keys": [
+        "speed"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "speed": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "speed"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_game_start",
+      "method": "POST",
+      "path": "/api/v1/game/start",
+      "category": "Game",
+      "description": "Game Start",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "storyteller_name": {
+            "type": "string"
+          },
+          "difficulty_name": {
+            "type": "string"
+          },
+          "map_size": {
+            "type": "integer"
+          },
+          "permadeath": {
+            "type": "boolean"
+          },
+          "planet_coverage": {
+            "type": "number"
+          },
+          "world_seed": {
+            "type": "string"
+          },
+          "starting_tile": {
+            "type": "string"
+          },
+          "starting_season": {
+            "type": "string"
+          },
+          "overall_rainfall": {
+            "type": "integer"
+          },
+          "overall_temperature": {
+            "type": "integer"
+          },
+          "overall_population": {
+            "type": "integer"
+          },
+          "landmark_density": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_game_start_devquick",
+      "method": "POST",
+      "path": "/api/v1/game/start/devquick",
+      "category": "Game",
+      "description": "Game Dev Quick Start",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_incident_trigger",
+      "method": "POST",
+      "path": "/api/v1/incident/trigger",
+      "category": "GameEvents",
+      "description": "Trigger Incident",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "map_id": {
+            "type": "string"
+          },
+          "incident_parms": {
+            "type": "object",
+            "properties": {
+              "target": {
+                "type": "string"
+              },
+              "points": {
+                "type": "number"
+              },
+              "faction": {
+                "type": "string"
+              },
+              "forced": {
+                "type": "boolean"
+              },
+              "custom_letter_label": {
+                "type": "string"
+              },
+              "custom_letter_text": {
+                "type": "string"
+              },
+              "custom_letter_def": {
+                "type": "string"
+              },
+              "send_letter": {
+                "type": "boolean"
+              },
+              "letter_hyperlink_thing_defs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "letter_hyperlink_hediff_defs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "in_signal_end": {
+                "type": "string"
+              },
+              "silent": {
+                "type": "boolean"
+              },
+              "spawn_center": {
+                "type": "string"
+              },
+              "spawn_rotation": {
+                "type": "string"
+              },
+              "generate_fighters_only": {
+                "type": "boolean"
+              },
+              "dont_use_single_use_rocket_launchers": {
+                "type": "boolean"
+              },
+              "raid_strategy": {
+                "type": "string"
+              },
+              "raid_arrival_mode": {
+                "type": "string"
+              },
+              "raid_force_one_downed": {
+                "type": "boolean"
+              },
+              "raid_never_flee_individual": {
+                "type": "boolean"
+              },
+              "raid_arrival_mode_for_quick_military_aid": {
+                "type": "boolean"
+              },
+              "raid_age_restriction": {
+                "type": "string"
+              },
+              "biocode_weapons_chance": {
+                "type": "number"
+              },
+              "biocode_apparel_chance": {
+                "type": "number"
+              },
+              "pawn_groups": {
+                "type": "object"
+              },
+              "pawn_group_maker_seed": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "pawn_ideo": {
+                "type": "string"
+              },
+              "lord": {
+                "type": "string"
+              },
+              "pawn_kind": {
+                "type": "string"
+              },
+              "pawn_count": {
+                "type": "integer"
+              },
+              "pawn_group_kind": {
+                "type": "string"
+              },
+              "trader_kind": {
+                "type": "string"
+              },
+              "quest": {
+                "type": "string"
+              },
+              "quest_script_def": {
+                "type": "string"
+              },
+              "quest_tag": {
+                "type": "string"
+              },
+              "mech_cluster_sketch": {
+                "type": "string"
+              },
+              "can_timeout_or_flee": {
+                "type": "boolean"
+              },
+              "can_steal": {
+                "type": "boolean"
+              },
+              "can_kidnap": {
+                "type": "boolean"
+              },
+              "controller_pawn": {
+                "type": "string"
+              },
+              "infestation_loc_override": {
+                "type": "string"
+              },
+              "attack_targets": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "gifts": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "total_body_size": {
+                "type": "number"
+              },
+              "psychic_ritual_def": {
+                "type": "string"
+              },
+              "point_multiplier": {
+                "type": "number"
+              },
+              "bypass_storyteller_settings": {
+                "type": "boolean"
+              },
+              "store_generated_neutral_pawns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "pawn_group_count": {
+                "type": "integer"
+              },
+              "pod_open_delay": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_item_change_image",
+      "method": "POST",
+      "path": "/api/v1/item/change/image",
+      "category": "Images",
+      "description": "Set Item Image",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          },
+          "direction": {
+            "type": "string"
+          },
+          "offset": {
+            "type": "string"
+          },
+          "scale": {
+            "type": "string"
+          },
+          "thing_type": {
+            "type": "string"
+          },
+          "is_stackable": {
+            "type": "string"
+          },
+          "mask_image": {
+            "type": "string"
+          },
+          "update_item_index": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_item_spawn",
+      "method": "POST",
+      "path": "/api/v1/item/spawn",
+      "category": "Things",
+      "description": "Spawn Item",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_jobs_make_equip",
+      "method": "POST",
+      "path": "/api/v1/jobs/make/equip",
+      "category": "Pawn",
+      "description": "Make Job Equip",
+      "transport": "query",
+      "query_keys": [
+        "map_id",
+        "pawn_id",
+        "item_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "pawn_id": {
+            "type": "integer"
+          },
+          "item_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "item_id",
+          "map_id",
+          "pawn_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_lords_create",
+      "method": "POST",
+      "path": "/api/v1/lords/create",
+      "category": "Lord",
+      "description": "Create Lord",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "faction": {
+            "type": "string"
+          },
+          "map_id": {
+            "type": "string"
+          },
+          "pawn_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "job_type": {
+            "type": "string"
+          },
+          "position": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          },
+          "target_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_map_building_power",
+      "method": "POST",
+      "path": "/api/v1/map/building/power",
+      "category": "Map",
+      "description": "Set Building Power",
+      "transport": "query",
+      "query_keys": [
+        "buildingId",
+        "powerOn"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "buildingId": {
+            "type": "integer"
+          },
+          "powerOn": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "buildingId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_map_destroy_corpses",
+      "method": "POST",
+      "path": "/api/v1/map/destroy/corpses",
+      "category": "Map",
+      "description": "Destroy Corpses",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_map_destroy_forbidden",
+      "method": "POST",
+      "path": "/api/v1/map/destroy/forbidden",
+      "category": "Map",
+      "description": "Destroy Forbidden Items",
+      "transport": "query",
+      "query_keys": [
+        "map_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_map_destroy_rect",
+      "method": "POST",
+      "path": "/api/v1/map/destroy/rect",
+      "category": "Map",
+      "description": "Destroy Things In Rect",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "point_a": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          },
+          "point_b": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_map_droppod",
+      "method": "POST",
+      "path": "/api/v1/map/droppod",
+      "category": "Map",
+      "description": "Spawn Drop Pod",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "position": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "thing_id": {
+                  "type": "integer"
+                },
+                "def_name": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "categories": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "position": {
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "integer"
+                    },
+                    "y": {
+                      "type": "integer"
+                    },
+                    "z": {
+                      "type": "integer"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "rotation": {
+                  "type": "integer"
+                },
+                "size": {
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "integer"
+                    },
+                    "y": {
+                      "type": "integer"
+                    },
+                    "z": {
+                      "type": "integer"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "stack_count": {
+                  "type": "integer"
+                },
+                "market_value": {
+                  "type": "number"
+                },
+                "is_forbidden": {
+                  "type": "boolean"
+                },
+                "quality": {
+                  "type": "integer"
+                },
+                "stuff_def_name": {
+                  "type": "string"
+                },
+                "hit_points": {
+                  "type": "integer"
+                },
+                "max_hit_points": {
+                  "type": "integer"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "faction": {
+            "type": "string"
+          },
+          "open_delay": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_map_repair_positions",
+      "method": "POST",
+      "path": "/api/v1/map/repair/positions",
+      "category": "Map",
+      "description": "Repair At Positions",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "positions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "integer"
+                },
+                "y": {
+                  "type": "integer"
+                },
+                "z": {
+                  "type": "integer"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_map_repair_rect",
+      "method": "POST",
+      "path": "/api/v1/map/repair/rect",
+      "category": "Map",
+      "description": "Repair In Rect",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "point_a": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          },
+          "point_b": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_map_weather_change",
+      "method": "POST",
+      "path": "/api/v1/map/weather/change",
+      "category": "Map",
+      "description": "Set Weather",
+      "transport": "query",
+      "query_keys": [
+        "map_id",
+        "name"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "map_id",
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_map_zone_growing",
+      "method": "POST",
+      "path": "/api/v1/map/zone/growing",
+      "category": "Map",
+      "description": "Create Growing Zone",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "plant_def": {
+            "type": "string"
+          },
+          "point_a": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          },
+          "point_b": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_map_zone_stockpile",
+      "method": "POST",
+      "path": "/api/v1/map/zone/stockpile",
+      "category": "Map",
+      "description": "Create Stockpile",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "point_a": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          },
+          "point_b": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          },
+          "name": {
+            "type": "string"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "allowed_item_defs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "allowed_item_categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "min_hit_points_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "max_hit_points_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "min_quality": {
+            "type": "string"
+          },
+          "max_quality": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_map_zone_stockpile_update",
+      "method": "POST",
+      "path": "/api/v1/map/zone/stockpile/update",
+      "category": "Map",
+      "description": "Update Stockpile",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "zone_id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "add_item_defs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "remove_item_defs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "add_item_categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "remove_item_categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "min_hit_points_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "max_hit_points_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "min_quality": {
+            "type": "string"
+          },
+          "max_quality": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_mods_configure",
+      "method": "POST",
+      "path": "/api/v1/mods/configure",
+      "category": "Game",
+      "description": "Configure Mods",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "package_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "restart_game": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_open_tab",
+      "method": "POST",
+      "path": "/api/v1/open-tab",
+      "category": "Game",
+      "description": "Open Tab",
+      "transport": "query",
+      "query_keys": [
+        "name"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_order_designate_area",
+      "method": "POST",
+      "path": "/api/v1/order/designate/area",
+      "category": "Order",
+      "description": "Designate Area",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "type": {
+            "type": "string"
+          },
+          "point_a": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          },
+          "point_b": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_pawn_edit_apparel",
+      "method": "POST",
+      "path": "/api/v1/pawn/edit/apparel",
+      "category": "PawnEdit",
+      "description": "Edit Apparel",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          },
+          "drop_apparel": {
+            "type": "boolean"
+          },
+          "drop_weapons": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_pawn_edit_basic",
+      "method": "POST",
+      "path": "/api/v1/pawn/edit/basic",
+      "category": "PawnEdit",
+      "description": "Edit Basic Info",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "nick_name": {
+            "type": "string"
+          },
+          "gender": {
+            "type": "string"
+          },
+          "biological_age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chronological_age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_pawn_edit_faction",
+      "method": "POST",
+      "path": "/api/v1/pawn/edit/faction",
+      "category": "PawnEdit",
+      "description": "Edit Faction",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          },
+          "set_faction": {
+            "type": "string"
+          },
+          "make_colonist": {
+            "type": "boolean"
+          },
+          "make_prisoner": {
+            "type": "boolean"
+          },
+          "release_prisoner": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_pawn_edit_health",
+      "method": "POST",
+      "path": "/api/v1/pawn/edit/health",
+      "category": "PawnEdit",
+      "description": "Edit Health",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          },
+          "heal_all_injuries": {
+            "type": "boolean"
+          },
+          "restore_body_parts": {
+            "type": "boolean"
+          },
+          "remove_all_diseases": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_pawn_edit_inventory",
+      "method": "POST",
+      "path": "/api/v1/pawn/edit/inventory",
+      "category": "PawnEdit",
+      "description": "Edit Inventory",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          },
+          "drop_inventory": {
+            "type": "boolean"
+          },
+          "clear_inventory": {
+            "type": "boolean"
+          },
+          "add_items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "def_name": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_pawn_edit_needs",
+      "method": "POST",
+      "path": "/api/v1/pawn/edit/needs",
+      "category": "PawnEdit",
+      "description": "Edit Needs",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          },
+          "food": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rest": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mood": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_pawn_edit_position",
+      "method": "POST",
+      "path": "/api/v1/pawn/edit/position",
+      "category": "PawnEdit",
+      "description": "Edit Position",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          },
+          "map_id": {
+            "type": "string"
+          },
+          "position": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_pawn_edit_skills",
+      "method": "POST",
+      "path": "/api/v1/pawn/edit/skills",
+      "category": "PawnEdit",
+      "description": "Edit Skills",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "skill_name": {
+                  "type": "string"
+                },
+                "level": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "passion": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_pawn_edit_status",
+      "method": "POST",
+      "path": "/api/v1/pawn/edit/status",
+      "category": "PawnEdit",
+      "description": "Edit Status",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          },
+          "is_drafted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kill": {
+            "type": "boolean"
+          },
+          "resurrect": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_pawn_edit_traits",
+      "method": "POST",
+      "path": "/api/v1/pawn/edit/traits",
+      "category": "PawnEdit",
+      "description": "Edit Traits",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          },
+          "add_traits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "trait_name": {
+                  "type": "string"
+                },
+                "degree": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "remove_traits": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_pawn_job",
+      "method": "POST",
+      "path": "/api/v1/pawn/job",
+      "category": "PawnJob",
+      "description": "Assign Job",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          },
+          "job_def": {
+            "type": "string"
+          },
+          "target_thing_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target_position": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_pawn_medical_bed_rest",
+      "method": "POST",
+      "path": "/api/v1/pawn/medical/bed-rest",
+      "category": "PawnJob",
+      "description": "Assign Bed Rest",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "patient_pawn_id": {
+            "type": "integer"
+          },
+          "bed_building_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_pawn_medical_tend",
+      "method": "POST",
+      "path": "/api/v1/pawn/medical/tend",
+      "category": "PawnJob",
+      "description": "Assign Tend Job",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "patient_pawn_id": {
+            "type": "integer"
+          },
+          "doctor_pawn_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_pawn_spawn",
+      "method": "POST",
+      "path": "/api/v1/pawn/spawn",
+      "category": "PawnSpawn",
+      "description": "Edit Pawn",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn_kind": {
+            "type": "string"
+          },
+          "faction": {
+            "type": "string"
+          },
+          "xenotype": {
+            "type": "string"
+          },
+          "gender": {
+            "type": "string"
+          },
+          "biological_age": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chronological_age": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "allow_dead": {
+            "type": "boolean"
+          },
+          "allow_downed": {
+            "type": "boolean"
+          },
+          "can_generate_pawn_relations": {
+            "type": "boolean"
+          },
+          "must_be_capable_of_violence": {
+            "type": "boolean"
+          },
+          "allow_gay": {
+            "type": "boolean"
+          },
+          "allow_pregnant": {
+            "type": "boolean"
+          },
+          "allow_food": {
+            "type": "boolean"
+          },
+          "allow_addictions": {
+            "type": "boolean"
+          },
+          "inhabitant": {
+            "type": "boolean"
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "nick_name": {
+            "type": "string"
+          },
+          "map_id": {
+            "type": "string"
+          },
+          "position": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_pawns_interactions_force",
+      "method": "POST",
+      "path": "/api/v1/pawns/interactions/force",
+      "category": "PawnSocial",
+      "description": "Force Interaction",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "initiator_id": {
+            "type": "integer"
+          },
+          "recipient_id": {
+            "type": "integer"
+          },
+          "interaction_def_name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_pawns_relations_add",
+      "method": "POST",
+      "path": "/api/v1/pawns/relations/add",
+      "category": "PawnSocial",
+      "description": "Add Relation",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pawn1_id": {
+            "type": "integer"
+          },
+          "pawn2_id": {
+            "type": "integer"
+          },
+          "relation_def_name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_research_stop",
+      "method": "POST",
+      "path": "/api/v1/research/stop",
+      "category": "Research",
+      "description": "Stop Current Project",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_research_target",
+      "method": "POST",
+      "path": "/api/v1/research/target",
+      "category": "Research",
+      "description": "Set Research Target",
+      "transport": "query",
+      "query_keys": [
+        "name",
+        "force"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "force": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_select",
+      "method": "POST",
+      "path": "/api/v1/select",
+      "category": "Game",
+      "description": "Select",
+      "transport": "query",
+      "query_keys": [
+        "type",
+        "id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "post_things_set_forbidden",
+      "method": "POST",
+      "path": "/api/v1/things/set-forbidden",
+      "category": "Things",
+      "description": "Set Forbidden",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "thing_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "map_id": {
+            "type": "integer"
+          },
+          "forbidden": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_ui_announce",
+      "method": "POST",
+      "path": "/api/v1/ui/announce",
+      "category": "Overlay",
+      "description": "Show Announcement",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "duration": {
+            "type": "number"
+          },
+          "color": {
+            "type": "string"
+          },
+          "scale": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_ui_dialog",
+      "method": "POST",
+      "path": "/api/v1/ui/dialog",
+      "category": "UI",
+      "description": "Show Dialog",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "action_id": {
+                  "type": "string"
+                },
+                "resolve_tree": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_ui_message",
+      "method": "POST",
+      "path": "/api/v1/ui/message",
+      "category": "UI",
+      "description": "Show Message",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "button_text": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "post_ui_window_close",
+      "method": "POST",
+      "path": "/api/v1/ui/window/close",
+      "category": "UI",
+      "description": "Close Windows",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "window_types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "force_pause_only": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
+      "name": "put_buildings_bill_reorder",
+      "method": "PUT",
+      "path": "/api/v1/buildings/bill/reorder",
+      "category": "Bill",
+      "description": "Reorder Bill",
+      "transport": "json",
+      "query_keys": [
+        "building_id",
+        "bill_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "offset": {
+            "type": "integer"
+          },
+          "building_id": {
+            "type": "integer"
+          },
+          "bill_id": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "bill_id",
+          "building_id"
+        ]
+      }
+    },
+    {
+      "name": "put_buildings_bill_suspend",
+      "method": "PUT",
+      "path": "/api/v1/buildings/bill/suspend",
+      "category": "Bill",
+      "description": "Suspend Bill",
+      "transport": "json",
+      "query_keys": [
+        "building_id",
+        "bill_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "suspended": {
+            "type": "boolean"
+          },
+          "building_id": {
+            "type": "integer"
+          },
+          "bill_id": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "bill_id",
+          "building_id"
+        ]
+      }
+    },
+    {
+      "name": "put_buildings_bill_update",
+      "method": "PUT",
+      "path": "/api/v1/buildings/bill/update",
+      "category": "Bill",
+      "description": "Update Bill",
+      "transport": "json",
+      "query_keys": [
+        "building_id",
+        "bill_id"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "repeat_mode": {
+            "type": "string"
+          },
+          "repeat_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "store_mode": {
+            "type": "string"
+          },
+          "suspended": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pause_when_satisfied": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unpause_when_you_have": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "include_equipped": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "include_tainted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hp_range": {
+            "type": "object",
+            "properties": {
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false
+          },
+          "quality_range": {
+            "type": "object",
+            "properties": {
+              "min": {
+                "type": "integer"
+              },
+              "max": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          },
+          "limit_to_allowed_stuff": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ingredient_search_radius": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "allowed_skill_range": {
+            "type": "object",
+            "properties": {
+              "min": {
+                "type": "integer"
+              },
+              "max": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          },
+          "pawn_restriction_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "player_custom_name": {
+            "type": "string"
+          },
+          "allowed_materials": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "building_id": {
+            "type": "integer"
+          },
+          "bill_id": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "bill_id",
+          "building_id"
+        ]
+      }
+    }
+  ]
+}

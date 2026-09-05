@@ -1,0 +1,365 @@
+/* src/components/ApiConfig.css */
+
+.api-config-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  padding: 20px;
+  background-color: #121212; /* Fallback */
+  box-sizing: border-box;
+}
+
+/* Unique Overlay */
+.api-config-screen::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, #2a2a2a 0%, #000000 100%);
+    z-index: -1;
+}
+
+/* --- Main Container --- */
+.ac-content {
+  width: 100%;
+  max-width: 480px;
+  
+  /* Glass Style */
+  background: rgba(30, 30, 30, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  
+  padding: 35px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  color: #e0e0e0;
+  box-sizing: border-box;
+}
+
+/* --- Header --- */
+.ac-header {
+  text-align: center;
+  margin-bottom: 5px;
+}
+
+.ac-icon {
+  font-size: 3rem;
+  margin-bottom: 10px;
+  filter: drop-shadow(0 0 10px rgba(77, 171, 247, 0.3));
+}
+
+.ac-title {
+  font-size: 1.6rem;
+  margin: 0;
+  color: white;
+  font-weight: 700;
+}
+
+.ac-subtitle {
+  color: #888;
+  margin: 5px 0 0 0;
+  font-size: 0.9rem;
+}
+
+/* --- Form --- */
+.ac-form {
+  display: flex;
+  flex-direction: column;
+  /* Reduced gap because input-group now has its own margin-bottom cushion */
+  gap: 10px; 
+}
+
+.ac-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative; /* Acts as anchor for absolute positioning */
+  
+  /* CRITICAL FIX: Always reserve 25px of space below for the error message.
+     This ensures the next element (Version dropdown) never moves. */
+  margin-bottom: 25px; 
+}
+
+.ac-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #aaa;
+  font-weight: 600;
+}
+
+.ac-input {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px 15px;
+  color: white;
+  font-size: 1rem;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box; /* Ensures padding doesn't increase width */
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.ac-input:focus {
+  border-color: #4dabf7;
+  background: rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 0 2px rgba(77, 171, 247, 0.2);
+}
+
+/* RENAME THIS SELECTOR */
+.ac-input.ac-input-error {
+  border-color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.05);
+  margin: 0; /* Force reset margin just in case */
+}
+
+/* OPTIONAL: Add specific focus state for error */
+.ac-input.ac-input-error:focus {
+  box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.2);
+}
+
+.ac-error-message {
+  /* ABSOLUTE POSITIONING FIX */
+  position: absolute;
+  top: 100%; /* Pushes it exactly below the input group */
+  left: 0;
+  width: 100%;
+  
+  color: #ff6b6b;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px; /* Tiny gap between input and error */
+  
+  animation: fadeIn 0.2s ease-out;
+  pointer-events: none; /* Ensures it doesn't block clicks on things below it */
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* --- Version Info Row --- */
+.ac-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    padding: 0 2px;
+}
+
+.ac-info-label {
+    color: #666;
+}
+
+.ac-version-badge {
+    background: rgba(255, 255, 255, 0.1);
+    color: #4dabf7;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+    font-family: monospace;
+}
+
+/* --- Buttons --- */
+.ac-quick-connect {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+}
+
+.ac-quick-label {
+  color: #666;
+}
+
+.ac-quick-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.ac-quick-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #888;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+}
+
+.ac-quick-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.ac-action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.ac-btn {
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 1rem;
+}
+
+.ac-btn-primary {
+  background: rgba(77, 171, 247, 0.2);
+  color: #4dabf7;
+  border: 1px solid rgba(77, 171, 247, 0.3);
+}
+
+.ac-btn-primary:hover:not(:disabled) {
+  background: rgba(77, 171, 247, 0.3);
+  color: white;
+  box-shadow: 0 0 15px rgba(77, 171, 247, 0.2);
+}
+
+.ac-btn-secondary {
+  background: transparent;
+  color: #888;
+  border: 1px solid transparent;
+}
+
+.ac-btn-secondary:hover {
+  color: #ccc;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ac-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* --- Guide Panel --- */
+.ac-setup-guide {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  padding: 15px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-top: 10px;
+}
+
+.ac-guide-title {
+  margin: 0 0 12px 0;
+  font-size: 0.85rem;
+  color: #ccc;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ac-guide-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ac-step {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.ac-step-num {
+  background: rgba(255, 255, 255, 0.1);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: #fff;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.ac-step-content {
+    flex: 1;
+}
+
+.ac-step-content p, .ac-step p {
+  margin: 0 0 2px 0;
+  font-size: 0.85rem;
+  color: #aaa;
+  line-height: 1.4;
+}
+
+.ac-mod-link {
+  display: inline-block;
+  color: #4dabf7;
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-top: 2px;
+  transition: color 0.2s;
+  padding: 2px 0;
+}
+
+.ac-mod-link:hover {
+  color: #74c0fc;
+  text-decoration: underline;
+}
+
+/* --- Footer / Discord Link --- */
+.ac-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-top: 5px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ac-footer-text {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.ac-discord-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(88, 101, 242, 0.15); /* Discord Blue-ish Tint */
+    color: #7289da;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    border: 1px solid rgba(88, 101, 242, 0.3);
+}
+
+.ac-discord-link:hover {
+    background: rgba(88, 101, 242, 0.3);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(88, 101, 242, 0.2);
+}
+
+.discord-icon {
+    font-size: 1.1em;
+}
