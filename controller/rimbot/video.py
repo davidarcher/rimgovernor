@@ -4,8 +4,26 @@ Upstream packets have no frame ID. Require ordered chunks and discard incomplete
 frames, rather than combining packets from different captures. No frame history.
 """
 import asyncio
+import socket
 import struct
 import time
+
+
+def abandoned_local_stream(config):
+    """Only reclaim a loopback stream whose destination has no UDP listener."""
+    if config.get('address') != '127.0.0.1':
+        return False
+    port=config.get('port')
+    if not isinstance(port,int) or not 1<=port<=65535:
+        return False
+    with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as probe:
+        if hasattr(socket,'SO_EXCLUSIVEADDRUSE'):
+            probe.setsockopt(socket.SOL_SOCKET,socket.SO_EXCLUSIVEADDRUSE,1)
+        try:
+            probe.bind(('127.0.0.1',port))
+        except OSError:
+            return False
+    return True
 
 
 class JPEGReceiver(asyncio.DatagramProtocol):
@@ -59,7 +77,9 @@ class Video:
                 api=self.rt.api
                 previous=await api.request('GET','/api/v1/camera/stream/status')
                 if previous.get('is_streaming'):
-                    raise ValueError('RIMAPI camera is already streaming to another client. Stop that stream before connecting here.')
+                    if not abandoned_local_stream(previous.get('config') or {}):
+                        raise ValueError('RIMAPI camera is already streaming to another client. Stop that stream before connecting here.')
+                    await api.request('POST','/api/v1/camera/stream/stop')
                 transport,_=await asyncio.get_running_loop().create_datagram_endpoint(lambda:JPEGReceiver(self.frame),local_addr=('127.0.0.1',0))
                 port=transport.get_extra_info('sockname')[1]
                 try:

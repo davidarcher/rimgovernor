@@ -2,6 +2,7 @@ import {useEffect,useRef,useState} from 'react';
 import {command} from './useController';
 
 export default function Camera({connected}:{connected:boolean}) {
+  const panel=useRef<HTMLElement>(null);
   const [live,setLive]=useState(true),[image,setImage]=useState(''),[error,setError]=useState('');
   const [frames,setFrames]=useState(0),[waiting,setWaiting]=useState(false);
   const [stale,setStale]=useState(false);
@@ -23,9 +24,10 @@ export default function Camera({connected}:{connected:boolean}) {
     return()=>{disposed=true;ws.close();clearInterval(interval);if(current)URL.revokeObjectURL(current);setImage('');};
   },[live,connected]);
   async function capture(){try{setError('');const result=await command('camera');setImage(result.image);setStale(false);}catch(e){setError(String(e));}}
-  return <section className="mgr-card mgr-camera"><div className="mgr-card-title"><div><span className="mgr-eyebrow">ON THE GROUND</span><h2>Colony view</h2></div><div className="mgr-inline"><button disabled={!connected||live} onClick={capture}>Snapshot</button><button className={live?'mgr-selected':''} disabled={!connected} onClick={()=>setLive(v=>!v)}>{live?'Stop feed':'Live feed'}</button></div></div>
+  async function fullscreen(){try{if(document.fullscreenElement)await document.exitFullscreen();else await panel.current?.requestFullscreen();}catch(e){setError(String(e));}}
+  return <section ref={panel} className="mgr-card mgr-camera"><div className="mgr-card-title"><div><span className="mgr-eyebrow">ON THE GROUND</span><h2>Colony view</h2></div><div className="mgr-inline"><button onClick={fullscreen}>Full screen</button><button disabled={!connected||live} onClick={capture}>Snapshot</button><button className={live?'mgr-selected':''} disabled={!connected} onClick={()=>setLive(v=>!v)}>{live?'Stop feed':'Live feed'}</button></div></div>
     <div className="mgr-camera-surface">{image?<img src={image} alt="RimWorld camera"/>:<div className="mgr-camera-empty"><span>⌖</span><h3>A place to call home.</h3><p>{connected?'Start the live feed to watch the colony.':'Load your colony with RIMAPI enabled.'}</p></div>}
     {live&&<div className="mgr-feed-label"><i/> {waiting?'Connecting camera…':stale?'Waiting for frames':`${frames} fps · LIVE`}</div>}
     {error&&<div className="mgr-camera-error" role="status">{error}</div>}</div>
-    <div className="mgr-camera-note">{live?'Live game camera · 720p · streamed locally':'Video stays on your computer. It is not continuously sent to the model.'}</div></section>;
+    <div className="mgr-camera-note">{live?'Live game camera · 720p · streamed locally':'Video stays on your computer. It is not continuously sent to the model.'} · Drag the lower-right corner to resize.</div></section>;
 }

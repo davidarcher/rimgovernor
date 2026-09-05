@@ -489,7 +489,7 @@ export const fetchRimWorldData = async (): Promise<RimWorldData> => {
     getJson<ResearchProgress>("/research/progress"),
     getJson<ResearchFinished>("/research/finished"),
     getJson<ResearchSummary>("/research/summary"),
-    getJson<ModInfo[]>("/mods/info"),
+    getJson<ModInfo[]>("/mods/list"),
   ]);
 
   return {

@@ -8,7 +8,33 @@ from rimbot.contracts import Action,Check,Query,select,satisfies,Proposal,Decisi
 from rimbot.model import LocalModel,ModelError
 from rimbot.rimapi import APIError,unwrap,compact
 from rimbot.server import create_app
-from rimbot.video import JPEGReceiver
+from rimbot.video import JPEGReceiver,Video,abandoned_local_stream
+import socket
+from types import SimpleNamespace
+
+
+async def test_video_recovers_abandoned_receiver_and_shares_stream():
+    with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as receiver:
+        receiver.bind(('127.0.0.1',0))
+        config={'address':'127.0.0.1','port':receiver.getsockname()[1]}
+        assert not abandoned_local_stream(config)
+    assert abandoned_local_stream(config)
+    assert not abandoned_local_stream({**config,'address':'192.168.1.2'})
+    calls=[]
+    class API:
+        async def request(self,method,path,**kwargs):
+            calls.append((method,path))
+            if method=='GET':return {'is_streaming':True,'config':config}
+            return {}
+    video=Video(SimpleNamespace(api=API()))
+    first=await video.subscribe()
+    second=await video.subscribe()
+    assert [path.rsplit('/',1)[-1] for _,path in calls]==['status','stop','setup','start']
+    await video.unsubscribe(first)
+    assert video.transport is not None
+    await video.unsubscribe(second)
+    assert video.transport is None
+    assert [path.rsplit('/',1)[-1] for _,path in calls][-2:]==['stop','setup']
 
 
 def allow():
