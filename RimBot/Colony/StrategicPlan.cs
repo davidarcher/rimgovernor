@@ -45,7 +45,7 @@ namespace RimBot.Colony
                 var conditions=new JArray();
                 foreach(var c in checks) {
                     string metric=Text(c,"metric",80),op=Text(c,"op",12);
-                    if(!new[]{"armed_colonists","capable_fighters","growing_cells","configured_food_bills","research_active","colonists","sheltered_slots","food_days","hostiles","patients","medical_emergencies","stockpiles","food_bills","pending_orders"}.Contains(metric) &&
+                    if(!new[]{"armed_colonists","capable_fighters","growing_cells","configured_food_bills","research_active","colonists","regular_bed_slots","pending_bed_slots","sheltered_slots","food_days","hostiles","patients","medical_emergencies","stockpiles","food_bills","pending_orders"}.Contains(metric) &&
                         !(metric.StartsWith("building:") && metric.Length>9) && !(metric.StartsWith("research:") && metric.Length>9))
                         throw new ArgumentException("Unmeasured completion metric: "+metric+". Use supplied measured counters; forbidden item counts are not colony objectives.");
                     if(op!="atLeast" && op!="atMost") throw new ArgumentException("Unknown completion comparison.");

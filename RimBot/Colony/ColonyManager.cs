@@ -141,6 +141,7 @@ namespace RimBot.Colony
                 if(!target.Position.Fogged(map)) map.GetComponent<ConstructionTargets>().Observe(target);
             observedIdentifiers.RemoveMissingThings(new HashSet<int>(map.listerThings.AllThings.Where(t=>t.Spawned && !t.Position.Fogged(map)).Select(t=>t.thingIDNumber)));
             snapshot=ColonyTools.Snapshot(map);
+            snapshot["sleepingCapacity"]=ColonyObjectives.SleepingCapacity(facts);
             snapshot["objectives"]=new JArray(Objectives.Select(o=>o.ToJson()));
             snapshot["trackedTasks"]=taskLedger.View(map.uniqueID);
             snapshot["workFocus"]=WorkFocus(map);

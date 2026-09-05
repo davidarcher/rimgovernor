@@ -6,6 +6,14 @@ internal static class DecisionChecks
 {
     public static void Run(Action<bool,string> check)
     {
+        var sleep=new ColonyFacts{Colonists=3,RegularBedSlots=2,PendingBedSlots=1,ShelteredSlots=0,Builders=1};
+        check(ColonyObjectives.SleepingCapacity(sleep).Value<int>("additionalSlotsNeeded")==0,"Mixed built/pending beds counted as missing capacity");
+        check(System.Linq.Enumerable.First(ColonyObjectives.Evaluate(sleep),o=>o.Id=="shelter").NextStep.Contains("Existing bed orders cover"),"Mixed bed capacity recommends new beds");
+        sleep.RegularBedSlots=3; sleep.PendingBedSlots=0;
+        var capacity=ColonyObjectives.SleepingCapacity(sleep);
+        check(capacity.Value<int>("additionalSlotsNeeded")==0 && capacity.Value<int>("unshelteredBuiltSlots")==3,"Outdoor beds conflated with missing beds");
+        sleep.Colonists=4;
+        check(ColonyObjectives.SleepingCapacity(sleep).Value<int>("additionalSlotsNeeded")==1,"New colonist's bed demand hidden");
         var identifiers=new ObservedIdentifiers();
         identifiers.Remember("construction_list","[{id:42,defName:'Bed',stage:'blueprint'},{id:43,defName:'Bed',stage:'frame'}]");
         identifiers.Remember("zones_list","[{id:42,name:'Stockpile'}]");

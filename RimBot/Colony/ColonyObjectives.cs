@@ -38,6 +38,12 @@ namespace RimBot.Colony
     public static class ColonyObjectives
     {
         public const float FoodTargetDays = 2f;
+        public static JObject SleepingCapacity(ColonyFacts f)=>new JObject {
+            ["colonists"]=f.Colonists,["builtRegularSlots"]=f.RegularBedSlots,["pendingSlots"]=f.PendingBedSlots,
+            ["additionalSlotsNeeded"]=Math.Max(0,f.Colonists-f.RegularBedSlots-f.PendingBedSlots),
+            ["shelteredBuiltSlots"]=f.ShelteredSlots,["unshelteredBuiltSlots"]=Math.Max(0,f.RegularBedSlots-f.ShelteredSlots),
+            ["note"]="Bed capacity and shelter are separate. Zero sheltered slots does not mean zero beds. Extra outdoor beds do not fix enclosure or roofing. Reuse existing furniture or finish pending orders when capacity is covered; placement, assignment and access still need assessment."
+        };
         private static ColonyObjective Objective(string id, string title, ObjectiveState state, int priority, string evidence, string next)
             => new ColonyObjective { Id = id, Title = title, State = state, Priority = priority, Evidence = evidence, NextStep = next };
 
@@ -68,13 +74,13 @@ namespace RimBot.Colony
 
             int missing = Math.Max(0, f.Colonists - f.ShelteredSlots);
             var shelterState = missing == 0 ? ObjectiveState.Satisfied :
-                f.PendingBedSlots >= missing ? (f.Builders == 0 || f.ConstructionStalled ? ObjectiveState.Blocked :
+                f.RegularBedSlots + f.PendingBedSlots >= f.Colonists ? (f.Builders == 0 || f.ConstructionStalled ? ObjectiveState.Blocked :
                     f.ActiveConstruction > 0 && f.BedFrames > 0 ? ObjectiveState.InProgress : ObjectiveState.Ordered) : ObjectiveState.Needed;
             result.Add(Objective("shelter", "Provide sheltered sleeping places", shelterState, missing > 0 ? 2 : 5,
                 f.ShelteredSlots + "/" + f.Colonists + " sheltered slots; " + f.RegularBedSlots + " existing regular slots total; " + f.PendingBedSlots + " slots in pending bed orders.",
                 missing == 0 ? "Enough physical sleeping places. Assignment, access, and temperature comfort still require checking." :
                 f.RegularBedSlots >= f.Colonists ? "Enough beds already exist. Enclose/roof their locations rather than duplicate beds; use areas_build_roof after checking supports and enclosure." :
-                f.PendingBedSlots >= missing ? "Existing bed orders cover the slot deficit. Check their enclosure and construction progress; do not duplicate beds." :
+                f.RegularBedSlots + f.PendingBedSlots >= f.Colonists ? "Existing bed orders cover the slot deficit. Check their enclosure and construction progress; do not duplicate beds." :
                 "Inspect an existing enclosed room first, then plan missing beds. Unroofed/outdoor beds do not satisfy this objective."));
 
             var workState = f.PendingOrders == 0 ? ObjectiveState.Satisfied : f.Builders == 0 || f.ConstructionStalled ? ObjectiveState.Blocked :
