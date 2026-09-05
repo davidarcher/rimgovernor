@@ -1,10 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Reflection;
 using Verse;
-using HarmonyLib;
-
 namespace RimBot
 {
     [StaticConstructorOnStartup]
@@ -12,42 +6,7 @@ namespace RimBot
     {
         static ModEntryPoint()
         {
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-
-            Log.Message("[RimBot] Initialization started.");
-
-            var harmony = new Harmony("com.kolbywan.rimbot");
-            harmony.PatchAll(Assembly.GetExecutingAssembly());
-
-            Log.Message("[RimBot] Harmony patches applied.");
-
-            RegisterITab();
-        }
-
-        private static void RegisterITab()
-        {
-            var tabType = typeof(ITab_RimBotHistory);
-            int count = 0;
-
-            foreach (var def in DefDatabase<ThingDef>.AllDefs)
-            {
-                if (def.race == null || !def.race.Humanlike)
-                    continue;
-
-                if (def.inspectorTabs == null)
-                    def.inspectorTabs = new List<Type>();
-                if (def.inspectorTabsResolved == null)
-                    def.inspectorTabsResolved = new List<InspectTabBase>();
-
-                if (!def.inspectorTabs.Contains(tabType))
-                {
-                    def.inspectorTabs.Add(tabType);
-                    def.inspectorTabsResolved.Add(InspectTabManager.GetSharedInstance(tabType));
-                    count++;
-                }
-            }
-
-            Log.Message("[RimBot] Registered ITab_RimBotHistory on " + count + " humanlike ThingDefs.");
+            Log.Message("[RimBot Manager] Colony manager loaded. No gameplay patches or pawn lifecycle overrides.");
         }
     }
 }

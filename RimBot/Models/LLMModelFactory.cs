@@ -22,9 +22,10 @@ namespace RimBot.Models
                     case LLMProviderType.Google:
                         model = new GoogleModel();
                         break;
+                    case LLMProviderType.Local:
+                        return new LocalModel(RimBotMod.Settings.localUrl);
                     default:
-                        model = new AnthropicModel();
-                        break;
+                        throw new System.ArgumentOutOfRangeException(nameof(providerType));
                 }
                 Instances[providerType] = model;
             }

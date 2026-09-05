@@ -1,5 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<?xml version='1.0' encoding='utf-8'?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="15.0">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -12,7 +12,7 @@
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
-    <RimWorldManagedPath Condition=" '$(RimWorldManagedPath)' == '' ">..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\RimWorld\RimWorldWin64_Data\Managed</RimWorldManagedPath>
+    <RimWorldManagedPath Condition=" '$(RimWorldManagedPath)' == '' ">C:\Program Files (x86)\Steam\steamapps\common\RimWorld\RimWorldWin64_Data\Managed</RimWorldManagedPath>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -32,10 +32,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="0Harmony">
-      <HintPath>Libs\0Harmony.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>Libs\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
@@ -77,68 +73,20 @@
       <Private>False</Private>
     </Reference>
   </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
-    <Compile Include="AgentProfile.cs" />
-    <Compile Include="ColonyAssignmentComponent.cs" />
     <Compile Include="Main.cs" />
     <Compile Include="RimBotMod.cs" />
     <Compile Include="RimBotSettings.cs" />
-    <Compile Include="Models\LLMProviderType.cs" />
-    <Compile Include="Models\ThinkingLevel.cs" />
-    <Compile Include="Models\ContentPart.cs" />
-    <Compile Include="Models\ChatMessage.cs" />
-    <Compile Include="Models\ModelResponse.cs" />
-    <Compile Include="Models\ILanguageModel.cs" />
-    <Compile Include="Models\AnthropicModel.cs" />
-    <Compile Include="Models\OpenAIModel.cs" />
-    <Compile Include="Models\GoogleModel.cs" />
-    <Compile Include="Models\LLMModelFactory.cs" />
-    <Compile Include="HistoryEntry.cs" />
-    <Compile Include="ITab_RimBotHistory.cs" />
-    <Compile Include="Brain.cs" />
-    <Compile Include="BrainManager.cs" />
-    <Compile Include="OwnershipTracker.cs" />
-    <Compile Include="Patches\CorePatches.cs" />
-    <Compile Include="Patches\DifficultyPatches.cs" />
-    <Compile Include="Patches\OwnershipPatches.cs" />
-    <Compile Include="ScreenshotCapture.cs" />
-    <Compile Include="AgentRunner.cs" />
-    <Compile Include="ConversationSummarizer.cs" />
-    <Compile Include="MetricsTracker.cs" />
-    <Compile Include="SpatialEvaluator.cs" />
-    <Compile Include="SurvivalNeeds.cs" />
-    <Compile Include="Tools\ToolTypes.cs" />
-    <Compile Include="Tools\GetScreenshotTool.cs" />
-    <Compile Include="Tools\ArchitectBuildTool.cs" />
-    <Compile Include="Tools\ArchitectOrdersTool.cs" />
-    <Compile Include="Tools\ArchitectZoneTool.cs" />
-    <Compile Include="Tools\ListBuildablesTool.cs" />
-    <Compile Include="Tools\ToolRegistry.cs" />
-    <Compile Include="Tools\InspectCellTool.cs" />
-    <Compile Include="Tools\ScanAreaTool.cs" />
-    <Compile Include="Tools\FindOnMapTool.cs" />
-    <Compile Include="Tools\GetPawnStatusTool.cs" />
-    <Compile Include="Tools\ListWorkPrioritiesTool.cs" />
-    <Compile Include="Tools\SetWorkPriorityTool.cs" />
-    <Compile Include="Tools\ListScheduleTool.cs" />
-    <Compile Include="Tools\SetScheduleTool.cs" />
-    <Compile Include="Tools\ListAnimalsTool.cs" />
-    <Compile Include="Tools\SetAnimalTrainingTool.cs" />
-    <Compile Include="Tools\SetAnimalOperationTool.cs" />
-    <Compile Include="Tools\SetAnimalMasterTool.cs" />
-    <Compile Include="Tools\ListWildlifeTool.cs" />
-    <Compile Include="Tools\SetWildlifeOperationTool.cs" />
-    <Compile Include="Tools\ListResearchTool.cs" />
-    <Compile Include="Tools\SetResearchTool.cs" />
-    <Compile Include="Tools\SetGoalTool.cs" />
+    <Compile Include="Colony\*.cs" />
+    <Compile Include="Models\*.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="SystemPrompt.txt" />
+  <ItemGroup Condition="'$(GameSmoke)' == 'true'">
+    <Compile Include="..\tests\GameSmoke.cs" />
+    <Reference Include="UnityEngine.ScreenCaptureModule">
+      <HintPath>$(RimWorldManagedPath)\UnityEngine.ScreenCaptureModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <PropertyGroup Condition=" '$(CI)' == '' ">
-    <PostBuildEvent>xcopy /Y /E /I "$(TargetDir)*.*" "C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\RimBot\1.6\Assemblies\"
-xcopy /Y /E /I "$(ProjectDir)..\1.6\Defs\*.*" "C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\RimBot\1.6\Defs\"</PostBuildEvent>
-  </PropertyGroup>
 </Project>

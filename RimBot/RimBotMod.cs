@@ -3,170 +3,54 @@ using System.Collections.Generic;
 using RimBot.Models;
 using UnityEngine;
 using Verse;
-
 namespace RimBot
 {
     public class RimBotMod : Mod
     {
+        private Vector2 settingsScroll;
+        private float settingsHeight=1000;
         public static RimBotSettings Settings { get; private set; }
-
-        private Vector2 profileScrollPos;
-        private int profileToRemove = -1;
-
-        public RimBotMod(ModContentPack content) : base(content)
+        public RimBotMod(ModContentPack content) : base(content) { Settings=GetSettings<RimBotSettings>(); }
+        public override string SettingsCategory() => "RimBot Colony Manager";
+        public override void DoSettingsWindowContents(Rect rect)
         {
-            Settings = GetSettings<RimBotSettings>();
-        }
-
-        public override string SettingsCategory()
-        {
-            return "RimBot";
-        }
-
-        public override void DoSettingsWindowContents(Rect inRect)
-        {
-            Settings.EnsureProfilesLoaded();
-
-            var listing = new Listing_Standard();
-            listing.Begin(inRect);
-
-            listing.Label("Anthropic API Key:");
-            var newAnthropicKey = listing.TextEntry(Settings.anthropicApiKey);
-            if (newAnthropicKey != Settings.anthropicApiKey)
-                Settings.anthropicApiKey = newAnthropicKey;
-
-            listing.Gap();
-
-            listing.Label("OpenAI API Key:");
-            var newOpenAIKey = listing.TextEntry(Settings.openAIApiKey);
-            if (newOpenAIKey != Settings.openAIApiKey)
-                Settings.openAIApiKey = newOpenAIKey;
-
-            listing.Gap();
-
-            listing.Label("Google API Key:");
-            var newGoogleKey = listing.TextEntry(Settings.googleApiKey);
-            if (newGoogleKey != Settings.googleApiKey)
-                Settings.googleApiKey = newGoogleKey;
-
-            listing.GapLine();
-
-            // Agent Profiles section
-            listing.Label("Agent Profiles:");
-            listing.Gap(4f);
-
-            float profileAreaHeight = Math.Min(Settings.profiles.Count * 36f + 8f, 180f);
-            var profileOuterRect = listing.GetRect(profileAreaHeight);
-            var profileViewRect = new Rect(0f, 0f, profileOuterRect.width - 16f, Settings.profiles.Count * 36f);
-
-            Widgets.DrawBoxSolid(profileOuterRect, new Color(0.15f, 0.15f, 0.15f, 0.5f));
-            Widgets.BeginScrollView(profileOuterRect, ref profileScrollPos, profileViewRect);
-
-            profileToRemove = -1;
-            for (int i = 0; i < Settings.profiles.Count; i++)
+            Widgets.BeginScrollView(rect,ref settingsScroll,new Rect(0,0,rect.width-20,settingsHeight));
+            var l=new Listing_Standard(); l.Begin(new Rect(0,0,rect.width-20,10000));
+            l.Label("One colony manager. Existing pawns and normal game rules are preserved.");
+            if(l.ButtonText("Provider: "+(Settings.managerProvider==LLMProviderType.Local?"LM Studio (local)":Settings.managerProvider.ToString()+" (paid API)")))
             {
-                var profile = Settings.profiles[i];
-                float rowY = i * 36f;
-                float rowWidth = profileViewRect.width;
-                float buttonWidth = (rowWidth - 40f) / 2f;
-
-                // Provider button
-                if (Widgets.ButtonText(new Rect(0f, rowY + 2f, buttonWidth, 30f), profile.Provider.ToString()))
-                {
-                    var options = new List<FloatMenuOption>();
-                    foreach (LLMProviderType pType in Enum.GetValues(typeof(LLMProviderType)))
-                    {
-                        if (string.IsNullOrEmpty(Settings.GetApiKeyForProvider(pType)))
-                            continue;
-                        var captured = pType;
-                        var capturedIdx = i;
-                        options.Add(new FloatMenuOption(pType.ToString(), () =>
-                        {
-                            Settings.profiles[capturedIdx].Provider = captured;
-                            var models = LLMModelFactory.GetModel(captured).GetAvailableModels();
-                            Settings.profiles[capturedIdx].Model = models.Length > 0 ? models[0] : "";
-                            Settings.SerializeProfiles();
-                        }));
-                    }
-                    if (options.Count > 0)
-                        Find.WindowStack.Add(new FloatMenu(options));
+                var choices=new List<FloatMenuOption>();
+                foreach(LLMProviderType p in Enum.GetValues(typeof(LLMProviderType))) {
+                    var selected=p;
+                    choices.Add(new FloatMenuOption(p==LLMProviderType.Local?"LM Studio (local)":p+" (paid API)",()=> { Settings.managerProvider=selected; Settings.managerModel=""; }));
                 }
-
-                // Model button
-                if (Widgets.ButtonText(new Rect(buttonWidth + 4f, rowY + 2f, buttonWidth, 30f),
-                    string.IsNullOrEmpty(profile.Model) ? "(select model)" : profile.Model))
-                {
-                    var models = LLMModelFactory.GetModel(profile.Provider).GetAvailableModels();
-                    var options = new List<FloatMenuOption>();
-                    var capturedIdx = i;
-                    foreach (var m in models)
-                    {
-                        var capturedModel = m;
-                        options.Add(new FloatMenuOption(m, () =>
-                        {
-                            Settings.profiles[capturedIdx].Model = capturedModel;
-                            Settings.SerializeProfiles();
-                        }));
-                    }
-                    if (options.Count > 0)
-                        Find.WindowStack.Add(new FloatMenu(options));
-                }
-
-                // Remove button
-                if (Widgets.ButtonText(new Rect(rowWidth - 32f, rowY + 2f, 32f, 30f), "X"))
-                {
-                    profileToRemove = i;
-                }
+                Find.WindowStack.Add(new FloatMenu(choices));
             }
-
-            Widgets.EndScrollView();
-
-            // Process deferred removal
-            if (profileToRemove >= 0 && profileToRemove < Settings.profiles.Count)
-            {
-                Settings.profiles.RemoveAt(profileToRemove);
-                Settings.SerializeProfiles();
+            if(Settings.managerProvider==LLMProviderType.Local) {
+                l.Label("LM Studio server address (include /v1):"); Settings.localUrl=l.TextEntry(Settings.localUrl);
+                l.Label("Server API token (optional; leave blank unless authentication is enabled):"); Settings.localApiKey=l.TextEntry(Settings.localApiKey);
+                l.Label("Daily reasoning effort (none; blank uses server default):"); Settings.localReasoningEffort=l.TextEntry(Settings.localReasoningEffort);
+                l.Label("Strategic reasoning effort (medium; requires model/server support):"); Settings.strategicReasoningEffort=l.TextEntry(Settings.strategicReasoningEffort);
+                l.Label("Local output length uses the server/context allowance; no mod token cap.");
+                l.Label("Start the server in LM Studio's Developer tab. Use a model that supports tools.");
+            } else {
+                l.Label("API key (usage is billed separately from chat subscriptions):");
+                string key=l.TextEntry(Settings.GetApiKeyForProvider(Settings.managerProvider));
+                if(Settings.managerProvider==LLMProviderType.OpenAI) Settings.openAIApiKey=key;
+                if(Settings.managerProvider==LLMProviderType.Anthropic) Settings.anthropicApiKey=key;
+                if(Settings.managerProvider==LLMProviderType.Google) Settings.googleApiKey=key;
             }
-
-            listing.Gap(4f);
-            if (listing.ButtonText("+ Add Profile"))
-            {
-                // Find first provider with an API key
-                LLMProviderType defaultProvider = LLMProviderType.Anthropic;
-                string defaultModel = "";
-                foreach (LLMProviderType pType in Enum.GetValues(typeof(LLMProviderType)))
-                {
-                    if (!string.IsNullOrEmpty(Settings.GetApiKeyForProvider(pType)))
-                    {
-                        defaultProvider = pType;
-                        var models = LLMModelFactory.GetModel(pType).GetAvailableModels();
-                        defaultModel = models.Length > 0 ? models[0] : "";
-                        break;
-                    }
-                }
-                Settings.profiles.Add(new AgentProfile(defaultProvider, defaultModel));
-                Settings.SerializeProfiles();
+            l.Label("Model identifier (copy the exact identifier from your server):"); Settings.managerModel=l.TextEntry(Settings.managerModel).Replace("\n","").Trim();
+            l.GapLine();
+            l.Label("Minimum review interval: "+Settings.reviewSeconds+" seconds"); Settings.reviewSeconds=(int)l.Slider(Settings.reviewSeconds,15,300);
+            if(Settings.managerProvider==LLMProviderType.Local) {
+                l.Label("Local requests per hour: "+(Settings.localRequestsPerHour==0?"Unlimited":Settings.localRequestsPerHour.ToString())); Settings.localRequestsPerHour=(int)l.Slider(Settings.localRequestsPerHour,0,300);
+            } else {
+                l.Label("Paid API requests per hour: "+Settings.requestsPerHour); Settings.requestsPerHour=(int)l.Slider(Settings.requestsPerHour,1,120);
             }
-
-            // Auto-assign toggle (colony-wide, only available in-game)
-            if (Current.Game != null)
-            {
-                var comp = Current.Game.GetComponent<ColonyAssignmentComponent>();
-                if (comp != null)
-                {
-                    listing.Gap(4f);
-                    bool autoAssign = comp.autoAssignNewColonists;
-                    listing.CheckboxLabeled("Auto-assign new colonists to profiles", ref autoAssign);
-                    comp.autoAssignNewColonists = autoAssign;
-                }
-            }
-
-            listing.GapLine();
-
-            Settings.maxTokens = (int)listing.Slider(Settings.maxTokens, 64, 4096);
-            listing.Label("Max Tokens: " + Settings.maxTokens);
-
-            listing.End();
+            if(Settings.managerProvider!=LLMProviderType.Local) { l.Label("Maximum output tokens per daily request: "+Settings.maxTokens); Settings.maxTokens=(int)l.Slider(Settings.maxTokens,128,2048); l.Label("Strategic paid requests allow 8192 output tokens with medium reasoning."); }
+            l.Label("Local reviews have no turn or action cap. Paid APIs retain 3 steps / 4 actions. Unchanged summaries are skipped. No cloud fallback.");
+            settingsHeight=l.CurHeight+10; l.End(); Widgets.EndScrollView();
         }
     }
 }

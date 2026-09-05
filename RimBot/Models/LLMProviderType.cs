@@ -4,6 +4,7 @@ namespace RimBot.Models
     {
         Anthropic,
         OpenAI,
-        Google
+        Google,
+        Local
     }
 }

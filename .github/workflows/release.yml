@@ -31,13 +31,15 @@ jobs:
           echo "FRAMEWORK_PATH=$(pwd)/packages/net472ref/build/.NETFramework/v4.7.2" >> $GITHUB_ENV
 
       - name: Build
-        run: dotnet build RimBot.slnx -c Release -p:RimWorldManagedPath="$RIMWORLD_MANAGED" -p:FrameworkPathOverride="$FRAMEWORK_PATH" -p:CI=true
+        run: dotnet build RimBot/RimBot.csproj -c Release -p:RimWorldManagedPath="$RIMWORLD_MANAGED" -p:FrameworkPathOverride="$FRAMEWORK_PATH" -p:CI=true
 
       - name: Package mod
         run: |
           mkdir -p RimBot-mod/About
           mkdir -p RimBot-mod/1.6/Assemblies
+          mkdir -p RimBot-mod/1.6/Defs
           cp About/About.xml RimBot-mod/About/
+          cp 1.6/Defs/ColonyManager.xml RimBot-mod/1.6/Defs/
           cp RimBot/bin/Release/RimBot.dll RimBot-mod/1.6/Assemblies/
           cp RimBot/bin/Release/Newtonsoft.Json.dll RimBot-mod/1.6/Assemblies/
           cd RimBot-mod && zip -r ../RimBot.zip .
