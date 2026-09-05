@@ -112,6 +112,18 @@ def compact(value, limit=18000):
     raw = json.dumps(value, separators=(',', ':'), ensure_ascii=False)
     if len(raw) <= limit:
         return value
+    if isinstance(value,dict) and isinstance(value.get('items'),list) and all(k in value for k in ('total','offset','next_offset')):
+        kept=[]
+        size=len(json.dumps({**value,'items':[]}))
+        for item in value['items']:
+            length=len(json.dumps(item,ensure_ascii=False))+2
+            if kept and size+length>limit:break
+            kept.append(item)
+            size+=length
+        # Preserve row shape and point at the first row actually omitted, not
+        # the requested page size. Otherwise the model silently skips records.
+        end=value['offset']+len(kept)
+        return {**value,'items':kept,'next_offset':end if end<value['total'] else None}
     if isinstance(value, list):
         kept = []
         size = 0

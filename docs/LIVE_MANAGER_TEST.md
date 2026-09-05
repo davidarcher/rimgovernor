@@ -112,3 +112,36 @@ identities and empty plans/chat/work despite identical seed/map/faction IDs.
 RIMAPI now exposes a loaded-game session identifier and scopes native response
 caches to it. Loading a saved game starts a new session; controller reconnection
 to the same running game preserves its state.
+
+## Plain-objective startup profiling
+
+`scripts/live_startup_smoke.py --execute` drives the normal dashboard controller
+on a fresh disposable game with only “Provide sleeping arrangements for everyone.”
+It supplies no coordinates, building definitions, command contracts or model
+responses. It records first-order latency, per-role model timings and native
+readback, then returns to Manual and pauses. The conservative success check counts
+finished vanilla single beds/sleeping spots; other bed types require further
+verification rather than an assumed success.
+
+The initial broader runs **failed**. Strategy used ten discovery calls without
+submitting a plan; later runs spent most time repairing commands and discovering
+definitions, with no finished sleeping arrangements before their deadlines.
+Their reports remain under `.rimbot/startup-tests` (164130, 164618, 165350 on
+September 5). These are useful failure traces, not successful gameplay validation.
+
+Changes from these traces:
+
+- Strategy submits priorities/manager assignments from the overview, without
+  endpoint discovery. Assigned managers handle inspection; daily coverage and
+  threat-triggered reviews remain.
+- Query/proposal schemas enumerate real available endpoints, with existing role
+  responsibilities reflected in command choices. Small discovery results include
+  schemas immediately. Repeated long capability descriptions became an index.
+- Text search supports partial names. Shortened query pages keep row shape and
+  advance the cursor only past rows actually returned, preventing skipped records.
+- Model calls and tool results are recorded in exported diagnostics, outside the
+  normal activity feed.
+- Native food accounting previously excluded food without a rotting component and
+  returned the wrong summary object. The installed fix reports 57 starting meals,
+  51.3 nutrition, split into forbidden/unforbidden nutrition. Previously those
+  non-perishable meals contributed zero nutrition and the meal count was zero.

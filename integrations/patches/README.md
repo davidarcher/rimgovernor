@@ -27,6 +27,9 @@ Changes:
   data from surviving into a new game with reused numeric IDs.
 - ThingDefs expose native material requirements, quantities and allowed materials.
   Blueprint batches validate material choices before placing any building.
+- Food summaries count non-perishable meals and populate meal/raw-food counts;
+  forbidden and unforbidden nutrition are separate observations, not assumptions
+  about reachability or safety.
 
 Build `Source/RIMAPI/RIMAPI.csproj` with configuration `Release-1.6`, then install
 `1.6/Assemblies/RIMAPI.dll` only while RimWorld is closed. The test installation

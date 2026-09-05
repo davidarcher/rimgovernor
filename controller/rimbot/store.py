@@ -30,7 +30,7 @@ class Store:
         return dict(id=cur.lastrowid, at=at, kind=kind, **data)
 
     def history(self, colony, limit=100, include_diagnostics=False):
-        diagnostic_filter = '' if include_diagnostics else " AND kind != 'model_diagnostic'"
+        diagnostic_filter = '' if include_diagnostics else " AND kind NOT IN ('model_diagnostic','model_call','tool_result')"
         rows = self.db.execute('SELECT id,at,kind,data FROM events WHERE colony=?'+diagnostic_filter+' ORDER BY id DESC LIMIT ?', (colony, limit)).fetchall()
         return [dict(id=r[0], at=r[1], kind=r[2], **json.loads(r[3])) for r in reversed(rows)]
 

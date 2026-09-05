@@ -258,7 +258,7 @@ class Runtime:
         props = self.catalog.get(q.endpoint, False)['schema'].get('properties', {})
         result = q.model_copy(deep=True)
         defaults = Query(endpoint=q.endpoint)
-        for key in ('path','where','fields','sort_by','near','offset','limit'):
+        for key in ('path','where','search','fields','sort_by','near','offset','limit'):
             if key not in result.arguments or key in props:
                 continue
             value = result.arguments[key]
@@ -391,7 +391,8 @@ class Runtime:
             preliminary = await self.planner.arbitrate(context,proposals)
             context['approved_labor'] = {r:proposals[r]['labor'] for r in preliminary.accepted}
             context['deferred_labor'] = preliminary.deferred
-        proposals.update(await self.planner.proposals({**context,'other_managers':proposals},['Workforce']))
+        if 'Workforce' in roles or preliminary:
+            proposals.update(await self.planner.proposals({**context,'other_managers':proposals},['Workforce']))
         self.check_generation()
         decision = await self.planner.arbitrate(context,proposals)
         if preliminary and set(decision.accepted)-{'Workforce'}-set(preliminary.accepted):
@@ -426,19 +427,13 @@ class Runtime:
                     return
             elif not steering and day != self.memory.get('last_daily_day'):
                 daily = await self.planner.ask('Daily planning: update today and this week against current work and the existing season/year strategy. Keep entries concrete and short. Do not reset the long-term plan.',context,DailyPlan,self.settings.reasoning)
-                self.memory['plans'].update(today=daily.today,week=daily.week)
+                self.memory['plans'].update(today=daily.today,week=daily.week,assignments=daily.assignments)
                 self.memory['last_daily_day'] = day
                 context['plans'] = self.memory['plans']
                 self.note('plan',daily.response)
                 self.persist()
-            roles = list(ROLES)
-            # Routine events can involve fewer managers; periodic and player
-            # reviews cover all domains so quiet needs do not disappear.
-            if events and not steering and self.last_review-self.store.get('full_review:'+self.colony,-100000) < 60000:
-                types = ' '.join(e['type'] for e in events).lower()
-                roles = ['Survival','Security','Workforce'] if any(x in types for x in ('raid','killed','died','mental','letter')) else ['Infrastructure','Workforce']
-            else:
-                self.store.set('full_review:'+self.colony,self.last_review)
+            roles = self.review_roles(events, steering)
+            context['assignments'] = (self.memory['plans'] or {}).get('assignments',{})
             proposals,decision = await self.coordinate(context,roles)
             self.reply(decision.response)
             for role, reason in decision.deferred.items():
@@ -466,3 +461,22 @@ class Runtime:
         self.memory['chat'] = self.memory['chat'][-80:]
         self.persist()
         self.note('reply',text)
+
+    def review_roles(self, events, steering=False):
+        assignments = (self.memory['plans'] or {}).get('assignments', {})
+        roles = [r for r in assignments if r in ROLES] or list(ROLES)
+        key = 'full_review:'+self.colony
+        last_full = self.store.get(key)
+        if last_full is None:
+            self.store.set(key, self.last_review)
+        elif self.last_review-last_full >= 60000:
+            # Even unassigned domains receive a daily review.
+            roles = list(ROLES)
+            self.store.set(key, self.last_review)
+        if steering:
+            # A new player instruction may concern a different domain than the plan.
+            roles = list(ROLES)
+        types = ' '.join(e['type'] for e in events).lower()
+        if any(x in types for x in ('raid','killed','died','mental','letter')):
+            roles = list(dict.fromkeys(roles+['Survival','Security','Workforce']))
+        return roles

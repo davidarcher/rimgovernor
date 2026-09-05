@@ -260,6 +260,25 @@ def test_paging_distance_and_false_zero_values():
     json.loads(json.dumps(compact([{'long':'x'*2000}]*10,1000)))
 
 
+def test_compact_query_pages_never_skip_rows_or_change_item_shape():
+    data=[{'id':i,'description':'x'*250} for i in range(20)]
+    seen=[];offset=0
+    while True:
+        page=compact(select(data,Query(endpoint='test',offset=offset,limit=10)),900)
+        assert isinstance(page['items'],list)
+        seen.extend(row['id'] for row in page['items'])
+        if page['next_offset'] is None:break
+        assert page['next_offset']==offset+len(page['items'])
+        offset=page['next_offset']
+    assert seen==list(range(20))
+
+
+def test_query_text_search_finds_partial_names_without_changing_exact_filters():
+    data=[{'def_name':'SolarGenerator','label':'solar generator'},{'def_name':'WoodLog','label':'wood'}]
+    assert select(data,Query(endpoint='test',search='SOLAR'))['items']==data[:1]
+    assert select(data,Query(endpoint='test',where={'label':'Solar Generator'}))['total']==0
+
+
 def test_udp_chunking_and_bad_frames():
     frames=[];receiver=JPEGReceiver(frames.append)
     def packet(data,i=0,total=1):return b'CAM'+struct.pack('<I',len(data))+bytes([i,total])+data
@@ -342,6 +361,62 @@ async def test_complete_hierarchy_http_fixture(colony):
     assert rt.memory['work'][0]['status']=='complete'
     assert rt.memory['chat'][-1]['role']=='manager'
     assert game.writes==['things/set-forbidden']
+
+
+async def test_strategy_delegates_without_discovery_tools(colony):
+    rt,_=colony
+    rt.cycle_generation=rt.generation
+    class Model:
+        async def complete(self,messages,tools,*args):
+            assert [t['function']['name'] for t in tools]==['submit']
+            assert 'capabilities' not in json.loads(messages[1]['content'])
+            plan=Plans(today=['Sleeping arrangements'],week=[],season=[],year=[],horizon='Stable colony',response='Prepare sleeping places.',assignments={'Infrastructure':'Provide sleeping arrangements'})
+            return {'role':'assistant','content':plan.model_dump_json()},{}
+        async def close(self):pass
+    await rt.model.close();rt.model=Model()
+    plan=await rt.planner.ask('Strategy: plan',{'capabilities':['unused'],'colony':{}},Plans)
+    assert list(plan.assignments)==['Infrastructure']
+
+
+async def test_focused_routing_retains_daily_coverage_and_threat_response(colony):
+    rt,_=colony
+    rt.last_review=1000
+    rt.memory['plans']={'assignments':{'Infrastructure':'Sleeping arrangements'}}
+    assert rt.review_roles([])==['Infrastructure']
+    assert rt.review_roles([{'type':'raid'}])==['Infrastructure','Survival','Security','Workforce']
+    rt.last_review+=60000
+    assert set(rt.review_roles([]))=={'Infrastructure','Survival','Security','Development','Workforce'}
+
+
+async def test_focused_coordinator_does_not_wake_unassigned_workforce(colony):
+    rt,_=colony
+    calls=[]
+    async def proposals(context,roles):
+        calls.extend(roles)
+        return {r:Proposal(summary='No labor change needed').model_dump() for r in roles}
+    async def arbitrate(context,proposals):return Decision(response='Ready',accepted=list(proposals))
+    rt.planner.proposals=proposals;rt.planner.arbitrate=arbitrate
+    rt.cycle_generation=rt.generation
+    await rt.coordinate({},['Infrastructure'])
+    assert calls==['Infrastructure']
+
+
+async def test_specialist_tool_schema_separates_queries_and_owned_commands(colony):
+    rt,_=colony
+    rt.cycle_generation=rt.generation
+    class Model:
+        async def complete(self,messages,tools,*args):
+            schemas={t['function']['name']:t['function']['parameters'] for t in tools}
+            reads=schemas['query']['properties']['endpoint']['enum']
+            writes=schemas['submit']['properties']['actions']['items']['properties']['endpoint']['enum']
+            assert 'get_map_things' in reads and 'post_things_set_forbidden' not in reads
+            assert 'post_things_set_forbidden' in writes and 'post_builder_blueprint' not in writes
+            context=json.loads(messages[1]['content'])
+            assert set(context['capabilities'])=={'read','propose'}
+            return {'role':'assistant','content':Proposal(summary='No care order needed').model_dump_json()},{}
+        async def close(self):pass
+    await rt.model.close();rt.model=Model()
+    await rt.planner.ask('Survival',{'capabilities':rt.catalog.listing()},Proposal)
 
 
 async def test_prose_proposal_repaired_and_diagnostics_exported(colony):

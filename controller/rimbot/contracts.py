@@ -1,4 +1,5 @@
 from typing import Any, Literal
+import json
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -11,6 +12,7 @@ class Query(Contract):
     arguments: dict[str, Any] = Field(default_factory=dict, description='Only arguments from the endpoint contract. Filtering, fields, limit and offset belong beside arguments, not inside it.')
     path: str = ''
     where: dict[str, Any] = Field(default_factory=dict)
+    search: str = Field(default='', description='Case-insensitive words to find within row text, such as part of a label or definition name. Use this for discovery; where compares exact field values.')
     fields: list[str] = Field(default_factory=list)
     sort_by: str = ''
     near: dict[str, float] | None = None
@@ -49,6 +51,9 @@ class Decision(Contract):
     deferred: dict[str, str] = Field(default_factory=dict, description='Every other proposal ID and its reason.')
 
 
+ManagerName = Literal['Survival','Infrastructure','Security','Development','Workforce']
+
+
 class Plans(Contract):
     today: list[str] = Field(max_length=6)
     week: list[str] = Field(max_length=5)
@@ -56,12 +61,14 @@ class Plans(Contract):
     year: list[str] = Field(max_length=3)
     horizon: str = Field(max_length=250)
     response: str = Field(max_length=500)
+    assignments: dict[ManagerName,str] = Field(default_factory=dict, description='Only managers that need to act now, each with a concise task. Delegate detailed inspection to them. Do not wake every manager for a narrow objective.')
 
 
 class DailyPlan(Contract):
     today: list[str] = Field(max_length=6)
     week: list[str] = Field(max_length=5)
     response: str = Field(max_length=350)
+    assignments: dict[ManagerName,str] = Field(default_factory=dict, description='Managers needed for current work and their concrete tasks; review the whole colony overview for neglected needs.')
 
 
 def at(value, path):
@@ -78,10 +85,14 @@ def at(value, path):
 def select(data, q: Query):
     data = at(data, q.path)
     if not isinstance(data, list):
-        if q.where or q.near or q.sort_by:
-            raise ValueError('Choose the list using path before filtering or sorting.')
+        if q.where or q.search or q.near or q.sort_by:
+            paths = ', '.join(k for k,v in data.items() if isinstance(v,list)) if isinstance(data,dict) else ''
+            raise ValueError('Choose the list using path before filtering or sorting. Available list paths: '+(paths or 'inspect the response object'))
         return data
     data = [r for r in data if all(at(r,k) == v for k,v in q.where.items())]
+    if q.search.strip():
+        words = q.search.casefold().split()
+        data = [r for r in data if all(w in json.dumps(r,ensure_ascii=False).casefold() for w in words)]
     if q.near:
         def distance(r):
             p = r.get('position') or {}
