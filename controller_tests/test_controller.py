@@ -182,6 +182,74 @@ async def test_load_rollback_and_map_switch_reset_work_not_objectives(colony):
     assert rt.memory['goals']==[]
 
 
+async def test_fresh_quicktest_with_identical_map_metadata_resets_all_state(colony):
+    rt,game=colony
+    old=rt.colony
+    rt.memory.update(goals=[{'text':'Old goal'}], plans={'old':True}, chat=[{'text':'Old chat'}])
+    rt.persist()
+    rt.events_pending=[{'type':'old'}]
+    rt.steering_pending=True
+    rt.counters['actions']=12
+    rt.mode='automate'
+    game.session='new-game'
+    # A new game can even have the same or a later tick than the previous game.
+    await rt.poll()
+    assert rt.colony != old
+    assert rt.memory == rt.empty_memory()
+    assert rt.mode == 'manual' and not rt.events_pending and not rt.steering_pending
+    assert rt.counters['actions']==0
+    assert rt.store.get('colony:'+old)['goals']
+
+
+async def test_reconnecting_same_game_keeps_direction(colony):
+    rt,game=colony
+    old=rt.colony
+    rt.memory['direction']=['Grow food']
+    rt.persist()
+    rt.connected=False
+    game.tick+=100
+    await rt.poll()
+    assert rt.colony==old and rt.memory['direction']==['Grow food']
+
+
+async def test_game_changes_before_write_never_uses_old_ids(colony):
+    rt,game=colony
+    rt.mode='automate'
+    rt.cycle_generation=rt.generation
+    game.session='different-game'
+    await rt.execute(allow(),'Infrastructure')
+    assert not game.writes
+    assert rt.mode=='manual' and rt.memory['work'][-1]['status']=='cancelled'
+
+
+async def test_build_material_validation_uses_native_modded_definitions(colony):
+    rt,_=colony
+    async def call(*args,**kwargs):
+        return {'things_defs':[{'def_name':'ModdedCot','made_from_stuff':True,'allowed_stuff_defs':['ModdedPlank']},
+                              {'def_name':'FreeSpot','made_from_stuff':False}]}
+    rt.api.call=call
+    building={'def_name':'ModdedCot'}
+    action=SimpleNamespace(endpoint='post_builder_blueprint',arguments={'blueprint':{'buildings':[building]}})
+    with pytest.raises(ValueError,match='ModdedPlank'):await rt.validate_build_materials(action)
+    building['stuff_def_name']='WoodLog'
+    with pytest.raises(ValueError,match='ModdedPlank'):await rt.validate_build_materials(action)
+    building['stuff_def_name']='ModdedPlank'
+    await rt.validate_build_materials(action)
+    building.clear();building['def_name']='FreeSpot'
+    await rt.validate_build_materials(action)
+
+
+async def test_misnested_read_filters_are_normalized_without_guessing(colony):
+    rt,_=colony
+    result=await rt.query(Query(endpoint='get_map_things',arguments={'map_id':7,'where':{'thing_id':101},'limit':1}))
+    assert result['total']==1 and result['items'][0]['thing_id']==101
+    with pytest.raises(ValueError,match='Conflicting'):
+        await rt.query(Query(endpoint='get_map_things',arguments={'map_id':7,'where':{'thing_id':101}},where={'thing_id':102}))
+    rt.catalog.entries['get_map_things']['schema']['properties']['limit']={'type':'integer'}
+    q=rt.normalize_query(Query(endpoint='get_map_things',arguments={'map_id':7,'limit':5}))
+    assert q.arguments['limit']==5 and q.limit==30
+
+
 def test_paging_distance_and_false_zero_values():
     data=[{'id':1,'position':{'x':100,'z':100},'forbidden':False},{'id':2,'position':{'x':3,'z':4},'forbidden':False}]
     q=Query(endpoint='x',where={'forbidden':False},near={'x':0,'z':0},fields=['id'],limit=1)

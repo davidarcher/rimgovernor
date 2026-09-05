@@ -130,7 +130,10 @@ class Runtime:
                 await self.api.discover()
             observed = await snapshot(self.api, self.settings.map_id)
             m = observed['map']
-            identity = hashlib.sha256(json.dumps([self.settings.rimapi_url, m.get('seed'), m['id'], m.get('faction_id')]).encode()).hexdigest()[:16]
+            session = observed['game'].get('session_id')
+            if not session:
+                raise APIError('Update RIMAPI to the RimBot build with game session identity.')
+            identity = hashlib.sha256(json.dumps([self.settings.rimapi_url, session, m['id']]).encode()).hexdigest()[:16]
             tick = observed['game'].get('game_tick',0)
             if identity != self.colony:
                 inbox = self.memory if not self.colony else self.empty_memory()
@@ -142,6 +145,12 @@ class Runtime:
                 self.store.set('inbox', self.empty_memory())
                 self.last_tick = None
                 self.last_review = -100000
+                self.last_review_wall = 0
+                self.events_pending = []
+                self.steering_pending = False
+                self.started_at = None
+                self.counters = dict.fromkeys(self.counters, 0)
+                self.status = {'phase':'Manual', 'detail':'Colony connected'}
                 self.api.invalidate(definitions=True)
                 self.note('connection', 'Colony connected. Ready for your direction.')
             if self.last_tick is not None and tick < self.last_tick:
@@ -243,7 +252,23 @@ class Runtime:
             raise ValueError('Connect to RIMAPI first.')
         self.task = asyncio.create_task(self.review(steering, strategy))
 
+    def normalize_query(self, q: Query):
+        # Local models sometimes nest our read filters inside native arguments.
+        # Move only unambiguous wrapper fields; never steal a native argument.
+        props = self.catalog.get(q.endpoint, False)['schema'].get('properties', {})
+        result = q.model_copy(deep=True)
+        defaults = Query(endpoint=q.endpoint)
+        for key in ('path','where','fields','sort_by','near','offset','limit'):
+            if key not in result.arguments or key in props:
+                continue
+            value = result.arguments[key]
+            if getattr(result,key) != getattr(defaults,key) and getattr(result,key) != value:
+                raise ValueError(f'Conflicting {key} filters beside and inside arguments.')
+            setattr(result,key,result.arguments.pop(key))
+        return Query.model_validate(result.model_dump())
+
     async def query(self, q: Query):
+        q = self.normalize_query(q)
         e = self.catalog.get(q.endpoint, False)
         args = dict(q.arguments)
         if 'map_id' in e['schema'].get('properties', {}):
@@ -255,6 +280,7 @@ class Runtime:
         return select(raw, q)
 
     def validate_check(self, check):
+        check.query = self.normalize_query(check.query)
         e = self.catalog.get(check.query.endpoint, False)
         args = dict(check.query.arguments)
         if 'map_id' in e['schema'].get('properties',{}):
@@ -292,6 +318,7 @@ class Runtime:
         if self.mode != 'automate':
             return
         e = self.catalog.validate(action.endpoint, action.arguments, True)
+        await self.validate_build_materials(action)
         if 'map_id' in action.arguments and action.arguments['map_id'] != self.observation['map']['id']:
             raise ValueError('Action targets a different map.')
         if await self.check(action.done):
@@ -311,6 +338,11 @@ class Runtime:
             self.check_generation()
             # Do not silently unpause or issue new game orders through a player pause.
             game = await self.api.call('get_game_state',{},fresh=True)
+            if game.get('session_id') != self.observation.get('game',{}).get('session_id'):
+                work['status'] = 'cancelled'
+                work['detail'] = 'Colony changed before this order was sent'
+                self.mode = 'manual'
+                return
             if game.get('is_paused'):
                 work['status'] = 'deferred'
                 work['detail'] = 'Game paused before this order was sent'
@@ -334,6 +366,22 @@ class Runtime:
         finally:
             self.executing = False
             self.persist()
+
+    async def validate_build_materials(self, action):
+        if action.endpoint != 'post_builder_blueprint':
+            return
+        definitions = (await self.api.call('get_def_all', {})).get('things_defs', [])
+        by_name = {d['def_name']:d for d in definitions}
+        for building in action.arguments.get('blueprint', {}).get('buildings', []):
+            name = building.get('def_name')
+            definition = by_name.get(name)
+            if definition is None:
+                raise ValueError(f'Unknown building definition: {name}')
+            stuff = building.get('stuff_def_name')
+            if definition.get('made_from_stuff') and stuff not in definition.get('allowed_stuff_defs', []):
+                raise ValueError(f'{name} requires stuff_def_name. Choose from its native allowed_stuff_defs: '+', '.join(definition.get('allowed_stuff_defs', [])))
+            if definition.get('made_from_stuff') is False and stuff:
+                raise ValueError(f'{name} does not use stuff_def_name.')
 
     async def coordinate(self, context, roles):
         """Shared manager/administrator path for normal reviews and live tests."""

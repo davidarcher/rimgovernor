@@ -80,3 +80,35 @@ north-facing footprint are test inputs, not a production room planner.
 RIMAPI's `get_map_things` only returns haulable items. The radius query includes
 items/buildings/plants and excludes blueprints. Exact-cell queries include
 blueprints and frames, making them suitable for immediate placement readback.
+
+## Bed completion (September 5 follow-up)
+
+The actual game reached `Blueprint_Bed` ID 17925 → `Frame_Bed` ID 18042 →
+finished `Bed` ID 18046 at (129,139), with good quality. The managers identified
+forbidden nearby timber and issued one native allow order. Colonists delivered
+materials and constructed the bed through normal work. No additional bed was
+placed. Evidence: `.rimbot/bed-completion-tests/20260905-163313/report.json`.
+
+```powershell
+.\.venv\Scripts\python.exe scripts/live_bed_completion.py --execute --blueprint-report .rimbot/construction-tests/20260905-163126/report.json
+```
+
+Use a successful blueprint report from the currently loaded disposable game.
+The fixture allows normal work orders and selected nearby timber, observes the
+finished building independently, and pauses the game afterward. This is still a
+bounded completion test, not a claim of autonomous shelter design.
+
+Completion took 86.47 seconds, 29 model calls, 287,545 aggregate input tokens and
+5,714 output tokens. Most elapsed time preceded material delivery; after the frame
+was observed, the finished bed appeared three seconds later at test speed 3.
+The aggregate token count includes repeated context across calls, not a single
+context window. The test exposed repeated misnested query filters and attempts
+to write through the read-only query tool. Unambiguous misplaced read filters are
+now normalized; native arguments and conflicting filters are never guessed.
+These follow-up changes have regression coverage but were added after this run.
+
+Fresh quicktest sessions were also verified to produce different controller
+identities and empty plans/chat/work despite identical seed/map/faction IDs.
+RIMAPI now exposes a loaded-game session identifier and scopes native response
+caches to it. Loading a saved game starts a new session; controller reconnection
+to the same running game preserves its state.

@@ -1,6 +1,7 @@
 """Real-model bed-blueprint milestone. Leaves the observed blueprint in the test game.
 
-Run --execute with dashboard Manual and an unpaused disposable colony loaded.
+Run --execute with dashboard Manual and a disposable colony loaded.
+The fixture unpauses before its single order; normal automation respects pauses.
 The test supplies a narrow player objective, live definitions and a checked site;
 managers must produce the blueprint payload, checks and administrator decision.
 """
@@ -63,6 +64,7 @@ async def run(timeout):
             if building.get('def_name')!=bed['def_name'] or building.get('stuff_def_name')!=wood['def_name'] or building.get('rel_x',0)!=0 or building.get('rel_z',0)!=0 or building.get('rotation',0)!=0:
                 raise RuntimeError('Wrong building, material or relative offset.')
             if await at(site) or await rt.check(action.done):raise RuntimeError('Site changed or completion check already true; nothing sent.')
+            await rt.api.request('POST','/api/v1/game/speed',params={'speed':1})
             await rt.execute(action,role)
             after=await at(site);report.update(after=after,work=rt.memory['work'])
             matches=[t for t in after if bed['def_name'].lower() in t.get('def_name','').lower() and 'blueprint' in t.get('def_name','').lower()]

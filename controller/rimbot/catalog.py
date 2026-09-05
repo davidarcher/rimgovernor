@@ -96,7 +96,9 @@ class Catalog:
         if not self.discovered or name not in self.available:
             raise ValueError(f'Connected RIMAPI does not advertise {name}')
         if write is not None and e['write'] != write:
-            raise ValueError('Specialists may query; only the administrator executes approved actions.')
+            if e['write']:
+                raise ValueError(f'{name} changes the game. Do not call it with query. Call submit and put this endpoint and its arguments in actions, with a done check. The controller executes approved actions afterward.')
+            raise ValueError(f'{name} only reads state; use query, not an action.')
         return e
 
     def validate(self, name, args, write=None):

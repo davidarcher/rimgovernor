@@ -12,6 +12,7 @@ class GameFixture:
     """Deterministic HTTP fixture, not a claim about RimWorld gameplay."""
     def __init__(self):
         self.tick=1000
+        self.session='test-session'
         self.map_id=7
         self.forbidden=True
         self.writes=[]
@@ -26,7 +27,7 @@ class GameFixture:
         if path=='docs':
             data={'sections':[{'endpoints':[{'method':e['method'],'path':e['path']} for e in self.catalog.entries.values()]}]}
         elif path=='game/state':
-            data={'game_tick':self.tick,'program_state':'Playing','is_paused':False,'colonist_count':3,'colony_wealth':24000}
+            data={'session_id':self.session,'game_tick':self.tick,'program_state':'Playing','is_paused':False,'colonist_count':3,'colony_wealth':24000}
         elif path=='maps':
             data=[{'id':self.map_id,'seed':42,'is_player_home':True,'faction_id':'Player','size':'(250,1,250)'}]
         elif path=='colonists/detailed':

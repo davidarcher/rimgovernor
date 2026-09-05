@@ -152,4 +152,7 @@ async def snapshot(api, map_id=None):
             out['errors'][key] = str(e)
     if 'pawns' not in out:
         raise APIError('Cannot observe colonists: '+out['errors'].get('pawns','unknown error'))
+    after = await api.call('get_game_state', {}, fresh=True)
+    if after.get('session_id') != game.get('session_id'):
+        raise APIError('Colony changed during inspection. Waiting for a fresh observation.')
     return out

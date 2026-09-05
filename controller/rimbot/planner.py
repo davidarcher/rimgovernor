@@ -78,6 +78,7 @@ class Planner:
     async def validate_observation(self, value):
         if isinstance(value,Proposal):
             for action in value.actions:
+                await self.rt.validate_build_materials(action)
                 check=action.done
                 result=await self.rt.query(check.query)
                 if check.op not in ('exists','absent') and check.value is not None and at(result,check.field) is None:
