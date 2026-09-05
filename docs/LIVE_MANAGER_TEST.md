@@ -50,3 +50,33 @@ RIMAPI's bulk v1 colonist details cache lasts 1,800 game ticks. Single-pawn deta
 are uncached. Its work-priority list includes only enabled work and is sorted by
 priority; disabled work disappears instead of returning priority zero. Therefore,
 checks must identify a work type rather than rely on a stable array index.
+
+## Construction scenario
+
+Passed on September 5, 2026 with `qwen/qwen3.5-9b`: observed
+`Blueprint_Bed` (wooden bed, rotation 0, 1x2 footprint) at map 0 cell (143,147),
+native thing ID 38522, and placement tracker status `complete`. The run took
+82.78 seconds, 14 model calls, 58,796 aggregate input tokens and 6,505 output tokens.
+
+```powershell
+.\.venv\Scripts\python.exe scripts/live_construction_smoke.py --execute
+```
+
+This scenario requests exactly one north-facing wooden bed blueprint. It resolves
+the requested bed and wood labels from the running game's definitions, finds a
+nearby empty footprint, checks it with RIMAPI, and supplies those observations to
+the same production manager/administrator coordinator. The model must assemble
+the building payload and completion check. The test rejects additional orders,
+different definitions/materials, different positions, floor placement, or clearing
+obstacles before calling the production executor.
+
+An independent exact-cell query must observe one bed blueprint and the production
+tracker must mark the placement complete. The blueprint stays in the disposable
+test game for inspection. Evidence is saved under `.rimbot/construction-tests`.
+This verifies blueprint placement, not material delivery, completed furniture,
+or autonomous shelter layout. The scenario's fixed furniture objective and
+north-facing footprint are test inputs, not a production room planner.
+
+RIMAPI's `get_map_things` only returns haulable items. The radius query includes
+items/buildings/plants and excludes blueprints. Exact-cell queries include
+blueprints and frames, making them suitable for immediate placement readback.
