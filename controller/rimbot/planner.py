@@ -196,9 +196,6 @@ class Planner:
                     key = f['name'] + json.dumps(json.loads(f['arguments']),sort_keys=True)
                 except ValueError:
                     key = f['name'] + f['arguments']
-                repeats[key] = repeats.get(key, 0)+1
-                if repeats[key] > 3:
-                    raise ModelError(f'{role} repeated the same call without progress: {f["name"]}')
                 args = {}
                 try:
                     if f['name'] not in allowed_tools:
@@ -248,6 +245,12 @@ class Planner:
                         except ValueError:pass
                         result['hint']='Use this endpoint schema for arguments. Put limit, offset, fields, where and sort_by at the top level of query.'
                     self.rt.store.event(self.rt.colony, 'model_diagnostic', role=role, call=c, error=str(e))
+                fingerprint=json.dumps(result,sort_keys=True,default=str)
+                previous,count=repeats.get(key,(None,0))
+                count=count+1 if previous==fingerprint else 1
+                repeats[key]=(fingerprint,count)
+                if count>=3 and isinstance(result,dict):
+                    result={**result,'repeat_notice':f'This exact call returned the same result {count} times in this review. Reuse it if sufficient; change the query to inspect something new. This is advisory, not a failed call.'}
                 self.rt.counters['tools'] += 1
                 self.rt.store.event(self.rt.colony, 'tool_result', role=role_label,
                                     tool=f['name'], arguments=args, result=compact(result,3000))

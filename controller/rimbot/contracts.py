@@ -11,7 +11,7 @@ class Query(Contract):
     endpoint: str
     arguments: dict[str, Any] = Field(default_factory=dict, description='Only arguments from the endpoint contract. Filtering, fields, limit and offset belong beside arguments, not inside it.')
     path: str = ''
-    where: dict[str, Any] = Field(default_factory=dict)
+    where: dict[str, Any] = Field(default_factory=dict,description='Exact field/value equality only. No like, wildcard, or comparison operators. Use search for words in labels and names.')
     search: str = Field(default='', description='Case-insensitive words to find within row text, such as part of a label or definition name. Use this for discovery; where compares exact field values.')
     fields: list[str] = Field(default_factory=list)
     sort_by: str = ''
@@ -83,12 +83,19 @@ def at(value, path):
 
 
 def select(data, q: Query):
+    root=data
     data = at(data, q.path)
+    if q.path and data is None:
+        paths=', '.join(k for k,v in root.items() if isinstance(v,list)) if isinstance(root,dict) else ''
+        raise ValueError(f'Path {q.path!r} does not exist. Available list paths: '+(paths or 'inspect the response object'))
     if not isinstance(data, list):
         if q.where or q.search or q.near or q.sort_by:
             paths = ', '.join(k for k,v in data.items() if isinstance(v,list)) if isinstance(data,dict) else ''
             raise ValueError('Choose the list using path before filtering or sorting. Available list paths: '+(paths or 'inspect the response object'))
         return data
+    for key,value in q.where.items():
+        if isinstance(value,dict) and any(op in value for op in ('like','$like','$eq','$in','$gt','$lt')):
+            raise ValueError(f'where.{key} uses unsupported operators. where compares exact values; use search for label/name words.')
     data = [r for r in data if all(at(r,k) == v for k,v in q.where.items())]
     if q.search.strip():
         words = q.search.casefold().split()

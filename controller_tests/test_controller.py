@@ -102,6 +102,31 @@ def allow():
     return Action(title='Allow nearby building timber',endpoint='post_things_set_forbidden',arguments={'thing_ids':[101],'map_id':7,'forbidden':False},done=Check(query=Query(endpoint='get_map_things',arguments={'map_id':7},where={'thing_id':101,'is_forbidden':False}),field='total',op='eq',value=1))
 
 
+def test_definition_query_errors_explain_actual_paths_and_filters():
+    data={'things_defs':[{'label':'bed'}]}
+    with pytest.raises(ValueError,match='things_defs'):
+        select(data,Query(endpoint='get_def_all',path='stuff_defs',search='steel'))
+    with pytest.raises(ValueError,match='use search'):
+        select(data,Query(endpoint='get_def_all',path='things_defs',where={'label':{'like':'*bed*'}}))
+
+
+async def test_four_identical_queries_do_not_abort_manager(colony):
+    rt,_=colony;rt.cycle_generation=rt.generation
+    class Model:
+        count=0
+        async def complete(self,messages,*args):
+            self.count+=1
+            if self.count==5:
+                assert 'same result 4 times' in json.loads(messages[-1]['content'])['repeat_notice']
+            name='query' if self.count<=4 else 'submit'
+            data={'endpoint':'get_map_things','arguments':{'map_id':7}} if self.count<=4 else {'summary':'Inspection complete'}
+            return {'role':'assistant','tool_calls':[{'id':str(self.count),'type':'function','function':{'name':name,'arguments':json.dumps(data)}}]},{}
+        async def close(self):pass
+    await rt.model.close();rt.model=Model()
+    result=await rt.planner.ask('Infrastructure',{},Proposal)
+    assert result.summary=='Inspection complete' and rt.model.count==5
+
+
 async def test_rejected_draft_cannot_silently_become_empty_success(colony):
     rt,_=colony;rt.cycle_generation=rt.generation
     class Model:
