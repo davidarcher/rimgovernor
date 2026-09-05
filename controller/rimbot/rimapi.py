@@ -3,6 +3,7 @@ import copy
 import json
 import time
 import httpx
+from .native_client import NativeClient
 
 
 class APIError(RuntimeError):
@@ -27,6 +28,7 @@ class RimAPI:
         self.lock = asyncio.Lock()
         self.cache = {}
         self.read_cache = {}
+        self.native = NativeClient(self.http,self.lock,self.catalog,self.invalidate)
 
     def invalidate(self, definitions=False):
         self.read_cache.clear()
@@ -61,10 +63,15 @@ class RimAPI:
                 raise APIError(f'RIMAPI unavailable or invalid response: {e}') from e
 
     async def discover(self):
-        self.catalog.discover(await self.request('GET', '/api/v1/docs', params={'format':'json'}))
+        docs=await self.request('GET', '/api/v1/docs', params={'format':'json'})
+        self.catalog.discover(docs)
+        if '/api/v2/construction/contracts' in json.dumps(docs):
+            self.catalog.install_contracts(await self.request('GET','/api/v2/construction/contracts'))
 
     async def call(self, name, args, *, write=None, fresh=False):
         e = self.catalog.validate(name, args, write)
+        if e.get('native_contract'):
+            return await self.native.call(name,args)
         if name=='get_def_all':
             # Upstream caches every filter variant under the same key. Always
             # request one complete snapshot and filter groups locally.

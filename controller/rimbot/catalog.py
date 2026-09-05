@@ -33,6 +33,24 @@ REQUIRED = {
 
 
 class Catalog:
+    def install_contracts(self, manifest):
+        if manifest.get('version') != 1:
+            raise ValueError('Unsupported native construction contract version.')
+        expected=json.loads((Path(__file__).parent/'data/construction_contracts.json').read_text())
+        if manifest != expected:
+            raise ValueError('Native construction contract changed. Regenerate the Python domain types; do not guess at schema drift.')
+        for entry in manifest['endpoints']:
+            Draft202012Validator.check_schema(entry['request_schema'])
+            Draft202012Validator.check_schema(entry['response_schema'])
+            name=entry['name']
+            if not name.startswith('construction_') or not entry['path'].startswith('/api/v2/construction/'):
+                raise ValueError('Unexpected native construction contract route.')
+            self.entries[name]={**entry,'schema':entry['request_schema'],'native_contract':True,
+                'transport':'json','query_keys':[],'exposed':True,'category':'Construction'}
+            self.available.add(name)
+        # Construction now has one authoritative tool path.
+        self.entries['post_builder_blueprint']['exposed']=False
+
     def __init__(self):
         data = json.loads((Path(__file__).parent / 'data/catalog.json').read_text())
         self.revision = data['revision']
@@ -77,6 +95,8 @@ class Catalog:
                 e['description'] += ' Includes items, buildings and plants; excludes blueprints. Use get_map_things_at to inspect construction at a cell.'
             if e['name']=='get_map_things_at':
                 e['description'] += ' All things at the exact cell, including blueprints and construction frames. Use this for immediate blueprint-placement verification. Returned rows include thing_id, def_name, label and position.'
+            if e['name']=='get_map_rooms':
+                e['description'] += ' Native regions are not necessarily usable shelter. open_roof_count counts unroofed cells. visible_cells gives up to 256 exact explored cells; cells_truncated says whether geometry is incomplete. visible_cell is a standable sample; pawns_reaching_visible_cell tests native reachability to that sample only. No visible_cell means no explored standable sample. Do not choose a site from a room ID or cell count alone.'
             e['schema']['required'] = sorted(set(e['schema'].get('required', []) + REQUIRED.get(e['name'], [])))
             if e['name'] in ('get_colonist_detailed','get_colonists_detailed'):
                 e['description'] += ' Work priorities include only enabled work (priority > 0) and are sorted by priority; disabling work removes its row. Filter by work_type, never rely on array position. Use query.path=colonist_work_info.work_priorities on a single pawn and where={work_type: observed name}; total=0 means that work is not enabled.'

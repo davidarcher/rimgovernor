@@ -9,6 +9,8 @@ from .contracts import Action, Check, Query, Plans, Proposal, DailyPlan, select,
 from .model import LocalModel, ModelError
 from .planner import Planner, ROLES
 from .rimapi import RimAPI, APIError, snapshot, compact
+from .native_models import ConstructionRequest
+from .native_client import NativeIntegrationError
 
 
 class Runtime:
@@ -290,13 +292,19 @@ class Runtime:
     async def check(self, check):
         return satisfies(await self.query(check.query), check)
 
+    async def action_complete(self, action):
+        if action.endpoint=='construction_place':
+            state=await self.api.native.inspect(ConstructionRequest.model_validate(action.arguments))
+            return state.accepted and all(item.state=='built' for item in state.items)
+        return await self.check(action.done)
+
     async def reconcile(self):
         changed = False
         for work in self.memory['work']:
             if work['status'] not in ('issued','unknown','waiting'):
                 continue
             try:
-                done = await self.check(Check.model_validate(work['action']['done']))
+                done = await self.action_complete(Action.model_validate(work['action']))
                 if done:
                     work['status'] = 'complete'
                     work['detail'] = 'Verified in the colony'
@@ -307,7 +315,7 @@ class Runtime:
                     work['status'] = 'unresolved'
                     work['detail'] = 'Not observed after a day; needs a fresh assessment'
                     changed = True
-            except (ValueError, APIError):
+            except (ValueError, APIError, NativeIntegrationError):
                 work['detail'] = 'Waiting for a fresh observation'
         if changed:
             self.persist()
@@ -321,7 +329,7 @@ class Runtime:
         await self.validate_build_materials(action)
         if 'map_id' in action.arguments and action.arguments['map_id'] != self.observation['map']['id']:
             raise ValueError('Action targets a different map.')
-        if await self.check(action.done):
+        if await self.action_complete(action):
             self.note('action',f'Already done: {action.title}',role=role)
             return
         for requirement in action.requires:
@@ -348,11 +356,19 @@ class Runtime:
                 work['detail'] = 'Game paused before this order was sent'
                 return
             result = await self.api.call(action.endpoint, action.arguments, write=True)
+            if action.endpoint=='construction_place':
+                if not result.accepted:
+                    work['status']='rejected'
+                    work['detail']='; '.join(item.reason for item in result.items if item.reason)
+                    self.note('error',work['detail'],role=role)
+                    return
+                work['native_result']=result.model_dump()
+                result=result.model_dump()
             work['status'] = 'issued'
             work['detail'] = 'Order issued; checking the colony'
             self.counters['actions'] += 1
             self.note('action',action.title,role=role,endpoint=e['path'],arguments=action.arguments,result=compact(result,5000))
-            if await self.check(action.done):
+            if await self.action_complete(action):
                 work['status'], work['detail'] = 'complete', 'Verified in the colony'
         except asyncio.CancelledError:
             work['detail'] = 'Interrupted; outcome will be checked before any repeat'

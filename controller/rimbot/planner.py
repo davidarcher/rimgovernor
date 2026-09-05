@@ -5,6 +5,7 @@ from pydantic import ValidationError
 from .contracts import Query, Action, Proposal, Decision, Plans, DailyPlan, at
 from .rimapi import compact
 from .model import ModelError
+from .native_models import ConstructionRequest
 
 ROLES = {
     'Survival':'Food, medicine, temperature, mood, social needs and sustainable care. Request facilities from Infrastructure.',
@@ -15,7 +16,7 @@ ROLES = {
 }
 ROLE_DOMAINS = {
     'Survival':('medical','forbidden'),
-    'Infrastructure':('builder','zone','building','bills','order_designate','forbidden'),
+    'Infrastructure':('construction_','builder','zone','building','bills','order_designate','forbidden'),
     'Security':('pawn_job','pawn_edit_status','jobs_make_equip','pawn_medical'),
     'Development':('research','trade'),
     'Workforce':('priority','time_assignment','pawn_job','pawn_medical','jobs_make_equip'),
@@ -28,6 +29,7 @@ Loose allowed reachable resources can be usable outside stockpiles. Forbidden re
 Unforbid selected useful supplies, not everything: insect jelly in a remote cave is not a colony objective.
 Plans are intentions; live observations win when the player changes something. Don't duplicate existing beds, zones or bills.
 Don't invent a room template or a construction ban. Plan geometry from inspected terrain, structures and occupied cells.
+Room IDs do not specify build coordinates or prove shelter. Use visible room cells, roof coverage and reachability; never assume unexplored regions are usable rooms.
 Missing capability or unclear state: report the exact blocker. Repeating a failed action isn't progress.
 Tools are scoped to your role. A command absent from your tools is not absent from the colony controller.
 Infrastructure owns construction. Request facilities from Infrastructure through labor; do not report construction unavailable because your role cannot build.
@@ -76,6 +78,11 @@ class Planner:
                 self.rt.catalog.validate(action.endpoint,action.arguments,True)
                 if role in ROLE_DOMAINS and not any(x in action.endpoint for x in ROLE_DOMAINS[role]):
                     raise ValueError(f'{role} must request work outside its domain through labor/blockers, not issue this action.')
+                if self.rt.catalog.get(action.endpoint).get('native_contract'):
+                    if action.done is not None or action.requires:
+                        raise ValueError('Native construction owns validation and completion. Do not supply done or requires.')
+                    continue
+                if action.done is None:raise ValueError('Legacy actions still require a done check.')
                 entry=self.rt.catalog.get(action.done.query.endpoint,False)
                 if entry['path'].startswith('/api/v1/def/'):
                     raise ValueError('Completion must inspect live colony state, not the definition database.')
@@ -89,6 +96,10 @@ class Planner:
     async def validate_observation(self, value):
         if isinstance(value,Proposal):
             for action in value.actions:
+                if self.rt.catalog.get(action.endpoint).get('native_contract'):
+                    result=await self.rt.api.native.inspect(ConstructionRequest.model_validate(action.arguments))
+                    if not result.accepted:raise ValueError('; '.join(item.reason for item in result.items if item.reason))
+                    continue
                 await self.rt.validate_build_materials(action)
                 check=action.done
                 result=await self.rt.query(check.query)
@@ -97,7 +108,8 @@ class Planner:
         return value
 
     async def ask(self, role, context, contract, thinking=True):
-        readable = [e['name'] for e in self.rt.catalog.listing(write=False)]
+        native_reads=[e for e in self.rt.catalog.listing(write=False) if self.rt.catalog.get(e['name']).get('native_contract')]
+        readable = [e['name'] for e in self.rt.catalog.listing(write=False) if e not in native_reads]
         writable = [e['name'] for e in self.rt.catalog.listing(write=True)
                     if role not in ROLE_DOMAINS or any(x in e['name'] for x in ROLE_DOMAINS[role])]
         query_schema = Query.model_json_schema()
@@ -143,6 +155,11 @@ class Planner:
         role_label = role.split(':',1)[0]
         drafts = {}
         failed_drafts = {}
+        if contract is Proposal:
+            for entry in native_reads:
+                native=self.rt.catalog.get(entry['name'])
+                tools.append(tool(entry['name'],entry['description']+' Response schema: '+json.dumps(native['response_schema'],separators=(',',':')),native['schema']))
+                allowed_tools.add(entry['name'])
         def register_command(name):
             if contract is not Proposal or name not in writable or name in allowed_tools:
                 return
@@ -151,10 +168,16 @@ class Planner:
             schema['properties'].pop('endpoint')
             schema['required'].remove('endpoint')
             schema['properties']['arguments'] = entry['schema']
+            if entry.get('native_contract'):
+                for field in ('done','requires'):
+                    schema['properties'].pop(field,None)
+                    if field in schema['required']:schema['required'].remove(field)
             tools.append(tool(name,'Draft this native order for administrator review; does not execute it. '+entry['description'],schema))
             allowed_tools.add(name)
         if contract is Proposal:
             for name in writable:register_command(name)
+            if native_reads:
+                instructions += '\nUse construction_definitions for buildable definitions and material choices, construction_rooms for visible sites, construction_inspect for legality, and construction_place to draft placements. These tools have fixed native request/response types. Construction does not need done or requires. A drafted order is not a placed building.'
             instructions += ('\nYour native command tools are listed directly. Call one to draft each order using title, arguments, done and optional requires. '
                              'A successful draft is retained. Finish with submit containing summary, priority, labor, resources and blockers; do not repeat actions in submit.')
         messages = [{'role':'system','content':instructions}, {'role':'user','content':json.dumps(context, separators=(',',':'), ensure_ascii=False)}]
@@ -209,6 +232,8 @@ class Planner:
                             value.actions=list(drafts.values())+value.actions
                         submitted = await self.validate_observation(self.validate_submission(role,value,context))
                         result = {'received':True}
+                    elif any(e['name']==f['name'] for e in native_reads):
+                        result=(await self.rt.api.call(f['name'],args,write=False)).model_dump()
                     elif f['name'] in writable and contract is Proposal:
                         action = Action.model_validate({**args,'endpoint':f['name']})
                         proposal = self.validate_submission(role,Proposal(summary=action.title,actions=[action]),context)
@@ -249,13 +274,14 @@ class Planner:
                 previous,count=repeats.get(key,(None,0))
                 count=count+1 if previous==fingerprint else 1
                 repeats[key]=(fingerprint,count)
-                if count>=3 and isinstance(result,dict):
+                native_response=any(e['name']==f['name'] for e in native_reads)
+                if count>=3 and isinstance(result,dict) and not native_response:
                     result={**result,'repeat_notice':f'This exact call returned the same result {count} times in this review. Reuse it if sufficient; change the query to inspect something new. This is advisory, not a failed call.'}
                 self.rt.counters['tools'] += 1
                 self.rt.store.event(self.rt.colony, 'tool_result', role=role_label,
-                                    tool=f['name'], arguments=args, result=compact(result,3000))
+                                    tool=f['name'], arguments=args, result=result if native_response else compact(result,3000))
                 await self.rt.progress(detail=f'{role_label}: {f["name"]}', tools=self.rt.counters['tools'])
-                messages.append({'role':'tool','tool_call_id':c['id'],'content':json.dumps(compact(result, 14000), separators=(',',':'))})
+                messages.append({'role':'tool','tool_call_id':c['id'],'content':json.dumps(result if native_response else compact(result, 14000), separators=(',',':'))})
             if submitted is not None:
                 return submitted
             if sum(len(json.dumps(m)) for m in messages) > self.rt.settings.context_chars:
@@ -280,7 +306,7 @@ class Planner:
                         raise ValueError('Development requests facilities/labor from their owners.')
                     if role == 'Workforce' and not any(x in a.endpoint for x in ('priority','time_assignment','pawn_job','pawn_medical','jobs_make_equip')):
                         raise ValueError('Workforce assigns labor, not facilities or research.')
-                    self.rt.validate_check(a.done)
+                    if a.done is not None:self.rt.validate_check(a.done)
                     for check in a.requires:
                         self.rt.validate_check(check)
                 proposals[role] = p.model_dump()

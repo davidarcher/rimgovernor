@@ -28,7 +28,7 @@ export default function ManagerActivity({colony,busy,status,assignments}:{colony
     }
     refresh();const timer=setInterval(refresh,2000);return()=>{abort.abort();clearInterval(timer);};
   },[colony]);
-  const visible=events.filter(e=>role==='All'||owner(e)===role);
+  const visible=events.filter(e=>e.kind!=='model_call'&&(role==='All'||owner(e)===role));
   const active=busy&&(role==='All'||owner(status||{})===role);
   return <section className="mgr-card mgr-manager-log" aria-label="Manager activity">
     <div className="mgr-card-title"><div><span className="mgr-eyebrow">BEHIND THE PLAN</span><h2>Manager activity</h2></div><a href="/api/history" download>Export full log</a></div>

@@ -32,7 +32,7 @@ class Action(Contract):
     endpoint: str
     arguments: dict[str, Any] = Field(description='Complete native command arguments, including all required identifiers and positions. Describe the endpoint before proposing an unfamiliar command.')
     # Verify state, not an HTTP acknowledgment. No saved executable handles.
-    done: Check
+    done: Check | None = None
     requires: list[Check] = Field(default_factory=list)
 
 
@@ -110,6 +110,10 @@ def select(data, q: Query):
     total = len(data)
     data = data[q.offset:q.offset+q.limit]
     if q.fields:
+        for key in q.fields:
+            if data and all(isinstance(row,dict) and key.split('.')[0] not in row for row in data):
+                available=sorted({k for row in data if isinstance(row,dict) for k in row})
+                raise ValueError(f'Projection field {key!r} does not exist in these rows. Available fields: '+', '.join(available))
         data = [{key:at(row,key) for key in q.fields} for row in data]
     return {'items':data, 'total':total, 'offset':q.offset, 'next_offset':q.offset+len(data) if q.offset+len(data)<total else None}
 

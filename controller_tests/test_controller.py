@@ -19,7 +19,7 @@ def test_local_tool_schema_contains_complete_nested_action_contract():
     assert '$ref' not in json.dumps(schema)
     action=schema['properties']['actions']['items']
     assert 'arguments' in action['required']
-    assert 'query' in action['properties']['done']['properties']
+    assert 'query' in action['properties']['done']['anyOf'][0]['properties']
 
 
 async def test_administrator_can_correct_unknown_proposal_ids(colony):
@@ -108,6 +108,8 @@ def test_definition_query_errors_explain_actual_paths_and_filters():
         select(data,Query(endpoint='get_def_all',path='stuff_defs',search='steel'))
     with pytest.raises(ValueError,match='use search'):
         select(data,Query(endpoint='get_def_all',path='things_defs',where={'label':{'like':'*bed*'}}))
+    with pytest.raises(ValueError,match='def_name'):
+        select([{'def_name':'Bed','label':'bed'}],Query(endpoint='get_def_all',fields=['defName']))
 
 
 async def test_four_identical_queries_do_not_abort_manager(colony):

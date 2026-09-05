@@ -1,0 +1,1538 @@
+{
+  "version": 1,
+  "endpoints": [
+    {
+      "name": "construction_definitions",
+      "path": "/api/v2/construction/definitions",
+      "method": "POST",
+      "write": false,
+      "description": "Find native buildable definitions by label/name words. Returns dimensions, work, costs and allowed materials. Use explicit pagination.",
+      "request_schema": {
+        "title": "DefinitionQuery",
+        "type": "object",
+        "properties": {
+          "search": {
+            "type": "string"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32
+          }
+        },
+        "required": [
+          "search",
+          "offset",
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "response_schema": {
+        "title": "PageBuildingDefinition",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "title": "BuildingDefinition",
+              "type": "object",
+              "properties": {
+                "def_name": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "size_x": {
+                  "type": "integer"
+                },
+                "size_z": {
+                  "type": "integer"
+                },
+                "rotatable": {
+                  "type": "boolean"
+                },
+                "work_to_build": {
+                  "type": "number"
+                },
+                "stuff_count": {
+                  "type": "integer"
+                },
+                "costs": {
+                  "type": "array",
+                  "items": {
+                    "title": "Cost",
+                    "type": "object",
+                    "properties": {
+                      "def_name": {
+                        "type": "string"
+                      },
+                      "count": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "def_name",
+                      "count"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "allowed_materials": {
+                  "type": "array",
+                  "items": {
+                    "title": "Material",
+                    "type": "object",
+                    "properties": {
+                      "def_name": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "def_name",
+                      "label"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "def_name",
+                "label",
+                "size_x",
+                "size_z",
+                "rotatable",
+                "work_to_build",
+                "stuff_count",
+                "costs",
+                "allowed_materials"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "next_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "next_offset"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "construction_rooms",
+      "path": "/api/v2/construction/rooms",
+      "method": "POST",
+      "write": false,
+      "description": "List explored rooms with visible geometry, roof coverage and pawn reachability. A room is not necessarily shelter. Use small pages and inspect complete geometry before choosing a footprint.",
+      "request_schema": {
+        "title": "RoomQuery",
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32
+          }
+        },
+        "required": [
+          "map_id",
+          "offset",
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "response_schema": {
+        "title": "PageRoomDto",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "title": "RoomDto",
+              "type": "object",
+              "properties": {
+                "visible_cell": {
+                  "anyOf": [
+                    {
+                      "title": "PositionDto",
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "integer"
+                        },
+                        "y": {
+                          "type": "integer"
+                        },
+                        "z": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y",
+                        "z"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "fogged_cells_count": {
+                  "type": "integer"
+                },
+                "visible_cells": {
+                  "type": "array",
+                  "items": {
+                    "title": "PositionDto",
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "integer"
+                      },
+                      "y": {
+                        "type": "integer"
+                      },
+                      "z": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "y",
+                      "z"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "cells_truncated": {
+                  "type": "boolean"
+                },
+                "pawns_reaching_visible_cell": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                "id": {
+                  "type": "integer"
+                },
+                "role_label": {
+                  "type": "string"
+                },
+                "temperature": {
+                  "type": "number"
+                },
+                "cells_count": {
+                  "type": "integer"
+                },
+                "touches_map_edge": {
+                  "type": "boolean"
+                },
+                "is_prison_cell": {
+                  "type": "boolean"
+                },
+                "is_doorway": {
+                  "type": "boolean"
+                },
+                "open_roof_count": {
+                  "type": "integer"
+                },
+                "contained_beds_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "required": [
+                "visible_cell",
+                "fogged_cells_count",
+                "visible_cells",
+                "cells_truncated",
+                "pawns_reaching_visible_cell",
+                "id",
+                "role_label",
+                "temperature",
+                "cells_count",
+                "touches_map_edge",
+                "is_prison_cell",
+                "is_doorway",
+                "open_roof_count",
+                "contained_beds_ids"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "next_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "next_offset"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "construction_inspect",
+      "path": "/api/v2/construction/inspect",
+      "method": "POST",
+      "write": false,
+      "description": "Check exact proposed placements and inspect native ready/blueprint/frame/built/rejected state. Does not place anything.",
+      "request_schema": {
+        "title": "ConstructionRequest",
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "buildings": {
+            "type": "array",
+            "items": {
+              "title": "Placement",
+              "type": "object",
+              "properties": {
+                "def_name": {
+                  "type": "string"
+                },
+                "stuff_def_name": {
+                  "type": "string",
+                  "description": "Choose an observed allowed_materials def_name. Use an empty string when the definition has no allowed materials."
+                },
+                "position": {
+                  "title": "Cell",
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "integer"
+                    },
+                    "z": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "z"
+                  ],
+                  "additionalProperties": false,
+                  "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+                },
+                "rotation": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 3
+                }
+              },
+              "required": [
+                "def_name",
+                "stuff_def_name",
+                "position",
+                "rotation"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 128
+          }
+        },
+        "required": [
+          "map_id",
+          "buildings"
+        ],
+        "additionalProperties": false
+      },
+      "response_schema": {
+        "title": "ConstructionResult",
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "title": "PlacementResult",
+              "type": "object",
+              "properties": {
+                "placement": {
+                  "title": "Placement",
+                  "type": "object",
+                  "properties": {
+                    "def_name": {
+                      "type": "string"
+                    },
+                    "stuff_def_name": {
+                      "type": "string",
+                      "description": "Choose an observed allowed_materials def_name. Use an empty string when the definition has no allowed materials."
+                    },
+                    "position": {
+                      "title": "Cell",
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "integer"
+                        },
+                        "z": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "z"
+                      ],
+                      "additionalProperties": false,
+                      "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+                    },
+                    "rotation": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 3
+                    }
+                  },
+                  "required": [
+                    "def_name",
+                    "stuff_def_name",
+                    "position",
+                    "rotation"
+                  ],
+                  "additionalProperties": false
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "ready",
+                    "blueprint",
+                    "frame",
+                    "built",
+                    "rejected"
+                  ]
+                },
+                "thing_id": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "placement",
+                "state",
+                "thing_id",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "accepted",
+          "items"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "construction_place",
+      "path": "/api/v2/construction/place",
+      "method": "POST",
+      "write": true,
+      "description": "Place native construction orders at inspected coordinates. Returns placement states and IDs. The integration tracks completion; do not supply a done query. Repeating the same placement returns its existing state instead of duplicating it.",
+      "request_schema": {
+        "title": "ConstructionRequest",
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "buildings": {
+            "type": "array",
+            "items": {
+              "title": "Placement",
+              "type": "object",
+              "properties": {
+                "def_name": {
+                  "type": "string"
+                },
+                "stuff_def_name": {
+                  "type": "string",
+                  "description": "Choose an observed allowed_materials def_name. Use an empty string when the definition has no allowed materials."
+                },
+                "position": {
+                  "title": "Cell",
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "integer"
+                    },
+                    "z": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "z"
+                  ],
+                  "additionalProperties": false,
+                  "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+                },
+                "rotation": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 3
+                }
+              },
+              "required": [
+                "def_name",
+                "stuff_def_name",
+                "position",
+                "rotation"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 128
+          }
+        },
+        "required": [
+          "map_id",
+          "buildings"
+        ],
+        "additionalProperties": false
+      },
+      "response_schema": {
+        "title": "ConstructionResult",
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "title": "PlacementResult",
+              "type": "object",
+              "properties": {
+                "placement": {
+                  "title": "Placement",
+                  "type": "object",
+                  "properties": {
+                    "def_name": {
+                      "type": "string"
+                    },
+                    "stuff_def_name": {
+                      "type": "string",
+                      "description": "Choose an observed allowed_materials def_name. Use an empty string when the definition has no allowed materials."
+                    },
+                    "position": {
+                      "title": "Cell",
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "type": "integer"
+                        },
+                        "z": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "z"
+                      ],
+                      "additionalProperties": false,
+                      "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+                    },
+                    "rotation": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 3
+                    }
+                  },
+                  "required": [
+                    "def_name",
+                    "stuff_def_name",
+                    "position",
+                    "rotation"
+                  ],
+                  "additionalProperties": false
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "ready",
+                    "blueprint",
+                    "frame",
+                    "built",
+                    "rejected"
+                  ]
+                },
+                "thing_id": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "placement",
+                "state",
+                "thing_id",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "accepted",
+          "items"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "error_schema": {
+    "title": "ContractError",
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "code",
+      "message"
+    ],
+    "additionalProperties": false
+  },
+  "types": {
+    "DefinitionQuery": {
+      "title": "DefinitionQuery",
+      "type": "object",
+      "properties": {
+        "search": {
+          "type": "string"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        }
+      },
+      "required": [
+        "search",
+        "offset",
+        "limit"
+      ],
+      "additionalProperties": false
+    },
+    "Cost": {
+      "title": "Cost",
+      "type": "object",
+      "properties": {
+        "def_name": {
+          "type": "string"
+        },
+        "count": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "def_name",
+        "count"
+      ],
+      "additionalProperties": false
+    },
+    "Material": {
+      "title": "Material",
+      "type": "object",
+      "properties": {
+        "def_name": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "def_name",
+        "label"
+      ],
+      "additionalProperties": false
+    },
+    "BuildingDefinition": {
+      "title": "BuildingDefinition",
+      "type": "object",
+      "properties": {
+        "def_name": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "size_x": {
+          "type": "integer"
+        },
+        "size_z": {
+          "type": "integer"
+        },
+        "rotatable": {
+          "type": "boolean"
+        },
+        "work_to_build": {
+          "type": "number"
+        },
+        "stuff_count": {
+          "type": "integer"
+        },
+        "costs": {
+          "type": "array",
+          "items": {
+            "title": "Cost",
+            "type": "object",
+            "properties": {
+              "def_name": {
+                "type": "string"
+              },
+              "count": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "def_name",
+              "count"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "allowed_materials": {
+          "type": "array",
+          "items": {
+            "title": "Material",
+            "type": "object",
+            "properties": {
+              "def_name": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "def_name",
+              "label"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "def_name",
+        "label",
+        "size_x",
+        "size_z",
+        "rotatable",
+        "work_to_build",
+        "stuff_count",
+        "costs",
+        "allowed_materials"
+      ],
+      "additionalProperties": false
+    },
+    "PageBuildingDefinition": {
+      "title": "PageBuildingDefinition",
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "title": "BuildingDefinition",
+            "type": "object",
+            "properties": {
+              "def_name": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "size_x": {
+                "type": "integer"
+              },
+              "size_z": {
+                "type": "integer"
+              },
+              "rotatable": {
+                "type": "boolean"
+              },
+              "work_to_build": {
+                "type": "number"
+              },
+              "stuff_count": {
+                "type": "integer"
+              },
+              "costs": {
+                "type": "array",
+                "items": {
+                  "title": "Cost",
+                  "type": "object",
+                  "properties": {
+                    "def_name": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "def_name",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "allowed_materials": {
+                "type": "array",
+                "items": {
+                  "title": "Material",
+                  "type": "object",
+                  "properties": {
+                    "def_name": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "def_name",
+                    "label"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "def_name",
+              "label",
+              "size_x",
+              "size_z",
+              "rotatable",
+              "work_to_build",
+              "stuff_count",
+              "costs",
+              "allowed_materials"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "total": {
+          "type": "integer"
+        },
+        "next_offset": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "total",
+        "next_offset"
+      ],
+      "additionalProperties": false
+    },
+    "RoomQuery": {
+      "title": "RoomQuery",
+      "type": "object",
+      "properties": {
+        "map_id": {
+          "type": "integer"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        }
+      },
+      "required": [
+        "map_id",
+        "offset",
+        "limit"
+      ],
+      "additionalProperties": false
+    },
+    "PositionDto": {
+      "title": "PositionDto",
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "integer"
+        },
+        "y": {
+          "type": "integer"
+        },
+        "z": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "z"
+      ],
+      "additionalProperties": false
+    },
+    "RoomDto": {
+      "title": "RoomDto",
+      "type": "object",
+      "properties": {
+        "visible_cell": {
+          "anyOf": [
+            {
+              "title": "PositionDto",
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "integer"
+                },
+                "y": {
+                  "type": "integer"
+                },
+                "z": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "z"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fogged_cells_count": {
+          "type": "integer"
+        },
+        "visible_cells": {
+          "type": "array",
+          "items": {
+            "title": "PositionDto",
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "x",
+              "y",
+              "z"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "cells_truncated": {
+          "type": "boolean"
+        },
+        "pawns_reaching_visible_cell": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "id": {
+          "type": "integer"
+        },
+        "role_label": {
+          "type": "string"
+        },
+        "temperature": {
+          "type": "number"
+        },
+        "cells_count": {
+          "type": "integer"
+        },
+        "touches_map_edge": {
+          "type": "boolean"
+        },
+        "is_prison_cell": {
+          "type": "boolean"
+        },
+        "is_doorway": {
+          "type": "boolean"
+        },
+        "open_roof_count": {
+          "type": "integer"
+        },
+        "contained_beds_ids": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        }
+      },
+      "required": [
+        "visible_cell",
+        "fogged_cells_count",
+        "visible_cells",
+        "cells_truncated",
+        "pawns_reaching_visible_cell",
+        "id",
+        "role_label",
+        "temperature",
+        "cells_count",
+        "touches_map_edge",
+        "is_prison_cell",
+        "is_doorway",
+        "open_roof_count",
+        "contained_beds_ids"
+      ],
+      "additionalProperties": false
+    },
+    "PageRoomDto": {
+      "title": "PageRoomDto",
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "title": "RoomDto",
+            "type": "object",
+            "properties": {
+              "visible_cell": {
+                "anyOf": [
+                  {
+                    "title": "PositionDto",
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "integer"
+                      },
+                      "y": {
+                        "type": "integer"
+                      },
+                      "z": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "y",
+                      "z"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "fogged_cells_count": {
+                "type": "integer"
+              },
+              "visible_cells": {
+                "type": "array",
+                "items": {
+                  "title": "PositionDto",
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "integer"
+                    },
+                    "y": {
+                      "type": "integer"
+                    },
+                    "z": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "y",
+                    "z"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "cells_truncated": {
+                "type": "boolean"
+              },
+              "pawns_reaching_visible_cell": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                }
+              },
+              "id": {
+                "type": "integer"
+              },
+              "role_label": {
+                "type": "string"
+              },
+              "temperature": {
+                "type": "number"
+              },
+              "cells_count": {
+                "type": "integer"
+              },
+              "touches_map_edge": {
+                "type": "boolean"
+              },
+              "is_prison_cell": {
+                "type": "boolean"
+              },
+              "is_doorway": {
+                "type": "boolean"
+              },
+              "open_roof_count": {
+                "type": "integer"
+              },
+              "contained_beds_ids": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                }
+              }
+            },
+            "required": [
+              "visible_cell",
+              "fogged_cells_count",
+              "visible_cells",
+              "cells_truncated",
+              "pawns_reaching_visible_cell",
+              "id",
+              "role_label",
+              "temperature",
+              "cells_count",
+              "touches_map_edge",
+              "is_prison_cell",
+              "is_doorway",
+              "open_roof_count",
+              "contained_beds_ids"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "total": {
+          "type": "integer"
+        },
+        "next_offset": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "total",
+        "next_offset"
+      ],
+      "additionalProperties": false
+    },
+    "Cell": {
+      "title": "Cell",
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "integer"
+        },
+        "z": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x",
+        "z"
+      ],
+      "additionalProperties": false,
+      "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+    },
+    "Placement": {
+      "title": "Placement",
+      "type": "object",
+      "properties": {
+        "def_name": {
+          "type": "string"
+        },
+        "stuff_def_name": {
+          "type": "string",
+          "description": "Choose an observed allowed_materials def_name. Use an empty string when the definition has no allowed materials."
+        },
+        "position": {
+          "title": "Cell",
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "integer"
+            },
+            "z": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "x",
+            "z"
+          ],
+          "additionalProperties": false,
+          "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+        },
+        "rotation": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        }
+      },
+      "required": [
+        "def_name",
+        "stuff_def_name",
+        "position",
+        "rotation"
+      ],
+      "additionalProperties": false
+    },
+    "ConstructionRequest": {
+      "title": "ConstructionRequest",
+      "type": "object",
+      "properties": {
+        "map_id": {
+          "type": "integer"
+        },
+        "buildings": {
+          "type": "array",
+          "items": {
+            "title": "Placement",
+            "type": "object",
+            "properties": {
+              "def_name": {
+                "type": "string"
+              },
+              "stuff_def_name": {
+                "type": "string",
+                "description": "Choose an observed allowed_materials def_name. Use an empty string when the definition has no allowed materials."
+              },
+              "position": {
+                "title": "Cell",
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "integer"
+                  },
+                  "z": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "x",
+                  "z"
+                ],
+                "additionalProperties": false,
+                "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+              },
+              "rotation": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              }
+            },
+            "required": [
+              "def_name",
+              "stuff_def_name",
+              "position",
+              "rotation"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "maxItems": 128
+        }
+      },
+      "required": [
+        "map_id",
+        "buildings"
+      ],
+      "additionalProperties": false
+    },
+    "PlacementResult": {
+      "title": "PlacementResult",
+      "type": "object",
+      "properties": {
+        "placement": {
+          "title": "Placement",
+          "type": "object",
+          "properties": {
+            "def_name": {
+              "type": "string"
+            },
+            "stuff_def_name": {
+              "type": "string",
+              "description": "Choose an observed allowed_materials def_name. Use an empty string when the definition has no allowed materials."
+            },
+            "position": {
+              "title": "Cell",
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "integer"
+                },
+                "z": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "x",
+                "z"
+              ],
+              "additionalProperties": false,
+              "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+            },
+            "rotation": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3
+            }
+          },
+          "required": [
+            "def_name",
+            "stuff_def_name",
+            "position",
+            "rotation"
+          ],
+          "additionalProperties": false
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "ready",
+            "blueprint",
+            "frame",
+            "built",
+            "rejected"
+          ]
+        },
+        "thing_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "placement",
+        "state",
+        "thing_id",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "ConstructionResult": {
+      "title": "ConstructionResult",
+      "type": "object",
+      "properties": {
+        "accepted": {
+          "type": "boolean"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "title": "PlacementResult",
+            "type": "object",
+            "properties": {
+              "placement": {
+                "title": "Placement",
+                "type": "object",
+                "properties": {
+                  "def_name": {
+                    "type": "string"
+                  },
+                  "stuff_def_name": {
+                    "type": "string",
+                    "description": "Choose an observed allowed_materials def_name. Use an empty string when the definition has no allowed materials."
+                  },
+                  "position": {
+                    "title": "Cell",
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "integer"
+                      },
+                      "z": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "z"
+                    ],
+                    "additionalProperties": false,
+                    "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+                  },
+                  "rotation": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 3
+                  }
+                },
+                "required": [
+                  "def_name",
+                  "stuff_def_name",
+                  "position",
+                  "rotation"
+                ],
+                "additionalProperties": false
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "ready",
+                  "blueprint",
+                  "frame",
+                  "built",
+                  "rejected"
+                ]
+              },
+              "thing_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "placement",
+              "state",
+              "thing_id",
+              "reason"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "accepted",
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "ContractError": {
+      "title": "ContractError",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
