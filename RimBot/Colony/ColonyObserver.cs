@@ -79,15 +79,17 @@ namespace RimBot.Colony
                 ["forbiddenOnMap"]=supplies.Where(t=>t.def==cost.thingDef && t.IsForbidden(Faction.OfPlayer)).Sum(t=>t.stackCount)
             }));
         }
+        public static JArray Workers(Map map,Thing target)=>new JArray(map.mapPawns.FreeColonistsSpawned.Where(p=>p.CurJob!=null &&
+            (p.CurJob.targetA.Thing==target || p.CurJob.targetB.Thing==target || p.CurJob.targetC.Thing==target)).Select(p=>new JObject{
+                ["pawnId"]=p.thingIDNumber,["name"]=p.LabelShort,["job"]=p.CurJob.def.defName,
+                ["activity"]=p.CurJob.def==JobDefOf.HaulToContainer?"delivering materials":p.CurJob.def==JobDefOf.FinishFrame?"constructing":"working on target"}));
         public static JArray Orders(Map map) => new JArray(map.listerThings.ThingsInGroup(ThingRequestGroup.Blueprint)
             .Concat(map.listerThings.ThingsInGroup(ThingRequestGroup.BuildingFrame)).Take(20).Select(t => new JObject {
                 ["id"] = t.thingIDNumber, ["defName"] = t.def.entityDefToBuild?.defName,
                 ["x"] = t.Position.x, ["z"] = t.Position.z,
                 ["stage"] = t is Frame ? "frame" : "blueprint",
                 ["workDone"] = t is Frame frame ? (int)frame.workDone : 0,
-                ["pawnsTargeting"]=new JArray(map.mapPawns.FreeColonistsSpawned.Where(p=>p.CurJob!=null &&
-                    (p.CurJob.targetA.Thing==t || p.CurJob.targetB.Thing==t || p.CurJob.targetC.Thing==t)).Select(p=>new JObject{
-                        ["pawnId"]=p.thingIDNumber,["job"]=p.CurJob.def.defName})),
+                ["pawnsTargeting"]=Workers(map,t),
                 ["materials"]=Materials(t),["inspectionTool"]="pawns_orders"
             }));
     }

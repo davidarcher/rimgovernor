@@ -33,8 +33,11 @@ namespace RimBot.Colony
             details["pendingConstructionInPage"]=pending.Count;
             details["materialShortfalls"]=new JArray(pending.SelectMany(p=>p["materials"]).GroupBy(m=>m.Value<string>("defName")).Select(g=>new JObject{
                 ["defName"]=g.Key,["neededAcrossPendingOrders"]=g.Sum(m=>m.Value<int>("needed")),
+                ["shortfall"]=Math.Max(0,g.Sum(m=>m.Value<int>("needed"))-g.First().Value<int>("allowedOnMap")),
                 ["allowedOnMap"]=g.First()["allowedOnMap"],["forbiddenOnMap"]=g.First()["forbiddenOnMap"]}));
-            details["instruction"]="Resolve or explain unfinished work before adding equivalent orders. Allowed supply counts are shared, not reserved per order; reachability and pawn eligibility still apply. Inspect the target with a pawnId for native work blockers. Wait when work is progressing; do not interrupt rest just to eliminate idle time.";
+            details["forbiddenSupplyIds"]=new JArray(details["nearbySupplies"].Where(s=>s.Value<bool>("forbidden")).Select(s=>s["id"]));
+            details["alreadyAllowedSupplyIds"]=new JArray(details["nearbySupplies"].Where(s=>!s.Value<bool>("forbidden")).Select(s=>s["id"]));
+            details["instruction"]="Only forbiddenSupplyIds can be helped by orders_allow; alreadyAllowedSupplyIds need no Allow call. Resolve or explain unfinished work before adding equivalent orders. Allowed supply counts are shared, not reserved per order; reachability and pawn eligibility still apply. Inspect the target with a pawnId for native work blockers. Wait when work is progressing; do not interrupt rest just to eliminate idle time.";
             return details;
         }
     }

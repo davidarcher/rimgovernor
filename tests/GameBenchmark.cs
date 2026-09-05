@@ -13,8 +13,7 @@ namespace RimBot.Colony
 {
     public sealed partial class ColonyManager
     {
-        partial void BenchmarkUpdate(ref bool handled) { handled=Environment.GetCommandLineArgs().Contains("-rimbot-benchmark"); }
-        public void BenchmarkReview(Map map) { if(!Busy) Start(map); }
+        partial void BenchmarkPlans(ref bool skipPlans) { skipPlans=Environment.GetCommandLineArgs().Contains("-rimbot-benchmark"); }
     }
 }
 namespace RimBot.Tests
@@ -22,7 +21,12 @@ namespace RimBot.Tests
     [StaticConstructorOnStartup]
     public static class BenchmarkBackground
     {
-        static BenchmarkBackground() { if(Environment.GetCommandLineArgs().Contains("-rimbot-benchmark")) { Prefs.RunInBackground=true; Application.runInBackground=true; } }
+        static BenchmarkBackground() { if(Environment.GetCommandLineArgs().Contains("-rimbot-benchmark")) { Prefs.RunInBackground=true; Application.runInBackground=true; var driver=new GameObject("RimBot benchmark loading"); UnityEngine.Object.DontDestroyOnLoad(driver); driver.AddComponent<BenchmarkLoading>(); } }
+    }
+    public sealed class BenchmarkLoading : MonoBehaviour
+    {
+        // Native long events otherwise wait for an OnGUI repaint in a hidden window.
+        public void Update() { LongEventHandler.SetCurrentEventText(""); }
     }
     public sealed class GameBenchmark : GameComponent
     {
@@ -30,7 +34,7 @@ namespace RimBot.Tests
         private bool started,done;
         private float startTime;
         private int startTick,initialPawns;
-        private string lastState;
+        private int[] originalBlueprintIds;
         private const string Fixture="RimBot-bed-shortage-v1";
         private string ResultPath=>Path.Combine(GenFilePaths.SaveDataFolderPath,"benchmark-result.json");
         public GameBenchmark(Game game) { }
@@ -55,6 +59,9 @@ namespace RimBot.Tests
                     File.WriteAllText(Path.Combine(GenFilePaths.SaveDataFolderPath,"benchmark-started.txt"),DateTime.UtcNow.ToString("O"));
                     started=true; startTime=Time.realtimeSinceStartup; startTick=Find.TickManager.TicksGame;
                     initialPawns=map.mapPawns.FreeColonistsSpawned.Count;
+                    var original=map.listerThings.ThingsInGroup(ThingRequestGroup.Blueprint).Where(t=>t.def.entityDefToBuild==ThingDefOf.Bed).ToList();
+                    originalBlueprintIds=original.Select(t=>t.thingIDNumber).ToArray();
+                    foreach(var target in original) map.GetComponent<ConstructionTargets>().Observe(target);
                     RimBotMod.Settings.managerProvider=LLMProviderType.Local;
                     var mode=Environment.GetCommandLineArgs().FirstOrDefault(a=>a.StartsWith("-rimbot-reasoning="));
                     RimBotMod.Settings.localReasoningEffort=mode==null?"none":mode.Substring("-rimbot-reasoning=".Length);
@@ -65,12 +72,17 @@ namespace RimBot.Tests
                 }
                 int built=map.listerBuildings.allBuildingsColonist.Count(b=>b.def==ThingDefOf.Bed);
                 if(map.mapPawns.FreeColonistsSpawned.Count<initialPawns) { Complete(false,"Colonist lost",built); return; }
-                if(built>=3) { Complete(true,"Three actual beds completed",built); return; }
-                if(Time.realtimeSinceStartup-startTime>600 || manager.TotalToolCalls>=100) { Complete(false,"Time or tool-call budget exceeded",built); return; }
-                if(!manager.Busy && !Find.TickManager.Paused) {
-                    string state=ColonyObserver.Orders(map).ToString()+"|"+built;
-                    if(state!=lastState) { lastState=state; manager.BenchmarkReview(map); }
+                if(built>=3) {
+                    foreach(int oldId in originalBlueprintIds) {
+                        var hint=JObject.Parse(map.GetComponent<ConstructionTargets>().Missing(oldId));
+                        if(!hint["currentObjects"].Any(t=>t.Value<string>("stage")=="built" && t.Value<string>("defName")=="Bed")) throw new Exception("Missing current built bed at original blueprint site");
+                        bool rejected=false;
+                        try { SelectionInspection.Read(map,new JObject{["targetId"]=oldId}); } catch(ArgumentException ex) { rejected=JObject.Parse(ex.Message).Value<string>("error")=="target_gone"; }
+                        if(!rejected) throw new Exception("Stale target was silently accepted");
+                    }
+                    Complete(true,"Three actual beds completed; stale blueprint queries report current built beds",built); return;
                 }
+                if(Time.realtimeSinceStartup-startTime>600 || manager.TotalToolCalls>=100) { Complete(false,"Time or tool-call budget exceeded",built); return; }
             } catch(Exception ex) { Complete(false,ex.ToString(),0); }
         }
         private void Setup(Map map)

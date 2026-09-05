@@ -83,7 +83,7 @@ namespace RimBot.Colony
             // Facts/objective statuses are recalculated from the actual map after loading.
             // The saved control mode determines whether reviews run after loading.
         }
-        partial void BenchmarkUpdate(ref bool handled);
+        partial void BenchmarkPlans(ref bool skipPlans);
         public override void GameComponentUpdate()
         {
             if(Find.CurrentMap!=null && Clock.Elapsed.TotalSeconds>=nextNotificationCheck) {
@@ -96,13 +96,13 @@ namespace RimBot.Colony
                 try { callback(); } catch(Exception ex) { Finish("Review failed: "+ex.Message); }
             }
             RefreshObjectives();
-            bool handled=false; BenchmarkUpdate(ref handled); if(handled) return;
+            bool skipPlans=false; BenchmarkPlans(ref skipPlans);
             if(!Automatic || Busy || Find.TickManager.Paused) return;
             var map=mapId<0 ? Find.CurrentMap : Find.Maps.FirstOrDefault(m=>m.uniqueID==mapId);
             if(map==null) { Status="Waiting for the colony map."; return; }
             if(snapshot==null) return;
-            if(!notificationPending && !executionPending && !steerPending && TryStartStrategy(map)) return;
-            if(!notificationPending && !executionPending && TryStartDailyBrief(map,steerPending)) return;
+            if(!skipPlans && !notificationPending && !executionPending && !steerPending && TryStartStrategy(map)) return;
+            if(!skipPlans && !notificationPending && !executionPending && TryStartDailyBrief(map,steerPending)) return;
             string fingerprint=ColonyTools.Fingerprint(snapshot)+ColonyObjectives.DecisionKey(Objectives)+Goal;
             if(!notificationPending && !executionPending && !steerPending && fingerprint==lastFingerprint) { if(!Status.StartsWith("Blocked:")) Status="Watching the colony."; return; }
             if(!notificationPending && !executionPending && !steerPending && !Budget.CanReview(Clock.Elapsed.TotalSeconds,RimBotMod.Settings.reviewSeconds)) { Status="Watching the colony."; return; }
@@ -137,6 +137,9 @@ namespace RimBot.Colony
                     if(before!=null && before.State!=item.State) Record(item.Title+": "+item.StateLabel+". "+item.Evidence);
                 }
             Objectives=updated; objectiveKey=key;
+            foreach(var target in map.listerThings.ThingsInGroup(ThingRequestGroup.Blueprint).Concat(map.listerThings.ThingsInGroup(ThingRequestGroup.BuildingFrame)))
+                if(!target.Position.Fogged(map)) map.GetComponent<ConstructionTargets>().Observe(target);
+            observedIdentifiers.RemoveMissingThings(new HashSet<int>(map.listerThings.AllThings.Where(t=>t.Spawned && !t.Position.Fogged(map)).Select(t=>t.thingIDNumber)));
             snapshot=ColonyTools.Snapshot(map);
             snapshot["objectives"]=new JArray(Objectives.Select(o=>o.ToJson()));
             snapshot["trackedTasks"]=taskLedger.View(map.uniqueID);
@@ -207,7 +210,12 @@ namespace RimBot.Colony
                     "\nObserved handles/restrictions (requery mutable state): "+observedIdentifiers.Serialize()+"\nContinue from current facts. Earlier completed orders remain in the game. Do not repeat them.") };
             }
             if(recovering) messages.Add(new ChatMessage("user","Reassess using workFocus and repeatedObservations. Identify the blocker, choose a different useful action, or report why you must wait. Empty items_list results cover the whole visible map; changing its origin only changes sorting. Do not repeat an unchanged search or already-applied order."));
-            var requestProvider=recovering && RimBotMod.Settings.managerProvider==LLMProviderType.Local
+            bool diagnosing=round==0 && (snapshot?["workFocus"]?["materialShortfalls"] as JArray)?.Any(m=>(m.Value<int?>("shortfall")??0)>0)==true;
+            if(diagnosing) {
+                messages.Add(new ChatMessage("user","Resolve the measured material shortfall using current workFocus. Distinguish already-allowed supplies from forbidden supplies. Choose the next useful action; no need to rediscover facts already provided."));
+                Log.Message("[RimBot Debug] Reasoning enabled for material-shortfall diagnosis.");
+            }
+            var requestProvider=(recovering || diagnosing) && RimBotMod.Settings.managerProvider==LLMProviderType.Local
                 ? new LocalModel(RimBotMod.Settings.localUrl,"medium",TimeSpan.FromMinutes(10)) : provider;
             var requestBody=LocalModel.BuildRequest(messages,definitions,model,maxTokens);
             Log.Message(StateTransfer.Sizes("execution",snapshot,StateTransfer.Colony(snapshot))+
@@ -248,7 +256,7 @@ namespace RimBot.Colony
                         Record(ActivitySummary.Model(response.Content));
                     }
                     var calls=response.ToolCalls;
-                    if(calls==null || calls.Count==0) { Busy=false; Status="Watching the colony."; nextObservation=0; return; }
+                    if(calls==null || calls.Count==0) { WatchCurrentState(); return; }
                     if(calls.Count>8) { Finish("Too many tool calls in one response; nothing executed."); return; }
                     messages.Add(new ChatMessage("assistant",response.AssistantParts ?? new List<ContentPart>()));
                     var results=new List<ContentPart>();
@@ -272,7 +280,7 @@ namespace RimBot.Colony
                         TotalToolCalls++;
                         if(decisions.Observe(call,result,success)) { RepeatedToolResults++; recoveryRequested=true; }
                         StepProgress(call.Name,success);
-                        if(ColonyTools.IsAction(call.Name)) toolSession.ClearActions();
+                        if(ColonyTools.IsAction(call.Name)) { toolSession.ClearActions(); observedIdentifiers.ClearActionHandles(); }
                         if(success && (call.Name=="selection_inspect" || call.Name=="pawns_orders")) toolSession.ObserveMenu(result);
                         if(ColonyTools.IsAction(call.Name)) taskLedger.Record(map.uniqueID,Find.TickManager.TicksGame,call,result,success);
                         if(success) observedIdentifiers.Remember(call.Name,result);
@@ -286,6 +294,7 @@ namespace RimBot.Colony
                     }
                     messages.Add(new ChatMessage("user",results));
                     if(blocked) { Finish(Status); return; }
+                    if(calls.All(c=>c.Name=="manager_save_plan")) { WatchCurrentState(); return; }
                     if(recoveryRequested && recoveryAttempted) {
                         RefreshObjectives(true);
                         executionPending=false;
@@ -298,6 +307,12 @@ namespace RimBot.Colony
                     Request(map,provider,messages,model,key,maxTokens,token,round+1);
                 });
             });
+        }
+        private void WatchCurrentState()
+        {
+            RefreshObjectives(true);
+            lastFingerprint=ColonyTools.Fingerprint(snapshot)+ColonyObjectives.DecisionKey(Objectives)+Goal;
+            executionPending=false; Busy=false; Status="Watching the colony.";
         }
         private void Finish(string status) { Busy=false; Status=status; Record(status); nextObservation=0; }
         public void SetControl(ManagerControl value)

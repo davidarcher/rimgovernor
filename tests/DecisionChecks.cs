@@ -6,6 +6,15 @@ internal static class DecisionChecks
 {
     public static void Run(Action<bool,string> check)
     {
+        var identifiers=new ObservedIdentifiers();
+        identifiers.Remember("construction_list","[{id:42,defName:'Bed',stage:'blueprint'},{id:43,defName:'Bed',stage:'frame'}]");
+        identifiers.Remember("zones_list","[{id:42,name:'Stockpile'}]");
+        identifiers.Remember("selection_inspect","{menu:{orders:[{actionId:'old-action',label:'Construct'}]}}");
+        identifiers.RemoveMissingThings(new System.Collections.Generic.HashSet<int>{43});
+        identifiers.ClearActionHandles();
+        var retained=JArray.Parse(identifiers.Serialize());
+        check(retained.Count==2,"Stale blueprint/action retained or zone with same integer ID removed");
+        check(identifiers.Serialize().Contains("frame") && !identifiers.Serialize().Contains("blueprint"),"Construction stage lost during compaction");
         var memory=new DecisionMemory();
         var call=new ToolCall{Name="items_list",Arguments=new JObject{["defName"]="Gun_BoltActionRifle",["x"]=12,["z"]=20}};
         check(!memory.Observe(call,"{totalStacks:0}",true),"First empty query marked repetitive");

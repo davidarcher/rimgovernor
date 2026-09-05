@@ -69,7 +69,8 @@ namespace RimBot.Colony
                 if(args["x"]!=null || args["z"]!=null) throw new ArgumentException("Supply targetId or x,z, not both.");
                 int targetId=RequiredInt(args,"targetId");
                 target=map.listerThings.AllThings.FirstOrDefault(t=>t.thingIDNumber==targetId && t.Spawned && !t.Position.Fogged(map));
-                if(target==null) throw new ArgumentException("Target is no longer visible on this map. Query again.");
+                if(target==null) throw new ArgumentException(map.GetComponent<ConstructionTargets>().Missing(targetId));
+                map.GetComponent<ConstructionTargets>().Observe(target);
                 cell=target.Position;
             } else {
                 if(args["x"]==null || args["z"]==null) throw new ArgumentException("Supply targetId from a query OR both x and z. Pawn ID alone identifies the actor, not the order target.");
