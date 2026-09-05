@@ -73,7 +73,7 @@ namespace RimBot.Colony
             result.Add(Objective("shelter", "Provide sheltered sleeping places", shelterState, missing > 0 ? 2 : 5,
                 f.ShelteredSlots + "/" + f.Colonists + " sheltered slots; " + f.RegularBedSlots + " existing regular slots total; " + f.PendingBedSlots + " slots in pending bed orders.",
                 missing == 0 ? "Enough physical sleeping places. Assignment, access, and temperature comfort still require checking." :
-                f.RegularBedSlots >= f.Colonists ? "Enough beds already exist. Enclose/roof their locations rather than duplicate beds; use designate_roof after checking supports and enclosure." :
+                f.RegularBedSlots >= f.Colonists ? "Enough beds already exist. Enclose/roof their locations rather than duplicate beds; use areas_build_roof after checking supports and enclosure." :
                 f.PendingBedSlots >= missing ? "Existing bed orders cover the slot deficit. Check their enclosure and construction progress; do not duplicate beds." :
                 "Inspect an existing enclosed room first, then plan missing beds. Unroofed/outdoor beds do not satisfy this objective."));
 
@@ -83,7 +83,7 @@ namespace RimBot.Colony
                 f.Blueprints + " blueprints; " + f.Frames + " frames; " + f.Builders + " enabled builders; " + f.ActiveConstruction + " currently constructing.",
                 f.PendingOrders == 0 ? "No pending construction." : f.Builders == 0 ? "Enable a capable builder if appropriate; manual priorities must be enabled by the player." :
                 f.ConstructionStalled ? "No measured construction progress for six in-game hours. Inspect existing orders/materials before creating more." :
-                "Let existing orders finish. inspect_work_orders can identify pending structures and locations."));
+                "Let existing orders finish. construction_list can identify pending structures and locations."));
             return result.OrderBy(o => o.Priority).ThenBy(o => o.Id, StringComparer.Ordinal).ToList();
         }
 

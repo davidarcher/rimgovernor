@@ -54,7 +54,7 @@ namespace RimBot.Colony
                 var steps=Strings(p,"steps",5,240);
                 if(steps.Count==0) throw new ArgumentException("Project needs at least one next step.");
                 clean.Add(new JObject { ["id"]=id,["title"]=Text(p,"title",100),["purpose"]=Text(p,"purpose",240),["priority"]=p["priority"],
-                    ["dependsOn"]=Strings(p,"dependsOn",8,40),["requiredTools"]=Strings(p,"requiredTools",12,80),["steps"]=steps,["completeWhen"]=conditions });
+                    ["dependsOn"]=Strings(p,"dependsOn",8,40),["requiredTools"]=new JArray(Strings(p,"requiredTools",12,80).Values<string>().Select(ToolNames.Canonical)),["steps"]=steps,["completeWhen"]=conditions });
             }
             foreach(var p in clean) foreach(string dependency in p["dependsOn"].Values<string>())
                 if(!ids.Contains(dependency)) throw new ArgumentException("Missing dependency: "+dependency);

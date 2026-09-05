@@ -19,6 +19,7 @@ namespace RimBot.Colony
     {
 
         private Vector2 overviewScroll, activityScroll;
+        private string directionMessage="";
 
         private float overviewHeight=400, activityHeight=200;
 
@@ -79,7 +80,18 @@ namespace RimBot.Colony
                 }
             l.GapLine();
 
-            l.Label("Direction (optional)");
+            if(Find.CurrentMap!=null) {
+                int broken=PlayerConstruction.BrokenSpots(Find.CurrentMap).Count;
+                if(broken>0 && l.ButtonText("Replace "+broken+" broken sleeping-spot orders")) {
+                    manager.Record(PlayerConstruction.ReplaceBrokenSpots(Find.CurrentMap)); manager.RefreshObjectives(true);
+                }
+            }
+            l.Label("Tell the colony manager");
+            directionMessage=l.TextEntry(directionMessage);
+            if(l.ButtonText("Send direction") && !string.IsNullOrWhiteSpace(directionMessage)) {
+                manager.Steer(directionMessage); directionMessage="";
+            }
+            l.Label("Long-term direction");
 
             manager.Goal=l.TextEntry(manager.Goal);
 
@@ -105,7 +117,7 @@ namespace RimBot.Colony
 
                 TooltipHandler.TipRegion(directionRow,direction);
 
-                foreach(var project in manager.Strategy.Projects.OrderBy(p=>p["priority"].Value<int>()).Take(3)) {
+                foreach(var project in manager.Strategy.Projects.Where(p=>manager.ProjectState(p)!="Complete").OrderBy(p=>p["priority"].Value<int>()).Take(3)) {
 
                     var projectRow=l.GetRect(26);
 
@@ -121,9 +133,14 @@ namespace RimBot.Colony
 
             l.Gap(8);
 
-            l.Label("Daily execution");
+            if(!string.IsNullOrWhiteSpace(manager.DayBrief)) {
+                var dayRow=l.GetRect(48); Widgets.Label(dayRow,"Today: "+ActivitySummary.Short(manager.DayBrief,160)); TooltipHandler.TipRegion(dayRow,manager.DayBrief);
+            }
+            l.Label("Next");
 
-            l.Label(string.IsNullOrWhiteSpace(manager.Plan)?"No plan yet.":manager.Plan);
+            var nextRow=l.GetRect(48);
+            Widgets.Label(nextRow,string.IsNullOrWhiteSpace(manager.Plan)?"No orders planned.":ActivitySummary.Short(manager.Plan,180));
+            TooltipHandler.TipRegion(nextRow,manager.Plan??"");
 
             overviewHeight=l.CurHeight+10; l.End(); Widgets.EndScrollView();
 
@@ -143,9 +160,9 @@ namespace RimBot.Colony
 
             var l=new Listing_Standard(); l.Begin(new Rect(0,0,rect.width-20,100000));
 
-            if(manager.History.Count==0) l.Label("No AI activity yet.");
+            if(manager.History.Count==0) l.Label("No recent orders.");
 
-            foreach(var line in manager.History.AsEnumerable().Reverse().Take(count)) { l.Label(line); l.Gap(6); }
+            foreach(var line in manager.History.AsEnumerable().Reverse().Take(count)) { var row=l.GetRect(48); Widgets.Label(row,ActivitySummary.Short(line,180)); TooltipHandler.TipRegion(row,line); l.Gap(3); }
 
             height=l.CurHeight+8; l.End(); Widgets.EndScrollView();
 
@@ -173,7 +190,7 @@ namespace RimBot.Colony
 
             if(manager==null) return;
 
-            Widgets.Label(new Rect(0,0,rect.width-30,32),"AI activity · "+manager.Requests+" requests this hour · "+manager.Tokens+" tokens this session");
+            Widgets.Label(new Rect(0,0,rect.width-30,32),"Colony activity");
 
             ManagerWindow.DrawActivity(new Rect(0,40,rect.width,rect.height-40),manager,ref scroll,ref height,100);
 

@@ -78,7 +78,7 @@ namespace RimBot.Colony
         private string TacticalStrategy()
         {
             if(Strategy==null) return "No strategic plan yet. Handle immediate measured needs; report unsupported actions.";
-            return "Season direction: "+Strategy.Season+"\nReady projects: "+Strategy.Tactical(strategicMetrics,availableTools).ToString(Formatting.None)+
+            return "Today: "+DayBrief+"\nSeason direction: "+Strategy.Season+"\nReady projects: "+Strategy.Tactical(strategicMetrics,availableTools).ToString(Formatting.None)+
                 "\nOther projects remain saved. Do not recreate completed work. Urgent needs take precedence; only game measurements establish completion.";
         }
         public void RegenerateStrategy()
@@ -95,6 +95,7 @@ namespace RimBot.Colony
             if(!force && (tick<strategyRetryTick || Clock.Elapsed.TotalSeconds<strategyRetryTime)) return false;
             string reason=force?"Player requested a new strategy":StrategySchedule.Due(Strategy!=null,strategyQuadrum,quadrum,strategyTick,tick,strategyGoal,Goal,strategyPopulation,
                 (int)strategicMetrics["colonists"],strategyFood,strategicMetrics["food_days"],strategyShelter,(int)strategicMetrics["sheltered_slots"],Strategy!=null && Strategy.Projects.Count>0 && Strategy.Projects.All(p=>ProjectState(p)=="Complete"));
+            if(reason==null && strategyTick>=0 && tick-strategyTick>=420000) reason="Weekly review";
             if(reason==null) return false;
             // Immediate emergencies use the tactical path first; strategic work waits until those resolve.
             if(!force && (strategicMetrics["hostiles"]>0 || strategicMetrics["medical_emergencies"]>0)) return false;
@@ -113,14 +114,14 @@ namespace RimBot.Colony
             string signature=settings.ConnectionSignature,goal=Goal,model=settings.managerModel,key=settings.GetApiKeyForProvider(settings.managerProvider);
             int population=(int)strategicMetrics["colonists"],shelter=(int)strategicMetrics["sheltered_slots"];
             float food=(float)strategicMetrics["food_days"];
-            StrategyStatus="Strategic planning: "+reason+" (reasoning requested: "+(local?settings.strategicReasoningEffort:"medium")+")."; Status=StrategyStatus; Record(Status);
+            StrategyStatus="Planning the next season…"; Status=StrategyStatus; Log.Message("[RimBot Debug] Planning: "+reason);
             var messages=new List<ChatMessage> {
                 new ChatMessage("system","You are the colony's strategic planner. Reason about priorities, constraints, climate, resources and dependencies, then call save_strategy once. Do not issue world orders. " +
-                    "Plan concrete achievable projects for the next 15 days, directional milestones for the next year, and a flexible three-year ambition. Project goals are open-ended, not restricted to the five survival indicators. " +
+                    "Write concise colony notes: short verb-led project titles, one sentence per horizon, and brief concrete steps. No preamble, motivational language, model/tool jargon or repeated explanations. Example title: Plant the first crop. Example season: Grow rice and finish a wood-fired kitchen before winter. Plan concrete achievable projects for the next 15 days, directional milestones for the next year, and a flexible three-year ambition. Project goals are open-ended, not restricted to the five survival indicators. " +
                     "Keep useful existing projects/IDs; do not duplicate facilities. Basic shelter and two days of food are a survival floor, not the end of colony development. Under the default direction plan sustainable food, cooking/butchering, useful research and infrastructure once urgent needs are covered. Respect explicit player limits or different priorities. Provide observable completion conditions. Do not equate a stove with a functioning kitchen or a bed with a clinic. Name unsupported capabilities and unverifiable criteria honestly. " +
                     "Only these metrics are currently measured: armed_colonists, capable_fighters, growing_cells, configured_food_bills, research_active (1 selected/0 none), colonists, sheltered_slots, food_days, hostiles, patients, medical_emergencies, stockpiles, food_bills (currently active bills), pending_orders, building:ExactDefName (built player structures), research:ExactDefName (1 finished/0 unfinished). Unknown metrics block verification. " +
-                    "Tools available to daily execution: "+string.Join("; ",ToolCatalog.Definitions().Select(t=>t.Name+": "+t.Description))),
-                new ChatMessage("user","Trigger: "+reason+"\nPlayer direction: "+goal+"\nCalendar/climate: "+strategicCalendar+"\nColony: "+snapshot.ToString(Formatting.None)+
+                    "Tools available to daily execution: "+string.Join("; ",ToolCatalog.Definitions().Select(t=>t.Name+": "+ActivitySummary.Short(t.Description,100)))),
+                new ChatMessage("user","Trigger: "+reason+"\nPlayer direction: "+goal+"\nRecent player messages (newest wins): "+PlayerNotes+"\nCalendar/climate: "+strategicCalendar+"\nColony: "+snapshot.ToString(Formatting.None)+
                     "\nMeasured counters: "+JObject.FromObject(strategicMetrics).ToString(Formatting.None)+"\nPrevious strategy: "+(Strategy?.Serialize()??"none"))
             };
             Task.Run(async ()=> {
@@ -138,11 +139,11 @@ namespace RimBot.Colony
                         var candidate=StrategicPlan.Parse(response.ToolCalls[0].Arguments.ToString(Formatting.None));
                         Strategy=candidate; strategyGoal=goal; strategyTick=tick; strategyQuadrum=quadrum;
                         strategyPopulation=population; strategyShelter=shelter; strategyFood=food; strategyRetryTick=0;
-                        StrategyStatus="Seasonal strategy ready: "+candidate.Projects.Count+" projects. Next scheduled review at the next quadrum.";
-                        Record("Season direction: "+candidate.Season);
+                        StrategyStatus="Season plan updated.";
+                        Log.Message("[RimBot Debug] Strategy: "+candidate.Serialize());
                         RefreshObjectives(true);
-                        foreach(var project in candidate.Projects) Record(project["title"]+": "+ProjectState(project));
-                        lastFingerprint=null;
+                        // Project states are visible in the plan; do not repeat them in the activity feed.
+                        lastFingerprint=null; briefRequested=true; briefTick=-1;
                         Finish(StrategyStatus);
                     } catch(Exception ex) {
                         strategyRetryTick=Find.TickManager.TicksGame+60000; strategyRetryTime=Clock.Elapsed.TotalSeconds+300;

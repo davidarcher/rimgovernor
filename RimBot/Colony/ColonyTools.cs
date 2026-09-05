@@ -26,7 +26,7 @@ namespace RimBot.Colony
 
         public const int MaxActions = 4;
 
-        public static bool IsAction(string name) => ColonyDevelopment.IsAction(name) || name == "prepare_shelter" || name == "allow_item_ids" || name == "build_room" || name == "designate_roof" || name == "allow_items" || name == "ensure_stockpile" || name == "place_blueprint" || name == "set_work_priority";
+        public static bool IsAction(string name) => ColonyDevelopment.IsAction(name) || name=="storage_configure" || name=="zones_remove_cells" || name == "orders_allow" || name == "areas_build_roof" || name == "orders_allow_area" || name == "zones_stockpile_designate" || name == "architect_build" || name == "work_set_priority";
 
         private static int Number(JObject args, string key)
 
@@ -50,15 +50,15 @@ namespace RimBot.Colony
 
         }
 
-        private static List<IntVec3> Area(Map map, JObject args)
+        private static List<IntVec3> Area(Map map, JObject args,bool query=true)
 
         {
 
             int x = Number(args,"x"), z = Number(args,"z"), w = Number(args,"width"), h = Number(args,"height");
 
-            if (w < 1 || w > 8 || h < 1 || h > 8 || x < 0 || z < 0 || x > map.Size.x-w || z > map.Size.z-h)
+            if (w < 1 || h < 1 || (query && (w > 8 || h > 8)) || x < 0 || z < 0 || x > map.Size.x-w || z > map.Size.z-h)
 
-                throw new ArgumentException("Area must be 1–8 cells on each side and within the map.");
+                throw new ArgumentException("Area must fit the map. Observation pages are limited to 8x8 cells.");
 
             return CellRect.FromLimits(x,z,x+w-1,z+h-1).Cells.ToList();
 
@@ -74,7 +74,28 @@ namespace RimBot.Colony
 
             {
 
-                case "inspect_area":
+                case "storage_inspect": return StorageTools.Inspect(map,a).ToString(Formatting.None);
+                case "storage_filter_options": return StorageTools.Options(a).ToString(Formatting.None);
+                case "storage_configure": return StorageTools.Configure(map,a);
+                case "zones_list": return new JArray(map.zoneManager.AllZones.Select(z=>new JObject {
+                    ["id"]=z.ID,["name"]=z.label,["type"]=z.GetType().Name,["cells"]=z.Cells.Count,
+                    ["minX"]=z.Cells.Count>0?z.Cells.Min(c=>c.x):0,["minZ"]=z.Cells.Count>0?z.Cells.Min(c=>c.z):0,
+                    ["maxX"]=z.Cells.Count>0?z.Cells.Max(c=>c.x):0,["maxZ"]=z.Cells.Count>0?z.Cells.Max(c=>c.z):0
+                })).ToString(Formatting.None);
+                case "zones_remove_cells":
+                    PlayerOrders.RequireMap(map);
+                    int zoneId=Number(a,"zoneId");
+                    var remove=Area(map,a,false).Where(c=>map.zoneManager.ZoneAt(c)?.ID==zoneId).ToList();
+                    new Designator_ZoneDelete().DesignateMultiCell(remove);
+                    return "Removed "+remove.Count+" zone cells.";
+                case "architect_catalog": return ArchitectCatalog.Read(a.Value<string>("category")).ToString(Formatting.None);
+                case "notifications_read": return ColonyNotifications.Read(true).ToString(Formatting.None);
+                case "architect_materials": return MaterialQuery(map,a).ToString(Formatting.None);
+                case "rooms_list": return BuildingQueries.Rooms(map,a).ToString(Formatting.None);
+                case "buildings_list": return BuildingQueries.Find(map,a).ToString(Formatting.None);
+                case "pawns_list": return PawnQueries.Find(map,a).ToString(Formatting.None);
+                case "pawns_inspect": return PawnQueries.Inspect(map,Number(a,"pawnId"),Text(a,"section"),a["offset"]==null?0:Number(a,"offset"),a["limit"]==null?10:Number(a,"limit")).ToString(Formatting.None);
+                case "map_inspect":
 
                     return new JArray(Area(map,a).Select(c => new JObject { ["x"]=c.x,["z"]=c.z,
 
@@ -84,13 +105,7 @@ namespace RimBot.Colony
 
                         ["things"]=new JArray(c.GetThingList(map).Take(6).Select(t=>new JObject { ["id"]=t.thingIDNumber,["defName"]=t.def.defName,["count"]=t.stackCount,["forbidden"]=t.IsForbidden(Faction.OfPlayer) })) })).ToString(Formatting.None);
 
-                case "find_shelter_options":
-                    return map.GetComponent<ShelterPlanner>().Find(Number(a,"sleepers")).ToString(Formatting.None);
-                case "prepare_shelter":
-                    return map.GetComponent<ShelterPlanner>().Prepare(Text(a,"id"));
-                case "find_build_sites":
-                    return ColonyLocation.Sites(map,Text(a,"kind")).ToString(Formatting.None);
-                case "find_items":
+                case "items_list":
 
                     int originX=Number(a,"x"),originZ=Number(a,"z");
 
@@ -108,11 +123,11 @@ namespace RimBot.Colony
 
                         a["offset"]==null?0:Number(a,"offset"),a["limit"]==null?20:Number(a,"limit")).ToString(Formatting.None);
 
-                case "allow_item_ids":
+                case "orders_allow":
 
                     var ids=a["ids"] as JArray;
 
-                    if(ids==null || ids.Count<1 || ids.Count>40 || ids.Any(id=>id.Type!=JTokenType.Integer)) throw new ArgumentException("Supply 1–40 item IDs from find_items.");
+                    if(ids==null || ids.Count<1 || ids.Count>40 || ids.Any(id=>id.Type!=JTokenType.Integer)) throw new ArgumentException("Supply 1–40 item IDs from items_list.");
 
                     var requested=new HashSet<int>(ids.Values<int>());
 
@@ -122,98 +137,65 @@ namespace RimBot.Colony
 
                     int changed=found.Count(t=>t.IsForbidden(Faction.OfPlayer));
 
-                    foreach(var t in found) t.SetForbidden(false,false);
+                    PlayerOrders.Allow(map,found);
 
                     return "Allowed " + changed + " selected item stacks; " + (found.Count-changed) + " already allowed. Normal hauling and reachability rules apply.";
 
-                case "report_blocker":
+                case "manager_report_blocker":
 
                     return "Blocked: " + Text(a,"reason");
 
-                case "build_room":
+case "areas_build_roof":
 
-                    return RoomConstruction.Build(map,a);
-
-                case "designate_roof":
-
-                    var roofCells=Area(map,a);
+                    var roofCells=Area(map,a,false);
 
                     if(roofCells.Any(c=>c.Fogged(map))) throw new ArgumentException("Cannot designate a roof in fogged cells.");
 
-                    foreach(var c in roofCells) map.areaManager.BuildRoof[c]=true;
+                    PlayerOrders.Roof(map,roofCells);
 
                     return "Designated " + roofCells.Count + " cells for roofing. Builders need normal roof supports and access. A designation is not a completed roof.";
 
-                case "allow_items":
+                case "orders_allow_area":
 
-                    var selected = Area(map,a).SelectMany(c=>c.GetThingList(map)).Distinct()
+                    var selected = Area(map,a,false).SelectMany(c=>c.GetThingList(map)).Distinct()
 
                         .Where(t=>t.def.category==ThingCategory.Item && t.IsForbidden(Faction.OfPlayer) && !t.Position.Fogged(map)).ToList();
 
-                    foreach(var item in selected) item.SetForbidden(false, false);
+                    PlayerOrders.Allow(map,selected);
 
                     return "Allowed " + selected.Count + " item stacks in the selected area. Normal hauling, access and work rules still apply.";
 
-                case "ensure_stockpile":
+                case "zones_stockpile_designate":
 
-                    var existing = map.zoneManager.AllZones.OfType<Zone_Stockpile>().FirstOrDefault();
+                    return PlayerOrders.Zone(map,Area(map,a,false),false,zoneId:a.Value<int?>("zoneId"));
 
-                    if (existing != null) return "Existing shared stockpile: " + existing.label + ", cells=" + existing.Cells.Count + ". No new zone created.";
-
-                    var cells = Area(map,a);
-                    ColonyLocation.Validate(map,Number(a,"x"),Number(a,"z"),Number(a,"width"),Number(a,"height"));
-
-                    if (cells.Any(c=>!c.Walkable(map) || c.GetEdifice(map)!=null || map.zoneManager.ZoneAt(c)!=null))
-
-                        throw new ArgumentException("Area is blocked or already zoned. Inspect another area; nothing changed.");
-
-                    var zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile,map.zoneManager);
-
-                    map.zoneManager.RegisterZone(zone);
-
-                    foreach(var cell in cells) zone.AddCell(cell);
-
-                    return "Created shared stockpile: " + zone.label + ", cells=" + cells.Count + ". RimWorld assigns hauling normally.";
-
-                case "list_buildables":
+                case "architect_buildables":
 
                     string query = Text(a,"search");
 
                     if(query.Trim().Equals("roof",StringComparison.OrdinalIgnoreCase) || query.Trim().Equals("roofing",StringComparison.OrdinalIgnoreCase))
 
-                        throw new ArgumentException("Roofs are area designations. Use designate_roof, not a building or conduit.");
+                        throw new ArgumentException("Roofs are area designations. Use areas_build_roof, not a building or conduit.");
 
                     return new JArray(DefDatabase<ThingDef>.AllDefs.Where(d=>d.designationCategory!=null && d.category==ThingCategory.Building &&
 
-                        (d.researchPrerequisites==null || d.researchPrerequisites.All(r=>r.IsFinished)) &&
+                        BuildCopyCommandUtility.FindAllowedDesignator(d)!=null &&
 
                         (d.defName.IndexOf(query,StringComparison.OrdinalIgnoreCase)>=0 || d.label.IndexOf(query,StringComparison.OrdinalIgnoreCase)>=0))
 
                         .OrderBy(d=>d.defName).Take(15).Select(d=>new JObject { ["defName"]=d.defName,["label"]=d.label,
 
-                            ["sizeX"]=d.size.x,["sizeZ"]=d.size.z,["requiresMaterial"]=d.MadeFromStuff,["materials"]=Materials(map,d) })).ToString(Formatting.None);
+                            ["existing"]=BuildingQueries.Counts(map,d.defName),["sizeX"]=d.size.x,["sizeZ"]=d.size.z,["requiresMaterial"]=d.MadeFromStuff,["materials"]=Materials(map,d) })).ToString(Formatting.None);
 
-                case "place_blueprint":
+                case "architect_build":
 
                     return Build(map,a);
 
-                case "inspect_work_orders":
+                case "construction_list":
 
                     return ColonyObserver.Orders(map).ToString(Formatting.None);
 
-                case "inspect_colonist":
-
-                    var pawn = Pawn(map,a);
-
-                    return new JObject { ["name"]=pawn.LabelShort,
-
-                        ["skills"]=new JArray(pawn.skills.skills.Select(s=>new JObject { ["skill"]=s.def.defName,["level"]=s.Level })),
-
-                        ["work"]=new JArray(DefDatabase<WorkTypeDef>.AllDefs.Select(w=>new JObject { ["workType"]=w.defName,
-
-                            ["disabled"]=pawn.WorkTypeIsDisabled(w),["priority"]=pawn.workSettings?.GetPriority(w) ?? 0 })) }.ToString(Formatting.None);
-
-                case "set_work_priority":
+                case "work_set_priority":
 
                     var worker = Pawn(map,a);
 
@@ -231,7 +213,7 @@ namespace RimBot.Colony
 
                     return worker.LabelShort + ": " + work.defName + " priority=" + priority;
 
-                case "set_plan":
+                case "manager_save_plan":
 
                     string plan = Text(a,"plan");
 
@@ -255,7 +237,17 @@ namespace RimBot.Colony
 
         }
 
-        private static JArray Materials(Map map, ThingDef building)
+        private static JObject MaterialQuery(Map map,JObject a)
+        {
+            var building=DefDatabase<ThingDef>.GetNamedSilentFail(Text(a,"defName"));
+            if(building==null || building.category!=ThingCategory.Building) throw new ArgumentException("Choose a building from architect_buildables.");
+            int offset=a["offset"]==null?0:Number(a,"offset"),limit=a["limit"]==null?12:Number(a,"limit");
+            if(offset<0 || limit<1 || limit>20) throw new ArgumentException("Use offset >= 0 and limit 1–20.");
+            var materials=Materials(map,building,int.MaxValue);
+            return new JObject{["requiresMaterial"]=building.MadeFromStuff,["total"]=materials.Count,
+                ["nextOffset"]=offset+limit<materials.Count?(JToken)(offset+limit):JValue.CreateNull(),["materials"]=new JArray(materials.Skip(offset).Take(limit))};
+        }
+        private static JArray Materials(Map map, ThingDef building,int limit=12)
 
         {
 
@@ -265,15 +257,13 @@ namespace RimBot.Colony
 
                 .Where(t=>t.def.category==ThingCategory.Item && !t.Position.Fogged(map)).ToList();
 
-            return new JArray(DefDatabase<ThingDef>.AllDefs.Where(d=>d.stuffProps!=null && building.stuffCategories!=null &&
-
-                building.stuffCategories.Any(c=>d.stuffProps.categories.Contains(c)))
+            return new JArray(DefDatabase<ThingDef>.AllDefs.Where(d=>d.stuffProps!=null && d.stuffProps.CanMake(building))
 
                 .Select(d=>new { Def=d, Allowed=stocks.Where(t=>t.def==d && !t.IsForbidden(Faction.OfPlayer)).Sum(t=>t.stackCount),
 
                     Forbidden=stocks.Where(t=>t.def==d && t.IsForbidden(Faction.OfPlayer)).Sum(t=>t.stackCount) })
 
-                .OrderByDescending(s=>s.Allowed).ThenByDescending(s=>s.Forbidden).ThenBy(s=>s.Def.defName).Take(12)
+                .OrderByDescending(s=>s.Allowed).ThenByDescending(s=>s.Forbidden).ThenBy(s=>s.Def.defName).Take(limit)
 
                 .Select(s=>new JObject { ["material"]=s.Def.defName,["label"]=s.Def.label,["allowed"]=s.Allowed,["forbidden"]=s.Forbidden }));
 
@@ -307,20 +297,19 @@ namespace RimBot.Colony
 
                 stuff=string.IsNullOrWhiteSpace(material) ? null : DefDatabase<ThingDef>.GetNamedSilentFail(material);
 
-                if(stuff?.stuffProps==null || def.stuffCategories==null || !def.stuffCategories.Any(c=>stuff.stuffProps.categories.Contains(c)))
+                if(stuff?.stuffProps==null || !stuff.stuffProps.CanMake(def))
 
                     throw new ArgumentException("Material is required for " + def.defName + ". Choose a material from these compatible options: " + Materials(map,def).ToString(Formatting.None) + ". Nothing changed.");
 
             }
 
-            ColonyLocation.Validate(map,cell.x,cell.z,def.size.x,def.size.z);
             var rot=new Rot4(rotation);
 
             var report=GenConstruct.CanPlaceBlueprintAt(def,cell,rot,map);
 
             if(!report.Accepted) throw new ArgumentException(report.Reason ?? "Cannot build at this cell.");
 
-            GenConstruct.PlaceBlueprintForBuild(def,cell,map,rot,Faction.OfPlayer,stuff);
+            PlayerConstruction.Place(def,cell,map,rot,stuff);
 
             return "Construction ordered: " + def.defName + " at " + cell + ". Wait for normal construction work.";
 
@@ -344,7 +333,7 @@ namespace RimBot.Colony
 
             return new JObject {
 
-                ["shelterProject"]=map.GetComponent<ShelterPlanner>().Active(),["base"]=ColonyLocation.Describe(map),["mapId"]=map.uniqueID,["mapWidth"]=map.Size.x,["mapHeight"]=map.Size.z,
+                ["base"]=ColonyLocation.Describe(map),["mapId"]=map.uniqueID,["mapWidth"]=map.Size.x,["mapHeight"]=map.Size.z,
 
                 ["colonistCount"]=pawns.Count,["colonistsTruncated"]=pawns.Count>30,
 
@@ -362,12 +351,15 @@ namespace RimBot.Colony
 
                 ["stockpiles"]=new JArray(map.zoneManager.AllZones.OfType<Zone_Stockpile>().Take(10).Select(z=>new JObject
 
-                    { ["name"]=z.label,["cells"]=z.Cells.Count,["x"]=z.Cells.FirstOrDefault().x,["z"]=z.Cells.FirstOrDefault().z })),
+                    { ["id"]=z.ID,["name"]=z.label,["cells"]=z.Cells.Count,["x"]=z.Cells.FirstOrDefault().x,["z"]=z.Cells.FirstOrDefault().z })),
 
                 ["blueprints"]=map.listerThings.ThingsInGroup(ThingRequestGroup.Blueprint).Count,
 
                 ["frames"]=map.listerThings.ThingsInGroup(ThingRequestGroup.BuildingFrame).Count,
 
+                ["buildings"]=BuildingQueries.Counts(map),
+                ["growingZones"]=new JArray(map.zoneManager.AllZones.OfType<Zone_Growing>().Select(g=>new JObject { ["id"]=g.ID,["crop"]=g.GetPlantDefToGrow().defName,["cells"]=g.Cells.Count })),
+                ["notifications"]=ColonyNotifications.Read(),
                 ["activeResearch"]=Find.ResearchManager.GetProject()?.defName ?? "none",
 
                 ["note"]="Forbidden items cannot be used or hauled until allowed. Allowed counts do not guarantee reachability. Existing stockpiles are real zones, not proposals. activeResearch is only the current project, not unlocked technology. Pawns execute normal game jobs."

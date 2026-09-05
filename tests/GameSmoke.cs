@@ -25,6 +25,16 @@ namespace RimBot.Tests
                 try {
                     var map=Find.CurrentMap;
                     int pawns=map.mapPawns.FreeColonistsSpawned.Count;
+                    var firstPage=PawnQueries.Find(map,new JObject{["group"]="colonists",["limit"]=1});
+                    if(firstPage["total"].Value<int>()!=pawns || firstPage["pawns"].Count()!=1) throw new Exception("Pawn query count/pagination failed");
+                    int pawnId=firstPage["pawns"][0]["id"].Value<int>();
+                    foreach(string section in new[]{"needs","mood","social","health","equipment","work"}) {
+                        var details=PawnQueries.Inspect(map,pawnId,section);
+                        if(details["pawn"]["id"].Value<int>()!=pawnId) throw new Exception("Wrong pawn details");
+                    }
+                    var animals=PawnQueries.Find(map,new JObject{["group"]="animals"});
+                    foreach(var animal in animals["pawns"]) PawnQueries.Inspect(map,animal["id"].Value<int>(),"animal");
+                    Log.Message("[RimBot Smoke] PASS: pawn pagination and pawn/animal detail sections.");
                     var speed=Find.TickManager.CurTimeSpeed;
                     if(ColonyManager.Current.Automatic) throw new Exception("New games should default to Manual");
                     var manager=ColonyManager.Current;
@@ -42,45 +52,54 @@ namespace RimBot.Tests
                     var before=map.zoneManager.AllZones.OfType<Zone_Stockpile>().Count();
                     var spot=CellRect.CenteredOn(map.GetComponent<ColonyLocation>().Center,12).Cells.First(c=> c.x+4<map.Size.x && c.z+4<map.Size.z &&
                         CellRect.FromLimits(c.x,c.z,c.x+3,c.z+3).Cells.All(a=>a.Walkable(map) && a.GetEdifice(map)==null && map.zoneManager.ZoneAt(a)==null));
-                    var call=new ToolCall { Id="test",Name="ensure_stockpile",Arguments=new JObject { ["x"]=spot.x,["z"]=spot.z,["width"]=4,["height"]=4 } };
+                    var call=new ToolCall { Id="test",Name="zones_stockpile_designate",Arguments=new JObject { ["x"]=spot.x,["z"]=spot.z,["width"]=4,["height"]=4 } };
                     var first=ColonyTools.Execute(map,call,p=>{});
                     var second=ColonyTools.Execute(map,call,p=>{});
                     int zones=map.zoneManager.AllZones.OfType<Zone_Stockpile>().Count();
                     if(zones!=Math.Max(before,1)) throw new Exception("Duplicate stockpile created");
                     if(map.mapPawns.FreeColonistsSpawned.Count!=pawns) throw new Exception("Pawn count changed");
                     if(Find.TickManager.CurTimeSpeed!=speed) throw new Exception("Game speed changed");
-                    var shelterOptions=map.GetComponent<ShelterPlanner>().Find(3);
-                    if(shelterOptions.Count==0) throw new Exception("No shelter options found on quicktest map");
-                    var chosen=shelterOptions.FirstOrDefault(o=>o["rockCellsToMine"].Value<int>()==0);
-                    if(chosen==null) throw new Exception("No surface shelter option for construction test");
                     var baseCell=map.GetComponent<ColonyLocation>().Center;
-                    var woodItems=JObject.Parse(ColonyTools.Execute(map,new ToolCall{Name="find_items",Arguments=new JObject{["x"]=baseCell.x,["z"]=baseCell.z,["defName"]="WoodLog",["limit"]=40}},p=>{}));
-                    if(((JArray)woodItems["items"]).Count>0) ColonyTools.Execute(map,new ToolCall{Name="allow_item_ids",Arguments=new JObject{["ids"]=new JArray(woodItems["items"].Select(i=>i["id"]))}},p=>{});
-                    var shelterResult=map.GetComponent<ShelterPlanner>().Prepare(chosen["id"].Value<string>());
-                    var orderCount=map.listerThings.ThingsInGroup(ThingRequestGroup.Blueprint).Count;
-                    map.GetComponent<ShelterPlanner>().Prepare(chosen["id"].Value<string>());
-                    if(map.listerThings.ThingsInGroup(ThingRequestGroup.Blueprint).Count!=orderCount) throw new Exception("Repeated shelter order duplicated blueprints");
-                    if(ColonyObserver.Observe(map).PendingBedSlots!=3) throw new Exception("Non-bed blueprints counted as sleeping places");
-                    Log.Message("[RimBot Smoke] PASS: nearby shelter discovery, normal construction and repeat idempotence. "+shelterResult);
-                    var crops=JArray.Parse(ColonyDevelopment.Execute(map,"list_crops",new JObject()));
+                    var spotDef=DefDatabase<ThingDef>.GetNamed("SleepingSpot");
+                    var spotCell=CellRect.CenteredOn(baseCell,12).Cells.First(c=>c.InBounds(map) && !c.Fogged(map) && GenConstruct.CanPlaceBlueprintAt(spotDef,c,Rot4.North,map).Accepted);
+                    var spotCall=new ToolCall{Name="architect_build",Arguments=new JObject { ["defName"]=spotDef.defName,["x"]=spotCell.x,["z"]=spotCell.z,["rotation"]=0 }};
+                    ColonyTools.Execute(map,spotCall,p=>{}); ColonyTools.Execute(map,spotCall,p=>{});
+                    if(PlayerConstruction.BrokenSpots(map).Count!=0) throw new Exception("Zero-work spot became a blueprint");
+                    if(spotCell.GetThingList(map).Count(t=>t.def==spotDef)!=1) throw new Exception("Native spot placement missing or duplicated");
+                    var wall=ThingDefOf.Wall;
+                    var materials=JObject.Parse(ColonyTools.Execute(map,new ToolCall{Name="architect_materials",Arguments=new JObject{["defName"]=wall.defName}},p=>{}));
+                    if(materials["total"].Value<int>()!=DefDatabase<ThingDef>.AllDefs.Count(d=>d.stuffProps?.CanMake(wall)==true)) throw new Exception("Material discovery differs from game rules");
+                    ColonyNotifications.Read(true); BuildingQueries.Rooms(map,new JObject());
+                    Log.Message("[RimBot Smoke] PASS: native instant placement, idempotence and definition-based materials.");
+                    var stockpile=map.zoneManager.AllZones.OfType<Zone_Stockpile>().First();
+                    var target=new JObject{["zoneId"]=stockpile.ID,["reset"]="nothing",["priority"]="Critical",
+                        ["rules"]=new JArray(new JObject{["kind"]="thing",["defName"]="WoodLog",["allow"]=true})};
+                    StorageTools.Configure(map,target);
+                    if(stockpile.GetStoreSettings().Priority!=StoragePriority.Critical || !stockpile.GetStoreSettings().filter.Allows(ThingDefOf.WoodLog) || stockpile.GetStoreSettings().filter.Allows(ThingDefOf.Steel)) throw new Exception("Targeted stockpile filters failed");
+                    var oldSummary=stockpile.GetStoreSettings().filter.Summary;
+                    bool badFilter=false; try { StorageTools.Configure(map,new JObject{["zoneId"]=stockpile.ID,["reset"]="everything",["priority"]="invented"}); } catch(ArgumentException) { badFilter=true; }
+                    if(!badFilter || stockpile.GetStoreSettings().filter.Summary!=oldSummary) throw new Exception("Invalid stockpile settings changed live filter");
+                    Log.Message("[RimBot Smoke] PASS: specific-item stockpile priority/filter and invalid-update atomicity.");
+                    var crops=JArray.Parse(ColonyDevelopment.Execute(map,"plants_sowable",new JObject()));
                     if(crops.Count==0) throw new Exception("No available crop definitions");
-                    JArray.Parse(ColonyDevelopment.Execute(map,"list_research",new JObject()));
-                    JArray.Parse(ColonyDevelopment.Execute(map,"list_workstations",new JObject()));
+                    JArray.Parse(ColonyDevelopment.Execute(map,"research_list",new JObject()));
+                    JArray.Parse(ColonyDevelopment.Execute(map,"bills_list",new JObject()));
                     Log.Message("[RimBot Smoke] PASS: crop, research and workstation discovery.");
                     var farmCell=CellRect.CenteredOn(baseCell,15).Cells.First(c=>c.InBounds(map) && c.x+3<map.Size.x && c.z+3<map.Size.z && CellRect.FromLimits(c.x,c.z,c.x+2,c.z+2).Cells.All(t=>!t.Fogged(map) && t.GetEdifice(map)==null && t.GetTerrain(map).fertility>=0.6f && map.zoneManager.ZoneAt(t)==null && !t.GetThingList(map).Any(v=>v.def.entityDefToBuild!=null)));
                     var farmArgs=new JObject{["x"]=farmCell.x,["z"]=farmCell.z,["width"]=3,["height"]=3,["crop"]="Plant_Rice"};
-                    ColonyDevelopment.Execute(map,"ensure_growing_zone",farmArgs);
+                    ColonyDevelopment.Execute(map,"zones_growing_designate",farmArgs);
                     int farms=map.zoneManager.AllZones.OfType<Zone_Growing>().Count();
-                    ColonyDevelopment.Execute(map,"ensure_growing_zone",farmArgs);
+                    ColonyDevelopment.Execute(map,"zones_growing_designate",farmArgs);
                     if(map.zoneManager.AllZones.OfType<Zone_Growing>().Count()!=farms) throw new Exception("Growing zone duplicated");
                     // Test fixture only: a completed butcher table isolates bill behavior from construction time.
                     var benchDef=DefDatabase<ThingDef>.GetNamed("TableButcher");
                     var benchCell=CellRect.CenteredOn(baseCell,15).Cells.First(c=>GenConstruct.CanPlaceBlueprintAt(benchDef,c,Rot4.North,map).Accepted);
                     var bench=(Building_WorkTable)GenSpawn.Spawn(ThingMaker.MakeThing(benchDef,ThingDefOf.WoodLog),benchCell,map);
                     bench.SetFaction(Faction.OfPlayer);
-                    var butcherArgs=new JObject{["workstationId"]=bench.thingIDNumber,["recipe"]="ButcherCorpseFlesh",["mode"]="forever"};
-                    ColonyDevelopment.Execute(map,"set_production_bill",butcherArgs);
-                    ColonyDevelopment.Execute(map,"set_production_bill",butcherArgs);
+                    var created=JObject.Parse(ColonyDevelopment.Execute(map,"bills_add",new JObject{["workstationId"]=bench.thingIDNumber,["recipe"]="ButcherCorpseFlesh"}));
+                    var butcherArgs=new JObject{["workstationId"]=bench.thingIDNumber,["billId"]=created["billId"],["mode"]=BillRepeatModeDefOf.Forever.defName};
+                    ColonyDevelopment.Execute(map,"bills_configure",butcherArgs);
+                    ColonyDevelopment.Execute(map,"bills_configure",butcherArgs);
                     if(bench.BillStack.Bills.Count!=1 || ((Bill_Production)bench.BillStack.Bills[0]).repeatMode!=BillRepeatModeDefOf.Forever) throw new Exception("Butcher bill invalid or duplicated");
                     Log.Message("[RimBot Smoke] PASS: crop zone and variable-product butcher bill, both idempotent; only real beds counted.");
 

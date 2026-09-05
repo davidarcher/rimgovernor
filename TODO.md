@@ -34,3 +34,13 @@
 - Production DLL restored and verified; the test harness is not installed.
 - Live reasoning/model quality and full UI/longer-play verification remain pending.
 - Next architecture: audit and expose existing player APIs, especially pawn/social/mood and animal state. See docs/PLAYER_API_DIRECTION.md.
+
+## Pawn queries and concise colony display — September 5
+- Added read-only find_pawns (map-wide visible spawned pawn index, group/kind filters, stable ID pagination, optional distance ordering) and inspect_pawn (needs, active mood thoughts, direct relations/traits, visible health conditions/capacities, equipment, skills/work and animal age/training). Detail arrays carry pagination metadata. These are initial adapters; schedules, policies, pens, training eligibility, all social opinions and further animal systems remain gaps.
+- Activity feed omits successful observation calls and routine review start/end messages. Full calls/results remain in the debug log. Notes are short; the strategy opens with collapsed projects and optional long-term direction. Completion details remain available by expanding a project. Old saved prose remains intact and is shortened only for display.
+- Daily and strategic prompts request concrete, brief colony notes. Daily prompt: 95 words.
+- Verification: production build and isolated GameSmoke build compile with zero warnings/errors; 274 regression assertions pass. Added in-game assertions for pawn pagination and detail sections, but did not execute them: RimWorld is currently running. New window layout is not visually verified. Production package generated, NOT installed. No new commit made.
+
+## Native player API revision — September 5
+See docs/PLAYER_API_AUDIT.md for the per-tool audit, native execution paths and outstanding coverage gaps. Removed hardcoded shelter/layout/material policy. Added native placement and explicit broken-spot repair, dynamic materials, current building/room observations, grouped/renamed tools, native zone/Allow/Hunt/Equip/Roof commands, configurable stockpile/shelf filters, daily planning, player steering and queued notification updates. Known tool names migrate in saved strategy metadata; removed composite strategy requirements need regeneration.
+Validation: production build and GameSmoke build compile, 122 regression checks pass. New game assertions compile but have not been executed in RimWorld. No live model request made during this revision. Lower regression count reflects removal of obsolete room-template tests. Installation requested by user; production package only, never harness. No commit or push requested.

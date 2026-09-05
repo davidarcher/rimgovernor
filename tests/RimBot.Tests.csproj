@@ -17,11 +17,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Program.cs" />
-    <Compile Include="..\RimBot\Colony\ShelterGeometry.cs" />
-    <Compile Include="..\RimBot\Colony\PlacementRange.cs" />
+    <Compile Include="..\RimBot\Colony\ToolNames.cs" />
+    <Compile Include="..\RimBot\Colony\NotificationFeed.cs" />
+    <Compile Include="..\RimBot\Colony\DailyPlanning.cs" />
+    <Compile Include="..\RimBot\Colony\ToolSession.cs" />
     <Compile Include="..\RimBot\Colony\StrategicPlan.cs" />
     <Compile Include="..\RimBot\Colony\ItemQuery.cs" />
-    <Compile Include="..\RimBot\Colony\RoomLayout.cs" />
     <Compile Include="..\RimBot\Colony\ColonyObjectives.cs" />
     <Compile Include="..\RimBot\Colony\ActivitySummary.cs" />
     <Compile Include="..\RimBot\Colony\ReviewBudget.cs" />

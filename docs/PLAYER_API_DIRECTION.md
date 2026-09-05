@@ -20,3 +20,6 @@ Persist AI intent (strategy, goals, project notes), plus explicit player prefere
 Expose stable IDs, filters, pagination and targeted detail. Discover definitions and available actions from the game where possible. Keep common summaries concise and load detailed schemas/state on demand; comprehensive coverage must not mean sending the whole map and every tool description on every request.
 
 Do not expose unrestricted reflection, debug spawning, difficulty overrides or arbitrary engine writes. Faithful player access means ordinary player-visible observations and validated player operations, preserving game rules and leaving simulation/execution to RimWorld.
+
+## First adapter increment
+`find_pawns` and `inspect_pawn` now read existing map pawn indexes and the game's needs, thoughts, relations, health, equipment, skills/work and animal training trackers. They support bounded pages and do not alter pawn state. Missing pawn/animal capabilities above remain work to do. Runtime reflection/system enumeration and comprehensive action discovery are still pending; this increment does not claim complete player API coverage.

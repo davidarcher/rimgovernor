@@ -1,75 +1,73 @@
 using System.Collections.Generic;
-
 using Newtonsoft.Json;
-
 using Newtonsoft.Json.Linq;
-
 using RimBot.Tools;
-
 namespace RimBot.Colony
-
 {
-
     public static class ToolCatalog
-
     {
-
         private static ToolDefinition Define(string name, string description, string properties, params string[] required)
-
         {
-
             return new ToolDefinition { Name = name, Description = description, ParametersJson = new JObject
-
             { ["type"] = "object", ["properties"] = JObject.Parse(properties), ["required"] = new JArray(required), ["additionalProperties"] = false }.ToString(Formatting.None) };
-
         }
 
         public static List<ToolDefinition> Definitions() => new List<ToolDefinition>
-
         {
+            // Tool discovery
+            Define("tools_enable", "Load 1–6 tool schemas for the next request. Keeps the six most recently enabled; older tools remain discoverable. No game changes.", "{names:{type:'array',minItems:1,maxItems:6,items:{type:'string'}}}","names"),
+            Define("tools_search", "Find player tools by keyword; omit search to list all names. Enable needed tools to load their exact schemas.", "{search:{type:'string'}}"),
 
-            Define("list_crops", "List researched sowable crops with exact names, fertility, growth time and skill requirements.", "{}"),
-            Define("ensure_growing_zone", "Create a growing zone (max 8x8) near the base, selecting a crop from list_crops. Inspect fertility first. Reuses an existing covering zone and preserves other zones. Normal sowing/harvesting, weather and work rules apply.", "{x:{type:'integer'},z:{type:'integer'},width:{type:'integer',minimum:1,maximum:8},height:{type:'integer',minimum:1,maximum:8},crop:{type:'string'}}", "x","z","width","height","crop"),
-            Define("list_workstations", "List built colony workstations, exact currently available production recipes and existing bills. Build a suitable stove/butcher/research bench normally if absent.", "{}"),
-            Define("set_production_bill", "Set/update a production bill: mode targetCount (default target 10) or forever. Recipes with supportsTarget=false, such as butchering, require forever. Use IDs/recipe from list_workstations. Reuses an existing matching bill. Normal skill, fuel, power and ingredient requirements apply.", "{workstationId:{type:'integer'},recipe:{type:'string'},target:{type:'integer',minimum:1,maximum:1000},mode:{type:'string',enum:['targetCount','forever']}}", "workstationId","recipe"),
-            Define("list_research", "List 25 unfinished research projects, exact names, prerequisites and whether each can start now.", "{}"),
-            Define("start_research", "Select available research from list_research. Requires normal prerequisites and research facilities; does not grant research progress.", "{research:{type:'string'}}", "research"),
-            Define("find_wildlife", "List 20 nearest visible wild animals with IDs, body size, predator flag and hunting designation. This is not a complete hunting-risk assessment; avoid dangerous prey.", "{}"),
-            Define("hunt_animal", "Issue a normal hunting designation for a wild animal ID. Requires an enabled capable hunter with a ranged weapon. Hunting can cause retaliation; start with small nonpredators. Meat processing needs a butcher bill.", "{animalId:{type:'integer'}}", "animalId"),
-            Define("equip_weapon", "Order an undrafted capable colonist to equip an allowed weapon item ID from find_items. Validates normal equipment restrictions and reach/reservation. Pawn must actually pick it up; this does not draft or teleport.", "{pawnId:{type:'integer'},itemId:{type:'integer'}}", "pawnId","itemId"),
-            Define("find_shelter_options", "Compare nearby shelter options for 1–6 sleepers: reuse ruins/beds, close gaps against rock, shallow visible-rock excavation, or new shelter. Returns IDs, wall/material needs, mining/roof work and overhead-mountain risk, ranked by effort and distance. Inspect these BEFORE choosing a new room. Existing orders and structures are preserved.", "{sleepers:{type:'integer',minimum:1,maximum:6}}", "sleepers"),
-            Define("prepare_shelter", "Execute a shelter option ID from find_shelter_options. Revalidates everything. If excavation is needed, designate normal mining first; wait, then call again with SAME ID. Once clear, fill gaps, add a door, roof and temporary sleeping spots, reusing existing beds. No instant mining/buildings and no hidden-room scan. Reuse the active shelterProject instead of starting another.", "{id:{type:'string'}}", "id"),
-            Define("find_build_sites", "Get up to three clear sites near the persistent colony base, sorted nearest first. kind room returns 7x7 footprints; stockpile returns 4x4. Use these coordinates instead of inventing positions. Sites are revalidated when built.", "{kind:{type:'string',enum:['room','stockpile']}}", "kind"),
-            Define("find_items", "Query ALL visible loose items on this map using its item index, nearest x,z first. Filter exact defName and/or category, forbidden any/yes/no. Returns IDs, coordinates, counts, total matches and pagination. Use for supplies instead of scanning areas. Distance is straight-line, not reachability.", "{x:{type:'integer'},z:{type:'integer'},defName:{type:'string'},category:{type:'string',enum:['all','food','material','weapon','apparel','medicine','other']},forbidden:{type:'string',enum:['any','yes','no']},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:40}}", "x","z"),
+            // Colony direction
+            Define("manager_report_blocker", "Stop this review and visibly explain a missing capability or unresolved problem. Use when tools cannot establish a valid action; never guess substitutes or claim success.", "{reason:{type:'string',maxLength:500}}", "reason"),
+            Define("manager_save_plan", "Save a short shared plan for the next review. Include unfinished orders and what to wait for. Maximum 1200 characters.", "{plan:{type:'string',maxLength:1200}}", "plan"),
 
-            Define("allow_item_ids", "Normal Allow order for up to 40 specific item stack IDs returned by find_items. Revalidates all IDs on the current map before changing anything. No hauling or teleporting.", "{ids:{type:'array',minItems:1,maxItems:40,items:{type:'integer'}}}", "ids"),
+            // Architect and construction
+            Define("architect_build", "Architect > Build: use native placement validation and designation. Buildings with zero construction work are placed immediately, as in the game UI. Other buildings become construction orders. Supply exact discovered definition/material names.", "{defName:{type:'string',description:'Exact defName returned by architect_buildables, e.g. Bed'},material:{type:'string',description:'Required for material-based buildings: exact material returned by architect_buildables, as returned by architect_materials. Omit for buildings with requiresMaterial=false.'},x:{type:'integer'},z:{type:'integer'},rotation:{type:'integer',minimum:0,maximum:3}}", "defName","x","z","rotation"),
+            Define("architect_buildables", "Read building definitions available in Architect, filtered by name. Returns up to 15 buildings with footprints, compatible material samples and existing/pending counts.", "{search:{type:'string'}}", "search"),
+            Define("architect_catalog", "Read native Architect categories and their allowed designators, using game labels and class names. Reports which controls have an adapter; listing a control does not imply it can be executed.", "{category:{type:'string'}}"),
+            Define("architect_materials", "Query ALL compatible materials from the selected building's game definition, paginated, with available/forbidden stock counts. No preset material list. Use exact returned names.", "{defName:{type:'string'},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:20}}","defName"),
+            Define("areas_build_roof", "Zones > Build roof area: native designation, including clearing conflicting Remove roof cells. This is an order; roof support and construction remain game responsibilities.", "{x:{type:'integer'},z:{type:'integer'},width:{type:'integer',minimum:1},height:{type:'integer',minimum:1}}", "x","z","width","height"),
+            Define("construction_list", "Read existing blueprints and frames, with definition names, IDs, positions and work done. Returns up to 20 orders.", "{}"),
 
-            Define("build_room", "Order a complete 7x7 room at exterior lower-left x,z, with south door, roof area and 0–4 beds with a clear aisle. Inspect the site first. Validates layout and allowed material quantities before placing. Uses stone blocks or wood walls and wood beds/door; never substitutes steel. Reuses matching orders. Fallback for a freestanding room AFTER comparing find_shelter_options. Prefer reusing nearby structure where economical.", "{x:{type:'integer'},z:{type:'integer'},beds:{type:'integer',minimum:0,maximum:4}}", "x","z","beds"),
+            // Orders
+            Define("orders_allow", "Normal Allow order for up to 40 specific item stack IDs returned by items_list. Revalidates all IDs on the current map before changing anything. No hauling or teleporting.", "{ids:{type:'array',minItems:1,maxItems:40,items:{type:'integer'}}}", "ids"),
+            Define("orders_allow_area", "Orders > Allow: apply the native Allow command to visible loose items in a rectangle.", "{x:{type:'integer'},z:{type:'integer'},width:{type:'integer',minimum:1},height:{type:'integer',minimum:1}}", "x","z","width","height"),
+            Define("orders_hunt", "Orders > Hunt: apply the native hunting designation and warnings to a visible pawn ID. Hunters and equipment affect execution, not permission to place the order.", "{animalId:{type:'integer'}}", "animalId"),
 
-            Define("designate_roof", "Set a normal Build Roof AREA, max 8x8. Roofs are not buildings or conduits and need no building lookup. Builders require supports and access; this only designates roofing.", "{x:{type:'integer'},z:{type:'integer'},width:{type:'integer',minimum:1,maximum:8},height:{type:'integer',minimum:1,maximum:8}}", "x","z","width","height"),
+            // Zones and storage
+            Define("storage_configure", "Storage tab: change a stockpile or shelf's settings. Supply one target ID. Optional copyFrom applies first, reset second, then ordered filter rules and ranges. Unspecified settings remain unchanged. Uses native StorageSettings and ThingFilter; fixed storage restrictions still apply.", "{zoneId:{type:'integer'},thingId:{type:'integer'},copyFrom:{type:'object',properties:{zoneId:{type:'integer'},thingId:{type:'integer'}},additionalProperties:false},reset:{type:'string',enum:['unchanged','nothing','everything']},priority:{type:'string'},rules:{type:'array',items:{type:'object',properties:{kind:{type:'string',enum:['thing','category','special']},defName:{type:'string'},allow:{type:'boolean'}},required:['kind','defName','allow'],additionalProperties:false}},qualityMin:{type:'string'},qualityMax:{type:'string'},hitPointsMin:{type:'number',minimum:0,maximum:1},hitPointsMax:{type:'number',minimum:0,maximum:1}}"),
+            Define("storage_filter_options", "Discover native storable item, category and special-filter definitions by name. Paginated; use exact names for storage_configure.", "{kind:{type:'string',enum:['thing','category','special']},search:{type:'string'},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:40}}"),
+            Define("storage_inspect", "Storage tab: read priority, effective allowed items (paginated), special filters, quality and hit-point ranges for a stockpile zone or storage building. Supply one target ID.", "{zoneId:{type:'integer'},thingId:{type:'integer'},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:40}}"),
+            Define("zones_growing_designate", "Zones > Growing zone: designate a rectangle using the native zone tool, then select the supplied sowable plant. Optional zoneId selects the zone to extend. No grower staffing requirement for placing a zone.", "{zoneId:{type:'integer'},x:{type:'integer'},z:{type:'integer'},width:{type:'integer',minimum:1},height:{type:'integer',minimum:1},crop:{type:'string'}}", "x","z","width","height","crop"),
+            Define("zones_list", "Read current zones with native IDs, names, type, size and bounding coordinates. Returns all current map zones; use IDs when extending, trimming or configuring.", "{}"),
+            Define("zones_remove_cells", "Zones > Delete zone: remove the rectangle's cells from the specified zone only. Native handling splits disconnected zones and removes an empty zone. Stored items are not removed.", "{zoneId:{type:'integer'},x:{type:'integer'},z:{type:'integer'},width:{type:'integer',minimum:1},height:{type:'integer',minimum:1}}","zoneId","x","z","width","height"),
+            Define("zones_stockpile_designate", "Zones > Stockpile zone: designate a rectangle using the native stockpile tool. Optional zoneId selects the stockpile to extend; does not enforce a single stockpile per map.", "{zoneId:{type:'integer'},x:{type:'integer'},z:{type:'integer'},width:{type:'integer',minimum:1},height:{type:'integer',minimum:1}}", "x","z","width","height"),
 
-            Define("report_blocker", "Stop this review and visibly explain a missing capability or unresolved problem. Use when tools cannot establish a valid action; never guess substitutes or claim success.", "{reason:{type:'string',maxLength:500}}", "reason"),
+            // Pawns and work
+            Define("equipment_equip", "Pawn right-click > Equip: use the native menu option, checks and ordered job. Works drafted or undrafted; permits the native Allow behavior. Native confirmation dialogs require player interaction.", "{pawnId:{type:'integer'},itemId:{type:'integer'}}", "pawnId","itemId"),
+            Define("pawns_inspect", "Read one section of a visible pawn's actual game state. needs: need levels; mood: active thoughts; social: traits/relations/opinions; health: conditions/capacities; equipment: weapons/apparel; work: skills/priorities; animal: age/training. Each list is paginated (default 10); pages gives totals/next offsets. No simulation or changes.", "{pawnId:{type:'integer'},section:{type:'string',enum:['needs','mood','social','health','equipment','work','animal']},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:20}}", "pawnId","section"),
+            Define("pawns_list", "Query all visible spawned pawns on the current map, including animals. Exact kind filter; paginated, stable IDs. Optional x,z sorts by straight-line distance, not reachability. Use pawns_inspect for details.", "{group:{type:'string',enum:['all','colonists','prisoners','animals','colony_animals','wild_animals']},kind:{type:'string'},x:{type:'integer'},z:{type:'integer'},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:40}}"),
+            Define("work_set_priority", "Set one colonist's work type priority, preserving normal incapabilities. 0 disables; 1 highest, 4 lowest. Manual priorities must already be enabled by the player.", "{pawnId:{type:'integer'},workType:{type:'string'},priority:{type:'integer',minimum:0,maximum:4}}", "pawnId","workType","priority"),
 
-            Define("inspect_area", "Inspect at most 8x8 cells. x,z is the lower left corner; map coordinates are absolute. Read before placing orders.", "{x:{type:'integer'},z:{type:'integer'},width:{type:'integer',minimum:1,maximum:8},height:{type:'integer',minimum:1,maximum:8}}", "x","z","width","height"),
+            // Map and inventory
+            Define("buildings_list", "List built and pending player structures by exact defName (optional), with IDs and coordinates. Paginated. Check existing facilities before ordering more.", "{defName:{type:'string'},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:20}}"),
+            Define("items_list", "Query ALL visible loose items on this map using its item index, nearest x,z first. Filter exact defName and/or category, forbidden any/yes/no. Returns IDs, coordinates, counts, total matches and pagination. Use for supplies instead of scanning areas. Distance is straight-line, not reachability.", "{x:{type:'integer'},z:{type:'integer'},defName:{type:'string'},category:{type:'string',enum:['all','food','material','weapon','apparel','medicine','other']},forbidden:{type:'string',enum:['any','yes','no']},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:40}}", "x","z"),
+            Define("map_inspect", "Inspect at most 8x8 cells. x,z is the lower left corner; map coordinates are absolute. Read before placing orders.", "{x:{type:'integer'},z:{type:'integer'},width:{type:'integer',minimum:1,maximum:8},height:{type:'integer',minimum:1,maximum:8}}", "x","z","width","height"),
+            Define("rooms_list", "Read actual enclosed rooms from RimWorld's room system: roof gaps, role, temperature, size and an example cell. Outdoor regions are excluded. Paginated; inspect the area for geometry.", "{offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:20}}"),
 
-            Define("allow_items", "Allow forbidden loose items in a selected visible area, max 8x8. Inspect first; choose useful supplies near the colony, not distant loot. This issues the normal player Allow order; it does not haul items.", "{x:{type:'integer'},z:{type:'integer'},width:{type:'integer',minimum:1,maximum:8},height:{type:'integer',minimum:1,maximum:8}}", "x","z","width","height"),
+            // Growing and production
+            Define("bills_add", "Bills > Add bill: create the selected available recipe with native defaults. Returns a billId. Repeating this action creates another bill; inspect existing bills first.", "{workstationId:{type:'integer'},recipe:{type:'string'}}", "workstationId","recipe"),
+            Define("bills_configure", "Bills: configure a specific production bill by ID. Choose the native repeat mode returned by bills_list. Count means repetitions or target inventory for that mode. Uses the game recipe counter to validate target support.", "{workstationId:{type:'integer'},billId:{type:'string'},mode:{type:'string'},count:{type:'integer',minimum:0}}", "workstationId","billId","mode"),
+            Define("bills_list", "List built colony workstations, exact currently available production recipes and existing bills. Build a suitable stove/butcher/research bench normally if absent.", "{}"),
+            Define("plants_sowable", "Read up to 20 researched sowable plant definitions, harvest products, yields, edibility and growth requirements. Plants without a harvest product do not produce harvested food.", "{}"),
 
-            Define("ensure_stockpile", "Create one shared default stockpile, only if the map has none. Repeated calls return the existing stockpile. Max 8x8, fully walkable empty area required. Does not change hauling priorities or unforbid items.", "{x:{type:'integer'},z:{type:'integer'},width:{type:'integer',minimum:1,maximum:8},height:{type:'integer',minimum:1,maximum:8}}", "x","z","width","height"),
+            // Research
+            Define("research_list", "List 25 unfinished research projects, exact names, prerequisites and whether each can start now.", "{}"),
+            Define("research_select", "Select available research from research_list. Requires normal prerequisites and research facilities; does not grant research progress.", "{research:{type:'string'}}", "research"),
 
-            Define("list_buildables", "Find up to 15 researched buildable structures by name. Returns requiresMaterial and compatible materials with allowed/forbidden stock counts (up to 12). Use exact returned defName and material for construction.", "{search:{type:'string'}}", "search"),
-
-            Define("place_blueprint", "Place a single shared construction blueprint after inspecting the site. Existing matching buildings/blueprints are returned without duplication. Does not spawn a completed building. If requiresMaterial is true, supply material from list_buildables; otherwise omit it.", "{defName:{type:'string',description:'Exact defName returned by list_buildables, e.g. Bed'},material:{type:'string',description:'Required for material-based buildings: exact material returned by list_buildables, e.g. WoodLog or Steel. Omit for buildings with requiresMaterial=false.'},x:{type:'integer'},z:{type:'integer'},rotation:{type:'integer',minimum:0,maximum:3}}", "defName","x","z","rotation"),
-
-            Define("inspect_colonist", "Read one colonist's work priorities, incapabilities, and skills by ID from the colony summary.", "{pawnId:{type:'integer'}}", "pawnId"),
-
-            Define("set_work_priority", "Set one colonist's work type priority, preserving normal incapabilities. 0 disables; 1 highest, 4 lowest. Manual priorities must already be enabled by the player.", "{pawnId:{type:'integer'},workType:{type:'string'},priority:{type:'integer',minimum:0,maximum:4}}", "pawnId","workType","priority"),
-
-            Define("inspect_work_orders", "List up to 20 existing blueprints/frames and locations. Reuse pending orders instead of duplicating them.", "{}"),
-
-            Define("set_plan", "Save a short shared plan for the next review. Include unfinished orders and what to wait for. Maximum 1200 characters.", "{plan:{type:'string',maxLength:1200}}", "plan")
-
+            // Notifications
+            Define("notifications_read", "Read the player's native alerts, letters and recent messages. Includes explanation text; does not dismiss or answer notifications. May refer to other maps.", "{}"),
         };
-
     }
-
 }
