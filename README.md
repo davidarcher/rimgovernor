@@ -85,8 +85,9 @@ context size are configurable. No tiny action quota or tool rotation is used.
 
 See `docs/EXTERNAL_CONTROLLER.md` for the architecture, validation boundary and
 remaining integrations; `THIRD_PARTY.md` records source revisions and licenses.
-The C# mod is retained as historical source, checkpointed at `bf9a1eb`.
-`build-mod.ps1` builds that legacy package; it is not the current runtime.
+The retired RimBot C# mod, packaging, and test harness have been removed. Its
+history remains in Git at `bf9a1eb`. Native game integration lives in
+`integrations/RIMAPI`; the Python controller and dashboard are the supported runtime.
 
 Tests verify contracts, orchestration, error handling, HTTP transports and UI
 behavior. They do not establish real-model gameplay competence. Real RIMAPI video

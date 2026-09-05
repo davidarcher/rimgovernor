@@ -1,5 +1,8 @@
 # Player API direction
 
+> Historical notes for the retired RimBot C# mod, removed from this repository.
+> For the supported Python/RIMAPI architecture, see EXTERNAL_CONTROLLER.md.
+
 This checkpoint is an interim prototype, not the target architecture. The user wants AI decisions to emerge from a comprehensive, discoverable interface to normal RimWorld player information and controls.
 
 RimWorld already owns the simulation. Read its existing Pawn, needs/thoughts/relations, health, equipment, Room, Area/Zone, BillStack, research, animal and job objects. Use the game's existing player-order paths. Do not recreate mood calculations, social simulation, work scheduling, room semantics or game rules in a second engine.

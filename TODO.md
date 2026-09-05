@@ -1,5 +1,8 @@
 # Current work
 
+> Historical notes for the retired RimBot C# mod, removed from this repository.
+> For the supported Python/RIMAPI architecture, see docs/EXTERNAL_CONTROLLER.md.
+
 - [x] Single colony manager; upstream ownership, pawn deletion and difficulty cheats removed.
 - [x] LM Studio tool adapter; no silent cloud fallback.
 - [x] Manual/Automate only; automatic reviews follow mode; no Run one review or approval checkbox.

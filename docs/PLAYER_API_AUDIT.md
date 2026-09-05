@@ -1,5 +1,8 @@
 # Player tool API audit — 2026-09-05
 
+> Historical notes for the retired RimBot C# mod, removed from this repository.
+> For the supported Python/RIMAPI architecture, see EXTERNAL_CONTROLLER.md.
+
 Audited against the locally installed RimWorld Assembly-CSharp implementation, using metadata/decompilation kept under ignored tmp/game-api. These are adapters, not a claim that RimWorld has a complete public remote-control API. All simulation state stays owned by RimWorld. The catalog is grouped by player system and alphabetized within groups.
 
 ## Execution paths

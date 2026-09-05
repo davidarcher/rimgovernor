@@ -16,4 +16,5 @@ customized RIMAPI Dashboard. See docs/EXTERNAL_CONTROLLER.md and THIRD_PARTY.md.
 - Build/test with build.ps1. launch.cmd starts the controller, quicktest and UI.
 - Generated artifacts, local databases and logs are ignored. Do not commit them.
 - Protocol/fixture tests are not a substitute for measured live gameplay.
-- C# source/build-mod.ps1 are legacy reference; do not install the old RimBot DLL.
+- The retired RimBot C# mod was removed. Native integration belongs in
+  integrations/RIMAPI; do not recreate or install the old RimBot DLL.

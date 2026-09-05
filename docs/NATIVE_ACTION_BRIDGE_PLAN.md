@@ -1,5 +1,8 @@
 # Native action bridge: implementation plan
 
+> Historical notes for the retired RimBot C# mod, removed from this repository.
+> For the supported Python/RIMAPI architecture, see EXTERNAL_CONTROLLER.md.
+
 Status: audited proposal, queued after the hierarchical manager integration. No runtime migration is claimed by this document. Inspected 2026-09-05 against the locally installed RimWorld 1.6 Assembly-CSharp.dll and current source, including the pending spatial preview/line construction changes.
 
 User clarification: backward compatibility for the AI integration is not required. Prefer the direct new interface and discard obsolete AI data where necessary; preserve native RimWorld colony state.

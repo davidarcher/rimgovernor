@@ -2,9 +2,9 @@
 
 The supported runtime is now Python/FastAPI plus a customized React/TypeScript
 RIMAPI Dashboard. RimWorld runs Harmony and RIMAPI; the old RimBot DLL must be
-disabled to avoid two controllers. Existing C# source and tests remain a historical
-reference, checkpointed at `bf9a1eb`. `build-mod.ps1` builds that legacy package;
-the default launcher no longer installs it.
+disabled to avoid two controllers. The retired mod's C# source, tests, and packaging
+have been removed from the working tree; their history remains in Git at
+`bf9a1eb`. The launcher starts the external runtime.
 
 ## Responsibilities
 

@@ -1,4 +1,7 @@
-﻿# Hierarchical colony management
+# Hierarchical colony management
+
+> Historical notes for the retired RimBot C# mod, removed from this repository.
+> For the supported Python/RIMAPI architecture, see EXTERNAL_CONTROLLER.md.
 
 The live management path is now `ColonyManager.Start` → `ManagementCoordinator` → native `ColonyTools.Execute`.
 
