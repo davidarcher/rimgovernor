@@ -402,21 +402,34 @@ async def test_focused_coordinator_does_not_wake_unassigned_workforce(colony):
 
 
 async def test_specialist_tool_schema_separates_queries_and_owned_commands(colony):
-    rt,_=colony
+    rt,game=colony
     rt.cycle_generation=rt.generation
+    calls=[]
     class Model:
         async def complete(self,messages,tools,*args):
+            calls.append(1)
             schemas={t['function']['name']:t['function']['parameters'] for t in tools}
             reads=schemas['query']['properties']['endpoint']['enum']
-            writes=schemas['submit']['properties']['actions']['items']['properties']['endpoint']['enum']
             assert 'get_map_things' in reads and 'post_things_set_forbidden' not in reads
-            assert 'post_things_set_forbidden' in writes and 'post_builder_blueprint' not in writes
+            assert 'actions' not in schemas['submit']['properties']
             context=json.loads(messages[1]['content'])
             assert set(context['capabilities'])=={'read','propose'}
-            return {'role':'assistant','content':Proposal(summary='No care order needed').model_dump_json()},{}
+            assert 'post_builder_blueprint' not in context['capabilities']['propose']
+            if len(calls)==1:
+                name='describe';args={'endpoint':'post_things_set_forbidden'}
+            elif len(calls)==2:
+                name='post_things_set_forbidden';args=allow().model_dump(exclude={'endpoint'})
+                native=schemas[name]['properties']['arguments']
+                assert native['properties']['thing_ids']['type']=='array'
+                assert 'map_id' in native['required']
+            else:
+                assert not game.writes
+                name='submit';args={'summary':'Release nearby timber.'}
+            return {'role':'assistant','tool_calls':[{'id':str(len(calls)),'type':'function','function':{'name':name,'arguments':json.dumps(args)}}]},{}
         async def close(self):pass
     await rt.model.close();rt.model=Model()
-    await rt.planner.ask('Survival',{'capabilities':rt.catalog.listing()},Proposal)
+    proposal=await rt.planner.ask('Survival',{'capabilities':rt.catalog.listing()},Proposal)
+    assert len(proposal.actions)==1 and not game.writes
 
 
 async def test_prose_proposal_repaired_and_diagnostics_exported(colony):

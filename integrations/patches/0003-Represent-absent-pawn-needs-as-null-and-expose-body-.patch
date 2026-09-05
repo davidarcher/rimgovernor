@@ -1,0 +1,91 @@
+From 61d7aae892a77bf565f15eff72bb33a6f43bd20e Mon Sep 17 00:00:00 2001
+From: David Archer <darcher@gmail.com>
+Date: Sat, 5 Sep 2026 17:32:19 -0400
+Subject: [PATCH] Represent absent pawn needs as null and expose body size
+
+---
+ .../RimworldRestApi/Helpers/PawnHelper.cs     | 17 +++++-----
+ .../RimworldRestApi/Models/Pawns/PawnDtos.cs  | 32 +++++++++----------
+ 2 files changed, 25 insertions(+), 24 deletions(-)
+
+diff --git a/Source/RIMAPI/RimworldRestApi/Helpers/PawnHelper.cs b/Source/RIMAPI/RimworldRestApi/Helpers/PawnHelper.cs
+index 905fdd7..a25b46e 100644
+--- a/Source/RIMAPI/RimworldRestApi/Helpers/PawnHelper.cs
++++ b/Source/RIMAPI/RimworldRestApi/Helpers/PawnHelper.cs
+@@ -120,14 +120,15 @@ namespace RIMAPI.Helpers
+             {
+                 return new PawnDetailedDto
+                 {
+-                    Sleep = pawn.needs.rest?.CurLevel ?? 0,
+-                    Comfort = pawn.needs.comfort?.CurLevel ?? 0,
+-                    Beauty = pawn.needs.beauty?.CurLevel ?? 0,
+-                    Joy = pawn.needs.joy?.CurLevel ?? 0,
+-                    Energy = pawn.needs.energy?.CurLevel ?? 0,
+-                    DrugsDesire = pawn.needs.drugsDesire?.CurLevel ?? 0,
+-                    SurroundingBeauty = pawn.needs.beauty?.CurLevel ?? 0,
+-                    FreshAir = pawn.needs.outdoors?.CurLevel ?? 0,
++                    BodySize = pawn.BodySize,
++                    Sleep = pawn.needs.rest?.CurLevel,
++                    Comfort = pawn.needs.comfort?.CurLevel,
++                    Beauty = pawn.needs.beauty?.CurLevel,
++                    Joy = pawn.needs.joy?.CurLevel,
++                    Energy = pawn.needs.energy?.CurLevel,
++                    DrugsDesire = pawn.needs.drugsDesire?.CurLevel,
++                    SurroundingBeauty = pawn.needs.beauty?.CurLevel,
++                    FreshAir = pawn.needs.outdoors?.CurLevel,
+                     WorkInfo = new WorkInfoDto
+                     {
+                         Skills =
+diff --git a/Source/RIMAPI/RimworldRestApi/Models/Pawns/PawnDtos.cs b/Source/RIMAPI/RimworldRestApi/Models/Pawns/PawnDtos.cs
+index b6ae70c..aa347ee 100644
+--- a/Source/RIMAPI/RimworldRestApi/Models/Pawns/PawnDtos.cs
++++ b/Source/RIMAPI/RimworldRestApi/Models/Pawns/PawnDtos.cs
+@@ -15,14 +15,14 @@ namespace RIMAPI.Models
+     public class PawnDetailedDto
+     {
+         public float BodySize { get; set; }
+-        public float Sleep { get; set; }
+-        public float Comfort { get; set; }
+-        public float Beauty { get; set; }
+-        public float Joy { get; set; }
+-        public float Energy { get; set; }
+-        public float DrugsDesire { get; set; }
+-        public float SurroundingBeauty { get; set; }
+-        public float FreshAir { get; set; }
++        public float? Sleep { get; set; }
++        public float? Comfort { get; set; }
++        public float? Beauty { get; set; }
++        public float? Joy { get; set; }
++        public float? Energy { get; set; }
++        public float? DrugsDesire { get; set; }
++        public float? SurroundingBeauty { get; set; }
++        public float? FreshAir { get; set; }
+         public WorkInfoDto WorkInfo { get; set; }
+         public PoliciesInfoDto PoliciesInfo { get; set; }
+         public MedicalInfoDto MedicalInfo { get; set; }
+@@ -33,14 +33,14 @@ namespace RIMAPI.Models
+     {
+         public PawnDto Colonist { get; set; }
+         public float BodySize { get; set; }
+-        public float Sleep { get; set; }
+-        public float Comfort { get; set; }
+-        public float Beauty { get; set; }
+-        public float Joy { get; set; }
+-        public float Energy { get; set; }
+-        public float DrugsDesire { get; set; }
+-        public float SurroundingBeauty { get; set; }
+-        public float FreshAir { get; set; }
++        public float? Sleep { get; set; }
++        public float? Comfort { get; set; }
++        public float? Beauty { get; set; }
++        public float? Joy { get; set; }
++        public float? Energy { get; set; }
++        public float? DrugsDesire { get; set; }
++        public float? SurroundingBeauty { get; set; }
++        public float? FreshAir { get; set; }
+         public WorkInfoDto ColonistWorkInfo { get; set; }
+         public PoliciesInfoDto PoliciesInfo { get; set; }
+         public MedicalInfoDto ColonistMedicalInfo { get; set; }
+-- 
+2.55.0.windows.3
+

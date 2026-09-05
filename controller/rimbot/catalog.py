@@ -40,6 +40,16 @@ class Catalog:
         self.discovered = False
         for e in data['endpoints']:
             e = copy.deepcopy(e)
+            def describe_positions(schema):
+                if isinstance(schema,list):
+                    for part in schema:describe_positions(part)
+                elif isinstance(schema,dict):
+                    p=schema.get('properties',{})
+                    if {'x','y','z'} <= set(p):
+                        schema['description']='RimWorld map position: x/z are the horizontal map plane. y is vertical height, normally 0. Copy observed x and z; do not use y as the north/south coordinate.'
+                        schema['required']=sorted(set(schema.get('required',[]))|{'x','z'})
+                    for part in schema.values():describe_positions(part)
+            describe_positions(e['schema'])
             e['write'] = e['method'] != 'GET' and e['name'] not in READ_POST
             e['exposed'] = (not e['write'] or e['category'] in WRITE_CATEGORIES or e['name'] in WRITE_NAMES)
             if any(s in e['path'] for s in ['/dev/', '/learning/', '/image', '/portrait', '/mods/', '/incidents/top', '/incident/chance']):
