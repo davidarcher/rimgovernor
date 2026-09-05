@@ -38,6 +38,10 @@ internal static class Program
             var duplicate=JObject.Parse(Response("{}"));
             var calls=(JArray)duplicate["choices"][0]["message"]["tool_calls"]; calls.Add(calls[0].DeepClone());
             Check(!LocalModel.ParseResponse(duplicate.ToString()).Success,"Duplicate IDs accepted");
+            var largeBatch=JObject.Parse(Response("{}"));
+            var largeCalls=(JArray)largeBatch["choices"][0]["message"]["tool_calls"];
+            for(int i=1;i<24;i++) { var next=(JObject)largeCalls[0].DeepClone(); next["id"]="call_"+(i+1); largeCalls.Add(next); }
+            Check(LocalModel.ParseResponse(largeBatch.ToString()).ToolCalls.Count==24,"Valid construction batches must not be truncated");
             var conversation=new List<ChatMessage> { new ChatMessage("system",ManagerPrompt.Text),
                 new ChatMessage("assistant",parsed.AssistantParts),new ChatMessage("user",new List<ContentPart>
                 { ContentPart.FromToolResult("call_1","zones_stockpile_designate",true,"Existing stockpile; no duplicate created.") }) };
@@ -45,7 +49,7 @@ internal static class Program
             Check(body["messages"][2]["role"].Value<string>()=="tool","Tool result role wrong");
             Check(body["messages"][2]["tool_call_id"].Value<string>()=="call_1","Tool ID not preserved");
             Check(body["messages"][1]["tool_calls"][0]["function"]["arguments"].Type==JTokenType.String,"Arguments must be serialized JSON");
-            Check(body["tools"].Count()==39,"Unexpected tool surface");
+            Check(body["tools"].Count()==40,"Unexpected tool surface");
             Check(DailyPlanning.Due(-1,0,true,false,false),"Missing daily plan should run");
             Check(!DailyPlanning.Due(0,1000,false,false,false),"Daily plan reruns every review");
             Check(DailyPlanning.Due(0,60000,false,false,false),"Next day plan missing");
@@ -91,12 +95,12 @@ internal static class Program
             Check(actionMemory.Serialize().Contains("action_a"),"Compaction discards native action handles");
             Check(!ToolCatalog.Definitions().Any(t=>t.Name=="tools_search" || t.Name=="tools_enable"),"Model still manages tool discovery/rotation");
             var session=new ToolSession();
-            Check(session.Definitions().Count==39,"New review lacks full tool catalog");
+            Check(session.Definitions().Count==40,"New review lacks full tool catalog");
             Check(ToolSession.Discover("notifications").Any(t=>t["name"].Value<string>()=="notifications_read"),"Notification tool undiscoverable");
             session.Enable(new JArray("pawns_list","pawns_inspect","items_list","orders_allow","buildings_list","map_inspect"));
             Check(session.Available("pawns_list"),"Enabled tool missing");
             session.Enable(new JArray("plants_sowable"));
-            Check(session.Available("pawns_list") && session.Available("plants_sowable") && session.Definitions().Count==39,"Tool catalog changed after repeated requests");
+            Check(session.Available("pawns_list") && session.Available("plants_sowable") && session.Definitions().Count==40,"Tool catalog changed after repeated requests");
             Check(session.Available("selection_inspect") && session.Available("orders_allow_all"),"Tool rotation evicted core interaction");
             session.Enable(new JArray("architect_buildables"));
             Check(session.Available("architect_build"),"Build lookup does not expose placement action");

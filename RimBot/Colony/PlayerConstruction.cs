@@ -32,13 +32,18 @@ namespace RimBot.Colony
         }
         public static void Place(ThingDef def, IntVec3 cell, Map map, Rot4 rotation, ThingDef stuff)
         {
+            Validate(def,cell,map,rotation,stuff);
+            new Placement(def,stuff,rotation).DesignateSingleCell(cell);
+        }
+        public static void Validate(ThingDef def, IntVec3 cell, Map map, Rot4 rotation, ThingDef stuff)
+        {
             if(map!=Find.CurrentMap) throw new ArgumentException("Open this colony map before placing orders.");
             if(DebugSettings.godMode) throw new ArgumentException("Turn off god mode before automatic construction.");
             if(BuildCopyCommandUtility.FindAllowedDesignator(def)==null) throw new ArgumentException("This building is not available in Architect.");
             var designator=new Placement(def,stuff,rotation);
             var report=designator.CanDesignateCell(cell);
             if(!report.Accepted) throw new ArgumentException(report.Reason??"Cannot place here.");
-            designator.DesignateSingleCell(cell);
+
         }
     }
 }

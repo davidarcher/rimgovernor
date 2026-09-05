@@ -100,7 +100,9 @@ namespace RimBot.Colony
                 case "buildings_list": return BuildingQueries.Find(map,a).ToString(Formatting.None);
                 case "pawns_list": return PawnQueries.Find(map,a).ToString(Formatting.None);
                 case "pawns_inspect": return PawnQueries.Inspect(map,Number(a,"pawnId"),Text(a,"section"),a["offset"]==null?0:Number(a,"offset"),a["limit"]==null?10:Number(a,"limit")).ToString(Formatting.None);
+                case "architect_preview": return ConstructionLayout.Preview(map,a).ToString(Formatting.None);
                 case "map_inspect":
+                    if(a.Value<string>("format")=="grid") return SpatialView.Read(map,Number(a,"x"),Number(a,"z"),Number(a,"width"),Number(a,"height")).ToString(Formatting.None);
 
                     return new JArray(Area(map,a).Select(c => new JObject { ["x"]=c.x,["z"]=c.z,
 
@@ -283,6 +285,12 @@ case "areas_build_roof":
         }
 
         private static string Build(Map map,JObject a)
+        {
+            if(a["toX"]==null && a["toZ"]==null) return BuildOne(map,a);
+            var placements=ConstructionLayout.Expand(a); ConstructionLayout.Validate(map,placements);
+            return new JArray(placements.Select(p=>BuildOne(map,p))).ToString(Formatting.None);
+        }
+        private static string BuildOne(Map map,JObject a)
 
         {
 
@@ -391,7 +399,7 @@ case "areas_build_roof":
 
             var copy=(JObject)snapshot.DeepClone();
 
-            copy.Remove("workFocus"); copy.Remove("repeatedObservations");
+            copy.Remove("localMap"); copy.Remove("workFocus"); copy.Remove("repeatedObservations");
             copy.Remove("objectives"); // Objective state transitions are fingerprinted separately.
 
             foreach(var pawn in (JArray)copy["colonists"]) { ((JObject)pawn).Remove("x"); ((JObject)pawn).Remove("z"); }

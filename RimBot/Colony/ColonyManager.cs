@@ -148,6 +148,9 @@ namespace RimBot.Colony
             observedIdentifiers.RemoveMissingThings(new HashSet<int>(map.listerThings.AllThings.Where(t=>t.Spawned && !t.Position.Fogged(map)).Select(t=>t.thingIDNumber)));
             snapshot=ColonyTools.Snapshot(map);
             snapshot["playerDirection"]=LatestDirection;
+            var anchor=map.listerBuildings.allBuildingsColonist.OfType<RimWorld.Building_Bed>().FirstOrDefault()?.Position??map.GetComponent<ColonyLocation>().Center;
+            int gridX=Math.Max(0,Math.Min(map.Size.x-17,anchor.x-8)),gridZ=Math.Max(0,Math.Min(map.Size.z-17,anchor.z-8));
+            snapshot["localMap"]=SpatialView.Read(map,gridX,gridZ,Math.Min(17,map.Size.x),Math.Min(17,map.Size.z));
             snapshot["sleepingCapacity"]=ColonyObjectives.SleepingCapacity(facts);
             snapshot["objectives"]=new JArray(Objectives.Select(o=>o.ToJson()));
             snapshot["trackedTasks"]=taskLedger.View(map.uniqueID);
@@ -266,7 +269,6 @@ namespace RimBot.Colony
                     }
                     var calls=response.ToolCalls;
                     if(calls==null || calls.Count==0) { WatchCurrentState(); return; }
-                    if(calls.Count>8) { Finish("Too many tool calls in one response; nothing executed."); return; }
                     messages.Add(new ChatMessage("assistant",response.AssistantParts ?? new List<ContentPart>()));
                     var results=new List<ContentPart>();
                     bool blocked=false;
@@ -291,7 +293,11 @@ namespace RimBot.Colony
                         StepProgress(call.Name,success);
                         if(ColonyTools.IsAction(call.Name)) { toolSession.ClearActions(); observedIdentifiers.ClearActionHandles(); }
                         if((success && (call.Name=="selection_inspect" || call.Name=="pawns_orders")) || (!success && call.Name=="equipment_equip")) toolSession.ObserveMenu(result);
-                        if(ColonyTools.IsAction(call.Name)) taskLedger.Record(map.uniqueID,Find.TickManager.TicksGame,call,result,success);
+                        if(ColonyTools.IsAction(call.Name)) {
+                            if(call.Name=="architect_build" && success && (call.Arguments["toX"]!=null || call.Arguments["toZ"]!=null))
+                                foreach(var p in ConstructionLayout.Expand(call.Arguments)) taskLedger.Record(map.uniqueID,Find.TickManager.TicksGame,new RimBot.Tools.ToolCall{Name=call.Name,Arguments=p},result,true);
+                            else taskLedger.Record(map.uniqueID,Find.TickManager.TicksGame,call,result,success);
+                        }
                         if(success) observedIdentifiers.Remember(call.Name,result);
                         string display=ActivitySummary.Tool(call,result,success);
                         if(!success || ColonyTools.IsAction(call.Name) || call.Name=="manager_report_blocker") Record(display);
