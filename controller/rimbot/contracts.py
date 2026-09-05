@@ -20,15 +20,15 @@ class Query(Contract):
 
 class Check(Contract):
     query: Query
-    field: str = ''
-    op: Literal['eq','ne','gte','lte','exists','absent'] = 'exists'
-    value: Any = None
+    field: str = Field(min_length=1,description='Exact field path in query result to verify. Use total for a filtered count, or items.0 followed by the observed field path. Do not check merely that a response object exists.')
+    op: Literal['eq','ne','gte','lte','exists','absent']
+    value: Any = Field(description='Expected post-action value; null only for exists/absent. For changing a priority, compare the actual priority to the requested number.')
 
 
 class Action(Contract):
     title: str = Field(min_length=1, max_length=110)
     endpoint: str
-    arguments: dict[str, Any] = Field(default_factory=dict)
+    arguments: dict[str, Any] = Field(description='Complete native command arguments, including all required identifiers and positions. Describe the endpoint before proposing an unfamiliar command.')
     # Verify state, not an HTTP acknowledgment. No saved executable handles.
     done: Check
     requires: list[Check] = Field(default_factory=list)

@@ -1,7 +1,7 @@
 import asyncio
 import json
 from pydantic import ValidationError
-from .contracts import Query, Proposal, Decision, Plans
+from .contracts import Query, Proposal, Decision, Plans, at
 from .rimapi import compact
 from .model import ModelError
 
@@ -32,20 +32,39 @@ Group related construction pieces in RIMAPI's blueprint array, preserving doors 
 
 
 def tool(name, description, schema):
-    return {'type':'function', 'function':{'name':name, 'description':description, 'parameters':schema}}
+    # Local chat templates may render properties without resolving JSON Schema
+    # references. Inline our acyclic contract models for the model-facing tool.
+    def inline(value):
+        if isinstance(value,list):return [inline(v) for v in value]
+        if not isinstance(value,dict):return value
+        if '$ref' in value:
+            target=schema
+            for key in value['$ref'].removeprefix('#/').split('/'):
+                target=target[key]
+            return inline({**target,**{k:v for k,v in value.items() if k!='$ref'}})
+        return {k:inline(v) for k,v in value.items() if k!='$defs'}
+    return {'type':'function', 'function':{'name':name, 'description':description, 'parameters':inline(schema)}}
 
 
 class Planner:
     def __init__(self, runtime):
         self.rt = runtime
 
-    def validate_submission(self, role, value):
+    def validate_submission(self, role, value, context=None):
+        if isinstance(value,Decision) and context and 'proposals' in context:
+            proposals=context['proposals']
+            accepted=set(value.accepted);deferred=set(value.deferred)
+            if len(accepted)!=len(value.accepted) or accepted & deferred or accepted | deferred != set(proposals):
+                raise ValueError('Reconcile each proposal ID exactly once, in accepted or deferred. Valid IDs: '+', '.join(proposals))
         if not isinstance(value,Proposal):
             return value
         errors=[]
         for index,action in enumerate(value.actions):
             try:
                 self.rt.catalog.validate(action.endpoint,action.arguments,True)
+                domains={'Survival':('medical','forbidden'),'Infrastructure':('builder','zone','building','bills','order_designate','forbidden'),'Security':('pawn_job','pawn_edit_status','jobs_make_equip','pawn_medical'),'Development':('research','trade'),'Workforce':('priority','time_assignment','pawn_job','pawn_medical','jobs_make_equip')}
+                if role in domains and not any(x in action.endpoint for x in domains[role]):
+                    raise ValueError(f'{role} must request work outside its domain through labor/blockers, not issue this action.')
                 entry=self.rt.catalog.get(action.done.query.endpoint,False)
                 if entry['path'].startswith('/api/v1/def/'):
                     raise ValueError('Completion must inspect live colony state, not the definition database.')
@@ -56,6 +75,15 @@ class Planner:
         if errors:raise ValueError('\n'.join(errors))
         return value
 
+    async def validate_observation(self, value):
+        if isinstance(value,Proposal):
+            for action in value.actions:
+                check=action.done
+                result=await self.rt.query(check.query)
+                if check.op not in ('exists','absent') and check.value is not None and at(result,check.field) is None:
+                    raise ValueError(f'Completion field {check.field!r} does not exist in the current query result. For creating/removing a row, filter the intended list and compare its total. Put the list path in query.path, row filters in query.where, and use field="total". Actual result: '+json.dumps(compact(result,3500)))
+        return value
+
     async def ask(self, role, context, contract, thinking=True):
         tools = [
             tool('discover', 'Find available RIMAPI endpoints by words. Empty search lists all.', {'type':'object','properties':{'search':{'type':'string'}},'required':['search'],'additionalProperties':False}),
@@ -64,7 +92,7 @@ class Planner:
             tool('submit', 'Return your complete structured proposal, decision or plan.', contract.model_json_schema()),
         ]
         result_name = 'proposal' if contract is Proposal else 'decision' if contract is Decision else 'plan'
-        instructions = BASE + '\n' + ROLES.get(role, role) + f'\nFinish by calling submit with your complete {result_name}. A prose reply does not submit it. If blocked, submit the blockers; do not invent actions.'
+        instructions = BASE + '\n' + ROLES.get(role, role) + f'\nYour role is {role}. Finish by calling submit with your complete {result_name}. A prose reply does not submit it. If blocked, submit the blockers; do not invent actions. Other managers\' actions are context, not actions to copy into your own proposal. When the objective belongs to another manager, submit actions: [] and briefly state why.'
         messages = [{'role':'system','content':instructions}, {'role':'user','content':json.dumps(context, separators=(',',':'), ensure_ascii=False)}]
         repeats = {}
         repairs = 0
@@ -78,7 +106,7 @@ class Planner:
             if not calls:
                 # Some local models return JSON instead of calling submit.
                 try:
-                    return self.validate_submission(role,contract.model_validate_json((reply.get('content') or '').strip().removeprefix('```json').removesuffix('```').strip()))
+                    return await self.validate_observation(self.validate_submission(role,contract.model_validate_json((reply.get('content') or '').strip().removeprefix('```json').removesuffix('```').strip()),context))
                 except ValueError as e:
                     errors = e.errors(include_input=False,include_url=False) if isinstance(e,ValidationError) else [{'msg':str(e)}]
                     self.rt.store.event(self.rt.colony, 'model_diagnostic', role=role, expected=result_name, response=reply, errors=errors)
@@ -99,7 +127,7 @@ class Planner:
                 try:
                     args = json.loads(f['arguments'])
                     if f['name'] == 'submit':
-                        submitted = self.validate_submission(role,contract.model_validate(args))
+                        submitted = await self.validate_observation(self.validate_submission(role,contract.model_validate(args),context))
                         result = {'received':True}
                     elif f['name'] == 'discover':
                         result = self.rt.catalog.listing(args.get('search',''))

@@ -53,6 +53,10 @@ class Catalog:
             if e['name'] == 'post_builder_blueprint':
                 props['clear_obstacles'] = {'const': False}
             e['schema']['required'] = sorted(set(e['schema'].get('required', []) + REQUIRED.get(e['name'], [])))
+            if e['name'] in ('get_colonist_detailed','get_colonists_detailed'):
+                e['description'] += ' Work priorities include only enabled work (priority > 0) and are sorted by priority; disabling work removes its row. Filter by work_type, never rely on array position. Use query.path=colonist_work_info.work_priorities on a single pawn and where={work_type: observed name}; total=0 means that work is not enabled.'
+            if e['name']=='get_colonists_detailed':
+                e['description'] += ' Bulk pawn data is cached upstream for 1800 game ticks. Use get_colonist_detailed with id for uncached command verification.'
             self.entries[e['name']] = e
 
     def discover(self, docs):

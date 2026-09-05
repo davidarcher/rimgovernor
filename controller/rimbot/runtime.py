@@ -335,6 +335,21 @@ class Runtime:
             self.executing = False
             self.persist()
 
+    async def coordinate(self, context, roles):
+        """Shared manager/administrator path for normal reviews and live tests."""
+        proposals = await self.planner.proposals(context,[r for r in roles if r!='Workforce'])
+        preliminary = None
+        if any(p['labor'] for p in proposals.values()):
+            preliminary = await self.planner.arbitrate(context,proposals)
+            context['approved_labor'] = {r:proposals[r]['labor'] for r in preliminary.accepted}
+            context['deferred_labor'] = preliminary.deferred
+        proposals.update(await self.planner.proposals({**context,'other_managers':proposals},['Workforce']))
+        self.check_generation()
+        decision = await self.planner.arbitrate(context,proposals)
+        if preliminary and set(decision.accepted)-{'Workforce'}-set(preliminary.accepted):
+            raise ModelError('Final decision granted new labor after Workforce review. No orders sent.')
+        return proposals,decision
+
     async def review(self, steering=False, strategy=False):
         self.cycle_generation = self.generation
         self.started_at = time.time()
@@ -376,18 +391,7 @@ class Runtime:
                 roles = ['Survival','Security','Workforce'] if any(x in types for x in ('raid','killed','died','mental','letter')) else ['Infrastructure','Workforce']
             else:
                 self.store.set('full_review:'+self.colony,self.last_review)
-            proposals = await self.planner.proposals(context,[r for r in roles if r!='Workforce'])
-            preliminary = None
-            if any(p['labor'] for p in proposals.values()):
-                preliminary = await self.planner.arbitrate(context,proposals)
-                context['approved_labor'] = {r:proposals[r]['labor'] for r in preliminary.accepted}
-                context['deferred_labor'] = preliminary.deferred
-            workforce = await self.planner.proposals({**context,'other_managers':proposals},['Workforce'])
-            proposals.update(workforce)
-            self.check_generation()
-            decision = await self.planner.arbitrate(context,proposals)
-            if preliminary and set(decision.accepted)-{'Workforce'}-set(preliminary.accepted):
-                raise ModelError('Final decision granted new labor after Workforce review. No orders sent.')
+            proposals,decision = await self.coordinate(context,roles)
             self.reply(decision.response)
             for role, reason in decision.deferred.items():
                 self.note('deferred',reason,role=role)

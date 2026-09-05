@@ -11,6 +11,41 @@ from rimbot.server import create_app
 from rimbot.video import JPEGReceiver,Video,abandoned_local_stream
 import socket
 from types import SimpleNamespace
+from rimbot.planner import tool
+
+
+def test_local_tool_schema_contains_complete_nested_action_contract():
+    schema=tool('submit','Proposal',Proposal.model_json_schema())['function']['parameters']
+    assert '$ref' not in json.dumps(schema)
+    action=schema['properties']['actions']['items']
+    assert 'arguments' in action['required']
+    assert 'query' in action['properties']['done']['properties']
+
+
+async def test_administrator_can_correct_unknown_proposal_ids(colony):
+    rt,_=colony
+    rt.cycle_generation=rt.generation
+    calls=[]
+    class Model:
+        async def complete(self,messages,*args):
+            calls.append(1)
+            if len(calls)>1:
+                assert 'Workforce' in json.loads(messages[-1]['content'])['error']
+            data={'response':'Set the priority.','accepted':['wrong' if len(calls)==1 else 'Workforce'],'deferred':{}}
+            return {'role':'assistant','tool_calls':[{'id':str(len(calls)),'type':'function','function':{'name':'submit','arguments':json.dumps(data)}}]},{}
+        async def close(self):pass
+    await rt.model.close();rt.model=Model()
+    result=await rt.planner.arbitrate({}, {'Workforce':Proposal(summary='No action').model_dump()})
+    assert result.accepted==['Workforce'] and len(calls)==2
+
+
+async def test_submission_rejects_nonexistent_completion_field(colony):
+    rt,game=colony
+    action=allow()
+    action.done.field='items.total'
+    with pytest.raises(ValueError,match='does not exist'):
+        await rt.planner.validate_observation(Proposal(summary='Allow timber',actions=[action]))
+    assert not game.writes
 
 
 async def test_video_recovers_abandoned_receiver_and_shares_stream():
