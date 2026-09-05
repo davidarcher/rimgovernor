@@ -189,9 +189,15 @@ case "areas_build_roof":
                     return new JArray(matches.OrderBy(d=>d.defName).Take(8).Select(d=>new JObject{
                         ["defName"]=d.defName,["label"]=d.label,["existing"]=BuildingQueries.Counts(map,d.defName),
                         ["sizeX"]=d.size.x,["sizeZ"]=d.size.z,["requiresMaterial"]=d.MadeFromStuff,
+                        ["workToBuildBase"]=d.GetStatValueAbstract(StatDefOf.WorkToBuild),
+                        ["instantPlacement"]=d.GetStatValueAbstract(StatDefOf.WorkToBuild)==0,
+                        ["fixedResourceCosts"]=new JArray((d.costList??new List<ThingDefCountClass>()).Select(c=>new JObject{["defName"]=c.thingDef.defName,["count"]=c.count})),
+                        ["stuffCount"]=d.costStuffCount,
+                        ["sleepingSlots"]=typeof(Building_Bed).IsAssignableFrom(d.thingClass)?BedUtility.GetSleepingSlotsCount(d.size):0,
+                        ["sleepingFor"]=typeof(Building_Bed).IsAssignableFrom(d.thingClass)?(d.building.bed_humanlike?"humanlike":"animals"):null,
                         ["materials"]=Materials(map,d,3),["moreMaterials"]=d.MadeFromStuff?"architect_materials":null,
-                        ["placeOrder"]=new JObject{["tool"]="architect_build",["defName"]=d.defName,["needs"]=new JArray("x","z","rotation",d.MadeFromStuff?"material":"")},
-                        ["note"]="This is a definition, not a placed object. architect_build creates a blueprint; pawn right-click orders act on existing targets."
+                        ["placeOrder"]=new JObject{["tool"]="architect_build",["defName"]=d.defName,["needs"]=new JArray(d.MadeFromStuff?new[]{"x","z","rotation","material"}:new[]{"x","z","rotation"})},
+                        ["note"]="Definition only. Zero work means instant placement with no builder job. Empty fixedResourceCosts and zero stuffCount mean no resources required. Other placements require normal construction. Work can vary by material."
                     })).ToString(Formatting.None);
 
                 case "architect_build":
@@ -318,7 +324,9 @@ case "areas_build_roof":
 
             PlayerConstruction.Place(def,cell,map,rot,stuff);
 
-            return "Construction ordered: " + def.defName + " at " + cell + ". Wait for normal construction work.";
+            var placed=cell.GetThingList(map).FirstOrDefault(t=>t.Position==cell && t.def==def && t is Building);
+            return placed!=null ? "Placed immediately: "+def.defName+" at "+cell+"; id="+placed.thingIDNumber+". Complete; no construction job is pending."
+                : "Construction ordered: " + def.defName + " at " + cell + ". Wait for normal construction work.";
 
         }
 
