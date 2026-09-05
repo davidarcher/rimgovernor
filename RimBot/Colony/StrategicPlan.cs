@@ -45,6 +45,9 @@ namespace RimBot.Colony
                 var conditions=new JArray();
                 foreach(var c in checks) {
                     string metric=Text(c,"metric",80),op=Text(c,"op",12);
+                    if(!new[]{"armed_colonists","capable_fighters","growing_cells","configured_food_bills","research_active","colonists","sheltered_slots","food_days","hostiles","patients","medical_emergencies","stockpiles","food_bills","pending_orders"}.Contains(metric) &&
+                        !(metric.StartsWith("building:") && metric.Length>9) && !(metric.StartsWith("research:") && metric.Length>9))
+                        throw new ArgumentException("Unmeasured completion metric: "+metric+". Use supplied measured counters; forbidden item counts are not colony objectives.");
                     if(op!="atLeast" && op!="atMost") throw new ArgumentException("Unknown completion comparison.");
                     if(c["value"]?.Type!=JTokenType.Integer && c["value"]?.Type!=JTokenType.Float) throw new ArgumentException("Completion target must be numeric.");
                     double value=c["value"].Value<double>();
@@ -76,7 +79,7 @@ namespace RimBot.Colony
             bool met=conditions.All(c=>metrics.TryGetValue(c["metric"].Value<string>(),out double n) &&
                 (c["op"].Value<string>()=="atLeast" ? n>=c["value"].Value<double>() : n<=c["value"].Value<double>()));
             if(met) return "Complete";
-            var missing=project["requiredTools"].Values<string>().Where(t=>!tools.Contains(t)).ToArray();
+            var missing=project["requiredTools"].Values<string>().Select(ToolNames.Canonical).Where(t=>!tools.Contains(t)).ToArray();
             if(missing.Length>0) return "Blocked: missing tools " + string.Join(", ",missing);
             var unknown=conditions.Where(c=>!metrics.ContainsKey(c["metric"].Value<string>())).Select(c=>c["metric"].Value<string>()).ToArray();
             if(unknown.Length>0) return "Blocked: cannot verify " + string.Join(", ",unknown);
@@ -94,7 +97,7 @@ namespace RimBot.Colony
                 }));
         }
         public static List<ToolDefinition> Tools() => new List<ToolDefinition> { new ToolDefinition {
-            Name="save_strategy",Description="Save a strategic plan, not world orders. Up to 8 seasonal projects in dependency order. Preserve useful existing projects and IDs. Completion is checked by game metrics, never by your assertion. Missing capabilities may be named explicitly in requiredTools. Do not invent numeric evidence.",
+            Name="save_strategy",Description="Save a strategic plan, not world orders. Up to 8 seasonal projects in dependency order. Preserve useful existing projects and IDs. Completion is checked by game metrics, never by your assertion. Copy implemented tool names exactly from the supplied catalog into requiredTools; do not invent synonyms. Only genuinely unsupported capabilities may be named as missing. Do not invent numeric evidence.",
             ParametersJson=@"{type:'object',additionalProperties:false,properties:{season:{type:'string',maxLength:500},year:{type:'string',maxLength:500},threeYears:{type:'string',maxLength:500},projects:{type:'array',maxItems:8,items:{type:'object',additionalProperties:false,properties:{id:{type:'string',maxLength:40},title:{type:'string',maxLength:100},purpose:{type:'string',maxLength:240},priority:{type:'integer',minimum:1,maximum:5},dependsOn:{type:'array',maxItems:8,items:{type:'string'}},requiredTools:{type:'array',maxItems:12,items:{type:'string'}},steps:{type:'array',minItems:1,maxItems:5,items:{type:'string',maxLength:240}},completeWhen:{type:'array',minItems:1,maxItems:6,items:{type:'object',additionalProperties:false,properties:{metric:{type:'string'},op:{type:'string',enum:['atLeast','atMost']},value:{type:'number',minimum:0}},required:['metric','op','value']}}},required:['id','title','purpose','priority','dependsOn','requiredTools','steps','completeWhen']}}},required:['season','year','threeYears','projects']}"
         }};
     }

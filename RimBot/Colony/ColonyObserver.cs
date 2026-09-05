@@ -18,7 +18,7 @@ namespace RimBot.Colony
             f.Bleeding = pawns.Count(p => p.health.hediffSet.BleedRateTotal > 0);
             f.Downed = pawns.Count(p => p.Downed);
             f.TemperatureInjuries = pawns.Count(p => p.health.hediffSet.hediffs.Any(h => h.def == HediffDefOf.Heatstroke || h.def == HediffDefOf.Hypothermia));
-            f.Hostiles = map.mapPawns.AllPawnsSpawned.Count(p => !p.Downed && !p.Dead && p.HostileTo(Faction.OfPlayer));
+            f.Hostiles = map.mapPawns.AllPawnsSpawned.Count(p => !p.Downed && !p.Dead && !p.Position.Fogged(map) && p.HostileTo(Faction.OfPlayer));
             f.Doctors = pawns.Count(p => Enabled(p, WorkTypeDefOf.Doctor));
             f.Cooks = pawns.Count(p => Enabled(p, DefDatabase<WorkTypeDef>.GetNamedSilentFail("Cooking")));
             f.Builders = pawns.Count(p => Enabled(p, WorkTypeDefOf.Construction));
@@ -67,12 +67,28 @@ namespace RimBot.Colony
         private static bool MakesFood(Bill bill) => bill.recipe?.products != null &&
             bill.recipe.products.Any(p => p.thingDef.IsNutritionGivingIngestible && !p.thingDef.IsDrug);
 
+        public static JArray Materials(Thing order)
+        {
+            if(!(order is IConstructible construction)) return new JArray();
+            var supplies=order.Map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver)
+                .Where(t=>t.def.category==ThingCategory.Item && !t.Position.Fogged(order.Map)).ToList();
+            return new JArray(construction.TotalMaterialCost().Select(cost=>new JObject{
+                ["defName"]=cost.thingDef.defName,["label"]=cost.thingDef.label,
+                ["needed"]=construction.ThingCountNeeded(cost.thingDef),
+                ["allowedOnMap"]=supplies.Where(t=>t.def==cost.thingDef && !t.IsForbidden(Faction.OfPlayer)).Sum(t=>t.stackCount),
+                ["forbiddenOnMap"]=supplies.Where(t=>t.def==cost.thingDef && t.IsForbidden(Faction.OfPlayer)).Sum(t=>t.stackCount)
+            }));
+        }
         public static JArray Orders(Map map) => new JArray(map.listerThings.ThingsInGroup(ThingRequestGroup.Blueprint)
             .Concat(map.listerThings.ThingsInGroup(ThingRequestGroup.BuildingFrame)).Take(20).Select(t => new JObject {
                 ["id"] = t.thingIDNumber, ["defName"] = t.def.entityDefToBuild?.defName,
                 ["x"] = t.Position.x, ["z"] = t.Position.z,
                 ["stage"] = t is Frame ? "frame" : "blueprint",
-                ["workDone"] = t is Frame frame ? (int)frame.workDone : 0
+                ["workDone"] = t is Frame frame ? (int)frame.workDone : 0,
+                ["pawnsTargeting"]=new JArray(map.mapPawns.FreeColonistsSpawned.Where(p=>p.CurJob!=null &&
+                    (p.CurJob.targetA.Thing==t || p.CurJob.targetB.Thing==t || p.CurJob.targetC.Thing==t)).Select(p=>new JObject{
+                        ["pawnId"]=p.thingIDNumber,["job"]=p.CurJob.def.defName})),
+                ["materials"]=Materials(t),["inspectionTool"]="pawns_orders"
             }));
     }
 }

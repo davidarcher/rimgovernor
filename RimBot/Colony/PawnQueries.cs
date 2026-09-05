@@ -15,20 +15,32 @@ namespace RimBot.Colony
 
         private static JObject Summary(Pawn p) => new JObject {
             ["id"]=p.thingIDNumber,["name"]=p.LabelShort,["kind"]=p.kindDef.defName,
-            ["faction"]=p.Faction?.Name,["colonist"]=p.IsColonist,["prisoner"]=p.IsPrisonerOfColony,
+            ["hostileToPlayer"]=p.HostileTo(Faction.OfPlayer),["faction"]=p.Faction?.Name,["colonist"]=p.IsColonist,["prisoner"]=p.IsPrisonerOfColony,
             ["animal"]=p.RaceProps.Animal,["x"]=p.Position.x,["z"]=p.Position.z,
-            ["downed"]=p.Downed,["drafted"]=p.Drafted,["job"]=p.CurJob?.def.defName,
+            ["canFight"]=!p.WorkTagIsDisabled(WorkTags.Violent),["canTakeOrder"]=p.CanTakeOrder,["fireAtWill"]=p.drafter?.FireAtWill,["downed"]=p.Downed,["drafted"]=p.Drafted,["job"]=p.CurJob?.def.defName,
+            ["idle"]=p.mindState.IsIdle,["jobTarget"]=JobTarget(p),
             ["mood"]=p.needs?.mood?.CurLevelPercentage,["weapon"]=p.equipment?.Primary?.def.defName
         };
 
+        private static JToken JobTarget(Pawn pawn)
+        {
+            if(pawn.CurJob==null) return JValue.CreateNull();
+            var target=pawn.CurJob.targetA;
+            if(!target.IsValid) return JValue.CreateNull();
+            if(target.HasThing && (target.Thing.Map!=pawn.Map || !target.Thing.Spawned)) return JValue.CreateNull();
+            var cell=target.Cell;
+            if(!cell.InBounds(pawn.Map) || cell.Fogged(pawn.Map)) return JValue.CreateNull();
+            return new JObject{["thingId"]=target.Thing?.thingIDNumber,["x"]=cell.x,["z"]=cell.z};
+        }
         public static JObject Find(Map map, JObject a)
         {
             string group=a.Value<string>("group") ?? "all", kind=a.Value<string>("kind");
             int offset=a.Value<int?>("offset") ?? 0, limit=a.Value<int?>("limit") ?? 20;
             if(offset<0 || limit<1 || limit>40) throw new ArgumentException("offset must be nonnegative; limit must be 1–40.");
-            if(!new[]{"all","colonists","prisoners","animals","colony_animals","wild_animals"}.Contains(group))
+            if(!new[]{"all","colonists","prisoners","animals","colony_animals","wild_animals","hostiles"}.Contains(group))
                 throw new ArgumentException("Unknown pawn group.");
             var pawns=map.mapPawns.AllPawnsSpawned.Where(p=>!p.Position.Fogged(map));
+            if(group=="hostiles") pawns=pawns.Where(p=>p.HostileTo(Faction.OfPlayer));
             if(group=="colonists") pawns=pawns.Where(p=>p.IsColonist);
             if(group=="prisoners") pawns=pawns.Where(p=>p.IsPrisonerOfColony);
             if(group=="animals") pawns=pawns.Where(p=>p.RaceProps.Animal);

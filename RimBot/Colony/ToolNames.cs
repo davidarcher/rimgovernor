@@ -18,6 +18,7 @@ namespace RimBot.Colony {
             {"start_research","research_select"},
             {"hunt_animal","orders_hunt"},
             {"equip_weapon","equipment_equip"},
+            {"pawns_equip","equipment_equip"},
             {"find_items","items_list"},
             {"allow_item_ids","orders_allow"},
             {"designate_roof","areas_build_roof"},
@@ -31,6 +32,6 @@ namespace RimBot.Colony {
             {"inspect_work_orders","construction_list"},
             {"set_plan","manager_save_plan"},
         };
-        public static string Canonical(string name)=>OldNames.TryGetValue(name,out var current)?current:name;
+        public static string Canonical(string name)=>name!=null && OldNames.TryGetValue(name,out var current)?current:name;
     }
 }

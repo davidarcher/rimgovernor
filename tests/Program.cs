@@ -19,6 +19,7 @@ internal static class Program
     private static int Main(string[] args)
     {
         try {
+            DecisionChecks.Run(Check);
             var budget=new ReviewBudget();
             Check(budget.CanReview(0,60),"First review blocked");
             budget.StartReview(0);
@@ -44,7 +45,7 @@ internal static class Program
             Check(body["messages"][2]["role"].Value<string>()=="tool","Tool result role wrong");
             Check(body["messages"][2]["tool_call_id"].Value<string>()=="call_1","Tool ID not preserved");
             Check(body["messages"][1]["tool_calls"][0]["function"]["arguments"].Type==JTokenType.String,"Arguments must be serialized JSON");
-            Check(body["tools"].Count()==35,"Unexpected tool surface");
+            Check(body["tools"].Count()==39,"Unexpected tool surface");
             Check(DailyPlanning.Due(-1,0,true,false,false),"Missing daily plan should run");
             Check(!DailyPlanning.Due(0,1000,false,false,false),"Daily plan reruns every review");
             Check(DailyPlanning.Due(0,60000,false,false,false),"Next day plan missing");
@@ -62,16 +63,47 @@ internal static class Program
             Check(feed.Observe(initial),"New alert ignored");
             initial["alerts"]=new JArray();
             Check(feed.Observe(initial) && feed.LatestBatch.Contains("clearedAlert"),"Cleared alert ignored");
+            var identifiers=new ObservedIdentifiers();
+            identifiers.Remember("items_list","{items:[{id:3844,defName:'MeleeWeapon_Knife'}]}");
+            Check(identifiers.Serialize().Contains("3844") && identifiers.Serialize().Contains("MeleeWeapon_Knife"),"Compaction loses discovered item IDs");
+            identifiers.Remember("items_list","{items:[{id:3844,defName:'MeleeWeapon_Knife',label:'Knife'}]}");
+            Check(JArray.Parse(identifiers.Serialize()).Count==1,"Repeated observations duplicate identifier memory");
+            identifiers.Remember("items_list","Plain result");
+            Check(JArray.Parse(identifiers.Serialize()).Count==1,"Plain results corrupt identifier memory");
+            identifiers.Remember("storage_inspect","{storage:[{zoneId:17,label:'Stockpile'}]}");
+            identifiers.Remember("pawns_inspect","{pawn:{id:239,name:'Fernanda',canFight:false}}");
+            Check(identifiers.Serialize().Contains("zoneId"),"Storage target IDs lost during compaction");
+            Check(identifiers.Serialize().Contains("canFight"),"Pawn incapability lost during compaction");
+            Check(ToolSession.Discover("storage_inspect").Count==1,"Exact tool lookup returns unrelated tools");
+            identifiers.Clear(); Check(identifiers.Serialize()=="[]","Identifiers leak across reviews/maps");
+            Check(ToolSession.Discover("unforbid all").Any(t=>t.Value<string>("name")=="orders_allow_all"),"Native Allow All is not discoverable");
+            Check(ToolSession.Discover("draft").Any(t=>t.Value<string>("name")=="pawns_set_drafted"),"Draft control not discoverable");
+            Check(ToolSession.Discover("construction").Any(t=>t.Value<string>("name")=="pawns_orders"),"Prioritized construction menu not discoverable");
+            Check(JObject.Parse(ToolCatalog.Definitions().Single(t=>t.Name=="pawns_order").ParametersJson)["required"].Values<string>().Contains("actionId"),"Full native menu cannot be executed");
+            Check(ToolSession.Discover("rescue").Any(t=>t.Value<string>("name")=="pawns_orders"),"Rescue order menu not discoverable");
+            var legalSession=new ToolSession();
+            Check(legalSession.Available("pawns_order"),"Action tool missing from stable catalog");
+            legalSession.ObserveMenu("{menu:{orders:[{label:'Carry supplies',enabled:true,actionId:'action_a'},{label:'Cannot work',enabled:false}]}}");
+            var legalSchema=JObject.Parse(legalSession.Definitions().Single(t=>t.Name=="pawns_order").ParametersJson);
+            Check(legalSchema["properties"]["actionId"]["enum"].Values<string>().SequenceEqual(new[]{"action_a"}),"Legal action enum differs from enabled menu");
+            legalSession.ClearActions(); Check(legalSession.Available("pawns_order"),"World change removed a tool");
+            var actionMemory=new ObservedIdentifiers(); actionMemory.Remember("selection_inspect","{menu:{orders:[{label:'Carry supplies',enabled:true,actionId:'action_a'}]}}");
+            Check(actionMemory.Serialize().Contains("action_a"),"Compaction discards native action handles");
+            Check(!ToolCatalog.Definitions().Any(t=>t.Name=="tools_search" || t.Name=="tools_enable"),"Model still manages tool discovery/rotation");
             var session=new ToolSession();
-            Check(session.Definitions().Count==4,"New reviews should not load the entire tool catalog");
+            Check(session.Definitions().Count==39,"New review lacks full tool catalog");
             Check(ToolSession.Discover("notifications").Any(t=>t["name"].Value<string>()=="notifications_read"),"Notification tool undiscoverable");
             session.Enable(new JArray("pawns_list","pawns_inspect","items_list","orders_allow","buildings_list","map_inspect"));
             Check(session.Available("pawns_list"),"Enabled tool missing");
             session.Enable(new JArray("plants_sowable"));
-            Check(!session.Available("pawns_list") && session.Available("plants_sowable") && session.Definitions().Count==10,"Schema window failed to evict oldest tool");
+            Check(session.Available("pawns_list") && session.Available("plants_sowable") && session.Definitions().Count==39,"Tool catalog changed after repeated requests");
+            Check(session.Available("selection_inspect") && session.Available("orders_allow_all"),"Tool rotation evicted core interaction");
+            session.Enable(new JArray("architect_buildables"));
+            Check(session.Available("architect_build"),"Build lookup does not expose placement action");
             bool badToolRejected=false; try { session.Enable(new JArray("invented_tool")); } catch(ArgumentException) { badToolRejected=true; }
             Check(badToolRejected && session.Available("plants_sowable"),"Invalid enable must preserve current tools");
-            Check(LocalModel.BuildRequest(conversation,new ToolSession().Definitions(),"test",0).ToString().Length < body.ToString().Length/2,"Schema discovery failed to reduce request size");
+            Check(JToken.DeepEquals(LocalModel.BuildRequest(conversation,new ToolSession().Definitions(),"test",0)["tools"],LocalModel.BuildRequest(conversation,ToolCatalog.Definitions(),"test",0)["tools"]),"Request omits catalog tools");
+            StateTransferChecks.Run(Check);
             Check(ManagerPrompt.Text.Split(' ').Length<110,"Prompt grew beyond local-model budget");
             foreach(var t in ToolCatalog.Definitions()) Check(JObject.Parse(t.ParametersJson)["additionalProperties"].Value<bool>()==false,"Unbounded schema");
             bool rejected=false; try { new LocalModel("file:///tmp/model"); } catch(ArgumentException) { rejected=true; }
@@ -95,7 +127,11 @@ internal static class Program
             facts.Patients=1;facts.Bleeding=1;
             Check(ColonyObjectives.Evaluate(facts).First().Id=="health","Urgent care must precede buildings");
             facts.Hostiles=1;
-            Check(ColonyObjectives.Evaluate(facts).Single(o=>o.Id=="safety").State==ObjectiveState.Blocked,"Unsupported combat must request player action");
+            Check(ColonyObjectives.Evaluate(facts).Single(o=>o.Id=="safety").State!=ObjectiveState.Blocked,"Faction hostility must not create a combat blocker");
+            var withHostiles=ColonyObjectives.DecisionKey(ColonyObjectives.Evaluate(facts));
+            facts.Hostiles=0;
+            Check(ColonyObjectives.DecisionKey(ColonyObjectives.Evaluate(facts))==withHostiles,"Hostile presence must not change work priorities or block unrelated objectives");
+            facts.Hostiles=1;
             var key=ColonyObjectives.DecisionKey(ColonyObjectives.Evaluate(facts));facts.Nutrition+=0.01f;
             Check(ColonyObjectives.DecisionKey(ColonyObjectives.Evaluate(facts))==key,"Tiny food changes should not alter decision key");
             var summary=ActivitySummary.Tool(new RimBot.Tools.ToolCall { Name="map_inspect",Arguments=new JObject { ["x"]=1,["z"]=2 } },"[{walkable:true,roofed:false}]",true);
@@ -106,6 +142,13 @@ internal static class Program
             Check(ActivitySummary.Short(new string('x',300),180).Length<=180,"Notes exceed display budget");
             Check(LocalModel.BuildRequest(conversation,ToolCatalog.Definitions(),"test",0)["max_tokens"]==null,"Uncapped local request still sends a token cap");
             Check(LocalModel.BuildRequest(conversation,ToolCatalog.Definitions(),"test",768)["max_tokens"].Value<int>()==768,"Explicit fixture token budget lost");
+            Check(LocalModel.BuildRequest(conversation,ToolCatalog.Definitions(),"qwen/qwen3.5-9b",0,"none")["reasoning_effort"].Value<string>()=="none","Qwen execution must send API none");
+            foreach(string effort in new[]{"low","medium","high"})
+                Check(LocalModel.ReasoningSetting("qwen/qwen3.5-9b",effort)==effort,"API reasoning levels must pass through");
+            Check(LocalModel.BuildRequest(conversation,ToolCatalog.Definitions(),"qwen/qwen3.5-9b",0,"")["reasoning_effort"]==null,"Blank must preserve server reasoning default");
+            Check(LocalModel.ReasoningSetting("qwen/qwen3.5-9b","on")=="medium","On must map to accepted API value");
+            Check(LocalModel.ReasoningSetting("qwen/qwen3.5-9b","off")=="none","Off must map to accepted API value");
+            Check(LocalModel.ReasoningSetting("other-model","low")=="low","Other models must retain their reasoning contract");
             Check(LocalModel.BuildRequest(conversation,StrategicPlan.Tools(),"test",0,"medium")["reasoning_effort"].Value<string>()=="medium","Strategic reasoning request missing");
             Check(LocalModel.BuildRequest(conversation,ToolCatalog.Definitions(),"test",0,"none")["reasoning_effort"].Value<string>()=="none","Daily request did not disable reasoning");
             var items=new[] {
@@ -124,6 +167,9 @@ internal static class Program
                 ["dependsOn"]=new JArray(),["requiredTools"]=new JArray("architect_build"),["steps"]=new JArray("Build a shared room"),
                 ["completeWhen"]=new JArray(new JObject { ["metric"]="sheltered_slots",["op"]="atLeast",["value"]=3 }),["state"]="Complete" };
             var planJson=new JObject { ["season"]="Secure shelter and food",["year"]="Reliable production",["threeYears"]="A resilient settlement",["projects"]=new JArray(project) };
+            var invalidMetricPlan=(JObject)planJson.DeepClone(); invalidMetricPlan["projects"][0]["completeWhen"][0]["metric"]="forbidden";
+            bool metricRejected=false; try { StrategicPlan.Parse(invalidMetricPlan.ToString()); } catch(ArgumentException) { metricRejected=true; }
+            Check(metricRejected,"Unmeasured forbidden-zero goal accepted");
             var strategy=StrategicPlan.Parse(planJson.ToString());
             var measured=new Dictionary<string,double>{{"sheltered_slots",0},{"building:Bed",0},{"pending:Bed",1}};
             var permitted=new HashSet<string>{"architect_build"};
@@ -135,6 +181,14 @@ internal static class Program
             Check(strategy.State(strategy.Projects[0],measured,permitted)=="Ready","Lost shelter did not reopen project");
             Check(strategy.State(strategy.Projects[0],measured,new HashSet<string>()).StartsWith("Blocked:"),"Unavailable tools not surfaced");
             Check(StrategicPlan.Parse(strategy.Serialize()).Serialize()==strategy.Serialize(),"Strategy round trip lost state");
+            var equipPlan=(JObject)planJson.DeepClone();
+            equipPlan["projects"][0]["requiredTools"]=new JArray("pawns_equip");
+            var migratedEquip=StrategicPlan.Parse(equipPlan.ToString());
+            Check(migratedEquip.Projects[0]["requiredTools"][0].Value<string>()=="equipment_equip","Saved equip alias did not migrate");
+            Check(migratedEquip.State(migratedEquip.Projects[0],measured,new HashSet<string>{"equipment_equip"})=="Ready","Equip alias falsely blocks plan");
+            Check(ToolSession.Discover("pawns_equip")[0]["name"].Value<string>()=="equipment_equip","Equip alias not discoverable");
+            var equipSession=new ToolSession(); equipSession.Enable(new JArray("pawns_equip"));
+            Check(equipSession.Available("equipment_equip"),"Equip alias did not enable canonical schema");
             var dependant=(JObject)project.DeepClone(); dependant["id"]="next"; dependant["dependsOn"]=new JArray("shelter");
             dependant["completeWhen"]=new JArray(new JObject{["metric"]="building:Bed",["op"]="atLeast",["value"]=4});
             planJson["projects"]=new JArray(project.DeepClone(),dependant);
@@ -168,9 +222,57 @@ internal static class Program
 
             Check(StrategySchedule.Due(true,1,1,0,60000,"goal","goal",3,3,2,2,3,3,true)=="Seasonal projects completed","Finished projects did not trigger further development");
             Console.WriteLine("PASS: "+assertions+" protocol/budget checks. Prompt words: "+ManagerPrompt.Text.Split(' ').Length);
+            if(args.Length>0 && args[0]=="--selection-live") SelectionLive();
+            if(args.Length>0 && args[0]=="--selection-thinking") SelectionLive(true);
             if(args.Length>0 && args[0]=="--live") Live(args.Length>1?args[1]:"qwen/qwen3.5-9b");
             return 0;
         } catch(Exception ex) { Console.Error.WriteLine(ex); return 1; }
+    }
+    private static void SelectionLive(bool thinking=false)
+    {
+        var provider=new LocalModel("http://localhost:1234/v1",thinking?"medium":"none");
+        var session=new ToolSession();
+        var messages=new List<ChatMessage>{new ChatMessage("system",ManagerPrompt.Text),new ChatMessage("user",
+            "Continue task sleep: one Bed blueprint id=801 at (110,100), no work started. Colonist Ada id=157 is undrafted, idle, capable of construction. No need to place another bed. Inspect the selection, resolve any blocker, and get the work started.")};
+        bool allowed=false,issued=false,handleObserved=false; int tokens=0,invalidActions=0;
+        for(int round=0;round<8 && !issued;round++) {
+            var response=provider.SendToolRequest(messages,session.Definitions(),"qwen/qwen3.5-9b","",thinking?2048:512,ThinkingLevel.None).GetAwaiter().GetResult();
+            Check(response.Success && response.StopReason!=StopReason.MaxTokens,"Selection replay provider failure: "+response.ErrorMessage);
+            tokens+=response.TokensUsed;
+            messages.Add(new ChatMessage("assistant",response.AssistantParts));
+            Check(response.ToolCalls.Count>0,"Selection replay stopped without starting work");
+            var results=new List<ContentPart>();
+            foreach(var call in response.ToolCalls) {
+                string result;
+                if(call.Name=="selection_inspect") {
+                    Check(call.Arguments.Value<int>("targetId")==801,"Replay selected invented target");
+                    var selection=JObject.Parse(@"{target:{id:801,defName:'Bed',stage:'blueprint',x:110,z:100},nearbyColonists:{pawns:[{id:157,name:'Ada',idle:true,canTakeOrder:true,canFight:true}]},materials:[{defName:'WoodLog',needed:45}],nearbySupplies:[{id:990,defName:'WoodLog',count:75,x:111,z:100}]}");
+                    selection["materials"][0]["allowedOnMap"]=allowed?75:0; selection["materials"][0]["forbiddenOnMap"]=allowed?0:75;
+                    selection["nearbySupplies"][0]["forbidden"]=!allowed;
+                    if(call.Arguments["pawnId"]!=null) {
+                        Check(call.Arguments.Value<int>("pawnId")==157,"Replay selected invented pawn");
+                        if(allowed) handleObserved=true;
+                        selection["menu"]=new JObject{["orders"]=new JArray(new JObject{["label"]=allowed?"Prioritize delivering resources to bed":"Cannot construct bed: no usable materials",["enabled"]=allowed,["actionId"]=allowed?"action_fixture_bed":null})};
+                    }
+                    if(!allowed && selection["menu"]!=null) ((JObject)selection["menu"]["orders"][0]).Remove("actionId");
+                    result=selection.ToString(Formatting.None);
+                } else if(call.Name=="orders_allow_all") { allowed=true; result="Allowed 1 visible stack. WoodLog: 75 allowed, 0 forbidden."; }
+                else if(call.Name=="pawns_order") {
+                    if(!allowed || !handleObserved || call.Arguments.Value<string>("actionId")!="action_fixture_bed") {
+                        invalidActions++; result="Action handle expired or unknown. Inspect the selection again with targetId and pawnId to get current actionIds.";
+                    } else { issued=true; result="Native order accepted; pawn job is delivering resources. Completion not yet observed."; }
+                } else if(call.Name=="tools_enable") result=session.Enable(call.Arguments["names"] as JArray);
+                else if(call.Name=="tools_search") result=ToolSession.Discover(call.Arguments.Value<string>("search")).ToString(Formatting.None);
+                else throw new Exception("Selection replay unexpected tool: "+call.Name+" "+call.Arguments.ToString(Formatting.None));
+                if(call.Name=="orders_allow_all" || call.Name=="pawns_order") session.ClearActions();
+                if(call.Name=="selection_inspect") session.ObserveMenu(result);
+                Console.WriteLine("Selection replay: "+call.Name+" "+call.Arguments.ToString(Formatting.None));
+                results.Add(ContentPart.FromToolResult(call.Id,call.Name,!(call.Name=="pawns_order" && !issued),result));
+            }
+            messages.Add(new ChatMessage("user",results));
+        }
+        Check(issued,"Selection replay did not start work within eight requests");
+        Console.WriteLine("PASS: local Qwen selected the bed, allowed supplies, and used returned action handle; "+tokens+" tokens, "+invalidActions+" rejected invented handles. Simulated game results, no actual world actions.");
     }
     private static void Live(string model)
     {

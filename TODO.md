@@ -44,3 +44,15 @@
 ## Native player API revision — September 5
 See docs/PLAYER_API_AUDIT.md for the per-tool audit, native execution paths and outstanding coverage gaps. Removed hardcoded shelter/layout/material policy. Added native placement and explicit broken-spot repair, dynamic materials, current building/room observations, grouped/renamed tools, native zone/Allow/Hunt/Equip/Roof commands, configurable stockpile/shelf filters, daily planning, player steering and queued notification updates. Known tool names migrate in saved strategy metadata; removed composite strategy requirements need regeneration.
 Validation: production build and GameSmoke build compile, 122 regression checks pass. New game assertions compile but have not been executed in RimWorld. No live model request made during this revision. Lower regression count reflects removal of obsolete room-template tests. Installation requested by user; production package only, never harness. No commit or push requested.
+
+## Remove blanket hostility blocking — September 5
+- Removed the objective's hostile-count => Blocked transition and its instruction to avoid construction. Removed aggregate hostile/medical counts as gates on strategic planning.
+- Safety indicator now describes equipment; faction hostility is qualified as relationship data, not active attack evidence. Hostile observations include visible pawn positions, current jobs and visible job targets; no proximity threshold or replacement threat policy was introduced. The strategic hostiles metric remains for saved-plan compatibility, now explicitly described as visible standing faction-hostile pawns.
+- No new draft/attack/rescue commands in this change. Missing controls apply to those specific actions, not all colony work.
+- Production build: zero warnings/errors, 123 regression checks pass, 104-word daily prompt. New assertions verify faction hostility does not block objectives or change their priorities. New runtime pawn-target observations still need an in-game check. Package built; not installed or committed.
+
+## Allow All and plan windows — September 5
+- orders_allow_all invokes the native Designator_Unforbid right-click Unforbid All option. No guessed IDs, custom radius or selective item policy. IDs remain available for selective orders.
+- Log evidence showed real IDs such as 3844 returned by items_list followed by invented small IDs. Added bounded observed-identifier memory to context compaction, IDs in the forbidden item sample, and explicit invalid-ID recovery guidance. This improves context continuity; it does not claim to eliminate model errors.
+- Today's plan has a separate draggable window reachable from both overview and strategy, including an explicit empty state. Main, strategy, daily-plan and activity windows permit camera motion and do not absorb input outside their bounds.
+- Production and GameSmoke builds compile without warnings/errors; 129 regression checks pass. Native Allow All runtime assertions compile but have not been executed; map zoom/window layout also await player validation. This package includes removal of hostility-based policy described above.

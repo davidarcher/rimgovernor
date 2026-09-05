@@ -84,6 +84,7 @@
   </ItemGroup>
   <ItemGroup Condition="'$(GameSmoke)' == 'true'">
     <Compile Include="..\tests\GameSmoke.cs" />
+    <Compile Include="..\tests\GameBenchmark.cs" />
     <Reference Include="UnityEngine.ScreenCaptureModule">
       <HintPath>$(RimWorldManagedPath)\UnityEngine.ScreenCaptureModule.dll</HintPath>
       <Private>False</Private>

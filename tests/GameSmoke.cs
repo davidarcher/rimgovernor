@@ -32,6 +32,40 @@ namespace RimBot.Tests
                         var details=PawnQueries.Inspect(map,pawnId,section);
                         if(details["pawn"]["id"].Value<int>()!=pawnId) throw new Exception("Wrong pawn details");
                     }
+                    var orderedPawn=map.mapPawns.FreeColonistsSpawned.First(p=>p.thingIDNumber==pawnId);
+                    var currentOrders=PawnDirectOrders.Inspect(map,new JObject{["pawnId"]=pawnId});
+                    if(currentOrders["error"].Value<string>()!="target_required") throw new Exception("Targetless pawn order discovery failed");
+                    bool wasDrafted=orderedPawn.Drafted;
+                    var toggle=new JObject{["pawnId"]=pawnId,["enabled"]=true};
+                    PawnDirectOrders.Toggle(map,toggle,false);
+                    PawnDirectOrders.Toggle(map,toggle,false);
+                    if(!orderedPawn.Drafted) throw new Exception("Native draft toggle was not idempotent");
+                    var destination=CellRect.CenteredOn(orderedPawn.Position,3).Cells.First(c=>c.InBounds(map) && !c.Fogged(map) && c.Standable(map));
+                    var orderArgs=new JObject{["pawnId"]=pawnId,["x"]=destination.x,["z"]=destination.z};
+                    var priorProvider=FloatMenuMakerMap.currentProvider;
+                    var choices=PawnDirectOrders.Inspect(map,orderArgs);
+                    if(FloatMenuMakerMap.currentProvider!=priorProvider) throw new Exception("Native provider context leaked");
+                    var move=choices["orders"].FirstOrDefault(o=>o["enabled"].Value<bool>() && o["label"].Value<string>()=="GoHere".Translate().ToString());
+                    if(move==null) throw new Exception("No native move choice for drafted pawn");
+                    orderArgs["actionId"]=move["actionId"].DeepClone();
+                    PawnDirectOrders.Execute(map,orderArgs);
+                    var previousJob=orderedPawn.CurJob;
+                    orderArgs["actionId"]="not a native handle";
+                    bool rejected=false; try { PawnDirectOrders.Execute(map,orderArgs); } catch(ArgumentException) { rejected=true; }
+                    if(!rejected || orderedPawn.CurJob!=previousJob || FloatMenuMakerMap.currentProvider!=priorProvider) throw new Exception("Invalid order changed pawn/context");
+                    toggle["enabled"]=false; PawnDirectOrders.Toggle(map,toggle,false);
+                    if(PawnDirectOrders.Inspect(map,orderArgs)["orders"].Any(o=>o["label"].Value<string>()=="GoHere".Translate().ToString())) throw new Exception("Undrafted pawn offered drafted move");
+                    toggle["enabled"]=wasDrafted; PawnDirectOrders.Toggle(map,toggle,false);
+                    Log.Message("[RimBot Smoke] PASS: native draft, move discovery/execution, stale choice rejection and provider restoration.");
+                    var menuTarget=map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver).First(t=>!t.Position.Fogged(map));
+                    var menuQuery=new JObject{["pawnId"]=pawnId,["targetId"]=menuTarget.thingIDNumber};
+                    var actualMenu=PawnDirectOrders.Inspect(map,menuQuery);
+                    FloatMenuContext expectedContext;
+                    var expectedMenu=FloatMenuMakerMap.GetOptions(new System.Collections.Generic.List<Pawn>{orderedPawn},menuTarget.Position.ToVector3Shifted(),out expectedContext);
+                    var actualRows=actualMenu["orders"].Select(o=>o["label"].Value<string>()+"|"+o["enabled"].Value<bool>()).OrderBy(x=>x).ToArray();
+                    var expectedRows=expectedMenu.Select(o=>o.Label+"|"+(o.action!=null && !o.Disabled)).OrderBy(x=>x).ToArray();
+                    if(!actualRows.SequenceEqual(expectedRows)) throw new Exception("Manager menu differs from native right-click menu");
+                    Log.Message("[RimBot Smoke] PASS: full native menu labels and disabled states match.");
                     var animals=PawnQueries.Find(map,new JObject{["group"]="animals"});
                     foreach(var animal in animals["pawns"]) PawnQueries.Inspect(map,animal["id"].Value<int>(),"animal");
                     Log.Message("[RimBot Smoke] PASS: pawn pagination and pawn/animal detail sections.");
@@ -49,6 +83,12 @@ namespace RimBot.Tests
                     var moved=(JObject)summary.DeepClone();
                     moved["colonists"][0]["x"]=0;
                     if(ColonyTools.Fingerprint(summary)!=ColonyTools.Fingerprint(moved)) throw new Exception("Movement triggers reviews");
+                    var allowCommand=new Designator_Unforbid();
+                    var forbiddenBefore=map.listerThings.AllThings.Where(t=>!t.Fogged() && allowCommand.CanDesignateThing(t).Accepted).ToList();
+                    ColonyTools.Execute(map,new ToolCall{Name="orders_allow_all",Arguments=new JObject()},p=>{});
+                    if(forbiddenBefore.Any(t=>allowCommand.CanDesignateThing(t).Accepted)) throw new Exception("Native Allow All left eligible items forbidden");
+                    ColonyTools.Execute(map,new ToolCall{Name="orders_allow_all",Arguments=new JObject()},p=>{});
+                    Log.Message("[RimBot Smoke] PASS: native Allow All, repeated-call no-op.");
                     var before=map.zoneManager.AllZones.OfType<Zone_Stockpile>().Count();
                     var spot=CellRect.CenteredOn(map.GetComponent<ColonyLocation>().Center,12).Cells.First(c=> c.x+4<map.Size.x && c.z+4<map.Size.z &&
                         CellRect.FromLimits(c.x,c.z,c.x+3,c.z+3).Cells.All(a=>a.Walkable(map) && a.GetEdifice(map)==null && map.zoneManager.ZoneAt(a)==null));

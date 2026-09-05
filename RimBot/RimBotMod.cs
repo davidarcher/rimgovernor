@@ -29,8 +29,8 @@ namespace RimBot
             if(Settings.managerProvider==LLMProviderType.Local) {
                 l.Label("LM Studio server address (include /v1):"); Settings.localUrl=l.TextEntry(Settings.localUrl);
                 l.Label("Server API token (optional; leave blank unless authentication is enabled):"); Settings.localApiKey=l.TextEntry(Settings.localApiKey);
-                l.Label("Daily reasoning effort (none; blank uses server default):"); Settings.localReasoningEffort=l.TextEntry(Settings.localReasoningEffort);
-                l.Label("Strategic reasoning effort (medium; requires model/server support):"); Settings.strategicReasoningEffort=l.TextEntry(Settings.strategicReasoningEffort);
+                l.Label("Execution reasoning (none = off; blank = server default):"); Settings.localReasoningEffort=l.TextEntry(Settings.localReasoningEffort);
+                l.Label("Planning reasoning (medium = on for Qwen; on/off aliases accepted):"); Settings.strategicReasoningEffort=l.TextEntry(Settings.strategicReasoningEffort);
                 l.Label("Local output length uses the server/context allowance; no mod token cap.");
                 l.Label("Start the server in LM Studio's Developer tab. Use a model that supports tools.");
             } else {

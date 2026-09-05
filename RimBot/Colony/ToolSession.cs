@@ -5,26 +5,44 @@ using Newtonsoft.Json.Linq;
 using RimBot.Tools;
 namespace RimBot.Colony
 {
-    // Keep the full API discoverable without attaching every schema to every request.
+    // Stable full catalog; native menu handles are data, never a rotating tool window.
     public sealed class ToolSession
     {
-        private readonly List<string> enabled=new List<string>();
-        private static readonly string[] Core={"tools_search","tools_enable","manager_save_plan","manager_report_blocker"};
-        public List<ToolDefinition> Definitions() => ToolCatalog.Definitions().Where(t=>Core.Contains(t.Name)||enabled.Contains(t.Name)).ToList();
+        private readonly List<string> actionIds=new List<string>();
+        public void ClearActions()=>actionIds.Clear();
+        public void ObserveMenu(string result)
+        {
+            actionIds.Clear();
+            JToken parsed; try { parsed=JToken.Parse(result); } catch { return; }
+            if(!(parsed is JContainer container)) return;
+            actionIds.AddRange(container.Descendants().OfType<JObject>().Where(o=>o["actionId"]?.Type==JTokenType.String && o.Value<bool?>("enabled")==true).Select(o=>o.Value<string>("actionId")).Distinct());
+        }
+        public List<ToolDefinition> Definitions()
+        {
+            var definitions=ToolCatalog.Definitions();
+            var action=definitions.FirstOrDefault(t=>t.Name=="pawns_order");
+            if(action!=null && actionIds.Count>0) { var schema=JObject.Parse(action.ParametersJson); schema["properties"]["actionId"]["enum"]=new JArray(actionIds); action.ParametersJson=schema.ToString(Newtonsoft.Json.Formatting.None); }
+            return definitions;
+        }
         public static JArray Discover(string search)
         {
+            var exact=ToolCatalog.Definitions().FirstOrDefault(t=>t.Name.Equals(ToolNames.Canonical(search?.Trim()),StringComparison.OrdinalIgnoreCase));
+            if(exact!=null) return new JArray(new JObject{["name"]=exact.Name,["description"]=exact.Description});
             var words=(search??"").Split(new[]{' ','_'},StringSplitOptions.RemoveEmptyEntries);
-            return new JArray(ToolCatalog.Definitions().Where(t=>!Core.Contains(t.Name) && (words.Length==0 || words.Any(w=>(t.Name+" "+t.Description).IndexOf(w,StringComparison.OrdinalIgnoreCase)>=0)))
-                .Select(t=>new JObject{["name"]=t.Name,["description"]=ActivitySummary.Short(t.Description,140)}));
+            var candidates=ToolCatalog.Definitions();
+            if(words.Length==0) return new JArray(candidates.Select(t=>t.Name));
+            return new JArray(candidates.Select(t=>new { Tool=t,Score=words.Sum(w=>
+                t.Name.IndexOf(w,StringComparison.OrdinalIgnoreCase)>=0?4:
+                t.Description.IndexOf(w,StringComparison.OrdinalIgnoreCase)>=0?1:0) })
+                .Where(t=>t.Score>0).OrderByDescending(t=>t.Score).ThenBy(t=>t.Tool.Name)
+                .Select(t=>new JObject{["name"]=t.Tool.Name,["description"]=ActivitySummary.Short(t.Tool.Description,100)}));
         }
+        // Compatibility for old conversation/test clients; never changes the schema set.
         public string Enable(JArray names)
         {
-            if(names==null || names.Count<1 || names.Count>6 || names.Any(n=>n.Type!=JTokenType.String)) throw new ArgumentException("Choose 1–6 tool names from tools_search.");
-            var available=ToolCatalog.Definitions().Select(t=>t.Name).ToList();
-            if(names.Values<string>().Any(n=>!available.Contains(n))) throw new ArgumentException("Unknown tool; discover available names first.");
-            foreach(string name in names.Values<string>()) { if(Core.Contains(name)) continue; enabled.Remove(name); enabled.Add(name); }
-            while(enabled.Count>6) enabled.RemoveAt(0);
-            return "Available next: "+string.Join(", ",enabled)+". Older tools can be enabled again when needed.";
+            if(names==null || names.Any(n=>n.Type!=JTokenType.String || !Available(ToolNames.Canonical(n.Value<string>()))))
+                throw new ArgumentException("Unknown tool. Use an available tool name.");
+            return "All tools are already available; no enable step is needed.";
         }
         public bool Available(string name)=>Definitions().Any(t=>t.Name==name);
     }

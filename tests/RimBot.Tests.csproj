@@ -17,6 +17,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Program.cs" />
+    <Compile Include="DecisionChecks.cs" />
+    <Compile Include="..\RimBot\Colony\DecisionMemory.cs" />
+    <Compile Include="StateTransferChecks.cs" />
+    <Compile Include="..\RimBot\Colony\TaskLedger.cs" />
+    <Compile Include="..\RimBot\Colony\StateTransfer.cs" />
+    <Compile Include="..\RimBot\Colony\OrderMemory.cs" />
+    <Compile Include="..\RimBot\Colony\ObservedIdentifiers.cs" />
     <Compile Include="..\RimBot\Colony\ToolNames.cs" />
     <Compile Include="..\RimBot\Colony\NotificationFeed.cs" />
     <Compile Include="..\RimBot\Colony\DailyPlanning.cs" />

@@ -50,11 +50,11 @@ namespace RimBot.Colony
             result.Add(Objective("health", "Care for colonists", healthState, healthRisk ? 0 : 5,
                 f.Patients + " needing tending; " + f.Bleeding + " bleeding; " + f.Downed + " downed; " + f.TemperatureInjuries + " with heat/cold injury; " + f.Doctors + " enabled doctors.",
                 !healthRisk ? "No detected urgent health conditions." : f.ActiveTending > 0 ? "Tending is underway; monitor patients." :
-                "Player may need to rescue/tend or correct temperatures. Manager can inspect and adjust work priorities, but cannot order emergency rescue or treatment."));
+                "Inspect affected pawns and available native rescue orders. Tending jobs still follow normal medical work; direct treatment and temperature controls may require other capabilities."));
 
-            result.Add(Objective("safety", "Respond to threats", f.Hostiles > 0 ? ObjectiveState.Blocked : f.Unarmed>0 ? ObjectiveState.Needed : ObjectiveState.Satisfied,
-                f.Hostiles > 0 ? 0 : f.Unarmed>0 ? 1 : 5, f.Hostiles + " active hostile pawns; " + f.Unarmed + " capable colonists without weapons.",
-                f.Hostiles > 0 ? "Player action required: combat controls are not implemented. Avoid new construction during danger." : f.Unarmed>0 ? "Find and allow nearby weapons, then equip capable colonists. This checks immediate threats/equipment, not overall defensive readiness." : "No active hostile pawns detected; capable colonists are armed. This is not a complete defense/hazard assessment."));
+            result.Add(Objective("safety", "Check equipment", f.Unarmed>0 ? ObjectiveState.Needed : ObjectiveState.Satisfied,
+                f.Unarmed>0 ? 1 : 5, f.Unarmed + " capable colonists without weapons; " + f.Hostiles + " visible standing pawns hostile to the player faction.",
+                "Faction hostility does not establish an active attack. Inspect pawn locations, current jobs, targets and notifications to assess the situation. Missing combat controls limit those specific orders, not unrelated colony work."));
 
             bool enoughFood = f.DailyNutrition <= 0 || f.FoodDays >= FoodTargetDays;
             var foodState = enoughFood ? ObjectiveState.Satisfied : f.ActiveCooking > 0 ? ObjectiveState.InProgress :

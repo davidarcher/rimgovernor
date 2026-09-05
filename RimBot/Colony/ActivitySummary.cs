@@ -14,6 +14,15 @@ namespace RimBot.Colony
             {
                 switch (call.Name)
                 {
+                    case "pawns_set_drafted":
+                        var draft=JObject.Parse(result);
+                        return draft["pawnName"] + (draft["drafted"].Value<bool>() ? " drafted." : " returned to normal work.");
+                    case "pawns_set_fire_at_will":
+                        var fire=JObject.Parse(result);
+                        return fire["pawnName"] + (fire["fireAtWill"].Value<bool>() ? ": fire at will." : ": hold fire.");
+                    case "pawns_order":
+                        var direct=JObject.Parse(result);
+                        return Short(direct["pawnName"] + ": ordered " + direct["selectedOrder"] + ".",180);
                     case "items_list":
                         var found=JObject.Parse(result);
                         return "Found " + found["totalStacks"] + " matching item stacks; showing " + ((JArray)found["items"]).Count + " nearest the selected point.";

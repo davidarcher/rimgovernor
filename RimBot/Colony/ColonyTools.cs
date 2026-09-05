@@ -26,7 +26,7 @@ namespace RimBot.Colony
 
         public const int MaxActions = 4;
 
-        public static bool IsAction(string name) => ColonyDevelopment.IsAction(name) || name=="storage_configure" || name=="zones_remove_cells" || name == "orders_allow" || name == "areas_build_roof" || name == "orders_allow_area" || name == "zones_stockpile_designate" || name == "architect_build" || name == "work_set_priority";
+        public static bool IsAction(string name) => ColonyDevelopment.IsAction(name) || name=="pawns_set_drafted" || name=="pawns_set_fire_at_will" || name=="pawns_order" || name=="storage_configure" || name=="zones_remove_cells" || name == "orders_allow_all" || name == "orders_allow" || name == "areas_build_roof" || name == "orders_allow_area" || name == "zones_stockpile_designate" || name == "architect_build" || name == "work_set_priority";
 
         private static int Number(JObject args, string key)
 
@@ -74,6 +74,11 @@ namespace RimBot.Colony
 
             {
 
+                case "pawns_set_drafted": return PawnDirectOrders.Toggle(map,a,false);
+                case "pawns_set_fire_at_will": return PawnDirectOrders.Toggle(map,a,true);
+                case "selection_inspect": return SelectionInspection.Read(map,a).ToString(Formatting.None);
+                case "pawns_orders": return PawnDirectOrders.Inspect(map,a).ToString(Formatting.None);
+                case "pawns_order": return PawnDirectOrders.Execute(map,a);
                 case "storage_inspect": return StorageTools.Inspect(map,a).ToString(Formatting.None);
                 case "storage_filter_options": return StorageTools.Options(a).ToString(Formatting.None);
                 case "storage_configure": return StorageTools.Configure(map,a);
@@ -99,7 +104,7 @@ namespace RimBot.Colony
 
                     return new JArray(Area(map,a).Select(c => new JObject { ["x"]=c.x,["z"]=c.z,
 
-                        ["fertility"]=c.GetTerrain(map).fertility,["terrain"]=c.GetTerrain(map).defName,["walkable"]=c.Walkable(map),["roofed"]=c.Roofed(map),
+                        ["fertility"]=c.GetFertility(map),["terrain"]=c.GetTerrain(map).defName,["walkable"]=c.Walkable(map),["roofed"]=c.Roofed(map),
 
                         ["zone"]=map.zoneManager.ZoneAt(c)?.label ?? "",
 
@@ -123,6 +128,7 @@ namespace RimBot.Colony
 
                         a["offset"]==null?0:Number(a,"offset"),a["limit"]==null?20:Number(a,"limit")).ToString(Formatting.None);
 
+                case "orders_allow_all": return PlayerOrders.AllowAll(map);
                 case "orders_allow":
 
                     var ids=a["ids"] as JArray;
@@ -133,7 +139,7 @@ namespace RimBot.Colony
 
                     var found=map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver).Where(t=>requested.Contains(t.thingIDNumber) && t.def.category==ThingCategory.Item && !t.Position.Fogged(map)).ToList();
 
-                    if(found.Count!=requested.Count) throw new ArgumentException("Some selected items moved off-map or no longer exist/are visible. Query again; nothing changed.");
+                    if(found.Count!=requested.Count) throw new ArgumentException("Requested item IDs are not present among visible loose items on this map. Copy exact items[].id values from items_list; IDs are not row numbers and cannot be guessed. To allow every visible item, use orders_allow_all with no arguments. Nothing changed.");
 
                     int changed=found.Count(t=>t.IsForbidden(Faction.OfPlayer));
 
@@ -177,15 +183,16 @@ case "areas_build_roof":
 
                         throw new ArgumentException("Roofs are area designations. Use areas_build_roof, not a building or conduit.");
 
-                    return new JArray(DefDatabase<ThingDef>.AllDefs.Where(d=>d.designationCategory!=null && d.category==ThingCategory.Building &&
-
-                        BuildCopyCommandUtility.FindAllowedDesignator(d)!=null &&
-
-                        (d.defName.IndexOf(query,StringComparison.OrdinalIgnoreCase)>=0 || d.label.IndexOf(query,StringComparison.OrdinalIgnoreCase)>=0))
-
-                        .OrderBy(d=>d.defName).Take(15).Select(d=>new JObject { ["defName"]=d.defName,["label"]=d.label,
-
-                            ["existing"]=BuildingQueries.Counts(map,d.defName),["sizeX"]=d.size.x,["sizeZ"]=d.size.z,["requiresMaterial"]=d.MadeFromStuff,["materials"]=Materials(map,d) })).ToString(Formatting.None);
+                    var available=DefDatabase<ThingDef>.AllDefs.Where(d=>d.designationCategory!=null && d.category==ThingCategory.Building && BuildCopyCommandUtility.FindAllowedDesignator(d)!=null).ToList();
+                    var exact=available.Where(d=>d.defName.Equals(query,StringComparison.OrdinalIgnoreCase) || d.label.Equals(query,StringComparison.OrdinalIgnoreCase)).ToList();
+                    var matches=exact.Count>0?exact:available.Where(d=>d.defName.IndexOf(query,StringComparison.OrdinalIgnoreCase)>=0 || d.label.IndexOf(query,StringComparison.OrdinalIgnoreCase)>=0);
+                    return new JArray(matches.OrderBy(d=>d.defName).Take(8).Select(d=>new JObject{
+                        ["defName"]=d.defName,["label"]=d.label,["existing"]=BuildingQueries.Counts(map,d.defName),
+                        ["sizeX"]=d.size.x,["sizeZ"]=d.size.z,["requiresMaterial"]=d.MadeFromStuff,
+                        ["materials"]=Materials(map,d,3),["moreMaterials"]=d.MadeFromStuff?"architect_materials":null,
+                        ["placeOrder"]=new JObject{["tool"]="architect_build",["defName"]=d.defName,["needs"]=new JArray("x","z","rotation",d.MadeFromStuff?"material":"")},
+                        ["note"]="This is a definition, not a placed object. architect_build creates a blueprint; pawn right-click orders act on existing targets."
+                    })).ToString(Formatting.None);
 
                 case "architect_build":
 
@@ -339,13 +346,14 @@ case "areas_build_roof":
 
                 ["colonists"]=new JArray(pawns.Take(30).Select(p=>new JObject { ["id"]=p.thingIDNumber,["name"]=p.LabelShort,
 
-                    ["x"]=p.Position.x,["z"]=p.Position.z,["downed"]=p.Downed,["drafted"]=p.Drafted,["weapon"]=p.equipment?.Primary?.def.defName??"none",["canFight"]=!p.WorkTagIsDisabled(WorkTags.Violent) })),
+                    ["x"]=p.Position.x,["z"]=p.Position.z,["downed"]=p.Downed,["drafted"]=p.Drafted,["weapon"]=p.equipment?.Primary?.def.defName??"none",["canFight"]=!p.WorkTagIsDisabled(WorkTags.Violent),["idle"]=p.mindState.IsIdle,["job"]=p.CurJob?.def.defName })),
 
-                ["hostiles"]=map.mapPawns.AllPawnsSpawned.Count(p=>p.HostileTo(Faction.OfPlayer)),
+                ["visibleHostileFactionPawns"]=PawnQueries.Find(map,new JObject{["group"]="hostiles",["x"]=map.GetComponent<ColonyLocation>().Center.x,["z"]=map.GetComponent<ColonyLocation>().Center.z,["limit"]=8}),
+                ["hostilityNote"]="Faction relationship only. Presence on the map does not establish an attack or prevent unrelated orders. Jobs and targets describe current activity, not a full threat assessment.",
 
                 ["looseItemsTop20"]=new JArray(stocks.Select(s=>new JObject { ["defName"]=s.name,["count"]=s.count,["forbidden"]=s.forbidden,["allowed"]=s.count-s.forbidden })),
 
-                ["forbiddenItemsSample"]=new JArray(items.Where(t=>t.def.category==ThingCategory.Item && !t.Position.Fogged(map) && t.IsForbidden(Faction.OfPlayer)).Take(12).Select(t=>new JObject { ["defName"]=t.def.defName,["count"]=t.stackCount,["x"]=t.Position.x,["z"]=t.Position.z })),
+                ["forbiddenItemsSample"]=new JArray(items.Where(t=>t.def.category==ThingCategory.Item && !t.Position.Fogged(map) && t.IsForbidden(Faction.OfPlayer)).Take(12).Select(t=>new JObject { ["id"]=t.thingIDNumber,["defName"]=t.def.defName,["count"]=t.stackCount,["x"]=t.Position.x,["z"]=t.Position.z })),
 
                 ["stockpileCount"]=map.zoneManager.AllZones.OfType<Zone_Stockpile>().Count(),
 
@@ -358,6 +366,7 @@ case "areas_build_roof":
                 ["frames"]=map.listerThings.ThingsInGroup(ThingRequestGroup.BuildingFrame).Count,
 
                 ["buildings"]=BuildingQueries.Counts(map),
+                ["pendingWork"]=ColonyObserver.Orders(map),
                 ["growingZones"]=new JArray(map.zoneManager.AllZones.OfType<Zone_Growing>().Select(g=>new JObject { ["id"]=g.ID,["crop"]=g.GetPlantDefToGrow().defName,["cells"]=g.Cells.Count })),
                 ["notifications"]=ColonyNotifications.Read(),
                 ["activeResearch"]=Find.ResearchManager.GetProject()?.defName ?? "none",
@@ -374,6 +383,7 @@ case "areas_build_roof":
 
             var copy=(JObject)snapshot.DeepClone();
 
+            copy.Remove("workFocus"); copy.Remove("repeatedObservations");
             copy.Remove("objectives"); // Objective state transitions are fingerprinted separately.
 
             foreach(var pawn in (JArray)copy["colonists"]) { ((JObject)pawn).Remove("x"); ((JObject)pawn).Remove("z"); }

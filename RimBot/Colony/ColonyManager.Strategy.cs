@@ -21,6 +21,7 @@ namespace RimBot.Colony
         private readonly Dictionary<string,double> strategicMetrics=new Dictionary<string,double>();
         private readonly HashSet<string> availableTools=new HashSet<string>(ToolCatalog.Definitions().Select(t=>t.Name));
         private string strategicCalendar="";
+        private bool discardLoadedBrief;
         private void SaveStrategyState()
         {
             if(Scribe.mode==LoadSaveMode.Saving) strategyJson=Strategy?.Serialize()??"";
@@ -35,7 +36,7 @@ namespace RimBot.Colony
             Scribe_Values.Look(ref strategyFood,"strategicFood",0f);
             if(Scribe.mode==LoadSaveMode.PostLoadInit && !string.IsNullOrEmpty(strategyJson)) {
                 try { Strategy=StrategicPlan.Parse(strategyJson); StrategyStatus="Saved strategy loaded; progress is checked against the colony."; }
-                catch(Exception ex) { Strategy=null; Log.Warning("[RimBot Manager] Saved strategy could not be read: "+ex.Message); }
+                catch(Exception ex) { Strategy=null; discardLoadedBrief=true; Log.Warning("[RimBot Manager] Saved strategy rejected; replanning required: "+ex.Message); }
             }
         }
         private void ObserveStrategy(Map map,ColonyFacts facts)
@@ -78,7 +79,7 @@ namespace RimBot.Colony
         private string TacticalStrategy()
         {
             if(Strategy==null) return "No strategic plan yet. Handle immediate measured needs; report unsupported actions.";
-            return "Today: "+DayBrief+"\nSeason direction: "+Strategy.Season+"\nReady projects: "+Strategy.Tactical(strategicMetrics,availableTools).ToString(Formatting.None)+
+            return "Today: "+DayBrief+"\nSeason direction: "+Strategy.Season+"\nReady projects: "+StateTransfer.Projects(Strategy.Tactical(strategicMetrics,availableTools)).ToString(Formatting.None)+
                 "\nOther projects remain saved. Do not recreate completed work. Urgent needs take precedence; only game measurements establish completion.";
         }
         public void RegenerateStrategy()
@@ -97,8 +98,7 @@ namespace RimBot.Colony
                 (int)strategicMetrics["colonists"],strategyFood,strategicMetrics["food_days"],strategyShelter,(int)strategicMetrics["sheltered_slots"],Strategy!=null && Strategy.Projects.Count>0 && Strategy.Projects.All(p=>ProjectState(p)=="Complete"));
             if(reason==null && strategyTick>=0 && tick-strategyTick>=420000) reason="Weekly review";
             if(reason==null) return false;
-            // Immediate emergencies use the tactical path first; strategic work waits until those resolve.
-            if(!force && (strategicMetrics["hostiles"]>0 || strategicMetrics["medical_emergencies"]>0)) return false;
+            // Aggregate pawn counts are observations, not gates on planning or unrelated work.
             var settings=RimBotMod.Settings;
             bool local=settings.managerProvider==LLMProviderType.Local;
             if(string.IsNullOrWhiteSpace(settings.managerModel) || (!local && string.IsNullOrWhiteSpace(settings.GetApiKeyForProvider(settings.managerProvider)))) return false;
@@ -109,6 +109,7 @@ namespace RimBot.Colony
             if(!Budget.TryRequest(Clock.Elapsed.TotalSeconds,local?settings.localRequestsPerHour:settings.requestsPerHour)) return false;
             Budget.StartReview(Clock.Elapsed.TotalSeconds);
             mapId=map.uniqueID;
+            BeginProgress("Planning the season"); ReviewRequests=1;
             Busy=true;
             int token=++generation;
             string signature=settings.ConnectionSignature,goal=Goal,model=settings.managerModel,key=settings.GetApiKeyForProvider(settings.managerProvider);
@@ -118,12 +119,13 @@ namespace RimBot.Colony
             var messages=new List<ChatMessage> {
                 new ChatMessage("system","You are the colony's strategic planner. Reason about priorities, constraints, climate, resources and dependencies, then call save_strategy once. Do not issue world orders. " +
                     "Write concise colony notes: short verb-led project titles, one sentence per horizon, and brief concrete steps. No preamble, motivational language, model/tool jargon or repeated explanations. Example title: Plant the first crop. Example season: Grow rice and finish a wood-fired kitchen before winter. Plan concrete achievable projects for the next 15 days, directional milestones for the next year, and a flexible three-year ambition. Project goals are open-ended, not restricted to the five survival indicators. " +
-                    "Keep useful existing projects/IDs; do not duplicate facilities. Basic shelter and two days of food are a survival floor, not the end of colony development. Under the default direction plan sustainable food, cooking/butchering, useful research and infrastructure once urgent needs are covered. Respect explicit player limits or different priorities. Provide observable completion conditions. Do not equate a stove with a functioning kitchen or a bed with a clinic. Name unsupported capabilities and unverifiable criteria honestly. " +
-                    "Only these metrics are currently measured: armed_colonists, capable_fighters, growing_cells, configured_food_bills, research_active (1 selected/0 none), colonists, sheltered_slots, food_days, hostiles, patients, medical_emergencies, stockpiles, food_bills (currently active bills), pending_orders, building:ExactDefName (built player structures), research:ExactDefName (1 finished/0 unfinished). Unknown metrics block verification. " +
+                    "Keep useful existing projects/IDs; do not duplicate facilities. Basic shelter and two days of food are a survival floor, not the end of colony development. Under the default direction plan sustainable food, cooking/butchering, useful research and infrastructure once urgent needs are covered. Respect explicit player limits or different priorities. Forbidden items and hostile presence are not cleanup backlogs. Allow selected needed supplies only after assessing their locations; avoid creating jobs in hostile areas. Do not plan map-wide unforbidding or extermination by default. Provide observable completion conditions. Do not equate a stove with a functioning kitchen or a bed with a clinic. Name unsupported capabilities and unverifiable criteria honestly. " +
+                    "Only these metrics are currently measured: armed_colonists, capable_fighters, growing_cells, configured_food_bills, research_active (1 selected/0 none), colonists, sheltered_slots, food_days, hostiles (visible standing pawns hostile to the player faction, NOT a count of active attackers), patients, medical_emergencies, stockpiles, food_bills (currently active bills), pending_orders, building:ExactDefName (built player structures), research:ExactDefName (1 finished/0 unfinished). Unknown metrics block verification. " +
                     "Tools available to daily execution: "+string.Join("; ",ToolCatalog.Definitions().Select(t=>t.Name+": "+ActivitySummary.Short(t.Description,100)))),
-                new ChatMessage("user","Trigger: "+reason+"\nPlayer direction: "+goal+"\nRecent player messages (newest wins): "+PlayerNotes+"\nCalendar/climate: "+strategicCalendar+"\nColony: "+snapshot.ToString(Formatting.None)+
+                new ChatMessage("user","Trigger: "+reason+"\nPlayer direction: "+goal+"\nRecent player messages (newest wins): "+PlayerNotes+"\nCalendar/climate: "+strategicCalendar+"\nColony: "+StateTransfer.Colony(snapshot,true).ToString(Formatting.None)+
                     "\nMeasured counters: "+JObject.FromObject(strategicMetrics).ToString(Formatting.None)+"\nPrevious strategy: "+(Strategy?.Serialize()??"none"))
             };
+            Log.Message(StateTransfer.Sizes("strategy",snapshot,StateTransfer.Colony(snapshot,true)));
             Task.Run(async ()=> {
                 ModelResponse response;
                 try { response=await provider.SendToolRequest(messages,StrategicPlan.Tools(),model,key,local?0:8192,ThinkingLevel.Medium); }
@@ -133,6 +135,7 @@ namespace RimBot.Colony
                         Finish("Strategic response discarded after mode, direction or provider changed."); return;
                     }
                     Tokens+=response.TokensUsed;
+                    Log.Message("[RimBot Context] strategy provider tokens: input="+response.InputTokens+", output="+response.OutputTokens);
                     try {
                         if(!response.Success || response.StopReason==StopReason.MaxTokens) throw new ArgumentException(response.ErrorMessage??"Planner output was incomplete.");
                         if(response.ToolCalls==null || response.ToolCalls.Count!=1 || response.ToolCalls[0].Name!="save_strategy") throw new ArgumentException("Planner must return exactly one save_strategy call; no plan replaced.");

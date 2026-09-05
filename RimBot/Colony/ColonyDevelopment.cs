@@ -17,7 +17,7 @@ namespace RimBot.Colony
             switch(name) {
                 case "plants_sowable":
                     return new JArray(DefDatabase<ThingDef>.AllDefs.Where(d=>d.plant?.Sowable==true && (d.plant.sowResearchPrerequisites==null || d.plant.sowResearchPrerequisites.All(r=>r.IsFinished)))
-                        .OrderBy(d=>d.plant.growDays).Take(20).Select(d=>new JObject { ["defName"]=d.defName,["label"]=d.label,["minFertility"]=d.plant.fertilityMin,["growDays"]=d.plant.growDays,["minGrowingSkill"]=d.plant.sowMinSkill,
+                        .OrderBy(d=>d.plant.growDays).Select(d=>new JObject { ["defName"]=d.defName,["label"]=d.label,["minFertility"]=d.plant.fertilityMin,["fertilitySensitivity"]=d.plant.fertilitySensitivity,["sowTags"]=new JArray(d.plant.sowTags??new System.Collections.Generic.List<string>()),["growDays"]=d.plant.growDays,["minGrowingSkill"]=d.plant.sowMinSkill,
                             ["harvestProduct"]=d.plant.harvestedThingDef?.defName,["harvestLabel"]=d.plant.harvestedThingDef?.label,
                             ["harvestYield"]=d.plant.harvestYield,["nutritionPerProduct"]=d.plant.harvestedThingDef?.GetStatValueAbstract(StatDefOf.Nutrition)??0,
                             ["humanEdible"]=d.plant.harvestedThingDef?.ingestible?.HumanEdible??false,
@@ -26,7 +26,7 @@ namespace RimBot.Colony
                     int x=Int(a,"x"),z=Int(a,"z"),w=Int(a,"width"),h=Int(a,"height");
                     if(w<1 || h<1 || x<0 || z<0 || w>map.Size.x-x || h>map.Size.z-z) throw new ArgumentException("Growing area must be within the map.");
                     var crop=DefDatabase<ThingDef>.GetNamedSilentFail(Text(a,"crop"));
-                    if(crop?.plant?.Sowable!=true || crop.plant.sowResearchPrerequisites?.Any(r=>!r.IsFinished)==true) throw new ArgumentException("Choose an available crop from plants_sowable.");
+                    if(crop?.plant?.Sowable!=true || crop.plant.sowResearchPrerequisites?.Any(r=>!r.IsFinished)==true) throw new ArgumentException("Unknown or unavailable crop. Use the exact defName from plants_sowable, not a product name. Available: "+string.Join(", ",DefDatabase<ThingDef>.AllDefs.Where(d=>d.plant?.Sowable==true && (d.plant.sowResearchPrerequisites==null || d.plant.sowResearchPrerequisites.All(r=>r.IsFinished))).Select(d=>d.defName)));
                     var cells=CellRect.FromLimits(x,z,x+w-1,z+h-1).Cells.ToList();
                     return PlayerOrders.Zone(map,cells,true,crop,a.Value<int?>("zoneId"));
                 case "bills_list":

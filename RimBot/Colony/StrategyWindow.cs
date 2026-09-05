@@ -13,7 +13,7 @@ namespace RimBot.Colony
         private bool longTerm;
         private float height=1000;
         public override Vector2 InitialSize => new Vector2(850,700);
-        public StrategyWindow() { doCloseX=true; draggable=true; }
+        public StrategyWindow() { doCloseX=true; draggable=true; preventCameraMotion=false; absorbInputAroundWindow=false; }
         private static string MetricLabel(string metric)
         {
             if(metric.StartsWith("building:")) return (DefDatabase<ThingDef>.GetNamedSilentFail(metric.Substring(9))?.label??metric.Substring(9))+" built";
@@ -30,6 +30,7 @@ namespace RimBot.Colony
             Widgets.BeginScrollView(body,ref scroll,new Rect(0,0,body.width-20,height));
             var l=new Listing_Standard(); l.Begin(new Rect(0,0,body.width-20,100000));
             l.Label(manager.StrategyStatus);
+            if(l.ButtonText("Today's plan")) Find.WindowStack.Add(new DailyPlanWindow());
             var plan=manager.Strategy;
             if(plan!=null) {
                 l.GapLine(); l.Label("This season");

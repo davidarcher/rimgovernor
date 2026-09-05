@@ -20,11 +20,13 @@ namespace RimBot.Colony
             var matches=records.Where(i=>(string.IsNullOrEmpty(defName) || i.DefName.Equals(defName,StringComparison.OrdinalIgnoreCase)) &&
                 (category=="all" || i.Category==category) && (forbidden=="any" || i.Forbidden==(forbidden=="yes")))
                 .OrderBy(i=>(long)(i.X-x)*(i.X-x)+(long)(i.Z-z)*(i.Z-z)).ThenBy(i=>i.Id).ToList();
-            return new JObject { ["totalStacks"]=matches.Count,["totalItems"]=matches.Sum(i=>(long)i.Count),
+            return new JObject { ["scope"]="all visible loose items on this map; x/z only sort distance; equipped items excluded",["totalStacks"]=matches.Count,["totalItems"]=matches.Sum(i=>(long)i.Count),
+                ["forbiddenStacks"]=matches.Count(i=>i.Forbidden),
+                ["allowTools"]=matches.Any(i=>i.Forbidden)?new JArray("orders_allow"):new JArray(),
                 ["nextOffset"]=offset+limit<matches.Count ? (JToken)(offset+limit) : JValue.CreateNull(),
                 ["items"]=new JArray(matches.Skip(offset).Take(limit).Select(i=>new JObject { ["id"]=i.Id,["defName"]=i.DefName,["count"]=i.Count,
                     ["forbidden"]=i.Forbidden,["x"]=i.X,["z"]=i.Z,["distance"]=Math.Round(Math.Sqrt((double)(i.X-x)*(i.X-x)+(double)(i.Z-z)*(i.Z-z)),1) })),
-                ["note"]="Visible loose items across this map, sorted by straight-line distance. Not a path/reachability test. Results may change as stacks move; IDs are revalidated before Allow." };
+                ["note"]="orders_allow accepts selected items[].id values. Allow only supplies needed for a task after assessing their location and threats. Forbidden is not a cleanup objective. Distance is straight-line, not safety." };
         }
     }
 }

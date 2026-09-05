@@ -62,6 +62,18 @@ namespace RimBot.Models
             catch (Exception ex) { return ModelResponse.FromError("LM Studio request failed: " + ex.Message); }
         }
 
+        public static string ReasoningSetting(string model,string effort)
+        {
+            if(string.IsNullOrWhiteSpace(effort)) return null;
+            effort=effort.Trim();
+            // Chat Completions accepts effort levels, even when the model's internal
+            // setting is binary. Verified against LM Studio: none disables Qwen thinking.
+            switch(effort.ToLowerInvariant()) {
+                case "off": return "none";
+                case "on": return "medium";
+            }
+            return effort;
+        }
         public static JObject BuildRequest(List<ChatMessage> messages, List<ToolDefinition> tools, string model, int maxTokens, string effort = null)
         {
             var history = new JArray();
@@ -85,7 +97,8 @@ namespace RimBot.Models
                 history.Add(entry);
             }
             var body = new JObject { ["model"] = model, ["messages"] = history, ["stream"] = false };
-            if (!string.IsNullOrWhiteSpace(effort)) body["reasoning_effort"] = effort;
+            var reasoning=ReasoningSetting(model,effort);
+            if (reasoning!=null) body["reasoning_effort"] = reasoning;
             if (maxTokens > 0) body["max_tokens"] = maxTokens;
             if (tools.Count > 0)
             {

@@ -11,15 +11,30 @@ namespace RimBot.Colony
     {
         private static IStoreSettingsParent Resolve(Map map,JObject a)
         {
-            if((a["zoneId"]==null)==(a["thingId"]==null)) throw new ArgumentException("Supply exactly one zoneId or thingId.");
+            if((a["zoneId"]==null)==(a["thingId"]==null)) throw new ArgumentException("Supply exactly one zoneId or thingId. Call storage_inspect with no target to list actual storage IDs.");
             IStoreSettingsParent parent;
             if(a["zoneId"]!=null) parent=map.zoneManager.AllZones.OfType<Zone_Stockpile>().FirstOrDefault(z=>z.ID==a.Value<int>("zoneId"));
             else parent=map.listerBuildings.allBuildingsColonist.FirstOrDefault(t=>t.thingIDNumber==a.Value<int>("thingId") && !t.Position.Fogged(map)) as IStoreSettingsParent;
-            if(parent==null || !parent.StorageTabVisible) throw new ArgumentException("No player-configurable storage at that ID.");
+            if(parent==null || !parent.StorageTabVisible) throw new ArgumentException("No player-configurable storage at that ID. Loose stacks are items, not storage zones. Call storage_inspect with no target to list actual storage IDs.");
             return parent;
+        }
+        private static JObject Targets(Map map,JObject a)
+        {
+            int offset=a.Value<int?>("offset")??0,limit=a.Value<int?>("limit")??20;
+            if(offset<0 || limit<1 || limit>40) throw new ArgumentException("Use offset >= 0 and limit 1-40.");
+            var rows=new List<JObject>();
+            foreach(var zone in map.zoneManager.AllZones.OfType<Zone_Stockpile>().OrderBy(z=>z.ID))
+                rows.Add(new JObject{["zoneId"]=zone.ID,["label"]=zone.label,["priority"]=zone.GetStoreSettings().Priority.ToString()});
+            foreach(var building in map.listerBuildings.allBuildingsColonist.OrderBy(b=>b.thingIDNumber))
+                if(!building.Position.Fogged(map) && building is IStoreSettingsParent storage && storage.StorageTabVisible)
+                    rows.Add(new JObject{["thingId"]=building.thingIDNumber,["label"]=building.LabelShort,["x"]=building.Position.x,["z"]=building.Position.z});
+            return new JObject{["total"]=rows.Count,["storage"]=new JArray(rows.Skip(offset).Take(limit)),
+                ["nextOffset"]=offset+limit<rows.Count?(JToken)(offset+limit):JValue.CreateNull(),
+                ["note"]=rows.Count==0?"No stockpile zones or configurable storage buildings exist. Loose stacks are items; query items_list and assess specific supplies before allowing selected stacks.":"Copy zoneId or thingId into storage_inspect/configure. These are storage settings, not loose item stacks."};
         }
         public static JObject Inspect(Map map,JObject a)
         {
+            if(a["zoneId"]==null && a["thingId"]==null) return Targets(map,a);
             var parent=Resolve(map,a); var settings=parent.GetStoreSettings(); var filter=settings.filter;
             int offset=a.Value<int?>("offset")??0,limit=a.Value<int?>("limit")??20;
             if(offset<0 || limit<1 || limit>40) throw new ArgumentException("Use offset >= 0 and limit 1–40.");
