@@ -10,7 +10,7 @@ from .model import LocalModel, ModelError
 from .planner import Planner, ROLES
 from .rimapi import RimAPI, APIError, snapshot, compact
 from .native_models import ConstructionRequest
-from .native_client import NativeIntegrationError
+from .native_client import NativeIntegrationError, StaleObservation
 
 
 class Runtime:
@@ -296,7 +296,20 @@ class Runtime:
         if action.endpoint=='construction_place':
             state=await self.api.native.inspect(ConstructionRequest.model_validate(action.arguments))
             return state.accepted and all(item.state=='built' for item in state.items)
-        return await self.check(action.done)
+        if action.done is not None:return await self.check(action.done)
+        args=action.arguments
+        if action.endpoint=='post_things_set_forbidden':
+            items=await self.api.call('get_map_things',{'map_id':args['map_id']},fresh=True)
+            found={item['thing_id']:item for item in items}
+            return all(i in found and found[i]['is_forbidden']==args['forbidden'] for i in args['thing_ids'])
+        if action.endpoint in ('post_colonist_work_priority','post_colonists_work_priority'):
+            for priority in args.get('priorities',[args]):
+                pawn=await self.api.call('get_colonist_detailed',{'id':priority['id']},fresh=True)
+                priorities=pawn.get('colonist_work_info',{}).get('work_priorities',[])
+                actual=next((p['priority'] for p in priorities if p['work_type']==priority['work']),0)
+                if actual!=priority['priority']:return False
+            return True
+        return False
 
     async def reconcile(self):
         changed = False
@@ -355,7 +368,10 @@ class Runtime:
                 work['status'] = 'deferred'
                 work['detail'] = 'Game paused before this order was sent'
                 return
-            result = await self.api.call(action.endpoint, action.arguments, write=True)
+            if action.endpoint=='construction_place':
+                result=await self.api.native.place(ConstructionRequest.model_validate(action.arguments),action.observation_basis)
+            else:
+                result = await self.api.call(action.endpoint, action.arguments, write=True)
             if action.endpoint=='construction_place':
                 if not result.accepted:
                     work['status']='rejected'
@@ -370,6 +386,11 @@ class Runtime:
             self.note('action',action.title,role=role,endpoint=e['path'],arguments=action.arguments,result=compact(result,5000))
             if await self.action_complete(action):
                 work['status'], work['detail'] = 'complete', 'Verified in the colony'
+        except StaleObservation as error:
+            work['status']='deferred'
+            work['detail']='Colony construction changed; this draft needs a fresh review'
+            self.note('deferred',work['detail'],role=role)
+            self.last_review=-100000
         except asyncio.CancelledError:
             work['detail'] = 'Interrupted; outcome will be checked before any repeat'
             raise
@@ -403,7 +424,7 @@ class Runtime:
         """Shared manager/administrator path for normal reviews and live tests."""
         proposals = await self.planner.proposals(context,[r for r in roles if r!='Workforce'])
         preliminary = None
-        if any(p['labor'] for p in proposals.values()):
+        if any('Workforce' in p['labor'] for p in proposals.values()):
             preliminary = await self.planner.arbitrate(context,proposals)
             context['approved_labor'] = {r:proposals[r]['labor'] for r in preliminary.accepted}
             context['deferred_labor'] = preliminary.deferred
@@ -414,6 +435,30 @@ class Runtime:
         if preliminary and set(decision.accepted)-{'Workforce'}-set(preliminary.accepted):
             raise ModelError('Final decision granted new labor after Workforce review. No orders sent.')
         return proposals,decision
+
+    async def manager_context(self, context):
+        """Refresh observations between managers; never carry forward a stale bed count."""
+        observed=await snapshot(self.api,self.settings.map_id)
+        if self.observation.get('game',{}).get('session_id') != observed['game'].get('session_id'):
+            raise ModelError('Colony changed during review; pending decisions were discarded.')
+        self.observation=observed
+        result={**context,'colony':compact(observed,20000)}
+        if 'construction_state' in self.catalog.available:
+            state=await self.api.call('construction_state',{'map_id':observed['map']['id']})
+            result['construction_state']=state.model_dump()
+            # Store an observed starting location once per colony. It is context,
+            # not a placement rule: player direction may choose another site.
+            if 'colony_focus' not in self.memory:
+                points=[b.position.model_dump() for b in state.buildings if b.state=='built']
+                if not points:
+                    points=[p.get('colonist',{}).get('position') for p in observed.get('pawns',[])]
+                    points=[p for p in points if p and 'x' in p and 'z' in p]
+                if points:
+                    import statistics
+                    self.memory['colony_focus']={k:int(statistics.median(p[k] for p in points)) for k in ('x','z')}
+                    self.persist()
+            result['colony_focus']=self.memory.get('colony_focus')
+        return result
 
     async def review(self, steering=False, strategy=False):
         self.cycle_generation = self.generation

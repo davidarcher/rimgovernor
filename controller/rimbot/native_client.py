@@ -6,20 +6,24 @@ from .native_models import REQUEST_TYPES, RESPONSE_TYPES, NativeObject, Contract
 class NativeIntegrationError(RuntimeError):
     pass
 
+class StaleObservation(NativeIntegrationError):
+    pass
+
 class NativeClient:
     def __init__(self, http, lock, catalog, invalidate):
         self.http,self.lock,self.catalog,self.invalidate=http,lock,catalog,invalidate
 
-    async def call(self, name: str, request: NativeObject | dict) -> NativeObject:
+    async def call(self, name: str, request: NativeObject | dict, expected_revision=None) -> NativeObject:
         contract=self.catalog.get(name)
         request_type=REQUEST_TYPES[name]
         payload=request if isinstance(request,request_type) else request_type.model_validate(request)
         async with self.lock:
             if contract['write']:self.invalidate()
             try:
-                response=await self.http.post(contract['path'],json=payload.model_dump())
+                response=await self.http.post(contract['path'],json=payload.model_dump(),params={'expected_revision':expected_revision} if expected_revision is not None else None)
                 if response.is_error:
                     error=ContractError.model_validate(response.json())
+                    if error.code=='stale_observation':raise StaleObservation(error.message)
                     raise NativeIntegrationError(f'{name}: {error.code}: {error.message}')
                 result=RESPONSE_TYPES[name].model_validate(response.json())
                 if isinstance(result,ConstructionResult):
@@ -40,5 +44,5 @@ class NativeClient:
     async def inspect(self, request: ConstructionRequest) -> ConstructionResult:
         return await self.call('construction_inspect',request)
 
-    async def place(self, request: ConstructionRequest) -> ConstructionResult:
-        return await self.call('construction_place',request)
+    async def place(self, request: ConstructionRequest, expected_revision=None) -> ConstructionResult:
+        return await self.call('construction_place',request,expected_revision)

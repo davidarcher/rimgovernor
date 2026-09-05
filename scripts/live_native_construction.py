@@ -31,7 +31,7 @@ async def run(use_model):
         loose=await rt.api.call('get_map_things',{'map_id':mid})
         available={t['def_name'] for t in loose}
         material=next(m for m in bed.allowed_materials if m.def_name in available)
-        rooms=await rt.api.native.call('construction_rooms',RoomQuery(map_id=mid,offset=0,limit=4))
+        rooms=await rt.api.native.call('construction_rooms',RoomQuery(map_id=mid,offset=0,limit=4,near=Cell(x=base['x'],z=base['z']),cell_limit=32))
         assert all(r.visible_cell is not None for r in rooms.items)
         report['rooms']=rooms.model_dump()
         def request(definition,x,z):

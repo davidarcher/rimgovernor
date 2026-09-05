@@ -14493,9 +14493,30 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Construction changed since observation; no placements made",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
           }
         },
-        "description": "Place native construction orders at inspected coordinates. Returns placement states and IDs. The integration tracks completion; do not supply a done query. Repeating the same placement returns its existing state instead of duplicating it."
+        "description": "Place native construction orders at inspected coordinates. Returns placement states and IDs. The integration tracks completion; do not supply a done query. Repeating the same placement returns its existing state instead of duplicating it.",
+        "parameters": [
+          {
+            "name": "expected_revision",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional revision from construction_state. Rejects changed construction atomically on the game thread before any placement."
+          }
+        ]
       }
     },
     "/api/v2/construction/rooms": {
@@ -14545,7 +14566,107 @@
             }
           }
         },
-        "description": "List explored rooms with visible geometry, roof coverage and pawn reachability. A room is not necessarily shelter. Use small pages and inspect complete geometry before choosing a footprint."
+        "description": "Visible rooms ordered by distance to near, with up to cell_limit explored cells nearest that point per room. The outdoors is also a native room; it is not shelter. Use area for local terrain and occupants."
+      }
+    },
+    "/api/v2/construction/state": {
+      "post": {
+        "operationId": "construction_state",
+        "summary": "construction inspect",
+        "x-game-write": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Construction_MapQuery"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ConstructionState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or contract violation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Current player buildings, blueprints and frames, with a revision for stale-plan detection. These are observations, not reserved work sites."
+      }
+    },
+    "/api/v2/construction/area": {
+      "post": {
+        "operationId": "construction_area",
+        "summary": "construction inspect",
+        "x-game-write": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Construction_AreaQuery"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_AreaResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or contract violation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Inspect an explored square around an observed colony position. Returns terrain, fertility, roofs, walkability and occupying thing IDs. Unexplored cells are omitted. Start with radius 4; inspect further only when needed."
       }
     }
   },
@@ -29335,12 +29456,22 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 32
+          },
+          "near": {
+            "$ref": "#/components/schemas/Construction_Cell"
+          },
+          "cell_limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 256
           }
         },
         "required": [
           "map_id",
           "offset",
-          "limit"
+          "limit",
+          "near",
+          "cell_limit"
         ],
         "additionalProperties": false
       },
@@ -29618,6 +29749,151 @@
         "required": [
           "code",
           "message"
+        ],
+        "additionalProperties": false
+      },
+      "Construction_MapQuery": {
+        "title": "MapQuery",
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      },
+      "Construction_ConstructionThing": {
+        "title": "ConstructionThing",
+        "type": "object",
+        "properties": {
+          "thing_id": {
+            "type": "integer"
+          },
+          "def_name": {
+            "type": "string"
+          },
+          "position": {
+            "$ref": "#/components/schemas/Construction_Cell"
+          },
+          "rotation": {
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "thing_id",
+          "def_name",
+          "position",
+          "rotation",
+          "state"
+        ],
+        "additionalProperties": false
+      },
+      "Construction_ConstructionState": {
+        "title": "ConstructionState",
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "string"
+          },
+          "buildings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Construction_ConstructionThing"
+            }
+          }
+        },
+        "required": [
+          "revision",
+          "buildings"
+        ],
+        "additionalProperties": false
+      },
+      "Construction_AreaQuery": {
+        "title": "AreaQuery",
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "center": {
+            "$ref": "#/components/schemas/Construction_Cell"
+          },
+          "radius": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 12
+          }
+        },
+        "required": [
+          "map_id",
+          "center",
+          "radius"
+        ],
+        "additionalProperties": false
+      },
+      "Construction_AreaCell": {
+        "title": "AreaCell",
+        "type": "object",
+        "properties": {
+          "position": {
+            "$ref": "#/components/schemas/Construction_Cell"
+          },
+          "terrain_def": {
+            "type": "string"
+          },
+          "fertility": {
+            "type": "number"
+          },
+          "roofed": {
+            "type": "boolean"
+          },
+          "walkable": {
+            "type": "boolean"
+          },
+          "thing_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "required": [
+          "position",
+          "terrain_def",
+          "fertility",
+          "roofed",
+          "walkable",
+          "thing_ids"
+        ],
+        "additionalProperties": false
+      },
+      "Construction_AreaResult": {
+        "title": "AreaResult",
+        "type": "object",
+        "properties": {
+          "center": {
+            "$ref": "#/components/schemas/Construction_Cell"
+          },
+          "radius": {
+            "type": "integer"
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Construction_AreaCell"
+            }
+          }
+        },
+        "required": [
+          "center",
+          "radius",
+          "cells"
         ],
         "additionalProperties": false
       }

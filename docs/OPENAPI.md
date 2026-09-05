@@ -1,10 +1,10 @@
 # RIMAPI HTTP contract
 
 `integrations/RIMAPI/Contracts/rimapi.openapi.json` is the authored OpenAPI 3.1
-contract for the RimWorld 1.6 built-in HTTP surface: **197 operations**, including construction,
+contract for the RimWorld 1.6 built-in HTTP surface: **199 operations**, including construction,
 pawns, work, storage, research, world data, camera control, documentation, and SSE.
 It references the separately authored `construction.openapi.json` sub-contract.
-There are **428 component schemas**, including distinct legacy input and output
+There are **434 component schemas**, including distinct legacy input and output
 shapes. Edit these source documents; do not regenerate them from C# DTOs.
 
 The bundled document is available from the controller at
@@ -51,14 +51,15 @@ GET endpoints that read JSON bodies retain that transport; query fallbacks and
 content types are explicit. Streaming endpoints are excluded from buffered JSON
 methods. Supplying a contract does not authorize a manager to execute an endpoint.
 
-## Enforcement and remaining migration
+## Enforcement
 
 Construction v2 already uses generated C# and Python models with native validation.
 The remaining native services still use their existing C# DTO implementations;
 this iteration documents and audits them and supplies generated Python clients.
-The existing manager catalog and legacy orchestration have not all been switched
-to this client. That migration can now proceed against one reviewed HTTP contract,
-instead of adding more controller-side guesses about response shapes.
+The manager catalog is generated from the same OpenAPI source by
+`scripts/generate_manager_catalog.py`. Manager HTTP requests now use the generated,
+validated client; construction uses its generated native client. Discovery,
+dashboard proxying and streaming retain their separate transports.
 
 Legacy request deserialization ignores unknown fields and supplies native defaults
 for omitted fields. The input schemas describe that behavior; they do not claim
@@ -89,11 +90,9 @@ Known differences are explicit:
 The read-only test checks 18 representative endpoints against a loaded colony,
 including pawns, rooms, definitions, storage, research, and camera status. Reports
 are written under `.rimbot/http-contract-tests/`. It makes no model calls or game
-mutations. Passing it does not establish all 197 operations' gameplay correctness.
+mutations. Passing it does not establish all 199 operations' gameplay correctness.
 
-Latest result: 18/18 passed in
-`.rimbot/http-contract-tests/20260905-230648/report.json`. The 57-test controller
-suite passed, as did OpenAPI validation, generated-file checks, Roslyn coverage,
-and native compilation. Compilation retains the existing System.Runtime reference
-warning; NuGet vulnerability metadata was unavailable during restore. This
-iteration did not replace the running game's DLL.
+Construction queries now include nearby room samples, local terrain inspection,
+and a current construction revision. Placements can supply `expected_revision`;
+the native game-thread handler rejects stale batches before any placement.
+See `MANAGER_REPLACEMENT_TEST.md` for the gameplay regression and its limits.

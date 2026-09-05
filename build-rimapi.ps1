@@ -18,6 +18,8 @@ try {
     if ($LASTEXITCODE) { throw 'Construction generated files are stale.' }
     & $python scripts/generate_http_contracts.py --check
     if ($LASTEXITCODE) { throw 'OpenAPI generated files are stale.' }
+    & $python scripts/generate_manager_catalog.py --check
+    if ($LASTEXITCODE) { throw 'Manager catalog is stale.' }
     New-Item -ItemType Directory -Path '.rimbot' -Force | Out-Null
     # Restore before asking MSBuild for resolved references on a fresh checkout.
     & $sdk restore $project @flags --verbosity quiet

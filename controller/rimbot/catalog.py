@@ -71,7 +71,7 @@ class Catalog:
             describe_positions(e['schema'])
             e['write'] = e['method'] != 'GET' and e['name'] not in READ_POST
             e['exposed'] = (not e['write'] or e['category'] in WRITE_CATEGORIES or e['name'] in WRITE_NAMES)
-            if any(s in e['path'] for s in ['/dev/', '/learning/', '/image', '/portrait', '/mods/', '/incidents/top', '/incident/chance']):
+            if any(s in e['path'] for s in ['/dev/', '/learning/', '/image', '/portrait', '/mods/', '/incidents/top', '/incident/chance','/docs','/cache/','/openapi']):
                 e['exposed'] = False
             props = e['schema'].get('properties', {})
             if e['name'] == 'post_pawn_edit_status':

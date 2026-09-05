@@ -24,7 +24,7 @@ def envelope(data):
 def test_complete_openapi_and_generated_outputs_are_current():
     validate(DOCUMENT)
     subprocess.run([sys.executable, str(ROOT/'scripts/generate_http_contracts.py'), '--check'], cwd=ROOT, check=True, capture_output=True)
-    assert len(OPERATIONS) == 197
+    assert len(OPERATIONS) == 199
     assert {'get_v1_map_rooms', 'get_v1_pawns_details', 'post_v1_map_zone_stockpile', 'get_v1_events'} <= OPERATIONS.keys()
     assert 'text/event-stream' in DOCUMENT['paths']['/api/v1/events']['get']['responses']['200']['content']
     assert '/api/v1/docs/extensions/{extensionId}' not in DOCUMENT['paths']

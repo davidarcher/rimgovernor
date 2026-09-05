@@ -14087,7 +14087,11 @@
     "method": "POST",
     "query_schema": {
       "type": "object",
-      "properties": {},
+      "properties": {
+        "expected_revision": {
+          "type": "string"
+        }
+      },
       "required": [],
       "additionalProperties": false
     },
@@ -14130,6 +14134,16 @@
             }
           }
         }
+      },
+      "409": {
+        "description": "Construction changed since observation; no placements made",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
       }
     }
   },
@@ -14158,6 +14172,108 @@
           "application/json": {
             "schema": {
               "$ref": "#/components/schemas/Construction_PageRoomDto"
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request or contract violation.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      }
+    }
+  },
+  "construction_state": {
+    "path": "/api/v2/construction/state",
+    "method": "POST",
+    "query_schema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "query_model": "construction_state_Query",
+    "body_schema": {
+      "$ref": "#/components/schemas/Construction_MapQuery"
+    },
+    "response_schema": {
+      "$ref": "#/components/schemas/Construction_ConstructionState"
+    },
+    "body_required": true,
+    "query_fallback_required": [],
+    "responses": {
+      "200": {
+        "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ConstructionState"
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request or contract violation.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      }
+    }
+  },
+  "construction_area": {
+    "path": "/api/v2/construction/area",
+    "method": "POST",
+    "query_schema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "query_model": "construction_area_Query",
+    "body_schema": {
+      "$ref": "#/components/schemas/Construction_AreaQuery"
+    },
+    "response_schema": {
+      "$ref": "#/components/schemas/Construction_AreaResult"
+    },
+    "body_required": true,
+    "query_fallback_required": [],
+    "responses": {
+      "200": {
+        "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_AreaResult"
             }
           }
         }

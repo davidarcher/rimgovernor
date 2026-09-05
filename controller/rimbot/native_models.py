@@ -34,10 +34,16 @@ class PageBuildingDefinition(NativeObject):
     total: int
     next_offset: int | None
 
+class Cell(NativeObject):
+    x: int
+    z: int
+
 class RoomQuery(NativeObject):
     map_id: int
     offset: int = Field(ge=0, le=2147483647)
     limit: int = Field(ge=1, le=32)
+    near: Cell
+    cell_limit: int = Field(ge=1, le=256)
 
 class PositionDto(NativeObject):
     x: int
@@ -65,10 +71,6 @@ class PageRoomDto(NativeObject):
     total: int
     next_offset: int | None
 
-class Cell(NativeObject):
-    x: int
-    z: int
-
 class Placement(NativeObject):
     def_name: str
     stuff_def_name: str
@@ -89,6 +91,38 @@ class ConstructionResult(NativeObject):
     accepted: bool
     items: list[PlacementResult]
 
+class MapQuery(NativeObject):
+    map_id: int
+
+class ConstructionThing(NativeObject):
+    thing_id: int
+    def_name: str
+    position: Cell
+    rotation: int
+    state: str
+
+class ConstructionState(NativeObject):
+    revision: str
+    buildings: list[ConstructionThing]
+
+class AreaQuery(NativeObject):
+    map_id: int
+    center: Cell
+    radius: int = Field(ge=0, le=12)
+
+class AreaCell(NativeObject):
+    position: Cell
+    terrain_def: str
+    fertility: float
+    roofed: bool
+    walkable: bool
+    thing_ids: list[int]
+
+class AreaResult(NativeObject):
+    center: Cell
+    radius: int
+    cells: list[AreaCell]
+
 class ContractError(NativeObject):
     code: str
     message: str
@@ -98,6 +132,8 @@ REQUEST_TYPES = {
     'construction_rooms': RoomQuery,
     'construction_inspect': ConstructionRequest,
     'construction_place': ConstructionRequest,
+    'construction_state': MapQuery,
+    'construction_area': AreaQuery,
 }
 
 RESPONSE_TYPES = {
@@ -105,4 +141,6 @@ RESPONSE_TYPES = {
     'construction_rooms': PageRoomDto,
     'construction_inspect': ConstructionResult,
     'construction_place': ConstructionResult,
+    'construction_state': ConstructionState,
+    'construction_area': AreaResult,
 }

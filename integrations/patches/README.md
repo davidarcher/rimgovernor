@@ -35,6 +35,9 @@ Changes:
 - The complete built-in HTTP surface is documented in OpenAPI, bundled into the
   native DLL, and served at `/api/openapi.json`.
 
-Build `Source/RIMAPI/RIMAPI.csproj` with configuration `Release-1.6`, then install
+- Nearby room sampling and local terrain queries expose observed construction sites.
+- Construction revisions reject batches based on state superseded by player edits.
+
+Build `Source/RIMAPI/RimApi.csproj` with configuration `Release-1.6`, then install
 `1.6/Assemblies/RIMAPI.dll` only while RimWorld is closed. The test installation
 currently uses Workshop folder `3593423732`; Steam updates can overwrite it.

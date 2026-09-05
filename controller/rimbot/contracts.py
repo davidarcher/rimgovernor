@@ -34,13 +34,14 @@ class Action(Contract):
     # Verify state, not an HTTP acknowledgment. No saved executable handles.
     done: Check | None = None
     requires: list[Check] = Field(default_factory=list)
+    observation_basis: str | None = None
 
 
 class Proposal(Contract):
     summary: str = Field(description='One or two short sentences. Put detailed work in actions and blockers, not this summary.')
     priority: Literal['urgent','high','normal','low'] = 'normal'
     actions: list[Action] = Field(default_factory=list)
-    labor: list[str] = Field(default_factory=list)
+    labor: list[str] = Field(default_factory=list, description='Other manager names whose help is needed. Do not repeat your own name. Request Workforce only for needed pawn labor configuration; placing an instant object does not require it.')
     resources: dict[str, float] = Field(default_factory=dict)
     blockers: list[str] = Field(default_factory=list)
 

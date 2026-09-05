@@ -3244,6 +3244,8 @@ class Construction_RoomQuery(WireModel):
     map_id: int = Field()
     offset: int = Field(ge=0, le=2147483647)
     limit: int = Field(ge=1, le=32)
+    near: Construction_Cell = Field()
+    cell_limit: int = Field(ge=1, le=256)
 
 class Construction_PositionDto(WireModel):
     x: int = Field()
@@ -3298,6 +3300,38 @@ class Construction_ConstructionResult(WireModel):
 class Construction_ContractError(WireModel):
     code: str = Field()
     message: str = Field()
+
+class Construction_MapQuery(WireModel):
+    map_id: int = Field()
+
+class Construction_ConstructionThing(WireModel):
+    thing_id: int = Field()
+    def_name: str = Field()
+    position: Construction_Cell = Field()
+    rotation: int = Field()
+    state: str = Field()
+
+class Construction_ConstructionState(WireModel):
+    revision: str = Field()
+    buildings: list[Construction_ConstructionThing] = Field()
+
+class Construction_AreaQuery(WireModel):
+    map_id: int = Field()
+    center: Construction_Cell = Field()
+    radius: int = Field(ge=0, le=12)
+
+class Construction_AreaCell(WireModel):
+    position: Construction_Cell = Field()
+    terrain_def: str = Field()
+    fertility: float = Field()
+    roofed: bool = Field()
+    walkable: bool = Field()
+    thing_ids: list[int] = Field()
+
+class Construction_AreaResult(WireModel):
+    center: Construction_Cell = Field()
+    radius: int = Field()
+    cells: list[Construction_AreaCell] = Field()
 
 class get_api_openapi_json_Query(WireModel):
     pass
@@ -3917,9 +3951,15 @@ class get_api_v2_construction_openapi_Query(WireModel):
     pass
 
 class construction_place_Query(WireModel):
-    pass
+    expected_revision: Union[str, None] = Field(default=None)
 
 class construction_rooms_Query(WireModel):
+    pass
+
+class construction_state_Query(WireModel):
+    pass
+
+class construction_area_Query(WireModel):
     pass
 
 AbilityDefDto.model_rebuild()
@@ -4350,6 +4390,12 @@ Construction_ConstructionRequest.model_rebuild()
 Construction_PlacementResult.model_rebuild()
 Construction_ConstructionResult.model_rebuild()
 Construction_ContractError.model_rebuild()
+Construction_MapQuery.model_rebuild()
+Construction_ConstructionThing.model_rebuild()
+Construction_ConstructionState.model_rebuild()
+Construction_AreaQuery.model_rebuild()
+Construction_AreaCell.model_rebuild()
+Construction_AreaResult.model_rebuild()
 get_api_openapi_json_Query.model_rebuild()
 post_v1_builder_blueprint_Query.model_rebuild()
 post_v1_builder_check_zone_Query.model_rebuild()
@@ -4547,6 +4593,8 @@ construction_inspect_Query.model_rebuild()
 get_api_v2_construction_openapi_Query.model_rebuild()
 construction_place_Query.model_rebuild()
 construction_rooms_Query.model_rebuild()
+construction_state_Query.model_rebuild()
+construction_area_Query.model_rebuild()
 
 QUERY_TYPES = {
     'get_api_openapi_json': TypeAdapter(get_api_openapi_json_Query),
@@ -4746,6 +4794,8 @@ QUERY_TYPES = {
     'get_api_v2_construction_openapi': TypeAdapter(get_api_v2_construction_openapi_Query),
     'construction_place': TypeAdapter(construction_place_Query),
     'construction_rooms': TypeAdapter(construction_rooms_Query),
+    'construction_state': TypeAdapter(construction_state_Query),
+    'construction_area': TypeAdapter(construction_area_Query),
 }
 
 BODY_TYPES = {
@@ -4814,6 +4864,8 @@ BODY_TYPES = {
     'construction_inspect': TypeAdapter(Construction_ConstructionRequest),
     'construction_place': TypeAdapter(Construction_ConstructionRequest),
     'construction_rooms': TypeAdapter(Construction_RoomQuery),
+    'construction_state': TypeAdapter(Construction_MapQuery),
+    'construction_area': TypeAdapter(Construction_AreaQuery),
 }
 
 RESPONSE_TYPES = {
@@ -5013,6 +5065,8 @@ RESPONSE_TYPES = {
     'get_api_v2_construction_openapi': TypeAdapter(dict[str, JsonValue]),
     'construction_place': TypeAdapter(Construction_ConstructionResult),
     'construction_rooms': TypeAdapter(Construction_PageRoomDto),
+    'construction_state': TypeAdapter(Construction_ConstructionState),
+    'construction_area': TypeAdapter(Construction_AreaResult),
 }
 
 class HttpOperations:
@@ -5606,3 +5660,9 @@ class HttpOperations:
 
     async def construction_rooms(self, *, query: construction_rooms_Query | None = None, body: Construction_RoomQuery | None = None) -> Construction_PageRoomDto:
         return await self._call('construction_rooms', query=query, body=body)
+
+    async def construction_state(self, *, query: construction_state_Query | None = None, body: Construction_MapQuery | None = None) -> Construction_ConstructionState:
+        return await self._call('construction_state', query=query, body=body)
+
+    async def construction_area(self, *, query: construction_area_Query | None = None, body: Construction_AreaQuery | None = None) -> Construction_AreaResult:
+        return await self._call('construction_area', query=query, body=body)

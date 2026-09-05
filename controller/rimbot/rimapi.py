@@ -4,6 +4,8 @@ import json
 import time
 import httpx
 from .native_client import NativeClient
+from .http_contract import HttpContractClient
+from jsonschema import ValidationError as SchemaError
 
 
 class APIError(RuntimeError):
@@ -29,6 +31,7 @@ class RimAPI:
         self.cache = {}
         self.read_cache = {}
         self.native = NativeClient(self.http,self.lock,self.catalog,self.invalidate)
+        self.typed = HttpContractClient(self.http)
 
     def invalidate(self, definitions=False):
         self.read_cache.clear()
@@ -77,7 +80,7 @@ class RimAPI:
             # request one complete snapshot and filter groups locally.
             key=(name,'{}')
             if fresh or key not in self.cache:
-                self.cache[key]=await self.request('GET',e['path'],body={})
+                self.cache[key]=await self.typed_data(e,{}, {})
             definitions=self.cache[key]
             filters=args.get('filters') or []
             if not filters or any(f.lower()=='all' for f in filters):
@@ -95,11 +98,22 @@ class RimAPI:
         query_keys = e.get('query_keys', [])
         params = args if e['transport'] == 'query' else {k:v for k,v in args.items() if k in query_keys}
         body = {k:v for k,v in args.items() if k not in query_keys} if e['transport'] == 'json' else None
-        params = {k: str(v).lower() if isinstance(v, bool) else v for k,v in params.items()}
-        data = await self.request(e['method'], e['path'], params=params, body=body)
+        data = await self.typed_data(e,params,body)
         if definition:
             self.cache[cache_key] = data
         return data
+
+    async def typed_data(self, entry, params, body):
+        async with self.lock:
+            if entry['write']:self.invalidate()
+            try:
+                result=await self.typed._call(entry['operation_id'],query=params,body=body)
+                return unwrap(result.model_dump(mode='json',by_alias=True,exclude_unset=True))
+            except SchemaError as error:
+                path='.'.join(map(str,error.absolute_path)) or 'response'
+                raise APIError(f'{entry["name"]}: {path}: {error.message}') from error
+            except (RuntimeError,ValueError,httpx.HTTPError) as error:
+                raise APIError(f'{entry["name"]}: {error}') from error
 
 
 def rows(value, key=None):

@@ -26,15 +26,11 @@ the core RimBot application requires Python 3.12 or later.
 `dfa4b2909e132081898845d0c4936fcefa86c91c` (v1.10.0). It retains upstream Git
 history and its GPLv3 license. No mod DLL is installed by the new launcher.
 
-`scripts/generate_catalog.py` extracts HTTP route and DTO contract metadata
-from that checkout into `controller/rimbot/data/catalog.json`. This is an API
-contract snapshot, not a new game engine or a registry of native gizmos.
-Runtime discovery intersects these contracts with the installed server's routes.
-
-The complete, authored OpenAPI contract is now maintained in
-`integrations/RIMAPI/Contracts/rimapi.openapi.json`. It generates typed Python
-clients and is checked against native route/DTO signatures. The legacy manager
-catalog above remains in use during migration; see `docs/OPENAPI.md`.
+`scripts/generate_manager_catalog.py` generates manager request schemas from
+our authored OpenAPI contract in `integrations/RIMAPI/Contracts/rimapi.openapi.json`.
+Runtime discovery intersects those contracts with installed server routes.
+Manager requests and responses use generated, validated Python clients. Native
+route/DTO signatures are checked separately with Roslyn; see `docs/OPENAPI.md`.
 
 No public GitHub forks or pushes were performed. Local source pins make updates
 reviewable; publish our forks explicitly when ready to maintain upstream patches.
