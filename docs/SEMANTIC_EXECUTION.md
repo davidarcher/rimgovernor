@@ -26,7 +26,7 @@ Deterministic text retrieval selects up to three matching entries per planning/m
 
 ## Models, concurrency and display
 
-Departments use the configured department model (currently 4B); strategy, daily planning, arbitration and concrete task planning use the main model (9B). Task planning respects the reasoning setting. The historical Executor role label refers to task planning; issuing its approved batch remains ordinary controller code without an additional model call. The department parallelism setting defaults to four and can be set to 1–4. Only objective reviews run concurrently. Their snapshot is shared; later execution refreshes live state. Model progress retains role/model labels, and the dashboard lists active departments.
+Departments and concrete task planning use the configured department model (currently 4B); strategy, daily planning and arbitration use the main model (9B). Task planning respects the reasoning setting. The historical Executor role label refers to task planning; issuing its approved batch remains ordinary controller code without an additional model call. The department parallelism setting defaults to four and can be set to 1–4. Only objective reviews run concurrently. Their snapshot is shared; later execution refreshes live state. Model progress retains role/model labels, and the dashboard lists active departments.
 
 The Projects panel shows objectives, constraints, feedback and order-tracking state. Manager activity distinguishes objective proposals and executor activity. Overlong administrator display prose is shortened to the UI bound without changing strict approval IDs or rejecting the decision solely for verbosity.
 

@@ -310,7 +310,7 @@ class Planner:
         repeats = {}
         repairs = 0
         model=self.rt.model_for_role(role)
-        model_name=self.rt.settings.manager_model.strip() if role in ROLES and self.rt.manager_model is not None else self.rt.settings.model
+        model_name=self.rt.settings.manager_model.strip() if (role in ROLES or role.startswith('Executor:')) and self.rt.manager_model is not None else self.rt.settings.model
         async def report_progress(values):
             await self.rt.model_progress({**values,'role':role_label,'model':model_name})
         while True:
