@@ -108,6 +108,14 @@ def create_app(runtime=None):
         await rt.cancel()
         return {'ok':True}
 
+    @app.delete('/api/projects/{project_id}')
+    async def cancel_project(project_id: str, request: Request):
+        rt=request.app.state.rt
+        if not any(p['project_id']==project_id for p in rt.memory.get('projects',[])):
+            raise HTTPException(404,'Project not found')
+        await rt.cancel_project(project_id)
+        return {'ok':True}
+
     @app.delete('/api/work/{work_id}')
     async def dismiss(work_id: str, request: Request):
         rt = request.app.state.rt

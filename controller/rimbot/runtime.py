@@ -123,6 +123,24 @@ class Runtime:
             self.task.cancel()
             await asyncio.gather(self.task, return_exceptions=True)
 
+    async def cancel_project(self, project_id):
+        project=next((p for p in self.memory.get('projects',[]) if p['project_id']==project_id),None)
+        if project is None:raise ValueError('Project not found')
+        memory=self.memory
+        await self.cancel()
+        # Let a command already sent finish; generation checks prevent the next one.
+        if self.busy():await asyncio.gather(self.task,return_exceptions=True)
+        if self.memory is not memory:raise ValueError('Colony changed while cancelling the project')
+        project.update(status='retired',cancelled_by_player=True,feedback=['Cancelled by player'])
+        shared={i for p in self.memory['projects'] if p.get('status')!='retired' for i in p['work_ids']}
+        for work in self.memory['work']:
+            if work['id'] in set(project['work_ids'])-shared and work['status']!='complete':
+                work.update(status='dismissed',detail='Project cancelled by player; game orders unchanged')
+        self.memory['last_daily_day']=None
+        self.last_review=-100000
+        self.note('project_cancelled',project['outcome'],project_id=project_id)
+        self.persist()
+
     async def configure(self, settings):
         self.mode = 'manual'
         await self.cancel()

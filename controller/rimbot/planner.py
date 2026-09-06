@@ -274,6 +274,10 @@ class Planner:
         failed_drafts = {}
         if issubclass(contract,Decision) and context.get('semantic_objectives') and self.rt.manager_model is None:
             instructions += '\nAll roles use the same small model. No larger-model escalation is available. Resolve this narrow arbitration or defer the specific uncertain objectives with concrete reasons; leave escalation_reason empty. Do not plan exact execution orders.'
+        if context.get('cancelled_projects'):
+            instructions += '\nThe player cancelled the listed projects. Do not recreate or continue those outcomes unless newer player direction explicitly requests them.'
+        if issubclass(contract,Decision) and context.get('semantic_objectives'):
+            instructions += '\nScrub the entire existing project list every review, even with zero proposals: retire duplicate outcomes, obsolete assumptions and goals already achieved. For stalled work, revise the approach or retire it with a concrete reason instead of keeping it indefinitely. reviews_without_order_change counts reviews with identical tracked order statuses; it is a signal to investigate, NOT proof that construction or labor has stopped. age_days is wall-clock age, not game days. Preserve useful ongoing labor. Missing orders are an execution task, not proof a goal is impossible.'
         basis=context.get('construction_state',{}).get('revision')
         inspected_cells=set()
         def attach_drafts(value):

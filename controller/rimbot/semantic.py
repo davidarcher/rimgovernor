@@ -1,6 +1,7 @@
 """Approve semantic objectives, then execute one native-system project at a time."""
 import uuid
 import asyncio
+import time
 from .contracts import Decision, Proposal
 from .semantic_models import ObjectiveProposal, ObjectiveDecision
 from .model import ModelError
@@ -29,7 +30,7 @@ def retain_project(memory,owner,objective):
     if existing is None:
         existing=next((p for p in projects if p.get('status')!='retired' and p['kind']==objective.kind and p['outcome'].casefold().strip()==objective.outcome.casefold().strip()),None)
     if existing is None:
-        existing={'project_id':uuid.uuid4().hex[:12],'owner':owner,'work_ids':[]};projects.append(existing)
+        existing={'project_id':uuid.uuid4().hex[:12],'owner':owner,'work_ids':[],'created_at':time.time()};projects.append(existing)
     if existing.get('kind') and existing['kind']!=objective.kind:
         existing.setdefault('previous_work_ids',[]).extend(existing['work_ids'])
         existing['work_ids']=[]
@@ -60,6 +61,7 @@ async def arbitrate_objectives(rt,context):
 async def semantic_review(rt,context,roles):
     proposals={}
     shared=await rt.manager_context(context)
+    shared['cancelled_projects']=[{'kind':p['kind'],'outcome':p['outcome']} for p in rt.memory.get('projects',[]) if p.get('cancelled_by_player')][-30:]
     projects=[p for p in rt.memory.get('projects',[]) if p.get('status')!='retired']
     semaphore=asyncio.Semaphore(rt.settings.manager_parallelism)
     active=set()
@@ -82,13 +84,21 @@ async def semantic_review(rt,context,roles):
     await asyncio.gather(*(propose(role) for role in dict.fromkeys(roles)))
     # Keep stable ordering independent of response completion timing.
     proposals={role:proposals[role] for role in roles if role in proposals}
-    if not proposals:
+    if not proposals and not projects:
         raise ModelError('No department submitted an objective review.')
     candidates={f'{owner}:{i}':{'owner':owner,'objective':objective,'blockers':proposal['blockers']} for owner,proposal in proposals.items() for i,objective in enumerate(proposal['objectives'])}
+    work={w['id']:w for w in rt.memory['work']}
+    for project in projects:
+        states=sorted((i,work.get(i,{}).get('status','missing')) for i in project['work_ids'])
+        previous=project.get('reviewed_order_states')
+        project['reviews_without_order_change']=project.get('reviews_without_order_change',0)+1 if previous==states else 0
+        project['reviewed_order_states']=states
+        project['age_days']=round((time.time()-project['created_at'])/86400,2) if project.get('created_at') else None
     decision_context={**shared,'projects':projects,'proposals':candidates,'semantic_objectives':True}
     decision=await arbitrate_objectives(rt,decision_context)
-    rt.note('arbitration',decision.response,role='Administrator',accepted=decision.accepted,deferred=decision.deferred)
+    rt.note('arbitration',decision.response,role='Administrator',accepted=decision.accepted,deferred=decision.deferred,retired=decision.retire_projects,kept=len(decision.keep_projects))
     rt.reply(decision.response)
+    rt.check_generation()
     if rt.mode!='automate':return
     for project in projects:
         if project['project_id'] in decision.retire_projects:
