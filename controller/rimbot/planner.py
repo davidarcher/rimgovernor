@@ -228,18 +228,21 @@ class Planner:
         messages = [{'role':'system' ,'content':instructions}, {'role':'user','content':json.dumps(context, separators=(',',':'), ensure_ascii=False)}]
         repeats = {}
         repairs = 0
+        model=self.rt.model_for_role(role)
+        model_name=self.rt.settings.manager_model.strip() if role in ROLES and self.rt.manager_model is not None else self.rt.settings.model
         while True:
             self.rt.check_generation()
-            await self.rt.progress(role=role_label, phase='Thinking' if thinking else 'Reviewing')
+            await self.rt.progress(role=role_label, model=model_name, phase='Thinking' if thinking else 'Reviewing')
             call_started = time.monotonic()
             try:
-                reply, usage = await self.rt.model.complete(messages, tools, thinking, self.rt.model_progress)
+                reply, usage = await model.complete(messages, tools, thinking, self.rt.model_progress)
             except ModelError as error:
+                self.rt.store.event(self.rt.colony,'model_failure',role=role_label,model=model_name,seconds=round(time.monotonic()-call_started,3),error=str(error))
                 if contract is Proposal and drafts:
                     self.rt.note('info','Keeping validated drafts; further planning was interrupted.',role=role_label)
                     return Proposal(summary='Ready: '+'; '.join(a.title for a in drafts.values()),actions=list(drafts.values()),blockers=[str(error)])
                 raise
-            self.rt.store.event(self.rt.colony, 'model_call', role=role.split(':',1)[0],
+            self.rt.store.event(self.rt.colony, 'model_call', role=role.split(':',1)[0], model=model_name,
                                 seconds=round(time.monotonic()-call_started,3), usage=usage,
                                 tools=[c['function']['name'] for c in reply.get('tool_calls',[])])
             self.rt.check_generation()

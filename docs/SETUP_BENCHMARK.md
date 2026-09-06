@@ -52,3 +52,13 @@ Test a smaller model for narrow manager/executor assignments while retaining the
 ## Initial live baseline
 
 The fixed-save 180-second run failed to complete sleeping arrangements: no orders issued and no new completed objects. See local report `.rimbot/setup-benchmarks/20260905-214548/report.json`. Native material/forbid observations passed their separate live test. The manager trace shows repeated numeric work-priority corrections and an incomplete model stream during coordination. More context alone did not resolve execution; semantic execution and narrower responsibilities remain experiments, not completed fixes.
+
+## Department model routing
+
+Settings now offers a planning/administrator model and an optional department model. Blank or identical department model uses the main client. Infrastructure, Survival, Security, Development and Workforce use the department client; strategy, daily planning and arbitration use the main client. Reasoning and generation limits remain unchanged. Clients keep independent server compatibility state. Model call/failure events and the active status identify the selected model.
+
+The current local experiment uses `qwen3.5-4b` for departments and `qwen/qwen3.5-9b` for planning/arbitration, both verified loaded at 32,768 context. This is role routing, not automatic escalation or a semantic executor.
+
+### 4B department trial
+
+Same fixed-save SHA, speed 1 and 180-second deadline as the initial baseline. Result: 0 orders, 0 completed objects, 41 completed model calls, 0 rejected calls. The run timed out, with incomplete-stream failures also observed. Trace/report: `.rimbot/setup-benchmarks/20260905-215503/`. This single failed trial does not establish better or worse model quality; the setup pipeline did not make useful progress with either configuration. Per-model call IDs confirm routing. The 4B department setting remains enabled for further experiments.

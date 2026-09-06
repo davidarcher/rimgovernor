@@ -23,6 +23,7 @@ class Runtime:
         self.api_factory, self.model_factory = api_factory, model_factory
         self.api = api_factory(self.settings.rimapi_url, self.catalog)
         self.model = model_factory(self.settings)
+        self.manager_model = self.make_manager_model()
         self.planner = Planner(self)
         self.mode = 'manual'
         self.connected = False
@@ -46,6 +47,13 @@ class Runtime:
         self.event_connection = False
         self.stopped = False
         self.steering_pending = False
+
+    def make_manager_model(self):
+        name=self.settings.manager_model.strip()
+        return self.model_factory(self.settings.model_copy(update={'model':name})) if name and name!=self.settings.model else None
+
+    def model_for_role(self, role):
+        return self.manager_model if role in ROLES and self.manager_model is not None else self.model
 
     @staticmethod
     def empty_memory():
@@ -104,6 +112,7 @@ class Runtime:
         await asyncio.gather(*self.background, return_exceptions=True)
         await self.api.close()
         await self.model.close()
+        if self.manager_model is not None:await self.manager_model.close()
 
     async def cancel(self):
         self.generation += 1
@@ -119,10 +128,12 @@ class Runtime:
         async with self.poll_lock:
             await self.api.close()
             await self.model.close()
+            if self.manager_model is not None:await self.manager_model.close()
             self.settings = settings
             self.catalog = Catalog()
             self.api = self.api_factory(settings.rimapi_url, self.catalog)
             self.model = self.model_factory(settings)
+            self.manager_model = self.make_manager_model()
             self.store.set('settings', settings.model_dump())
             self.connected = False
             self.last_tick = None
