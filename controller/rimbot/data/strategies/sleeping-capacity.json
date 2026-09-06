@@ -1,7 +1,7 @@
 {
   "id": "sleeping-capacity",
-  "version": 2,
-  "title": "Sleeping capacity before permanent bedrooms",
+  "version": 3,
+  "title": "Tonight: sleeping spots, then beds",
   "tags": [
     "sleep",
     "sleeping",
@@ -10,21 +10,24 @@
     "construction"
   ],
   "applies_when": [
-    "Colonists lack usable sleeping capacity or current sleeping construction is stalled."
+    "Someone lacks a usable place to sleep."
   ],
   "approach": [
-    "Count existing and pending capacity before adding more. Separate a place to sleep from enclosure, roof and comfort.",
-    "Compare temporary zero-cost sleeping places with constructed beds using native definition costs and work. An interim place can be useful while durable furniture is built.",
-    "Reuse suitable existing space when observed; choose expansion sites from actual nearby geometry rather than a sampled room cell.",
-    "For a humanlike sleeping-capacity construction objective, set definition_requirements to is_bed=true and bed_humanlike=true. The executor must check these native properties; do not select animal beds."
+    "Sleeping spots cost no materials and appear immediately. Put temporary spots in the intended safe sleeping area while beds are built; they do not provide bed comfort.",
+    "Count existing and queued human sleeping capacity before adding furniture. Replace interim spots as beds become usable; do not build another full set because delivery is slow.",
+    "For colonist construction objectives require is_bed=true and bed_humanlike=true. Animal sleeping furniture is a separate need."
   ],
   "verify": [
-    "Current colonist count, existing beds/spots, ownership and reachability.",
-    "Native footprint, costs, roofs, door access and construction work blockers.",
-    "For colonist sleeping capacity, inspect native is_bed and bed_humanlike. Animal beds do not provide humanlike sleeping capacity. Match the intended users before choosing material or position."
+    "Users, ownership, reachable sleeping cells, roof and temperature; a spot alone is not shelter."
   ],
   "reconsider": [
-    "Existing capacity already meets the objective.",
-    "Chosen space is inaccessible, unsafe or conflicts with player direction."
+    "Capacity is already sufficient, or a joiner needs one additional place."
+  ],
+  "sources": [
+    {
+      "title": "RimWorld Wiki: Sleeping spot",
+      "url": "https://rimworldwiki.com/wiki/Sleeping_spot",
+      "checked_on": "2026-09-05"
+    }
   ]
 }

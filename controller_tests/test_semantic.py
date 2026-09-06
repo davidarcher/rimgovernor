@@ -48,6 +48,7 @@ async def test_managers_only_get_objective_submission_and_relevant_guidance(colo
         context=json.loads(messages[1]['content'])
         assert context['strategy_guidance'][0]['id']=='sleeping-capacity'
         assert 'capabilities' not in context
+        assert all('sources' not in entry for entry in context['strategy_guidance'])
         return {'role':'assistant','content':ObjectiveProposal(summary='Sleep',objectives=[objective()]).model_dump_json()},{}
     rt.model.complete=complete
     result=await rt.planner.ask('Infrastructure',{'assigned_task':'sleeping beds shelter capacity','capabilities':[]},ObjectiveProposal)
@@ -163,3 +164,14 @@ async def test_streamed_server_error_preserves_actual_context_failure(colony):
         with pytest.raises(ModelError,match='Context size has been exceeded'):
             await model.complete([],[],False,progress)
     finally:await model.close()
+
+
+@pytest.mark.parametrize(('query','expected'), [
+    ('food on poor gravel soil','poor-soil-food'),
+    ('kitchen food poisoning butcher','kitchen-cleanliness'),
+    ('first days landing setup','first-days'),
+])
+def test_practical_strategy_retrieval(query,expected):
+    entries=StrategyLibrary().search(query)
+    assert entries[0]['id']==expected
+    assert all(e['sources'] for e in entries)

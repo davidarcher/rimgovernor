@@ -158,7 +158,7 @@ class Planner:
 
     async def ask(self, role, context, contract, thinking=True):
         query_text=json.dumps(context.get('project') or context.get('assigned_task') or context.get('player_direction') or role,ensure_ascii=False)
-        context={**context,'strategy_guidance':self.rt.strategies.search(query_text)}
+        context={**context,'strategy_guidance':[{k:v for k,v in entry.items() if k!='sources'} for entry in self.rt.strategies.search(query_text)]}
         if contract in (Plans,DailyPlan,ObjectiveProposal) or (contract is Decision and context.get('semantic_objectives')):
             context=decision_context(context,self.rt.observation)
         native_reads=[e for e in self.rt.catalog.listing(write=False) if self.rt.catalog.get(e['name']).get('native_contract')]

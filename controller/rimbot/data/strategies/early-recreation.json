@@ -1,0 +1,39 @@
+{
+  "id": "early-recreation",
+  "version": 1,
+  "title": "Cheap mood improvements before luxury bedrooms",
+  "tags": [
+    "mood",
+    "recreation",
+    "table",
+    "chairs",
+    "horseshoe",
+    "social"
+  ],
+  "applies_when": [
+    "Basic needs are met but colonists have avoidable mood penalties."
+  ],
+  "approach": [
+    "Provide accessible recreation such as a horseshoe pin with clear playing space. A second copy of the same recreation type does not provide variety.",
+    "Give colonists time to use it. Check recreation need and boredom before spending labor on a larger recreation room.",
+    "Read individual thoughts: fix the actual recurring problem, such as lack of a place to eat, poor sleep or incompatible equipment, rather than treating every low mood as a request for decoration."
+  ],
+  "verify": [
+    "Usable recreation cells, time available, actual thoughts and changes in needs."
+  ],
+  "reconsider": [
+    "Pain, grief or an individual requirement is the main cause; furniture may not resolve it."
+  ],
+  "sources": [
+    {
+      "title": "RimWorld Wiki: Recreation",
+      "url": "https://rimworldwiki.com/wiki/Recreation",
+      "checked_on": "2026-09-05"
+    },
+    {
+      "title": "RimWorld Wiki: Mood",
+      "url": "https://rimworldwiki.com/wiki/Mood",
+      "checked_on": "2026-09-05"
+    }
+  ]
+}

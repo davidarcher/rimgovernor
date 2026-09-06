@@ -1,0 +1,35 @@
+{
+  "id": "first-days",
+  "version": 1,
+  "title": "First days: start several useful jobs",
+  "tags": [
+    "startup",
+    "early",
+    "landing",
+    "first",
+    "administrator",
+    "setup"
+  ],
+  "applies_when": [
+    "A new settlement has little infrastructure."
+  ],
+  "approach": [
+    "Near the landing supplies, choose a compact camp with safe access to buildable ground and food. Repair a suitable ruin or build against a hill if it saves work.",
+    "Start shelter and food production in parallel: a builder can enclose the camp while a grower sows. Do not wait for finished bedrooms before starting crops.",
+    "Arm capable colonists, allow useful nearby supplies, and protect perishables. Add a place to eat and basic recreation as labor permits.",
+    "Once immediate needs have orders, plan the next bottleneck: cooking, winter food, power, research or safer walls. Two days of meals is not a finished food system."
+  ],
+  "verify": [
+    "Workers are actually building, planting or supplying; queued projects alone are not progress."
+  ],
+  "reconsider": [
+    "Weather, injury or an approaching threat changes the immediate priority."
+  ],
+  "sources": [
+    {
+      "title": "RimWorld Wiki: Quickstart Guides",
+      "url": "https://rimworldwiki.com/wiki/Quickstart_Guides",
+      "checked_on": "2026-09-05"
+    }
+  ]
+}

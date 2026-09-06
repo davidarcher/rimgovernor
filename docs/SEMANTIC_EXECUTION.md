@@ -20,9 +20,9 @@ The native construction contract now includes description, is_bed and bed_humanl
 
 ## Strategy library
 
-Editable entries live in controller/rimbot/data/strategies/*.json, validated with the Strategy model. Each has an ID, version, title/tags, applicability, approach, facts to verify and reconsideration signals. The initial six entries cover sleeping capacity, food options, useful supplies, productive work, production bills and spatial layout checks.
+Editable entries live in controller/rimbot/data/strategies/*.json, validated with the Strategy model. Each has an ID, version, title/tags, applicability, approach, facts to verify and reconsideration signals. Sixteen concise entries cover the first days, shelter, crop choice, food gaps, cooking, storage, work, recreation, research and defense. Entries paraphrase linked RimWorld Wiki sources, with source-check dates shown in the dashboard. Scenario-specific examples are starting points, not guaranteed quantities. Local observations and player constraints override wiki advice; in particular we do not adopt the quickstart guide’s blanket allow-all recommendation.
 
-Deterministic text retrieval selects up to three matching entries per planning/manager/executor request. The library provides conditional guidance, not hardcoded numerical game rules or authority over player instructions. It is packaged with the controller and visible from the dashboard's Projects section. GET /api/strategies lists it; q and limit search it. GET /api/semantic/schema publishes the objective schema.
+Deterministic text retrieval selects up to three matching entries per planning/manager/executor request. The library provides conditional guidance, not hardcoded numerical game rules or authority over player instructions. Source metadata is excluded from retrieval scoring and model prompts to avoid wasting context. It is packaged with the controller and visible from the dashboard's Projects section. GET /api/strategies lists it; q and limit search it. GET /api/semantic/schema publishes the objective schema.
 
 ## Models, concurrency and display
 
@@ -47,3 +47,7 @@ Managers receive a decision snapshot rather than the full execution view: alerts
 The parallel trial at `.rimbot/setup-benchmarks/20260905-222354/` is not a valid performance comparison: the user was changing model loads, and LM Studio reported context-size errors. Both 4B and 9B were subsequently verified loaded at 32,768 context before the next run.
 
 The 32K trial at `.rimbot/setup-benchmarks/20260905-223029/` completed six model calls but issued no orders in 180 seconds. Managers selected humanlike-bed requirements correctly; the administrator deferred both objectives for forbidden materials and absent construction orders. Approval instructions now clarify that resolving in-scope prerequisites is executor work, not a condition that must already be completed before approval. This final instruction change is not yet gameplay-validated. The startup benchmark remains failing; protocol coverage is not a performance success.
+
+## Proposed bulk supply release (not implemented)
+
+The existing native things/set-forbidden command accepts explicit IDs and directly applies their requested flag; it has no hostile-distance filter. A separate bulk operation could accept a camp center/radius and configurable hostile exclusion radius, select visible spawned item stacks, then report changed IDs and skipped counts/reasons. Recheck the selection against current native state when executing. Keep ordinary explicit-ID behavior unchanged. Do not special-case insect jelly: the risk comes from location, not the item definition. Hostile-distance checks are a heuristic, not proof of a safe hauling route; moving threats, ranged reach, hives and routes through danger need explicit treatment before labeling this operation safe. The model should receive the actual filter parameters and exclusion report instead of selecting every stack itself.

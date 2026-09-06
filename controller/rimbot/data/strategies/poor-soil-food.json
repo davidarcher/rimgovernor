@@ -1,0 +1,37 @@
+{
+  "id": "poor-soil-food",
+  "version": 1,
+  "title": "Potatoes: food on gravel, not bare rock",
+  "tags": [
+    "potatoes",
+    "potato",
+    "gravel",
+    "poor",
+    "fertility",
+    "sand",
+    "soil",
+    "crops",
+    "growing"
+  ],
+  "applies_when": [
+    "Nearby fertile soil is scarce."
+  ],
+  "approach": [
+    "Potatoes are less sensitive to fertility than rice or corn and are a useful choice on plantable gravel.",
+    "Check each proposed tile. Rough stone and sand are not interchangeable with gravel; a potato still needs the native minimum fertility.",
+    "Plant eligible patches near camp and bridge the slower harvest with safe gathering or hunting. If no tiles qualify, choose another food source rather than retrying the same invalid zone."
+  ],
+  "verify": [
+    "Terrain fertility meets the crop definition; plants are actually being sown."
+  ],
+  "reconsider": [
+    "No eligible land, too little growing season, or no labor to finish sowing."
+  ],
+  "sources": [
+    {
+      "title": "RimWorld Wiki: Potato plant",
+      "url": "https://rimworldwiki.com/wiki/Potato_plant",
+      "checked_on": "2026-09-05"
+    }
+  ]
+}

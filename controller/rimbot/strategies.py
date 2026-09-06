@@ -2,7 +2,13 @@
 import json,re,math
 from pathlib import Path
 from pydantic import Field
+from datetime import date
 from .contracts import Contract
+
+class StrategySource(Contract):
+    title: str
+    url: str = Field(pattern=r"^https://rimworldwiki\.com/wiki/[^ ]+$")
+    checked_on: date
 
 class Strategy(Contract):
     id: str
@@ -13,6 +19,7 @@ class Strategy(Contract):
     approach: list[str]
     verify: list[str]
     reconsider: list[str]
+    sources: list[StrategySource] = Field(min_length=1)
 
 class StrategyLibrary:
     def __init__(self,folder=None):
@@ -25,7 +32,7 @@ class StrategyLibrary:
         ranked=[]
         for entry in self.entries:
             title=set(re.findall(r'[a-z]{3,}',(' '.join(entry.tags)+' '+entry.title).lower()))
-            body=set(re.findall(r'[a-z]{3,}',entry.model_dump_json().lower()))
-            score=sum((3 if w in title else 1)*math.log(1+len(self.entries)/(1+sum(w in s.model_dump_json().lower() for s in self.entries))) for w in words if w in body)
+            body=set(re.findall(r'[a-z]{3,}',entry.model_dump_json(exclude={'sources'}).lower()))
+            score=sum((3 if w in title else 1)*math.log(1+len(self.entries)/(1+sum(w in s.model_dump_json(exclude={'sources'}).lower() for s in self.entries))) for w in words if w in body)
             if score:ranked.append((score,entry.id,entry))
-        return [e.model_dump() for _,_,e in sorted(ranked,key=lambda x:(-x[0],x[1]))[:limit]]
+        return [e.model_dump(mode='json') for _,_,e in sorted(ranked,key=lambda x:(-x[0],x[1]))[:limit]]

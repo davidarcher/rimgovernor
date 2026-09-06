@@ -1,0 +1,39 @@
+{
+  "id": "kitchen-cleanliness",
+  "version": 1,
+  "title": "Keep butchering out of the kitchen",
+  "tags": [
+    "kitchen",
+    "cleanliness",
+    "butcher",
+    "poisoning",
+    "cooking",
+    "filth"
+  ],
+  "applies_when": [
+    "Cooking and butchering facilities are being placed or food poisoning recurs."
+  ],
+  "approach": [
+    "Put the butcher table near food storage but in a separate room from the stove. The table itself lowers room cleanliness.",
+    "Keep the cooking room easy to clean and out of routine through-traffic. Assign cleaning; a floor does not clean itself.",
+    "Set a butcher-creature bill for appropriate fresh animal corpses. A butcher table alone will not produce meat."
+  ],
+  "verify": [
+    "Room cleanliness, cook skill, corpse filters and the reported cause of food poisoning."
+  ],
+  "reconsider": [
+    "The cook is unskilled, the kitchen remains dirty, or carcasses cannot be processed before rot."
+  ],
+  "sources": [
+    {
+      "title": "RimWorld Wiki: Butcher table",
+      "url": "https://rimworldwiki.com/wiki/Butcher_table",
+      "checked_on": "2026-09-05"
+    },
+    {
+      "title": "RimWorld Wiki: Food poisoning",
+      "url": "https://rimworldwiki.com/wiki/Food_poisoning",
+      "checked_on": "2026-09-05"
+    }
+  ]
+}

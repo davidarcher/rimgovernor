@@ -1,30 +1,35 @@
 {
   "id": "food-options",
-  "version": 1,
-  "title": "Compare food by time, labor and access",
+  "version": 2,
+  "title": "Food gap: gather or hunt while crops grow",
   "tags": [
     "food",
-    "farming",
-    "growing",
     "hunting",
     "harvest",
     "fishing",
-    "survival"
+    "survival",
+    "foraging"
   ],
   "applies_when": [
-    "Food reserves or future supply need attention."
+    "Stored food may run out before the first harvest."
   ],
   "approach": [
-    "Distinguish edible supplies now from harvest, hunting, fishing and cultivation potential.",
-    "Compare time to food, available labor, route risk, season and terrain. Combine near-term supply with longer-term production when justified.",
-    "Select crops from native harvested products, fertility requirements and growth data; decorative plants are not interchangeable with food crops."
+    "Harvest ripe nearby berries or other edible wild plants. Compare ready food with the actual time until crops mature; a growing zone does not feed anyone today.",
+    "For hunting, choose reachable animals with low observed revenge risk. Use a capable hunter with a ranged weapon, then arrange corpse storage, butchering and cooking.",
+    "Do not assume a larger animal is a better target: injury, herd retaliation and hauling distance can outweigh its meat yield.",
+    "If local fishing is supported, compare its observed output and labor with these options; this guide does not establish fishing availability or yield."
   ],
   "verify": [
-    "Nearby allowed supplies and actual nutrition, not only map-wide potential.",
-    "Crop definitions, eligible terrain, growing conditions, animal risk and native fishing availability."
+    "Animal revenge risk, route hazards, edible products and ability to process the carcass."
   ],
   "reconsider": [
-    "Season, available labor or accessible food sources change.",
-    "A proposed method is unavailable or unsafe; choose another supported option."
+    "Predators, insects, winter migration or depleted forage make the source unreliable."
+  ],
+  "sources": [
+    {
+      "title": "RimWorld Wiki: Food production",
+      "url": "https://rimworldwiki.com/wiki/Food_production",
+      "checked_on": "2026-09-05"
+    }
   ]
 }

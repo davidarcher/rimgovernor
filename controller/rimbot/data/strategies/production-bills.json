@@ -1,28 +1,44 @@
 {
   "id": "production-bills",
-  "version": 1,
-  "title": "Production needs a usable workbench and bill",
+  "version": 2,
+  "title": "Kitchen: a stove needs a meal bill",
   "tags": [
     "production",
     "bills",
     "kitchen",
     "cooking",
-    "crafting",
-    "research"
+    "meals",
+    "ingredients"
   ],
   "applies_when": [
-    "A colony objective requires repeated production."
+    "Ingredients exist but prepared meals are not replenishing."
   ],
   "approach": [
-    "Inspect existing workbenches and bills before requesting another facility.",
-    "Choose a native recipe supported by the actual workbench, then configure its count or target and ingredient filters.",
-    "Consider nearby selective storage where it reduces travel; avoid assuming every workbench needs a separate room."
+    "Use an existing stove when possible. A fueled stove can start before electricity; check fuel and the cook rather than waiting for a complete power system.",
+    "Add a simple-meal bill with an inventory target, not an unlimited meal backlog. For three ordinary colonists, 10 meals is a starting target to adjust for actual consumption and spoilage.",
+    "Restrict ingredients to intended foods and check dietary rules. Put a small ingredient stockpile near the cook so most work time goes into cooking."
   ],
   "verify": [
-    "Native recipe availability, ingredients, fuel/power where relevant, pawn skill and bill restrictions.",
-    "Produced items and native bill progress rather than only bill creation."
+    "Bill enabled, allowed ingredients, skilled available cook, fuel or power, and finished meals."
   ],
   "reconsider": [
-    "The existing facility is adequate, inputs are unavailable, or another bottleneck dominates."
+    "Meals spoil, ingredients run out, or the cook spends the day hauling."
+  ],
+  "sources": [
+    {
+      "title": "RimWorld Wiki: Fueled stove",
+      "url": "https://rimworldwiki.com/wiki/Fueled_stove",
+      "checked_on": "2026-09-05"
+    },
+    {
+      "title": "RimWorld Wiki: Food",
+      "url": "https://rimworldwiki.com/wiki/Food",
+      "checked_on": "2026-09-05"
+    },
+    {
+      "title": "RimWorld Wiki: Quickstart Guides",
+      "url": "https://rimworldwiki.com/wiki/Quickstart_Guides",
+      "checked_on": "2026-09-05"
+    }
   ]
 }

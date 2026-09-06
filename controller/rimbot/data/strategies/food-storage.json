@@ -1,0 +1,40 @@
+{
+  "id": "food-storage",
+  "version": 1,
+  "title": "Preserve food before expanding the larder",
+  "tags": [
+    "food",
+    "storage",
+    "freezer",
+    "cooler",
+    "spoilage",
+    "power",
+    "temperature"
+  ],
+  "applies_when": [
+    "Perishable food is spoiling or a larger reserve is planned."
+  ],
+  "approach": [
+    "Keep raw crops protected and cook manageable batches. Prioritize meat and prepared meals for cooling; inspect their actual rot timers.",
+    "For a freezer, use an enclosed roofed room with the cooler cold side inside and heat exhausted outside. Supply power and set a below-freezing target.",
+    "Check measured room temperature before trusting the freezer. Leave expansion room, but do not build a huge cold room before there is food and power to justify it."
+  ],
+  "verify": [
+    "Actual temperature, cooler orientation, power, open doors and storage filters."
+  ],
+  "reconsider": [
+    "Hot weather or power loss raises temperature; reduce stored perishables or improve cooling."
+  ],
+  "sources": [
+    {
+      "title": "RimWorld Wiki: Food",
+      "url": "https://rimworldwiki.com/wiki/Food",
+      "checked_on": "2026-09-05"
+    },
+    {
+      "title": "RimWorld Wiki: Cooler",
+      "url": "https://rimworldwiki.com/wiki/Cooler",
+      "checked_on": "2026-09-05"
+    }
+  ]
+}

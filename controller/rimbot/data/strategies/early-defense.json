@@ -1,0 +1,35 @@
+{
+  "id": "early-defense",
+  "version": 1,
+  "title": "Prepare cover and a retreat near camp",
+  "tags": [
+    "security",
+    "defense",
+    "combat",
+    "raid",
+    "weapons",
+    "cover"
+  ],
+  "applies_when": [
+    "The settlement needs protection or a threat is approaching."
+  ],
+  "approach": [
+    "Equip capable pawns with suitable available weapons. Check violence incapability before trying again after an equip failure.",
+    "Choose nearby cover with a clear firing direction and a safe retreat. Existing walls and chunks can help before purpose-built defenses are finished.",
+    "Keep civilian routes away from traps and known hazards. Assess what threatens the camp or a work route; distant insects do not automatically stop all construction.",
+    "During an actual attack, withdraw exposed workers and position defenders. Do not send lone pawns across the map to engage stationary cave threats."
+  ],
+  "verify": [
+    "Threat location and behavior, weapon range, line of fire, cover and retreat route."
+  ],
+  "reconsider": [
+    "Raiders bypass the position, fire spreads, or injured defenders need to withdraw."
+  ],
+  "sources": [
+    {
+      "title": "RimWorld Wiki: Defense structures",
+      "url": "https://rimworldwiki.com/wiki/Defense_structures",
+      "checked_on": "2026-09-05"
+    }
+  ]
+}

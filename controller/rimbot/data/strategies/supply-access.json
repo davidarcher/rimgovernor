@@ -1,28 +1,35 @@
 {
   "id": "supply-access",
-  "version": 1,
-  "title": "Make useful supplies available",
+  "version": 2,
+  "title": "Allow nearby supplies; store what needs protection",
   "tags": [
     "forbidden",
     "supplies",
     "materials",
     "wood",
     "delivery",
-    "access"
+    "access",
+    "stockpile"
   ],
   "applies_when": [
-    "A pending objective needs supplies present on the map."
+    "Materials exist but construction or production cannot use them."
   ],
   "approach": [
-    "Inspect nearby relevant stacks and worker access. Allow only identified useful supplies consistent with route safety.",
-    "Allowed loose ground stacks can be sources; a stockpile is not a universal prerequisite.",
-    "Allowing, hauling and delivering are different outcomes. Verify the flag change without claiming construction received materials."
+    "Allow identified useful nearby stacks after checking the route. Do not use zero forbidden items as a colony goal; distant cave loot can send haulers into insects.",
+    "Loose allowed materials can supply work directly. Hauling everything into a stockpile is not a prerequisite for placing or supplying a blueprint.",
+    "Put protected storage near camp. Use small, higher-priority filtered stockpiles by workbenches for frequently used inputs; keep dumping storage for chunks and waste separate."
   ],
   "verify": [
-    "Observed item IDs, forbidden state, quantity, location and native worker checks.",
-    "Remaining material requirements; do not allocate the same stock to multiple projects independently."
+    "Observed IDs and flags, ingredient filters, storage priority, free space and actual deliveries."
   ],
   "reconsider": [
-    "Supplies are unreachable, reserved, insufficient or exposed to threats."
+    "Stock is across a dangerous route, or repeated hauling moves the same items between stores."
+  ],
+  "sources": [
+    {
+      "title": "RimWorld Wiki: Stockpile zone",
+      "url": "https://rimworldwiki.com/wiki/Stockpile_zone",
+      "checked_on": "2026-09-05"
+    }
   ]
 }
