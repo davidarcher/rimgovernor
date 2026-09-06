@@ -152,6 +152,10 @@ async def execute_projects(rt,context,scheduled):
         role='Executor:'+project['kind']
         try:
             if spatial_error and project['kind'] in SPATIAL_KINDS:raise ValueError(spatial_error)
+            if project['kind'] in SPATIAL_KINDS:
+                layout=rt.memory.get('spatial_layout',{})
+                if not any(project['project_id'] in r['project_ids'] for r in layout.get('regions',[])):
+                    raise ValueError('Waiting for architect: '+layout.get('deferred',{}).get(project['project_id'],'No valid site reserved.'))
             fresh=await rt.manager_context(context)
             fresh={k:v for k,v in fresh.items() if k not in ('plans','assignments')}
             fresh.update(project_owner=project['owner'],project=project,projects=[p for p in rt.memory['projects'] if p.get('status')!='retired'],assigned_task=project['outcome'])

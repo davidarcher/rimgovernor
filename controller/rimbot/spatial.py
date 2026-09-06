@@ -83,7 +83,10 @@ def validate_layout(layout,area,projects,previous=()):
             for n in neighbors(pending.pop()):
                 if n in points and n not in visited:visited.add(n);pending.append(n)
         if visited!=points:raise ValueError('Region must be connected; use separate regions for separate patches')
-        if r['purpose']=='room' and not points-boundary(points):raise ValueError('Room footprint has no interior; four corners or wall-only strips are not a room')
+        if r['purpose']=='room' and not points-boundary(points):
+            width=max(x for x,z in points)-min(x for x,z in points)+1
+            height=max(z for x,z in points)-min(z for x,z in points)+1
+            raise ValueError(f"Room footprint has no interior: {r['id']} has actual outer bounds {width}x{height}, {len(points)} cells. Your rationale does not change these coordinates. For a rectangular room choose x1,z1 and set x2=x1+outer_width-1, z2=z1+outer_height-1, with space for walls and furniture in BOTH axes. Submit the filled rectangle, not a wall strip.")
         for p in points:
             c=observed[p]
             if c['zone_id'] is not None:
@@ -179,7 +182,7 @@ async def prepare_layout(rt,context,projects):
     previous=[r for r in saved.get('regions',[]) if active & set(r['project_ids'])]
     previous=[{**r,'project_ids':[i for i in r['project_ids'] if i in active]} for r in previous]
     signature=hashlib.sha256(json.dumps([(p['project_id'],p['kind'],p['outcome'],p.get('constraints')) for p in projects],sort_keys=True).encode()).hexdigest()
-    if saved.get('signature')==signature and (not saved.get('deferred') or saved.get('day')==(rt.last_tick or 0)//60000):
+    if saved.get('signature')==signature and not saved.get('deferred'):
         rt.spatial_image=render_map(area,previous)
         await show_native_plans(rt,saved)
         rt.spatial_image=render_map(area,previous,saved.get('colors'))

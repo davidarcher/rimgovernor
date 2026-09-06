@@ -330,9 +330,12 @@ class Planner:
                 if field in schema['required']:schema['required'].remove(field)
             tools.append(tool(name,'Stage this native order in your approved project batch. Submit to execute the validated batch directly; no additional administrator approval is needed. '+entry['description'],schema))
             allowed_tools.add(name)
-        if contract is Proposal and 'construction_place' in writable:
+        room_ids=[r['id'] for r in context.get('spatial_reservations',{}).get('regions',[]) if r['purpose']=='room' and context.get('project',{}).get('project_id') in r['project_ids']]
+        if contract is Proposal and 'construction_place' in writable and room_ids:
             from .enclosure import Enclosure
-            tools.append(tool('compile_enclosure','Stage complete room perimeter from its reservation. Select native wall/door definitions, materials and entrance cells; the compiler enumerates walls and reuses existing enclosure. No implicit mining or demolition. Submit to execute.',Enclosure.model_json_schema()))
+            enclosure_schema=Enclosure.model_json_schema()
+            enclosure_schema['properties']['region_id']['enum']=room_ids
+            tools.append(tool('compile_enclosure','Stage complete room perimeter from its reservation. Select native wall/door definitions, materials and entrance cells; the compiler enumerates walls and reuses existing enclosure. No implicit mining or demolition. Submit to execute.',enclosure_schema))
             allowed_tools.add('compile_enclosure')
             instructions += '\nFor room walls use compile_enclosure instead of enumerating wall tiles. Choose an entrance on a non-corner perimeter cell. It stages an ordinary native construction batch, not finished construction. Furniture still uses construction_place.'
         if contract is Proposal:
