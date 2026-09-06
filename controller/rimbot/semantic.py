@@ -109,6 +109,8 @@ async def semantic_review(rt,context,roles):
     if routine and not candidates and all(p in routine for p in projects) and not context.get('administration_required'):
         rt.memory['last_admin_day']=day;rt.persist()
         return
+    shared=await rt.manager_context(shared)
+    shared=await rt.observe_resources(shared)
     decision_context={**shared,'projects':projects,'proposals':candidates,'semantic_objectives':True}
     try:
         decision=await arbitrate_objectives(rt,decision_context)

@@ -7,7 +7,7 @@ ProjectKind=Literal['construction','growing','production','storage','work_assign
 
 class WorkObjective(Contract):
     project_id: str = Field(default='',description='Existing project ID to continue; blank creates a new objective.')
-    kind: ProjectKind = Field(description="Command system needed: construction places ALL furniture/buildings including beds and recreation; growing creates crop zones; production configures bills; work_assignment changes priorities/schedules ONLY; care treats patients, never builds beds; research selects technology, never recreation.")
+    kind: ProjectKind = Field(description="Command system needed: construction places ALL furniture/buildings including beds and recreation; growing creates crop zones; storage creates/configures stockpile zones; supply_access ONLY changes forbidden flags and cannot create stockpiles; production configures bills; work_assignment changes priorities/schedules ONLY; care treats patients, never builds beds; research selects technology, never recreation.")
     outcome: str = Field(min_length=1,max_length=250,description='Desired player-visible result, not endpoints, cells or a sequence of API calls.')
     quantity: int | None = Field(default=None,ge=1,description='Desired capacity or quantity if meaningful; null when not applicable.')
     definition_requirements: dict[str,bool|float|str] = Field(default_factory=dict,description='Construction only: required native building-definition properties supplied by guidance or observation, e.g. bed_humanlike=true. Empty for other systems. Unknown properties cannot be assumed.')

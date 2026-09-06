@@ -279,7 +279,7 @@ class Planner:
             instructions=('Make the strategic decision using current evidence. Accept supported objectives or defer uncertain ones with concrete reasons. '
                           'Approve or defer each candidate ID exactly once. These are individual objectives, not whole department bundles. '
                           'Review all existing projects: keep useful ones, retire duplicates and obsolete assumptions. Use updates with an existing project_id to continue the same outcome even when wording or owner differs. '
-                          'Correct the command-system kind in updates: beds/recreation furniture require construction; medical care and technology research cannot build them. '
+                          'Correct the command-system kind in updates: stockpile creation requires storage, never supply_access or construction. supply_access only changes forbidden flags. Crop zones require growing, not work_assignment. Beds/recreation furniture require construction; medical care and technology research cannot build them. '
                           'Compare crop minimum fertility to terrain fertility; a nonzero fertility value is not proof a crop can grow. Base growth days omit nightly rest. '
                           'Idle workers with no queued jobs need construction, zones, bills or designations, not priority changes. '
                           'Resolve duplicate outcomes and conflicting priorities or constraints. Do not ask for exact cells, payloads or tool discovery: the executor resolves them. '
