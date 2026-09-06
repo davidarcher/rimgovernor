@@ -1,4 +1,5 @@
 import asyncio
+from copy import deepcopy
 import base64
 import json
 import os
@@ -64,8 +65,29 @@ def create_app(runtime=None):
 
     @app.get('/api/spatial/image')
     async def spatial_image(request: Request):
-        data=getattr(request.app.state.rt,'spatial_image',None)
-        if data is None:raise HTTPException(404,'No spatial survey yet')
+        from .spatial import render_map
+        rt=request.app.state.rt
+        if not hasattr(rt,'spatial_preview_lock'):rt.spatial_preview_lock=asyncio.Lock()
+        async with rt.spatial_preview_lock:
+            layout=deepcopy(rt.memory.get('spatial_layout'))
+            if not layout:raise HTTPException(404,'No base layout planned yet')
+            focus=deepcopy(rt.memory.get('colony_focus'))
+            map_id=rt.observation.get('map',{}).get('id')
+            key=(rt.colony,json.dumps(layout,sort_keys=True),json.dumps(focus,sort_keys=True),map_id)
+            if getattr(rt,'spatial_preview_key',None)==key:
+                data=rt.spatial_preview_png
+            else:
+                if not rt.connected or not focus or map_id is None:
+                    raise HTTPException(503,'Waiting for the colony map')
+                try:
+                    area=(await rt.api.call('construction_area',{'map_id':map_id,'center':focus,'radius':24})).model_dump()
+                    data=render_map(area,layout.get('regions',[]),layout.get('colors'))
+                except Exception as exc:
+                    raise HTTPException(503,'Map preview temporarily unavailable') from exc
+                if rt.colony!=key[0] or rt.memory.get('spatial_layout')!=layout:
+                    raise HTTPException(409,'Base layout changed; refreshing preview')
+                rt.spatial_preview_key=key
+                rt.spatial_preview_png=data
         return Response(data,media_type='image/png',headers={'Cache-Control':'no-store'})
 
     @app.get('/api/health')
