@@ -54,6 +54,8 @@ class GameFixture:
             return httpx.Response(200,json={'use_work_priorities':self.use_work_priorities})
         if path=='docs':
             data={'sections':[{'endpoints':[{'method':e['method'],'path':e['path']} for e in self.catalog.entries.values()]}]}
+        elif path=='def/all':
+            data={'work_type_defs':[{'def_name':name,'label':name} for name in ('Construction','Hauling','Growing','Cooking')]}
         elif path=='game/state':
             data={'session_id':self.session,'game_tick':self.tick,'program_state':'Playing','is_paused':False,'colonist_count':3,'colony_wealth':24000}
         elif path=='maps':

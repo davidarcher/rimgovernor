@@ -113,7 +113,7 @@ async def test_specialist_receives_only_own_assignment(colony):
 
 async def test_rejected_job_does_not_block_valid_priority_draft(colony):
     rt,_=colony;rt.cycle_generation=rt.generation
-    rt.api.cache[('get_def_all','{}')]={'job_defs':[]}
+    rt.api.cache[('get_def_all','{}')]={'job_defs':[],'work_type_defs':[{'def_name':'Construction'}]}
     class Model:
         calls=0
         async def complete(self,*args):

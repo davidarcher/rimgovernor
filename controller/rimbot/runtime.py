@@ -334,6 +334,15 @@ class Runtime:
     async def check(self, check):
         return satisfies(await self.query(check.query), check)
 
+    async def validate_work_types(self, action):
+        if action.endpoint not in ('post_colonist_work_priority','post_colonists_work_priority'):return
+        definitions=await self.api.call('get_def_all',{'filters':['WorkTypeDefs']})
+        names={d['def_name'] for d in (definitions.get('work_type_defs') or [])}
+        if not names:raise ValueError('Native work types unavailable; no priority order sent.')
+        for item in action.arguments.get('priorities',[action.arguments]):
+            if item.get('work') not in names:
+                raise ValueError(f"Unknown work type {item.get('work')!r}. Use a native work category: {', '.join(sorted(names))}. Building names and JobDefs are not work types. No priority order sent.")
+
     async def action_complete(self, action, receipt=None):
         if action.endpoint=='construction_place':
             state=await self.api.native.inspect(ConstructionRequest.model_validate(action.arguments))
@@ -408,6 +417,7 @@ class Runtime:
             return
         e = self.catalog.validate(action.endpoint, action.arguments, True)
         await self.validate_build_materials(action)
+        await self.validate_work_types(action)
         if 'map_id' in action.arguments and action.arguments['map_id'] != self.observation['map']['id']:
             raise ValueError('Action targets a different map.')
         if await self.action_complete(action):

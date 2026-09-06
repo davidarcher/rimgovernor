@@ -154,6 +154,7 @@ class Planner:
             for action in value.actions:
                 if action.endpoint=='post_work_settings':planned_mode=action.arguments['use_work_priorities']
                 if action.endpoint in ('post_colonist_work_priority','post_colonists_work_priority'):
+                    await self.rt.validate_work_types(action)
                     priorities=action.arguments.get('priorities',[action.arguments])
                     if any(p['priority'] not in (0,3) for p in priorities) and 'get_work_settings' in self.rt.catalog.available:
                         if planned_mode is None:planned_mode=(await self.rt.api.call('get_work_settings',{},fresh=True))['use_work_priorities']
@@ -318,6 +319,10 @@ class Planner:
                          'Stocks are shared across sites; do not count the same stack as allocated to every project. A reservation can temporarily fail eligibility while another pawn works. '
                          'Fix observed blockers before adding redundant orders. If next_offset is present, further sites exist; absence from the first page does not mean missing. '
                          'These checks are not a complete job simulation. Delegate unresolved execution details; do not invent the reason for a rejected native check.')
+        if role=='Executor:work_assignment':
+            definitions=await self.rt.api.call('get_def_all',{'filters':['WorkTypeDefs']})
+            context={**context,'native_work_types':[{'def_name':d['def_name'],'label':d.get('label'),'description':d.get('description')} for d in (definitions.get('work_type_defs') or [])]}
+            instructions += '\nWork priority work must be an exact native_work_types def_name. It enables a category of ordinary labor, not a specific job or building. Do not use a JobDef, ThingDef, or pawn name as a work type.'
         messages = [{'role':'system' ,'content':instructions}, {'role':'user','content':json.dumps(context, separators=(',',':'), ensure_ascii=False)}]
         definition_evidence = {}
         repeats = {}
