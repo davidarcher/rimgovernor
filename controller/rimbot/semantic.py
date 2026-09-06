@@ -16,9 +16,15 @@ def reconcile_projects(memory):
         if not ids:continue
         rows=[work[i] for i in ids if i in work]
         if len(rows)!=len(ids):status='needs_review'
-        elif all(w['status']=='complete' for w in rows):status='orders_verified'
+        elif all(w['status']=='complete' for w in rows):
+            # Supply access supports another system; it cannot verify that system's orders.
+            support={'post_things_set_forbidden','orders_unforbid_all'}
+            only_support=project['kind']!='supply_access' and all(w.get('action',{}).get('endpoint') in support for w in rows)
+            status='needs_review' if only_support else 'orders_verified'
+            if only_support:project['progress_note']='Supporting supply orders verified; the main project still needs orders or an observed outcome.'
         elif any(w['status'] in ('rejected','deferred','unresolved') for w in rows):status='needs_review'
         else:status='awaiting_work'
+        if status=='orders_verified':project.pop('progress_note',None)
         if project.get('status')!=status:project['status']=status;changed=True
     return changed
 
@@ -96,8 +102,9 @@ async def semantic_review(rt,context,roles):
         project['age_days']=round((time.time()-project['created_at'])/86400,2) if project.get('created_at') else None
     decision_context={**shared,'projects':projects,'proposals':candidates,'semantic_objectives':True}
     decision=await arbitrate_objectives(rt,decision_context)
-    rt.note('arbitration',decision.response,role='Administrator',accepted=decision.accepted,deferred=decision.deferred,retired=decision.retire_projects,kept=len(decision.keep_projects))
-    rt.reply(decision.response)
+    summary=decision.response if len(decision.response)<=650 else decision.response[:647]+'...'
+    rt.note('arbitration',summary,explanation=decision.response,role='Administrator',accepted=decision.accepted,deferred=decision.deferred,retired=decision.retire_projects,kept=len(decision.keep_projects))
+    rt.reply(summary)
     rt.check_generation()
     if rt.mode!='automate':return
     for project in projects:

@@ -47,13 +47,7 @@ class Proposal(Contract):
 
 
 class Decision(Contract):
-    @field_validator('response', mode='before')
-    @classmethod
-    def concise_display(cls, value):
-        # Display prose is not the authorization payload. Keep IDs/decisions strict.
-        return value[:647]+'...' if isinstance(value,str) and len(value)>650 else value
-
-    response: str = Field(max_length=650)
+    response: str = Field(max_length=12000,description='Explain the decision as needed. Start with a short player-facing summary; put supporting reasoning afterward.')
     accepted: list[str] = Field(default_factory=list, description='Proposal IDs; accept a complete proposal only.')
     deferred: dict[str, str] = Field(default_factory=dict, description='Every other proposal ID and its reason.')
 
@@ -62,6 +56,11 @@ ManagerName = Literal['Survival','Infrastructure','Security','Development','Work
 
 
 class Plans(Contract):
+    @field_validator('response', mode='before')
+    @classmethod
+    def concise_display(cls,value):
+        return value[:497]+'...' if isinstance(value,str) and len(value)>500 else value
+
     today: list[str] = Field(max_length=6)
     week: list[str] = Field(max_length=5)
     season: list[str] = Field(max_length=5)

@@ -103,7 +103,7 @@ async def test_deferred_objective_cannot_reach_executor(colony):
 def test_long_explanation_does_not_invalidate_approval_data():
     from rimbot.semantic_models import ObjectiveDecision as Decision
     decision=Decision(response='x'*1000,accepted=['Infrastructure'])
-    assert len(decision.response)==650 and decision.accepted==['Infrastructure']
+    assert len(decision.response)>650 and decision.accepted==['Infrastructure']
     with pytest.raises(ValidationError):Decision(response=42,accepted=['Infrastructure'])
 
 async def test_manager_parallelism_is_bounded_and_orders_wait_for_arbitration(colony):
@@ -227,3 +227,14 @@ def test_minor_plantable_terrain_survives_decision_projection():
     assert result['resource_overview']['terrain']['items']==rows
     assert result['labor_state']['queued_construction_sites']==0
     assert [t['def_name'] for t in result['crop_land_comparison']['crops'][0]['matching_nearby_terrain']]==['Gravel','Soil']
+
+def test_supporting_supply_order_does_not_verify_construction_project():
+    memory={'work':[]}
+    p=retain_project(memory,'Infrastructure',objective())
+    p.update(status='awaiting_work',work_ids=['allow'])
+    memory['work']=[{'id':'allow','status':'complete','action':{'endpoint':'orders_unforbid_all'}}]
+    reconcile_projects(memory)
+    assert p['status']=='needs_review' and 'Supporting' in p['progress_note']
+    p['kind']='supply_access';p['status']='awaiting_work'
+    reconcile_projects(memory)
+    assert p['status']=='orders_verified'

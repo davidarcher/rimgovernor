@@ -12,7 +12,7 @@ from pathlib import Path
 import httpx
 
 
-async def run(timeout):
+async def run(timeout, resume=False):
     folder=Path('.rimbot/startup-tests')/time.strftime('%Y%m%d-%H%M%S')
     folder.mkdir(parents=True)
     report={'passed':False,'objective':'Provide sleeping arrangements for everyone.'}
@@ -25,12 +25,13 @@ async def run(timeout):
         state=await get('/api/state')
         if not state['connected'] or state['busy'] or state['mode']!='manual':
             raise RuntimeError('Connect an idle, fresh colony in Manual first.')
-        if state['memory']['goals'] or state['memory']['work'] or state['memory']['plans']:
+        if not resume and (state['memory']['goals'] or state['memory']['work'] or state['memory']['plans']):
             raise RuntimeError('This fixture requires fresh controller state.')
         identity=state['colony'];mid=state['observation']['map']['id']
         report.update(colony=identity,session_id=state['observation']['game']['session_id'])
         try:
-            await post('/api/goals',{'text':report['objective']})
+            report['resumed']=resume
+            if not resume:await post('/api/goals',{'text':report['objective']})
             await post('/rimapi/api/v1/game/speed?speed=3')
             await post('/api/control',{'mode':'automate'})
             while time.time()-started<timeout:
@@ -43,7 +44,7 @@ async def run(timeout):
                     last_status=breadcrumb
                 response=await client.get('/api/history');response.raise_for_status()
                 history=[json.loads(line) for line in response.text.splitlines() if line]
-                actions=[e for e in history if e['kind']=='action' and e.get('endpoint')]
+                actions=[e for e in history if e['kind']=='action' and e.get('endpoint') and e['at']>=started]
                 if actions and 'first_order_seconds' not in report:
                     report['first_order_seconds']=round(actions[0]['at']-started,2)
                     print(f"First order after {report['first_order_seconds']}s: {actions[0]['text']}",flush=True)
@@ -92,4 +93,6 @@ if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--execute',action='store_true',required=True)
     p.add_argument('--timeout',type=int,default=360)
-    asyncio.run(run(p.parse_args().timeout))
+    p.add_argument('--resume',action='store_true',help='Continue the loaded test colony after a fix; report this as a resumed run.')
+    args=p.parse_args()
+    asyncio.run(run(args.timeout,args.resume))

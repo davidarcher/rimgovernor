@@ -52,6 +52,7 @@ export default function ManagerActivity({colony,busy,status,assignments}:{colony
     <div className="mgr-manager-events">{!visible.length&&<p className="mgr-empty">No recorded activity{role==='All'?'':` for ${role}`} yet.</p>}{visible.map(e=><article key={e.id} className={e.kind}>
       <header><strong>{owner(e)}</strong><span>{e.kind==='tool_result'?'Tool':e.kind.replaceAll('_',' ')}</span><time>{new Date(e.at*1000).toLocaleTimeString()}</time></header>
       <p>{caption(e)}</p>
+      {e.explanation&&e.explanation!==e.text&&<details><summary>Full explanation</summary><p style={{whiteSpace:'pre-wrap'}}>{e.explanation}</p></details>}
       {e.kind==='proposal'&&<small>{e.semantic?e.proposal?.objectives?.length||0:e.proposal?.actions?.length||0} proposed {e.semantic?'objectives':'orders'} · awaiting arbitration</small>}
       {e.kind==='arbitration'&&<div className="mgr-verdict">{e.accepted?.map((r:string)=><span key={r}>Approved: {r}</span>)}{Object.entries(e.deferred||{}).map(([r,why])=><p key={r}>Deferred {r}: {String(why)}</p>)}<small>Approval is not confirmation that an order executed. See Work for results.</small></div>}
       {e.proposal?.objectives?.map((o:any,i:number)=><div key={'objective-'+i}>{o.outcome}</div>)}
