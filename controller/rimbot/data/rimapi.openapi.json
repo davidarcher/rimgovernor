@@ -23826,6 +23826,22 @@
           },
           "resurrect": {
             "type": "boolean"
+          },
+          "hostility_response": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Ignore",
+                  "Attack",
+                  "Flee"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Undrafted threat response. Attack is Fight in the player UI; does not draft or order an attack."
           }
         },
         "additionalProperties": true,
@@ -26663,6 +26679,22 @@
           },
           "resurrect": {
             "type": "boolean"
+          },
+          "hostility_response": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Ignore",
+                  "Attack",
+                  "Flee"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Undrafted threat response. Attack is Fight in the player UI; does not draft or order an attack."
           }
         },
         "additionalProperties": false,
@@ -26672,7 +26704,7 @@
           "kill",
           "resurrect"
         ],
-        "x-native-type-sha256": "ad0cc4fcd8fd29326a28ad1999165f7fe04e6a19c52a955b1c28decf40255d6a"
+        "x-native-type-sha256": "97156a5bdc703ff13407e464282a40a1cdbf5ed779f1a47a2817aa3d7d3853ef"
       },
       "PawnTimeAssignmentRequestDto": {
         "type": "object",

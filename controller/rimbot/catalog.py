@@ -21,7 +21,7 @@ REQUIRED = {
     'post_map_zone_growing': ['map_id', 'point_a', 'point_b', 'plant_def'],
     'post_map_zone_stockpile': ['map_id', 'point_a', 'point_b'],
     'post_colonist_work_priority': ['id', 'work', 'priority'],
-    'post_pawn_edit_status': ['pawn_id', 'is_drafted'],
+    'post_pawn_edit_status': ['pawn_id'],
     'post_pawn_job': ['pawn_id', 'job_def'],
     'post_colonist_time_assignment':['pawn_id','hour','assignment'],
     'post_colonists_work_priority':['priorities'],
@@ -81,6 +81,8 @@ class Catalog:
             if e['name'] == 'post_pawn_edit_status':
                 props.pop('kill', None)
                 props.pop('resurrect', None)
+                e['schema']['anyOf']=[{'required':['is_drafted']},{'required':['hostility_response']}]
+                e['description'] += ' hostility_response sets the undrafted player response: Ignore, Attack (Fight), or Flee. It is immediate, does not draft the pawn or order an attack. Use Attack for capable early defenders; preserve nonviolent pawns.'
             if e['name'] == 'post_research_target' and 'force' in props:
                 props['force'] = {'const': False}
             if e['name'] == 'post_builder_blueprint':

@@ -410,6 +410,15 @@ class Runtime:
         if action.endpoint=='delete_map_zone_stockpile_delete':
             zones=await self.api.call('get_map_zones',{'map_id':self.observation['map']['id']},fresh=True)
             return all(z['id']!=action.arguments['zone_id'] for z in zones.get('zones',[]))
+        if action.endpoint=='post_pawn_edit_status' and set(action.arguments)=={'pawn_id','hostility_response'}:
+            args=action.arguments
+            pawn=await self.api.call('get_colonist_detailed',{'id':args['pawn_id']},fresh=True)
+            # Native RimWorld.HostilityResponseMode, verified against the game assembly.
+            responses={'Ignore':0,'Attack':1,'Flee':2}
+            return args['hostility_response'] in responses and pawn.get('policies_info',{}).get('hostility_response')==responses[args['hostility_response']]
+        if action.endpoint=='post_jobs_make_equip':
+            inventory=await self.api.call('get_pawns_inventory',{'id':action.arguments['pawn_id']},fresh=True)
+            return any(item['thing_id']==action.arguments['item_id'] for item in inventory.get('equipment',[])+inventory.get('apparels',[]))
         if action.done is not None:return await self.check(action.done)
         args=action.arguments
         if action.endpoint=='post_work_settings':

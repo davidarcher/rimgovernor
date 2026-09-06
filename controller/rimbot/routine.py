@@ -1,6 +1,9 @@
 """Immediate, validated setup commands; no extra model submission required."""
 ROUTINE_ENDPOINTS={'orders_unforbid_all','post_things_set_forbidden','zone_growing_cells','post_map_zone_growing','post_map_zone_stockpile'}
 
+def is_routine(action):
+    return action.endpoint in ROUTINE_ENDPOINTS or (action.endpoint=='post_pawn_edit_status' and set(action.arguments)=={'pawn_id','hostility_response'} and action.arguments['hostility_response'] is not None)
+
 async def execute_routine(rt,context,action,role):
     from .spatial import validate_orders
     project=context['project']

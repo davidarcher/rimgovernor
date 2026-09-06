@@ -1865,6 +1865,7 @@ class Input_PawnStatusRequest(WireModel):
     is_drafted: Union[Union[bool, None], None] = Field(default=None)
     kill: Union[bool, None] = Field(default=None)
     resurrect: Union[bool, None] = Field(default=None)
+    hostility_response: Union[Union[Literal['Ignore', 'Attack', 'Flee'], None], None] = Field(default=None)
 
 class Input_PawnTimeAssignmentRequestDto(WireModel):
     model_config = ConfigDict(strict=True, extra='allow', protected_namespaces=())
@@ -2499,6 +2500,7 @@ class PawnStatusRequest(WireModel):
     is_drafted: Union[Union[bool, None], None] = Field(default=None)
     kill: bool = Field()
     resurrect: bool = Field()
+    hostility_response: Union[Union[Literal['Ignore', 'Attack', 'Flee'], None], None] = Field(default=None)
 
 class PawnTimeAssignmentRequestDto(WireModel):
     pawn_id: int = Field()

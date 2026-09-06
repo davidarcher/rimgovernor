@@ -5503,6 +5503,22 @@
           },
           "resurrect": {
             "type": "boolean"
+          },
+          "hostility_response": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "Ignore",
+                  "Attack",
+                  "Flee"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Undrafted threat response. Attack is Fight in the player UI; does not draft or order an attack."
           }
         },
         "additionalProperties": false,

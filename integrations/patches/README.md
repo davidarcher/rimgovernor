@@ -19,6 +19,8 @@ Skip `git clone` if the submodule repository already exists.
 
 Changes:
 
+- Native undrafted hostility response (Ignore / Fight / Flee) is exposed through the player status endpoint and documented in OpenAPI.
+
 - `game/state.session_id` identifies the loaded `Game` instance, independent of
   reused seeds/map IDs. Loading a save creates a new session; this intentionally
   starts a fresh controller plan. Reconnecting the controller to the same running

@@ -247,3 +247,11 @@ def test_manual_priority_toggle_does_not_verify_work_assignment_project():
     memory={'projects':[{'project_id':'p','kind':'work_assignment','status':'awaiting_work','work_ids':['w']}], 'work':[{'id':'w','status':'complete','action':{'endpoint':'post_work_settings'}}]}
     assert reconcile_projects(memory)
     assert memory['projects'][0]['status']=='needs_review'
+
+
+async def test_omitted_candidates_are_deferred_not_approved(colony):
+    from rimbot.semantic_models import ObjectiveDecision
+    rt,_=colony
+    context={'proposals':{k:{'objective':objective().model_dump()} for k in ['a','b']},'projects':[]}
+    decision=rt.planner.validate_submission('Administrator',ObjectiveDecision(response='Proceed with a',accepted=['a']),context)
+    assert decision.accepted==['a'] and decision.deferred=={'b':'Not selected this review'}

@@ -1,3 +1,4 @@
+from .routine import is_routine
 import asyncio
 import json
 import time
@@ -88,8 +89,9 @@ class Planner:
             if isinstance(value,ObjectiveDecision) and set(value.retire_projects)&set(proposals):
                 raise ValueError('retire_projects contains candidate proposal IDs. Move those decisions to deferred; retire_projects accepts only existing project IDs.')
             accepted=set(value.accepted);deferred=set(value.deferred)
-            if len(accepted)!=len(value.accepted) or accepted & deferred or accepted | deferred != set(proposals):
-                raise ValueError('Reconcile each proposal ID exactly once, in accepted or deferred. Valid IDs: '+', '.join(proposals))
+            if len(accepted)!=len(value.accepted) or accepted & deferred or (accepted | deferred)-set(proposals):
+                raise ValueError('Use known proposal IDs without duplicates or conflicting accept/defer decisions. Valid IDs: '+', '.join(proposals))
+            for key in set(proposals)-accepted-deferred:value.deferred[key]='Not selected this review'
         if isinstance(value,ObjectiveDecision):
             projects={p['project_id'] for p in (context or {}).get('projects',[])}
             keep=set(value.keep_projects);retire=set(value.retire_projects)
@@ -277,7 +279,7 @@ class Planner:
             context = {**context, 'capabilities':{'read':readable,'propose':writable}}
         if issubclass(contract,Decision) and context.get('semantic_objectives'):
             instructions=('Make the strategic decision using current evidence. Accept supported objectives or defer uncertain ones with concrete reasons. '
-                          'Approve or defer each candidate ID exactly once. These are individual objectives, not whole department bundles. '
+                          'Accept selected candidate IDs; omitted candidates are deferred automatically. These are individual objectives, not whole department bundles. '
                           'Review all existing projects: keep useful ones, retire duplicates and obsolete assumptions. Use updates with an existing project_id to continue the same outcome even when wording or owner differs. '
                           'Correct the command-system kind in updates: stockpile creation requires storage, never supply_access or construction. supply_access only changes forbidden flags. Crop zones require growing, not work_assignment. Beds/recreation furniture require construction; medical care and technology research cannot build them. '
                           'Compare crop minimum fertility to terrain fertility; a nonzero fertility value is not proof a crop can grow. Base growth days omit nightly rest. '
@@ -462,7 +464,7 @@ class Planner:
                         if action.endpoint in immediate_checks and await self.rt.action_complete(action):
                             drafts.pop(draft_key,None)
                             result={'already_satisfied':True,'draft_retained':False,'draft_count':len(drafts),'next':'Verified in the live game. Do not wait for this order or repeat it. Continue with the actual project work; no new order is needed for this setting or supply flag.'}
-                        elif action.endpoint in {'orders_unforbid_all','post_things_set_forbidden','zone_growing_cells','post_map_zone_growing','post_map_zone_stockpile'} and role.startswith('Executor:') and context.get('project'):
+                        elif is_routine(action) and role.startswith('Executor:') and context.get('project'):
                             from .routine import execute_routine
                             result=await execute_routine(self.rt,context,action,role)
                         else:
