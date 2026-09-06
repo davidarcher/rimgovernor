@@ -324,6 +324,9 @@ class Runtime:
         args=action.arguments
         if action.endpoint=='post_work_settings':
             return (await self.api.call('get_work_settings',{},fresh=True))['use_work_priorities']==args['use_work_priorities']
+        if action.endpoint=='orders_unforbid_all':
+            state=await self.api.call('orders_forbidden_overview',args,fresh=True)
+            return state.remaining_eligible_count==0
         if action.endpoint=='post_things_set_forbidden':
             items=await self.api.call('get_map_things',{'map_id':args['map_id']},fresh=True)
             found={item['thing_id']:item for item in items}
@@ -399,6 +402,7 @@ class Runtime:
                 result=await self.api.native.place(ConstructionRequest.model_validate(action.arguments),action.observation_basis)
             else:
                 result = await self.api.call(action.endpoint, action.arguments, write=True)
+                if e.get('native_contract'):result=result.model_dump()
             if action.endpoint=='construction_place':
                 if not result.accepted:
                     work['status']='rejected'

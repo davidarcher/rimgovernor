@@ -126,6 +126,15 @@ class AreaResult(NativeObject):
     radius: int
     cells: list[AreaCell]
 
+class AllowAllRequest(NativeObject):
+    map_id: int
+
+class AllowAllResult(NativeObject):
+    map_id: int
+    changed_count: int
+    excluded_jelly_count: int
+    remaining_eligible_count: int
+
 class ContractError(NativeObject):
     code: str
     message: str
@@ -137,6 +146,8 @@ REQUEST_TYPES = {
     'construction_place': ConstructionRequest,
     'construction_state': MapQuery,
     'construction_area': AreaQuery,
+    'orders_unforbid_all': AllowAllRequest,
+    'orders_forbidden_overview': AllowAllRequest,
 }
 
 RESPONSE_TYPES = {
@@ -146,4 +157,6 @@ RESPONSE_TYPES = {
     'construction_place': ConstructionResult,
     'construction_state': ConstructionState,
     'construction_area': AreaResult,
+    'orders_unforbid_all': AllowAllResult,
+    'orders_forbidden_overview': AllowAllResult,
 }

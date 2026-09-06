@@ -18,8 +18,8 @@ ROLES = {
     'Workforce':'Make the approved intentions achievable through priorities, schedules and ordinary pawn orders. Check incapabilities, current jobs, accessibility, supplies and other managers’ labor requests.',
 }
 ROLE_DOMAINS = {
-    'Survival':('medical','forbidden'),
-    'Infrastructure':('construction_','builder','zone','building','bills','order_designate','forbidden'),
+    'Survival':('medical','forbidden','orders_unforbid_all'),
+    'Infrastructure':('construction_','builder','zone','building','bills','order_designate','forbidden','orders_unforbid_all'),
     'Security':('pawn_job','pawn_edit_status','jobs_make_equip','pawn_medical'),
     'Development':('research','trade'),
     'Workforce':('work_settings','priority','time_assignment','pawn_job','pawn_medical','jobs_make_equip'),
@@ -31,7 +31,7 @@ An order placed is not work completed. Check jobs, prerequisites and the actual 
 Use explicit native is_permanent and work-disability fields. tendable_now=false does not imply permanent injury or inability to work. Alerts about missing facilities are not evidence of an incoming attack.
 Match the requested object by its native label, not a nearby category name. Search the player's actual words when results do not match. Free instant placement requires zero work_to_build, zero stuff_count and no costs; do not call a material-consuming object free.
 Loose allowed reachable resources can be usable outside stockpiles. Forbidden resources are not available.
-Unforbid selected useful supplies, not everything: insect jelly in a remote cave is not a colony objective.
+Use orders_unforbid_all to release all explored supplies except insect jelly without selecting IDs. It skips jelly but does not check other threat proximity. Use selected-item Allow when narrower scope is needed.
 Plans are intentions; live observations win when the player changes something. Don't duplicate existing beds, zones or bills.
 Don't invent a room template or a construction ban. Plan geometry from inspected terrain, structures and occupied cells.
 Room IDs do not specify build coordinates or prove shelter. Use visible room cells, roof coverage and reachability; never assume unexplored regions are usable rooms.
@@ -105,7 +105,7 @@ class Planner:
                     raise ValueError(f'{role} must request work outside its domain through labor/blockers, not issue this action.')
                 if self.rt.catalog.get(action.endpoint).get('native_contract'):
                     if action.done is not None or action.requires:
-                        raise ValueError('Native construction owns validation and completion. Do not supply done or requires.')
+                        raise ValueError('Native commands own validation and completion. Do not supply done or requires.')
                     continue
                 if action.done is None:continue
                 entry=self.rt.catalog.get(action.done.query.endpoint,False)
@@ -140,7 +140,7 @@ class Planner:
                         if planned_mode is None:planned_mode=(await self.rt.api.call('get_work_settings',{},fresh=True))['use_work_priorities']
                         if not planned_mode:
                             raise ValueError('Native Manual priorities is OFF: enabled jobs have effective priority 3. First draft post_work_settings with arguments={"use_work_priorities":true}, then retry this priority order. No numeric priority draft was retained.')
-                if self.rt.catalog.get(action.endpoint).get('native_contract'):
+                if action.endpoint=='construction_place':
                     result=await self.rt.api.native.inspect(ConstructionRequest.model_validate(action.arguments))
                     if not result.accepted:raise ValueError('; '.join(item.reason for item in result.items if item.reason))
                     continue
@@ -428,7 +428,7 @@ class Planner:
                 p = await self.ask(role, fresh, Proposal, self.rt.settings.reasoning)
                 for a in p.actions:
                     self.rt.catalog.validate(a.endpoint, a.arguments, True)
-                    if role == 'Survival' and not any(x in a.endpoint for x in ('medical','forbidden')):
+                    if role == 'Survival' and not any(x in a.endpoint for x in ('medical','forbidden','orders_unforbid_all')):
                         raise ValueError('Survival requests facilities/labor from their owners; it only orders care or access to supplies.')
                     if role == 'Security' and not any(x in a.endpoint for x in ('pawn_job','pawn_edit_status','jobs_make_equip','pawn_medical')):
                         raise ValueError('Security cannot take ownership of construction or production.')

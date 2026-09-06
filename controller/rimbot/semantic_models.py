@@ -22,12 +22,12 @@ class ObjectiveProposal(Contract):
 
 # Capability groups correspond to native player systems, not room recipes.
 EXECUTION_DOMAINS={
-    'construction':('construction_','forbidden','order_designate'),
-    'growing':('zone_growing','order_designate','forbidden'),
+    'construction':('construction_','forbidden','orders_unforbid_all','order_designate'),
+    'growing':('zone_growing','order_designate','forbidden','orders_unforbid_all'),
     'production':('bills',),
     'storage':('zone_stockpile',),
     'work_assignment':('work_settings','priority','time_assignment'),
-    'supply_access':('forbidden',),
+    'supply_access':('forbidden','orders_unforbid_all',),
     'care':('medical',),
     'security':('pawn_job','pawn_edit_status','jobs_make_equip'),
     'research':('research',),

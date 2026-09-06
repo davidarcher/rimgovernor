@@ -7,6 +7,7 @@ from generate_http_contracts import bundle
 
 root = Path(__file__).resolve().parents[1]
 document = bundle()
+native_paths = set(json.loads((root / 'integrations/RIMAPI/Contracts/construction.openapi.json').read_text())['paths'])
 def expand(schema):
     if isinstance(schema, list): return [expand(x) for x in schema]
     if not isinstance(schema, dict): return schema
@@ -16,7 +17,7 @@ def expand(schema):
 
 routes = []
 for path, methods in document['paths'].items():
-    if path.startswith('/api/v2/construction/') or path == '/api/v1/events': continue
+    if path in native_paths or path.startswith('/api/v2/construction/') or path == '/api/v1/events': continue
     for method, op in methods.items():
         body = op.get('requestBody', {}).get('content', {}).get('application/json', {}).get('schema')
         schema = expand(body) if body else {'type':'object','properties':{},'additionalProperties':False}

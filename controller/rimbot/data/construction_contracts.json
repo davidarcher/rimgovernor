@@ -896,6 +896,96 @@
         ],
         "additionalProperties": false
       }
+    },
+    {
+      "name": "orders_unforbid_all",
+      "path": "/api/v2/orders/unforbid-all",
+      "method": "POST",
+      "write": true,
+      "description": "Immediately allow all explored forbidden items on this map except insect jelly. Uses the native Allow designator. No item IDs or hauling required. Jelly is skipped, not re-forbidden. Other items near threats are NOT excluded. Returns changed, excluded-jelly and remaining eligible counts.",
+      "request_schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false,
+        "title": "AllowAllRequest"
+      },
+      "response_schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "changed_count": {
+            "type": "integer"
+          },
+          "excluded_jelly_count": {
+            "type": "integer"
+          },
+          "remaining_eligible_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id",
+          "changed_count",
+          "excluded_jelly_count",
+          "remaining_eligible_count"
+        ],
+        "additionalProperties": false,
+        "title": "AllowAllResult"
+      }
+    },
+    {
+      "name": "orders_forbidden_overview",
+      "path": "/api/v2/orders/forbidden-overview",
+      "method": "POST",
+      "write": false,
+      "description": "Count explored forbidden items eligible for Unforbid All and exempt insect jelly. Does not change flags; changed_count is zero.",
+      "request_schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false,
+        "title": "AllowAllRequest"
+      },
+      "response_schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "changed_count": {
+            "type": "integer"
+          },
+          "excluded_jelly_count": {
+            "type": "integer"
+          },
+          "remaining_eligible_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id",
+          "changed_count",
+          "excluded_jelly_count",
+          "remaining_eligible_count"
+        ],
+        "additionalProperties": false,
+        "title": "AllowAllResult"
+      }
     }
   ],
   "error_schema": {
@@ -2126,6 +2216,44 @@
         "cells"
       ],
       "additionalProperties": false
+    },
+    "AllowAllRequest": {
+      "type": "object",
+      "properties": {
+        "map_id": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "map_id"
+      ],
+      "additionalProperties": false,
+      "title": "AllowAllRequest"
+    },
+    "AllowAllResult": {
+      "type": "object",
+      "properties": {
+        "map_id": {
+          "type": "integer"
+        },
+        "changed_count": {
+          "type": "integer"
+        },
+        "excluded_jelly_count": {
+          "type": "integer"
+        },
+        "remaining_eligible_count": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "map_id",
+        "changed_count",
+        "excluded_jelly_count",
+        "remaining_eligible_count"
+      ],
+      "additionalProperties": false,
+      "title": "AllowAllResult"
     }
   }
 }

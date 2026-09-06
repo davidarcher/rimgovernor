@@ -44,10 +44,10 @@ class Catalog:
             Draft202012Validator.check_schema(entry['request_schema'])
             Draft202012Validator.check_schema(entry['response_schema'])
             name=entry['name']
-            if not name.startswith('construction_') or not entry['path'].startswith('/api/v2/construction/'):
+            if not ((name.startswith('construction_') and entry['path'].startswith('/api/v2/construction/')) or (name in ('orders_unforbid_all','orders_forbidden_overview') and entry['path'].startswith('/api/v2/orders/'))):
                 raise ValueError('Unexpected native construction contract route.')
             self.entries[name]={**entry,'schema':entry['request_schema'],'native_contract':True,
-                'transport':'json','query_keys':[],'exposed':True,'category':'Construction'}
+                'transport':'json','query_keys':[],'exposed':True,'category':'Order' if name.startswith('orders_') else 'Construction'}
             self.available.add(name)
         # Construction now has one authoritative tool path.
         self.entries['post_builder_blueprint']['exposed']=False

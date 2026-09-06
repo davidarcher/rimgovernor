@@ -14538,5 +14538,87 @@
         }
       }
     }
+  },
+  "orders_unforbid_all": {
+    "path": "/api/v2/orders/unforbid-all",
+    "method": "POST",
+    "query_schema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "query_model": "orders_unforbid_all_Query",
+    "body_schema": {
+      "$ref": "#/components/schemas/Construction_AllowAllRequest"
+    },
+    "response_schema": {
+      "$ref": "#/components/schemas/Construction_AllowAllResult"
+    },
+    "body_required": true,
+    "query_fallback_required": [],
+    "responses": {
+      "200": {
+        "description": "Observed native item flags",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_AllowAllResult"
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      }
+    }
+  },
+  "orders_forbidden_overview": {
+    "path": "/api/v2/orders/forbidden-overview",
+    "method": "POST",
+    "query_schema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "query_model": "orders_forbidden_overview_Query",
+    "body_schema": {
+      "$ref": "#/components/schemas/Construction_AllowAllRequest"
+    },
+    "response_schema": {
+      "$ref": "#/components/schemas/Construction_AllowAllResult"
+    },
+    "body_required": true,
+    "query_fallback_required": [],
+    "responses": {
+      "200": {
+        "description": "Observed native item flags",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_AllowAllResult"
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      }
+    }
   }
 }

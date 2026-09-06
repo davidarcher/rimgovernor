@@ -1,6 +1,6 @@
 {
   "id": "supply-access",
-  "version": 2,
+  "version": 3,
   "title": "Allow nearby supplies; store what needs protection",
   "tags": [
     "forbidden",
@@ -15,7 +15,7 @@
     "Materials exist but construction or production cannot use them."
   ],
   "approach": [
-    "Allow identified useful nearby stacks after checking the route. Do not use zero forbidden items as a colony goal; distant cave loot can send haulers into insects.",
+    "Use Unforbid All to release explored supplies in one operation; it leaves insect jelly unchanged. Other items near threats are still allowed, so use selected-item Allow when a narrower release is needed.",
     "Loose allowed materials can supply work directly. Hauling everything into a stockpile is not a prerequisite for placing or supplying a blueprint.",
     "Put protected storage near camp. Use small, higher-priority filtered stockpiles by workbenches for frequently used inputs; keep dumping storage for chunks and waste separate."
   ],

@@ -14921,6 +14921,84 @@
           }
         }
       }
+    },
+    "/api/v2/orders/unforbid-all": {
+      "post": {
+        "operationId": "orders_unforbid_all",
+        "x-game-write": true,
+        "description": "Immediately allow all explored forbidden items on this map except insect jelly. Uses the native Allow designator. No item IDs or hauling required. Jelly is skipped, not re-forbidden. Other items near threats are NOT excluded. Returns changed, excluded-jelly and remaining eligible counts.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Construction_AllowAllRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Observed native item flags",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_AllowAllResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/orders/forbidden-overview": {
+      "post": {
+        "operationId": "orders_forbidden_overview",
+        "x-game-write": false,
+        "description": "Count explored forbidden items eligible for Unforbid All and exempt insect jelly. Does not change flags; changed_count is zero.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Construction_AllowAllRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Observed native item flags",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_AllowAllResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -30917,6 +30995,44 @@
           "cells"
         ],
         "additionalProperties": false
+      },
+      "Construction_AllowAllRequest": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false,
+        "title": "AllowAllRequest"
+      },
+      "Construction_AllowAllResult": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "changed_count": {
+            "type": "integer"
+          },
+          "excluded_jelly_count": {
+            "type": "integer"
+          },
+          "remaining_eligible_count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id",
+          "changed_count",
+          "excluded_jelly_count",
+          "remaining_eligible_count"
+        ],
+        "additionalProperties": false,
+        "title": "AllowAllResult"
       }
     }
   },

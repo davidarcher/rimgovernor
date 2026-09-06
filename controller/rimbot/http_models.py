@@ -3495,6 +3495,15 @@ class Construction_AreaResult(WireModel):
     radius: int = Field()
     cells: list[Construction_AreaCell] = Field()
 
+class Construction_AllowAllRequest(WireModel):
+    map_id: int = Field()
+
+class Construction_AllowAllResult(WireModel):
+    map_id: int = Field()
+    changed_count: int = Field()
+    excluded_jelly_count: int = Field()
+    remaining_eligible_count: int = Field()
+
 class get_api_openapi_json_Query(WireModel):
     pass
 
@@ -4142,6 +4151,12 @@ class get_v1_map_construction_work_Query(WireModel):
     offset: Union[int, None] = Field(default=None, ge=0)
     limit: Union[int, None] = Field(default=None, ge=1, le=32)
 
+class orders_unforbid_all_Query(WireModel):
+    pass
+
+class orders_forbidden_overview_Query(WireModel):
+    pass
+
 AbilityDefDto.model_rebuild()
 AddRelationRequestDto.model_rebuild()
 AllDefsRequestDto.model_rebuild()
@@ -4592,6 +4607,8 @@ Construction_ConstructionState.model_rebuild()
 Construction_AreaQuery.model_rebuild()
 Construction_AreaCell.model_rebuild()
 Construction_AreaResult.model_rebuild()
+Construction_AllowAllRequest.model_rebuild()
+Construction_AllowAllResult.model_rebuild()
 get_api_openapi_json_Query.model_rebuild()
 post_v1_builder_blueprint_Query.model_rebuild()
 post_v1_builder_check_zone_Query.model_rebuild()
@@ -4795,6 +4812,8 @@ get_v1_work_settings_Query.model_rebuild()
 post_v1_work_settings_Query.model_rebuild()
 get_v1_map_resource_overview_Query.model_rebuild()
 get_v1_map_construction_work_Query.model_rebuild()
+orders_unforbid_all_Query.model_rebuild()
+orders_forbidden_overview_Query.model_rebuild()
 
 QUERY_TYPES = {
     'get_api_openapi_json': TypeAdapter(get_api_openapi_json_Query),
@@ -5000,6 +5019,8 @@ QUERY_TYPES = {
     'post_v1_work_settings': TypeAdapter(post_v1_work_settings_Query),
     'get_v1_map_resource_overview': TypeAdapter(get_v1_map_resource_overview_Query),
     'get_v1_map_construction_work': TypeAdapter(get_v1_map_construction_work_Query),
+    'orders_unforbid_all': TypeAdapter(orders_unforbid_all_Query),
+    'orders_forbidden_overview': TypeAdapter(orders_forbidden_overview_Query),
 }
 
 BODY_TYPES = {
@@ -5071,6 +5092,8 @@ BODY_TYPES = {
     'construction_state': TypeAdapter(Construction_MapQuery),
     'construction_area': TypeAdapter(Construction_AreaQuery),
     'post_v1_work_settings': TypeAdapter(WorkSettings),
+    'orders_unforbid_all': TypeAdapter(Construction_AllowAllRequest),
+    'orders_forbidden_overview': TypeAdapter(Construction_AllowAllRequest),
 }
 
 RESPONSE_TYPES = {
@@ -5276,6 +5299,8 @@ RESPONSE_TYPES = {
     'post_v1_work_settings': TypeAdapter(WorkSettings),
     'get_v1_map_resource_overview': TypeAdapter(MapResourceOverview),
     'get_v1_map_construction_work': TypeAdapter(ConstructionWorkOverview),
+    'orders_unforbid_all': TypeAdapter(Construction_AllowAllResult),
+    'orders_forbidden_overview': TypeAdapter(Construction_AllowAllResult),
 }
 
 class HttpOperations:
@@ -5887,3 +5912,9 @@ class HttpOperations:
 
     async def get_v1_map_construction_work(self, *, query: get_v1_map_construction_work_Query | None = None) -> ConstructionWorkOverview:
         return await self._call('get_v1_map_construction_work', query=query)
+
+    async def orders_unforbid_all(self, *, query: orders_unforbid_all_Query | None = None, body: Construction_AllowAllRequest | None = None) -> Construction_AllowAllResult:
+        return await self._call('orders_unforbid_all', query=query, body=body)
+
+    async def orders_forbidden_overview(self, *, query: orders_forbidden_overview_Query | None = None, body: Construction_AllowAllRequest | None = None) -> Construction_AllowAllResult:
+        return await self._call('orders_forbidden_overview', query=query, body=body)
