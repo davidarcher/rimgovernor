@@ -235,7 +235,7 @@ async def validate_orders(rt,project,actions,complete=True):
     own=[r for r in layout.get('regions',[]) if project['project_id'] in r['project_ids']]
     if not own:raise ValueError('No reserved site for this project. '+layout.get('deferred',{}).get(project['project_id'],''))
     allowed=set().union(*(cells(r) for r in own));lookup={p:r for r in own for p in cells(r)}
-    enclosed=set();doors=set();wall_order=False
+    enclosed=set();doors=set();solid=set();wall_order=False
     for action in spatial:
         if action.endpoint=='construction_place':
             footprints=(await rt.api.call('construction_footprints',action.arguments)).items
@@ -247,7 +247,12 @@ async def validate_orders(rt,project,actions,complete=True):
                     interior=set().union(*(cells(r)-boundary(cells(r)) for r in own if r['purpose']=='room'))
                     raise ValueError(f'Bed occupies the planned room perimeter. Native occupied cells: {sorted(occupied)}. Available reserved interior cells: {sorted(interior)[:100]}. The entire bed footprint must fit inside; change its position or rotation using the native footprint result. If it cannot fit, report that the reserved room needs replanning instead of repeating inspections.')
                 if fp.encloses:enclosed|=occupied;wall_order=True
-                if fp.is_door:doors|=occupied
+                if fp.is_door:
+                    if occupied & solid:raise ValueError('Conflicting construction: a wall and door occupy the same cells. Keep the entrance as a door in every order.')
+                    doors|=occupied
+                elif fp.encloses:
+                    if occupied & doors:raise ValueError('Conflicting construction: a wall overwrites the planned door. Keep the entrance as a door in every order.')
+                    solid|=occupied
         else:
             args=action.arguments
             if 'cells' in args:occupied={(c['x'],c['z']) for c in args['cells']}
@@ -277,7 +282,7 @@ async def validate_orders(rt,project,actions,complete=True):
             if r['purpose']!='room' or not enclosed & cells(r):continue
             missing=boundary(cells(r))-(existing|enclosed)
             if missing:raise ValueError(f'Incomplete room perimeter: {len(missing)} cells missing. Submit the complete boundary with a door in one batch, not just corners.')
-            if not doors and not any(observed[p].get('is_door',False) for p in boundary(cells(r))):raise ValueError('Room enclosure needs a door')
+            if not (doors & boundary(cells(r))) and not any(observed[p].get('is_door',False) and p not in solid for p in boundary(cells(r))):raise ValueError('Room enclosure needs a door on its own perimeter; an interior door or a door being replaced by a wall does not provide an entrance')
 
 
 async def show_native_plans(rt,layout):

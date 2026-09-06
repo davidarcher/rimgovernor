@@ -88,3 +88,24 @@ def test_invalid_farm_does_not_block_valid_room():
     result=retain_valid_regions({'regions':[region(),farm],'deferred':{}},a,[{'project_id':'a','kind':'construction'},{'project_id':'b','kind':'growing'}])
     assert [r['id'] for r in result['regions']]==['shelter']
     assert 'unsuitable terrain' in result['deferred']['b']
+
+async def test_wall_cannot_overwrite_door_in_same_batch():
+    a=area();r=region()
+    async def call(name,args):
+        if name=='construction_footprints':
+            return NS(items=[NS(cells=[NS(x=1,z=3)],encloses=True,is_door=args['door'],is_bed=False)])
+        return NS(model_dump=lambda:a)
+    rt=NS(memory={'spatial_layout':layout(r),'colony_focus':{'x':3,'z':3}},observation={'map':{'id':0}},api=NS(call=call))
+    actions=[Action(endpoint='construction_place',arguments={'door':v},title='Build') for v in (True,False)]
+    with pytest.raises(ValueError,match='overwrites the planned door'):
+        await validate_orders(rt,{'project_id':'a'},actions,complete=False)
+
+async def test_interior_door_does_not_supply_room_entrance():
+    a=area();r=region()
+    async def call(name,args):
+        if name=='construction_footprints':
+            return NS(items=[NS(cells=[NS(x=x,z=z) for x,z in boundary(cells(r))],encloses=True,is_door=False,is_bed=False),NS(cells=[NS(x=3,z=3)],encloses=True,is_door=True,is_bed=False)])
+        return NS(model_dump=lambda:a)
+    rt=NS(memory={'spatial_layout':layout(r),'colony_focus':{'x':3,'z':3}},observation={'map':{'id':0}},api=NS(call=call))
+    with pytest.raises(ValueError,match='own perimeter'):
+        await validate_orders(rt,{'project_id':'a'},[Action(endpoint='construction_place',arguments={},title='Build')])

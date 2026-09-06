@@ -178,6 +178,8 @@ async def execute_projects(rt,context,scheduled):
                 try:
                     await validate_orders(rt,project,[action],complete=False)
                     await rt.execute(action,role)
+                    failed=[w for w in rt.memory['work'] if w['id'] not in before and w['status'] in ('deferred','rejected','unknown')]
+                    if failed:raise ValueError('Construction/order batch stopped after an unconfirmed order: '+failed[0]['detail']+'. Reinspect and submit the remaining complete plan; later orders were not sent.')
                 finally:
                     for w in rt.memory['work']:
                         if w['id'] not in before:
