@@ -19,6 +19,8 @@ Skip `git clone` if the submodule repository already exists.
 
 Changes:
 
+- Resource stacks expose native food types and stuff categories for strategic nutrition/material aggregation.
+
 - Native undrafted hostility response (Ignore / Fight / Flee) is exposed through the player status endpoint and documented in OpenAPI.
 
 - `game/state.session_id` identifies the loaded `Game` instance, independent of

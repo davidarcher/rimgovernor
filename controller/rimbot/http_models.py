@@ -3280,6 +3280,8 @@ class SupplyResource(WireModel):
     nearby_forbidden_quantity: int = Field()
     nutrition_per_unit: float = Field()
     location: ResourceLocation = Field()
+    material_categories: list[str] = Field()
+    food_type: str = Field()
 
 class CropResource(WireModel):
     def_name: str = Field()

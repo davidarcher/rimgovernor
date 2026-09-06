@@ -38,9 +38,11 @@ def decision_context(context,observation):
     if 'resource_overview' in context:
         resources=deepcopy(context['resource_overview'])
         for group in resources.values():
-            if isinstance(group,dict) and isinstance(group.get('items'),list) and 'omitted_groups' in group and group is not resources.get('terrain') and group is not resources.get('food_crops'):
+            if isinstance(group,dict) and isinstance(group.get('items'),list) and 'omitted_groups' in group and all(group is not resources.get(name) for name in ('terrain','food_crops','supplies','animals')):
                 extra=max(0,len(group['items'])-3)
                 group['items']=group['items'][:3];group['omitted_groups']+=extra
+        # Strategic decisions use aggregates; item IDs/details remain available to executors.
+        if 'supply_summary' in resources:resources.pop('supplies',None)
         result['resource_overview']=resources
         terrains=resources.get('terrain',{}).get('items',[])
         crops=resources.get('food_crops',{}).get('items',[])

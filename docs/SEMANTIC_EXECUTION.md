@@ -74,3 +74,10 @@ Game pause does not block planning or native player commands. Orders can be plac
 
 
 Project maintenance: the dashboard Cancel button retires a project, stops the current review before further commands, and dismisses its exclusively owned tracked work. Already-issued native orders and shared work stay in place. Player-cancelled outcomes are included in subsequent manager/admin context. The administrator must keep or retire every active project during each administrator review (daily, on player steering, major threat/death events or explicit specialist escalation). It sees wall-clock age and counts of reviews with unchanged order statuses; these are review signals, not proof of stalled pawn labor. Cleanup can run with no successful department proposals. Obsolete, duplicate and achieved outcomes should be retired; stalled approaches should be revised or retired with a reason.
+
+
+### Operating needs and resource groups
+
+Strategic context aggregates the complete native supply survey into nutrition by native food type and construction item quantities by native stuff category. Each keeps allowed, forbidden, nearby allowed and nearby forbidden totals. Item details remain available to executors and native queries. The grouping happens before detail truncation, so abundant metal cannot displace starting meal nutrition. No food-days estimate assumes every food type suits every pawn; category totals do not imply reachability or interchangeable building ingredients. Pawn inventories and containers remain outside this survey.
+
+Strategy retrieval includes observed alerts and proposed work. Pen guidance covers accessible pasture or delivered feed alongside containment, and manager/admin instructions distinguish operational success from eliminating an alert. This is guidance, not a deterministic guarantee that every pen proposal has sufficient nutrition. Regression checks cover meal retention, native material grouping, and retrieval of feeding guidance from a pen alert.

@@ -30215,6 +30215,15 @@
           },
           "location": {
             "$ref": "#/components/schemas/ResourceLocation"
+          },
+          "material_categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "food_type": {
+            "type": "string"
           }
         },
         "required": [
@@ -30226,7 +30235,9 @@
           "nearby_allowed_quantity",
           "nearby_forbidden_quantity",
           "nutrition_per_unit",
-          "location"
+          "location",
+          "material_categories",
+          "food_type"
         ],
         "additionalProperties": false,
         "x-generate-csharp": true

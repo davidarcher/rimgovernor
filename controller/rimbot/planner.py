@@ -189,6 +189,10 @@ class Planner:
 
     async def ask(self, role, context, contract, thinking=True):
         query_text=json.dumps(context.get('project') or context.get('assigned_task') or context.get('player_direction') or role,ensure_ascii=False)
+        # Select advice for observed needs and proposed work, not only the department name.
+        alerts=self.rt.observation.get('alerts',[])
+        if isinstance(alerts,dict):alerts=alerts.get('items',[])
+        query_text+=' '+json.dumps({'alerts':alerts,'proposals':context.get('proposals',{})},ensure_ascii=False)
         context={**context,'strategy_guidance':[{k:v for k,v in entry.items() if k!='sources'} for entry in self.rt.strategies.search(query_text)]}
         if (self.rt.last_tick or 0)<60000 and not any(e['id']=='first-days' for e in context['strategy_guidance']):
             starter=next(e for e in self.rt.strategies.entries if e.id=='first-days')
@@ -238,6 +242,8 @@ class Planner:
                           'Idle pawns need placed blueprints, growing zones, bills or designations. Only request work_assignment when an observed work setting prevents a real job. '
                           'Current terrain and failed execution feedback override an outdated assignment; revise the method rather than repeat an impossible plan. '
                           'Existing queued orders are not complete. Address concrete blockers and preserve useful ongoing work. '
+                          'Define operational outcomes, not merely cleared alerts: animal housing needs both containment and a feasible feeding plan. Separate required construction, feed production and feed storage into small linked objectives only where missing; do not bundle several crops into one executor task. '
+                          'Nearby forbidden food is existing supply needing access, not absent food. Use observed meals and current production before adding more fields. '
                           'Alerts are evidence to assess, not targets that must all be eliminated immediately. Compare severity, current needs, feasible resources and competing work; optional variety or comfort upgrades can wait. '
                           'If current work is adequate, submit no new objectives. Propose only what current player direction needs; optional improvements belong in later plans. '
                           'Guidance is conditional advice, not instructions overriding the player or native facts. Missing facts should be executor inspection constraints. '
@@ -280,7 +286,7 @@ class Planner:
         if issubclass(contract,Decision) and context.get('semantic_objectives'):
             instructions=('Make the strategic decision using current evidence. Accept supported objectives or defer uncertain ones with concrete reasons. '
                           'Accept selected candidate IDs; omitted candidates are deferred automatically. These are individual objectives, not whole department bundles. '
-                          'Review all existing projects: keep useful ones, retire duplicates and obsolete assumptions. Use updates with an existing project_id to continue the same outcome even when wording or owner differs. '
+                          'Before approving facilities, check their operating needs: animal pens require a supported grazing or supplied-feed plan, not just a barrier. Defer missing feed evidence for inspection or correct the objective; do not assume bare land feeds animals. Review all existing projects: keep useful ones, retire duplicates and obsolete assumptions. Use updates with an existing project_id to continue the same outcome even when wording or owner differs. '
                           'Correct the command-system kind in updates: stockpile creation requires storage, never supply_access or construction. supply_access only changes forbidden flags. Crop zones require growing, not work_assignment. Beds/recreation furniture require construction; medical care and technology research cannot build them. '
                           'Compare crop minimum fertility to terrain fertility; a nonzero fertility value is not proof a crop can grow. Base growth days omit nightly rest. '
                           'Idle workers with no queued jobs need construction, zones, bills or designations, not priority changes. '

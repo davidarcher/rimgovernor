@@ -12,7 +12,7 @@ class WorkObjective(Contract):
     quantity: int | None = Field(default=None,ge=1,description='Desired capacity or quantity if meaningful; null when not applicable.')
     definition_requirements: dict[str,bool|float|str] = Field(default_factory=dict,description='Construction only: required native building-definition properties supplied by guidance or observation, e.g. bed_humanlike=true. Empty for other systems. Unknown properties cannot be assumed.')
     constraints: list[str] = Field(default_factory=list,max_length=6)
-    success_signals: list[str] = Field(min_length=1,max_length=4,description='Observable evidence of the outcome. These are criteria for review, not claims of completion.')
+    success_signals: list[str] = Field(min_length=1,max_length=4,description='Observable evidence the result is usable, including operating needs such as feed for housed animals. Construction completion or an alert disappearing alone is insufficient. These are review criteria, not claims of completion.')
 
 class ObjectiveProposal(Contract):
     summary: str = Field(max_length=350)

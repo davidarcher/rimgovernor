@@ -147,7 +147,7 @@ def test_decision_context_bounds_rows_without_turning_omissions_into_zero():
     from rimbot.decision_context import decision_context
     source={'resource_overview':{'supplies':{'items':[{'quantity':i} for i in range(10)],'total_groups':15,'omitted_groups':5}},'construction_work':{'total':8,'sites':[{'thing_id':i} for i in range(8)],'workers':[]}}
     result=decision_context(source,{})
-    assert result['resource_overview']['supplies']['omitted_groups']==12
+    assert result['resource_overview']['supplies']['omitted_groups']==5
     assert result['resource_overview']['supplies']['total_groups']==15
     assert result['construction_work']['omitted']==4
     assert len(source['resource_overview']['supplies']['items'])==10
