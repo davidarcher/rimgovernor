@@ -89,6 +89,8 @@ class Planner:
             return value
         if isinstance(value,Decision) and context and 'proposals' in context:
             proposals=context['proposals']
+            if isinstance(value,ObjectiveDecision) and set(value.retire_projects)&set(proposals):
+                raise ValueError('retire_projects contains candidate proposal IDs. Move those decisions to deferred; retire_projects accepts only existing project IDs.')
             accepted=set(value.accepted);deferred=set(value.deferred)
             if len(accepted)!=len(value.accepted) or accepted & deferred or accepted | deferred != set(proposals):
                 raise ValueError('Reconcile each proposal ID exactly once, in accepted or deferred. Valid IDs: '+', '.join(proposals))
@@ -194,6 +196,19 @@ class Planner:
         query_schema = Query.model_json_schema()
         query_schema['properties']['endpoint']['enum'] = readable
         submit_schema = contract.model_json_schema()
+        if issubclass(contract,ObjectiveDecision):
+            candidates=list(context.get('proposals',{}))
+            projects=[p['project_id'] for p in context.get('projects',[])]
+            for name,ids in (('accepted',candidates),('keep_projects',projects)):
+                field=submit_schema['properties'][name]
+                if ids:field['items']={'type':'string','enum':ids}
+                else:field['maxItems']=0
+            for name,ids in (('deferred',candidates),('updates',candidates),('retire_projects',projects)):
+                field=submit_schema['properties'][name]
+                if ids:field['propertyNames']={'enum':ids}
+                else:field['maxProperties']=0
+            submit_schema['properties']['deferred']['description']='Candidate proposal ID to reason for not approving. Defer duplicate proposals here. These are not existing project IDs.'
+            submit_schema['properties']['retire_projects']['description']='Existing project ID to retirement reason. Never put a candidate proposal ID here. Empty when there are no existing projects.'
         if contract is Proposal:
             # Command payloads use their native schemas in separate draft tools.
             # submit only closes the manager's report; it doesn't repeat them.
@@ -312,7 +327,7 @@ class Planner:
             for field in ('done','requires','observation_basis'):
                 schema['properties'].pop(field,None)
                 if field in schema['required']:schema['required'].remove(field)
-            tools.append(tool(name,'Draft this native order for administrator review; does not execute it. '+entry['description'],schema))
+            tools.append(tool(name,'Stage this native order in your approved project batch. Submit to execute the validated batch directly; no additional administrator approval is needed. '+entry['description'],schema))
             allowed_tools.add(name)
         if contract is Proposal:
             for name in writable:register_command(name)

@@ -45,3 +45,29 @@ async def test_identical_unknown_order_is_not_resent(colony):
     rt.memory['work']=[{'id':'pending','status':'unknown','action':action.model_dump()}]
     await rt.execute(action,'Executor:supply_access')
     assert not game.writes and len(rt.memory['work'])==1
+
+async def test_specialist_command_tools_do_not_promise_another_approval(colony):
+    rt,_=colony;setup(rt)
+    async def complete(messages,tools,*args):
+        commands=[t for t in tools if t['function']['name']=='post_things_set_forbidden']
+        assert commands and 'no additional administrator approval' in commands[0]['function']['description']
+        return {'role':'assistant','content':'{"summary":"Nothing needed","actions":[]}'},{}
+    rt.model.complete=complete
+    await rt.planner.ask('Executor:supply_access',{},Proposal,False)
+
+async def test_admin_schema_separates_candidates_from_existing_projects(colony):
+    import json
+    from rimbot.semantic_models import ObjectiveDecision,WorkObjective
+    rt,_=colony;rt.cycle_generation=rt.generation
+    objective=WorkObjective(kind='construction',outcome='Beds',success_signals=['Beds exist']).model_dump()
+    context={'semantic_objectives':True,'proposals':{'Infrastructure:0':{'owner':'Infrastructure','objective':objective}},'projects':[]}
+    async def complete(messages,tools,*args):
+        schema=next(t['function']['parameters'] for t in tools if t['function']['name']=='submit')['properties']
+        assert schema['accepted']['items']['enum']==['Infrastructure:0']
+        assert schema['deferred']['propertyNames']['enum']==['Infrastructure:0']
+        assert schema['retire_projects']['maxProperties']==0
+        assert schema['keep_projects']['maxItems']==0
+        return {'role':'assistant','content':json.dumps({'response':'Proceed','accepted':['Infrastructure:0']})},{}
+    rt.model.complete=complete
+    result=await rt.planner.ask('Administrator: approve semantic objectives',context,ObjectiveDecision)
+    assert result.accepted==['Infrastructure:0']
