@@ -31,7 +31,7 @@ def decision_context(context,observation):
         pending_construction=context.get('construction_work',{}).get('total'),
         pawns=[{k:v for k,v in p.get('colonist',{}).items() if k in ('id','name','health','mood','position')} for p in pawns[:12]],
         pawns_omitted=max(0,len(pawns)-12),construction_counts=[{'def_name':name,'state':stage,'count':count} for (name,stage),count in sorted(counts.items())])
-    keep=('player_direction','goals','plans','assigned_task','projects','proposals','semantic_objectives','strategy_guidance','colony_focus','work_settings','work','escalation','cancelled_projects')
+    keep=('player_direction','goals','plans','assigned_task','projects','proposals','semantic_objectives','strategy_guidance','colony_focus','work_settings','work','escalation','cancelled_projects','coordination_request')
     result={k:context[k] for k in keep if k in context}
     result['colony']=facts.model_dump()
     result['labor_state']={'queued_construction_sites':facts.pending_construction,'meaning':'Idle alone does not imply disabled work. Create actual blueprints, zones, bills or designations when no jobs exist; inspect priorities only for a demonstrated work-setting blocker.'}

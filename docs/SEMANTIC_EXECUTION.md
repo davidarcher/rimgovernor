@@ -1,3 +1,13 @@
+# Strategic coordination and direct specialists
+
+Routine reviews send each active, owned project directly to its specialist for native inspection and command drafting. They do not ask departments to restate objectives or ask the administrator to approve the next batch. Validated commands execute serially with immediate readback where supported; identical in-flight payloads are not resent.
+
+Department objectives and administrator arbitration run once per game day, on player steering, on major threat/death events, or when a specialist explicitly requests a strategic decision. The administrator retains ownership, priorities, duplicate/obsolete project cleanup and cross-project tradeoffs. Kept projects continue even when no department re-proposes them. No standing Workforce review runs: a work-assignment project is an on-demand diagnosis or correction of an observed labor-setting problem.
+
+Specialists may return escalation_reason for a priority, ownership or resource conflict. That response cannot contain orders. Ordinary missing observations and native validation failures remain specialist work. The next administrator review receives the reason. All roles still use the configured 4B model.
+
+Code performs native validation, exact in-flight command deduplication, cancellation, tracking and readback. Semantic similarity between differently worded goals and resource-priority choices still require model judgment. The internal Executor:<system> role identifies the native tool scope; activity identifies its project owner.
+
 # Semantic objectives, execution and strategy guidance
 
 The normal review path now separates planning, objectives and native execution:
@@ -63,4 +73,4 @@ Live check on the existing colony reached individual-objective arbitration but s
 Game pause does not block planning or native player commands. Orders can be placed and settings changed while paused; simulation time is never advanced by execution. Model summaries are stored as proposed-plan details, while visible execution outcomes come from controller tracking. Older execution events without outcome records are labeled as historical proposals.
 
 
-Project maintenance: the dashboard Cancel button retires a project, stops the current review before further commands, and dismisses its exclusively owned tracked work. Already-issued native orders and shared work stay in place. Player-cancelled outcomes are included in subsequent manager/admin context. The administrator must keep or retire every active project on each regular review (default 15,000 game ticks, about six in-game hours, plus event-driven reviews). It sees wall-clock age and counts of reviews with unchanged order statuses; these are review signals, not proof of stalled pawn labor. Cleanup can run with no successful department proposals. Obsolete, duplicate and achieved outcomes should be retired; stalled approaches should be revised or retired with a reason.
+Project maintenance: the dashboard Cancel button retires a project, stops the current review before further commands, and dismisses its exclusively owned tracked work. Already-issued native orders and shared work stay in place. Player-cancelled outcomes are included in subsequent manager/admin context. The administrator must keep or retire every active project during each administrator review (daily, on player steering, major threat/death events or explicit specialist escalation). It sees wall-clock age and counts of reviews with unchanged order statuses; these are review signals, not proof of stalled pawn labor. Cleanup can run with no successful department proposals. Obsolete, duplicate and achieved outcomes should be retired; stalled approaches should be revised or retired with a reason.

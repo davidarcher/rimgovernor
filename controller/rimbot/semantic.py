@@ -1,4 +1,4 @@
-"""Approve semantic objectives, then execute one native-system project at a time."""
+"""Daily strategic coordination; routine specialists execute owned projects directly."""
 import uuid
 import asyncio
 import time
@@ -65,8 +65,15 @@ async def arbitrate_objectives(rt,context):
 
 
 async def semantic_review(rt,context,roles):
+    day=(rt.last_tick or 0)//60000
+    active_projects=[p for p in rt.memory.get('projects',[]) if p.get('status')!='retired']
+    admin_due=context.get('administration_required') or rt.memory.get('last_admin_day')!=day or rt.memory.get('admin_requested')
+    if not admin_due:
+        await execute_projects(rt,context,active_projects)
+        return
     proposals={}
     shared=await rt.manager_context(context)
+    if rt.memory.get('admin_requested'):shared['coordination_request']=rt.memory['admin_requested']
     shared['cancelled_projects']=[{'kind':p['kind'],'outcome':p['outcome']} for p in rt.memory.get('projects',[]) if p.get('cancelled_by_player')][-30:]
     projects=[p for p in rt.memory.get('projects',[]) if p.get('status')!='retired']
     semaphore=asyncio.Semaphore(rt.settings.manager_parallelism)
@@ -126,16 +133,31 @@ async def semantic_review(rt,context,roles):
         if work['id'] in obsolete_ids-active_ids and work['status'] not in ('complete','dismissed'):
             work['status']='dismissed';work['detail']='Project retired or reclassified; stopped tracking this order. Game orders unchanged.'
     rt.persist()
-    for project in approved:
+    rt.memory['last_admin_day']=day
+    rt.memory['admin_requested']=False
+    rt.persist()
+    # Kept projects continue even when no department restates their objective.
+    scheduled=approved+[p for p in projects if p.get('status')!='retired' and p not in approved]
+    await execute_projects(rt,context,scheduled)
+
+
+async def execute_projects(rt,context,scheduled):
+    for project in scheduled:
         rt.check_generation()
         if rt.mode!='automate':break
         role='Executor:'+project['kind']
         try:
             fresh=await rt.manager_context(context)
             fresh={k:v for k,v in fresh.items() if k not in ('plans','assignments')}
-            fresh.update(project=project,projects=[p for p in rt.memory['projects'] if p.get('status')!='retired'],assigned_task=project['outcome'])
+            fresh.update(project_owner=project['owner'],project=project,projects=[p for p in rt.memory['projects'] if p.get('status')!='retired'],assigned_task=project['outcome'])
             project['status']='inspecting';rt.persist()
             batch=await rt.planner.ask(role,fresh,Proposal,rt.settings.reasoning)
+            if batch.escalation_reason:
+                rt.memory['admin_requested']=batch.escalation_reason
+                project['status']='needs_review';project['feedback']=[batch.escalation_reason]
+                rt.note('escalation',batch.escalation_reason,role=project['owner'],project_id=project['project_id'])
+                rt.last_review=-100000
+                continue
             project['feedback']=batch.blockers
             rt.note('execution_plan',f'Prepared {len(batch.actions)} orders; not yet executed.',role=role,project_id=project['project_id'],orders=len(batch.actions),model_summary=batch.summary,blockers=batch.blockers)
             before_batch={w['id'] for w in rt.memory['work']}

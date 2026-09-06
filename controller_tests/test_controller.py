@@ -423,7 +423,7 @@ async def test_complete_hierarchy_http_fixture(colony):
         async def close(self):pass
     await rt.model.close();rt.model=ScriptedModel();rt.mode='automate'
     await rt.review()
-    assert len(roles)==8
+    assert len(roles)==7
     assert rt.memory['work'][0]['status']=='complete'
     assert rt.memory['chat'][-1]['role']=='manager'
     assert game.writes==['things/set-forbidden']
@@ -449,9 +449,9 @@ async def test_focused_routing_retains_daily_coverage_and_threat_response(colony
     rt.last_review=1000
     rt.memory['plans']={'assignments':{'Infrastructure':'Sleeping arrangements'}}
     assert rt.review_roles([])==['Infrastructure']
-    assert rt.review_roles([{'type':'raid'}])==['Infrastructure','Survival','Security','Workforce']
+    assert rt.review_roles([{'type':'raid'}])==['Infrastructure','Survival','Security']
     rt.last_review+=60000
-    assert set(rt.review_roles([]))=={'Infrastructure','Survival','Security','Development','Workforce'}
+    assert set(rt.review_roles([]))=={'Infrastructure','Survival','Security','Development'}
 
 
 async def test_focused_coordinator_does_not_wake_unassigned_workforce(colony):

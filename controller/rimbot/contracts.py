@@ -38,6 +38,7 @@ class Action(Contract):
 
 
 class Proposal(Contract):
+    escalation_reason: str = Field(default='',max_length=2000,description='Only for a priority, ownership or resource conflict requiring administrator judgment. Leave actions empty when escalating. Routine missing observations or native validation errors should be handled within this task.')
     summary: str = Field(description='One or two short sentences. Put detailed work in actions and blockers, not this summary.')
     priority: Literal['urgent','high','normal','low'] = 'normal'
     actions: list[Action] = Field(default_factory=list)

@@ -427,6 +427,11 @@ class Runtime:
             if not await self.check(requirement):
                 raise ValueError(f'Prerequisite changed: {action.title}')
         # Only in-flight duplicates are suppressed; saved work never owns a site.
+        for existing in self.memory['work']:
+            previous=existing.get('action',{})
+            if existing['status'] in ('issued','unknown','waiting') and previous.get('endpoint')==action.endpoint and previous.get('arguments')==action.arguments:
+                self.note('action',f'Already in flight: {action.title}',role=role)
+                return
         work = {'id':uuid.uuid4().hex[:12], 'title':action.title,'status':'unknown',
                 'detail':'Sending order', 'role':role,'action':action.model_dump(), 'tick':self.last_tick}
         self.memory['work'].append(work)
@@ -611,6 +616,7 @@ class Runtime:
                 self.note('plan',daily.response)
                 self.persist()
             roles = self.review_roles(events, steering)
+            context['administration_required']=steering or any(any(word in e.get('type','').lower() for word in ('raid','killed','died')) for e in events)
             context['assignments'] = (self.memory['plans'] or {}).get('assignments',{})
             await semantic_review(self,context,roles)
             await self.progress(phase='Watching',detail='Review finished. Watching approved work.')
@@ -648,4 +654,4 @@ class Runtime:
         types = ' '.join(e['type'] for e in events).lower()
         if any(x in types for x in ('raid','killed','died','mental','letter')):
             roles = list(dict.fromkeys(roles+['Survival','Security','Workforce']))
-        return roles
+        return [r for r in roles if r!='Workforce'] or [r for r in ROLES if r!='Workforce']

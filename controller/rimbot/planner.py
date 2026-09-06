@@ -121,6 +121,7 @@ class Planner:
                 raise ValueError('Use each existing project ID at most once, or leave project_id blank for a new objective.')
         if not isinstance(value,Proposal):
             return value
+        if value.escalation_reason and value.actions:raise ValueError('Escalation cannot also issue actions; resolve the conflict first.')
         errors=[]
         for index,action in enumerate(value.actions):
             try:
@@ -228,12 +229,12 @@ class Planner:
                             'Reevaluate unbuilt plans against current facts; old plan text is not evidence. Do not preserve a false claim merely because it was in the previous plan. '
                             'Active player objectives set the current priorities. Put optional improvements in the future plan, not current assignments. '
                             'Only deviate for an observed urgent need; absent infrastructure alone does not establish an emergency. '
-                            'Set priorities and delegate concrete current tasks through assignments. All construction, including defenses, belongs to Infrastructure; Security assesses threats and directs combat. Workforce owns ordinary work priorities and schedules. '
+                            'Set priorities and delegate concrete current tasks through assignments. All construction, including defenses, belongs to Infrastructure; Security assesses threats and directs combat. There is no standing Workforce department. An assigned specialist can request labor diagnosis only when observed work is blocked by priorities or schedules. '
                             'Managers propose objectives and constraints; executors inspect details and issue native orders within approved objectives; '
                             'you do not need to discover endpoints, choose exact cells or verify bills. Identify uncertainty as an inspection task. '
                             'Existing orders are not completed work. tendable_now=false does not mean a permanent injury or work incapability; use the native fields for those facts. '
                             'Keep normal pawn autonomy. Use concise colony notes. '
-                            'Finish with submit. Manager responsibilities: '+json.dumps(ROLES)+'\n'+role)
+                            'Finish with submit. Manager responsibilities: '+json.dumps({k:v for k,v in ROLES.items() if k!='Workforce'})+'\n'+role)
             context = {k:v for k,v in context.items() if k!='capabilities'}
         elif contract is Decision:
             tools = [tools[-1]]
@@ -275,7 +276,7 @@ class Planner:
                              'Your summary describes proposed work, never claims completed changes. Orders from your submitted batch will execute serially without another model approval. You cannot change project scope or approve other objectives.')
         instructions += '\nstrategy_guidance contains conditional library advice. Check applicability against native observations; player instructions and live game facts take precedence. Never treat guidance as guaranteed game rules.'
         allowed_tools = {t['function']['name'] for t in tools}
-        role_label = role.split(':',1)[0]
+        role_label = (context['project_owner']+': '+role.split(':',1)[1]) if role.startswith('Executor:') and context.get('project_owner') else role.split(':',1)[0]
         drafts = {}
         failed_drafts = {}
         if issubclass(contract,Decision) and context.get('semantic_objectives') and self.rt.manager_model is None:
@@ -324,6 +325,8 @@ class Planner:
                          'Stocks are shared across sites; do not count the same stack as allocated to every project. A reservation can temporarily fail eligibility while another pawn works. '
                          'Fix observed blockers before adding redundant orders. If next_offset is present, further sites exist; absence from the first page does not mean missing. '
                          'These checks are not a complete job simulation. Delegate unresolved execution details; do not invent the reason for a rejected native check.')
+        if role.startswith('Executor:'):
+            instructions += '\nYou are the responsible specialist executing an already-approved project. Continue its outcome using fresh evidence; do not wait for another administrator approval. Other active projects belong to their owners: do not duplicate their work. Report escalation_reason only if a priority, ownership or resource conflict requires a strategic choice, with no actions. Ordinary missing data and placement errors are yours to resolve. Work priorities are only needed for a demonstrated labor-setting blocker, not because a pawn is idle.'
         if role=='Executor:work_assignment':
             definitions=await self.rt.api.call('get_def_all',{'filters':['WorkTypeDefs']})
             context={**context,'native_work_types':[{'def_name':d['def_name'],'label':d.get('label'),'description':d.get('description')} for d in (definitions.get('work_type_defs') or [])]}
@@ -348,7 +351,7 @@ class Planner:
                     self.rt.note('info','Keeping validated drafts; further planning was interrupted.',role=role_label)
                     return Proposal(summary='Ready: '+'; '.join(a.title for a in drafts.values()),actions=list(drafts.values()),blockers=[str(error)])
                 raise
-            self.rt.store.event(self.rt.colony, 'model_call', role=role.split(':',1)[0], model=model_name,
+            self.rt.store.event(self.rt.colony, 'model_call', role=role_label, model=model_name,
                                 seconds=round(time.monotonic()-call_started,3), usage=usage,
                                 tools=[c['function']['name'] for c in reply.get('tool_calls',[])])
             self.rt.check_generation()
