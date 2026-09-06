@@ -2204,6 +2204,22 @@
       }
     },
     {
+      "name": "get_work_settings",
+      "operation_id": "get_v1_work_settings",
+      "method": "GET",
+      "path": "/api/v1/work/settings",
+      "category": "ColonistsWork",
+      "description": "Read native Work tab manual priorities. The native Manual priorities checkbox. Enable it to make numeric pawn work priorities effective. Changes notify the same player pawns as the Work tab UI.",
+      "transport": "query",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "required": []
+      }
+    },
+    {
       "name": "get_world_caravan_path",
       "operation_id": "get_v1_world_caravan_path",
       "method": "GET",
@@ -5980,6 +5996,29 @@
         "additionalProperties": false,
         "description": "Legacy input DTO: omitted fields use native defaults; unknown fields are ignored. Service-level game rules still apply.",
         "required": []
+      }
+    },
+    {
+      "name": "post_work_settings",
+      "operation_id": "post_v1_work_settings",
+      "method": "POST",
+      "path": "/api/v1/work/settings",
+      "category": "ColonistsWork",
+      "description": "Set native Work tab manual priorities. The native Manual priorities checkbox. Enable it to make numeric pawn work priorities effective. Changes notify the same player pawns as the Work tab UI.",
+      "transport": "json",
+      "query_keys": [],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "use_work_priorities": {
+            "type": "boolean",
+            "description": "Native Work tab Manual priorities checkbox. False uses on/off work; enabled work has effective priority 3."
+          }
+        },
+        "required": [
+          "use_work_priorities"
+        ],
+        "additionalProperties": false
       }
     },
     {

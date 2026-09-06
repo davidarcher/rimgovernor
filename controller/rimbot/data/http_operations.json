@@ -14299,5 +14299,105 @@
         }
       }
     }
+  },
+  "get_v1_work_settings": {
+    "path": "/api/v1/work/settings",
+    "method": "GET",
+    "query_schema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "query_model": "get_v1_work_settings_Query",
+    "body_schema": null,
+    "response_schema": {
+      "$ref": "#/components/schemas/WorkSettings"
+    },
+    "body_required": false,
+    "query_fallback_required": [],
+    "responses": {
+      "200": {
+        "description": "Current native work-tab setting",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/WorkSettings"
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Native contract error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "Native contract error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      }
+    }
+  },
+  "post_v1_work_settings": {
+    "path": "/api/v1/work/settings",
+    "method": "POST",
+    "query_schema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "query_model": "post_v1_work_settings_Query",
+    "body_schema": {
+      "$ref": "#/components/schemas/WorkSettings"
+    },
+    "response_schema": {
+      "$ref": "#/components/schemas/WorkSettings"
+    },
+    "body_required": true,
+    "query_fallback_required": [],
+    "responses": {
+      "200": {
+        "description": "Current native work-tab setting",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/WorkSettings"
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Native contract error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "Native contract error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      }
+    }
   }
 }

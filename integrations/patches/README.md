@@ -38,6 +38,9 @@ Changes:
 - Nearby room sampling and local terrain queries expose observed construction sites.
 - Construction revisions reject batches based on state superseded by player edits.
 
+- Native Work tab manual-priority settings have schema-generated DTOs and use
+  the same pawn notifications as the game UI.
+
 Build `Source/RIMAPI/RimApi.csproj` with configuration `Release-1.6`, then install
 `1.6/Assemblies/RIMAPI.dll` only while RimWorld is closed. The test installation
 currently uses Workshop folder `3593423732`; Steam updates can overwrite it.

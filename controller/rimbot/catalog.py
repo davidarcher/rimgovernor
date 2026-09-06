@@ -7,6 +7,7 @@ from jsonschema import Draft202012Validator
 READ_POST = {'post_builder_check_zone', 'post_builder_copy', 'post_camera_screenshot'}
 WRITE_CATEGORIES = {'Bill', 'ColonistsWork', 'Order', 'Research', 'PawnJob', 'Trade'}
 WRITE_NAMES = {
+    'post_work_settings',
     'post_builder_blueprint', 'post_things_set_forbidden',
     'post_map_zone_growing', 'post_map_zone_stockpile', 'post_map_zone_stockpile_update',
     'delete_map_zone_stockpile_delete', 'post_map_building_power',
@@ -87,6 +88,9 @@ class Catalog:
             if e['name']=='get_def_all':
                 e['description'] += ' Returns definition groups such as things_defs and terrain_defs. filters selects GROUPS, not individual names. Omit filters to use the complete session snapshot. Use query.path=things_defs and query.where={def_name: observed name} or {category: Building} to filter individual definitions. No separate structure-blueprint definitions are needed for construction.'
                 props['filters']['description']='Optional definition group names, e.g. ThingsDefs or TerrainDefs. Not building names. Prefer omitting this and selecting the group with query.path.'
+            if e['name']=='get_resources_stored':
+                e['description'] += ' Grouped inventory: read without category first, then select the returned list with query.path (for example resources_raw). Output group names are not necessarily native category filter names. Never infer no supplies from an unverified category filter.'
+                props['category']['description']='Optional native ThingCategoryDef filter, not the name of a JSON response group. Prefer omitting this and using query.path with an observed group.'
             if e['name']=='get_map_things':
                 e['description'] += ' Haulable items only; not a complete map entity list. Does not expose construction blueprints. Use get_map_things_at for exact-cell blueprint readback.'
             if e['name']=='post_things_set_forbidden':

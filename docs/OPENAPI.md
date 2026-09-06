@@ -1,10 +1,10 @@
 # RIMAPI HTTP contract
 
 `integrations/RIMAPI/Contracts/rimapi.openapi.json` is the authored OpenAPI 3.1
-contract for the RimWorld 1.6 built-in HTTP surface: **199 operations**, including construction,
+contract for the RimWorld 1.6 built-in HTTP surface: **201 operations**, including construction,
 pawns, work, storage, research, world data, camera control, documentation, and SSE.
 It references the separately authored `construction.openapi.json` sub-contract.
-There are **434 component schemas**, including distinct legacy input and output
+There are **435 component schemas**, including distinct legacy input and output
 shapes. Edit these source documents; do not regenerate them from C# DTOs.
 
 The bundled document is available from the controller at
@@ -90,7 +90,7 @@ Known differences are explicit:
 The read-only test checks 18 representative endpoints against a loaded colony,
 including pawns, rooms, definitions, storage, research, and camera status. Reports
 are written under `.rimbot/http-contract-tests/`. It makes no model calls or game
-mutations. Passing it does not establish all 199 operations' gameplay correctness.
+mutations. Passing it does not establish all 201 operations' gameplay correctness.
 
 Construction queries now include nearby room samples, local terrain inspection,
 and a current construction revision. Placements can supply `expected_revision`;

@@ -37,11 +37,17 @@ class GameFixture:
         self.calls=[]
         self.buildings=[]
         self.catalog=Catalog()
+        self.use_work_priorities=True
 
     def handle(self,r):
         self.calls.append(r)
         path=r.url.path.removeprefix('/api/v1/')
         data={}
+        if path=='work/settings':
+            if r.method=='POST':
+                self.use_work_priorities=json.loads(r.content)['use_work_priorities']
+                self.writes.append(path)
+            return httpx.Response(200,json={'use_work_priorities':self.use_work_priorities})
         if path=='docs':
             data={'sections':[{'endpoints':[{'method':e['method'],'path':e['path']} for e in self.catalog.entries.values()]}]}
         elif path=='game/state':

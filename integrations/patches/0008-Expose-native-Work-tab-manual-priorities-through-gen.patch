@@ -1,0 +1,358 @@
+From 22450dd9ae5a6534fe7b8c815aa4bbecd303fd06 Mon Sep 17 00:00:00 2001
+From: David Archer <darcher@gmail.com>
+Date: Sat, 5 Sep 2026 20:38:47 -0400
+Subject: [PATCH] Expose native Work tab manual priorities through generated
+ contracts
+
+---
+ Contracts/rimapi.bundled.openapi.json         | 106 ++++++++++++++++++
+ Contracts/rimapi.openapi.json                 | 106 ++++++++++++++++++
+ .../Contracts/HttpNativeModels.g.cs           |  11 ++
+ .../Colony/ConstructionContractController.cs  |   6 +-
+ .../Pawns/WorkSettingsController.cs           |  51 +++++++++
+ 5 files changed, 279 insertions(+), 1 deletion(-)
+ create mode 100644 Source/RIMAPI/RimworldRestApi/Contracts/HttpNativeModels.g.cs
+ create mode 100644 Source/RIMAPI/RimworldRestApi/Controllers/Pawns/WorkSettingsController.cs
+
+diff --git a/Contracts/rimapi.bundled.openapi.json b/Contracts/rimapi.bundled.openapi.json
+index b7e6d77..cb50b92 100644
+--- a/Contracts/rimapi.bundled.openapi.json
++++ b/Contracts/rimapi.bundled.openapi.json
+@@ -14668,6 +14668,98 @@
+         },
+         "description": "Inspect an explored square around an observed colony position. Returns terrain, fertility, roofs, walkability and occupying thing IDs. Unexplored cells are omitted. Start with radius 4; inspect further only when needed."
+       }
++    },
++    "/api/v1/work/settings": {
++      "get": {
++        "operationId": "get_v1_work_settings",
++        "summary": "Read native Work tab manual priorities",
++        "description": "The native Manual priorities checkbox. Enable it to make numeric pawn work priorities effective. Changes notify the same player pawns as the Work tab UI.",
++        "responses": {
++          "200": {
++            "description": "Current native work-tab setting",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/WorkSettings"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Native contract error",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Construction_ContractError"
++                }
++              }
++            }
++          },
++          "500": {
++            "description": "Native contract error",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Construction_ContractError"
++                }
++              }
++            }
++          }
++        },
++        "tags": [
++          "ColonistsWork"
++        ]
++      },
++      "post": {
++        "operationId": "post_v1_work_settings",
++        "summary": "Set native Work tab manual priorities",
++        "description": "The native Manual priorities checkbox. Enable it to make numeric pawn work priorities effective. Changes notify the same player pawns as the Work tab UI.",
++        "responses": {
++          "200": {
++            "description": "Current native work-tab setting",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/WorkSettings"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Native contract error",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Construction_ContractError"
++                }
++              }
++            }
++          },
++          "500": {
++            "description": "Native contract error",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Construction_ContractError"
++                }
++              }
++            }
++          }
++        },
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/WorkSettings"
++              }
++            }
++          }
++        },
++        "tags": [
++          "ColonistsWork"
++        ]
++      }
+     }
+   },
+   "components": {
+@@ -29312,6 +29404,20 @@
+         ],
+         "x-native-type-sha256": "f4a806d53a407797b61a51d21ffa083eeb99a14758a6cd2a80eeee8473337cd0"
+       },
++      "WorkSettings": {
++        "type": "object",
++        "properties": {
++          "use_work_priorities": {
++            "type": "boolean",
++            "description": "Native Work tab Manual priorities checkbox. False uses on/off work; enabled work has effective priority 3."
++          }
++        },
++        "required": [
++          "use_work_priorities"
++        ],
++        "additionalProperties": false,
++        "x-generate-csharp": true
++      },
+       "Construction_DefinitionQuery": {
+         "title": "DefinitionQuery",
+         "type": "object",
+diff --git a/Contracts/rimapi.openapi.json b/Contracts/rimapi.openapi.json
+index f1aa8de..8fa1f7c 100644
+--- a/Contracts/rimapi.openapi.json
++++ b/Contracts/rimapi.openapi.json
+@@ -14668,6 +14668,98 @@
+         },
+         "description": "Inspect an explored square around an observed colony position. Returns terrain, fertility, roofs, walkability and occupying thing IDs. Unexplored cells are omitted. Start with radius 4; inspect further only when needed."
+       }
++    },
++    "/api/v1/work/settings": {
++      "get": {
++        "operationId": "get_v1_work_settings",
++        "summary": "Read native Work tab manual priorities",
++        "description": "The native Manual priorities checkbox. Enable it to make numeric pawn work priorities effective. Changes notify the same player pawns as the Work tab UI.",
++        "responses": {
++          "200": {
++            "description": "Current native work-tab setting",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/WorkSettings"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Native contract error",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "construction.openapi.json#/components/schemas/ContractError"
++                }
++              }
++            }
++          },
++          "500": {
++            "description": "Native contract error",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "construction.openapi.json#/components/schemas/ContractError"
++                }
++              }
++            }
++          }
++        },
++        "tags": [
++          "ColonistsWork"
++        ]
++      },
++      "post": {
++        "operationId": "post_v1_work_settings",
++        "summary": "Set native Work tab manual priorities",
++        "description": "The native Manual priorities checkbox. Enable it to make numeric pawn work priorities effective. Changes notify the same player pawns as the Work tab UI.",
++        "responses": {
++          "200": {
++            "description": "Current native work-tab setting",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/WorkSettings"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Native contract error",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "construction.openapi.json#/components/schemas/ContractError"
++                }
++              }
++            }
++          },
++          "500": {
++            "description": "Native contract error",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "construction.openapi.json#/components/schemas/ContractError"
++                }
++              }
++            }
++          }
++        },
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/WorkSettings"
++              }
++            }
++          }
++        },
++        "tags": [
++          "ColonistsWork"
++        ]
++      }
+     }
+   },
+   "components": {
+@@ -29311,6 +29403,20 @@
+           "cells_count"
+         ],
+         "x-native-type-sha256": "f4a806d53a407797b61a51d21ffa083eeb99a14758a6cd2a80eeee8473337cd0"
++      },
++      "WorkSettings": {
++        "type": "object",
++        "properties": {
++          "use_work_priorities": {
++            "type": "boolean",
++            "description": "Native Work tab Manual priorities checkbox. False uses on/off work; enabled work has effective priority 3."
++          }
++        },
++        "required": [
++          "use_work_priorities"
++        ],
++        "additionalProperties": false,
++        "x-generate-csharp": true
+       }
+     }
+   },
+diff --git a/Source/RIMAPI/RimworldRestApi/Contracts/HttpNativeModels.g.cs b/Source/RIMAPI/RimworldRestApi/Contracts/HttpNativeModels.g.cs
+new file mode 100644
+index 0000000..1208e3a
+--- /dev/null
++++ b/Source/RIMAPI/RimworldRestApi/Contracts/HttpNativeModels.g.cs
+@@ -0,0 +1,11 @@
++// Generated from Contracts/rimapi.openapi.json. Do not edit.
++using System.Collections.Generic;
++using Newtonsoft.Json;
++using Newtonsoft.Json.Converters;
++namespace RIMAPI.Contracts
++{
++    public sealed class WorkSettings
++    {
++        [JsonProperty("use_work_priorities")] public bool UseWorkPriorities { get; set; }
++    }
++}
+diff --git a/Source/RIMAPI/RimworldRestApi/Controllers/Colony/ConstructionContractController.cs b/Source/RIMAPI/RimworldRestApi/Controllers/Colony/ConstructionContractController.cs
+index d2cb649..c9109ab 100644
+--- a/Source/RIMAPI/RimworldRestApi/Controllers/Colony/ConstructionContractController.cs
++++ b/Source/RIMAPI/RimworldRestApi/Controllers/Colony/ConstructionContractController.cs
+@@ -28,7 +28,11 @@ namespace RIMAPI.Contracts
+             using(var stream=typeof(WireContract).Assembly.GetManifestResourceStream("RIMAPI.Construction.Contracts"))
+             using(var reader=new StreamReader(stream)) return JObject.Parse(reader.ReadToEnd());
+         }
+-        public static JObject Schema(Type type) => (JObject)Document["types"][type.Name];
++        private static readonly Lazy<JObject> HttpSchemas = new Lazy<JObject>(() => {
++            using(var stream=typeof(WireContract).Assembly.GetManifestResourceStream("RIMAPI.OpenAPI"))
++            using(var reader=new StreamReader(stream)) return (JObject)JObject.Parse(reader.ReadToEnd())["components"]["schemas"];
++        });
++        public static JObject Schema(Type type) => (JObject)Document["types"][type.Name] ?? (JObject)HttpSchemas.Value[type.Name];
+         public static void Validate(JToken value, JObject schema, string path="$")
+         {
+             if(schema["anyOf"] is JArray choices)
+diff --git a/Source/RIMAPI/RimworldRestApi/Controllers/Pawns/WorkSettingsController.cs b/Source/RIMAPI/RimworldRestApi/Controllers/Pawns/WorkSettingsController.cs
+new file mode 100644
+index 0000000..e41c50a
+--- /dev/null
++++ b/Source/RIMAPI/RimworldRestApi/Controllers/Pawns/WorkSettingsController.cs
+@@ -0,0 +1,51 @@
++using System;
++using System.IO;
++using System.Net;
++using System.Threading.Tasks;
++using Newtonsoft.Json;
++using Newtonsoft.Json.Linq;
++using RimWorld;
++using Verse;
++using RIMAPI.Contracts;
++using RIMAPI.Core;
++
++namespace RIMAPI.Controllers
++{
++    public class WorkSettingsController
++    {
++        private static WorkSettings Read()
++        {
++            if(Current.Game?.playSettings==null) throw new ArgumentException("Load a colony before changing work settings.");
++            return new WorkSettings { UseWorkPriorities=Current.Game.playSettings.useWorkPriorities };
++        }
++        [Get("/api/v1/work/settings")]
++        public Task GetWorkSettings(HttpListenerContext context) => Handle(context,false);
++        [Post("/api/v1/work/settings")]
++        public Task SetWorkSettings(HttpListenerContext context) => Handle(context,true);
++        private async Task Handle(HttpListenerContext context,bool write)
++        {
++            try
++            {
++                var current=Read();
++                if(write)
++                {
++                    string body;using(var reader=new StreamReader(context.Request.InputStream))body=await reader.ReadToEndAsync();
++                    var token=JToken.Parse(body);WireContract.Validate(token,WireContract.Schema(typeof(WorkSettings)));
++                    var requested=token.ToObject<WorkSettings>();
++                    if(requested.UseWorkPriorities!=current.UseWorkPriorities)
++                    {
++                        // Same setting and invalidation as MainTabWindow_Work.DoWindowContents.
++                        Current.Game.playSettings.useWorkPriorities=requested.UseWorkPriorities;
++                        foreach(var pawn in PawnsFinder.AllMapsWorldAndTemporary_Alive)
++                            if(pawn.Faction==Faction.OfPlayer && pawn.workSettings!=null)
++                                pawn.workSettings.Notify_UseWorkPrioritiesChanged();
++                    }
++                }
++                await WireContract.Send(context,Read(),typeof(WorkSettings));
++            }
++            catch(JsonException e) { await WireContract.Send(context,new ContractError{Code="contract_violation",Message=e.Message},typeof(ContractError),400); }
++            catch(ArgumentException e) { await WireContract.Send(context,new ContractError{Code="invalid_request",Message=e.Message},typeof(ContractError),400); }
++            catch(Exception e) { await WireContract.Send(context,new ContractError{Code="execution_error",Message=e.Message},typeof(ContractError),500); }
++        }
++    }
++}
+-- 
+2.55.0.windows.3
+

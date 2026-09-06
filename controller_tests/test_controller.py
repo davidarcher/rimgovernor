@@ -113,7 +113,7 @@ def test_definition_query_errors_explain_actual_paths_and_filters():
         select([{'def_name':'Bed','label':'bed'}],Query(endpoint='get_def_all',fields=['defName']))
 
 
-async def test_four_identical_queries_do_not_abort_manager(colony):
+async def test_four_identical_queries_handoff_without_a_total_call_limit(colony):
     rt,_=colony;rt.cycle_generation=rt.generation
     class Model:
         count=0
@@ -127,7 +127,7 @@ async def test_four_identical_queries_do_not_abort_manager(colony):
         async def close(self):pass
     await rt.model.close();rt.model=Model()
     result=await rt.planner.ask('Infrastructure',{},Proposal)
-    assert result.summary=='Inspection complete' and rt.model.count==5
+    assert result.blockers and not result.actions and rt.model.count==4
 
 
 async def test_rejected_draft_cannot_silently_become_empty_success(colony):
@@ -151,7 +151,8 @@ async def test_rejected_draft_cannot_silently_become_empty_success(colony):
         async def close(self):pass
     await rt.model.close();rt.model=Model()
     result=await rt.planner.ask('Survival',{},Proposal)
-    assert len(result.actions)==1 and rt.model.count==4
+    assert not result.actions and rt.model.count==2
+    assert any('Not issued:' in b for b in result.blockers)
 
 
 async def test_discovery_real_map_and_nested_colonists(colony):

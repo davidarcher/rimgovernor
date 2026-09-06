@@ -306,6 +306,8 @@ class Runtime:
             return state.accepted and all(item.state=='built' for item in state.items)
         if action.done is not None:return await self.check(action.done)
         args=action.arguments
+        if action.endpoint=='post_work_settings':
+            return (await self.api.call('get_work_settings',{},fresh=True))['use_work_priorities']==args['use_work_priorities']
         if action.endpoint=='post_things_set_forbidden':
             items=await self.api.call('get_map_things',{'map_id':args['map_id']},fresh=True)
             found={item['thing_id']:item for item in items}
@@ -451,6 +453,8 @@ class Runtime:
             raise ModelError('Colony changed during review; pending decisions were discarded.')
         self.observation=observed
         result={**context,'colony':compact(observed,20000)}
+        if 'get_work_settings' in self.catalog.available:
+            result['work_settings']=await self.api.call('get_work_settings',{},fresh=True)
         if 'construction_state' in self.catalog.available:
             state=await self.api.call('construction_state',{'map_id':observed['map']['id']})
             result['construction_state']=state.model_dump()

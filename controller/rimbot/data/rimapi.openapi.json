@@ -14668,6 +14668,98 @@
         },
         "description": "Inspect an explored square around an observed colony position. Returns terrain, fertility, roofs, walkability and occupying thing IDs. Unexplored cells are omitted. Start with radius 4; inspect further only when needed."
       }
+    },
+    "/api/v1/work/settings": {
+      "get": {
+        "operationId": "get_v1_work_settings",
+        "summary": "Read native Work tab manual priorities",
+        "description": "The native Manual priorities checkbox. Enable it to make numeric pawn work priorities effective. Changes notify the same player pawns as the Work tab UI.",
+        "responses": {
+          "200": {
+            "description": "Current native work-tab setting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Native contract error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Native contract error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "ColonistsWork"
+        ]
+      },
+      "post": {
+        "operationId": "post_v1_work_settings",
+        "summary": "Set native Work tab manual priorities",
+        "description": "The native Manual priorities checkbox. Enable it to make numeric pawn work priorities effective. Changes notify the same player pawns as the Work tab UI.",
+        "responses": {
+          "200": {
+            "description": "Current native work-tab setting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Native contract error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Native contract error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkSettings"
+              }
+            }
+          }
+        },
+        "tags": [
+          "ColonistsWork"
+        ]
+      }
     }
   },
   "components": {
@@ -29311,6 +29403,20 @@
           "cells_count"
         ],
         "x-native-type-sha256": "f4a806d53a407797b61a51d21ffa083eeb99a14758a6cd2a80eeee8473337cd0"
+      },
+      "WorkSettings": {
+        "type": "object",
+        "properties": {
+          "use_work_priorities": {
+            "type": "boolean",
+            "description": "Native Work tab Manual priorities checkbox. False uses on/off work; enabled work has effective priority 3."
+          }
+        },
+        "required": [
+          "use_work_priorities"
+        ],
+        "additionalProperties": false,
+        "x-generate-csharp": true
       },
       "Construction_DefinitionQuery": {
         "title": "DefinitionQuery",

@@ -155,6 +155,9 @@ def main():
         ROOT / 'controller/rimbot/data/rimapi.openapi.json': json.dumps(document, indent=2) + '\n',
         CONTRACTS / 'rimapi.bundled.openapi.json': json.dumps(document, indent=2) + '\n',
     }
+    from generate_native_models import generate_csharp
+    native_types={name:schema for name,schema in document['components']['schemas'].items() if schema.get('x-generate-csharp')}
+    outputs[ROOT / 'integrations/RIMAPI/Source/RIMAPI/RimworldRestApi/Contracts/HttpNativeModels.g.cs'] = generate_csharp({'$defs':native_types}).replace('Contracts/construction.openapi.json','Contracts/rimapi.openapi.json')
     discovery = json.loads((ROOT / 'controller/contracts/discovery.openapi.json').read_text())
     validate(discovery)
     discovery_models, _ = generate(discovery)

@@ -3211,6 +3211,9 @@ class ZoneDto(WireModel):
     base_label: Union[str, None] = Field(default=None)
     type: Union[str, None] = Field(default=None)
 
+class WorkSettings(WireModel):
+    use_work_priorities: bool = Field()
+
 class Construction_DefinitionQuery(WireModel):
     search: str = Field()
     offset: int = Field(ge=0, le=2147483647)
@@ -3962,6 +3965,12 @@ class construction_state_Query(WireModel):
 class construction_area_Query(WireModel):
     pass
 
+class get_v1_work_settings_Query(WireModel):
+    pass
+
+class post_v1_work_settings_Query(WireModel):
+    pass
+
 AbilityDefDto.model_rebuild()
 AddRelationRequestDto.model_rebuild()
 AllDefsRequestDto.model_rebuild()
@@ -4375,6 +4384,7 @@ WorkTableDto.model_rebuild()
 WorkTypeDefDto.model_rebuild()
 WorldObjectDefDto.model_rebuild()
 ZoneDto.model_rebuild()
+WorkSettings.model_rebuild()
 Construction_DefinitionQuery.model_rebuild()
 Construction_Cost.model_rebuild()
 Construction_Material.model_rebuild()
@@ -4595,6 +4605,8 @@ construction_place_Query.model_rebuild()
 construction_rooms_Query.model_rebuild()
 construction_state_Query.model_rebuild()
 construction_area_Query.model_rebuild()
+get_v1_work_settings_Query.model_rebuild()
+post_v1_work_settings_Query.model_rebuild()
 
 QUERY_TYPES = {
     'get_api_openapi_json': TypeAdapter(get_api_openapi_json_Query),
@@ -4796,6 +4808,8 @@ QUERY_TYPES = {
     'construction_rooms': TypeAdapter(construction_rooms_Query),
     'construction_state': TypeAdapter(construction_state_Query),
     'construction_area': TypeAdapter(construction_area_Query),
+    'get_v1_work_settings': TypeAdapter(get_v1_work_settings_Query),
+    'post_v1_work_settings': TypeAdapter(post_v1_work_settings_Query),
 }
 
 BODY_TYPES = {
@@ -4866,6 +4880,7 @@ BODY_TYPES = {
     'construction_rooms': TypeAdapter(Construction_RoomQuery),
     'construction_state': TypeAdapter(Construction_MapQuery),
     'construction_area': TypeAdapter(Construction_AreaQuery),
+    'post_v1_work_settings': TypeAdapter(WorkSettings),
 }
 
 RESPONSE_TYPES = {
@@ -5067,6 +5082,8 @@ RESPONSE_TYPES = {
     'construction_rooms': TypeAdapter(Construction_PageRoomDto),
     'construction_state': TypeAdapter(Construction_ConstructionState),
     'construction_area': TypeAdapter(Construction_AreaResult),
+    'get_v1_work_settings': TypeAdapter(WorkSettings),
+    'post_v1_work_settings': TypeAdapter(WorkSettings),
 }
 
 class HttpOperations:
@@ -5666,3 +5683,9 @@ class HttpOperations:
 
     async def construction_area(self, *, query: construction_area_Query | None = None, body: Construction_AreaQuery | None = None) -> Construction_AreaResult:
         return await self._call('construction_area', query=query, body=body)
+
+    async def get_v1_work_settings(self, *, query: get_v1_work_settings_Query | None = None) -> WorkSettings:
+        return await self._call('get_v1_work_settings', query=query)
+
+    async def post_v1_work_settings(self, *, query: post_v1_work_settings_Query | None = None, body: WorkSettings | None = None) -> WorkSettings:
+        return await self._call('post_v1_work_settings', query=query, body=body)
