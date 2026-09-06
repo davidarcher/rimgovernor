@@ -2,16 +2,28 @@ import {useEffect,useState} from 'react';
 
 const roles=['All','Executor','Strategy','Infrastructure','Survival','Security','Development','Workforce','Administrator','Daily planning'];
 const owner=(e:any)=>(e.role||'Colony').split(':')[0];
+function requestSummary(e:any){
+  const a=e.arguments||{}, parts:string[]=[];
+  if(a.search)parts.push(`“${a.search}”`);
+  if(a.path)parts.push(a.path);
+  if(a.where)parts.push(Object.entries(a.where).map(([k,v])=>`${k}=${typeof v==='object'?JSON.stringify(v):v}`).join(', '));
+  const point=a.near||a.center||a.position;
+  if(point?.x!=null&&point?.z!=null)parts.push(`near (${point.x}, ${point.z})`);
+  if(a.radius!=null)parts.push(`radius ${a.radius}`);
+  if(a.offset)parts.push(`offset ${a.offset}`);
+  return parts.filter(Boolean).join(' · ');
+}
 function caption(e:any){
-  if(e.kind==='model_call')return `Review finished · ${Number(e.seconds||0).toFixed(1)}s · ${e.tools?.length||0} tool calls`;
   if(e.kind==='tool_result'){
-    if(e.result?.error)return `Needs correction: ${e.result.error}`;
+    const detail=requestSummary(e), suffix=detail?` · ${detail}`:'';
+    if(e.result?.error)return `${e.tool}${suffix} · Needs correction: ${e.result.error}`;
     if(e.result?.drafted)return `Drafted: ${e.result.drafted}`;
-    if(e.tool==='query')return `Inspected ${e.arguments?.endpoint?.replaceAll('_',' ')||'colony'}${e.result?.total!=null?` · ${e.result.total} matches`:''}`;
+    if(e.tool==='construction_definitions')return `Building search${suffix||' · all buildings'} · ${e.result?.total??'?'} matches${e.result?.items?.length?` · ${e.result.items.slice(0,4).map((d:any)=>d.label||d.def_name).join(', ')}`:''}`;
+    if(e.tool==='query')return `Inspected ${e.arguments?.endpoint?.replaceAll('_',' ')||'colony'}${suffix}${e.result?.total!=null?` · ${e.result.total} matches`:''}`;
     if(e.tool==='describe')return `Read command: ${e.arguments?.endpoint||''}`;
     if(e.tool==='discover')return `Looked up: ${e.arguments?.search||'available commands'}`;
     if(e.tool==='submit')return 'Submitted review';
-    return e.tool;
+    return `${e.tool}${suffix}`;
   }
   return e.text||e.error||'Response needs correction';
 }

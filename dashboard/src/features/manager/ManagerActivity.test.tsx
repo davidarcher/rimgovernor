@@ -19,3 +19,14 @@ it('shows successful inspections and arbitration, filters roles, and clears anot
   view.rerender(<ManagerActivity colony="two"/>);
   expect(screen.queryByText(/Inspected get map buildings/)).not.toBeInTheDocument();
 });
+it('shows definition searches, empty results and query filters without expanding details',async()=>{
+  vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true,json:async()=>({colony:'one',events:[
+    {id:3,at:1,kind:'tool_result',role:'Executor',tool:'construction_definitions',arguments:{search:'WallWood',offset:0,limit:10},result:{items:[],total:0}},
+    {id:2,at:1,kind:'tool_result',role:'Executor',tool:'construction_definitions',arguments:{search:'Wall',offset:0,limit:20},result:{items:[{label:'wall',def_name:'Wall'}],total:1}},
+    {id:1,at:1,kind:'tool_result',role:'Executor',tool:'query',arguments:{endpoint:'get_map_things',where:{def_name:'WoodLog'},near:{x:20,z:30}},result:{total:2}}
+  ]})}));
+  render(<ManagerActivity colony="one"/>);
+  expect(await screen.findByText('Building search · “WallWood” · 0 matches')).toBeVisible();
+  expect(screen.getByText('Building search · “Wall” · 1 matches · wall')).toBeVisible();
+  expect(screen.getByText(/def_name=WoodLog · near \(20, 30\)/)).toBeVisible();
+});

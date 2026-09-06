@@ -298,7 +298,7 @@ class Planner:
         if contract is Proposal:
             for name in writable:register_command(name)
             if native_reads:
-                instructions += '\nUse construction_definitions for buildable definitions and material choices, construction_rooms for visible sites, construction_inspect for legality, and construction_place to draft placements. These tools have fixed native request/response types. Construction does not need done or requires. A drafted order is not a placed building.'
+                instructions += '\nUse construction_definitions for buildable definitions and material choices, construction_rooms for visible sites, construction_inspect for legality, and construction_place to draft placements. These tools have fixed native request/response types. construction_definitions searches BUILDINGS only, not material items. Query the building (for example Wall), then select stuff_def_name from its returned allowed_materials. Do not invent combined building/material names. Roofs are areas/designations, not material-built furniture; a substring match like waterproof conduit does not establish roof capability. Use discover for roof commands. Reuse definitions already returned, including observed_building_definitions after context compaction. Construction does not need done or requires. A drafted order is not a placed building.'
             instructions += ('\nYour native command tools are listed directly. Call one to draft each order using title and arguments. '
                              'A successful draft is retained. Finish with submit containing summary, priority, labor, resources and blockers; do not repeat actions in submit.')
         instructions += ('\nconstruction_work is a native observation of queued sites, remaining materials, current pawn job targets and unforced worker eligibility. '
@@ -307,6 +307,7 @@ class Planner:
                          'Fix observed blockers before adding redundant orders. If next_offset is present, further sites exist; absence from the first page does not mean missing. '
                          'These checks are not a complete job simulation. Delegate unresolved execution details; do not invent the reason for a rejected native check.')
         messages = [{'role':'system' ,'content':instructions}, {'role':'user','content':json.dumps(context, separators=(',',':'), ensure_ascii=False)}]
+        definition_evidence = {}
         repeats = {}
         repairs = 0
         model=self.rt.model_for_role(role)
@@ -351,7 +352,11 @@ class Planner:
             for c in calls:
                 f = c['function']
                 try:
-                    key = f['name'] + json.dumps(json.loads(f['arguments']),sort_keys=True)
+                    key_args=json.loads(f['arguments'])
+                    if f['name']=='construction_definitions':
+                        key_args={**key_args,'search':key_args.get('search','').strip().casefold()}
+                        key_args.pop('limit',None)
+                    key = f['name'] + json.dumps(key_args,sort_keys=True)
                 except ValueError:
                     key = f['name'] + f['arguments']
                 args = {}
@@ -367,6 +372,8 @@ class Planner:
                         result = {'received':True}
                     elif any(e['name']==f['name'] for e in native_reads):
                         result=(await self.rt.api.call(f['name'],args,write=False)).model_dump()
+                        if f['name']=='construction_definitions':
+                            for definition in result['items']:definition_evidence[definition['def_name']]=definition
                         if f['name']=='construction_state':basis=result['revision']
                         if f['name']=='construction_area':
                             inspected_cells.update((cell['position']['x'],cell['position']['z']) for cell in result['cells'])
@@ -418,7 +425,8 @@ class Planner:
                 self.rt.counters['tools'] += 1
                 self.rt.store.event(self.rt.colony, 'tool_result', role=role_label,
                                     tool=f['name'], arguments=args, result=result if native_response else compact(result,3000))
-                await self.rt.progress(detail=f'{role_label}: {f["name"]}', tools=self.rt.counters['tools'])
+                search_detail=args.get('search') or args.get('endpoint') or ''
+                await self.rt.progress(detail=f'{role_label}: {f["name"]}'+(f' — {str(search_detail)[:120]}' if search_detail else ''), tools=self.rt.counters['tools'])
                 messages.append({'role':'tool','tool_call_id':c['id'],'content':json.dumps(result if native_response else compact(result, 14000), separators=(',',':'))})
                 if count>=3 and isinstance(result,dict) and 'error' in result and contract is not Proposal:
                     raise ModelError(f'{role} repeated the same invalid submission three times: '+result['error'])
@@ -432,6 +440,7 @@ class Planner:
                 # Keep complete assistant/tool groups; never orphan a tool response.
                 last_assistant = max(i for i,m in enumerate(messages) if m['role']=='assistant')
                 retained={'drafts':[a.title for a in drafts.values()],'rejected':failed_drafts,
+                    'observed_building_definitions':list(definition_evidence.values())[-12:],
                     'next':'Valid drafts are retained; submit them now if they address your task. Do not rediscover them or repeat unrelated queries.'}
                 messages = messages[:2] + [{'role':'user','content':json.dumps(retained)}] + messages[last_assistant:]
 

@@ -573,3 +573,25 @@ async def test_submit_missing_action_arguments_can_be_corrected(colony):
     p=await rt.planner.ask('Infrastructure',{},Proposal)
     assert p.actions[0].arguments['thing_ids']==[101]
     assert len(calls)==2 and not game.writes
+
+async def test_compaction_retains_observed_building_materials(colony):
+    from pathlib import Path
+    from types import SimpleNamespace
+    rt,_=colony;rt.cycle_generation=rt.generation;rt.settings.context_chars=1
+    rt.catalog.install_contracts(json.loads((Path(__file__).parents[1]/'controller/rimbot/data/construction_contracts.json').read_text()))
+    definition={'def_name':'Wall','label':'wall','allowed_materials':[{'def_name':'WoodLog','label':'wood'}]}
+    original=rt.api.call
+    async def call(name,args,**kwargs):
+        if name=='construction_definitions':return SimpleNamespace(model_dump=lambda:{'items':[definition],'total':1,'next_offset':None})
+        return await original(name,args,**kwargs)
+    rt.api.call=call
+    calls=[]
+    async def complete(messages,*args):
+        calls.append(1)
+        if len(calls)==1:
+            return {'role':'assistant','tool_calls':[{'id':'wall','type':'function','function':{'name':'construction_definitions','arguments':'{"search":"Wall","offset":0,"limit":10}'}}]},{}
+        retained=json.loads(messages[2]['content'])
+        assert retained['observed_building_definitions']==[definition]
+        return {'role':'assistant','content':'{"summary":"Use the observed material."}'},{}
+    rt.model.complete=complete
+    await rt.planner.ask('Executor:construction',{},Proposal,True)
