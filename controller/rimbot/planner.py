@@ -107,6 +107,11 @@ class Planner:
                     references.append(objective.project_id)
                 if objective.definition_requirements and objective.kind!='construction':raise ValueError('Building definition requirements require construction.')
             if len(references)!=len(set(references)):raise ValueError('Approve at most one continuation per existing project; defer duplicate candidates.')
+        if isinstance(value,(ObjectiveProposal,ObjectiveDecision)):
+            objectives=value.objectives if isinstance(value,ObjectiveProposal) else [value.updates.get(k) or WorkObjective.model_validate(context['proposals'][k]['objective']) for k in value.accepted]
+            cancelled={(p['kind'],p['outcome'].strip().casefold()) for p in self.rt.memory.get('projects',[]) if p.get('cancelled_by_player') and p.get('cancelled_direction',self.rt.memory.get('direction',[]))==self.rt.memory.get('direction',[])}
+            if any((o.kind,o.outcome.strip().casefold()) in cancelled for o in objectives):
+                raise ValueError('The player cancelled this objective. Do not recreate it; omit or defer it until new player direction requests it.')
         if isinstance(value,ObjectiveProposal):
             known={p['project_id'] for p in (context or {}).get('projects',[])}
             if any(o.definition_requirements and o.kind!='construction' for o in value.objectives):

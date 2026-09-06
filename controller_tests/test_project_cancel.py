@@ -49,3 +49,14 @@ async def test_admin_scrubs_existing_projects_when_departments_fail(colony):
     rt.planner.ask=ask
     await semantic_review(rt,{},['Infrastructure'])
     assert p['status']=='retired' and not game.writes
+
+async def test_cancelled_outcome_cannot_be_immediately_reproposed(colony):
+    import pytest
+    from rimbot.semantic_models import ObjectiveProposal,WorkObjective
+    rt,_=colony;p=project(rt)
+    await rt.cancel_project(p['project_id'])
+    proposal=ObjectiveProposal(summary='Repeat',objectives=[WorkObjective(kind='construction',outcome='Unwanted room',success_signals=['Room exists'])])
+    with pytest.raises(ValueError,match='player cancelled'):
+        rt.planner.validate_submission('Infrastructure',proposal,{})
+    rt.memory['direction'].append('Build that room after all')
+    assert rt.planner.validate_submission('Infrastructure',proposal,{}) is proposal

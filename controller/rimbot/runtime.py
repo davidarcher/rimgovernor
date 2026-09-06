@@ -131,7 +131,7 @@ class Runtime:
         # Let a command already sent finish; generation checks prevent the next one.
         if self.busy():await asyncio.gather(self.task,return_exceptions=True)
         if self.memory is not memory:raise ValueError('Colony changed while cancelling the project')
-        project.update(status='retired',cancelled_by_player=True,feedback=['Cancelled by player'])
+        project.update(status='retired',cancelled_by_player=True,cancelled_direction=list(self.memory.get('direction',[])),feedback=['Cancelled by player'])
         shared={i for p in self.memory['projects'] if p.get('status')!='retired' for i in p['work_ids']}
         for work in self.memory['work']:
             if work['id'] in set(project['work_ids'])-shared and work['status']!='complete':

@@ -28,6 +28,8 @@ async def run(timeout, resume=False):
         if not resume and (state['memory']['goals'] or state['memory']['work'] or state['memory']['plans']):
             raise RuntimeError('This fixture requires fresh controller state.')
         identity=state['colony'];mid=state['observation']['map']['id']
+        cancelled={p['project_id'] for p in state['memory'].get('projects',[]) if p.get('cancelled_by_player')}
+        direction=state['memory'].get('direction',[])
         report.update(colony=identity,session_id=state['observation']['game']['session_id'])
         try:
             report['resumed']=resume
@@ -37,6 +39,9 @@ async def run(timeout, resume=False):
             while time.time()-started<timeout:
                 state=await get('/api/state')
                 if state['colony']!=identity:raise RuntimeError('Game changed during the test.')
+                if cancelled!={p['project_id'] for p in state['memory'].get('projects',[]) if p.get('cancelled_by_player')} or direction!=state['memory'].get('direction',[]):
+                    report['interrupted_by_player']=True
+                    raise RuntimeError('Player direction or project cancellation changed during the test; not a clean performance result.')
                 status=state['status']
                 breadcrumb=(status.get('role','').split(':',1)[0],status.get('phase'))
                 if breadcrumb!=last_status:
