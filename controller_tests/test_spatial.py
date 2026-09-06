@@ -109,3 +109,8 @@ async def test_interior_door_does_not_supply_room_entrance():
     rt=NS(memory={'spatial_layout':layout(r),'colony_focus':{'x':3,'z':3}},observation={'map':{'id':0}},api=NS(call=call))
     with pytest.raises(ValueError,match='own perimeter'):
         await validate_orders(rt,{'project_id':'a'},[Action(endpoint='construction_place',arguments={},title='Build')])
+
+def test_unsurveyed_error_names_bad_region_not_valid_neighbor():
+    r=region();bad=region();bad.update(id='outside-farm',purpose='farm',project_ids=['b'],patches=[{'x1':20,'x2':21,'z1':1,'z2':2}])
+    with pytest.raises(ValueError,match='outside-farm.*Survey bounds'):
+        validate_layout({'regions':[r,bad],'deferred':{}},area(),[{'project_id':'a'},{'project_id':'b'}])

@@ -430,6 +430,8 @@ class Planner:
                         from .spatial import validate_orders
                         action=await compile_enclosure(self.rt,context['project'],Enclosure.model_validate(args))
                         failed_drafts.pop('compile_enclosure',None)
+                        if failed_drafts.get('construction_place','').startswith('Use compile_enclosure'):
+                            failed_drafts.pop('construction_place')
                         if action is None:result={'already_enclosed':True}
                         else:
                             self.validate_submission(role,Proposal(summary='Enclosure',actions=[action]),context)
@@ -446,6 +448,10 @@ class Planner:
                     elif f['name'] in writable and contract is Proposal:
                         action = Action.model_validate({**args,'endpoint':f['name']})
                         action.observation_basis=basis if f['name']=='construction_place' else None
+                        if f['name']=='construction_place' and room_ids:
+                            footprints=await self.rt.api.call('construction_footprints',action.arguments)
+                            if any(p.encloses for p in footprints.items):
+                                raise ValueError('Use compile_enclosure for room walls/doors. Choose region_id from '+', '.join(room_ids)+'. Do not enumerate or inspect individual wall cells; the compiler validates and expands the whole perimeter. Furniture still uses construction_place.')
                         if f['name']=='construction_place' and any((b['position']['x'],b['position']['z']) not in inspected_cells for b in action.arguments['buildings']):
                             raise ValueError('Inspect construction_area at the intended site before drafting positions. Start near the observed colony_focus unless player direction specifies another location.')
                         proposal = self.validate_submission(role,Proposal(summary=action.title,actions=[action]),context)

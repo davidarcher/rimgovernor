@@ -69,7 +69,10 @@ def validate_layout(layout,area,projects,previous=()):
             if kind=='storage' and r['purpose'] not in ('storage','room'):raise ValueError('Stockpile project requires storage land or a shared room')
             if kind=='construction' and r['purpose'] in ('farm','path'):raise ValueError('Construction cannot reserve crop or access land')
         points=cells(r)
-        if not points or not points<=observed.keys():raise ValueError('Region includes unexplored or unsurveyed cells')
+        if not points or not points<=observed.keys():
+            missing=sorted(points-observed.keys())
+            bounds={'x_min':min(x for x,z in observed),'x_max':max(x for x,z in observed),'z_min':min(z for x,z in observed),'z_max':max(z for x,z in observed)}
+            raise ValueError(f'Region {r["id"]} includes unexplored or unsurveyed cells: {missing[:8]}. Survey bounds: {bounds}. Correct THIS region; cells absent inside those bounds are also unknown. Other valid regions need not move.')
         for old in layout['regions']:
             if old['id']==r['id'] or not cells(old)&points:continue
             if r.get('parent_id')!=old['id'] and old.get('parent_id')!=r['id']:
