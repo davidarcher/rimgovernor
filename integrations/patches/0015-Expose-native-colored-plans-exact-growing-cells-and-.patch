@@ -1,0 +1,4787 @@
+From e1c722b2f6ef113c87bebc3f8c28801fcc50b606 Mon Sep 17 00:00:00 2001
+From: David Archer <darcher@gmail.com>
+Date: Sun, 6 Sep 2026 08:40:52 -0400
+Subject: [PATCH] Expose native colored plans exact growing cells and spatial
+ observations
+
+---
+ Contracts/construction.openapi.json           |  522 ++-
+ Contracts/rimapi.bundled.openapi.json         |  522 ++-
+ Contracts/rimapi.openapi.json                 |  250 ++
+ .../Contracts/ConstructionModels.g.cs         |   65 +
+ .../Contracts/construction.contracts.json     | 2925 +++++++++++------
+ .../Colony/ConstructionContractController.cs  |   50 +
+ 6 files changed, 3364 insertions(+), 970 deletions(-)
+
+diff --git a/Contracts/construction.openapi.json b/Contracts/construction.openapi.json
+index 09cc392..38d50ac 100644
+--- a/Contracts/construction.openapi.json
++++ b/Contracts/construction.openapi.json
+@@ -409,6 +409,256 @@
+           }
+         }
+       }
++    },
++    "/api/v2/planning/state": {
++      "post": {
++        "operationId": "planning_state",
++        "summary": "planning_state",
++        "x-game-write": false,
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/MapQuery"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/PlanningState"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Invalid request or contract violation.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ContractError"
++                }
++              }
++            }
++          },
++          "500": {
++            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ContractError"
++                }
++              }
++            }
++          }
++        },
++        "description": "Read native colored plans and available planning colors."
++      }
++    },
++    "/api/v2/planning/create": {
++      "post": {
++        "operationId": "planning_create",
++        "summary": "planning_create",
++        "x-game-write": true,
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/PlanRequest"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/MapPlan"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Invalid request or contract violation.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ContractError"
++                }
++              }
++            }
++          },
++          "500": {
++            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ContractError"
++                }
++              }
++            }
++          }
++        },
++        "description": "Create a named colored native plan. Existing planning cells are preserved; overlap is rejected. This does not create construction."
++      }
++    },
++    "/api/v2/construction/footprints": {
++      "post": {
++        "operationId": "construction_footprints",
++        "summary": "construction_footprints",
++        "x-game-write": false,
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/ConstructionRequest"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Footprints"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Invalid request or contract violation.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ContractError"
++                }
++              }
++            }
++          },
++          "500": {
++            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ContractError"
++                }
++              }
++            }
++          }
++        },
++        "description": "Read exact native occupied cells for each proposed building, including rotation and even dimensions. This is geometry, not placement approval."
++      }
++    },
++    "/api/v2/zones/growing-cells": {
++      "post": {
++        "operationId": "zone_growing_cells",
++        "summary": "zone_growing_cells",
++        "x-game-write": true,
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/GrowingCellsRequest"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/GrowingCellsResult"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Invalid request or contract violation.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ContractError"
++                }
++              }
++            }
++          },
++          "500": {
++            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ContractError"
++                }
++              }
++            }
++          }
++        },
++        "description": "Create one growing zone from exact cells, not a rectangle. All cells must satisfy native zone and crop fertility requirements. Returns observed zone cells."
++      }
++    },
++    "/api/v2/planning/remove": {
++      "post": {
++        "operationId": "planning_remove",
++        "summary": "Remove native plan",
++        "x-game-write": true,
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/RemovePlanRequest"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/RemovePlanResult"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Invalid request or contract violation.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ContractError"
++                }
++              }
++            }
++          },
++          "500": {
++            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ContractError"
++                }
++              }
++            }
++          }
++        },
++        "description": "Remove a native plan only if its current cells exactly match expected_cells; edited plans are preserved."
++      }
+     }
+   },
+   "components": {
+@@ -953,7 +1203,7 @@
+           "radius": {
+             "type": "integer",
+             "minimum": 0,
+-            "maximum": 12
++            "maximum": 32
+           }
+         },
+         "required": [
+@@ -987,6 +1237,34 @@
+             "items": {
+               "type": "integer"
+             }
++          },
++          "zone_id": {
++            "anyOf": [
++              {
++                "type": "integer"
++              },
++              {
++                "type": "null"
++              }
++            ]
++          },
++          "zone_type": {
++            "type": "string"
++          },
++          "zone_label": {
++            "type": "string"
++          },
++          "plan_id": {
++            "type": "string"
++          },
++          "plantable": {
++            "type": "boolean"
++          },
++          "encloses": {
++            "type": "boolean"
++          },
++          "is_door": {
++            "type": "boolean"
+           }
+         },
+         "required": [
+@@ -995,7 +1273,14 @@
+           "fertility",
+           "roofed",
+           "walkable",
+-          "thing_ids"
++          "thing_ids",
++          "zone_id",
++          "zone_type",
++          "zone_label",
++          "plan_id",
++          "plantable",
++          "encloses",
++          "is_door"
+         ],
+         "additionalProperties": false
+       },
+@@ -1060,6 +1345,239 @@
+         ],
+         "additionalProperties": false,
+         "title": "AllowAllResult"
++      },
++      "PlanColor": {
++        "title": "PlanColor",
++        "type": "object",
++        "properties": {
++          "def_name": {
++            "type": "string"
++          },
++          "label": {
++            "type": "string"
++          },
++          "html_color": {
++            "type": "string"
++          }
++        },
++        "required": [
++          "def_name",
++          "label",
++          "html_color"
++        ],
++        "additionalProperties": false
++      },
++      "MapPlan": {
++        "title": "MapPlan",
++        "type": "object",
++        "properties": {
++          "id": {
++            "type": "string"
++          },
++          "label": {
++            "type": "string"
++          },
++          "color_def": {
++            "type": "string"
++          },
++          "cells": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/Cell"
++            }
++          }
++        },
++        "required": [
++          "id",
++          "label",
++          "color_def",
++          "cells"
++        ],
++        "additionalProperties": false
++      },
++      "PlanningState": {
++        "title": "PlanningState",
++        "type": "object",
++        "properties": {
++          "plans": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/MapPlan"
++            }
++          },
++          "colors": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/PlanColor"
++            }
++          }
++        },
++        "required": [
++          "plans",
++          "colors"
++        ],
++        "additionalProperties": false
++      },
++      "PlanRequest": {
++        "title": "PlanRequest",
++        "type": "object",
++        "properties": {
++          "map_id": {
++            "type": "integer"
++          },
++          "label": {
++            "type": "string"
++          },
++          "color_def": {
++            "type": "string"
++          },
++          "cells": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/Cell"
++            },
++            "minItems": 1,
++            "maxItems": 4096
++          }
++        },
++        "required": [
++          "map_id",
++          "label",
++          "color_def",
++          "cells"
++        ],
++        "additionalProperties": false
++      },
++      "Footprint": {
++        "title": "Footprint",
++        "type": "object",
++        "properties": {
++          "cells": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/Cell"
++            }
++          },
++          "encloses": {
++            "type": "boolean"
++          },
++          "is_door": {
++            "type": "boolean"
++          },
++          "is_bed": {
++            "type": "boolean"
++          }
++        },
++        "required": [
++          "cells",
++          "encloses",
++          "is_door",
++          "is_bed"
++        ],
++        "additionalProperties": false
++      },
++      "Footprints": {
++        "title": "Footprints",
++        "type": "object",
++        "properties": {
++          "items": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/Footprint"
++            }
++          }
++        },
++        "required": [
++          "items"
++        ],
++        "additionalProperties": false
++      },
++      "GrowingCellsRequest": {
++        "title": "GrowingCellsRequest",
++        "type": "object",
++        "properties": {
++          "map_id": {
++            "type": "integer"
++          },
++          "plant_def": {
++            "type": "string"
++          },
++          "cells": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/Cell"
++            },
++            "minItems": 1,
++            "maxItems": 4096
++          }
++        },
++        "required": [
++          "map_id",
++          "plant_def",
++          "cells"
++        ],
++        "additionalProperties": false
++      },
++      "GrowingCellsResult": {
++        "title": "GrowingCellsResult",
++        "type": "object",
++        "properties": {
++          "zone_id": {
++            "type": "integer"
++          },
++          "plant_def": {
++            "type": "string"
++          },
++          "cells": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/Cell"
++            }
++          }
++        },
++        "required": [
++          "zone_id",
++          "plant_def",
++          "cells"
++        ],
++        "additionalProperties": false
++      },
++      "RemovePlanRequest": {
++        "title": "RemovePlanRequest",
++        "type": "object",
++        "properties": {
++          "map_id": {
++            "type": "integer"
++          },
++          "plan_id": {
++            "type": "string"
++          },
++          "expected_cells": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/Cell"
++            }
++          }
++        },
++        "required": [
++          "map_id",
++          "plan_id",
++          "expected_cells"
++        ],
++        "additionalProperties": false
++      },
++      "RemovePlanResult": {
++        "title": "RemovePlanResult",
++        "type": "object",
++        "properties": {
++          "removed": {
++            "type": "boolean"
++          }
++        },
++        "required": [
++          "removed"
++        ],
++        "additionalProperties": false
+       }
+     }
+   }
+diff --git a/Contracts/rimapi.bundled.openapi.json b/Contracts/rimapi.bundled.openapi.json
+index 7c29fe0..f9e0374 100644
+--- a/Contracts/rimapi.bundled.openapi.json
++++ b/Contracts/rimapi.bundled.openapi.json
+@@ -15007,6 +15007,256 @@
+           }
+         }
+       }
++    },
++    "/api/v2/planning/state": {
++      "post": {
++        "operationId": "planning_state",
++        "summary": "planning_state",
++        "x-game-write": false,
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/Construction_MapQuery"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Construction_PlanningState"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Invalid request or contract violation.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Construction_ContractError"
++                }
++              }
++            }
++          },
++          "500": {
++            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Construction_ContractError"
++                }
++              }
++            }
++          }
++        },
++        "description": "Read native colored plans and available planning colors."
++      }
++    },
++    "/api/v2/planning/create": {
++      "post": {
++        "operationId": "planning_create",
++        "summary": "planning_create",
++        "x-game-write": true,
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/Construction_PlanRequest"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Construction_MapPlan"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Invalid request or contract violation.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Construction_ContractError"
++                }
++              }
++            }
++          },
++          "500": {
++            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Construction_ContractError"
++                }
++              }
++            }
++          }
++        },
++        "description": "Create a named colored native plan. Existing planning cells are preserved; overlap is rejected. This does not create construction."
++      }
++    },
++    "/api/v2/construction/footprints": {
++      "post": {
++        "operationId": "construction_footprints",
++        "summary": "construction_footprints",
++        "x-game-write": false,
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/Construction_ConstructionRequest"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Construction_Footprints"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Invalid request or contract violation.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Construction_ContractError"
++                }
++              }
++            }
++          },
++          "500": {
++            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Construction_ContractError"
++                }
++              }
++            }
++          }
++        },
++        "description": "Read exact native occupied cells for each proposed building, including rotation and even dimensions. This is geometry, not placement approval."
++      }
++    },
++    "/api/v2/zones/growing-cells": {
++      "post": {
++        "operationId": "zone_growing_cells",
++        "summary": "zone_growing_cells",
++        "x-game-write": true,
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/Construction_GrowingCellsRequest"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Construction_GrowingCellsResult"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Invalid request or contract violation.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Construction_ContractError"
++                }
++              }
++            }
++          },
++          "500": {
++            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Construction_ContractError"
++                }
++              }
++            }
++          }
++        },
++        "description": "Create one growing zone from exact cells, not a rectangle. All cells must satisfy native zone and crop fertility requirements. Returns observed zone cells."
++      }
++    },
++    "/api/v2/planning/remove": {
++      "post": {
++        "operationId": "planning_remove",
++        "summary": "Remove native plan",
++        "x-game-write": true,
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/Construction_RemovePlanRequest"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Construction_RemovePlanResult"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Invalid request or contract violation.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Construction_ContractError"
++                }
++              }
++            }
++          },
++          "500": {
++            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/Construction_ContractError"
++                }
++              }
++            }
++          }
++        },
++        "description": "Remove a native plan only if its current cells exactly match expected_cells; edited plans are preserved."
++      }
+     }
+   },
+   "components": {
+@@ -30934,7 +31184,7 @@
+           "radius": {
+             "type": "integer",
+             "minimum": 0,
+-            "maximum": 12
++            "maximum": 32
+           }
+         },
+         "required": [
+@@ -30968,6 +31218,34 @@
+             "items": {
+               "type": "integer"
+             }
++          },
++          "zone_id": {
++            "anyOf": [
++              {
++                "type": "integer"
++              },
++              {
++                "type": "null"
++              }
++            ]
++          },
++          "zone_type": {
++            "type": "string"
++          },
++          "zone_label": {
++            "type": "string"
++          },
++          "plan_id": {
++            "type": "string"
++          },
++          "plantable": {
++            "type": "boolean"
++          },
++          "encloses": {
++            "type": "boolean"
++          },
++          "is_door": {
++            "type": "boolean"
+           }
+         },
+         "required": [
+@@ -30976,7 +31254,14 @@
+           "fertility",
+           "roofed",
+           "walkable",
+-          "thing_ids"
++          "thing_ids",
++          "zone_id",
++          "zone_type",
++          "zone_label",
++          "plan_id",
++          "plantable",
++          "encloses",
++          "is_door"
+         ],
+         "additionalProperties": false
+       },
+@@ -31041,6 +31326,239 @@
+         ],
+         "additionalProperties": false,
+         "title": "AllowAllResult"
++      },
++      "Construction_PlanColor": {
++        "title": "PlanColor",
++        "type": "object",
++        "properties": {
++          "def_name": {
++            "type": "string"
++          },
++          "label": {
++            "type": "string"
++          },
++          "html_color": {
++            "type": "string"
++          }
++        },
++        "required": [
++          "def_name",
++          "label",
++          "html_color"
++        ],
++        "additionalProperties": false
++      },
++      "Construction_MapPlan": {
++        "title": "MapPlan",
++        "type": "object",
++        "properties": {
++          "id": {
++            "type": "string"
++          },
++          "label": {
++            "type": "string"
++          },
++          "color_def": {
++            "type": "string"
++          },
++          "cells": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/Construction_Cell"
++            }
++          }
++        },
++        "required": [
++          "id",
++          "label",
++          "color_def",
++          "cells"
++        ],
++        "additionalProperties": false
++      },
++      "Construction_PlanningState": {
++        "title": "PlanningState",
++        "type": "object",
++        "properties": {
++          "plans": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/Construction_MapPlan"
++            }
++          },
++          "colors": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/Construction_PlanColor"
++            }
++          }
++        },
++        "required": [
++          "plans",
++          "colors"
++        ],
++        "additionalProperties": false
++      },
++      "Construction_PlanRequest": {
++        "title": "PlanRequest",
++        "type": "object",
++        "properties": {
++          "map_id": {
++            "type": "integer"
++          },
++          "label": {
++            "type": "string"
++          },
++          "color_def": {
++            "type": "string"
++          },
++          "cells": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/Construction_Cell"
++            },
++            "minItems": 1,
++            "maxItems": 4096
++          }
++        },
++        "required": [
++          "map_id",
++          "label",
++          "color_def",
++          "cells"
++        ],
++        "additionalProperties": false
++      },
++      "Construction_Footprint": {
++        "title": "Footprint",
++        "type": "object",
++        "properties": {
++          "cells": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/Construction_Cell"
++            }
++          },
++          "encloses": {
++            "type": "boolean"
++          },
++          "is_door": {
++            "type": "boolean"
++          },
++          "is_bed": {
++            "type": "boolean"
++          }
++        },
++        "required": [
++          "cells",
++          "encloses",
++          "is_door",
++          "is_bed"
++        ],
++        "additionalProperties": false
++      },
++      "Construction_Footprints": {
++        "title": "Footprints",
++        "type": "object",
++        "properties": {
++          "items": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/Construction_Footprint"
++            }
++          }
++        },
++        "required": [
++          "items"
++        ],
++        "additionalProperties": false
++      },
++      "Construction_GrowingCellsRequest": {
++        "title": "GrowingCellsRequest",
++        "type": "object",
++        "properties": {
++          "map_id": {
++            "type": "integer"
++          },
++          "plant_def": {
++            "type": "string"
++          },
++          "cells": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/Construction_Cell"
++            },
++            "minItems": 1,
++            "maxItems": 4096
++          }
++        },
++        "required": [
++          "map_id",
++          "plant_def",
++          "cells"
++        ],
++        "additionalProperties": false
++      },
++      "Construction_GrowingCellsResult": {
++        "title": "GrowingCellsResult",
++        "type": "object",
++        "properties": {
++          "zone_id": {
++            "type": "integer"
++          },
++          "plant_def": {
++            "type": "string"
++          },
++          "cells": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/Construction_Cell"
++            }
++          }
++        },
++        "required": [
++          "zone_id",
++          "plant_def",
++          "cells"
++        ],
++        "additionalProperties": false
++      },
++      "Construction_RemovePlanRequest": {
++        "title": "RemovePlanRequest",
++        "type": "object",
++        "properties": {
++          "map_id": {
++            "type": "integer"
++          },
++          "plan_id": {
++            "type": "string"
++          },
++          "expected_cells": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/Construction_Cell"
++            }
++          }
++        },
++        "required": [
++          "map_id",
++          "plan_id",
++          "expected_cells"
++        ],
++        "additionalProperties": false
++      },
++      "Construction_RemovePlanResult": {
++        "title": "RemovePlanResult",
++        "type": "object",
++        "properties": {
++          "removed": {
++            "type": "boolean"
++          }
++        },
++        "required": [
++          "removed"
++        ],
++        "additionalProperties": false
+       }
+     }
+   },
+diff --git a/Contracts/rimapi.openapi.json b/Contracts/rimapi.openapi.json
+index a819c6c..580576d 100644
+--- a/Contracts/rimapi.openapi.json
++++ b/Contracts/rimapi.openapi.json
+@@ -15007,6 +15007,256 @@
+           }
+         }
+       }
++    },
++    "/api/v2/planning/state": {
++      "post": {
++        "operationId": "planning_state",
++        "summary": "planning_state",
++        "x-game-write": false,
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "construction.openapi.json#/components/schemas/MapQuery"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "construction.openapi.json#/components/schemas/PlanningState"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Invalid request or contract violation.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "construction.openapi.json#/components/schemas/ContractError"
++                }
++              }
++            }
++          },
++          "500": {
++            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "construction.openapi.json#/components/schemas/ContractError"
++                }
++              }
++            }
++          }
++        },
++        "description": "Read native colored plans and available planning colors."
++      }
++    },
++    "/api/v2/planning/create": {
++      "post": {
++        "operationId": "planning_create",
++        "summary": "planning_create",
++        "x-game-write": true,
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "construction.openapi.json#/components/schemas/PlanRequest"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "construction.openapi.json#/components/schemas/MapPlan"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Invalid request or contract violation.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "construction.openapi.json#/components/schemas/ContractError"
++                }
++              }
++            }
++          },
++          "500": {
++            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "construction.openapi.json#/components/schemas/ContractError"
++                }
++              }
++            }
++          }
++        },
++        "description": "Create a named colored native plan. Existing planning cells are preserved; overlap is rejected. This does not create construction."
++      }
++    },
++    "/api/v2/construction/footprints": {
++      "post": {
++        "operationId": "construction_footprints",
++        "summary": "construction_footprints",
++        "x-game-write": false,
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "construction.openapi.json#/components/schemas/ConstructionRequest"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "construction.openapi.json#/components/schemas/Footprints"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Invalid request or contract violation.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "construction.openapi.json#/components/schemas/ContractError"
++                }
++              }
++            }
++          },
++          "500": {
++            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "construction.openapi.json#/components/schemas/ContractError"
++                }
++              }
++            }
++          }
++        },
++        "description": "Read exact native occupied cells for each proposed building, including rotation and even dimensions. This is geometry, not placement approval."
++      }
++    },
++    "/api/v2/zones/growing-cells": {
++      "post": {
++        "operationId": "zone_growing_cells",
++        "summary": "zone_growing_cells",
++        "x-game-write": true,
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "construction.openapi.json#/components/schemas/GrowingCellsRequest"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "construction.openapi.json#/components/schemas/GrowingCellsResult"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Invalid request or contract violation.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "construction.openapi.json#/components/schemas/ContractError"
++                }
++              }
++            }
++          },
++          "500": {
++            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "construction.openapi.json#/components/schemas/ContractError"
++                }
++              }
++            }
++          }
++        },
++        "description": "Create one growing zone from exact cells, not a rectangle. All cells must satisfy native zone and crop fertility requirements. Returns observed zone cells."
++      }
++    },
++    "/api/v2/planning/remove": {
++      "post": {
++        "operationId": "planning_remove",
++        "summary": "Remove native plan",
++        "x-game-write": true,
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "construction.openapi.json#/components/schemas/RemovePlanRequest"
++              }
++            }
++          }
++        },
++        "responses": {
++          "200": {
++            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "construction.openapi.json#/components/schemas/RemovePlanResult"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Invalid request or contract violation.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "construction.openapi.json#/components/schemas/ContractError"
++                }
++              }
++            }
++          },
++          "500": {
++            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "construction.openapi.json#/components/schemas/ContractError"
++                }
++              }
++            }
++          }
++        },
++        "description": "Remove a native plan only if its current cells exactly match expected_cells; edited plans are preserved."
++      }
+     }
+   },
+   "components": {
+diff --git a/Source/RIMAPI/RimworldRestApi/Contracts/ConstructionModels.g.cs b/Source/RIMAPI/RimworldRestApi/Contracts/ConstructionModels.g.cs
+index 46c34fe..c0bf221 100644
+--- a/Source/RIMAPI/RimworldRestApi/Contracts/ConstructionModels.g.cs
++++ b/Source/RIMAPI/RimworldRestApi/Contracts/ConstructionModels.g.cs
+@@ -145,6 +145,13 @@ namespace RIMAPI.Contracts
+         [JsonProperty("roofed")] public bool Roofed { get; set; }
+         [JsonProperty("walkable")] public bool Walkable { get; set; }
+         [JsonProperty("thing_ids")] public List<int> ThingIds { get; set; }
++        [JsonProperty("zone_id")] public int? ZoneId { get; set; }
++        [JsonProperty("zone_type")] public string ZoneType { get; set; }
++        [JsonProperty("zone_label")] public string ZoneLabel { get; set; }
++        [JsonProperty("plan_id")] public string PlanId { get; set; }
++        [JsonProperty("plantable")] public bool Plantable { get; set; }
++        [JsonProperty("encloses")] public bool Encloses { get; set; }
++        [JsonProperty("is_door")] public bool IsDoor { get; set; }
+     }
+     public sealed class AreaResult
+     {
+@@ -163,4 +170,62 @@ namespace RIMAPI.Contracts
+         [JsonProperty("excluded_jelly_count")] public int ExcludedJellyCount { get; set; }
+         [JsonProperty("remaining_eligible_count")] public int RemainingEligibleCount { get; set; }
+     }
++    public sealed class PlanColor
++    {
++        [JsonProperty("def_name")] public string DefName { get; set; }
++        [JsonProperty("label")] public string Label { get; set; }
++        [JsonProperty("html_color")] public string HtmlColor { get; set; }
++    }
++    public sealed class MapPlan
++    {
++        [JsonProperty("id")] public string Id { get; set; }
++        [JsonProperty("label")] public string Label { get; set; }
++        [JsonProperty("color_def")] public string ColorDef { get; set; }
++        [JsonProperty("cells")] public List<Cell> Cells { get; set; }
++    }
++    public sealed class PlanningState
++    {
++        [JsonProperty("plans")] public List<MapPlan> Plans { get; set; }
++        [JsonProperty("colors")] public List<PlanColor> Colors { get; set; }
++    }
++    public sealed class PlanRequest
++    {
++        [JsonProperty("map_id")] public int MapId { get; set; }
++        [JsonProperty("label")] public string Label { get; set; }
++        [JsonProperty("color_def")] public string ColorDef { get; set; }
++        [JsonProperty("cells")] public List<Cell> Cells { get; set; }
++    }
++    public sealed class Footprint
++    {
++        [JsonProperty("cells")] public List<Cell> Cells { get; set; }
++        [JsonProperty("encloses")] public bool Encloses { get; set; }
++        [JsonProperty("is_door")] public bool IsDoor { get; set; }
++        [JsonProperty("is_bed")] public bool IsBed { get; set; }
++    }
++    public sealed class Footprints
++    {
++        [JsonProperty("items")] public List<Footprint> Items { get; set; }
++    }
++    public sealed class GrowingCellsRequest
++    {
++        [JsonProperty("map_id")] public int MapId { get; set; }
++        [JsonProperty("plant_def")] public string PlantDef { get; set; }
++        [JsonProperty("cells")] public List<Cell> Cells { get; set; }
++    }
++    public sealed class GrowingCellsResult
++    {
++        [JsonProperty("zone_id")] public int ZoneId { get; set; }
++        [JsonProperty("plant_def")] public string PlantDef { get; set; }
++        [JsonProperty("cells")] public List<Cell> Cells { get; set; }
++    }
++    public sealed class RemovePlanRequest
++    {
++        [JsonProperty("map_id")] public int MapId { get; set; }
++        [JsonProperty("plan_id")] public string PlanId { get; set; }
++        [JsonProperty("expected_cells")] public List<Cell> ExpectedCells { get; set; }
++    }
++    public sealed class RemovePlanResult
++    {
++        [JsonProperty("removed")] public bool Removed { get; set; }
++    }
+ }
+diff --git a/Source/RIMAPI/RimworldRestApi/Contracts/construction.contracts.json b/Source/RIMAPI/RimworldRestApi/Contracts/construction.contracts.json
+index 563b614..3c919a4 100644
+--- a/Source/RIMAPI/RimworldRestApi/Contracts/construction.contracts.json
++++ b/Source/RIMAPI/RimworldRestApi/Contracts/construction.contracts.json
+@@ -799,7 +799,7 @@
+           "radius": {
+             "type": "integer",
+             "minimum": 0,
+-            "maximum": 12
++            "maximum": 32
+           }
+         },
+         "required": [
+@@ -875,6 +875,34 @@
+                   "items": {
+                     "type": "integer"
+                   }
++                },
++                "zone_id": {
++                  "anyOf": [
++                    {
++                      "type": "integer"
++                    },
++                    {
++                      "type": "null"
++                    }
++                  ]
++                },
++                "zone_type": {
++                  "type": "string"
++                },
++                "zone_label": {
++                  "type": "string"
++                },
++                "plan_id": {
++                  "type": "string"
++                },
++                "plantable": {
++                  "type": "boolean"
++                },
++                "encloses": {
++                  "type": "boolean"
++                },
++                "is_door": {
++                  "type": "boolean"
+                 }
+               },
+               "required": [
+@@ -883,7 +911,14 @@
+                 "fertility",
+                 "roofed",
+                 "walkable",
+-                "thing_ids"
++                "thing_ids",
++                "zone_id",
++                "zone_type",
++                "zone_label",
++                "plan_id",
++                "plantable",
++                "encloses",
++                "is_door"
+               ],
+               "additionalProperties": false
+             }
+@@ -986,658 +1021,1657 @@
+         "additionalProperties": false,
+         "title": "AllowAllResult"
+       }
+-    }
+-  ],
+-  "error_schema": {
+-    "title": "ContractError",
+-    "type": "object",
+-    "properties": {
+-      "code": {
+-        "type": "string"
+-      },
+-      "message": {
+-        "type": "string"
+-      }
+-    },
+-    "required": [
+-      "code",
+-      "message"
+-    ],
+-    "additionalProperties": false
+-  },
+-  "types": {
+-    "DefinitionQuery": {
+-      "title": "DefinitionQuery",
+-      "type": "object",
+-      "properties": {
+-        "search": {
+-          "type": "string"
+-        },
+-        "offset": {
+-          "type": "integer",
+-          "minimum": 0,
+-          "maximum": 2147483647
+-        },
+-        "limit": {
+-          "type": "integer",
+-          "minimum": 1,
+-          "maximum": 32
+-        }
+-      },
+-      "required": [
+-        "search",
+-        "offset",
+-        "limit"
+-      ],
+-      "additionalProperties": false
+     },
+-    "Cost": {
+-      "title": "Cost",
+-      "type": "object",
+-      "properties": {
+-        "def_name": {
+-          "type": "string"
++    {
++      "name": "planning_state",
++      "path": "/api/v2/planning/state",
++      "method": "POST",
++      "write": false,
++      "description": "Read native colored plans and available planning colors.",
++      "request_schema": {
++        "title": "MapQuery",
++        "type": "object",
++        "properties": {
++          "map_id": {
++            "type": "integer"
++          }
+         },
+-        "count": {
+-          "type": "integer"
+-        }
++        "required": [
++          "map_id"
++        ],
++        "additionalProperties": false
+       },
+-      "required": [
+-        "def_name",
+-        "count"
+-      ],
+-      "additionalProperties": false
+-    },
+-    "Material": {
+-      "title": "Material",
+-      "type": "object",
+-      "properties": {
+-        "def_name": {
+-          "type": "string"
++      "response_schema": {
++        "title": "PlanningState",
++        "type": "object",
++        "properties": {
++          "plans": {
++            "type": "array",
++            "items": {
++              "title": "MapPlan",
++              "type": "object",
++              "properties": {
++                "id": {
++                  "type": "string"
++                },
++                "label": {
++                  "type": "string"
++                },
++                "color_def": {
++                  "type": "string"
++                },
++                "cells": {
++                  "type": "array",
++                  "items": {
++                    "title": "Cell",
++                    "type": "object",
++                    "properties": {
++                      "x": {
++                        "type": "integer"
++                      },
++                      "z": {
++                        "type": "integer"
++                      }
++                    },
++                    "required": [
++                      "x",
++                      "z"
++                    ],
++                    "additionalProperties": false,
++                    "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++                  }
++                }
++              },
++              "required": [
++                "id",
++                "label",
++                "color_def",
++                "cells"
++              ],
++              "additionalProperties": false
++            }
++          },
++          "colors": {
++            "type": "array",
++            "items": {
++              "title": "PlanColor",
++              "type": "object",
++              "properties": {
++                "def_name": {
++                  "type": "string"
++                },
++                "label": {
++                  "type": "string"
++                },
++                "html_color": {
++                  "type": "string"
++                }
++              },
++              "required": [
++                "def_name",
++                "label",
++                "html_color"
++              ],
++              "additionalProperties": false
++            }
++          }
+         },
+-        "label": {
+-          "type": "string"
+-        }
+-      },
+-      "required": [
+-        "def_name",
+-        "label"
+-      ],
+-      "additionalProperties": false
++        "required": [
++          "plans",
++          "colors"
++        ],
++        "additionalProperties": false
++      }
+     },
+-    "BuildingDefinition": {
+-      "title": "BuildingDefinition",
+-      "type": "object",
+-      "properties": {
+-        "def_name": {
+-          "type": "string"
+-        },
+-        "label": {
+-          "type": "string"
+-        },
+-        "size_x": {
+-          "type": "integer"
+-        },
+-        "size_z": {
+-          "type": "integer"
+-        },
+-        "rotatable": {
+-          "type": "boolean"
+-        },
+-        "work_to_build": {
+-          "type": "number"
+-        },
+-        "stuff_count": {
+-          "type": "integer"
+-        },
+-        "costs": {
+-          "type": "array",
+-          "items": {
+-            "title": "Cost",
+-            "type": "object",
+-            "properties": {
+-              "def_name": {
+-                "type": "string"
++    {
++      "name": "planning_create",
++      "path": "/api/v2/planning/create",
++      "method": "POST",
++      "write": true,
++      "description": "Create a named colored native plan. Existing planning cells are preserved; overlap is rejected. This does not create construction.",
++      "request_schema": {
++        "title": "PlanRequest",
++        "type": "object",
++        "properties": {
++          "map_id": {
++            "type": "integer"
++          },
++          "label": {
++            "type": "string"
++          },
++          "color_def": {
++            "type": "string"
++          },
++          "cells": {
++            "type": "array",
++            "items": {
++              "title": "Cell",
++              "type": "object",
++              "properties": {
++                "x": {
++                  "type": "integer"
++                },
++                "z": {
++                  "type": "integer"
++                }
+               },
+-              "count": {
+-                "type": "integer"
+-              }
++              "required": [
++                "x",
++                "z"
++              ],
++              "additionalProperties": false,
++              "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+             },
+-            "required": [
+-              "def_name",
+-              "count"
+-            ],
+-            "additionalProperties": false
++            "minItems": 1,
++            "maxItems": 4096
+           }
+         },
+-        "allowed_materials": {
+-          "type": "array",
+-          "items": {
+-            "title": "Material",
+-            "type": "object",
+-            "properties": {
++        "required": [
++          "map_id",
++          "label",
++          "color_def",
++          "cells"
++        ],
++        "additionalProperties": false
++      },
++      "response_schema": {
++        "title": "MapPlan",
++        "type": "object",
++        "properties": {
++          "id": {
++            "type": "string"
++          },
++          "label": {
++            "type": "string"
++          },
++          "color_def": {
++            "type": "string"
++          },
++          "cells": {
++            "type": "array",
++            "items": {
++              "title": "Cell",
++              "type": "object",
++              "properties": {
++                "x": {
++                  "type": "integer"
++                },
++                "z": {
++                  "type": "integer"
++                }
++              },
++              "required": [
++                "x",
++                "z"
++              ],
++              "additionalProperties": false,
++              "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++            }
++          }
++        },
++        "required": [
++          "id",
++          "label",
++          "color_def",
++          "cells"
++        ],
++        "additionalProperties": false
++      }
++    },
++    {
++      "name": "construction_footprints",
++      "path": "/api/v2/construction/footprints",
++      "method": "POST",
++      "write": false,
++      "description": "Read exact native occupied cells for each proposed building, including rotation and even dimensions. This is geometry, not placement approval.",
++      "request_schema": {
++        "title": "ConstructionRequest",
++        "type": "object",
++        "properties": {
++          "map_id": {
++            "type": "integer"
++          },
++          "buildings": {
++            "type": "array",
++            "items": {
++              "title": "Placement",
++              "type": "object",
++              "properties": {
++                "def_name": {
++                  "type": "string"
++                },
++                "stuff_def_name": {
++                  "type": "string",
++                  "description": "Choose an observed allowed_materials def_name. Use an empty string when the definition has no allowed materials."
++                },
++                "position": {
++                  "title": "Cell",
++                  "type": "object",
++                  "properties": {
++                    "x": {
++                      "type": "integer"
++                    },
++                    "z": {
++                      "type": "integer"
++                    }
++                  },
++                  "required": [
++                    "x",
++                    "z"
++                  ],
++                  "additionalProperties": false,
++                  "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++                },
++                "rotation": {
++                  "type": "integer",
++                  "minimum": 0,
++                  "maximum": 3
++                }
++              },
++              "required": [
++                "def_name",
++                "stuff_def_name",
++                "position",
++                "rotation"
++              ],
++              "additionalProperties": false
++            },
++            "minItems": 1,
++            "maxItems": 128
++          }
++        },
++        "required": [
++          "map_id",
++          "buildings"
++        ],
++        "additionalProperties": false
++      },
++      "response_schema": {
++        "title": "Footprints",
++        "type": "object",
++        "properties": {
++          "items": {
++            "type": "array",
++            "items": {
++              "title": "Footprint",
++              "type": "object",
++              "properties": {
++                "cells": {
++                  "type": "array",
++                  "items": {
++                    "title": "Cell",
++                    "type": "object",
++                    "properties": {
++                      "x": {
++                        "type": "integer"
++                      },
++                      "z": {
++                        "type": "integer"
++                      }
++                    },
++                    "required": [
++                      "x",
++                      "z"
++                    ],
++                    "additionalProperties": false,
++                    "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++                  }
++                },
++                "encloses": {
++                  "type": "boolean"
++                },
++                "is_door": {
++                  "type": "boolean"
++                },
++                "is_bed": {
++                  "type": "boolean"
++                }
++              },
++              "required": [
++                "cells",
++                "encloses",
++                "is_door",
++                "is_bed"
++              ],
++              "additionalProperties": false
++            }
++          }
++        },
++        "required": [
++          "items"
++        ],
++        "additionalProperties": false
++      }
++    },
++    {
++      "name": "zone_growing_cells",
++      "path": "/api/v2/zones/growing-cells",
++      "method": "POST",
++      "write": true,
++      "description": "Create one growing zone from exact cells, not a rectangle. All cells must satisfy native zone and crop fertility requirements. Returns observed zone cells.",
++      "request_schema": {
++        "title": "GrowingCellsRequest",
++        "type": "object",
++        "properties": {
++          "map_id": {
++            "type": "integer"
++          },
++          "plant_def": {
++            "type": "string"
++          },
++          "cells": {
++            "type": "array",
++            "items": {
++              "title": "Cell",
++              "type": "object",
++              "properties": {
++                "x": {
++                  "type": "integer"
++                },
++                "z": {
++                  "type": "integer"
++                }
++              },
++              "required": [
++                "x",
++                "z"
++              ],
++              "additionalProperties": false,
++              "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++            },
++            "minItems": 1,
++            "maxItems": 4096
++          }
++        },
++        "required": [
++          "map_id",
++          "plant_def",
++          "cells"
++        ],
++        "additionalProperties": false
++      },
++      "response_schema": {
++        "title": "GrowingCellsResult",
++        "type": "object",
++        "properties": {
++          "zone_id": {
++            "type": "integer"
++          },
++          "plant_def": {
++            "type": "string"
++          },
++          "cells": {
++            "type": "array",
++            "items": {
++              "title": "Cell",
++              "type": "object",
++              "properties": {
++                "x": {
++                  "type": "integer"
++                },
++                "z": {
++                  "type": "integer"
++                }
++              },
++              "required": [
++                "x",
++                "z"
++              ],
++              "additionalProperties": false,
++              "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++            }
++          }
++        },
++        "required": [
++          "zone_id",
++          "plant_def",
++          "cells"
++        ],
++        "additionalProperties": false
++      }
++    },
++    {
++      "name": "planning_remove",
++      "path": "/api/v2/planning/remove",
++      "method": "POST",
++      "write": true,
++      "description": "Remove a native plan only if its current cells exactly match expected_cells; edited plans are preserved.",
++      "request_schema": {
++        "title": "RemovePlanRequest",
++        "type": "object",
++        "properties": {
++          "map_id": {
++            "type": "integer"
++          },
++          "plan_id": {
++            "type": "string"
++          },
++          "expected_cells": {
++            "type": "array",
++            "items": {
++              "title": "Cell",
++              "type": "object",
++              "properties": {
++                "x": {
++                  "type": "integer"
++                },
++                "z": {
++                  "type": "integer"
++                }
++              },
++              "required": [
++                "x",
++                "z"
++              ],
++              "additionalProperties": false,
++              "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++            }
++          }
++        },
++        "required": [
++          "map_id",
++          "plan_id",
++          "expected_cells"
++        ],
++        "additionalProperties": false
++      },
++      "response_schema": {
++        "title": "RemovePlanResult",
++        "type": "object",
++        "properties": {
++          "removed": {
++            "type": "boolean"
++          }
++        },
++        "required": [
++          "removed"
++        ],
++        "additionalProperties": false
++      }
++    }
++  ],
++  "error_schema": {
++    "title": "ContractError",
++    "type": "object",
++    "properties": {
++      "code": {
++        "type": "string"
++      },
++      "message": {
++        "type": "string"
++      }
++    },
++    "required": [
++      "code",
++      "message"
++    ],
++    "additionalProperties": false
++  },
++  "types": {
++    "DefinitionQuery": {
++      "title": "DefinitionQuery",
++      "type": "object",
++      "properties": {
++        "search": {
++          "type": "string"
++        },
++        "offset": {
++          "type": "integer",
++          "minimum": 0,
++          "maximum": 2147483647
++        },
++        "limit": {
++          "type": "integer",
++          "minimum": 1,
++          "maximum": 32
++        }
++      },
++      "required": [
++        "search",
++        "offset",
++        "limit"
++      ],
++      "additionalProperties": false
++    },
++    "Cost": {
++      "title": "Cost",
++      "type": "object",
++      "properties": {
++        "def_name": {
++          "type": "string"
++        },
++        "count": {
++          "type": "integer"
++        }
++      },
++      "required": [
++        "def_name",
++        "count"
++      ],
++      "additionalProperties": false
++    },
++    "Material": {
++      "title": "Material",
++      "type": "object",
++      "properties": {
++        "def_name": {
++          "type": "string"
++        },
++        "label": {
++          "type": "string"
++        }
++      },
++      "required": [
++        "def_name",
++        "label"
++      ],
++      "additionalProperties": false
++    },
++    "BuildingDefinition": {
++      "title": "BuildingDefinition",
++      "type": "object",
++      "properties": {
++        "def_name": {
++          "type": "string"
++        },
++        "label": {
++          "type": "string"
++        },
++        "size_x": {
++          "type": "integer"
++        },
++        "size_z": {
++          "type": "integer"
++        },
++        "rotatable": {
++          "type": "boolean"
++        },
++        "work_to_build": {
++          "type": "number"
++        },
++        "stuff_count": {
++          "type": "integer"
++        },
++        "costs": {
++          "type": "array",
++          "items": {
++            "title": "Cost",
++            "type": "object",
++            "properties": {
++              "def_name": {
++                "type": "string"
++              },
++              "count": {
++                "type": "integer"
++              }
++            },
++            "required": [
++              "def_name",
++              "count"
++            ],
++            "additionalProperties": false
++          }
++        },
++        "allowed_materials": {
++          "type": "array",
++          "items": {
++            "title": "Material",
++            "type": "object",
++            "properties": {
++              "def_name": {
++                "type": "string"
++              },
++              "label": {
++                "type": "string"
++              }
++            },
++            "required": [
++              "def_name",
++              "label"
++            ],
++            "additionalProperties": false
++          }
++        },
++        "description": {
++          "type": "string"
++        },
++        "is_bed": {
++          "type": "boolean"
++        },
++        "bed_humanlike": {
++          "type": "boolean"
++        }
++      },
++      "required": [
++        "def_name",
++        "label",
++        "size_x",
++        "size_z",
++        "rotatable",
++        "work_to_build",
++        "stuff_count",
++        "costs",
++        "allowed_materials",
++        "description",
++        "is_bed",
++        "bed_humanlike"
++      ],
++      "additionalProperties": false
++    },
++    "PageBuildingDefinition": {
++      "title": "PageBuildingDefinition",
++      "type": "object",
++      "properties": {
++        "items": {
++          "type": "array",
++          "items": {
++            "title": "BuildingDefinition",
++            "type": "object",
++            "properties": {
++              "def_name": {
++                "type": "string"
++              },
++              "label": {
++                "type": "string"
++              },
++              "size_x": {
++                "type": "integer"
++              },
++              "size_z": {
++                "type": "integer"
++              },
++              "rotatable": {
++                "type": "boolean"
++              },
++              "work_to_build": {
++                "type": "number"
++              },
++              "stuff_count": {
++                "type": "integer"
++              },
++              "costs": {
++                "type": "array",
++                "items": {
++                  "title": "Cost",
++                  "type": "object",
++                  "properties": {
++                    "def_name": {
++                      "type": "string"
++                    },
++                    "count": {
++                      "type": "integer"
++                    }
++                  },
++                  "required": [
++                    "def_name",
++                    "count"
++                  ],
++                  "additionalProperties": false
++                }
++              },
++              "allowed_materials": {
++                "type": "array",
++                "items": {
++                  "title": "Material",
++                  "type": "object",
++                  "properties": {
++                    "def_name": {
++                      "type": "string"
++                    },
++                    "label": {
++                      "type": "string"
++                    }
++                  },
++                  "required": [
++                    "def_name",
++                    "label"
++                  ],
++                  "additionalProperties": false
++                }
++              },
++              "description": {
++                "type": "string"
++              },
++              "is_bed": {
++                "type": "boolean"
++              },
++              "bed_humanlike": {
++                "type": "boolean"
++              }
++            },
++            "required": [
++              "def_name",
++              "label",
++              "size_x",
++              "size_z",
++              "rotatable",
++              "work_to_build",
++              "stuff_count",
++              "costs",
++              "allowed_materials",
++              "description",
++              "is_bed",
++              "bed_humanlike"
++            ],
++            "additionalProperties": false
++          }
++        },
++        "total": {
++          "type": "integer"
++        },
++        "next_offset": {
++          "anyOf": [
++            {
++              "type": "integer"
++            },
++            {
++              "type": "null"
++            }
++          ]
++        }
++      },
++      "required": [
++        "items",
++        "total",
++        "next_offset"
++      ],
++      "additionalProperties": false
++    },
++    "RoomQuery": {
++      "title": "RoomQuery",
++      "type": "object",
++      "properties": {
++        "map_id": {
++          "type": "integer"
++        },
++        "offset": {
++          "type": "integer",
++          "minimum": 0,
++          "maximum": 2147483647
++        },
++        "limit": {
++          "type": "integer",
++          "minimum": 1,
++          "maximum": 32
++        },
++        "near": {
++          "title": "Cell",
++          "type": "object",
++          "properties": {
++            "x": {
++              "type": "integer"
++            },
++            "z": {
++              "type": "integer"
++            }
++          },
++          "required": [
++            "x",
++            "z"
++          ],
++          "additionalProperties": false,
++          "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++        },
++        "cell_limit": {
++          "type": "integer",
++          "minimum": 1,
++          "maximum": 256
++        }
++      },
++      "required": [
++        "map_id",
++        "offset",
++        "limit",
++        "near",
++        "cell_limit"
++      ],
++      "additionalProperties": false
++    },
++    "PositionDto": {
++      "title": "PositionDto",
++      "type": "object",
++      "properties": {
++        "x": {
++          "type": "integer"
++        },
++        "y": {
++          "type": "integer"
++        },
++        "z": {
++          "type": "integer"
++        }
++      },
++      "required": [
++        "x",
++        "y",
++        "z"
++      ],
++      "additionalProperties": false
++    },
++    "RoomDto": {
++      "title": "RoomDto",
++      "type": "object",
++      "properties": {
++        "visible_cell": {
++          "anyOf": [
++            {
++              "title": "PositionDto",
++              "type": "object",
++              "properties": {
++                "x": {
++                  "type": "integer"
++                },
++                "y": {
++                  "type": "integer"
++                },
++                "z": {
++                  "type": "integer"
++                }
++              },
++              "required": [
++                "x",
++                "y",
++                "z"
++              ],
++              "additionalProperties": false
++            },
++            {
++              "type": "null"
++            }
++          ]
++        },
++        "fogged_cells_count": {
++          "type": "integer"
++        },
++        "visible_cells": {
++          "type": "array",
++          "items": {
++            "title": "PositionDto",
++            "type": "object",
++            "properties": {
++              "x": {
++                "type": "integer"
++              },
++              "y": {
++                "type": "integer"
++              },
++              "z": {
++                "type": "integer"
++              }
++            },
++            "required": [
++              "x",
++              "y",
++              "z"
++            ],
++            "additionalProperties": false
++          }
++        },
++        "cells_truncated": {
++          "type": "boolean"
++        },
++        "pawns_reaching_visible_cell": {
++          "type": "array",
++          "items": {
++            "type": "integer"
++          }
++        },
++        "id": {
++          "type": "integer"
++        },
++        "role_label": {
++          "type": "string"
++        },
++        "temperature": {
++          "type": "number"
++        },
++        "cells_count": {
++          "type": "integer"
++        },
++        "touches_map_edge": {
++          "type": "boolean"
++        },
++        "is_prison_cell": {
++          "type": "boolean"
++        },
++        "is_doorway": {
++          "type": "boolean"
++        },
++        "open_roof_count": {
++          "type": "integer"
++        },
++        "contained_beds_ids": {
++          "type": "array",
++          "items": {
++            "type": "integer"
++          }
++        }
++      },
++      "required": [
++        "visible_cell",
++        "fogged_cells_count",
++        "visible_cells",
++        "cells_truncated",
++        "pawns_reaching_visible_cell",
++        "id",
++        "role_label",
++        "temperature",
++        "cells_count",
++        "touches_map_edge",
++        "is_prison_cell",
++        "is_doorway",
++        "open_roof_count",
++        "contained_beds_ids"
++      ],
++      "additionalProperties": false
++    },
++    "PageRoomDto": {
++      "title": "PageRoomDto",
++      "type": "object",
++      "properties": {
++        "items": {
++          "type": "array",
++          "items": {
++            "title": "RoomDto",
++            "type": "object",
++            "properties": {
++              "visible_cell": {
++                "anyOf": [
++                  {
++                    "title": "PositionDto",
++                    "type": "object",
++                    "properties": {
++                      "x": {
++                        "type": "integer"
++                      },
++                      "y": {
++                        "type": "integer"
++                      },
++                      "z": {
++                        "type": "integer"
++                      }
++                    },
++                    "required": [
++                      "x",
++                      "y",
++                      "z"
++                    ],
++                    "additionalProperties": false
++                  },
++                  {
++                    "type": "null"
++                  }
++                ]
++              },
++              "fogged_cells_count": {
++                "type": "integer"
++              },
++              "visible_cells": {
++                "type": "array",
++                "items": {
++                  "title": "PositionDto",
++                  "type": "object",
++                  "properties": {
++                    "x": {
++                      "type": "integer"
++                    },
++                    "y": {
++                      "type": "integer"
++                    },
++                    "z": {
++                      "type": "integer"
++                    }
++                  },
++                  "required": [
++                    "x",
++                    "y",
++                    "z"
++                  ],
++                  "additionalProperties": false
++                }
++              },
++              "cells_truncated": {
++                "type": "boolean"
++              },
++              "pawns_reaching_visible_cell": {
++                "type": "array",
++                "items": {
++                  "type": "integer"
++                }
++              },
++              "id": {
++                "type": "integer"
++              },
++              "role_label": {
++                "type": "string"
++              },
++              "temperature": {
++                "type": "number"
++              },
++              "cells_count": {
++                "type": "integer"
++              },
++              "touches_map_edge": {
++                "type": "boolean"
++              },
++              "is_prison_cell": {
++                "type": "boolean"
++              },
++              "is_doorway": {
++                "type": "boolean"
++              },
++              "open_roof_count": {
++                "type": "integer"
++              },
++              "contained_beds_ids": {
++                "type": "array",
++                "items": {
++                  "type": "integer"
++                }
++              }
++            },
++            "required": [
++              "visible_cell",
++              "fogged_cells_count",
++              "visible_cells",
++              "cells_truncated",
++              "pawns_reaching_visible_cell",
++              "id",
++              "role_label",
++              "temperature",
++              "cells_count",
++              "touches_map_edge",
++              "is_prison_cell",
++              "is_doorway",
++              "open_roof_count",
++              "contained_beds_ids"
++            ],
++            "additionalProperties": false
++          }
++        },
++        "total": {
++          "type": "integer"
++        },
++        "next_offset": {
++          "anyOf": [
++            {
++              "type": "integer"
++            },
++            {
++              "type": "null"
++            }
++          ]
++        }
++      },
++      "required": [
++        "items",
++        "total",
++        "next_offset"
++      ],
++      "additionalProperties": false
++    },
++    "Cell": {
++      "title": "Cell",
++      "type": "object",
++      "properties": {
++        "x": {
++          "type": "integer"
++        },
++        "z": {
++          "type": "integer"
++        }
++      },
++      "required": [
++        "x",
++        "z"
++      ],
++      "additionalProperties": false,
++      "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++    },
++    "Placement": {
++      "title": "Placement",
++      "type": "object",
++      "properties": {
++        "def_name": {
++          "type": "string"
++        },
++        "stuff_def_name": {
++          "type": "string",
++          "description": "Choose an observed allowed_materials def_name. Use an empty string when the definition has no allowed materials."
++        },
++        "position": {
++          "title": "Cell",
++          "type": "object",
++          "properties": {
++            "x": {
++              "type": "integer"
++            },
++            "z": {
++              "type": "integer"
++            }
++          },
++          "required": [
++            "x",
++            "z"
++          ],
++          "additionalProperties": false,
++          "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++        },
++        "rotation": {
++          "type": "integer",
++          "minimum": 0,
++          "maximum": 3
++        }
++      },
++      "required": [
++        "def_name",
++        "stuff_def_name",
++        "position",
++        "rotation"
++      ],
++      "additionalProperties": false
++    },
++    "ConstructionRequest": {
++      "title": "ConstructionRequest",
++      "type": "object",
++      "properties": {
++        "map_id": {
++          "type": "integer"
++        },
++        "buildings": {
++          "type": "array",
++          "items": {
++            "title": "Placement",
++            "type": "object",
++            "properties": {
+               "def_name": {
+                 "type": "string"
+               },
+-              "label": {
+-                "type": "string"
++              "stuff_def_name": {
++                "type": "string",
++                "description": "Choose an observed allowed_materials def_name. Use an empty string when the definition has no allowed materials."
++              },
++              "position": {
++                "title": "Cell",
++                "type": "object",
++                "properties": {
++                  "x": {
++                    "type": "integer"
++                  },
++                  "z": {
++                    "type": "integer"
++                  }
++                },
++                "required": [
++                  "x",
++                  "z"
++                ],
++                "additionalProperties": false,
++                "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++              },
++              "rotation": {
++                "type": "integer",
++                "minimum": 0,
++                "maximum": 3
+               }
+             },
+             "required": [
+               "def_name",
+-              "label"
++              "stuff_def_name",
++              "position",
++              "rotation"
+             ],
+             "additionalProperties": false
+-          }
++          },
++          "minItems": 1,
++          "maxItems": 128
++        }
++      },
++      "required": [
++        "map_id",
++        "buildings"
++      ],
++      "additionalProperties": false
++    },
++    "PlacementResult": {
++      "title": "PlacementResult",
++      "type": "object",
++      "properties": {
++        "placement": {
++          "title": "Placement",
++          "type": "object",
++          "properties": {
++            "def_name": {
++              "type": "string"
++            },
++            "stuff_def_name": {
++              "type": "string",
++              "description": "Choose an observed allowed_materials def_name. Use an empty string when the definition has no allowed materials."
++            },
++            "position": {
++              "title": "Cell",
++              "type": "object",
++              "properties": {
++                "x": {
++                  "type": "integer"
++                },
++                "z": {
++                  "type": "integer"
++                }
++              },
++              "required": [
++                "x",
++                "z"
++              ],
++              "additionalProperties": false,
++              "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++            },
++            "rotation": {
++              "type": "integer",
++              "minimum": 0,
++              "maximum": 3
++            }
++          },
++          "required": [
++            "def_name",
++            "stuff_def_name",
++            "position",
++            "rotation"
++          ],
++          "additionalProperties": false
+         },
+-        "description": {
+-          "type": "string"
++        "state": {
++          "type": "string",
++          "enum": [
++            "ready",
++            "blueprint",
++            "frame",
++            "built",
++            "rejected"
++          ]
+         },
+-        "is_bed": {
+-          "type": "boolean"
++        "thing_id": {
++          "anyOf": [
++            {
++              "type": "integer"
++            },
++            {
++              "type": "null"
++            }
++          ]
+         },
+-        "bed_humanlike": {
+-          "type": "boolean"
++        "reason": {
++          "type": "string"
+         }
+       },
+       "required": [
+-        "def_name",
+-        "label",
+-        "size_x",
+-        "size_z",
+-        "rotatable",
+-        "work_to_build",
+-        "stuff_count",
+-        "costs",
+-        "allowed_materials",
+-        "description",
+-        "is_bed",
+-        "bed_humanlike"
++        "placement",
++        "state",
++        "thing_id",
++        "reason"
+       ],
+       "additionalProperties": false
+     },
+-    "PageBuildingDefinition": {
+-      "title": "PageBuildingDefinition",
++    "ConstructionResult": {
++      "title": "ConstructionResult",
+       "type": "object",
+       "properties": {
++        "accepted": {
++          "type": "boolean"
++        },
+         "items": {
+           "type": "array",
+           "items": {
+-            "title": "BuildingDefinition",
++            "title": "PlacementResult",
+             "type": "object",
+             "properties": {
+-              "def_name": {
+-                "type": "string"
+-              },
+-              "label": {
+-                "type": "string"
+-              },
+-              "size_x": {
+-                "type": "integer"
+-              },
+-              "size_z": {
+-                "type": "integer"
+-              },
+-              "rotatable": {
+-                "type": "boolean"
+-              },
+-              "work_to_build": {
+-                "type": "number"
+-              },
+-              "stuff_count": {
+-                "type": "integer"
+-              },
+-              "costs": {
+-                "type": "array",
+-                "items": {
+-                  "title": "Cost",
+-                  "type": "object",
+-                  "properties": {
+-                    "def_name": {
+-                      "type": "string"
+-                    },
+-                    "count": {
+-                      "type": "integer"
+-                    }
++              "placement": {
++                "title": "Placement",
++                "type": "object",
++                "properties": {
++                  "def_name": {
++                    "type": "string"
+                   },
+-                  "required": [
+-                    "def_name",
+-                    "count"
+-                  ],
+-                  "additionalProperties": false
+-                }
+-              },
+-              "allowed_materials": {
+-                "type": "array",
+-                "items": {
+-                  "title": "Material",
+-                  "type": "object",
+-                  "properties": {
+-                    "def_name": {
+-                      "type": "string"
++                  "stuff_def_name": {
++                    "type": "string",
++                    "description": "Choose an observed allowed_materials def_name. Use an empty string when the definition has no allowed materials."
++                  },
++                  "position": {
++                    "title": "Cell",
++                    "type": "object",
++                    "properties": {
++                      "x": {
++                        "type": "integer"
++                      },
++                      "z": {
++                        "type": "integer"
++                      }
+                     },
+-                    "label": {
+-                      "type": "string"
+-                    }
++                    "required": [
++                      "x",
++                      "z"
++                    ],
++                    "additionalProperties": false,
++                    "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+                   },
+-                  "required": [
+-                    "def_name",
+-                    "label"
+-                  ],
+-                  "additionalProperties": false
+-                }
++                  "rotation": {
++                    "type": "integer",
++                    "minimum": 0,
++                    "maximum": 3
++                  }
++                },
++                "required": [
++                  "def_name",
++                  "stuff_def_name",
++                  "position",
++                  "rotation"
++                ],
++                "additionalProperties": false
+               },
+-              "description": {
+-                "type": "string"
++              "state": {
++                "type": "string",
++                "enum": [
++                  "ready",
++                  "blueprint",
++                  "frame",
++                  "built",
++                  "rejected"
++                ]
+               },
+-              "is_bed": {
+-                "type": "boolean"
++              "thing_id": {
++                "anyOf": [
++                  {
++                    "type": "integer"
++                  },
++                  {
++                    "type": "null"
++                  }
++                ]
+               },
+-              "bed_humanlike": {
+-                "type": "boolean"
++              "reason": {
++                "type": "string"
+               }
+             },
+             "required": [
+-              "def_name",
+-              "label",
+-              "size_x",
+-              "size_z",
+-              "rotatable",
+-              "work_to_build",
+-              "stuff_count",
+-              "costs",
+-              "allowed_materials",
+-              "description",
+-              "is_bed",
+-              "bed_humanlike"
++              "placement",
++              "state",
++              "thing_id",
++              "reason"
+             ],
+             "additionalProperties": false
+           }
+-        },
+-        "total": {
+-          "type": "integer"
+-        },
+-        "next_offset": {
+-          "anyOf": [
+-            {
+-              "type": "integer"
+-            },
+-            {
+-              "type": "null"
+-            }
+-          ]
+         }
+       },
+       "required": [
+-        "items",
+-        "total",
+-        "next_offset"
++        "accepted",
++        "items"
+       ],
+       "additionalProperties": false
+     },
+-    "RoomQuery": {
+-      "title": "RoomQuery",
++    "ContractError": {
++      "title": "ContractError",
+       "type": "object",
+       "properties": {
+-        "map_id": {
+-          "type": "integer"
+-        },
+-        "offset": {
+-          "type": "integer",
+-          "minimum": 0,
+-          "maximum": 2147483647
+-        },
+-        "limit": {
+-          "type": "integer",
+-          "minimum": 1,
+-          "maximum": 32
+-        },
+-        "near": {
+-          "title": "Cell",
+-          "type": "object",
+-          "properties": {
+-            "x": {
+-              "type": "integer"
+-            },
+-            "z": {
+-              "type": "integer"
+-            }
+-          },
+-          "required": [
+-            "x",
+-            "z"
+-          ],
+-          "additionalProperties": false,
+-          "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++        "code": {
++          "type": "string"
+         },
+-        "cell_limit": {
+-          "type": "integer",
+-          "minimum": 1,
+-          "maximum": 256
++        "message": {
++          "type": "string"
+         }
+       },
+       "required": [
+-        "map_id",
+-        "offset",
+-        "limit",
+-        "near",
+-        "cell_limit"
++        "code",
++        "message"
+       ],
+       "additionalProperties": false
+     },
+-    "PositionDto": {
+-      "title": "PositionDto",
++    "MapQuery": {
++      "title": "MapQuery",
+       "type": "object",
+       "properties": {
+-        "x": {
+-          "type": "integer"
+-        },
+-        "y": {
+-          "type": "integer"
+-        },
+-        "z": {
++        "map_id": {
+           "type": "integer"
+         }
+       },
+       "required": [
+-        "x",
+-        "y",
+-        "z"
++        "map_id"
+       ],
+       "additionalProperties": false
+     },
+-    "RoomDto": {
+-      "title": "RoomDto",
++    "ConstructionThing": {
++      "title": "ConstructionThing",
+       "type": "object",
+       "properties": {
+-        "visible_cell": {
+-          "anyOf": [
+-            {
+-              "title": "PositionDto",
+-              "type": "object",
+-              "properties": {
+-                "x": {
+-                  "type": "integer"
+-                },
+-                "y": {
+-                  "type": "integer"
+-                },
+-                "z": {
+-                  "type": "integer"
+-                }
+-              },
+-              "required": [
+-                "x",
+-                "y",
+-                "z"
+-              ],
+-              "additionalProperties": false
+-            },
+-            {
+-              "type": "null"
+-            }
+-          ]
+-        },
+-        "fogged_cells_count": {
+-          "type": "integer"
+-        },
+-        "visible_cells": {
+-          "type": "array",
+-          "items": {
+-            "title": "PositionDto",
+-            "type": "object",
+-            "properties": {
+-              "x": {
+-                "type": "integer"
+-              },
+-              "y": {
+-                "type": "integer"
+-              },
+-              "z": {
+-                "type": "integer"
+-              }
+-            },
+-            "required": [
+-              "x",
+-              "y",
+-              "z"
+-            ],
+-            "additionalProperties": false
+-          }
+-        },
+-        "cells_truncated": {
+-          "type": "boolean"
+-        },
+-        "pawns_reaching_visible_cell": {
+-          "type": "array",
+-          "items": {
+-            "type": "integer"
+-          }
+-        },
+-        "id": {
++        "thing_id": {
+           "type": "integer"
+         },
+-        "role_label": {
++        "def_name": {
+           "type": "string"
+         },
+-        "temperature": {
+-          "type": "number"
+-        },
+-        "cells_count": {
+-          "type": "integer"
+-        },
+-        "touches_map_edge": {
+-          "type": "boolean"
+-        },
+-        "is_prison_cell": {
+-          "type": "boolean"
+-        },
+-        "is_doorway": {
+-          "type": "boolean"
+-        },
+-        "open_roof_count": {
+-          "type": "integer"
+-        },
+-        "contained_beds_ids": {
+-          "type": "array",
+-          "items": {
+-            "type": "integer"
+-          }
+-        }
+-      },
+-      "required": [
+-        "visible_cell",
+-        "fogged_cells_count",
+-        "visible_cells",
+-        "cells_truncated",
+-        "pawns_reaching_visible_cell",
+-        "id",
+-        "role_label",
+-        "temperature",
+-        "cells_count",
+-        "touches_map_edge",
+-        "is_prison_cell",
+-        "is_doorway",
+-        "open_roof_count",
+-        "contained_beds_ids"
++        "position": {
++          "title": "Cell",
++          "type": "object",
++          "properties": {
++            "x": {
++              "type": "integer"
++            },
++            "z": {
++              "type": "integer"
++            }
++          },
++          "required": [
++            "x",
++            "z"
++          ],
++          "additionalProperties": false,
++          "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++        },
++        "rotation": {
++          "type": "integer"
++        },
++        "state": {
++          "type": "string"
++        }
++      },
++      "required": [
++        "thing_id",
++        "def_name",
++        "position",
++        "rotation",
++        "state"
+       ],
+       "additionalProperties": false
+     },
+-    "PageRoomDto": {
+-      "title": "PageRoomDto",
++    "ConstructionState": {
++      "title": "ConstructionState",
+       "type": "object",
+       "properties": {
+-        "items": {
++        "revision": {
++          "type": "string"
++        },
++        "buildings": {
+           "type": "array",
+           "items": {
+-            "title": "RoomDto",
++            "title": "ConstructionThing",
+             "type": "object",
+             "properties": {
+-              "visible_cell": {
+-                "anyOf": [
+-                  {
+-                    "title": "PositionDto",
+-                    "type": "object",
+-                    "properties": {
+-                      "x": {
+-                        "type": "integer"
+-                      },
+-                      "y": {
+-                        "type": "integer"
+-                      },
+-                      "z": {
+-                        "type": "integer"
+-                      }
+-                    },
+-                    "required": [
+-                      "x",
+-                      "y",
+-                      "z"
+-                    ],
+-                    "additionalProperties": false
+-                  },
+-                  {
+-                    "type": "null"
+-                  }
+-                ]
+-              },
+-              "fogged_cells_count": {
+-                "type": "integer"
+-              },
+-              "visible_cells": {
+-                "type": "array",
+-                "items": {
+-                  "title": "PositionDto",
+-                  "type": "object",
+-                  "properties": {
+-                    "x": {
+-                      "type": "integer"
+-                    },
+-                    "y": {
+-                      "type": "integer"
+-                    },
+-                    "z": {
+-                      "type": "integer"
+-                    }
+-                  },
+-                  "required": [
+-                    "x",
+-                    "y",
+-                    "z"
+-                  ],
+-                  "additionalProperties": false
+-                }
+-              },
+-              "cells_truncated": {
+-                "type": "boolean"
+-              },
+-              "pawns_reaching_visible_cell": {
+-                "type": "array",
+-                "items": {
+-                  "type": "integer"
+-                }
+-              },
+-              "id": {
++              "thing_id": {
+                 "type": "integer"
+               },
+-              "role_label": {
++              "def_name": {
+                 "type": "string"
+               },
+-              "temperature": {
+-                "type": "number"
+-              },
+-              "cells_count": {
+-                "type": "integer"
+-              },
+-              "touches_map_edge": {
+-                "type": "boolean"
+-              },
+-              "is_prison_cell": {
+-                "type": "boolean"
+-              },
+-              "is_doorway": {
+-                "type": "boolean"
++              "position": {
++                "title": "Cell",
++                "type": "object",
++                "properties": {
++                  "x": {
++                    "type": "integer"
++                  },
++                  "z": {
++                    "type": "integer"
++                  }
++                },
++                "required": [
++                  "x",
++                  "z"
++                ],
++                "additionalProperties": false,
++                "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+               },
+-              "open_roof_count": {
++              "rotation": {
+                 "type": "integer"
+               },
+-              "contained_beds_ids": {
+-                "type": "array",
+-                "items": {
+-                  "type": "integer"
+-                }
++              "state": {
++                "type": "string"
+               }
+             },
+             "required": [
+-              "visible_cell",
+-              "fogged_cells_count",
+-              "visible_cells",
+-              "cells_truncated",
+-              "pawns_reaching_visible_cell",
+-              "id",
+-              "role_label",
+-              "temperature",
+-              "cells_count",
+-              "touches_map_edge",
+-              "is_prison_cell",
+-              "is_doorway",
+-              "open_roof_count",
+-              "contained_beds_ids"
++              "thing_id",
++              "def_name",
++              "position",
++              "rotation",
++              "state"
+             ],
+             "additionalProperties": false
+           }
+-        },
+-        "total": {
++        }
++      },
++      "required": [
++        "revision",
++        "buildings"
++      ],
++      "additionalProperties": false
++    },
++    "AreaQuery": {
++      "title": "AreaQuery",
++      "type": "object",
++      "properties": {
++        "map_id": {
+           "type": "integer"
+         },
+-        "next_offset": {
+-          "anyOf": [
+-            {
++        "center": {
++          "title": "Cell",
++          "type": "object",
++          "properties": {
++            "x": {
+               "type": "integer"
+             },
+-            {
+-              "type": "null"
++            "z": {
++              "type": "integer"
+             }
+-          ]
++          },
++          "required": [
++            "x",
++            "z"
++          ],
++          "additionalProperties": false,
++          "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++        },
++        "radius": {
++          "type": "integer",
++          "minimum": 0,
++          "maximum": 32
+         }
+       },
+       "required": [
+-        "items",
+-        "total",
+-        "next_offset"
++        "map_id",
++        "center",
++        "radius"
+       ],
+       "additionalProperties": false
+     },
+-    "Cell": {
+-      "title": "Cell",
++    "AreaCell": {
++      "title": "AreaCell",
+       "type": "object",
+       "properties": {
+-        "x": {
+-          "type": "integer"
++        "position": {
++          "title": "Cell",
++          "type": "object",
++          "properties": {
++            "x": {
++              "type": "integer"
++            },
++            "z": {
++              "type": "integer"
++            }
++          },
++          "required": [
++            "x",
++            "z"
++          ],
++          "additionalProperties": false,
++          "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++        },
++        "terrain_def": {
++          "type": "string"
++        },
++        "fertility": {
++          "type": "number"
++        },
++        "roofed": {
++          "type": "boolean"
++        },
++        "walkable": {
++          "type": "boolean"
++        },
++        "thing_ids": {
++          "type": "array",
++          "items": {
++            "type": "integer"
++          }
++        },
++        "zone_id": {
++          "anyOf": [
++            {
++              "type": "integer"
++            },
++            {
++              "type": "null"
++            }
++          ]
++        },
++        "zone_type": {
++          "type": "string"
++        },
++        "zone_label": {
++          "type": "string"
++        },
++        "plan_id": {
++          "type": "string"
+         },
+-        "z": {
+-          "type": "integer"
++        "plantable": {
++          "type": "boolean"
++        },
++        "encloses": {
++          "type": "boolean"
++        },
++        "is_door": {
++          "type": "boolean"
+         }
+       },
+       "required": [
+-        "x",
+-        "z"
++        "position",
++        "terrain_def",
++        "fertility",
++        "roofed",
++        "walkable",
++        "thing_ids",
++        "zone_id",
++        "zone_type",
++        "zone_label",
++        "plan_id",
++        "plantable",
++        "encloses",
++        "is_door"
+       ],
+-      "additionalProperties": false,
+-      "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++      "additionalProperties": false
+     },
+-    "Placement": {
+-      "title": "Placement",
++    "AreaResult": {
++      "title": "AreaResult",
+       "type": "object",
+       "properties": {
+-        "def_name": {
+-          "type": "string"
+-        },
+-        "stuff_def_name": {
+-          "type": "string",
+-          "description": "Choose an observed allowed_materials def_name. Use an empty string when the definition has no allowed materials."
+-        },
+-        "position": {
++        "center": {
+           "title": "Cell",
+           "type": "object",
+           "properties": {
+@@ -1655,40 +2689,15 @@
+           "additionalProperties": false,
+           "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+         },
+-        "rotation": {
+-          "type": "integer",
+-          "minimum": 0,
+-          "maximum": 3
+-        }
+-      },
+-      "required": [
+-        "def_name",
+-        "stuff_def_name",
+-        "position",
+-        "rotation"
+-      ],
+-      "additionalProperties": false
+-    },
+-    "ConstructionRequest": {
+-      "title": "ConstructionRequest",
+-      "type": "object",
+-      "properties": {
+-        "map_id": {
++        "radius": {
+           "type": "integer"
+         },
+-        "buildings": {
++        "cells": {
+           "type": "array",
+           "items": {
+-            "title": "Placement",
++            "title": "AreaCell",
+             "type": "object",
+             "properties": {
+-              "def_name": {
+-                "type": "string"
+-              },
+-              "stuff_def_name": {
+-                "type": "string",
+-                "description": "Choose an observed allowed_materials def_name. Use an empty string when the definition has no allowed materials."
+-              },
+               "position": {
+                 "title": "Cell",
+                 "type": "object",
+@@ -1707,553 +2716,537 @@
+                 "additionalProperties": false,
+                 "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+               },
+-              "rotation": {
+-                "type": "integer",
+-                "minimum": 0,
+-                "maximum": 3
++              "terrain_def": {
++                "type": "string"
++              },
++              "fertility": {
++                "type": "number"
++              },
++              "roofed": {
++                "type": "boolean"
++              },
++              "walkable": {
++                "type": "boolean"
++              },
++              "thing_ids": {
++                "type": "array",
++                "items": {
++                  "type": "integer"
++                }
++              },
++              "zone_id": {
++                "anyOf": [
++                  {
++                    "type": "integer"
++                  },
++                  {
++                    "type": "null"
++                  }
++                ]
++              },
++              "zone_type": {
++                "type": "string"
++              },
++              "zone_label": {
++                "type": "string"
++              },
++              "plan_id": {
++                "type": "string"
++              },
++              "plantable": {
++                "type": "boolean"
++              },
++              "encloses": {
++                "type": "boolean"
++              },
++              "is_door": {
++                "type": "boolean"
+               }
+             },
+             "required": [
+-              "def_name",
+-              "stuff_def_name",
+               "position",
+-              "rotation"
++              "terrain_def",
++              "fertility",
++              "roofed",
++              "walkable",
++              "thing_ids",
++              "zone_id",
++              "zone_type",
++              "zone_label",
++              "plan_id",
++              "plantable",
++              "encloses",
++              "is_door"
+             ],
+             "additionalProperties": false
+-          },
+-          "minItems": 1,
+-          "maxItems": 128
++          }
+         }
+       },
+       "required": [
+-        "map_id",
+-        "buildings"
++        "center",
++        "radius",
++        "cells"
+       ],
+       "additionalProperties": false
+     },
+-    "PlacementResult": {
+-      "title": "PlacementResult",
++    "AllowAllRequest": {
+       "type": "object",
+       "properties": {
+-        "placement": {
+-          "title": "Placement",
+-          "type": "object",
+-          "properties": {
+-            "def_name": {
+-              "type": "string"
+-            },
+-            "stuff_def_name": {
+-              "type": "string",
+-              "description": "Choose an observed allowed_materials def_name. Use an empty string when the definition has no allowed materials."
+-            },
+-            "position": {
+-              "title": "Cell",
+-              "type": "object",
+-              "properties": {
+-                "x": {
+-                  "type": "integer"
+-                },
+-                "z": {
+-                  "type": "integer"
+-                }
+-              },
+-              "required": [
+-                "x",
+-                "z"
+-              ],
+-              "additionalProperties": false,
+-              "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+-            },
+-            "rotation": {
+-              "type": "integer",
+-              "minimum": 0,
+-              "maximum": 3
+-            }
+-          },
+-          "required": [
+-            "def_name",
+-            "stuff_def_name",
+-            "position",
+-            "rotation"
+-          ],
+-          "additionalProperties": false
++        "map_id": {
++          "type": "integer"
++        }
++      },
++      "required": [
++        "map_id"
++      ],
++      "additionalProperties": false,
++      "title": "AllowAllRequest"
++    },
++    "AllowAllResult": {
++      "type": "object",
++      "properties": {
++        "map_id": {
++          "type": "integer"
+         },
+-        "state": {
+-          "type": "string",
+-          "enum": [
+-            "ready",
+-            "blueprint",
+-            "frame",
+-            "built",
+-            "rejected"
+-          ]
++        "changed_count": {
++          "type": "integer"
+         },
+-        "thing_id": {
+-          "anyOf": [
+-            {
+-              "type": "integer"
+-            },
+-            {
+-              "type": "null"
+-            }
+-          ]
++        "excluded_jelly_count": {
++          "type": "integer"
+         },
+-        "reason": {
++        "remaining_eligible_count": {
++          "type": "integer"
++        }
++      },
++      "required": [
++        "map_id",
++        "changed_count",
++        "excluded_jelly_count",
++        "remaining_eligible_count"
++      ],
++      "additionalProperties": false,
++      "title": "AllowAllResult"
++    },
++    "PlanColor": {
++      "title": "PlanColor",
++      "type": "object",
++      "properties": {
++        "def_name": {
++          "type": "string"
++        },
++        "label": {
++          "type": "string"
++        },
++        "html_color": {
+           "type": "string"
+         }
+       },
+       "required": [
+-        "placement",
+-        "state",
+-        "thing_id",
+-        "reason"
++        "def_name",
++        "label",
++        "html_color"
++      ],
++      "additionalProperties": false
++    },
++    "MapPlan": {
++      "title": "MapPlan",
++      "type": "object",
++      "properties": {
++        "id": {
++          "type": "string"
++        },
++        "label": {
++          "type": "string"
++        },
++        "color_def": {
++          "type": "string"
++        },
++        "cells": {
++          "type": "array",
++          "items": {
++            "title": "Cell",
++            "type": "object",
++            "properties": {
++              "x": {
++                "type": "integer"
++              },
++              "z": {
++                "type": "integer"
++              }
++            },
++            "required": [
++              "x",
++              "z"
++            ],
++            "additionalProperties": false,
++            "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++          }
++        }
++      },
++      "required": [
++        "id",
++        "label",
++        "color_def",
++        "cells"
+       ],
+       "additionalProperties": false
+     },
+-    "ConstructionResult": {
+-      "title": "ConstructionResult",
++    "PlanningState": {
++      "title": "PlanningState",
+       "type": "object",
+       "properties": {
+-        "accepted": {
+-          "type": "boolean"
+-        },
+-        "items": {
++        "plans": {
+           "type": "array",
+           "items": {
+-            "title": "PlacementResult",
++            "title": "MapPlan",
+             "type": "object",
+             "properties": {
+-              "placement": {
+-                "title": "Placement",
+-                "type": "object",
+-                "properties": {
+-                  "def_name": {
+-                    "type": "string"
+-                  },
+-                  "stuff_def_name": {
+-                    "type": "string",
+-                    "description": "Choose an observed allowed_materials def_name. Use an empty string when the definition has no allowed materials."
+-                  },
+-                  "position": {
+-                    "title": "Cell",
+-                    "type": "object",
+-                    "properties": {
+-                      "x": {
+-                        "type": "integer"
+-                      },
+-                      "z": {
+-                        "type": "integer"
+-                      }
+-                    },
+-                    "required": [
+-                      "x",
+-                      "z"
+-                    ],
+-                    "additionalProperties": false,
+-                    "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+-                  },
+-                  "rotation": {
+-                    "type": "integer",
+-                    "minimum": 0,
+-                    "maximum": 3
+-                  }
+-                },
+-                "required": [
+-                  "def_name",
+-                  "stuff_def_name",
+-                  "position",
+-                  "rotation"
+-                ],
+-                "additionalProperties": false
++              "id": {
++                "type": "string"
+               },
+-              "state": {
+-                "type": "string",
+-                "enum": [
+-                  "ready",
+-                  "blueprint",
+-                  "frame",
+-                  "built",
+-                  "rejected"
+-                ]
++              "label": {
++                "type": "string"
+               },
+-              "thing_id": {
+-                "anyOf": [
+-                  {
+-                    "type": "integer"
++              "color_def": {
++                "type": "string"
++              },
++              "cells": {
++                "type": "array",
++                "items": {
++                  "title": "Cell",
++                  "type": "object",
++                  "properties": {
++                    "x": {
++                      "type": "integer"
++                    },
++                    "z": {
++                      "type": "integer"
++                    }
+                   },
+-                  {
+-                    "type": "null"
+-                  }
+-                ]
++                  "required": [
++                    "x",
++                    "z"
++                  ],
++                  "additionalProperties": false,
++                  "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++                }
++              }
++            },
++            "required": [
++              "id",
++              "label",
++              "color_def",
++              "cells"
++            ],
++            "additionalProperties": false
++          }
++        },
++        "colors": {
++          "type": "array",
++          "items": {
++            "title": "PlanColor",
++            "type": "object",
++            "properties": {
++              "def_name": {
++                "type": "string"
+               },
+-              "reason": {
++              "label": {
++                "type": "string"
++              },
++              "html_color": {
+                 "type": "string"
+               }
+             },
+             "required": [
+-              "placement",
+-              "state",
+-              "thing_id",
+-              "reason"
++              "def_name",
++              "label",
++              "html_color"
+             ],
+             "additionalProperties": false
+           }
+         }
+       },
+       "required": [
+-        "accepted",
+-        "items"
++        "plans",
++        "colors"
+       ],
+       "additionalProperties": false
+     },
+-    "ContractError": {
+-      "title": "ContractError",
++    "PlanRequest": {
++      "title": "PlanRequest",
+       "type": "object",
+       "properties": {
+-        "code": {
++        "map_id": {
++          "type": "integer"
++        },
++        "label": {
+           "type": "string"
+         },
+-        "message": {
++        "color_def": {
+           "type": "string"
++        },
++        "cells": {
++          "type": "array",
++          "items": {
++            "title": "Cell",
++            "type": "object",
++            "properties": {
++              "x": {
++                "type": "integer"
++              },
++              "z": {
++                "type": "integer"
++              }
++            },
++            "required": [
++              "x",
++              "z"
++            ],
++            "additionalProperties": false,
++            "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++          },
++          "minItems": 1,
++          "maxItems": 4096
+         }
+       },
+       "required": [
+-        "code",
+-        "message"
+-      ],
+-      "additionalProperties": false
+-    },
+-    "MapQuery": {
+-      "title": "MapQuery",
+-      "type": "object",
+-      "properties": {
+-        "map_id": {
+-          "type": "integer"
+-        }
+-      },
+-      "required": [
+-        "map_id"
++        "map_id",
++        "label",
++        "color_def",
++        "cells"
+       ],
+       "additionalProperties": false
+     },
+-    "ConstructionThing": {
+-      "title": "ConstructionThing",
++    "Footprint": {
++      "title": "Footprint",
+       "type": "object",
+       "properties": {
+-        "thing_id": {
+-          "type": "integer"
+-        },
+-        "def_name": {
+-          "type": "string"
+-        },
+-        "position": {
+-          "title": "Cell",
+-          "type": "object",
+-          "properties": {
+-            "x": {
+-              "type": "integer"
++        "cells": {
++          "type": "array",
++          "items": {
++            "title": "Cell",
++            "type": "object",
++            "properties": {
++              "x": {
++                "type": "integer"
++              },
++              "z": {
++                "type": "integer"
++              }
+             },
+-            "z": {
+-              "type": "integer"
+-            }
+-          },
+-          "required": [
+-            "x",
+-            "z"
+-          ],
+-          "additionalProperties": false,
+-          "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++            "required": [
++              "x",
++              "z"
++            ],
++            "additionalProperties": false,
++            "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++          }
+         },
+-        "rotation": {
+-          "type": "integer"
++        "encloses": {
++          "type": "boolean"
+         },
+-        "state": {
+-          "type": "string"
++        "is_door": {
++          "type": "boolean"
++        },
++        "is_bed": {
++          "type": "boolean"
+         }
+       },
+       "required": [
+-        "thing_id",
+-        "def_name",
+-        "position",
+-        "rotation",
+-        "state"
++        "cells",
++        "encloses",
++        "is_door",
++        "is_bed"
+       ],
+       "additionalProperties": false
+     },
+-    "ConstructionState": {
+-      "title": "ConstructionState",
++    "Footprints": {
++      "title": "Footprints",
+       "type": "object",
+       "properties": {
+-        "revision": {
+-          "type": "string"
+-        },
+-        "buildings": {
++        "items": {
+           "type": "array",
+           "items": {
+-            "title": "ConstructionThing",
++            "title": "Footprint",
+             "type": "object",
+             "properties": {
+-              "thing_id": {
+-                "type": "integer"
+-              },
+-              "def_name": {
+-                "type": "string"
+-              },
+-              "position": {
+-                "title": "Cell",
+-                "type": "object",
+-                "properties": {
+-                  "x": {
+-                    "type": "integer"
++              "cells": {
++                "type": "array",
++                "items": {
++                  "title": "Cell",
++                  "type": "object",
++                  "properties": {
++                    "x": {
++                      "type": "integer"
++                    },
++                    "z": {
++                      "type": "integer"
++                    }
+                   },
+-                  "z": {
+-                    "type": "integer"
+-                  }
+-                },
+-                "required": [
+-                  "x",
+-                  "z"
+-                ],
+-                "additionalProperties": false,
+-                "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++                  "required": [
++                    "x",
++                    "z"
++                  ],
++                  "additionalProperties": false,
++                  "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++                }
+               },
+-              "rotation": {
+-                "type": "integer"
++              "encloses": {
++                "type": "boolean"
+               },
+-              "state": {
+-                "type": "string"
++              "is_door": {
++                "type": "boolean"
++              },
++              "is_bed": {
++                "type": "boolean"
+               }
+             },
+             "required": [
+-              "thing_id",
+-              "def_name",
+-              "position",
+-              "rotation",
+-              "state"
++              "cells",
++              "encloses",
++              "is_door",
++              "is_bed"
+             ],
+             "additionalProperties": false
+           }
+         }
+       },
+       "required": [
+-        "revision",
+-        "buildings"
++        "items"
+       ],
+       "additionalProperties": false
+     },
+-    "AreaQuery": {
+-      "title": "AreaQuery",
++    "GrowingCellsRequest": {
++      "title": "GrowingCellsRequest",
+       "type": "object",
+       "properties": {
+         "map_id": {
+           "type": "integer"
+         },
+-        "center": {
+-          "title": "Cell",
+-          "type": "object",
+-          "properties": {
+-            "x": {
+-              "type": "integer"
++        "plant_def": {
++          "type": "string"
++        },
++        "cells": {
++          "type": "array",
++          "items": {
++            "title": "Cell",
++            "type": "object",
++            "properties": {
++              "x": {
++                "type": "integer"
++              },
++              "z": {
++                "type": "integer"
++              }
+             },
+-            "z": {
+-              "type": "integer"
+-            }
++            "required": [
++              "x",
++              "z"
++            ],
++            "additionalProperties": false,
++            "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+           },
+-          "required": [
+-            "x",
+-            "z"
+-          ],
+-          "additionalProperties": false,
+-          "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+-        },
+-        "radius": {
+-          "type": "integer",
+-          "minimum": 0,
+-          "maximum": 12
++          "minItems": 1,
++          "maxItems": 4096
+         }
+       },
+       "required": [
+         "map_id",
+-        "center",
+-        "radius"
++        "plant_def",
++        "cells"
+       ],
+       "additionalProperties": false
+     },
+-    "AreaCell": {
+-      "title": "AreaCell",
++    "GrowingCellsResult": {
++      "title": "GrowingCellsResult",
+       "type": "object",
+       "properties": {
+-        "position": {
+-          "title": "Cell",
+-          "type": "object",
+-          "properties": {
+-            "x": {
+-              "type": "integer"
+-            },
+-            "z": {
+-              "type": "integer"
+-            }
+-          },
+-          "required": [
+-            "x",
+-            "z"
+-          ],
+-          "additionalProperties": false,
+-          "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
++        "zone_id": {
++          "type": "integer"
+         },
+-        "terrain_def": {
++        "plant_def": {
+           "type": "string"
+         },
+-        "fertility": {
+-          "type": "number"
+-        },
+-        "roofed": {
+-          "type": "boolean"
+-        },
+-        "walkable": {
+-          "type": "boolean"
+-        },
+-        "thing_ids": {
++        "cells": {
+           "type": "array",
+           "items": {
+-            "type": "integer"
++            "title": "Cell",
++            "type": "object",
++            "properties": {
++              "x": {
++                "type": "integer"
++              },
++              "z": {
++                "type": "integer"
++              }
++            },
++            "required": [
++              "x",
++              "z"
++            ],
++            "additionalProperties": false,
++            "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+           }
+         }
+       },
+       "required": [
+-        "position",
+-        "terrain_def",
+-        "fertility",
+-        "roofed",
+-        "walkable",
+-        "thing_ids"
++        "zone_id",
++        "plant_def",
++        "cells"
+       ],
+       "additionalProperties": false
+     },
+-    "AreaResult": {
+-      "title": "AreaResult",
++    "RemovePlanRequest": {
++      "title": "RemovePlanRequest",
+       "type": "object",
+       "properties": {
+-        "center": {
+-          "title": "Cell",
+-          "type": "object",
+-          "properties": {
+-            "x": {
+-              "type": "integer"
+-            },
+-            "z": {
+-              "type": "integer"
+-            }
+-          },
+-          "required": [
+-            "x",
+-            "z"
+-          ],
+-          "additionalProperties": false,
+-          "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+-        },
+-        "radius": {
++        "map_id": {
+           "type": "integer"
+         },
+-        "cells": {
++        "plan_id": {
++          "type": "string"
++        },
++        "expected_cells": {
+           "type": "array",
+           "items": {
+-            "title": "AreaCell",
++            "title": "Cell",
+             "type": "object",
+             "properties": {
+-              "position": {
+-                "title": "Cell",
+-                "type": "object",
+-                "properties": {
+-                  "x": {
+-                    "type": "integer"
+-                  },
+-                  "z": {
+-                    "type": "integer"
+-                  }
+-                },
+-                "required": [
+-                  "x",
+-                  "z"
+-                ],
+-                "additionalProperties": false,
+-                "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+-              },
+-              "terrain_def": {
+-                "type": "string"
+-              },
+-              "fertility": {
+-                "type": "number"
+-              },
+-              "roofed": {
+-                "type": "boolean"
+-              },
+-              "walkable": {
+-                "type": "boolean"
++              "x": {
++                "type": "integer"
+               },
+-              "thing_ids": {
+-                "type": "array",
+-                "items": {
+-                  "type": "integer"
+-                }
++              "z": {
++                "type": "integer"
+               }
+             },
+             "required": [
+-              "position",
+-              "terrain_def",
+-              "fertility",
+-              "roofed",
+-              "walkable",
+-              "thing_ids"
++              "x",
++              "z"
+             ],
+-            "additionalProperties": false
++            "additionalProperties": false,
++            "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+           }
+         }
+       },
+       "required": [
+-        "center",
+-        "radius",
+-        "cells"
++        "map_id",
++        "plan_id",
++        "expected_cells"
+       ],
+       "additionalProperties": false
+     },
+-    "AllowAllRequest": {
+-      "type": "object",
+-      "properties": {
+-        "map_id": {
+-          "type": "integer"
+-        }
+-      },
+-      "required": [
+-        "map_id"
+-      ],
+-      "additionalProperties": false,
+-      "title": "AllowAllRequest"
+-    },
+-    "AllowAllResult": {
++    "RemovePlanResult": {
++      "title": "RemovePlanResult",
+       "type": "object",
+       "properties": {
+-        "map_id": {
+-          "type": "integer"
+-        },
+-        "changed_count": {
+-          "type": "integer"
+-        },
+-        "excluded_jelly_count": {
+-          "type": "integer"
+-        },
+-        "remaining_eligible_count": {
+-          "type": "integer"
++        "removed": {
++          "type": "boolean"
+         }
+       },
+       "required": [
+-        "map_id",
+-        "changed_count",
+-        "excluded_jelly_count",
+-        "remaining_eligible_count"
++        "removed"
+       ],
+-      "additionalProperties": false,
+-      "title": "AllowAllResult"
++      "additionalProperties": false
+     }
+   }
+ }
+diff --git a/Source/RIMAPI/RimworldRestApi/Controllers/Colony/ConstructionContractController.cs b/Source/RIMAPI/RimworldRestApi/Controllers/Colony/ConstructionContractController.cs
+index 14d9d0a..1243fcc 100644
+--- a/Source/RIMAPI/RimworldRestApi/Controllers/Colony/ConstructionContractController.cs
++++ b/Source/RIMAPI/RimworldRestApi/Controllers/Colony/ConstructionContractController.cs
+@@ -228,10 +228,60 @@ namespace RIMAPI.Controllers
+                 {
+                     var cell=new IntVec3(x,0,z);if(!cell.InBounds(map)||cell.Fogged(map))continue;
+                     var terrain=cell.GetTerrain(map);
++                    var zone=map.zoneManager.ZoneAt(cell);
++                    var edifice=cell.GetEdifice(map);
+                     cells.Add(new AreaCell{Position=new Cell{X=x,Z=z},TerrainDef=terrain.defName,Fertility=terrain.fertility,
++                        IsDoor=cell.GetThingList(map).Any(t=>(t.def.entityDefToBuild as ThingDef??t.def).IsDoor),Encloses=cell.GetThingList(map).Any(t=>{var d=t.def.entityDefToBuild as ThingDef??t.def;return d.Fillage==FillCategory.Full||d.IsDoor;}),ZoneId=zone?.ID,ZoneType=zone?.GetType().Name??"",ZoneLabel=zone?.label??"",PlanId=map.planManager.PlanAt(cell)?.GetUniqueLoadID()??"",Plantable=Designator_ZoneAdd.IsZoneableCell(cell,map)&&terrain.fertility>0,
+                         Roofed=cell.Roofed(map),Walkable=cell.Walkable(map),ThingIds=cell.GetThingList(map).Select(t=>t.thingIDNumber).ToList()});
+                 }
+             return new AreaResult{Center=q.Center,Radius=q.Radius,Cells=cells};
+         });
++
++        [Post("/api/v2/planning/remove")]
++        public Task RemovePlan(HttpListenerContext c) => Handle<RemovePlanRequest,RemovePlanResult>(c,q=> {
++            var map=MapHelper.GetMapByID(q.MapId);if(map==null)throw new ArgumentException("Map not found.");
++            var plan=map.planManager.AllPlans.FirstOrDefault(p=>p.GetUniqueLoadID()==q.PlanId);
++            if(plan==null)return new RemovePlanResult{Removed=true};
++            var expected=new HashSet<IntVec3>(q.ExpectedCells.Select(p=>new IntVec3(p.X,0,p.Z)));
++            if(!expected.SetEquals(plan.Cells))return new RemovePlanResult{Removed=false};
++            plan.Delete(false);return new RemovePlanResult{Removed=true};
++        });
++        private static MapPlan PlanData(Plan plan) => new MapPlan{Id=plan.GetUniqueLoadID(),Label=plan.RenamableLabel,ColorDef=plan.Color.defName,Cells=plan.Cells.OrderBy(c=>c.z).ThenBy(c=>c.x).Select(c=>new Cell{X=c.x,Z=c.z}).ToList()};
++        [Post("/api/v2/planning/state")]
++        public Task Planning(HttpListenerContext c) => Handle<MapQuery,PlanningState>(c,q=> {
++            var map=MapHelper.GetMapByID(q.MapId);if(map==null)throw new ArgumentException("Map not found.");
++            return new PlanningState{Plans=map.planManager.AllPlans.Select(PlanData).ToList(),Colors=Designator_Plan_Add.Colors.Select(d=>new PlanColor{DefName=d.defName,Label=d.label??d.defName,HtmlColor="#"+UnityEngine.ColorUtility.ToHtmlStringRGB(d.color)}).ToList()};
++        });
++        [Post("/api/v2/planning/create")]
++        public Task CreatePlan(HttpListenerContext c) => Handle<PlanRequest,MapPlan>(c,q=> {
++            var map=MapHelper.GetMapByID(q.MapId);if(map==null)throw new ArgumentException("Map not found.");
++            var color=Designator_Plan_Add.Colors.FirstOrDefault(d=>d.defName==q.ColorDef);if(color==null)throw new ArgumentException("Unknown planning color.");
++            var cells=q.Cells.Select(p=>new IntVec3(p.X,0,p.Z)).ToList();
++            if(cells.Count!=cells.Distinct().Count())throw new ArgumentException("Duplicate cells.");
++            foreach(var cell in cells)if(!cell.InBounds(map)||cell.InNoBuildEdgeArea(map)||cell.Fogged(map)||map.planManager.PlanAt(cell)!=null)throw new ArgumentException("Planning cell is unavailable: "+cell);
++            var plan=new Plan(color,map.planManager){RenamableLabel=q.Label};
++            foreach(var cell in cells)plan.AddCell(cell);
++            return PlanData(plan);
++        });
++        [Post("/api/v2/construction/footprints")]
++        public Task FootprintCells(HttpListenerContext c) => Handle<ConstructionRequest,Footprints>(c,q=> {
++            var result=new Footprints{Items=new List<Footprint>()};
++            foreach(var p in q.Buildings){
++                var def=DefDatabase<ThingDef>.GetNamedSilentFail(p.DefName);if(def==null||def.category!=ThingCategory.Building)throw new ArgumentException("Unknown building definition.");
++                result.Items.Add(new Footprint{Encloses=def.Fillage==FillCategory.Full||def.IsDoor,IsDoor=def.IsDoor,IsBed=typeof(Building_Bed).IsAssignableFrom(def.thingClass),Cells=GenAdj.OccupiedRect(new IntVec3(p.Position.X,0,p.Position.Z),new Rot4(p.Rotation),def.Size).Select(v=>new Cell{X=v.x,Z=v.z}).ToList()});
++            }
++            return result;
++        });
++        [Post("/api/v2/zones/growing-cells")]
++        public Task GrowingCells(HttpListenerContext c) => Handle<GrowingCellsRequest,GrowingCellsResult>(c,q=> {
++            var map=MapHelper.GetMapByID(q.MapId);if(map==null)throw new ArgumentException("Map not found.");
++            var plant=DefDatabase<ThingDef>.GetNamedSilentFail(q.PlantDef);if(plant?.plant==null||!plant.plant.Sowable)throw new ArgumentException("Unknown sowable plant.");
++            var cells=q.Cells.Select(p=>new IntVec3(p.X,0,p.Z)).ToList();
++            if(cells.Distinct().Count()!=cells.Count)throw new ArgumentException("Duplicate cells.");
++            foreach(var cell in cells)if(!cell.InBounds(map)||cell.GetTerrain(map).fertility<plant.plant.fertilityMin)throw new ArgumentException("Cell below crop minimum fertility: "+cell);
++            var zone=FarmHelper.CreateGrowingZone(map,q.PlantDef,cells,out var error);if(zone==null)throw new ArgumentException(error);
++            var observed=map.zoneManager.AllZones.OfType<Zone_Growing>().Single(z=>z.ID==zone.Zone.Id);
++            return new GrowingCellsResult{ZoneId=observed.ID,PlantDef=observed.GetPlantDefToGrow().defName,Cells=observed.Cells.Select(v=>new Cell{X=v.x,Z=v.z}).ToList()};
++        });
+     }
+ }
+-- 
+2.55.0.windows.3
+

@@ -62,6 +62,12 @@ def create_app(runtime=None):
     async def state(request: Request):
         return request.app.state.rt.public()
 
+    @app.get('/api/spatial/image')
+    async def spatial_image(request: Request):
+        data=getattr(request.app.state.rt,'spatial_image',None)
+        if data is None:raise HTTPException(404,'No spatial survey yet')
+        return Response(data,media_type='image/png',headers={'Cache-Control':'no-store'})
+
     @app.get('/api/health')
     async def health():
         return {'service':'rimbot','version':'0.2.0','source_root':str(Path(__file__).resolve().parents[2]),'pid':os.getpid()}

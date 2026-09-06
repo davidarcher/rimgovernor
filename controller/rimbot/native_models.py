@@ -111,7 +111,7 @@ class ConstructionState(NativeObject):
 class AreaQuery(NativeObject):
     map_id: int
     center: Cell
-    radius: int = Field(ge=0, le=12)
+    radius: int = Field(ge=0, le=32)
 
 class AreaCell(NativeObject):
     position: Cell
@@ -120,6 +120,13 @@ class AreaCell(NativeObject):
     roofed: bool
     walkable: bool
     thing_ids: list[int]
+    zone_id: int | None
+    zone_type: str
+    zone_label: str
+    plan_id: str
+    plantable: bool
+    encloses: bool
+    is_door: bool
 
 class AreaResult(NativeObject):
     center: Cell
@@ -135,6 +142,54 @@ class AllowAllResult(NativeObject):
     excluded_jelly_count: int
     remaining_eligible_count: int
 
+class MapPlan(NativeObject):
+    id: str
+    label: str
+    color_def: str
+    cells: list[Cell]
+
+class PlanColor(NativeObject):
+    def_name: str
+    label: str
+    html_color: str
+
+class PlanningState(NativeObject):
+    plans: list[MapPlan]
+    colors: list[PlanColor]
+
+class PlanRequest(NativeObject):
+    map_id: int
+    label: str
+    color_def: str
+    cells: list[Cell] = Field(min_length=1, max_length=4096)
+
+class Footprint(NativeObject):
+    cells: list[Cell]
+    encloses: bool
+    is_door: bool
+    is_bed: bool
+
+class Footprints(NativeObject):
+    items: list[Footprint]
+
+class GrowingCellsRequest(NativeObject):
+    map_id: int
+    plant_def: str
+    cells: list[Cell] = Field(min_length=1, max_length=4096)
+
+class GrowingCellsResult(NativeObject):
+    zone_id: int
+    plant_def: str
+    cells: list[Cell]
+
+class RemovePlanRequest(NativeObject):
+    map_id: int
+    plan_id: str
+    expected_cells: list[Cell]
+
+class RemovePlanResult(NativeObject):
+    removed: bool
+
 class ContractError(NativeObject):
     code: str
     message: str
@@ -148,6 +203,11 @@ REQUEST_TYPES = {
     'construction_area': AreaQuery,
     'orders_unforbid_all': AllowAllRequest,
     'orders_forbidden_overview': AllowAllRequest,
+    'planning_state': MapQuery,
+    'planning_create': PlanRequest,
+    'construction_footprints': ConstructionRequest,
+    'zone_growing_cells': GrowingCellsRequest,
+    'planning_remove': RemovePlanRequest,
 }
 
 RESPONSE_TYPES = {
@@ -159,4 +219,9 @@ RESPONSE_TYPES = {
     'construction_area': AreaResult,
     'orders_unforbid_all': AllowAllResult,
     'orders_forbidden_overview': AllowAllResult,
+    'planning_state': PlanningState,
+    'planning_create': MapPlan,
+    'construction_footprints': Footprints,
+    'zone_growing_cells': GrowingCellsResult,
+    'planning_remove': RemovePlanResult,
 }

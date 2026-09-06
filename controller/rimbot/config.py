@@ -10,6 +10,7 @@ class Settings(BaseModel):
     manager_model: str = Field(default='', description='Department model; blank uses the planning model.')
     manager_parallelism: int = Field(default=4, ge=1, le=4)
     reasoning: bool = True
+    architect_reasoning: bool = Field(default=False, description="Extra reasoning for visual site selection. Off avoids long Qwen 4B deliberation; geometry is validated in either mode.")
     max_output_tokens: int = Field(default=8192, ge=1024, le=131072)
     context_chars: int = Field(default=60000, ge=16000, le=400000)
     review_ticks: int = Field(default=15000, ge=600, le=60000)

@@ -44,7 +44,7 @@ class Catalog:
             Draft202012Validator.check_schema(entry['request_schema'])
             Draft202012Validator.check_schema(entry['response_schema'])
             name=entry['name']
-            if not ((name.startswith('construction_') and entry['path'].startswith('/api/v2/construction/')) or (name in ('orders_unforbid_all','orders_forbidden_overview') and entry['path'].startswith('/api/v2/orders/'))):
+            if not ((name.startswith('construction_') and entry['path'].startswith('/api/v2/construction/')) or (name.startswith('planning_') and entry['path'].startswith('/api/v2/planning/')) or (name=='zone_growing_cells' and entry['path']=='/api/v2/zones/growing-cells') or (name in ('orders_unforbid_all','orders_forbidden_overview') and entry['path'].startswith('/api/v2/orders/'))):
                 raise ValueError('Unexpected native construction contract route.')
             self.entries[name]={**entry,'schema':entry['request_schema'],'native_contract':True,
                 'transport':'json','query_keys':[],'exposed':True,'category':'Order' if name.startswith('orders_') else 'Construction'}

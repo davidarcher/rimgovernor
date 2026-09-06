@@ -3480,7 +3480,7 @@ class Construction_ConstructionState(WireModel):
 class Construction_AreaQuery(WireModel):
     map_id: int = Field()
     center: Construction_Cell = Field()
-    radius: int = Field(ge=0, le=12)
+    radius: int = Field(ge=0, le=32)
 
 class Construction_AreaCell(WireModel):
     position: Construction_Cell = Field()
@@ -3489,6 +3489,13 @@ class Construction_AreaCell(WireModel):
     roofed: bool = Field()
     walkable: bool = Field()
     thing_ids: list[int] = Field()
+    zone_id: Union[int, None] = Field()
+    zone_type: str = Field()
+    zone_label: str = Field()
+    plan_id: str = Field()
+    plantable: bool = Field()
+    encloses: bool = Field()
+    is_door: bool = Field()
 
 class Construction_AreaResult(WireModel):
     center: Construction_Cell = Field()
@@ -3503,6 +3510,54 @@ class Construction_AllowAllResult(WireModel):
     changed_count: int = Field()
     excluded_jelly_count: int = Field()
     remaining_eligible_count: int = Field()
+
+class Construction_PlanColor(WireModel):
+    def_name: str = Field()
+    label: str = Field()
+    html_color: str = Field()
+
+class Construction_MapPlan(WireModel):
+    id: str = Field()
+    label: str = Field()
+    color_def: str = Field()
+    cells: list[Construction_Cell] = Field()
+
+class Construction_PlanningState(WireModel):
+    plans: list[Construction_MapPlan] = Field()
+    colors: list[Construction_PlanColor] = Field()
+
+class Construction_PlanRequest(WireModel):
+    map_id: int = Field()
+    label: str = Field()
+    color_def: str = Field()
+    cells: list[Construction_Cell] = Field(min_length=1, max_length=4096)
+
+class Construction_Footprint(WireModel):
+    cells: list[Construction_Cell] = Field()
+    encloses: bool = Field()
+    is_door: bool = Field()
+    is_bed: bool = Field()
+
+class Construction_Footprints(WireModel):
+    items: list[Construction_Footprint] = Field()
+
+class Construction_GrowingCellsRequest(WireModel):
+    map_id: int = Field()
+    plant_def: str = Field()
+    cells: list[Construction_Cell] = Field(min_length=1, max_length=4096)
+
+class Construction_GrowingCellsResult(WireModel):
+    zone_id: int = Field()
+    plant_def: str = Field()
+    cells: list[Construction_Cell] = Field()
+
+class Construction_RemovePlanRequest(WireModel):
+    map_id: int = Field()
+    plan_id: str = Field()
+    expected_cells: list[Construction_Cell] = Field()
+
+class Construction_RemovePlanResult(WireModel):
+    removed: bool = Field()
 
 class get_api_openapi_json_Query(WireModel):
     pass
@@ -4158,6 +4213,21 @@ class orders_unforbid_all_Query(WireModel):
 class orders_forbidden_overview_Query(WireModel):
     pass
 
+class planning_state_Query(WireModel):
+    pass
+
+class planning_create_Query(WireModel):
+    pass
+
+class construction_footprints_Query(WireModel):
+    pass
+
+class zone_growing_cells_Query(WireModel):
+    pass
+
+class planning_remove_Query(WireModel):
+    pass
+
 AbilityDefDto.model_rebuild()
 AddRelationRequestDto.model_rebuild()
 AllDefsRequestDto.model_rebuild()
@@ -4610,6 +4680,16 @@ Construction_AreaCell.model_rebuild()
 Construction_AreaResult.model_rebuild()
 Construction_AllowAllRequest.model_rebuild()
 Construction_AllowAllResult.model_rebuild()
+Construction_PlanColor.model_rebuild()
+Construction_MapPlan.model_rebuild()
+Construction_PlanningState.model_rebuild()
+Construction_PlanRequest.model_rebuild()
+Construction_Footprint.model_rebuild()
+Construction_Footprints.model_rebuild()
+Construction_GrowingCellsRequest.model_rebuild()
+Construction_GrowingCellsResult.model_rebuild()
+Construction_RemovePlanRequest.model_rebuild()
+Construction_RemovePlanResult.model_rebuild()
 get_api_openapi_json_Query.model_rebuild()
 post_v1_builder_blueprint_Query.model_rebuild()
 post_v1_builder_check_zone_Query.model_rebuild()
@@ -4815,6 +4895,11 @@ get_v1_map_resource_overview_Query.model_rebuild()
 get_v1_map_construction_work_Query.model_rebuild()
 orders_unforbid_all_Query.model_rebuild()
 orders_forbidden_overview_Query.model_rebuild()
+planning_state_Query.model_rebuild()
+planning_create_Query.model_rebuild()
+construction_footprints_Query.model_rebuild()
+zone_growing_cells_Query.model_rebuild()
+planning_remove_Query.model_rebuild()
 
 QUERY_TYPES = {
     'get_api_openapi_json': TypeAdapter(get_api_openapi_json_Query),
@@ -5022,6 +5107,11 @@ QUERY_TYPES = {
     'get_v1_map_construction_work': TypeAdapter(get_v1_map_construction_work_Query),
     'orders_unforbid_all': TypeAdapter(orders_unforbid_all_Query),
     'orders_forbidden_overview': TypeAdapter(orders_forbidden_overview_Query),
+    'planning_state': TypeAdapter(planning_state_Query),
+    'planning_create': TypeAdapter(planning_create_Query),
+    'construction_footprints': TypeAdapter(construction_footprints_Query),
+    'zone_growing_cells': TypeAdapter(zone_growing_cells_Query),
+    'planning_remove': TypeAdapter(planning_remove_Query),
 }
 
 BODY_TYPES = {
@@ -5095,6 +5185,11 @@ BODY_TYPES = {
     'post_v1_work_settings': TypeAdapter(WorkSettings),
     'orders_unforbid_all': TypeAdapter(Construction_AllowAllRequest),
     'orders_forbidden_overview': TypeAdapter(Construction_AllowAllRequest),
+    'planning_state': TypeAdapter(Construction_MapQuery),
+    'planning_create': TypeAdapter(Construction_PlanRequest),
+    'construction_footprints': TypeAdapter(Construction_ConstructionRequest),
+    'zone_growing_cells': TypeAdapter(Construction_GrowingCellsRequest),
+    'planning_remove': TypeAdapter(Construction_RemovePlanRequest),
 }
 
 RESPONSE_TYPES = {
@@ -5302,6 +5397,11 @@ RESPONSE_TYPES = {
     'get_v1_map_construction_work': TypeAdapter(ConstructionWorkOverview),
     'orders_unforbid_all': TypeAdapter(Construction_AllowAllResult),
     'orders_forbidden_overview': TypeAdapter(Construction_AllowAllResult),
+    'planning_state': TypeAdapter(Construction_PlanningState),
+    'planning_create': TypeAdapter(Construction_MapPlan),
+    'construction_footprints': TypeAdapter(Construction_Footprints),
+    'zone_growing_cells': TypeAdapter(Construction_GrowingCellsResult),
+    'planning_remove': TypeAdapter(Construction_RemovePlanResult),
 }
 
 class HttpOperations:
@@ -5919,3 +6019,18 @@ class HttpOperations:
 
     async def orders_forbidden_overview(self, *, query: orders_forbidden_overview_Query | None = None, body: Construction_AllowAllRequest | None = None) -> Construction_AllowAllResult:
         return await self._call('orders_forbidden_overview', query=query, body=body)
+
+    async def planning_state(self, *, query: planning_state_Query | None = None, body: Construction_MapQuery | None = None) -> Construction_PlanningState:
+        return await self._call('planning_state', query=query, body=body)
+
+    async def planning_create(self, *, query: planning_create_Query | None = None, body: Construction_PlanRequest | None = None) -> Construction_MapPlan:
+        return await self._call('planning_create', query=query, body=body)
+
+    async def construction_footprints(self, *, query: construction_footprints_Query | None = None, body: Construction_ConstructionRequest | None = None) -> Construction_Footprints:
+        return await self._call('construction_footprints', query=query, body=body)
+
+    async def zone_growing_cells(self, *, query: zone_growing_cells_Query | None = None, body: Construction_GrowingCellsRequest | None = None) -> Construction_GrowingCellsResult:
+        return await self._call('zone_growing_cells', query=query, body=body)
+
+    async def planning_remove(self, *, query: planning_remove_Query | None = None, body: Construction_RemovePlanRequest | None = None) -> Construction_RemovePlanResult:
+        return await self._call('planning_remove', query=query, body=body)

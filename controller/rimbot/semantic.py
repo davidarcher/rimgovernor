@@ -139,14 +139,22 @@ async def semantic_review(rt,context,roles):
 
 
 async def execute_projects(rt,context,scheduled):
+    from .spatial import prepare_layout, validate_orders, SPATIAL_KINDS
+    spatial_error=None
+    try: await prepare_layout(rt,context,scheduled)
+    except (ModelError,ValueError,RuntimeError) as error:
+        spatial_error=str(error)
+        rt.note("error",spatial_error,role="Architect")
     for project in scheduled:
         rt.check_generation()
         if rt.mode!='automate':break
         role='Executor:'+project['kind']
         try:
+            if spatial_error and project['kind'] in SPATIAL_KINDS:raise ValueError(spatial_error)
             fresh=await rt.manager_context(context)
             fresh={k:v for k,v in fresh.items() if k not in ('plans','assignments')}
             fresh.update(project_owner=project['owner'],project=project,projects=[p for p in rt.memory['projects'] if p.get('status')!='retired'],assigned_task=project['outcome'])
+            fresh['spatial_reservations']=rt.memory.get('spatial_layout',{})
             project['status']='inspecting';rt.persist()
             batch=await rt.planner.ask(role,fresh,Proposal,rt.settings.reasoning)
             if batch.escalation_reason:
@@ -157,6 +165,7 @@ async def execute_projects(rt,context,scheduled):
                 continue
             project['feedback']=batch.blockers
             rt.note('execution_plan',f'Prepared {len(batch.actions)} orders; not yet executed.',role=role,project_id=project['project_id'],orders=len(batch.actions),model_summary=batch.summary,blockers=batch.blockers)
+            await validate_orders(rt,project,batch.actions)
             before_batch={w['id'] for w in rt.memory['work']}
             seen=set()
             for action in batch.actions:
@@ -165,7 +174,9 @@ async def execute_projects(rt,context,scheduled):
                 if identity in seen:continue
                 seen.add(identity)
                 before={w['id'] for w in rt.memory['work']}
-                try:await rt.execute(action,role)
+                try:
+                    await validate_orders(rt,project,[action],complete=False)
+                    await rt.execute(action,role)
                 finally:
                     for w in rt.memory['work']:
                         if w['id'] not in before:

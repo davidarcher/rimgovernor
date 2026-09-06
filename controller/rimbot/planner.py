@@ -143,6 +143,9 @@ class Planner:
 
     async def validate_observation(self, value, prior_actions=(), context=None):
         if isinstance(value,Proposal):
+            if context and context.get('project') and context.get('spatial_reservations'):
+                from .spatial import validate_orders
+                await validate_orders(self.rt,context['project'],list(prior_actions)+value.actions,complete=False)
             requirements=(context or {}).get('project',{}).get('definition_requirements',{})
             if requirements:
                 names={b['def_name'] for a in value.actions if a.endpoint=='construction_place' for b in a.arguments['buildings']}
@@ -282,7 +285,7 @@ class Planner:
         if role.startswith('Executor:'):
             instructions += ('\nYou are the task planner for the supplied approved semantic project. Plan concrete native orders; ordinary controller code executes and verifies the submitted batch. The project is your assigned task. Resolve native details within its outcome and constraints. '
                              'Use live state to continue existing work, not duplicate it. Submit a useful supported batch promptly; do not redesign the colony. '
-                             'Your native draft tools cover only this player system. If the project is misclassified, report that blocker; never substitute an unrelated command (medical bed rest cannot build beds or recreation). '
+                             'Use spatial_reservations as the exact site assignment. Do not move to another project site. Patches are filled inclusive rectangles describing the full reserved area; for rooms place the complete perimeter including a door, with furniture inside. One building entry is one building, not a rectangle corner command. Use zone_growing_cells for an irregular farm. Your native draft tools cover only this player system. If the project is misclassified, report that blocker; never substitute an unrelated command (medical bed rest cannot build beds or recreation). '
                              'Your summary describes proposed work, never claims completed changes. Orders from your submitted batch will execute serially without another model approval. You cannot change project scope or approve other objectives.')
         instructions += '\nstrategy_guidance contains conditional library advice. Check applicability against native observations; player instructions and live game facts take precedence. Never treat guidance as guaranteed game rules.'
         allowed_tools = {t['function']['name'] for t in tools}
@@ -402,6 +405,9 @@ class Planner:
                         value=contract.model_validate(args)
                         if isinstance(value,Proposal):
                             value=attach_drafts(value)
+                            if context.get('project') and context.get('spatial_reservations'):
+                                from .spatial import validate_orders
+                                await validate_orders(self.rt,context['project'],value.actions)
                         submitted = await self.validate_observation(self.validate_submission(role,value,context),context=context)
                         result = {'received':True}
                     elif any(e['name']==f['name'] for e in native_reads):

@@ -351,6 +351,18 @@ class Runtime:
                 raise ValueError(f"Unknown work type {item.get('work')!r}. Use a native work category: {', '.join(sorted(names))}. Building names and JobDefs are not work types. No priority order sent.")
 
     async def action_complete(self, action, receipt=None):
+        if action.endpoint=='zone_growing_cells':
+            if not receipt:return False
+            zone=await self.api.call('get_map_zone_growing',{'map_id':action.arguments['map_id'],'zone_id':receipt['zone_id']},fresh=True)
+            expected={(c['x'],c['z']) for c in action.arguments['cells']}
+            if not expected or zone.get('plant_def_name')!=action.arguments['plant_def'] or zone.get('zone',{}).get('cells_count')!=len(expected):return False
+            if {(c['x'],c['z']) for c in receipt['cells']}!=expected:return False
+            x0=min(x for x,z in expected);x1=max(x for x,z in expected);z0=min(z for x,z in expected);z1=max(z for x,z in expected)
+            center={'x':(x0+x1)//2,'z':(z0+z1)//2};radius=max(x1-center['x'],z1-center['z'])
+            if radius>32:return False
+            area=await self.api.call('construction_area',{'map_id':action.arguments['map_id'],'center':center,'radius':radius})
+            actual={(c.position.x,c.position.z) for c in area.cells if c.zone_id==receipt['zone_id']}
+            return actual==expected
         if action.endpoint=='construction_place':
             state=await self.api.native.inspect(ConstructionRequest.model_validate(action.arguments))
             return state.accepted and all(item.state=='built' for item in state.items)
@@ -467,6 +479,9 @@ class Runtime:
                     return
                 work['native_result']=result.model_dump()
                 result=result.model_dump()
+            if action.endpoint=='zone_growing_cells':
+                work['native_result']=result
+                self.persist()
             if action.endpoint in ('post_map_zone_growing','post_map_zone_stockpile'):
                 work['native_result']=result
                 self.persist()

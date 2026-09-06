@@ -14624,5 +14624,260 @@
         }
       }
     }
+  },
+  "planning_state": {
+    "path": "/api/v2/planning/state",
+    "method": "POST",
+    "query_schema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "query_model": "planning_state_Query",
+    "body_schema": {
+      "$ref": "#/components/schemas/Construction_MapQuery"
+    },
+    "response_schema": {
+      "$ref": "#/components/schemas/Construction_PlanningState"
+    },
+    "body_required": true,
+    "query_fallback_required": [],
+    "responses": {
+      "200": {
+        "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_PlanningState"
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request or contract violation.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      }
+    }
+  },
+  "planning_create": {
+    "path": "/api/v2/planning/create",
+    "method": "POST",
+    "query_schema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "query_model": "planning_create_Query",
+    "body_schema": {
+      "$ref": "#/components/schemas/Construction_PlanRequest"
+    },
+    "response_schema": {
+      "$ref": "#/components/schemas/Construction_MapPlan"
+    },
+    "body_required": true,
+    "query_fallback_required": [],
+    "responses": {
+      "200": {
+        "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_MapPlan"
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request or contract violation.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      }
+    }
+  },
+  "construction_footprints": {
+    "path": "/api/v2/construction/footprints",
+    "method": "POST",
+    "query_schema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "query_model": "construction_footprints_Query",
+    "body_schema": {
+      "$ref": "#/components/schemas/Construction_ConstructionRequest"
+    },
+    "response_schema": {
+      "$ref": "#/components/schemas/Construction_Footprints"
+    },
+    "body_required": true,
+    "query_fallback_required": [],
+    "responses": {
+      "200": {
+        "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_Footprints"
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request or contract violation.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      }
+    }
+  },
+  "zone_growing_cells": {
+    "path": "/api/v2/zones/growing-cells",
+    "method": "POST",
+    "query_schema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "query_model": "zone_growing_cells_Query",
+    "body_schema": {
+      "$ref": "#/components/schemas/Construction_GrowingCellsRequest"
+    },
+    "response_schema": {
+      "$ref": "#/components/schemas/Construction_GrowingCellsResult"
+    },
+    "body_required": true,
+    "query_fallback_required": [],
+    "responses": {
+      "200": {
+        "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_GrowingCellsResult"
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request or contract violation.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      }
+    }
+  },
+  "planning_remove": {
+    "path": "/api/v2/planning/remove",
+    "method": "POST",
+    "query_schema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "query_model": "planning_remove_Query",
+    "body_schema": {
+      "$ref": "#/components/schemas/Construction_RemovePlanRequest"
+    },
+    "response_schema": {
+      "$ref": "#/components/schemas/Construction_RemovePlanResult"
+    },
+    "body_required": true,
+    "query_fallback_required": [],
+    "responses": {
+      "200": {
+        "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_RemovePlanResult"
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid request or contract violation.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      }
+    }
   }
 }

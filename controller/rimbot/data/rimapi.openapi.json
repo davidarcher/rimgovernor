@@ -15007,6 +15007,256 @@
           }
         }
       }
+    },
+    "/api/v2/planning/state": {
+      "post": {
+        "operationId": "planning_state",
+        "summary": "planning_state",
+        "x-game-write": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Construction_MapQuery"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_PlanningState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or contract violation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Read native colored plans and available planning colors."
+      }
+    },
+    "/api/v2/planning/create": {
+      "post": {
+        "operationId": "planning_create",
+        "summary": "planning_create",
+        "x-game-write": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Construction_PlanRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_MapPlan"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or contract violation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Create a named colored native plan. Existing planning cells are preserved; overlap is rejected. This does not create construction."
+      }
+    },
+    "/api/v2/construction/footprints": {
+      "post": {
+        "operationId": "construction_footprints",
+        "summary": "construction_footprints",
+        "x-game-write": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Construction_ConstructionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_Footprints"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or contract violation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Read exact native occupied cells for each proposed building, including rotation and even dimensions. This is geometry, not placement approval."
+      }
+    },
+    "/api/v2/zones/growing-cells": {
+      "post": {
+        "operationId": "zone_growing_cells",
+        "summary": "zone_growing_cells",
+        "x-game-write": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Construction_GrowingCellsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_GrowingCellsResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or contract violation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Create one growing zone from exact cells, not a rectangle. All cells must satisfy native zone and crop fertility requirements. Returns observed zone cells."
+      }
+    },
+    "/api/v2/planning/remove": {
+      "post": {
+        "operationId": "planning_remove",
+        "summary": "Remove native plan",
+        "x-game-write": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Construction_RemovePlanRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Typed result. Placement rejection is represented by accepted=false and per-placement reasons.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_RemovePlanResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or contract violation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Execution or server response contract failure. Do not retry an uncertain write automatically.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Remove a native plan only if its current cells exactly match expected_cells; edited plans are preserved."
+      }
     }
   },
   "components": {
@@ -30934,7 +31184,7 @@
           "radius": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 12
+            "maximum": 32
           }
         },
         "required": [
@@ -30968,6 +31218,34 @@
             "items": {
               "type": "integer"
             }
+          },
+          "zone_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "zone_type": {
+            "type": "string"
+          },
+          "zone_label": {
+            "type": "string"
+          },
+          "plan_id": {
+            "type": "string"
+          },
+          "plantable": {
+            "type": "boolean"
+          },
+          "encloses": {
+            "type": "boolean"
+          },
+          "is_door": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -30976,7 +31254,14 @@
           "fertility",
           "roofed",
           "walkable",
-          "thing_ids"
+          "thing_ids",
+          "zone_id",
+          "zone_type",
+          "zone_label",
+          "plan_id",
+          "plantable",
+          "encloses",
+          "is_door"
         ],
         "additionalProperties": false
       },
@@ -31041,6 +31326,239 @@
         ],
         "additionalProperties": false,
         "title": "AllowAllResult"
+      },
+      "Construction_PlanColor": {
+        "title": "PlanColor",
+        "type": "object",
+        "properties": {
+          "def_name": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "html_color": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "def_name",
+          "label",
+          "html_color"
+        ],
+        "additionalProperties": false
+      },
+      "Construction_MapPlan": {
+        "title": "MapPlan",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "color_def": {
+            "type": "string"
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Construction_Cell"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "color_def",
+          "cells"
+        ],
+        "additionalProperties": false
+      },
+      "Construction_PlanningState": {
+        "title": "PlanningState",
+        "type": "object",
+        "properties": {
+          "plans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Construction_MapPlan"
+            }
+          },
+          "colors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Construction_PlanColor"
+            }
+          }
+        },
+        "required": [
+          "plans",
+          "colors"
+        ],
+        "additionalProperties": false
+      },
+      "Construction_PlanRequest": {
+        "title": "PlanRequest",
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          },
+          "color_def": {
+            "type": "string"
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Construction_Cell"
+            },
+            "minItems": 1,
+            "maxItems": 4096
+          }
+        },
+        "required": [
+          "map_id",
+          "label",
+          "color_def",
+          "cells"
+        ],
+        "additionalProperties": false
+      },
+      "Construction_Footprint": {
+        "title": "Footprint",
+        "type": "object",
+        "properties": {
+          "cells": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Construction_Cell"
+            }
+          },
+          "encloses": {
+            "type": "boolean"
+          },
+          "is_door": {
+            "type": "boolean"
+          },
+          "is_bed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cells",
+          "encloses",
+          "is_door",
+          "is_bed"
+        ],
+        "additionalProperties": false
+      },
+      "Construction_Footprints": {
+        "title": "Footprints",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Construction_Footprint"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "Construction_GrowingCellsRequest": {
+        "title": "GrowingCellsRequest",
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "plant_def": {
+            "type": "string"
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Construction_Cell"
+            },
+            "minItems": 1,
+            "maxItems": 4096
+          }
+        },
+        "required": [
+          "map_id",
+          "plant_def",
+          "cells"
+        ],
+        "additionalProperties": false
+      },
+      "Construction_GrowingCellsResult": {
+        "title": "GrowingCellsResult",
+        "type": "object",
+        "properties": {
+          "zone_id": {
+            "type": "integer"
+          },
+          "plant_def": {
+            "type": "string"
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Construction_Cell"
+            }
+          }
+        },
+        "required": [
+          "zone_id",
+          "plant_def",
+          "cells"
+        ],
+        "additionalProperties": false
+      },
+      "Construction_RemovePlanRequest": {
+        "title": "RemovePlanRequest",
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "plan_id": {
+            "type": "string"
+          },
+          "expected_cells": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Construction_Cell"
+            }
+          }
+        },
+        "required": [
+          "map_id",
+          "plan_id",
+          "expected_cells"
+        ],
+        "additionalProperties": false
+      },
+      "Construction_RemovePlanResult": {
+        "title": "RemovePlanResult",
+        "type": "object",
+        "properties": {
+          "removed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "removed"
+        ],
+        "additionalProperties": false
       }
     }
   },

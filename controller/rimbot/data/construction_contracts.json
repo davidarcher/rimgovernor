@@ -799,7 +799,7 @@
           "radius": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 12
+            "maximum": 32
           }
         },
         "required": [
@@ -875,6 +875,34 @@
                   "items": {
                     "type": "integer"
                   }
+                },
+                "zone_id": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "zone_type": {
+                  "type": "string"
+                },
+                "zone_label": {
+                  "type": "string"
+                },
+                "plan_id": {
+                  "type": "string"
+                },
+                "plantable": {
+                  "type": "boolean"
+                },
+                "encloses": {
+                  "type": "boolean"
+                },
+                "is_door": {
+                  "type": "boolean"
                 }
               },
               "required": [
@@ -883,7 +911,14 @@
                 "fertility",
                 "roofed",
                 "walkable",
-                "thing_ids"
+                "thing_ids",
+                "zone_id",
+                "zone_type",
+                "zone_label",
+                "plan_id",
+                "plantable",
+                "encloses",
+                "is_door"
               ],
               "additionalProperties": false
             }
@@ -985,6 +1020,473 @@
         ],
         "additionalProperties": false,
         "title": "AllowAllResult"
+      }
+    },
+    {
+      "name": "planning_state",
+      "path": "/api/v2/planning/state",
+      "method": "POST",
+      "write": false,
+      "description": "Read native colored plans and available planning colors.",
+      "request_schema": {
+        "title": "MapQuery",
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "map_id"
+        ],
+        "additionalProperties": false
+      },
+      "response_schema": {
+        "title": "PlanningState",
+        "type": "object",
+        "properties": {
+          "plans": {
+            "type": "array",
+            "items": {
+              "title": "MapPlan",
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "color_def": {
+                  "type": "string"
+                },
+                "cells": {
+                  "type": "array",
+                  "items": {
+                    "title": "Cell",
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "integer"
+                      },
+                      "z": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "z"
+                    ],
+                    "additionalProperties": false,
+                    "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "label",
+                "color_def",
+                "cells"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "colors": {
+            "type": "array",
+            "items": {
+              "title": "PlanColor",
+              "type": "object",
+              "properties": {
+                "def_name": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "html_color": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "def_name",
+                "label",
+                "html_color"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "plans",
+          "colors"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "planning_create",
+      "path": "/api/v2/planning/create",
+      "method": "POST",
+      "write": true,
+      "description": "Create a named colored native plan. Existing planning cells are preserved; overlap is rejected. This does not create construction.",
+      "request_schema": {
+        "title": "PlanRequest",
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          },
+          "color_def": {
+            "type": "string"
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "title": "Cell",
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "integer"
+                },
+                "z": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "x",
+                "z"
+              ],
+              "additionalProperties": false,
+              "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+            },
+            "minItems": 1,
+            "maxItems": 4096
+          }
+        },
+        "required": [
+          "map_id",
+          "label",
+          "color_def",
+          "cells"
+        ],
+        "additionalProperties": false
+      },
+      "response_schema": {
+        "title": "MapPlan",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "color_def": {
+            "type": "string"
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "title": "Cell",
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "integer"
+                },
+                "z": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "x",
+                "z"
+              ],
+              "additionalProperties": false,
+              "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+            }
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "color_def",
+          "cells"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "construction_footprints",
+      "path": "/api/v2/construction/footprints",
+      "method": "POST",
+      "write": false,
+      "description": "Read exact native occupied cells for each proposed building, including rotation and even dimensions. This is geometry, not placement approval.",
+      "request_schema": {
+        "title": "ConstructionRequest",
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "buildings": {
+            "type": "array",
+            "items": {
+              "title": "Placement",
+              "type": "object",
+              "properties": {
+                "def_name": {
+                  "type": "string"
+                },
+                "stuff_def_name": {
+                  "type": "string",
+                  "description": "Choose an observed allowed_materials def_name. Use an empty string when the definition has no allowed materials."
+                },
+                "position": {
+                  "title": "Cell",
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "integer"
+                    },
+                    "z": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "z"
+                  ],
+                  "additionalProperties": false,
+                  "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+                },
+                "rotation": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 3
+                }
+              },
+              "required": [
+                "def_name",
+                "stuff_def_name",
+                "position",
+                "rotation"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 128
+          }
+        },
+        "required": [
+          "map_id",
+          "buildings"
+        ],
+        "additionalProperties": false
+      },
+      "response_schema": {
+        "title": "Footprints",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "title": "Footprint",
+              "type": "object",
+              "properties": {
+                "cells": {
+                  "type": "array",
+                  "items": {
+                    "title": "Cell",
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "integer"
+                      },
+                      "z": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "z"
+                    ],
+                    "additionalProperties": false,
+                    "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+                  }
+                },
+                "encloses": {
+                  "type": "boolean"
+                },
+                "is_door": {
+                  "type": "boolean"
+                },
+                "is_bed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "cells",
+                "encloses",
+                "is_door",
+                "is_bed"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "zone_growing_cells",
+      "path": "/api/v2/zones/growing-cells",
+      "method": "POST",
+      "write": true,
+      "description": "Create one growing zone from exact cells, not a rectangle. All cells must satisfy native zone and crop fertility requirements. Returns observed zone cells.",
+      "request_schema": {
+        "title": "GrowingCellsRequest",
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "plant_def": {
+            "type": "string"
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "title": "Cell",
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "integer"
+                },
+                "z": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "x",
+                "z"
+              ],
+              "additionalProperties": false,
+              "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+            },
+            "minItems": 1,
+            "maxItems": 4096
+          }
+        },
+        "required": [
+          "map_id",
+          "plant_def",
+          "cells"
+        ],
+        "additionalProperties": false
+      },
+      "response_schema": {
+        "title": "GrowingCellsResult",
+        "type": "object",
+        "properties": {
+          "zone_id": {
+            "type": "integer"
+          },
+          "plant_def": {
+            "type": "string"
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "title": "Cell",
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "integer"
+                },
+                "z": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "x",
+                "z"
+              ],
+              "additionalProperties": false,
+              "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+            }
+          }
+        },
+        "required": [
+          "zone_id",
+          "plant_def",
+          "cells"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "planning_remove",
+      "path": "/api/v2/planning/remove",
+      "method": "POST",
+      "write": true,
+      "description": "Remove a native plan only if its current cells exactly match expected_cells; edited plans are preserved.",
+      "request_schema": {
+        "title": "RemovePlanRequest",
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "plan_id": {
+            "type": "string"
+          },
+          "expected_cells": {
+            "type": "array",
+            "items": {
+              "title": "Cell",
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "integer"
+                },
+                "z": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "x",
+                "z"
+              ],
+              "additionalProperties": false,
+              "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+            }
+          }
+        },
+        "required": [
+          "map_id",
+          "plan_id",
+          "expected_cells"
+        ],
+        "additionalProperties": false
+      },
+      "response_schema": {
+        "title": "RemovePlanResult",
+        "type": "object",
+        "properties": {
+          "removed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "removed"
+        ],
+        "additionalProperties": false
       }
     }
   ],
@@ -2069,7 +2571,7 @@
         "radius": {
           "type": "integer",
           "minimum": 0,
-          "maximum": 12
+          "maximum": 32
         }
       },
       "required": [
@@ -2118,6 +2620,34 @@
           "items": {
             "type": "integer"
           }
+        },
+        "zone_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "zone_type": {
+          "type": "string"
+        },
+        "zone_label": {
+          "type": "string"
+        },
+        "plan_id": {
+          "type": "string"
+        },
+        "plantable": {
+          "type": "boolean"
+        },
+        "encloses": {
+          "type": "boolean"
+        },
+        "is_door": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -2126,7 +2656,14 @@
         "fertility",
         "roofed",
         "walkable",
-        "thing_ids"
+        "thing_ids",
+        "zone_id",
+        "zone_type",
+        "zone_label",
+        "plan_id",
+        "plantable",
+        "encloses",
+        "is_door"
       ],
       "additionalProperties": false
     },
@@ -2196,6 +2733,34 @@
                 "items": {
                   "type": "integer"
                 }
+              },
+              "zone_id": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "zone_type": {
+                "type": "string"
+              },
+              "zone_label": {
+                "type": "string"
+              },
+              "plan_id": {
+                "type": "string"
+              },
+              "plantable": {
+                "type": "boolean"
+              },
+              "encloses": {
+                "type": "boolean"
+              },
+              "is_door": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -2204,7 +2769,14 @@
               "fertility",
               "roofed",
               "walkable",
-              "thing_ids"
+              "thing_ids",
+              "zone_id",
+              "zone_type",
+              "zone_label",
+              "plan_id",
+              "plantable",
+              "encloses",
+              "is_door"
             ],
             "additionalProperties": false
           }
@@ -2254,6 +2826,427 @@
       ],
       "additionalProperties": false,
       "title": "AllowAllResult"
+    },
+    "PlanColor": {
+      "title": "PlanColor",
+      "type": "object",
+      "properties": {
+        "def_name": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "html_color": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "def_name",
+        "label",
+        "html_color"
+      ],
+      "additionalProperties": false
+    },
+    "MapPlan": {
+      "title": "MapPlan",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "color_def": {
+          "type": "string"
+        },
+        "cells": {
+          "type": "array",
+          "items": {
+            "title": "Cell",
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "x",
+              "z"
+            ],
+            "additionalProperties": false,
+            "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+          }
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "color_def",
+        "cells"
+      ],
+      "additionalProperties": false
+    },
+    "PlanningState": {
+      "title": "PlanningState",
+      "type": "object",
+      "properties": {
+        "plans": {
+          "type": "array",
+          "items": {
+            "title": "MapPlan",
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "color_def": {
+                "type": "string"
+              },
+              "cells": {
+                "type": "array",
+                "items": {
+                  "title": "Cell",
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "integer"
+                    },
+                    "z": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "z"
+                  ],
+                  "additionalProperties": false,
+                  "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+                }
+              }
+            },
+            "required": [
+              "id",
+              "label",
+              "color_def",
+              "cells"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "colors": {
+          "type": "array",
+          "items": {
+            "title": "PlanColor",
+            "type": "object",
+            "properties": {
+              "def_name": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "html_color": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "def_name",
+              "label",
+              "html_color"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "plans",
+        "colors"
+      ],
+      "additionalProperties": false
+    },
+    "PlanRequest": {
+      "title": "PlanRequest",
+      "type": "object",
+      "properties": {
+        "map_id": {
+          "type": "integer"
+        },
+        "label": {
+          "type": "string"
+        },
+        "color_def": {
+          "type": "string"
+        },
+        "cells": {
+          "type": "array",
+          "items": {
+            "title": "Cell",
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "x",
+              "z"
+            ],
+            "additionalProperties": false,
+            "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+          },
+          "minItems": 1,
+          "maxItems": 4096
+        }
+      },
+      "required": [
+        "map_id",
+        "label",
+        "color_def",
+        "cells"
+      ],
+      "additionalProperties": false
+    },
+    "Footprint": {
+      "title": "Footprint",
+      "type": "object",
+      "properties": {
+        "cells": {
+          "type": "array",
+          "items": {
+            "title": "Cell",
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "x",
+              "z"
+            ],
+            "additionalProperties": false,
+            "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+          }
+        },
+        "encloses": {
+          "type": "boolean"
+        },
+        "is_door": {
+          "type": "boolean"
+        },
+        "is_bed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "cells",
+        "encloses",
+        "is_door",
+        "is_bed"
+      ],
+      "additionalProperties": false
+    },
+    "Footprints": {
+      "title": "Footprints",
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "title": "Footprint",
+            "type": "object",
+            "properties": {
+              "cells": {
+                "type": "array",
+                "items": {
+                  "title": "Cell",
+                  "type": "object",
+                  "properties": {
+                    "x": {
+                      "type": "integer"
+                    },
+                    "z": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "z"
+                  ],
+                  "additionalProperties": false,
+                  "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+                }
+              },
+              "encloses": {
+                "type": "boolean"
+              },
+              "is_door": {
+                "type": "boolean"
+              },
+              "is_bed": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "cells",
+              "encloses",
+              "is_door",
+              "is_bed"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "GrowingCellsRequest": {
+      "title": "GrowingCellsRequest",
+      "type": "object",
+      "properties": {
+        "map_id": {
+          "type": "integer"
+        },
+        "plant_def": {
+          "type": "string"
+        },
+        "cells": {
+          "type": "array",
+          "items": {
+            "title": "Cell",
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "x",
+              "z"
+            ],
+            "additionalProperties": false,
+            "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+          },
+          "minItems": 1,
+          "maxItems": 4096
+        }
+      },
+      "required": [
+        "map_id",
+        "plant_def",
+        "cells"
+      ],
+      "additionalProperties": false
+    },
+    "GrowingCellsResult": {
+      "title": "GrowingCellsResult",
+      "type": "object",
+      "properties": {
+        "zone_id": {
+          "type": "integer"
+        },
+        "plant_def": {
+          "type": "string"
+        },
+        "cells": {
+          "type": "array",
+          "items": {
+            "title": "Cell",
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "x",
+              "z"
+            ],
+            "additionalProperties": false,
+            "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+          }
+        }
+      },
+      "required": [
+        "zone_id",
+        "plant_def",
+        "cells"
+      ],
+      "additionalProperties": false
+    },
+    "RemovePlanRequest": {
+      "title": "RemovePlanRequest",
+      "type": "object",
+      "properties": {
+        "map_id": {
+          "type": "integer"
+        },
+        "plan_id": {
+          "type": "string"
+        },
+        "expected_cells": {
+          "type": "array",
+          "items": {
+            "title": "Cell",
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "x",
+              "z"
+            ],
+            "additionalProperties": false,
+            "description": "RimWorld ground coordinates: x and z. Vertical y is not a ground coordinate."
+          }
+        }
+      },
+      "required": [
+        "map_id",
+        "plan_id",
+        "expected_cells"
+      ],
+      "additionalProperties": false
+    },
+    "RemovePlanResult": {
+      "title": "RemovePlanResult",
+      "type": "object",
+      "properties": {
+        "removed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "removed"
+      ],
+      "additionalProperties": false
     }
   }
 }
