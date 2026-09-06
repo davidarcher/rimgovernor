@@ -272,6 +272,8 @@ class Planner:
         role_label = role.split(':',1)[0]
         drafts = {}
         failed_drafts = {}
+        if issubclass(contract,Decision) and context.get('semantic_objectives') and self.rt.manager_model is None:
+            instructions += '\nAll roles use the same small model. No larger-model escalation is available. Resolve this narrow arbitration or defer the specific uncertain objectives with concrete reasons; leave escalation_reason empty. Do not plan exact execution orders.'
         basis=context.get('construction_state',{}).get('revision')
         inspected_cells=set()
         def attach_drafts(value):

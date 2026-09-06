@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, field_validator
 class Settings(BaseModel):
     rimapi_url: str = 'http://127.0.0.1:8765'
     model_url: str = 'http://127.0.0.1:1234/v1'
-    model: str = 'qwen/qwen3.5-9b'
+    model: str = 'qwen3.5-4b'
     manager_model: str = Field(default='', description='Department model; blank uses the planning model.')
     manager_parallelism: int = Field(default=4, ge=1, le=4)
     reasoning: bool = True

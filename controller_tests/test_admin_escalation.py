@@ -6,7 +6,7 @@ from rimbot.model import ModelError
 @pytest.mark.parametrize('trigger',['uncertainty','failure'])
 async def test_admin_escalates_once_before_applying_anything(colony,trigger):
     rt,game=colony
-    await rt.configure(rt.settings.model_copy(update={'manager_model':'qwen3.5-4b'}))
+    await rt.configure(rt.settings.model_copy(update={'model':'test-main-model','manager_model':'qwen3.5-4b'}))
     calls=[]
     async def ask(role,context,contract,thinking):
         calls.append(role)
@@ -34,7 +34,7 @@ async def test_escalation_cannot_authorize_changes_or_recurse(colony):
     rt,_=colony
     with pytest.raises(ValueError,match='cannot also approve'):
         rt.planner.validate_submission('Administrator',ObjectiveDecision(response='x',accepted=['a'],escalation_reason='Uncertain'),{})
-    await rt.configure(rt.settings.model_copy(update={'manager_model':'qwen3.5-4b'}))
+    await rt.configure(rt.settings.model_copy(update={'model':'test-main-model','manager_model':'qwen3.5-4b'}))
     calls=[]
     async def ask(*args):calls.append(1);return ObjectiveDecision(response='x',escalation_reason='Still uncertain')
     rt.planner.ask=ask

@@ -4,7 +4,7 @@ from rimbot.planner import ROLES
 async def test_department_routing_and_main_model_fallback(colony):
     rt,_=colony
     assert all(rt.model_for_role(role) is rt.model for role in ROLES)
-    await rt.configure(rt.settings.model_copy(update={'manager_model':'qwen3.5-4b'}))
+    await rt.configure(rt.settings.model_copy(update={'model':'test-main-model','manager_model':'qwen3.5-4b'}))
     assert rt.manager_model.settings.model=='qwen3.5-4b'
     assert all(rt.model_for_role(role) is rt.manager_model for role in ROLES)
     assert rt.model_for_role('Strategy: plan') is rt.model
@@ -20,7 +20,7 @@ async def test_department_routing_and_main_model_fallback(colony):
 
 async def test_planner_uses_department_client_and_logs_model(colony):
     rt,_=colony
-    await rt.configure(rt.settings.model_copy(update={'manager_model':'qwen3.5-4b'}))
+    await rt.configure(rt.settings.model_copy(update={'model':'test-main-model','manager_model':'qwen3.5-4b'}))
     rt.cycle_generation=rt.generation
     async def small(*args):return {'role':'assistant','content':'{"summary":"No construction needed","actions":[]}'},{}
     async def main(*args):raise AssertionError('Department used the main model')
@@ -32,7 +32,7 @@ async def test_planner_uses_department_client_and_logs_model(colony):
 
 async def test_task_planner_uses_small_model_with_reasoning(colony):
     rt,_=colony
-    await rt.configure(rt.settings.model_copy(update={'manager_model':'qwen3.5-4b','reasoning':True}))
+    await rt.configure(rt.settings.model_copy(update={'model':'test-main-model','manager_model':'qwen3.5-4b','reasoning':True}))
     rt.cycle_generation=rt.generation
     async def small(messages,tools,thinking,progress):
         assert thinking is True

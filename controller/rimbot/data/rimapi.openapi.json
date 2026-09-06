@@ -8766,6 +8766,14 @@
             "schema": {
               "type": "integer"
             }
+          },
+          {
+            "name": "zone_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "x-native-collection-filters": true,
@@ -8773,7 +8781,7 @@
         "x-known-limitations": [
           "Handler passes map_id as zone_id."
         ],
-        "x-native-source-sha256": "3cc1886875d6e6423aa0f0f57ee59df1f46e0f740af6a9795e335c9620f5debe"
+        "x-native-source-sha256": "a9622df2f6dd8f3db90fb4d9c78cdad7346e4c9b879e4b57fcee1ab00d7a05de"
       },
       "post": {
         "operationId": "post_v1_map_zone_growing",

@@ -3874,6 +3874,7 @@ class get_v1_map_work_tables_Query(WireModel):
 
 class get_v1_map_zone_growing_Query(WireModel):
     map_id: int = Field()
+    zone_id: int = Field()
 
 class post_v1_map_zone_growing_Query(WireModel):
     pass

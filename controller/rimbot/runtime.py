@@ -316,10 +316,30 @@ class Runtime:
     async def check(self, check):
         return satisfies(await self.query(check.query), check)
 
-    async def action_complete(self, action):
+    async def action_complete(self, action, receipt=None):
         if action.endpoint=='construction_place':
             state=await self.api.native.inspect(ConstructionRequest.model_validate(action.arguments))
             return state.accepted and all(item.state=='built' for item in state.items)
+        if action.endpoint in ('post_map_zone_growing','post_map_zone_stockpile'):
+            if not receipt:return False
+            args=action.arguments
+            growing=action.endpoint=='post_map_zone_growing'
+            zone_id=(receipt.get('zone') or {}).get('id') if growing else receipt.get('zone_id')
+            if zone_id is None or (not growing and receipt.get('success') is not True):return False
+            a,b=args['point_a'],args['point_b']
+            expected=(abs(a['x']-b['x'])+1)*(abs(a['z']-b['z'])+1)
+            zones=await self.api.call('get_map_zones',{'map_id':args['map_id']},fresh=True)
+            zone=next((z for z in zones.get('zones',[]) if z['id']==zone_id),None)
+            if not zone or zone['cells_count']!=expected:return False
+            if growing:
+                actual=await self.api.call('get_map_zone_growing',{'map_id':args['map_id'],'zone_id':zone_id},fresh=True)
+                return actual.get('plant_def_name')==args['plant_def'] and (actual.get('zone') or {}).get('id')==zone_id
+            if args.get('name') is not None and zone.get('label')!=args['name']:return False
+            if args.get('priority') is not None and receipt.get('priority')!=args['priority']:return False
+            return True
+        if action.endpoint=='delete_map_zone_stockpile_delete':
+            zones=await self.api.call('get_map_zones',{'map_id':self.observation['map']['id']},fresh=True)
+            return all(z['id']!=action.arguments['zone_id'] for z in zones.get('zones',[]))
         if action.done is not None:return await self.check(action.done)
         args=action.arguments
         if action.endpoint=='post_work_settings':
@@ -346,7 +366,7 @@ class Runtime:
             if work['status'] not in ('issued','unknown','waiting'):
                 continue
             try:
-                done = await self.action_complete(Action.model_validate(work['action']))
+                done = await self.action_complete(Action.model_validate(work['action']),work.get('native_result'))
                 if done:
                     work['status'] = 'complete'
                     work['detail'] = 'Verified in the colony'
@@ -407,11 +427,19 @@ class Runtime:
                     return
                 work['native_result']=result.model_dump()
                 result=result.model_dump()
+            if action.endpoint in ('post_map_zone_growing','post_map_zone_stockpile'):
+                work['native_result']=result
+                self.persist()
+                if action.endpoint=='post_map_zone_stockpile' and result.get('success') is not True:
+                    work['status']='rejected'
+                    work['detail']=result.get('message') or 'The game rejected the stockpile'
+                    self.note('error',work['detail'],role=role)
+                    return
             work['status'] = 'issued'
             work['detail'] = 'Order issued; checking the colony'
             self.counters['actions'] += 1
             self.note('action',action.title,role=role,endpoint=e['path'],arguments=action.arguments,result=compact(result,5000))
-            if await self.action_complete(action):
+            if await self.action_complete(action,work.get('native_result')):
                 work['status'], work['detail'] = 'complete', 'Verified in the colony'
         except StaleObservation as error:
             work['status']='deferred'

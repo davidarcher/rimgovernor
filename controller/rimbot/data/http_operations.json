@@ -8460,10 +8460,14 @@
       "properties": {
         "map_id": {
           "type": "integer"
+        },
+        "zone_id": {
+          "type": "integer"
         }
       },
       "required": [
-        "map_id"
+        "map_id",
+        "zone_id"
       ],
       "additionalProperties": false
     },
