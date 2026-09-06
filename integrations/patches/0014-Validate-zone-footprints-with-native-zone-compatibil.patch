@@ -1,0 +1,137 @@
+From 054c01dc85632cbb65e74bf22e86d2f203b81469 Mon Sep 17 00:00:00 2001
+From: David Archer <darcher@gmail.com>
+Date: Sun, 6 Sep 2026 00:19:00 -0400
+Subject: [PATCH] Validate zone footprints with native zone compatibility
+ before mutation
+
+---
+ .../RimworldRestApi/Helpers/FarmHelper.cs     | 45 +++++--------------
+ .../RimworldRestApi/Helpers/MapHelper.cs      |  4 ++
+ .../Helpers/ZonePlacementHelper.cs            | 34 ++++++++++++++
+ 3 files changed, 48 insertions(+), 35 deletions(-)
+ create mode 100644 Source/RIMAPI/RimworldRestApi/Helpers/ZonePlacementHelper.cs
+
+diff --git a/Source/RIMAPI/RimworldRestApi/Helpers/FarmHelper.cs b/Source/RIMAPI/RimworldRestApi/Helpers/FarmHelper.cs
+index e275e75..812a69c 100644
+--- a/Source/RIMAPI/RimworldRestApi/Helpers/FarmHelper.cs
++++ b/Source/RIMAPI/RimworldRestApi/Helpers/FarmHelper.cs
+@@ -195,11 +195,8 @@ namespace RIMAPI.Helpers
+         }
+ 
+         /// <summary>
+-        /// Create a growing zone. On failure, <paramref name="error"/> carries a
+-        /// SPECIFIC reason — historically this returned a bare null that the
+-        /// caller blamed on the plant def, even when the real cause was that
+-        /// every requested cell already belonged to another zone (the common
+-        /// case when an agent re-issues a growing zone over an existing one).
++        /// Creates a zone only after every cell passes native zone compatibility
++        /// and existing-zone checks. Rejected requests leave the map unchanged.
+         /// </summary>
+         public static GrowingZoneDto CreateGrowingZone(
+             Map map, string plantDefName, List<IntVec3> cells, out string error)
+@@ -213,39 +210,17 @@ namespace RIMAPI.Helpers
+                 return null;
+             }
+ 
+-            var zone = new Zone_Growing(map.zoneManager);
+-            map.zoneManager.RegisterZone(zone);
+-
+-            int requested = cells.Count;
+-            int skippedOutOfBounds = 0;
+-            int skippedOccupied = 0;
+-            foreach (var cell in cells)
++            if (cells.Count == 0)
+             {
+-                if (!cell.InBounds(map))
+-                {
+-                    skippedOutOfBounds++;
+-                    continue;
+-                }
+-                if (map.zoneManager.ZoneAt(cell) != null)
+-                {
+-                    skippedOccupied++;
+-                    continue;
+-                }
+-                zone.AddCell(cell);
+-            }
+-
+-            // No valid cells added — remove the empty zone and report WHY.
+-            if (zone.CellCount == 0)
+-            {
+-                zone.Delete();
+-                error =
+-                    $"No free cells in the requested {requested}-cell rectangle " +
+-                    $"({skippedOccupied} already belong to another zone, " +
+-                    $"{skippedOutOfBounds} out of bounds). " +
+-                    $"The area likely overlaps an existing zone — a zone for " +
+-                    $"'{plantDef.defName}' may already exist here.";
++                error = "No cells requested. No zone was created.";
+                 return null;
+             }
++            error = ZonePlacementHelper.ValidateNewZone(map, cells);
++            if (error != null) return null;
++
++            var zone = new Zone_Growing(map.zoneManager);
++            map.zoneManager.RegisterZone(zone);
++            foreach (var cell in cells) zone.AddCell(cell);
+ 
+             zone.SetPlantDefToGrow(plantDef);
+             return GetGrowingZoneById(map, zone.ID);
+diff --git a/Source/RIMAPI/RimworldRestApi/Helpers/MapHelper.cs b/Source/RIMAPI/RimworldRestApi/Helpers/MapHelper.cs
+index edfa969..cd03419 100644
+--- a/Source/RIMAPI/RimworldRestApi/Helpers/MapHelper.cs
++++ b/Source/RIMAPI/RimworldRestApi/Helpers/MapHelper.cs
+@@ -749,6 +749,10 @@ namespace RIMAPI.Helpers
+                     };
+                 }
+ 
++                var placementError = ZonePlacementHelper.ValidateNewZone(map, rect.Cells);
++                if (placementError != null)
++                    return new StockpileResponseDto { Success = false, Message = placementError };
++
+                 // Create new stockpile zone
+                 Zone_Stockpile stockpile = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
+ 
+diff --git a/Source/RIMAPI/RimworldRestApi/Helpers/ZonePlacementHelper.cs b/Source/RIMAPI/RimworldRestApi/Helpers/ZonePlacementHelper.cs
+new file mode 100644
+index 0000000..42b02f0
+--- /dev/null
++++ b/Source/RIMAPI/RimworldRestApi/Helpers/ZonePlacementHelper.cs
+@@ -0,0 +1,34 @@
++using System.Collections.Generic;
++using System.Linq;
++using RimWorld;
++using Verse;
++
++namespace RIMAPI.Helpers
++{
++    internal static class ZonePlacementHelper
++    {
++        // Preflight the entire request before registration: failed calls create nothing.
++        public static string ValidateNewZone(Map map, IEnumerable<IntVec3> cells)
++        {
++            foreach (var cell in cells)
++            {
++                var report = Designator_ZoneAdd.IsZoneableCell(cell, map);
++                if (!report.Accepted)
++                {
++                    var blocker = cell.InBounds(map)
++                        ? map.thingGrid.ThingsAt(cell).FirstOrDefault(t => !t.def.CanOverlapZones)
++                        : null;
++                    var reason = blocker != null ? $"blocked by {blocker.ThingID} ({blocker.def.defName})"
++                        : !cell.InBounds(map) ? "out of bounds"
++                        : cell.Fogged(map) ? "unexplored"
++                        : !string.IsNullOrEmpty(report.Reason) ? report.Reason : "not zoneable";
++                    return $"Cannot create zone at ({cell.x}, {cell.z}): {reason}. No zone was created.";
++                }
++                var zone = map.zoneManager.ZoneAt(cell);
++                if (zone != null)
++                    return $"Cannot create zone at ({cell.x}, {cell.z}): already in zone {zone.ID} ({zone.label}). No zone was created.";
++            }
++            return null;
++        }
++    }
++}
+-- 
+2.55.0.windows.3
+
