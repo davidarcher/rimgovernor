@@ -19,9 +19,9 @@ def reconcile_projects(memory):
         elif all(w['status']=='complete' for w in rows):
             # Supply access supports another system; it cannot verify that system's orders.
             support={'post_things_set_forbidden','orders_unforbid_all'}
-            only_support=project['kind']!='supply_access' and all(w.get('action',{}).get('endpoint') in support for w in rows)
+            only_support=all(w.get('action',{}).get('endpoint')=='post_work_settings' or (project['kind']!='supply_access' and w.get('action',{}).get('endpoint') in support) for w in rows)
             status='needs_review' if only_support else 'orders_verified'
-            if only_support:project['progress_note']='Supporting supply orders verified; the main project still needs orders or an observed outcome.'
+            if only_support:project['progress_note']='Supporting settings/supply orders verified; the main project still needs orders or an observed outcome.'
         elif any(w['status'] in ('rejected','deferred','unresolved') for w in rows):status='needs_review'
         else:status='awaiting_work'
         if status=='orders_verified':project.pop('progress_note',None)
@@ -157,6 +157,7 @@ async def execute_projects(rt,context,scheduled):
                 if not any(project['project_id'] in r['project_ids'] for r in layout.get('regions',[])):
                     raise ValueError('Waiting for architect: '+layout.get('deferred',{}).get(project['project_id'],'No valid site reserved.'))
             fresh=await rt.manager_context(context)
+            fresh=await rt.observe_resources(fresh)
             fresh={k:v for k,v in fresh.items() if k not in ('plans','assignments')}
             fresh.update(project_owner=project['owner'],project=project,projects=[p for p in rt.memory['projects'] if p.get('status')!='retired'],assigned_task=project['outcome'])
             fresh['spatial_reservations']=rt.memory.get('spatial_layout',{})

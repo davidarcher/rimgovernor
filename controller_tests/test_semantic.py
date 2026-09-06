@@ -214,7 +214,10 @@ async def test_admin_cannot_forget_existing_projects_or_update_twice(colony):
     rt,_=colony
     p=retain_project(rt.memory,'Infrastructure',objective())
     context={'projects':[p],'proposals':{str(i):{'objective':objective(project_id=p['project_id']).model_dump()} for i in range(2)}}
-    with pytest.raises(ValueError,match='every active project'):
+    decision=ObjectiveDecision(response='x',accepted=['0'],deferred={'1':'duplicate'})
+    rt.planner.validate_submission('Administrator',decision,context)
+    assert decision.keep_projects==[p['project_id']]
+    with pytest.raises(ValueError,match='at most one continuation'):
         rt.planner.validate_submission('Administrator',ObjectiveDecision(response='x',accepted=['0','1']),context)
     with pytest.raises(ValueError,match='at most one continuation'):
         rt.planner.validate_submission('Administrator',ObjectiveDecision(response='x',accepted=['0','1'],keep_projects=[p['project_id']]),context)
@@ -238,3 +241,9 @@ def test_supporting_supply_order_does_not_verify_construction_project():
     p['kind']='supply_access';p['status']='awaiting_work'
     reconcile_projects(memory)
     assert p['status']=='orders_verified'
+
+
+def test_manual_priority_toggle_does_not_verify_work_assignment_project():
+    memory={'projects':[{'project_id':'p','kind':'work_assignment','status':'awaiting_work','work_ids':['w']}], 'work':[{'id':'w','status':'complete','action':{'endpoint':'post_work_settings'}}]}
+    assert reconcile_projects(memory)
+    assert memory['projects'][0]['status']=='needs_review'

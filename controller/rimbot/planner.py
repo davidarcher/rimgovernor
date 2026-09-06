@@ -93,8 +93,10 @@ class Planner:
         if isinstance(value,ObjectiveDecision):
             projects={p['project_id'] for p in (context or {}).get('projects',[])}
             keep=set(value.keep_projects);retire=set(value.retire_projects)
-            if len(keep)!=len(value.keep_projects) or keep & retire or keep | retire != projects:
-                raise ValueError('Account for every active project exactly once in keep_projects or retire_projects: '+', '.join(sorted(projects)))
+            if len(keep)!=len(value.keep_projects) or keep & retire or (keep | retire)-projects:
+                raise ValueError('Keep/retire must reference known active projects without duplicates or conflicting decisions: '+', '.join(sorted(projects)))
+            value.keep_projects.extend(sorted(projects-keep-retire))
+            keep=set(value.keep_projects)
             if not set(value.updates)<=set(value.accepted):raise ValueError('Updates must target accepted candidate IDs.')
             references=[]
             for key in value.accepted:
@@ -281,7 +283,7 @@ class Planner:
                           'Compare crop minimum fertility to terrain fertility; a nonzero fertility value is not proof a crop can grow. Base growth days omit nightly rest. '
                           'Idle workers with no queued jobs need construction, zones, bills or designations, not priority changes. '
                           'Resolve duplicate outcomes and conflicting priorities or constraints. Do not ask for exact cells, payloads or tool discovery: the executor resolves them. '
-                          'Accept useful supported objectives; do not invent prerequisites or unrelated improvements. '
+                          'Accept useful supported objectives; do not invent prerequisites or unrelated improvements. A stockpile does not unlock supplies: forbidden=false does, and allowed loose items can already be used. Crop zones require no stockpile or construction materials. Approve supply access and useful construction/growing work together; do not defer these behind stockpiling. work_assignment is only a settings correction, never a substitute for creating crop zones, mining/hunting designations or building orders. '
                           'Approval starts the work: missing orders and unfinished prerequisites are not reasons to require the outcome before approving it. '
                           'The construction executor can inspect and allow appropriate nearby supplies, designate work and place construction. '
                           'Treat resolvable material access as execution work within scope, not an automatic veto. Defer for observed danger, conflicting commitments, player constraints or prerequisites outside the executor scope. '

@@ -35,5 +35,5 @@ EXECUTION_DOMAINS={
 
 class ObjectiveDecision(Decision):
     updates: dict[str, WorkObjective] = Field(default_factory=dict, description='Accepted candidate ID to corrected objective. Set project_id to an existing project to continue/revise it instead of creating a duplicate. Correct wrong kind, infeasible assumptions or scope here.')
-    keep_projects: list[str] = Field(default_factory=list, description='Existing active project IDs to keep. Every existing project must be kept or retired. Keeping alone does not queue new orders.')
+    keep_projects: list[str] = Field(default_factory=list, description='Existing active project IDs to keep. Omitted existing projects remain active. Keeping alone does not queue new orders.')
     retire_projects: dict[str,str] = Field(default_factory=dict, description='Existing project ID to reason: duplicate, obsolete, infeasible or achieved. Retires tracking only; does not cancel game orders.')
