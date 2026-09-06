@@ -30,3 +30,11 @@ it('shows definition searches, empty results and query filters without expanding
   expect(screen.getByText('Building search · “Wall” · 1 matches · wall')).toBeVisible();
   expect(screen.getByText(/def_name=WoodLog · near \(20, 30\)/)).toBeVisible();
 });
+it('does not present historical model planning prose as executed work',async()=>{
+  vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true,json:async()=>({colony:'one',events:[
+    {id:1,at:1,kind:'execution',role:'Executor',orders:2,text:'Enabled manual priorities and assigned workers.'}
+  ]})}));
+  render(<ManagerActivity colony="one"/>);
+  expect(await screen.findByText(/Proposed 2 orders · historical planning summary/)).toBeVisible();
+  expect(screen.queryByText('Enabled manual priorities and assigned workers.')).not.toBeInTheDocument();
+});

@@ -34,6 +34,7 @@ EXECUTION_DOMAINS={
 }
 
 class ObjectiveDecision(Decision):
+    escalation_reason: str = Field(default="",max_length=350,description="If uncertainty or conflicting objectives are too complex to resolve reliably, explain the specific unresolved question here and leave ALL decision fields empty. This requests one review by the larger model; it authorizes no changes.")
     updates: dict[str, WorkObjective] = Field(default_factory=dict, description='Accepted candidate ID to corrected objective. Set project_id to an existing project to continue/revise it instead of creating a duplicate. Correct wrong kind, infeasible assumptions or scope here.')
     keep_projects: list[str] = Field(default_factory=list, description='Existing active project IDs to keep. Every existing project must be kept or retired. Keeping alone does not queue new orders.')
     retire_projects: dict[str,str] = Field(default_factory=dict, description='Existing project ID to reason: duplicate, obsolete, infeasible or achieved. Retires tracking only; does not cancel game orders.')

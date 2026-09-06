@@ -83,6 +83,10 @@ class Planner:
         self.rt = runtime
 
     def validate_submission(self, role, value, context=None):
+        if isinstance(value,ObjectiveDecision) and value.escalation_reason:
+            if value.accepted or value.deferred or value.updates or value.keep_projects or value.retire_projects:
+                raise ValueError('An escalation cannot also approve, defer, update, keep or retire projects. Leave decision fields empty.')
+            return value
         if isinstance(value,Decision) and context and 'proposals' in context:
             proposals=context['proposals']
             accepted=set(value.accepted);deferred=set(value.deferred)
@@ -245,7 +249,9 @@ class Planner:
             # in every request. Native schemas supply the actual command shape.
             context = {**context, 'capabilities':{'read':readable,'propose':writable}}
         if issubclass(contract,Decision) and context.get('semantic_objectives'):
-            instructions=('Approve or defer each candidate ID exactly once. These are individual objectives, not whole department bundles. '
+            instructions=('If uncertainty or conflicting priorities exceed what you can resolve reliably, submit escalation_reason explaining the specific question with all decision fields empty. Do not escalate routine work or merely missing observations that a task planner can inspect. '
+                          'If escalation context is present, this is the final larger-model review: resolve the question or defer unsupported work with concrete blockers, do not request another escalation. '
+                          'Approve or defer each candidate ID exactly once. These are individual objectives, not whole department bundles. '
                           'Review all existing projects: keep useful ones, retire duplicates and obsolete assumptions. Use updates with an existing project_id to continue the same outcome even when wording or owner differs. '
                           'Correct the command-system kind in updates: beds/recreation furniture require construction; medical care and technology research cannot build them. '
                           'Compare crop minimum fertility to terrain fertility; a nonzero fertility value is not proof a crop can grow. Base growth days omit nightly rest. '
@@ -260,7 +266,7 @@ class Planner:
             instructions += ('\nYou are the task planner for the supplied approved semantic project. Plan concrete native orders; ordinary controller code executes and verifies the submitted batch. The project is your assigned task. Resolve native details within its outcome and constraints. '
                              'Use live state to continue existing work, not duplicate it. Submit a useful supported batch promptly; do not redesign the colony. '
                              'Your native draft tools cover only this player system. If the project is misclassified, report that blocker; never substitute an unrelated command (medical bed rest cannot build beds or recreation). '
-                             'Orders from your submitted batch will execute serially without another model approval. You cannot change project scope or approve other objectives.')
+                             'Your summary describes proposed work, never claims completed changes. Orders from your submitted batch will execute serially without another model approval. You cannot change project scope or approve other objectives.')
         instructions += '\nstrategy_guidance contains conditional library advice. Check applicability against native observations; player instructions and live game facts take precedence. Never treat guidance as guaranteed game rules.'
         allowed_tools = {t['function']['name'] for t in tools}
         role_label = role.split(':',1)[0]
@@ -311,7 +317,7 @@ class Planner:
         repeats = {}
         repairs = 0
         model=self.rt.model_for_role(role)
-        model_name=self.rt.settings.manager_model.strip() if (role in ROLES or role.startswith('Executor:')) and self.rt.manager_model is not None else self.rt.settings.model
+        model_name=self.rt.settings.manager_model.strip() if model is self.rt.manager_model and self.rt.manager_model is not None else self.rt.settings.model
         async def report_progress(values):
             await self.rt.model_progress({**values,'role':role_label,'model':model_name})
         while True:

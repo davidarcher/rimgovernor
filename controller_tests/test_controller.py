@@ -595,3 +595,18 @@ async def test_compaction_retains_observed_building_materials(colony):
         return {'role':'assistant','content':'{"summary":"Use the observed material."}'},{}
     rt.model.complete=complete
     await rt.planner.ask('Executor:construction',{},Proposal,True)
+
+async def test_work_settings_execute_and_verify_while_game_remains_paused(colony):
+    rt,game=colony
+    game.use_work_priorities=False
+    original=rt.api.call
+    async def call(name,args,**kwargs):
+        result=await original(name,args,**kwargs)
+        if name=='get_game_state':result['is_paused']=True
+        return result
+    rt.api.call=call;rt.mode='automate';rt.cycle_generation=rt.generation
+    tick=game.tick
+    await rt.execute(Action(title='Enable manual priorities',endpoint='post_work_settings',arguments={'use_work_priorities':True}),'Executor:work_assignment')
+    assert game.use_work_priorities and rt.memory['work'][-1]['status']=='complete'
+    assert game.writes==['work/settings'] and game.tick==tick
+    assert (await rt.api.call('get_game_state',{}))['is_paused']

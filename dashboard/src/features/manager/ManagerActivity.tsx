@@ -14,6 +14,8 @@ function requestSummary(e:any){
   return parts.filter(Boolean).join(' · ');
 }
 function caption(e:any){
+  if(e.kind==='execution'&&!e.outcomes&&e.orders!=null)return `Proposed ${e.orders} orders · historical planning summary; see Work for execution results`;
+  if(e.kind==='escalation')return `Escalated ${e.from_model} → ${e.to_model}: ${e.text}`;
   if(e.kind==='tool_result'){
     const detail=requestSummary(e), suffix=detail?` · ${detail}`:'';
     if(e.result?.error)return `${e.tool}${suffix} · Needs correction: ${e.result.error}`;

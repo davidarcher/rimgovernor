@@ -38,6 +38,25 @@ def retain_project(memory,owner,objective):
     return existing
 
 
+async def arbitrate_objectives(rt,context):
+    reason=''
+    try:
+        decision=await rt.planner.ask('Administrator: approve semantic objectives',context,ObjectiveDecision,rt.settings.reasoning)
+        rt.planner.validate_submission('Administrator',decision,context)
+        reason=decision.escalation_reason
+        if not reason:return decision
+    except (ModelError,ValueError) as error:
+        reason='Small-model review failed: '+str(error)[:500]
+    if rt.manager_model is None:
+        raise ModelError('Administrator needs escalation, but no distinct larger model is configured: '+reason)
+    rt.note('escalation',reason,role='Administrator',from_model=rt.settings.manager_model,to_model=rt.settings.model)
+    await rt.progress(phase='Escalating',role='Administrator',model=rt.settings.model,detail=reason)
+    decision=await rt.planner.ask('Administrator: escalated review',{**context,'escalation':reason},ObjectiveDecision,True)
+    rt.planner.validate_submission('Administrator',decision,context)
+    if decision.escalation_reason:raise ModelError('Larger-model review remained uncertain: '+decision.escalation_reason)
+    return decision
+
+
 async def semantic_review(rt,context,roles):
     proposals={}
     shared=await rt.manager_context(context)
@@ -67,8 +86,7 @@ async def semantic_review(rt,context,roles):
         raise ModelError('No department submitted an objective review.')
     candidates={f'{owner}:{i}':{'owner':owner,'objective':objective,'blockers':proposal['blockers']} for owner,proposal in proposals.items() for i,objective in enumerate(proposal['objectives'])}
     decision_context={**shared,'projects':projects,'proposals':candidates,'semantic_objectives':True}
-    decision=await rt.planner.ask('Administrator: approve semantic objectives',decision_context,ObjectiveDecision,rt.settings.reasoning)
-    rt.planner.validate_submission('Administrator',decision,decision_context)
+    decision=await arbitrate_objectives(rt,decision_context)
     rt.note('arbitration',decision.response,role='Administrator',accepted=decision.accepted,deferred=decision.deferred)
     rt.reply(decision.response)
     if rt.mode!='automate':return
@@ -102,7 +120,8 @@ async def semantic_review(rt,context,roles):
             project['status']='inspecting';rt.persist()
             batch=await rt.planner.ask(role,fresh,Proposal,rt.settings.reasoning)
             project['feedback']=batch.blockers
-            rt.note('execution',batch.summary,role=role,project_id=project['project_id'],orders=len(batch.actions),blockers=batch.blockers)
+            rt.note('execution_plan',f'Prepared {len(batch.actions)} orders; not yet executed.',role=role,project_id=project['project_id'],orders=len(batch.actions),model_summary=batch.summary,blockers=batch.blockers)
+            before_batch={w['id'] for w in rt.memory['work']}
             seen=set()
             for action in batch.actions:
                 import json
@@ -116,6 +135,11 @@ async def semantic_review(rt,context,roles):
                         if w['id'] not in before:
                             w['project_id']=project['project_id'];project['work_ids'].append(w['id'])
                     rt.persist()
+            from collections import Counter
+            outcomes=Counter(w['status'] for w in rt.memory['work'] if w['id'] not in before_batch)
+            labels={'complete':'verified complete','issued':'sent; awaiting verification','deferred':'deferred; not sent','unknown':'outcome unknown','rejected':'rejected'}
+            receipt='; '.join(f'{count} {labels.get(status,status)}' for status,count in outcomes.items()) or 'No new orders recorded.'
+            rt.note('execution',receipt,role=role,project_id=project['project_id'],outcomes=dict(outcomes),blockers=batch.blockers)
             project['status']='awaiting_work' if batch.actions else 'needs_review'
             reconcile_projects(rt.memory)
         except asyncio.CancelledError:

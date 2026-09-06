@@ -56,7 +56,7 @@ class Runtime:
         return self.model_factory(self.settings.model_copy(update={'model':name})) if name and name!=self.settings.model else None
 
     def model_for_role(self, role):
-        return self.manager_model if (role in ROLES or role.startswith('Executor:')) and self.manager_model is not None else self.model
+        return self.manager_model if (role in ROLES or role.startswith('Executor:') or (role.startswith('Administrator:') and not role.startswith('Administrator: escalated'))) and self.manager_model is not None else self.model
 
     @staticmethod
     def empty_memory():
@@ -200,7 +200,7 @@ class Runtime:
                 tick = self.observation['game'].get('game_tick',0)
                 changed = bool(self.events_pending) and time.monotonic()-self.last_review_wall > 15
                 due = tick-self.last_review >= self.settings.review_ticks
-                if self.mode == 'automate' and not self.busy() and not self.observation['game'].get('is_paused') and (due or changed):
+                if self.mode == 'automate' and not self.busy() and (due or changed):
                     self.launch_review()
                 elif self.steering_pending and not self.busy():
                     self.steering_pending = False
@@ -257,7 +257,7 @@ class Runtime:
     async def steer(self, text):
         text = text.strip()
         if not text or len(text)>3000:
-            raise ValueError('Enter a direction of 1–3000 characters.')
+            raise ValueError('Enter a direction of 1Ã¢â‚¬â€œ3000 characters.')
         self.memory['direction'].append(text)
         self.memory['direction'] = self.memory['direction'][-12:]
         self.memory['chat'].append({'role':'player','text':text,'at':time.time()})
@@ -387,16 +387,12 @@ class Runtime:
         self.executing = True
         try:
             self.check_generation()
-            # Do not silently unpause or issue new game orders through a player pause.
+            # Player commands are valid while paused; never change the game speed here.
             game = await self.api.call('get_game_state',{},fresh=True)
             if game.get('session_id') != self.observation.get('game',{}).get('session_id'):
                 work['status'] = 'cancelled'
                 work['detail'] = 'Colony changed before this order was sent'
                 self.mode = 'manual'
-                return
-            if game.get('is_paused'):
-                work['status'] = 'deferred'
-                work['detail'] = 'Game paused before this order was sent'
                 return
             if action.endpoint=='construction_place':
                 result=await self.api.native.place(ConstructionRequest.model_validate(action.arguments),action.observation_basis)
@@ -568,7 +564,7 @@ class Runtime:
             self.status = {'phase':'Needs attention','detail':str(e)[:500]}
             self.note('error',str(e)[:1000])
             if steering:
-                self.reply('I couldn’t finish that review: '+str(e)[:400])
+                self.reply('I couldnÃ¢â‚¬â„¢t finish that review: '+str(e)[:400])
         finally:
             self.persist()
             self.started_at = None
