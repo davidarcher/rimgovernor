@@ -1162,6 +1162,43 @@
       }
     },
     {
+      "name": "get_map_construction_work",
+      "operation_id": "get_v1_map_construction_work",
+      "method": "GET",
+      "path": "/api/v1/map/construction-work",
+      "category": "Map",
+      "description": "Observe queued construction and native worker/material checks. Read-only paginated blueprint/frame observations. Native CanConstruct checks are unforced, with current work priorities. Accessible supplies can be reserved and reached by at least one eligible worker; stocks are shared across sites, not allocated, and no job or guaranteed safe delivery is implied. Current job targets indicate attention, not proof of progress.",
+      "transport": "query",
+      "query_keys": [
+        "map_id",
+        "offset",
+        "limit"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32,
+            "default": 16
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "map_id"
+        ]
+      }
+    },
+    {
       "name": "get_map_creatures_summary",
       "operation_id": "get_v1_map_creatures_summary",
       "method": "GET",

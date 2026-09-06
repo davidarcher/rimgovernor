@@ -43,6 +43,8 @@ class GameFixture:
         self.calls.append(r)
         path=r.url.path.removeprefix('/api/v1/')
         data={}
+        if path=='map/construction-work':
+            return httpx.Response(200,json=dto_fixture({'$ref':'#/components/schemas/ConstructionWorkOverview'},{'map_id':self.map_id}))
         if path=='map/resource-overview':
             return httpx.Response(200,json=dto_fixture({'$ref':'#/components/schemas/MapResourceOverview'},{'map_id':self.map_id}))
         if path=='work/settings':

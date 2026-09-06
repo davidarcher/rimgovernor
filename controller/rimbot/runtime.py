@@ -11,7 +11,7 @@ from .planner import Planner, ROLES
 from .rimapi import RimAPI, APIError, snapshot, compact
 from .native_models import ConstructionRequest
 from .native_client import NativeIntegrationError, StaleObservation
-from .http_models import MapResourceOverview
+from .http_models import MapResourceOverview, ConstructionWorkOverview
 from .resources import resource_brief
 
 
@@ -472,7 +472,19 @@ class Runtime:
                     self.memory['colony_focus']={k:int(statistics.median(p[k] for p in points)) for k in ('x','z')}
                     self.persist()
             result['colony_focus']=self.memory.get('colony_focus')
-        return result
+        return await self.observe_work(result)
+
+    async def observe_work(self, context):
+        if 'get_map_construction_work' not in self.catalog.available:
+            return {**context,'construction_work':{'available':False,'reason':'Native work observations are unavailable.'}}
+        try:
+            args={'map_id':self.observation['map']['id'],'offset':0,'limit':16}
+            work=ConstructionWorkOverview.model_validate(await self.api.call('get_map_construction_work',args,fresh=True))
+            self.store.event(self.colony,'tool_result',role='Observation',tool='get_map_construction_work',arguments=args,result=work.model_dump())
+            return {**context,'construction_work':work.model_dump()}
+        except (APIError,ValueError) as error:
+            self.note('error','Work observations unavailable: '+str(error))
+            return {**context,'construction_work':{'available':False,'reason':str(error)}}
 
     async def observe_resources(self, context):
         if 'get_map_resource_overview' not in self.catalog.available:
@@ -507,6 +519,7 @@ class Runtime:
                        'notifications':compact(events,6000), 'mode':self.mode,
                        'capabilities':self.catalog.listing()}
             context=await self.observe_resources(context)
+            if 'construction_work' not in context:context=await self.observe_work(context)
             day = (self.last_tick or 0)//60000
             if strategy or not self.memory['plans'] or (not steering and day//15 != (self.memory['last_plan_day'] or 0)//15):
                 plans = await self.planner.ask('Strategy: set concrete near-term goals and progressively fuzzier week, season, year and three-year direction. Stability is a base for development, not a reason to stop. Match terrain, resources, colony needs and player direction. Short actionable entries.',context,Plans,self.settings.reasoning)

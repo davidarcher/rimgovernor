@@ -14472,5 +14472,71 @@
         }
       }
     }
+  },
+  "get_v1_map_construction_work": {
+    "path": "/api/v1/map/construction-work",
+    "method": "GET",
+    "query_schema": {
+      "type": "object",
+      "properties": {
+        "map_id": {
+          "type": "integer"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32,
+          "default": 16
+        }
+      },
+      "required": [
+        "map_id"
+      ],
+      "additionalProperties": false
+    },
+    "query_model": "get_v1_map_construction_work_Query",
+    "body_schema": null,
+    "response_schema": {
+      "$ref": "#/components/schemas/ConstructionWorkOverview"
+    },
+    "body_required": false,
+    "query_fallback_required": [],
+    "responses": {
+      "200": {
+        "description": "Native work observations",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ConstructionWorkOverview"
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid query",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "Native error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      }
+    }
   }
 }

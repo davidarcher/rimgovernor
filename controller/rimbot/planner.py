@@ -220,7 +220,12 @@ class Planner:
                 instructions += '\nUse construction_definitions for buildable definitions and material choices, construction_rooms for visible sites, construction_inspect for legality, and construction_place to draft placements. These tools have fixed native request/response types. Construction does not need done or requires. A drafted order is not a placed building.'
             instructions += ('\nYour native command tools are listed directly. Call one to draft each order using title and arguments. '
                              'A successful draft is retained. Finish with submit containing summary, priority, labor, resources and blockers; do not repeat actions in submit.')
-        messages = [{'role':'system','content':instructions}, {'role':'user','content':json.dumps(context, separators=(',',':'), ensure_ascii=False)}]
+        instructions += ('\nconstruction_work is a native observation of queued sites, remaining materials, current pawn job targets and unforced worker eligibility. '
+                         'A blueprint is an order, not completed work. Compare snapshots for material delivery or work_done changes. '
+                         'Stocks are shared across sites; do not count the same stack as allocated to every project. A reservation can temporarily fail eligibility while another pawn works. '
+                         'Fix observed blockers before adding redundant orders. If next_offset is present, further sites exist; absence from the first page does not mean missing. '
+                         'These checks are not a complete job simulation. Delegate unresolved execution details; do not invent the reason for a rejected native check.')
+        messages = [{'role':'system' ,'content':instructions}, {'role':'user','content':json.dumps(context, separators=(',',':'), ensure_ascii=False)}]
         repeats = {}
         repairs = 0
         while True:

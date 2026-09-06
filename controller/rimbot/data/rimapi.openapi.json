@@ -14848,6 +14848,79 @@
           }
         }
       }
+    },
+    "/api/v1/map/construction-work": {
+      "get": {
+        "operationId": "get_v1_map_construction_work",
+        "tags": [
+          "Map"
+        ],
+        "summary": "Observe queued construction and native worker/material checks",
+        "description": "Read-only paginated blueprint/frame observations. Native CanConstruct checks are unforced, with current work priorities. Accessible supplies can be reserved and reached by at least one eligible worker; stocks are shared across sites, not allocated, and no job or guaranteed safe delivery is implied. Current job targets indicate attention, not proof of progress.",
+        "parameters": [
+          {
+            "name": "map_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 32,
+              "default": 16
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Native work observations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConstructionWorkOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Native error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Construction_ContractError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -30010,6 +30083,229 @@
           "notes"
         ],
         "additionalProperties": false,
+        "x-generate-csharp": true
+      },
+      "ConstructionWorkerObservation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pawn_id",
+          "name",
+          "idle",
+          "drafted",
+          "downed",
+          "construction_priority",
+          "current_job",
+          "target_ids"
+        ],
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "idle": {
+            "type": "boolean"
+          },
+          "drafted": {
+            "type": "boolean"
+          },
+          "downed": {
+            "type": "boolean"
+          },
+          "construction_priority": {
+            "type": "integer"
+          },
+          "current_job": {
+            "type": "string"
+          },
+          "target_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "x-generate-csharp": true
+      },
+      "ConstructionWorkerCheck": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pawn_id",
+          "can_construct",
+          "reason",
+          "blocking_thing_id"
+        ],
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          },
+          "can_construct": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "blocking_thing_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "x-generate-csharp": true
+      },
+      "ConstructionMaterialObservation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "def_name",
+          "needed",
+          "allowed_quantity",
+          "forbidden_quantity",
+          "accessible_quantity",
+          "accessible_sample_ids"
+        ],
+        "properties": {
+          "def_name": {
+            "type": "string"
+          },
+          "needed": {
+            "type": "integer"
+          },
+          "allowed_quantity": {
+            "type": "integer"
+          },
+          "forbidden_quantity": {
+            "type": "integer"
+          },
+          "accessible_quantity": {
+            "type": "integer"
+          },
+          "accessible_sample_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        },
+        "x-generate-csharp": true
+      },
+      "ConstructionWorkSite": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "thing_id",
+          "def_name",
+          "position",
+          "stage",
+          "work_done",
+          "work_total",
+          "targeted_by",
+          "workers",
+          "materials"
+        ],
+        "properties": {
+          "thing_id": {
+            "type": "integer"
+          },
+          "def_name": {
+            "type": "string"
+          },
+          "position": {
+            "$ref": "#/components/schemas/ResourceCell"
+          },
+          "stage": {
+            "type": "string"
+          },
+          "work_done": {
+            "type": "number"
+          },
+          "work_total": {
+            "type": "number"
+          },
+          "targeted_by": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "workers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConstructionWorkerCheck"
+            }
+          },
+          "materials": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConstructionMaterialObservation"
+            }
+          }
+        },
+        "x-generate-csharp": true
+      },
+      "ConstructionWorkOverview": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "map_id",
+          "observed_tick",
+          "total",
+          "offset",
+          "next_offset",
+          "workers",
+          "sites",
+          "notes"
+        ],
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "observed_tick": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "next_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "workers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConstructionWorkerObservation"
+            }
+          },
+          "sites": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConstructionWorkSite"
+            }
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
         "x-generate-csharp": true
       },
       "Construction_DefinitionQuery": {

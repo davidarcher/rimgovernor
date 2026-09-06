@@ -3325,6 +3325,51 @@ class MapResourceOverview(WireModel):
     fishing: list[FishingResource] = Field()
     notes: list[str] = Field()
 
+class ConstructionWorkerObservation(WireModel):
+    pawn_id: int = Field()
+    name: str = Field()
+    idle: bool = Field()
+    drafted: bool = Field()
+    downed: bool = Field()
+    construction_priority: int = Field()
+    current_job: str = Field()
+    target_ids: list[int] = Field()
+
+class ConstructionWorkerCheck(WireModel):
+    pawn_id: int = Field()
+    can_construct: bool = Field()
+    reason: str = Field()
+    blocking_thing_id: Union[int, None] = Field()
+
+class ConstructionMaterialObservation(WireModel):
+    def_name: str = Field()
+    needed: int = Field()
+    allowed_quantity: int = Field()
+    forbidden_quantity: int = Field()
+    accessible_quantity: int = Field()
+    accessible_sample_ids: list[int] = Field()
+
+class ConstructionWorkSite(WireModel):
+    thing_id: int = Field()
+    def_name: str = Field()
+    position: ResourceCell = Field()
+    stage: str = Field()
+    work_done: float = Field()
+    work_total: float = Field()
+    targeted_by: list[int] = Field()
+    workers: list[ConstructionWorkerCheck] = Field()
+    materials: list[ConstructionMaterialObservation] = Field()
+
+class ConstructionWorkOverview(WireModel):
+    map_id: int = Field()
+    observed_tick: int = Field()
+    total: int = Field()
+    offset: int = Field()
+    next_offset: Union[int, None] = Field()
+    workers: list[ConstructionWorkerObservation] = Field()
+    sites: list[ConstructionWorkSite] = Field()
+    notes: list[str] = Field()
+
 class Construction_DefinitionQuery(WireModel):
     search: str = Field()
     offset: int = Field(ge=0, le=2147483647)
@@ -4089,6 +4134,11 @@ class get_v1_map_resource_overview_Query(WireModel):
     nearby_radius: Union[int, None] = Field(default=None, ge=1, le=100)
     refresh_terrain: Union[bool, None] = Field(default=None)
 
+class get_v1_map_construction_work_Query(WireModel):
+    map_id: int = Field()
+    offset: Union[int, None] = Field(default=None, ge=0)
+    limit: Union[int, None] = Field(default=None, ge=1, le=32)
+
 AbilityDefDto.model_rebuild()
 AddRelationRequestDto.model_rebuild()
 AllDefsRequestDto.model_rebuild()
@@ -4513,6 +4563,11 @@ SupplyResource.model_rebuild()
 CropResource.model_rebuild()
 FishingResource.model_rebuild()
 MapResourceOverview.model_rebuild()
+ConstructionWorkerObservation.model_rebuild()
+ConstructionWorkerCheck.model_rebuild()
+ConstructionMaterialObservation.model_rebuild()
+ConstructionWorkSite.model_rebuild()
+ConstructionWorkOverview.model_rebuild()
 Construction_DefinitionQuery.model_rebuild()
 Construction_Cost.model_rebuild()
 Construction_Material.model_rebuild()
@@ -4736,6 +4791,7 @@ construction_area_Query.model_rebuild()
 get_v1_work_settings_Query.model_rebuild()
 post_v1_work_settings_Query.model_rebuild()
 get_v1_map_resource_overview_Query.model_rebuild()
+get_v1_map_construction_work_Query.model_rebuild()
 
 QUERY_TYPES = {
     'get_api_openapi_json': TypeAdapter(get_api_openapi_json_Query),
@@ -4940,6 +4996,7 @@ QUERY_TYPES = {
     'get_v1_work_settings': TypeAdapter(get_v1_work_settings_Query),
     'post_v1_work_settings': TypeAdapter(post_v1_work_settings_Query),
     'get_v1_map_resource_overview': TypeAdapter(get_v1_map_resource_overview_Query),
+    'get_v1_map_construction_work': TypeAdapter(get_v1_map_construction_work_Query),
 }
 
 BODY_TYPES = {
@@ -5215,6 +5272,7 @@ RESPONSE_TYPES = {
     'get_v1_work_settings': TypeAdapter(WorkSettings),
     'post_v1_work_settings': TypeAdapter(WorkSettings),
     'get_v1_map_resource_overview': TypeAdapter(MapResourceOverview),
+    'get_v1_map_construction_work': TypeAdapter(ConstructionWorkOverview),
 }
 
 class HttpOperations:
@@ -5823,3 +5881,6 @@ class HttpOperations:
 
     async def get_v1_map_resource_overview(self, *, query: get_v1_map_resource_overview_Query | None = None) -> MapResourceOverview:
         return await self._call('get_v1_map_resource_overview', query=query)
+
+    async def get_v1_map_construction_work(self, *, query: get_v1_map_construction_work_Query | None = None) -> ConstructionWorkOverview:
+        return await self._call('get_v1_map_construction_work', query=query)
