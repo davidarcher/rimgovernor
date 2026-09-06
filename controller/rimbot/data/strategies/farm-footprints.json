@@ -1,0 +1,50 @@
+{
+  "id": "farm-footprints",
+  "version": 1,
+  "title": "Farms: follow soil patches, not rectangles",
+  "tags": [
+    "architect",
+    "spatial",
+    "farm",
+    "growing",
+    "zone",
+    "fertile",
+    "soil",
+    "rice",
+    "corn",
+    "potatoes",
+    "patch"
+  ],
+  "applies_when": [
+    "Selecting crop fields and exact growing-zone cells."
+  ],
+  "approach": [
+    "Prefer nearby rich soil for fertility-sensitive crops when it is safe and accessible. Nearby ordinary soil can beat distant rich soil after travel and exposure are considered.",
+    "Choose crops using current native minimum fertility and fertility sensitivity. Potatoes tolerate poor soil relatively well; rice benefits more from rich soil. Low sensitivity does not remove the minimum-fertility requirement.",
+    "Player preference: trace suitable soil patches with exact irregular cell lists; exclude unsuitable holes rather than enclosing them in a rectangle. This preference is not a universal game rule.",
+    "Check season, temperature and available planting labor. Fast rice harvests cost frequent labor; long-growing crops need enough time and reserves to survive until harvest."
+  ],
+  "verify": [
+    "Every selected cell meets the chosen crop requirements; the zone is actually sown and reachable."
+  ],
+  "reconsider": [
+    "No safe eligible patch exists, the season is too short, or travel defeats the fertility benefit."
+  ],
+  "sources": [
+    {
+      "title": "RimWorld Wiki: Quickstart Guides",
+      "url": "https://rimworldwiki.com/wiki/Quickstart_Guides",
+      "checked_on": "2026-09-06"
+    },
+    {
+      "title": "RimWorld Wiki: Potato plant",
+      "url": "https://rimworldwiki.com/wiki/Potato_plant",
+      "checked_on": "2026-09-06"
+    },
+    {
+      "title": "RimWorld Wiki: Food production",
+      "url": "https://rimworldwiki.com/wiki/Food_production",
+      "checked_on": "2026-09-06"
+    }
+  ]
+}
