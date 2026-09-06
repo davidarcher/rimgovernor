@@ -1,22 +1,28 @@
 {
   "id": "early-recreation",
-  "version": 1,
-  "title": "Cheap mood improvements before luxury bedrooms",
+  "version": 2,
+  "title": "Affordable recreation before variety upgrades",
   "tags": [
     "mood",
     "recreation",
     "table",
     "chairs",
     "horseshoe",
-    "social"
+    "social",
+    "dexterity",
+    "materials",
+    "affordable",
+    "variety"
   ],
   "applies_when": [
-    "Basic needs are met but colonists have avoidable mood penalties."
+    "Recreation alerts, boredom or an approved recreation objective need assessment."
   ],
   "approach": [
-    "Provide accessible recreation such as a horseshoe pin with clear playing space. A second copy of the same recreation type does not provide variety.",
-    "Give colonists time to use it. Check recreation need and boredom before spending labor on a larger recreation room.",
-    "Read individual thoughts: fix the actual recurring problem, such as lack of a place to eat, poor sleep or incompatible equipment, rather than treating every low mood as a request for decoration."
+    "Treat a variety alert as evidence to assess, not a checklist to clear immediately. Check actual recreation need, boredom, expectations and usable existing options before proposing additional kinds.",
+    "For an early camp, prefer one modest usable option that can be built with current accessible supplies. A horseshoe pin is an example to compare, not a required definition or universal choice.",
+    "Compare the complete native cost: fixed ingredients as well as the chosen building material, construction labor and usable space. If an option requires unavailable ingredients, choose a feasible alternative or defer it with an explicit supply dependency.",
+    "Before optional variety upgrades, consider unfinished shelter, food and storage work and the available construction labor. Keep a larger future facility in the future plan until it is justified.",
+    "Provide time and access to use recreation. Another copy of the same kind does not solve a need for a different kind."
   ],
   "verify": [
     "Usable recreation cells, time available, actual thoughts and changes in needs."
