@@ -154,6 +154,10 @@ class Runtime:
                 self.counters = dict.fromkeys(self.counters, 0)
                 self.status = {'phase':'Manual', 'detail':'Colony connected'}
                 self.api.invalidate(definitions=True)
+                try:
+                    await self.api.warm_discovery()
+                except (APIError,ValueError) as error:
+                    self.note('error','Definition search index unavailable: '+str(error))
                 self.note('connection', 'Colony connected. Ready for your direction.')
             if self.last_tick is not None and tick < self.last_tick:
                 self.mode = 'manual'
@@ -161,6 +165,10 @@ class Runtime:
                 # Loading an earlier save invalidates pending actions, not player goals.
                 self.memory['work'] = []
                 self.api.invalidate(definitions=True)
+                try:
+                    await self.api.warm_discovery()
+                except (APIError,ValueError) as error:
+                    self.note('error','Definition search index unavailable: '+str(error))
                 self.note('connection', 'Earlier save loaded. Work tracking refreshed; control is Manual.')
             self.last_tick = tick
             self.observation = observed

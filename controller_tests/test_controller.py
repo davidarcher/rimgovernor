@@ -65,6 +65,7 @@ async def test_definition_groups_share_one_unfiltered_snapshot(colony):
         requests.append({'params':params,'body':body})
         return {'things_defs':[{'def_name':'ModdedBed'}],'terrain_defs':[{'def_name':'Soil'}]}
     rt.api.typed_data=request
+    rt.api.invalidate(definitions=True)
     things=await rt.api.call('get_def_all',{'filters':['ThingsDefs']})
     terrain=await rt.api.call('get_def_all',{'filters':['TerrainDefs']})
     assert things['things_defs'][0]['def_name']=='ModdedBed'

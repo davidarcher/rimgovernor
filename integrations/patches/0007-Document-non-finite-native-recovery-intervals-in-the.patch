@@ -1,0 +1,70 @@
+From 6d0afe0e729c2b1a34dde988996ca8f0a7b5d20e Mon Sep 17 00:00:00 2001
+From: David Archer <darcher@gmail.com>
+Date: Sat, 5 Sep 2026 19:56:47 -0400
+Subject: [PATCH] Document non-finite native recovery intervals in the HTTP
+ contract
+
+---
+ Contracts/rimapi.bundled.openapi.json | 17 +++++++++++++++--
+ Contracts/rimapi.openapi.json         | 17 +++++++++++++++--
+ 2 files changed, 30 insertions(+), 4 deletions(-)
+
+diff --git a/Contracts/rimapi.bundled.openapi.json b/Contracts/rimapi.bundled.openapi.json
+index 8d6af0c..b7e6d77 100644
+--- a/Contracts/rimapi.bundled.openapi.json
++++ b/Contracts/rimapi.bundled.openapi.json
+@@ -24846,8 +24846,21 @@
+             "type": "string"
+           },
+           "recovery_mtb_days": {
+-            "type": "number",
+-            "format": "float"
++            "anyOf": [
++              {
++                "type": "number",
++                "format": "float"
++              },
++              {
++                "type": "string",
++                "enum": [
++                  "Infinity",
++                  "-Infinity",
++                  "NaN"
++                ]
++              }
++            ],
++            "description": "Native Newtonsoft JSON uses strings for non-finite floating-point values. Infinity means no finite mean recovery interval."
+           },
+           "is_aggro": {
+             "type": "boolean"
+diff --git a/Contracts/rimapi.openapi.json b/Contracts/rimapi.openapi.json
+index 56f3b25..f1aa8de 100644
+--- a/Contracts/rimapi.openapi.json
++++ b/Contracts/rimapi.openapi.json
+@@ -24846,8 +24846,21 @@
+             "type": "string"
+           },
+           "recovery_mtb_days": {
+-            "type": "number",
+-            "format": "float"
++            "anyOf": [
++              {
++                "type": "number",
++                "format": "float"
++              },
++              {
++                "type": "string",
++                "enum": [
++                  "Infinity",
++                  "-Infinity",
++                  "NaN"
++                ]
++              }
++            ],
++            "description": "Native Newtonsoft JSON uses strings for non-finite floating-point values. Infinity means no finite mean recovery interval."
+           },
+           "is_aggro": {
+             "type": "boolean"
+-- 
+2.55.0.windows.3
+

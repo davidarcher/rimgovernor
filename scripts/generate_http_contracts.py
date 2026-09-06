@@ -155,6 +155,10 @@ def main():
         ROOT / 'controller/rimbot/data/rimapi.openapi.json': json.dumps(document, indent=2) + '\n',
         CONTRACTS / 'rimapi.bundled.openapi.json': json.dumps(document, indent=2) + '\n',
     }
+    discovery = json.loads((ROOT / 'controller/contracts/discovery.openapi.json').read_text())
+    validate(discovery)
+    discovery_models, _ = generate(discovery)
+    outputs[ROOT / 'controller/rimbot/discovery_models.py'] = discovery_models.replace('Contracts/rimapi.openapi.json', 'controller/contracts/discovery.openapi.json')
     for path, content in outputs.items():
         if args.check:
             if not path.exists() or path.read_text(encoding='utf-8') != content:

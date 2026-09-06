@@ -6,6 +6,7 @@ from .contracts import Query, Action, Proposal, Decision, Plans, DailyPlan, at
 from .rimapi import compact
 from .model import ModelError
 from .native_models import ConstructionRequest
+from .discovery_models import DiscoveryQuery
 
 ROLES = {
     'Survival':'Food, medicine, temperature, mood, social needs and sustainable care. Request facilities from Infrastructure.',
@@ -43,7 +44,7 @@ Use colony_focus and current player structures as spatial context. Inspect const
 Room cell lists are sampled geometry, not recommended building sites. Outdoors is not shelter.
 Submit useful next orders as soon as they are supported by observations. Do not delay them for a complete colony redesign or unrelated inspections. Later reviews can extend the work.
 Check query results wrap lists as {items,total,offset,next_offset}; field='total' works for matching counts.
-Use exact observed schema names. discover searches names/descriptions; describe returns the full contract.
+Use exact observed schema names. discover searches endpoints and indexed game definitions; describe returns an endpoint contract.
 Map positions use x and z for the ground plane; y is vertical height, normally 0. Use both observed ground coordinates.
 Group related construction pieces in RIMAPI's blueprint array, preserving doors and interior access.
 '''
@@ -129,7 +130,7 @@ class Planner:
             # submit only closes the manager's report; it doesn't repeat them.
             submit_schema['properties'].pop('actions',None)
         tools = [
-            tool('discover', 'Search API endpoint names only, not game objects. For buildings use construction_definitions. Empty search lists endpoints.', {'type':'object','properties':{'search':{'type':'string'}},'required':['search'],'additionalProperties':False}),
+            tool('discover', 'Search both API capabilities and native game definitions by words. Returns ranked objects with exact IDs, facts and follow-up read queries. Empty search lists endpoints.', DiscoveryQuery.model_json_schema()),
             tool('describe', 'Get exact arguments and method for one RIMAPI endpoint.', {'type':'object','properties':{'endpoint':{'type':'string'}},'required':['endpoint'],'additionalProperties':False}),
             tool('query', 'Read RIMAPI state with local filtering/paging/sorting. near sorts positions by distance.', query_schema),
             tool('submit', 'Return your complete structured proposal, decision or plan.', submit_schema),
@@ -275,12 +276,9 @@ class Planner:
                         failed_drafts.pop(f['name'],None)
                         result = {'drafted':action.title,'draft_count':len(drafts),'next':'Draft another needed order or submit your short report. These orders have not executed yet.'}
                     elif f['name'] == 'discover':
-                        result = [e for e in self.rt.catalog.listing(args.get('search','')) if not e['write'] or e['name'] in writable]
-                        if 0 < len(result) <= 3:
-                            result = [{**e,'arguments':self.rt.catalog.get(e['name'])['schema']} for e in result]
-                            for entry in result:register_command(entry['name'])
-                        if not result:
-                            result={'endpoints':[], 'scope':'API names only; this does not search game definitions or prove an object is unavailable.', 'next':'Search construction_definitions with the object label for buildings, or query get_def_all for other game definitions.'}
+                        discovered=await self.rt.api.search(DiscoveryQuery.model_validate(args).search,writable)
+                        for entry in discovered.endpoints:register_command(entry.name)
+                        result=discovered.model_dump(mode='json')
                     elif f['name'] == 'describe':
                         result = self.rt.catalog.get(args['endpoint'])
                         register_command(args['endpoint'])

@@ -24846,8 +24846,21 @@
             "type": "string"
           },
           "recovery_mtb_days": {
-            "type": "number",
-            "format": "float"
+            "anyOf": [
+              {
+                "type": "number",
+                "format": "float"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "Infinity",
+                  "-Infinity",
+                  "NaN"
+                ]
+              }
+            ],
+            "description": "Native Newtonsoft JSON uses strings for non-finite floating-point values. Infinity means no finite mean recovery interval."
           },
           "is_aggro": {
             "type": "boolean"

@@ -2244,7 +2244,7 @@ class MentalStateDefDto(WireModel):
     def_name: Union[str, None] = Field(default=None)
     label: Union[str, None] = Field(default=None)
     description: Union[str, None] = Field(default=None)
-    recovery_mtb_days: float = Field()
+    recovery_mtb_days: Union[float, Literal['Infinity', '-Infinity', 'NaN']] = Field()
     is_aggro: bool = Field()
 
 class ModInfoDto(WireModel):

@@ -1,0 +1,143 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RimBot discovery",
+    "version": "1.0.0"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "DiscoveryQuery": {
+        "type": "object",
+        "properties": {
+          "search": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "search"
+        ],
+        "additionalProperties": false
+      },
+      "DefinitionRead": {
+        "type": "object",
+        "properties": {
+          "endpoint": {
+            "type": "string"
+          },
+          "arguments": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "path": {
+            "type": "string"
+          },
+          "where": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "endpoint",
+          "arguments",
+          "path",
+          "where"
+        ],
+        "additionalProperties": false
+      },
+      "DefinitionMatch": {
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "string"
+          },
+          "def_name": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "facts": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "read": {
+            "$ref": "#/components/schemas/DefinitionRead"
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "group",
+          "def_name",
+          "label",
+          "description",
+          "facts",
+          "read",
+          "actions"
+        ],
+        "additionalProperties": false
+      },
+      "EndpointMatch": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "write": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "write"
+        ],
+        "additionalProperties": false
+      },
+      "DiscoveryResult": {
+        "type": "object",
+        "properties": {
+          "endpoints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EndpointMatch"
+            }
+          },
+          "definitions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DefinitionMatch"
+            }
+          },
+          "indexed_definitions": {
+            "type": "integer"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "endpoints",
+          "definitions",
+          "indexed_definitions",
+          "notes"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

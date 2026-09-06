@@ -5,6 +5,8 @@ import time
 import httpx
 from .native_client import NativeClient
 from .http_contract import HttpContractClient
+from .discovery import DefinitionIndex
+from .discovery_models import DiscoveryResult, EndpointMatch
 from jsonschema import ValidationError as SchemaError
 
 
@@ -32,13 +34,19 @@ class RimAPI:
         self.read_cache = {}
         self.native = NativeClient(self.http,self.lock,self.catalog,self.invalidate)
         self.typed = HttpContractClient(self.http)
+        self.definition_index = None
+        self.index_lock = asyncio.Lock()
 
     def invalidate(self, definitions=False):
         self.read_cache.clear()
         if definitions:
             self.cache.clear()
+            if self.definition_index is not None:
+                self.definition_index.close()
+                self.definition_index=None
 
     async def close(self):
+        if self.definition_index is not None:self.definition_index.close()
         await self.http.aclose()
 
     async def request(self, method, path, *, params=None, body=None, cache_ttl=0):
@@ -70,6 +78,24 @@ class RimAPI:
         self.catalog.discover(docs)
         if '/api/v2/construction/contracts' in json.dumps(docs):
             self.catalog.install_contracts(await self.request('GET','/api/v2/construction/contracts'))
+
+    async def warm_discovery(self):
+        async with self.index_lock:
+            if self.definition_index is None:
+                definitions=await self.call('get_def_all',{})
+                self.definition_index=DefinitionIndex(definitions)
+
+    async def search(self, search, writable):
+        entries=[e for e in self.catalog.listing(search) if not e['write'] or e['name'] in writable]
+        endpoints=[EndpointMatch(name=e['name'],description=e['description'],write=e['write']) for e in entries]
+        notes=['Definitions describe game rules, not current map instances or owned resources. Use returned read queries for complete native facts.']
+        try:
+            await self.warm_discovery()
+            matches=self.definition_index.search(search,self.catalog,writable)
+            count=len(self.definition_index.records)
+        except (APIError,ValueError) as error:
+            matches=[];count=0;notes.append('Definition search unavailable: '+str(error))
+        return DiscoveryResult(endpoints=endpoints,definitions=matches,indexed_definitions=count,notes=notes)
 
     async def call(self, name, args, *, write=None, fresh=False):
         e = self.catalog.validate(name, args, write)

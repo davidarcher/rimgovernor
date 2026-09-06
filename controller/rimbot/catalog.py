@@ -130,7 +130,7 @@ class Catalog:
             raise ValueError(f'Connected RIMAPI does not advertise {name}')
         if write is not None and e['write'] != write:
             if e['write']:
-                raise ValueError(f'{name} changes the game. Call the native tool named {name} to draft it, with title, arguments and done. Then submit your report. The controller executes approved actions afterward.')
+                raise ValueError(f'{name} changes the game. Call the native tool named {name} to draft it, with title and arguments. Then submit your report. The controller executes approved actions afterward.')
             raise ValueError(f'{name} only reads state; use query, not an action.')
         return e
 

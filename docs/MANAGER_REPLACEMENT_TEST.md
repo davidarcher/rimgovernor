@@ -27,3 +27,13 @@ Construction revisions conservatively include all visible player construction,
 so unrelated building changes may defer an order for a new review. Instant allow
 orders and work-priority changes have integration-owned completion checks;
 completion coverage for other non-construction actions remains incomplete.
+
+## Restart procedure correction
+
+Native game/save success acknowledges a queued save, not completed disk I/O.
+A later test restart interrupted a temporary save and produced truncated XML.
+The earlier valid test save was restored. Before stopping RimWorld, future test
+harnesses must wait for saving to finish and verify the actual save file parses
+as complete XML, with stable size/mtime and no active writer. Never terminate
+immediately after the HTTP success response. Keep the prior valid save until
+restoration is verified.
