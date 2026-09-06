@@ -75,6 +75,9 @@ class Catalog:
             if any(s in e['path'] for s in ['/dev/', '/learning/', '/image', '/portrait', '/mods/', '/incidents/top', '/incident/chance','/docs','/cache/','/openapi']):
                 e['exposed'] = False
             props = e['schema'].get('properties', {})
+            if e['name'] == 'post_order_designate_area':
+                props['type']={'type':'string','enum':['mine','deconstruct','harvest','hunt','remove-all']}
+                e['description'] += ' Only these five designation types are supported. This does not plan rooms, roofs or shelters. Use construction_place for buildings; the architect owns planning marks.'
             if e['name'] == 'post_pawn_edit_status':
                 props.pop('kill', None)
                 props.pop('resurrect', None)

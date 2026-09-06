@@ -190,7 +190,7 @@ async def prepare_layout(rt,context,projects):
             for c in reply.get('tool_calls') or []:messages.append({'role':'tool','tool_call_id':c['id'],'content':str(e)})
             messages.append({'role':'user','content':'Correct the layout: '+str(e)})
     rt.check_generation()
-    rt.memory['spatial_layout']={**layout,'signature':signature,'day':(rt.last_tick or 0)//60000}
+    rt.memory['spatial_layout']={**layout,'signature':signature,'day':(rt.last_tick or 0)//60000, 'native_plans':dict(saved.get('native_plans',{})), 'colors':dict(saved.get('colors',{}))}
     rt.spatial_image=render_map(area,layout['regions']);rt.persist()
     await show_native_plans(rt,rt.memory['spatial_layout'])
     rt.spatial_image=render_map(area,layout['regions'],rt.memory['spatial_layout'].get('colors'))
@@ -264,6 +264,11 @@ async def show_native_plans(rt,layout):
             continue
         if r['id'] in marks:
             rt.note('info','Player changed planning marks for '+r['label']+'; keeping the player edit.',role='Architect')
+            continue
+        overlaps=[p for p in state.plans if points & {(c.x,c.z) for c in p.cells}]
+        if overlaps:
+            # A changed/renamed mark is still occupied; never recreate over it.
+            rt.note('info','Existing planning marks overlap '+display_label(r['label'])+'; keeping them.',role='Architect')
             continue
         if not state.colors:raise ValueError('Native planning colors unavailable')
         # Session and generation must still match after inference, before game mutation.

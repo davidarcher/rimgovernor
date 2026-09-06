@@ -409,6 +409,14 @@ class Runtime:
     async def reconcile(self):
         changed = False
         for work in self.memory['work']:
+            action=work.get('action',{})
+            if (work['status'] in ('issued','unknown','waiting','unresolved')
+                and action.get('endpoint')=='post_order_designate_area'
+                and action.get('arguments',{}).get('type','').lower() not in ('mine','deconstruct','harvest','hunt','remove-all')):
+                work['status']='rejected'
+                work['detail']='Unsupported designation type; this order made no game changes'
+                changed=True
+                continue
             if work['status'] not in ('issued','unknown','waiting'):
                 continue
             try:
