@@ -31,16 +31,26 @@ def decision_context(context,observation):
         pending_construction=context.get('construction_work',{}).get('total'),
         pawns=[{k:v for k,v in p.get('colonist',{}).items() if k in ('id','name','health','mood','position')} for p in pawns[:12]],
         pawns_omitted=max(0,len(pawns)-12),construction_counts=[{'def_name':name,'state':stage,'count':count} for (name,stage),count in sorted(counts.items())])
-    keep=('player_direction','goals','plans','assigned_task','projects','proposals','semantic_objectives','strategy_guidance','colony_focus','work_settings')
+    keep=('player_direction','goals','plans','assigned_task','projects','proposals','semantic_objectives','strategy_guidance','colony_focus','work_settings','work')
     result={k:context[k] for k in keep if k in context}
     result['colony']=facts.model_dump()
+    result['labor_state']={'queued_construction_sites':facts.pending_construction,'meaning':'Idle alone does not imply disabled work. Create actual blueprints, zones, bills or designations when no jobs exist; inspect priorities only for a demonstrated work-setting blocker.'}
     if 'resource_overview' in context:
         resources=deepcopy(context['resource_overview'])
         for group in resources.values():
-            if isinstance(group,dict) and isinstance(group.get('items'),list) and 'omitted_groups' in group:
+            if isinstance(group,dict) and isinstance(group.get('items'),list) and 'omitted_groups' in group and group is not resources.get('terrain') and group is not resources.get('food_crops'):
                 extra=max(0,len(group['items'])-3)
                 group['items']=group['items'][:3];group['omitted_groups']+=extra
         result['resource_overview']=resources
+        terrains=resources.get('terrain',{}).get('items',[])
+        crops=resources.get('food_crops',{}).get('items',[])
+        result['crop_land_comparison']={
+            'scope':'Fertility comparison of observed terrain groups only; still check exact cells, pollution, season and access. Base grow days exclude nightly rest.',
+            'crops':[{'def_name':crop['def_name'],'min_fertility':crop['min_fertility'],
+                      'nearby_fertility_eligible_cells':crop.get('nearby_fertility_eligible_cells'),
+                      'matching_nearby_terrain':[{'def_name':t['def_name'],'fertility':t['fertility'],'nearby_cells':t['nearby_cells'],'nearest_cell':t.get('nearest_cell')} for t in terrains if t.get('nearby_cells',0)>0 and t.get('fertility',0)>=crop['min_fertility']]}
+                     for crop in crops if 'min_fertility' in crop and 'def_name' in crop]}
+
     work=context.get('construction_work',{})
     if 'sites' in work:
         result['construction_work']={k:v for k,v in work.items() if k!='workers'}

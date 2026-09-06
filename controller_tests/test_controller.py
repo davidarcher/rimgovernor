@@ -412,7 +412,7 @@ async def test_complete_hierarchy_http_fixture(colony):
             if 'Strategy:' in system:
                 result=Plans(today=['Use the nearby supplies'],week=['Sustainable food'],season=['Develop production'],year=['Reliable settlement'],horizon='Room to grow',response='Start with nearby supplies.').model_dump()
             elif 'Administrator:' in system:
-                result=Decision(response='Allow the nearby timber; leave cave supplies alone.',accepted=['Infrastructure'],deferred={k:'No immediate order' for k in ['Survival','Security','Development','Workforce']}).model_dump()
+                result=Decision(response='Allow the nearby timber; leave cave supplies alone.',accepted=['Infrastructure:0']).model_dump()
             elif 'Your role is Executor:supply_access' in system:
                 result=Proposal(summary='Release the nearby timber.',actions=[allow()]).model_dump()
             elif 'Construction, rooms, storage filters, farms, production bills and power.' in system:

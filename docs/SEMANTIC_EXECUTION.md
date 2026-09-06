@@ -4,13 +4,13 @@ The normal review path now separates planning, objectives and native execution:
 
 1. Strategy/daily planning supplies department assignments.
 2. Up to four departments review the same observed snapshot concurrently and submit typed ObjectiveProposal objects. They receive only the submit tool: no native writes or detailed command discovery.
-3. The administrator accepts or defers objective proposals, resolving scope and priority conflicts. This approval authorizes execution within those objectives.
-4. A model-driven executor handles one approved project at a time. It reads fresh state and uses only the native command group for that project kind. A submitted batch executes serially without another LLM approval. One failed project does not prevent other approved projects from proceeding.
+3. The administrator accepts or defers individual objective candidates, resolving scope and priority conflicts. Every active project must be kept or retired; accepted candidates can update an existing project and correct its command-system kind. This approval authorizes execution within those objectives.
+4. A reasoning-enabled task planner handles one approved project at a time. It reads fresh state and uses only the native command group for that project kind. A submitted batch executes serially without another LLM approval. One failed project does not prevent other approved projects from proceeding.
 5. Existing native checks track each issued order. Projects link those work IDs and report orders_verified separately from achieving the overall objective.
 
 Projects contain a stable ID, owner, player-system kind, outcome, optional quantity, constraints, optional native definition requirements and success signals. Supported kinds are construction, growing, production, storage, work assignment, supply access, care, security and research. These are API capability groups, not recipes for individual rooms. Execution remains model-driven. Trade and other unlisted project systems remain future coverage.
 
-Continuing an objective reuses its project ID. Existing work remains visible; the executor must inspect it before adding orders. Exact outcome duplicates from the same owner reuse a project, but differently worded equivalent objectives still require administrator judgment. Native order completion does not establish enclosure, accessibility or all higher-level success criteria. The current executor returns concrete blockers for reassessment; there is no claim of automatic proof of an entire room or production system.
+Continuing an objective reuses its project ID. Existing work remains visible; the executor must inspect it before adding orders. Exact active outcome/kind duplicates reuse a project across owners; differently worded equivalents require administrator judgment with the full active ledger visible. Retired projects leave game orders untouched. Correcting a project kind archives its old work links so unrelated commands cannot count toward the corrected objective. Native order completion does not establish enclosure, accessibility or all higher-level success criteria. The current executor returns concrete blockers for reassessment; there is no claim of automatic proof of an entire room or production system.
 
 ## Definition requirements
 
@@ -26,7 +26,7 @@ Deterministic text retrieval selects up to three matching entries per planning/m
 
 ## Models, concurrency and display
 
-Departments and executors use the configured department model (currently 4B); strategy, daily planning and arbitration use the main model (9B). Routine execution uses reasoning off. The department parallelism setting defaults to four and can be set to 1–4. Only objective reviews run concurrently. Their snapshot is shared; later execution refreshes live state. Model progress retains role/model labels, and the dashboard lists active departments.
+Departments use the configured department model (currently 4B); strategy, daily planning, arbitration and concrete task planning use the main model (9B). Task planning respects the reasoning setting. The historical Executor role label refers to task planning; issuing its approved batch remains ordinary controller code without an additional model call. The department parallelism setting defaults to four and can be set to 1–4. Only objective reviews run concurrently. Their snapshot is shared; later execution refreshes live state. Model progress retains role/model labels, and the dashboard lists active departments.
 
 The Projects panel shows objectives, constraints, feedback and order-tracking state. Manager activity distinguishes objective proposals and executor activity. Overlong administrator display prose is shortened to the UI bound without changing strict approval IDs or rejecting the decision solely for verbosity.
 
@@ -53,3 +53,9 @@ The 32K trial at `.rimbot/setup-benchmarks/20260905-223029/` completed six model
 `orders_unforbid_all` / POST `/api/v2/orders/unforbid-all` takes only `map_id`. It uses RimWorld's Allow designator eligibility and operation on explored items, skipping `ThingDefOf.InsectJelly`. Already allowed jelly stays allowed; this is not a recurring re-forbid policy. Explicit item Allow remains unchanged. Other supplies near threats are still allowed. The native result reports changed stacks, excluded forbidden jelly stacks and remaining eligible stacks. `orders_forbidden_overview` observes the same selection without changes, so the controller verifies completion immediately and can reconcile a lost response without issuing another write. Neither operation implies hauling or delivery.
 
 These contracts use the existing schema-generation pipeline (its source filename is historically construction.openapi.json); the public routes belong to Orders. No Python-fabricated game result or hardcoded jelly numeric ID is involved.
+
+Terrain and crop groups retain the bounded native resource overview instead of being reduced to the three most frequent groups. This preserves small nearby plantable patches. Idle status is explicitly separated from missing work configuration: construction, zones, bills and designations create ordinary jobs. Invalid outdated assignments can be revised; administrator corrections request a daily-plan refresh. These changes do not prove arbitrary model goals equivalent or guarantee correct placement.
+
+The context also presents crop minimum fertility alongside matching observed nearby terrain, without claiming that fertility establishes pollution tolerance, route safety or full placement legality. Display-only daily-plan summaries are shortened instead of invalidating the structured plan.
+
+Live check on the existing colony reached individual-objective arbitration but stalled waiting for LM Studio after prompt processing; no new construction was issued. The final crop comparison, tracking dismissal and display-summary change were not live-tested. Controller checks passed; this is not a successful colony-setup benchmark. Automation was returned to Manual.

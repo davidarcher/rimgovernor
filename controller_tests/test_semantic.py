@@ -65,7 +65,7 @@ async def test_executor_scope_rejects_unrelated_commands(colony):
 
 async def test_executor_failure_does_not_block_another_approved_project(colony):
     from rimbot.semantic import semantic_review
-    from rimbot.contracts import Decision
+    from rimbot.semantic_models import ObjectiveDecision as Decision
     from rimbot.model import ModelError
     rt,game=colony;rt.mode='automate';rt.cycle_generation=rt.generation
     async def ask(role,context,contract,thinking):
@@ -76,9 +76,9 @@ async def test_executor_failure_does_not_block_another_approved_project(colony):
                 WorkObjective(kind='supply_access',outcome='Allow nearby timber',success_signals=['Timber allowed'])])
         if contract is Decision:
             assert game.writes==[]
-            return Decision(response='Prepare supplies',accepted=['Infrastructure'])
+            return Decision(response='Prepare supplies',accepted=['Infrastructure:0','Infrastructure:1'])
         if role=='Executor:storage':raise ModelError('Storage details unresolved')
-        assert role=='Executor:supply_access' and thinking is False
+        assert role=='Executor:supply_access' and thinking == rt.settings.reasoning
         return Proposal(summary='Allow timber',actions=[Action(title='Allow timber',endpoint='post_things_set_forbidden',arguments={'map_id':7,'thing_ids':[101],'forbidden':False})])
     rt.planner.ask=ask
     await semantic_review(rt,{'assignments':{'Infrastructure':'Prepare supplies'}},['Infrastructure'])
@@ -89,19 +89,19 @@ async def test_executor_failure_does_not_block_another_approved_project(colony):
 
 async def test_deferred_objective_cannot_reach_executor(colony):
     from rimbot.semantic import semantic_review
-    from rimbot.contracts import Decision
+    from rimbot.semantic_models import ObjectiveDecision as Decision
     rt,game=colony;rt.mode='automate';rt.cycle_generation=rt.generation
     async def ask(role,context,contract,thinking):
         if contract is ObjectiveProposal:return ObjectiveProposal(summary='Sleep',objectives=[objective()])
         assert contract is Decision
-        return Decision(response='Keep current work',deferred={'Infrastructure':'Existing work adequate'})
+        return Decision(response='Keep current work',deferred={'Infrastructure:0':'Existing work adequate'})
     rt.planner.ask=ask
     await semantic_review(rt,{},['Infrastructure'])
     assert not game.writes and not rt.memory['projects']
 
 
 def test_long_explanation_does_not_invalidate_approval_data():
-    from rimbot.contracts import Decision
+    from rimbot.semantic_models import ObjectiveDecision as Decision
     decision=Decision(response='x'*1000,accepted=['Infrastructure'])
     assert len(decision.response)==650 and decision.accepted==['Infrastructure']
     with pytest.raises(ValidationError):Decision(response=42,accepted=['Infrastructure'])
@@ -109,7 +109,7 @@ def test_long_explanation_does_not_invalidate_approval_data():
 async def test_manager_parallelism_is_bounded_and_orders_wait_for_arbitration(colony):
     import asyncio
     from rimbot.semantic import semantic_review
-    from rimbot.contracts import Decision
+    from rimbot.semantic_models import ObjectiveDecision as Decision
     rt,game=colony;rt.mode='automate';rt.cycle_generation=rt.generation
     rt.settings.manager_parallelism=2
     active=0;peak=0;finished=[]
@@ -122,7 +122,7 @@ async def test_manager_parallelism_is_bounded_and_orders_wait_for_arbitration(co
             active-=1;finished.append(role)
             return ObjectiveProposal(summary='No new objective')
         assert len(finished)==3 and active==0
-        return Decision(response='Current work adequate',accepted=['Infrastructure','Survival','Workforce'])
+        return Decision(response='Current work adequate',accepted=[])
     rt.planner.ask=ask
     await semantic_review(rt,{},['Infrastructure','Survival','Workforce'])
     assert peak==2 and rt.status['active_roles']==[] and not game.writes
@@ -175,3 +175,55 @@ def test_practical_strategy_retrieval(query,expected):
     entries=StrategyLibrary().search(query)
     assert entries[0]['id']==expected
     assert all(e['sources'] for e in entries)
+
+async def test_admin_reuses_project_and_retires_duplicate_without_game_deletion(colony):
+    from rimbot.semantic import semantic_review
+    from rimbot.semantic_models import ObjectiveDecision
+    rt,game=colony;rt.mode='automate';rt.cycle_generation=rt.generation
+    first=retain_project(rt.memory,'Survival',objective())
+    second=retain_project(rt.memory,'Infrastructure',WorkObjective(kind='care',outcome='Beds please',success_signals=['Beds exist']))
+    second['work_ids']=['wrong-care']
+    rt.memory['work'].append({'id':'wrong-care','status':'issued'})
+    async def ask(role,context,contract,thinking):
+        if contract is ObjectiveProposal:
+            assert len(context['projects'])==2
+            return ObjectiveProposal(summary='Sleeping',objectives=[WorkObjective(kind='care',outcome='Beds now',success_signals=['Beds exist'])])
+        if contract is ObjectiveDecision:
+            return ObjectiveDecision(response='Continue one construction project',accepted=['Survival:0'],keep_projects=[first['project_id']],retire_projects={second['project_id']:'Duplicate with wrong executor'},updates={'Survival:0':objective(project_id=first['project_id'])})
+        assert role=='Executor:construction'
+        return Proposal(summary='Needs site inspection',blockers=['No verified placement yet'])
+    rt.planner.ask=ask
+    await semantic_review(rt,{},['Survival'])
+    assert len(rt.memory['projects'])==2
+    assert second['status']=='retired'
+    assert rt.memory['work'][0]['status']=='dismissed'
+    assert first['status']=='needs_review'
+    assert not game.writes
+
+
+def test_correcting_kind_does_not_count_old_unrelated_orders_as_progress():
+    memory={'work':[]}
+    p=retain_project(memory,'Survival',WorkObjective(kind='care',outcome='Beds',success_signals=['Beds exist']))
+    p['work_ids']=['bed-rest-order']
+    retain_project(memory,'Survival',objective(project_id=p['project_id']))
+    assert p['work_ids']==[] and p['previous_work_ids']==['bed-rest-order']
+
+
+async def test_admin_cannot_forget_existing_projects_or_update_twice(colony):
+    from rimbot.semantic_models import ObjectiveDecision
+    rt,_=colony
+    p=retain_project(rt.memory,'Infrastructure',objective())
+    context={'projects':[p],'proposals':{str(i):{'objective':objective(project_id=p['project_id']).model_dump()} for i in range(2)}}
+    with pytest.raises(ValueError,match='every active project'):
+        rt.planner.validate_submission('Administrator',ObjectiveDecision(response='x',accepted=['0','1']),context)
+    with pytest.raises(ValueError,match='at most one continuation'):
+        rt.planner.validate_submission('Administrator',ObjectiveDecision(response='x',accepted=['0','1'],keep_projects=[p['project_id']]),context)
+
+
+def test_minor_plantable_terrain_survives_decision_projection():
+    from rimbot.decision_context import decision_context
+    rows=[{'def_name':name,'fertility':fertility,'nearby_cells':1} for name,fertility in [('Water',0),('Ancient',.05),('Sand',.1),('Gravel',.7),('Soil',1)]]
+    result=decision_context({'resource_overview':{'terrain':{'items':rows,'total_groups':5,'omitted_groups':0},'food_crops':{'items':[{'def_name':'Rice','min_fertility':.7}],'total_groups':1,'omitted_groups':0}},'construction_work':{'total':0}}, {})
+    assert result['resource_overview']['terrain']['items']==rows
+    assert result['labor_state']['queued_construction_sites']==0
+    assert [t['def_name'] for t in result['crop_land_comparison']['crops'][0]['matching_nearby_terrain']]==['Gravel','Soil']

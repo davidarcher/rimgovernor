@@ -1,13 +1,13 @@
 """Controller-owned objectives; native commands remain in the generated game API."""
 from typing import Literal
 from pydantic import Field
-from .contracts import Contract
+from .contracts import Contract, Decision
 
 ProjectKind=Literal['construction','growing','production','storage','work_assignment','supply_access','care','security','research']
 
 class WorkObjective(Contract):
     project_id: str = Field(default='',description='Existing project ID to continue; blank creates a new objective.')
-    kind: ProjectKind
+    kind: ProjectKind = Field(description="Command system needed: construction places ALL furniture/buildings including beds and recreation; growing creates crop zones; production configures bills; work_assignment changes priorities/schedules ONLY; care treats patients, never builds beds; research selects technology, never recreation.")
     outcome: str = Field(min_length=1,max_length=250,description='Desired player-visible result, not endpoints, cells or a sequence of API calls.')
     quantity: int | None = Field(default=None,ge=1,description='Desired capacity or quantity if meaningful; null when not applicable.')
     definition_requirements: dict[str,bool|float|str] = Field(default_factory=dict,description='Construction only: required native building-definition properties supplied by guidance or observation, e.g. bed_humanlike=true. Empty for other systems. Unknown properties cannot be assumed.')
@@ -32,3 +32,8 @@ EXECUTION_DOMAINS={
     'security':('pawn_job','pawn_edit_status','jobs_make_equip'),
     'research':('research',),
 }
+
+class ObjectiveDecision(Decision):
+    updates: dict[str, WorkObjective] = Field(default_factory=dict, description='Accepted candidate ID to corrected objective. Set project_id to an existing project to continue/revise it instead of creating a duplicate. Correct wrong kind, infeasible assumptions or scope here.')
+    keep_projects: list[str] = Field(default_factory=list, description='Existing active project IDs to keep. Every existing project must be kept or retired. Keeping alone does not queue new orders.')
+    retire_projects: dict[str,str] = Field(default_factory=dict, description='Existing project ID to reason: duplicate, obsolete, infeasible or achieved. Retires tracking only; does not cancel game orders.')

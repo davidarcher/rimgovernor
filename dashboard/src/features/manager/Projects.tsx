@@ -1,6 +1,6 @@
 import {useState} from 'react';
 
-const labels:Record<string,string>={approved:'Approved',inspecting:'Checking details',awaiting_work:'Watching orders',orders_verified:'Orders verified; review outcome',needs_review:'Needs review'};
+const labels:Record<string,string>={retired:'Retired',approved:'Approved',inspecting:'Checking details',awaiting_work:'Watching orders',orders_verified:'Orders verified; review outcome',needs_review:'Needs review'};
 export default function Projects({projects}:{projects:any[]}){
   const [entries,setEntries]=useState<any[]>([]),[open,setOpen]=useState(false),[error,setError]=useState('');
   async function toggle(){
@@ -9,7 +9,7 @@ export default function Projects({projects}:{projects:any[]}){
   }
   return <section className="mgr-card"><div className="mgr-card-title"><h2>Projects</h2><button onClick={toggle} aria-expanded={open}>Strategy library</button></div>
     {!projects.length&&<p className="mgr-empty">Approved objectives appear here. Orders and their progress appear below.</p>}
-    {projects.map(p=><article className="mgr-work-row" key={p.project_id}><div><b>{p.outcome}</b><p>{labels[p.status]||p.status}</p><small>{p.owner} · {p.kind.replaceAll('_',' ')} · {p.work_ids.length} tracked orders</small>
+    {projects.filter(p=>p.status!=='retired').map(p=><article className="mgr-work-row" key={p.project_id}><div><b>{p.outcome}</b><p>{labels[p.status]||p.status}</p><small>{p.owner} · {p.kind.replaceAll('_',' ')} · {p.work_ids.length} tracked orders</small>
       {p.feedback?.map((f:string,i:number)=><p key={i}>{f}</p>)}
       <details><summary>Scope and completion criteria</summary>{p.quantity!=null&&<p>Target: {p.quantity}</p>}<ul>{p.constraints.map((c:string,i:number)=><li key={'c'+i}>{c}</li>)}{p.success_signals.map((c:string,i:number)=><li key={'s'+i}>{c}</li>)}</ul></details></div></article>)}
     {open&&<div><p className="mgr-muted">Conditional guidance. Current game facts and your direction take precedence.</p>{error&&<p role="alert">{error}</p>}{entries.map(e=><details key={e.id}><summary>{e.title} · v{e.version}</summary>{[['When to use',e.applies_when],['Approach',e.approach],['Check',e.verify],['Reconsider when',e.reconsider]].map(([title,items]:any)=><div key={title}><b>{title}</b><ul>{items.map((text:string,i:number)=><li key={i}>{text}</li>)}</ul></div>)}<p className="mgr-muted">Sources: {e.sources?.map((s:any,i:number)=><span key={s.url}>{i>0&&" · "}<a href={s.url} target="_blank" rel="noreferrer">{s.title}</a> (checked {s.checked_on})</span>)}</p></details>)}</div>}

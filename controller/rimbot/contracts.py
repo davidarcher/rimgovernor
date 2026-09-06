@@ -72,6 +72,11 @@ class Plans(Contract):
 
 
 class DailyPlan(Contract):
+    @field_validator('response', mode='before')
+    @classmethod
+    def concise_display(cls, value):
+        return value[:347]+'...' if isinstance(value,str) and len(value)>350 else value
+
     today: list[str] = Field(max_length=6)
     week: list[str] = Field(max_length=5)
     response: str = Field(max_length=350)
