@@ -156,20 +156,25 @@ async def semantic_review(rt,context,roles):
 
 
 async def execute_projects(rt,context,scheduled):
-    from .spatial import prepare_layout, validate_orders, SPATIAL_KINDS
+    from .spatial import prepare_layout, validate_orders, release_retired
+    await release_retired(rt,{p['project_id'] for p in rt.memory.get('projects',[]) if p.get('status')!='retired'})
     spatial_error=None
-    try: await prepare_layout(rt,context,scheduled)
-    except (ModelError,ValueError,RuntimeError) as error:
-        spatial_error=str(error)
-        rt.note("error",spatial_error,role="Architect")
-    await rt.resume_initial_planning()
+    layout_prepared=False
+    scheduled=sorted(scheduled,key=lambda p:p['kind'] not in ('growing','storage'))
     for project in scheduled:
         rt.check_generation()
         if rt.mode!='automate':break
         role='Executor:'+project['kind']
+        if project['kind']=='construction' and not layout_prepared:
+            layout_prepared=True
+            try:await prepare_layout(rt,context,scheduled)
+            except (ModelError,ValueError,RuntimeError) as error:
+                spatial_error=str(error)
+                rt.note('error',spatial_error,role='Architect')
+        await rt.resume_initial_planning()
         try:
-            if spatial_error and project['kind'] in SPATIAL_KINDS:raise ValueError(spatial_error)
-            if project['kind'] in SPATIAL_KINDS:
+            if spatial_error and project['kind']=='construction':raise ValueError(spatial_error)
+            if project['kind']=='construction':
                 layout=rt.memory.get('spatial_layout',{})
                 if not any(project['project_id'] in r['project_ids'] for r in layout.get('regions',[])):
                     raise ValueError('Waiting for architect: '+layout.get('deferred',{}).get(project['project_id'],'No valid site reserved.'))
