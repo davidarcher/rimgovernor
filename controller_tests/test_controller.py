@@ -423,9 +423,10 @@ async def test_complete_hierarchy_http_fixture(colony):
         async def close(self):pass
     await rt.model.close();rt.model=ScriptedModel();rt.mode='automate'
     await rt.review()
-    assert len(roles)==7
+    assert len(roles)==6
+    assert not any('Administrator:' in role for role in roles)
     assert rt.memory['work'][0]['status']=='complete'
-    assert rt.memory['chat'][-1]['role']=='manager'
+    assert not rt.memory['chat']  # Routine-only setup does not need an administrator message.
     assert game.writes==['things/set-forbidden']
 
 
@@ -610,3 +611,21 @@ async def test_work_settings_execute_and_verify_while_game_remains_paused(colony
     assert game.use_work_priorities and rt.memory['work'][-1]['status']=='complete'
     assert game.writes==['work/settings'] and game.tick==tick
     assert (await rt.api.call('get_game_state',{}))['is_paused']
+
+async def test_satisfied_supply_flag_is_not_staged_again(colony):
+    rt,game=colony;rt.cycle_generation=rt.generation;game.forbidden=False
+    class Model:
+        count=0
+        async def complete(self,messages,*args):
+            self.count+=1
+            if self.count==1:
+                name='post_things_set_forbidden';data={'title':'Allow wood','arguments':{'map_id':7,'thing_ids':[101],'forbidden':False}}
+            else:
+                receipt=json.loads(messages[-1]['content'])
+                assert receipt['already_satisfied'] and not receipt['draft_retained']
+                name='submit';data={'summary':'Supplies already accessible; no duplicate order.'}
+            return {'role':'assistant','tool_calls':[{'id':str(self.count),'type':'function','function':{'name':name,'arguments':json.dumps(data)}}]},{}
+        async def close(self):pass
+    await rt.model.close();rt.model=Model()
+    result=await rt.planner.ask('Infrastructure',{},Proposal)
+    assert not result.actions

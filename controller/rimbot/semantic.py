@@ -94,6 +94,21 @@ async def semantic_review(rt,context,roles):
         project['reviews_without_order_change']=project.get('reviews_without_order_change',0)+1 if previous==states else 0
         project['reviewed_order_states']=states
         project['age_days']=round((time.time()-project['created_at'])/86400,2) if project.get('created_at') else None
+    # Unblocked routine setup does not require another strategic approval turn.
+    routine=[]
+    for key,candidate in list(candidates.items()):
+        if candidate['objective']['kind'] in ('supply_access','storage','growing') and not candidate['blockers']:
+            objective=ObjectiveProposal.model_validate({'summary':'Routine setup','objectives':[candidate['objective']]}).objectives[0]
+            routine.append(retain_project(rt.memory,candidate['owner'],objective))
+            del candidates[key]
+    if routine:
+        rt.persist()
+        rt.note('info','Routine setup proceeds without administrator approval.',role='Colony')
+        await execute_projects(rt,context,routine)
+        projects=[p for p in rt.memory['projects'] if p.get('status')!='retired']
+    if routine and not candidates and all(p in routine for p in projects) and not context.get('administration_required'):
+        rt.memory['last_admin_day']=day;rt.persist()
+        return
     decision_context={**shared,'projects':projects,'proposals':candidates,'semantic_objectives':True}
     try:
         decision=await arbitrate_objectives(rt,decision_context)
@@ -134,7 +149,7 @@ async def semantic_review(rt,context,roles):
     rt.memory['admin_requested']=False
     rt.persist()
     # Kept projects continue even when no department restates their objective.
-    scheduled=approved+[p for p in projects if p.get('status')!='retired' and p not in approved]
+    scheduled=[p for p in approved+[p for p in projects if p.get('status')!='retired' and p not in approved] if p not in routine]
     await execute_projects(rt,context,scheduled)
 
 

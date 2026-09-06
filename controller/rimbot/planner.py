@@ -345,7 +345,7 @@ class Planner:
             if native_reads:
                 instructions += '\nUse construction_definitions for buildable definitions and material choices, construction_rooms for visible sites, construction_inspect for legality, and construction_place to draft placements. These tools have fixed native request/response types. construction_definitions searches BUILDINGS only, not material items. Query the building (for example Wall), then select stuff_def_name from its returned allowed_materials. Do not invent combined building/material names. Roofs are areas/designations, not material-built furniture; a substring match like waterproof conduit does not establish roof capability. Use discover for roof commands. Reuse definitions already returned, including observed_building_definitions after context compaction. Construction does not need done or requires. A drafted order is not a placed building.'
             instructions += ('\nYour native command tools are listed directly. Call one to draft each order using title and arguments. '
-                             'A successful draft is retained. Finish with submit containing summary, priority, labor, resources and blockers; do not repeat actions in submit.')
+                             'Routine supply flags and stockpile/growing zone creation execute immediately during Automate and return observed status; do not wait for submit or repeat them. Other successful drafts are retained. Finish with submit containing summary, priority, labor, resources and blockers; do not repeat actions in submit.')
         instructions += ('\nconstruction_work is a native observation of queued sites, remaining materials, current pawn job targets and unforced worker eligibility. '
                          'A blueprint is an order, not completed work. Compare snapshots for material delivery or work_done changes. '
                          'Stocks are shared across sites; do not count the same stack as allocated to every project. A reservation can temporarily fail eligibility while another pawn works. '
@@ -451,9 +451,17 @@ class Planner:
                         proposal = self.validate_submission(role,Proposal(summary=action.title,actions=[action]),context)
                         await self.validate_observation(proposal, drafts.values(),context)
                         draft_key = json.dumps([action.endpoint,action.arguments],sort_keys=True)
-                        drafts[draft_key] = action
                         failed_drafts.pop(f['name'],None)
-                        result = {'drafted':action.title,'draft_count':len(drafts),'next':'Draft another needed order or submit your short report. These orders have not executed yet.'}
+                        immediate_checks={'orders_unforbid_all','post_things_set_forbidden','post_work_settings','post_colonist_work_priority','post_colonists_work_priority'}
+                        if action.endpoint in immediate_checks and await self.rt.action_complete(action):
+                            drafts.pop(draft_key,None)
+                            result={'already_satisfied':True,'draft_retained':False,'draft_count':len(drafts),'next':'Verified in the live game. Do not wait for this order or repeat it. Continue with the actual project work; no new order is needed for this setting or supply flag.'}
+                        elif action.endpoint in {'orders_unforbid_all','post_things_set_forbidden','zone_growing_cells','post_map_zone_growing','post_map_zone_stockpile'} and role.startswith('Executor:') and context.get('project'):
+                            from .routine import execute_routine
+                            result=await execute_routine(self.rt,context,action,role)
+                        else:
+                            drafts[draft_key] = action
+                            result = {'drafted':action.title,'draft_count':len(drafts),'next':'Draft another needed order or submit your short report. These orders have not executed yet.'}
                     elif f['name'] == 'discover':
                         discovered=await self.rt.api.search(DiscoveryQuery.model_validate(args).search,writable)
                         for entry in discovered.endpoints:register_command(entry.name)
