@@ -1,0 +1,196 @@
+From 0badb3146350ca65f4e65e279abdde44c55267ad Mon Sep 17 00:00:00 2001
+From: David Archer <darcher@gmail.com>
+Date: Sat, 5 Sep 2026 22:37:32 -0400
+Subject: [PATCH] Expose native building purpose properties for semantic
+ execution
+
+---
+ Contracts/construction.openapi.json           | 14 ++++++-
+ Contracts/rimapi.bundled.openapi.json         | 14 ++++++-
+ .../Contracts/ConstructionModels.g.cs         |  3 ++
+ .../Contracts/construction.contracts.json     | 42 +++++++++++++++++--
+ .../Colony/ConstructionContractController.cs  |  2 +-
+ 5 files changed, 69 insertions(+), 6 deletions(-)
+
+diff --git a/Contracts/construction.openapi.json b/Contracts/construction.openapi.json
+index b4926a3..cd744ff 100644
+--- a/Contracts/construction.openapi.json
++++ b/Contracts/construction.openapi.json
+@@ -430,6 +430,15 @@
+             "items": {
+               "$ref": "#/components/schemas/Material"
+             }
++          },
++          "description": {
++            "type": "string"
++          },
++          "is_bed": {
++            "type": "boolean"
++          },
++          "bed_humanlike": {
++            "type": "boolean"
+           }
+         },
+         "required": [
+@@ -441,7 +450,10 @@
+           "work_to_build",
+           "stuff_count",
+           "costs",
+-          "allowed_materials"
++          "allowed_materials",
++          "description",
++          "is_bed",
++          "bed_humanlike"
+         ],
+         "additionalProperties": false
+       },
+diff --git a/Contracts/rimapi.bundled.openapi.json b/Contracts/rimapi.bundled.openapi.json
+index 4b4f9da..3c4c275 100644
+--- a/Contracts/rimapi.bundled.openapi.json
++++ b/Contracts/rimapi.bundled.openapi.json
+@@ -30403,6 +30403,15 @@
+             "items": {
+               "$ref": "#/components/schemas/Construction_Material"
+             }
++          },
++          "description": {
++            "type": "string"
++          },
++          "is_bed": {
++            "type": "boolean"
++          },
++          "bed_humanlike": {
++            "type": "boolean"
+           }
+         },
+         "required": [
+@@ -30414,7 +30423,10 @@
+           "work_to_build",
+           "stuff_count",
+           "costs",
+-          "allowed_materials"
++          "allowed_materials",
++          "description",
++          "is_bed",
++          "bed_humanlike"
+         ],
+         "additionalProperties": false
+       },
+diff --git a/Source/RIMAPI/RimworldRestApi/Contracts/ConstructionModels.g.cs b/Source/RIMAPI/RimworldRestApi/Contracts/ConstructionModels.g.cs
+index 75db2a5..a036fd1 100644
+--- a/Source/RIMAPI/RimworldRestApi/Contracts/ConstructionModels.g.cs
++++ b/Source/RIMAPI/RimworldRestApi/Contracts/ConstructionModels.g.cs
+@@ -33,6 +33,9 @@ namespace RIMAPI.Contracts
+         [JsonProperty("stuff_count")] public int StuffCount { get; set; }
+         [JsonProperty("costs")] public List<Cost> Costs { get; set; }
+         [JsonProperty("allowed_materials")] public List<Material> AllowedMaterials { get; set; }
++        [JsonProperty("description")] public string Description { get; set; }
++        [JsonProperty("is_bed")] public bool IsBed { get; set; }
++        [JsonProperty("bed_humanlike")] public bool BedHumanlike { get; set; }
+     }
+     public sealed class PageBuildingDefinition
+     {
+diff --git a/Source/RIMAPI/RimworldRestApi/Contracts/construction.contracts.json b/Source/RIMAPI/RimworldRestApi/Contracts/construction.contracts.json
+index 30e0345..07ff172 100644
+--- a/Source/RIMAPI/RimworldRestApi/Contracts/construction.contracts.json
++++ b/Source/RIMAPI/RimworldRestApi/Contracts/construction.contracts.json
+@@ -102,6 +102,15 @@
+                     ],
+                     "additionalProperties": false
+                   }
++                },
++                "description": {
++                  "type": "string"
++                },
++                "is_bed": {
++                  "type": "boolean"
++                },
++                "bed_humanlike": {
++                  "type": "boolean"
+                 }
+               },
+               "required": [
+@@ -113,7 +122,10 @@
+                 "work_to_build",
+                 "stuff_count",
+                 "costs",
+-                "allowed_materials"
++                "allowed_materials",
++                "description",
++                "is_bed",
++                "bed_humanlike"
+               ],
+               "additionalProperties": false
+             }
+@@ -1027,6 +1039,15 @@
+             ],
+             "additionalProperties": false
+           }
++        },
++        "description": {
++          "type": "string"
++        },
++        "is_bed": {
++          "type": "boolean"
++        },
++        "bed_humanlike": {
++          "type": "boolean"
+         }
+       },
+       "required": [
+@@ -1038,7 +1059,10 @@
+         "work_to_build",
+         "stuff_count",
+         "costs",
+-        "allowed_materials"
++        "allowed_materials",
++        "description",
++        "is_bed",
++        "bed_humanlike"
+       ],
+       "additionalProperties": false
+     },
+@@ -1112,6 +1136,15 @@
+                   ],
+                   "additionalProperties": false
+                 }
++              },
++              "description": {
++                "type": "string"
++              },
++              "is_bed": {
++                "type": "boolean"
++              },
++              "bed_humanlike": {
++                "type": "boolean"
+               }
+             },
+             "required": [
+@@ -1123,7 +1156,10 @@
+               "work_to_build",
+               "stuff_count",
+               "costs",
+-              "allowed_materials"
++              "allowed_materials",
++              "description",
++              "is_bed",
++              "bed_humanlike"
+             ],
+             "additionalProperties": false
+           }
+diff --git a/Source/RIMAPI/RimworldRestApi/Controllers/Colony/ConstructionContractController.cs b/Source/RIMAPI/RimworldRestApi/Controllers/Colony/ConstructionContractController.cs
+index 36c5588..14d9d0a 100644
+--- a/Source/RIMAPI/RimworldRestApi/Controllers/Colony/ConstructionContractController.cs
++++ b/Source/RIMAPI/RimworldRestApi/Controllers/Colony/ConstructionContractController.cs
+@@ -120,7 +120,7 @@ namespace RIMAPI.Controllers
+             var defs=DefDatabase<ThingDef>.AllDefsListForReading.Where(d=>d.category==ThingCategory.Building && d.designationCategory!=null)
+                 .Where(d=>words.All(w=>(d.defName+" "+d.label).ToLowerInvariant().Contains(w))).OrderBy(d=>d.defName).ToList();
+             var items=defs.Skip(q.Offset).Take(q.Limit).Select(d=>new BuildingDefinition{
+-                DefName=d.defName,Label=d.label??d.defName,SizeX=d.size.x,SizeZ=d.size.z,Rotatable=d.rotatable,
++                DefName=d.defName,Label=d.label??d.defName,Description=d.description??"",IsBed=typeof(Building_Bed).IsAssignableFrom(d.thingClass),BedHumanlike=d.building?.bed_humanlike??false,SizeX=d.size.x,SizeZ=d.size.z,Rotatable=d.rotatable,
+                 WorkToBuild=d.GetStatValueAbstract(StatDefOf.WorkToBuild),StuffCount=d.costStuffCount,
+                 Costs=(d.costList??new List<ThingDefCountClass>()).Select(x=>new Cost{DefName=x.thingDef.defName,Count=x.count}).ToList(),
+                 AllowedMaterials=GenStuff.AllowedStuffsFor(d).Select(s=>new Material{DefName=s.defName,Label=s.label??s.defName}).ToList()
+-- 
+2.55.0.windows.3
+

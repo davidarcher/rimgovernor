@@ -28,6 +28,9 @@ class BuildingDefinition(NativeObject):
     stuff_count: int
     costs: list[Cost]
     allowed_materials: list[Material]
+    description: str
+    is_bed: bool
+    bed_humanlike: bool
 
 class PageBuildingDefinition(NativeObject):
     items: list[BuildingDefinition]

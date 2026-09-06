@@ -1,0 +1,28 @@
+{
+  "id": "production-bills",
+  "version": 1,
+  "title": "Production needs a usable workbench and bill",
+  "tags": [
+    "production",
+    "bills",
+    "kitchen",
+    "cooking",
+    "crafting",
+    "research"
+  ],
+  "applies_when": [
+    "A colony objective requires repeated production."
+  ],
+  "approach": [
+    "Inspect existing workbenches and bills before requesting another facility.",
+    "Choose a native recipe supported by the actual workbench, then configure its count or target and ingredient filters.",
+    "Consider nearby selective storage where it reduces travel; avoid assuming every workbench needs a separate room."
+  ],
+  "verify": [
+    "Native recipe availability, ingredients, fuel/power where relevant, pawn skill and bill restrictions.",
+    "Produced items and native bill progress rather than only bill creation."
+  ],
+  "reconsider": [
+    "The existing facility is adequate, inputs are unavailable, or another bottleneck dominates."
+  ]
+}

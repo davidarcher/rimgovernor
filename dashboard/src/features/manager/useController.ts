@@ -3,7 +3,7 @@ import {useCallback, useEffect, useRef, useState} from 'react';
 export interface ControllerState {
   connected:boolean; mode:'manual'|'automate'; busy:boolean; colony:string; started_at:number|null;
   status:Record<string,any>; counters:Record<string,number>; settings:Record<string,any>;
-  observation:Record<string,any>; memory:{plans:Record<string,any>|null; goals:any[]; work:any[]; chat:any[]};
+  observation:Record<string,any>; memory:{projects?:any[];plans:Record<string,any>|null; goals:any[]; work:any[]; chat:any[]};
   activity:any[]; capabilities:number; events_connected:boolean;
 }
 

@@ -13,6 +13,8 @@ from .native_models import ConstructionRequest
 from .native_client import NativeIntegrationError, StaleObservation
 from .http_models import MapResourceOverview, ConstructionWorkOverview
 from .resources import resource_brief
+from .strategies import StrategyLibrary
+from .semantic import semantic_review, reconcile_projects
 
 
 class Runtime:
@@ -25,6 +27,7 @@ class Runtime:
         self.model = model_factory(self.settings)
         self.manager_model = self.make_manager_model()
         self.planner = Planner(self)
+        self.strategies = StrategyLibrary()
         self.mode = 'manual'
         self.connected = False
         self.colony = ''
@@ -53,11 +56,11 @@ class Runtime:
         return self.model_factory(self.settings.model_copy(update={'model':name})) if name and name!=self.settings.model else None
 
     def model_for_role(self, role):
-        return self.manager_model if role in ROLES and self.manager_model is not None else self.model
+        return self.manager_model if (role in ROLES or role.startswith('Executor:')) and self.manager_model is not None else self.model
 
     @staticmethod
     def empty_memory():
-        return {'direction':[], 'plans':None, 'goals':[], 'work':[], 'chat':[], 'last_plan_day':None, 'last_daily_day':None}
+        return {'direction':[], 'plans':None, 'goals':[], 'work':[], 'chat':[], 'last_plan_day':None, 'last_daily_day':None, 'projects':[]}
 
     def persist(self):
         if self.colony:
@@ -353,6 +356,7 @@ class Runtime:
                     changed = True
             except (ValueError, APIError, NativeIntegrationError):
                 work['detail'] = 'Waiting for a fresh observation'
+        changed=reconcile_projects(self.memory) or changed
         if changed:
             self.persist()
             self.note('work','Work updated from colony observations.')
@@ -552,17 +556,8 @@ class Runtime:
                 self.persist()
             roles = self.review_roles(events, steering)
             context['assignments'] = (self.memory['plans'] or {}).get('assignments',{})
-            proposals,decision = await self.coordinate(context,roles)
-            self.reply(decision.response)
-            for role, reason in decision.deferred.items():
-                self.note('deferred',reason,role=role)
-            if self.mode == 'manual':
-                self.note('info','Advice ready. Manual control is on; no game orders sent.')
-                return
-            for role in decision.accepted:
-                for action in Proposal.model_validate(proposals[role]).actions:
-                    await self.execute(action,role)
-            await self.progress(phase='Watching',detail='Orders issued. Watching their progress.')
+            await semantic_review(self,context,roles)
+            await self.progress(phase='Watching',detail='Review finished. Watching approved work.')
         except asyncio.CancelledError:
             self.note('info','Review stopped. New direction and live colony state take priority.')
         except Exception as e:

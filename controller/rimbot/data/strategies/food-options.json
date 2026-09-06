@@ -1,0 +1,30 @@
+{
+  "id": "food-options",
+  "version": 1,
+  "title": "Compare food by time, labor and access",
+  "tags": [
+    "food",
+    "farming",
+    "growing",
+    "hunting",
+    "harvest",
+    "fishing",
+    "survival"
+  ],
+  "applies_when": [
+    "Food reserves or future supply need attention."
+  ],
+  "approach": [
+    "Distinguish edible supplies now from harvest, hunting, fishing and cultivation potential.",
+    "Compare time to food, available labor, route risk, season and terrain. Combine near-term supply with longer-term production when justified.",
+    "Select crops from native harvested products, fertility requirements and growth data; decorative plants are not interchangeable with food crops."
+  ],
+  "verify": [
+    "Nearby allowed supplies and actual nutrition, not only map-wide potential.",
+    "Crop definitions, eligible terrain, growing conditions, animal risk and native fishing availability."
+  ],
+  "reconsider": [
+    "Season, available labor or accessible food sources change.",
+    "A proposed method is unavailable or unsafe; choose another supported option."
+  ]
+}

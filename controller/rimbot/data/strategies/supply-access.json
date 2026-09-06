@@ -1,0 +1,28 @@
+{
+  "id": "supply-access",
+  "version": 1,
+  "title": "Make useful supplies available",
+  "tags": [
+    "forbidden",
+    "supplies",
+    "materials",
+    "wood",
+    "delivery",
+    "access"
+  ],
+  "applies_when": [
+    "A pending objective needs supplies present on the map."
+  ],
+  "approach": [
+    "Inspect nearby relevant stacks and worker access. Allow only identified useful supplies consistent with route safety.",
+    "Allowed loose ground stacks can be sources; a stockpile is not a universal prerequisite.",
+    "Allowing, hauling and delivering are different outcomes. Verify the flag change without claiming construction received materials."
+  ],
+  "verify": [
+    "Observed item IDs, forbidden state, quantity, location and native worker checks.",
+    "Remaining material requirements; do not allocate the same stock to multiple projects independently."
+  ],
+  "reconsider": [
+    "Supplies are unreachable, reserved, insufficient or exposed to threats."
+  ]
+}

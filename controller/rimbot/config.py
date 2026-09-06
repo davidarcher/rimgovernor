@@ -8,6 +8,7 @@ class Settings(BaseModel):
     model_url: str = 'http://127.0.0.1:1234/v1'
     model: str = 'qwen/qwen3.5-9b'
     manager_model: str = Field(default='', description='Department model; blank uses the planning model.')
+    manager_parallelism: int = Field(default=4, ge=1, le=4)
     reasoning: bool = True
     max_output_tokens: int = Field(default=8192, ge=1024, le=131072)
     context_chars: int = Field(default=60000, ge=16000, le=400000)

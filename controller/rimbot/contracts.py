@@ -1,6 +1,6 @@
 from typing import Any, Literal
 import json
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class Contract(BaseModel):
@@ -47,6 +47,12 @@ class Proposal(Contract):
 
 
 class Decision(Contract):
+    @field_validator('response', mode='before')
+    @classmethod
+    def concise_display(cls, value):
+        # Display prose is not the authorization payload. Keep IDs/decisions strict.
+        return value[:647]+'...' if isinstance(value,str) and len(value)>650 else value
+
     response: str = Field(max_length=650)
     accepted: list[str] = Field(default_factory=list, description='Proposal IDs; accept a complete proposal only.')
     deferred: dict[str, str] = Field(default_factory=dict, description='Every other proposal ID and its reason.')

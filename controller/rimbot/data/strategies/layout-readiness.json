@@ -1,0 +1,30 @@
+{
+  "id": "layout-readiness",
+  "version": 1,
+  "title": "Validate layout before staged construction",
+  "tags": [
+    "layout",
+    "room",
+    "walls",
+    "doors",
+    "base",
+    "construction",
+    "shelter"
+  ],
+  "applies_when": [
+    "New enclosed space or base expansion is needed."
+  ],
+  "approach": [
+    "Inspect explored terrain, existing structures and mountains near the intended colony site. Consider reuse before new construction.",
+    "Design the whole usable space, including entrances and interior circulation, before staging its pieces.",
+    "Choose materials from native availability and allowed materials. Stage useful portions around labor and supply rather than scattering unrelated pieces."
+  ],
+  "verify": [
+    "Footprints, obstructions, enclosure, roof support/coverage and reachable entrances.",
+    "Furniture access and conflicts with existing or pending placements. A valid placement is not proof of a completed room."
+  ],
+  "reconsider": [
+    "Geometry is incomplete or uncertain: request more observation rather than guessing.",
+    "Player changes the layout or materials become unavailable."
+  ]
+}

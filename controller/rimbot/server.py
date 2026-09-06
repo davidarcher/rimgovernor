@@ -157,10 +157,21 @@ def create_app(runtime=None):
         rt = request.app.state.rt
         return Response('\n'.join(json.dumps(e) for e in rt.store.history(rt.colony,100000,include_diagnostics=True)), media_type='application/x-ndjson', headers={'Content-Disposition':'attachment; filename="rimbot-history.jsonl"'})
 
+    @app.get('/api/strategies')
+    async def strategies(request: Request, q: str = '', limit: int = 3):
+        library=request.app.state.rt.strategies
+        if not 1<=limit<=5:raise ValueError('limit must be 1..5')
+        return {'entries':library.search(q,limit) if q else [e.model_dump() for e in library.entries]}
+
+    @app.get('/api/semantic/schema')
+    async def semantic_schema():
+        from .semantic_models import ObjectiveProposal
+        return ObjectiveProposal.model_json_schema()
+
     @app.get('/api/manager-activity')
     async def manager_activity(request: Request):
         rt=request.app.state.rt
-        rows=rt.store.db.execute("SELECT id,at,kind,data FROM events WHERE colony=? AND kind IN ('model_call','model_failure','tool_result','proposal','arbitration','action','error','model_diagnostic') ORDER BY id DESC LIMIT 300",(rt.colony,)).fetchall()
+        rows=rt.store.db.execute("SELECT id,at,kind,data FROM events WHERE colony=? AND kind IN ('model_call','model_failure','tool_result','proposal','execution','arbitration','action','error','model_diagnostic') ORDER BY id DESC LIMIT 300",(rt.colony,)).fetchall()
         return {'colony':rt.colony,'events':[dict(id=r[0],at=r[1],kind=r[2],**json.loads(r[3])) for r in rows]}
 
     @app.get('/api/diagnostics')

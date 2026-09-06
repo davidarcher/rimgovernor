@@ -102,6 +102,15 @@
                     ],
                     "additionalProperties": false
                   }
+                },
+                "description": {
+                  "type": "string"
+                },
+                "is_bed": {
+                  "type": "boolean"
+                },
+                "bed_humanlike": {
+                  "type": "boolean"
                 }
               },
               "required": [
@@ -113,7 +122,10 @@
                 "work_to_build",
                 "stuff_count",
                 "costs",
-                "allowed_materials"
+                "allowed_materials",
+                "description",
+                "is_bed",
+                "bed_humanlike"
               ],
               "additionalProperties": false
             }
@@ -1027,6 +1039,15 @@
             ],
             "additionalProperties": false
           }
+        },
+        "description": {
+          "type": "string"
+        },
+        "is_bed": {
+          "type": "boolean"
+        },
+        "bed_humanlike": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -1038,7 +1059,10 @@
         "work_to_build",
         "stuff_count",
         "costs",
-        "allowed_materials"
+        "allowed_materials",
+        "description",
+        "is_bed",
+        "bed_humanlike"
       ],
       "additionalProperties": false
     },
@@ -1112,6 +1136,15 @@
                   ],
                   "additionalProperties": false
                 }
+              },
+              "description": {
+                "type": "string"
+              },
+              "is_bed": {
+                "type": "boolean"
+              },
+              "bed_humanlike": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -1123,7 +1156,10 @@
               "work_to_build",
               "stuff_count",
               "costs",
-              "allowed_materials"
+              "allowed_materials",
+              "description",
+              "is_bed",
+              "bed_humanlike"
             ],
             "additionalProperties": false
           }

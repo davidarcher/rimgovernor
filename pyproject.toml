@@ -19,7 +19,7 @@ rimbot = "rimbot.__main__:main"
 where = ["controller"]
 
 [tool.setuptools.package-data]
-rimbot = ["static/*", "static/assets/*", "data/*.json"]
+rimbot = ["static/*", "static/assets/*", "data/*.json", "data/strategies/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["controller_tests"]

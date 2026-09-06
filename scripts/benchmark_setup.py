@@ -83,6 +83,7 @@ async def run(args):
                 events=[e for e in events if e['at']>=started]
                 report.update(metrics.report(events,started),elapsed_seconds=round(time.time()-started,3))
             report['final_work']=rt.memory['work']
+            report['final_projects']=rt.memory.get('projects',[])
             (folder/'report.json').write_text(json.dumps(report,indent=2))
             await rt.stop();rt.store.close()
             print('Report: '+str(folder/'report.json'),flush=True)

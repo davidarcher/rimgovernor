@@ -1,0 +1,28 @@
+{
+  "id": "productive-work",
+  "version": 1,
+  "title": "Keep native jobs progressing",
+  "tags": [
+    "work",
+    "idle",
+    "labor",
+    "construction",
+    "priorities",
+    "workforce"
+  ],
+  "applies_when": [
+    "Colonists are idle while useful work is intended or queued."
+  ],
+  "approach": [
+    "Check whether the work is actually designated, billed or placed before changing worker priorities.",
+    "Inspect disabilities, enabled work, materials, access and current targets. Native reservations can indicate another worker is already attending to the job.",
+    "Use work priorities and schedules for ordinary labor. Numeric priorities require the native manual-priorities setting. Do not invent a forced job for ordinary work."
+  ],
+  "verify": [
+    "Remaining deliveries, frame work and completions across observations.",
+    "Native current jobs and idle flags; a target alone does not prove progress."
+  ],
+  "reconsider": [
+    "No eligible workers, missing ingredients, unreachable work, or continued lack of observed progress."
+  ]
+}

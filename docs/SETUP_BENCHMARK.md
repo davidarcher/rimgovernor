@@ -37,7 +37,7 @@ Use the same fixture, model settings and speed for comparisons, and repeat runs 
 
 Managers currently choose objectives and draft exact native orders. Use this benchmark to compare a semantic execution layer: managers choose outcomes/constraints; an executor resolves construction projects, workbench bills, zones and work assignments through the native API; observations verify progress. Do not add a bespoke procedure for every room or colony objective.
 
-A small versioned strategy library can supply relevant experience without putting a whole guide in context. Entries should state applicability, priorities/tradeoffs, facts to verify and reconsideration signals. Native definitions supply current numerical rules. Retrieve a few relevant entries and benchmark them before assuming they improve play. This iteration does not implement that library or an additional executor agent.
+A small versioned strategy library can supply relevant experience without putting a whole guide in context. Entries should state applicability, priorities/tradeoffs, facts to verify and reconsideration signals. Native definitions supply current numerical rules. Retrieve a few relevant entries and benchmark them before assuming they improve play. The subsequent semantic implementation is documented in SEMANTIC_EXECUTION.md.
 
 ### Spatial architect experiment
 
@@ -47,7 +47,7 @@ The architect proposes a layout; native placement validation and geometric enclo
 
 ### Model routing experiment
 
-Test a smaller model for narrow manager/executor assignments while retaining the current 9B for strategy, arbitration and ambiguous failures. Measure completed-work latency and retries, not only generation speed. Record loaded-model memory use and switching overhead. Keep native validation/progress deterministic. This iteration does not change model routing.
+Test a smaller model for narrow manager/executor assignments while retaining the current 9B for strategy, arbitration and ambiguous failures. Measure completed-work latency and retries, not only generation speed. Record loaded-model memory use and switching overhead. Keep native validation/progress deterministic. Department model routing is now configurable, as described below.
 
 ## Initial live baseline
 

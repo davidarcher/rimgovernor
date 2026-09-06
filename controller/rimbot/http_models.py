@@ -3393,6 +3393,9 @@ class Construction_BuildingDefinition(WireModel):
     stuff_count: int = Field()
     costs: list[Construction_Cost] = Field()
     allowed_materials: list[Construction_Material] = Field()
+    description: str = Field()
+    is_bed: bool = Field()
+    bed_humanlike: bool = Field()
 
 class Construction_PageBuildingDefinition(WireModel):
     items: list[Construction_BuildingDefinition] = Field()

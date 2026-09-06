@@ -48,6 +48,10 @@ class LocalModel:
                     if raw == '[DONE]':
                         break
                     chunk = json.loads(raw)
+                    if chunk.get('error'):
+                        error=chunk['error']
+                        detail=error.get('message',str(error)) if isinstance(error,dict) else str(error)
+                        raise ModelError('Local model stream error: '+detail[:800])
                     usage = chunk.get('usage') or usage
                     for choice in chunk.get('choices', []):
                         finish = choice.get('finish_reason') or finish

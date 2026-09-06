@@ -402,6 +402,7 @@ async def test_api_mutations_require_local_dashboard_header(colony):
 
 
 async def test_complete_hierarchy_http_fixture(colony):
+    from rimbot.semantic_models import ObjectiveProposal, WorkObjective
     rt,game=colony
     roles=[]
     class ScriptedModel:
@@ -412,15 +413,17 @@ async def test_complete_hierarchy_http_fixture(colony):
                 result=Plans(today=['Use the nearby supplies'],week=['Sustainable food'],season=['Develop production'],year=['Reliable settlement'],horizon='Room to grow',response='Start with nearby supplies.').model_dump()
             elif 'Administrator:' in system:
                 result=Decision(response='Allow the nearby timber; leave cave supplies alone.',accepted=['Infrastructure'],deferred={k:'No immediate order' for k in ['Survival','Security','Development','Workforce']}).model_dump()
-            elif 'Construction, rooms, storage filters, farms, production bills and power.' in system:
+            elif 'Your role is Executor:supply_access' in system:
                 result=Proposal(summary='Release the nearby timber.',actions=[allow()]).model_dump()
+            elif 'Construction, rooms, storage filters, farms, production bills and power.' in system:
+                result=ObjectiveProposal(summary='Make nearby timber usable',objectives=[WorkObjective(kind='supply_access',outcome='Make nearby timber available',success_signals=['Selected timber is allowed'])]).model_dump()
             else:
-                result=Proposal(summary='No immediate order.').model_dump()
+                result=ObjectiveProposal(summary='No immediate objective.').model_dump()
             return {'role':'assistant','content':None,'tool_calls':[{'id':str(len(roles)),'type':'function','function':{'name':'submit','arguments':json.dumps(result)}}]}, {'prompt_tokens':100,'completion_tokens':50}
         async def close(self):pass
     await rt.model.close();rt.model=ScriptedModel();rt.mode='automate'
     await rt.review()
-    assert len(roles)==7
+    assert len(roles)==8
     assert rt.memory['work'][0]['status']=='complete'
     assert rt.memory['chat'][-1]['role']=='manager'
     assert game.writes==['things/set-forbidden']
