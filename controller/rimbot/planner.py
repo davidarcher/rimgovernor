@@ -186,6 +186,9 @@ class Planner:
     async def ask(self, role, context, contract, thinking=True):
         query_text=json.dumps(context.get('project') or context.get('assigned_task') or context.get('player_direction') or role,ensure_ascii=False)
         context={**context,'strategy_guidance':[{k:v for k,v in entry.items() if k!='sources'} for entry in self.rt.strategies.search(query_text)]}
+        if (self.rt.last_tick or 0)<60000 and not any(e['id']=='first-days' for e in context['strategy_guidance']):
+            starter=next(e for e in self.rt.strategies.entries if e.id=='first-days')
+            context['strategy_guidance'].append(starter.model_dump(mode='json',exclude={'sources'}))
         if contract in (Plans,DailyPlan,ObjectiveProposal) or (issubclass(contract,Decision) and context.get('semantic_objectives')):
             context=decision_context(context,self.rt.observation)
         native_reads=[e for e in self.rt.catalog.listing(write=False) if self.rt.catalog.get(e['name']).get('native_contract')]
@@ -327,6 +330,11 @@ class Planner:
                 if field in schema['required']:schema['required'].remove(field)
             tools.append(tool(name,'Stage this native order in your approved project batch. Submit to execute the validated batch directly; no additional administrator approval is needed. '+entry['description'],schema))
             allowed_tools.add(name)
+        if contract is Proposal and 'construction_place' in writable:
+            from .enclosure import Enclosure
+            tools.append(tool('compile_enclosure','Stage complete room perimeter from its reservation. Select native wall/door definitions, materials and entrance cells; the compiler enumerates walls and reuses existing enclosure. No implicit mining or demolition. Submit to execute.',Enclosure.model_json_schema()))
+            allowed_tools.add('compile_enclosure')
+            instructions += '\nFor room walls use compile_enclosure instead of enumerating wall tiles. Choose an entrance on a non-corner perimeter cell. It stages an ordinary native construction batch, not finished construction. Furniture still uses construction_place.'
         if contract is Proposal:
             for name in writable:register_command(name)
             if native_reads:
@@ -412,6 +420,17 @@ class Planner:
                                 await validate_orders(self.rt,context['project'],value.actions)
                         submitted = await self.validate_observation(self.validate_submission(role,value,context),context=context)
                         result = {'received':True}
+                    elif f['name']=='compile_enclosure':
+                        from .enclosure import Enclosure, compile_enclosure
+                        from .spatial import validate_orders
+                        action=await compile_enclosure(self.rt,context['project'],Enclosure.model_validate(args))
+                        failed_drafts.pop('compile_enclosure',None)
+                        if action is None:result={'already_enclosed':True}
+                        else:
+                            self.validate_submission(role,Proposal(summary='Enclosure',actions=[action]),context)
+                            await validate_orders(self.rt,context['project'],list(drafts.values())+[action])
+                            drafts[json.dumps([action.endpoint,action.arguments],sort_keys=True)]=action
+                            result={'drafted':action.title,'placements':len(action.arguments['buildings']),'next':'Submit to execute; furniture may be drafted separately.'}
                     elif any(e['name']==f['name'] for e in native_reads):
                         result=(await self.rt.api.call(f['name'],args,write=False)).model_dump()
                         if f['name']=='construction_definitions':
@@ -443,7 +462,7 @@ class Planner:
                         raise ValueError('Use discover, describe, query or submit.')
                 except (ValueError, KeyError, RuntimeError) as e:
                     result = {'error':str(e)[:1400]}
-                    if f['name'] in writable and contract is Proposal:
+                    if (f['name'] in writable or f['name']=='compile_enclosure') and contract is Proposal:
                         failed_drafts[f['name']]=str(e)[:1400]
                         result['draft_retained']=False
                         result['retained_draft_count']=len(drafts)
