@@ -16,3 +16,10 @@ async def test_entire_batch_validated_before_any_priority_changes(colony):
     action=Action(title='Set work',endpoint='post_colonists_work_priority',arguments={'priorities':[{'id':11,'work':'Construction','priority':1},{'id':12,'work':'Wall','priority':1}]})
     with pytest.raises(ValueError,match='Unknown work type'):await rt.execute(action,'Executor:work_assignment')
     assert not game.writes
+
+@pytest.mark.parametrize('assignment,hour',[('UnforbidAll',0),('Work',24)])
+async def test_invalid_timetable_cannot_reach_game(colony,assignment,hour):
+    rt,game=colony;rt.mode='automate';rt.cycle_generation=rt.generation
+    action=Action(title='Invalid timetable',endpoint='post_colonist_time_assignment',arguments={'pawn_id':11,'hour':hour,'assignment':assignment})
+    with pytest.raises(ValueError):await rt.execute(action,'Executor:work_assignment')
+    assert not game.writes and not rt.memory['work']

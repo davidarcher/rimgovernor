@@ -108,7 +108,17 @@ async def semantic_review(rt,context,roles):
         project['reviewed_order_states']=states
         project['age_days']=round((time.time()-project['created_at'])/86400,2) if project.get('created_at') else None
     decision_context={**shared,'projects':projects,'proposals':candidates,'semantic_objectives':True}
-    decision=await arbitrate_objectives(rt,decision_context)
+    try:
+        decision=await arbitrate_objectives(rt,decision_context)
+    except ModelError as error:
+        if not projects:raise
+        rt.check_generation()
+        rt.note('error','Strategic review failed; continuing only existing approved projects. '+str(error),role='Administrator')
+        rt.memory['last_admin_day']=day
+        rt.memory['admin_requested']=False
+        rt.persist()
+        await execute_projects(rt,context,projects)
+        return
     summary=decision.response if len(decision.response)<=650 else decision.response[:647]+'...'
     rt.note('arbitration',summary,explanation=decision.response,role='Administrator',accepted=decision.accepted,deferred=decision.deferred,retired=decision.retire_projects,kept=len(decision.keep_projects))
     rt.reply(summary)

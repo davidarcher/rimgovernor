@@ -71,3 +71,15 @@ async def test_admin_schema_separates_candidates_from_existing_projects(colony):
     rt.model.complete=complete
     result=await rt.planner.ask('Administrator: approve semantic objectives',context,ObjectiveDecision)
     assert result.accepted==['Infrastructure:0']
+
+async def test_failed_admin_cannot_block_existing_approval_or_accept_new_work(colony):
+    from rimbot.model import ModelError
+    rt,game=colony;p=setup(rt);rt.memory['last_admin_day']=-1
+    async def ask(role,context,contract,thinking):
+        if contract is ObjectiveProposal:return ObjectiveProposal(summary='New request',objectives=[WorkObjective(kind='construction',outcome='New room',success_signals=['Room exists'])])
+        if contract is ObjectiveDecision:raise ModelError('Invalid administrator submission')
+        assert context['project']['project_id']==p['project_id']
+        return Proposal(summary='Continue supply order',actions=[Action(title='Allow timber',endpoint='post_things_set_forbidden',arguments={'map_id':7,'thing_ids':[101],'forbidden':False})])
+    rt.planner.ask=ask
+    await semantic_review(rt,{},['Infrastructure'])
+    assert game.writes==['things/set-forbidden'] and len(rt.memory['projects'])==1

@@ -160,9 +160,9 @@ class Planner:
                             raise ValueError(f'{name} does not meet approved definition requirement {field}={expected!r}; observed {actual!r}. Choose an eligible definition.')
             planned_mode=next((a.arguments['use_work_priorities'] for a in reversed(list(prior_actions)) if a.endpoint=='post_work_settings'),None)
             for action in value.actions:
+                await self.rt.validate_labor_order(action)
                 if action.endpoint=='post_work_settings':planned_mode=action.arguments['use_work_priorities']
                 if action.endpoint in ('post_colonist_work_priority','post_colonists_work_priority'):
-                    await self.rt.validate_work_types(action)
                     priorities=action.arguments.get('priorities',[action.arguments])
                     if any(p['priority'] not in (0,3) for p in priorities) and 'get_work_settings' in self.rt.catalog.available:
                         if planned_mode is None:planned_mode=(await self.rt.api.call('get_work_settings',{},fresh=True))['use_work_priorities']
@@ -197,6 +197,8 @@ class Planner:
         query_schema['properties']['endpoint']['enum'] = readable
         submit_schema = contract.model_json_schema()
         if issubclass(contract,ObjectiveDecision):
+            if self.rt.manager_model is None:
+                submit_schema['properties'].pop('escalation_reason',None)
             candidates=list(context.get('proposals',{}))
             projects=[p['project_id'] for p in context.get('projects',[])]
             for name,ids in (('accepted',candidates),('keep_projects',projects)):
@@ -345,7 +347,8 @@ class Planner:
         if role=='Executor:work_assignment':
             definitions=await self.rt.api.call('get_def_all',{'filters':['WorkTypeDefs']})
             context={**context,'native_work_types':[{'def_name':d['def_name'],'label':d.get('label'),'description':d.get('description')} for d in (definitions.get('work_type_defs') or [])]}
-            instructions += '\nWork priority work must be an exact native_work_types def_name. It enables a category of ordinary labor, not a specific job or building. Do not use a JobDef, ThingDef, or pawn name as a work type.'
+            context['native_time_assignments']=await self.rt.api.call('get_time_assignments',{})
+            instructions += '\nTime assignment accepts only names from native_time_assignments and sets the hourly timetable; it does not issue a specific job or allow supplies. Work priority work must be an exact native_work_types def_name. It enables a category of ordinary labor, not a specific job or building. Do not use a JobDef, ThingDef, or pawn name as a work type.'
         messages = [{'role':'system' ,'content':instructions}, {'role':'user','content':json.dumps(context, separators=(',',':'), ensure_ascii=False)}]
         definition_evidence = {}
         repeats = {}

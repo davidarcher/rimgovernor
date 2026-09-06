@@ -334,7 +334,14 @@ class Runtime:
     async def check(self, check):
         return satisfies(await self.query(check.query), check)
 
-    async def validate_work_types(self, action):
+    async def validate_labor_order(self, action):
+        if action.endpoint=='post_colonist_time_assignment':
+            assignments=await self.api.call('get_time_assignments',{})
+            names={v['name'] for v in assignments}
+            if action.arguments['assignment'] not in names:
+                raise ValueError('Unknown timetable assignment. Use a native assignment: '+', '.join(sorted(names))+'. Timetables do not unforbid supplies or issue specific jobs. No order sent.')
+            if not 0<=action.arguments['hour']<=23:raise ValueError('Timetable hour must be 0 through 23. No order sent.')
+            return
         if action.endpoint not in ('post_colonist_work_priority','post_colonists_work_priority'):return
         definitions=await self.api.call('get_def_all',{'filters':['WorkTypeDefs']})
         names={d['def_name'] for d in (definitions.get('work_type_defs') or [])}
@@ -417,7 +424,7 @@ class Runtime:
             return
         e = self.catalog.validate(action.endpoint, action.arguments, True)
         await self.validate_build_materials(action)
-        await self.validate_work_types(action)
+        await self.validate_labor_order(action)
         if 'map_id' in action.arguments and action.arguments['map_id'] != self.observation['map']['id']:
             raise ValueError('Action targets a different map.')
         if await self.action_complete(action):

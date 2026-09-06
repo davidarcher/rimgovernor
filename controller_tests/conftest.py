@@ -56,6 +56,8 @@ class GameFixture:
             data={'sections':[{'endpoints':[{'method':e['method'],'path':e['path']} for e in self.catalog.entries.values()]}]}
         elif path=='def/all':
             data={'work_type_defs':[{'def_name':name,'label':name} for name in ('Construction','Hauling','Growing','Cooking')]}
+        elif path=='time-assignments':
+            data=[{'name':v} for v in ('Anything','Work','Joy','Sleep')]
         elif path=='game/state':
             data={'session_id':self.session,'game_tick':self.tick,'program_state':'Playing','is_paused':False,'colonist_count':3,'colony_wealth':24000}
         elif path=='maps':
