@@ -186,7 +186,7 @@ async def execute_projects(rt,context,scheduled):
             outcomes=Counter(w['status'] for w in rt.memory['work'] if w['id'] not in before_batch)
             labels={'complete':'verified complete','issued':'sent; awaiting verification','deferred':'deferred; not sent','unknown':'outcome unknown','rejected':'rejected'}
             receipt='; '.join(f'{count} {labels.get(status,status)}' for status,count in outcomes.items()) or 'No new orders recorded.'
-            rt.note('execution',receipt,role=role,project_id=project['project_id'],outcomes=dict(outcomes),blockers=batch.blockers)
+            rt.note('execution',receipt,role=role,project_id=project['project_id'],outcomes=dict(outcomes),results=[{k:w[k] for k in ('id','title','status')} for w in rt.memory['work'] if w['id'] not in before_batch],blockers=batch.blockers)
             project['status']='awaiting_work' if batch.actions else 'needs_review'
             reconcile_projects(rt.memory)
         except asyncio.CancelledError:

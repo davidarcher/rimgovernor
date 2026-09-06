@@ -1,7 +1,16 @@
 import {useEffect,useState} from 'react';
-
-const roles=['All','Executor','Strategy','Infrastructure','Survival','Security','Development','Workforce','Administrator','Daily planning'];
-const owner=(e:any)=>(e.role||'Colony').split(':')[0];
+const source=(e:any)=>{
+ const parts=(e.role||'Colony').split(':');
+ if(parts.length>1&&(parts[0]==='Executor'||['construction','growing','storage','production','care','security','research','work_assignment','supply_access'].includes(parts[1].trim()))){const n=parts[1].trim().replaceAll('_',' ');return n.charAt(0).toUpperCase()+n.slice(1)+' specialist';}
+ return parts[0]==='Executor'?'Specialist':parts[0];
+};
+const outcome=(e:any)=>['arbitration','spatial_plan','project_cancelled','work_outcome','error','escalation'].includes(e.kind)||(e.kind==='execution'&&(Object.values(e.outcomes||{}).some(n=>Number(n)>0)||e.blockers?.length));
+function tally(events:any[]){
+ const commands=events.filter(e=>e.kind==='action'&&e.endpoint).length;
+ const tools=events.filter(e=>e.kind==='tool_result'&&e.tool!=='submit').length;
+ const corrections=events.filter(e=>(e.kind==='tool_result'&&e.result?.error)||(e.kind==='model_diagnostic'&&!e.call&&(e.error||e.errors))).length;
+ return `${commands} commands sent · ${tools} tool calls · ${corrections} corrections`;
+}
 function requestSummary(e:any){
   const a=e.arguments||{}, parts:string[]=[];
   if(a.search)parts.push(`“${a.search}”`);
@@ -15,7 +24,7 @@ function requestSummary(e:any){
 }
 function caption(e:any){
   if(e.kind==='execution'&&!e.outcomes&&e.orders!=null)return `Proposed ${e.orders} orders · historical planning summary; see Work for execution results`;
-  if(e.kind==='escalation')return `Escalated ${e.from_model} → ${e.to_model}: ${e.text}`;
+  if(e.kind==='escalation')return e.text||'Needs a decision';
   if(e.kind==='tool_result'){
     const detail=requestSummary(e), suffix=detail?` · ${detail}`:'';
     if(e.result?.error)return `${e.tool}${suffix} · Needs correction: ${e.result.error}`;
@@ -29,35 +38,39 @@ function caption(e:any){
   }
   return e.text||e.error||'Response needs correction';
 }
-export default function ManagerActivity({colony,busy,status,assignments}:{colony?:string;busy?:boolean;status?:any;assignments?:Record<string,string>}){
-  const [events,setEvents]=useState<any[]>([]),[role,setRole]=useState('All'),[error,setError]=useState('');
-  useEffect(()=>{
-    setEvents([]);setError('');
-    if(!colony)return;
-    const abort=new AbortController();let pending=false;
-    async function refresh(){
-      if(pending)return;pending=true;
-      try{const r=await fetch('/api/manager-activity',{signal:abort.signal});if(!r.ok)throw Error(`Activity unavailable (${r.status})`);const data=await r.json();if(!abort.signal.aborted&&data.colony===colony){setEvents(data.events);setError('');}}
-      catch(e){if(!abort.signal.aborted)setError(String(e));}finally{pending=false;}
-    }
-    refresh();const timer=setInterval(refresh,2000);return()=>{abort.abort();clearInterval(timer);};
-  },[colony]);
-  const visible=events.filter(e=>e.kind!=='model_call'&&(role==='All'||owner(e)===role));
-  const active=busy&&(role==='All'||owner(status||{})===role);
-  return <section className="mgr-card mgr-manager-log" aria-label="Manager activity">
-    <div className="mgr-card-title"><div><span className="mgr-eyebrow">BEHIND THE PLAN</span><h2>Manager activity</h2></div><a href="/api/history" download>Export full log</a></div>
-    <div className="mgr-tabs mgr-role-tabs" aria-label="Filter manager">{roles.map(r=><button key={r} aria-pressed={r===role} onClick={()=>setRole(r)}>{r}{busy&&owner(status||{})===r?' •':''}</button>)}</div>
-    <div className="mgr-log-status"><strong>{active?`${status?.role||'Manager'} · ${status?.phase||'Reviewing'}`:role==='All'?'Recent colony reviews':role}</strong><span>{active?status?.detail:assignments?.[role]||'Inspections → proposals → arbitration → orders'}</span>{busy&&status?.active_roles?.length>1&&<small>Reviewing: {status.active_roles.join(' · ')}</small>}{active&&status?.model&&<small>Model: {status.model}</small>}<small>{visible.filter(e=>e.kind==='tool_result').length} tools · {visible.filter(e=>e.kind==='proposal').length} proposals · {visible.filter(e=>e.kind==='arbitration').length} decisions in recent history</small></div>
-    {error&&<p role="alert" className="mgr-log-status">{error}</p>}
-    <div className="mgr-manager-events">{!visible.length&&<p className="mgr-empty">No recorded activity{role==='All'?'':` for ${role}`} yet.</p>}{visible.map(e=><article key={e.id} className={e.kind}>
-      <header><strong>{owner(e)}</strong><span>{e.kind==='tool_result'?'Tool':e.kind.replaceAll('_',' ')}</span><time>{new Date(e.at*1000).toLocaleTimeString()}</time></header>
-      <p>{caption(e)}</p>
-      {e.explanation&&e.explanation!==e.text&&<details><summary>Full explanation</summary><p style={{whiteSpace:'pre-wrap'}}>{e.explanation}</p></details>}
-      {e.kind==='proposal'&&<small>{e.semantic?e.proposal?.objectives?.length||0:e.proposal?.actions?.length||0} proposed {e.semantic?'objectives':'orders'} · awaiting arbitration</small>}
-      {e.kind==='arbitration'&&<div className="mgr-verdict">{e.accepted?.map((r:string)=><span key={r}>Approved: {r}</span>)}{Object.entries(e.deferred||{}).map(([r,why])=><p key={r}>Deferred {r}: {String(why)}</p>)}<small>Approval is not confirmation that an order executed. See Work for results.</small></div>}
-      {e.proposal?.objectives?.map((o:any,i:number)=><div key={'objective-'+i}>{o.outcome}</div>)}
-      {e.proposal?.actions?.map((a:any,i:number)=><div key={i}>↳ {a.title}</div>)}
-      <details><summary>Details{e.tool?` · ${e.tool}`:''}</summary><pre>{JSON.stringify(e,null,2)}</pre></details>
-    </article>)}</div><p className="mgr-small mgr-log-status">Latest 300 events, newest first. Drafts are proposed orders; Work tracks what reached the game.</p>
-  </section>;
+function EventRow({event:e,technical=false}:{event:any;technical?:boolean}){
+ const labels:Record<string,string>={execution:'Orders',work_outcome:'Verified',arbitration:'Decision',spatial_plan:'Layout planned',project_cancelled:'Project cancelled',error:'Blocked',escalation:'Needs a decision'};
+ const statuses:Record<string,string>={complete:'Verified',issued:'Sent; awaiting verification',unknown:'Outcome unknown',rejected:'Rejected',deferred:'Not sent'};
+ return <article className={e.kind}><header><strong>{source(e)}</strong><span>{labels[e.kind]||e.kind.replaceAll('_',' ')}</span><time>{new Date(e.at*1000).toLocaleTimeString()}</time></header>
+ {e.results?.length?<ul>{e.results.map((r:any,i:number)=><li key={r.id||i}>{r.title} — {statuses[r.status]||r.status}</li>)}</ul>:<p>{caption(e)}</p>}
+ {e.blockers?.map((b:string,i:number)=><p key={i}>Blocked: {b}</p>)}
+ {e.explanation&&e.explanation!==e.text&&<details><summary>Full explanation</summary><p>{e.explanation}</p></details>}
+ {technical&&<details><summary>Technical details{e.tool?` · ${e.tool}`:''}</summary><pre>{JSON.stringify(e,null,2)}</pre></details>}
+ </article>;
+}
+export default function ManagerActivity({colony,busy,status}:{colony?:string;busy?:boolean;status?:any;assignments?:Record<string,string>}){
+ const [events,setEvents]=useState<any[]>([]),[role,setRole]=useState('All'),[error,setError]=useState(''),[expanded,setExpanded]=useState(false);
+ useEffect(()=>{
+  setEvents([]);setError('');setRole('All');setExpanded(false);
+  if(!colony)return;
+  const abort=new AbortController();let pending=false;
+  async function refresh(){
+   if(pending)return;pending=true;
+   try{const r=await fetch('/api/manager-activity',{signal:abort.signal});if(!r.ok)throw Error(`Activity unavailable (${r.status})`);const data=await r.json();if(!abort.signal.aborted&&data.colony===colony){setEvents(data.events);setError('');}}
+   catch(e){if(!abort.signal.aborted)setError(String(e));}finally{pending=false;}
+  }
+  refresh();const timer=setInterval(refresh,2000);return()=>{abort.abort();clearInterval(timer);};
+ },[colony]);
+ const roles=Array.from(new Set([...events.map(source),...(busy?[source(status||{})]:[])])).sort();
+ const selected=events.filter(e=>role==='All'||source(e)===role),outcomes=selected.filter(outcome);
+ const active=busy&&(role==='All'||source(status||{})===role);
+ return <section className="mgr-card mgr-manager-log" aria-label="Colony activity">
+  <div className="mgr-card-title"><h2>Colony activity</h2><a href="/api/history" download>Export full log</a></div>
+  <div className="mgr-activity-controls"><label>Source <select aria-label="Activity source" value={role} onChange={e=>setRole(e.target.value)}><option>All</option>{roles.map(r=><option key={r}>{r}</option>)}</select></label>{active&&<span role="status">{source(status||{})} · {status?.phase||'Working'}</span>}</div>
+  {error&&<p role="alert" className="mgr-log-status">{error}</p>}
+  <div className="mgr-manager-events">{!outcomes.length&&<p className="mgr-empty">{active?'Working — no new outcome yet.':'No outcomes recorded yet.'}</p>}{outcomes.map(e=><EventRow key={e.id} event={e}/>)}</div>
+  <details className="mgr-activity-details" open={expanded} onToggle={e=>setExpanded(e.currentTarget.open)}><summary>{tally(selected)} <span className="mgr-muted">· recent activity · show details</span></summary>
+  {expanded&&<><p className="mgr-small">Includes inspections, proposed orders and corrections. A tool call is not a completed game action.</p><div className="mgr-manager-events">{selected.filter(e=>e.kind!=='model_call').map(e=><EventRow key={e.id} event={e} technical/>)}</div></>}
+  </details>
+ </section>;
 }

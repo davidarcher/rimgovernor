@@ -1,9 +1,21 @@
-# Manager activity checkpoint
+# Colony activity
 
-The dashboard now exposes a colony-scoped recent activity feed with filters for each specialist, planning and the administrator. It includes successful tool results, model call duration, proposals and explicit arbitration decisions. Raw arguments/results are expandable. Drafts and approvals are distinguished from executed work. The feed retains 300 recent events; the full export includes older history. Refresh the browser after updating the controller.
+The dashboard shows outcomes by default: verified work, issued-order summaries,
+strategic decisions, reserved layouts, cancelled projects and terminal blockers.
+Orders sent to the game remain labelled as awaiting verification. Later observed
+completion produces a separate verified outcome; model claims are not completion.
 
-Specialists now receive their native proposal tools directly and inspect shared observations independently, without inheriting earlier specialists' unverified claims. Role instructions distinguish missing local permission from a globally missing capability. Pawn needs absent in the game are null instead of misleading zero values; body size is populated.
+Inspections, proposed orders and validation corrections are collapsed beneath a
+recent-activity count. Expand it for readable request summaries and optional raw
+technical details. Counts distinguish commands actually issued from tool calls;
+submit calls are excluded, and matching diagnostic copies of failed tool calls
+are not counted as additional corrections. These counts describe the retained
+recent events, not lifetime totals or a claim that every correction was retried.
 
-Validation: 41 backend tests and 6 dashboard tests passed; frontend production build succeeded. Live activity endpoint returned 224 events after controller restart.
+Source filtering uses a compact selector with the actors present in the feed.
+Construction and other executors are labelled as specialists; Architect,
+Administrator and the departments keep their own names.
 
-Known failure: broad startup test `.rimbot/startup-tests/20260905-172045/report.json` did not establish sleeping arrangements within 240 seconds. Infrastructure reached the native blueprint draft tool, omitted material, and hit the model output limit after validation feedback. This checkpoint does not establish reliable autonomous startup. Large tool schemas, unnecessary administrative inspections and recovery remain unresolved. Earlier bounded bed construction tests are not evidence that this broader scenario passes.
+The endpoint retains the latest 300 detailed events plus 80 recent outcome events,
+deduplicated by event ID. A long tool loop therefore does not immediately evict
+useful outcomes. Full history remains available through the export link.

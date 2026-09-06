@@ -416,6 +416,8 @@ class Runtime:
                 if done:
                     work['status'] = 'complete'
                     work['detail'] = 'Verified in the colony'
+                    title=work.get('title') or work['action'].get('title','Order')
+                    self.note('work_outcome',title,role=work.get('role','Colony'),work_id=work['id'],project_id=work.get('project_id'),results=[{'id':work['id'],'title':title,'status':'complete'}])
                     changed = True
                 # Unknown/pending observations never block replacement actions.
                 # Expire tracking after a day; the next review inspects live state.

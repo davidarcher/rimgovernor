@@ -186,7 +186,10 @@ def create_app(runtime=None):
     async def manager_activity(request: Request):
         rt=request.app.state.rt
         rows=rt.store.db.execute("SELECT id,at,kind,data FROM events WHERE colony=? AND kind IN ('model_call','model_failure','tool_result','proposal','execution','execution_plan','arbitration','escalation','action','error','model_diagnostic') ORDER BY id DESC LIMIT 300",(rt.colony,)).fetchall()
-        return {'colony':rt.colony,'events':[dict(id=r[0],at=r[1],kind=r[2],**json.loads(r[3])) for r in rows]}
+        # Preserve outcomes even when hundreds of inspection events follow them.
+        outcomes=rt.store.db.execute("SELECT id,at,kind,data FROM events WHERE colony=? AND kind IN ('execution','arbitration','spatial_plan','project_cancelled','work_outcome','error','escalation') ORDER BY id DESC LIMIT 80",(rt.colony,)).fetchall()
+        merged={r[0]:r for r in rows+outcomes}
+        return {'colony':rt.colony,'events':[dict(id=r[0],at=r[1],kind=r[2],**json.loads(r[3])) for r in sorted(merged.values(),key=lambda r:r[0],reverse=True)]}
 
     @app.get('/api/diagnostics')
     async def diagnostics(request: Request):
