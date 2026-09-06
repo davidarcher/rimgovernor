@@ -205,6 +205,8 @@ class Runtime:
                     self.note('error','Definition search index unavailable: '+str(error))
                 self.note('connection', 'Earlier save loaded. Work tracking refreshed; control is Manual.')
             self.last_tick = tick
+            if not observed['game'].get('is_paused'):
+                self.initial_pause_session=None
             self.observation = observed
             self.connected = True
             if not self.busy() and self.status.get('phase')!='Needs attention':
@@ -259,6 +261,28 @@ class Runtime:
                 client.stop()
                 listen.cancel()
                 await asyncio.gather(listen, return_exceptions=True)
+
+    async def pause_initial_planning(self):
+        if self.mode!='automate' or self.memory.get('plans'):return
+        game=await self.api.call('get_game_state',{},fresh=True)
+        if game.get('is_paused'):return
+        session=game.get('session_id')
+        await self.api.request('POST','/api/v1/game/speed',params={'speed':0})
+        check=await self.api.call('get_game_state',{},fresh=True)
+        if not check.get('is_paused') or check.get('session_id')!=session:
+            self.initial_pause_session=None
+            raise ValueError('Could not verify initial planning pause')
+        self.initial_pause_session=session
+        self.note('info','Paused for initial colony planning. Will resume at normal speed for execution.')
+
+    async def resume_initial_planning(self):
+        session=getattr(self,'initial_pause_session',None)
+        self.initial_pause_session=None
+        if not session:return
+        game=await self.api.call('get_game_state',{},fresh=True)
+        if game.get('session_id')==session and game.get('is_paused'):
+            await self.api.request('POST','/api/v1/game/speed',params={'speed':1})
+            self.note('info','Initial planning finished. Resumed at normal speed.')
 
     async def set_mode(self, mode):
         if mode not in ('manual','automate'):
@@ -621,6 +645,7 @@ class Runtime:
         self.last_review_wall = time.monotonic()
         self.last_review = self.last_tick or 0
         try:
+            await self.pause_initial_planning()
             context = {'colony':compact(self.observation,20000),'player_direction':self.memory['direction'],
                        'goals':self.memory['goals'],'plans':self.memory['plans'],
                        'work':[{k:v for k,v in w.items() if k!='action'} for w in self.memory['work'][-30:]],
@@ -660,6 +685,7 @@ class Runtime:
             if steering:
                 self.reply('I couldnÃ¢â‚¬â„¢t finish that review: '+str(e)[:400])
         finally:
+            await self.resume_initial_planning()
             self.persist()
             self.started_at = None
 

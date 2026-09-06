@@ -52,3 +52,11 @@ footprints, incomplete perimeters and missing doors. `scripts/live_spatial_smoke
 uses the real local vision model and a disposable map with semantic objectives,
 without supplied placement coordinates. It verifies native planning cells and
 cleans up unchanged test-owned plans. It does not claim construction was completed.
+
+## Initial planning and room sizes
+
+The first Automate review pauses a running colony while strategy, proposals and the architect run, then resumes at normal speed before executor work. An already-paused colony stays paused. RIMAPI currently exposes pause state but not the previous selected speed, so this does not restore fast/ultrafast speed. Observed player unpausing releases the controller's pause ownership. The controller never resumes a different game session. This is an initial setup pause, not automatic tactical time management.
+
+The architect always receives room-sizing guidance. Individual bedroom examples (5x5 or 4x6 interior) are distinguished from shared barracks and larger building envelopes. An 11x11 interior can be partitioned into four 5x5 interiors with cross walls, but door access/corridors must be planned separately; it is not a mandatory module. Native footprint checks remain authoritative during execution.
+
+Live check on 2026-09-06: tick held at 9299 through initial planning, then advanced after the execution handoff. Architect chose 9x9 outer / 7x7 interior and created the native plan. Supply unforbidding was verified. This did not verify a completed shelter or a subdivided bedroom block.

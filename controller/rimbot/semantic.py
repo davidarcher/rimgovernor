@@ -145,6 +145,7 @@ async def execute_projects(rt,context,scheduled):
     except (ModelError,ValueError,RuntimeError) as error:
         spatial_error=str(error)
         rt.note("error",spatial_error,role="Architect")
+    await rt.resume_initial_planning()
     for project in scheduled:
         rt.check_generation()
         if rt.mode!='automate':break

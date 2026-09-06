@@ -28,6 +28,7 @@ def dto_fixture(schema, value):
 class GameFixture:
     """Deterministic HTTP fixture, not a claim about RimWorld gameplay."""
     def __init__(self):
+        self.paused=False
         self.tick=1000
         self.session='test-session'
         self.map_id=7
@@ -58,8 +59,11 @@ class GameFixture:
             data={'work_type_defs':[{'def_name':name,'label':name} for name in ('Construction','Hauling','Growing','Cooking')]}
         elif path=='time-assignments':
             data=[{'name':v} for v in ('Anything','Work','Joy','Sleep')]
+        elif path=='game/speed':
+            self.paused=int(r.url.params['speed'])==0
+            data={}
         elif path=='game/state':
-            data={'session_id':self.session,'game_tick':self.tick,'program_state':'Playing','is_paused':False,'colonist_count':3,'colony_wealth':24000}
+            data={'session_id':self.session,'game_tick':self.tick,'program_state':'Playing','is_paused':self.paused,'colonist_count':3,'colony_wealth':24000}
         elif path=='maps':
             data=[{'id':self.map_id,'seed':42,'is_player_home':True,'faction_id':'Player','size':'(250,1,250)'}]
         elif path=='colonists/detailed':
