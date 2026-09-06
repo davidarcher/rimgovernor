@@ -14399,5 +14399,78 @@
         }
       }
     }
+  },
+  "get_v1_map_resource_overview": {
+    "path": "/api/v1/map/resource-overview",
+    "method": "GET",
+    "query_schema": {
+      "type": "object",
+      "properties": {
+        "map_id": {
+          "type": "integer"
+        },
+        "center_x": {
+          "type": "integer"
+        },
+        "center_z": {
+          "type": "integer"
+        },
+        "nearby_radius": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 40
+        },
+        "refresh_terrain": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [
+        "map_id",
+        "center_x",
+        "center_z"
+      ],
+      "additionalProperties": false
+    },
+    "query_model": "get_v1_map_resource_overview_Query",
+    "body_schema": null,
+    "response_schema": {
+      "$ref": "#/components/schemas/MapResourceOverview"
+    },
+    "body_required": false,
+    "query_fallback_required": [],
+    "responses": {
+      "200": {
+        "description": "Native explored resource observations",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/MapResourceOverview"
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid map or coordinates",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "Native failure",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Construction_ContractError"
+            }
+          }
+        }
+      }
+    }
   }
 }

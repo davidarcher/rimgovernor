@@ -3214,6 +3214,117 @@ class ZoneDto(WireModel):
 class WorkSettings(WireModel):
     use_work_priorities: bool = Field()
 
+class ResourceCell(WireModel):
+    x: int = Field()
+    z: int = Field()
+
+class ResourceLocation(WireModel):
+    nearby_count: int = Field()
+    nearest_distance: float = Field()
+    nearest_cell: ResourceCell = Field()
+    sample_ids: list[int] = Field()
+
+class TerrainResource(WireModel):
+    def_name: str = Field()
+    label: str = Field()
+    fertility: float = Field()
+    visible_cells: int = Field()
+    nearby_cells: int = Field()
+    largest_nearby_patch: int = Field()
+    nearest_cell: ResourceCell = Field()
+    nearest_distance: float = Field()
+
+class PlantResource(WireModel):
+    def_name: str = Field()
+    label: str = Field()
+    harvest_product: Union[str, None] = Field()
+    wild_count: int = Field()
+    sown_count: int = Field()
+    harvestable_count: int = Field()
+    harvestable_yield: int = Field()
+    nearby_harvestable_yield: int = Field()
+    location: ResourceLocation = Field()
+
+class AnimalResource(WireModel):
+    def_name: str = Field()
+    label: str = Field()
+    count: int = Field()
+    wild_count: int = Field()
+    owned_count: int = Field()
+    hostile_count: int = Field()
+    wild_meat_estimate: float = Field()
+    nearby_wild_meat_estimate: float = Field()
+    meat_def: Union[str, None] = Field()
+    predator: bool = Field()
+    manhunter_on_damage_chance: float = Field()
+    location: ResourceLocation = Field()
+
+class MineralResource(WireModel):
+    def_name: str = Field()
+    label: str = Field()
+    product_def: str = Field()
+    visible_blocks: int = Field()
+    base_yield_estimate: int = Field()
+    nearby_base_yield_estimate: int = Field()
+    location: ResourceLocation = Field()
+
+class SupplyResource(WireModel):
+    def_name: str = Field()
+    label: str = Field()
+    quantity: int = Field()
+    allowed_quantity: int = Field()
+    forbidden_quantity: int = Field()
+    nearby_allowed_quantity: int = Field()
+    nearby_forbidden_quantity: int = Field()
+    nutrition_per_unit: float = Field()
+    location: ResourceLocation = Field()
+
+class CropResource(WireModel):
+    def_name: str = Field()
+    label: str = Field()
+    product_def: str = Field()
+    min_fertility: float = Field()
+    base_grow_days: float = Field()
+    min_sow_skill: int = Field()
+    base_harvest_yield: float = Field()
+    nutrition_per_product: float = Field()
+    growth_season_now: bool = Field()
+    nearby_fertility_eligible_cells: int = Field()
+
+class FishingResource(WireModel):
+    nearest_cell: ResourceCell = Field()
+    nearest_distance: float = Field()
+    visible_water_cells: int = Field()
+    nearby_water_cells: int = Field()
+    has_fish: bool = Field()
+    population: float = Field()
+    max_population: float = Field()
+    totally_frozen: Union[bool, None] = Field()
+    pollution_fraction: float = Field()
+    fish_defs: list[str] = Field()
+
+class MapResourceOverview(WireModel):
+    map_id: int = Field()
+    observed_tick: int = Field()
+    terrain_observed_tick: int = Field()
+    terrain_cache_hit: bool = Field()
+    terrain_max_age_ticks: int = Field()
+    center: ResourceCell = Field()
+    nearby_radius: int = Field()
+    visible_cells: int = Field()
+    unexplored_cells: int = Field()
+    outdoor_temperature: float = Field()
+    seasonal_temperature: float = Field()
+    fishing_available: bool = Field()
+    terrain: list[TerrainResource] = Field()
+    plants: list[PlantResource] = Field()
+    animals: list[AnimalResource] = Field()
+    minerals: list[MineralResource] = Field()
+    supplies: list[SupplyResource] = Field()
+    food_crops: list[CropResource] = Field()
+    fishing: list[FishingResource] = Field()
+    notes: list[str] = Field()
+
 class Construction_DefinitionQuery(WireModel):
     search: str = Field()
     offset: int = Field(ge=0, le=2147483647)
@@ -3971,6 +4082,13 @@ class get_v1_work_settings_Query(WireModel):
 class post_v1_work_settings_Query(WireModel):
     pass
 
+class get_v1_map_resource_overview_Query(WireModel):
+    map_id: int = Field()
+    center_x: int = Field()
+    center_z: int = Field()
+    nearby_radius: Union[int, None] = Field(default=None, ge=1, le=100)
+    refresh_terrain: Union[bool, None] = Field(default=None)
+
 AbilityDefDto.model_rebuild()
 AddRelationRequestDto.model_rebuild()
 AllDefsRequestDto.model_rebuild()
@@ -4385,6 +4503,16 @@ WorkTypeDefDto.model_rebuild()
 WorldObjectDefDto.model_rebuild()
 ZoneDto.model_rebuild()
 WorkSettings.model_rebuild()
+ResourceCell.model_rebuild()
+ResourceLocation.model_rebuild()
+TerrainResource.model_rebuild()
+PlantResource.model_rebuild()
+AnimalResource.model_rebuild()
+MineralResource.model_rebuild()
+SupplyResource.model_rebuild()
+CropResource.model_rebuild()
+FishingResource.model_rebuild()
+MapResourceOverview.model_rebuild()
 Construction_DefinitionQuery.model_rebuild()
 Construction_Cost.model_rebuild()
 Construction_Material.model_rebuild()
@@ -4607,6 +4735,7 @@ construction_state_Query.model_rebuild()
 construction_area_Query.model_rebuild()
 get_v1_work_settings_Query.model_rebuild()
 post_v1_work_settings_Query.model_rebuild()
+get_v1_map_resource_overview_Query.model_rebuild()
 
 QUERY_TYPES = {
     'get_api_openapi_json': TypeAdapter(get_api_openapi_json_Query),
@@ -4810,6 +4939,7 @@ QUERY_TYPES = {
     'construction_area': TypeAdapter(construction_area_Query),
     'get_v1_work_settings': TypeAdapter(get_v1_work_settings_Query),
     'post_v1_work_settings': TypeAdapter(post_v1_work_settings_Query),
+    'get_v1_map_resource_overview': TypeAdapter(get_v1_map_resource_overview_Query),
 }
 
 BODY_TYPES = {
@@ -5084,6 +5214,7 @@ RESPONSE_TYPES = {
     'construction_area': TypeAdapter(Construction_AreaResult),
     'get_v1_work_settings': TypeAdapter(WorkSettings),
     'post_v1_work_settings': TypeAdapter(WorkSettings),
+    'get_v1_map_resource_overview': TypeAdapter(MapResourceOverview),
 }
 
 class HttpOperations:
@@ -5689,3 +5820,6 @@ class HttpOperations:
 
     async def post_v1_work_settings(self, *, query: post_v1_work_settings_Query | None = None, body: WorkSettings | None = None) -> WorkSettings:
         return await self._call('post_v1_work_settings', query=query, body=body)
+
+    async def get_v1_map_resource_overview(self, *, query: get_v1_map_resource_overview_Query | None = None) -> MapResourceOverview:
+        return await self._call('get_v1_map_resource_overview', query=query)

@@ -11,6 +11,8 @@ from .planner import Planner, ROLES
 from .rimapi import RimAPI, APIError, snapshot, compact
 from .native_models import ConstructionRequest
 from .native_client import NativeIntegrationError, StaleObservation
+from .http_models import MapResourceOverview
+from .resources import resource_brief
 
 
 class Runtime:
@@ -472,6 +474,24 @@ class Runtime:
             result['colony_focus']=self.memory.get('colony_focus')
         return result
 
+    async def observe_resources(self, context):
+        if 'get_map_resource_overview' not in self.catalog.available:
+            return {**context,'resource_overview':{'available':False,'reason':'Installed RIMAPI does not expose the resource overview.'}}
+        try:
+            if self.memory.get('colony_focus') is None:
+                context=await self.manager_context(context)
+            center=self.memory.get('colony_focus')
+            if center is None:
+                raise ValueError('No observed colony location; resource survey needs a center.')
+            args={'map_id':self.observation['map']['id'],'center_x':center['x'],'center_z':center['z'],'nearby_radius':40}
+            overview=MapResourceOverview.model_validate(await self.api.call('get_map_resource_overview',args,fresh=True))
+            brief=resource_brief(overview)
+            self.store.event(self.colony,'tool_result',role='Observation',tool='get_map_resource_overview',arguments=args,result=brief)
+            return {**context,'resource_overview':brief}
+        except (APIError,ValueError) as error:
+            self.note('error','Resource overview unavailable: '+str(error))
+            return {**context,'resource_overview':{'available':False,'reason':str(error)}}
+
     async def review(self, steering=False, strategy=False):
         self.cycle_generation = self.generation
         self.started_at = time.time()
@@ -486,6 +506,7 @@ class Runtime:
                        'work':[{k:v for k,v in w.items() if k!='action'} for w in self.memory['work'][-30:]],
                        'notifications':compact(events,6000), 'mode':self.mode,
                        'capabilities':self.catalog.listing()}
+            context=await self.observe_resources(context)
             day = (self.last_tick or 0)//60000
             if strategy or not self.memory['plans'] or (not steering and day//15 != (self.memory['last_plan_day'] or 0)//15):
                 plans = await self.planner.ask('Strategy: set concrete near-term goals and progressively fuzzier week, season, year and three-year direction. Stability is a base for development, not a reason to stop. Match terrain, resources, colony needs and player direction. Short actionable entries.',context,Plans,self.settings.reasoning)

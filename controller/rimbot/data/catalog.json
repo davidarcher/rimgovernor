@@ -1330,6 +1330,52 @@
       }
     },
     {
+      "name": "get_map_resource_overview",
+      "operation_id": "get_v1_map_resource_overview",
+      "method": "GET",
+      "path": "/api/v1/map/resource-overview",
+      "category": "Map",
+      "description": "Strategic resource overview of the explored map. Counts and native yields for plants, wildlife, ore, loose supplies, fertility and fishing, with nearby counts and inspection coordinates. Terrain is cached for at most 2500 game ticks and invalidated by terrain/fog changes; refresh_terrain forces a rebuild. Distances are straight-line, not safety or reachability. Food crop fertility counts are potential land, not a placement guarantee.",
+      "transport": "query",
+      "query_keys": [
+        "map_id",
+        "center_x",
+        "center_z",
+        "nearby_radius",
+        "refresh_terrain"
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "center_x": {
+            "type": "integer"
+          },
+          "center_z": {
+            "type": "integer"
+          },
+          "nearby_radius": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 40
+          },
+          "refresh_terrain": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "center_x",
+          "center_z",
+          "map_id"
+        ]
+      }
+    },
+    {
       "name": "get_map_rooms",
       "operation_id": "get_v1_map_rooms",
       "method": "GET",
