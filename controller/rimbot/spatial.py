@@ -177,7 +177,8 @@ async def prepare_layout(rt,context,projects):
     saved=rt.memory.get('spatial_layout',{})
     owners={i for r in saved.get('regions',[]) for i in r['project_ids']}
     # Existing reservations constrain the architect; new zones belong to specialists.
-    projects=[p for p in rt.memory.get('projects',projects) if p['project_id'] in active and (p['kind']=='construction' or p['project_id'] in owners)]
+    from .project_progress import routing_error
+    projects=[p for p in rt.memory.get('projects',projects) if p['project_id'] in active and not routing_error(p) and (p['kind']=='construction' or p['project_id'] in owners)]
     if not any(p['kind']=='construction' for p in projects):return
     focus=context.get('colony_focus') or rt.memory.get('colony_focus')
     if not focus:raise ValueError('Architect needs an observed colony focus')
@@ -394,5 +395,8 @@ async def validate_zone_orders(rt,project,actions):
             if cell['zone_id'] is not None:raise ValueError(f'Existing {cell["zone_type"]} at {point}; inspect or update that zone instead of creating another over it')
             if cell['encloses']:raise ValueError(f'Zone cell {point} contains enclosing construction')
             if project['kind']=='growing' and (not cell['plantable'] or cell['fertility']<minimum):raise ValueError(f'Zone cell {point} cannot grow {action.arguments["plant_def"]}: fertility {cell["fertility"]}, needs {minimum}; exclude it')
+    if project['kind']=='growing':
+        from .project_progress import validate_farm_expansion
+        await validate_farm_expansion(rt,project,actions)
     # Native zone creation checks Zone.CanAddCell again.
     # Successful zones themselves are authoritative shared reservations, read afresh above.

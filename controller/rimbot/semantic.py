@@ -60,6 +60,8 @@ async def semantic_review(rt,context,roles):
         return
     proposals={}
     shared=await rt.manager_context(context)
+    from .project_progress import refresh_progress
+    shared=await refresh_progress(rt,shared)
     if rt.memory.get('admin_requested'):shared['coordination_request']=rt.memory['admin_requested']
     shared['cancelled_projects']=[{'kind':p['kind'],'outcome':p['outcome']} for p in rt.memory.get('projects',[]) if p.get('cancelled_by_player')][-30:]
     projects=[p for p in rt.memory.get('projects',[]) if p.get('status')!='retired']
@@ -160,10 +162,17 @@ async def execute_projects(rt,context,scheduled):
     await release_retired(rt,{p['project_id'] for p in rt.memory.get('projects',[]) if p.get('status')!='retired'})
     spatial_error=None
     layout_prepared=False
-    scheduled=sorted(scheduled,key=lambda p:p['kind'] not in ('growing','storage'))
+    scheduled=sorted(scheduled,key=lambda p:{'supply_access':0,'storage':1,'growing':2}.get(p['kind'],3))
     for project in scheduled:
         rt.check_generation()
         if rt.mode!='automate':break
+        from .project_progress import routing_error
+        mismatch=routing_error(project)
+        if mismatch:
+            project['status']='needs_review';project['feedback']=[mismatch]
+            rt.memory['admin_requested']=mismatch
+            rt.note('error',mismatch,project_id=project['project_id']);rt.persist()
+            continue
         role='Executor:'+project['kind']
         if project['kind']=='construction' and not layout_prepared:
             layout_prepared=True
@@ -180,6 +189,8 @@ async def execute_projects(rt,context,scheduled):
                     raise ValueError('Waiting for architect: '+layout.get('deferred',{}).get(project['project_id'],'No valid site reserved.'))
             fresh=await rt.manager_context(context)
             fresh=await rt.observe_resources(fresh)
+            from .project_progress import refresh_progress
+            fresh=await refresh_progress(rt,fresh)
             fresh={k:v for k,v in fresh.items() if k not in ('plans','assignments')}
             fresh.update(project_owner=project['owner'],project=project,projects=[p for p in rt.memory['projects'] if p.get('status')!='retired'],assigned_task=project['outcome'])
             fresh['spatial_reservations']=rt.memory.get('spatial_layout',{})

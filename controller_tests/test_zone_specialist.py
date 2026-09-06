@@ -7,7 +7,8 @@ from test_spatial import area, region, layout
 
 def setup(regions=()):
     survey=area()
-    async def call(name,args):
+    async def call(name,args,**kwargs):
+        if name=='get_map_zones':return {'zones':[]}
         if name=='get_def_all':return {'plant_defs':[{'def_name':'Crop','fertility_min':.7}]}
         return NS(model_dump=lambda:survey)
     return NS(memory={'spatial_layout':{'regions':list(regions)},'colony_focus':{'x':3,'z':3}},observation={'map':{'id':0}},api=NS(call=call)),survey
@@ -19,7 +20,7 @@ def zone(x=6,z=6,kind='growing'):
 
 async def test_specialist_chooses_unreserved_site():
     rt,_=setup([region()])
-    await validate_orders(rt,{'kind':'growing','project_id':'food'},[zone()])
+    await validate_orders(rt,{'kind':'growing','project_id':'food','crop_def':'Crop','target_cells':20},[zone()])
     assert len(rt.memory['spatial_layout']['regions'])==1  # validation does not claim land
 
 @pytest.mark.parametrize('purpose',['room','path','farm','storage'])
@@ -27,7 +28,7 @@ async def test_shared_reservations_protected(purpose):
     r=region();r['purpose']=purpose
     rt,_=setup([r])
     with pytest.raises(ValueError,match='conflicts'):
-        await validate_orders(rt,{'kind':'growing','project_id':'food'},[zone(2,2)])
+        await validate_orders(rt,{'kind':'growing','project_id':'food','crop_def':'Crop','target_cells':20},[zone(2,2)])
 
 async def test_storage_room_interior_allowed_perimeter_rejected():
     rt,_=setup([region()]);project={'kind':'storage','project_id':'store'}
@@ -36,7 +37,7 @@ async def test_storage_room_interior_allowed_perimeter_rejected():
 
 async def test_fresh_native_zones_and_bad_soil_rejected():
     rt,survey=setup();cell=next(c for c in survey['cells'] if c['position']=={'x':6,'z':6})
-    project={'kind':'growing','project_id':'food'}
+    project={'kind':'growing','project_id':'food','crop_def':'Crop','target_cells':20}
     cell['fertility']=.1
     with pytest.raises(ValueError,match='fertility'):await validate_orders(rt,project,[zone()])
     cell.update(fertility=1.,zone_id=99,zone_type='Zone_Stockpile')
@@ -55,6 +56,8 @@ async def test_zone_executor_runs_before_architect_failure(monkeypatch):
     async def prepare(*args):order.append('architect');raise ValueError('bad room')
     async def ask(*args):order.append('growing');return Proposal(summary='Need a suitable crop',blockers=['No crop selected'])
     monkeypatch.setattr('rimbot.spatial.prepare_layout',prepare)
+    async def refreshed(rt,context):return context
+    monkeypatch.setattr('rimbot.project_progress.refresh_progress',refreshed)
     rt=NS(memory={'projects':projects,'work':[]},check_generation=Mock(),mode='automate',resume_initial_planning=AsyncMock(),note=Mock(),persist=Mock(),manager_context=AsyncMock(return_value={}),observe_resources=AsyncMock(return_value={}),planner=NS(ask=ask),settings=NS(reasoning=False))
     await execute_projects(rt,{},projects)
     assert order==['growing','architect']
