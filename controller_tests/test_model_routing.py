@@ -10,7 +10,6 @@ async def test_department_routing_and_main_model_fallback(colony):
     assert rt.model_for_role('Strategy: plan') is rt.model
     assert rt.model_for_role('Daily planning: plan') is rt.model
     assert rt.model_for_role('Administrator: reconcile') is rt.manager_model
-    assert rt.model_for_role('Administrator: escalated review') is rt.model
     assert rt.model_for_role('Executor:construction') is rt.manager_model
     old=rt.manager_model
     await rt.configure(rt.settings.model_copy(update={'manager_model':''}))

@@ -56,7 +56,7 @@ class Runtime:
         return self.model_factory(self.settings.model_copy(update={'model':name})) if name and name!=self.settings.model else None
 
     def model_for_role(self, role):
-        return self.manager_model if (role in ROLES or role.startswith('Executor:') or (role.startswith('Administrator:') and not role.startswith('Administrator: escalated'))) and self.manager_model is not None else self.model
+        return self.manager_model if (role in ROLES or role.startswith('Executor:') or role.startswith('Administrator:')) and self.manager_model is not None else self.model
 
     @staticmethod
     def empty_memory():

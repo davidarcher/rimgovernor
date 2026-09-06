@@ -83,10 +83,6 @@ class Planner:
         self.rt = runtime
 
     def validate_submission(self, role, value, context=None):
-        if isinstance(value,ObjectiveDecision) and value.escalation_reason:
-            if value.accepted or value.deferred or value.updates or value.keep_projects or value.retire_projects:
-                raise ValueError('An escalation cannot also approve, defer, update, keep or retire projects. Leave decision fields empty.')
-            return value
         if isinstance(value,Decision) and context and 'proposals' in context:
             proposals=context['proposals']
             if isinstance(value,ObjectiveDecision) and set(value.retire_projects)&set(proposals):
@@ -197,8 +193,6 @@ class Planner:
         query_schema['properties']['endpoint']['enum'] = readable
         submit_schema = contract.model_json_schema()
         if issubclass(contract,ObjectiveDecision):
-            if self.rt.manager_model is None:
-                submit_schema['properties'].pop('escalation_reason',None)
             candidates=list(context.get('proposals',{}))
             projects=[p['project_id'] for p in context.get('projects',[])]
             for name,ids in (('accepted',candidates),('keep_projects',projects)):
@@ -273,8 +267,7 @@ class Planner:
             # in every request. Native schemas supply the actual command shape.
             context = {**context, 'capabilities':{'read':readable,'propose':writable}}
         if issubclass(contract,Decision) and context.get('semantic_objectives'):
-            instructions=('If uncertainty or conflicting priorities exceed what you can resolve reliably, submit escalation_reason explaining the specific question with all decision fields empty. Do not escalate routine work or merely missing observations that a task planner can inspect. '
-                          'If escalation context is present, this is the final larger-model review: resolve the question or defer unsupported work with concrete blockers, do not request another escalation. '
+            instructions=('Make the strategic decision using current evidence. Accept supported objectives or defer uncertain ones with concrete reasons. '
                           'Approve or defer each candidate ID exactly once. These are individual objectives, not whole department bundles. '
                           'Review all existing projects: keep useful ones, retire duplicates and obsolete assumptions. Use updates with an existing project_id to continue the same outcome even when wording or owner differs. '
                           'Correct the command-system kind in updates: beds/recreation furniture require construction; medical care and technology research cannot build them. '
@@ -296,8 +289,6 @@ class Planner:
         role_label = (context['project_owner']+': '+role.split(':',1)[1]) if role.startswith('Executor:') and context.get('project_owner') else role.split(':',1)[0]
         drafts = {}
         failed_drafts = {}
-        if issubclass(contract,Decision) and context.get('semantic_objectives') and self.rt.manager_model is None:
-            instructions += '\nAll roles use the same small model. No larger-model escalation is available. Resolve this narrow arbitration or defer the specific uncertain objectives with concrete reasons; leave escalation_reason empty. Do not plan exact execution orders.'
         if context.get('cancelled_projects'):
             instructions += '\nThe player cancelled the listed projects. Do not recreate or continue those outcomes unless newer player direction explicitly requests them.'
         if issubclass(contract,Decision) and context.get('semantic_objectives'):

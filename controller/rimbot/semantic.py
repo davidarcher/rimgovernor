@@ -46,21 +46,8 @@ def retain_project(memory,owner,objective):
 
 
 async def arbitrate_objectives(rt,context):
-    reason=''
-    try:
-        decision=await rt.planner.ask('Administrator: approve semantic objectives',context,ObjectiveDecision,rt.settings.reasoning)
-        rt.planner.validate_submission('Administrator',decision,context)
-        reason=decision.escalation_reason
-        if not reason:return decision
-    except (ModelError,ValueError) as error:
-        reason='Small-model review failed: '+str(error)[:500]
-    if rt.manager_model is None:
-        raise ModelError('Administrator needs escalation, but no distinct larger model is configured: '+reason)
-    rt.note('escalation',reason,role='Administrator',from_model=rt.settings.manager_model,to_model=rt.settings.model)
-    await rt.progress(phase='Escalating',role='Administrator',model=rt.settings.model,detail=reason)
-    decision=await rt.planner.ask('Administrator: escalated review',{**context,'escalation':reason},ObjectiveDecision,True)
+    decision=await rt.planner.ask('Administrator: approve semantic objectives',context,ObjectiveDecision,rt.settings.reasoning)
     rt.planner.validate_submission('Administrator',decision,context)
-    if decision.escalation_reason:raise ModelError('Larger-model review remained uncertain: '+decision.escalation_reason)
     return decision
 
 
