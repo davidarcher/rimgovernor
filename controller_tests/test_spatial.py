@@ -77,3 +77,14 @@ async def test_stockpile_can_use_interior_of_shared_room():
     await validate_orders(rt,{'project_id':'b'},[order])
     order.arguments['point_a']['x']=1
     with pytest.raises(ValueError,match='land use'):await validate_orders(rt,{'project_id':'b'},[order])
+
+
+def test_invalid_farm_does_not_block_valid_room():
+    from rimbot.spatial import retain_valid_regions
+    a=area();farm=region();farm.update(id='farm',purpose='farm',project_ids=['b'])
+    farm['patches']=[{'x1':6,'x2':7,'z1':1,'z2':2}]
+    for c in a['cells']:
+        if c['position']['x']==7:c['plantable']=False
+    result=retain_valid_regions({'regions':[region(),farm],'deferred':{}},a,[{'project_id':'a','kind':'construction'},{'project_id':'b','kind':'growing'}])
+    assert [r['id'] for r in result['regions']]==['shelter']
+    assert 'unsuitable terrain' in result['deferred']['b']

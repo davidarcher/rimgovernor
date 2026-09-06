@@ -1,0 +1,44 @@
+{
+  "id": "room-sizing",
+  "version": 1,
+  "title": "Room sizing: usable interiors, not corridors",
+  "tags": [
+    "architect",
+    "room",
+    "sizing",
+    "dimensions",
+    "layout",
+    "bedroom",
+    "barracks",
+    "workshop"
+  ],
+  "applies_when": [
+    "Choosing a room footprint for beds, shared living or production."
+  ],
+  "approach": [
+    "Choose interior dimensions from required furniture footprints, interaction cells, doors and clear walking routes. Square or moderately rectangular rooms are useful starting shapes; long narrow strips are corridors, not a default bedroom or workshop.",
+    "All reservation patches INCLUDE perimeter walls. For a rectangular outer W by H footprint, the interior is (W-2) by (H-2). An 11x3 outer footprint leaves only 9x1 inside: reject it as a general living-room design before submitting.",
+    "Consider several sizes rather than copying a template: a compact starter shared room might use 5x5 or 5x7 interior; a larger shared barracks/workroom might use 9x9 or 11x11 interior if supplies, labor and terrain justify it. These are design examples, not minimums, quotas or game rules.",
+    "The player likes 11x11 as a useful option. Always state whether dimensions are interior or outer: 11x11 outer gives 9x9 interior; 11x11 interior needs 13x13 outer. Do not assume every project warrants that much construction.",
+    "Lay out the required furniture and access conceptually before committing the footprint. Count beds and working space, leave doors usable, and reserve room for movement instead of filling every interior tile. Adapt to reusable ruins and terrain.",
+    "Roof support reaches six tiles from a supporting wall or column; assess support for the chosen geometry. A larger room may need interior supports. Roof support is separate from usable furniture space."
+  ],
+  "verify": [
+    "Report outer and interior dimensions and explain how the requested furniture and access fit. Check native footprints during execution."
+  ],
+  "reconsider": [
+    "A room is effectively a corridor, furniture crosses its wall line, doors are blocked, or enlargement costs more than its immediate purpose warrants."
+  ],
+  "sources": [
+    {
+      "title": "RimWorld Wiki: Rooms",
+      "url": "https://rimworldwiki.com/wiki/Room",
+      "checked_on": "2026-09-06"
+    },
+    {
+      "title": "RimWorld Wiki: Roof",
+      "url": "https://rimworldwiki.com/wiki/Roof",
+      "checked_on": "2026-09-06"
+    }
+  ]
+}
