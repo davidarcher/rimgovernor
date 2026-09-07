@@ -134,3 +134,26 @@ async def admit_construction(rt, action, role):
         raise BudgetConflict('Shared construction budget: short '+', '.join(f'{n} {k}' for k,n in shortage.items())+
                              '. Existing native orders retain their materials. Gather supplies, reduce this batch, or ask the administrator to revise priorities; do not repeat unchanged orders.',costs=costs,shortage=shortage)
     rt.note('resource_allocation','Construction fits the shared material budget',role=role,costs=costs,budget=budget.model_dump())
+
+
+async def resource_review_due(rt,project,force=False):
+    """Recheck an unchanged rejected batch without another executor inference."""
+    from .project_schedule import evidence,REVIEW_TICKS
+    pending=project.get('resource_request')
+    if not pending or force:return True
+    # Never apply an old cost to a changed project, observed site, or order state.
+    if pending.get('evidence')!=evidence(project,rt.memory):return True
+    if (rt.last_tick or 0)-pending['observed_tick']>=REVIEW_TICKS:return True
+    budget=await observe_budget(rt)
+    _,rejected=allocate(budget.materials,[('project',pending['costs'])])
+    shortage=rejected.get('project',{})
+    previous=pending.get('shortage',{})
+    pending['shortage']=shortage
+    pending['checked_tick']=rt.last_tick
+    if shortage!=previous:
+        rt.note('resource_conflict' if shortage else 'resource_allocation',
+                'Project still waits for materials' if shortage else 'Materials available; project can be reconsidered',
+                project_id=project['project_id'],shortage=shortage,costs=pending['costs'])
+    if not shortage:project.pop('execution_review',None)
+    rt.persist()
+    return not shortage

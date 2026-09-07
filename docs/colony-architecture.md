@@ -335,3 +335,21 @@ alongside the existing blocker list. These are still order postconditions, not p
 that every free-text strategic goal was fulfilled. Verification does not cancel or
 recreate native orders. Tests cover transitive failures, holds, recovery, shared
 ancestors, fresh later observations and cycles. No gameplay run was made for this slice.
+
+## Resource-blocked execution scheduling
+
+Rejected construction costs now retain the project/order evidence that produced
+them. If that evidence is unchanged, the executor checks current shared material
+balances deterministically before another inference call. Unchanged shortages wait;
+sufficient supplies clear the scheduling baseline and permit a fresh execution
+review. Native obligations and policy reserves still reduce spendable supplies.
+No rejected command is replayed automatically, and normal admission runs again
+before any new construction is issued.
+
+Changed objectives discard old costs. Changed observed work, explicit urgent/player
+review, or six game hours allow reconsideration even without the originally requested
+materials, so the model can choose an alternative. Missing budget observations remain
+errors rather than assumed availability. Checks are fresh per evaluation; this reduces
+model calls, not native survey cost. Tests include the executor path skipping inference,
+supply recovery, competing obligations, reserves and objective revisions. No gameplay
+test was run for this architecture slice.

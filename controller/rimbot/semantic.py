@@ -48,6 +48,7 @@ def retain_project(memory,owner,objective,priority=None,*,validate_dependencies=
     existing.update(values)
     if priority is not None:existing['priority']=priority
     if revised:
+        existing.pop('resource_request',None)
         if existing.get('interruption'):existing['interruption']['resume_status']='approved'
         else:existing['status']='approved'
     existing.setdefault('feedback',[])
@@ -212,6 +213,10 @@ async def execute_projects(rt,context,scheduled):
             fresh=await rt.observe_resources(fresh)
             from .project_progress import refresh_progress
             fresh=await refresh_progress(rt,fresh)
+            from .resource_budget import resource_review_due
+            if not await resource_review_due(rt,project,context.get('administration_required',False)):
+                project['execution_skip_reason']='Waiting for changed material availability'
+                continue
             from .project_schedule import execution_due, record_attempt, order_states, acknowledge_dispatch
             due,reason=execution_due(project,rt.memory,rt.last_tick or 0,context.get('administration_required',False))
             if not due and not project.get('work_policy'):
@@ -279,7 +284,8 @@ async def execute_projects(rt,context,scheduled):
             project['status']='needs_review';project['feedback']=[str(error)]
             from .resource_budget import BudgetConflict
             if isinstance(error,BudgetConflict) and error.costs is not None:
-                project['resource_request']={'costs':error.costs,'shortage':error.shortage,'observed_tick':rt.last_tick}
+                from .project_schedule import evidence
+                project['resource_request']={'costs':error.costs,'shortage':error.shortage,'observed_tick':rt.last_tick or 0,'evidence':evidence(project,rt.memory)}
             rt.note('error',str(error),role=role,project_id=project['project_id'])
         finally:
             sync_interrupts(rt)
