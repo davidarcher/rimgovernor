@@ -74,3 +74,51 @@ async def test_urgent_review_bypasses_seasonal_and_daily_planning(colony,monkeyp
     review.assert_awaited_once()
     assert review.call_args.args[2]==['Survival']
     assert review.call_args.args[1]['administration_required']
+
+def test_each_incapacitated_pawn_wakes_care_without_suspending_building():
+    import copy
+    obs=observation();obs['pawns'][0]['colonist_medical_info']['is_downed']=True
+    project={'project_id':'shelter','kind':'construction','status':'awaiting_work','work_ids':['wall']}
+    rt=SimpleNamespace(memory={'projects':[project]},observation=obs,note=Mock())
+    first=update(rt)
+    assert len(first)==1 and first[0]['data']['pawn_id']==11
+    assert first[0]['roles']==['Survival'] and first[0]['urgent']
+    assert update(rt)==[]
+    second=copy.deepcopy(obs['pawns'][0]);second['colonist']['id']=12
+    obs['pawns'].append(second);obs['game']['colonist_count']=2
+    events=update(rt)
+    assert [e['data']['pawn_id'] for e in events]==[12]
+    assert project['status']=='awaiting_work' and project['work_ids']==['wall']
+
+def test_incapacitation_recovery_requires_continuous_observed_game_time():
+    from rimbot.world_model import incapacitation_events
+    state={};obs=observation();medical=obs['pawns'][0]['colonist_medical_info']
+    medical['is_downed']=True
+    assert incapacitation_events(state,obs,100)
+    medical['is_downed']=False
+    assert incapacitation_events(state,obs,110)==[]
+    assert incapacitation_events(state,obs,110)==[]  # Paused time never clears.
+    medical.pop('is_downed')
+    assert incapacitation_events(state,obs,400)==[]
+    medical['is_downed']=False
+    assert incapacitation_events(state,obs,500)==[]
+    event=incapacitation_events(state,obs,750)[0]
+    assert not event['data']['active'] and not event['urgent']
+    assert incapacitation_events(state,obs,1000)==[]
+
+async def test_incapacitation_routes_to_only_affected_managers(colony):
+    from rimbot.world_model import incapacitation_events
+    rt,_=colony;rt.store.set('full_review:'+rt.colony,rt.last_review)
+    obs=observation();obs['pawns'][0]['colonist_medical_info']['is_downed']=True
+    events=incapacitation_events({},obs,100)
+    assert rt.review_roles(events)==['Survival']
+
+def test_absent_or_dead_pawn_is_not_reported_as_recovered():
+    from rimbot.world_model import incapacitation_events
+    state={};obs=observation();medical=obs['pawns'][0]['colonist_medical_info']
+    medical['is_downed']=True
+    incapacitation_events(state,obs,100)
+    assert incapacitation_events(state,{'pawns':[]},500)==[]
+    medical.update(is_dead=True,is_downed=False)
+    assert incapacitation_events(state,obs,1000)==[]
+    assert state['pawn_incapacitated:11']['active']

@@ -257,3 +257,21 @@ to 50,063 conservative units without trimming; the tool list is unchanged. This 
 not an exact replay of the old 61k failure because its original observations were
 not captured at the decision boundary. Larger colonies and multi-turn requests
 still need validation; no claim is made that all context failures are resolved.
+
+## Per-pawn incapacitation events
+
+The derived-state adapter now detects each native downed pawn separately, using
+the existing persisted risk-state transitions. A newly downed pawn triggers an
+urgent Survival review even when no native life-threatening injury flag is set.
+A second incapacitated pawn generates its own event while the first remains down.
+Unchanged observations do not repeatedly call the model. Observed recovery requires
+250 continuous game ticks; missing fields, a missing pawn or death are not recovery.
+Unresolved missing/dead entries stay recorded until session reset or later evidence.
+
+The event uses the existing urgent review path, bypassing seasonal/daily planning.
+It does not assert a medical emergency or suspend unrelated projects. The retired
+standalone Workforce manager stays retired: deterministic work policies continue
+to reassess eligibility in the existing execution path. Native game observations,
+not model guesses about injuries, drive these transitions. Tests cover repeated
+polls, second-pawn changes, recovery hysteresis, missing/dead observations and focused
+manager routing. This slice was not gameplay-tested.

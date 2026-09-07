@@ -68,6 +68,7 @@ def update(rt):
     events=[]
     event=transition(state,'medical_emergency',condition,tick,['Survival'],True)
     if event:events.append(event)
+    events.extend(incapacitation_events(state,rt.observation,tick))
     food=facts['food'];days=food.get('stock_depletion_days')
     active=state.get('food_stock_decline',{}).get('active',False)
     condition=(days<(4 if active else 2)) if days is not None else (False if food.get('net_loss_per_day',1)<=0 else None)
@@ -80,6 +81,27 @@ def update(rt):
         rt.note('risk_transition',event['data']['risk'].replace('_',' ')+(' detected' if event['data']['active'] else ' cleared'),
                 **event['data'],roles=event['roles'],urgent=event['urgent'])
     sync_interrupts(rt)
+    return events
+
+
+def incapacitation_events(state,observation,tick):
+    """Per-pawn changes: a second downed worker is not an unchanged colony flag."""
+    prefix='pawn_incapacitated:'
+    observed={}
+    for pawn in observation.get('pawns',[]):
+        identity=pawn.get('colonist',{}).get('id')
+        medical=pawn.get('colonist_medical_info') or {}
+        if identity is None:continue
+        downed=medical.get('is_downed')
+        # A missing pawn, death or missing field is not evidence of recovery.
+        observed[prefix+str(identity)]=downed if medical.get('is_dead') is False and isinstance(downed,bool) else None
+    keys={k for k in state if k.startswith(prefix)}|{k for k,v in observed.items() if v is True}
+    events=[]
+    for key in sorted(keys):
+        event=transition(state,key,observed.get(key),tick,['Survival'],True)
+        if event:
+            event['data']['pawn_id']=int(key[len(prefix):])
+            events.append(event)
     return events
 
 
