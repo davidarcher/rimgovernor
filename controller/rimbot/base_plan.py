@@ -1,5 +1,5 @@
 """Persistent semantic master plan over the existing spatial reservation system."""
-import base64,copy,json,hashlib
+import base64,copy,json,hashlib,time
 from typing import Literal
 from pydantic import Field
 from .contracts import Contract
@@ -242,7 +242,14 @@ async def prepare_master_plan(rt,context,projects):
     tool={'type':'function','function':{'name':'submit','description':'Create or selectively revise the persistent master plan; no construction orders.','parameters':schema}}
     await rt.progress(role='Architect',detail='Planning future space',phase='Thinking')
     for attempt in range(3):
-        reply,usage=await rt.model_for_role('Architect').complete(messages,[tool],rt.settings.architect_reasoning,rt.model_progress);rt.usage(usage);rt.check_generation()
+        started=time.monotonic()
+        try:
+            reply,usage=await rt.model_for_role('Architect').complete(messages,[tool],rt.settings.architect_reasoning,rt.model_progress)
+        except ModelError as error:
+            rt.note('model_failure','Architect inference failed',role='Architect',seconds=round(time.monotonic()-started,3),error=str(error))
+            raise
+        rt.note('model_call','Architect response received',role='Architect',seconds=round(time.monotonic()-started,3),usage=usage,tools=[c['function']['name'] for c in reply.get('tool_calls',[])])
+        rt.usage(usage);rt.check_generation()
         try:
             calls=reply.get('tool_calls') or []
             if len(calls)!=1 or calls[0]['function']['name']!='submit':raise ValueError('Call submit exactly once')
@@ -255,9 +262,9 @@ async def prepare_master_plan(rt,context,projects):
         except ValueError as error:
             rt.note('model_diagnostic',str(error),role='Architect',error=str(error),response=reply)
             if attempt==2:raise ModelError('Master plan geometry rejected: '+str(error)) from error
-            messages.append(reply)
-            for c in reply.get('tool_calls') or []:messages.append({'role':'tool','tool_call_id':c['id'],'content':str(error)})
-            messages.append({'role':'user','content':('No initial plan has been committed; resubmit the FULL corrected initial plan. ' if not plan.get('version') else 'Correct the affected part only. ')+str(error)})
+            # Rejected geometry never ran or entered the saved plan. Retain the
+            # authoritative map and latest correction, not another full layout.
+            messages=messages[:2]+[{'role':'user','content':('The previous proposal was rejected and is not retained. No initial plan has been committed; submit a FULL corrected initial plan. ' if not plan.get('version') else 'The previous proposal was rejected; correct the affected part only. ')+str(error)}]
     updated.update(population_at_review=population,observed_land=land_state(area),review_requests=[])
     rt.memory['spatial_layout']=updated;rt.persist();rt.spatial_image=render_map(area,overlays(updated))
     rt.note('spatial_plan',change['summary'],role='Architect',event='base_plan_created' if not plan.get('version') else 'base_plan_reviewed',mode=change['mode'],affected_zones=affected,version=updated['version'])

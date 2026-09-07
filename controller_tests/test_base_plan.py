@@ -99,6 +99,25 @@ async def test_initial_plan_persists_then_routine_need_does_not_replan(tmp_path)
  assert rt.model_for_role.call_count==1 and rt.memory['spatial_layout']['zones']
  store.close()
 
+async def test_rejected_plan_retry_keeps_map_without_repeating_large_reply():
+ rt,a=runtime();rt.memory['spatial_layout']={};rt.strategies=NS(search=lambda *args:[])
+ rt.progress=AsyncMock();rt.model_progress=AsyncMock();rt.usage=Mock();rt.check_generation=Mock();rt.settings=NS(architect_reasoning=False)
+ rejected=change();rejected['zones'][0]['max_size']={'width':32,'height':32}
+ rejected['zones'][0]['rationale']='A long invalid proposal '*500
+ inputs=[]
+ async def complete(messages,*args):
+  inputs.append(copy.deepcopy(messages))
+  payload=rejected if len(inputs)==1 else change()
+  return {'role':'assistant','tool_calls':[{'id':'one','function':{'name':'submit','arguments':json.dumps(payload)}}]},{}
+ rt.model_for_role.return_value=NS(complete=complete)
+ await prepare_master_plan(rt,{},[])
+ assert len(inputs)==2
+ assert inputs[1][:2]==inputs[0]
+ assert len(inputs[1])==3 and inputs[1][-1]['role']=='user'
+ assert 'rejected' in inputs[1][-1]['content']
+ assert 'A long invalid proposal' not in json.dumps(inputs[1])
+ assert len([c for c in rt.note.call_args_list if c.args[0]=='model_call'])==2
+
 def test_replan_cannot_move_committed_site():
  p=plan();p['regions']=[{'id':'k','zone_id':'food','patches':[{'x1':2,'x2':7,'z1':2,'z2':7}]}]
  z=zone();z['anchor']['z']=20

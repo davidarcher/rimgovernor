@@ -30,7 +30,17 @@ class SetupMetrics:
     def report(self, events, started):
         actions=[e for e in events if e['kind']=='action' and e.get('endpoint')]
         calls=[e for e in events if e['kind']=='model_call']
+        roles={}
+        for event in events:
+            if event['kind'] not in ('model_call','model_failure','executor_schedule'):continue
+            row=roles.setdefault(event.get('role','Unknown'),{'calls':0,'failures':0,'seconds':0,'executor_invocations':0,'executor_skips':0})
+            if event['kind'] in ('model_call','model_failure'):
+                row['calls' if event['kind']=='model_call' else 'failures']+=1
+                row['seconds']=round(row['seconds']+event.get('seconds',0),3)
+            elif event.get('decision') in ('invoked','skipped'):
+                row['executor_invocations' if event['decision']=='invoked' else 'executor_skips']+=1
         return {'first_order_seconds':round(actions[0]['at']-started,3) if actions else None,
+                'roles':roles,
                 'orders_issued':len(actions),'completed_new_objects':len(self.completed_ids),
                 'sampled_idle_pawn_ticks':self.idle_pawn_ticks,'observed_progress_transitions':self.progress_transitions,
                 'peak_excess_target_capacity':self.peak_excess_capacity,

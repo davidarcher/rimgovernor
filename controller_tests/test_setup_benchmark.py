@@ -30,6 +30,17 @@ def test_benchmark_no_order_is_not_zero_latency():
     assert report['orders_issued']==0
 
 
+def test_benchmark_role_costs_include_failures_and_schedule_decisions():
+    report=SetupMetrics([],['Bed'],3).report([
+        {'kind':'model_call','role':'Architect','seconds':12},
+        {'kind':'model_failure','role':'Architect','seconds':3},
+        {'kind':'executor_schedule','role':'Executor:construction','decision':'invoked'},
+        {'kind':'executor_schedule','role':'Executor:construction','decision':'skipped'}],0)
+    assert report['roles']['Architect']=={'calls':1,'failures':1,'seconds':15,'executor_invocations':0,'executor_skips':0}
+    assert report['roles']['Executor:construction']['executor_skips']==1
+    assert report['roles']['Executor:construction']['executor_invocations']==1
+
+
 async def test_native_work_context_is_available_before_manager_decisions(colony):
     rt,game=colony
     context=await rt.manager_context({'assignment':'Finish existing beds'})

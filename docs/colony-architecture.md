@@ -196,3 +196,22 @@ Native placement validation remains authoritative.
 A read-only reconstruction against that live colony now fits at 53,167 conservative
 input units without trimming, against the same 55,296 budget. This validates the
 request-size fix, not layout quality or successful starter-base construction.
+
+The next tribal run reached architect inference, but oversized reservations failed
+geometry checks. Appending the entire rejected layout pushed its correction request
+to 61,326 units. Architect retries now retain the original observation and latest
+validation error only. No rejected plan is committed or executed, and partial-replan
+restrictions still apply. A reconstructed correction request fits at 53,450 units
+without trimming. A regression test rejects an oversized response and successfully
+commits a corrected plan without repeating the rejected response in context.
+
+Architect responses/failures now emit the same model-call timing events used by the
+other roles. Benchmark reports break down calls, failures, elapsed inference time,
+and executor invocation/skip events by role. Counts from older traces omit architect
+inference; schedule skips count logged transitions, not every observation poll.
+
+An isolated architect run against the paused live tribal map exercised all three
+attempts without a context-limit failure after this fix. It still failed geometry:
+the last response specified a 32x24 initial footprint inside a 6x8 maximum extent.
+No layout was committed and no construction was sent. Improving the size contract
+and spatial decisions is the next blocker; budget recovery alone is not gameplay success.
