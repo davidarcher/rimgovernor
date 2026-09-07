@@ -64,3 +64,14 @@ async def test_spatial_work_waits_for_valid_initial_master_plan(monkeypatch):
     await execute_projects(rt,{},projects)
     assert order==['architect']
     assert projects[0]['status']=='needs_review'
+
+
+async def test_farm_cannot_designate_deconstruction_in_another_project():
+    farm=region();farm.update(purpose='farm',project_ids=['farm'])
+    rt,_=setup([farm])
+    project={'kind':'growing','project_id':'farm'}
+    action=Action(title='Clear land',endpoint='post_order_designate_area',arguments={'map_id':0,'type':'deconstruct','point_a':{'x':20,'z':20},'point_b':{'x':25,'z':25}})
+    with pytest.raises(ValueError,match='leaves this project site'):
+        await validate_orders(rt,project,[action])
+    action.arguments.update(point_a={'x':2,'z':2},point_b={'x':2,'z':2})
+    await validate_orders(rt,project,[action])

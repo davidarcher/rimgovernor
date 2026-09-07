@@ -157,6 +157,17 @@ async def prepare_layout(rt,context,projects):
 
 async def validate_orders(rt,project,actions,complete=True):
     """Validate full native footprints, at drafting and again immediately before issuing."""
+    if project.get('kind') in SPATIAL_KINDS:
+        for action in actions:
+            if action.endpoint!='post_order_designate_area':continue
+            points=zone_cells(action)
+            regions=rt.memory.get('spatial_layout',{}).get('regions',[])
+            own=[r for r in regions if project['project_id'] in r['project_ids']]
+            permitted=set().union(*(cells(r) for r in own)) if own else set()
+            if not points<=permitted:
+                raise ValueError('Area designation leaves this project site. Do not clear or deconstruct another project; request an ownership/scope review if broader changes are needed.')
+            from .base_plan import validate_reserved_space
+            validate_reserved_space(rt,project,points)
     spatial=[a for a in actions if a.endpoint=='construction_place' or a.endpoint in ('zone_growing_cells','post_map_zone_growing','post_map_zone_stockpile')]
     if not spatial:return
     if project.get('kind') in ('growing','storage'):
