@@ -66,6 +66,7 @@ def create_app(runtime=None):
     @app.get('/api/spatial/image')
     async def spatial_image(request: Request):
         from .spatial import render_map
+        from .base_plan import overlays,survey_master_area
         rt=request.app.state.rt
         if not hasattr(rt,'spatial_preview_lock'):rt.spatial_preview_lock=asyncio.Lock()
         async with rt.spatial_preview_lock:
@@ -80,8 +81,8 @@ def create_app(runtime=None):
                 if not rt.connected or not focus or map_id is None:
                     raise HTTPException(503,'Waiting for the colony map')
                 try:
-                    area=(await rt.api.call('construction_area',{'map_id':map_id,'center':focus,'radius':24})).model_dump()
-                    data=render_map(area,layout.get('regions',[]),layout.get('colors'))
+                    area=await survey_master_area(rt)
+                    data=render_map(area,overlays(layout),layout.get('colors'))
                 except Exception as exc:
                     raise HTTPException(503,'Map preview temporarily unavailable') from exc
                 if rt.colony!=key[0] or rt.memory.get('spatial_layout')!=layout:
@@ -107,6 +108,28 @@ def create_app(runtime=None):
     @app.post('/api/strategy')
     async def strategy(request: Request):
         request.app.state.rt.launch_review(strategy=True)
+        return {'ok':True}
+
+    @app.post('/api/spatial/plan')
+    async def spatial_plan(request: Request):
+        from .base_plan import prepare_master_plan
+        rt=request.app.state.rt
+        if rt.busy() or rt.mode!='manual':raise HTTPException(409,'Pause automation before a manual layout review')
+        if not hasattr(rt,'architect_lock'):rt.architect_lock=asyncio.Lock()
+        async with rt.architect_lock:
+            rt.cycle_generation=rt.generation
+            context=await rt.manager_context({})
+            context=await rt.observe_resources(context)
+            await prepare_master_plan(rt,context,rt.memory.get('projects',[]))
+        return {'ok':True}
+
+    @app.post('/api/spatial/review')
+    async def spatial_review(request: Request):
+        from .base_plan import ReviewRequest,request_review
+        rt=request.app.state.rt
+        data=ReviewRequest.model_validate(await request.json())
+        request_review(rt,data.cause,data.reason,data.zone_ids)
+        rt.last_review=-100000
         return {'ok':True}
 
     @app.post('/api/settings')

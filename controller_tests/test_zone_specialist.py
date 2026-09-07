@@ -43,13 +43,15 @@ async def test_fresh_native_zones_and_bad_soil_rejected():
     cell.update(fertility=1.,zone_id=99,zone_type='Zone_Stockpile')
     with pytest.raises(ValueError,match='Existing'):await validate_orders(rt,project,[zone()])
 
-async def test_zones_only_never_invoke_architect():
+async def test_zones_reuse_existing_master_plan_without_architect():
     rt,_=setup();rt.memory['projects']=[{'project_id':'food','kind':'growing'}]
+    from rimbot.base_plan import BasePlan,land_state
+    rt.memory['spatial_layout']=BasePlan(population_at_review=0,observed_land=land_state(area())).model_dump()
     rt.model_for_role=Mock(side_effect=AssertionError('No architect needed'))
     await prepare_layout(rt,{},rt.memory['projects'])
     rt.model_for_role.assert_not_called()
 
-async def test_zone_executor_runs_before_architect_failure(monkeypatch):
+async def test_spatial_work_waits_for_valid_initial_master_plan(monkeypatch):
     from rimbot.semantic import execute_projects
     projects=[{'project_id':'room','kind':'construction'},{'project_id':'food','kind':'growing','owner':'Survival','outcome':'Grow food'}]
     order=[]
@@ -60,5 +62,5 @@ async def test_zone_executor_runs_before_architect_failure(monkeypatch):
     monkeypatch.setattr('rimbot.project_progress.refresh_progress',refreshed)
     rt=NS(memory={'projects':projects,'work':[]},check_generation=Mock(),mode='automate',resume_initial_planning=AsyncMock(),note=Mock(),persist=Mock(),manager_context=AsyncMock(return_value={}),observe_resources=AsyncMock(return_value={}),planner=NS(ask=ask),settings=NS(reasoning=False))
     await execute_projects(rt,{},projects)
-    assert order==['growing','architect']
+    assert order==['architect']
     assert projects[0]['status']=='needs_review'

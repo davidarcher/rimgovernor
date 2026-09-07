@@ -97,10 +97,13 @@ class Runtime:
         return self.task is not None and not self.task.done()
 
     def public(self):
+        memory=dict(self.memory)
+        if memory.get('spatial_layout'):
+            memory['spatial_layout']={k:v for k,v in memory['spatial_layout'].items() if k!='observed_land'}
         return {'mode':self.mode, 'connected':self.connected, 'colony':self.colony,
                 'busy':self.busy(), 'status':self.status, 'started_at':self.started_at,
                 'counters':self.counters, 'settings':self.settings.model_dump(),
-                'observation':compact(self.observation, 100000), 'memory':self.memory,
+                'observation':compact(self.observation, 100000), 'memory':memory,
                 'activity':self.store.history(self.colony,80), 'events_connected':self.event_connection,
                 'capabilities':len(self.catalog.listing()), 'catalog_revision':self.catalog.revision}
 
@@ -193,6 +196,8 @@ class Runtime:
                 except (APIError,ValueError) as error:
                     self.note('error','Definition search index unavailable: '+str(error))
                 self.note('connection', 'Colony connected. Ready for your direction.')
+                if self.memory.get('spatial_layout',{}).get('version'):
+                    self.note('spatial_plan','Loaded the existing master plan',role='Architect',event='base_plan_loaded',version=self.memory['spatial_layout']['version'])
             if self.last_tick is not None and tick < self.last_tick:
                 self.mode = 'manual'
                 await self.cancel()
@@ -684,6 +689,11 @@ class Runtime:
             roles = self.review_roles(events, steering)
             context['administration_required']=steering or any(any(word in e.get('type','').lower() for word in ('raid','killed','died')) for e in events)
             context['assignments'] = (self.memory['plans'] or {}).get('assignments',{})
+            if self.memory.get('spatial_layout',{}).get('version'):
+                from .base_plan import request_review
+                types=' '.join(e.get('type','') for e in events).lower()
+                if 'research' in types:request_review(self,'technology','Research event: review whether the layout needs a change')
+                if any(word in types for word in ('colonistkilled','colonistdied','defeat')):request_review(self,'defensive_failure','Colony loss event: review defensive layout')
             await semantic_review(self,context,roles)
             await self.progress(phase='Watching',detail='Review finished. Watching approved work.')
         except asyncio.CancelledError:

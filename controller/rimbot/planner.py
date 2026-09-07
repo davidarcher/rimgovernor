@@ -304,7 +304,7 @@ class Planner:
             instructions += ('\nYou are the task planner for the supplied approved semantic project. Plan concrete native orders; ordinary controller code executes and verifies the submitted batch. The project is your assigned task. Resolve native details within its outcome and constraints. '
                              'Use live state to continue existing work, not duplicate it. Submit a useful supported batch promptly; do not redesign the colony. '
                              'For ordinary shelter walls, doors and basic recreation, prefer economical available timber or stone; conserve trade currency and precious materials. Silver and gold being allowed materials is not a reason to spend them on basic construction. Only choose luxury materials when the player objective calls for that expense. Compare material value and supply, not the ordering of allowed_materials; never take the first compatible entry by default. Before selecting a building, compare every fixed ingredient in costs plus stuff_count against observed supplies and construction labor. Valid placement does not mean affordable or buildable now. Unavailable materials need an explicit supported supply plan; otherwise choose a feasible alternative within the objective or report the unmet dependency. Allowed loose materials can be usable without a stockpile. For existing sites, missing-material quantities are blockers to resolve, not evidence that labor is progressing. '
-                             'Read project.progress first: it supersedes historical blocker text. Existing zones await sowing; do not replace them. For construction, use spatial_reservations as the exact site assignment. Growing and storage choose their own exact cells from construction_area near colony_focus; they do not need an architect handoff or a prior reservation. Respect other projects, room perimeters and paths. Stockpiles may use room interiors. Match crop requirements to actual terrain and omit unsuitable holes. Existing native zones must be inspected or updated, not overlapped. Patches are filled inclusive rectangles describing the full reserved area; for rooms place the complete perimeter including a door, with furniture inside. One building entry is one building, not a rectangle corner command. Use zone_growing_cells for an irregular farm. Your native draft tools cover only this player system. If the project is misclassified, report that blocker; never substitute an unrelated command (medical bed rest cannot build beds or recreation). '
+                             'Read project.progress first: it supersedes historical blocker text. Existing zones await sowing; do not replace them. For construction, use spatial_reservations as the exact site assignment. Use the persistent spatial_reservations master plan. Call reserve_planned_site to choose a currently needed increment in a compatible zone, or reuse an existing project region. This does not invoke the architect. Growing/storage select exact suitable cells inside their increment; exclude infertile holes. Future maximum extents and corridors are protected. Respect other projects, room perimeters and paths. Stockpiles may use room interiors. Match crop requirements to actual terrain and omit unsuitable holes. Existing native zones must be inspected or updated, not overlapped. Patches are filled inclusive rectangles describing the full reserved area; for rooms place the complete perimeter including a door, with furniture inside. One building entry is one building, not a rectangle corner command. Use zone_growing_cells for an irregular farm. Your native draft tools cover only this player system. If the project is misclassified, report that blocker; never substitute an unrelated command (medical bed rest cannot build beds or recreation). '
                              'Your summary describes proposed work, never claims completed changes. Orders from your submitted batch will execute serially without another model approval. You cannot change project scope or approve other objectives.')
         instructions += '\nstrategy_guidance contains conditional library advice. Check applicability against native observations; player instructions and live game facts take precedence. Never treat guidance as guaranteed game rules.'
         allowed_tools = {t['function']['name'] for t in tools}
@@ -344,11 +344,16 @@ class Planner:
                 if field in schema['required']:schema['required'].remove(field)
             tools.append(tool(name,'Stage this native order in your approved project batch. Submit to execute the validated batch directly; no additional administrator approval is needed. '+entry['description'],schema))
             allowed_tools.add(name)
+        if contract is Proposal and context.get('project',{}).get('kind') in ('construction','growing','storage') and context.get('spatial_reservations',{}).get('version'):
+            from .base_plan import SiteRequest,ReviewRequest
+            tools.append(tool('reserve_planned_site','Select a useful current increment within an existing semantic zone. Code resolves coordinates and preserves future expansion. Reuse a region for related furniture or expansion. Does not build or call the architect.',SiteRequest.model_json_schema()))
+            tools.append(tool('request_architect_review','Request a localized review for a material layout problem, not routine demand. Describe affected zones; no construction is changed.',ReviewRequest.model_json_schema()))
+            allowed_tools.update(('reserve_planned_site','request_architect_review'))
         room_ids=[r['id'] for r in context.get('spatial_reservations',{}).get('regions',[]) if r['purpose']=='room' and context.get('project',{}).get('project_id') in r['project_ids']]
-        if contract is Proposal and 'construction_place' in writable and room_ids:
+        if contract is Proposal and 'construction_place' in writable and (room_ids or context.get('spatial_reservations',{}).get('version')):
             from .enclosure import Enclosure
             enclosure_schema=Enclosure.model_json_schema()
-            enclosure_schema['properties']['region_id']['enum']=room_ids
+            if room_ids:enclosure_schema['properties']['region_id']['enum']=room_ids
             tools.append(tool('compile_enclosure','Stage complete room perimeter from its reservation. Select native wall/door definitions, materials and entrance cells; the compiler enumerates walls and reuses existing enclosure. No implicit mining or demolition. Submit to execute.',enclosure_schema))
             allowed_tools.add('compile_enclosure')
             instructions += '\nFor room walls use compile_enclosure instead of enumerating wall tiles. Choose an entrance on a non-corner perimeter cell. It stages an ordinary native construction batch, not finished construction. Furniture still uses construction_place.'
@@ -439,6 +444,17 @@ class Planner:
                                 await validate_orders(self.rt,context['project'],value.actions)
                         submitted = await self.validate_observation(self.validate_submission(role,value,context),context=context)
                         result = {'received':True}
+                    elif f['name']=='reserve_planned_site':
+                        from .base_plan import reserve_site,SiteRequest
+                        result=await reserve_site(self.rt,context['project'],SiteRequest.model_validate(args))
+                        room_ids[:]=[r['id'] for r in self.rt.memory['spatial_layout']['regions'] if r['purpose']=='room' and context['project']['project_id'] in r['project_ids']]
+                        for item in tools:
+                            if item['function']['name']=='compile_enclosure':item['function']['parameters']['properties']['region_id'].pop('enum',None)
+                    elif f['name']=='request_architect_review':
+                        from .base_plan import request_review,ReviewRequest
+                        request=ReviewRequest.model_validate(args)
+                        request_review(self.rt,request.cause,request.reason,request.zone_ids)
+                        result={'requested':True,'next':'Submit the specific blocker. Other projects may continue.'}
                     elif f['name']=='compile_enclosure':
                         from .enclosure import Enclosure, compile_enclosure
                         from .spatial import validate_orders

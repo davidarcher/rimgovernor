@@ -174,7 +174,7 @@ async def execute_projects(rt,context,scheduled):
             rt.note('error',mismatch,project_id=project['project_id']);rt.persist()
             continue
         role='Executor:'+project['kind']
-        if project['kind']=='construction' and not layout_prepared:
+        if project['kind'] in ('construction','growing','storage') and not layout_prepared:
             layout_prepared=True
             try:await prepare_layout(rt,context,scheduled)
             except (ModelError,ValueError,RuntimeError) as error:
@@ -182,10 +182,10 @@ async def execute_projects(rt,context,scheduled):
                 rt.note('error',spatial_error,role='Architect')
         await rt.resume_initial_planning()
         try:
-            if spatial_error and project['kind']=='construction':raise ValueError(spatial_error)
+            if spatial_error and project['kind'] in ('construction','growing','storage'):raise ValueError(spatial_error)
             if project['kind']=='construction':
                 layout=rt.memory.get('spatial_layout',{})
-                if not any(project['project_id'] in r['project_ids'] for r in layout.get('regions',[])):
+                if not layout.get('zones') and not any(project['project_id'] in r['project_ids'] for r in layout.get('regions',[])):
                     raise ValueError('Waiting for architect: '+layout.get('deferred',{}).get(project['project_id'],'No valid site reserved.'))
             fresh=await rt.manager_context(context)
             fresh=await rt.observe_resources(fresh)

@@ -24,7 +24,8 @@ async def compile_enclosure(rt,project,request):
     for p in doors:
         if p not in edge or not any(n in inside for n in neighbors(p)) or not any(n not in points for n in neighbors(p)):
             raise ValueError('Entrance must connect the room interior to outside through its perimeter, not a corner')
-    area=(await rt.api.call('construction_area',{'map_id':rt.observation['map']['id'],'center':rt.memory['colony_focus'],'radius':24})).model_dump()
+    from .base_plan import survey_master_area
+    area=await survey_master_area(rt)
     observed={(c['position']['x'],c['position']['z']):c for c in area['cells']}
     buildings=[]
     for x,z in sorted(edge):

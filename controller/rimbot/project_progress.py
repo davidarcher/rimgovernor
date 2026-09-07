@@ -42,7 +42,7 @@ async def refresh_progress(rt,context):
     rooms=[r for r in rt.memory.get('spatial_layout',{}).get('regions',[]) if r['purpose']=='room']
     area=None
     if rooms and rt.memory.get('colony_focus'):
-        area=(await rt.api.call('construction_area',{'map_id':rt.observation['map']['id'],'center':rt.memory['colony_focus'],'radius':24})).model_dump()
+        area=(await rt.api.call('construction_area',{'map_id':rt.observation['map']['id'],'center':rt.memory['colony_focus'],'radius':32})).model_dump()
     lookup={(c['position']['x'],c['position']['z']):c for c in (area or {}).get('cells',[])}
     eligibility={}
     for project in projects:

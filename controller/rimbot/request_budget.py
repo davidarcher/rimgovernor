@@ -18,6 +18,8 @@ def project_context(context):
             from collections import Counter
             out['progress']['order_counts']=dict(Counter(w.get('status','unknown') for w in orders))
         return out
+    if isinstance(result.get('spatial_reservations'),dict):
+        result['spatial_reservations']={k:v for k,v in result['spatial_reservations'].items() if k not in ('observed_land','native_plans','colors')}
     if isinstance(result.get('project'),dict):result['project']=project(result['project'])
     if isinstance(result.get('projects'),list):result['projects']=[project(p) for p in result['projects']]
     if isinstance(result.get('work'),list):
