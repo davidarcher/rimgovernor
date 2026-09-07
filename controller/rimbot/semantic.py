@@ -155,6 +155,8 @@ async def semantic_review(rt,context,roles):
         # replacement order must not manufacture a cycle during a valid revision.
         project=retain_project(rt.memory,owner,objective,candidate['priority'],validate_dependencies=False)
         if project not in approved:approved.append(project)
+    from .project_controls import apply_controls
+    apply_controls(rt,decision)
     active_ids={i for p in rt.memory['projects'] if p.get('status')!='retired' for i in p['work_ids']}
     obsolete_ids={i for p in rt.memory['projects'] for i in (p['work_ids'] if p.get('status')=='retired' else p.get('previous_work_ids',[]))}
     for work in rt.memory['work']:

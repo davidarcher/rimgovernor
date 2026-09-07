@@ -1,6 +1,6 @@
 import {useState} from 'react';
 
-const labels:Record<string,string>={suspended:'Paused for urgent care',retired:'Retired',approved:'Approved',inspecting:'Checking details',awaiting_work:'Watching orders',orders_verified:'Orders verified; review outcome',needs_review:'Needs review'};
+const labels:Record<string,string>={suspended:'On hold',retired:'Retired',approved:'Approved',inspecting:'Checking details',awaiting_work:'Watching orders',orders_verified:'Orders verified; review outcome',needs_review:'Needs review'};
 export default function Projects({projects,onCancel}:{projects:any[],onCancel:(id:string)=>void}){
   const [entries,setEntries]=useState<any[]>([]),[open,setOpen]=useState(false),[error,setError]=useState('');
   async function toggle(){
@@ -12,6 +12,8 @@ export default function Projects({projects,onCancel}:{projects:any[],onCancel:(i
     {projects.filter(p=>p.status!=='retired').map(p=><article className="mgr-work-row" key={p.project_id}><div><b>{p.outcome}</b><p>{labels[p.status]||p.status}</p><small>{p.owner} · {p.kind.replaceAll('_',' ')} · {p.work_ids.length} tracked orders</small>
       {p.dependency_blockers?.map((b:string,i:number)=><p key={'dependency'+i}>{b}</p>)}
       {p.deadline_overdue&&<p>Target date passed; awaiting review.</p>}
+      {p.admin_hold&&<p>{p.admin_hold.reason}</p>}
+      {!p.admin_hold&&p.interruption?.reason==='medical_emergency'&&<p>Waiting for urgent care assessment.</p>}
       {p.work_allocation&&<details><summary>Work coverage</summary><p>Selected coverage; see orders below for verified changes.</p><ul>{p.work_allocation.selected.map((s:any)=><li key={s.pawn_id+':'+s.work_type}>{s.pawn_name||s.pawn_id} · {s.work_type} · priority {s.priority}</li>)}</ul></details>}
       {p.progress_note&&<p>{p.progress_note}</p>}
       {p.outcome_evidence?.checks?.length>0&&<details><summary>Observed results · {p.outcome_evidence.checks.filter((c:any)=>c.status==='met').length}/{p.outcome_evidence.checks.length} targets met</summary><ul>{p.outcome_evidence.checks.map((c:any)=><li key={c.label}>{c.label}: {c.observed??'not observed'} / {c.target}</li>)}</ul><p>These measurements do not verify every completion criterion.</p></details>}

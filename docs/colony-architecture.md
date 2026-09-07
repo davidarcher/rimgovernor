@@ -275,3 +275,20 @@ to reassess eligibility in the existing execution path. Native game observations
 not model guesses about injuries, drive these transitions. Tests cover repeated
 polls, second-pawn changes, recovery hysteresis, missing/dead observations and focused
 manager routing. This slice was not gameplay-tested.
+
+## Administrator project holds
+
+`ObjectiveDecision` now supports `suspend_projects` (existing ID to reason) and
+`resume_projects` (existing held IDs). These operate on the existing persistent
+project records, preserve work IDs and spatial reservations, and stop new execution
+without cancelling native jobs, blueprints or bills. Omitted holds persist;
+`keep_projects` does not implicitly resume them. Unknown IDs, conflicting retirement,
+empty reasons and invalid resumes are rejected before mutation.
+
+Administrator holds and medical interruptions remain distinct. Medical recovery
+cannot release an administrator hold, and administrator release cannot override a
+current medical interruption. Release restores the prior execution state and removes
+the old scheduling baseline so fresh observations are assessed. The Work view shows
+the hold reason. Tests exercise both interruption orders, validation and actual
+executor suppression. This implements the missing explicit hold/resume part of the
+persistent-goal lifecycle without adding a second task queue; it is not gameplay-tested.

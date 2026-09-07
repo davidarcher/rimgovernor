@@ -93,6 +93,8 @@ class Planner:
                 raise ValueError('Use known proposal IDs without duplicates or conflicting accept/defer decisions. Valid IDs: '+', '.join(proposals))
             for key in set(proposals)-accepted-deferred:value.deferred[key]='Not selected this review'
         if isinstance(value,ObjectiveDecision):
+            from .project_controls import validate_controls
+            validate_controls(value,(context or {}).get('projects',[]))
             projects={p['project_id'] for p in (context or {}).get('projects',[])}
             keep=set(value.keep_projects);retire=set(value.retire_projects)
             if len(keep)!=len(value.keep_projects) or keep & retire or (keep | retire)-projects:
@@ -231,11 +233,11 @@ class Planner:
         if issubclass(contract,ObjectiveDecision):
             candidates=list(context.get('proposals',{}))
             projects=[p['project_id'] for p in context.get('projects',[])]
-            for name,ids in (('accepted',candidates),('keep_projects',projects)):
+            for name,ids in (('accepted',candidates),('keep_projects',projects),('resume_projects',[p['project_id'] for p in context.get('projects',[]) if p.get('admin_hold')])):
                 field=submit_schema['properties'][name]
                 if ids:field['items']={'type':'string','enum':ids}
                 else:field['maxItems']=0
-            for name,ids in (('deferred',candidates),('updates',candidates),('retire_projects',projects)):
+            for name,ids in (('deferred',candidates),('updates',candidates),('retire_projects',projects),('suspend_projects',projects)):
                 field=submit_schema['properties'][name]
                 if ids:field['propertyNames']={'enum':ids}
                 else:field['maxProperties']=0

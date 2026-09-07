@@ -109,6 +109,11 @@ def sync_interrupts(rt):
     emergency=rt.memory.get('risk_state',{}).get('medical_emergency',{}).get('active',False)
     for project in rt.memory.get('projects',[]):
         if project.get('status')=='retired':continue
+        if project.get('admin_hold'):
+            if project.get('status')!='suspended':
+                project['admin_hold']['resume_status']=project['status']
+                project['status']='suspended'
+            continue
         interruption=project.get('interruption')
         exempt=project.get('priority')=='urgent' or project.get('kind') in ('care','supply_access','security')
         if emergency and not exempt and interruption is None:
