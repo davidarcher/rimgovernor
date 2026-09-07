@@ -1,3 +1,0 @@
-[submodule "integrations/RIMAPI"]
-	path = integrations/RIMAPI
-	url = https://github.com/IlyaChichkov/RIMAPI.git

@@ -2,15 +2,14 @@
 import argparse
 import json
 from pathlib import Path
-from generate_native_models import generate, resolve
+from schema_models import generate, resolve
 
 ROOT = Path(__file__).resolve().parents[1]
 schema = json.loads((ROOT / 'controller/rimbot/data/bridge_observation.schema.json').read_text())
 resolved = resolve({'$ref': schema['$ref']}, schema['$defs'])
 manifest = {'endpoints': [{'name': 'observe', 'request_schema': resolved,
                           'response_schema': resolved}], 'error_schema': resolved}
-output = generate(manifest).split('\nREQUEST_TYPES =')[0].replace(
-    'Contracts/construction.openapi.json', 'data/bridge_observation.schema.json')
+output = generate(manifest).split('\nREQUEST_TYPES =')[0]
 target = ROOT / 'controller/rimbot/bridge_models.py'
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--check', action='store_true')

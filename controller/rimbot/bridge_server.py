@@ -59,7 +59,7 @@ def create_app(runtime=None):
 
     @app.get('/api/health')
     async def health():
-        return {'service': 'rimbot', 'backend': 'rimbridge', 'pid': os.getpid()}
+        return {'service': 'rimbot', 'backend': 'rimbridge', 'pid': os.getpid(), 'source_root': str(Path(__file__).resolve().parents[2])}
 
     @app.post('/api/chat', status_code=202)
     async def chat(request: Request):

@@ -1,6 +1,6 @@
 """Inspect the isolated RimBridgeServer trial; never runs an LLM or RIMAPI.
 
-Install the bridge extra first: pip install -e .[bridge]
+Install dependencies first: pip install -e .
 Use --start once, then --load-fixture to reload the disposable baseline.
 Raw SDK receipts and schemas are retained under .rimbot/bridge/evidence.
 """

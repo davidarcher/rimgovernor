@@ -5,13 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "rimbot"
 version = "0.2.0"
-description = "External RimWorld colony controller and dashboard over RIMAPI"
+description = "External RimWorld colony controller and dashboard over RimBridgeServer"
 requires-python = ">=3.12"
-dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1", "httpx>=0.28,<1", "jsonschema>=4.23,<5", "websockets>=14,<17", "Pillow>=11,<13"]
+dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1", "httpx>=0.28,<1", "jsonschema>=4.23,<5", "mcp>=1.12,<2", "pydantic>=2,<3"]
 
 [project.optional-dependencies]
-bridge = ["mcp>=1.12,<2"]
-test = ["pytest>=8", "pytest-asyncio>=0.24", "openapi-spec-validator>=0.7,<0.8"]
+test = ["pytest>=8", "pytest-asyncio>=0.24"]
 
 [project.scripts]
 rimbot = "rimbot.__main__:main"
