@@ -23425,6 +23425,23 @@
           "landmark_density": {
             "type": "integer",
             "format": "int32"
+          },
+          "scenario_def_name": {
+            "type": "string",
+            "description": "Native ScenarioDef name; omitted uses Crashlanded. Scenario is copied before editing."
+          },
+          "starting_pawn_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional native scenario editor pawn count. Other scenario settings and supplies remain native."
           }
         },
         "additionalProperties": true,
@@ -25703,6 +25720,23 @@
           "landmark_density": {
             "type": "integer",
             "format": "int32"
+          },
+          "scenario_def_name": {
+            "type": "string",
+            "description": "Native ScenarioDef name; omitted uses Crashlanded. Scenario is copied before editing."
+          },
+          "starting_pawn_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional native scenario editor pawn count. Other scenario settings and supplies remain native."
           }
         },
         "additionalProperties": false,
@@ -25716,7 +25750,7 @@
           "overall_population",
           "landmark_density"
         ],
-        "x-native-type-sha256": "71faa18193faaf603ad9bacfdbf78ecc31f36eccf939dc0a47b38e24c1ea9b75"
+        "x-native-type-sha256": "82a23837c5242e13181c5e78576b71dcafb68988d9aa8227b91e60021c723934"
       },
       "OpenWindowDto": {
         "type": "object",

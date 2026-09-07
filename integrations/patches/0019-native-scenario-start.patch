@@ -1,0 +1,210 @@
+From 5b7c06feaba8e6cde7b63599e194571412619ad4 Mon Sep 17 00:00:00 2001
+From: David Archer <darcher@gmail.com>
+Date: Sun, 6 Sep 2026 20:23:40 -0400
+Subject: [PATCH] Select native scenario and pawn count for new games
+
+---
+ Contracts/rimapi.bundled.openapi.json         | 36 ++++++++++++++++++-
+ Contracts/rimapi.openapi.json                 | 36 ++++++++++++++++++-
+ .../RimworldRestApi/Helpers/GamePlayHelper.cs | 20 ++++++++++-
+ .../Models/Game/GameStateDto.cs               |  2 ++
+ .../GameStateService/GameStateService.cs      |  1 +
+ 5 files changed, 92 insertions(+), 3 deletions(-)
+
+diff --git a/Contracts/rimapi.bundled.openapi.json b/Contracts/rimapi.bundled.openapi.json
+index c60c06a..0eb222d 100644
+--- a/Contracts/rimapi.bundled.openapi.json
++++ b/Contracts/rimapi.bundled.openapi.json
+@@ -23425,6 +23425,23 @@
+           "landmark_density": {
+             "type": "integer",
+             "format": "int32"
++          },
++          "scenario_def_name": {
++            "type": "string",
++            "description": "Native ScenarioDef name; omitted uses Crashlanded. Scenario is copied before editing."
++          },
++          "starting_pawn_count": {
++            "anyOf": [
++              {
++                "type": "integer",
++                "minimum": 1,
++                "maximum": 10
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "description": "Optional native scenario editor pawn count. Other scenario settings and supplies remain native."
+           }
+         },
+         "additionalProperties": true,
+@@ -25703,6 +25720,23 @@
+           "landmark_density": {
+             "type": "integer",
+             "format": "int32"
++          },
++          "scenario_def_name": {
++            "type": "string",
++            "description": "Native ScenarioDef name; omitted uses Crashlanded. Scenario is copied before editing."
++          },
++          "starting_pawn_count": {
++            "anyOf": [
++              {
++                "type": "integer",
++                "minimum": 1,
++                "maximum": 10
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "description": "Optional native scenario editor pawn count. Other scenario settings and supplies remain native."
+           }
+         },
+         "additionalProperties": false,
+@@ -25716,7 +25750,7 @@
+           "overall_population",
+           "landmark_density"
+         ],
+-        "x-native-type-sha256": "71faa18193faaf603ad9bacfdbf78ecc31f36eccf939dc0a47b38e24c1ea9b75"
++        "x-native-type-sha256": "82a23837c5242e13181c5e78576b71dcafb68988d9aa8227b91e60021c723934"
+       },
+       "OpenWindowDto": {
+         "type": "object",
+diff --git a/Contracts/rimapi.openapi.json b/Contracts/rimapi.openapi.json
+index d813235..cb86aa1 100644
+--- a/Contracts/rimapi.openapi.json
++++ b/Contracts/rimapi.openapi.json
+@@ -23425,6 +23425,23 @@
+           "landmark_density": {
+             "type": "integer",
+             "format": "int32"
++          },
++          "scenario_def_name": {
++            "type": "string",
++            "description": "Native ScenarioDef name; omitted uses Crashlanded. Scenario is copied before editing."
++          },
++          "starting_pawn_count": {
++            "anyOf": [
++              {
++                "type": "integer",
++                "minimum": 1,
++                "maximum": 10
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "description": "Optional native scenario editor pawn count. Other scenario settings and supplies remain native."
+           }
+         },
+         "additionalProperties": true,
+@@ -25703,6 +25720,23 @@
+           "landmark_density": {
+             "type": "integer",
+             "format": "int32"
++          },
++          "scenario_def_name": {
++            "type": "string",
++            "description": "Native ScenarioDef name; omitted uses Crashlanded. Scenario is copied before editing."
++          },
++          "starting_pawn_count": {
++            "anyOf": [
++              {
++                "type": "integer",
++                "minimum": 1,
++                "maximum": 10
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "description": "Optional native scenario editor pawn count. Other scenario settings and supplies remain native."
+           }
+         },
+         "additionalProperties": false,
+@@ -25716,7 +25750,7 @@
+           "overall_population",
+           "landmark_density"
+         ],
+-        "x-native-type-sha256": "71faa18193faaf603ad9bacfdbf78ecc31f36eccf939dc0a47b38e24c1ea9b75"
++        "x-native-type-sha256": "82a23837c5242e13181c5e78576b71dcafb68988d9aa8227b91e60021c723934"
+       },
+       "OpenWindowDto": {
+         "type": "object",
+diff --git a/Source/RIMAPI/RimworldRestApi/Helpers/GamePlayHelper.cs b/Source/RIMAPI/RimworldRestApi/Helpers/GamePlayHelper.cs
+index 4a74483..e874309 100644
+--- a/Source/RIMAPI/RimworldRestApi/Helpers/GamePlayHelper.cs
++++ b/Source/RIMAPI/RimworldRestApi/Helpers/GamePlayHelper.cs
+@@ -1,6 +1,7 @@
+ 
+ 
+ using System;
++using System.Linq;
+ using RIMAPI.Models;
+ using RimWorld;
+ using UnityEngine;
+@@ -22,8 +23,25 @@ namespace RIMAPI.Helpers
+         public static string SessionId => Current.Game == null ? null :
+             Sessions.GetValue(Current.Game, _ => new Session()).Id;
+ 
++        public static Scenario StartingScenario(NewGameStartRequestDto request)
++        {
++            var definition=DefDatabase<ScenarioDef>.GetNamedSilentFail(request.ScenarioDefName??ScenarioDefOf.Crashlanded.defName);
++            if(definition==null)throw new ArgumentException("Unknown scenario definition.");
++            var scenario=definition.scenario.CopyForEditing();
++            if(request.StartingPawnCount.HasValue)
++            {
++                int count=request.StartingPawnCount.Value;
++                if(count<1 || count>10)throw new ArgumentException("Starting pawn count must be 1..10, matching the native scenario editor.");
++                var pawns=scenario.AllParts.OfType<ScenPart_ConfigPage_ConfigureStartingPawns>().SingleOrDefault();
++                if(pawns==null)throw new ArgumentException("This scenario has no configurable starting pawn count.");
++                pawns.pawnCount=count;
++            }
++            return scenario;
++        }
++
+         public static void InitGameFromConfiguration(NewGameStartRequestDto request)
+         {
++            var scenario=StartingScenario(request);
+             StorytellerDef storytellerDef = DefDatabase<StorytellerDef>.GetNamed(request.StorytellerName);
+             DifficultyDef difficultyDef = DefDatabase<DifficultyDef>.GetNamed(request.DifficultyName);
+ 
+@@ -37,7 +55,7 @@ namespace RIMAPI.Helpers
+ #endif
+             Current.Game = new Game();
+             Current.Game.InitData = new GameInitData();
+-            Current.Game.Scenario = ScenarioDefOf.Crashlanded.scenario;
++            Current.Game.Scenario = scenario;
+             Find.Scenario.PreConfigure();
+             Current.Game.storyteller = new Storyteller(storytellerDef, difficultyDef);
+             GameInitData initData = Find.GameInitData;
+diff --git a/Source/RIMAPI/RimworldRestApi/Models/Game/GameStateDto.cs b/Source/RIMAPI/RimworldRestApi/Models/Game/GameStateDto.cs
+index 384d257..690a798 100644
+--- a/Source/RIMAPI/RimworldRestApi/Models/Game/GameStateDto.cs
++++ b/Source/RIMAPI/RimworldRestApi/Models/Game/GameStateDto.cs
+@@ -17,6 +17,8 @@ namespace RIMAPI.Models
+ 
+     public class NewGameStartRequestDto
+     {
++        public string ScenarioDefName { get; set; }
++        public int? StartingPawnCount { get; set; }
+         public string StorytellerName { get; set; }
+         public string DifficultyName { get; set; }
+         public int MapSize { get; set; }
+diff --git a/Source/RIMAPI/RimworldRestApi/Services/System/GameStateService/GameStateService.cs b/Source/RIMAPI/RimworldRestApi/Services/System/GameStateService/GameStateService.cs
+index 5b9a9f1..1081d88 100644
+--- a/Source/RIMAPI/RimworldRestApi/Services/System/GameStateService/GameStateService.cs
++++ b/Source/RIMAPI/RimworldRestApi/Services/System/GameStateService/GameStateService.cs
+@@ -126,6 +126,7 @@ namespace RIMAPI.Services
+         {
+             try
+             {
++                GamePlayHelper.StartingScenario(request); // Validate before replacing the running game.
+                 LongEventHandler.QueueLongEvent(() =>
+                 {
+                     GamePlayHelper.InitGameFromConfiguration(request);
+-- 
+2.55.0.windows.3
+

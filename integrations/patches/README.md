@@ -55,3 +55,7 @@ placements recheck these restrictions; existing structures remain inspectable.
 Temporary health, priorities and reachability are separate work observations.
 Run scripts/check_build_eligibility.py --restricted SlabBed --available Bed
 against a suitable paused test colony for the read-only regression.
+
+Native new-game configuration accepts scenario_def_name and optional
+starting_pawn_count (the native editor range 1..10). It copies the scenario
+before editing, preserving definitions and the scenario's other starting rules.

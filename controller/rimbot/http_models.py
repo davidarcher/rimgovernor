@@ -1757,6 +1757,8 @@ class Input_NewGameStartRequestDto(WireModel):
     overall_temperature: Union[int, None] = Field(default=None)
     overall_population: Union[int, None] = Field(default=None)
     landmark_density: Union[int, None] = Field(default=None)
+    scenario_def_name: Union[str, None] = Field(default=None)
+    starting_pawn_count: Union[Union[int, None], None] = Field(default=None)
 
 class Input_OverlayRequestDto(WireModel):
     model_config = ConfigDict(strict=True, extra='allow', protected_namespaces=())
@@ -2304,6 +2306,8 @@ class NewGameStartRequestDto(WireModel):
     overall_temperature: int = Field()
     overall_population: int = Field()
     landmark_density: int = Field()
+    scenario_def_name: Union[str, None] = Field(default=None)
+    starting_pawn_count: Union[Union[int, None], None] = Field(default=None)
 
 class OpenWindowDto(WireModel):
     window_type: Union[str, None] = Field(default=None)
