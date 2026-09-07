@@ -35,3 +35,11 @@ describe('player direction',()=>{
     expect(input).toHaveValue('Still writing');
   });
 });
+
+it('keeps work tracking on its own page',()=>{
+ render(<Manager view="work" onInspect={()=>{}}/>);
+ expect(screen.getByRole('heading',{name:'Work in progress'})).toBeVisible();
+ expect(screen.queryByText('Camera feed')).not.toBeInTheDocument();
+ expect(screen.queryByRole('textbox',{name:'Direction for the colony manager'})).not.toBeInTheDocument();
+ expect(screen.getByRole('link',{name:'Work'})).toHaveAttribute('aria-current','page');
+});

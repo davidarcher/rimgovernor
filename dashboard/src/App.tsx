@@ -1,6 +1,7 @@
 import {useCallback,useEffect,useState} from 'react';
 import RimWorldDashboard from './features/dashboard/Dashboard';
 import Manager from './features/manager/Manager';
+import {BasePlanPage} from './features/manager/SpatialPlan';
 import {useController} from './features/manager/useController';
 import {ToastProvider} from './components/feedback/ToastContext';
 import {ToastContainer} from './components/feedback/ToastContainer';
@@ -16,11 +17,15 @@ function ColonyDetails(props:React.ComponentProps<typeof RimWorldDashboard>){
 }
 export default function App(){
   const [inspect,setInspect]=useState(false);
+  const [view,setView]=useState(location.hash.slice(1));
+  const basePlan=view==='base-plan';
+  useEffect(()=>{const changed=()=>{setView(location.hash.slice(1));setInspect(false);};window.addEventListener('hashchange',changed);return()=>window.removeEventListener('hashchange',changed);},[]);
   const base=location.origin+'/rimapi/api/v1';
   useEffect(()=>{setApiBaseUrl(base);sseService.setApiUrl(base);if(inspect)sseService.connect();return()=>sseService.disconnect();},[base,inspect]);
   const gameChanged=useCallback(()=>{},[]);
   return <ImageCacheProvider><ToastProvider><AutoRefreshProvider>
-    {inspect?<><nav className="mgr-inspect-nav"><button onClick={()=>setInspect(false)}>← Colony manager</button><span>RIMAPI Dashboard · Colony details</span></nav><ColonyDetails apiUrl={base} onResetConfig={()=>setInspect(false)} onGameStateChange={gameChanged}/></>:<Manager onInspect={()=>setInspect(true)}/>}
+    <div hidden={basePlan||inspect}><Manager view={view==='work'||view==='activity'?view:'colony'} onInspect={()=>setInspect(true)}/></div>
+    {basePlan?<BasePlanPage/>:inspect?<><nav className="mgr-inspect-nav"><button onClick={()=>setInspect(false)}>← Colony manager</button><span>RIMAPI Dashboard · Colony details</span></nav><ColonyDetails apiUrl={base} onResetConfig={()=>setInspect(false)} onGameStateChange={gameChanged}/></>:null}
     <ToastContainer/>
   </AutoRefreshProvider></ToastProvider></ImageCacheProvider>;
 }
