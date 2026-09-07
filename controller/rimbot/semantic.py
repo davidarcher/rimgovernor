@@ -62,9 +62,11 @@ async def arbitrate_objectives(rt,context):
 
 
 async def semantic_review(rt,context,roles):
+    from .admin_requests import ready,snapshot,acknowledge,retry_later
+    requests=snapshot(rt)
     day=(rt.last_tick or 0)//60000
     active_projects=[p for p in rt.memory.get('projects',[]) if p.get('status')!='retired']
-    admin_due=context.get('administration_required') or context.get('domain_review_required') or rt.memory.get('last_admin_day')!=day or rt.memory.get('admin_requested')
+    admin_due=context.get('administration_required') or context.get('domain_review_required') or rt.memory.get('last_admin_day')!=day or ready(rt)
     if not admin_due:
         await execute_projects(rt,context,active_projects)
         return
@@ -72,7 +74,7 @@ async def semantic_review(rt,context,roles):
     shared=await rt.manager_context(context)
     from .project_progress import refresh_progress
     shared=await refresh_progress(rt,shared)
-    if rt.memory.get('admin_requested'):shared['coordination_request']=rt.memory['admin_requested']
+    if requests:shared['coordination_request']=requests
     shared['cancelled_projects']=[{'kind':p['kind'],'outcome':p['outcome']} for p in rt.memory.get('projects',[]) if p.get('cancelled_by_player')][-30:]
     projects=[p for p in rt.memory.get('projects',[]) if p.get('status')!='retired']
     semaphore=asyncio.Semaphore(rt.settings.manager_parallelism)
@@ -119,7 +121,7 @@ async def semantic_review(rt,context,roles):
         rt.note('info','Routine setup proceeds without administrator approval.',role='Colony')
         await execute_projects(rt,context,routine)
         projects=[p for p in rt.memory['projects'] if p.get('status')!='retired']
-    if routine and not candidates and all(p in routine for p in projects) and not context.get('administration_required'):
+    if routine and not candidates and all(p in routine for p in projects) and not context.get('administration_required') and not requests:
         rt.memory['last_admin_day']=day;rt.persist()
         return
     shared=await rt.manager_context(shared)
@@ -132,7 +134,7 @@ async def semantic_review(rt,context,roles):
         rt.check_generation()
         rt.note('error','Strategic review failed; continuing only existing approved projects. '+str(error),role='Administrator')
         rt.memory['last_admin_day']=day
-        rt.memory['admin_requested']=False
+        retry_later(rt)
         rt.persist()
         await execute_projects(rt,context,projects)
         return
@@ -165,7 +167,7 @@ async def semantic_review(rt,context,roles):
             work['status']='dismissed';work['detail']='Project retired or reclassified; stopped tracking this order. Game orders unchanged.'
     rt.persist()
     rt.memory['last_admin_day']=day
-    rt.memory['admin_requested']=False
+    acknowledge(rt,requests)
     rt.persist()
     # Kept projects continue even when no department restates their objective.
     scheduled=[p for p in approved+[p for p in projects if p.get('status')!='retired' and p not in approved] if p not in routine]
@@ -192,7 +194,8 @@ async def execute_projects(rt,context,scheduled):
         mismatch=routing_error(project)
         if mismatch:
             project['status']='needs_review';project['feedback']=[mismatch]
-            rt.memory['admin_requested']=mismatch
+            from .admin_requests import request_review
+            request_review(rt,project['project_id']+':routing',mismatch)
             rt.note('error',mismatch,project_id=project['project_id']);rt.persist()
             continue
         role='Executor:'+project['kind']
@@ -236,7 +239,8 @@ async def execute_projects(rt,context,scheduled):
                 batch=await plan(rt,project,fresh)
             else:batch=await rt.planner.ask(role,fresh,Proposal,rt.settings.reasoning)
             if batch.escalation_reason:
-                rt.memory['admin_requested']=batch.escalation_reason
+                from .admin_requests import request_review
+                request_review(rt,project['project_id']+':execution',batch.escalation_reason)
                 project['status']='needs_review';project['feedback']=[batch.escalation_reason]
                 rt.note('escalation',batch.escalation_reason,role=project['owner'],project_id=project['project_id'])
                 rt.last_review=-100000

@@ -66,6 +66,8 @@ async def plan(rt,project,context):
                 'scope':'Native capability and relevant skills; stable existing coverage first, then spread duties, skill, passion and ID. No job creation, drafting, forced labor, travel or fatigue optimization.'}
     if {k:v for k,v in project.get('work_allocation',{}).items() if k!='observed_tick'}!={k:v for k,v in allocation.items() if k!='observed_tick'}:
         rt.note('work_allocation','Work coverage needs review' if blockers else 'Work coverage selected from native eligibility',project_id=project['project_id'],allocation=allocation)
-        if blockers:rt.memory['admin_requested']='Work coverage policy needs revision: '+'; '.join(blockers)
+        if blockers:
+            from .admin_requests import request_review
+            request_review(rt,project['project_id']+':work_policy','Work coverage policy needs revision: '+'; '.join(blockers))
     project['work_allocation']=allocation
     return Proposal(summary='Apply observed work coverage' if actions else 'Work coverage inspected',actions=actions,blockers=blockers)

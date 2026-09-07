@@ -80,8 +80,10 @@ async def check_dependencies(rt, project):
     deadline=project.get('deadline_tick')
     overdue=deadline is not None and (rt.last_tick or 0)>deadline
     if overdue and not project.get('deadline_overdue'):
-        rt.memory['admin_requested']='Project missed its game-time target: '+project['outcome']
-        rt.note('project_deadline',rt.memory['admin_requested'],project_id=project['project_id'])
+        from .admin_requests import request_review
+        reason='Project missed its game-time target: '+project['outcome']
+        request_review(rt,project['project_id']+':deadline',reason)
+        rt.note('project_deadline',reason,project_id=project['project_id'])
     project['deadline_overdue']=overdue
     if blockers:rt.persist()
     return not blockers

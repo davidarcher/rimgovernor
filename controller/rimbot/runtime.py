@@ -231,6 +231,8 @@ class Runtime:
                 await self.poll()
                 tick = self.observation['game'].get('game_tick',0)
                 changed = bool(self.events_pending) and (any(e.get('urgent') for e in self.events_pending) or time.monotonic()-self.last_review_wall > 15)
+                from .admin_requests import ready
+                changed = changed or (ready(self) and time.monotonic()-self.last_review_wall > 15)
                 due = tick-self.last_review >= self.settings.review_ticks
                 if self.mode == 'automate' and not self.busy() and (due or changed):
                     self.launch_review()

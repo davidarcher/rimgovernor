@@ -86,7 +86,7 @@ async def test_deadline_requests_review_without_cancelling(colony):
     project={'project_id':'a','outcome':'Winter food','deadline_tick':rt.last_tick-1,'status':'approved'}
     assert await check_dependencies(rt,project)
     assert project['deadline_overdue'] and project['status']=='approved'
-    assert 'Winter food' in rt.memory['admin_requested']
+    assert any('Winter food' in reason for reason in rt.memory['admin_requested'].values())
 
 
 def food(tick,nutrition=100,population=8):

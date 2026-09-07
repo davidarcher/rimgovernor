@@ -353,3 +353,19 @@ errors rather than assumed availability. Checks are fresh per evaluation; this r
 model calls, not native survey cost. Tests include the executor path skipping inference,
 supply recovery, competing obligations, reserves and objective revisions. No gameplay
 test was run for this architecture slice.
+
+## Durable administrator handoff
+
+The existing `admin_requested` field now holds keyed reasons instead of one
+overwriteable string. Deadline, routing, crop-target, work-policy and executor
+requests coexist and coalesce when unchanged. Requests are persisted when raised.
+Administrator completion acknowledges only the captured request/reason pairs;
+new or changed requests arriving during inference remain pending. Failed reviews
+retain requests and defer retry for one game hour; changed requests reset that delay.
+
+Pending eligible requests now wake the existing poll loop after its 15-second
+review spacing even without native events. The normal administrator path handles
+them; there is no second task queue or independent manager loop. Routine setup
+cannot skip an outstanding coordination request. Tests cover coalescing, requests
+arriving during an actual administrator turn, retry timing and poll-loop wakeup.
+This is architecture validation, not a colony playtest.

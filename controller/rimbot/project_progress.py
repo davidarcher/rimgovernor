@@ -92,8 +92,10 @@ async def validate_farm_expansion(rt,project,actions):
     if not orders:return
     target=project.get('target_cells');crop=project.get('crop_def')
     if not target or not crop:
-        rt.memory['admin_requested']='Growing project needs one crop_def and total target_cells based on current food demand and existing fields.'
-        raise ValueError(rt.memory['admin_requested'])
+        from .admin_requests import request_review
+        reason='Growing project needs one crop_def and total target_cells based on current food demand and existing fields.'
+        request_review(rt,project['project_id']+':crop_target',reason)
+        raise ValueError(reason)
     current=await farm_progress(rt)
     existing=sum(z['cells'] for z in current['zones'] if z['crop']==crop)
     if any(a.arguments['plant_def']!=crop for a in orders):raise ValueError('Use the approved crop_def; another crop needs a separate objective.')

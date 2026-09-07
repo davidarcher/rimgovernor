@@ -11,7 +11,7 @@ def runtime():
         if name=='get_map_zone_growing':return {'plant_def_name':'Crop','plant_count':0,'is_sowing':True,'growth_progress':0}
         return NS(model_dump=lambda:{'cells':[{'position':{'x':1,'z':1},'roofed':True}]})
     project={'project_id':'food','kind':'growing','crop_def':'Crop','target_cells':50,'feedback':['No plants; make another zone'],'work_ids':[]}
-    return NS(observation={'map':{'id':0}},memory={'projects':[project]},last_tick=42,api=NS(call=call),note=Mock())
+    return NS(observation={'map':{'id':0}},memory={'projects':[project]},last_tick=42,api=NS(call=call),note=Mock(),persist=Mock())
 
 async def test_unsown_zone_counts_as_existing_capacity_and_replaces_old_feedback():
     rt=runtime();await refresh_progress(rt,{})
