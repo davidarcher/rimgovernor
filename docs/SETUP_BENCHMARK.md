@@ -76,3 +76,10 @@ The isolated benchmark restores its requested speed after initial planning and
 native pauses. A blocking dialog stops the test for diagnosis instead of being
 silently dismissed. Create a file named `stop` in the active benchmark output
 folder to end early with the report preserved and the game paused.
+
+
+## September 7 baseline instrumentation
+
+`--control` runs observations with no model execution and reports `control_passed` separately from colony `passed`. `--model` pins one model for every role only in the isolated harness. `--native-dll` records the installed assembly hash; loaded LM Studio model metadata and native source revision accompany the report.
+
+The narrow object-count gate now requires exactly the requested count, so excess sleeping objects cannot pass. This is intentionally an evaluation criterion, not a production prohibition on temporary bed upgrades. Usable capacity and useful-order latency remain explicitly unknown until supported by stronger observations. Construction receipt counts distinguish blueprint/frame/built acceptance from completion and preserve missing outcomes as unknown. Do not interpret zero latency, successful HTTP replies or new unrelated objects as goal success.

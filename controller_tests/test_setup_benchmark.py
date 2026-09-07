@@ -54,3 +54,23 @@ async def test_missing_work_support_is_explicitly_unknown(colony):
     context=await rt.observe_work({})
     assert context['construction_work']['available'] is False
     assert 'sites' not in context['construction_work']
+
+
+def test_excess_capacity_does_not_pass():
+    metrics=SetupMetrics([],['Bed'],8)
+    assert not metrics.sample(work(100),[building(i) for i in range(332)])
+    report=metrics.report([],0)
+    assert report['observed_target_objects']==332
+    assert report['usable_target_capacity'] is None
+    assert report['peak_excess_target_capacity']==324
+
+
+def test_receipts_separate_unknown_and_accepted_from_completion():
+    from rimbot.benchmark import placement_receipts
+    orders=[{'action':{'endpoint':'construction_place','arguments':{'buildings':[{}, {}, {}]}},
+             'native_result':{'items':[{'state':'blueprint'},{'state':'rejected'}]}}]
+    report=placement_receipts(orders)
+    assert report['attempted_placements']==3
+    assert report['accepted_native_placements']==1
+    assert report['rejected_native_placements']==1
+    assert report['unknown_placement_outcomes']==1

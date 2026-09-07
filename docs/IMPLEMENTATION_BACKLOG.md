@@ -26,11 +26,11 @@ All boxes below are initially unchecked. Tests of a component do not close its l
 
 ### P0 — Reproducible baseline and honest receipts
 
-- [ ] Checkpoint/review the currently untracked RimMolt benchmark client and its tests separately from production changes.
-- [ ] Restore the RIMAPI/controller test configuration with RimWorld closed; keep a reversible configuration backup. Record native DLL hash and source revisions. Do not mix the stock RimMolt experiment with controller benchmarks.
+- [x] Checkpoint/review the currently untracked RimMolt benchmark client and its tests separately from production changes.
+- [x] Restore the RIMAPI/controller test configuration with RimWorld closed; keep a reversible configuration backup. Record native DLL hash and source revisions. Do not mix the stock RimMolt experiment with controller benchmarks.
 - [ ] Extend the existing tribal benchmark report to separate intended quantity, attempted placement, accepted native effects, completed objects and usable capacity.
 - [ ] Record time to first useful order, first pawn progress, shelter usability, model/tool latency, rejected and repeated calls, excess capacity, context usage, and player interventions.
-- [ ] Save a fresh baseline report before implementation comparisons. Inspect and validate the existing fixture instead of regenerating it unnecessarily.
+- [x] Save a fresh baseline report before implementation comparisons. Inspect and validate the existing fixture instead of regenerating it unnecessarily.
 
 Gate: a no-op/control run and a known fixture observation produce accurate reports; game pauses on exit and no second controller runs. Never count an arbitrary first command as useful progress.
 
@@ -130,3 +130,11 @@ Append one row per implementation/playtest iteration. Link local evidence paths 
 - ADMINISTRATOR_AGENCY.md: implemented administrator inspection, wiki, memory and direct actions.
 - TOOL_SURFACE_AUDIT.md and TOOL_SURFACE_INVENTORY.json: pinned third-party audit and capability gaps.
 - tribal-benchmark.md and SETUP_BENCHMARK.md: existing fixture and harness limitations.
+
+### P0 checkpoint evidence (September 7)
+
+The comparison client is committed at 582055f. RIMAPI configuration was restored with the game closed after the player stopped LM Studio control; the previous mod configuration is backed up locally. No DLL was replaced.
+
+Focused benchmark/client/starter checks: 11 passed. The live no-model control at `.rimbot/setup-benchmarks/20260907-162449` observed eight tribals, zero model calls/orders/new objects and paused on exit. Fixture hash still matches the saved manifest. The model baseline at `20260907-162619` used Qwen3.5-9B, 64k context, with installed DLL hash, native revision, model-load metadata and dirty source diffs captured. It failed before inference: strategy requests of 61,035 and 63,915 conservative units exceeded the 55,296 input budget. Stopped repeated retries after about 66 seconds; no orders or completed objects. This is not a gameplay pass.
+
+Reports now separate requested target count, persisted placement attempts/native receipts, observed completed objects and unknown usable capacity. Excess object capacity no longer passes the narrow sleeping-object test. First construction-progress timing and model failures are explicit. First useful-order attribution, complete sleeping-place usability, tool latency/repetition totals, and the full starter acceptance outcome remain open P0/P3 instrumentation work. Do not label P0 fully complete yet. Next causal implementation task: reduce the strategy request to fit its budget without raising context, then rerun the pinned baseline before P1 gameplay comparisons.

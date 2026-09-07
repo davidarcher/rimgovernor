@@ -9,7 +9,7 @@ import httpx
 from rimbot.runtime import Runtime
 from rimbot.store import Store
 from rimbot.config import Settings
-from rimbot.benchmark import SetupMetrics
+from rimbot.benchmark import SetupMetrics, placement_receipts
 
 async def run(args):
     save=Path(args.save).resolve()
@@ -22,11 +22,23 @@ async def run(args):
     if state['mode']!='manual' or state['busy']:raise ValueError('Dashboard must be idle and Manual.')
     folder=Path('.rimbot/setup-benchmarks')/time.strftime('%Y%m%d-%H%M%S');folder.mkdir(parents=True)
     settings=Settings.model_validate(state['settings'])
+    if args.model:
+        settings.model=args.model
+        settings.manager_model=''
     rt=Runtime(Store(folder/'trace.sqlite'),settings)
     report={'passed':False,'save':save.name,'save_sha256':hashlib.sha256(save.read_bytes()).hexdigest(),
             'settings':settings.model_dump(),'objective':args.objective,'speed':args.speed,
             'git_revision':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
             'target_defs':args.target_def,'timeout':args.timeout}
+    report['native_git_revision']=subprocess.check_output(['git','-C','integrations/RIMAPI','rev-parse','HEAD'],text=True).strip()
+    report['native_dll_sha256']=hashlib.sha256(Path(args.native_dll).read_bytes()).hexdigest() if args.native_dll else None
+    report['native_dll_path']=args.native_dll
+    async with httpx.AsyncClient() as model_http:
+        try:
+            response=await model_http.get('http://127.0.0.1:1234/api/v1/models',timeout=5)
+            response.raise_for_status()
+            (folder/'loaded-models.json').write_text(json.dumps(response.json(),indent=2),encoding='utf8')
+        except Exception as error:report['model_metadata_error']=str(error)
     diff=subprocess.check_output(['git','diff','HEAD'],text=True)
     native_diff=subprocess.check_output(['git','-C','integrations/RIMAPI','diff','HEAD'],text=True)
     (folder/'source.diff').write_text(diff);(folder/'native-source.diff').write_text(native_diff)
@@ -50,7 +62,7 @@ async def run(args):
         report['target_count']=target
         if sum(b.state=='built' and b.def_name in args.target_def for b in initial.buildings)>=target:raise ValueError('Save already satisfies benchmark target')
         await rt.start()
-        started=time.time();rt.mode='automate'
+        started=time.time();rt.mode='manual' if args.control else 'automate'
         restored_speed=False
         await rt.api.request('POST','/api/v1/game/speed',params={'speed':args.speed})
         while time.time()-started<args.timeout:
@@ -76,16 +88,17 @@ async def run(args):
                 offset=work['next_offset']
             work['sites']=pages
             buildings=await rt.api.call('construction_state',{'map_id':mid})
-            success=metrics.sample(work,[b.model_dump() for b in buildings.buildings])
+            success=metrics.sample(work,[b.model_dump() for b in buildings.buildings],round(time.time()-started,3))
             if args.starter_base:
                 from rimbot.starter_check import assess
                 report['starter_base']=assess(rt.observation,[b.model_dump() for b in buildings.buildings],args.target_def,target)
-                success=report['starter_base']['passed']
+                success=report['starter_base']['passed'] and metrics.current_capacity==target
+            if args.control:success=False
             with (folder/'observations.jsonl').open('a') as out:out.write(json.dumps({'at':time.time(),'work':work,'buildings':buildings.model_dump()})+'\n')
             print(f"{time.time()-started:.1f}s {rt.status.get('phase')} | idle {metrics.last_idle} | sites {len(pages)} | completed {len(metrics.completed_ids)}",flush=True)
             if success:report['passed']=True;break
             await asyncio.sleep(args.interval)
-        if not report['passed']:report.setdefault('error','Target not completed before deadline')
+        if not report['passed'] and not args.control:report.setdefault('error','Target not completed before deadline')
     except BaseException as error:
         report['error']=f'{type(error).__name__}: {error}'
         raise
@@ -99,16 +112,23 @@ async def run(args):
                 events=[e for e in events if e['at']>=started]
                 report.update(metrics.report(events,started),elapsed_seconds=round(time.time()-started,3))
             report['final_work']=rt.memory['work']
+            report['construction_receipts']=placement_receipts(report['final_work'])
+            report['run_kind']='control' if args.control else 'model'
+            if args.control:
+                report['control_passed']=not report.get('error') and metrics is not None and metrics.last_tick is not None and not report['final_work'] and not report.get('orders_issued',0) and not report.get('model_calls',0) and not report.get('completed_new_objects',0)
             report['final_projects']=rt.memory.get('projects',[])
             (folder/'report.json').write_text(json.dumps(report,indent=2))
             await rt.stop();rt.store.close()
             print('Report: '+str(folder/'report.json'),flush=True)
-    return report['passed']
+    return report.get('control_passed',report['passed'])
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--execute',action='store_true',required=True)
     p.add_argument('--starter-base',action='store_true',help='Require roofed shelter, a stockpile and accessible food as well as completed sleeping objects')
+    p.add_argument('--control',action='store_true',help='Observe the fixed save without invoking the model; never reports colony success')
+    p.add_argument('--model',help='Use one model for all roles in this isolated run; dashboard settings remain unchanged')
+    p.add_argument('--native-dll',help='Installed native DLL whose SHA256 should be recorded')
     p.add_argument('--save',required=True)
     p.add_argument('--timeout',type=int,default=360)
     p.add_argument('--interval',type=float,default=3)
