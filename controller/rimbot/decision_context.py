@@ -68,6 +68,25 @@ def decision_context(context,observation):
 def administrator_context(context):
     """Arbitration needs complete proposals, not repeated executor lookup data."""
     result = deepcopy(context)
+    # Department-wide concerns were repeated once per candidate. Keep one copy
+    # with explicit references; preserve every concern and candidate objective.
+    concerns={}
+    for candidate in result.get('proposals',{}).values():
+        blockers=candidate.pop('blockers',[])
+        if blockers:
+            key=next((k for k,v in concerns.items() if v==blockers),None)
+            if key is None:key='concerns_'+str(len(concerns)+1);concerns[key]=blockers
+            candidate['blockers_ref']=key
+        objective=candidate.get('objective',{})
+        candidate['objective']={k:v for k,v in objective.items() if v is not None and v!='' and v!=[] and v!={}}
+    if concerns:result['department_concerns']=concerns
+    optional=('work_policy','after_projects','deadline_tick','quantity','crop_def','target_cells','definition_requirements','constraints','feedback','dependency_blockers')
+    for project in result.get('projects',[]):
+        for key in optional:
+            if project.get(key) in (None,'',[],{}):project.pop(key,None)
+    # Strategic worker facts are already carried in colony.workers; native
+    # per-site recovery belongs to the executor and its project progress.
+    result.pop('construction_work',None)
     resources = result.get('resource_overview', {})
     for name in ('plants', 'animals', 'minerals', 'terrain'):
         for row in resources.get(name, {}).get('items', []):

@@ -22,3 +22,15 @@ def test_arbitration_preserves_proposals_budgets_and_crop_choices():
     assert result['resource_overview']['animals']['items'][0]['owned_count'] == 1
     assert result['strategy_guidance'] == [{'id': 'first-days'}]
     assert result['strategy_guidance_omitted'] == 2
+
+
+def test_department_concerns_are_losslessly_factored_and_source_unchanged():
+    import copy
+    context={'proposals':{str(i):{'owner':'Food','objective':{'kind':'growing','crop_def':'Crop','target_cells':20,'quantity':None},'blockers':['Short runway','No harvest yet']} for i in range(4)}}
+    original=copy.deepcopy(context)
+    result=administrator_context(context)
+    assert len(result['department_concerns'])==1
+    for candidate in result['proposals'].values():
+        assert result['department_concerns'][candidate['blockers_ref']]==['Short runway','No harvest yet']
+        assert candidate['objective']['target_cells']==20
+    assert context==original

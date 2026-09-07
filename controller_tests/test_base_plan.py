@@ -220,3 +220,17 @@ async def test_farm_reservation_preserves_infertile_holes_from_native_crop_facts
  selected=cells(result['region'])
  assert selected and all((x+z)%2==0 for x,z in selected)
  assert result['region']['fertility_floor']==.8
+
+
+async def test_room_can_enclose_existing_stockpile_without_replacing_it():
+ rt,a=runtime()
+ stock={'id':'stock','zone_id':'food','purpose':'storage','label':'Supplies','project_ids':['s'],'patches':[{'x1':4,'x2':6,'z1':4,'z2':6}]}
+ rt.memory['spatial_layout']['regions'].append(stock)
+ for c in a['cells']:
+  if (c['position']['x'],c['position']['z']) in cells(stock):c.update(zone_id=5,zone_type='Zone_Stockpile')
+ result=await reserve_site(rt,{'project_id':'room'},SiteRequest(zone_id='food',label='Store room',purpose='room',width=5,height=5,reuse_region_id='stock'))
+ from rimbot.spatial import boundary
+ assert cells(stock)<=cells(result['region'])-boundary(cells(result['region']))
+ assert stock['purpose']=='storage' and stock['project_ids']==['s']
+ assert stock['parent_id']==result['region']['id']
+ assert result['region']['reuse_zone_ids']==[5]

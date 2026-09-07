@@ -305,7 +305,16 @@ async def reserve_site(rt,project,request):
     if not request.reuse_region_id:
         old=next((r for r in plan['regions'] if project['project_id'] in r['project_ids'] and r.get('zone_id')==zone['id'] and r['purpose']==request.purpose and r['label']==request.label),None)
     if request.reuse_region_id and (old is None or old.get('zone_id')!=zone['id']):raise ValueError('Unknown region in selected zone')
-    if old and old['purpose']!=request.purpose:raise ValueError('Cannot change a committed region purpose')
+    enclosed_storage=None
+    if old and old['purpose']!=request.purpose:
+        if old['purpose']=='storage' and request.purpose=='room':
+            enclosed_storage=old;old=None
+            footprint=cells(enclosed_storage)
+            minimum_width=max(x for x,z in footprint)-min(x for x,z in footprint)+3
+            minimum_height=max(z for x,z in footprint)-min(z for x,z in footprint)+3
+            if request.width<minimum_width or request.height<minimum_height:
+                raise ValueError(f'Enclosing this stockpile requires a room at least {minimum_width} by {minimum_height} including walls. The stockpile remains unchanged; request a larger site or another room.')
+        else:raise ValueError('Cannot change a committed region purpose')
     blocked=set().union(*(cells(r) for r in plan['regions']+plan['corridors']+plan['defensive_lines'] if r is not old)) if plan['regions']+plan['corridors']+plan['defensive_lines'] else set()
     from collections import deque
     focus=rt.memory['colony_focus'];start=(focus['x'],focus['z'])
@@ -331,7 +340,11 @@ async def reserve_site(rt,project,request):
         if request.purpose=='farm':
             points={p for p in points if p not in blocked and observed[p]['plantable'] and observed[p]['fertility']>=minimum and not observed[p]['encloses'] and observed[p]['zone_id'] is None}
             if not points:continue
-        if points&blocked or old and not cells(old)<=points:continue
+        interior=points-boundary(points)
+        contained=[r for r in plan['regions'] if request.purpose=='room' and r['purpose']=='storage' and cells(r)<=interior]
+        compatible=set().union(*(cells(r) for r in contained)) if contained else set()
+        if points&(blocked-compatible) or old and not cells(old)<=points:continue
+        if enclosed_storage and not cells(enclosed_storage)<=interior:continue
         if request.purpose in ('storage','farm') and any(observed[p]['encloses'] for p in points):continue
         if any(not observed[p]['walkable'] and not observed[p]['encloses'] for p in points):continue
         if any(observed[p]['zone_id'] is not None and not (request.purpose in ('room','storage') and observed[p]['zone_type']=='Zone_Stockpile' and p not in boundary(points)) for p in points):continue
@@ -351,6 +364,9 @@ async def reserve_site(rt,project,request):
     from .request_budget import merge_patches
     patches=merge_patches([rect(px,pz,1,1) for px,pz in points]) if request.purpose=='farm' else [rect(x,z,request.width,request.height)]
     region={'id':old['id'] if old else f"{zone['id']}-{len(plan['active_construction_intents'])+1}",'zone_id':zone['id'],'label':request.label,'purpose':request.purpose,'parent_id':'','project_ids':list(dict.fromkeys((old['project_ids'] if old else [])+[project['project_id']])),'patches':patches,'reuse_zone_ids':list({observed[p]['zone_id'] for p in points if observed[p]['zone_id'] is not None}),'fertility_floor':minimum,'rationale':'Current increment of '+zone['label']}
+    if request.purpose=='room':
+        for child in plan['regions']:
+            if child['purpose']=='storage' and cells(child)<=points-boundary(points):child['parent_id']=region['id']
     if old:plan['regions'][plan['regions'].index(old)]=region
     else:plan['regions'].append(region)
     plan['active_construction_intents']=[i for i in plan['active_construction_intents'] if not (i['project_id']==project['project_id'] and i['region_id']==region['id'])]
