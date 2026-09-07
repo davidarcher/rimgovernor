@@ -139,10 +139,11 @@ def apply_change(saved,change,area):
     for key in order:
         z=zones[key];candidate=None
         if not (min(p[0] for p in observed)<=z['anchor']['x']<=max(p[0] for p in observed) and min(p[1] for p in observed)<=z['anchor']['z']<=max(p[1] for p in observed)):raise ValueError('Zone anchor leaves surveyed land: '+key)
-        offsets=[(0,0)] if key in old else sorted(((x-z['anchor']['x'],y-z['anchor']['z']) for x,y in observed),key=lambda p:(abs(p[0])+abs(p[1]),p))
+        committed=set().union(*(cells(r) for r in plan['regions'] if r.get('zone_id')==key)) if plan['regions'] else set()
+        offsets=[(0,0)] if key not in updates else sorted(((x-z['anchor']['x'],y-z['anchor']['z']) for x,y in observed),key=lambda p:(abs(p[0])+abs(p[1]),p))
         for dx,dz in offsets:
             trial=copy.deepcopy(z);trial['anchor']['x']+=dx;trial['anchor']['z']+=dz;r=extent(trial);points=cells(r)
-            if points<=observed and not points&claimed:candidate=(trial,r,points);break
+            if points<=observed and not points&claimed and committed<=points:candidate=(trial,r,points);break
         if candidate is None:raise ValueError(f"Reserved extent for {key} of {z['reserved_size']} does not fit free surveyed land. Reduce this footprint. Survey has {len(observed-claimed)} remaining cells; irregular unexplored holes cannot be reserved as known land.")
         zones[key],r,points=candidate;reservations.append(r);claimed|=points
     for z in zones.values():
@@ -306,7 +307,9 @@ async def reserve_site(rt,project,request):
     blocked=set().union(*(cells(r) for r in plan['regions']+plan['corridors']+plan['defensive_lines'] if r is not old)) if plan['regions']+plan['corridors']+plan['defensive_lines'] else set()
     from collections import deque
     focus=rt.memory['colony_focus'];start=(focus['x'],focus['z'])
-    walkable={p for p,c in observed.items() if c['walkable'] and (not c['encloses'] or c.get('is_door')) and p not in blocked}
+    # Reservations prevent overlapping placement, not pawn travel. In particular,
+    # the reserved walkways are precisely where pawns should be able to walk.
+    walkable={p for p,c in observed.items() if c['walkable'] and (not c['encloses'] or c.get('is_door'))}
     starts=sorted(walkable,key=lambda p:abs(p[0]-start[0])+abs(p[1]-start[1]))[:1]
     reachable=set(starts);queue=deque(starts)
     while queue:
@@ -317,6 +320,7 @@ async def reserve_site(rt,project,request):
         points=cells({'patches':[rect(x,z,request.width,request.height)]})
         if not points<=limit or points&blocked or old and not cells(old)<=points:continue
         if not points<=observed.keys():continue
+        if request.purpose in ('storage','farm') and any(observed[p]['encloses'] for p in points):continue
         if any(not observed[p]['walkable'] and not observed[p]['encloses'] for p in points):continue
         if any(observed[p]['zone_id'] is not None and not (request.purpose in ('room','storage') and observed[p]['zone_type']=='Zone_Stockpile' and p not in boundary(points)) for p in points):continue
         # Keep one external walkable entry path. Native construction validates actual walls/doors later.
@@ -353,4 +357,4 @@ def validate_reserved_space(rt,project,points):
         conflict=points&cells(r)-permitted
         if conflict:
             rt.note('spatial_plan','Order conflicts with reserved '+r['label'],role='Construction',event='reserved_space_conflict',project_id=project['project_id'])
-            raise ValueError('Reserved space conflict: '+r['label']+'. Select a current increment in the compatible planned zone; do not consume future space.')
+            raise ValueError('Reserved space conflict: '+r['label']+' (id='+r['id']+'). Call reserve_planned_site to reserve or reuse a current site in a compatible master-plan zone, then place only within the returned region cells. A district reservation is not an execution site; corridors and future space remain protected.')

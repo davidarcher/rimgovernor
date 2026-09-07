@@ -91,7 +91,10 @@ class Planner:
             accepted=set(value.accepted);deferred=set(value.deferred)
             if len(accepted)!=len(value.accepted) or accepted & deferred or (accepted | deferred)-set(proposals):
                 raise ValueError('Use known proposal IDs without duplicates or conflicting accept/defer decisions. Valid IDs: '+', '.join(proposals))
-            for key in set(proposals)-accepted-deferred:value.deferred[key]='Not selected this review'
+            omitted=set(proposals)-accepted-deferred
+            if isinstance(value,ObjectiveDecision) and omitted:
+                raise ValueError('Every candidate needs an explicit decision in accepted or deferred. Your explanation does not queue work. Missing candidate IDs: '+', '.join(sorted(omitted)))
+            for key in omitted:value.deferred[key]='Not selected this review'
         if isinstance(value,ObjectiveDecision):
             from .project_controls import validate_controls
             validate_controls(value,(context or {}).get('projects',[]))
@@ -527,7 +530,7 @@ class Planner:
                         immediate_checks={'orders_unforbid_all','post_things_set_forbidden','post_work_settings','post_colonist_work_priority','post_colonists_work_priority'}
                         if action.endpoint in immediate_checks and await self.rt.action_complete(action):
                             drafts.pop(draft_key,None)
-                            result={'already_satisfied':True,'draft_retained':False,'draft_count':len(drafts),'next':'Verified in the live game. Do not wait for this order or repeat it. Continue with the actual project work; no new order is needed for this setting or supply flag.'}
+                            result={'already_satisfied':True,'draft_retained':False,'draft_count':len(drafts),'next':'Verified in the live game. Do not wait for this order or repeat it. If this satisfies the approved objective, submit your short report now. Otherwise address only its unmet requirements, not other projects.'}
                         elif is_routine(action) and role.startswith('Executor:') and context.get('project'):
                             from .routine import execute_routine
                             result=await execute_routine(self.rt,context,action,role)

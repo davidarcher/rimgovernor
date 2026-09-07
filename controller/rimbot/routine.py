@@ -26,4 +26,4 @@ async def execute_routine(rt,context,action,role):
     status=rows[-1]['status']
     if status=='complete':
         rt.note('work_outcome',action.title,role=role,project_id=project['project_id'],results=[{'id':rows[-1]['id'],'title':action.title,'status':status}])
-    return {'executed':status in ('complete','issued'),'verified':status=='complete','status':status,'detail':rows[-1]['detail'],'draft_retained':False,'next':'This command has already been sent; do not submit it again. Continue with remaining work.'}
+    return {'executed':status in ('complete','issued'),'verified':status=='complete','status':status,'detail':rows[-1]['detail'],'draft_retained':False,'next':'This command has already been sent; do not submit it again. If it satisfies the approved objective, submit your short report now with no actions. Otherwise address only the unmet parts of this project, not other projects.'}

@@ -411,3 +411,27 @@ and completed no new objects. It still encountered stockpile spatial failure and
 empty execution batches. The administrator projection and room checks were added
 after that run started; their tests/replay are not a new gameplay pass. Successful
 starter-base completion remains unproven.
+
+## Placement admission and explicit arbitration
+
+Storage and farm increments reject enclosing native obstacles before committing
+a reservation. Reserved corridors and other planned sites are not physical walls
+for reachability: traversal now uses native walkability, while placement still
+respects every reservation. Changed master-plan anchors are approximate and may
+resolve to nearby surveyed space; unchanged districts remain fixed. Every chosen
+extent must contain its existing committed sites, including during a full replan.
+
+The next tribal-eight test exposed an administrator response that described
+accepting supply access but omitted its accepted ID. The previous validator
+silently deferred all unspecified candidates, leaving no projects to execute.
+Semantic arbitration now requires every candidate explicitly in accepted or
+deferred; missing decisions enter the existing correction loop. No prose is
+interpreted as permission to execute, and explicit deferral remains valid.
+
+The follow-up run corrected incomplete arbitration and issued a supply order,
+then reached storage/growing execution. Those executors attempted native zone
+placement without first selecting a current site. Reservation conflict feedback
+now names reserve_planned_site and the conflicting reservation ID. Immediate
+command receipts also explicitly allow finishing the objective instead of always
+suggesting more work. These feedback changes were made after that run started;
+they are not yet a successful full-base playtest.

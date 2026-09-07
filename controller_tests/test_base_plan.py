@@ -79,8 +79,10 @@ def test_overlapping_or_unknown_geometry_is_rejected():
  z=zone();z['anchor']={'x':100,'z':100}
  with pytest.raises(ValueError,match='surveyed'):apply_change({},change([z]),survey())
  z=zone('homes',2)
- # Existing unrelated reservations cannot be silently moved to make room.
- with pytest.raises(ValueError,match='does not fit'):apply_change(plan(),change([z],'MODIFY_ZONE'),survey())
+ # Resolve the changed zone's approximate anchor; leave unrelated zones fixed.
+ before=plan();after,_=apply_change(before,change([z],'MODIFY_ZONE'),survey())
+ assert after['zones'][0]==before['zones'][0]
+ assert not cells(after['reserved_regions'][0]) & cells(after['reserved_regions'][1])
 
 async def test_increment_preserves_expansion_and_reuses_without_architect():
  rt,a=runtime();before=copy.deepcopy(rt.memory['spatial_layout']['reserved_regions']);project={'project_id':'kitchen','kind':'construction'}
@@ -140,7 +142,39 @@ async def test_rejected_plan_retry_keeps_map_without_repeating_large_reply():
 def test_replan_cannot_move_committed_site():
  p=plan();p['regions']=[{'id':'k','zone_id':'food','patches':[{'x1':2,'x2':7,'z1':2,'z2':7}]}]
  z=zone();z['anchor']['z']=20
+ updated,_=apply_change(p,change([z],'MODIFY_ZONE'),survey())
+ assert updated['regions']==p['regions']
+ assert cells(p['regions'][0])<=cells(next(r for r in updated['reserved_regions'] if r['id']=='food'))
+ z['reserved_size']={'width':3,'height':3}
  with pytest.raises(ValueError):apply_change(p,change([z],'MODIFY_ZONE'),survey())
+
+@pytest.mark.parametrize('purpose',['storage','farm'])
+async def test_zone_site_avoids_enclosing_rock_before_committing(purpose):
+ p=plan()
+ if purpose=='farm':p['zones'][0]['purpose']='agriculture'
+ rt,a=runtime(p)
+ obstacle=next(c for c in a['cells'] if c['position']=={'x':2,'z':2})
+ obstacle.update(encloses=True,walkable=False)
+ result=await reserve_site(rt,{'project_id':'zone'},SiteRequest(zone_id='food',label='Zone',purpose=purpose,width=3,height=3))
+ assert (2,2) not in cells(result['region'])
+
+async def test_impossible_stockpile_does_not_commit_bad_region():
+ rt,a=runtime()
+ for c in a['cells']:c.update(encloses=True,walkable=False)
+ with pytest.raises(ValueError,match='could not be realized'):
+  await reserve_site(rt,{'project_id':'stock'},SiteRequest(zone_id='food',label='Stock',purpose='storage',width=3,height=3))
+ assert rt.memory['spatial_layout']['regions']==[]
+
+async def test_reserved_corridor_remains_available_for_room_access():
+ rt,a=runtime()
+ rt.memory['colony_focus']={'x':14,'z':4}
+ # A narrow approach crosses the reserved x=15 walkway into the housing zone.
+ for c in a['cells']:
+  x,z=c['position']['x'],c['position']['z']
+  if not (z==4 and 14<=x<=18 or 18<=x<=27 and 2<=z<=15):
+   c.update(walkable=False,encloses=False)
+ result=await reserve_site(rt,{'project_id':'room'},SiteRequest(zone_id='homes',label='Room',purpose='room',width=4,height=4))
+ assert result['entrance_candidates']
 
 def test_architect_has_one_footprint_and_direction_never_moves_reservation():
  schema=PlanChange.model_json_schema()['$defs']['PlannedZone']['properties']

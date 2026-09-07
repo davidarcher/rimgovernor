@@ -249,9 +249,9 @@ def test_manual_priority_toggle_does_not_verify_work_assignment_project():
     assert memory['projects'][0]['status']=='needs_review'
 
 
-async def test_omitted_candidates_are_deferred_not_approved(colony):
+async def test_omitted_candidates_require_an_explicit_decision(colony):
     from rimbot.semantic_models import ObjectiveDecision
     rt,_=colony
     context={'proposals':{k:{'objective':objective().model_dump()} for k in ['a','b']},'projects':[]}
-    decision=rt.planner.validate_submission('Administrator',ObjectiveDecision(response='Proceed with a',accepted=['a']),context)
-    assert decision.accepted==['a'] and decision.deferred=={'b':'Not selected this review'}
+    with pytest.raises(ValueError,match='Missing candidate IDs: b'):
+        rt.planner.validate_submission('Administrator',ObjectiveDecision(response='Proceed with a',accepted=['a']),context)
