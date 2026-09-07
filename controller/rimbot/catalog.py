@@ -1,4 +1,5 @@
 """RIMAPI contracts plus explicit exclusion of editor/cheat capabilities."""
+from .capabilities import attach_execution_policy
 import copy
 import json
 from pathlib import Path
@@ -48,6 +49,7 @@ class Catalog:
                 raise ValueError('Unexpected native construction contract route.')
             self.entries[name]={**entry,'schema':entry['request_schema'],'native_contract':True,
                 'transport':'json','query_keys':[],'exposed':True,'category':'Order' if name.startswith('orders_') else 'Construction'}
+            attach_execution_policy(self.entries[name])
             self.available.add(name)
         # Construction now has one authoritative tool path.
         self.entries['post_builder_blueprint']['exposed']=False
@@ -111,6 +113,7 @@ class Catalog:
                 e['description'] += ' Work priorities include only enabled work (priority > 0) and are sorted by priority; disabling work removes its row. Filter by work_type, never rely on array position. Use query.path=colonist_work_info.work_priorities on a single pawn and where={work_type: observed name}; total=0 means that work is not enabled.'
             if e['name']=='get_colonists_detailed':
                 e['description'] += ' Bulk pawn data is cached upstream for 1800 game ticks. Use get_colonist_detailed with id for uncached command verification.'
+            attach_execution_policy(e)
             self.entries[e['name']] = e
 
     def discover(self, docs):

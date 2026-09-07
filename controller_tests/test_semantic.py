@@ -57,7 +57,7 @@ async def test_managers_only_get_objective_submission_and_relevant_guidance(colo
 
 async def test_executor_scope_rejects_unrelated_commands(colony):
     rt,_=colony
-    assert domains_for('Executor:storage')==('zone_stockpile',)
+    assert 'post_map_zone_stockpile_update' in domains_for('Executor:storage')
     with pytest.raises(ValueError):domains_for('Executor:invented')
     action=Action(title='Unrelated access change',endpoint='post_things_set_forbidden',arguments={'map_id':7,'thing_ids':[101],'forbidden':False})
     with pytest.raises(ValueError):rt.planner.validate_submission('Executor:storage',Proposal(summary='x',actions=[action]))

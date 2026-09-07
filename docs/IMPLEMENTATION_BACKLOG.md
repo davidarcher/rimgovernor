@@ -36,10 +36,10 @@ Gate: a no-op/control run and a known fixture observation produce accurate repor
 
 ### P1 — Repair capability routing before building more APIs
 
-- [ ] Replace substring-based write-domain routing with explicit operation metadata.
-- [ ] Account for every exposed write: executable domain, controller-owned path, or intentionally withheld reason.
-- [ ] Repair singular bill add/update/delete/reorder access and building power routing where native semantics are appropriate.
-- [ ] Keep the destructive drop-all apparel editor withheld; add ordinary targeted equipment actions through P2.
+- [x] Replace substring-based write-domain routing with explicit operation metadata.
+- [x] Account for every exposed write: executable domain, controller-owned path, or intentionally withheld reason.
+- [x] Repair singular bill add/update/delete/reorder access and building power routing where native semantics are appropriate.
+- [x] Keep the destructive drop-all apparel editor withheld; add ordinary targeted equipment actions through P2.
 
 Gate: coverage tests have no unexplained exposed writes. Administrator and specialist can modify an existing bill; native readback verifies instant setting changes while paused. No duplicate bill API.
 
@@ -144,3 +144,11 @@ Reports now separate requested target count, persisted placement attempts/native
 Strategy and daily planning now use the same compact administrator projection as arbitration. This removes duplicate crop/terrain expansion, executor construction details, repeated guide entries and precise lookup coordinates while preserving native crop choices, player direction, world facts and administrator tools. Both captured failed strategy inputs replay within the unchanged 55,296-unit input budget (53,635 and 53,624 units before fallback compaction). No tool capability was removed.
 
 The requested 96k experiment loads Qwen3.5-9B at 98,304 context, one inference slot. The harness has an isolated `--context-tokens` override so its budget matches that load without changing dashboard preferences. Live run `20260907-164536` reached model inference and multiple tool calls; recent engine-reported inputs were approximately 17–22k tokens. Conservative budget units are not engine token counts. Goal completion is separate from this context fix. Focused administrator/replay/benchmark regression checks: 24 passed.
+
+### P1 � explicit write routing completed
+
+`capabilities.py` defines exact operation-to-system ownership, controller-owned planning operations, and the withheld drop-all apparel editor. Catalog construction rejects newly exposed writes without a deliberate policy; specialist validation and tool selection use exact names. Existing production bill add/update/suspend/reorder/remove and power routes are reachable without introducing another native API.
+
+All 328 controller tests passed. A live paused-game check placed an ordinary zero-work crafting spot and added two native recipe bills on the disposable tribal colony. Administrator direct execution updated repeat count and suspended a bill with verified native postconditions; specialist execution reordered and removed it with native readback. The game stayed paused throughout. Test scratch/evidence: `.rimbot/p1-live-bills.py`, `.rimbot/p1-bills-route2.sqlite`. This verifies routing and paused effects, not autonomous colony success. The temporary spot and remaining test bill are disposable fixture changes; reload the pinned baseline before the next model comparison.
+
+Next: P2 contextual native orders and object controls. During the bill test, material-filter output also included an overly broad list for a club recipe; investigate native filter presentation during later production/inspection work rather than treating that list as legal recipe ingredients.

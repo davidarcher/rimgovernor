@@ -18,13 +18,8 @@ ROLES = {
     'Development':'Research and long-term growth, economy and trade. Request facilities and labor from the other managers.',
     'Workforce':'Make the approved intentions achievable through priorities, schedules and ordinary pawn orders. Check incapabilities, current jobs, accessibility, supplies and other managers’ labor requests.',
 }
-ROLE_DOMAINS = {
-    'Survival':('medical','forbidden','orders_unforbid_all'),
-    'Infrastructure':('construction_','builder','zone','building','bills','order_designate','forbidden','orders_unforbid_all'),
-    'Security':('pawn_job','pawn_edit_status','jobs_make_equip','pawn_medical'),
-    'Development':('research','trade'),
-    'Workforce':('work_settings','priority','time_assignment','pawn_job','pawn_medical','jobs_make_equip'),
-}
+from .capabilities import ROLE_DOMAINS
+
 BASE = '''You manage a real RimWorld colony for its player. Preserve normal RimWorld simulation.
 The player supplies direction, not a request for a new independent-colonist game.
 Use the observed RIMAPI capabilities and definitions. Never invent IDs, materials, recipes or endpoints.
@@ -147,7 +142,7 @@ class Planner:
         for index,action in enumerate(value.actions):
             try:
                 self.rt.catalog.validate(action.endpoint,action.arguments,True)
-                if domains_for(role) is not None and not any(x in action.endpoint for x in domains_for(role)):
+                if domains_for(role) is not None and action.endpoint not in domains_for(role):
                     raise ValueError(f'{role} must request work outside its domain through labor/blockers, not issue this action.')
                 if self.rt.catalog.get(action.endpoint).get('native_contract'):
                     if action.done is not None or action.requires:
@@ -235,7 +230,7 @@ class Planner:
             native_reads=[e for e in native_reads if e['name'] in native_scope]
         readable = [e['name'] for e in self.rt.catalog.listing(write=False) if e not in native_reads]
         writable = [e['name'] for e in self.rt.catalog.listing(write=True)
-                    if domains_for(role) is None or any(x in e['name'] for x in domains_for(role))]
+                    if domains_for(role) is None or e['name'] in domains_for(role)]
         query_schema = Query.model_json_schema()
         query_schema['properties']['endpoint']['enum'] = readable
         submit_schema = contract.model_json_schema()

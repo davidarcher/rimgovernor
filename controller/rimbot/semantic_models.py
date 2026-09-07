@@ -34,18 +34,7 @@ class ObjectiveProposal(Contract):
     objectives: list[WorkObjective] = Field(default_factory=list,max_length=5)
     blockers: list[str] = Field(default_factory=list,max_length=6)
 
-# Capability groups correspond to native player systems, not room recipes.
-EXECUTION_DOMAINS={
-    'construction':('construction_','forbidden','orders_unforbid_all','order_designate'),
-    'growing':('zone_growing','order_designate','forbidden','orders_unforbid_all'),
-    'production':('bills',),
-    'storage':('zone_stockpile',),
-    'work_assignment':('work_settings','priority','time_assignment'),
-    'supply_access':('forbidden','orders_unforbid_all',),
-    'care':('medical',),
-    'security':('pawn_job','pawn_edit_status','jobs_make_equip'),
-    'research':('research',),
-}
+from .capabilities import EXECUTION_DOMAINS
 
 class ObjectiveDecision(Decision):
     suspend_projects: dict[str,str] = Field(default_factory=dict,description='Existing project ID to nonempty reason for holding NEW execution. Keeps its work and spatial reservations; does not cancel native orders. Omitted holds persist.')
