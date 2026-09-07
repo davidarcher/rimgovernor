@@ -222,7 +222,7 @@ class Planner:
             context['strategy_guidance'].append(starter.model_dump(mode='json',exclude={'sources'}))
         if contract in (Plans,DailyPlan,ObjectiveProposal) or (issubclass(contract,Decision) and context.get('semantic_objectives')):
             context=decision_context(context,self.rt.observation)
-            if issubclass(contract, Decision) and context.get('semantic_objectives'):
+            if contract in (Plans,DailyPlan) or (issubclass(contract, Decision) and context.get('semantic_objectives')):
                 from .decision_context import administrator_context
                 context=administrator_context(context)
         native_reads=[e for e in self.rt.catalog.listing(write=False) if self.rt.catalog.get(e['name']).get('native_contract')]

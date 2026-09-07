@@ -25,6 +25,7 @@ async def run(args):
     if args.model:
         settings.model=args.model
         settings.manager_model=''
+    if args.context_tokens:settings.model_context_tokens=args.context_tokens
     rt=Runtime(Store(folder/'trace.sqlite'),settings)
     report={'passed':False,'save':save.name,'save_sha256':hashlib.sha256(save.read_bytes()).hexdigest(),
             'settings':settings.model_dump(),'objective':args.objective,'speed':args.speed,
@@ -128,6 +129,7 @@ if __name__=='__main__':
     p.add_argument('--starter-base',action='store_true',help='Require roofed shelter, a stockpile and accessible food as well as completed sleeping objects')
     p.add_argument('--control',action='store_true',help='Observe the fixed save without invoking the model; never reports colony success')
     p.add_argument('--model',help='Use one model for all roles in this isolated run; dashboard settings remain unchanged')
+    p.add_argument('--context-tokens',type=int,help='Match the loaded model context for this isolated run')
     p.add_argument('--native-dll',help='Installed native DLL whose SHA256 should be recorded')
     p.add_argument('--save',required=True)
     p.add_argument('--timeout',type=int,default=360)
