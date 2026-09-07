@@ -30703,12 +30703,16 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 32
+          },
+          "map_id": {
+            "type": "integer"
           }
         },
         "required": [
           "search",
           "offset",
-          "limit"
+          "limit",
+          "map_id"
         ],
         "additionalProperties": false
       },
@@ -30791,6 +30795,9 @@
           },
           "bed_humanlike": {
             "type": "boolean"
+          },
+          "eligibility": {
+            "$ref": "#/components/schemas/Construction_ConstructionEligibility"
           }
         },
         "required": [
@@ -30805,7 +30812,8 @@
           "allowed_materials",
           "description",
           "is_bed",
-          "bed_humanlike"
+          "bed_humanlike",
+          "eligibility"
         ],
         "additionalProperties": false
       },
@@ -31600,6 +31608,41 @@
         },
         "required": [
           "removed"
+        ],
+        "additionalProperties": false
+      },
+      "Construction_ConstructionEligibility": {
+        "title": "ConstructionEligibility",
+        "type": "object",
+        "properties": {
+          "map_id": {
+            "type": "integer"
+          },
+          "research_finished": {
+            "type": "boolean"
+          },
+          "eligible_pawn_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "restrictions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scope": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "map_id",
+          "research_finished",
+          "eligible_pawn_ids",
+          "restrictions",
+          "scope"
         ],
         "additionalProperties": false
       }

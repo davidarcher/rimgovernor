@@ -48,3 +48,10 @@ Changes:
 Build `Source/RIMAPI/RimApi.csproj` with configuration `Release-1.6`, then install
 `1.6/Assemblies/RIMAPI.dll` only while RimWorld is closed. The test installation
 currently uses Workshop folder `3593423732`; Steam updates can overwrite it.
+
+Construction eligibility: map-scoped definition discovery reports research and
+spawned-colonist capability, skills and native ideology restrictions. New v2
+placements recheck these restrictions; existing structures remain inspectable.
+Temporary health, priorities and reachability are separate work observations.
+Run scripts/check_build_eligibility.py --restricted SlabBed --available Bed
+against a suitable paused test colony for the read-only regression.

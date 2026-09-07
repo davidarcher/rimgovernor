@@ -590,7 +590,7 @@ async def test_compaction_retains_observed_building_materials(colony):
     async def complete(messages,*args):
         calls.append(1)
         if len(calls)==1:
-            return {'role':'assistant','tool_calls':[{'id':'wall','type':'function','function':{'name':'construction_definitions','arguments':'{"search":"Wall","offset":0,"limit":10}'}}]},{}
+            return {'role':'assistant','tool_calls':[{'id':'wall','type':'function','function':{'name':'construction_definitions','arguments':'{"map_id":0,"search":"Wall","offset":0,"limit":10}'}}]},{}
         retained=json.loads(messages[2]['content'])
         assert retained['observed_building_definitions']==[definition]
         return {'role':'assistant','content':'{"summary":"Use the observed material."}'},{}

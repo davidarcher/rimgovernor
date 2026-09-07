@@ -9,6 +9,7 @@ class DefinitionQuery(NativeObject):
     search: str
     offset: int = Field(ge=0, le=2147483647)
     limit: int = Field(ge=1, le=32)
+    map_id: int
 
 class Cost(NativeObject):
     def_name: str
@@ -17,6 +18,13 @@ class Cost(NativeObject):
 class Material(NativeObject):
     def_name: str
     label: str
+
+class ConstructionEligibility(NativeObject):
+    map_id: int
+    research_finished: bool
+    eligible_pawn_ids: list[int]
+    restrictions: list[str]
+    scope: str
 
 class BuildingDefinition(NativeObject):
     def_name: str
@@ -31,6 +39,7 @@ class BuildingDefinition(NativeObject):
     description: str
     is_bed: bool
     bed_humanlike: bool
+    eligibility: ConstructionEligibility
 
 class PageBuildingDefinition(NativeObject):
     items: list[BuildingDefinition]

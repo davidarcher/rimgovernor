@@ -1,0 +1,512 @@
+From 046cd2836980626c4f00998516ef3fe11e510c2d Mon Sep 17 00:00:00 2001
+From: David Archer <darcher@gmail.com>
+Date: Sun, 6 Sep 2026 20:13:01 -0400
+Subject: [PATCH] Expose colony construction eligibility and reject ineligible
+ placements
+
+---
+ Contracts/construction.openapi.json           |  47 ++++-
+ Contracts/rimapi.bundled.openapi.json         |  47 ++++-
+ .../Contracts/ConstructionModels.g.cs         |  10 ++
+ .../Contracts/construction.contracts.json     | 161 +++++++++++++++++-
+ .../Colony/ConstructionContractController.cs  |  31 +++-
+ 5 files changed, 285 insertions(+), 11 deletions(-)
+
+diff --git a/Contracts/construction.openapi.json b/Contracts/construction.openapi.json
+index 38d50ac..8c92f01 100644
+--- a/Contracts/construction.openapi.json
++++ b/Contracts/construction.openapi.json
+@@ -679,12 +679,16 @@
+             "type": "integer",
+             "minimum": 1,
+             "maximum": 32
++          },
++          "map_id": {
++            "type": "integer"
+           }
+         },
+         "required": [
+           "search",
+           "offset",
+-          "limit"
++          "limit",
++          "map_id"
+         ],
+         "additionalProperties": false
+       },
+@@ -767,6 +771,9 @@
+           },
+           "bed_humanlike": {
+             "type": "boolean"
++          },
++          "eligibility": {
++            "$ref": "#/components/schemas/ConstructionEligibility"
+           }
+         },
+         "required": [
+@@ -781,7 +788,8 @@
+           "allowed_materials",
+           "description",
+           "is_bed",
+-          "bed_humanlike"
++          "bed_humanlike",
++          "eligibility"
+         ],
+         "additionalProperties": false
+       },
+@@ -1578,6 +1586,41 @@
+           "removed"
+         ],
+         "additionalProperties": false
++      },
++      "ConstructionEligibility": {
++        "title": "ConstructionEligibility",
++        "type": "object",
++        "properties": {
++          "map_id": {
++            "type": "integer"
++          },
++          "research_finished": {
++            "type": "boolean"
++          },
++          "eligible_pawn_ids": {
++            "type": "array",
++            "items": {
++              "type": "integer"
++            }
++          },
++          "restrictions": {
++            "type": "array",
++            "items": {
++              "type": "string"
++            }
++          },
++          "scope": {
++            "type": "string"
++          }
++        },
++        "required": [
++          "map_id",
++          "research_finished",
++          "eligible_pawn_ids",
++          "restrictions",
++          "scope"
++        ],
++        "additionalProperties": false
+       }
+     }
+   }
+diff --git a/Contracts/rimapi.bundled.openapi.json b/Contracts/rimapi.bundled.openapi.json
+index dc867c7..c60c06a 100644
+--- a/Contracts/rimapi.bundled.openapi.json
++++ b/Contracts/rimapi.bundled.openapi.json
+@@ -30703,12 +30703,16 @@
+             "type": "integer",
+             "minimum": 1,
+             "maximum": 32
++          },
++          "map_id": {
++            "type": "integer"
+           }
+         },
+         "required": [
+           "search",
+           "offset",
+-          "limit"
++          "limit",
++          "map_id"
+         ],
+         "additionalProperties": false
+       },
+@@ -30791,6 +30795,9 @@
+           },
+           "bed_humanlike": {
+             "type": "boolean"
++          },
++          "eligibility": {
++            "$ref": "#/components/schemas/Construction_ConstructionEligibility"
+           }
+         },
+         "required": [
+@@ -30805,7 +30812,8 @@
+           "allowed_materials",
+           "description",
+           "is_bed",
+-          "bed_humanlike"
++          "bed_humanlike",
++          "eligibility"
+         ],
+         "additionalProperties": false
+       },
+@@ -31602,6 +31610,41 @@
+           "removed"
+         ],
+         "additionalProperties": false
++      },
++      "Construction_ConstructionEligibility": {
++        "title": "ConstructionEligibility",
++        "type": "object",
++        "properties": {
++          "map_id": {
++            "type": "integer"
++          },
++          "research_finished": {
++            "type": "boolean"
++          },
++          "eligible_pawn_ids": {
++            "type": "array",
++            "items": {
++              "type": "integer"
++            }
++          },
++          "restrictions": {
++            "type": "array",
++            "items": {
++              "type": "string"
++            }
++          },
++          "scope": {
++            "type": "string"
++          }
++        },
++        "required": [
++          "map_id",
++          "research_finished",
++          "eligible_pawn_ids",
++          "restrictions",
++          "scope"
++        ],
++        "additionalProperties": false
+       }
+     }
+   },
+diff --git a/Source/RIMAPI/RimworldRestApi/Contracts/ConstructionModels.g.cs b/Source/RIMAPI/RimworldRestApi/Contracts/ConstructionModels.g.cs
+index c0bf221..7b50a88 100644
+--- a/Source/RIMAPI/RimworldRestApi/Contracts/ConstructionModels.g.cs
++++ b/Source/RIMAPI/RimworldRestApi/Contracts/ConstructionModels.g.cs
+@@ -11,6 +11,7 @@ namespace RIMAPI.Contracts
+         [JsonProperty("search")] public string Search { get; set; }
+         [JsonProperty("offset")] public int Offset { get; set; }
+         [JsonProperty("limit")] public int Limit { get; set; }
++        [JsonProperty("map_id")] public int MapId { get; set; }
+     }
+     public sealed class Cost
+     {
+@@ -36,6 +37,7 @@ namespace RIMAPI.Contracts
+         [JsonProperty("description")] public string Description { get; set; }
+         [JsonProperty("is_bed")] public bool IsBed { get; set; }
+         [JsonProperty("bed_humanlike")] public bool BedHumanlike { get; set; }
++        [JsonProperty("eligibility")] public ConstructionEligibility Eligibility { get; set; }
+     }
+     public sealed class PageBuildingDefinition
+     {
+@@ -228,4 +230,12 @@ namespace RIMAPI.Contracts
+     {
+         [JsonProperty("removed")] public bool Removed { get; set; }
+     }
++    public sealed class ConstructionEligibility
++    {
++        [JsonProperty("map_id")] public int MapId { get; set; }
++        [JsonProperty("research_finished")] public bool ResearchFinished { get; set; }
++        [JsonProperty("eligible_pawn_ids")] public List<int> EligiblePawnIds { get; set; }
++        [JsonProperty("restrictions")] public List<string> Restrictions { get; set; }
++        [JsonProperty("scope")] public string Scope { get; set; }
++    }
+ }
+diff --git a/Source/RIMAPI/RimworldRestApi/Contracts/construction.contracts.json b/Source/RIMAPI/RimworldRestApi/Contracts/construction.contracts.json
+index 3c919a4..2b7551e 100644
+--- a/Source/RIMAPI/RimworldRestApi/Contracts/construction.contracts.json
++++ b/Source/RIMAPI/RimworldRestApi/Contracts/construction.contracts.json
+@@ -23,12 +23,16 @@
+             "type": "integer",
+             "minimum": 1,
+             "maximum": 32
++          },
++          "map_id": {
++            "type": "integer"
+           }
+         },
+         "required": [
+           "search",
+           "offset",
+-          "limit"
++          "limit",
++          "map_id"
+         ],
+         "additionalProperties": false
+       },
+@@ -111,6 +115,41 @@
+                 },
+                 "bed_humanlike": {
+                   "type": "boolean"
++                },
++                "eligibility": {
++                  "title": "ConstructionEligibility",
++                  "type": "object",
++                  "properties": {
++                    "map_id": {
++                      "type": "integer"
++                    },
++                    "research_finished": {
++                      "type": "boolean"
++                    },
++                    "eligible_pawn_ids": {
++                      "type": "array",
++                      "items": {
++                        "type": "integer"
++                      }
++                    },
++                    "restrictions": {
++                      "type": "array",
++                      "items": {
++                        "type": "string"
++                      }
++                    },
++                    "scope": {
++                      "type": "string"
++                    }
++                  },
++                  "required": [
++                    "map_id",
++                    "research_finished",
++                    "eligible_pawn_ids",
++                    "restrictions",
++                    "scope"
++                  ],
++                  "additionalProperties": false
+                 }
+               },
+               "required": [
+@@ -125,7 +164,8 @@
+                 "allowed_materials",
+                 "description",
+                 "is_bed",
+-                "bed_humanlike"
++                "bed_humanlike",
++                "eligibility"
+               ],
+               "additionalProperties": false
+             }
+@@ -1524,12 +1564,16 @@
+           "type": "integer",
+           "minimum": 1,
+           "maximum": 32
++        },
++        "map_id": {
++          "type": "integer"
+         }
+       },
+       "required": [
+         "search",
+         "offset",
+-        "limit"
++        "limit",
++        "map_id"
+       ],
+       "additionalProperties": false
+     },
+@@ -1640,6 +1684,41 @@
+         },
+         "bed_humanlike": {
+           "type": "boolean"
++        },
++        "eligibility": {
++          "title": "ConstructionEligibility",
++          "type": "object",
++          "properties": {
++            "map_id": {
++              "type": "integer"
++            },
++            "research_finished": {
++              "type": "boolean"
++            },
++            "eligible_pawn_ids": {
++              "type": "array",
++              "items": {
++                "type": "integer"
++              }
++            },
++            "restrictions": {
++              "type": "array",
++              "items": {
++                "type": "string"
++              }
++            },
++            "scope": {
++              "type": "string"
++            }
++          },
++          "required": [
++            "map_id",
++            "research_finished",
++            "eligible_pawn_ids",
++            "restrictions",
++            "scope"
++          ],
++          "additionalProperties": false
+         }
+       },
+       "required": [
+@@ -1654,7 +1733,8 @@
+         "allowed_materials",
+         "description",
+         "is_bed",
+-        "bed_humanlike"
++        "bed_humanlike",
++        "eligibility"
+       ],
+       "additionalProperties": false
+     },
+@@ -1737,6 +1817,41 @@
+               },
+               "bed_humanlike": {
+                 "type": "boolean"
++              },
++              "eligibility": {
++                "title": "ConstructionEligibility",
++                "type": "object",
++                "properties": {
++                  "map_id": {
++                    "type": "integer"
++                  },
++                  "research_finished": {
++                    "type": "boolean"
++                  },
++                  "eligible_pawn_ids": {
++                    "type": "array",
++                    "items": {
++                      "type": "integer"
++                    }
++                  },
++                  "restrictions": {
++                    "type": "array",
++                    "items": {
++                      "type": "string"
++                    }
++                  },
++                  "scope": {
++                    "type": "string"
++                  }
++                },
++                "required": [
++                  "map_id",
++                  "research_finished",
++                  "eligible_pawn_ids",
++                  "restrictions",
++                  "scope"
++                ],
++                "additionalProperties": false
+               }
+             },
+             "required": [
+@@ -1751,7 +1866,8 @@
+               "allowed_materials",
+               "description",
+               "is_bed",
+-              "bed_humanlike"
++              "bed_humanlike",
++              "eligibility"
+             ],
+             "additionalProperties": false
+           }
+@@ -3247,6 +3363,41 @@
+         "removed"
+       ],
+       "additionalProperties": false
++    },
++    "ConstructionEligibility": {
++      "title": "ConstructionEligibility",
++      "type": "object",
++      "properties": {
++        "map_id": {
++          "type": "integer"
++        },
++        "research_finished": {
++          "type": "boolean"
++        },
++        "eligible_pawn_ids": {
++          "type": "array",
++          "items": {
++            "type": "integer"
++          }
++        },
++        "restrictions": {
++          "type": "array",
++          "items": {
++            "type": "string"
++          }
++        },
++        "scope": {
++          "type": "string"
++        }
++      },
++      "required": [
++        "map_id",
++        "research_finished",
++        "eligible_pawn_ids",
++        "restrictions",
++        "scope"
++      ],
++      "additionalProperties": false
+     }
+   }
+ }
+diff --git a/Source/RIMAPI/RimworldRestApi/Controllers/Colony/ConstructionContractController.cs b/Source/RIMAPI/RimworldRestApi/Controllers/Colony/ConstructionContractController.cs
+index 1243fcc..3d7a986 100644
+--- a/Source/RIMAPI/RimworldRestApi/Controllers/Colony/ConstructionContractController.cs
++++ b/Source/RIMAPI/RimworldRestApi/Controllers/Colony/ConstructionContractController.cs
+@@ -113,14 +113,37 @@ namespace RIMAPI.Controllers
+         private static void PageBounds(int offset,int limit)
+         { if(offset<0||limit<1||limit>32)throw new ArgumentException("offset must be nonnegative; limit must be 1..32."); }
+ 
++        private static ConstructionEligibility Eligibility(ThingDef def, Map map, int mapId)
++        {
++            // An inert definition carrier: no ThingMaker, spawning, IDs or reservations.
++            // MembersCanBuild reads the definition and optional style source only.
++            var candidate=new Thing{def=def};
++            var eligible=new List<int>();var reasons=new HashSet<string>();
++            foreach(var pawn in map.mapPawns.FreeColonistsSpawned.Where(p=>!p.Dead))
++            {
++                if(pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction))continue;
++                if(pawn.Ideo!=null && !pawn.Ideo.MembersCanBuild(candidate))
++                {reasons.Add("Colony constructor ideology does not permit this building.");continue;}
++                if(pawn.skills!=null && (pawn.skills.GetSkill(SkillDefOf.Construction).Level<def.constructionSkillPrerequisite || pawn.skills.GetSkill(SkillDefOf.Artistic).Level<def.artisticSkillPrerequisite))
++                {reasons.Add("Requires Construction "+def.constructionSkillPrerequisite+" and Artistic "+def.artisticSkillPrerequisite+".");continue;}
++                eligible.Add(pawn.thingIDNumber);
++            }
++            var restrictions=new List<string>();
++            if(!def.IsResearchFinished)restrictions.Add("Required research is unfinished.");
++            if(def.GetStatValueAbstract(StatDefOf.WorkToBuild)>0 && eligible.Count==0)
++            {restrictions.Add("No spawned colonist meets construction capability, skill and ideology requirements.");restrictions.AddRange(reasons.OrderBy(x=>x));}
++            return new ConstructionEligibility{MapId=mapId,ResearchFinished=def.IsResearchFinished,EligiblePawnIds=eligible,Restrictions=restrictions,
++                Scope="Spawned human colonists; definition research, construction capability, skills and native ideology rules. Does not assess mechs, materials, work priorities, health, reachability or placement. Rechecked before new placement."};
++        }
+         [Post("/api/v2/construction/definitions")]
+         public Task Definitions(HttpListenerContext c) => Handle<DefinitionQuery,PageBuildingDefinition>(c,q=> {
+             PageBounds(q.Offset,q.Limit);
++            var map=MapHelper.GetMapByID(q.MapId);if(map==null)throw new ArgumentException("Map not found.");
+             var words=q.Search.ToLowerInvariant().Split(new[]{' '},StringSplitOptions.RemoveEmptyEntries);
+             var defs=DefDatabase<ThingDef>.AllDefsListForReading.Where(d=>d.category==ThingCategory.Building && d.designationCategory!=null)
+                 .Where(d=>words.All(w=>(d.defName+" "+d.label).ToLowerInvariant().Contains(w))).OrderBy(d=>d.defName).ToList();
+             var items=defs.Skip(q.Offset).Take(q.Limit).Select(d=>new BuildingDefinition{
+-                DefName=d.defName,Label=d.label??d.defName,Description=d.description??"",IsBed=typeof(Building_Bed).IsAssignableFrom(d.thingClass),BedHumanlike=d.building?.bed_humanlike??false,SizeX=d.size.x,SizeZ=d.size.z,Rotatable=d.rotatable,
++                Eligibility=Eligibility(d,map,q.MapId),DefName=d.defName,Label=d.label??d.defName,Description=d.description??"",IsBed=typeof(Building_Bed).IsAssignableFrom(d.thingClass),BedHumanlike=d.building?.bed_humanlike??false,SizeX=d.size.x,SizeZ=d.size.z,Rotatable=d.rotatable,
+                 WorkToBuild=d.GetStatValueAbstract(StatDefOf.WorkToBuild),StuffCount=d.costStuffCount,
+                 Costs=(d.costList??new List<ThingDefCountClass>()).Select(x=>new Cost{DefName=x.thingDef.defName,Count=x.count}).ToList(),
+                 AllowedMaterials=GenStuff.AllowedStuffsFor(d).Select(s=>new Material{DefName=s.defName,Label=s.label??s.defName}).ToList()
+@@ -170,7 +193,11 @@ namespace RIMAPI.Controllers
+                         var existing=pos.GetThingList(map).FirstOrDefault(t=>t.Position==pos && t.Rotation==rot &&
+                             (t is Blueprint_Build blueprint ? blueprint.stuffToUse : t.Stuff)==stuff && (t.def==def||t.def.entityDefToBuild==def));
+                         if(existing!=null) {r.ThingId=existing.thingIDNumber;r.State=existing is Blueprint?PlacementResultStateEnum.blueprint:existing is Frame?PlacementResultStateEnum.frame:PlacementResultStateEnum.built;}
+-                        else {var report=GenConstruct.CanPlaceBlueprintAt(def,pos,rot,map,false,null,null,stuff);if(!report.Accepted)r.Reason=report.Reason??"Native placement rejected.";}
++                        else {
++                            var eligibility=Eligibility(def,map,q.MapId);
++                            if(eligibility.Restrictions.Count>0)r.Reason=string.Join(" ",eligibility.Restrictions);
++                            else {var report=GenConstruct.CanPlaceBlueprintAt(def,pos,rot,map,false,null,null,stuff);if(!report.Accepted)r.Reason=report.Reason??"Native placement rejected.";}
++                        }
+                     }
+                 }
+                 if(r.Reason!="") {r.State=PlacementResultStateEnum.rejected;result.Accepted=false;}
+-- 
+2.55.0.windows.3
+

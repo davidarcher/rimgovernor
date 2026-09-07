@@ -22,10 +22,10 @@ def request():
     return ConstructionRequest.model_validate({'map_id':0,'buildings':[{'def_name':'Bed','stuff_def_name':'WoodLog','position':{'x':10,'z':10},'rotation':0}]})
 
 def test_strict_domain_types_reject_coercion_and_unknown_fields():
-    with pytest.raises(ValidationError):DefinitionQuery(search='bed',offset='0',limit=4)
-    with pytest.raises(ValidationError):DefinitionQuery(search='bed',offset=0,limit=4,fields=['defName'])
+    with pytest.raises(ValidationError):DefinitionQuery(map_id=0,search='bed',offset='0',limit=4)
+    with pytest.raises(ValidationError):DefinitionQuery(map_id=0,search='bed',offset=0,limit=4,fields=['defName'])
     with pytest.raises(ValidationError):ConstructionResult(accepted=True,items=[{'state':'maybe'}])
-    with pytest.raises(ValidationError):DefinitionQuery(search='bed',offset=0,limit=1000)
+    with pytest.raises(ValidationError):DefinitionQuery(map_id=0,search='bed',offset=0,limit=1000)
 
 def test_generated_artifacts_match_separately_authored_schema():
     root=Path(__file__).parents[1]

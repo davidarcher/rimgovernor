@@ -158,7 +158,7 @@ class Planner:
             if requirements:
                 names={b['def_name'] for a in value.actions if a.endpoint=='construction_place' for b in a.arguments['buildings']}
                 for name in names:
-                    definitions=await self.rt.api.call('construction_definitions',{'search':name,'offset':0,'limit':32})
+                    definitions=await self.rt.api.call('construction_definitions',{'map_id':self.rt.observation['map']['id'],'search':name,'offset':0,'limit':32})
                     found=next((d.model_dump() for d in definitions.items if d.def_name==name),None)
                     if found is None:raise ValueError('Definition not observed for project requirements: '+name)
                     for field,expected in requirements.items():
@@ -355,7 +355,7 @@ class Planner:
         if contract is Proposal:
             for name in writable:register_command(name)
             if native_reads:
-                instructions += '\nUse construction_definitions for buildable definitions and material choices, construction_rooms for visible sites, construction_inspect for legality, and construction_place to draft placements. These tools have fixed native request/response types. construction_definitions searches BUILDINGS only, not material items. Query the building (for example Wall), then select stuff_def_name from its returned allowed_materials. Do not invent combined building/material names. Roofs are areas/designations, not material-built furniture; a substring match like waterproof conduit does not establish roof capability. Use discover for roof commands. Reuse definitions already returned, including observed_building_definitions after context compaction. Construction does not need done or requires. A drafted order is not a placed building.'
+                instructions += '\nUse construction_definitions for buildable definitions and material choices, construction_rooms for visible sites, construction_inspect for legality, and construction_place to draft placements. These tools have fixed native request/response types. construction_definitions searches BUILDINGS only, not material items. Query the building (for example Wall), then select stuff_def_name from its returned allowed_materials. Do not invent combined building/material names. Roofs are areas/designations, not material-built furniture; a substring match like waterproof conduit does not establish roof capability. Use discover for roof commands. Reuse definitions already returned, including observed_building_definitions after context compaction. Check eligibility.restrictions before selecting a building. Ineligible ideology or skills cannot be fixed by assigning priorities; choose another definition. Construction does not need done or requires. A drafted order is not a placed building.'
             instructions += ('\nYour native command tools are listed directly. Call one to draft each order using title and arguments. '
                              'Routine supply flags and stockpile/growing zone creation execute immediately during Automate and return observed status; do not wait for submit or repeat them. Other successful drafts are retained. Finish with submit containing summary, priority, labor, resources and blockers; do not repeat actions in submit.')
         instructions += ('\nconstruction_work is a native observation of queued sites, remaining materials, current pawn job targets and unforced worker eligibility. '
@@ -592,7 +592,7 @@ class Planner:
         if names:
             facts=[]
             for name in sorted(names):
-                definitions=await self.rt.api.call('construction_definitions',{'search':name,'offset':0,'limit':32})
+                definitions=await self.rt.api.call('construction_definitions',{'map_id':self.rt.observation['map']['id'],'search':name,'offset':0,'limit':32})
                 facts.extend(d.model_dump(exclude={'allowed_materials'}) for d in definitions.items if d.def_name==name)
             context['construction_definitions']=facts
         decision = await self.ask('Administrator: reconcile all managers. Resolve competing pawn orders, materials, sites and priorities. Respect player direction. Accept proposal IDs or defer each with a concrete reason. Do not invent new actions. Give the player a short response describing what will happen next.', {**context, 'proposals':proposals}, Decision, self.rt.settings.reasoning)

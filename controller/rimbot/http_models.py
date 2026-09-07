@@ -3378,6 +3378,7 @@ class Construction_DefinitionQuery(WireModel):
     search: str = Field()
     offset: int = Field(ge=0, le=2147483647)
     limit: int = Field(ge=1, le=32)
+    map_id: int = Field()
 
 class Construction_Cost(WireModel):
     def_name: str = Field()
@@ -3400,6 +3401,7 @@ class Construction_BuildingDefinition(WireModel):
     description: str = Field()
     is_bed: bool = Field()
     bed_humanlike: bool = Field()
+    eligibility: Construction_ConstructionEligibility = Field()
 
 class Construction_PageBuildingDefinition(WireModel):
     items: list[Construction_BuildingDefinition] = Field()
@@ -3562,6 +3564,13 @@ class Construction_RemovePlanRequest(WireModel):
 
 class Construction_RemovePlanResult(WireModel):
     removed: bool = Field()
+
+class Construction_ConstructionEligibility(WireModel):
+    map_id: int = Field()
+    research_finished: bool = Field()
+    eligible_pawn_ids: list[int] = Field()
+    restrictions: list[str] = Field()
+    scope: str = Field()
 
 class get_api_openapi_json_Query(WireModel):
     pass
@@ -4694,6 +4703,7 @@ Construction_GrowingCellsRequest.model_rebuild()
 Construction_GrowingCellsResult.model_rebuild()
 Construction_RemovePlanRequest.model_rebuild()
 Construction_RemovePlanResult.model_rebuild()
+Construction_ConstructionEligibility.model_rebuild()
 get_api_openapi_json_Query.model_rebuild()
 post_v1_builder_blueprint_Query.model_rebuild()
 post_v1_builder_check_zone_Query.model_rebuild()
