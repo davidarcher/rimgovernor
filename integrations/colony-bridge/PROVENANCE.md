@@ -34,3 +34,22 @@ The React dashboard borrows the upstream overlay's game/chat/short-summary layou
 and separate long-term direction, adapted to our existing dashboard styles.
 No Twitch credentials, hosted service, OBS setup or inline script is included.
 The temporary standalone overlay is replaced by the dashboard on port 8787.
+
+## Persistent projects and instruments audit
+
+- Copied upstream `TradeTool.cs` from the same pinned snapshot unchanged. Python
+  keeps map-trader adjacency, disables decorative watch delays, and classifies
+  list/sheet/preview/status as inspection rather than transaction execution.
+- `ColonyIdentity.cs` is local code: save-backed GameComponent identity plus a
+  nonserialized load token. Attaches the component when bridge extension loading
+  occurs after Verse has cached component types. Only controller metadata changes.
+- Python `receipts.py` copies reason/_outcome/verdict_line from upstream
+  instruments/build.py; preserves explicit native placement outcomes.
+- The instruments audit identifies the upstream instant gear-drop path as a
+  departure from ordinary pawn labor. The model gateway rejects that operation.
+
+- Identity persistence lives in a separate normal mod assembly
+  `src/identity/ColonyIdentity.csproj` (installed under Assemblies). The bridge
+  extension only exposes its read tool. This fixes Verse's cached type lookup
+  during save deserialization; the live save/reload smoke verifies identity
+  continuity and load-token rotation.

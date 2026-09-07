@@ -1,0 +1,2579 @@
+{
+  "upstream_commit": "89c2e90fedd51419a3db55a7f9865b0aef29b270",
+  "scope": "54 top-level Python implementation modules; literal tool references only, not an exhaustive dynamically resolved tool surface",
+  "modules": [
+    {
+      "module": "act.py",
+      "lines": 1177,
+      "summary": "Designator helpers. The architect list returns `id` (not `designatorId`), and",
+      "tools": [
+        "home/get_cells_plus",
+        "rimworld/apply_architect_designator",
+        "rimworld/execute_gizmo",
+        "rimworld/get_designator_state",
+        "rimworld/list_architect_categories",
+        "rimworld/list_architect_designators",
+        "rimworld/list_selected_gizmos"
+      ],
+      "imports": [
+        "argparse",
+        "difflib",
+        "json",
+        "pawns",
+        "pick",
+        "rim",
+        "sys"
+      ],
+      "functions": [
+        "_norm",
+        "_applies",
+        "_identity",
+        "_pick",
+        "_index",
+        "_load",
+        "_key",
+        "_bare",
+        "suggest",
+        "designator",
+        "designation",
+        "paints",
+        "labels",
+        "apply",
+        "cells",
+        "_desig_names",
+        "_is_built",
+        "_designation_of",
+        "_cell_note",
+        "_rejected_notes",
+        "_noop_reason",
+        "_preview",
+        "forbidden_cells",
+        "allow",
+        "_ids",
+        "_animal_id",
+        "_animal_matches",
+        "_read_animals",
+        "_standing",
+        "_at",
+        "designate_animal",
+        "hunt",
+        "tame",
+        "clear",
+        "designations_in",
+        "pending_in",
+        "undesignate",
+        "_print_undesignate",
+        "_counts",
+        "_print_result",
+        "_print_allow",
+        "_add_size",
+        "_rect",
+        "main"
+      ],
+      "decision": "Adapt next",
+      "assessment": "Resolve Architect labels once, reject ambiguity, distinguish dropdown/child, keep width/height explicit. Use live definitions, not aliases as substitutions.",
+      "currently_exposed_tools": [
+        "rimworld/apply_architect_designator",
+        "rimworld/list_architect_categories",
+        "rimworld/list_architect_designators",
+        "rimworld/list_selected_gizmos"
+      ],
+      "not_exposed_tools": [
+        "home/get_cells_plus",
+        "rimworld/execute_gizmo",
+        "rimworld/get_designator_state"
+      ],
+      "test_file_present": true
+    },
+    {
+      "module": "alerts.py",
+      "lines": 698,
+      "summary": "Alerts with the CULPRIT attached -- who, not just what.",
+      "tools": [
+        "home/list_pawns",
+        "rimworld/list_alerts"
+      ],
+      "imports": [
+        "json",
+        "re",
+        "rim",
+        "sys"
+      ],
+      "functions": [
+        "plain",
+        "priority_rank",
+        "is_loud",
+        "_clip",
+        "detail_of",
+        "_culprits",
+        "_unreadable",
+        "resolve",
+        "is_nudity",
+        "bare_groups",
+        "bare_phrase",
+        "add_nudity_detail",
+        "one_line",
+        "status_lines",
+        "brief_lines",
+        "show",
+        "_self_test",
+        "main"
+      ],
+      "decision": "Adapt next",
+      "assessment": "Compact culprit IDs and priority ranking. Keep target truncation visible; do not extract pawn identities from prose.",
+      "currently_exposed_tools": [
+        "home/list_pawns"
+      ],
+      "not_exposed_tools": [
+        "rimworld/list_alerts"
+      ],
+      "test_file_present": false
+    },
+    {
+      "module": "bills.py",
+      "lines": 807,
+      "summary": "Worktable bills: what is queued, whether it can actually run, and the writes.",
+      "tools": [
+        "home/bills"
+      ],
+      "imports": [
+        "camlock",
+        "json",
+        "re",
+        "rim",
+        "sys"
+      ],
+      "functions": [
+        "call",
+        "state",
+        "_cell",
+        "_resolve_bench",
+        "recipes",
+        "write",
+        "add",
+        "_pos",
+        "_summary_noun",
+        "_noun",
+        "_num",
+        "_finished",
+        "_ing_line",
+        "_reasons",
+        "_verdict_line",
+        "_config_line",
+        "_filter_line",
+        "print_bench",
+        "show",
+        "show_recipes",
+        "print_write",
+        "_opt",
+        "_int_opt",
+        "_options",
+        "check_flags",
+        "_bench_spec",
+        "_bench_and_rest",
+        "_positionals",
+        "main"
+      ],
+      "decision": "Adapt next",
+      "assessment": "Format recipes, ingredient shortfalls and bill configuration over our existing home/bills. No second execution engine.",
+      "currently_exposed_tools": [
+        "home/bills"
+      ],
+      "not_exposed_tools": [],
+      "test_file_present": true
+    },
+    {
+      "module": "build.py",
+      "lines": 543,
+      "summary": "Place a building with a ROTATION, and see which face lands where -- first.",
+      "tools": [
+        "home/place_building"
+      ],
+      "imports": [
+        "act",
+        "camlock",
+        "difflib",
+        "json",
+        "overlay_client",
+        "rim",
+        "sys"
+      ],
+      "functions": [
+        "_norm",
+        "reason",
+        "_menu_names",
+        "unknown_def_lines",
+        "is_unknown_def",
+        "watch_line",
+        "place",
+        "_rotates",
+        "_side",
+        "_qty",
+        "_materials",
+        "_blockers",
+        "_blocker_line",
+        "_outcome",
+        "verdict_line",
+        "_cannot_build",
+        "report",
+        "needs_rotation",
+        "main"
+      ],
+      "decision": "Partly copied",
+      "assessment": "Copied reason/outcome/verdict formatting. Still useful: rotation/vent-side reports, material shortfalls and bounded suggestions.",
+      "currently_exposed_tools": [
+        "home/place_building"
+      ],
+      "not_exposed_tools": [],
+      "test_file_present": true
+    },
+    {
+      "module": "buildings.py",
+      "lines": 1614,
+      "summary": "What the colony has BUILT, what it is still building, and what is stuck.",
+      "tools": [
+        "home/building_config",
+        "home/get_cells_plus",
+        "home/list_buildings",
+        "rimworld/click_cell",
+        "rimworld/execute_gizmo",
+        "rimworld/list_selected_gizmos"
+      ],
+      "imports": [
+        "json",
+        "pick",
+        "rim",
+        "sys",
+        "time"
+      ],
+      "functions": [
+        "survey",
+        "_pos",
+        "_num",
+        "_inspect",
+        "_fac",
+        "_why_empty",
+        "_availability",
+        "_short",
+        "pending_block",
+        "deficit_block",
+        "bills_block",
+        "power_block",
+        "_net_names",
+        "flagged_nets",
+        "net_warning_lines",
+        "power_nets_block",
+        "other_detail_block",
+        "_agg_notes",
+        "built_block",
+        "footer",
+        "_cell",
+        "parse_target",
+        "_norm_id",
+        "_covers",
+        "_matches_text",
+        "target_rows",
+        "_id_number",
+        "target_block",
+        "show",
+        "configure",
+        "_val",
+        "_refusal",
+        "_config_state",
+        "_map_target",
+        "_is_minified",
+        "_fire_from_bar",
+        "_bar_via_selection",
+        "gizmos_cmd",
+        "gizmo_cmd",
+        "reinstall_cmd",
+        "_blueprint_at",
+        "set_cmd",
+        "_config_argv",
+        "main"
+      ],
+      "decision": "Adapt next",
+      "assessment": "Pending work, materials, power-net topology and inspect-string summaries. Direct native reads exist; UI gizmo execution needs separate review.",
+      "currently_exposed_tools": [
+        "home/building_config",
+        "home/list_buildings",
+        "rimworld/list_selected_gizmos"
+      ],
+      "not_exposed_tools": [
+        "home/get_cells_plus",
+        "rimworld/click_cell",
+        "rimworld/execute_gizmo"
+      ],
+      "test_file_present": false
+    },
+    {
+      "module": "cam.py",
+      "lines": 650,
+      "summary": "The camera: who owns it, where home is, and how it gets back there.",
+      "tools": [
+        "rimworld/",
+        "rimworld/get_camera_state",
+        "rimworld/jump_camera_to_cell",
+        "rimworld/list_colonists",
+        "rimworld/set_camera_zoom",
+        "rimworld/set_camera_zoom_extension",
+        "rimworld/take_screenshot"
+      ],
+      "imports": [
+        "buildings",
+        "camlock",
+        "json",
+        "os",
+        "overlay_client",
+        "pathlib",
+        "re",
+        "rim",
+        "sys",
+        "time"
+      ],
+      "functions": [
+        "schema",
+        "_pick",
+        "_need",
+        "state",
+        "_root",
+        "_view",
+        "_centre",
+        "map_size",
+        "coverage",
+        "set_zoom",
+        "jump_to",
+        "zoom_extension",
+        "fit_root",
+        "glide",
+        "set_base",
+        "_save_name",
+        "base_cell",
+        "look_at",
+        "fresh_shot",
+        "shoot",
+        "wide_and_home",
+        "_come_home",
+        "main"
+      ],
+      "decision": "Adapt later",
+      "assessment": "Home framing, camera bounds and human override. Remove fixed machine paths, leases tied to Hands and decorative zoom glides.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [
+        "rimworld/",
+        "rimworld/get_camera_state",
+        "rimworld/jump_camera_to_cell",
+        "rimworld/list_colonists",
+        "rimworld/set_camera_zoom",
+        "rimworld/set_camera_zoom_extension",
+        "rimworld/take_screenshot"
+      ],
+      "test_file_present": true
+    },
+    {
+      "module": "camlock.py",
+      "lines": 257,
+      "summary": "Who owns the camera right now: a Hands lease, and a queue of notices back.",
+      "tools": [],
+      "imports": [
+        "json",
+        "os",
+        "sys",
+        "time"
+      ],
+      "functions": [
+        "_read",
+        "_write",
+        "claim",
+        "claimed",
+        "may_move",
+        "start_moving",
+        "stop_moving",
+        "moving",
+        "interrupted",
+        "settle",
+        "notify",
+        "take_notices",
+        "peek_notices",
+        "main"
+      ],
+      "decision": "Adapt idea",
+      "assessment": "Use a single local camera owner with human override, not a multi-agent camera mailbox.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [],
+      "test_file_present": false
+    },
+    {
+      "module": "cell2px.py",
+      "lines": 26,
+      "summary": "Cell -> screen pixel, so real mouse input can address the map.",
+      "tools": [
+        "rimworld/get_camera_state"
+      ],
+      "imports": [
+        "camlock",
+        "rim"
+      ],
+      "functions": [
+        "to_px"
+      ],
+      "decision": "Skip",
+      "assessment": "Assumes a particular fullscreen geometry and OS input path. Prefer native semantic targets.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [
+        "rimworld/get_camera_state"
+      ],
+      "test_file_present": false
+    },
+    {
+      "module": "chat_events.py",
+      "lines": 133,
+      "summary": "Relay screened stream chat into the durable native-agent event bus.",
+      "tools": [],
+      "imports": [
+        "event_bus",
+        "game_session",
+        "hashlib",
+        "json",
+        "os",
+        "overlay_client",
+        "pathlib",
+        "re",
+        "runtime_binding",
+        "time"
+      ],
+      "functions": [
+        "mentions_agent",
+        "event_id",
+        "approved_message",
+        "pump_once",
+        "run"
+      ],
+      "decision": "Skip for now",
+      "assessment": "Audience moderation relay is not local player chat. Preserve untrusted-source tagging if streaming is added.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [],
+      "test_file_present": true
+    },
+    {
+      "module": "click.py",
+      "lines": 35,
+      "summary": "Real mouse clicks on the RimWorld window, for the two places the bridge can't",
+      "tools": [],
+      "imports": [
+        "sys",
+        "time",
+        "winctl"
+      ],
+      "functions": [
+        "rimworld_hwnd",
+        "click"
+      ],
+      "decision": "Skip",
+      "assessment": "Windows pixel input for exceptional setup screens; not a general gameplay API.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [],
+      "test_file_present": false
+    },
+    {
+      "module": "clock.py",
+      "lines": 290,
+      "summary": "Is the game clock actually running? The question every VERIFIED line rests on.",
+      "tools": [
+        "home/status",
+        "rimworld/get_game_info"
+      ],
+      "imports": [
+        "play",
+        "play_service",
+        "rim",
+        "sys",
+        "time"
+      ],
+      "functions": [
+        "_read",
+        "_why_paused",
+        "state",
+        "sample",
+        "is_paused",
+        "is_running",
+        "word",
+        "notes",
+        "line",
+        "_self_test",
+        "main"
+      ],
+      "decision": "Adapt now/next",
+      "assessment": "Reuse paused/running/unknown distinction. Strip supervisor-on-disk inference and turnclock remedy strings; flags alone do not prove job completion.",
+      "currently_exposed_tools": [
+        "home/status"
+      ],
+      "not_exposed_tools": [
+        "rimworld/get_game_info"
+      ],
+      "test_file_present": true
+    },
+    {
+      "module": "combat.py",
+      "lines": 1717,
+      "summary": "Safe combat-session ledger. Stage 1 never advances game time.",
+      "tools": [
+        "home/order",
+        "home/play_until_event",
+        "home/supervised_play",
+        "rimworld/pause_game",
+        "rimworld/set_draft"
+      ],
+      "imports": [
+        "argparse",
+        "camlock",
+        "clock",
+        "combat_actions",
+        "combat_camera",
+        "json",
+        "move",
+        "os",
+        "play",
+        "rim",
+        "status",
+        "tempfile",
+        "time"
+      ],
+      "functions": [
+        "CombatRefusal",
+        "OwnershipRefusal",
+        "SupervisedPlayRefusal",
+        "supervised_status",
+        "refuse_if_supervised",
+        "pause_supervised_for_cleanup",
+        "_read_json",
+        "load_ledger",
+        "_atomic_write",
+        "_identity",
+        "turn_identity",
+        "inherited_warning",
+        "adopt_turn",
+        "stale_reason",
+        "_tick",
+        "_pawns",
+        "begin",
+        "record_draft_intent",
+        "confirm_drafted",
+        "_resolve_session_pawn",
+        "_order_call",
+        "_order_reply",
+        "describe_target",
+        "describe_pawn",
+        "print_order_facts",
+        "clock_state",
+        "order_headline",
+        "watch_line",
+        "_order_refusal",
+        "resolve_pawn",
+        "print_pawn_verdict",
+        "issue_move",
+        "issue_flee",
+        "record_order_failure",
+        "record_move_failure",
+        "_checked_session",
+        "_record_action",
+        "issue_equip",
+        "finish_equip",
+        "_draft_bookkeeping",
+        "_confirm_draft_bookkeeping",
+        "_issue_targeted_order",
+        "_care_order",
+        "issue_tend",
+        "issue_rescue",
+        "issue_attack",
+        "preview_targeted_order",
+        "issue_draft",
+        "issue_undraft",
+        "_ledger_pawn_id",
+        "_reconcile_flee_orders",
+        "_combat_watch_args",
+        "_pause_now",
+        "_pause_verdict",
+        "advance",
+        "session_summary",
+        "status_warning",
+        "_resolve_name",
+        "_remaining_hostiles",
+        "_threat_name",
+        "_downed_reminder",
+        "reconcile",
+        "_live_snapshot",
+        "main"
+      ],
+      "decision": "Adapt high priority",
+      "assessment": "Write-ahead draft ownership, verified native orders, guarded advancement and cleanup. Remove blanket map-hostile cleanup gate, turn ownership and extra services.",
+      "currently_exposed_tools": [
+        "home/order"
+      ],
+      "not_exposed_tools": [
+        "home/play_until_event",
+        "home/supervised_play",
+        "rimworld/pause_game",
+        "rimworld/set_draft"
+      ],
+      "test_file_present": true
+    },
+    {
+      "module": "combat_actions.py",
+      "lines": 178,
+      "summary": "Verified combat UI actions shared by the future combat controller.",
+      "tools": [
+        "home/list_pawns",
+        "home/status",
+        "rimworld/clear_selection",
+        "rimworld/close_context_menu",
+        "rimworld/execute_context_menu_option",
+        "rimworld/right_click_cell",
+        "rimworld/select_pawn"
+      ],
+      "imports": [
+        "letters",
+        "rim"
+      ],
+      "functions": [
+        "_clear_screen_for_order",
+        "_id",
+        "_pawn",
+        "_primary_matches",
+        "_one_enabled",
+        "_select",
+        "issue_equip",
+        "wait_for_equipment"
+      ],
+      "decision": "Adapt selectively",
+      "assessment": "Equipment tickets separate issuing a job from actual equipment. Prefer current home/order over older context-menu movement paths.",
+      "currently_exposed_tools": [
+        "home/list_pawns",
+        "home/status"
+      ],
+      "not_exposed_tools": [
+        "rimworld/clear_selection",
+        "rimworld/close_context_menu",
+        "rimworld/execute_context_menu_option",
+        "rimworld/right_click_cell",
+        "rimworld/select_pawn"
+      ],
+      "test_file_present": true
+    },
+    {
+      "module": "combat_camera.py",
+      "lines": 188,
+      "summary": "A quiet, combat-scoped camera director.",
+      "tools": [
+        "rimworld/frame_cell_rect",
+        "rimworld/get_camera_state"
+      ],
+      "imports": [
+        "camlock",
+        "contextlib",
+        "math",
+        "rim",
+        "status",
+        "threading",
+        "time"
+      ],
+      "functions": [
+        "participant_ids",
+        "_position",
+        "_pawn_id",
+        "combat_bounds",
+        "_camera_signature",
+        "_changed",
+        "CombatCameraDirector",
+        "directing"
+      ],
+      "decision": "Adapt later",
+      "assessment": "Frame participants while time advances; relinquish on external pan/zoom. Keep camera changes outside model critical path.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [
+        "rimworld/frame_cell_rect",
+        "rimworld/get_camera_state"
+      ],
+      "test_file_present": true
+    },
+    {
+      "module": "consult.py",
+      "lines": 170,
+      "summary": "RARE and SLOW: one question to Sol, minutes long. Launch it as a background task.",
+      "tools": [],
+      "imports": [
+        "argparse",
+        "os",
+        "subprocess",
+        "sys",
+        "time"
+      ],
+      "functions": [
+        "record",
+        "ask",
+        "main"
+      ],
+      "decision": "Skip",
+      "assessment": "External Codex consultant/model escalation conflicts with the chosen local single-model direction.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [],
+      "test_file_present": false
+    },
+    {
+      "module": "dialog.py",
+      "lines": 128,
+      "summary": "Type into the dialog that is on screen -- the only way to answer a text box.",
+      "tools": [
+        "home/dialog_text"
+      ],
+      "imports": [
+        "json",
+        "rim",
+        "sys"
+      ],
+      "functions": [
+        "fields",
+        "set_text",
+        "show",
+        "_show",
+        "main"
+      ],
+      "decision": "Adapt later",
+      "assessment": "Native dialog-field enumeration and ambiguity rejection; requires DialogTextTool. Audit reflection setters per dialog before broad exposure.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [
+        "home/dialog_text"
+      ],
+      "test_file_present": false
+    },
+    {
+      "module": "event_bus.py",
+      "lines": 312,
+      "summary": "Durable event delivery to Hands, falling back to Core only at handoff.",
+      "tools": [],
+      "imports": [
+        "argparse",
+        "game_session",
+        "json",
+        "os",
+        "pathlib",
+        "runtime_binding",
+        "sqlite3",
+        "time",
+        "uuid"
+      ],
+      "functions": [
+        "ClosingConnection",
+        "connect",
+        "route",
+        "set_hands",
+        "handback",
+        "current_recipient",
+        "publish",
+        "receive",
+        "acknowledge",
+        "receipt_fate",
+        "wake_worthy",
+        "_line",
+        "format_packet",
+        "wait",
+        "main"
+      ],
+      "decision": "Adapt high priority",
+      "assessment": "SQLite durable outbox, acknowledgement and retries. Replace Core/Hands routing with our controller inbox.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [],
+      "test_file_present": true
+    },
+    {
+      "module": "game_session.py",
+      "lines": 118,
+      "summary": "Persist a loaded-game generation; discard observations from other timelines.",
+      "tools": [],
+      "imports": [
+        "contextlib",
+        "fcntl",
+        "itertools",
+        "json",
+        "msvcrt",
+        "os",
+        "pathlib",
+        "time",
+        "uuid"
+      ],
+      "functions": [
+        "locked",
+        "read",
+        "write",
+        "current",
+        "observe",
+        "stamp",
+        "report_is_current"
+      ],
+      "decision": "Adapt principle",
+      "assessment": "Generation-stamped observations and rewind invalidation. Our saved colony ID plus per-load token supports memory beyond a loaded-session generation.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [],
+      "test_file_present": true
+    },
+    {
+      "module": "gear.py",
+      "lines": 183,
+      "summary": "What one pawn wears, wields and carries -- and dropping one piece of it.",
+      "tools": [
+        "home/list_pawns",
+        "home/pawn_config"
+      ],
+      "imports": [
+        "json",
+        "pawns",
+        "rim",
+        "sys"
+      ],
+      "functions": [
+        "carried",
+        "_item",
+        "show",
+        "drop",
+        "_carried_list",
+        "print_drop",
+        "main"
+      ],
+      "decision": "Adapt reads only",
+      "assessment": "Compact inventory/equipment. Do not copy instantaneous apparel drop: upstream explicitly bypasses the ordinary pawn job.",
+      "currently_exposed_tools": [
+        "home/list_pawns",
+        "home/pawn_config"
+      ],
+      "not_exposed_tools": [],
+      "test_file_present": false
+    },
+    {
+      "module": "health.py",
+      "lines": 183,
+      "summary": "The formatter behind `pawns.py --health`: health records into lines.",
+      "tools": [
+        "home/list_pawns"
+      ],
+      "imports": [
+        "rim"
+      ],
+      "functions": [
+        "_call",
+        "rows",
+        "label",
+        "conditions",
+        "report",
+        "_pct",
+        "summary",
+        "needs_summary",
+        "_worst"
+      ],
+      "decision": "Adapt next",
+      "assessment": "Pure health/needs formatters and sort keys over native pawn records; preserve unavailable values.",
+      "currently_exposed_tools": [
+        "home/list_pawns"
+      ],
+      "not_exposed_tools": [],
+      "test_file_present": false
+    },
+    {
+      "module": "human_events.py",
+      "lines": 81,
+      "summary": "Relay overlay human messages into the durable native-agent event bus.",
+      "tools": [],
+      "imports": [
+        "event_bus",
+        "game_session",
+        "hashlib",
+        "json",
+        "overlay_client",
+        "pathlib",
+        "runtime_binding",
+        "time"
+      ],
+      "functions": [
+        "event_id",
+        "pump_once",
+        "run"
+      ],
+      "decision": "Adapt principle",
+      "assessment": "Reliable player-message delivery through tool boundaries. Existing chat revision checks cover part of this; durable acknowledgement remains useful.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [],
+      "test_file_present": true
+    },
+    {
+      "module": "inv.py",
+      "lines": 906,
+      "summary": "What the colony HAS, and where. A census, not a tile-by-tile search.",
+      "tools": [
+        "home/list_things"
+      ],
+      "imports": [
+        "collections",
+        "difflib",
+        "json",
+        "map",
+        "rim",
+        "status",
+        "sys"
+      ],
+      "functions": [
+        "nutrition_per_unit",
+        "food_tier",
+        "food_summary",
+        "_food_row_names",
+        "food_block",
+        "colony_size",
+        "census",
+        "ours",
+        "everything",
+        "_n",
+        "_tags",
+        "_stage_bits",
+        "_corpse_tag",
+        "corpses_block",
+        "_stage_marks",
+        "_corpse_stages_by_cell",
+        "_pos_bits",
+        "_elsewhere",
+        "_non_haulable_word",
+        "scope_notes",
+        "show",
+        "_variants",
+        "_retry_word",
+        "_suggest",
+        "scan",
+        "main"
+      ],
+      "decision": "Adapt selectively",
+      "assessment": "Ownership, holders and loose/stockpiled partitions are useful. Replace vanilla nutrition tables with native def stats before food forecasting.",
+      "currently_exposed_tools": [
+        "home/list_things"
+      ],
+      "not_exposed_tools": [],
+      "test_file_present": true
+    },
+    {
+      "module": "letters.py",
+      "lines": 1064,
+      "summary": "The letter stack: read it, open it, DECIDE it.",
+      "tools": [
+        "rimworld/dismiss_letter",
+        "rimworld/get_ui_layout",
+        "rimworld/get_ui_state",
+        "rimworld/list_letters",
+        "rimworld/open_letter",
+        "rimworld/press_accept"
+      ],
+      "imports": [
+        "json",
+        "overlay_client",
+        "pathlib",
+        "rim",
+        "sys",
+        "time",
+        "ui"
+      ],
+      "functions": [
+        "_clean",
+        "pending",
+        "new_letters",
+        "_opt",
+        "real_choices",
+        "navigate_only",
+        "is_quest",
+        "opportunity_note",
+        "age_hours",
+        "is_stale",
+        "is_decision",
+        "hold_for",
+        "_Unknown",
+        "windows_ranked",
+        "dialog_window",
+        "Option",
+        "options",
+        "_scrape_options",
+        "open_letter",
+        "_norm",
+        "_pick",
+        "decide",
+        "dismiss",
+        "_seen_at_load",
+        "_seen_at_save",
+        "_key",
+        "keep_reason",
+        "auto_dismiss",
+        "tone",
+        "_seen_load",
+        "_seen_save",
+        "post_new_to_overlay",
+        "_kind",
+        "show"
+      ],
+      "decision": "Adapt high priority",
+      "assessment": "Read choice-bearing letters, select native options, acknowledge/dismiss appropriately. Remove viewer holds and automatic stale-letter policy.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [
+        "rimworld/dismiss_letter",
+        "rimworld/get_ui_layout",
+        "rimworld/get_ui_state",
+        "rimworld/list_letters",
+        "rimworld/open_letter",
+        "rimworld/press_accept"
+      ],
+      "test_file_present": true
+    },
+    {
+      "module": "look.py",
+      "lines": 610,
+      "summary": "One Lookout pass: two screenshots, downscaled, handed to Luna with no context.",
+      "tools": [
+        "home/get_time"
+      ],
+      "imports": [
+        "PIL",
+        "cam",
+        "event_bus",
+        "game_session",
+        "os",
+        "rim",
+        "rota_service",
+        "runtime_binding",
+        "subprocess",
+        "sys",
+        "tempfile",
+        "threading",
+        "time",
+        "verify"
+      ],
+      "functions": [
+        "stamp",
+        "record",
+        "game_clock",
+        "downscale",
+        "capture",
+        "wide_capture",
+        "start_luna",
+        "collect_luna",
+        "ask_luna",
+        "check_format",
+        "add_verdicts",
+        "frame_block",
+        "main"
+      ],
+      "decision": "Adapt later",
+      "assessment": "Near/wide visual observations with game-evidence verification. Use the loaded local VL model; no mandatory external reviewer or fixed 180-second schedule.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [
+        "home/get_time"
+      ],
+      "test_file_present": false
+    },
+    {
+      "module": "luna.py",
+      "lines": 386,
+      "summary": "Luna: the net under errata's turn summary. Condenses it to fit the card.",
+      "tools": [],
+      "imports": [
+        "argparse",
+        "json",
+        "os",
+        "overlay_client",
+        "pathlib",
+        "re",
+        "shutil",
+        "stream",
+        "subprocess",
+        "sys",
+        "tempfile",
+        "time"
+      ],
+      "functions": [
+        "log",
+        "_pythonw",
+        "spawn",
+        "_clean",
+        "ask_codex",
+        "condense",
+        "repost",
+        "cmd_run",
+        "cmd_condense",
+        "build_parser",
+        "main"
+      ],
+      "decision": "Skip",
+      "assessment": "Extra model call to compress a fixed overlay box. Our resizable dashboard and concise output can avoid this cost.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [],
+      "test_file_present": false
+    },
+    {
+      "module": "map.py",
+      "lines": 2803,
+      "summary": "Seven layers of the same rectangle, because one character per tile is a lie.",
+      "tools": [
+        "home/get_cells_plus",
+        "home/list_rooms",
+        "rimworld/clear_selection",
+        "rimworld/get_cells_info",
+        "rimworld/list_alerts",
+        "rimworld/list_colonists"
+      ],
+      "imports": [
+        "cam",
+        "collections",
+        "pawns",
+        "pick",
+        "rim",
+        "sys"
+      ],
+      "functions": [
+        "plant_bucket",
+        "is_natural",
+        "rock_bucket",
+        "ore_glyph",
+        "bucket",
+        "bed_owners",
+        "build_glyph",
+        "desig_name",
+        "desig_glyph",
+        "mine_breaches",
+        "degraded_line",
+        "normalise_plus",
+        "scan",
+        "block",
+        "scan_rects",
+        "colonists",
+        "identify",
+        "_identify_by_clicking",
+        "hostile_alerts",
+        "render",
+        "draw",
+        "keyline",
+        "hdr",
+        "counted",
+        "ctx",
+        "layer1",
+        "terrain_class",
+        "forbid_line",
+        "layer2",
+        "items_footer",
+        "layer3",
+        "layer4",
+        "stock_footer",
+        "layer24",
+        "plant_glyph",
+        "merge_beds",
+        "bed_footer",
+        "layer5",
+        "layer6",
+        "room_key",
+        "fetch_rooms",
+        "room_label",
+        "room_grid_reader",
+        "room_keyline",
+        "rooms_footer",
+        "layer7",
+        "merged_room_key",
+        "solid",
+        "room_grid_covers",
+        "room_holds_colonist",
+        "room_colonists",
+        "room_is_outdoorish",
+        "temp_sort_key",
+        "outdoor_temp",
+        "room_summary_line",
+        "area_glyph",
+        "cmd_areas",
+        "cmd_rooms",
+        "cmd_room",
+        "account",
+        "collect",
+        "full_legend",
+        "layer_names_help",
+        "parse_layers",
+        "read_numbers",
+        "base_centre",
+        "take_size",
+        "main"
+      ],
+      "decision": "Adapt high priority",
+      "assessment": "Layered compact map, sparse/rectangular queries, terrain/roof/storage/rooms/designations. Requires CellsPlus. This is a representation, not a base-layout solver.",
+      "currently_exposed_tools": [
+        "home/list_rooms",
+        "rimworld/get_cells_info"
+      ],
+      "not_exposed_tools": [
+        "home/get_cells_plus",
+        "rimworld/clear_selection",
+        "rimworld/list_alerts",
+        "rimworld/list_colonists"
+      ],
+      "test_file_present": true
+    },
+    {
+      "module": "mini_install.py",
+      "lines": 145,
+      "summary": "Temporary packed-furniture helper; existing building tools are untouched.",
+      "tools": [
+        "home/get_cells_plus",
+        "rimworld/",
+        "rimworld/click_cell"
+      ],
+      "imports": [
+        "argparse",
+        "pick",
+        "rim",
+        "sys",
+        "time"
+      ],
+      "functions": [
+        "call",
+        "selected",
+        "placed_at",
+        "install",
+        "main"
+      ],
+      "decision": "Adapt later",
+      "assessment": "Packed furniture validation and two-stage item/destination targeting. Prefer a native install action over pixel placement when available.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [
+        "home/get_cells_plus",
+        "rimworld/",
+        "rimworld/click_cell"
+      ],
+      "test_file_present": true
+    },
+    {
+      "module": "move.py",
+      "lines": 220,
+      "summary": "Order a colonist to a cell, auto-drafting when needed.",
+      "tools": [
+        "rimworld/clear_selection",
+        "rimworld/close_context_menu",
+        "rimworld/execute_context_menu_option",
+        "rimworld/get_cell_info",
+        "rimworld/jump_camera_to_cell",
+        "rimworld/list_colonists",
+        "rimworld/right_click_cell",
+        "rimworld/select_pawn",
+        "rimworld/set_camera_zoom",
+        "rimworld/set_draft"
+      ],
+      "imports": [
+        "camlock",
+        "letters",
+        "rim",
+        "run",
+        "time"
+      ],
+      "functions": [
+        "blocking_window",
+        "_colonist",
+        "_ensure_drafted",
+        "_send_goto",
+        "issue_goto",
+        "goto",
+        "pos"
+      ],
+      "decision": "Mostly skip",
+      "assessment": "Older select/right-click/draft path with camera/modal dependencies; current home/order goto is the preferred route.",
+      "currently_exposed_tools": [
+        "rimworld/get_cell_info"
+      ],
+      "not_exposed_tools": [
+        "rimworld/clear_selection",
+        "rimworld/close_context_menu",
+        "rimworld/execute_context_menu_option",
+        "rimworld/jump_camera_to_cell",
+        "rimworld/list_colonists",
+        "rimworld/right_click_cell",
+        "rimworld/select_pawn",
+        "rimworld/set_camera_zoom",
+        "rimworld/set_draft"
+      ],
+      "test_file_present": true
+    },
+    {
+      "module": "order.py",
+      "lines": 1046,
+      "summary": "One pawn, one target, one order. Select and right-click, as a command.",
+      "tools": [
+        "home/order",
+        "rimworld/clear_selection",
+        "rimworld/close_context_menu",
+        "rimworld/execute_context_menu_option",
+        "rimworld/get_selection_semantics",
+        "rimworld/open_context_menu",
+        "rimworld/select_pawn"
+      ],
+      "imports": [
+        "act",
+        "argparse",
+        "clock",
+        "combat",
+        "letters",
+        "move",
+        "pawns",
+        "pick",
+        "re",
+        "rim",
+        "sys"
+      ],
+      "functions": [
+        "split_target",
+        "target_cell",
+        "call",
+        "combat_session",
+        "check_modal",
+        "storage_or_reach",
+        "report",
+        "resolve_target",
+        "selected_now",
+        "menu_args",
+        "aim",
+        "opened",
+        "resolve_pawn",
+        "open_menu",
+        "_work_at",
+        "explain_empty_menu",
+        "print_options",
+        "cmd_menu",
+        "_norm",
+        "_tend_hint",
+        "choose",
+        "issued",
+        "note_do",
+        "cmd_force",
+        "cmd_do",
+        "ground_tend_routes",
+        "tend_route",
+        "cmd_verb",
+        "main"
+      ],
+      "decision": "Adapt high priority",
+      "assessment": "Native job refusal formatting, exact selector resolution, force/menu fallback discovery. home/order already compiled; no need to copy CLI parsing.",
+      "currently_exposed_tools": [
+        "home/order",
+        "rimworld/get_selection_semantics"
+      ],
+      "not_exposed_tools": [
+        "rimworld/clear_selection",
+        "rimworld/close_context_menu",
+        "rimworld/execute_context_menu_option",
+        "rimworld/open_context_menu",
+        "rimworld/select_pawn"
+      ],
+      "test_file_present": true
+    },
+    {
+      "module": "overlay_client.py",
+      "lines": 546,
+      "summary": "Fire-and-forget POSTs to the stream overlay. The stream never touches the game.",
+      "tools": [],
+      "imports": [
+        "atexit",
+        "json",
+        "os",
+        "pathlib",
+        "sys",
+        "threading",
+        "time",
+        "urllib.error",
+        "urllib.request"
+      ],
+      "functions": [
+        "_ipv4",
+        "base_url",
+        "log_drop",
+        "_describe",
+        "_budget_left",
+        "_budget_spend",
+        "_worth_retrying",
+        "_send",
+        "post",
+        "get",
+        "_reap",
+        "_drain",
+        "_warn_drops",
+        "_blocking_post",
+        "_start",
+        "overlay",
+        "overlay_ordered",
+        "say",
+        "set_mood",
+        "push_tick",
+        "post_letter",
+        "_letter_payload",
+        "post_letters",
+        "take_flags",
+        "say_flags"
+      ],
+      "decision": "Adapt principle",
+      "assessment": "Non-blocking presentation and bounded delivery diagnostics. Keep one same-origin dashboard, not a second overlay server.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [],
+      "test_file_present": false
+    },
+    {
+      "module": "pawns.py",
+      "lines": 1335,
+      "summary": "Who is on the map, how they are, what they carry, and how they are set up.",
+      "tools": [
+        "home/list_pawns",
+        "home/pawn_config"
+      ],
+      "imports": [
+        "camlock",
+        "clock",
+        "health",
+        "json",
+        "rim",
+        "sys"
+      ],
+      "functions": [
+        "_positional_name",
+        "_call",
+        "all_pawns",
+        "hostiles",
+        "near",
+        "hunting",
+        "threats",
+        "_downed_tag",
+        "colonist_positions",
+        "distance_key",
+        "distance_phrase",
+        "line",
+        "_bio_lines",
+        "_gear_line",
+        "_roster_needs_line",
+        "_mood_line",
+        "_work_line",
+        "_schedule_line",
+        "_schedule_key_line",
+        "_settings_line",
+        "_relations_lines",
+        "_animal_line",
+        "_animal_id_line",
+        "_missing_line",
+        "roster",
+        "print_name_miss",
+        "print_roster",
+        "detail_lines",
+        "act_now",
+        "print_detail",
+        "_work_key",
+        "work_lookup",
+        "resolve_work",
+        "live_work_types",
+        "watch_choice",
+        "watch_line",
+        "config",
+        "_show",
+        "print_config",
+        "main_set",
+        "main"
+      ],
+      "decision": "Adapt next",
+      "assessment": "Work, schedule, animals, social relations, health and roster projections over existing native payloads. Drop unsupported instant gear mutations.",
+      "currently_exposed_tools": [
+        "home/list_pawns",
+        "home/pawn_config"
+      ],
+      "not_exposed_tools": [],
+      "test_file_present": false
+    },
+    {
+      "module": "pick.py",
+      "lines": 403,
+      "summary": "One map click, with the camera where the click needs to be, read back.",
+      "tools": [
+        "rimworld/clear_selection",
+        "rimworld/click_cell",
+        "rimworld/get_designator_state",
+        "rimworld/get_designator_state did not answer: %s",
+        "rimworld/get_map_target_info",
+        "rimworld/get_selection_semantics",
+        "rimworld/list_selected_gizmos"
+      ],
+      "imports": [
+        "act",
+        "cam",
+        "camlock",
+        "rim",
+        "sys",
+        "time"
+      ],
+      "functions": [
+        "ClickMissed",
+        "CameraStuck",
+        "Unreadable",
+        "_norm_id",
+        "selection",
+        "_selection_via_gizmos",
+        "holds",
+        "resolve",
+        "armed",
+        "clear_designator",
+        "view",
+        "in_view",
+        "where",
+        "ensure_camera",
+        "click",
+        "select_cell",
+        "select_thing",
+        "main"
+      ],
+      "decision": "Adapt for UI fallback",
+      "assessment": "Selection verification and camera visibility are essential when forced to click. Do not involve selection for direct native queries.",
+      "currently_exposed_tools": [
+        "rimworld/get_selection_semantics",
+        "rimworld/list_selected_gizmos"
+      ],
+      "not_exposed_tools": [
+        "rimworld/clear_selection",
+        "rimworld/click_cell",
+        "rimworld/get_designator_state",
+        "rimworld/get_designator_state did not answer: %s",
+        "rimworld/get_map_target_info"
+      ],
+      "test_file_present": true
+    },
+    {
+      "module": "play.py",
+      "lines": 385,
+      "summary": "Durable supervised game control.",
+      "tools": [
+        "home/status",
+        "rimworld/pause_game"
+      ],
+      "imports": [
+        "argparse",
+        "combat",
+        "game_session",
+        "json",
+        "os",
+        "pathlib",
+        "play_service",
+        "rim",
+        "runtime_binding",
+        "subprocess",
+        "sys",
+        "time",
+        "uuid"
+      ],
+      "functions": [
+        "service_state",
+        "service_alive",
+        "suppressed_injuries",
+        "summary_line",
+        "standing_alerts",
+        "blocking_threats",
+        "blocking_threat_lines",
+        "start",
+        "enrich_start_error",
+        "status",
+        "pause",
+        "speed",
+        "main"
+      ],
+      "decision": "Adapt high priority",
+      "assessment": "Durable game-time ownership and event stops; distinct from turn clocks. Bind to our process rather than a Core/Hands session.",
+      "currently_exposed_tools": [
+        "home/status"
+      ],
+      "not_exposed_tools": [
+        "rimworld/pause_game"
+      ],
+      "test_file_present": true
+    },
+    {
+      "module": "play_service.py",
+      "lines": 392,
+      "summary": "Background lease owner for ``home/supervised_play``.",
+      "tools": [
+        "home/supervised_play"
+      ],
+      "imports": [
+        "argparse",
+        "event_bus",
+        "game_session",
+        "json",
+        "letters",
+        "os",
+        "pathlib",
+        "rim",
+        "runtime_binding",
+        "sys",
+        "time"
+      ],
+      "functions": [
+        "stop_kind",
+        "read_json",
+        "atomic_json",
+        "pid_alive",
+        "binding",
+        "binding_alive",
+        "publish_event",
+        "event_line",
+        "final_note",
+        "relay_events",
+        "run",
+        "main"
+      ],
+      "decision": "Adapt high priority",
+      "assessment": "Companion lease heartbeat and event cursor. Merge into our async runtime instead of launching another Python service.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [
+        "home/supervised_play"
+      ],
+      "test_file_present": false
+    },
+    {
+      "module": "relay.py",
+      "lines": 113,
+      "summary": "M's phone -> the running playthrough. One command, no JSON to compose.",
+      "tools": [
+        "rimworld/pause_game"
+      ],
+      "imports": [
+        "json",
+        "os",
+        "rim",
+        "sys",
+        "urllib.error",
+        "urllib.request"
+      ],
+      "functions": [
+        "base_url",
+        "post_human",
+        "pause_game",
+        "main"
+      ],
+      "decision": "Adapt UX only",
+      "assessment": "Player message plus explicit pause/interrupt. Existing local chat already supplies the message path.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [
+        "rimworld/pause_game"
+      ],
+      "test_file_present": false
+    },
+    {
+      "module": "research.py",
+      "lines": 493,
+      "summary": "What the colony is researching, what it could research, and why it isn't.",
+      "tools": [
+        "home/research"
+      ],
+      "imports": [
+        "camlock",
+        "json",
+        "rim",
+        "sys"
+      ],
+      "functions": [
+        "state",
+        "watch_line",
+        "choose",
+        "_num",
+        "_bar",
+        "_name",
+        "_cost_text",
+        "project_line",
+        "print_unlocks",
+        "current_block",
+        "bench_block",
+        "available_block",
+        "locked_block",
+        "finished_block",
+        "footer",
+        "show",
+        "print_set",
+        "main_set",
+        "main"
+      ],
+      "decision": "Adapt next",
+      "assessment": "Current research, benches, prerequisites and unlocks, plus normal selection. Requires ResearchTool; do not invent an equivalent Python simulation.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [
+        "home/research"
+      ],
+      "test_file_present": false
+    },
+    {
+      "module": "rim.py",
+      "lines": 362,
+      "summary": "Direct client for the RimWorld bridge, for agents that aren't Codex.",
+      "tools": [
+        "home/get_time",
+        "rimworld/get_cell_info",
+        "rimworld/get_game_info",
+        "rimworld/list_letters",
+        "rimworld/set_draft",
+        "rimworld/set_draft: 'pawn' conflicts with explicit 'pawnName'/'pawnId'; pass exactly one pawn selector"
+      ],
+      "imports": [
+        "game_session",
+        "json",
+        "os",
+        "overlay_client",
+        "re",
+        "subprocess",
+        "sys",
+        "time",
+        "urllib.request"
+      ],
+      "functions": [
+        "_log",
+        "rpc",
+        "init",
+        "tool",
+        "BridgeError",
+        "_tool_args",
+        "_page_names",
+        "tool_names",
+        "_ack_attention",
+        "game",
+        "map_size",
+        "main"
+      ],
+      "decision": "Skip transport",
+      "assessment": "We already use the MCP SDK over stdio. Do not add a second hand-written HTTP transport or legacy argument shims.",
+      "currently_exposed_tools": [
+        "rimworld/get_cell_info"
+      ],
+      "not_exposed_tools": [
+        "home/get_time",
+        "rimworld/get_game_info",
+        "rimworld/list_letters",
+        "rimworld/set_draft",
+        "rimworld/set_draft: 'pawn' conflicts with explicit 'pawnName'/'pawnId'; pass exactly one pawn selector"
+      ],
+      "test_file_present": false
+    },
+    {
+      "module": "rota.py",
+      "lines": 2301,
+      "summary": "Manual data-scout helpers and legacy report inspection.",
+      "tools": [
+        "home/get_time",
+        "home/list_buildings",
+        "home/list_pawns",
+        "home/list_pawns requires an active map.",
+        "home/list_rooms",
+        "home/list_rooms requires an active map."
+      ],
+      "imports": [
+        "alerts",
+        "buildings",
+        "game_session",
+        "json",
+        "os",
+        "rim",
+        "shutil",
+        "subprocess",
+        "sys",
+        "time"
+      ],
+      "functions": [
+        "load",
+        "save",
+        "ticks",
+        "due",
+        "fired",
+        "look_reader",
+        "spawn_look",
+        "pending_report",
+        "_bpos",
+        "_blabel",
+        "_more",
+        "build_unavailable",
+        "_bill_ingredient_lines",
+        "buildings_summary",
+        "buildings_section",
+        "_alerts_mod",
+        "_alerts_why",
+        "_loud_priorities",
+        "_names",
+        "_gname",
+        "_garment",
+        "_covered",
+        "_cannot_fight",
+        "_colonist_gear",
+        "_floor_alert_line",
+        "_alerts_block",
+        "colonists_unavailable",
+        "colonists_summary",
+        "colonists_section",
+        "_rtemp",
+        "_rname",
+        "_rindoor",
+        "_rwhere",
+        "_rcolonists",
+        "rooms_unavailable",
+        "rooms_summary",
+        "rooms_section",
+        "scout_brief",
+        "record_scout",
+        "spawn_scout",
+        "scout_snapshot",
+        "cmd_scout_run",
+        "_sync_session",
+        "cmd_reports",
+        "cmd_daemon",
+        "cmd_tick",
+        "cmd_ran",
+        "cmd_reset",
+        "cmd_status",
+        "_fixture",
+        "_pawn_fixture",
+        "_alert_fixture",
+        "_room_fixture",
+        "_self_test",
+        "main"
+      ],
+      "decision": "Skip scheduler; mine formatters",
+      "assessment": "Legacy scout/brief formatters may help; seeded multi-agent scheduling and report mailboxes are not needed.",
+      "currently_exposed_tools": [
+        "home/list_buildings",
+        "home/list_pawns",
+        "home/list_rooms"
+      ],
+      "not_exposed_tools": [
+        "home/get_time",
+        "home/list_pawns requires an active map.",
+        "home/list_rooms requires an active map."
+      ],
+      "test_file_present": false
+    },
+    {
+      "module": "rota_service.py",
+      "lines": 308,
+      "summary": "Detached singleton scheduler for the blind external screenshot reviewer.",
+      "tools": [],
+      "imports": [
+        "chat_events",
+        "event_bus",
+        "game_session",
+        "human_events",
+        "json",
+        "os",
+        "pathlib",
+        "runtime_binding",
+        "subprocess",
+        "sys",
+        "threading",
+        "time",
+        "uuid"
+      ],
+      "functions": [
+        "_pid_alive",
+        "state",
+        "running",
+        "ensure_started",
+        "_write_state",
+        "_log",
+        "_queue_publish",
+        "_publish_skip",
+        "_retry_pending",
+        "_terminate_owned",
+        "_launch_review",
+        "schedule",
+        "serve",
+        "stop",
+        "main"
+      ],
+      "decision": "Skip",
+      "assessment": "Fixed wall-clock external vision reviewer daemon is unnecessary for our current runtime.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [],
+      "test_file_present": true
+    },
+    {
+      "module": "run.py",
+      "lines": 469,
+      "summary": "Run a short guarded review slice and pause when it ends or something happens.",
+      "tools": [
+        "home/play_until_event",
+        "rimworld/get_game_info",
+        "rimworld/get_ui_state",
+        "rimworld/list_alerts",
+        "rimworld/list_letters",
+        "rimworld/pause_game",
+        "rimworld/set_time_speed"
+      ],
+      "imports": [
+        "letters",
+        "overlay_client",
+        "re",
+        "rim",
+        "sys",
+        "time",
+        "turnclock",
+        "watch"
+      ],
+      "functions": [
+        "_NoCompanion",
+        "_guard_game",
+        "_pause_verified",
+        "_letters",
+        "_ticks",
+        "_alert_labels",
+        "_sig",
+        "_wild_hunters",
+        "_threat_rows",
+        "_report",
+        "_print_letters",
+        "_companion",
+        "_polling",
+        "until",
+        "run"
+      ],
+      "decision": "Do not copy whole",
+      "assessment": "Useful native event waiter, but old client pulse loop includes turn limits and any-hostile stops. Rebuild thinly around reviewed companion event semantics.",
+      "currently_exposed_tools": [
+        "rimworld/set_time_speed"
+      ],
+      "not_exposed_tools": [
+        "home/play_until_event",
+        "rimworld/get_game_info",
+        "rimworld/get_ui_state",
+        "rimworld/list_alerts",
+        "rimworld/list_letters",
+        "rimworld/pause_game"
+      ],
+      "test_file_present": true
+    },
+    {
+      "module": "runtime_binding.py",
+      "lines": 181,
+      "summary": "Identify the controlling process, including its birth time (PID reuse safe).",
+      "tools": [],
+      "imports": [
+        "ctypes",
+        "game_session",
+        "json",
+        "os",
+        "pathlib",
+        "subprocess",
+        "time"
+      ],
+      "functions": [
+        "process_identity",
+        "load",
+        "alive",
+        "bind",
+        "note",
+        "remember",
+        "describe",
+        "rebind_if_stale",
+        "claude_ancestor"
+      ],
+      "decision": "Adapt principle",
+      "assessment": "PID plus process birth time prevents stale owner/PID reuse. Use in launch/session ownership checks, not Claude agent identity.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [],
+      "test_file_present": true
+    },
+    {
+      "module": "runtime_hook.py",
+      "lines": 363,
+      "summary": "Claude lifecycle adapter: route native hook wakeups to their originating agent.",
+      "tools": [],
+      "imports": [
+        "contextlib",
+        "event_bus",
+        "fcntl",
+        "game_session",
+        "hashlib",
+        "json",
+        "msvcrt",
+        "os",
+        "overlay_client",
+        "pathlib",
+        "play",
+        "re",
+        "runtime_binding",
+        "sys",
+        "time",
+        "turnclock"
+      ],
+      "functions": [
+        "subscription",
+        "request_pause",
+        "heartbeat",
+        "touch_heartbeat",
+        "close_turn",
+        "claimed_agent",
+        "due_budget_reminder",
+        "format_delivery_packet",
+        "overlay_phase_core",
+        "open_turn_number",
+        "handle",
+        "main"
+      ],
+      "decision": "Skip",
+      "assessment": "Claude lifecycle hooks and cross-agent delivery are platform-specific.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [],
+      "test_file_present": true
+    },
+    {
+      "module": "say.py",
+      "lines": 63,
+      "summary": "Narrate one line to the stream. The fallback for everything without a flag.",
+      "tools": [],
+      "imports": [
+        "overlay_client",
+        "sys"
+      ],
+      "functions": [
+        "main"
+      ],
+      "decision": "Adapt style only",
+      "assessment": "One concise outcome per intent; no mandatory character cap, first-person persona or mood service.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [],
+      "test_file_present": false
+    },
+    {
+      "module": "see.py",
+      "lines": 112,
+      "summary": "Centre the camera and capture an image for Hands to open themselves.",
+      "tools": [],
+      "imports": [
+        "argparse",
+        "cam",
+        "camlock",
+        "math",
+        "pathlib",
+        "rim",
+        "sys",
+        "time",
+        "uuid"
+      ],
+      "functions": [
+        "_success",
+        "_fresh_file",
+        "capture",
+        "main"
+      ],
+      "decision": "Adapt later",
+      "assessment": "Actual image input plus framing, not a path string. Remove per-turn screenshot quota.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [],
+      "test_file_present": true
+    },
+    {
+      "module": "setup.py",
+      "lines": 1107,
+      "summary": "Bring the whole RimWorld agent stack up with one command, and say so in 14 lines.",
+      "tools": [
+        "home/get_time",
+        "home/ping",
+        "home/ping ok, sdk %s%s",
+        "rimworld/get_game_info",
+        "rimworld/list_alerts",
+        "rimworld/list_colonists",
+        "rimworld/list_letters",
+        "rimworld/load_game",
+        "rimworld/load_game_ready",
+        "rimworld/pause_game",
+        "rimworld/set_time_speed"
+      ],
+      "imports": [
+        "json",
+        "os",
+        "rim",
+        "runtime_binding",
+        "subprocess",
+        "sys",
+        "time",
+        "urllib.error",
+        "urllib.request"
+      ],
+      "functions": [
+        "gabs_alive",
+        "rimworld_pids",
+        "bridge_connected",
+        "start_gabs",
+        "game_tools",
+        "first_tool",
+        "plain",
+        "ticks_phrase",
+        "clock_phrase",
+        "session_save",
+        "saves_matching",
+        "lampblack_saves",
+        "void_path",
+        "void_reason",
+        "voided_saves",
+        "void_line",
+        "split_voided",
+        "mark_void",
+        "unmark_void",
+        "void_cli",
+        "refuse_if_void",
+        "describe_save",
+        "age_phrase",
+        "resolve_newest",
+        "warn_if_stale",
+        "ensure_gabs",
+        "ensure_game",
+        "listener_running",
+        "ensure_listener",
+        "check_companion",
+        "load_save",
+        "game_info",
+        "observe_speed",
+        "pause_verified",
+        "speed_phrase",
+        "binding_note",
+        "status_block",
+        "main"
+      ],
+      "decision": "Adapt selectively",
+      "assessment": "Health/readiness, save validation and explicit ownership recovery. Keep our profile/launcher and avoid hardcoded colony save prefixes.",
+      "currently_exposed_tools": [
+        "rimworld/set_time_speed"
+      ],
+      "not_exposed_tools": [
+        "home/get_time",
+        "home/ping",
+        "home/ping ok, sdk %s%s",
+        "rimworld/get_game_info",
+        "rimworld/list_alerts",
+        "rimworld/list_colonists",
+        "rimworld/list_letters",
+        "rimworld/load_game",
+        "rimworld/load_game_ready",
+        "rimworld/pause_game"
+      ],
+      "test_file_present": false
+    },
+    {
+      "module": "status.py",
+      "lines": 739,
+      "summary": "The whole between-turns read in one call: clock, letters, messages, alerts,",
+      "tools": [
+        "home/status",
+        "home/supervised_play"
+      ],
+      "imports": [
+        "combat",
+        "json",
+        "letters",
+        "play",
+        "play_service",
+        "rim",
+        "sys",
+        "time"
+      ],
+      "functions": [
+        "read",
+        "_trim",
+        "priority_rank",
+        "letter_mark",
+        "_probe_stop_reason",
+        "stop_record",
+        "_exited_phrase",
+        "stop_note",
+        "_pause_note",
+        "clock_line",
+        "brief_lines",
+        "guard_hunters",
+        "threat_summary",
+        "hostile_phrase",
+        "hunter_phrase",
+        "_threat_name",
+        "alert_line",
+        "colonist_line",
+        "_combat_warning",
+        "show",
+        "_pos",
+        "_owner",
+        "main"
+      ],
+      "decision": "Adapt next",
+      "assessment": "Compact native status and meaningful deltas. Do not copy prose-derived global stopping policy.",
+      "currently_exposed_tools": [
+        "home/status"
+      ],
+      "not_exposed_tools": [
+        "home/supervised_play"
+      ],
+      "test_file_present": false
+    },
+    {
+      "module": "stream.py",
+      "lines": 936,
+      "summary": "The Core's end of the stream. Turn counter, handoffs, and M's channel.",
+      "tools": [],
+      "imports": [
+        "argparse",
+        "combat",
+        "event_bus",
+        "game_session",
+        "json",
+        "luna",
+        "overlay_client",
+        "pathlib",
+        "play",
+        "rota_service",
+        "runtime_binding",
+        "sys",
+        "time",
+        "turnclock"
+      ],
+      "functions": [
+        "load",
+        "save",
+        "update",
+        "warn",
+        "down",
+        "missed",
+        "current_mode",
+        "cmd_mode",
+        "cmd_goals",
+        "cmd_hands_start",
+        "reset_turn_counter",
+        "cmd_go",
+        "binding_state",
+        "binding_warning",
+        "cmd_bind_check",
+        "cmd_hands_claim",
+        "cmd_hands_release",
+        "cmd_hands_close",
+        "push_phase_core",
+        "cmd_handback",
+        "hand_to_luna",
+        "cmd_human_check",
+        "cmd_hands_check",
+        "cmd_status",
+        "cmd_reset",
+        "build_parser",
+        "main"
+      ],
+      "decision": "Skip orchestration",
+      "assessment": "Goals/chat presentation is useful and partly adopted; Hands lifecycle, turn counters and service start orchestration are out.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [],
+      "test_file_present": false
+    },
+    {
+      "module": "trade.py",
+      "lines": 570,
+      "summary": "Trade without the trade screen.",
+      "tools": [
+        "home/trade"
+      ],
+      "imports": [
+        "camlock",
+        "json",
+        "overlay_client",
+        "play",
+        "play_service",
+        "rim",
+        "sys"
+      ],
+      "functions": [
+        "call",
+        "_fail",
+        "money",
+        "show_traders",
+        "show_balance",
+        "show_staged",
+        "show_sheet",
+        "cmd_list",
+        "cmd_open",
+        "cmd_sheet",
+        "cmd_set",
+        "cmd_preview",
+        "watch_line",
+        "pause_supervised_play",
+        "cmd_accept",
+        "cmd_cancel",
+        "cmd_status",
+        "cmd_close_dialog",
+        "main"
+      ],
+      "decision": "Native module copied; adapt formatter",
+      "assessment": "Native TradeSession lifecycle, signed quantities, preview and accept. Keep adjacency for map traders; verify stock, price and receipt changes.",
+      "currently_exposed_tools": [
+        "home/trade"
+      ],
+      "not_exposed_tools": [],
+      "test_file_present": false
+    },
+    {
+      "module": "turnclock.py",
+      "lines": 334,
+      "summary": "The turn clock: how long the fork holding the game has been holding it.",
+      "tools": [],
+      "imports": [
+        "json",
+        "os",
+        "time"
+      ],
+      "functions": [
+        "_state",
+        "hands_started_at",
+        "turn_elapsed",
+        "mmss",
+        "turn_budget_line",
+        "next_budget_reminder",
+        "print_budget_line",
+        "over_hard_limit",
+        "handed_back",
+        "heartbeat",
+        "hands_alive",
+        "liveness_line",
+        "report_stage",
+        "report_line",
+        "_secs"
+      ],
+      "decision": "Skip explicitly",
+      "assessment": "User rejected per-agent elapsed-turn budgets; unrelated to actual game-time control.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [],
+      "test_file_present": true
+    },
+    {
+      "module": "ui.py",
+      "lines": 979,
+      "summary": "Click UI by visible text -- and READ a surface without the geometry.",
+      "tools": [
+        "rimworld/click_ui_target",
+        "rimworld/close_main_tab",
+        "rimworld/get_selection_semantics",
+        "rimworld/get_ui_layout",
+        "rimworld/list_main_tabs",
+        "rimworld/open_main_tab"
+      ],
+      "imports": [
+        "json",
+        "re",
+        "rim",
+        "sys",
+        "time"
+      ],
+      "functions": [
+        "_norm",
+        "_on_row",
+        "layout",
+        "elements",
+        "_covers",
+        "_captions",
+        "_coincident",
+        "_holds",
+        "_matches",
+        "find",
+        "probe",
+        "_fmt",
+        "clickable_texts",
+        "_signature",
+        "Clicked",
+        "click",
+        "row_toggle",
+        "_text",
+        "_rect",
+        "_cy",
+        "_inside",
+        "slim_surface",
+        "slim",
+        "render",
+        "main_tabs",
+        "print_main_tabs",
+        "_tab_row",
+        "open_tab",
+        "close_tab",
+        "_open_tab_name",
+        "read_tab",
+        "selection",
+        "_do_click",
+        "main"
+      ],
+      "decision": "Adapt fallback",
+      "assessment": "Structured text/surface IDs, main-tab cleanup and selection readback. UI reads that open tabs are mutations and need serialized ownership.",
+      "currently_exposed_tools": [
+        "rimworld/get_selection_semantics"
+      ],
+      "not_exposed_tools": [
+        "rimworld/click_ui_target",
+        "rimworld/close_main_tab",
+        "rimworld/get_ui_layout",
+        "rimworld/list_main_tabs",
+        "rimworld/open_main_tab"
+      ],
+      "test_file_present": true
+    },
+    {
+      "module": "verify.py",
+      "lines": 529,
+      "summary": "The Lookout's second look, for when it is about to raise an alarm.",
+      "tools": [
+        "home/list_pawns",
+        "rimworld/get_camera_state",
+        "rimworld/list_alerts",
+        "rimworld/list_alerts did not answer, so nothing checked for fire",
+        "rimworld/list_colonists"
+      ],
+      "imports": [
+        "pawns",
+        "re",
+        "rim",
+        "sys",
+        "watch"
+      ],
+      "functions": [
+        "strip",
+        "_dict",
+        "gate",
+        "topics",
+        "_blank",
+        "survey",
+        "_some",
+        "_desc",
+        "check_creature",
+        "check_fire",
+        "named_condition",
+        "verdict_lines",
+        "camera_line",
+        "footer",
+        "annotate",
+        "_pawn",
+        "_fake",
+        "_self_test",
+        "main"
+      ],
+      "decision": "Adapt cautiously",
+      "assessment": "Validate visual claims with native evidence. Regex topic gates and absence-of-fire-alert => no fire are not general proof.",
+      "currently_exposed_tools": [
+        "home/list_pawns"
+      ],
+      "not_exposed_tools": [
+        "rimworld/get_camera_state",
+        "rimworld/list_alerts",
+        "rimworld/list_alerts did not answer, so nothing checked for fire",
+        "rimworld/list_colonists"
+      ],
+      "test_file_present": false
+    },
+    {
+      "module": "watch.py",
+      "lines": 474,
+      "summary": "Play in bounded steps and report what changed.",
+      "tools": [
+        "rimworld/get_game_info",
+        "rimworld/list_alerts",
+        "rimworld/list_colonists",
+        "rimworld/list_letters",
+        "rimworld/list_messages",
+        "rimworld/play_for"
+      ],
+      "imports": [
+        "camlock",
+        "letters",
+        "map",
+        "overlay_client",
+        "pawns",
+        "rim",
+        "sys",
+        "turnclock"
+      ],
+      "functions": [
+        "AutoPaused",
+        "Paused",
+        "ours",
+        "threats",
+        "wild_hunter",
+        "_threats_from_list",
+        "_threats_from_cells",
+        "letter_labels",
+        "read_messages",
+        "step"
+      ],
+      "decision": "Mostly skip",
+      "assessment": "Older broad polling loop overlaps native event waits. Do not copy range/hardcoded policy or automatic letter handling wholesale.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [
+        "rimworld/get_game_info",
+        "rimworld/list_alerts",
+        "rimworld/list_colonists",
+        "rimworld/list_letters",
+        "rimworld/list_messages",
+        "rimworld/play_for"
+      ],
+      "test_file_present": false
+    },
+    {
+      "module": "world.py",
+      "lines": 165,
+      "summary": "The world map, read without opening it.",
+      "tools": [
+        "home/world"
+      ],
+      "imports": [
+        "json",
+        "overlay_client",
+        "rim",
+        "sys"
+      ],
+      "functions": [
+        "read",
+        "_n",
+        "render",
+        "_take",
+        "main"
+      ],
+      "decision": "Adapt next",
+      "assessment": "Biome/growing-season/settlement context directly from native world state; requires WorldTool.",
+      "currently_exposed_tools": [],
+      "not_exposed_tools": [
+        "home/world"
+      ],
+      "test_file_present": true
+    },
+    {
+      "module": "zones.py",
+      "lines": 481,
+      "summary": "Zones and storage, from the game's own zone manager -- one call, whole map.",
+      "tools": [
+        "home/list_zones",
+        "home/zone_cells"
+      ],
+      "imports": [
+        "json",
+        "overlay_client",
+        "re",
+        "rim",
+        "sys"
+      ],
+      "functions": [
+        "_rect_or_cells",
+        "zone_at",
+        "print_crop",
+        "list_zones",
+        "_take",
+        "_n",
+        "print_plants",
+        "print_filter",
+        "print_zones",
+        "zone_cells",
+        "print_plan",
+        "show_one",
+        "main"
+      ],
+      "decision": "Adapt next",
+      "assessment": "Zone/filter/crop/occupancy summaries and anomaly visibility. Core native zone tools already present; repair is an explicit mutation.",
+      "currently_exposed_tools": [
+        "home/list_zones",
+        "home/zone_cells"
+      ],
+      "not_exposed_tools": [],
+      "test_file_present": true
+    }
+  ]
+}

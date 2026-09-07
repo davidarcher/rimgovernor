@@ -65,8 +65,8 @@ orders in Automate. Receipts do not mean pawn work has finished.
 
 The retired RIMAPI implementation is preserved in Git at `9209b74`. Its richer
 project reconciliation, visual architect/reservations, colony detail inspectors,
-and persistent session restoration have **not** been ported to the bridge.
-They are not available through a hidden fallback. Existing strategy references
+and full session lifecycle handling have **not** all been ported to the bridge.
+The bridge now restores chat/plans/projects using a saved colony identity and tracks building/zone targets. Save the colony after its identity is attached to retain that identity across game restarts. Richer scheduling and architect features are not available through a hidden fallback. Existing strategy references
 remain under `controller/rimbot/data/strategies` for reuse; they are not currently
 injected into the native planner.
 

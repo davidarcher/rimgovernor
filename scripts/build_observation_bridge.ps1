@@ -14,6 +14,7 @@ if ($Install) {
     if (Get-Process RimWorldWin64 -ErrorAction SilentlyContinue) { throw 'Close RimWorld before replacing its companion DLL' }
     $destination = Join-Path $RimWorld 'Mods/RimBotObservations'
     New-Item -ItemType Directory -Force $destination | Out-Null
+    Copy-Item -LiteralPath (Join-Path $sourceRoot 'Assemblies') -Destination $destination -Recurse -Force
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'About') -Destination $destination -Recurse -Force
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'BridgeTools') -Destination $destination -Recurse -Force
     Write-Output "Installed observation companion: $destination"

@@ -12,7 +12,7 @@ from .bridge import BridgeClient
 from .bridge_models import BridgeObservation
 
 OBSERVATION_TOOLS = frozenset({
-    'home/status', 'home/list_pawns', 'home/list_things',
+    'home/colony_identity', 'home/status', 'home/list_pawns', 'home/list_things',
     'home/list_buildings', 'home/list_rooms', 'home/list_zones',
 })
 

@@ -5,11 +5,19 @@ import uuid
 from pathlib import Path
 
 from .bridge import bridge_session
-from .bridge_game import BridgeGame, WRITES
+from .bridge_game import BridgeGame, WRITES, is_write
 from .bridge_observation import observe
 from .config import Settings
 from .model import LocalModel
 from .planner import Planner
+from .projects import ProjectBook, ProjectSpec
+from .receipts import verdict_line, _outcome
+
+
+def failure_text(error):
+    if isinstance(error, BaseExceptionGroup):
+        return '; '.join(failure_text(item) for item in error.exceptions)
+    return str(error)
 
 
 class BridgeRuntime:
@@ -20,6 +28,9 @@ class BridgeRuntime:
         self.planner = Planner(self)
         self.colony = uuid.uuid4().hex
         self.chat, self.plan = [], {'long': '', 'short': ''}
+        self.projects = ProjectBook()
+        self.identity = None
+        self.context_token = None
         self.chat_revision = 0
         self.handled_revision = 0
         self.mode, self.phase = 'manual', 'Connecting'
@@ -34,7 +45,53 @@ class BridgeRuntime:
         self.shutdown = asyncio.Event()
 
     def persist(self):
-        self.store.set('bridge:'+self.colony, {'chat': self.chat, 'plan': self.plan})
+        self.store.set('bridge:'+self.colony, {'chat': self.chat, 'plan': self.plan, 'projects': self.projects.dump(),
+            'chat_revision': self.chat_revision, 'handled_revision': self.handled_revision})
+
+    async def sync_identity(self):
+        if self.game is None:
+            raise ValueError('Wait for the native colony connection')
+        identity = await self.game.query('home/colony_identity')
+        key = identity['colonyId']+':'+str(identity['mapId'])
+        token = key+':'+identity['loadToken']
+        changed = token != self.context_token
+        if changed:
+            saved = self.store.get('bridge:'+key, {})
+            self.colony, self.identity, self.context_token = key, identity, token
+            self.chat = saved.get('chat', [])
+            self.plan = saved.get('plan', {'long': '', 'short': ''})
+            self.projects = ProjectBook(saved.get('projects', []))
+            self.chat_revision = saved.get('chat_revision', 0)+1
+            self.handled_revision = self.chat_revision
+            self.mode, self.resume_after_review = 'manual', False
+            self.wake.clear()
+            self.camera_path, self.camera_version = None, 0
+            self.persist()
+        return changed
+
+    async def ensure_context(self, token):
+        async with self.lock:
+            await self.sync_identity()
+            if token != self.context_token:
+                raise ValueError('Colony or loaded save changed; stale review stopped')
+
+    async def project_update(self, spec, expected_token=None):
+        async with self.lock:
+            await self.sync_identity()
+            if expected_token is not None and expected_token != self.context_token:
+                raise ValueError('Loaded colony changed')
+            row = self.projects.upsert(spec)
+            await self.projects.reconcile(self.game)
+            self.persist()
+            return row.model_dump()
+
+    async def cancel_project(self, identity):
+        async with self.lock:
+            await self.sync_identity()
+            row = self.projects.cancel(identity)
+            self.persist()
+        await self.steer('Cancelled project: '+row.title+'. Do not recreate it; existing game orders are unchanged.')
+        return row.model_dump()
 
     def note(self, kind, text, **extra):
         return self.store.event(self.colony, kind, text=text, **extra)
@@ -73,24 +130,38 @@ class BridgeRuntime:
             await self.bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
         await self.steer('Control changed to '+mode+'. '+('Continue the colony plan.' if mode == 'automate' else 'Discuss and inspect only; do not issue game orders.'))
 
-    async def native(self, name, arguments, *, expected_revision=None):
+    async def native(self, name, arguments, *, expected_revision=None, expected_token=None):
         async with self.lock:
             if expected_revision is not None and expected_revision != self.chat_revision:
                 raise ValueError('New player direction arrived; this call was not executed')
+            await self.sync_identity()
+            if expected_token is not None and expected_token != self.context_token:
+                raise ValueError('Loaded colony changed; no command sent')
+            if expected_revision is not None and expected_revision != self.chat_revision:
+                raise ValueError('New player direction arrived; no command sent')
             result = await self.game.invoke(name, arguments, allow_write=self.mode == 'automate')
             self.counters['tools'] += 1
             self.note('tool_result', name, arguments=arguments, result=result)
-            if name in WRITES and not arguments.get('dryRun', False):
-                self.counters['actions'] += 1
-                self.note('action', name, detail='Native receipt recorded; completion is determined from game state')
+            if is_write(name, arguments) and not arguments.get('dryRun', False):
+                placed = name != 'home/place_building' or _outcome(result) == 'placed'
+                self.counters['actions'] += int(placed)
+                self.note('action' if placed else 'receipt', verdict_line(result) if name == 'home/place_building' else name, detail='Native receipt; completion comes from game state')
                 if name == 'home/zone_cells':
                     verification = await self.game.query('home/list_zones')
                 elif name in ('home/place_building', 'rimworld/apply_architect_designator'):
                     verification = await self.game.invoke('rimworld/get_cell_info', {'x': arguments['x'], 'z': arguments['z']})
+                elif name == 'home/trade':
+                    verification = await self.game.invoke('home/trade', {'action': 'status'})
                 else:
                     verification = await self.game.query('home/status')
+                    self.clock = verification['time']
+                    if name == 'rimworld/set_time_speed':
+                        self.resume_after_review = False
                 result = {'receipt': result, 'observed_after': verification,
-                          'meaning': 'Native post-command readback. Jobs/blueprints may still need pawn work.'}
+                          'meaning': 'Native post-command readback. Jobs/blueprints may still need pawn work.',
+                          'clock': 'paused' if self.clock.get('paused') is True else 'running' if self.clock.get('paused') is False else 'unknown'}
+                await self.projects.reconcile(self.game)
+                self.persist()
             return result
 
     async def start(self):
@@ -109,7 +180,10 @@ class BridgeRuntime:
         try:
             self.phase = 'Inspecting colony'
             async with self.lock:
+                await self.sync_identity()
                 self.batch = await observe(self.game)
+                await self.projects.reconcile(self.game)
+                self.persist()
             await self.planner.play_bridge()
             async with self.lock:
                 if self.resume_after_review and self.mode == 'automate':
@@ -120,7 +194,7 @@ class BridgeRuntime:
             raise
         except Exception as error:
             self.phase = 'Needs attention'
-            self.reply('Review stopped: '+str(error))
+            self.reply('Review stopped: '+failure_text(error))
             self.mode = 'manual'
             self.resume_after_review = False
             self.handled_revision = self.chat_revision
@@ -140,9 +214,12 @@ class BridgeRuntime:
                     await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline', readiness='visual', timeoutMs=90000)
                 await bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
                 self.game = BridgeGame(bridge)
+                await self.sync_identity()
+                await self.projects.reconcile(self.game)
+                self.persist()
                 self.batch = await observe(self.game)
                 self.connected, self.phase = True, 'Manual'
-                last_review = 0
+                last_review = last_reconcile = 0
                 while not self.stopped:
                     if self.review_task is None or self.review_task.done():
                         if self.wake.is_set() or (self.mode == 'automate' and time.monotonic()-last_review > 30):
@@ -151,8 +228,16 @@ class BridgeRuntime:
                             self.review_task = asyncio.create_task(self.review())
                     try:
                         async with self.lock:
+                            if await self.sync_identity():
+                                self.batch = await observe(self.game)
+                                await self.projects.reconcile(self.game)
+                                self.persist()
                             status = await self.game.query('home/status', colonists=False, threats=False)
                             self.clock = status['time']
+                            if time.monotonic()-last_reconcile > 10:
+                                await self.projects.reconcile(self.game)
+                                self.persist()
+                                last_reconcile = time.monotonic()
                             image = await bridge.call('rimworld/take_screenshot', fileName='rimbot-live', includeTargets=False, suppressMessage=True)
                             candidate = Path(image.structuredContent['path']).resolve()
                             if candidate.is_relative_to(self.root) and candidate.is_file():
@@ -165,8 +250,10 @@ class BridgeRuntime:
                     except TimeoutError:
                         pass
         except Exception as error:
+            import logging
+            logging.exception('Native bridge connection failed')
             self.phase = 'Connection failed'
-            self.reply(str(error))
+            self.reply(failure_text(error))
         finally:
             self.connected = False
 
@@ -174,7 +261,7 @@ class BridgeRuntime:
         summary = self.batch.summary if self.batch else None
         feed = self.chat[-80:]
         recent = next((m for m in reversed(feed) if m['kind'] == 'summary'), None)
-        return {'sessionId': self.colony, 'goals': self.plan, 'mood': 'thinking' if self.review_task and not self.review_task.done() else 'happy',
+        return {'sessionId': self.context_token or self.colony, 'projects': self.projects.dump(), 'goals': self.plan, 'mood': 'thinking' if self.review_task and not self.review_task.done() else 'happy',
             'status': {'phase': 'core', 'turn': self.counters['model_calls'],
                        'label': self.phase+f" · {self.counters['tools']} calls · {self.counters['actions']} orders"},
             'game': {'tick': self.clock.get('ticksGame', summary.end_tick if summary else None), 'paused': self.clock.get('paused', True),

@@ -71,6 +71,16 @@ def create_app(runtime=None):
         await request.app.state.rt.set_mode((await request.json())['mode'])
         return {'ok': True}
 
+    @app.post('/api/projects')
+    async def project(request: Request):
+        row = await request.app.state.rt.project_update(await request.json())
+        await request.app.state.rt.steer('Player objective: '+row['title'])
+        return row
+
+    @app.delete('/api/projects/{identity}')
+    async def cancel(identity: str, request: Request):
+        return await request.app.state.rt.cancel_project(identity)
+
     @app.get('/api/camera')
     async def camera(request: Request):
         rt = request.app.state.rt

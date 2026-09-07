@@ -8,7 +8,14 @@ READS = OBSERVATION_TOOLS | frozenset({
     'rimworld/list_selected_gizmos', 'rimworld/get_selection_semantics',
 })
 WRITES = frozenset({'home/zone_cells', 'home/place_building', 'home/pawn_config',
-    'home/building_config', 'home/bills', 'home/order', 'rimworld/apply_architect_designator'})
+    'home/building_config', 'home/bills', 'home/order', 'home/trade',
+    'rimworld/set_time_speed', 'rimworld/apply_architect_designator'})
+
+
+def is_write(tool, arguments):
+    if tool == 'home/trade':
+        return arguments.get('action', 'list_traders') not in ('list_traders', 'sheet', 'preview', 'status')
+    return tool in WRITES
 
 
 class BridgeGame(ObservationGateway):
@@ -25,17 +32,23 @@ class BridgeGame(ObservationGateway):
     async def invoke(self, tool, arguments, *, allow_write=False):
         if tool not in READS | WRITES:
             raise ValueError('Unknown gameplay tool')
-        if tool in WRITES and not allow_write:
+        if is_write(tool, arguments) and not allow_write:
             raise ValueError('Automation is off; no game action was sent')
         schema = await self.describe(tool)
         Draft202012Validator(schema).validate(arguments)
         arguments = dict(arguments)
+        if tool == 'home/pawn_config' and arguments.get('drop'):
+            raise ValueError('Instant gear dropping bypasses normal pawn work; use a native pawn order')
+        if arguments.get('ultraSpeedBoost'):
+            raise ValueError('Use normal game speeds')
+        if tool == 'home/trade' and arguments.get('action') == 'open':
+            arguments['requireAdjacent'] = True
         if arguments.get('godMode'):
             raise ValueError('Use normal gameplay placement')
         if tool in WRITES:
             if 'watch' in schema.get('properties', {}):
                 arguments['watch'] = False
-            if tool.startswith('home/') and 'dryRun' not in arguments:
+            if tool.startswith('home/') and 'dryRun' in schema.get('properties', {}) and 'dryRun' not in arguments:
                 raise ValueError('State dryRun explicitly: true to preview, false to act')
         result = await self.bridge.call(tool, **arguments)
         payload = result.structuredContent
