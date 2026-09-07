@@ -341,6 +341,19 @@ class Planner:
                 'A zone awaiting sowing is not missing. Furniture belongs inside rooms; complete enclosures need an entrance. '
                 'Native legality does not establish available materials or operating supplies. Respect project constraints and success signals. '
                 'Use concise colony notes and submit promptly once a supported batch is ready. Your role is '+role)
+        if role.startswith('Site:'):
+            tools=[tools[-1]]
+            instructions=('Select one current site for the approved project from the existing master plan. '
+                'Return submit with zone_id, label, purpose, width, height and optional reuse_region_id. '
+                'You do not choose coordinates or place orders: code resolves and validates the footprint. '
+                'Choose a compatible district and a compact useful increment, not the entire future district. '
+                'Prefer the earliest-phase district near the camp; districts are ordered by phase and distance. '
+                'Storage uses purpose storage, growing uses farm; construction uses room or pen as appropriate. '
+                'Reuse a compatible existing room for furniture rather than reserving another room. '
+                'Respect the supplied room-size guidance and quantity; leave space for access. '
+                'Respond with the site request only. Correct any previous placement feedback.')
+            context['strategy_guidance']=context.get('strategy_guidance',[])[:1]
+            tools[0]['function']['parameters']['properties']['zone_id']['enum']=[z['id'] for z in context.get('zones',[])]
         instructions += '\nstrategy_guidance contains conditional library advice. Check applicability against native observations; player instructions and live game facts take precedence. Never treat guidance as guaranteed game rules.'
         allowed_tools = {t['function']['name'] for t in tools}
         role_label = (context['project_owner']+': '+role.split(':',1)[1]) if role.startswith('Executor:') and context.get('project_owner') else role.split(':',1)[0]

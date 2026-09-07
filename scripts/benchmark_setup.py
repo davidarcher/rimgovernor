@@ -51,11 +51,23 @@ async def run(args):
         if sum(b.state=='built' and b.def_name in args.target_def for b in initial.buildings)>=target:raise ValueError('Save already satisfies benchmark target')
         await rt.start()
         started=time.time();rt.mode='automate'
+        restored_speed=False
         await rt.api.request('POST','/api/v1/game/speed',params={'speed':args.speed})
         while time.time()-started<args.timeout:
+            if (folder/'stop').exists():
+                report['error']='Stopped for diagnosis';break
             if rt.colony!=identity:raise RuntimeError('Colony changed during benchmark')
             dashboard=httpx.get('http://127.0.0.1:8787/api/state').json()
             if dashboard['mode']!='manual' or dashboard['busy']:raise RuntimeError('Dashboard control changed during benchmark')
+            if rt.memory.get('plans') and not getattr(rt,'initial_pause_session',None):
+                game=await rt.api.call('get_game_state',{},fresh=True)
+                if game.get('is_paused') or not restored_speed:
+                    windows=await rt.api.call('get_ui_windows',{},fresh=True)
+                    if any(w.get('force_pause') for w in windows):
+                        raise RuntimeError('Test blocked by a pause-forcing native window: '+str(windows))
+                    await rt.api.request('POST','/api/v1/game/speed',params={'speed':args.speed})
+                    restored_speed=True
+                    rt.note('test_control','Restored requested test speed after initial planning or native pause',speed=args.speed)
             pages=[];offset=0
             while True:
                 work=await rt.api.call('get_map_construction_work',{'map_id':mid,'offset':offset,'limit':32},fresh=True)
@@ -65,11 +77,15 @@ async def run(args):
             work['sites']=pages
             buildings=await rt.api.call('construction_state',{'map_id':mid})
             success=metrics.sample(work,[b.model_dump() for b in buildings.buildings])
+            if args.starter_base:
+                from rimbot.starter_check import assess
+                report['starter_base']=assess(rt.observation,[b.model_dump() for b in buildings.buildings],args.target_def,target)
+                success=report['starter_base']['passed']
             with (folder/'observations.jsonl').open('a') as out:out.write(json.dumps({'at':time.time(),'work':work,'buildings':buildings.model_dump()})+'\n')
             print(f"{time.time()-started:.1f}s {rt.status.get('phase')} | idle {metrics.last_idle} | sites {len(pages)} | completed {len(metrics.completed_ids)}",flush=True)
             if success:report['passed']=True;break
             await asyncio.sleep(args.interval)
-        if not report['passed']:report['error']='Target not completed before deadline'
+        if not report['passed']:report.setdefault('error','Target not completed before deadline')
     except BaseException as error:
         report['error']=f'{type(error).__name__}: {error}'
         raise
@@ -92,6 +108,7 @@ async def run(args):
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--execute',action='store_true',required=True)
+    p.add_argument('--starter-base',action='store_true',help='Require roofed shelter, a stockpile and accessible food as well as completed sleeping objects')
     p.add_argument('--save',required=True)
     p.add_argument('--timeout',type=int,default=360)
     p.add_argument('--interval',type=float,default=3)

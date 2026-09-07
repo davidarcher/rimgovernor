@@ -176,6 +176,17 @@ async def test_reserved_corridor_remains_available_for_room_access():
  result=await reserve_site(rt,{'project_id':'room'},SiteRequest(zone_id='homes',label='Room',purpose='room',width=4,height=4))
  assert result['entrance_candidates']
 
+async def test_explicit_site_step_runs_once_before_placement():
+ from rimbot.base_plan import ensure_project_site
+ rt,_=runtime();rt.settings=NS(reasoning=True)
+ rt.planner=NS(ask=AsyncMock(return_value=SiteRequest(zone_id='food',label='Supplies',purpose='storage',width=4,height=4)))
+ project={'project_id':'stock','kind':'storage','outcome':'A stockpile'}
+ await ensure_project_site(rt,project)
+ assert rt.planner.ask.call_args.args[0]=='Site:storage'
+ assert rt.memory['spatial_layout']['regions'][0]['project_ids']==['stock']
+ await ensure_project_site(rt,project)
+ assert rt.planner.ask.call_count==1
+
 def test_architect_has_one_footprint_and_direction_never_moves_reservation():
  schema=PlanChange.model_json_schema()['$defs']['PlannedZone']['properties']
  assert 'reserved_size' in schema and 'initial_size' not in schema and 'max_size' not in schema
@@ -190,3 +201,9 @@ async def test_current_sites_fit_single_reservation_in_each_growth_direction(dir
  rt,_=runtime(p)
  result=await reserve_site(rt,{'project_id':'room','kind':'construction'},SiteRequest(zone_id='food',label='Room',purpose='room',width=6,height=6))
  assert cells(result['region'])<cells(p['reserved_regions'][0])
+
+
+async def test_stockpile_can_share_residential_district():
+ rt,_=runtime()
+ result=await reserve_site(rt,{'project_id':'stock','kind':'storage'},SiteRequest(zone_id='homes',label='Supplies',purpose='storage',width=3,height=3))
+ assert result['region']['zone_id']=='homes'

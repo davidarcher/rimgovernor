@@ -255,3 +255,13 @@ async def test_omitted_candidates_require_an_explicit_decision(colony):
     context={'proposals':{k:{'objective':objective().model_dump()} for k in ['a','b']},'projects':[]}
     with pytest.raises(ValueError,match='Missing candidate IDs: b'):
         rt.planner.validate_submission('Administrator',ObjectiveDecision(response='Proceed with a',accepted=['a']),context)
+
+
+def test_verified_orders_request_one_admin_review_not_every_poll():
+    p={'project_id':'p','kind':'supply_access','outcome':'Release supplies','status':'awaiting_work','work_ids':['a']}
+    m={'projects':[p],'work':[{'id':'a','status':'complete'}]}
+    assert reconcile_projects(m)
+    assert 'p:orders_verified' in m['admin_requested']
+    m['admin_requested'].clear()
+    assert not reconcile_projects(m)
+    assert not m['admin_requested']

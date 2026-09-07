@@ -24,7 +24,15 @@ def reconcile_projects(memory):
             if only_support:project['progress_note']='Supporting settings/supply orders verified; the main project still needs orders or an observed outcome.'
         elif any(w['status'] in ('rejected','deferred','unresolved') for w in rows):status='needs_review'
         else:status='awaiting_work'
-        if status=='orders_verified':project.pop('progress_note',None)
+        if status=='orders_verified':
+            project.pop('progress_note',None)
+            receipt=sorted(ids)
+            if project.get('admin_verified_orders')!=receipt:
+                pending=memory.setdefault('admin_requested',{})
+                pending[project['project_id']+':orders_verified']='Orders verified for '+project['outcome']+'. Reassess deferred work and remaining goals using fresh observations; verified orders alone do not prove the whole objective.'
+                memory.pop('admin_retry_tick',None)
+                project['admin_verified_orders']=receipt
+                changed=True
         if project.get('status')!=status:project['status']=status;changed=True
     return changed
 
@@ -229,7 +237,11 @@ async def execute_projects(rt,context,scheduled):
                 continue
             rt.note('executor_schedule',reason,role=role,project_id=project['project_id'],decision='invoked')
             record_attempt(project,rt.memory,rt.last_tick or 0)
+            if project['kind'] in ('construction','growing','storage'):
+                from .base_plan import ensure_project_site
+                await ensure_project_site(rt,project)
             prior_orders=order_states(project,rt.memory)
+            before_batch={w['id'] for w in rt.memory['work']}
             fresh={k:v for k,v in fresh.items() if k not in ('plans','assignments')}
             fresh.update(project_owner=project['owner'],project=project,projects=[p for p in rt.memory['projects'] if p.get('status')!='retired'],assigned_task=project['outcome'])
             fresh['spatial_reservations']=rt.memory.get('spatial_layout',{})
@@ -248,7 +260,6 @@ async def execute_projects(rt,context,scheduled):
             project['feedback']=batch.blockers
             rt.note('execution_plan',f'Prepared {len(batch.actions)} orders; not yet executed.',role=role,project_id=project['project_id'],orders=len(batch.actions),model_summary=batch.summary,blockers=batch.blockers)
             await validate_orders(rt,project,batch.actions)
-            before_batch={w['id'] for w in rt.memory['work']}
             seen=set()
             for action in batch.actions:
                 import json
@@ -279,7 +290,7 @@ async def execute_projects(rt,context,scheduled):
                 project['progress_note']='Requested work coverage is present. This does not create jobs or prove labor is progressing.'
             if batch.actions:project.pop('resource_request',None)
             reconcile_projects(rt.memory)
-            if batch.actions and not batch.blockers and project['status']!='needs_review':
+            if (batch.actions or outcomes) and not batch.blockers and project['status']!='needs_review':
                 acknowledge_dispatch(project,rt.memory,rt.last_tick or 0,prior_orders)
         except asyncio.CancelledError:
             project['status']='needs_review';project['feedback']=['Execution interrupted; inspect existing orders before continuing.']

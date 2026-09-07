@@ -65,3 +65,13 @@ async def test_context_stream_failure_retries_once_with_smaller_budget():
         assert result['content']=='ok' and len(requests)==2
         assert model.context_limit==32768
     finally:await model.close()
+
+
+def test_owned_site_projection_preserves_geometry_and_source_reservations():
+    own={'id':'s','zone_id':'home','project_ids':['p'],'patches':[{'x1':1,'x2':4,'z1':2,'z2':5}]}
+    other={'id':'o','zone_id':'food','project_ids':['q']}
+    layout={'zones':[{'id':'home'},{'id':'food'}],'regions':[own,other],'corridors':[{'id':'walk'}]}
+    result=project_context({'project':{'project_id':'p','kind':'construction'},'spatial_reservations':layout})['spatial_reservations']
+    assert result['regions']==[own] and result['zones']==[{'id':'home'}]
+    assert 'enforced' in result['scope']
+    assert len(layout['regions'])==2 and layout['corridors']==[{'id':'walk'}]

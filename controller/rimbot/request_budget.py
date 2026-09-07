@@ -36,6 +36,13 @@ def project_context(context):
         if isinstance(result.get('spatial_reservations'),dict):
             result['spatial_reservations']={k:v for k,v in result['spatial_reservations'].items()
                 if k in ('version','summary','zones','regions','corridors','defensive_lines','reserved_regions')}
+            layout=result['spatial_reservations']
+            owned=[r for r in layout.get('regions',[]) if result['project'].get('project_id') is not None and result['project']['project_id'] in r.get('project_ids',[])]
+            if owned:
+                parents={r.get('zone_id') for r in owned}
+                result['spatial_reservations']={'version':layout.get('version'),
+                    'zones':[z for z in layout.get('zones',[]) if z['id'] in parents],'regions':owned,
+                    'scope':'Only this project site and parent district are shown. All other reservations and corridors remain enforced by native-order validation. Work within these region cells; request architect review for broader changes.'}
         if kind not in ('construction','growing','storage'):
             result.pop('spatial_reservations',None)
         # Supply details remain queryable; don't preload unrelated map systems.
@@ -44,6 +51,7 @@ def project_context(context):
             'construction':('supplies','supply_summary'),
             'storage':('supplies','supply_summary'),
             'growing':('terrain','food_crops','supply_summary'),
+            'work_assignment':('supply_summary',),
         }.get(kind)
         if groups and 'resource_overview' in result:
             source=result['resource_overview']

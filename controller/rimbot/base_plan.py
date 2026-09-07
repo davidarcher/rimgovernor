@@ -7,6 +7,9 @@ from .model import ModelError
 from .spatial import cells,boundary,neighbors,render_map,survey_runs
 
 SURVEY_RADIUS=32
+SITE_PURPOSES={'room':{'food','residential','production','medical','utilities'},
+              'storage':{'food','residential','production','medical','utilities','livestock','defense','agriculture'},
+              'farm':{'agriculture'},'pen':{'livestock'}}
 class Point(Contract):
     x:int
     z:int
@@ -295,8 +298,7 @@ async def reserve_site(rt,project,request):
     zone=next((z for z in plan.get('zones',[]) if z['id']==request.zone_id),None)
     if zone is None:raise ValueError('Choose an existing master-plan zone')
     if zone['purpose']=='reserve':raise ValueError('Future reserve requires an explicit architect zone change before use')
-    compatible={'room':{'food','residential','production','medical','utilities'},'storage':{'food','production'},'farm':{'agriculture'},'pen':{'livestock'}}
-    if zone['purpose'] not in compatible[request.purpose]:raise ValueError('Site purpose conflicts with planned zone use')
+    if zone['purpose'] not in SITE_PURPOSES[request.purpose]:raise ValueError('Site purpose conflicts with planned zone use')
     area=await survey_master_area(rt)
     observed={(c['position']['x'],c['position']['z']):c for c in area['cells']}
     limit=cells(extent(zone));old=next((r for r in plan['regions'] if r['id']==request.reuse_region_id),None)
@@ -347,6 +349,30 @@ async def reserve_site(rt,project,request):
         from .spatial import show_native_plans
         await show_native_plans(rt,plan)
     return {'region':region,'entrance_candidates':[{'x':x,'z':z} for x,z in sorted(entrances)[:12]],'meaning':'Reservation only. Build only this currently needed increment using native commands. Remaining zone space stays reserved.'}
+
+async def ensure_project_site(rt,project):
+    """Resolve the existing site contract before exposing placement commands."""
+    plan=rt.memory.get('spatial_layout',{})
+    if any(project['project_id'] in r['project_ids'] for r in plan.get('regions',[])):
+        return
+    purposes={'storage':SITE_PURPOSES['storage'],'growing':SITE_PURPOSES['farm'],
+              'construction':SITE_PURPOSES['room']|SITE_PURPOSES['pen']}
+    if project['kind'] not in purposes:return
+    zones=[z for z in plan.get('zones',[]) if z['purpose'] in purposes[project['kind']]]
+    focus=rt.memory.get('colony_focus',{'x':0,'z':0})
+    zones.sort(key=lambda z:(z['phase'],abs(z['anchor']['x']-focus['x'])+abs(z['anchor']['z']-focus['z'])))
+    if not zones:raise ValueError('Master plan has no compatible district for '+project['kind'])
+    context={'project':{k:project[k] for k in ('project_id','kind','outcome','quantity','crop_def','target_cells','constraints','definition_requirements') if k in project},
+             'zones':zones,'regions':plan.get('regions',[]),
+             'population':rt.observation.get('game',{}).get('colonist_count')}
+    for attempt in range(3):
+        request=await rt.planner.ask('Site:'+project['kind'],context,SiteRequest,rt.settings.reasoning)
+        try:
+            await reserve_site(rt,project,request)
+            return
+        except ValueError as error:
+            if attempt==2:raise
+            context['placement_feedback']=str(error)
 
 def validate_reserved_space(rt,project,points):
     plan=rt.memory.get('spatial_layout',{})
