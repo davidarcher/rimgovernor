@@ -31,6 +31,7 @@ class BridgeRuntime:
         self.projects = ProjectBook()
         self.identity = None
         self.context_token = None
+        self.draft_owners = {}
         self.chat_revision = 0
         self.handled_revision = 0
         self.mode, self.phase = 'manual', 'Connecting'
@@ -46,7 +47,8 @@ class BridgeRuntime:
 
     def persist(self):
         self.store.set('bridge:'+self.colony, {'chat': self.chat, 'plan': self.plan, 'projects': self.projects.dump(),
-            'chat_revision': self.chat_revision, 'handled_revision': self.handled_revision})
+            'chat_revision': self.chat_revision, 'handled_revision': self.handled_revision,
+            'draft_owners': self.draft_owners})
 
     async def sync_identity(self):
         if self.game is None:
@@ -61,6 +63,8 @@ class BridgeRuntime:
             self.chat = saved.get('chat', [])
             self.plan = saved.get('plan', {'long': '', 'short': ''})
             self.projects = ProjectBook(saved.get('projects', []))
+            # Ownership applies only to this live load, never to an older save.
+            self.draft_owners = {k: v for k, v in saved.get('draft_owners', {}).items() if v == token}
             self.chat_revision = saved.get('chat_revision', 0)+1
             self.handled_revision = self.chat_revision
             self.mode, self.resume_after_review = 'manual', False
@@ -119,12 +123,39 @@ class BridgeRuntime:
     async def model_progress(self, values):
         self.phase = values.get('phase', 'Thinking')
 
+    async def release_drafts(self):
+        """Caller holds the writer lock. Retain obligations if cleanup is uncertain."""
+        for pawn, token in list(self.draft_owners.items()):
+            if token != self.context_token:
+                continue
+            try:
+                await self.game.invoke('home/order', {'action': 'undraft', 'pawn': pawn, 'dryRun': False}, allow_write=True)
+                state = await self.game.invoke('home/order', {'action': 'resolve', 'pawn': pawn, 'dryRun': True}, allow_write=True)
+                if state.get('pawn', {}).get('drafted') is not False:
+                    raise ValueError('Undraft was not confirmed')
+                del self.draft_owners[pawn]
+                self.persist()
+            except Exception as error:
+                self.note('blocker', 'Could not release AI-drafted pawn '+pawn+': '+failure_text(error))
+
+    async def halt(self):
+        """Stop automation and its draft obligations; never silently claim success."""
+        self.mode, self.resume_after_review = 'manual', False
+        try:
+            await self.bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
+        except Exception as error:
+            self.note('blocker', 'Could not pause the game: '+failure_text(error))
+        await self.release_drafts()
+
     async def set_mode(self, mode):
         if mode not in ('manual', 'automate'):
             raise ValueError('Choose Manual or Automate')
         async with self.lock:
             if not self.connected:
                 raise ValueError('Wait for the bridge to connect')
+            await self.sync_identity()
+            if mode == 'manual':
+                await self.halt()
             self.mode = mode
             self.resume_after_review = mode == 'automate'
             await self.bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
@@ -139,7 +170,20 @@ class BridgeRuntime:
                 raise ValueError('Loaded colony changed; no command sent')
             if expected_revision is not None and expected_revision != self.chat_revision:
                 raise ValueError('New player direction arrived; no command sent')
+            if name == 'home/order' and self.mode == 'automate' and not arguments.get('dryRun', False):
+                # Resolve before writing; persist intent even if the write loses its receipt.
+                if arguments.get('action') in ('draft', 'goto', 'attack', 'tend'):
+                    before = await self.game.invoke('home/order', {'action': 'resolve', 'pawn': arguments.get('pawn'), 'dryRun': True}, allow_write=True)
+                    pawn = before.get('pawn') or {}
+                    if pawn.get('drafted') is False and pawn.get('thingId'):
+                        self.draft_owners[str(pawn['thingId'])] = self.context_token
+                        self.persist()
             result = await self.game.invoke(name, arguments, allow_write=self.mode == 'automate')
+            if name == 'home/order' and not arguments.get('dryRun', False):
+                pawn_after = result.get('pawn') or {}
+                if pawn_after.get('drafted') is False:
+                    self.draft_owners.pop(str(pawn_after.get('thingId')), None)
+                    self.persist()
             self.counters['tools'] += 1
             self.note('tool_result', name, arguments=arguments, result=result)
             if is_write(name, arguments) and not arguments.get('dryRun', False):
@@ -195,8 +239,8 @@ class BridgeRuntime:
         except Exception as error:
             self.phase = 'Needs attention'
             self.reply('Review stopped: '+failure_text(error))
-            self.mode = 'manual'
-            self.resume_after_review = False
+            async with self.lock:
+                await self.halt()
             self.handled_revision = self.chat_revision
         finally:
             if self.chat_revision > self.handled_revision:
@@ -249,6 +293,8 @@ class BridgeRuntime:
                         await asyncio.wait_for(self.shutdown.wait(), 2)
                     except TimeoutError:
                         pass
+                async with self.lock:
+                    await self.halt()
         except Exception as error:
             import logging
             logging.exception('Native bridge connection failed')
