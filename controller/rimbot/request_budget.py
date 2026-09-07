@@ -20,12 +20,60 @@ def project_context(context):
         return out
     if isinstance(result.get('spatial_reservations'),dict):
         result['spatial_reservations']={k:v for k,v in result['spatial_reservations'].items() if k not in ('observed_land','native_plans','colors')}
+        for name in ('regions','corridors','defensive_lines','reserved_regions'):
+            for region in result['spatial_reservations'].get(name,[]):
+                if region.get('patches'):region['patches']=merge_patches(region['patches'])
+    kind=result.get('project',{}).get('kind')
+    if kind:
+        # Other projects explain ownership, not their entire execution history.
+        if 'projects' in result:
+            result['projects']=[{k:v for k,v in p.items() if k in ('project_id','owner','kind','outcome','status','quantity','crop_def','target_cells')}
+                                for p in result['projects'] if p.get('project_id')!=result['project'].get('project_id')]
+        if isinstance(result.get('spatial_reservations'),dict):
+            result['spatial_reservations']={k:v for k,v in result['spatial_reservations'].items()
+                if k in ('version','summary','zones','regions','corridors','defensive_lines','reserved_regions')}
+        if kind not in ('construction','growing','storage'):
+            result.pop('spatial_reservations',None)
+        # Supply details remain queryable; don't preload unrelated map systems.
+        groups={
+            'supply_access':('supplies','supply_summary'),
+            'construction':('supplies','supply_summary'),
+            'storage':('supplies','supply_summary'),
+            'growing':('terrain','food_crops','supply_summary'),
+        }.get(kind)
+        if groups and 'resource_overview' in result:
+            source=result['resource_overview']
+            result['resource_overview']={k:v for k,v in source.items() if k in (*groups,'available','reason','follow_up')}
     if isinstance(result.get('project'),dict):result['project']=project(result['project'])
     if isinstance(result.get('projects'),list):result['projects']=[project(p) for p in result['projects']]
     if isinstance(result.get('work'),list):
         rows=result['work'];result['work']=[{k:w[k] for k in ('id','project_id','title','status','detail') if k in w} for w in rows[-12:]]
         result['work_omitted']=max(0,len(rows)-12)
     return result
+
+
+def merge_patches(patches):
+    """Lossless union into rectangles; preserve holes and all reserved cells."""
+    rows={}
+    for p in patches:
+        for z in range(p['z1'],p['z2']+1):
+            rows.setdefault(z,set()).update(range(p['x1'],p['x2']+1))
+    rectangles=[];active={}
+    for z,xs in sorted(rows.items()):
+        spans=[]
+        for x in sorted(xs):
+            if spans and spans[-1][1]+1==x:spans[-1][1]=x
+            else:spans.append([x,x])
+        next_active={}
+        for a,b in spans:
+            previous=active.get((a,b))
+            if previous is not None and previous['z2']==z-1:
+                previous['z2']=z
+            else:
+                previous={'x1':a,'x2':b,'z1':z,'z2':z};rectangles.append(previous)
+            next_active[(a,b)]=previous
+        active=next_active
+    return rectangles
 
 def shorten(value,limit):
     if isinstance(value,str):return value if len(value)<=limit else value[:limit]+' [truncated; request narrower evidence]'

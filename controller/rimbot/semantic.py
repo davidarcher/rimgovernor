@@ -40,7 +40,10 @@ def retain_project(memory,owner,objective):
     if existing.get('kind') and existing['kind']!=objective.kind:
         existing.setdefault('previous_work_ids',[]).extend(existing['work_ids'])
         existing['work_ids']=[]
-    existing.update(objective.model_dump(exclude={'project_id'}),status='approved')
+    values=objective.model_dump(exclude={'project_id'})
+    revised=any(existing.get(k)!=v for k,v in values.items())
+    existing.update(values)
+    if revised:existing['status']='approved'
     existing.setdefault('feedback',[])
     return existing
 
@@ -95,7 +98,8 @@ async def semantic_review(rt,context,roles):
         previous=project.get('reviewed_order_states')
         project['reviews_without_order_change']=project.get('reviews_without_order_change',0)+1 if previous==states else 0
         project['reviewed_order_states']=states
-        project['age_days']=round((time.time()-project['created_at'])/86400,2) if project.get('created_at') else None
+        project.setdefault('created_tick',rt.last_tick or 0)
+        project['age_days']=round(((rt.last_tick or 0)-project['created_tick'])/60000,2)
     # Unblocked routine setup does not require another strategic approval turn.
     routine=[]
     for key,candidate in list(candidates.items()):
@@ -191,6 +195,15 @@ async def execute_projects(rt,context,scheduled):
             fresh=await rt.observe_resources(fresh)
             from .project_progress import refresh_progress
             fresh=await refresh_progress(rt,fresh)
+            from .project_schedule import execution_due, record_attempt
+            due,reason=execution_due(project,rt.memory,rt.last_tick or 0,context.get('administration_required',False))
+            if not due:
+                if project.get('execution_skip_reason')!=reason:
+                    rt.note('executor_schedule',reason,role=role,project_id=project['project_id'],decision='skipped')
+                    project['execution_skip_reason']=reason
+                continue
+            rt.note('executor_schedule',reason,role=role,project_id=project['project_id'],decision='invoked')
+            record_attempt(project,rt.memory,rt.last_tick or 0)
             fresh={k:v for k,v in fresh.items() if k not in ('plans','assignments')}
             fresh.update(project_owner=project['owner'],project=project,projects=[p for p in rt.memory['projects'] if p.get('status')!='retired'],assigned_task=project['outcome'])
             fresh['spatial_reservations']=rt.memory.get('spatial_layout',{})

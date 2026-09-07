@@ -2,6 +2,22 @@ import json
 import pytest
 from rimbot.request_budget import fit_request,project_context,encoded_size
 
+
+def test_spatial_compaction_is_lossless_and_supply_role_omits_map_plan():
+    from rimbot.request_budget import merge_patches
+    patches=[{'x1':x,'x2':x,'z1':z,'z2':z} for x in range(30) for z in range(4) if (x,z)!=(10,2)]
+    def cells(rows):return {(x,z) for r in rows for x in range(r['x1'],r['x2']+1) for z in range(r['z1'],r['z2']+1)}
+    packed=merge_patches(patches)
+    assert cells(packed)==cells(patches) and len(packed)<10
+    context={'project':{'kind':'construction'},'spatial_reservations':{'corridors':[{'patches':patches}]}}
+    assert cells(project_context(context)['spatial_reservations']['corridors'][0]['patches'])==cells(patches)
+    assert len(context['spatial_reservations']['corridors'][0]['patches'])==119
+    context['project']['kind']='supply_access'
+    context['resource_overview']={'supplies':{'items':[{'id':1}]},'animals':{'items':[{'id':2}]}}
+    result=project_context(context)
+    assert 'spatial_reservations' not in result and 'animals' not in result['resource_overview']
+    assert result['resource_overview']['supplies']['items'][0]['id']==1
+
 def test_oversized_context_and_tools_preserve_schema_and_call_pairs():
     tools=[{'type':'function','function':{'name':'submit','description':'d'*9000,'parameters':{'type':'object','properties':{'title':{'type':'string'},'cells':{'type':'array','items':{'type':'integer'}}},'required':['title','cells']}}}]
     messages=[{'role':'system','content':'Follow native facts'},{'role':'user','content':json.dumps({'projects':[{'project_id':str(i),'history':'x'*10000} for i in range(100)]})}]
