@@ -60,5 +60,5 @@ A live wiki smoke test successfully searched `bedroom`, followed the `Bedroom`
 redirect to `Rooms`, and retrieved a revision-linked excerpt and section index.
 These checks do not establish that a live model can yet complete the starter base.
 
-The RimMolt/AutoRim tool-surface and fork comparison remains a separate pending audit.
+The RimMolt/AutoRim tool-surface and fork comparison is recorded in TOOL_SURFACE_AUDIT.md.
 MCP adoption is out of scope per player direction.

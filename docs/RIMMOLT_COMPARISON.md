@@ -1,9 +1,9 @@
 # RimMolt and MCP comparison — 2026-09-07
 
-**Status:** preliminary research, not the completed tool-surface audit. The player
+**Status:** superseded by [the completed source audit](TOOL_SURFACE_AUDIT.md) and [full inventory](TOOL_SURFACE_INVENTORY.md). This document preserves preliminary research. The player
 subsequently excluded MCP adoption and requested detailed RimMolt/AutoRim coverage
 and a fork assessment. The shipped RimMolt assembly is now available for local
-inspection; the full comparison remains pending. Administrator investigation and
+inspection; the full comparison is now recorded in the audit. Administrator investigation and
 memory are implemented separately in [Administrator agency](ADMINISTRATOR_AGENCY.md).
 
 ## Findings and evidence limits
