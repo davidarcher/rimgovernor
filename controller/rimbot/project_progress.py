@@ -12,6 +12,30 @@ async def farm_progress(rt):
         rows.append({'zone_id':zone['id'],'cells':zone['cells_count'],'crop':detail.get('plant_def_name'),'plants_present':detail.get('plant_count'),'sowing_allowed':detail.get('is_sowing'),'growth_progress':detail.get('growth_progress')})
     return {'zones':rows,'zone_count':len(rows),'designated_cells':sum(r['cells'] for r in rows),'meaning':'Zone creation is immediate. These cells already exist even if sowing has not started. Inspect sowing/access/season/labor blockers instead of adding replacement fields.'}
 
+def site_recovery(site, eligibility):
+    """Keep persistent eligibility separate from temporary native worker failures."""
+    result={'thing_id':site['thing_id'],'def_name':site['def_name'],'stage':site['stage'],
+            'work_done':site.get('work_done',0),'work_total':site.get('work_total',0)}
+    restrictions=eligibility.get('restrictions',[])
+    if restrictions:
+        result.update(state='needs_alternative',reasons=restrictions,
+                      next_action='Choose an eligible alternative. Cancel only the obsolete project blueprint with the native cancel action, then inspect before replacement. Priorities cannot repair these restrictions.')
+    elif site.get('targeted_by'):
+        result.update(state='targeted',pawn_ids=site['targeted_by'],
+                      next_action='Observe delivery/work changes; a current target is not proof of completion. Do not duplicate this site.')
+    else:
+        missing=[m for m in site.get('materials',[]) if m['needed']>0]
+        workers=site.get('workers',[])
+        if not any(w['can_construct'] for w in workers):
+            result.update(state='worker_blocked',reasons=list(dict.fromkeys(w['reason'] for w in workers if w.get('reason'))),
+                          next_action='Resolve the reported native worker condition. Do not assume idle means construction is disabled.')
+        elif missing:
+            result.update(state='awaiting_materials',materials=missing,
+                          next_action='Resolve remaining delivery requirements. Allowed stock is not necessarily accessible; do not create replacement buildings.')
+        else:
+            result.update(state='ready_for_work',next_action='Existing site can be worked. Check ordinary labor and time progression; do not duplicate it.')
+    return result
+
 async def refresh_progress(rt,context):
     projects=[p for p in rt.memory.get('projects',[]) if p.get('status')!='retired']
     farming=await farm_progress(rt) if any(p['kind']=='growing' for p in projects) else None
@@ -20,6 +44,7 @@ async def refresh_progress(rt,context):
     if rooms and rt.memory.get('colony_focus'):
         area=(await rt.api.call('construction_area',{'map_id':rt.observation['map']['id'],'center':rt.memory['colony_focus'],'radius':24})).model_dump()
     lookup={(c['position']['x'],c['position']['z']):c for c in (area or {}).get('cells',[])}
+    eligibility={}
     for project in projects:
         progress={'observed_tick':rt.last_tick,'source':'live game','orders':[{'title':w.get('title',w['id']),'status':w['status']} for w in rt.memory.get('work',[]) if w['id'] in project.get('work_ids',[])]}
         if project['kind']=='growing':
@@ -36,6 +61,18 @@ async def refresh_progress(rt,context):
             interior=set().union(*(cells(r)-boundary(cells(r)) for r in own)) if own else set()
             progress['roof']={'interior_cells':len(interior),'observed_cells':len(interior & lookup.keys()),'roofed_cells':sum(lookup[c]['roofed'] for c in interior if c in lookup)}
             progress['meaning']='Building counts distinguish built, frames and blueprints. Roof coverage and furniture are separate requirements. Old model reports are not current blockers.'
+            owned_positions={(b['position']['x'],b['position']['z']) for w in rt.memory.get('work',[]) if w['id'] in project.get('work_ids',[]) for b in w.get('action',{}).get('arguments',{}).get('buildings',[])}
+            sites=[s for s in context.get('construction_work',{}).get('sites',[]) if (s['position']['x'],s['position']['z']) in points|owned_positions]
+            progress['sites']=[]
+            for site in sites:
+                name=site['def_name']
+                if name not in eligibility:
+                    definitions=await rt.api.call('construction_definitions',{'map_id':rt.observation['map']['id'],'search':name,'offset':0,'limit':32})
+                    definition=next((d for d in definitions.items if d.def_name==name),None)
+                    eligibility[name]=definition.eligibility.model_dump() if definition else {}
+                progress['sites'].append(site_recovery(site,eligibility[name]))
+            progress['sites_complete']=context.get('construction_work',{}).get('next_offset') is None and 'sites' in context.get('construction_work',{})
+
         if project.get('feedback'):
             rt.note('project_feedback_history','Previous review feedback superseded by a fresh observation',project_id=project['project_id'],feedback=project['feedback'])
         project['feedback']=[]

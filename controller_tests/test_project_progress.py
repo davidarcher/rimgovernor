@@ -37,3 +37,31 @@ async def test_room_progress_uses_built_state_and_roof_independently():
     await refresh_progress(rt,context)
     assert p['progress']['buildings']==[{'def_name':'Wall','state':'built','count':1}]
     assert p['progress']['roof']['roofed_cells']==1 and not p['feedback']
+
+def test_site_recovery_distinguishes_permanent_and_temporary_failures():
+    from rimbot.project_progress import site_recovery
+    site={'thing_id':7,'def_name':'RestrictedBed','stage':'blueprint','targeted_by':[],
+          'workers':[{'can_construct':False,'reason':'Only members can build'}],
+          'materials':[{'needed':30,'accessible_quantity':0,'forbidden_quantity':30}]}
+    result=site_recovery(site,{'restrictions':['Ideology restriction']})
+    assert result['state']=='needs_alternative' and 'Priorities cannot' in result['next_action']
+    site['targeted_by']=[3]
+    assert site_recovery(site,{'restrictions':[]})['state']=='targeted'
+    site['targeted_by']=[];site['workers'][0]['reason']='Downed'
+    assert site_recovery(site,{})['state']=='worker_blocked'
+    site['workers'][0]['can_construct']=True
+    assert site_recovery(site,{})['state']=='awaiting_materials'
+    site['materials'][0]['needed']=0
+    assert site_recovery(site,{})['state']=='ready_for_work'
+
+async def test_recovery_uses_current_native_eligibility_and_owned_site():
+    rt=runtime();p={'project_id':'bed','kind':'construction','feedback':[],'work_ids':['w']}
+    rt.memory.update(projects=[p],work=[{'id':'w','status':'complete','action':{'arguments':{'buildings':[{'position':{'x':3,'z':4}}]}}}])
+    async def call(name,args,**kwargs):
+        assert name=='construction_definitions' and args['map_id']==0
+        return NS(items=[NS(def_name='SlabBed',eligibility=NS(model_dump=lambda:{'restrictions':['Ideology restriction']}))])
+    rt.api.call=call
+    context={'construction_work':{'sites':[{'thing_id':8,'def_name':'SlabBed','stage':'blueprint','position':{'x':3,'z':4}}],'next_offset':None}}
+    await refresh_progress(rt,context)
+    assert p['progress']['sites'][0]['state']=='needs_alternative'
+    assert p['progress']['sites_complete']
