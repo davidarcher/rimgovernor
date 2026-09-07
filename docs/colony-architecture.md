@@ -155,3 +155,17 @@ establish a usable room. Those broader criteria remain explicit review requireme
 Other project kinds currently report unknown outcome evidence. Regression tests cover
 missing observations, scope, regressions and the distinction from order receipts;
 full gameplay outcome validation remains outstanding.
+
+## Quiet execution while ordinary work progresses
+
+Growing-project scheduling now fingerprints only the selected crop's zone IDs,
+cell counts and sowing settings, alongside its target and tracked orders. Other
+crops, individual plant jobs and growth percentages no longer trigger an executor
+turn. Target changes, removed/replaced zones and sowing changes still reopen it.
+Crop loss and labor stalls remain covered by the six-game-hour reassessment;
+this is not an immediate crop-damage event detector.
+
+An executor returning no actions and no blockers now watches for changes rather
+than entering the hourly failure retry. It does not mark the goal complete.
+Explicit blockers retain the shorter retry; player direction still bypasses the
+wait. Integration tests exercise repeated execution, not just fingerprint equality.
