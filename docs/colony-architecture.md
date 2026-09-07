@@ -10,7 +10,7 @@ This is an incremental refactor of the Python controller and native RIMAPI, not 
 | Persistent goals | `semantic.retain_project`, SQLite memory, strategy/day plans | Projects already carry owner, outcome, constraints, success signals, progress and work IDs. Extend these with dependencies, deadlines and suspension; do not add another goal queue. Legacy `memory.goals` and executable projects need consolidation. |
 | Action lifecycle | `runtime.execute`, `reconcile`, `reconcile_projects` | Unknown-before-send persistence, in-flight duplicate checks, native completion and timeout already exist. Project retirement still relies on administrator judgment; verified orders deliberately do not mean goal achieved. |
 | Commitment | `project_schedule`, existing project records | First slice implemented: preserve unchanged approvals; observe before re-invoking; game-time reassessment; changed evidence or steering bypasses waiting. Broader resource/priority commitments remain. |
-| Resource arbitration | Native placement validates material/legality; administrator selects objectives | **No central project budget ledger.** `Proposal.resources` does not enforce shared budgets. Next: derive costs from native definitions/current orders, reserve by project, reconcile delivered/consumed resources, deterministically reject over-allocation. Unknown costs must remain unknown. |
+| Resource arbitration | `resource_budget`, serialized `runtime.execute`, native outstanding construction deliveries | Shared construction admission now subtracts every observed native site's remaining requirements from full allowed stock, plus policy reserves. Native base-definition costs price new placements; existing sites are not charged twice. Future bills, labor and other consumption are not allocated yet. |
 | Scheduling / interrupts | Daily administrator, bounded parallel department proposals, periodic execution, SSE events | Add targeted manager triggers and persistent suspend/resume policy. Presence of distant hostiles must not suspend colony work. |
 | Work allocation | Native work restrictions/priorities, observed site workers, scoped work-assignment executor | No deterministic coverage optimizer. Use native worker eligibility and observed backlog; models set policy, not arithmetic. |
 | Semantic skills | `WorkObjective`, scoped executors, enclosure compiler, routine instant actions | Extend existing decomposition as needed. Do not add room-specific command APIs or duplicate the native registry. |
@@ -38,11 +38,39 @@ facts may wait for the bounded reassessment; add typed relevant event triggers i
 
 ## Ordered follow-up
 
-1. Central native-cost resource reservations and executable competing-steel regression.
-2. Derived risk facts and hysteretic manager triggers, with explicit unavailable/uncertain inputs.
-3. Extend existing project lifecycle with dependencies and emergency suspension/resumption.
-4. Deterministic work coverage and goal postconditions beyond individual order completion.
-5. Crisis playbooks, separate combat loop, occasional strategic critic, decision replay scenarios.
+1. Derived risk facts and hysteretic manager triggers, with explicit unavailable/uncertain inputs.
+2. Extend existing project lifecycle with dependencies and emergency suspension/resumption.
+3. Deterministic work coverage and goal postconditions beyond individual order completion.
+4. Crisis playbooks, separate combat loop, occasional strategic critic, decision replay scenarios.
 
 Each slice requires focused regression tests and a checkpoint. The full acceptance scenario in the
 request is not yet implemented or proven by the starter-base benchmark.
+
+## Shared construction budget
+
+`resource_budget` reads the complete native supply survey and every page of construction work.
+Player-created sites and retired projects' remaining native orders count too. The native
+`ThingCountNeeded` observations are remaining deliveries, so delivered frame contents are not
+subtracted again from loose stocks. Cancelling or completing a native site releases its remaining
+obligation on the next survey; retiring controller tracking alone does not.
+
+All controller orders are serialized through the same execution lock. Material admission runs
+before sending each construction batch, with fixed ingredients and selected stuff from native
+definitions. Existing placements and free objects need no extra supply survey. A failed budget
+records costs and shortages on the project and emits a diagnostic for administrator review.
+Project proposal priorities are retained and determine execution order; same-priority instant
+setup remains first. This does not cancel an existing lower-priority blueprint to satisfy a new one.
+
+The budget uses exact native definition names, never interchangeable material-category totals.
+`memory.resource_reserves` can hold nonnegative item counts; no default reserve policy is invented.
+New-placement quotes currently use published **base** definition costs, not a new native adjusted-cost
+quote endpoint. Mod-specific cost adjustments, future production bills, pawn inventories, travel
+safety, and external concurrent player/game consumption are outside this first admission model.
+It is not a transactional reservation inside RimWorld. The native command still enforces placement
+and eligibility; uncertain observations never imply zero cost or unlimited resources.
+
+Regression coverage includes competing 250/180-steel requests against 300 spendable steel,
+concurrent execution callers, delivery/completion/cancellation arithmetic, full pagination,
+unknown materials, free orders, and material definitions with modded names. Read-only live
+verification succeeded against the eight-member tribal test colony; this is not a completed
+starter-base gameplay result.

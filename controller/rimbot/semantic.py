@@ -29,7 +29,7 @@ def reconcile_projects(memory):
     return changed
 
 
-def retain_project(memory,owner,objective):
+def retain_project(memory,owner,objective,priority=None):
     projects=memory.setdefault('projects',[])
     existing=next((p for p in projects if p['project_id']==objective.project_id),None) if objective.project_id else None
     if objective.project_id and (existing is None or existing['owner']!=owner):raise ValueError('Project must reference an existing objective owned by this manager')
@@ -43,6 +43,7 @@ def retain_project(memory,owner,objective):
     values=objective.model_dump(exclude={'project_id'})
     revised=any(existing.get(k)!=v for k,v in values.items())
     existing.update(values)
+    if priority is not None:existing['priority']=priority
     if revised:existing['status']='approved'
     existing.setdefault('feedback',[])
     return existing
@@ -91,7 +92,7 @@ async def semantic_review(rt,context,roles):
     proposals={role:proposals[role] for role in roles if role in proposals}
     if not proposals and not projects:
         raise ModelError('No department submitted an objective review.')
-    candidates={f'{owner}:{i}':{'owner':owner,'objective':objective,'blockers':proposal['blockers']} for owner,proposal in proposals.items() for i,objective in enumerate(proposal['objectives'])}
+    candidates={f'{owner}:{i}':{'owner':owner,'objective':objective,'blockers':proposal['blockers'],'priority':proposal['priority']} for owner,proposal in proposals.items() for i,objective in enumerate(proposal['objectives'])}
     work={w['id']:w for w in rt.memory['work']}
     for project in projects:
         states=sorted((i,work.get(i,{}).get('status','missing')) for i in project['work_ids'])
@@ -105,7 +106,7 @@ async def semantic_review(rt,context,roles):
     for key,candidate in list(candidates.items()):
         if candidate['objective']['kind'] in ('supply_access','storage','growing') and not candidate['blockers']:
             objective=ObjectiveProposal.model_validate({'summary':'Routine setup','objectives':[candidate['objective']]}).objectives[0]
-            routine.append(retain_project(rt.memory,candidate['owner'],objective))
+            routine.append(retain_project(rt.memory,candidate['owner'],objective,candidate['priority']))
             del candidates[key]
     if routine:
         rt.persist()
@@ -145,7 +146,7 @@ async def semantic_review(rt,context,roles):
         objective=decision.updates.get(key) or ObjectiveProposal.model_validate({'summary':'Approved','objectives':[candidate['objective']]}).objectives[0]
         existing=next((p for p in projects if p['project_id']==objective.project_id),None)
         owner=existing['owner'] if existing else candidate['owner']
-        project=retain_project(rt.memory,owner,objective)
+        project=retain_project(rt.memory,owner,objective,candidate['priority'])
         if project not in approved:approved.append(project)
     active_ids={i for p in rt.memory['projects'] if p.get('status')!='retired' for i in p['work_ids']}
     obsolete_ids={i for p in rt.memory['projects'] for i in (p['work_ids'] if p.get('status')=='retired' else p.get('previous_work_ids',[]))}
@@ -166,7 +167,7 @@ async def execute_projects(rt,context,scheduled):
     await release_retired(rt,{p['project_id'] for p in rt.memory.get('projects',[]) if p.get('status')!='retired'})
     spatial_error=None
     layout_prepared=False
-    scheduled=sorted(scheduled,key=lambda p:{'supply_access':0,'storage':1,'growing':2}.get(p['kind'],3))
+    scheduled=sorted(scheduled,key=lambda p:({'urgent':0,'high':1,'normal':2,'low':3}.get(p.get('priority','normal'),2),{'supply_access':0,'storage':1,'growing':2}.get(p['kind'],3)))
     for project in scheduled:
         rt.check_generation()
         if rt.mode!='automate':break
@@ -242,11 +243,15 @@ async def execute_projects(rt,context,scheduled):
             receipt='; '.join(f'{count} {labels.get(status,status)}' for status,count in outcomes.items()) or 'No new orders recorded.'
             rt.note('execution',receipt,role=role,project_id=project['project_id'],outcomes=dict(outcomes),results=[{k:w[k] for k in ('id','title','status')} for w in rt.memory['work'] if w['id'] not in before_batch],blockers=batch.blockers)
             project['status']='awaiting_work' if batch.actions else 'needs_review'
+            if batch.actions:project.pop('resource_request',None)
             reconcile_projects(rt.memory)
         except asyncio.CancelledError:
             project['status']='needs_review';project['feedback']=['Execution interrupted; inspect existing orders before continuing.']
             raise
         except (ModelError,ValueError,RuntimeError) as error:
             project['status']='needs_review';project['feedback']=[str(error)]
+            from .resource_budget import BudgetConflict
+            if isinstance(error,BudgetConflict) and error.costs is not None:
+                project['resource_request']={'costs':error.costs,'shortage':error.shortage,'observed_tick':rt.last_tick}
             rt.note('error',str(error),role=role,project_id=project['project_id'])
         finally:rt.persist()

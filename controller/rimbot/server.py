@@ -230,7 +230,7 @@ def create_app(runtime=None):
     @app.get('/api/manager-activity')
     async def manager_activity(request: Request):
         rt=request.app.state.rt
-        rows=rt.store.db.execute("SELECT id,at,kind,data FROM events WHERE colony=? AND kind IN ('model_call','model_failure','tool_result','proposal','execution','execution_plan','arbitration','escalation','action','error','model_diagnostic') ORDER BY id DESC LIMIT 300",(rt.colony,)).fetchall()
+        rows=rt.store.db.execute("SELECT id,at,kind,data FROM events WHERE colony=? AND kind IN ('model_call','model_failure','tool_result','proposal','execution','execution_plan','arbitration','escalation','action','error','model_diagnostic','resource_allocation','resource_conflict','executor_schedule') ORDER BY id DESC LIMIT 300",(rt.colony,)).fetchall()
         # Preserve outcomes even when hundreds of inspection events follow them.
         outcomes=rt.store.db.execute("SELECT id,at,kind,data FROM events WHERE colony=? AND kind IN ('execution','arbitration','spatial_plan','project_cancelled','work_outcome','error','escalation') ORDER BY id DESC LIMIT 80",(rt.colony,)).fetchall()
         merged={r[0]:r for r in rows+outcomes}

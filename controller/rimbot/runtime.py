@@ -46,6 +46,7 @@ class Runtime:
         self.last_review = -100000
         self.last_review_wall = 0
         self.poll_lock = asyncio.Lock()
+        self.order_lock = asyncio.Lock()
         self.started_at = None
         self.event_connection = False
         self.stopped = False
@@ -479,6 +480,11 @@ class Runtime:
             self.note('work','Work updated from colony observations.')
 
     async def execute(self, action: Action, role):
+        # Keep observation/admission/send ordered across all controller callers.
+        async with self.order_lock:
+            return await self._execute(action,role)
+
+    async def _execute(self, action: Action, role):
         self.check_generation()
         if self.mode != 'automate':
             return
@@ -499,6 +505,9 @@ class Runtime:
             if existing['status'] in ('issued','unknown','waiting') and previous.get('endpoint')==action.endpoint and previous.get('arguments')==action.arguments:
                 self.note('action',f'Already in flight: {action.title}',role=role)
                 return
+        if action.endpoint=='construction_place':
+            from .resource_budget import admit_construction
+            await admit_construction(self,action,role)
         work = {'id':uuid.uuid4().hex[:12], 'title':action.title,'status':'unknown',
                 'detail':'Sending order', 'role':role,'action':action.model_dump(), 'tick':self.last_tick}
         self.memory['work'].append(work)
@@ -601,6 +610,8 @@ class Runtime:
             raise ModelError('Colony changed during review; pending decisions were discarded.')
         self.observation=observed
         result={**context,'colony':compact(observed,20000)}
+        if self.memory.get('resource_budget'):
+            result['construction_budget']=self.memory['resource_budget']
         if 'get_work_settings' in self.catalog.available:
             result['work_settings']=await self.api.call('get_work_settings',{},fresh=True)
         if 'construction_state' in self.catalog.available:
