@@ -5,7 +5,17 @@ from .contracts import Contract, Decision
 
 ProjectKind=Literal['construction','growing','production','storage','work_assignment','supply_access','care','security','research']
 
+class WorkCoverage(Contract):
+    work_type: str = Field(description='Exact observed native WorkTypeDef name.')
+    workers: int = Field(ge=1)
+    priority: int = Field(default=2,ge=1,le=4,description='Native manual priority; lower is more important.')
+
+class WorkPolicy(Contract):
+    coverage: list[WorkCoverage] = Field(min_length=1,max_length=8,description='Ordered policy priorities, not pawn assignments. Code selects eligible workers.')
+    protect: list[str] = Field(default_factory=list,max_length=8,description='Observed native work types whose sole currently enabled provider should not receive unrelated promotions, e.g. preserve critical coverage.')
+
 class WorkObjective(Contract):
+    work_policy: WorkPolicy | None = Field(default=None,description='Work assignment only: desired native work coverage. Use this for priority allocation instead of choosing pawns or issuing priority commands. Timetable-only projects may leave it null. Configure only for an observed work-setting need; this does not create jobs.')
     after_projects: list[str] = Field(default_factory=list,max_length=4,description='Only genuine prerequisites: existing project IDs whose native orders must still be verified before execution. Empty by default. Stockpiles are not prerequisites for using supplies or growing crops. This checks orders, not overall goal completion.')
     deadline_tick: int | None = Field(default=None,ge=0,description='Optional absolute game-tick target. A missed target prompts review; it does not cancel the project. Null without a supported deadline.')
     project_id: str = Field(default='',description='Existing project ID to continue; blank creates a new objective.')

@@ -12,6 +12,7 @@ export default function Projects({projects,onCancel}:{projects:any[],onCancel:(i
     {projects.filter(p=>p.status!=='retired').map(p=><article className="mgr-work-row" key={p.project_id}><div><b>{p.outcome}</b><p>{labels[p.status]||p.status}</p><small>{p.owner} · {p.kind.replaceAll('_',' ')} · {p.work_ids.length} tracked orders</small>
       {p.dependency_blockers?.map((b:string,i:number)=><p key={'dependency'+i}>{b}</p>)}
       {p.deadline_overdue&&<p>Target date passed; awaiting review.</p>}
+      {p.work_allocation&&<details><summary>Work coverage</summary><p>Selected coverage; see orders below for verified changes.</p><ul>{p.work_allocation.selected.map((s:any)=><li key={s.pawn_id+':'+s.work_type}>{s.pawn_name||s.pawn_id} · {s.work_type} · priority {s.priority}</li>)}</ul></details>}
       {p.progress_note&&<p>{p.progress_note}</p>}
       {p.feedback?.map((f:string,i:number)=><p key={i}>{f}</p>)}
       <details><summary>Scope and completion criteria</summary>{p.quantity!=null&&<p>Target: {p.quantity}</p>}<ul>{p.constraints.map((c:string,i:number)=><li key={'c'+i}>{c}</li>)}{p.success_signals.map((c:string,i:number)=><li key={'s'+i}>{c}</li>)}</ul></details></div><button title="Cancel project and stop tracking its orders; existing game orders stay in place" aria-label={`Cancel ${p.outcome}`} onClick={()=>onCancel(p.project_id)}>Cancel</button></article>)}

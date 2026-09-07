@@ -12,7 +12,7 @@ This is an incremental refactor of the Python controller and native RIMAPI, not 
 | Commitment | `project_schedule`, existing project records | First slice implemented: preserve unchanged approvals; observe before re-invoking; game-time reassessment; changed evidence or steering bypasses waiting. Broader resource/priority commitments remain. |
 | Resource arbitration | `resource_budget`, serialized `runtime.execute`, native outstanding construction deliveries | Shared construction admission now subtracts every observed native site's remaining requirements from full allowed stock, plus policy reserves. Native base-definition costs price new placements; existing sites are not charged twice. Future bills, labor and other consumption are not allocated yet. |
 | Scheduling / interrupts | Daily administrator, bounded parallel proposals, derived risk transitions, persisted project interruption | Native current life-threatening conditions target Survival and suspend nonurgent new execution. Care, supply access, security and explicitly urgent projects continue. Expand to other observed crises without using hostile presence as a blanket veto. |
-| Work allocation | Native work restrictions/priorities, observed site workers, scoped work-assignment executor | No deterministic coverage optimizer. Use native worker eligibility and observed backlog; models set policy, not arithmetic. |
+| Work allocation | `work_allocation`, native work types/relevant skills, existing verified priority commands | Coverage policies now select exact workers deterministically. Timetable-only/legacy direct tasks still use the scoped executor. Travel, fatigue, site-specific skills and throughput optimization remain outside the allocator. |
 | Semantic skills | `WorkObjective`, scoped executors, enclosure compiler, routine instant actions | Extend existing decomposition as needed. Do not add room-specific command APIs or duplicate the native registry. |
 | Spatial planning / logistics | Persistent `BasePlan`, staged regions, reserved corridors, native validation | Add inexpensive cached distance estimates between semantic areas. Current legal placement is not proof of a good layout. |
 | Combat | Security executor supports equipment/pawn jobs; native restrictions checked | No separate fast tactical loop. Needs observed threat assessment and validated combat actions before automation; avoid fabricating a combat policy from hostile count. |
@@ -115,3 +115,27 @@ The native summary includes forbidden/unexplored loose food and excludes pawn in
 change also includes production, trade and spoilage. Consequently `food_runway_days` remains
 unavailable: no nominal per-pawn hunger constant or guaranteed-safe-food claim was invented.
 Harvest timing also remains unavailable pending native rates and season/temperature inputs.
+
+## Deterministic work coverage
+
+An optional `work_policy` on work-assignment objectives specifies native work types, worker counts,
+manual priorities and protected coverage. Native `relevant_skills` joins pawn skill records using
+definition names, including modded definitions. Missing eligibility/skill observations do not become
+invented zero-skill workers. Dead, downed and observed drafted workers are excluded.
+
+The allocator preserves adequate existing coverage first, spreads new duties, then compares skill,
+passion and stable pawn ID. Protected coverage is processed first, and a sole enabled protected
+provider receives no unrelated new promotion. It never disables existing priorities. Infeasible
+coverage produces no partial priority batch and requests policy revision from the administrator.
+This is a conservative coverage heuristic, not an optimal labor-throughput solver.
+
+Policy execution uses the normal manual-priority toggle and batch-priority API through existing
+execution/postcondition verification. It does not call the executor model, force jobs, or treat idle
+pawns as proof of bad priorities. Repeated policy checks use fresh observations without model calls.
+Work shows the selection separately from verified changes. Timetable-only objectives can retain the
+existing scoped planner; the native commands were not replaced with a parallel game-action API.
+
+Tests cover native/modded skill mapping, disabled/downed/drafted exclusions, stable existing coverage,
+sole-provider protection, insufficient coverage, normal native command generation and the model-free
+project execution path. A read-only live tribal-colony selection was exercised; actual priority writes
+and resulting labor throughput have not yet been validated in a full playtest.

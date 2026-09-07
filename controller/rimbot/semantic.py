@@ -212,7 +212,7 @@ async def execute_projects(rt,context,scheduled):
             fresh=await refresh_progress(rt,fresh)
             from .project_schedule import execution_due, record_attempt
             due,reason=execution_due(project,rt.memory,rt.last_tick or 0,context.get('administration_required',False))
-            if not due:
+            if not due and not project.get('work_policy'):
                 if project.get('execution_skip_reason')!=reason:
                     rt.note('executor_schedule',reason,role=role,project_id=project['project_id'],decision='skipped')
                     project['execution_skip_reason']=reason
@@ -223,7 +223,10 @@ async def execute_projects(rt,context,scheduled):
             fresh.update(project_owner=project['owner'],project=project,projects=[p for p in rt.memory['projects'] if p.get('status')!='retired'],assigned_task=project['outcome'])
             fresh['spatial_reservations']=rt.memory.get('spatial_layout',{})
             project['status']='inspecting';rt.persist()
-            batch=await rt.planner.ask(role,fresh,Proposal,rt.settings.reasoning)
+            if project['kind']=='work_assignment' and project.get('work_policy'):
+                from .work_allocation import plan
+                batch=await plan(rt,project,fresh)
+            else:batch=await rt.planner.ask(role,fresh,Proposal,rt.settings.reasoning)
             if batch.escalation_reason:
                 rt.memory['admin_requested']=batch.escalation_reason
                 project['status']='needs_review';project['feedback']=[batch.escalation_reason]
@@ -257,6 +260,9 @@ async def execute_projects(rt,context,scheduled):
             receipt='; '.join(f'{count} {labels.get(status,status)}' for status,count in outcomes.items()) or 'No new orders recorded.'
             rt.note('execution',receipt,role=role,project_id=project['project_id'],outcomes=dict(outcomes),results=[{k:w[k] for k in ('id','title','status')} for w in rt.memory['work'] if w['id'] not in before_batch],blockers=batch.blockers)
             project['status']='awaiting_work' if batch.actions else 'needs_review'
+            if project.get('work_policy') and not batch.actions and not batch.blockers:
+                project['status']='orders_verified'
+                project['progress_note']='Requested work coverage is present. This does not create jobs or prove labor is progressing.'
             if batch.actions:project.pop('resource_request',None)
             reconcile_projects(rt.memory)
         except asyncio.CancelledError:

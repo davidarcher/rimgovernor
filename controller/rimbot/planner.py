@@ -119,6 +119,8 @@ class Planner:
             validate_graph(self.rt.memory.get('projects',[]),{
                 o.project_id or f'new:{i}':o.after_projects for i,o in enumerate(objectives)})
             for objective in objectives:
+                if objective.work_policy is not None and objective.kind!='work_assignment':
+                    raise ValueError('Work coverage policy requires kind=work_assignment')
                 mismatch=routing_error(objective.model_dump())
                 if mismatch:raise ValueError(mismatch)
             cancelled={(p['kind'],p['outcome'].strip().casefold()) for p in self.rt.memory.get('projects',[]) if p.get('cancelled_by_player') and p.get('cancelled_direction',self.rt.memory.get('direction',[]))==self.rt.memory.get('direction',[])}

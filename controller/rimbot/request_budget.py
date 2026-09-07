@@ -12,7 +12,7 @@ def project_context(context):
     result=copy.deepcopy(context)
     def project(p):
         keep=('project_id','owner','kind','outcome','status','quantity','crop_def','target_cells','definition_requirements','constraints','success_signals','progress','feedback','priority','resource_request','interruption')
-        out={k:v for k,v in p.items() if k in (*keep,'after_projects','deadline_tick','deadline_overdue','dependency_blockers')}
+        out={k:v for k,v in p.items() if k in (*keep,'after_projects','deadline_tick','deadline_overdue','dependency_blockers','work_policy','work_allocation')}
         if isinstance(out.get('progress'),dict):
             orders=out['progress'].pop('orders',[])
             from collections import Counter
@@ -25,6 +25,7 @@ def project_context(context):
                 if region.get('patches'):region['patches']=merge_patches(region['patches'])
     kind=result.get('project',{}).get('kind')
     if kind:
+        if kind!='work_assignment':result.pop('native_work_types',None)
         # Other projects explain ownership, not their entire execution history.
         if 'projects' in result:
             result['projects']=[{k:v for k,v in p.items() if k in ('project_id','owner','kind','outcome','status','quantity','crop_def','target_cells')}

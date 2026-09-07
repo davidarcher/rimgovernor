@@ -621,6 +621,11 @@ class Runtime:
             result['construction_budget']=self.memory['resource_budget']
         if 'get_work_settings' in self.catalog.available:
             result['work_settings']=await self.api.call('get_work_settings',{},fresh=True)
+        try:
+            definitions=await self.api.call('get_def_all',{'filters':['WorkTypeDefs']})
+            result['native_work_types']=[{k:d.get(k) for k in ('def_name','label','relevant_skills')} for d in (definitions.get('work_type_defs') or [])]
+        except (APIError,ValueError) as error:
+            result['native_work_types']={'unavailable':str(error)}
         if 'construction_state' in self.catalog.available:
             state=await self.api.call('construction_state',{'map_id':observed['map']['id']})
             result['construction_state']=state.model_dump()
