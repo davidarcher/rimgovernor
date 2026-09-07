@@ -210,7 +210,7 @@ async def execute_projects(rt,context,scheduled):
             fresh=await rt.observe_resources(fresh)
             from .project_progress import refresh_progress
             fresh=await refresh_progress(rt,fresh)
-            from .project_schedule import execution_due, record_attempt
+            from .project_schedule import execution_due, record_attempt, order_states, acknowledge_dispatch
             due,reason=execution_due(project,rt.memory,rt.last_tick or 0,context.get('administration_required',False))
             if not due and not project.get('work_policy'):
                 if project.get('execution_skip_reason')!=reason:
@@ -219,6 +219,7 @@ async def execute_projects(rt,context,scheduled):
                 continue
             rt.note('executor_schedule',reason,role=role,project_id=project['project_id'],decision='invoked')
             record_attempt(project,rt.memory,rt.last_tick or 0)
+            prior_orders=order_states(project,rt.memory)
             fresh={k:v for k,v in fresh.items() if k not in ('plans','assignments')}
             fresh.update(project_owner=project['owner'],project=project,projects=[p for p in rt.memory['projects'] if p.get('status')!='retired'],assigned_task=project['outcome'])
             fresh['spatial_reservations']=rt.memory.get('spatial_layout',{})
@@ -267,6 +268,8 @@ async def execute_projects(rt,context,scheduled):
                 project['progress_note']='Requested work coverage is present. This does not create jobs or prove labor is progressing.'
             if batch.actions:project.pop('resource_request',None)
             reconcile_projects(rt.memory)
+            if batch.actions and not batch.blockers and project['status']!='needs_review':
+                acknowledge_dispatch(project,rt.memory,rt.last_tick or 0,prior_orders)
         except asyncio.CancelledError:
             project['status']='needs_review';project['feedback']=['Execution interrupted; inspect existing orders before continuing.']
             raise

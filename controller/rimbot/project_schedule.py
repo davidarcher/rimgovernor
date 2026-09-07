@@ -8,7 +8,9 @@ REVIEW_TICKS = 15000
 
 
 def evidence(project, memory):
-    progress = {k: v for k, v in project.get('progress', {}).items() if k != 'observed_tick'}
+    # Order status has one authoritative source below. The progress display may
+    # contain an older copy until the next observation refresh.
+    progress = {k: v for k, v in project.get('progress', {}).items() if k not in ('observed_tick','orders')}
     if 'sites' in progress:
         # Ordinary work increments are success, not a reason to ask for more orders.
         progress['sites'] = [{k:v for k,v in site.items() if k not in ('work_done','work_total','pawn_ids')}
@@ -52,3 +54,16 @@ def execution_due(project, memory, tick, force=False):
 def record_attempt(project, memory, tick):
     project['execution_review'] = {'tick': tick, 'evidence': evidence(project, memory)}
     project.pop('execution_skip_reason', None)
+
+
+def order_states(project, memory):
+    work = {w['id']:w['status'] for w in memory.get('work', [])}
+    return {identity:work.get(identity, 'missing') for identity in project.get('work_ids', [])}
+
+
+def acknowledge_dispatch(project, memory, tick, before):
+    """Accept our new receipts, never swallow older work changing during a turn."""
+    current = order_states(project, memory)
+    if any(current.get(identity) != state for identity, state in before.items()):
+        return
+    record_attempt(project, memory, tick)

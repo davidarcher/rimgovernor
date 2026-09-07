@@ -1,6 +1,7 @@
 from rimbot.project_schedule import execution_due, record_attempt, REVIEW_TICKS, RETRY_TICKS
 from rimbot.semantic import retain_project
 from rimbot.semantic_models import WorkObjective
+from rimbot.project_schedule import order_states, acknowledge_dispatch
 
 
 def setup():
@@ -18,6 +19,45 @@ def test_game_progress_does_not_replan_underway_work_or_use_wall_time():
     assert not execution_due(project,memory,500)[0]
     assert not execution_due(project,memory,100)[0]
     assert execution_due(project,memory,100+REVIEW_TICKS)[0]
+
+
+def test_new_receipts_are_acknowledged_but_later_completion_reopens():
+    project,memory=setup()
+    before=order_states(project,memory)
+    project['work_ids'].append('new')
+    memory['work'].append({'id':'new','status':'issued'})
+    acknowledge_dispatch(project,memory,101,before)
+    project['progress']['orders']=[{'title':'Old display copy','status':'issued'}]
+    assert not execution_due(project,memory,102)[0]
+    memory['work'][-1]['status']='complete'
+    assert execution_due(project,memory,102)[0]
+
+
+def test_existing_work_completion_during_model_turn_is_not_swallowed():
+    project,memory=setup()
+    before=order_states(project,memory)
+    memory['work'][0]['status']='complete'
+    project['work_ids'].append('new')
+    memory['work'].append({'id':'new','status':'issued'})
+    acknowledge_dispatch(project,memory,101,before)
+    assert execution_due(project,memory,102)[0]
+
+
+async def test_verified_instant_batch_does_not_invoke_executor_again(colony):
+    from unittest.mock import AsyncMock
+    from rimbot.semantic import execute_projects
+    from rimbot.contracts import Proposal, Action
+    rt,game=colony;rt.mode='automate';rt.cycle_generation=rt.generation
+    project=retain_project(rt.memory,'Survival',WorkObjective(
+        kind='supply_access',outcome='Allow nearby timber',success_signals=['Timber allowed']))
+    rt.planner.ask=AsyncMock(return_value=Proposal(summary='Allow timber',actions=[Action(
+        title='Allow timber',endpoint='post_things_set_forbidden',
+        arguments={'map_id':7,'thing_ids':[101],'forbidden':False})]))
+    await execute_projects(rt,{},[project])
+    assert project['status']=='orders_verified'
+    assert not game.forbidden
+    await execute_projects(rt,{},[project])
+    rt.planner.ask.assert_awaited_once()
 
 
 def test_completion_blocker_and_changed_intent_reopen_immediately():

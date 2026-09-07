@@ -169,3 +169,12 @@ An executor returning no actions and no blockers now watches for changes rather
 than entering the hourly failure retry. It does not mark the goal complete.
 Explicit blockers retain the shorter retry; player direction still bypasses the
 wait. Integration tests exercise repeated execution, not just fingerprint equality.
+
+Successful executor batches now acknowledge their new tracked-order receipts in the
+scheduling baseline. The display's copied order list is excluded from scheduling;
+the authoritative work records supply those statuses. This avoids a follow-up model
+turn solely because the controller recorded its own commands. Existing work changing
+during inference, failed/partial batches, later completion and new spatial observations
+still trigger review. No game result is inferred from a receipt. The instant-command
+integration test verifies state through the fixture API and then checks that a second
+execution pass makes no model call; live gameplay performance remains unmeasured.
