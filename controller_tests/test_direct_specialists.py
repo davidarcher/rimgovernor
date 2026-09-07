@@ -83,3 +83,19 @@ async def test_failed_admin_cannot_block_existing_approval_or_accept_new_work(co
     rt.planner.ask=ask
     await semantic_review(rt,{},['Infrastructure'])
     assert game.writes==['things/set-forbidden'] and len(rt.memory['projects'])==1
+
+
+async def test_reworded_invalid_objective_does_not_stall_other_departments(colony):
+    import json
+    from rimbot.model import ModelError
+    rt,_=colony;rt.cycle_generation=rt.generation;calls=[]
+    async def complete(messages,tools,*args):
+        schema=tools[0]['function']['parameters']['properties']['objectives']['items']
+        assert {'crop_def','target_cells'}<=set(schema['required'])
+        calls.append(1)
+        payload={'summary':'Attempt '+str(len(calls)),'objectives':[{'kind':'growing','outcome':'Grow food','success_signals':['Food grows']}]}
+        return {'role':'assistant','tool_calls':[{'id':str(len(calls)),'type':'function','function':{'name':'submit','arguments':json.dumps(payload)}}]},{}
+    rt.model.complete=complete
+    with pytest.raises(ModelError,match='same invalid submission three times'):
+        await rt.planner.ask('Survival',{},ObjectiveProposal,False)
+    assert len(calls)==3

@@ -127,7 +127,7 @@ class Planner:
                 if objective.work_policy is not None and objective.kind!='work_assignment':
                     raise ValueError('Work coverage policy requires kind=work_assignment')
                 mismatch=routing_error(objective.model_dump())
-                if mismatch:raise ValueError(mismatch)
+                if mismatch:raise ValueError('Objective '+repr(objective.outcome)+': '+mismatch)
             cancelled={(p['kind'],p['outcome'].strip().casefold()) for p in self.rt.memory.get('projects',[]) if p.get('cancelled_by_player') and p.get('cancelled_direction',self.rt.memory.get('direction',[]))==self.rt.memory.get('direction',[])}
             if any((o.kind,o.outcome.strip().casefold()) in cancelled for o in objectives):
                 raise ValueError('The player cancelled this objective. Do not recreate it; omit or defer it until new player direction requests it.')
@@ -236,6 +236,11 @@ class Planner:
         query_schema = Query.model_json_schema()
         query_schema['properties']['endpoint']['enum'] = readable
         submit_schema = contract.model_json_schema()
+        objective_schema=submit_schema.get('$defs',{}).get('WorkObjective')
+        if objective_schema is not None:
+            # Make the crop decision visible in every generated objective;
+            # non-growing projects explicitly use empty crop_def / null target.
+            objective_schema['required']=list(dict.fromkeys(objective_schema.get('required',[])+['crop_def','target_cells']))
         if issubclass(contract,ObjectiveDecision):
             candidates=list(context.get('proposals',{}))
             projects=[p['project_id'] for p in context.get('projects',[])]
@@ -578,6 +583,10 @@ class Planner:
                         result['hint']='Use this endpoint schema for arguments. Put limit, offset, fields, where and sort_by at the top level of query.'
                     self.rt.store.event(self.rt.colony, 'model_diagnostic', role=role, call=c, error=str(e))
                 fingerprint=json.dumps(result,sort_keys=True,default=str)
+                if f['name']=='submit' and contract is not Proposal and isinstance(result,dict) and 'error' in result:
+                    # Rewording an invalid proposal is not progress on the same
+                    # validation failure; don't stall all other departments.
+                    key='submit:error:'+result['error']
                 previous,count=repeats.get(key,(None,0))
                 count=count+1 if previous==fingerprint else 1
                 repeats[key]=(fingerprint,count)
