@@ -12,12 +12,17 @@ class LocalModel:
     def __init__(self, settings, transport=None):
         self.settings = settings
         self.reasoning_style = 'standard'
+        self.context_limit = settings.model_context_tokens
         self.http = httpx.AsyncClient(base_url=settings.model_url, timeout=httpx.Timeout(600, connect=10), transport=transport, trust_env=False)
 
     async def close(self):
         await self.http.aclose()
 
-    async def complete(self, messages, tools, thinking, progress, _retried=False):
+    async def complete(self, messages, tools, thinking, progress, _retried=False, _context_retry=0):
+        from .request_budget import fit_request
+        try:messages,tools,budget=fit_request(messages,tools,self.context_limit,self.settings.max_output_tokens)
+        except ValueError as error:raise ModelError(str(error)) from error
+        if budget['compacted']:await progress({'phase':'Preparing decisions','detail':'Compacted model context','request_budget':budget})
         effort = ('medium' if thinking else 'none') if self.reasoning_style == 'standard' else ('on' if thinking else 'off')
         body = {'model':self.settings.model, 'messages':messages, 'stream':True,
                 'stream_options':{'include_usage':True}, 'temperature':0.35,
@@ -51,6 +56,10 @@ class LocalModel:
                     if chunk.get('error'):
                         error=chunk['error']
                         detail=error.get('message',str(error)) if isinstance(error,dict) else str(error)
+                        if 'context' in detail.lower() and any(word in detail.lower() for word in ('exceeded','length','size')) and _context_retry<2:
+                            self.context_limit=max(self.settings.max_output_tokens+6144,self.context_limit//2)
+                            await progress({'phase':'Preparing decisions','detail':'Retrying with a smaller context budget'})
+                            return await self.complete(messages,tools,thinking,progress,_retried=True,_context_retry=_context_retry+1)
                         raise ModelError('Local model stream error: '+detail[:800])
                     usage = chunk.get('usage') or usage
                     for choice in chunk.get('choices', []):

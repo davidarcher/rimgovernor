@@ -95,3 +95,10 @@ The full RLE benchmark runner and native blueprint/frame-ID lifecycle cache are
 not yet ported into the Python runtime. The current executor uses fresh state
 checks instead of redirecting retired action IDs. Keep these as explicit remaining
 integration work, not a claim that protocol tests prove feature parity.
+
+
+### Model request budget
+
+Every local-model request budgets initial context, conversation and tool schemas together, reserving max_output_tokens plus safety headroom from model_context_tokens (default 65,536, matching the tested LM Studio load). Text sizing uses conservative UTF-8 units, not an exact Qwen tokenizer; vision blocks have an estimated reserve. Configure the window to match the loaded model rather than assuming its advertised maximum.
+
+Project context excludes tracking history and replaces repeated order entries with status counts. Under pressure, compaction removes complete old assistant/tool groups, shortens descriptive schema annotations without removing argument properties, and marks truncated model-facing data explicitly. Oversized tool evidence can be replaced by a request for narrower queries. Native responses and retained executable orders are unchanged. Unshrinkable requests fail locally instead of overflowing the server. Observed stream context failures retry with a smaller budget at most twice; partial generated commands are never executed.

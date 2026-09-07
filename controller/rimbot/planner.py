@@ -370,6 +370,8 @@ class Planner:
             context={**context,'native_work_types':[{'def_name':d['def_name'],'label':d.get('label'),'description':d.get('description')} for d in (definitions.get('work_type_defs') or [])]}
             context['native_time_assignments']=await self.rt.api.call('get_time_assignments',{})
             instructions += '\nTime assignment accepts only names from native_time_assignments and sets the hourly timetable; it does not issue a specific job or allow supplies. Work priority work must be an exact native_work_types def_name. It enables a category of ordinary labor, not a specific job or building. Do not use a JobDef, ThingDef, or pawn name as a work type.'
+        from .request_budget import project_context
+        context=project_context(context)
         messages = [{'role':'system' ,'content':instructions}, {'role':'user','content':json.dumps(context, separators=(',',':'), ensure_ascii=False)}]
         definition_evidence = {}
         repeats = {}

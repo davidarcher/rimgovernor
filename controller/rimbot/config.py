@@ -12,6 +12,7 @@ class Settings(BaseModel):
     reasoning: bool = True
     architect_reasoning: bool = Field(default=False, description="Extra reasoning for visual site selection. Off avoids long Qwen 4B deliberation; geometry is validated in either mode.")
     max_output_tokens: int = Field(default=8192, ge=1024, le=131072)
+    model_context_tokens: int = Field(default=65536,ge=8192,le=262144,description='Loaded LM Studio context window. Used to reserve output and bound complete requests.')
     context_chars: int = Field(default=60000, ge=16000, le=400000)
     review_ticks: int = Field(default=15000, ge=600, le=60000)
     poll_seconds: float = Field(default=5, ge=2, le=60)
