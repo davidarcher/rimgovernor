@@ -39,7 +39,7 @@ def test_budget_compaction_preserves_indexed_terrain_as_one_observation():
  with pytest.raises(ValueError,match='cannot fit safely'):
   fit_request([{'role':'user','content':json.dumps(facts)}],[],10000,2048)
 def zone(id='food',x=2):
- return {'id':id,'label':id,'purpose':'food' if id=='food' else 'residential','anchor':{'x':x,'z':2},'initial_size':{'width':6,'height':6},'max_size':{'width':10,'height':14},'expansion_direction':'north','phase':1 if id=='food' else 2,'adjacent_to':[],'rationale':'Expandable'}
+ return {'id':id,'label':id,'purpose':'food' if id=='food' else 'residential','anchor':{'x':x,'z':2},'reserved_size':{'width':10,'height':14},'expansion_direction':'north','phase':1 if id=='food' else 2,'adjacent_to':[],'rationale':'Expandable'}
 def change(zones=None,mode='FULL_REPLAN'):
  return PlanChange(mode=mode,summary='A compact camp with expansion room',zones=zones or [zone(),zone('homes',18)],corridors=[{'id':'main','label':'Main walk','start':{'x':15,'z':1},'end':{'x':15,'z':29},'width':1}] if mode=='FULL_REPLAN' else [],build_phases=[{'number':1,'label':'Survival','goals':['Shelter and food']},{'number':2,'label':'Stability','goals':['Housing growth']}]).model_dump()
 def plan():
@@ -50,7 +50,7 @@ def runtime(p=None):
  return rt,a
 
 def test_partial_replan_preserves_other_zones_and_deviations():
- p=plan();p['deviations']=[{'id':'prior','reason':'Player changed the approach'}];modified=zone();modified['max_size']['height']=16
+ p=plan();p['deviations']=[{'id':'prior','reason':'Player changed the approach'}];modified=zone();modified['reserved_size']['height']=16
  result,affected=apply_change(p,change([modified],'MODIFY_ZONE'),survey())
  assert affected==['food'] and result['zones'][1]==p['zones'][1]
  assert result['deviations']==p['deviations']
@@ -102,7 +102,7 @@ async def test_initial_plan_persists_then_routine_need_does_not_replan(tmp_path)
 async def test_rejected_plan_retry_keeps_map_without_repeating_large_reply():
  rt,a=runtime();rt.memory['spatial_layout']={};rt.strategies=NS(search=lambda *args:[])
  rt.progress=AsyncMock();rt.model_progress=AsyncMock();rt.usage=Mock();rt.check_generation=Mock();rt.settings=NS(architect_reasoning=False)
- rejected=change();rejected['zones'][0]['max_size']={'width':32,'height':32}
+ rejected=change();rejected['zones'][0]['reserved_size']={'width':32,'height':32}
  rejected['zones'][0]['rationale']='A long invalid proposal '*500
  inputs=[]
  async def complete(messages,*args):
@@ -122,3 +122,18 @@ def test_replan_cannot_move_committed_site():
  p=plan();p['regions']=[{'id':'k','zone_id':'food','patches':[{'x1':2,'x2':7,'z1':2,'z2':7}]}]
  z=zone();z['anchor']['z']=20
  with pytest.raises(ValueError):apply_change(p,change([z],'MODIFY_ZONE'),survey())
+
+def test_architect_has_one_footprint_and_direction_never_moves_reservation():
+ schema=PlanChange.model_json_schema()['$defs']['PlannedZone']['properties']
+ assert 'reserved_size' in schema and 'initial_size' not in schema and 'max_size' not in schema
+ z=zone();expected=cells(extent(z))
+ for direction in ('north','south','east','west'):
+  z['expansion_direction']=direction
+  assert cells(extent(z))==expected
+
+@pytest.mark.parametrize('direction',['north','south','east','west'])
+async def test_current_sites_fit_single_reservation_in_each_growth_direction(direction):
+ p=plan();p['zones'][0]['expansion_direction']=direction
+ rt,_=runtime(p)
+ result=await reserve_site(rt,{'project_id':'room','kind':'construction'},SiteRequest(zone_id='food',label='Room',purpose='room',width=6,height=6))
+ assert cells(result['region'])<cells(p['reserved_regions'][0])

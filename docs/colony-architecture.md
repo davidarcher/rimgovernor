@@ -215,3 +215,19 @@ attempts without a context-limit failure after this fix. It still failed geometr
 the last response specified a 32x24 initial footprint inside a 6x8 maximum extent.
 No layout was committed and no construction was sent. Improving the size contract
 and spatial decisions is the next blocker; budget recovery alone is not gameplay success.
+
+## One footprint per district
+
+The architect now chooses one `reserved_size` per semantic district. The redundant
+`initial_size`/`max_size` pair has been removed from the input and saved zone contract;
+this is not a compatibility migration. The anchor is the reservation's southwest
+corner regardless of growth direction. Executors continue to choose each actual
+current site through `SiteRequest`; south/west growth begins at the opposite edge
+of the reservation. No room size or construction recipe is hardcoded by this change.
+The dashboard displays reserved dimensions rather than promising an initial build.
+
+The isolated local-model test against the paused tribal map produced a 12-zone plan
+that passed geometry validation with this contract. It saved only an isolated test
+plan and issued no game orders. This clears the observed contradictory-footprint
+failure; starter-base execution, accessibility and layout quality still need gameplay
+validation. Tests cover all four growth directions and the single-footprint schema.
