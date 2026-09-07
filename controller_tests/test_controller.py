@@ -594,7 +594,8 @@ async def test_compaction_retains_observed_building_materials(colony):
         if len(calls)==1:
             return {'role':'assistant','tool_calls':[{'id':'wall','type':'function','function':{'name':'construction_definitions','arguments':'{"map_id":0,"search":"Wall","offset":0,"limit":10}'}}]},{}
         retained=json.loads(messages[2]['content'])
-        assert retained['observed_building_definitions']==[definition]
+        assert retained['observed_building_definitions']==[]
+        assert json.loads(messages[-1]['content'])['items']==[definition]
         return {'role':'assistant','content':'{"summary":"Use the observed material."}'},{}
     rt.model.complete=complete
     await rt.planner.ask('Executor:construction',{},Proposal,True)

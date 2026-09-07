@@ -610,8 +610,13 @@ class Planner:
             if sum(len(json.dumps(m)) for m in messages) > self.rt.settings.context_chars:
                 # Keep complete assistant/tool groups; never orphan a tool response.
                 last_assistant = max(i for i,m in enumerate(messages) if m['role']=='assistant')
+                recent_definitions=set()
+                definition_calls={c['id'] for c in messages[last_assistant].get('tool_calls',[]) if c['function']['name']=='construction_definitions'}
+                for message in messages[last_assistant+1:]:
+                    if message.get('tool_call_id') in definition_calls:
+                        recent_definitions.update(d['def_name'] for d in json.loads(message['content']).get('items',[]))
                 retained={'drafts':[a.title for a in drafts.values()],'rejected':failed_drafts,
-                    'observed_building_definitions':list(definition_evidence.values())[-12:],
+                    'observed_building_definitions':[d for name,d in definition_evidence.items() if name not in recent_definitions][-12:],
                     'next':'Valid drafts are retained; submit them now if they address your task. Do not rediscover them or repeat unrelated queries.'}
                 messages = messages[:2] + [{'role':'user','content':json.dumps(retained)}] + messages[last_assistant:]
 
