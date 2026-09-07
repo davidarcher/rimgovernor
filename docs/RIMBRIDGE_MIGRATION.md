@@ -47,7 +47,7 @@ Inspected [Snowstar38's companion](https://github.com/Snowstar38/rimworld-claude
 - `BillsTool`, `PawnConfigTool`, `BuildingConfigTool`, `ResearchTool`: likely substitutes for much of our hand-maintained action layer.
 - `Watch`/supervised playback: distinguish presentation delays and colony-specific stop policies from native mechanics. Do not inherit stream-oriented behavior by default.
 
-No license file or explicit reuse grant was found in this checkout. Source inspection informs the gap map; no companion code has been copied or installed. Resolve permission before vendoring/forking for reuse. Stock GABS/RimBridgeServer remain MIT. Commented bug histories are valuable regression candidates, not proof that each implementation is correct on our game version.
+The user authorized local research copying on September 7. Selected observation sources are now integrated with attribution in `integrations/colony-bridge`; no upstream license grant is implied. See [companion analysis and implemented boundary](COMPANION_REUSE_ANALYSIS.md). Stock GABS/RimBridgeServer remain MIT. Commented bug histories are regression candidates, not proof of correctness on our game version.
 
 ### Execution sequence
 
@@ -70,3 +70,7 @@ Close other RimWorld sessions. Install [RimBridgeServer v2.1.1](https://github.c
 Preparation verifies the original fixture hash and copies to `.rimbot/bridge/profile`. Only the old RIMAPI game component and mod metadata are removed from the disposable copy. Normal saves/config stay untouched. Logs, saves, binaries and upstream source remain untracked.
 
 Unfinished bespoke action code is preserved in RIMAPI's `checkpoint/native-actions-before-rimbridge` branch at `54132f4`. Active submodule and generated controller contracts are restored to their working revision. Patch backups: `.rimbot/migration-checkpoint`.
+
+## Observation companion trial
+
+Build/install while RimWorld is closed using `scripts/build_observation_bridge.ps1 -Install`. Prepare the isolated profile with `scripts/prepare_bridge_trial.py --observations` plus the same source/game arguments above. Run `scripts/bridge_trial.py --start --load-fixture --observations` to produce native receipts, discovered schemas and the generated typed summary. Add `--placement-test` for the previously verified native write smoke checks. The normal dashboard remains on RIMAPI in this slice.

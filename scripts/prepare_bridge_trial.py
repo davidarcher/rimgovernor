@@ -11,7 +11,7 @@ from pathlib import Path
 BASELINE_SHA256 = "e9402197cb5c7213367c7f6a2a6121294eb419d964f46ded256dc7a1da65388c"
 
 
-def prepare(source: Path, game: Path, root: Path):
+def prepare(source: Path, game: Path, root: Path, observations: bool = False):
     source, game, root = source.resolve(), game.resolve(), root.resolve()
     profile = root / "profile"
     if source == profile or source in profile.parents or profile in source.parents:
@@ -32,6 +32,10 @@ def prepare(source: Path, game: Path, root: Path):
         if item.text != "brrainz.harmony" and not (item.text or "").startswith("ludeon.rimworld"):
             active.remove(item)
     ET.SubElement(active, "li").text = "brrainz.rimbridgeserver"
+    if observations:
+        if not (game / "Mods/RimBotObservations/About/About.xml").is_file():
+            raise ValueError("Install the built observation companion before enabling it")
+        ET.SubElement(active, "li").text = "davidarcher.rimbot.observations"
     mods.write(profile / "Config/ModsConfig.xml", encoding="utf8", xml_declaration=True)
     prefs = ET.parse(source / "Config/Prefs.xml")
     for name, value in [("runInBackground", "True"), ("devMode", "False")]:
@@ -69,5 +73,6 @@ if __name__ == "__main__":
     parser.add_argument("--source-profile", type=Path, required=True)
     parser.add_argument("--rimworld", type=Path, required=True)
     parser.add_argument("--root", type=Path, default=Path(".rimbot/bridge"))
+    parser.add_argument("--observations", action="store_true")
     args = parser.parse_args()
-    prepare(args.source_profile, args.rimworld, args.root)
+    prepare(args.source_profile, args.rimworld, args.root, args.observations)

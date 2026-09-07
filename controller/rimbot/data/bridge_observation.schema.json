@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$ref": "#/$defs/BridgeObservation",
+  "$defs": {
+    "BridgeCell": {
+      "title": "BridgeCell",
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "integer"
+        },
+        "z": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x",
+        "z"
+      ],
+      "additionalProperties": false
+    },
+    "BridgePawn": {
+      "title": "BridgePawn",
+      "type": "object",
+      "properties": {
+        "thing_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "position": {
+          "$ref": "#/$defs/BridgeCell"
+        },
+        "job": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "drafted": {
+          "type": "boolean"
+        },
+        "downed": {
+          "type": "boolean"
+        },
+        "dead": {
+          "type": "boolean"
+        },
+        "mood": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "food": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rest": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "armed": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "primary_weapon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "needs_tend": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bleeding": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "thing_id",
+        "name",
+        "position",
+        "job",
+        "drafted",
+        "downed",
+        "dead",
+        "mood",
+        "food",
+        "rest",
+        "armed",
+        "primary_weapon",
+        "needs_tend",
+        "bleeding"
+      ],
+      "additionalProperties": false
+    },
+    "BridgeSupply": {
+      "title": "BridgeSupply",
+      "type": "object",
+      "properties": {
+        "def_name": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "owned_units": {
+          "type": "integer"
+        },
+        "owned_unforbidden_units": {
+          "type": "integer"
+        },
+        "forbidden_units_all_owners": {
+          "type": "integer"
+        },
+        "stockpiled_units_all_owners": {
+          "type": "integer"
+        },
+        "fogged_units_all_owners": {
+          "type": "integer"
+        },
+        "trader_units": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "def_name",
+        "label",
+        "owned_units",
+        "owned_unforbidden_units",
+        "forbidden_units_all_owners",
+        "stockpiled_units_all_owners",
+        "fogged_units_all_owners",
+        "trader_units"
+      ],
+      "additionalProperties": false
+    },
+    "BridgeObservation": {
+      "title": "BridgeObservation",
+      "type": "object",
+      "properties": {
+        "backend": {
+          "type": "string",
+          "enum": [
+            "rimbridge"
+          ]
+        },
+        "start_tick": {
+          "type": "integer"
+        },
+        "end_tick": {
+          "type": "integer"
+        },
+        "same_tick": {
+          "type": "boolean"
+        },
+        "paused": {
+          "type": "boolean"
+        },
+        "map_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pawns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BridgePawn"
+          }
+        },
+        "supplies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BridgeSupply"
+          }
+        },
+        "visible_rooms": {
+          "type": "integer"
+        },
+        "fogged_rooms_omitted": {
+          "type": "integer"
+        },
+        "zone_count": {
+          "type": "integer"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "alert_labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "hostile_count": {
+          "type": "integer"
+        },
+        "hunting_predator_count": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "backend",
+        "start_tick",
+        "end_tick",
+        "same_tick",
+        "paused",
+        "map_name",
+        "pawns",
+        "supplies",
+        "visible_rooms",
+        "fogged_rooms_omitted",
+        "zone_count",
+        "warnings",
+        "alert_labels",
+        "hostile_count",
+        "hunting_predator_count"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

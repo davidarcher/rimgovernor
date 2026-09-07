@@ -62,6 +62,19 @@ async def run(args):
                 "rimworld/list_architect_designators", categoryId=category, includeHidden=False))
             designators.extend(result.structuredContent["designators"])
         await record("nearby-cells", bridge.call("rimworld/get_cells_info", x=136, z=122, width=8, height=8))
+        if args.observations:
+            from rimbot.bridge_observation import ObservationGateway, observe
+            gateway = ObservationGateway(bridge)
+            started = time.monotonic()
+            batch = await observe(gateway)
+            assert len(batch.summary.pawns) == 8
+            assert len({p.thing_id for p in batch.summary.pawns}) == 8
+            assert batch.summary.paused and batch.summary.same_tick
+            (output / 'observation.json').write_text(batch.summary.model_dump_json(indent=2), encoding='utf8')
+            (output / 'native-observation.json').write_text(json.dumps(batch.native, indent=2), encoding='utf8')
+            (output / 'observation-schemas.json').write_text(json.dumps(gateway.schemas, indent=2), encoding='utf8')
+            print(f'companion-observation: {time.monotonic()-started:.2f}s; '
+                  f'{len(batch.summary.model_dump_json())} compact characters', flush=True)
         if args.placement_test:
             # Fixture coordinates only: production placement remains the architect's responsibility.
             spot = next(d for d in designators if d.get("buildableDefName") == "SleepingSpot")
@@ -100,4 +113,5 @@ if __name__ == "__main__":
     parser.add_argument("--start", action="store_true")
     parser.add_argument("--load-fixture", action="store_true")
     parser.add_argument("--placement-test", action="store_true")
+    parser.add_argument("--observations", action="store_true")
     asyncio.run(run(parser.parse_args()))
