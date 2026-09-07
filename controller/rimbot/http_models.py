@@ -2174,6 +2174,7 @@ class MapFarmSummaryDto(WireModel):
     total_infected_plants: int = Field()
     growth_progress_average: float = Field()
     crop_types: Union[list[CropTypeDto], None] = Field(default=None)
+    forecast_basis: Union[str, None] = Field(default=None)
 
 class MapPowerInfoDto(WireModel):
     current_power: int = Field()
@@ -2667,6 +2668,7 @@ class ResourcesFoodSummaryDto(WireModel):
     meals_count: int = Field()
     raw_food_count: int = Field()
     rot_status_info: Union[RotStatusInfoDto, None] = Field(default=None)
+    access: Union[FoodAccess, None] = Field(default=None)
 
 class ResourcesSummaryDto(WireModel):
     total_items: int = Field()
@@ -3377,6 +3379,19 @@ class ConstructionWorkOverview(WireModel):
     workers: list[ConstructionWorkerObservation] = Field()
     sites: list[ConstructionWorkSite] = Field()
     notes: list[str] = Field()
+
+class FoodConsumer(WireModel):
+    pawn_id: int = Field()
+    nutrition_per_day: float = Field()
+
+class FoodPool(WireModel):
+    pawn_ids: list[int] = Field()
+    nutrition: float = Field()
+
+class FoodAccess(WireModel):
+    observed_tick: int = Field()
+    consumers: list[FoodConsumer] = Field()
+    pools: list[FoodPool] = Field()
 
 class Construction_DefinitionQuery(WireModel):
     search: str = Field()
@@ -4674,6 +4689,9 @@ ConstructionWorkerCheck.model_rebuild()
 ConstructionMaterialObservation.model_rebuild()
 ConstructionWorkSite.model_rebuild()
 ConstructionWorkOverview.model_rebuild()
+FoodConsumer.model_rebuild()
+FoodPool.model_rebuild()
+FoodAccess.model_rebuild()
 Construction_DefinitionQuery.model_rebuild()
 Construction_Cost.model_rebuild()
 Construction_Material.model_rebuild()

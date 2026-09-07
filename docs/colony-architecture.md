@@ -38,7 +38,7 @@ facts may wait for the bounded reassessment; add typed relevant event triggers i
 
 ## Ordered follow-up
 
-1. Native diet/access and consumption observations for actual food runway and harvest timing.
+1. Expand native diet/access coverage to inventories and food delivery; connect harvest nutrition and season uncertainty to deficit planning.
 2. Deterministic work coverage and goal postconditions beyond individual order completion.
 3. Crisis playbooks, separate combat loop, occasional strategic critic, decision replay scenarios.
 
@@ -369,3 +369,45 @@ them; there is no second task queue or independent manager loop. Routine setup
 cannot skip an outstanding coordination request. Tests cover coalescing, requests
 arriving during an actual administrator turn, retry timing and poll-loop wakeup.
 This is architecture validation, not a colony playtest.
+
+## Native food coverage, crop timing and room outcomes
+
+The resource summary now supplies schema-generated food consumers and shared
+nutrition pools grouped by native dietary/access eligibility. Demand uses native
+fed hunger rates; eligibility checks current ingestibility, fog, forbidden state,
+food policy, willingness to eat and reachability at Danger.Some. The controller
+allocates shared nutrition with a flow calculation, so overlapping diets cannot
+double-count stacks. A restricted consumer can limit colony-wide coverage even
+when total food appears ample. This is fractional loose-food coverage, not a
+starvation clock: inventories, meal waste, spoilage, future production, caregiver
+delivery and ingestion-efficiency modifiers are not modeled. Reachability does
+not establish threat-free travel. Low coverage targets Survival immediately,
+independently of the slower stock-trend observation, with existing hysteresis.
+
+Native farm observations previously divided remaining growth by grow-days and
+truncated to an integer, mixed timing totals across crops, and reported sums as
+growth averages. They now report correct crop/population-weighted averages and
+remaining ideal full-rate growth days. The forecast_basis marker prevents an old
+DLL's values from entering projections. After a full observed game day, stable
+crop counts/progress support a conditional mean calendar estimate that includes
+nighttime rest. Population changes, increasing remaining growth, blight, rewinds
+and observation gaps invalidate it. This is not a guaranteed harvest date or food
+yield; same-count plant replacement is not identified individually yet.
+
+Construction project evidence now checks whether each planned interior belongs
+to one observed native enclosed room, whether its visible anchor is reachable,
+and whether the room is fully roofed. Partial room observations stay unknown.
+This catches roof-only outdoor areas and inaccessible sealed rooms, but does not
+prove furniture access, bed ownership, thermal safety or overall goal completion.
+
+The tribal-eight live test verified native demand of 12.8 nutrition/day and zero
+coverage while its 20 nutrition was forbidden. It also reproduced administrator
+context overflow. The administrator projection now retains all proposals,
+commitments, budgets and crop options while removing exact lookup positions,
+duplicated terrain comparisons and excess retrieved guides. Three captured failed
+requests fit after this projection. This replay validates budgeting, not decisions.
+The 600-second playtest (`20260907-065337`) issued one order after 139.9 seconds
+and completed no new objects. It still encountered stockpile spatial failure and
+empty execution batches. The administrator projection and room checks were added
+after that run started; their tests/replay are not a new gameplay pass. Successful
+starter-base completion remains unproven.

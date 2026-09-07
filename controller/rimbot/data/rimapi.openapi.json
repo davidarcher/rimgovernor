@@ -20526,7 +20526,8 @@
           },
           "expected_yield": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "description": "Product units harvestable now, not projected mature yield or nutrition."
           },
           "infected_count": {
             "type": "integer",
@@ -20538,7 +20539,8 @@
           },
           "days_until_harvest": {
             "type": "number",
-            "format": "float"
+            "format": "float",
+            "description": "Mean remaining ideal full-rate growth days to harvest threshold. NOT calendar days; excludes night, fertility, light, temperature and losses. Zero with no plants does not mean a harvest exists."
           },
           "is_fully_grown": {
             "type": "boolean"
@@ -25091,6 +25093,10 @@
             "items": {
               "$ref": "#/components/schemas/CropTypeDto"
             }
+          },
+          "forecast_basis": {
+            "type": "string",
+            "description": "ideal_growth_days_v1 identifies corrected crop means and ideal growth-day units."
           }
         },
         "additionalProperties": false,
@@ -25102,7 +25108,7 @@
           "total_infected_plants",
           "growth_progress_average"
         ],
-        "x-native-type-sha256": "7b30d696bc9316a64a1e9b62321980622a54c9ebca6efce44fe374a8f7d86619"
+        "x-native-type-sha256": "3a8b9051c438e27dd1577a06cc7612bde59f869888e34e098dd149a8312a2e8e"
       },
       "MapPowerInfoDto": {
         "type": "object",
@@ -27450,6 +27456,9 @@
           },
           "rot_status_info": {
             "$ref": "#/components/schemas/RotStatusInfoDto"
+          },
+          "access": {
+            "$ref": "#/components/schemas/FoodAccess"
           }
         },
         "additionalProperties": false,
@@ -27462,7 +27471,7 @@
           "meals_count",
           "raw_food_count"
         ],
-        "x-native-type-sha256": "a27fb9c3ee7e8b1298a95b5336e9131e0c8d338eb1d92caa8ba57ea209d557d4"
+        "x-native-type-sha256": "29964a7d385e2339c4522825c6a7c163f0687e76abcdd055625bd3baec80889e"
       },
       "ResourcesSummaryDto": {
         "type": "object",
@@ -30719,6 +30728,70 @@
             }
           }
         },
+        "x-generate-csharp": true
+      },
+      "FoodConsumer": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "pawn_id": {
+            "type": "integer"
+          },
+          "nutrition_per_day": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "pawn_id",
+          "nutrition_per_day"
+        ],
+        "x-generate-csharp": true
+      },
+      "FoodPool": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "pawn_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "nutrition": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "pawn_ids",
+          "nutrition"
+        ],
+        "x-generate-csharp": true
+      },
+      "FoodAccess": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "observed_tick": {
+            "type": "integer"
+          },
+          "consumers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FoodConsumer"
+            }
+          },
+          "pools": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FoodPool"
+            }
+          }
+        },
+        "required": [
+          "observed_tick",
+          "consumers",
+          "pools"
+        ],
         "x-generate-csharp": true
       },
       "Construction_DefinitionQuery": {

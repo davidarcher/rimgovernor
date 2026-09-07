@@ -35,7 +35,7 @@ def derive(observation):
     farm=observation.get('farm')
     if isinstance(farm,dict):
         result['crops']={k:farm[k] for k in ('total_growing_zones','total_plants','total_expected_yield','total_infected_plants') if k in farm}
-        result['crops']['scope']='Native current crop count/yield estimate. Harvest date unavailable without growth rates, daylight and temperature forecasts.'
+        result['crops']['scope']='Native current crop counts and harvestable product units. Conditional timing is reported separately in forecast; product units are not nutrition.'
     return result
 
 
@@ -62,6 +62,8 @@ def update(rt):
     facts=derive(rt.observation);rt.memory['world_facts']=facts
     from .food_forecast import forecast
     facts['food']=forecast(rt.memory,rt.observation)
+    from .harvest_forecast import forecast as harvest_forecast
+    facts.setdefault('crops', {})['forecast']=harvest_forecast(rt.memory,rt.observation)
     state=rt.memory.setdefault('risk_state',{})
     medical=facts['medical'];tick=facts['observed_tick']
     condition=True if medical['urgent_pawn_ids'] else (None if medical['missing_pawns'] else False)
@@ -70,6 +72,10 @@ def update(rt):
     if event:events.append(event)
     events.extend(incapacitation_events(state,rt.observation,tick))
     food=facts['food'];days=food.get('stock_depletion_days')
+    coverage=food.get('food_runway_days')
+    active_access=state.get('food_access_shortfall',{}).get('active',False)
+    event=transition(state,'food_access_shortfall',None if coverage is None else coverage < (4 if active_access else 2),tick,['Survival'])
+    if event:events.append(event)
     active=state.get('food_stock_decline',{}).get('active',False)
     condition=(days<(4 if active else 2)) if days is not None else (False if food.get('net_loss_per_day',1)<=0 else None)
     event=transition(state,'food_stock_decline',condition,tick,['Survival'])

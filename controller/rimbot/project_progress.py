@@ -60,6 +60,9 @@ async def refresh_progress(rt,context):
             progress['buildings']=[{'def_name':d,'state':state,'count':count} for (d,state),count in sorted(Counter((b['def_name'],b['state']) for b in buildings).items())]
             interior=set().union(*(cells(r)-boundary(cells(r)) for r in own)) if own else set()
             progress['roof']={'interior_cells':len(interior),'observed_cells':len(interior & lookup.keys()),'roofed_cells':sum(lookup[c]['roofed'] for c in interior if c in lookup)}
+            from .room_outcomes import assess_interior
+            progress['enclosures']=[assess_interior(cells(r)-boundary(cells(r)),
+                (rt.observation.get('rooms') or {}).get('rooms')) for r in own]
             progress['meaning']='Building counts distinguish built, frames and blueprints. Roof coverage and furniture are separate requirements. Old model reports are not current blockers.'
             owned_positions={(b['position']['x'],b['position']['z']) for w in rt.memory.get('work',[]) if w['id'] in project.get('work_ids',[]) for b in w.get('action',{}).get('arguments',{}).get('buildings',[])}
             sites=[s for s in context.get('construction_work',{}).get('sites',[]) if (s['position']['x'],s['position']['z']) in points|owned_positions]

@@ -1,5 +1,6 @@
 """Observed stock trend, deliberately distinct from metabolic food runway."""
 import math
+from .food_access import runway
 
 
 def forecast(memory,observation):
@@ -18,11 +19,12 @@ def forecast(memory,observation):
     result={'total_nutrition':amount,'allowed_nutrition':summary.get('unforbidden_nutrition'),
         'forbidden_nutrition':summary.get('forbidden_nutrition'),'stock_depletion_days':None,
         'food_runway_days':None,
-        'scope':'Native map human-edible loose-stock summary, including forbidden/unexplored stacks. Not safe accessible food or pawn inventories. Net change includes eating, hauling into inventories, spoilage, production and trade. No diet/consumption or harvest forecast; do not use this to choose items to allow.',
+        'scope':'Stock totals include forbidden/unexplored stacks and exclude pawn inventories. Net change includes eating, hauling into inventories, spoilage, production and trade. Dietary coverage is reported separately in food_runway_days; do not use stock totals to choose items to allow.',
         'sample_count':len(samples)}
+    result.update(runway(summary.get('access')))
     elapsed=tick-samples[0]['tick']
     if elapsed<15000 or len(samples)<4:
-        result['unavailable']='Stock trend needs at least six game hours and four samples; metabolic runway needs native demand and diet/access observations.'
+        result['unavailable']='Stock trend needs at least six game hours and four samples; dietary coverage is a separate measurement.'
         return result
     loss=(samples[0]['nutrition']-amount)/(elapsed/60000)
     result.update(window_days=round(elapsed/60000,3),net_loss_per_day=round(loss,3))

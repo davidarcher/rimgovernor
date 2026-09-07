@@ -19,6 +19,9 @@ Skip `git clone` if the submodule repository already exists.
 
 Changes:
 
+- Food summaries expose native demand and shared diet/policy/reachability pools;
+  farm growth averages and ideal remaining growth-day units are corrected.
+
 - Resource stacks expose native food types and stuff categories for strategic nutrition/material aggregation.
 
 - Native undrafted hostility response (Ignore / Fight / Flee) is exposed through the player status endpoint and documented in OpenAPI.

@@ -63,3 +63,32 @@ def decision_context(context,observation):
         result['construction_work']['omitted']=max(0,work['total']-len(work['sites'][:4]))
     else:result['construction_work']=work
     return result
+
+
+def administrator_context(context):
+    """Arbitration needs complete proposals, not repeated executor lookup data."""
+    result = deepcopy(context)
+    resources = result.get('resource_overview', {})
+    for name in ('plants', 'animals', 'minerals', 'terrain'):
+        for row in resources.get(name, {}).get('items', []):
+            location = row.pop('location', None)
+            if location:
+                row['nearby_count'] = location.get('nearby_count')
+                row['nearest_distance'] = location.get('nearest_distance')
+            row.pop('nearest_cell', None)
+    # Native food_crops already reports each crop's fertility threshold and
+    # eligible nearby cell count. Exact terrain matching belongs to placement.
+    if resources.get('food_crops'):
+        result.pop('crop_land_comparison', None)
+    for row in resources.get('terrain', {}).get('items', []):
+        for key in set(row)-{'def_name', 'fertility', 'nearby_cells', 'visible_cells'}:
+            row.pop(key)
+    if 'native_work_types' in result:
+        result['native_work_types'] = [{k: v for k, v in row.items() if k in ('def_name', 'label')}
+                                       for row in result['native_work_types']]
+    guides = result.get('strategy_guidance', [])
+    selected = [g for g in guides if g.get('id') == 'first-days'][:1]
+    selected += [g for g in guides if g not in selected][:1-len(selected)]
+    result['strategy_guidance'] = selected
+    result['strategy_guidance_omitted'] = len(guides)-len(selected)
+    return result

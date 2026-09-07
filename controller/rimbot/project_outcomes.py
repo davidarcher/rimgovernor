@@ -27,6 +27,10 @@ def assess(project):
         if target:
             add('Planned interior roofed', roof.get('roofed_cells')
                 if roof.get('observed_cells') == target else None, target)
+        for index, room in enumerate(progress.get('enclosures', []), 1):
+            for field, label in [('enclosed', 'Enclosed'), ('reachable', 'Reachable'), ('roofed', 'Fully roofed')]:
+                value = room.get(field)
+                add(f'Room {index}: {label}', None if value is None else int(value), 1)
 
     # A met measurement is narrower than "the goal is achieved": e.g. plants
     # present are neither a harvest nor adequate nutrition, a roof isn't a room.
