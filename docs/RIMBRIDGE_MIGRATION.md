@@ -74,3 +74,31 @@ Unfinished bespoke action code is preserved in RIMAPI's `checkpoint/native-actio
 ## Observation companion trial
 
 Build/install while RimWorld is closed using `scripts/build_observation_bridge.ps1 -Install`. Prepare the isolated profile with `scripts/prepare_bridge_trial.py --observations` plus the same source/game arguments above. Run `scripts/bridge_trial.py --start --load-fixture --observations` to produce native receipts, discovered schemas and the generated typed summary. Add `--placement-test` for the previously verified native write smoke checks. The normal dashboard remains on RIMAPI in this slice.
+
+
+## Interactive dashboard slice
+
+`launch-bridge.ps1 -FreshGame -Model qwen3.5-9b` now starts the prepared isolated
+fixture with the bridge controller on **8787**, serving the existing React
+ dashboard build. Close an existing game/controller first. The Colony page has a
+resizable game snapshot view, player chat and concise next-step summary. Projects
+contains the longer plan and native order receipts; Activity contains outcomes
+with raw tool diagnostics collapsed. The old RIMAPI streaming panel is removed.
+
+This is the direct bridge planner path, not a claim that all of the prior
+multi-manager project lifecycle has migrated. Detailed project tracking remains
+on the migration backlog. The image refresh is a screenshot every few seconds,
+not high-frame-rate video. Sessions currently start with fresh chat/plan state;
+SQLite retains their scoped history but reconnecting does not restore a session.
+
+Manual permits inspection/discussion only. Automate pauses for its initial
+review, then resumes at normal speed. New player direction is checked again under
+the command lock before dispatch. Native schemas reject unknown arguments;
+companion writes require explicit dryRun and do not use godMode or watch delays.
+Post-command state accompanies receipts, without marking construction completed.
+
+Validation: native assembly compiled, controller regression suite and focused
+React chat/navigation tests passed. Live Qwen 9B inspection produced a plan in
+Manual, without orders. Browser inspection confirmed the integrated 8787 game
+image, control buttons, chat and Projects navigation. Sustained autonomous native
+construction is not validated by this UI iteration.

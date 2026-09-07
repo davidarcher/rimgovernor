@@ -15,7 +15,9 @@ from mcp.types import CallToolResult
 
 class BridgeError(RuntimeError):
     def __init__(self, tool: str, result: CallToolResult):
-        super().__init__(f"Bridge tool failed: {tool}")
+        payload = result.structuredContent or {}
+        detail = payload.get('message') or payload.get('error') or next((getattr(c, 'text', '') for c in result.content), '')
+        super().__init__(f"Bridge tool failed: {tool}: {str(detail)[:1200]}")
         self.tool = tool
         self.result = result
 

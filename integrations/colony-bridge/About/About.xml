@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
-  <name>RimBot Colony Observations</name>
+  <name>RimBot Colony Bridge</name>
   <author>RimBot research integration; companion sources by Snowstar38</author>
   <packageId>davidarcher.rimbot.observations</packageId>
   <supportedVersions><li>1.6</li></supportedVersions>
   <modDependencies><li><packageId>brrainz.rimbridgeserver</packageId><displayName>RimBridgeServer</displayName></li></modDependencies>
   <loadAfter><li>brrainz.rimbridgeserver</li></loadAfter>
-  <description>Read-only companion queries for the local RimBot backend migration trial.</description>
+  <description>Companion observations and native gameplay commands for the local RimBot controller.</description>
 </ModMetaData>

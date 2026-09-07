@@ -18,3 +18,19 @@ Local changes:
   ZoneCellsTool.cs as shared helper classes; no exported write tools included.
 - Added `thingId = pawn.GetUniqueLoadID()` to every ListPawnsTool row. Upstream
   only provided an actionable pawn ID in the optional settings block.
+
+## Gameplay slice and dashboard integration
+
+This iteration also compiles upstream ZoneCellsTool, PlaceBuildingTool,
+PawnConfigTool, BuildingConfigTool, BillsTool, OrderTool and Watch from the same
+pinned source snapshot. The extracted PawnSettingsRead and StockpileFilter files
+are excluded from compilation because the full upstream modules define them.
+Python validates discovered schemas, restricts the callable gameplay surface,
+requires explicit dryRun for companion writes, disables watch delays, and refuses
+godMode. Native receipts and post-command observations are kept separately from
+claims of completed pawn work.
+
+The React dashboard borrows the upstream overlay's game/chat/short-summary layout
+and separate long-term direction, adapted to our existing dashboard styles.
+No Twitch credentials, hosted service, OBS setup or inline script is included.
+The temporary standalone overlay is replaced by the dashboard on port 8787.
