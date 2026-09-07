@@ -42,7 +42,7 @@ async def refresh_progress(rt,context):
     rooms=[r for r in rt.memory.get('spatial_layout',{}).get('regions',[]) if r['purpose']=='room']
     area=None
     if rooms and rt.memory.get('colony_focus'):
-        area=(await rt.api.call('construction_area',{'map_id':rt.observation['map']['id'],'center':rt.memory['colony_focus'],'radius':32})).model_dump()
+        area=(await rt.api.call('construction_area',{'map_id':rt.observation['map']['id'],'center':rt.memory['colony_focus'],'radius':32},fresh=True)).model_dump()
     lookup={(c['position']['x'],c['position']['z']):c for c in (area or {}).get('cells',[])}
     eligibility={}
     for project in projects:
@@ -77,6 +77,13 @@ async def refresh_progress(rt,context):
             rt.note('project_feedback_history','Previous review feedback superseded by a fresh observation',project_id=project['project_id'],feedback=project['feedback'])
         project['feedback']=[]
         project['progress']=progress
+        from .project_outcomes import assess
+        previous=project.get('outcome_evidence')
+        current=assess(project)
+        project['outcome_evidence']=current
+        # Emit only changed evidence, never a breadcrumb on every poll or tick.
+        if previous and any(previous.get(k)!=current[k] for k in ('status','checks','review_required')):
+            rt.note('project_outcome','Project evidence changed',project_id=project['project_id'],outcome_evidence=current)
     return {**context,'projects':projects}
 
 async def validate_farm_expansion(rt,project,actions):

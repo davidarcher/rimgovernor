@@ -139,3 +139,19 @@ Tests cover native/modded skill mapping, disabled/downed/drafted exclusions, sta
 sole-provider protection, insufficient coverage, normal native command generation and the model-free
 project execution path. A read-only live tribal-colony selection was exercised; actual priority writes
 and resulting labor throughput have not yet been validated in a full playtest.
+
+## Outcome evidence
+
+Projects now retain `outcome_evidence` separately from order completion. Existing
+observations measure designated crop cells, plants present for that crop, and roof
+coverage of a project's planned interior. A partial roof survey is unknown, not
+proof of completion. Refreshes replace earlier evidence so crop loss or roof loss
+can invalidate a previously met measurement. The Work view shows measured results.
+
+This adds no inference calls or new surveys; the existing roof survey now explicitly
+requests fresh data. It does not automatically retire projects or interpret free-text
+success criteria. Plants present do not establish food sustainability; a roof does not
+establish a usable room. Those broader criteria remain explicit review requirements.
+Other project kinds currently report unknown outcome evidence. Regression tests cover
+missing observations, scope, regressions and the distinction from order receipts;
+full gameplay outcome validation remains outstanding.
