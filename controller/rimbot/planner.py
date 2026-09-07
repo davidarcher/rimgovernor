@@ -112,6 +112,12 @@ class Planner:
         if isinstance(value,(ObjectiveProposal,ObjectiveDecision)):
             objectives=value.objectives if isinstance(value,ObjectiveProposal) else [value.updates.get(k) or WorkObjective.model_validate(context['proposals'][k]['objective']) for k in value.accepted]
             from .project_progress import routing_error
+            from .project_dependencies import validate_graph
+            known_dependencies={p['project_id'] for p in self.rt.memory.get('projects',[])}
+            if any(d not in known_dependencies for o in objectives for d in o.after_projects):
+                raise ValueError('Prerequisites must reference existing project IDs, not proposed or invented IDs')
+            validate_graph(self.rt.memory.get('projects',[]),{
+                o.project_id or f'new:{i}':o.after_projects for i,o in enumerate(objectives)})
             for objective in objectives:
                 mismatch=routing_error(objective.model_dump())
                 if mismatch:raise ValueError(mismatch)

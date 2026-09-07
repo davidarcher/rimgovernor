@@ -29,14 +29,17 @@ def reconcile_projects(memory):
     return changed
 
 
-def retain_project(memory,owner,objective,priority=None):
+def retain_project(memory,owner,objective,priority=None,*,validate_dependencies=True):
     projects=memory.setdefault('projects',[])
     existing=next((p for p in projects if p['project_id']==objective.project_id),None) if objective.project_id else None
     if objective.project_id and (existing is None or existing['owner']!=owner):raise ValueError('Project must reference an existing objective owned by this manager')
     if existing is None:
         existing=next((p for p in projects if p.get('status')!='retired' and p['kind']==objective.kind and p['outcome'].casefold().strip()==objective.outcome.casefold().strip()),None)
     if existing is None:
-        existing={'project_id':uuid.uuid4().hex[:12],'owner':owner,'work_ids':[],'created_at':time.time()};projects.append(existing)
+        existing={'project_id':uuid.uuid4().hex[:12],'owner':owner,'work_ids':[],'created_at':time.time()}
+    from .project_dependencies import validate_graph
+    if validate_dependencies:validate_graph(projects,{existing['project_id']:objective.after_projects})
+    if existing not in projects:projects.append(existing)
     if existing.get('kind') and existing['kind']!=objective.kind:
         existing.setdefault('previous_work_ids',[]).extend(existing['work_ids'])
         existing['work_ids']=[]
@@ -106,7 +109,7 @@ async def semantic_review(rt,context,roles):
     # Unblocked routine setup does not require another strategic approval turn.
     routine=[]
     for key,candidate in list(candidates.items()):
-        if candidate['objective']['kind'] in ('supply_access','storage','growing') and not candidate['blockers']:
+        if candidate['objective']['kind'] in ('supply_access','storage','growing') and not candidate['blockers'] and not candidate['objective'].get('after_projects'):
             objective=ObjectiveProposal.model_validate({'summary':'Routine setup','objectives':[candidate['objective']]}).objectives[0]
             routine.append(retain_project(rt.memory,candidate['owner'],objective,candidate['priority']))
             del candidates[key]
@@ -148,7 +151,9 @@ async def semantic_review(rt,context,roles):
         objective=decision.updates.get(key) or ObjectiveProposal.model_validate({'summary':'Approved','objectives':[candidate['objective']]}).objectives[0]
         existing=next((p for p in projects if p['project_id']==objective.project_id),None)
         owner=existing['owner'] if existing else candidate['owner']
-        project=retain_project(rt.memory,owner,objective,candidate['priority'])
+        # The complete proposed graph was validated together; intermediate edge
+        # replacement order must not manufacture a cycle during a valid revision.
+        project=retain_project(rt.memory,owner,objective,candidate['priority'],validate_dependencies=False)
         if project not in approved:approved.append(project)
     active_ids={i for p in rt.memory['projects'] if p.get('status')!='retired' for i in p['work_ids']}
     obsolete_ids={i for p in rt.memory['projects'] for i in (p['work_ids'] if p.get('status')=='retired' else p.get('previous_work_ids',[]))}
@@ -170,12 +175,16 @@ async def execute_projects(rt,context,scheduled):
     spatial_error=None
     layout_prepared=False
     scheduled=sorted(scheduled,key=lambda p:({'urgent':0,'high':1,'normal':2,'low':3}.get(p.get('priority','normal'),2),{'supply_access':0,'storage':1,'growing':2}.get(p['kind'],3)))
+    from .project_dependencies import order_projects
+    scheduled=order_projects(scheduled)
     for project in scheduled:
         rt.check_generation()
         if rt.mode!='automate':break
         from .world_model import sync_interrupts
         sync_interrupts(rt)
         if project.get('status')=='suspended':continue
+        from .project_dependencies import check_dependencies
+        if not await check_dependencies(rt,project):continue
         from .project_progress import routing_error
         mismatch=routing_error(project)
         if mismatch:

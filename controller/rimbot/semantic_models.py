@@ -6,6 +6,8 @@ from .contracts import Contract, Decision
 ProjectKind=Literal['construction','growing','production','storage','work_assignment','supply_access','care','security','research']
 
 class WorkObjective(Contract):
+    after_projects: list[str] = Field(default_factory=list,max_length=4,description='Only genuine prerequisites: existing project IDs whose native orders must still be verified before execution. Empty by default. Stockpiles are not prerequisites for using supplies or growing crops. This checks orders, not overall goal completion.')
+    deadline_tick: int | None = Field(default=None,ge=0,description='Optional absolute game-tick target. A missed target prompts review; it does not cancel the project. Null without a supported deadline.')
     project_id: str = Field(default='',description='Existing project ID to continue; blank creates a new objective.')
     kind: ProjectKind = Field(description="Command system needed: construction places ALL furniture/buildings including beds and recreation; growing creates crop zones; storage creates/configures stockpile zones; supply_access ONLY changes forbidden flags and cannot create stockpiles; production configures bills; work_assignment changes priorities/schedules ONLY; care treats patients, never builds beds; research selects technology, never recreation.")
     outcome: str = Field(min_length=1,max_length=250,description='Desired player-visible result, not endpoints, cells or a sequence of API calls.')

@@ -10,6 +10,8 @@ export default function Projects({projects,onCancel}:{projects:any[],onCancel:(i
   return <section className="mgr-card"><div className="mgr-card-title"><h2>Projects</h2><button onClick={toggle} aria-expanded={open}>Strategy library</button></div>
     {!projects.some(p=>p.status!=='retired')&&<p className="mgr-empty">Approved objectives appear here. Orders and their progress appear below.</p>}
     {projects.filter(p=>p.status!=='retired').map(p=><article className="mgr-work-row" key={p.project_id}><div><b>{p.outcome}</b><p>{labels[p.status]||p.status}</p><small>{p.owner} · {p.kind.replaceAll('_',' ')} · {p.work_ids.length} tracked orders</small>
+      {p.dependency_blockers?.map((b:string,i:number)=><p key={'dependency'+i}>{b}</p>)}
+      {p.deadline_overdue&&<p>Target date passed; awaiting review.</p>}
       {p.progress_note&&<p>{p.progress_note}</p>}
       {p.feedback?.map((f:string,i:number)=><p key={i}>{f}</p>)}
       <details><summary>Scope and completion criteria</summary>{p.quantity!=null&&<p>Target: {p.quantity}</p>}<ul>{p.constraints.map((c:string,i:number)=><li key={'c'+i}>{c}</li>)}{p.success_signals.map((c:string,i:number)=><li key={'s'+i}>{c}</li>)}</ul></details></div><button title="Cancel project and stop tracking its orders; existing game orders stay in place" aria-label={`Cancel ${p.outcome}`} onClick={()=>onCancel(p.project_id)}>Cancel</button></article>)}

@@ -60,11 +60,18 @@ def transition(state,key,condition,tick,roles,urgent=False):
 
 def update(rt):
     facts=derive(rt.observation);rt.memory['world_facts']=facts
+    from .food_forecast import forecast
+    facts['food']=forecast(rt.memory,rt.observation)
     state=rt.memory.setdefault('risk_state',{})
     medical=facts['medical'];tick=facts['observed_tick']
     condition=True if medical['urgent_pawn_ids'] else (None if medical['missing_pawns'] else False)
     events=[]
     event=transition(state,'medical_emergency',condition,tick,['Survival'],True)
+    if event:events.append(event)
+    food=facts['food'];days=food.get('stock_depletion_days')
+    active=state.get('food_stock_decline',{}).get('active',False)
+    condition=(days<(4 if active else 2)) if days is not None else (False if food.get('net_loss_per_day',1)<=0 else None)
+    event=transition(state,'food_stock_decline',condition,tick,['Survival'])
     if event:events.append(event)
     power=facts['power'];headroom=power.get('aggregate_headroom_watts')
     event=transition(state,'power_deficit',None if headroom is None else headroom<0,tick,['Infrastructure'])

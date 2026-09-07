@@ -38,10 +38,9 @@ facts may wait for the bounded reassessment; add typed relevant event triggers i
 
 ## Ordered follow-up
 
-1. Derived risk facts and hysteretic manager triggers, with explicit unavailable/uncertain inputs.
-2. Extend existing project lifecycle with dependencies and emergency suspension/resumption.
-3. Deterministic work coverage and goal postconditions beyond individual order completion.
-4. Crisis playbooks, separate combat loop, occasional strategic critic, decision replay scenarios.
+1. Native diet/access and consumption observations for actual food runway and harvest timing.
+2. Deterministic work coverage and goal postconditions beyond individual order completion.
+3. Crisis playbooks, separate combat loop, occasional strategic critic, decision replay scenarios.
 
 Each slice requires focused regression tests and a checkpoint. The full acceptance scenario in the
 request is not yet implemented or proven by the starter-base benchmark.
@@ -94,3 +93,25 @@ nonurgent execution pauses; existing RimWorld jobs/blueprints are not cancelled.
 security and explicitly urgent projects remain eligible. When the observed emergency clears, the
 same projects resume with a fresh assessment. The dashboard shows suspension/resumption outcomes.
 No hostile-count or distant-insect construction veto was introduced.
+
+## Prerequisites, targets and stock trends
+
+Work objectives now carry optional `after_projects` and `deadline_tick`. Prerequisites reference
+existing projects, reject cycles/unknown IDs, and run before dependants in the same execution pass.
+They require tracked orders to be verified and recheck their native effects before releasing work.
+Cancelled or missing prerequisites block for revision; support-only progress cannot release a
+construction dependency. This remains an **order prerequisite**, not automatic proof that a
+high-level outcome is achieved. Defaults are empty: stockpiles are not prerequisites for food
+access, farming or using allowed loose materials. Deadlines request administrator review without
+cancelling native orders. Blockers and missed targets appear in Work and Activity.
+
+`food_forecast` samples the existing native human-edible stock summary at game-hour intervals,
+keeps at most one day of samples, and requires six game hours before projecting net depletion.
+Paused wall time cannot create a forecast. Population changes, rewinds and long observation gaps
+reset the sample window. A decline crossing two projected days wakes Survival; the clearing band
+is four days with existing clear-time hysteresis. This is an advisory stock-trend signal only.
+
+The native summary includes forbidden/unexplored loose food and excludes pawn inventories. Net
+change also includes production, trade and spoilage. Consequently `food_runway_days` remains
+unavailable: no nominal per-pawn hunger constant or guaranteed-safe-food claim was invented.
+Harvest timing also remains unavailable pending native rates and season/temperature inputs.
