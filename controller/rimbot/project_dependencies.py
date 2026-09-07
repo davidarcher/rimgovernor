@@ -36,25 +36,41 @@ def order_projects(projects):
 async def check_dependencies(rt, project):
     projects={p['project_id']:p for p in rt.memory.get('projects',[])}
     work={w['id']:w for w in rt.memory.get('work',[])}
-    blockers=[]
-    for identity in project.get('after_projects',[]):
+    checked={}
+    async def inspect(identity, ancestry):
+        if identity in ancestry:
+            return ['Project prerequisite cycle: '+' -> '.join((*ancestry,identity))]
+        if identity in checked:return checked[identity]
         prerequisite=projects.get(identity)
         if prerequisite is None or prerequisite.get('cancelled_by_player'):
-            blockers.append(f'Prerequisite {identity} is missing or cancelled; revise the dependency.')
-            continue
-        ids=prerequisite.get('work_ids',[])
-        if prerequisite.get('status') not in ('orders_verified','retired') or not ids or any(i not in work or work[i]['status']!='complete' for i in ids):
-            blockers.append(f"Waiting for verified orders: {prerequisite['outcome']}")
-            continue
-        # Previously complete buildings/settings may have been removed or changed.
-        for identity in ids:
-            row=work[identity]
-            try:
-                verified=await rt.action_complete(Action.model_validate(row.get('action',{})),row.get('native_result'))
-            except (ValueError,RuntimeError) as error:
-                blockers.append('Prerequisite observation unavailable: '+str(error));break
-            if not verified:
-                blockers.append(f"Prerequisite no longer verified: {prerequisite['outcome']}");break
+            reasons=[f'Prerequisite {identity} is missing or cancelled; revise the dependency.']
+        elif prerequisite.get('admin_hold') or prerequisite.get('status')=='suspended':
+            reasons=[f"Prerequisite is on hold: {prerequisite['outcome']}"]
+        else:
+            reasons=[]
+            for parent in prerequisite.get('after_projects',[]):
+                reasons.extend(await inspect(parent,(*ancestry,identity)))
+            ids=prerequisite.get('work_ids',[])
+            if not reasons:
+                if prerequisite.get('status') not in ('orders_verified','retired') or not ids or any(i not in work or work[i]['status']!='complete' for i in ids):
+                    reasons.append(f"Waiting for verified orders: {prerequisite['outcome']}")
+                else:
+                    for work_id in ids:
+                        row=work[work_id]
+                        try:
+                            verified=await rt.action_complete(Action.model_validate(row.get('action',{})),row.get('native_result'))
+                        except (ValueError,RuntimeError) as error:
+                            reasons.append('Prerequisite observation unavailable: '+str(error));break
+                        if not verified:
+                            reasons.append(f"Prerequisite no longer verified: {prerequisite['outcome']}");break
+        checked[identity]=list(dict.fromkeys(reasons))
+        return checked[identity]
+    blockers=[]
+    for identity in project.get('after_projects',[]):
+        blockers.extend(await inspect(identity,(project['project_id'],)))
+    blockers=list(dict.fromkeys(blockers))
+    project['dependency_checks']={'observed_tick':rt.last_tick,
+        'projects':[{'project_id':identity,'verified':not reasons,'blockers':reasons} for identity,reasons in checked.items()]}
     previous=project.get('dependency_blockers',[])
     project['dependency_blockers']=blockers
     if blockers!=previous:

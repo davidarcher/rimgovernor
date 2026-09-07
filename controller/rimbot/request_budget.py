@@ -12,7 +12,7 @@ def project_context(context):
     result=copy.deepcopy(context)
     def project(p):
         keep=('project_id','owner','kind','outcome','status','quantity','crop_def','target_cells','definition_requirements','constraints','success_signals','progress','outcome_evidence','feedback','priority','resource_request','interruption')
-        out={k:v for k,v in p.items() if k in (*keep,'admin_hold','after_projects','deadline_tick','deadline_overdue','dependency_blockers','work_policy','work_allocation')}
+        out={k:v for k,v in p.items() if k in (*keep,'admin_hold','after_projects','deadline_tick','deadline_overdue','dependency_blockers','dependency_checks','work_policy','work_allocation')}
         if isinstance(out.get('progress'),dict):
             orders=out['progress'].pop('orders',[])
             from collections import Counter

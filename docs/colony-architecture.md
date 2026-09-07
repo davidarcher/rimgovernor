@@ -320,3 +320,18 @@ reproducible from original inputs; deterministic action simulation, strategic
 counterfactual evaluation and native state replay remain separate future work.
 Tests cover exact persistence, bounded retention, isolation from history feeds,
 failure reproduction and planner failure-to-checkpoint linkage.
+
+## Transitive prerequisite verification
+
+Dependency evaluation now follows the entire prerequisite graph, not just direct
+parents. A downstream project cannot use a completed intermediate project's orders
+to bypass an ancestor that is on hold, cancelled, missing or no longer verified in
+the game. Each evaluation memoizes shared ancestors, avoiding repeated native checks
+in diamond-shaped graphs; this memo is discarded before the next evaluation so stale
+results cannot authorize later execution. Persisted cycles produce explicit blockers.
+
+`dependency_checks` retains the observed tick and per-project verification results
+alongside the existing blocker list. These are still order postconditions, not proof
+that every free-text strategic goal was fulfilled. Verification does not cancel or
+recreate native orders. Tests cover transitive failures, holds, recovery, shared
+ancestors, fresh later observations and cycles. No gameplay run was made for this slice.

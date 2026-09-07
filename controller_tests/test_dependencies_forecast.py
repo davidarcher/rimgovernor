@@ -28,6 +28,53 @@ async def test_dependency_rechecks_native_outcome_and_preserves_project(colony):
     assert len(rt.memory['projects'])==2 and parent['work_ids']==['w']
 
 
+async def test_transitive_prerequisite_failure_and_hold_block_descendants(colony):
+    rt,_=colony
+    action=Action(title='Setting',endpoint='post_work_settings',arguments={'use_work_priorities':True})
+    a={'project_id':'a','outcome':'Workshop','work_ids':['a-work'],'status':'orders_verified'}
+    b={'project_id':'b','outcome':'Production','work_ids':['b-work'],'status':'orders_verified','after_projects':['a']}
+    c={'project_id':'c','outcome':'Export','after_projects':['b']}
+    rt.memory['projects']=[a,b,c]
+    rt.memory['work']=[{'id':identity,'status':'complete','action':action.model_dump()} for identity in ('a-work','b-work')]
+    rt.action_complete=AsyncMock(return_value=False)
+    assert not await check_dependencies(rt,c)
+    assert 'Workshop' in c['dependency_blockers'][0]
+    assert rt.action_complete.await_count==1
+    a['admin_hold']={'reason':'Hold'}
+    rt.action_complete.reset_mock()
+    assert not await check_dependencies(rt,c)
+    rt.action_complete.assert_not_awaited()
+    a.pop('admin_hold');rt.action_complete.return_value=True
+    assert await check_dependencies(rt,c)
+    assert all(row['verified'] for row in c['dependency_checks']['projects'])
+
+
+async def test_shared_ancestor_checked_once_per_pass_and_again_next_pass(colony):
+    rt,_=colony
+    action=Action(title='Setting',endpoint='post_work_settings',arguments={'use_work_priorities':True})
+    parents=[{'project_id':key,'outcome':key,'work_ids':[key],'status':'orders_verified',
+              'after_projects':[] if key=='a' else ['a']} for key in ('a','b','c')]
+    root={'project_id':'d','outcome':'Final','after_projects':['b','c']}
+    rt.memory['projects']=parents+[root]
+    rt.memory['work']=[{'id':p['project_id'],'status':'complete','action':action.model_dump()} for p in parents]
+    rt.action_complete=AsyncMock(return_value=True)
+    assert await check_dependencies(rt,root)
+    assert rt.action_complete.await_count==3
+    rt.action_complete.return_value=False
+    assert not await check_dependencies(rt,root)
+    assert rt.action_complete.await_count==4
+
+
+async def test_persisted_cycle_is_blocked_without_native_writes_or_recursion(colony):
+    rt,_=colony
+    a={'project_id':'a','outcome':'A','after_projects':['b']}
+    b={'project_id':'b','outcome':'B','after_projects':['a']}
+    rt.memory['projects']=[a,b];rt.action_complete=AsyncMock()
+    assert not await check_dependencies(rt,a)
+    assert 'cycle' in a['dependency_blockers'][0]
+    rt.action_complete.assert_not_awaited()
+
+
 def test_prerequisites_are_scheduled_before_dependants_in_same_pass():
     from rimbot.project_dependencies import order_projects
     child={'project_id':'b','after_projects':['a']};parent={'project_id':'a'}

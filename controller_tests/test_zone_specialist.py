@@ -60,7 +60,7 @@ async def test_spatial_work_waits_for_valid_initial_master_plan(monkeypatch):
     monkeypatch.setattr('rimbot.spatial.prepare_layout',prepare)
     async def refreshed(rt,context):return context
     monkeypatch.setattr('rimbot.project_progress.refresh_progress',refreshed)
-    rt=NS(memory={'projects':projects,'work':[]},check_generation=Mock(),mode='automate',resume_initial_planning=AsyncMock(),note=Mock(),persist=Mock(),manager_context=AsyncMock(return_value={}),observe_resources=AsyncMock(return_value={}),planner=NS(ask=ask),settings=NS(reasoning=False))
+    rt=NS(last_tick=0,memory={'projects':projects,'work':[]},check_generation=Mock(),mode='automate',resume_initial_planning=AsyncMock(),note=Mock(),persist=Mock(),manager_context=AsyncMock(return_value={}),observe_resources=AsyncMock(return_value={}),planner=NS(ask=ask),settings=NS(reasoning=False))
     await execute_projects(rt,{},projects)
     assert order==['architect']
     assert projects[0]['status']=='needs_review'
