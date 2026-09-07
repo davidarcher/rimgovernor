@@ -1,14 +1,14 @@
 # Local research companion
 
-The eight full C# source files in `src` were copied from
+The upstream C# source files in `src` were copied from
 https://github.com/Snowstar38/rimworld-claude-harness/tree/89c2e90fedd51419a3db55a7f9865b0aef29b270/companion/src
 for the user's explicitly requested local research integration. Original namespace,
 comments and authorship context are retained. No license file was present in that
 checkout; this document does not grant or imply redistribution rights.
 
-Our project/metadata compile only observation tools: status, pawns, things,
-buildings, rooms and zones, plus their shared helpers. Upstream write tools,
-camera/watch delays and supervised-play policy are not compiled into this module.
+The original slice compiled observations only. The sections below record the
+subsequent gameplay and native clock additions; the Python gateway exposes only
+the reviewed subset of the installed tools.
 RimWorld and RimBridgeServer SDK assemblies are referenced, never bundled.
 
 Any subsequent source modifications must be recorded here and tested in-game.
@@ -53,3 +53,29 @@ The temporary standalone overlay is replaced by the dashboard on port 8787.
   extension only exposes its read tool. This fixes Verse's cached type lookup
   during save deserialization; the live save/reload smoke verifies identity
   continuity and load-token rotation.
+
+## Native supervised clock
+
+Copied `SupervisedPlayTool.cs`, `PlayUntilEventTool.cs` and `CombatInjuryHook.cs`
+from the pinned snapshot above. The latter two provide shared watcher helpers;
+the planner uses nonblocking supervision, not the short blocking waiter. Harmony
+is referenced from the installed workshop mod, never bundled.
+
+Local native policy changes:
+- Added schema-visible `hostileWithin` (default 40 cells) to supervision. A hostile
+  must be within that distance of a colonist to stop play; distant cave inhabitants
+  alone are not a stop condition. This is proximity monitoring, not a combat risk
+  assessment or permission to enter caves.
+- A changed speed after a temporary force pause is never restored automatically.
+- The watcher retires on map changes as well as game-instance changes.
+
+Python owns the renewable 15-second lease, renewing every 3 seconds independently
+of model inference. External pause/speed changes and watchdog failures require an
+explicit player Automate selection before restart. Ordinary danger events go to
+the planner while paused; combat mode and specific acknowledged IDs remain explicit
+native options. No turn-clock budget or extra inference service is introduced.
+
+Live validation: native lease expiry without heartbeat, external pause latch and
+explicit resume, actual pawn movement, and runtime-owned undraft/pause cleanup.
+Evidence is recorded locally in `.rimbot/bridge/clock-smoke.json` by
+`scripts/native_clock_smoke.py`. This is not a live raid/combat test.

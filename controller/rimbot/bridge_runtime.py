@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 
 from .bridge import bridge_session
+from .clock_control import PlayClock, HOLD_REASONS
 from .bridge_game import BridgeGame, WRITES, is_write
 from .bridge_observation import observe
 from .config import Settings
@@ -40,6 +41,9 @@ class BridgeRuntime:
         self.camera_path = None
         self.camera_version = 0
         self.clock = {}
+        self.supervisor = None
+        self.clock_task = None
+        self.clock_events = []
         self.counters = {'tools': 0, 'actions': 0, 'model_calls': 0, 'input_tokens': 0, 'output_tokens': 0}
         self.lock = asyncio.Lock()
         self.wake = asyncio.Event()
@@ -60,6 +64,8 @@ class BridgeRuntime:
         if changed:
             saved = self.store.get('bridge:'+key, {})
             self.colony, self.identity, self.context_token = key, identity, token
+            self.supervisor = PlayClock(self.bridge) if self.bridge else None
+            self.clock_events.clear()
             self.chat = saved.get('chat', [])
             self.plan = saved.get('plan', {'long': '', 'short': ''})
             self.projects = ProjectBook(saved.get('projects', []))
@@ -142,7 +148,10 @@ class BridgeRuntime:
         """Stop automation and its draft obligations; never silently claim success."""
         self.mode, self.resume_after_review = 'manual', False
         try:
-            await self.bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
+            if self.supervisor:
+                await self.supervisor.change('Paused')
+            else:
+                await self.bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
         except Exception as error:
             self.note('blocker', 'Could not pause the game: '+failure_text(error))
         await self.release_drafts()
@@ -156,12 +165,81 @@ class BridgeRuntime:
             await self.sync_identity()
             if mode == 'manual':
                 await self.halt()
+            if self.supervisor:
+                await self.supervisor.change('Paused')
+                # Only explicit player control clears an external pause latch.
+                self.supervisor.allow_resume()
+            else:
+                await self.bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
             self.mode = mode
             self.resume_after_review = mode == 'automate'
-            await self.bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
         await self.steer('Control changed to '+mode+'. '+('Continue the colony plan.' if mode == 'automate' else 'Discuss and inspect only; do not issue game orders.'))
 
+    async def control_clock(self, speed, *, mode='colony', ignored_hostiles='', ignored_downed='', expected_revision=None, expected_token=None):
+        async with self.lock:
+            await self.sync_identity()
+            if expected_token is not None and expected_token != self.context_token:
+                raise ValueError('Loaded colony changed; clock was not changed')
+            if expected_revision is not None and expected_revision != self.chat_revision:
+                raise ValueError('New direction arrived; clock was not changed')
+            if self.mode != 'automate':
+                raise ValueError('Automation is off; clock was not changed')
+            self.resume_after_review = False
+            result = await self.supervisor.change(speed, mode=mode,
+                ignored_hostiles=ignored_hostiles, ignored_downed=ignored_downed)
+            self.note('action', 'Clock: '+(result.get('stopReason') or speed), result=result)
+            return result
+
+    async def watch_clock(self):
+        # Separate from inference and the game-writer lock: slow thinking cannot
+        # consume the native lease. If communication stalls, RimWorld pauses.
+        failed_supervisor = None
+        while not self.stopped:
+            supervisor = self.supervisor
+            if supervisor:
+                try:
+                    rows = await supervisor.poll()
+                    failed_supervisor = None
+                    if supervisor is self.supervisor:
+                        self.clock_events.extend(rows)
+                except Exception as error:
+                    if supervisor is self.supervisor and failed_supervisor is not supervisor:
+                        failed_supervisor = supervisor
+                        self.clock_events.append({'kind': 'clock_error', 'detail': failure_text(error)})
+            try:
+                await asyncio.wait_for(self.shutdown.wait(), 3)
+            except TimeoutError:
+                pass
+
+    def receive_clock_events(self):
+        events, self.clock_events = self.clock_events, []
+        for event in events:
+            kind = event['kind']
+            if kind in ('started', 'heartbeat', 'paused', 'requested_pause', 'speed_changed'):
+                continue
+            if (self.supervisor and kind in HOLD_REASONS
+                    and (event.get('epoch'), kind) == self.supervisor.acknowledged_stop):
+                continue
+            saved_event = self.note('clock_event', event['detail'], native_event=event)
+            self.resume_after_review = False
+            if kind in HOLD_REASONS or kind == 'clock_error':
+                self.mode = 'manual'
+                self.phase = 'Clock held'
+            # Deliver evidence to an in-flight planner, invalidate stale calls,
+            # and wake an idle planner without claiming this is a player message.
+            self.chat_revision += 1
+            self.chat.append(dict(saved_event, revision=self.chat_revision))
+            self.wake.set()
+        if events:
+            self.persist()
+
     async def native(self, name, arguments, *, expected_revision=None, expected_token=None):
+        if name == 'rimworld/set_time_speed':
+            if set(arguments) - {'speed', 'ultraSpeedBoost'}:
+                raise ValueError('Unknown time control argument')
+            if arguments.get('ultraSpeedBoost'):
+                raise ValueError('Use normal game speeds')
+            return await self.control_clock(arguments.get('speed'), expected_revision=expected_revision, expected_token=expected_token)
         async with self.lock:
             if expected_revision is not None and expected_revision != self.chat_revision:
                 raise ValueError('New player direction arrived; this call was not executed')
@@ -231,7 +309,7 @@ class BridgeRuntime:
             await self.planner.play_bridge()
             async with self.lock:
                 if self.resume_after_review and self.mode == 'automate':
-                    await self.bridge.call('rimworld/set_time_speed', speed='Normal', ultraSpeedBoost=False)
+                    await self.supervisor.change('Normal')
                     self.resume_after_review = False
             self.phase = 'Playing' if self.mode == 'automate' else 'Manual'
         except asyncio.CancelledError:
@@ -263,6 +341,7 @@ class BridgeRuntime:
                 self.persist()
                 self.batch = await observe(self.game)
                 self.connected, self.phase = True, 'Manual'
+                self.clock_task = asyncio.create_task(self.watch_clock())
                 last_review = last_reconcile = 0
                 while not self.stopped:
                     if self.review_task is None or self.review_task.done():
@@ -276,6 +355,7 @@ class BridgeRuntime:
                                 self.batch = await observe(self.game)
                                 await self.projects.reconcile(self.game)
                                 self.persist()
+                            self.receive_clock_events()
                             status = await self.game.query('home/status', colonists=False, threats=False)
                             self.clock = status['time']
                             if time.monotonic()-last_reconcile > 10:
@@ -301,6 +381,9 @@ class BridgeRuntime:
             self.phase = 'Connection failed'
             self.reply(failure_text(error))
         finally:
+            if self.clock_task:
+                self.clock_task.cancel()
+                await asyncio.gather(self.clock_task, return_exceptions=True)
             self.connected = False
 
     def public(self):
@@ -313,5 +396,6 @@ class BridgeRuntime:
             'game': {'tick': self.clock.get('ticksGame', summary.end_tick if summary else None), 'paused': self.clock.get('paused', True),
                      'stale': not self.connected, 'wallTs': time.time()},
             'lastSummary': recent, 'feed': feed, 'mode': self.mode, 'connected': self.connected,
+            'clockSupervisor': self.supervisor.state if self.supervisor else {},
             'cameraVersion': self.camera_version, 'counters': self.counters,
             'observation': summary.model_dump() if summary else None}

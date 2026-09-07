@@ -257,3 +257,13 @@ and actual clock advancement followed by pause. Trader listing succeeded; a
 completed live trade, combat tactics, guarded event advancement and draft-ledger
 cleanup remain unvalidated/unported as described above. This is narrower than
 claiming the entire upstream combat/trading system works here.
+
+
+### Follow-up: native clock installed
+
+The native supervised-play watcher is now integrated with the Python controller,
+including independent heartbeat renewal, event delivery, explicit external-pause
+release, and proximity-scoped hostile detection. The repeatable native clock smoke
+passed lease expiry, external pause, movement and draft cleanup. Combat victory and
+trade transaction validation remain open; visual review and data scouts follow.
+See `NATIVE_CONTROL_CHECKPOINT.md` for the current boundaries.

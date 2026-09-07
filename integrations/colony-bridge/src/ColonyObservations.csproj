@@ -9,6 +9,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <DebugType>none</DebugType>
     <RimWorldManagedDir Condition="'$(RimWorldManagedDir)' == ''">C:/Program Files (x86)/Steam/steamapps/common/RimWorld/RimWorldWin64_Data/Managed</RimWorldManagedDir>
+    <HarmonyAssembly Condition="'$(HarmonyAssembly)' == ''">C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll</HarmonyAssembly>
     <RimBridgeSdkDir Condition="'$(RimBridgeSdkDir)' == ''">C:/Program Files (x86)/Steam/steamapps/common/RimWorld/Mods/RimBridgeServer/1.6/Assemblies</RimBridgeSdkDir>
   </PropertyGroup>
   <ItemGroup>
@@ -18,6 +19,7 @@
     <Compile Remove="StockpileFilter.cs" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
     <Reference Include="RimBridgeServer.Sdk"><HintPath>$(RimBridgeSdkDir)/RimBridgeServer.Sdk.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="0Harmony"><HintPath>$(HarmonyAssembly)</HintPath><Private>false</Private></Reference>
     <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldManagedDir)/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine"><HintPath>$(RimWorldManagedDir)/UnityEngine.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.CoreModule"><HintPath>$(RimWorldManagedDir)/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
