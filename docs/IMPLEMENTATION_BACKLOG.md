@@ -2,7 +2,7 @@
 
 Status: active plan, September 7, 2026. Baseline controller: 00ad80d.
 
-This is the execution backlog for the existing Python controller and RIMAPI fork. It supersedes older implementation-order suggestions, not the historical test evidence. Keep one authoritative world model, project store, action lifecycle and spatial reservation system. No new manager tier, production MCP migration, or larger-model escalation is planned.
+The native backend is moving toward GABS + RimBridgeServer; see [replacement gates](RIMBRIDGE_MIGRATION.md). Keep the Python world model, project store, action lifecycle and spatial reservations. Priorities below remain gameplay acceptance criteria; pause bespoke RIMAPI P2 expansion while evaluating upstream equivalents. No new manager tier or larger-model escalation is planned.
 
 ## Definition of success
 
@@ -145,7 +145,7 @@ Strategy and daily planning now use the same compact administrator projection as
 
 The requested 96k experiment loads Qwen3.5-9B at 98,304 context, one inference slot. The harness has an isolated `--context-tokens` override so its budget matches that load without changing dashboard preferences. Live run `20260907-164536` reached model inference and multiple tool calls; recent engine-reported inputs were approximately 17–22k tokens. Conservative budget units are not engine token counts. Goal completion is separate from this context fix. Focused administrator/replay/benchmark regression checks: 24 passed.
 
-### P1 � explicit write routing completed
+### P1 — explicit write routing completed
 
 `capabilities.py` defines exact operation-to-system ownership, controller-owned planning operations, and the withheld drop-all apparel editor. Catalog construction rejects newly exposed writes without a deliberate policy; specialist validation and tool selection use exact names. Existing production bill add/update/suspend/reorder/remove and power routes are reachable without introducing another native API.
 
