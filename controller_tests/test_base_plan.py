@@ -234,3 +234,14 @@ async def test_room_can_enclose_existing_stockpile_without_replacing_it():
  assert stock['purpose']=='storage' and stock['project_ids']==['s']
  assert stock['parent_id']==result['region']['id']
  assert result['region']['reuse_zone_ids']==[5]
+
+
+async def test_executor_room_geometry_contains_complete_edges_and_reachable_entries():
+ rt,_=runtime()
+ result=await reserve_site(rt,{'project_id':'room'},SiteRequest(zone_id='food',label='Room',purpose='room',width=6,height=7))
+ region=result['region'];geometry=region['geometry']
+ from rimbot.spatial import boundary
+ edges=cells({'patches':geometry['boundary_patches']});inside=cells({'patches':geometry['interior_patches']})
+ assert edges==boundary(cells(region)) and edges|inside==cells(region) and not edges&inside
+ assert geometry['entrance_candidates'] and all((p['x'],p['z']) in edges for p in geometry['entrance_candidates'])
+ assert rt.memory['spatial_layout']['regions'][-1]['geometry']==geometry

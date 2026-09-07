@@ -365,6 +365,11 @@ async def reserve_site(rt,project,request):
     patches=merge_patches([rect(px,pz,1,1) for px,pz in points]) if request.purpose=='farm' else [rect(x,z,request.width,request.height)]
     region={'id':old['id'] if old else f"{zone['id']}-{len(plan['active_construction_intents'])+1}",'zone_id':zone['id'],'label':request.label,'purpose':request.purpose,'parent_id':'','project_ids':list(dict.fromkeys((old['project_ids'] if old else [])+[project['project_id']])),'patches':patches,'reuse_zone_ids':list({observed[p]['zone_id'] for p in points if observed[p]['zone_id'] is not None}),'fertility_floor':minimum,'rationale':'Current increment of '+zone['label']}
     if request.purpose=='room':
+        region['geometry']={'observed_tick':rt.last_tick,
+            'boundary_patches':merge_patches([rect(px,pz,1,1) for px,pz in boundary(points)]),
+            'interior_patches':merge_patches([rect(px,pz,1,1) for px,pz in points-boundary(points)]),
+            'entrance_candidates':[{'x':px,'z':pz} for px,pz in sorted(entrances,key=lambda p:(abs(p[0]-focus['x'])+abs(p[1]-focus['z']),p))[:12]],
+            'meaning':'Geometry only, not orders. Reuse observed walls where present; choose an entrance instead of a wall at that cell. Native placement still checks definitions, materials and footprints.'}
         for child in plan['regions']:
             if child['purpose']=='storage' and cells(child)<=points-boundary(points):child['parent_id']=region['id']
     if old:plan['regions'][plan['regions'].index(old)]=region
