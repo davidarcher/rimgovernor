@@ -26,6 +26,25 @@ def test_terrain_rectangles_are_lossless_including_holes_and_changed_facts():
  expected={(x,row['z']):row['facts'] for row in survey_runs(area) for x in range(row['x1'],row['x2']+1)}
  assert decoded==expected
 
+def test_terrain_grid_roundtrips_coordinates_holes_and_multi_digit_classes():
+ from rimbot.base_plan import terrain_grid
+ from rimbot.spatial import survey_runs
+ from rimbot.request_budget import shorten
+ area=survey()
+ area['cells']=[c for c in area['cells'] if c['position']!={'x':4,'z':5}]
+ for i,c in enumerate(area['cells'][:40]):c['terrain_def']=f'ModdedTerrain{i}'
+ classes,grid=terrain_grid(area)
+ assert grid['cell_code_width']==2
+ decoded={};digits=grid['cell_code_width']
+ for z,row in enumerate(grid['rows']):
+  assert len(row)==grid['width']*digits
+  for x in range(grid['width']):
+   code=row[x*digits:(x+1)*digits]
+   if code!='.'*digits:decoded[x+grid['origin']['x'],z+grid['origin']['z']]=classes[int(code,36)]
+ expected={(x,row['z']):row['facts'] for row in survey_runs(area) for x in range(row['x1'],row['x2']+1)}
+ assert decoded==expected
+ assert shorten({'terrain_classes':classes,'terrain_grid':grid},10)=={'terrain_classes':classes,'terrain_grid':grid}
+
 def test_budget_compaction_preserves_indexed_terrain_as_one_observation():
  from rimbot.request_budget import shorten,fit_request
  classes=[{'terrain_def':f'Terrain{i}'} for i in range(25)]

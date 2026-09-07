@@ -83,7 +83,7 @@ def shorten(value,limit):
     if isinstance(value,dict):
         # Indexed spatial transport is one inseparable observation. Truncating
         # classes separately from coordinates corrupts the map's meaning.
-        spatial={'terrain_classes','terrain_rectangles_x1_z1_x2_z2_class','terrain_runs_z_x1_x2_class','survey_bounds'}
+        spatial={'terrain_grid','terrain_classes','terrain_rectangles_x1_z1_x2_z2_class','terrain_runs_z_x1_x2_class','survey_bounds'}
         return {k:v if k in spatial else shorten(v,limit) for k,v in value.items()}
     return value
 

@@ -231,3 +231,21 @@ that passed geometry validation with this contract. It saved only an isolated te
 plan and issued no game orders. This clears the observed contradictory-footprint
 failure; starter-base execution, accessibility and layout quality still need gameplay
 validation. Tests cover all four growth directions and the single-footprint schema.
+
+## Spatial context headroom and instant receipt ownership
+
+The next four-minute tribal run reached execution: first order at 111.07 seconds,
+two orders issued, no new completed buildings, and the sleeping-capacity target
+was not met. One correction still exceeded context by 141 units with rectangle
+transport. Terrain now uses fixed-width base36 class indices in a grid, with dots
+for unobserved cells and explicit origin, dimensions and axis direction. Exact
+terrain facts remain in the protected class table. The reconstructed live request
+is 36,171 units against 55,296; round-trip tests include holes and multi-digit classes.
+
+The run also exposed commands applied to the game but reported as not issued after
+receipt tracking raised `KeyError: work_ids`. The instant path used the trimmed
+model-context project rather than persistent state. It now resolves the canonical
+project before validation/execution and attaches receipts there. Missing, retired or
+suspended projects cannot execute. The regression test passes the actual trimmed
+shape, verifies the fixture game change, and checks persistent receipt ownership.
+The fixed receipt path still needs another full gameplay run.

@@ -6,7 +6,10 @@ def is_routine(action):
 
 async def execute_routine(rt,context,action,role):
     from .spatial import validate_orders
-    project=context['project']
+    identity=context['project']['project_id']
+    project=next((p for p in rt.memory.get('projects',[]) if p['project_id']==identity),None)
+    if project is None or project.get('status') in ('retired','suspended'):
+        raise ValueError('Project is no longer active; no command executed')
     rt.check_generation()
     if rt.mode!='automate':raise ValueError('Automation is off; no command executed')
     await validate_orders(rt,project,[action])
