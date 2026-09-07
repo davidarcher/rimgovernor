@@ -258,12 +258,17 @@ async def prepare_master_plan(rt,context,projects):
     await rt.progress(role='Architect',detail='Planning future space',phase='Thinking')
     for attempt in range(3):
         started=time.monotonic()
+        from .decision_replay import checkpoint
+        model=rt.model_for_role('Architect')
+        decision_id=checkpoint(rt,'Architect',model,messages,[tool],rt.settings.architect_reasoning)
         try:
-            reply,usage=await rt.model_for_role('Architect').complete(messages,[tool],rt.settings.architect_reasoning,rt.model_progress)
+            reply,usage=await model.complete(messages,[tool],rt.settings.architect_reasoning,rt.model_progress)
         except ModelError as error:
-            rt.note('model_failure','Architect inference failed',role='Architect',seconds=round(time.monotonic()-started,3),error=str(error))
+            rt.store.finish_decision(decision_id,{'status':'failed','error':str(error)})
+            rt.note('model_failure','Architect inference failed',role='Architect',decision_id=decision_id,seconds=round(time.monotonic()-started,3),error=str(error))
             raise
-        rt.note('model_call','Architect response received',role='Architect',seconds=round(time.monotonic()-started,3),usage=usage,tools=[c['function']['name'] for c in reply.get('tool_calls',[])])
+        rt.store.finish_decision(decision_id,{'status':'returned','reply':reply,'usage':usage})
+        rt.note('model_call','Architect response received',role='Architect',decision_id=decision_id,seconds=round(time.monotonic()-started,3),usage=usage,tools=[c['function']['name'] for c in reply.get('tool_calls',[])])
         rt.usage(usage);rt.check_generation()
         try:
             calls=reply.get('tool_calls') or []

@@ -2,6 +2,7 @@
 import json
 import sqlite3
 import time
+import gzip
 from pathlib import Path
 
 
@@ -13,6 +14,7 @@ class Store:
         self.db.executescript('''
           CREATE TABLE IF NOT EXISTS state(key TEXT PRIMARY KEY, value TEXT NOT NULL);
           CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY, at REAL, colony TEXT, kind TEXT, data TEXT);
+          CREATE TABLE IF NOT EXISTS decisions(id INTEGER PRIMARY KEY, at REAL, colony TEXT, role TEXT, payload BLOB, result BLOB);
         ''')
 
     def get(self, key, default=None):
@@ -36,3 +38,22 @@ class Store:
 
     def close(self):
         self.db.close()
+
+    def decision(self,colony,role,payload):
+        packed=gzip.compress(json.dumps(payload,ensure_ascii=False).encode('utf-8'))
+        with self.db:
+            row=self.db.execute('INSERT INTO decisions(at,colony,role,payload) VALUES (?,?,?,?)',(time.time(),colony,role,packed))
+            identity=row.lastrowid
+            # Bound disk use across sessions as well as the current colony.
+            self.db.execute('DELETE FROM decisions WHERE id NOT IN (SELECT id FROM decisions ORDER BY id DESC LIMIT 64)')
+        return identity
+
+    def finish_decision(self,identity,result):
+        with self.db:
+            self.db.execute('UPDATE decisions SET result=? WHERE id=?',(gzip.compress(json.dumps(result,ensure_ascii=False).encode('utf-8')),identity))
+
+    def read_decision(self,identity):
+        row=self.db.execute('SELECT id,at,colony,role,payload,result FROM decisions WHERE id=?',(identity,)).fetchone()
+        if row is None:raise KeyError('Decision checkpoint is missing or expired')
+        return dict(id=row[0],at=row[1],colony=row[2],role=row[3],request=json.loads(gzip.decompress(row[4])),
+                    result=json.loads(gzip.decompress(row[5])) if row[5] else None)

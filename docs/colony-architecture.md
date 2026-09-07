@@ -292,3 +292,31 @@ the old scheduling baseline so fresh observations are assessed. The Work view sh
 the hold reason. Tests exercise both interruption orders, validation and actual
 executor suppression. This implements the missing explicit hold/resume part of the
 persistent-goal lifecycle without adding a second task queue; it is not gameplay-tested.
+
+## Decision checkpoints and offline budget replay
+
+The existing SQLite store retains the latest 64 compressed decision checkpoints
+across colonies in a separate table. Planner and architect calls record their exact
+scoped messages, tool schemas, configured model, reasoning toggle, context/output
+limits and observed tick before `LocalModel.complete`. They record the returned
+reply/usage or model failure afterward, and model events link the checkpoint ID.
+An unfinished record has no result; a returned reply does not imply validated or
+executed game orders. These are pre-compaction inputs, not HTTP wire captures or
+full engine snapshots. Internal inference retries are not separate checkpoints.
+
+Checkpoints never enter normal history feeds or model context. Retention is bounded
+by count; payloads are gzip-compressed. No credentials/settings object is stored.
+Old checkpoints expire, and existing traces cannot recover inputs that were never
+recorded. Offline budget replay uses the current budgeting implementation and makes
+no model or game requests:
+
+```powershell
+.venv/Scripts/python.exe -m rimbot.decision_replay .rimbot/colony.sqlite
+.venv/Scripts/python.exe -m rimbot.decision_replay .rimbot/colony.sqlite --decision 42
+```
+
+Use the listed ID rather than the example 42. This makes request-limit regressions
+reproducible from original inputs; deterministic action simulation, strategic
+counterfactual evaluation and native state replay remain separate future work.
+Tests cover exact persistence, bounded retention, isolation from history feeds,
+failure reproduction and planner failure-to-checkpoint linkage.

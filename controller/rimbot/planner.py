@@ -418,15 +418,19 @@ class Planner:
             self.rt.check_generation()
             await self.rt.progress(role=role_label, model=model_name, phase='Thinking' if thinking else 'Reviewing')
             call_started = time.monotonic()
+            from .decision_replay import checkpoint
+            decision_id=checkpoint(self.rt,role_label,model,messages,tools,thinking)
             try:
                 reply, usage = await model.complete(messages, tools, thinking, report_progress)
             except ModelError as error:
-                self.rt.store.event(self.rt.colony,'model_failure',role=role_label,model=model_name,seconds=round(time.monotonic()-call_started,3),error=str(error))
+                self.rt.store.finish_decision(decision_id,{'status':'failed','error':str(error)})
+                self.rt.store.event(self.rt.colony,'model_failure',role=role_label,model=model_name,decision_id=decision_id,seconds=round(time.monotonic()-call_started,3),error=str(error))
                 if contract is Proposal and drafts:
                     self.rt.note('info','Keeping validated drafts; further planning was interrupted.',role=role_label)
                     return Proposal(summary='Ready: '+'; '.join(a.title for a in drafts.values()),actions=list(drafts.values()),blockers=[str(error)])
                 raise
-            self.rt.store.event(self.rt.colony, 'model_call', role=role_label, model=model_name,
+            self.rt.store.finish_decision(decision_id,{'status':'returned','reply':reply,'usage':usage})
+            self.rt.store.event(self.rt.colony, 'model_call', role=role_label, model=model_name,decision_id=decision_id,
                                 seconds=round(time.monotonic()-call_started,3), usage=usage,
                                 tools=[c['function']['name'] for c in reply.get('tool_calls',[])])
             self.rt.check_generation()

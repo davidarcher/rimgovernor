@@ -65,7 +65,7 @@ def plan():
  p,_=apply_change({},change(),survey());p.update(population_at_review=8,observed_land=land_state(survey()));return p
 
 def runtime(p=None):
- a=survey();rt=NS(memory={'spatial_layout':p or plan(),'colony_focus':{'x':16,'z':16}},observation={'map':{'id':0},'game':{'colonist_count':8}},last_tick=1,persist=Mock(),note=Mock(),api=NS(call=AsyncMock(return_value=NS(model_dump=lambda:a))),model_for_role=Mock(),mode='manual')
+ a=survey();rt=NS(store=Mock(),colony='test',memory={'spatial_layout':p or plan(),'colony_focus':{'x':16,'z':16}},observation={'map':{'id':0},'game':{'colonist_count':8}},last_tick=1,persist=Mock(),note=Mock(),api=NS(call=AsyncMock(return_value=NS(model_dump=lambda:a))),model_for_role=Mock(),mode='manual')
  return rt,a
 
 def test_partial_replan_preserves_other_zones_and_deviations():
