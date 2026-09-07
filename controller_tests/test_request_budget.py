@@ -18,6 +18,15 @@ def test_spatial_compaction_is_lossless_and_supply_role_omits_map_plan():
     assert 'spatial_reservations' not in result and 'animals' not in result['resource_overview']
     assert result['resource_overview']['supplies']['items'][0]['id']==1
 
+def test_executor_omits_duplicate_catalog_without_changing_source_or_game_facts():
+    context={'project':{'kind':'construction'},'capabilities':{'read':['construction_state'],'propose':['construction_place']},
+             'construction_state':{'revision':'current','buildings':[]}}
+    projected=project_context(context)
+    assert 'capabilities' not in projected
+    assert projected['construction_state']==context['construction_state']
+    assert context['capabilities']['propose']==['construction_place']
+    assert 'capabilities' in project_context({'capabilities':context['capabilities']})
+
 def test_oversized_context_and_tools_preserve_schema_and_call_pairs():
     tools=[{'type':'function','function':{'name':'submit','description':'d'*9000,'parameters':{'type':'object','properties':{'title':{'type':'string'},'cells':{'type':'array','items':{'type':'integer'}}},'required':['title','cells']}}}]
     messages=[{'role':'system','content':'Follow native facts'},{'role':'user','content':json.dumps({'projects':[{'project_id':str(i),'history':'x'*10000} for i in range(100)]})}]

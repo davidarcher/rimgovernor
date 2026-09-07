@@ -249,3 +249,11 @@ project before validation/execution and attaches receipts there. Missing, retire
 suspended projects cannot execute. The regression test passes the actual trimmed
 shape, verifies the fixture game change, and checks persistent receipt ownership.
 The fixed receipt path still needs another full gameplay run.
+
+Executor context no longer repeats the capability catalog already represented by
+its tool schemas and query endpoint enum. A construction request reconstructed from
+the failed run's project state and current game observations dropped from 52,311
+to 50,063 conservative units without trimming; the tool list is unchanged. This is
+not an exact replay of the old 61k failure because its original observations were
+not captured at the decision boundary. Larger colonies and multi-turn requests
+still need validation; no claim is made that all context failures are resolved.

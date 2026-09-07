@@ -25,6 +25,9 @@ def project_context(context):
                 if region.get('patches'):region['patches']=merge_patches(region['patches'])
     kind=result.get('project',{}).get('kind')
     if kind:
+        # Executor tools already carry the scoped native schemas and query enum.
+        # Repeating their names in observation context adds no game evidence.
+        result.pop('capabilities',None)
         if kind!='work_assignment':result.pop('native_work_types',None)
         # Other projects explain ownership, not their entire execution history.
         if 'projects' in result:
