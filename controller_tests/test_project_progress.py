@@ -65,3 +65,9 @@ async def test_recovery_uses_current_native_eligibility_and_owned_site():
     await refresh_progress(rt,context)
     assert p['progress']['sites'][0]['state']=='needs_alternative'
     assert p['progress']['sites_complete']
+
+
+def test_growing_cannot_enter_execution_without_crop_and_target():
+    from rimbot.project_progress import routing_error
+    assert routing_error({'kind':'growing','crop_def':'','target_cells':None})
+    assert routing_error({'kind':'growing','crop_def':'ModCrop','target_cells':30}) is None

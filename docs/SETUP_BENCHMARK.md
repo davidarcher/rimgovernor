@@ -62,3 +62,17 @@ The current local experiment uses `qwen3.5-4b` for departments and `qwen/qwen3.5
 ### 4B department trial
 
 Same fixed-save SHA, speed 1 and 180-second deadline as the initial baseline. Result: 0 orders, 0 completed objects, 41 completed model calls, 0 rejected calls. The run timed out, with incomplete-stream failures also observed. Trace/report: `.rimbot/setup-benchmarks/20260905-215503/`. This single failed trial does not establish better or worse model quality; the setup pipeline did not make useful progress with either configuration. Per-model call IDs confirm routing. The 4B department setting remains enabled for further experiments.
+
+
+### Usable starter checkpoint
+
+Pass `--starter-base` to require built sleeping objects inside enclosed, roofed,
+non-prison native rooms with reachable anchors, at least one stockpile, the initial
+colonist count, and at least half a day of accessible food. This is stricter than
+the default construction-count check. It does not prove long-term food production,
+bed ownership, or access to every furniture cell.
+
+The isolated benchmark restores its requested speed after initial planning and
+native pauses. A blocking dialog stops the test for diagnosis instead of being
+silently dismissed. Create a file named `stop` in the active benchmark output
+folder to end early with the report preserved and the game paused.

@@ -315,7 +315,7 @@ class Planner:
             context = {**context, 'capabilities':{'read':readable,'propose':writable}}
         if issubclass(contract,Decision) and context.get('semantic_objectives'):
             instructions=('Make the strategic decision using current evidence. Accept supported objectives or defer uncertain ones with concrete reasons. '
-                          'Accept selected candidate IDs; omitted candidates are deferred automatically. These are individual objectives, not whole department bundles. '
+                          'Explicitly accept or defer every candidate ID with no omissions. These are individual objectives, not whole department bundles. '
                           'Before approving facilities, check their operating needs: animal pens require a supported grazing or supplied-feed plan, not just a barrier. Defer missing feed evidence for inspection or correct the objective; do not assume bare land feeds animals. Review all existing projects: keep useful ones, retire duplicates and obsolete assumptions. Use updates with an existing project_id to continue the same outcome even when wording or owner differs. '
                           'Correct the command-system kind in updates: stockpile creation requires storage, never supply_access or construction. supply_access only changes forbidden flags. Crop zones require growing, not work_assignment. Beds/recreation furniture require construction; medical care and technology research cannot build them. '
                           'Compare crop minimum fertility to terrain fertility; a nonzero fertility value is not proof a crop can grow. Base growth days omit nightly rest. '

@@ -155,7 +155,8 @@ async def test_zone_site_avoids_enclosing_rock_before_committing(purpose):
  rt,a=runtime(p)
  obstacle=next(c for c in a['cells'] if c['position']=={'x':2,'z':2})
  obstacle.update(encloses=True,walkable=False)
- result=await reserve_site(rt,{'project_id':'zone'},SiteRequest(zone_id='food',label='Zone',purpose=purpose,width=3,height=3))
+ if purpose=='farm':rt.api.call.side_effect=lambda endpoint,args: {'plant_defs':[{'def_name':'Crop','fertility_min':.7}]} if endpoint=='get_def_all' else NS(model_dump=lambda:a)
+ result=await reserve_site(rt,{'project_id':'zone','crop_def':'Crop'},SiteRequest(zone_id='food',label='Zone',purpose=purpose,width=3,height=3))
  assert (2,2) not in cells(result['region'])
 
 async def test_impossible_stockpile_does_not_commit_bad_region():
@@ -207,3 +208,15 @@ async def test_stockpile_can_share_residential_district():
  rt,_=runtime()
  result=await reserve_site(rt,{'project_id':'stock','kind':'storage'},SiteRequest(zone_id='homes',label='Supplies',purpose='storage',width=3,height=3))
  assert result['region']['zone_id']=='homes'
+
+
+async def test_farm_reservation_preserves_infertile_holes_from_native_crop_facts():
+ p=plan();p['zones'][0]['purpose']='agriculture'
+ rt,a=runtime(p)
+ for c in a['cells']:
+  if (c['position']['x']+c['position']['z'])%2:c['fertility']=0
+ rt.api.call.side_effect=lambda endpoint,args: {'plant_defs':[{'def_name':'ModCrop','fertility_min':.8}]} if endpoint=='get_def_all' else NS(model_dump=lambda:a)
+ result=await reserve_site(rt,{'project_id':'farm','crop_def':'ModCrop'},SiteRequest(zone_id='food',label='Crops',purpose='farm',width=5,height=5))
+ selected=cells(result['region'])
+ assert selected and all((x+z)%2==0 for x,z in selected)
+ assert result['region']['fertility_floor']==.8

@@ -108,6 +108,8 @@ async def validate_farm_expansion(rt,project,actions):
 
 def routing_error(project):
     import re
+    if project.get('kind')=='growing' and (not project.get('crop_def') or not project.get('target_cells')):
+        return 'Growing requires one observed crop_def and a total colony-wide target_cells before site selection or execution. Revise the objective using current food demand and existing fields.'
     if project.get('kind')!='storage' and re.match(r'^(?:place|create|make|establish|configure)\s+(?:(?:a|an|the|general|small|new|nearby)\s+)*stockpile\b',project.get('outcome',''),re.I):
         return 'Stockpile creation/configuration requires kind=storage. Correct this project; it cannot be executed as construction.'
     return None

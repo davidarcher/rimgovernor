@@ -317,11 +317,21 @@ async def reserve_site(rt,project,request):
     while queue:
         for n in neighbors(queue.popleft()):
             if n in walkable and n not in reachable:reachable.add(n);queue.append(n)
+    minimum=0
+    if request.purpose=='farm':
+        if not project.get('crop_def'):raise ValueError('Choose an observed crop_def before reserving a farm')
+        definitions=await rt.api.call('get_def_all',{})
+        crop=next((d for d in definitions.get('plant_defs',[]) if d['def_name']==project['crop_def']),None)
+        if crop is None:raise ValueError('Unknown crop_def; select an observed native crop')
+        minimum=crop['fertility_min']
     candidates=[]
     for x,z in limit:
         points=cells({'patches':[rect(x,z,request.width,request.height)]})
-        if not points<=limit or points&blocked or old and not cells(old)<=points:continue
-        if not points<=observed.keys():continue
+        if not points<=limit or not points<=observed.keys():continue
+        if request.purpose=='farm':
+            points={p for p in points if p not in blocked and observed[p]['plantable'] and observed[p]['fertility']>=minimum and not observed[p]['encloses'] and observed[p]['zone_id'] is None}
+            if not points:continue
+        if points&blocked or old and not cells(old)<=points:continue
         if request.purpose in ('storage','farm') and any(observed[p]['encloses'] for p in points):continue
         if any(not observed[p]['walkable'] and not observed[p]['encloses'] for p in points):continue
         if any(observed[p]['zone_id'] is not None and not (request.purpose in ('room','storage') and observed[p]['zone_type']=='Zone_Stockpile' and p not in boundary(points)) for p in points):continue
@@ -332,13 +342,15 @@ async def reserve_site(rt,project,request):
         anchor=dict(zone['anchor'])
         if zone['expansion_direction']=='south':anchor['z']+=zone['reserved_size']['height']-request.height
         if zone['expansion_direction']=='west':anchor['x']+=zone['reserved_size']['width']-request.width
-        score=abs(x-anchor['x'])+abs(z-anchor['z'])
+        score=((-len(points),abs(x-anchor['x'])+abs(z-anchor['z'])) if request.purpose=='farm' else (0,abs(x-anchor['x'])+abs(z-anchor['z'])))
         candidates.append((score,x,z,points,entrances))
     if not candidates:
         deviation(rt,'blocked_expansion',zone['id'],'Planned increment cannot fit legal surveyed space in '+zone['label'])
         rt.persist();raise ValueError('Planned placement could not be realized; localized architect review requested')
     _,x,z,points,entrances=min(candidates,key=lambda c:c[:3])
-    region={'id':old['id'] if old else f"{zone['id']}-{len(plan['active_construction_intents'])+1}",'zone_id':zone['id'],'label':request.label,'purpose':request.purpose,'parent_id':'','project_ids':list(dict.fromkeys((old['project_ids'] if old else [])+[project['project_id']])),'patches':[rect(x,z,request.width,request.height)],'reuse_zone_ids':list({observed[p]['zone_id'] for p in points if observed[p]['zone_id'] is not None}),'fertility_floor':0,'rationale':'Current increment of '+zone['label']}
+    from .request_budget import merge_patches
+    patches=merge_patches([rect(px,pz,1,1) for px,pz in points]) if request.purpose=='farm' else [rect(x,z,request.width,request.height)]
+    region={'id':old['id'] if old else f"{zone['id']}-{len(plan['active_construction_intents'])+1}",'zone_id':zone['id'],'label':request.label,'purpose':request.purpose,'parent_id':'','project_ids':list(dict.fromkeys((old['project_ids'] if old else [])+[project['project_id']])),'patches':patches,'reuse_zone_ids':list({observed[p]['zone_id'] for p in points if observed[p]['zone_id'] is not None}),'fertility_floor':minimum,'rationale':'Current increment of '+zone['label']}
     if old:plan['regions'][plan['regions'].index(old)]=region
     else:plan['regions'].append(region)
     plan['active_construction_intents']=[i for i in plan['active_construction_intents'] if not (i['project_id']==project['project_id'] and i['region_id']==region['id'])]
