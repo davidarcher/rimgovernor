@@ -8,6 +8,36 @@ from rimbot.store import Store
 
 def survey():
  return {'cells':[{'position':{'x':x,'z':z},'terrain_def':'Soil','fertility':1.,'roofed':False,'walkable':True,'zone_id':None,'zone_type':'','zone_label':'','plantable':True,'encloses':False,'thing_ids':[]} for x in range(32) for z in range(32)]}
+
+def test_terrain_rectangles_are_lossless_including_holes_and_changed_facts():
+ from rimbot.base_plan import terrain_rectangles
+ from rimbot.spatial import survey_runs
+ area=survey()
+ assert len(terrain_rectangles(area)[1])==1
+ area['cells']=[c for c in area['cells'] if c['position']!={'x':4,'z':5}]
+ area['cells'][0]['fertility']=0.5
+ classes,rectangles=terrain_rectangles(area)
+ decoded={}
+ for x1,z1,x2,z2,kind in rectangles:
+  for z in range(z1,z2+1):
+   for x in range(x1,x2+1):
+    assert (x,z) not in decoded
+    decoded[x,z]=classes[kind]
+ expected={(x,row['z']):row['facts'] for row in survey_runs(area) for x in range(row['x1'],row['x2']+1)}
+ assert decoded==expected
+
+def test_budget_compaction_preserves_indexed_terrain_as_one_observation():
+ from rimbot.request_budget import shorten,fit_request
+ classes=[{'terrain_def':f'Terrain{i}'} for i in range(25)]
+ terrain=';'.join(f'{i},1,{i},2,{i%25}' for i in range(2000))
+ facts={'terrain_classes':classes,'terrain_rectangles_x1_z1_x2_z2_class':terrain,
+        'survey_bounds':{'x_min':0,'x_max':1999,'z_min':1,'z_max':2},'irrelevant_history':['long'*500]*30}
+ compact=shorten(facts,200)
+ assert compact['terrain_classes']==classes
+ assert compact['terrain_rectangles_x1_z1_x2_z2_class']==terrain
+ # Oversized geometry must fail explicitly, never silently lose cells/classes.
+ with pytest.raises(ValueError,match='cannot fit safely'):
+  fit_request([{'role':'user','content':json.dumps(facts)}],[],10000,2048)
 def zone(id='food',x=2):
  return {'id':id,'label':id,'purpose':'food' if id=='food' else 'residential','anchor':{'x':x,'z':2},'initial_size':{'width':6,'height':6},'max_size':{'width':10,'height':14},'expansion_direction':'north','phase':1 if id=='food' else 2,'adjacent_to':[],'rationale':'Expandable'}
 def change(zones=None,mode='FULL_REPLAN'):

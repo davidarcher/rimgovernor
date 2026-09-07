@@ -178,3 +178,21 @@ during inference, failed/partial batches, later completion and new spatial obser
 still trigger review. No game result is inferred from a receipt. The instant-command
 integration test verifies state through the fixture API and then checks that a second
 execution pass makes no model call; live gameplay performance remains unmeasured.
+
+## Tribal playtest: architect input budget
+
+The September 6 three-minute tribal-eight run issued zero orders: the architect
+failed its 55,296-unit request budget before inference, blocking spatial projects.
+This prevented measurement of executor scheduling improvements.
+
+The architect now receives active project scope, one spatial strategy entry and
+the terrain survey, without full resource discovery payloads or retired project
+histories. Identical survey runs merge vertically into lossless rectangles,
+encoded as semicolon-separated `x1,z1,x2,z2,class` rows with inclusive coordinates.
+Coordinates, bounds and their terrain class table are protected from generic
+truncation; an oversized map fails explicitly instead of becoming incomplete.
+Native placement validation remains authoritative.
+
+A read-only reconstruction against that live colony now fits at 53,167 conservative
+input units without trimming, against the same 55,296 budget. This validates the
+request-size fix, not layout quality or successful starter-base construction.
