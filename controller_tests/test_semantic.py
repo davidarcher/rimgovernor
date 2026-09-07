@@ -44,7 +44,7 @@ def test_strategy_retrieval_is_bounded_relevant_and_versioned():
 async def test_managers_only_get_objective_submission_and_relevant_guidance(colony):
     rt,_=colony;rt.cycle_generation=rt.generation
     async def complete(messages,tools,*args):
-        assert [t['function']['name'] for t in tools]==['submit']
+        assert [t['function']['name'] for t in tools]==['submit','wiki_search','wiki_read']
         context=json.loads(messages[1]['content'])
         assert context['strategy_guidance'][0]['id']=='sleeping-capacity'
         assert 'capabilities' not in context

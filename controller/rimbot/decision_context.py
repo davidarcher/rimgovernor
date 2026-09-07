@@ -34,6 +34,7 @@ def decision_context(context,observation):
     keep=('player_direction','goals','plans','assigned_task','projects','proposals','semantic_objectives','strategy_guidance','colony_focus','work_settings','work','escalation','cancelled_projects','coordination_request','construction_budget')
     result={k:context[k] for k in keep if k in context}
     if 'world_facts' in context:result['world_facts']=context['world_facts']
+    if 'advisor_status' in context:result['advisor_status']=context['advisor_status']
     if 'native_work_types' in context:result['native_work_types']=context['native_work_types']
     result['colony']=facts.model_dump()
     result['labor_state']={'queued_construction_sites':facts.pending_construction,'meaning':'Idle alone does not imply disabled work. Create actual blueprints, zones, bills or designations when no jobs exist; inspect priorities only for a demonstrated work-setting blocker.'}

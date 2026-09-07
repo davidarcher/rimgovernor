@@ -28,7 +28,7 @@ async def test_administrator_can_correct_unknown_proposal_ids(colony):
     calls=[]
     class Model:
         async def complete(self,messages,*args):
-            assert [t['function']['name'] for t in args[0]]==['submit']
+            assert {'submit','query','memory_read','create_goal','execute_order'} <= {t['function']['name'] for t in args[0]}
             calls.append(1)
             if len(calls)>1:
                 assert 'Workforce' in json.loads(messages[-1]['content'])['error']
@@ -432,12 +432,12 @@ async def test_complete_hierarchy_http_fixture(colony):
     assert game.writes==['things/set-forbidden']
 
 
-async def test_strategy_delegates_without_discovery_tools(colony):
+async def test_strategy_can_investigate_before_delegating(colony):
     rt,_=colony
     rt.cycle_generation=rt.generation
     class Model:
         async def complete(self,messages,tools,*args):
-            assert [t['function']['name'] for t in tools]==['submit']
+            assert {'submit','discover','query','wiki_search','memory_write'} <= {t['function']['name'] for t in tools}
             assert 'capabilities' not in json.loads(messages[1]['content'])
             plan=Plans(today=['Sleeping arrangements'],week=[],season=[],year=[],horizon='Stable colony',response='Prepare sleeping places.',assignments={'Infrastructure':'Provide sleeping arrangements'})
             return {'role':'assistant','content':plan.model_dump_json()},{}

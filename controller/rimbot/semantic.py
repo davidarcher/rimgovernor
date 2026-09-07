@@ -65,6 +65,7 @@ def retain_project(memory,owner,objective,priority=None,*,validate_dependencies=
 
 async def arbitrate_objectives(rt,context):
     decision=await rt.planner.ask('Administrator: approve semantic objectives',context,ObjectiveDecision,rt.settings.reasoning)
+    context['projects']=[p for p in rt.memory.get('projects',[]) if p.get('status')!='retired']
     rt.planner.validate_submission('Administrator',decision,context)
     return decision
 
@@ -106,8 +107,8 @@ async def semantic_review(rt,context,roles):
     await asyncio.gather(*(propose(role) for role in dict.fromkeys(roles)))
     # Keep stable ordering independent of response completion timing.
     proposals={role:proposals[role] for role in roles if role in proposals}
-    if not proposals and not projects:
-        raise ModelError('No department submitted an objective review.')
+    if not proposals:
+        shared['advisor_status']='No advisor submitted a usable review. Inspect the colony and create supported goals directly.'
     candidates={f'{owner}:{i}':{'owner':owner,'objective':objective,'blockers':proposal['blockers'],'priority':proposal['priority']} for owner,proposal in proposals.items() for i,objective in enumerate(proposal['objectives'])}
     work={w['id']:w for w in rt.memory['work']}
     for project in projects:
@@ -138,6 +139,7 @@ async def semantic_review(rt,context,roles):
     try:
         decision=await arbitrate_objectives(rt,decision_context)
     except ModelError as error:
+        projects=[p for p in rt.memory.get('projects',[]) if p.get('status')!='retired']
         if not projects:raise
         rt.check_generation()
         rt.note('error','Strategic review failed; continuing only existing approved projects. '+str(error),role='Administrator')
@@ -147,6 +149,7 @@ async def semantic_review(rt,context,roles):
         await execute_projects(rt,context,projects)
         return
     summary=decision.response if len(decision.response)<=650 else decision.response[:647]+'...'
+    projects=[p for p in rt.memory.get('projects',[]) if p.get('status')!='retired']
     rt.note('arbitration',summary,explanation=decision.response,role='Administrator',accepted=decision.accepted,deferred=decision.deferred,retired=decision.retire_projects,kept=len(decision.keep_projects))
     rt.reply(summary)
     rt.check_generation()

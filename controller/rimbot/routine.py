@@ -22,7 +22,10 @@ async def execute_routine(rt,context,action,role):
             w['project_id']=project['project_id']
             if w['id'] not in project['work_ids']:project['work_ids'].append(w['id'])
         rt.persist()
-    if not rows:return {'already_satisfied':True,'executed':False}
+    if not rows:
+        pending=next((w for w in rt.memory['work'] if w['status'] in ('issued','unknown','waiting') and w.get('action',{}).get('endpoint')==action.endpoint and w['action'].get('arguments')==action.arguments),None)
+        if pending:return {'executed':False,'verified':False,'status':pending['status'],'detail':'Matching order already in flight; inspect before repeating.'}
+        return {'already_satisfied':True,'executed':False,'verified':True}
     status=rows[-1]['status']
     if status=='complete':
         rt.note('work_outcome',action.title,role=role,project_id=project['project_id'],results=[{'id':rows[-1]['id'],'title':action.title,'status':status}])

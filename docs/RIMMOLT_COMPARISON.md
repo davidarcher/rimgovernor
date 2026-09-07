@@ -1,5 +1,11 @@
 # RimMolt and MCP comparison — 2026-09-07
 
+**Status:** preliminary research, not the completed tool-surface audit. The player
+subsequently excluded MCP adoption and requested detailed RimMolt/AutoRim coverage
+and a fork assessment. The shipped RimMolt assembly is now available for local
+inspection; the full comparison remains pending. Administrator investigation and
+memory are implemented separately in [Administrator agency](ADMINISTRATOR_AGENCY.md).
+
 ## Findings and evidence limits
 
 The current [RimMolt release](https://steamcommunity.com/sharedfiles/filedetails/?id=3796006886) describes an in-process MCP server covering colony observation, management, construction, combat, trade, setup and event-aware time advancement. The older July Workshop description is read-only and is not a reliable description of the September release.
@@ -12,7 +18,7 @@ No public RimMolt core repository or reuse license was found through the current
 
 1. **Pause ownership around long controller interruptions.** The author's [pause hook](https://github.com/leopoko/Codex-RimMolt-Pause-Hook/blob/main/hooks/pause-rimmolt.ps1) calls MCP `set_speed` with `action=pause` before compaction. Adapt the behavior to our native time API and existing pause lease; resume only a pause we own. The benchmark's speed restoration is test-only and must not become permission to override player pauses.
 2. **Durable, bounded lessons.** The [reflection project](https://github.com/leopoko/Codex_Precompact_Reflection) creates a session reflection before compaction. Preserve verified command outcomes, unresolved failures, and the next supported action in our project memory. Avoid repeatedly copying full catalogs. Its implementation invokes a separate model over the transcript; that extra cost is not necessary for our routine receipt retention.
-3. **An MCP facade over existing contracts.** Generate input/output schemas from our OpenAPI and controller contracts. Keep one native execution path, operation receipts, session identity, ownership and dashboard event stream. MCP should not bypass validation or create another game-state authority.
+3. **MCP facade: excluded by player direction.** Keep the existing HTTP/OpenAPI transport; compare gameplay capabilities independently of transport.
 4. **A direct-agent comparison mode.** Use the same game fixture, observations and native commands with one agent, bypassing departmental proposal/arbitration handoffs. Compare setup time, legal orders, completed shelter, duplicate work, model tokens and failure recovery. This separates tool usability from orchestration overhead. Keep the local 4B model as the normal target; testing another model is a separate experiment, not automatic escalation.
 
 MCP standardizes tool discovery, calls, schema descriptions and structured results ([specification](https://modelcontextprotocol.io/specification/2025-06-18/server/tools)). It does not automatically compress context, teach RimWorld rules, coordinate projects, or improve model reasoning. Replacing HTTP with MCP while retaining identical prompts and payloads would retain our current failure modes.
