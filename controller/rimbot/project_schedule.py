@@ -22,8 +22,8 @@ def evidence(project, memory):
 
 def execution_due(project, memory, tick, force=False):
     """Changed observations reopen work immediately; elapsed wall time never does."""
-    if project.get('status') == 'retired':
-        return False, 'Project retired'
+    if project.get('status') in ('retired','suspended'):
+        return False, 'Project '+project['status']
     if force:
         return True, 'Player direction or urgent review'
     previous = project.get('execution_review')

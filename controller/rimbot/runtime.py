@@ -214,6 +214,12 @@ class Runtime:
             if not observed['game'].get('is_paused'):
                 self.initial_pause_session=None
             self.observation = observed
+            from .world_model import update
+            derived_events=update(self)
+            self.events_pending.extend(derived_events)
+            self.persist()
+            if any(e.get('urgent') for e in derived_events) and self.busy():
+                await self.cancel()
             self.connected = True
             if not self.busy() and self.status.get('phase')!='Needs attention':
                 self.status = {'phase':'Watching' if self.mode == 'automate' else 'Manual', 'detail':'Colony connected'}
@@ -224,7 +230,7 @@ class Runtime:
             try:
                 await self.poll()
                 tick = self.observation['game'].get('game_tick',0)
-                changed = bool(self.events_pending) and time.monotonic()-self.last_review_wall > 15
+                changed = bool(self.events_pending) and (any(e.get('urgent') for e in self.events_pending) or time.monotonic()-self.last_review_wall > 15)
                 due = tick-self.last_review >= self.settings.review_ticks
                 if self.mode == 'automate' and not self.busy() and (due or changed):
                     self.launch_review()
@@ -610,6 +616,7 @@ class Runtime:
             raise ModelError('Colony changed during review; pending decisions were discarded.')
         self.observation=observed
         result={**context,'colony':compact(observed,20000)}
+        result['world_facts']=self.memory.get('world_facts',{})
         if self.memory.get('resource_budget'):
             result['construction_budget']=self.memory['resource_budget']
         if 'get_work_settings' in self.catalog.available:
@@ -667,11 +674,13 @@ class Runtime:
         self.counters = {k:0 for k in self.counters}
         events = self.events_pending
         self.events_pending = []
+        urgent=any(e.get('urgent') for e in events)
         self.last_review_wall = time.monotonic()
         self.last_review = self.last_tick or 0
         try:
             await self.pause_initial_planning()
             context = {'colony':compact(self.observation,20000),'player_direction':self.memory['direction'],
+                       'world_facts':self.memory.get('world_facts',{}),
                        'goals':self.memory['goals'],'plans':self.memory['plans'],
                        'work':[{k:v for k,v in w.items() if k!='action'} for w in self.memory['work'][-30:]],
                        'notifications':compact(events,6000), 'mode':self.mode,
@@ -679,7 +688,7 @@ class Runtime:
             context=await self.observe_resources(context)
             if 'construction_work' not in context:context=await self.observe_work(context)
             day = (self.last_tick or 0)//60000
-            if strategy or not self.memory['plans'] or (not steering and day//15 != (self.memory['last_plan_day'] or 0)//15):
+            if not urgent and (strategy or not self.memory['plans'] or (not steering and day//15 != (self.memory['last_plan_day'] or 0)//15)):
                 plans = await self.planner.ask('Strategy: set concrete near-term goals and progressively fuzzier week, season, year and three-year direction. Stability is a base for development, not a reason to stop. Match terrain, resources, colony needs and player direction. Short actionable entries.',context,Plans,self.settings.reasoning)
                 self.memory['plans'] = plans.model_dump()
                 self.memory['last_plan_day'] = day
@@ -690,7 +699,7 @@ class Runtime:
                 if strategy:
                     self.reply(plans.response)
                     return
-            elif not steering and day != self.memory.get('last_daily_day'):
+            elif not urgent and not steering and day != self.memory.get('last_daily_day'):
                 daily = await self.planner.ask('Daily planning: update today and this week against current work and the existing season/year strategy. Keep entries concrete and short. Do not reset the long-term plan.',context,DailyPlan,self.settings.reasoning)
                 self.memory['plans'].update(today=daily.today,week=daily.week,assignments=daily.assignments)
                 self.memory['last_daily_day'] = day
@@ -698,7 +707,8 @@ class Runtime:
                 self.note('plan',daily.response)
                 self.persist()
             roles = self.review_roles(events, steering)
-            context['administration_required']=steering or any(any(word in e.get('type','').lower() for word in ('raid','killed','died')) for e in events)
+            context['administration_required']=steering or urgent or any(any(word in e.get('type','').lower() for word in ('raid','killed','died')) for e in events)
+            context['domain_review_required']=any(e.get('roles') for e in events)
             context['assignments'] = (self.memory['plans'] or {}).get('assignments',{})
             if self.memory.get('spatial_layout',{}).get('version'):
                 from .base_plan import request_review
@@ -726,6 +736,11 @@ class Runtime:
         self.note('reply',text)
 
     def review_roles(self, events, steering=False):
+        triggered=list(dict.fromkeys(r for e in events for r in e.get('roles',[]) if r in ROLES and r!='Workforce'))
+        if not steering and any(e.get('urgent') for e in events):return triggered
+        last_full=self.store.get('full_review:'+self.colony)
+        if triggered and not steering and last_full is not None and self.last_review-last_full<60000:
+            return triggered
         assignments = (self.memory['plans'] or {}).get('assignments', {})
         roles = [r for r in assignments if r in ROLES] or list(ROLES)
         key = 'full_review:'+self.colony

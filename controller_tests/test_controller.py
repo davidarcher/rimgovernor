@@ -258,7 +258,9 @@ async def test_fresh_quicktest_with_identical_map_metadata_resets_all_state(colo
     # A new game can even have the same or a later tick than the previous game.
     await rt.poll()
     assert rt.colony != old
-    assert rt.memory == rt.empty_memory()
+    assert {k:v for k,v in rt.memory.items() if k not in ('world_facts','risk_state')} == rt.empty_memory()
+    assert rt.memory['world_facts']['observed_tick']==game.tick
+    assert not any(r['active'] for r in rt.memory['risk_state'].values())
     assert rt.mode == 'manual' and not rt.events_pending and not rt.steering_pending
     assert rt.counters['actions']==0
     assert rt.store.get('colony:'+old)['goals']

@@ -44,7 +44,9 @@ def retain_project(memory,owner,objective,priority=None):
     revised=any(existing.get(k)!=v for k,v in values.items())
     existing.update(values)
     if priority is not None:existing['priority']=priority
-    if revised:existing['status']='approved'
+    if revised:
+        if existing.get('interruption'):existing['interruption']['resume_status']='approved'
+        else:existing['status']='approved'
     existing.setdefault('feedback',[])
     return existing
 
@@ -58,7 +60,7 @@ async def arbitrate_objectives(rt,context):
 async def semantic_review(rt,context,roles):
     day=(rt.last_tick or 0)//60000
     active_projects=[p for p in rt.memory.get('projects',[]) if p.get('status')!='retired']
-    admin_due=context.get('administration_required') or rt.memory.get('last_admin_day')!=day or rt.memory.get('admin_requested')
+    admin_due=context.get('administration_required') or context.get('domain_review_required') or rt.memory.get('last_admin_day')!=day or rt.memory.get('admin_requested')
     if not admin_due:
         await execute_projects(rt,context,active_projects)
         return
@@ -171,6 +173,9 @@ async def execute_projects(rt,context,scheduled):
     for project in scheduled:
         rt.check_generation()
         if rt.mode!='automate':break
+        from .world_model import sync_interrupts
+        sync_interrupts(rt)
+        if project.get('status')=='suspended':continue
         from .project_progress import routing_error
         mismatch=routing_error(project)
         if mismatch:
@@ -254,4 +259,6 @@ async def execute_projects(rt,context,scheduled):
             if isinstance(error,BudgetConflict) and error.costs is not None:
                 project['resource_request']={'costs':error.costs,'shortage':error.shortage,'observed_tick':rt.last_tick}
             rt.note('error',str(error),role=role,project_id=project['project_id'])
-        finally:rt.persist()
+        finally:
+            sync_interrupts(rt)
+            rt.persist()

@@ -4,7 +4,7 @@ const source=(e:any)=>{
  if(parts.length>1&&(parts[0]==='Executor'||['construction','growing','storage','production','care','security','research','work_assignment','supply_access'].includes(parts[1].trim()))){const n=parts[1].trim().replaceAll('_',' ');return n.charAt(0).toUpperCase()+n.slice(1)+' specialist';}
  return parts[0]==='Executor'?'Specialist':parts[0];
 };
-const outcome=(e:any)=>['arbitration','spatial_plan','project_cancelled','work_outcome','error','escalation'].includes(e.kind)||(e.kind==='execution'&&(Object.values(e.outcomes||{}).some(n=>Number(n)>0)||e.blockers?.length));
+const outcome=(e:any)=>['risk_transition','project_suspended','project_resumed','arbitration','spatial_plan','project_cancelled','work_outcome','error','escalation'].includes(e.kind)||(e.kind==='execution'&&(Object.values(e.outcomes||{}).some(n=>Number(n)>0)||e.blockers?.length));
 function tally(events:any[]){
  const commands=events.filter(e=>e.kind==='action'&&e.endpoint).length;
  const tools=events.filter(e=>e.kind==='tool_result'&&e.tool!=='submit').length;
@@ -39,7 +39,7 @@ function caption(e:any){
   return e.text||e.error||'Response needs correction';
 }
 function EventRow({event:e,technical=false}:{event:any;technical?:boolean}){
- const labels:Record<string,string>={execution:'Orders',work_outcome:'Verified',arbitration:'Decision',spatial_plan:'Layout planned',project_cancelled:'Project cancelled',error:'Blocked',escalation:'Needs a decision'};
+ const labels:Record<string,string>={risk_transition:'Colony change',project_suspended:'Project paused',project_resumed:'Project resumed',execution:'Orders',work_outcome:'Verified',arbitration:'Decision',spatial_plan:'Layout planned',project_cancelled:'Project cancelled',error:'Blocked',escalation:'Needs a decision'};
  const statuses:Record<string,string>={complete:'Verified',issued:'Sent; awaiting verification',unknown:'Outcome unknown',rejected:'Rejected',deferred:'Not sent'};
  return <article className={e.kind}><header><strong>{source(e)}</strong><span>{labels[e.kind]||e.kind.replaceAll('_',' ')}</span><time>{new Date(e.at*1000).toLocaleTimeString()}</time></header>
  {e.results?.length?<ul>{e.results.map((r:any,i:number)=><li key={r.id||i}>{r.title} — {statuses[r.status]||r.status}</li>)}</ul>:<p>{caption(e)}</p>}

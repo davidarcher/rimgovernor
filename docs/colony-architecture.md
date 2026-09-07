@@ -5,13 +5,13 @@ This is an incremental refactor of the Python controller and native RIMAPI, not 
 
 | Capability | Existing implementation | Remaining gap / next change |
 | --- | --- | --- |
-| State and events | `runtime.poll`, `event_loop`, typed native/OpenAPI responses | Semantic event routing currently uses broad event-name matching; needs typed triggers and hysteresis. |
+| State and events | `runtime.poll`, `event_loop`, `world_model`, typed native/OpenAPI responses | Derived medical/power transitions now target managers with game-time clear hysteresis. Broader native SSE event routing still needs typed triggers. |
 | Derived facts / prediction | `resources.resource_brief`, `decision_context`, `project_progress` | Supply aggregates and native site blockers exist. Add diet-aware food runway and harvest estimates with explicit missing inputs; do not equate all nutrition with edible accessible food. Power, mood, wealth and labor projections need their own observed inputs. |
 | Persistent goals | `semantic.retain_project`, SQLite memory, strategy/day plans | Projects already carry owner, outcome, constraints, success signals, progress and work IDs. Extend these with dependencies, deadlines and suspension; do not add another goal queue. Legacy `memory.goals` and executable projects need consolidation. |
 | Action lifecycle | `runtime.execute`, `reconcile`, `reconcile_projects` | Unknown-before-send persistence, in-flight duplicate checks, native completion and timeout already exist. Project retirement still relies on administrator judgment; verified orders deliberately do not mean goal achieved. |
 | Commitment | `project_schedule`, existing project records | First slice implemented: preserve unchanged approvals; observe before re-invoking; game-time reassessment; changed evidence or steering bypasses waiting. Broader resource/priority commitments remain. |
 | Resource arbitration | `resource_budget`, serialized `runtime.execute`, native outstanding construction deliveries | Shared construction admission now subtracts every observed native site's remaining requirements from full allowed stock, plus policy reserves. Native base-definition costs price new placements; existing sites are not charged twice. Future bills, labor and other consumption are not allocated yet. |
-| Scheduling / interrupts | Daily administrator, bounded parallel department proposals, periodic execution, SSE events | Add targeted manager triggers and persistent suspend/resume policy. Presence of distant hostiles must not suspend colony work. |
+| Scheduling / interrupts | Daily administrator, bounded parallel proposals, derived risk transitions, persisted project interruption | Native current life-threatening conditions target Survival and suspend nonurgent new execution. Care, supply access, security and explicitly urgent projects continue. Expand to other observed crises without using hostile presence as a blanket veto. |
 | Work allocation | Native work restrictions/priorities, observed site workers, scoped work-assignment executor | No deterministic coverage optimizer. Use native worker eligibility and observed backlog; models set policy, not arithmetic. |
 | Semantic skills | `WorkObjective`, scoped executors, enclosure compiler, routine instant actions | Extend existing decomposition as needed. Do not add room-specific command APIs or duplicate the native registry. |
 | Spatial planning / logistics | Persistent `BasePlan`, staged regions, reserved corridors, native validation | Add inexpensive cached distance estimates between semantic areas. Current legal placement is not proof of a good layout. |
@@ -74,3 +74,23 @@ concurrent execution callers, delivery/completion/cancellation arithmetic, full 
 unknown materials, free orders, and material definitions with modded names. Read-only live
 verification succeeded against the eight-member tribal test colony; this is not a completed
 starter-base gameplay result.
+
+## Derived risks and medical interruption
+
+`world_model` projects native current medical flags, aggregate power headroom, and crop counts/yield
+into compact facts. Missing medical observations are explicit. Neither old injuries nor a hediff's
+ability to become lethal is treated as a current emergency. Map-wide power headroom is a prompt
+to inspect networks, not a claim that their generators and consumers are connected. Harvest and
+battery ETAs remain unknown without the necessary rates and network/season inputs.
+
+Medical emergencies wake Survival and bypass seasonal/daily planning on that urgent review. A new
+urgent transition cancels a pending model review; already-sent commands retain unknown-outcome
+tracking. Power deficits wake Infrastructure. Clearing either alert requires 250 stable game ticks;
+pausing does not advance this interval and missing observations cannot clear an active alert.
+Daily broad reviews still exist as a backstop; this is not yet a complete event-driven scheduler.
+
+Projects suspended for care retain their IDs, work references, scope and previous status. New
+nonurgent execution pauses; existing RimWorld jobs/blueprints are not cancelled. Care, supply access,
+security and explicitly urgent projects remain eligible. When the observed emergency clears, the
+same projects resume with a fresh assessment. The dashboard shows suspension/resumption outcomes.
+No hostile-count or distant-insect construction veto was introduced.

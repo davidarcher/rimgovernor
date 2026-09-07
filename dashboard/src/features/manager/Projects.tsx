@@ -1,6 +1,6 @@
 import {useState} from 'react';
 
-const labels:Record<string,string>={retired:'Retired',approved:'Approved',inspecting:'Checking details',awaiting_work:'Watching orders',orders_verified:'Orders verified; review outcome',needs_review:'Needs review'};
+const labels:Record<string,string>={suspended:'Paused for urgent care',retired:'Retired',approved:'Approved',inspecting:'Checking details',awaiting_work:'Watching orders',orders_verified:'Orders verified; review outcome',needs_review:'Needs review'};
 export default function Projects({projects,onCancel}:{projects:any[],onCancel:(id:string)=>void}){
   const [entries,setEntries]=useState<any[]>([]),[open,setOpen]=useState(false),[error,setError]=useState('');
   async function toggle(){
