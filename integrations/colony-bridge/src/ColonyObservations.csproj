@@ -13,6 +13,7 @@
     <RimBridgeSdkDir Condition="'$(RimBridgeSdkDir)' == ''">C:/Program Files (x86)/Steam/steamapps/common/RimWorld/Mods/RimBridgeServer/1.6/Assemblies</RimBridgeSdkDir>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../../scripts/fixtures/InstallFixture.cs" Condition="'$(InstallFixture)' == 'true'" />
     <Compile Remove="identity/**/*.cs" />
     <ProjectReference Include="identity/ColonyIdentity.csproj"><Private>false</Private></ProjectReference>
     <Compile Remove="PawnSettingsRead.cs" />

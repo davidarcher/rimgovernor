@@ -6,7 +6,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class Target(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    kind: Literal['building', 'zone']
+    kind: Literal['building', 'zone', 'installation']
+    thing_id: str = ''
+    rotation: int = Field(default=0, ge=0, le=3)
     def_name: str = ''
     x: int = 0
     z: int = 0
@@ -42,6 +44,8 @@ class ProjectBook:
                 raise ValueError('Building targets need an observed def_name and origin cell')
             if target.kind == 'zone' and not target.zone_id:
                 raise ValueError('Zone targets need an observed zone_id')
+            if target.kind == 'installation' and not target.thing_id:
+                raise ValueError('Installation targets need the exact inner building ID')
         target_key = lambda targets: sorted(t.model_dump_json() for t in targets)
         existing = next((row for row in self.rows if key(row.title) == key(spec.title) or
             (spec.targets and target_key(row.targets) == target_key(spec.targets))), None)
@@ -76,7 +80,10 @@ class ProjectBook:
                 for target in row.targets:
                     key = target.model_dump_json()
                     if key not in cache:
-                        if target.kind == 'zone':
+                        if target.kind == 'installation':
+                            result = await game.invoke('home/install', {'thingId': target.thing_id, 'dryRun': True})
+                            cache[key] = ('installation', result)
+                        elif target.kind == 'zone':
                             result = await game.query('home/list_zones')
                             cache[key] = ('zone', result)
                         else:
@@ -84,7 +91,19 @@ class ProjectBook:
                                 x=target.x, z=target.z, radius=1, aggregate=False, playerOnly=True)
                             cache[key] = ('building', result)
                     kind, result = cache[key]
-                    if kind == 'zone':
+                    if kind == 'installation':
+                        if result.get('thingId') != target.thing_id:
+                            raise ValueError('Installation identity was not confirmed')
+                        position = result.get('position') or {}
+                        blueprint = result.get('blueprint') or {}
+                        complete = result.get('state') == 'installed' and position.get('x') == target.x and position.get('z') == target.z and result.get('rotation') == target.rotation
+                        queued = result.get('state') == 'queued' and blueprint.get('x') == target.x and blueprint.get('z') == target.z and blueprint.get('rotation') == target.rotation
+                        found += int(complete)
+                        pending += int(queued)
+                        missing += int(not complete and not queued)
+                        if complete:
+                            ids.append(target.thing_id)
+                    elif kind == 'zone':
                         matches = [z for z in result['zones'] if str(z['id']) == target.zone_id and z['gridCellCount'] > 0]
                         found += bool(matches)
                         missing += not matches

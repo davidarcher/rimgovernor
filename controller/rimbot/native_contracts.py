@@ -16,5 +16,7 @@ async def validate_native_steps(spec, game):
             schema = await game.describe(step.action.tool)
             try:
                 validate_arguments(step.action.tool, schema, step.action.arguments)
+                if step.action.tool == 'home/install' and any(k not in step.action.arguments for k in ('thingId', 'x', 'z')):
+                    raise ValueError('Installation execution needs thingId, x and z; status queries belong in inspection')
             except ValueError as error:
                 raise ValueError(f'Plan step {step.id}: {error}') from error

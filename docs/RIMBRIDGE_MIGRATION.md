@@ -49,7 +49,8 @@ successes. That evidence determines the ordering below.
    compact companion UI reports and exact naming-input writes are connected.
    Options-dialog activation and naming-field readback passed live fixtures;
    quest acceptance and final rename effects still need scenario tests.
-   Packed-furniture installation and richer building/bill/zone projections remain.
+   Packed-furniture installation now has native placement and exact inner-ID
+   completion, with live pawn-work acceptance. Richer building/bill/zone projections remain.
    Native message/alert culprit and inspect-tab reads passed a headless fixture.
 9. **Visual reviewer UX.** Near/wide framing, yielding to player camera control,
    source-image concern overlays, and cleaner good/bad layout acceptance fixtures.

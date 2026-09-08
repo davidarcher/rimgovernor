@@ -12,7 +12,7 @@ READS = OBSERVATION_TOOLS | frozenset({
     'rimworld/list_messages', 'rimworld/list_alerts', 'rimworld/get_map_target_info',
 })
 WRITES = frozenset({'home/zone_cells', 'home/place_building', 'home/pawn_config',
-    'home/building_config', 'home/bills', 'home/order', 'home/trade', 'home/research', 'home/dialog_text',
+    'home/building_config', 'home/bills', 'home/order', 'home/trade', 'home/research', 'home/dialog_text', 'home/install',
     'rimworld/set_time_speed', 'rimworld/apply_architect_designator',
     'rimworld/open_letter', 'rimworld/dismiss_letter', 'rimworld/click_screen_target',
     'rimworld/click_ui_target', 'rimworld/scroll_ui_target',
@@ -76,6 +76,8 @@ class BridgeGame(ObservationGateway):
             raise ValueError('Native structured receipt is missing')
         if payload.get('unknownArguments'):
             raise ValueError('Native tool reported ignored arguments')
+        if tool == 'home/install' and payload.get('accepted') is not True:
+            raise ValueError(payload.get('reason') or 'Native installation was not accepted')
         if tool == 'home/research' and arguments.get('set'):
             write = payload.get('write') or {}
             if write.get('refused') is not False:

@@ -36,8 +36,12 @@ its references, retaining source provenance beside copied code.
   and leaves time paused. External holds and other owners are refused. No viewer
   delays or automatic resume were copied.
 - **UI work remaining:** letter/quest-specific decision-effect acceptance;
-  `mini_install.py`/`pick.py` exact packed
-  item installation. The reviewed `ui.find()` returns a first match and
+  generic camera-dependent selection fallbacks. Packed furniture is now handled
+  by native `home/install`, using the same placement calls as Designator_Install
+  and the inner building ID for completion. Two live fixtures installed a bed
+  through pawn labor, including a rotated placement; duplicate/conflicting orders
+  and invalid IDs/cells were checked. No camera selection is needed for this path.
+  The reviewed `ui.find()` returns a first match and
   DialogTextTool also uses first partial field matches; do not copy those
   ambiguity behaviors. No blanket dialog dismissal or automatic stale-letter
   policy will be added.
@@ -257,7 +261,7 @@ functions/data contracts into our runtime, not launching the upstream CLI.
 | `look.py` | 610 | Adapt later | Near/wide visual observations with game-evidence verification. Use the loaded local VL model; no mandatory external reviewer or fixed 180-second schedule. |
 | `luna.py` | 386 | Skip | Extra model call to compress a fixed overlay box. Our resizable dashboard and concise output can avoid this cost. |
 | `map.py` | 2803 | Adapt high priority | Layered compact map, sparse/rectangular queries, terrain/roof/storage/rooms/designations. Requires CellsPlus. This is a representation, not a base-layout solver. |
-| `mini_install.py` | 145 | Adapt later | Packed furniture validation and two-stage item/destination targeting. Prefer a native install action over pixel placement when available. |
+| `mini_install.py` | 145 | Native equivalent implemented | Exact packed/inner ID and destination validation, native placement, idempotent orders and same-building completion. Live pawn-work acceptance passed; camera/click retry loop intentionally omitted. |
 | `move.py` | 220 | Mostly skip | Older select/right-click/draft path with camera/modal dependencies; current home/order goto is the preferred route. |
 | `order.py` | 1046 | Adapt high priority | Native job refusal formatting, exact selector resolution, force/menu fallback discovery. home/order already compiled; no need to copy CLI parsing. |
 | `overlay_client.py` | 546 | Adapt principle | Non-blocking presentation and bounded delivery diagnostics. Keep one same-origin dashboard, not a second overlay server. |

@@ -125,6 +125,10 @@ class Hands:
                                 raise Blocked('medical_order_unverified', 'Native state did not confirm the medical job.', evidence=result)
                             receipt = {'native_outcome': result.get('receipt', result).get('outcome', 'receipt'),
                                 'meaning': 'Native command observed; this does not certify completion of pawn labor'}
+                            if action.tool == 'home/install':
+                                native = result.get('receipt', result)
+                                receipt['inner_id'] = native['thingId']
+                                receipt['rotation'] = (native.get('blueprint') or {}).get('rotation', native.get('rotation'))
                             if action.completion in ('patient_tended', 'patient_in_bed'):
                                 receipt['issued_at'] = time.time()
                         else:
@@ -148,12 +152,21 @@ class Hands:
                     self.guard(rt, revision, token, direction)
                     if row.state == 'complete':
                         progress.state = 'complete'
+                elif isinstance(action, NativeOperation) and action.tool == 'home/install':
+                    installation = next(iter(progress.issued.values()))
+                    row = rt.projects.upsert({'title': step.title, 'detail': step.completion_criteria,
+                        'targets': [{'kind': 'installation', 'thing_id': installation['inner_id'],
+                            'x': action.arguments['x'], 'z': action.arguments['z'], 'rotation': installation['rotation']}]})
+                    progress.project_id, progress.state = row.id, 'waiting'
+                    await rt.projects.reconcile(rt.game, only_id=row.id)
+                    if row.state == 'complete':
+                        progress.state = 'complete'
                 elif isinstance(action, NativeOperation) and action.completion in ('patient_tended', 'patient_in_bed'):
                     progress.state = 'waiting'
                 else:
                     progress.state = 'complete'
                 rt.note('execution', step.title+(': orders issued; awaiting construction' if placements and progress.state != 'complete' else
-                    ': medical order issued; awaiting patient outcome' if progress.state == 'waiting' else ': native operation verified'))
+                    ': order issued; awaiting native completion' if progress.state == 'waiting' else ': native operation verified'))
                 if all(rt.current_plan.progress[s.id].state in ('complete', 'cancelled') for s in rt.current_plan.spec.steps):
                     rt.signal('plan.completed', {'revision': revision})
                 rt.persist()

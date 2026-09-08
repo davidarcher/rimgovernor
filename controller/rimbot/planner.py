@@ -131,6 +131,8 @@ class Planner:
             'Use list_main_tabs then open_main_tab/close_main_tab with an explicit mainTabId. Opening again does not close a tab. '
             'list_messages and list_alerts expose native messages and culprit targets; resolve exact map identities with get_map_target_info. '
             'home/dialog_text lists reflected fields with dryRun=true; for a reviewed naming input, commit its exact windowId and field with text and dryRun=false. '
+            'Use home/install for packed furniture: inspect its exact packed or inner thingId, preview destination x/z and rotation 0..3, then commit. '
+            'Installation keeps the existing building and needs pawn work. Execution tracks the returned inner ID to its installed destination; a blueprint is not completion. '
             'Partial field names are rejected. accept means the accept handler was invoked, not proof of the final colony/pawn rename; inspect native state afterward. '
             'to close one exact window, with immediate readback. It does not answer quest choices or resume a held clock. '
             'Commit open_letter to inspect a dialog or dismiss_letter to clear a dismissible notification. '

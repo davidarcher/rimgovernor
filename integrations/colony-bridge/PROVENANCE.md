@@ -146,3 +146,28 @@ Live headless acceptance: opened a disposable Dialog_NamePlayerFaction, rejected
 wrong window ID and partial field, changed `curName`, and verified a fresh field
 listing while paused. Final rename acceptance and other naming dialog types are
 not covered by that fixture. No game-setting or simulation patches were added.
+
+## Packed furniture installation
+
+`InstallTool.cs` is a local native equivalent of the inspected
+`instruments/mini_install.py` workflow from the pinned companion revision.
+It retains exact-item validation, destination validation and observed completion,
+but does not copy its camera moves, English gizmo matching or repeated clicks.
+The installed game's `Designator_Install` implementation was inspected: the tool
+uses its `GenConstruct.CanPlaceBlueprintAt`, `GenSpawn.WipeExistingThings` with
+Deconstruct mode, and `GenConstruct.PlaceBlueprintForInstall` calls. No global
+selection or designator state is changed. Conflicting existing installation orders
+are refused rather than silently cancelled.
+
+`Blueprint_Install.ThingToInstall` identifies the existing building; native
+installation spawns that same object. Project tracking uses its inner load ID,
+destination and rotation, not a same-definition replacement building. No forced
+completion, resource injection or altered pawn work exists in the gameplay tool.
+
+`scripts/test_install.ps1` temporarily compiles the separately gated
+`scripts/fixtures/InstallFixture.cs`, creates a packed bed in an isolated test
+profile, and enables construction for capable fixture pawns. Normal pawn labor
+must finish the installation. It restores the prior DLL and then installs the
+normal build without fixture tools. Live tests passed north/east installation,
+same-order replay, conflicting-destination refusal and invalid ID/cell refusal.
+This proves native execution, not autonomous model furniture selection.
