@@ -64,12 +64,6 @@ class FastTrial(BridgeRuntime):
             self.note('campaign_budget','Model context budget',budget=values['request_budget'])
         await super().model_progress(values)
 
-    async def review(self):
-        await super().review()
-        if self.mode=='automate' and self.supervisor and not self.supervisor.hold:
-            await self.supervisor.change('Superfast')
-
-
 async def sample_metrics(rt,evidence,anchor,elapsed,*,capture=None):
     started=time.monotonic()
     await rt.sync_identity()
@@ -104,7 +98,7 @@ async def worker(args):
         from rimbot.headless import isolated_root
         root=isolated_root(root,folder/'bridge')
     rt=FastTrial(store,root,fresh=True,headless=not args.rendered,settings=Settings(model=args.model))
-    report={'iteration':args.worker,'model':args.model,'headless':not args.rendered,'speed':'Superfast after review',
+    report={'iteration':args.worker,'model':args.model,'headless':not args.rendered,'speed':'Paused deliberation; bounded execution',
             'revision':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
             'direction':args.direction}
     evidence=CampaignEvidence()

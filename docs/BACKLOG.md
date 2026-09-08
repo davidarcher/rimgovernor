@@ -15,6 +15,10 @@ in the checkpoint commit; do not append an implementation diary here.
   pemmican. Then verify usable enclosed/roofed shelter, storage filters/access and
   feasible food work over at least two game days without player repairs. Follow
   with scarce-wood, low-fertility and ruin variants; no fixed production layout.
+  Compare model-selected goals against the deterministic foothold baseline.
+  Add a native tick-budget/completion boundary for uncapped deterministic work;
+  verify busy-worker progress, idle stops and danger response before enabling it.
+  Current execution windows use controller polling and are not uncapped acceptance.
 
 Acceptance baseline: the documented 20-run adaptive eight-tribal campaign reached
 zero combined footholds, with five stockpiles and one small completed shell as

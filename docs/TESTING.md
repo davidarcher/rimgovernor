@@ -122,6 +122,20 @@ or completed production.
 
 ## Campaigns and performance
 
+For the deterministic starter baseline, run:
+
+```powershell
+.venv\Scripts\python.exe scripts\deterministic_foothold.py --source-root .rimbot/bridge --output .rimbot/deterministic-new --clock-probe
+```
+
+This uses a fresh rendered profile, no inference and no save edits. Ordinary Allow,
+stockpile and sleeping-spot orders go through commitment validation and Hands.
+Nearby candidate cells are ordered by distance to the observed colony center and
+accepted only after native previews. The result uses the same narrow campaign gate.
+Sleeping spots complete immediately under normal game rules; this does not prove
+pawn construction, roofed shelter or sustained survival. The optional clock probe
+verifies paused simulation during a slow scripted review and after completed work.
+
 ```powershell
 .venv\Scripts\python.exe scripts\headless_iterations.py --iterations 20 --parallel 2 --output .rimbot/campaign-new
 .venv\Scripts\python.exe scripts\parallel_headless_smoke.py --output .rimbot/parallel-new
@@ -158,6 +172,10 @@ model failures can still stop a trial early. Its narrow foothold check requires 
 colonists, eight nearby completed beds/spots, a nearby nine-cell stockpile and
 allowed starting pemmican. It does not certify shelter, sustained food or survival.
 Any fixture-specific warning acknowledgment is test-only; other holds stop play.
+
+Campaigns use the runtime's paused deliberation and bounded execution policy;
+the runner does not force Superfast after a review. Preserve older speed settings
+in historical reports rather than treating those runs as directly interchangeable.
 
 Each worker freezes `thresholds.json` before startup and samples native building
 and zone readbacks for completion. Reports separate retained intent, attempted slots,

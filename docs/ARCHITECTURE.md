@@ -120,6 +120,14 @@ injury, lease expiry and external pause/speed changes interrupt work. External
 holds require explicit player release. Opening an AI-owned letter pauses its
 lease before reading the actual UI; closing a window does not automatically
 resume time. `notifications.py` and `dialog_control.py` retain exact native targets.
+
+Strategist reviews pause before observation and inference. Hands runs between
+reviews; automatic Normal-speed execution requires confirmed work awaiting native
+completion. An automatic window targets 600 game ticks, ending sooner when work
+finishes. Explicit model clock steps also get a bounded window; direct player clock
+commands retain player control. The controller polls for the boundary, so it can
+overshoot. Native danger and lease stops remain independent. Uncapped execution
+requires a native tick boundary before it can use this policy safely.
 Letter opening requires a fresh empty window list beforehand and identified windows
 afterward; existing or unavailable windows require inspection and resolution.
 

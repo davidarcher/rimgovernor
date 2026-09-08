@@ -41,6 +41,9 @@ class BridgeRuntime:
         self.strategic_state = StrategicState()
         self.hands = Hands()
         self.execution_task = None
+        self.deliberating = False
+        self.execution_window_end = None
+        self.execution_wait_explicit = False
         self.planner = Planner(self)
         self.colony = uuid.uuid4().hex
         self.chat, self.plan = [], {'long': '', 'short': ''}
@@ -97,6 +100,7 @@ class BridgeRuntime:
             self.chat_revision = saved.get('chat_revision', 0)+1
             self.handled_revision = self.chat_revision
             self.mode, self.resume_after_review = 'manual', False
+            self.execution_window_end = None
             self.wake.clear()
             self.camera_path, self.camera_version = None, 0
             self.persist()
@@ -464,6 +468,8 @@ class BridgeRuntime:
     async def halt(self):
         """Stop automation and its draft obligations; never silently claim success."""
         self.mode, self.resume_after_review = 'manual', False
+        self.execution_window_end = None
+        self.execution_wait_explicit = False
         try:
             if self.supervisor:
                 await self.supervisor.change('Paused')
@@ -504,8 +510,14 @@ class BridgeRuntime:
             if self.mode != 'automate':
                 raise ValueError('Automation is off; clock was not changed')
             self.resume_after_review = False
+            self.execution_window_end = None
+            self.execution_wait_explicit = False
             result = await self.supervisor.change(speed, mode=mode,
                 ignored_hostiles=ignored_hostiles, ignored_downed=ignored_downed)
+            if speed != 'Paused' and expected_plan_revision is not None and result.get('active'):
+                status = await self.game.query('home/status', colonists=False, threats=False)
+                self.execution_window_end = status['time']['ticksGame'] + 600
+                self.execution_wait_explicit = True
             self.note('action', 'Clock: '+(result.get('stopReason') or speed), result=result)
             return result
 
@@ -697,21 +709,23 @@ class BridgeRuntime:
         await self.router.close()
 
     async def review(self):
+        self.deliberating = True
         try:
             self.phase = 'Inspecting colony'
             async with self.lock:
                 await self.sync_identity()
+                if self.supervisor:
+                    await self.supervisor.change('Paused')
+                self.execution_window_end = None
+                self.execution_wait_explicit = False
+                self.resume_after_review = self.mode == 'automate'
                 self.batch = await observe(self.game)
                 self.update_strategy_state()
                 await self.projects.reconcile(self.game)
                 self.reconcile_plan()
                 self.persist()
             await self.planner.play_bridge()
-            async with self.lock:
-                if self.resume_after_review and self.mode == 'automate':
-                    await self.supervisor.change('Normal')
-                    self.resume_after_review = False
-            self.phase = 'Playing' if self.mode == 'automate' else 'Manual'
+            self.phase = 'Executing orders' if self.mode == 'automate' else 'Manual'
         except asyncio.CancelledError:
             raise
         except Exception as error:
@@ -721,8 +735,54 @@ class BridgeRuntime:
                 await self.halt()
             self.handled_revision = self.chat_revision
         finally:
+            self.deliberating = False
             if self.chat_revision > self.handled_revision:
                 self.wake.set()
+
+    async def advance_execution(self):
+        """Issue orders while paused; only confirmed pending work starts a window."""
+        try:
+            await self._advance_execution()
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:
+            self.reply('Execution stopped: '+failure_text(error))
+            async with self.lock:
+                await self.halt()
+
+    async def _advance_execution(self):
+        if self.mode != 'automate' or self.deliberating or self.wake.is_set():
+            return
+        await self.hands.advance(self)
+        async with self.lock:
+            await self.sync_identity()
+            if (self.mode != 'automate' or self.deliberating or self.wake.is_set()
+                    or self.chat_revision > self.handled_revision or not self.supervisor):
+                return
+            waiting = [p for s in self.current_plan.spec.steps
+                       if (p := self.current_plan.progress[s.id]).state == 'waiting'
+                       and any(v.get('confirmed') for v in p.issued.values())]
+            if self.resume_after_review:
+                self.resume_after_review = False
+                if waiting and not self.supervisor.hold:
+                    token, direction = self.context_token, self.chat_revision
+                    status = await self.game.query('home/status', colonists=False, threats=False)
+                    await self.sync_identity()
+                    if (self.mode != 'automate' or self.context_token != token
+                            or self.chat_revision != direction or self.wake.is_set()):
+                        return
+                    await self.supervisor.change('Normal')
+                    self.execution_window_end = status['time']['ticksGame'] + 600
+                    self.execution_wait_explicit = False
+                    self.note('execution_window', 'Confirmed work: target 600 game ticks before review; polling may overshoot')
+            if self.execution_window_end is not None:
+                status = await self.game.query('home/status', colonists=False, threats=False)
+                if (not waiting and not self.execution_wait_explicit
+                        or status['time']['ticksGame'] >= self.execution_window_end):
+                    await self.supervisor.change('Paused')
+                    self.execution_window_end = None
+                    self.signal('execution.window_finished', {'tick': status['time']['ticksGame'],
+                                                             'work_remaining': bool(waiting)})
 
     async def run(self):
         executable = self.root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe'
@@ -747,13 +807,16 @@ class BridgeRuntime:
                 self.update_strategy_state()
                 last_reconcile = 0
                 while not self.stopped:
-                    if self.review_task is None or self.review_task.done():
+                    if ((self.review_task is None or self.review_task.done())
+                            and (self.execution_task is None or self.execution_task.done())):
                         if self.wake.is_set():
                             self.wake.clear()
                             self.review_task = asyncio.create_task(self.review())
                     if (self.mode == 'automate' and self.handled_revision >= self.chat_revision
+                            and (self.review_task is None or self.review_task.done())
+                            and not self.wake.is_set()
                             and (self.execution_task is None or self.execution_task.done())):
-                        self.execution_task = asyncio.create_task(self.hands.advance(self))
+                        self.execution_task = asyncio.create_task(self.advance_execution())
                     try:
                         async with self.lock:
                             if await self.sync_identity():
