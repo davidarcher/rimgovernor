@@ -41,7 +41,11 @@ async def worker(args):
     folder=args.output/f'iteration-{args.worker:02}';folder.mkdir(parents=True,exist_ok=True)
     if (folder/'result.json').exists():raise RuntimeError('Choose a new output directory; existing trial evidence will not be overwritten')
     store=Store(folder/'state.sqlite')
-    rt=FastTrial(store,Path('.rimbot/bridge'),fresh=True,headless=True,settings=Settings(model=args.model))
+    root=Path('.rimbot/bridge')
+    if args.isolated:
+        from rimbot.headless import isolated_root
+        root=isolated_root(root,folder/'bridge')
+    rt=FastTrial(store,root,fresh=True,headless=True,settings=Settings(model=args.model))
     report={'iteration':args.worker,'model':args.model,'headless':True,'speed':'Superfast after review',
             'revision':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()}
     start=time.monotonic()
@@ -94,6 +98,8 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--worker',type=int)
     parser.add_argument('--iterations',type=int,default=20)
+    parser.add_argument('--parallel',type=int,default=1,help='Concurrent isolated game/model workers; begin with 2')
+    parser.add_argument('--isolated',action='store_true',help=argparse.SUPPRESS)
     parser.add_argument('--seconds',type=int,default=120)
     parser.add_argument('--model',default='qwen3.5-9b')
     parser.add_argument('--output',type=Path,default=Path('.rimbot/headless-campaign'))
@@ -101,12 +107,21 @@ if __name__=='__main__':
     if args.worker:asyncio.run(worker(args))
     else:
         if not 1<=args.iterations<=20:parser.error('Choose 1 to 20 iterations')
+        if not 1<=args.parallel<=8:parser.error('Choose 1 to 8 parallel workers')
         args.output.mkdir(parents=True,exist_ok=True)
         results=[]
-        for number in range(1,args.iterations+1):
+        def trial(number):
             subprocess.run([sys.executable,__file__,'--worker',str(number),'--seconds',str(args.seconds),
-                '--model',args.model,'--output',str(args.output)],check=True)
+                '--model',args.model,'--output',str(args.output)]+(['--isolated'] if args.parallel>1 else []),check=True)
             result=json.loads((args.output/f'iteration-{number:02}'/'result.json').read_text())
-            results.append({k:result.get(k) for k in ('iteration','outcome','revision','counters','foothold','error')})
-            (args.output/'summary.json').write_text(json.dumps(results,indent=2),encoding='utf-8')
-            if result['outcome']=='usable_foothold':break
+            return {k:result.get(k) for k in ('iteration','outcome','revision','counters','foothold','error')}
+        # Small batches leave room for fixes between batches. A successful worker
+        # prevents another batch; already-running siblings finish and retain evidence.
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        with ThreadPoolExecutor(max_workers=args.parallel) as pool:
+            for first in range(1,args.iterations+1,args.parallel):
+                futures=[pool.submit(trial,n) for n in range(first,min(first+args.parallel,args.iterations+1))]
+                for future in as_completed(futures):
+                    results.append(future.result());results.sort(key=lambda r:r['iteration'])
+                    (args.output/'summary.json').write_text(json.dumps(results,indent=2),encoding='utf-8')
+                if any(r['outcome']=='usable_foothold' for r in results):break

@@ -5,6 +5,27 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
+def isolated_root(source, destination):
+    """Create a fresh worker root; never share GABS claims or writable saves."""
+    source, destination=Path(source).resolve(),Path(destination).resolve()
+    if destination.exists():
+        raise ValueError('Worker root already exists; use a fresh directory')
+    config=json.loads((source/'config/config.json').read_text(encoding='utf8'))
+    game=config['games']['rimbot-trial']
+    if game['launchMode']!='DirectPath':
+        raise ValueError('Parallel workers require DirectPath PID-owned launches')
+    # Without a pinned PID, refuse cleanup rather than scan all RimWorld games.
+    game.pop('stopProcessName',None)
+    (destination/'config').mkdir(parents=True)
+    (destination/'config/config.json').write_text(json.dumps(config,indent=2),encoding='utf8')
+    for relative in ('profile/Config/Prefs.xml','profile/Config/ModsConfig.xml',
+                     'profile/Saves/RimBot-tribal8-baseline.rws',
+                     'gabs/gabs-v1.1.1-windows-amd64/gabs.exe'):
+        target=destination/relative;target.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copy2(source/relative,target)
+    return destination
+
+
 def prepare(root):
     root=Path(root).resolve()
     config=json.loads((root/'config/config.json').read_text(encoding='utf8'))

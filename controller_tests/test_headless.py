@@ -1,6 +1,7 @@
 import json
 import xml.etree.ElementTree as ET
-from rimbot.headless import prepare
+from rimbot.headless import prepare, isolated_root
+import pytest
 
 
 def test_headless_profile_leaves_interactive_configuration_unchanged(tmp_path):
@@ -24,3 +25,20 @@ def test_headless_profile_leaves_interactive_configuration_unchanged(tmp_path):
     assert str(root/'headless-profile') in args[0]
     active=ET.parse(root/'headless-profile/Config/ModsConfig.xml').getroot().find('activeMods')
     assert [n.text for n in active].count('redeyedev.headlessrim')==1
+
+
+def test_parallel_roots_have_private_profiles_and_no_process_name_fallback(tmp_path):
+    source=tmp_path/'source';(source/'config').mkdir(parents=True)
+    config={'games':{'rimbot-trial':{'launchMode':'DirectPath','stopProcessName':'RimWorldWin64.exe'}}}
+    (source/'config/config.json').write_text(json.dumps(config))
+    paths=['profile/Config/Prefs.xml','profile/Config/ModsConfig.xml',
+        'profile/Saves/RimBot-tribal8-baseline.rws','gabs/gabs-v1.1.1-windows-amd64/gabs.exe']
+    for relative in paths:
+        p=source/relative;p.parent.mkdir(parents=True,exist_ok=True);p.write_text('fixture')
+    a=isolated_root(source,tmp_path/'a');b=isolated_root(source,tmp_path/'b')
+    (a/paths[0]).write_text('changed')
+    assert (b/paths[0]).read_text()=='fixture'
+    assert (source/paths[0]).read_text()=='fixture'
+    assert 'stopProcessName' not in json.loads((a/'config/config.json').read_text())['games']['rimbot-trial']
+    assert json.loads((source/'config/config.json').read_text())==config
+    with pytest.raises(ValueError,match='already exists'):isolated_root(source,a)
