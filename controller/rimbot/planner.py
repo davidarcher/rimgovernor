@@ -14,6 +14,7 @@ from .native_inspections import NativeInspections
 from .native_contracts import validate_arguments
 from .construction_preflight import ConstructionRefusal
 from .review_evidence import ReviewEvidence
+from .construction_grounding import ground_construction
 
 
 def inspect_plan(plan, ids):
@@ -35,6 +36,7 @@ class Planner:
         rt = self.rt
         native_inspections = NativeInspections()
         evidence = ReviewEvidence()
+        construction_definitions=set()
         token = rt.context_token
         schema = lambda properties, required: {'type':'object','properties':properties,'required':required,'additionalProperties':False}
         choices = sorted((READS | WRITES)-{'rimworld/set_time_speed'})
@@ -167,6 +169,10 @@ class Planner:
                         offset=native_args.pop('catalog_offset',0) if native_name=='rimworld/list_architect_designators' else 0
                         result = inspection_result(await rt.inspect_native(native_name, native_args),
                             native_name, native_args, offset, callable_name=name)
+                        if native_name=='rimworld/list_architect_designators':
+                            construction_definitions.update(row['buildableDefName'] for row in result.get('designators',[])
+                                if isinstance(row.get('buildableDefName'),str) and row['buildableDefName'])
+                            ground_construction(tools,construction_definitions)
                     elif name == 'inspect_plan':
                         result = inspect_plan(rt.current_plan, args['ids'])
                     elif name == 'review_evidence':
