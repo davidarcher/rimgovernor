@@ -266,3 +266,9 @@ Validation: 118 controller tests passed, including poor-soil, bedroom and startu
 Added an on-demand read/write/delete memory tool using the existing colony-and-map SQLite state. At most 20 notes, each with 1000 characters of text and 500 of required evidence; full notes are never automatically injected. Descriptive IDs allow deliberate updates without duplicate accumulation or silent eviction. Reads identify notes from another load, including loading an older save. Notes are advisory, not orders or authoritative current facts. Writes reject stale colony/load or player-direction revisions and record activity events. The memory index is included in strategy context; player-facing notebook editing remains future work.
 
 Validation: 127 controller tests passed, including persistence round trip, load provenance, stale request refusal, capacity, validation and read isolation. No gameplay or model-quality improvement measured yet.
+
+### Player notebook (2026-09-08)
+
+The dashboard now has a Notebook tab showing strategist notes, evidence, recording tick and a previous-load warning. Players can forget individual notes; corrections can be given through chat. Deletion requires the displayed colony/load and note fingerprint, refuses stale requests, advances the direction revision and wakes Automate to reconsider. This prevents an in-flight review from committing against a forgotten assumption. Notebook content does not enter the default full model prompt; the strategist still sees only its index.
+
+Validation: 129 controller tests, four dashboard tests, TypeScript check and production build passed. Tests cover stale deletion, pending-review invalidation, local route protection, version forwarding and visible error handling. Restarted headless controller is connected in Manual mode with the real empty notebook exposed. No new gameplay outcome measured. Direct note editing and live wiki retrieval remain future work.

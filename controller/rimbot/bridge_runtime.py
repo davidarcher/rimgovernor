@@ -300,6 +300,31 @@ class BridgeRuntime:
                 self.note('memory', f'{operation.capitalize()} memory: {id}', memory=result)
             return result
 
+    async def forget_memory(self, identity, session_id, version):
+        from .strategic_state import fingerprint
+        async with self.lock:
+            await self.sync_identity()
+            if session_id != self.context_token:
+                raise ValueError('Colony changed; refresh the notebook')
+            note = self.strategic_state.memories.get(identity)
+            if note is None or fingerprint(note) != version:
+                raise ValueError('Note changed or was removed; refresh the notebook')
+            del self.strategic_state.memories[identity]
+            # Invalidate pending strategy/hands work just like fresh player direction.
+            self.chat_revision += 1
+            self.strategic_state.signal('player.forgot_memory', {'id': identity})
+            self.note('memory', 'Player forgot memory: '+identity)
+            self.persist()
+            if self.mode == 'automate':
+                self.wake.set()
+            return {'deleted': identity}
+
+    def public_memories(self):
+        from .strategic_state import fingerprint
+        return [dict(id=key, text=note['text'], evidence=note['evidence'], tick=note['tick'],
+            previous_load=note['load_token'] != self.context_token, version=fingerprint(note))
+            for key, note in self.strategic_state.memories.items()]
+
     async def project_update(self, spec, expected_token=None):
         async with self.lock:
             await self.sync_identity()
@@ -675,7 +700,7 @@ class BridgeRuntime:
         summary = self.batch.summary if self.batch else None
         feed = self.chat[-80:]
         recent = next((m for m in reversed(feed) if m['kind'] == 'summary'), None)
-        return {'sessionId': self.context_token or self.colony, 'projects': self.projects.dump(), 'goals': self.plan, 'mood': 'thinking' if self.review_task and not self.review_task.done() else 'happy',
+        return {'memories': self.public_memories(), 'sessionId': self.context_token or self.colony, 'projects': self.projects.dump(), 'goals': self.plan, 'mood': 'thinking' if self.review_task and not self.review_task.done() else 'happy',
             'status': {'phase': 'core', 'turn': self.counters['model_calls'],
                        'label': self.phase+f" · {self.counters['tools']} calls · {self.counters['actions']} orders"},
             'game': {'tick': self.clock.get('ticksGame', summary.end_tick if summary else None), 'paused': self.clock.get('paused', True),

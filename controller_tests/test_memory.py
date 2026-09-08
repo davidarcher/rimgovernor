@@ -64,3 +64,21 @@ async def test_runtime_rejects_stale_colony_or_direction(token, revision):
             expected_token=token, expected_revision=revision)
     assert not rt.strategic_state.memories
     rt.persist.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_player_forget_checks_version_and_invalidates_review():
+    from rimbot.strategic_state import fingerprint
+    state = StrategicState()
+    call(state.memories, 'write', text='Lesson', evidence='Observation')
+    rt = SimpleNamespace(lock=asyncio.Lock(), sync_identity=AsyncMock(),
+        context_token='current', chat_revision=2, strategic_state=state,
+        persist=Mock(), note=Mock(), mode='automate', wake=asyncio.Event())
+    version = fingerprint(state.memories['camp'])
+    for session, stamp in [('old', version), ('current', 'stale')]:
+        with pytest.raises(ValueError):
+            await BridgeRuntime.forget_memory(rt, 'camp', session, stamp)
+        assert 'camp' in state.memories and rt.chat_revision == 2
+    await BridgeRuntime.forget_memory(rt, 'camp', 'current', version)
+    assert not state.memories and rt.chat_revision == 3 and rt.wake.is_set()
+    assert state.pending[0]['kind'] == 'player.forgot_memory'

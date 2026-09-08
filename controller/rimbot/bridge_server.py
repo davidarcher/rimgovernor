@@ -5,12 +5,19 @@ import os
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, Request
+from pydantic import BaseModel, ConfigDict, Field
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from .bridge_runtime import BridgeRuntime
 from .config import DATA_DIR, Settings, load_model_routing
 from .store import Store
+
+
+class ForgetMemory(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    session_id: str = Field(min_length=1, max_length=300)
+    version: str = Field(pattern=r'^[a-f0-9]{64}$')
 
 
 def create_app(runtime=None):
@@ -87,6 +94,10 @@ def create_app(runtime=None):
     async def cancel_step(identity: str, request: Request):
         await request.app.state.rt.cancel_plan_step(identity)
         return {'cancelled': identity}
+
+    @app.delete('/api/memories/{identity}')
+    async def forget_memory(identity: str, body: ForgetMemory, request: Request):
+        return await request.app.state.rt.forget_memory(identity, body.session_id, body.version)
 
     @app.get('/api/camera')
     async def camera(request: Request):

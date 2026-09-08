@@ -30,3 +30,17 @@ async def test_manual_and_invalid_actions_never_reach_game():
     with pytest.raises(ValueError,match='dryRun explicitly'):
         await game.invoke('home/place_building',{},allow_write=True)
     bridge.call.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_notebook_delete_requires_local_header_and_versioned_body():
+    rt=SimpleNamespace(forget_memory=AsyncMock(return_value={'deleted':'camp'}))
+    app=create_app(rt)
+    app.state.rt=rt
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://testserver') as client:
+        body={'session_id':'colony-load','version':'a'*64}
+        assert (await client.request('DELETE','/api/memories/camp',json=body)).status_code==403
+        assert (await client.request('DELETE','/api/memories/camp',json={},headers={'X-RimBot':'1'})).status_code==422
+        response=await client.request('DELETE','/api/memories/camp',json=body,headers={'X-RimBot':'1'})
+        assert response.json()=={'deleted':'camp'}
+        rt.forget_memory.assert_awaited_once_with('camp','colony-load','a'*64)
