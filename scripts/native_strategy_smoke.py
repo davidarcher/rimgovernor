@@ -1,8 +1,7 @@
-"""Real native hands, one scripted strategist decision, no auxiliary inference."""
+"""Real native hands, scripted strategist commitments, no auxiliary inference."""
 import asyncio
 import json
 from pathlib import Path
-from types import SimpleNamespace
 from rimbot.bridge import bridge_session
 from rimbot.bridge_game import BridgeGame
 from rimbot.bridge_observation import observe
@@ -37,7 +36,11 @@ async def main(headless=False):
             'action':{'kind':'create_zone','zone_type':'stockpile','label':'Strategy pipeline probe',
                 'patches':[{'x':pawn.position.x,'z':pawn.position.z,'width':1,'height':1}]}},
             {'id':'sleep','title':'Temporary sleeping capacity','completion_criteria':'Sleeping spot exists immediately',
-             'action':{'kind':'place_buildings','placements':[dict(def_name='SleepingSpot',**sleep_cell)]}}])
+             'action':{'kind':'place_buildings','placements':[dict(def_name='SleepingSpot',**sleep_cell)]}},
+            {'id':'animal-sleep','title':'Animal sleeping spot','completion_criteria':'Animal spot exists immediately',
+             'action':{'kind':'place_buildings','placements':[dict(def_name='AnimalSleepingSpot',x=pawn.position.x+6,z=pawn.position.z)]}},
+            {'id':'wall','title':'Construction probe','completion_criteria':'Wall built by colonist labor',
+             'action':{'kind':'place_buildings','placements':[dict(def_name='Wall',materials=['WoodLog'],x=pawn.position.x+9,z=pawn.position.z)]}}])
         answer=Decision(expected_revision=rt.current_plan.revision,disposition='revise',assessment='Supplies need storage',rationale='Use a nearby clear cell',reply='Set up the supplies area.',plan=spec)
         rt.mode='automate'
         try:
@@ -49,15 +52,39 @@ async def main(headless=False):
             assert progress.state=='complete',progress.model_dump()
             sleeping=rt.current_plan.progress['sleep']
             assert sleeping.state=='complete',{'progress':sleeping.model_dump(),'projects':rt.projects.dump(),'native':await rt.game.query('home/list_buildings',match='SleepingSpot',aggregate=False,playerOnly=True)}
+            animal=rt.current_plan.progress['animal-sleep']
+            wall=rt.current_plan.progress['wall']
+            assert animal.state=='complete',animal.model_dump()
+            assert wall.state=='blocked' and wall.failure.code=='construction_unavailable',wall.model_dump()
+            blocked_wall=wall.model_dump()
+            supplies=await rt.game.query('home/list_things',ownership='ours',x=pawn.position.x,z=pawn.position.z,radius=20,maxPositionsPerDef=10)
+            wood=next(r for r in supplies['things'] if r['defName']=='WoodLog')
+            stack=wood['positions'][0]['thingId']
+            orders=await rt.game.invoke('rimworld/list_architect_designators',{'categoryId':'Orders'})
+            allow=next(d for d in orders['designators'] if d['className']=='RimWorld.Designator_Unforbid')
+            position=wood['positions'][0]
+            allowed=await rt.game.invoke('rimworld/apply_architect_designator',{'designatorId':allow['id'],'x':position['x'],'z':position['z'],'dryRun':False,'keepSelected':False},allow_write=True)
+            updated=await rt.game.query('home/list_things',ownership='ours',maxPositionsPerDef=0)
+            assert next(r for r in updated['things'] if r['defName']=='WoodLog')['oursUnforbidden']>=5,allowed
+            # New evidence permits an explicit retry commitment, not an automatic retry.
+            answer=answer.model_copy(update={'expected_revision':rt.current_plan.revision,'plan':spec,'retry_steps':['wall']})
+            await rt.planner.play_bridge()
             await rt.hands.advance(rt)
-            assert rt.counters['actions']==before+2 and brain.calls==1
+            wall=rt.current_plan.progress['wall']
+            assert wall.state=='waiting',wall.model_dump()
+            wall_native=await rt.game.query('home/list_buildings',match='Wall',x=pawn.position.x+9,z=pawn.position.z,radius=1,aggregate=False,playerOnly=True)
+            matches=[b for b in wall_native['buildings'] if b['position']=={'x':pawn.position.x+9,'z':pawn.position.z}]
+            assert len(matches)==1 and matches[0]['status']=='blueprint',matches
+            assert matches[0]['workToBuild']>0,matches
+            await rt.hands.advance(rt)
+            assert rt.counters['actions']==before+4 and brain.calls==2
             await rt.projects.reconcile(rt.game);rt.reconcile_plan();rt.persist()
-            assert progress.state=='complete'
+            assert progress.state=='complete' and wall.state=='waiting'
             status=await rt.game.query('home/status')
             assert status['time']['paused'] and status['time']['ticksGame']==rt.batch.summary.end_tick
-            evidence={'paused_tick':status['time']['ticksGame'],'strategist_calls':brain.calls,'native_actions':rt.counters['actions']-before,'progress':progress.model_dump(),'plan_revision':rt.current_plan.revision,'sleeping':sleeping.model_dump()}
+            evidence={'paused_tick':status['time']['ticksGame'],'strategist_calls':brain.calls,'native_actions':rt.counters['actions']-before,'progress':progress.model_dump(),'plan_revision':rt.current_plan.revision,'sleeping':sleeping.model_dump(),'animal_sleeping':animal.model_dump(),'wall':wall.model_dump(),'wall_native':matches,'forbidden_wall':blocked_wall,'allowed_stack':stack}
             (root/'strategy-smoke.json').write_text(json.dumps(evidence,indent=2),encoding='utf8')
-            print('PASS: committed plan -> native zone and instant sleeping spot -> observed completion; replay issued no duplicate and no model call',flush=True)
+            print('PASS: committed plan -> native zone and two instant spots complete; normal wall remains a blueprint; replay issued no duplicate and no model call',flush=True)
         finally:
             await rt.game.invoke('home/zone_cells',{'op':'delete','zone':'Strategy pipeline probe','dryRun':False},allow_write=True)
             await rt.halt();await rt.router.close();store.close()

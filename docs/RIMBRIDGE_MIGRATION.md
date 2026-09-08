@@ -292,3 +292,11 @@ The extended scripted-strategist/native-hands fixture reproduced a real bridge b
 Hands now reconciles only the newly issued construction project immediately. Observed built structures complete immediately; blueprint/frame projects still wait for pawn work. The repeatable fixture asserts stockpile plus sleeping spot completion while paused, unchanged ticks, and no duplicate writes on replay. It uses a scripted strategic decision, not a live model, and does not establish room-construction or model layout quality.
 
 Validation: native build/install, 134 controller tests, and repeated headless strategy smoke passed after reproducing failure before the fix. Evidence: .rimbot/bridge/strategy-smoke.json. No saves or generated artifacts committed.
+
+### Mixed construction acceptance (2026-09-08)
+
+Expanded the native strategy fixture to cover human and animal sleeping spots plus a normal wooden wall. Both zero-work structures complete while paused. The wall first refuses forbidden starting wood; the fixture discovers and applies the native Allow designator at one observed nearby wood stack, verifies allowed stock, and explicitly retries the same committed step. The resulting wall remains a blueprint with positive work, not an instant structure. Replaying issues no duplicate orders, and ticks remain unchanged.
+
+This is a scripted two-decision acceptance test, not live LLM planning or finished pawn construction. Test definitions/materials are fixture choices, not production policy. An initial attempt to use building_config for a loose item correctly failed: it only selects buildings. The native Architect Allow path succeeded. No production action behavior changed in this slice.
+
+Validation: scripts/native_strategy_smoke.py --headless passed; evidence in .rimbot/bridge/strategy-smoke.json. Colony construction by pawn labor remains the next acceptance gap.
