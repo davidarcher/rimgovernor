@@ -82,7 +82,13 @@ class ClockAction(Contract):
     ignored_downed: str = ''
 
 
-Action = Annotated[Buildings | RoomShell | Zone | NativeOperation | ClockAction, Field(discriminator='kind')]
+class StandDown(Contract):
+    kind: Literal['stand_down'] = 'stand_down'
+    pawn_ids: list[str] = Field(min_length=1, max_length=100,
+        description='Exact observed pawn IDs to release from AI-owned drafting. Player-owned drafts are untouched.')
+
+
+Action = Annotated[Buildings | RoomShell | Zone | NativeOperation | ClockAction | StandDown, Field(discriminator='kind')]
 
 
 class Dependency(Contract):

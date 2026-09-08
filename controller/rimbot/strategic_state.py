@@ -123,6 +123,7 @@ def context(rt):
             'risks': plan.spec.risks, 'long_term': plan.spec.long_term, 'right_now': plan.spec.right_now,
             'steps': bounded(steps, 24)},
         'changes': bounded(rt.strategic_state.pending, 20), 'mode': rt.mode,
+        'ai_owned_drafts': [pawn for pawn, token in rt.draft_owners.items() if token == rt.context_token],
         'player_messages': bounded([{'kind': m['kind'], 'text': m['text']} for m in rt.chat[-12:]], 12),
         'clock': {k:v for k,v in (rt.supervisor.state if rt.supervisor else {}).items()
             if k in ('active','paused','stopReason','stopDetail','requestedSpeed')},

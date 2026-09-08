@@ -1,5 +1,5 @@
 """Deterministic intent compilation and native validation. No model dependency."""
-from .colony_plan import Buildings, RoomShell, Zone, NativeOperation, ClockAction, Placement, Failure
+from .colony_plan import Buildings, RoomShell, Zone, NativeOperation, ClockAction, StandDown, Placement, Failure
 from .receipts import reason
 
 
@@ -62,7 +62,7 @@ class Hands:
                     recorded = progress.issued.get(key)
                     if recorded and recorded.get('confirmed'):
                         continue
-                    if recorded and not placements and not isinstance(action, Zone):
+                    if recorded and not placements and not isinstance(action, (Zone, StandDown)):
                         raise Blocked('uncertain_write', 'Prior write has no confirmed receipt. Inspect its effects before replacing this step.')
                     if count >= max_operations:
                         return
@@ -71,6 +71,14 @@ class Hands:
                         receipt = await self.place(rt, operation, progress, key, revision, token, direction)
                     elif isinstance(action, Zone):
                         receipt = await self.zone(rt, action, progress, key, revision, token, direction)
+                    elif isinstance(action, StandDown):
+                        progress.issued[key] = {'confirmed': False}
+                        rt.persist()
+                        receipt = await rt.stand_down(action.pawn_ids, expected_revision=direction,
+                            expected_token=token, expected_plan_revision=revision)
+                        if receipt['failed']:
+                            raise Blocked('stand_down_incomplete', 'Some AI-owned drafts could not be released.',
+                                retryable=True, evidence=receipt)
                     else:
                         if isinstance(action, NativeOperation):
                             args = dict(action.arguments)

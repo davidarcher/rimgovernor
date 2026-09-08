@@ -47,6 +47,9 @@ class Planner:
             'A changed action needs a new step ID; preserve unchanged steps and their receipts. Do not recreate player-cancelled work. '
             'Consult only for an identified information need, and declare used consultation IDs in your decision. '
             'Use clock steps for deliberate time changes. External pause holds require the player to select Automate again. '
+            'After combat or another drafted task, commit stand_down for the listed ai_owned_drafts that can return to work. '
+            'It verifies undrafting without turning off automation; player-owned drafts are never released by it. '
+            'A hostiles-cleared event is evidence to review, not proof that every drafted task should be cancelled. '
             'Finish every review with a structured commit_plan, including continue or defer; prose alone is not a decision.'},
             {'role':'user','content':json.dumps(context(rt),ensure_ascii=False)}]
         seen = rt.chat_revision

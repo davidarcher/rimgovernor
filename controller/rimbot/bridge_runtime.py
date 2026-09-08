@@ -282,20 +282,51 @@ class BridgeRuntime:
     async def model_progress(self, values):
         self.phase = values.get('phase', 'Thinking')
 
-    async def release_drafts(self):
+    async def release_drafts(self, selected=None, guard=None):
         """Caller holds the writer lock. Retain obligations if cleanup is uncertain."""
-        for pawn, token in list(self.draft_owners.items()):
-            if token != self.context_token:
+        result = {'released': [], 'not_owned': [], 'failed': {}}
+        for pawn in dict.fromkeys(selected if selected is not None else self.draft_owners):
+            if guard:
+                await guard()
+            if self.draft_owners.get(pawn) != self.context_token:
+                result['not_owned'].append(pawn)
                 continue
             try:
-                await self.game.invoke('home/order', {'action': 'undraft', 'pawn': pawn, 'dryRun': False}, allow_write=True)
-                state = await self.game.invoke('home/order', {'action': 'resolve', 'pawn': pawn, 'dryRun': True}, allow_write=True)
-                if state.get('pawn', {}).get('drafted') is not False:
+                args = {'action': 'resolve', 'pawn': pawn, 'dryRun': True}
+                state = await self.game.invoke('home/order', args, allow_write=False)
+                if guard:
+                    await guard()
+                if state.get('pawn', {}).get('thingId') != pawn:
+                    raise ValueError('Pawn identity was not confirmed')
+                if state['pawn'].get('drafted') is not False:
+                    if guard:
+                        await guard()
+                    await self.game.invoke('home/order', {'action': 'undraft', 'pawn': pawn, 'dryRun': False}, allow_write=True)
+                    state = await self.game.invoke('home/order', args, allow_write=False)
+                    if guard:
+                        await guard()
+                if state.get('pawn', {}).get('thingId') != pawn or state.get('pawn', {}).get('drafted') is not False:
                     raise ValueError('Undraft was not confirmed')
                 del self.draft_owners[pawn]
+                result['released'].append(pawn)
                 self.persist()
+            except InterruptedError:
+                raise
             except Exception as error:
+                result['failed'][pawn] = failure_text(error)
                 self.note('blocker', 'Could not release AI-drafted pawn '+pawn+': '+failure_text(error))
+        return result
+
+    async def stand_down(self, pawn_ids, *, expected_token, expected_revision, expected_plan_revision):
+        async with self.lock:
+            async def guard():
+                await self.sync_identity()
+                if (self.mode != 'automate' or self.context_token != expected_token
+                        or self.chat_revision != expected_revision
+                        or self.current_plan.revision != expected_plan_revision):
+                    raise InterruptedError('Stand-down intent changed; remaining pawns were not touched')
+            await guard()
+            return await self.release_drafts(pawn_ids, guard)
 
     async def halt(self):
         """Stop automation and its draft obligations; never silently claim success."""

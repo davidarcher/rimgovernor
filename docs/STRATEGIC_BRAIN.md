@@ -115,6 +115,11 @@ role simply because it is installed in LM Studio.
 
 ## Native interface gaps / boundaries
 
+`stand_down` is now a deterministic committed action for selected AI-owned drafts.
+Its completion is verified native undrafting, not inferred combat victory; it does
+not turn Automate off. Ownership and gameplay test details are in
+`NATIVE_CONTROL_CHECKPOINT.md`.
+
 - Nutrition per edible item, diet-adjusted daily consumption, spoilage and expected
   harvest are not supplied by the compact contract. Food-days is explicitly unknown,
   not fabricated from item names/counts. Pawn food needs and native alerts do work.

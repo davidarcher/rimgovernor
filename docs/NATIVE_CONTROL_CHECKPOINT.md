@@ -29,3 +29,27 @@ hostiles-cleared event is advisory); real combat and live trading validation;
 visual second opinion and bounded read-only data scouts. No claim of winning a
 fight is made by the movement test. Cleanup ownership still cannot distinguish a
 human undraft/redraft between observations.
+
+## Selected stand-down during Automate
+
+The strategist can now commit `stand_down` with exact pawn IDs. Its context lists
+current-load AI-owned drafts. Deterministic Hands releases only the selected owned
+drafts, confirms pawn identity and final draft state through native reads, and
+keeps Automate enabled. Player-owned and other-load drafts are untouched. This is
+an explicit strategic decision; a hostiles-cleared event does not automatically
+cancel every drafted job, and distant cave insects do not gate cleanup.
+
+Partial failures remain durable cleanup obligations and block the step with native
+failure details. Retrying first reads current state: a lost successful undraft
+receipt does not require another undraft. New direction/load/plan revisions stop
+remaining writes. Cancelling a plan still does not silently cancel game orders.
+
+Validation: 52 controller tests; `scripts/native_stand_down_smoke.py` passed on the
+headless eight-tribal fixture. It drafted two pawns through separate controller and
+test-player paths, executed the committed cleanup step, verified only the owned
+pawn was undrafted, and verified Automate remained on. Fixture drafts were cleaned
+up afterward. No model call or actual fight was part of this check.
+
+Next combat acceptance: a controlled threat scenario with observed attack outcome,
+injury interruption and strategy-selected stand-down. Victory detection, rescue
+completion and human undraft/redraft ownership ambiguity remain open.
