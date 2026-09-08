@@ -34,7 +34,7 @@ class Planner:
         choices = sorted((READS | WRITES)-{'rimworld/set_time_speed'})
         tools = [tool('commit_plan', 'Commit the strategic decision, or cheaply continue/defer the existing plan. Ends this review. No native action is executed by this tool.', Decision.model_json_schema()),
             tool('describe', 'Read a native tool contract; write contracts may be inspected for planning.', schema({'name':{'type':'string','enum':choices}},['name'])),
-            tool('inspect', 'Read native state or perform an explicitly supported dry run. Real writes are forbidden here.', schema({'name':{'type':'string','enum':choices},'arguments':{'type':'object'}},['name','arguments'])),
+            tool('inspect', 'Read native state or preview an action. If omitted, dryRun=true is supplied only when the native contract supports it. Explicit writes are refused. Use describe for required arguments.', schema({'name':{'type':'string','enum':choices},'arguments':{'type':'object'}},['name','arguments'])),
             tool('inspect_plan', 'Read the current revision and step IDs plus selected step details and progress. Use ids=[] for revision and index only.', schema({'ids':{'type':'array','items':{'type':'string'},'maxItems':8}},['ids']))]
         tools.extend([
             tool('search_knowledge', 'Find practical strategy guidance in the local library. Returns up to three card summaries, not live game facts.', schema({'query':{'type':'string','minLength':1,'maxLength':300}},['query'])),

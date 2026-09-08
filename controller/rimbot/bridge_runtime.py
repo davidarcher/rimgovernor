@@ -114,8 +114,13 @@ class BridgeRuntime:
             self.wake.set()
 
     async def inspect_native(self, name, arguments):
+        if is_write(name, arguments) and 'dryRun' not in arguments:
+            schema = await self.game.describe(name)
+            if schema.get('properties', {}).get('dryRun', {}).get('type') == 'boolean':
+                arguments = dict(arguments, dryRun=True)
         if is_write(name, arguments):
-            raise PermissionError('Strategist and advisers cannot execute native writes; commit a plan for Hands')
+            raise PermissionError('Inspection cannot execute writes. Use dryRun=true for a supported preview, '
+                                  'or commit a native operation for execution. Read describe for the native contract.')
         async with self.lock:
             return await self.game.invoke(name, arguments, allow_write=False)
 
