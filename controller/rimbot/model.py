@@ -8,6 +8,28 @@ class ModelError(RuntimeError):
     pass
 
 
+def alternating_user_messages(messages):
+    """Keep adjacent context updates compatible with strict chat templates."""
+    result = []
+    for message in messages:
+        row = dict(message)
+        if result and result[-1].get('role') == 'tool' and row.get('role') == 'user':
+            # Strict templates count tool results as a user turn. An empty
+            # assistant boundary keeps new direction separate from tool evidence.
+            result.append({'role':'assistant','content':''})
+        if result and row.get('role') == result[-1].get('role') == 'user':
+            before, after = result[-1].get('content'), row.get('content')
+            if isinstance(before, str) and isinstance(after, str):
+                result[-1]['content'] = before+'\n\n'+after
+            else:
+                def blocks(content):
+                    return list(content) if isinstance(content,list) else [{'type':'text','text':content}] if content else []
+                result[-1]['content'] = blocks(before)+blocks(after)
+        else:
+            result.append(row)
+    return result
+
+
 def inference_tools(tools):
     """Keep validation contracts intact; adapt only the inference grammar.
 
@@ -42,7 +64,7 @@ class LocalModel:
         except ValueError as error:raise ModelError(str(error)) from error
         if budget['compacted']:await progress({'phase':'Preparing decisions','detail':'Compacted model context','request_budget':budget})
         effort = ('medium' if thinking else 'none') if self.reasoning_style == 'standard' else ('on' if thinking else 'off')
-        body = {'model':self.settings.model, 'messages':messages, 'stream':True,
+        body = {'model':self.settings.model, 'messages':alternating_user_messages(messages), 'stream':True,
                 'stream_options':{'include_usage':True}, 'temperature':self.settings.temperature,
                 'max_tokens':self.settings.max_output_tokens,
                 'reasoning_effort':effort,

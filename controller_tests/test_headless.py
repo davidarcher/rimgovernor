@@ -1,6 +1,6 @@
 import json
 import xml.etree.ElementTree as ET
-from rimbot.headless import prepare, isolated_root
+from rimbot.headless import prepare, prepare_rendered, isolated_root
 import pytest
 
 
@@ -47,7 +47,7 @@ def test_parallel_roots_have_private_profiles_and_no_process_name_fallback(tmp_p
 
 
 @pytest.mark.parametrize('mode', [None, 'Steam', ''])
-@pytest.mark.parametrize('operation', ['headless', 'isolated'])
+@pytest.mark.parametrize('operation', ['headless', 'rendered', 'isolated'])
 def test_disposable_profiles_reject_unowned_launches_before_writing(tmp_path, mode, operation):
     source=tmp_path/'source';(source/'config').mkdir(parents=True)
     game={'stopProcessName':'RimWorldWin64.exe'}
@@ -57,8 +57,25 @@ def test_disposable_profiles_reject_unowned_launches_before_writing(tmp_path, mo
     destination=tmp_path/'worker'
     with pytest.raises(ValueError,match='DirectPath PID-owned'):
         if operation == 'headless':prepare(source)
+        elif operation == 'rendered':prepare_rendered(source)
         else:isolated_root(source,destination)
     assert (source/'config/config.json').read_text()==original
     assert not destination.exists()
     assert not (source/'headless-profile').exists()
     assert not (source/'config-headless').exists()
+
+
+def test_rendered_worker_uses_private_profile_without_headless_patches(tmp_path):
+    root=tmp_path/'worker';(root/'config').mkdir(parents=True)
+    (root/'profile/Config').mkdir(parents=True)
+    (root/'config/config.json').write_text(json.dumps({'games':{'rimbot-trial':{
+        'launchMode':'DirectPath','stopProcessName':'RimWorldWin64.exe',
+        'args':['-savedatafolder=shared','-batchmode','-nographics']}}}))
+    (root/'profile/Config/ModsConfig.xml').write_text(
+        '<ModsConfigData><activeMods><li>brrainz.harmony</li><li>redeyedev.headlessrim</li></activeMods></ModsConfigData>')
+    destination=prepare_rendered(root)
+    game=json.loads((destination/'config.json').read_text())['games']['rimbot-trial']
+    assert game['args'][0]=='-savedatafolder='+str(root/'profile')
+    assert '-batchmode' not in game['args'] and '-nographics' not in game['args']
+    assert 'stopProcessName' not in game
+    assert [r.text for r in ET.parse(root/'profile/Config/ModsConfig.xml').getroot().find('activeMods')]==['brrainz.harmony']

@@ -33,7 +33,7 @@ def tracked_source(source):
                 tracked_files=len(rows), content_sha256=_digest(rows))
 
 
-def capture_manifest(source, worker_root, configuration, routing):
+def capture_manifest(source, worker_root, configuration, routing, *, profile=None):
     """Hash actual prepared inputs before startup; missing inputs fail closed.
 
     Locations are evidence only, excluded from comparison so isolated worker
@@ -59,10 +59,11 @@ def capture_manifest(source, worker_root, configuration, routing):
             candidates.extend(metadata.parent.parent.rglob(assembly+'.dll'))
     if len(candidates) != 1:
         raise ValueError('Expected one installed production observation assembly, found '+str(len(candidates)))
+    profile = Path(profile) if profile is not None else root/'headless-profile'
     paths = {
-        'baseline_save': root/'headless-profile/Saves/RimBot-tribal8-baseline.rws',
-        'profile_preferences': root/'headless-profile/Config/Prefs.xml',
-        'profile_mods': root/'headless-profile/Config/ModsConfig.xml',
+        'baseline_save': profile/'Saves/RimBot-tribal8-baseline.rws',
+        'profile_preferences': profile/'Config/Prefs.xml',
+        'profile_mods': profile/'Config/ModsConfig.xml',
         'gabs': root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',
         'observations_dll': candidates[0],
     }

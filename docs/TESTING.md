@@ -146,8 +146,15 @@ Regenerate disposable profiles to remove legacy executable-name cleanup fallback
 Generated profiles use DirectPath process ownership; missing or other launch modes
 are rejected for headless workers.
 
-The short campaign window starts at 120 seconds and extends after a first action
-to allow another 120 seconds. Its narrow foothold check requires eight living
+For a visible model comparison, use `--rendered --fixed-window --seconds 300`
+with `--parallel 1` and the same `--direction` for every model. Rendered workers
+use a private normal profile without HeadlessRimPatch or batch/nographics flags.
+Load one LM Studio model at a time; preserve load/context/offload settings and
+separate startup failures from gameplay outcomes. Reserve GPU memory for rendering.
+
+The short campaign window defaults to 120 seconds and extends after a first action
+to allow another 120 seconds. `--fixed-window` disables that extension; holds and
+model failures can still stop a trial early. Its narrow foothold check requires eight living
 colonists, eight nearby completed beds/spots, a nearby nine-cell stockpile and
 allowed starting pemmican. It does not certify shelter, sustained food or survival.
 Any fixture-specific warning acknowledgment is test-only; other holds stop play.

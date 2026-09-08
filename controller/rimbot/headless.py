@@ -31,6 +31,26 @@ def isolated_root(source, destination):
     return destination
 
 
+def prepare_rendered(root):
+    """Launch the disposable profile visibly, without headless patches or flags."""
+    root = Path(root).resolve()
+    configuration = root/'config'
+    config = json.loads((configuration/'config.json').read_text(encoding='utf8'))
+    game = config['games']['rimbot-trial']
+    _require_owned_launch(game)
+    profile = root/'profile'
+    mods = ET.parse(profile/'Config/ModsConfig.xml')
+    active = mods.getroot().find('activeMods')
+    for item in list(active):
+        if (item.text or '').lower() == 'redeyedev.headlessrim':
+            active.remove(item)
+    mods.write(profile/'Config/ModsConfig.xml', encoding='utf8', xml_declaration=True)
+    game['args'] = ['-savedatafolder='+str(profile), '-logFile', str(root/'Player.log'),
+                    '-screen-fullscreen', '0', '-screen-width', '1280', '-screen-height', '720']
+    (configuration/'config.json').write_text(json.dumps(config,indent=2),encoding='utf8')
+    return configuration
+
+
 def prepare(root):
     root=Path(root).resolve()
     config=json.loads((root/'config/config.json').read_text(encoding='utf8'))

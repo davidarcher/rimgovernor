@@ -103,8 +103,8 @@ async def worker(args):
     if args.isolated:
         from rimbot.headless import isolated_root
         root=isolated_root(root,folder/'bridge')
-    rt=FastTrial(store,root,fresh=True,headless=True,settings=Settings(model=args.model))
-    report={'iteration':args.worker,'model':args.model,'headless':True,'speed':'Superfast after review',
+    rt=FastTrial(store,root,fresh=True,headless=not args.rendered,settings=Settings(model=args.model))
+    report={'iteration':args.worker,'model':args.model,'headless':not args.rendered,'speed':'Superfast after review',
             'revision':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
             'direction':args.direction}
     evidence=CampaignEvidence()
@@ -112,14 +112,15 @@ async def worker(args):
     (folder/'thresholds.json').write_text(json.dumps(report['metrics']['thresholds'],indent=2),encoding='utf-8')
     start=time.monotonic()
     try:
-        from rimbot.headless import prepare
-        configuration = prepare(root)
+        from rimbot.headless import prepare, prepare_rendered
+        configuration = prepare_rendered(root) if args.rendered else prepare(root)
         source = Path(__file__).resolve().parents[1]
         loaded_runtime = Path(sys.modules[BridgeRuntime.__module__].__file__).resolve()
         if loaded_runtime != source/'controller/rimbot/bridge_runtime.py':
             raise ValueError('Campaign runtime was imported from another checkout; set PYTHONPATH to this source/controller')
         manifest = capture_manifest(source, root, configuration,
-                                    rt.router.routing.model_dump(mode='json'))
+                                    rt.router.routing.model_dump(mode='json'),
+                                    profile=root/('profile' if args.rendered else 'headless-profile'))
         report['revision'] = manifest['inputs']['source']['revision']
         report['manifest_fingerprint'] = manifest['fingerprint']
         (folder/'manifest.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
@@ -150,7 +151,7 @@ async def worker(args):
                 except Exception as error:
                     report['foothold']={'usable':False,'observation_error':str(error)}
                     report.setdefault('outcome_observation_errors',[]).append({'elapsed_seconds':elapsed,'error':str(error)})
-            if rt.counters['actions'] and not extended:
+            if rt.counters['actions'] and not extended and not args.fixed_window:
                 deadline=max(deadline,time.monotonic()+120);extended=True
             if elapsed-last>=15:
                 print(json.dumps({'iteration':args.worker,'seconds':elapsed,**rt.counters}),flush=True);last=elapsed
@@ -196,6 +197,8 @@ if __name__=='__main__':
     parser.add_argument('--parallel',type=int,default=1,help='Concurrent isolated game/model workers; begin with 2')
     parser.add_argument('--isolated',action='store_true',help=argparse.SUPPRESS)
     parser.add_argument('--seconds',type=int,default=120)
+    parser.add_argument('--fixed-window',action='store_true',help='Do not extend the observation window after a late first action')
+    parser.add_argument('--rendered',action='store_true',help='Show the isolated game window with normal rendering')
     parser.add_argument('--model',default='qwen3.5-9b')
     parser.add_argument('--source-root',type=Path,default=Path('.rimbot/bridge'))
     parser.add_argument('--direction',default='',help='Frozen player objective, recorded before automation begins')
@@ -211,7 +214,8 @@ if __name__=='__main__':
         def trial(number):
             subprocess.run([sys.executable,__file__,'--worker',str(number),'--seconds',str(args.seconds),
                 '--model',args.model,'--output',str(args.output),'--source-root',str(args.source_root),
-                '--direction',args.direction,'--isolated'],check=True)
+                '--direction',args.direction,'--isolated']+(['--fixed-window'] if args.fixed_window else [])
+                +(['--rendered'] if args.rendered else []),check=True)
             result=json.loads((args.output/f'iteration-{number:02}'/'result.json').read_text())
             return {k:result.get(k) for k in ('iteration','outcome','revision','model','direction','manifest_fingerprint','counters','foothold','interrupted','error','cleanup_error')}
         # Small batches leave room for fixes between batches. A successful worker
