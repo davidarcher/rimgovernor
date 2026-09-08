@@ -4,31 +4,48 @@ Updated 2026-09-08. RimBridge/GABS is the sole backend; RIMAPI replacement is
 complete. The remaining work is capability parity and gameplay acceptance.
 Chronological implementation notes, including superseded next steps, are in
 [the archived history](archive/bridge/RIMBRIDGE_MIGRATION_HISTORY_20260908.md).
+The [20-run campaign](STARTER_CAMPAIGN_20260908.md) finished with no combined
+starter foothold; five stockpiles and one completed small room shell were partial
+successes. That evidence determines the ordering below.
 
 ## Current priorities
 
-1. **Autonomous eight-tribal starter foothold.** Scripted construction, instant
-   zones/spots, equipment and native readback work. Real Qwen runs still mostly
-   inspect without committing; accepted plans have also used invented definitions.
-   Run up to 20 fresh headless experiments, record results, and fix observed
-   failures. Usable starting orders are not the same as long-term survival.
-2. **Spatial architect parity.** Restore long-term layout, shared reservations,
+1. **Ground execution arguments in native schemas.** Inspection tools are typed,
+   but `native_operation.arguments` remains an open dictionary in the model's
+   commitment schema. Bind it to discovered native contracts, retaining runtime
+   validation. Test allowing nearby supplies, setting work priorities and issuing
+   a bill independently before another broad startup campaign. Invented job and
+   configuration fields repeatedly prevented otherwise useful plans from landing.
+2. **Complete modal control and pause ownership.** Native letter reads contain
+   full text. Opening a letter can force-pause the game with no connected close/
+   choice path. Integrate inspected native window/choice controls and distinguish
+   AI-opened modals from player pauses. Do not automatically dismiss all dialogs.
+3. **Autonomous eight-tribal starter foothold.** Repeatable headless campaigns now
+   exist; small real-model rooms/stockpiles have worked, but the combined starter
+   check remains unproven. Test supply access, eight sleeping places and storage,
+   then food production and multi-day survival. Queued orders are not completion.
+4. **Spatial architect parity.** Restore long-term layout, shared reservations,
    entrances/access, room roles and staged execution. Room-shell compilation,
    geometry checks and native preflight exist; the richer retired architect does
    not. Current VL second opinions are optional and failed missing-door acceptance.
-3. **Native food forecasts.** Supply units are exposed, but nutrition, consumption,
+5. **Native food forecasts.** Supply units are exposed, but nutrition, consumption,
    spoilage, expected harvest and animal feed forecasts remain incomplete. Use
    game definitions, not a fixed food table. Basic starting orders should not wait
    for these advanced forecasts.
-4. **Combat/rescue gameplay acceptance.** Movement, equip, observed hits, tending
+6. **Combat/rescue gameplay acceptance.** Movement, equip, observed hits, tending
    and AI draft cleanup passed controlled tests. Actual raid victory, autonomous
    tactics, real carry-to-bed rescue and model-selected triage remain unproven.
-5. **Trade acceptance.** Native session/staging/preview/execution exists. Verify a
+7. **Trade acceptance.** Native session/staging/preview/execution exists. Verify a
    real buy/sell exchange, silver and stock deltas, stale sessions and delivery.
-6. **Remaining player actions and inspectors.** Quest/dialog choices, verified UI
+8. **Remaining player actions and inspectors.** Quest choices, verified UI
    fallbacks, packed-furniture installation, and richer building/bill/zone details.
-7. **Visual reviewer UX.** Near/wide framing, yielding to player camera control,
+9. **Visual reviewer UX.** Near/wide framing, yielding to player camera control,
    source-image concern overlays, and cleaner good/bad layout acceptance fixtures.
+10. **Linux/container workers and throughput.** Two Windows headless instances
+    passed independent-clock and peer-survival tests. Parallel model throughput
+    remains unmeasured. Parameterize Linux game/GABS paths, inference networking,
+    profiles and artifact persistence before cloud deployment. See
+    [headless campaigns](HEADLESS_CAMPAIGNS.md).
 
 ## Implemented — do not re-queue
 
@@ -45,17 +62,24 @@ Chronological implementation notes, including superseded next steps, are in
 - Native construction preflight, compact cell encoding, catalog pagination,
   structured-response recovery, initial roster/supply context, and exact
   review-local evidence retention across compaction.
+- Incremental commitments, whole-category discovery indexes, schema grounding of
+  discovered construction names, native-legal blueprints before material arrival,
+  bounded context calibration, and retryable construction observation failures.
+- Persistent urgent conditions are revisited after unrelated decisions; startup
+  guidance is surfaced without requiring a knowledge lookup first.
 
 ## Acceptance boundaries
 
 Unit/protocol tests are not autonomous gameplay. Real scripted tests prove native
-execution but do not prove model strategy. Recent real-model probes produced zero
-orders; infrastructure changes must not be reported as colony success.
+execution but do not prove model strategy. Recent real-model runs produced some
+actual construction, but infrastructure changes must not be reported as colony
+success.
 
-The next experiment uses the same eight-tribal baseline and local model, fresh
-runtime state per iteration, headless rendering and fast ordinary simulation.
-Record model/tool counts, refusals, actual orders and native completion. Stop at
-a verified starter foothold or 20 iterations; preserve failed evidence as well.
+Campaigns use the same eight-tribal baseline and local model, fresh runtime state
+per iteration, headless rendering and fast ordinary simulation. Preserve model/
+tool counts, refusals, actual orders and native completion, including failed runs.
+Investigate GABS's observed Windows runtime-state rename failure independently;
+read failures no longer permanently invalidate issued construction.
 
 See [construction preflight](CONSTRUCTION_PREFLIGHT.md),
 [typed tools](TYPED_NATIVE_INSPECTIONS.md), [review evidence](REVIEW_EVIDENCE.md),

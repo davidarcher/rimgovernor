@@ -123,7 +123,7 @@ async def main(headless=False, build=False, room=False):
                 (root/'strategy-construction-smoke.json').write_text(json.dumps(evidence,indent=2),encoding='utf8')
                 assert wall.state=='complete' and len(built)==1 and built[0]['status']=='built',(wall.model_dump(),history[-3:])
                 await rt.hands.advance(rt)
-                assert rt.counters['actions']==before+4 and brain.calls==2
+                assert rt.counters['actions']==before+4 and brain.calls==1
                 print('PASS: pawn labor completed the wall; native built state and plan completion agree; no replay writes',flush=True)
             if room:
                 from rimbot.colony_plan import PlanStep, RoomShell
@@ -136,13 +136,15 @@ async def main(headless=False, build=False, room=False):
                     await rt.game.invoke('rimworld/apply_architect_designator',{'designatorId':allow['id'],'x':pos['x'],'z':pos['z'],'dryRun':False,'keepSelected':False},allow_write=True)
                 bad_spec=spec.model_copy(deep=True)
                 bad_spec.steps.append(PlanStep(id='blocked-room',title='Blocked footprint probe',completion_criteria='Native geometry refuses before writing',action=shell.model_copy(deep=True)))
-                answer=answer.model_copy(update={'expected_revision':rt.current_plan.revision,'plan':bad_spec,'retry_steps':[]})
-                await rt.planner.play_bridge()
                 before_room=rt.counters['actions']
-                await rt.hands.advance(rt)
-                refused=rt.current_plan.progress['blocked-room']
-                assert refused.state=='blocked' and not refused.issued and rt.counters['actions']==before_room,refused.model_dump()
-                evidence['blocked_room']=refused.model_dump()
+                from rimbot.construction_preflight import preflight_construction, ConstructionRefusal
+                try:
+                    await preflight_construction(bad_spec,rt.current_plan,rt.game)
+                except ConstructionRefusal as refused:
+                    evidence['blocked_room']=refused.evidence
+                else:
+                    raise AssertionError('Obstructed fixture unexpectedly passed native preflight')
+                assert 'blocked-room' not in rt.current_plan.progress and rt.counters['actions']==before_room
                 print('PASS: obstructed room footprint rejected before any placement',flush=True)
                 # Select an actually legal fixture site before issuing any room orders.
                 for dx,dz in [(2,4),(-8,4),(2,-8),(-8,-8),(10,10)]:
@@ -186,7 +188,7 @@ async def main(headless=False, build=False, room=False):
                 (root/'strategy-room-smoke.json').write_text(json.dumps(evidence,indent=2),encoding='utf8')
                 assert room_progress.state=='complete',evidence['room']
                 await rt.hands.advance(rt)
-                assert rt.counters['actions']==issued_count and brain.calls==4
+                assert rt.counters['actions']==issued_count and brain.calls==2
                 print('PASS: complete room perimeter and door built by pawns; replay issued no duplicates',flush=True)
             (root/'strategy-smoke.json').write_text(json.dumps(evidence,indent=2),encoding='utf8')
             print('PASS: committed plan -> native zone and two instant spots complete; normal wall initially queues as a blueprint; replay issued no duplicate and no model call',flush=True)
