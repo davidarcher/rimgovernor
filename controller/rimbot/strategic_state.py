@@ -106,6 +106,16 @@ def bounded(rows, limit):
     return {'items': rows[:limit], 'omitted': max(0, len(rows)-limit)}
 
 
+def observed_roster(batch):
+    if batch is None:
+        return None
+    return {'observed_tick': batch.summary.end_tick,
+        'pawns': bounded([{'id': p.thing_id, 'name': p.name,
+            'position': p.position.model_dump(), 'job': p.job, 'drafted': p.drafted,
+            'primary_weapon': p.primary_weapon} for p in batch.summary.pawns], 16),
+        'note': 'Observed pawn locations, not validated construction sites. Inspect nearby terrain before placement.'}
+
+
 def context(rt):
     state = rt.strategic_state.current
     plan = rt.current_plan
@@ -116,6 +126,7 @@ def context(rt):
     people = state.get('people', {})
     resources = state.get('resources', {})
     return {'colony': {'people': people, 'threats': state.get('threats'), 'alerts': state.get('alerts'),
+        'observed_roster': observed_roster(rt.batch),
         'space': state.get('space'), 'power': state.get('power'), 'construction': state.get('construction'),
         'resources': {k:v for k,v in resources.items() if k != 'allowed_units_by_def'},
         'available_supply_definitions': len(resources.get('allowed_units_by_def', {})), 'warnings': state.get('warnings')},
