@@ -140,6 +140,40 @@ class BridgeRuntime:
             self.persist()
         return result
 
+    async def visual_review(self, question, *, expected_token, expected_revision):
+        import base64
+        import hashlib
+        from .visual_review import review
+        if self.headless:
+            raise ValueError('Visual review needs rendered mode; no image exists in headless mode')
+        if not self.router.enabled(ModelRole.ARCHITECT):
+            raise ValueError('Configure the optional architect with a vision-capable local model')
+        async def check():
+            await self.sync_identity()
+            if expected_token != self.context_token or expected_revision != self.chat_revision:
+                raise ValueError('Visual review context changed; report discarded')
+        async with self.lock:
+            await check()
+            # Fresh capture of the current view only: never move the player's camera.
+            capture=await self.bridge.call('rimworld/take_screenshot',fileName='rimbot-review-'+uuid.uuid4().hex,
+                includeTargets=False,suppressMessage=True)
+            data=Path(capture.structuredContent['path']).read_bytes()
+            if not data.startswith(b'\x89PNG\r\n\x1a\n') or len(data)>12*1024*1024:
+                raise ValueError('Expected a bounded native PNG screenshot')
+            status=await self.game.query('home/status',colonists=False,threats=False)
+            await check()
+            source={'load_token':self.context_token,'tick':status['time']['ticksGame'],
+                'image_sha256':hashlib.sha256(data).hexdigest(),'view':'current player camera',
+                'captured_at':time.time(),'tick_note':'Read after screenshot; not an atomic state snapshot'}
+        result=await review(self.router,question,'data:image/png;base64,'+base64.b64encode(data).decode(),source,self.model_progress)
+        async with self.lock:
+            await check()
+            self.advice[result['id']]=result
+            self.advice=dict(list(self.advice.items())[-32:])
+            self.note('consultation','Visual review: '+result['report']['answer'],consultation_id=result['id'])
+            self.persist()
+        return result
+
     async def scout(self, question, sections, *, expected_token, expected_revision):
         from .scout import investigate, SCOUT_READS
         async def check():

@@ -97,3 +97,26 @@ Validation for this slice: 23 controller tests, 2 React tests, typecheck and
 build passed. `scripts/native_migration_smoke.py` passed real save/reload identity,
 instant zone completion, draft cleanup, running/paused clock and trader listing.
 The script uses a disposable save in the isolated profile and no model calls.
+
+## On-demand visual second opinion
+
+The strategist now gets `visual_review` when the optional architect model is
+configured and rendering is enabled. It captures the current camera view freshly
+without moving it, sends an independent one-shot image/question request, and
+retains at most five concerns with normalized image rectangles, confidence and
+required native verification. No plan rationale, colony-state blob, recursive
+queries or write tools enter that reviewer request. This uses the existing
+architect capability and may use the same vision-capable local model.
+
+The report carries image hash, load token, capture time and a post-capture game
+tick explicitly labeled non-atomic. Load/direction changes discard the result;
+headless mode refuses and does not advertise the tool. The report appears in the
+existing consultation activity and can be cited as used advice. Concerns remain
+advisory; the strategist must check native facts before committing actions.
+
+Validation: 82 controller tests, including fresh capture plumbing, stale-report
+rejection, invalid image regions, no-report rejection and headless exclusion.
+No live VL inference or missing-door detection claim in this slice. Deliberate
+layout-error acceptance, actual loaded-model latency, and UI image-region display
+remain backlog. Camera framing is intentionally the current view; automatic
+near/wide positioning and player camera-ownership detection are not implemented.

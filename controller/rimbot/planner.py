@@ -22,6 +22,9 @@ class Planner:
             tool('inspect', 'Read native state or perform an explicitly supported dry run. Real writes are forbidden here.', schema({'name':{'type':'string','enum':choices},'arguments':{'type':'object'}},['name','arguments'])),
             tool('inspect_plan', 'Read selected committed step details without loading the whole plan.', schema({'ids':{'type':'array','items':{'type':'string'},'maxItems':8}},['ids']))]
         auxiliary = [role.value for role in rt.router.routing.roles if role != ModelRole.STRATEGIST]
+        if rt.router.enabled(ModelRole.ARCHITECT) and not rt.headless:
+            tools.append(tool('visual_review','Get an independent visual second opinion of the current camera view. No camera movement or orders. Verify concerns with native queries before acting.',
+                schema({'question':{'type':'string','minLength':1,'maxLength':1200}},['question'])))
         if rt.router.enabled(ModelRole.ANALYST):
             tools.append(tool('scout', 'Delegate one missing-fact investigation to the generic read-only analyst. Raw query evidence stays outside your context; returned findings are advisory.', schema(
                 {'question':{'type':'string','minLength':1,'maxLength':1200},
@@ -96,6 +99,8 @@ class Planner:
                         result = await rt.consult(**args, expected_token=token, expected_revision=seen)
                     elif name == 'scout':
                         result = await rt.scout(**args, expected_token=token, expected_revision=seen)
+                    elif name == 'visual_review':
+                        result = await rt.visual_review(**args, expected_token=token, expected_revision=seen)
                     else:
                         raise ValueError('Unknown strategist tool')
                 except asyncio.CancelledError:
