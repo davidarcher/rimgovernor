@@ -74,10 +74,14 @@ class BridgeGame(ObservationGateway):
         return payload
 
 
-def for_model(payload):
+def for_model(payload, tool=None):
     """Omit explanatory boilerplate, never silently cut entity rows or facts."""
     import json
     result = {k: v for k, v in payload.items() if k not in ('operation', 'notes', 'watch')}
+    if tool in ('rimworld/list_architect_categories', 'rimworld/list_architect_designators'):
+        # The registry entries are authoritative discovery data. The accompanying
+        # UI snapshot and duplicate selection-state payload are not definitions.
+        result = {k: v for k, v in result.items() if k not in ('state', 'designatorState')}
     if len(json.dumps(result)) > 24000:
         return {'requires_narrower_query': True,
                 'reason': 'Result exceeds this turn\'s detail budget. Use native filters or fewer optional detail blocks.',

@@ -68,6 +68,10 @@ class Planner:
             'Choose semantic place_buildings, build_room_shell and create_zone actions instead of individual tile calls. '
             'A room shell includes walls and a door, not a certified roof or furnished room. Choose observed legal definitions and acceptable materials; never guess IDs or coordinates. '
             'Use inspect with native filters and dry runs to resolve eligibility. Preserve walkways and existing zones. '
+            'Discover construction through rimworld/list_architect_categories, then rimworld/list_architect_designators with an observed categoryId. '
+            'Use returned buildableDefName and stuffDefName rather than inventing building names from labels. '
+            'Registry visibility is not proof a particular pawn or site can build it: preview home/place_building with dryRun=true. '
+            'Use describe to read a native argument contract before guessing its parameters. '
             'Dependencies may wait for orders issued or completed pawn construction. Buildings complete only from native observations. '
             'native_operation is the limited fallback for bills, priorities, equipment and other native mechanics; its completion means the command was issued, not all pawn labor finished. '
             'Unknown nutrition/forecasts are unknown, never zero. Loose allowed supplies can be used without being stockpiled. '
@@ -132,7 +136,7 @@ class Planner:
                     elif name == 'describe':
                         result = await rt.game.describe(args['name'])
                     elif name == 'inspect':
-                        result = for_model(await rt.inspect_native(args['name'], args['arguments']))
+                        result = for_model(await rt.inspect_native(args['name'], args['arguments']), tool=args['name'])
                     elif name == 'inspect_plan':
                         result = inspect_plan(rt.current_plan, args['ids'])
                     elif name == 'wiki_lookup':
