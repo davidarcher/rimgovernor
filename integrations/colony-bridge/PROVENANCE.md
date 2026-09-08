@@ -87,3 +87,8 @@ flags, with `weapon.ranged` and `weapon.melee` on matching rows. Positions retai
 native thing IDs. Equipped weapons remain in pawn equipment/resolve readback;
 this item query does not count wielded equipment as loose supplies. Unknown
 categories now fail explicitly instead of silently returning all haulables.
+
+Native rescue observation additions: ListPawns now reports `carriedThingId` from
+Pawn.carryTracker.CarriedThing and `health.bedThingId` from Pawn.CurrentBed(), using
+native load IDs. These fields let the controller distinguish carried-pawn absence
+from delivery into a bed. Existing native rescue job creation is unchanged.

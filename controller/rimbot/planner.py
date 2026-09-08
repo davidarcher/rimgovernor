@@ -50,6 +50,7 @@ class Planner:
             'For tending a colonist, use native_operation with completion patient_tended and exact observed doctor/patient Thing IDs. '
             'This waits for the patient to no longer need tending; native_receipt only confirms order acceptance. '
             'A dependent stand_down can wait for that completion. Move patients out of danger before treatment. '
+            'For rescuing a downed colonist use native rescue with completion patient_in_bed; carrying is still in progress, not completion. '
             'After combat or another drafted task, commit stand_down for the listed ai_owned_drafts that can return to work. '
             'It verifies undrafting without turning off automation; player-owned drafts are never released by it. '
             'A hostiles-cleared event is evidence to review, not proof that every drafted task should be cancelled. '

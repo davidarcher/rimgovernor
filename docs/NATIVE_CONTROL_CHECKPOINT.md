@@ -160,3 +160,24 @@ complete after fresh treated-patient readback; medical draft cleanup succeeded.
 The fixture's existing one-time ancient-warning acknowledgment now also handles
 the warning arriving during retreat. Production pause behavior is unchanged.
 No DLL changed. Rescue completion and model-selected triage remain open.
+
+## Rescue outcome tracking
+
+Native rescue steps can use `completion: patient_in_bed` for a colonist patient.
+Hands verifies the issued job, then waits for a fresh observation of the living
+patient in a native bed with an actual bed Thing ID. Delivery satisfies this goal;
+it does not certify tending, safety, recovery, or which actor delivered them.
+Dependencies can gate tending or cleanup on delivery.
+
+The native pawn response adds `carriedThingId` and health `bedThingId`, read from
+CarryTracker and CurrentBed. Carried patients disappear from the spawned-colonist
+roster: an exact patient ID carried by the active rescuer means waiting, never
+success or death. A missing patient without that evidence, an unavailable rescuer,
+death, or an interrupted rescue blocks the step. No new model calls or bespoke
+rescue execution path; the game still chooses the bed and issues its normal job.
+
+Validation: 74 controller tests, native build/install, and the headless
+`scripts/native_rescue_smoke.py` observation/refusal check. The live check confirmed
+both fields on eight tribals and native refusal to rescue a standing healthy pawn.
+It did NOT perform a carry-to-bed rescue; actual delivery and model triage remain
+acceptance backlog. Evidence: `.rimbot/bridge/rescue-smoke.json`.

@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 from rimbot.colony_plan import NativeOperation, ColonyPlan, Decision, PlanSpec
 from rimbot.config import ModelRole
-from rimbot.medical_outcome import patient_outcome
+from rimbot.medical_outcome import patient_outcome, rescue_outcome
 from rimbot.bridge_runtime import BridgeRuntime
 
 
@@ -52,11 +52,12 @@ def test_waiting_survives_reload_and_gates_cleanup():
     assert [s.id for s in restored.ready()]==['cleanup']
 
 
-def test_runtime_requires_fresh_health_and_emits_completion_once():
-    action=NativeOperation(tool='home/order',arguments=ARGS,completion='patient_tended')
+@pytest.mark.parametrize('completion,order', [('patient_tended','tend'),('patient_in_bed','rescue')])
+def test_runtime_requires_fresh_health_and_emits_completion_once(completion,order):
+    action=NativeOperation(tool='home/order',arguments=dict(ARGS,action=order),completion=completion)
     progress=SimpleNamespace(state='waiting',issued={'0':{'confirmed':True,'issued_at':20}},failure=None,project_id=None)
     rt=SimpleNamespace(current_plan=SimpleNamespace(spec=SimpleNamespace(steps=[SimpleNamespace(id='tend',title='Treat',action=action)]),progress={'tend':progress}),
-        batch=SimpleNamespace(started_at=10,native={'pawns':{'pawns':[{'thingId':'Thing_Patient','dead':False,'health':{'needsTend':False}}]}}),
+        batch=SimpleNamespace(started_at=10,native={'pawns':{'pawns':[{'thingId':'Thing_Patient','dead':False,'health':{'needsTend':False,'inBed':True,'bedThingId':'Thing_Bed'}}]}}),
         signal=Mock(),note=Mock())
     BridgeRuntime.reconcile_plan(rt)
     assert progress.state=='waiting'
@@ -65,3 +66,25 @@ def test_runtime_requires_fresh_health_and_emits_completion_once():
     assert progress.state=='complete'
     BridgeRuntime.reconcile_plan(rt)
     rt.signal.assert_called_once()
+
+
+@pytest.mark.parametrize('rows,expected', [
+    ([{'thingId':'Thing_Doctor','job':'Rescue','carriedThingId':'Thing_Patient'}], 'waiting'),
+    ([{'thingId':'Thing_Doctor','job':'Rescue','carriedThingId':'Thing_Other'}], 'patient_unobserved'),
+    ([{'thingId':'Thing_Patient','dead':False,'health':{'inBed':True,'bedThingId':'Thing_Bed'}}], 'complete'),
+    ([{'thingId':'Thing_Patient','dead':True,'health':{'inBed':True,'bedThingId':'Thing_Bed'}}], 'patient_dead'),
+    ([{'thingId':'Thing_Patient','dead':False,'health':{'inBed':True}},
+      {'thingId':'Thing_Doctor','job':'Wait'}], 'rescue_interrupted'),
+    ([{'thingId':'Thing_Patient','dead':False,'health':{'inBed':False}},
+      {'thingId':'Thing_Doctor','job':'Rescue'}], 'waiting'),
+    ([{'thingId':'Thing_Doctor','downed':True,'job':'Rescue','carriedThingId':'Thing_Patient'}], 'rescuer_unavailable'),
+])
+def test_rescue_requires_observed_delivery(rows,expected):
+    result=rescue_outcome(dict(ARGS,action='rescue'),rows)
+    assert (result if isinstance(result,str) else result.code)==expected
+
+
+def test_rescue_completion_contract():
+    NativeOperation(tool='home/order',arguments=dict(ARGS,action='rescue'),completion='patient_in_bed')
+    with pytest.raises(ValidationError):
+        NativeOperation(tool='home/order',arguments=ARGS,completion='patient_in_bed')

@@ -669,6 +669,7 @@ namespace HomeBridge.BridgeTools
                     { "drafted", isDrafted },
                     { "dead", dead },
                     { "job", SafeJob(pawn) },
+                    { "carriedThingId", Try<string>(() => pawn.carryTracker?.CarriedThing?.GetUniqueLoadID(), null) },
                     { "mentalState", SafeMentalState(pawn) },
                     { "nearestColonist", nearestName },
                     { "nearestColonistDistance", nearest }
@@ -1317,6 +1318,7 @@ namespace HomeBridge.BridgeTools
             block["dead"] = dead;
             block["state"] = Try<string>(() => tracker.State.ToString(), null);
             block["inBed"] = Try<bool>(() => RestUtility.InBed(pawn), false);
+            block["bedThingId"] = Try<string>(() => pawn.CurrentBed()?.GetUniqueLoadID(), null);
             block["summaryPct"] = Round3(Try<float?>(
                 () => tracker.summaryHealth != null ? (float?)tracker.summaryHealth.SummaryHealthPercent : null, null));
 
