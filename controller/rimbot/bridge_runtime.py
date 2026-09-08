@@ -15,6 +15,7 @@ from .medical_outcome import patient_outcome, rescue_outcome
 from .consultation import Consultations
 from .hands import Hands, validate_geometry
 from .native_contracts import validate_native_steps
+from .construction_preflight import preflight_construction
 from .strategic_state import StrategicState, projection
 from .model import LocalModel
 from .planner import Planner
@@ -227,6 +228,7 @@ class BridgeRuntime:
             if decision.plan:
                 validate_geometry(decision.plan)
                 await validate_native_steps(decision.plan, self.game)
+                await preflight_construction(decision.plan, self.current_plan, self.game)
                 # Contract discovery can yield while the game loads another colony.
                 await self.sync_identity()
                 if expected_token != self.context_token or expected_revision != self.chat_revision:

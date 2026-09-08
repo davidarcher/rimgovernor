@@ -61,7 +61,8 @@ async def test_invalid_native_step_rejected_before_plan_commit(tmp_path):
 def runtime(tmp_path, **kwargs):
     store = Store(tmp_path/'state.sqlite')
     rt = BridgeRuntime(store, tmp_path, **kwargs)
-    rt.game = SimpleNamespace(query=AsyncMock(return_value={'colonyId':'test','mapId':1,'loadToken':'load'}))
+    rt.game = SimpleNamespace(query=AsyncMock(return_value={'colonyId':'test','mapId':1,'loadToken':'load'}),
+        invoke=AsyncMock(return_value={'success':True,'canPlace':True}))
     return rt
 
 
@@ -203,6 +204,35 @@ async def test_discovered_native_tool_is_callable_in_the_same_review(tmp_path):
     await rt.planner.play_bridge()
     rt.game.invoke.assert_awaited_once_with('home/list_things',{'category':'food'},allow_write=False)
     assert count==3 and rt.counters['actions']==0
+    await rt.router.close();rt.store.close()
+
+
+@pytest.mark.asyncio
+async def test_invented_construction_is_repaired_before_any_plan_is_saved(tmp_path):
+    turns=0
+    class Brain:
+        async def complete(self,messages,tools,*args):
+            nonlocal turns
+            turns+=1
+            spec=room_plan()
+            if turns==1:spec.steps[0].action.door_def='Door_Wood'
+            else:
+                error=json.loads(messages[-1]['content'])
+                assert error['construction']['definition']=='Door_Wood'
+                assert rt.current_plan.revision==0 and not rt.current_plan.history
+            return {'role':'assistant','tool_calls':[{'id':str(turns),'type':'function',
+                'function':{'name':'commit_plan','arguments':decision(spec).model_dump_json()}}]},{}
+        async def close(self):pass
+    async def preview(name,args,**kwargs):
+        assert args['dryRun'] is True and kwargs['allow_write'] is False
+        if args['defName']=='Door_Wood':raise ValueError('Unknown definition')
+        return {'canPlace':True,'success':True}
+    rt=runtime(tmp_path,model_factory=lambda _:Brain())
+    await rt.sync_identity();rt.batch=batch();rt.strategic_state.update(rt.batch)
+    rt.game.invoke=AsyncMock(side_effect=preview)
+    await rt.planner.play_bridge()
+    assert turns==2 and rt.current_plan.revision==1
+    assert rt.current_plan.spec==room_plan() and rt.counters['actions']==0
     await rt.router.close();rt.store.close()
 
 

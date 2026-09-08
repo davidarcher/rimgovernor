@@ -12,6 +12,7 @@ from .knowledge import search_knowledge, read_knowledge
 from .hands import GeometryConflict
 from .native_inspections import NativeInspections
 from .native_contracts import validate_arguments
+from .construction_preflight import ConstructionRefusal
 
 
 def inspect_plan(plan, ids):
@@ -181,6 +182,8 @@ class Planner:
                     result = {'status':'blocked','reason':str(error)}
                     if isinstance(error, GeometryConflict):
                         result['conflict'] = error.evidence
+                    if isinstance(error, ConstructionRefusal):
+                        result['construction'] = error.evidence
                     if call.get('function', {}).get('name') == 'commit_plan':
                         result['current_plan'] = inspect_plan(rt.current_plan, [])
                         result['correction'] = ('Use the current revision as expected_revision. '
