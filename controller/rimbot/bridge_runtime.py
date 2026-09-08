@@ -287,6 +287,19 @@ class BridgeRuntime:
             if token != self.context_token:
                 raise ValueError('Colony or loaded save changed; stale review stopped')
 
+    async def memory(self, operation, id, text=None, evidence=None, *, expected_token, expected_revision):
+        from .memory import update_memory
+        async with self.lock:
+            await self.sync_identity()
+            if expected_token != self.context_token or expected_revision != self.chat_revision:
+                raise ValueError('Colony or direction changed; memory request discarded')
+            result = update_memory(self.strategic_state.memories, operation, id, text, evidence,
+                tick=self.strategic_state.current.get('tick'), load_token=self.context_token)
+            if operation != 'read':
+                self.persist()
+                self.note('memory', f'{operation.capitalize()} memory: {id}', memory=result)
+            return result
+
     async def project_update(self, spec, expected_token=None):
         async with self.lock:
             await self.sync_identity()

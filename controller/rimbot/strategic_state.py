@@ -33,6 +33,7 @@ def features(batch):
 class StrategicState:
     def __init__(self, saved=None):
         saved = saved or {}
+        self.memories = saved.get('memories', {})
         self.current = saved.get('current', {})
         self.previous = saved.get('previous', {})
         self.last_decision = saved.get('last_decision', {})
@@ -42,7 +43,7 @@ class StrategicState:
         self.trends = saved.get('trends', [])
 
     def dump(self):
-        return dict(current=self.current, previous=self.previous, last_decision=self.last_decision,
+        return dict(memories=self.memories, current=self.current, previous=self.previous, last_decision=self.last_decision,
             last_decision_tick=self.last_decision_tick, latches=self.latches, pending=self.pending, trends=self.trends)
 
     def signal(self, kind, evidence):
@@ -122,6 +123,7 @@ def context(rt):
             'goals': plan.spec.goals, 'constraints': plan.spec.constraints, 'assumptions': plan.spec.assumptions,
             'risks': plan.spec.risks, 'long_term': plan.spec.long_term, 'right_now': plan.spec.right_now,
             'steps': bounded(steps, 24)},
+        'memory_index': [{'id': key, 'recorded_tick': note['tick']} for key, note in rt.strategic_state.memories.items()],
         'changes': bounded(rt.strategic_state.pending, 20), 'mode': rt.mode,
         'ai_owned_drafts': [pawn for pawn, token in rt.draft_owners.items() if token == rt.context_token],
         'player_messages': bounded([{'kind': m['kind'], 'text': m['text']} for m in rt.chat[-12:]], 12),

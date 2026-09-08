@@ -260,3 +260,9 @@ bounds are accepted by the native parser. Paused ticks stayed unchanged. Evidenc
 The strategist can now search the 20 checked-in strategy cards and read one matching card at a time. Search returns at most three summaries; full cards retain applicability, verification, reconsideration and dated wiki sources. No corpus is preloaded into the strategy prompt. Retrieval is local and deterministic, with no extra model or game calls. Unknown IDs cannot resolve to filesystem paths. Removed obsolete starter-guide API terminology and old placement-contract assumptions.
 
 Validation: 118 controller tests passed, including poor-soil, bedroom and startup retrieval, budgets, source preservation and invalid IDs. No live model/gameplay improvement measured in this slice. Live wiki retrieval remains separate unfinished work.
+
+### Strategist notebook (2026-09-08)
+
+Added an on-demand read/write/delete memory tool using the existing colony-and-map SQLite state. At most 20 notes, each with 1000 characters of text and 500 of required evidence; full notes are never automatically injected. Descriptive IDs allow deliberate updates without duplicate accumulation or silent eviction. Reads identify notes from another load, including loading an older save. Notes are advisory, not orders or authoritative current facts. Writes reject stale colony/load or player-direction revisions and record activity events. The memory index is included in strategy context; player-facing notebook editing remains future work.
+
+Validation: 127 controller tests passed, including persistence round trip, load provenance, stale request refusal, capacity, validation and read isolation. No gameplay or model-quality improvement measured yet.
