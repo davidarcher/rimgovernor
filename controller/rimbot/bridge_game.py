@@ -36,6 +36,8 @@ class BridgeGame(ObservationGateway):
         return self.schemas[tool]
 
     async def invoke(self, tool, arguments, *, allow_write=False):
+        if tool == 'home/world' and arguments.get('show'):
+            raise ValueError('World inspection does not control the player view')
         if tool not in READS | WRITES:
             raise ValueError('Unknown gameplay tool')
         if is_write(tool, arguments) and not allow_write:

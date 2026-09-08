@@ -193,3 +193,23 @@ ComplexFurniture while paused, checked fresh native state, confirmed replay was 
 no-op, and rejected an invalid project. No research progress was added. Actual
 research labor/completion and Anomaly-category selection remain untested.
 Evidence: `.rimbot/bridge/research-smoke.json`.
+
+## World context migration
+
+`home/world` is available to the strategist and generic data scout for native
+biome, temperature, growing-period and nearby settlement facts. It is on-demand,
+not added to every colony snapshot. Both query gateways reject show:true, so this
+integration never toggles the player's world view. Settlement radius filtering
+and unreadable/null values retain the native response semantics. Tile distance
+is not caravan travel time, and growing period is not actual harvest yield.
+
+Live testing found the imported tool queried the player faction's relationship
+toward itself, triggering RimWorld GetSituations errors. Self-faction relation
+and goodwill now return null with isPlayer=true instead; other faction reads are
+unchanged. The corrected run read the temperate-forest tile and 60-day native
+growing-period label, verified radius-zero filtering, kept paused ticks unchanged,
+and confirmed no world view was displayed.
+
+Validation: native build/install, 101 controller tests and
+`scripts/native_world_smoke.py`. Evidence: `.rimbot/bridge/world-smoke.json`.
+No caravan movement, settlement interaction or model strategic decision was tested.

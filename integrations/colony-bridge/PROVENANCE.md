@@ -105,3 +105,12 @@ refused write handling, no watched UI and fresh selection readback.
 
 Live headless validation selected ComplexFurniture, confirmed current project,
 replayed as a no-op, and rejected an unknown project. No research points added.
+
+## World context
+
+WorldTool.cs was copied from pinned upstream revision
+89c2e90fedd51419a3db55a7f9865b0aef29b270. Local change: skip PlayerRelationKind
+and PlayerGoodwill for the player faction itself; those native getters logged
+GetSituations errors during the live test. Return null for these inapplicable
+fields while retaining isPlayer. Python exposes reads only and rejects show:true.
+Corrected live headless read/filter/no-view checks passed.

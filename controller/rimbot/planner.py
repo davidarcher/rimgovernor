@@ -60,6 +60,7 @@ class Planner:
             'Use trade steps for ordinary item exchanges: observed trader and negotiator, named quantities and a net silver budget. '
             'Move the negotiator adjacent first. The executor stages, previews and accepts without model handoffs. '
             'Use home/research to inspect available projects, prerequisites, benches and researchers; select an observed project through a native_operation. Selection does not finish research. '
+            'Use home/world for native biome, growing-season and nearby settlement facts; world distance is not a caravan travel-time estimate. '
             'An existing or uncertain trade session needs inspection; do not blindly repeat a deal. '
             'Finish every review with a structured commit_plan, including continue or defer; prose alone is not a decision.'},
             {'role':'user','content':json.dumps(context(rt),ensure_ascii=False)}]

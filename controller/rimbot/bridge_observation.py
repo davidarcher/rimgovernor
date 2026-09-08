@@ -15,6 +15,7 @@ from .bridge_models import BridgeObservation
 OBSERVATION_TOOLS = frozenset({
     'home/colony_identity', 'home/status', 'home/list_pawns', 'home/list_things',
     'home/list_buildings', 'home/list_rooms', 'home/list_zones',
+    'home/world',
 })
 
 
@@ -24,6 +25,8 @@ class ObservationGateway:
         self.schemas: dict[str, dict] = {}
 
     async def query(self, tool: str, **arguments) -> dict:
+        if tool == 'home/world' and arguments.get('show'):
+            raise ValueError('World inspection does not control the player view')
         if tool not in OBSERVATION_TOOLS:
             raise ValueError(f'Not an approved observation tool: {tool}')
         if tool not in self.schemas:
