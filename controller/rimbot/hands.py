@@ -1,6 +1,6 @@
 """Deterministic intent compilation and native validation. No model dependency."""
 import time
-from .colony_plan import Buildings, RoomShell, Zone, NativeOperation, ClockAction, StandDown, Placement, Failure
+from .colony_plan import Buildings, RoomShell, Zone, NativeOperation, ClockAction, StandDown, Placement, Failure, TradeAction
 from .receipts import reason
 
 
@@ -80,6 +80,21 @@ class Hands:
                         if receipt['failed']:
                             raise Blocked('stand_down_incomplete', 'Some AI-owned drafts could not be released.',
                                 retryable=True, evidence=receipt)
+                    elif isinstance(action, TradeAction):
+                        from .trading import execute_trade
+                        progress.issued[key] = {'confirmed': False}
+                        rt.persist()
+                        async def read_trade(args):
+                            self.guard(rt, revision, token, direction)
+                            result = await rt.inspect_native('home/trade', args)
+                            self.guard(rt, revision, token, direction)
+                            return result
+                        async def write_trade(args):
+                            self.guard(rt, revision, token, direction)
+                            result = await rt.native('home/trade', args, expected_revision=direction,
+                                expected_token=token, expected_plan_revision=revision, reconcile=False)
+                            return result['receipt']
+                        receipt = await execute_trade(action, read_trade, write_trade)
                     else:
                         if isinstance(action, NativeOperation):
                             args = dict(action.arguments)

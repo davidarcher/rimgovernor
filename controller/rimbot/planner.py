@@ -57,6 +57,9 @@ class Planner:
             'After combat or another drafted task, commit stand_down for the listed ai_owned_drafts that can return to work. '
             'It verifies undrafting without turning off automation; player-owned drafts are never released by it. '
             'A hostiles-cleared event is evidence to review, not proof that every drafted task should be cancelled. '
+            'Use trade steps for ordinary item exchanges: observed trader and negotiator, named quantities and a net silver budget. '
+            'Move the negotiator adjacent first. The executor stages, previews and accepts without model handoffs. '
+            'An existing or uncertain trade session needs inspection; do not blindly repeat a deal. '
             'Finish every review with a structured commit_plan, including continue or defer; prose alone is not a decision.'},
             {'role':'user','content':json.dumps(context(rt),ensure_ascii=False)}]
         seen = rt.chat_revision

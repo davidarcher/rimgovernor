@@ -86,6 +86,31 @@ class NativeOperation(Contract):
         return self
 
 
+class TradeLine(Contract):
+    item: str = Field(min_length=1, max_length=160, description='Observed unique item def or exact label, never a row index from an older session.')
+    count: int = Field(description='Positive buys; negative sells.')
+
+    @model_validator(mode='after')
+    def nonempty(self):
+        if not self.count or self.item.startswith('#'):
+            raise ValueError('Use a nonzero count and an observed item name, not a session row index')
+        return self
+
+
+class TradeAction(Contract):
+    kind: Literal['trade'] = 'trade'
+    trader_id: str = Field(min_length=1)
+    negotiator: str = Field(min_length=1)
+    lines: list[TradeLine] = Field(min_length=1,max_length=30)
+    max_silver_spend: int = Field(ge=0,description='Maximum net silver the colony may pay for this deal.')
+
+    @model_validator(mode='after')
+    def unique_lines(self):
+        if len({line.item.casefold() for line in self.lines}) != len(self.lines):
+            raise ValueError('Combine duplicate trade lines')
+        return self
+
+
 class ClockAction(Contract):
     kind: Literal['clock'] = 'clock'
     speed: Literal['Paused', 'Normal', 'Fast', 'Superfast']
@@ -100,7 +125,7 @@ class StandDown(Contract):
         description='Exact observed pawn IDs to release from AI-owned drafting. Player-owned drafts are untouched.')
 
 
-Action = Annotated[Buildings | RoomShell | Zone | NativeOperation | ClockAction | StandDown, Field(discriminator='kind')]
+Action = Annotated[Buildings | RoomShell | Zone | NativeOperation | ClockAction | StandDown | TradeAction, Field(discriminator='kind')]
 
 
 class Dependency(Contract):

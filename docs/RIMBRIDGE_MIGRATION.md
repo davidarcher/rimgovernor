@@ -152,3 +152,28 @@ reported visible width changed from 49 to 93 cells (height stayed 27). The cause
 was not established. The fixture now separates position/zoom invariance from a
 recorded viewport change instead of treating both as the same assertion. This
 run does not prove stable framing; image regions refer only to the captured PNG.
+
+## Deterministic trade step
+
+The strategist can commit `trade` with an observed trader, negotiator, named
+signed item quantities and maximum net silver spend. Hands opens an ordinary
+adjacent map-trader session, stages each line, checks the native preview and
+executes once. No model handoff is needed between those operations. Positive
+counts buy; negative counts sell. This first compiler is item barter/purchase,
+not gifts or pawn selling, and rejects old session row indices.
+
+An existing/unknown session is not replaced. Rejected lines, changed participants
+or staged contents, unreadable affordability, either side lacking silver, and
+budget overrun stop before acceptance. Completion requires executed and
+actuallyTraded plus matching native moved rows; it does not imply purchased goods
+were hauled into storage. The usual pre-write journal and load/direction guards
+apply. Lost receipts are never retried automatically. A blocked partially staged
+session is left for inspection/cancellation, not silently cancelled after a load
+or player change. Native session calls are sequential, not an atomic transaction
+against concurrent player edits; a mismatched final receipt is reported for review.
+
+Validation: 92 controller tests covering sequencing, budgeting, preview drift,
+existing sessions and lost receipts. `scripts/native_trade_smoke.py` passed actual
+headless native discovery/status and no-session refusal. No live exchange was
+completed; trader fixture, buy/sell stock and silver deltas remain acceptance work.
+No DLL changed. Native quests and transport after trading retain upstream behavior.
