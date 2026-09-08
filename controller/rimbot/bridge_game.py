@@ -79,6 +79,21 @@ def for_model(payload, tool=None, catalog_offset=0):
     """Omit explanatory boilerplate, never silently cut entity rows or facts."""
     import json
     result = {k: v for k, v in payload.items() if k not in ('operation', 'notes', 'watch')}
+    if tool == 'home/get_cells_plus' and result.get('cells'):
+        cells = result['cells']
+        if all(isinstance(c,dict) and 'x' in c and 'z' in c for c in cells):
+            profiles=[]; index={}; locations=[]
+            for cell in cells:
+                profile={k:v for k,v in cell.items() if k not in ('x','z')}
+                key=json.dumps(profile,sort_keys=True,separators=(',',':'))
+                if key not in index:
+                    index[key]=len(profiles); profiles.append(profile)
+                locations.append([cell['x'],cell['z'],index[key]])
+            packed={k:v for k,v in result.items() if k!='cells'}
+            packed.update(cell_profiles=profiles,cells_x_z_profile=locations,
+                cell_encoding='Each [x,z,profile_index] is one observed cell; merge with cell_profiles[profile_index]. Omitted coordinates and fields remain unknown.')
+            if len(json.dumps(packed)) < len(json.dumps(result)):
+                result=packed
     if tool in ('rimworld/list_architect_categories', 'rimworld/list_architect_designators'):
         # The registry entries are authoritative discovery data. The accompanying
         # UI snapshot and duplicate selection-state payload are not definitions.
