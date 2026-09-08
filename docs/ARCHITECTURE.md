@@ -57,6 +57,9 @@ Paths in the table without a directory prefix are under `controller/rimbot/`.
    It rechecks context and immediate eligibility, persists write intent before
    dispatch, retains partial progress and reconciles fresh observations.
 
+Bill commitments require an explicit mutation action; read-only bill defaults
+remain inspection-only. Architect dry runs use the read-only preview path.
+
 The model cannot issue immediate game writes. Advisers cannot commit plans,
 cancel steps or recursively delegate. Only the strategist is configured by
 default; analyst/scout, architect/VL and critic are opt-in local roles. Advice,

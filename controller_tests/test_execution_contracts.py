@@ -60,3 +60,25 @@ def test_execution_schema_preserves_gateway_policy_and_tool_specific_fields():
     assert valid()
     request['steps'][0]['action']['arguments']={'pawn':'Thing_1'}
     assert not valid()
+
+
+def test_bill_commitment_requires_explicit_mutation_without_changing_inspection_schema():
+    tools=[structured_tool('commit_steps','Append',CommitSteps.model_json_schema())]
+    bindings=ExecutionContracts(tools)
+    native={'type':'object','properties':{'action':{'type':'string','default':'list'},
+        'bench':{'type':'string'}},'additionalProperties':False}
+    original=deepcopy(native)
+    bindings.expose('home/bills',native)
+    args={'bench':'ButcherSpot1'}
+    request={'expected_revision':0,'reason':'Bill','steps':[{'id':'bill','title':'Bill',
+        'completion_criteria':'Observed','action':{'kind':'native_operation',
+        'tool':'home/bills','arguments':args}}]}
+    validator=Draft202012Validator(tools[0]['function']['parameters'])
+    assert not validator.is_valid(request)
+    for action in ('list','recipes'):
+        args['action']=action
+        assert not validator.is_valid(request)
+    for action in ('add','set','delete','move'):
+        args['action']=action
+        validator.validate(request)
+    assert native==original

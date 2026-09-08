@@ -43,3 +43,30 @@ async def test_read_only_query_passes_through_unchanged():
     await BridgeRuntime.inspect_native(rt,'home/list_pawns',{'colonistsOnly':True})
     rt.game.describe.assert_not_awaited()
     rt.game.invoke.assert_awaited_once_with('home/list_pawns',{'colonistsOnly':True},allow_write=False)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('explicit', [True, False])
+async def test_architect_preview_reaches_native_gateway(explicit):
+    rt=runtime({'properties':{'dryRun':{'type':'boolean'}}})
+    args={'designatorId':'observed-allow','x':140,'z':120}
+    if explicit: args['dryRun']=True
+    original=dict(args)
+    await BridgeRuntime.inspect_native(rt,'rimworld/apply_architect_designator',args)
+    assert args==original
+    rt.game.invoke.assert_awaited_once_with('rimworld/apply_architect_designator',
+        dict(args,dryRun=True),allow_write=False)
+
+
+@pytest.mark.asyncio
+async def test_architect_write_remains_forbidden_during_inspection():
+    rt=runtime({'properties':{'dryRun':{'type':'boolean'}}})
+    with pytest.raises(PermissionError):
+        await BridgeRuntime.inspect_native(rt,'rimworld/apply_architect_designator',{'dryRun':False})
+    rt.game.invoke.assert_not_awaited()
+
+
+def test_dry_run_cannot_bypass_execution_only_tools():
+    from rimbot.bridge_game import is_write
+    for tool in ('rimworld/dismiss_letter','rimworld/set_time_speed','rimworld/click_ui_target'):
+        assert is_write(tool,{'dryRun':True})

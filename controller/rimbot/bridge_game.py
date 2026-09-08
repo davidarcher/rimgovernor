@@ -22,7 +22,7 @@ WRITES = frozenset({'home/zone_cells', 'home/place_building', 'home/pawn_config'
 def is_write(tool, arguments):
     if tool == 'home/research':
         return bool(arguments.get('set')) and arguments.get('dryRun') is not True
-    if tool.startswith('home/') and arguments.get('dryRun') is True:
+    if (tool.startswith('home/') or tool == 'rimworld/apply_architect_designator') and arguments.get('dryRun') is True:
         return False
     if tool == 'home/order' and arguments.get('action', 'resolve') == 'resolve':
         return False

@@ -3,6 +3,9 @@ from jsonschema import Draft202012Validator
 from .colony_plan import NativeOperation
 
 
+BILL_WRITE_ACTIONS = ('add', 'set', 'delete', 'move')
+
+
 def validate_arguments(tool, schema, arguments):
     error = next(Draft202012Validator(schema).iter_errors(arguments), None)
     if error is not None:
@@ -16,6 +19,8 @@ async def validate_native_steps(spec, game):
             schema = await game.describe(step.action.tool)
             try:
                 validate_arguments(step.action.tool, schema, step.action.arguments)
+                if step.action.tool == 'home/bills' and step.action.arguments.get('action') not in BILL_WRITE_ACTIONS:
+                    raise ValueError('Bill execution needs an explicit add, set, delete or move action; list and recipes belong in inspection')
                 if step.action.tool == 'home/install' and any(k not in step.action.arguments for k in ('thingId', 'x', 'z')):
                     raise ValueError('Installation execution needs thingId, x and z; status queries belong in inspection')
             except ValueError as error:

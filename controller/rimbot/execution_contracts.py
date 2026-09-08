@@ -3,6 +3,7 @@ from copy import deepcopy
 from typing import get_args
 from .colony_plan import NativeOperation
 from .consultation import structured_tool
+from .native_contracts import BILL_WRITE_ACTIONS
 
 
 class ExecutionContracts:
@@ -33,6 +34,11 @@ class ExecutionContracts:
                 contract['properties'][key].update(const=False,default=False)
         if name=='home/pawn_config':
             contract.get('properties',{}).pop('drop',None)
+        if name == 'home/bills' and 'action' in contract.get('properties', {}):
+            action = contract['properties']['action']
+            action['enum'] = list(BILL_WRITE_ACTIONS)
+            action.pop('default', None)
+            contract['required'] = list(dict.fromkeys([*contract.get('required', []), 'action']))
         self.contracts[name] = contract
         self.refresh()
 

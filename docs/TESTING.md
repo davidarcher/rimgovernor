@@ -67,6 +67,16 @@ refusal does not validate carrying a patient to bed. Some scripts use real model
 some scripted decisions, and some only inspect/refuse actions. Reports stay local
 under `.rimbot/`; retain failures as well as successful runs.
 
+For targeted real-model execution, run
+`.venv\Scripts\python.exe scripts\execution_acceptance_smoke.py`, optionally with
+`--case supplies`, `--case work` or `--case bill`, plus `--model` and a fresh
+`--output` directory. Each case uses an isolated headless baseline and verifies
+native readback through the normal commitment/Hands path. The accepted scope is
+one selected supply stack allowed, work enabled in checkbox mode and one bill
+created on the exact bench. It does not certify numbered priority scheduling or
+completed production. All three cases passed with Qwen 3.5 9B; local evidence is
+under `.rimbot/execution-acceptance-1788898095948598300/`.
+
 ## Campaigns and performance
 
 ```powershell

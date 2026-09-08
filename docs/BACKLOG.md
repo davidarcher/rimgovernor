@@ -9,11 +9,12 @@ in the checkpoint commit; do not append an implementation diary here.
 
 ## P0 — Reliable startup execution
 
-- [ ] **B01 · Narrow real-model execution acceptance.** Schema-bound commitments
-  and paused pawn self-tending readback exist. Independently test allowing nearby
-  supplies, work priorities and a production bill through strategist → Hands →
-  native readback. Verify intended targets/values and eventual useful pawn work;
-  retain failed model calls. Do this before another broad startup campaign.
+- [ ] **B01 · Work scheduling and production outcomes.** Real-model supply Allow,
+  checkbox-mode work enabling and one-repeat bill creation have passed fresh
+  native readback. Verify numbered work-priority mode, actual worker scheduling,
+  ingredient delivery and completed production. The paused bill fixture had no
+  corpses and proves no food output. Keep these outcomes distinct from acceptance
+  of settings/orders; retain failed model calls.
 - [ ] **B02 · Modal and quest outcomes.** Exact UI controls, naming fields,
   letter inspection and owned-pause opening/closing exist. Test actual quest
   choice effects and final rename effects across supported naming types. Define
