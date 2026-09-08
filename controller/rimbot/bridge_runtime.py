@@ -283,11 +283,18 @@ class BridgeRuntime:
             old = progress.state
             if row.state == 'complete':
                 progress.state = 'complete'
-            elif row.state in ('planned', 'blocked', 'cancelled'):
+                progress.failure = None
+            elif row.state == 'blocked':
+                # ProjectBook uses blocked for failed observations. This is not
+                # evidence that issued construction disappeared or became illegal.
+                progress.state = 'waiting'
+                progress.failure = Failure(code='observation_unavailable',detail=row.evidence,retryable=True)
+            elif row.state in ('planned', 'cancelled'):
                 progress.state = 'blocked'
                 progress.failure = Failure(code='plan_invalidated', detail=row.evidence)
             else:
                 progress.state = 'waiting'
+                progress.failure = None
             if old != progress.state:
                 self.signal('plan.step_'+progress.state, {'step':step.id, 'evidence':row.evidence})
 
