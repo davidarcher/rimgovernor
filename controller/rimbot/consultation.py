@@ -34,7 +34,16 @@ def structured_tool(name, description, schema):
             for key in value['$ref'].removeprefix('#/').split('/'):
                 target = target[key]
             return inline({**target, **{k:v for k,v in value.items() if k != '$ref'}})
-        return {k:inline(v) for k,v in value.items() if k != '$defs'}
+        result = {k:inline(v) for k,v in value.items() if k != '$defs'}
+        discriminator = result.get('discriminator', {}).get('propertyName')
+        if discriminator:
+            # Pydantic defaults make a Literal optional in its standalone schema,
+            # but a discriminated union needs the tag before applying defaults.
+            for branch in result.get('oneOf', result.get('anyOf', [])):
+                if discriminator not in branch.get('properties', {}):
+                    raise ValueError('Discriminated branch is missing its tag property')
+                branch['required'] = list(dict.fromkeys([*branch.get('required', []), discriminator]))
+        return result
     return {'type':'function', 'function':{'name':name, 'description':description, 'parameters':inline(schema)}}
 
 

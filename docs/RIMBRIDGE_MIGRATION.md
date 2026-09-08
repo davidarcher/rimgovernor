@@ -322,3 +322,9 @@ Hands now runs its native placement checks for the whole room shell before each 
 This is not an atomic native transaction: map changes during execution can still interrupt a shell, and individual material eligibility does not reserve the entire room's material budget. No rollback or cheat completion was introduced.
 
 Validation: 134 controller tests and actual headless --room regression passed. The previously failing compacted-steel footprint now blocks with zero issued pieces and no action-count increase. A native-preview-legal footprint then builds all 15 walls and one door through normal labor; replay adds no writes. Scripted decisions, not LLM layout validation. No native DLL change.
+
+### Tagged action contract repair (2026-09-08)
+
+The first rendered model playtest exposed a schema/validator mismatch: action kind has a Pydantic default, so exported branch schemas did not require it, but discriminated union parsing requires the tag before defaults apply. The model repeatedly returned untagged room/zone actions (80 inference calls, zero orders). structured_tool now explicitly requires the discriminator property in every inlined union branch. This preserves internal convenience defaults and avoids guessing action types from payload shape. The inference grammar inherits the corrected requirement.
+
+Validation: 136 controller tests passed, including the exact missing-kind zone payload rejected by the advertised schema and acceptance when tagged, with schema immutability and inference-wire checks. A real Qwen3.5-9B protocol call produced a valid create_zone PlanStep with the corrected contract. No game actions issued in that protocol check; no claim of full model planning success. Evidence: .rimbot/action-schema-smoke.json.
