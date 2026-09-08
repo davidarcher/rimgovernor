@@ -519,6 +519,12 @@ class BridgeRuntime:
                     verification = await self.game.invoke('rimworld/get_cell_info', {'x': arguments['x'], 'z': arguments['z']})
                 elif name == 'home/trade':
                     verification = await self.game.invoke('home/trade', {'action': 'status'})
+                elif name == 'home/research':
+                    verification = await self.game.invoke('home/research', {'dryRun': True})
+                    selected = ((result.get('write') or {}).get('resolved') or {}).get('defName')
+                    current = [verification.get('current')] + list((verification.get('currentByCategory') or {}).values())
+                    if not selected or not any(isinstance(p,dict) and p.get('defName') == selected for p in current):
+                        raise ValueError('Research selection was not confirmed by fresh native readback')
                 else:
                     verification = await self.game.query('home/status')
                     self.clock = verification['time']

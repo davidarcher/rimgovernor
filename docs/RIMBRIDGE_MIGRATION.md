@@ -177,3 +177,19 @@ existing sessions and lost receipts. `scripts/native_trade_smoke.py` passed actu
 headless native discovery/status and no-session refusal. No live exchange was
 completed; trader fixture, buy/sell stock and silver deltas remain acceptance work.
 No DLL changed. Native quests and transport after trading retain upstream behavior.
+
+## Research migration
+
+`home/research` is now available for project/prerequisite discovery, optional
+unlocks, research benches and worker capability. The planner can commit a native
+project selection. Read-only calls work in Manual; writes require Automate and
+explicit dryRun=false. Native nested refusals are errors, not successful steps.
+A fresh read must confirm the resolved project in the main or knowledge-category
+slot before execution reports success. Selecting is not completing research.
+
+Validation: native build/install, 98 controller tests, and
+`scripts/native_research_smoke.py` on the real headless tribal fixture. Selected
+ComplexFurniture while paused, checked fresh native state, confirmed replay was a
+no-op, and rejected an invalid project. No research progress was added. Actual
+research labor/completion and Anomaly-category selection remain untested.
+Evidence: `.rimbot/bridge/research-smoke.json`.

@@ -8,11 +8,13 @@ READS = OBSERVATION_TOOLS | frozenset({
     'rimworld/list_selected_gizmos', 'rimworld/get_selection_semantics',
 })
 WRITES = frozenset({'home/zone_cells', 'home/place_building', 'home/pawn_config',
-    'home/building_config', 'home/bills', 'home/order', 'home/trade',
+    'home/building_config', 'home/bills', 'home/order', 'home/trade', 'home/research',
     'rimworld/set_time_speed', 'rimworld/apply_architect_designator'})
 
 
 def is_write(tool, arguments):
+    if tool == 'home/research':
+        return bool(arguments.get('set')) and arguments.get('dryRun') is not True
     if tool.startswith('home/') and arguments.get('dryRun') is True:
         return False
     if tool == 'home/order' and arguments.get('action', 'resolve') == 'resolve':
@@ -52,7 +54,8 @@ class BridgeGame(ObservationGateway):
         if tool in WRITES:
             if 'watch' in schema.get('properties', {}):
                 arguments['watch'] = False
-            if tool.startswith('home/') and 'dryRun' in schema.get('properties', {}) and 'dryRun' not in arguments:
+            if (tool.startswith('home/') and 'dryRun' in schema.get('properties', {}) and 'dryRun' not in arguments
+                    and (tool != 'home/research' or arguments.get('set'))):
                 raise ValueError('State dryRun explicitly: true to preview, false to act')
         result = await self.bridge.call(tool, **arguments)
         payload = result.structuredContent
@@ -60,6 +63,10 @@ class BridgeGame(ObservationGateway):
             raise ValueError('Native structured receipt is missing')
         if payload.get('unknownArguments'):
             raise ValueError('Native tool reported ignored arguments')
+        if tool == 'home/research' and arguments.get('set'):
+            write = payload.get('write') or {}
+            if write.get('refused') is not False:
+                raise ValueError(write.get('reason') or 'Native research selection was not accepted')
         return payload
 
 

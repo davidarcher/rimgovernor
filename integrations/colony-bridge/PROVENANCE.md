@@ -92,3 +92,16 @@ Native rescue observation additions: ListPawns now reports `carriedThingId` from
 Pawn.carryTracker.CarriedThing and `health.bedThingId` from Pawn.CurrentBed(), using
 native load IDs. These fields let the controller distinguish carried-pawn absence
 from delivery into a bed. Existing native rescue job creation is unchanged.
+
+## Native research integration
+
+Copied ResearchTool.cs unchanged from the same pinned upstream companion revision
+89c2e90fedd51419a3db55a7f9865b0aef29b270. It queries the native research database,
+requirements, benches and researchers, and selects via ResearchManager. No research
+completion/progress cheat is exposed. Upstream notes describe the native zero-value
+progress dictionary insertions that prerequisite queries can trigger; these are
+not awarded research points. Gateway enforces Manual/dry-run classification,
+refused write handling, no watched UI and fresh selection readback.
+
+Live headless validation selected ComplexFurniture, confirmed current project,
+replayed as a no-op, and rejected an unknown project. No research points added.
