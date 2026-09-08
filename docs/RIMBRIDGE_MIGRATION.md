@@ -233,3 +233,24 @@ headless fixture. Native full listing and nonexistent-ID refusal passed, with an
 unchanged stack. No real letter was opened/dismissed in this fixture; those live
 cases and choice dialogs remain acceptance work. Evidence:
 `.rimbot/bridge/letters-smoke.json`.
+
+## Filtered spatial inspection
+
+Migrated `home/get_cells_plus` into the reviewed native surface and generic scout.
+It supports extent/inclusive-corner rectangles, selected cell/thing fields, sparse
+content and summaries, with native omission counts and zone/area lookup tables.
+It is on-demand and does not inflate the default observation. The detailed native
+cap is 1,024 cells; summary mode can scan the map and reports that scope explicitly.
+No glyph-based terrain categories or strategic rules were copied.
+
+Planner guidance calls for fog awareness and warns against treating sparse output
+as complete geometry. Upstream fogged=false is omitted when that field is selected;
+fieldsApplied identifies which fields were requested. Existing discovered schemas
+and response-size limits apply. This is state inspection, not a new placement API.
+
+Validation: native build/install, 107 controller tests, and actual
+`scripts/native_cells_smoke.py`: matching extent/corner results over 25 cells,
+sparse accounting, summary behavior, selected fields, unknown-field refusal,
+conflicting-bound refusal and oversized detailed-query refusal. Equivalent redundant
+bounds are accepted by the native parser. Paused ticks stayed unchanged. Evidence:
+`.rimbot/bridge/cells-smoke.json`. Better planner layout/latency is not yet measured.

@@ -61,6 +61,8 @@ class Planner:
             'Move the negotiator adjacent first. The executor stages, previews and accepts without model handoffs. '
             'Use home/research to inspect available projects, prerequisites, benches and researchers; select an observed project through a native_operation. Selection does not finish research. '
             'Use home/world for native biome, growing-season and nearby settlement facts; world distance is not a caravan travel-time estimate. '
+            'Use home/get_cells_plus for filtered spatial rectangles or summaries. Include fogged when inspecting placement; fogged terrain is not an explored building site. '
+            'Sparse results omit empty cells and do not prove complete geometry. Never infer missing fields or omitted cells as empty space. '
             'Use rimworld/list_letters for full notifications and observed native letter IDs. '
             'Commit open_letter to inspect a dialog or dismiss_letter to clear a dismissible notification. '
             'Do not equate dismissal with resolving a threat or accepting a quest; there is no automatic notification sweep. '

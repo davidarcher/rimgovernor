@@ -114,3 +114,10 @@ and PlayerGoodwill for the player faction itself; those native getters logged
 GetSituations errors during the live test. Return null for these inapplicable
 fields while retaining isPlayer. Python exposes reads only and rejects show:true.
 Corrected live headless read/filter/no-view checks passed.
+
+## Spatial query migration
+
+CellsPlusTool.cs copied unchanged from pinned companion revision
+89c2e90fedd51419a3db55a7f9865b0aef29b270. Exposed as an on-demand read for the
+strategist and scout. Native rectangular/filter/sparse/summary and refusal tests
+passed in the headless baseline; no changes to native execution or geometry.
