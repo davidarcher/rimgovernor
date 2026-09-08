@@ -113,6 +113,8 @@ class Planner:
             'Use home/get_cells_plus for filtered spatial rectangles or summaries. Include fogged when inspecting placement; fogged terrain is not an explored building site. '
             'Sparse results omit empty cells and do not prove complete geometry. Never infer missing fields or omitted cells as empty space. '
             'Use rimworld/list_letters for full notifications and observed native letter IDs. '
+            'list_letters already returns the full letter text and choices; do not open a letter merely to read it. '
+            'open_letter creates a modal dialog and may force-pause the game. General dialog choice/close control is not yet connected here. '
             'Commit open_letter to inspect a dialog or dismiss_letter to clear a dismissible notification. '
             'Do not equate dismissal with resolving a threat or accepting a quest; there is no automatic notification sweep. '
             'An existing or uncertain trade session needs inspection; do not blindly repeat a deal. '
