@@ -61,7 +61,7 @@ Snapshots refresh every few seconds; this is not a continuous video stream.
 One strategist reads compact state and commits a durable structured plan. Deterministic
 Hands executes validated semantic steps in Automate; optional advisers cannot write
 orders or commit goals. Unchanged observations do not cause timed model reviews.
-Receipts do not mean pawn work has finished. See [the active architecture](docs/STRATEGIC_BRAIN.md).
+Receipts do not mean pawn work has finished. See [the active architecture](docs/ARCHITECTURE.md).
 
 ## Optional local model roles
 
@@ -76,35 +76,16 @@ Role names are `strategist`, `analyst`, `architect`, and `critic`. All optional 
 can be omitted or point at the same loaded model. Consultations happen only when
 the strategist asks a specific question; there is no domain-manager fan-out.
 
-## Test-only speed benchmark
+## Project documentation
 
-With the controller and disposable game closed:
+- [Architecture](docs/ARCHITECTURE.md): runtime pieces, ownership, contracts and data flow.
+- [Backlog](docs/BACKLOG.md): prioritized implementation, audit and gameplay acceptance work.
+- [Testing](docs/TESTING.md): native checks, real-model probes, headless campaigns and benchmarks.
 
-```powershell
-.venv\Scripts\python.exe scripts\native_speed_benchmark.py --seconds 5 --repeats 2
-```
-
-This uses native `play_for` with boosted Ultrafast/forced-speed support, restoring
-Paused and disabling the boost afterward. It omits dashboard captures but does not
-disable Unity rendering. Interrupted samples are explicitly marked. Measurements
-are local in `.rimbot/bridge/speed-benchmark.json`. This option is not exposed to the
-strategist during normal play.
-
-## Remaining migration work
-
-Headless native testing is available with `launch.ps1 -Headless` after installing
-the source-built test patch. See [headless setup and measured limits](docs/TEST_SPEED.md).
-
-The retired RIMAPI implementation is preserved in Git at `9209b74`. Its richer
-project reconciliation, visual architect/reservations, colony detail inspectors,
-and full session lifecycle handling have **not** all been ported to the bridge.
-The bridge now restores chat/plans/projects using a saved colony identity and tracks building/zone targets. Save the colony after its identity is attached to retain that identity across game restarts. Richer scheduling and architect features are not available through a hidden fallback. Existing strategy references
-remain under `controller/rimbot/data/strategies` for reuse; they are not currently
-injected into the native planner.
-
-See [the migration backlog](docs/RIMBRIDGE_MIGRATION.md). Historical research and
-implementation notes are under `docs/archive/rimapi`; their paths and claims
-refer to the retired implementation.
+Plans, projects and notes persist by saved colony identity/map. Save after identity
+attachment to retain it across game restarts. Strategy cards are available through
+planner retrieval; optional advisers remain read-only. The combined autonomous
+eight-tribal starter foothold is not yet demonstrated.
 
 ## Development
 
@@ -120,16 +101,4 @@ is in `integrations/colony-bridge/PROVENANCE.md`; upstream license notices retai
 under `third_party` also cover inherited dashboard material. No model API calls
 or game mutations run as part of the unit test suite.
 
-For a bounded **real model** test, launch a fresh colony with an empty plan and
-leave the controller in Manual, then run:
-
-```powershell
-.venv\Scripts\python.exe scripts\live_planner_probe.py --seconds 180
-```
-
-This enables automation and lets the model issue game orders. It records time to
-first order, completed steps, rejected calls, and final state in
-`.rimbot/live-planner-probe.json`, then returns the same controller/session to
-Manual. It does not reload a save or reset an existing plan. Start each comparison
-from the same fixture. An `orders_observed` result is progress, not proof of a
-completed starter base or colony survival.
+For real-model and native gameplay verification, use the [testing runbook](docs/TESTING.md).
