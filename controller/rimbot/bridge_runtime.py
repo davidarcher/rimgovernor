@@ -525,6 +525,10 @@ class BridgeRuntime:
                     current = [verification.get('current')] + list((verification.get('currentByCategory') or {}).values())
                     if not selected or not any(isinstance(p,dict) and p.get('defName') == selected for p in current):
                         raise ValueError('Research selection was not confirmed by fresh native readback')
+                elif name == 'rimworld/dismiss_letter':
+                    verification = await self.game.invoke('rimworld/list_letters', {'limit': 1000})
+                    from .notifications import verify_dismissal
+                    verify_dismissal(arguments['letterId'], result, verification)
                 else:
                     verification = await self.game.query('home/status')
                     self.clock = verification['time']

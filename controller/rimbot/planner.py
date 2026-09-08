@@ -61,6 +61,9 @@ class Planner:
             'Move the negotiator adjacent first. The executor stages, previews and accepts without model handoffs. '
             'Use home/research to inspect available projects, prerequisites, benches and researchers; select an observed project through a native_operation. Selection does not finish research. '
             'Use home/world for native biome, growing-season and nearby settlement facts; world distance is not a caravan travel-time estimate. '
+            'Use rimworld/list_letters for full notifications and observed native letter IDs. '
+            'Commit open_letter to inspect a dialog or dismiss_letter to clear a dismissible notification. '
+            'Do not equate dismissal with resolving a threat or accepting a quest; there is no automatic notification sweep. '
             'An existing or uncertain trade session needs inspection; do not blindly repeat a deal. '
             'Finish every review with a structured commit_plan, including continue or defer; prose alone is not a decision.'},
             {'role':'user','content':json.dumps(context(rt),ensure_ascii=False)}]

@@ -213,3 +213,23 @@ and confirmed no world view was displayed.
 Validation: native build/install, 101 controller tests and
 `scripts/native_world_smoke.py`. Evidence: `.rimbot/bridge/world-smoke.json`.
 No caravan movement, settlement interaction or model strategic decision was tested.
+
+## Native letters
+
+The strategist can inspect `rimworld/list_letters` and commit native open/dismiss
+operations using observed letter IDs. These use RimBridgeServer's existing
+left-click/right-click equivalents; no copied notification implementation or DLL
+change is needed. Opening a dialog is a write. Dismissal must return the matching
+native ID and dismissed=true, then a fresh untruncated letter list must show that
+ID absent. Unknown identities or incomplete lists cannot certify removal.
+
+There is no automatic sweep, age-based dismissal or quest-choice execution.
+Removing a letter does not resolve its event. Existing native notification push
+and clock interruptions remain unchanged. Actual dialog choices need a separately
+reviewed action path; this slice does not claim acceptance of quests.
+
+Validation: 107 controller tests and `scripts/native_letters_smoke.py` on the
+headless fixture. Native full listing and nonexistent-ID refusal passed, with an
+unchanged stack. No real letter was opened/dismissed in this fixture; those live
+cases and choice dialogs remain acceptance work. Evidence:
+`.rimbot/bridge/letters-smoke.json`.

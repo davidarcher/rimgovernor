@@ -6,10 +6,12 @@ READS = OBSERVATION_TOOLS | frozenset({
     'rimworld/get_cells_info', 'rimworld/get_cell_info',
     'rimworld/list_architect_categories', 'rimworld/list_architect_designators',
     'rimworld/list_selected_gizmos', 'rimworld/get_selection_semantics',
+    'rimworld/list_letters',
 })
 WRITES = frozenset({'home/zone_cells', 'home/place_building', 'home/pawn_config',
     'home/building_config', 'home/bills', 'home/order', 'home/trade', 'home/research',
-    'rimworld/set_time_speed', 'rimworld/apply_architect_designator'})
+    'rimworld/set_time_speed', 'rimworld/apply_architect_designator',
+    'rimworld/open_letter', 'rimworld/dismiss_letter'})
 
 
 def is_write(tool, arguments):
