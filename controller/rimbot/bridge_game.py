@@ -115,3 +115,15 @@ def for_model(payload, tool=None, catalog_offset=0):
                 'reason': 'Result exceeds this turn\'s detail budget. Use native filters or fewer optional detail blocks.',
                 'fields': {k: len(v) if isinstance(v, (list, dict)) else v for k, v in result.items()}}
     return result
+
+
+def inspection_result(payload, name, arguments, catalog_offset=0):
+    """Keep controller pagination separate from the unmodified native contract."""
+    from copy import deepcopy
+    result = for_model(payload, tool=name, catalog_offset=catalog_offset)
+    page = result.get('catalog_page')
+    if page and page['next_offset'] is not None:
+        page['next_call'] = {'name':'inspect', 'arguments':{
+            'name':name, 'arguments':deepcopy(arguments), 'catalog_offset':page['next_offset']}}
+        page['instruction'] = 'Call next_call exactly. catalog_offset is beside arguments, not inside native arguments.'
+    return result

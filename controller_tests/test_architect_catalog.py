@@ -35,3 +35,20 @@ def test_large_catalog_can_be_traversed_without_lost_or_partial_entries():
         offset=page['catalog_page']['next_offset']
     assert collected == rows
     assert payload['designators'] == rows
+
+
+def test_continuation_is_complete_and_preserves_native_filters():
+    from rimbot.bridge_game import inspection_result
+    payload={'designators':[{'id':str(i)} for i in range(10)]}
+    args={'categoryId':'architect-category:structure','includeHidden':False}
+    first=inspection_result(payload,'rimworld/list_architect_designators',args)
+    call=first['catalog_page']['next_call']
+    assert call == {'name':'inspect','arguments':{'name':'rimworld/list_architect_designators',
+        'arguments':args,'catalog_offset':8}}
+    next_args=call['arguments']
+    last=inspection_result(payload,next_args['name'],next_args['arguments'],next_args['catalog_offset'])
+    assert last['designators']==payload['designators'][8:]
+    assert last['catalog_page']['next_offset'] is None
+    assert 'next_call' not in last['catalog_page']
+    next_args['arguments']['includeHidden']=True
+    assert args['includeHidden'] is False

@@ -27,7 +27,7 @@ class Planner:
         self.rt = runtime
 
     async def play_bridge(self):
-        from .bridge_game import READS, WRITES, for_model
+        from .bridge_game import READS, WRITES, inspection_result
         rt = self.rt
         token = rt.context_token
         schema = lambda properties, required: {'type':'object','properties':properties,'required':required,'additionalProperties':False}
@@ -144,8 +144,10 @@ class Planner:
                     elif name == 'inspect':
                         if 'catalog_offset' in args and args['name'] != 'rimworld/list_architect_designators':
                             raise ValueError('catalog_offset is only supported for rimworld/list_architect_designators')
-                        result = for_model(await rt.inspect_native(args['name'], args['arguments']),
-                            tool=args['name'], catalog_offset=args.get('catalog_offset',0))
+                        if 'catalog_offset' in args['arguments']:
+                            raise ValueError('Put catalog_offset beside arguments in the inspect call, not inside native arguments. Follow catalog_page.next_call.')
+                        result = inspection_result(await rt.inspect_native(args['name'], args['arguments']),
+                            args['name'], args['arguments'], catalog_offset=args.get('catalog_offset',0))
                     elif name == 'inspect_plan':
                         result = inspect_plan(rt.current_plan, args['ids'])
                     elif name == 'wiki_lookup':
