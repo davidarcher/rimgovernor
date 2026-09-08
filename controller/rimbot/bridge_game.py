@@ -1,6 +1,7 @@
 """Reviewed gameplay surface over native bridge contracts; no HTTP emulation."""
 from jsonschema import Draft202012Validator
 from .bridge_observation import OBSERVATION_TOOLS, ObservationGateway
+from .native_contracts import validate_arguments
 
 READS = OBSERVATION_TOOLS | frozenset({
     'rimworld/get_cells_info', 'rimworld/get_cell_info',
@@ -45,7 +46,7 @@ class BridgeGame(ObservationGateway):
         if is_write(tool, arguments) and not allow_write:
             raise ValueError('Automation is off; no game action was sent')
         schema = await self.describe(tool)
-        Draft202012Validator(schema).validate(arguments)
+        validate_arguments(tool, schema, arguments)
         arguments = dict(arguments)
         if tool == 'home/pawn_config' and arguments.get('drop'):
             raise ValueError('Instant gear dropping bypasses normal pawn work; use a native pawn order')

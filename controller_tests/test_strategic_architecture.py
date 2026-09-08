@@ -38,6 +38,26 @@ def room_plan():
             'wall_def':'Wall','door_def':'Door','materials':['WoodLog'],'entrance':'south'}}])
 
 
+@pytest.mark.asyncio
+async def test_invalid_native_step_rejected_before_plan_commit(tmp_path):
+    rt = runtime(tmp_path)
+    await rt.sync_identity()
+    rt.batch = batch()
+    rt.game.describe = AsyncMock(return_value={'type':'object','properties':{'pawn':{'type':'string'}},
+                                               'additionalProperties':False})
+    rt.game.invoke = AsyncMock()
+    spec = PlanSpec(steps=[dict(id='equip',title='Equip',completion_criteria='Equipped',
+        action=dict(kind='native_operation',tool='home/pawn_config',arguments={'pawn_ids':['guessed']}))])
+    before = rt.current_plan.model_dump()
+    with pytest.raises(ValueError, match='Plan step equip: home/pawn_config') as error:
+        await rt.commit_strategy(decision(spec), actor=ModelRole.STRATEGIST,
+            expected_token=rt.context_token, expected_revision=rt.chat_revision)
+    assert 'pawn_ids' in str(error.value) and len(str(error.value)) < 350
+    assert rt.current_plan.model_dump() == before
+    rt.game.invoke.assert_not_awaited()
+    rt.store.close()
+
+
 def runtime(tmp_path, **kwargs):
     store = Store(tmp_path/'state.sqlite')
     rt = BridgeRuntime(store, tmp_path, **kwargs)
