@@ -254,3 +254,9 @@ sparse accounting, summary behavior, selected fields, unknown-field refusal,
 conflicting-bound refusal and oversized detailed-query refusal. Equivalent redundant
 bounds are accepted by the native parser. Paused ticks stayed unchanged. Evidence:
 `.rimbot/bridge/cells-smoke.json`. Better planner layout/latency is not yet measured.
+
+### On-demand strategy library (2026-09-08)
+
+The strategist can now search the 20 checked-in strategy cards and read one matching card at a time. Search returns at most three summaries; full cards retain applicability, verification, reconsideration and dated wiki sources. No corpus is preloaded into the strategy prompt. Retrieval is local and deterministic, with no extra model or game calls. Unknown IDs cannot resolve to filesystem paths. Removed obsolete starter-guide API terminology and old placement-contract assumptions.
+
+Validation: 118 controller tests passed, including poor-soil, bedroom and startup retrieval, budgets, source preservation and invalid IDs. No live model/gameplay improvement measured in this slice. Live wiki retrieval remains separate unfinished work.
