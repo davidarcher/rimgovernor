@@ -14,7 +14,7 @@ from .colony_plan import ColonyPlan, Decision, Failure, NativeOperation
 from .medical_outcome import patient_outcome, rescue_outcome
 from .consultation import Consultations
 from .hands import Hands, validate_geometry
-from .native_contracts import validate_native_steps
+from .native_contracts import validate_native_steps, validate_stand_down_steps
 from .construction_preflight import preflight_construction
 from .strategic_state import StrategicState, projection
 from .model import LocalModel
@@ -253,6 +253,8 @@ class BridgeRuntime:
                 await self.sync_identity()
                 if expected_token != self.context_token or expected_revision != self.chat_revision:
                     raise ValueError('Colony or direction changed during validation; decision was not committed')
+                validate_stand_down_steps(decision.plan, self.current_plan, self.draft_owners,
+                    self.context_token, self.batch.summary.pawns)
             for identity in decision.used_consultations:
                 if identity not in self.advice or self.advice[identity]['load_token'] != self.context_token:
                     raise ValueError('Consultation is missing or belongs to another loaded game')

@@ -1,6 +1,7 @@
 """Strategic commitments and deterministic progress are distinct durable state."""
 import hashlib
 import json
+from copy import deepcopy
 from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .config import ModelRole
@@ -34,9 +35,14 @@ class Buildings(Contract):
     placements: list[Placement] = Field(min_length=1, max_length=256)
 
 
+class RoomBounds(Rectangle):
+    width: int = Field(ge=4, le=64)
+    height: int = Field(ge=4, le=64)
+
+
 class RoomShell(Contract):
     kind: Literal['build_room_shell'] = 'build_room_shell'
-    bounds: Rectangle
+    bounds: RoomBounds
     wall_def: str = Field(min_length=1)
     door_def: str = Field(min_length=1)
     materials: list[str] = Field(min_length=1, max_length=8)
@@ -51,12 +57,28 @@ class RoomShell(Contract):
         return self
 
 
+def zone_schema(schema):
+    # Grammar compilers may ignore object constraints beside anyOf. Each
+    # alternative must describe the complete object, including its action tag.
+    alternatives = []
+    for zone_type in ('stockpile', 'growing'):
+        branch = deepcopy(schema)
+        branch['properties']['zone_type'] = {'type': 'string', 'const': zone_type}
+        branch['required'] = list(dict.fromkeys([*branch.get('required', []), 'kind']))
+        if zone_type == 'growing':
+            branch['properties']['crop']['minLength'] = 1
+            branch['required'].append('crop')
+        alternatives.append(branch)
+    schema['anyOf'] = alternatives
+
+
 class Zone(Contract):
+    model_config = ConfigDict(extra='forbid', json_schema_extra=zone_schema)
     kind: Literal['create_zone'] = 'create_zone'
     zone_type: Literal['stockpile', 'growing']
     label: str = Field(min_length=1, max_length=80)
     patches: list[Rectangle] = Field(min_length=1, max_length=32)
-    crop: str = ''
+    crop: str = Field(default='', description='Required and nonempty for growing zones: an observed sowable native definition. Stockpiles do not require a crop.')
     preset: str | None = None
     priority: Literal['Low', 'Normal', 'Preferred', 'Important', 'Critical'] = 'Normal'
 

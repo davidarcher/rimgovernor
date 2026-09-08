@@ -36,12 +36,9 @@ namespace HomeBridge.BridgeTools
     /// `Window`'s own strings (`optionalTitle`, the layer bookkeeping) are never
     /// offered: they are chrome, not input.
     ///
-    /// `accept` presses the dialog's accept the way the Return key does -
-    /// `WindowStack.Notify_PressedAccept()`, which walks the stack from the top
-    /// and calls `OnAcceptKeyPressed` on the first window that takes it. A
-    /// letter dialog is `closeOnAccept: false` and ignores it; that is the
-    /// game's behaviour, and `accepted` reports what was attempted, not what the
-    /// dialog decided.
+    /// Naming confirmation lives inside native DoWindowContents, not the
+    /// Window.OnAcceptKeyPressed shortcut. Confirm through a freshly captured
+    /// OK/Accept UI control so native name validation and final game writes run.
     ///
     /// Every reflection write is wrapped: an exception is reported as a refusal
     /// naming the type, never thrown out of the tool.
@@ -66,7 +63,7 @@ namespace HomeBridge.BridgeTools
             ToolName,
             Title = "Type into the dialog that is on screen",
             Description =
-                "Lists dialog string fields; writes reviewed naming inputs using exact windowId and field, optionally invoking accept. dryRun "
+                "Lists dialog string fields; writes reviewed naming inputs using exact windowId and field. Confirm using a fresh get_ui_layout OK/Accept control and click_ui_target; accept=true is refused. dryRun "
                 + "defaulting to TRUE. Real keyboard input does not reach this game, so this is the only way to answer a "
                 + "dialog that asks for typed text - naming a colony, a settlement, an animal, a storage zone. Call it with no "
                 + "arguments (or list:true) to see what the open dialog holds: every string field it declares, with its current "
@@ -74,14 +71,13 @@ namespace HomeBridge.BridgeTools
                 + "open and when the top window is a main tab or an immediate overlay rather than a dialog.",
             ResultDescription =
                 "success, dryRun, applied, window (the window's type name), fields[] (name, before) for every string field the "
-                + "dialog offers, set{field, before, after} for the one that was written, accepted (whether the accept key was "
-                + "pressed), error.")]
+                + "dialog offers, set{field, before, after} for the one that was written, accepted:false, error.")]
         [ToolResponse("dryRun", "boolean", "True = nothing was written. Defaults to TRUE; a caller must pass dryRun:false deliberately.", Always = true)]
         [ToolResponse("applied", "boolean", "True only when a field was actually written. False on every dry run and every refusal.", Always = true)]
         [ToolResponse("window", "string", "The full type name of the top-most window on the stack, or null when there was none.", Always = true)]
-        [ToolResponse("fields", "array", "Every string field the dialog offers: name, before. A Dialog_NamePawn's name boxes appear as listField[index].current. Empty means the dialog has no typable string field at all.", Always = true)]
+        [ToolResponse("fields", "array", "Every string field the dialog offers: name, before, maxLength (null when no reviewed input limit is known). A Dialog_NamePawn's editable name boxes appear as listField[index].current; non-editable names are excluded. Empty means no typable field.", Always = true)]
         [ToolResponse("set", "object", "The field that was written: field, before, after. Null when nothing was set - a listing call, a dry run's refusal, or a refusal.", Nullable = true)]
-        [ToolResponse("accepted", "boolean", "True when WindowStack.Notify_PressedAccept was called. Always false on a dry run, when accept was not asked for, and when the set was refused.", Always = true)]
+        [ToolResponse("accepted", "boolean", "Always false: text input does not confirm a naming outcome. Use the native confirmation UI control and fresh game readback.", Always = true)]
         [ToolResponse("unknownArguments", "array", "Every argument key the caller sent that this tool does not declare, sorted, case-sensitively. Empty array = every key was recognised. The host's own _rimBridgeTimeoutMs is never listed.", Always = true)]
         [ToolResponse("unknownArgumentsWarning", "string", "Present only when unknownArguments is non-empty, or when the caller's raw keys could not be read at all - in which case the empty unknownArguments means 'not known', not 'nothing unknown'.", Nullable = true)]
         [ToolResponse("error", "string", "Why the call was refused. Null when it was not.", Nullable = true)]
@@ -91,7 +87,7 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "The text to put in the box. Required unless list is true. An empty string is accepted and clears the box.")] string text = null,
             [ToolParameter(Description = "Exact field name returned by the current listing. Required for a write; partial names and default selection are not supported.")] string field = null,
             [ToolParameter(Description = "List the dialog's string fields and their current values without writing anything. The same listing rides on every reply, so this is only a way to ask for it without passing text.", DefaultValue = false)] bool list = false,
-            [ToolParameter(Description = "Press the dialog's accept afterwards, the way the Return key does (WindowStack.Notify_PressedAccept). Ignored on a dry run. A dialog with closeOnAccept false - a letter - ignores it, which is the game's own behaviour.", DefaultValue = false)] bool accept = false,
+            [ToolParameter(Description = "Unsupported confirmation shortcut: true is refused before writing. Confirm with a freshly captured OK/Accept UI control instead.", DefaultValue = false)] bool accept = false,
             [ToolParameter(Description = "TRUE by default. Read the dialog's fields and report what WOULD be written without touching it. Pass false to actually type.", DefaultValue = true)] bool dryRun = true,
             [ToolParameter(Description = "Exact window ID returned by the listing; required for a write.")] int windowId = -1)
         {
@@ -158,10 +154,13 @@ namespace HomeBridge.BridgeTools
                 return Refused(typeName, "Dialog identity changed or was omitted; list fields again before writing.");
             // Only reviewed naming dialogs expose writable input slots. Other
             // string fields may be labels or internal state, not text boxes.
-            var naming = Chain(window.GetType()).Any(t => t.Name == "Dialog_Rename"
-                || t.Name == "Dialog_GiveName" || t.Name == "Dialog_NamePawn");
+            var naming = window is Dialog_GiveName || window is Dialog_NamePawn
+                || Chain(window.GetType()).Any(t => t.IsGenericType
+                    && t.GetGenericTypeDefinition() == typeof(Dialog_Rename<>));
             if (!dryRun && !list && text != null && !naming)
                 return Refused(typeName, "Text writes are reviewed only for naming dialogs; other dialogs are inspection-only.");
+            if (!dryRun && accept)
+                return Refused(typeName, "Naming confirmation requires the exact OK/Accept control from get_ui_layout, then click_ui_target. The accept-key shortcut does not execute native naming validation; no text was written.");
             Dictionary<string, object> Reply(List<object> fields, bool preview, bool applied,
                 Dictionary<string, object> set, bool accepted, string error)
             {
@@ -185,7 +184,8 @@ namespace HomeBridge.BridgeTools
             var rows = slots.Select(s => (object)new Dictionary<string, object>
             {
                 { "name", s.Name },
-                { "before", s.Read() }
+                { "before", s.Read() },
+                { "maxLength", s.MaxLength }
             }).ToList();
 
             if (list || text == null)
@@ -209,6 +209,10 @@ namespace HomeBridge.BridgeTools
             if (!dryRun && !(chosen.Name == "curName" || chosen.Name == "curSecondName"
                 || (Chain(window.GetType()).Any(t => t.Name == "Dialog_NamePawn") && chosen.Name.Contains("["))))
                 return Reply(rows, dryRun, false, null, false, "This field has not been reviewed as a naming input.");
+            if (!chosen.MaxLength.HasValue)
+                return Reply(rows, dryRun, false, null, false, "Native input limit is unavailable; nothing was written.");
+            if (text.Length > chosen.MaxLength.Value)
+                return Reply(rows, dryRun, false, null, false, "Text exceeds the native input limit of " + chosen.MaxLength.Value + " characters; nothing was written.");
             object after = text;
             var applied = false;
             var accepted = false;
@@ -228,23 +232,6 @@ namespace HomeBridge.BridgeTools
 
                 after = chosen.Read();
 
-                if (accept)
-                {
-                    try
-                    {
-                        // Accept the dialog we selected. WindowStack's helper
-                        // starts at the overlay on top and may never reach it.
-                        window.OnAcceptKeyPressed();
-                        accepted = true;
-                    }
-                    catch (Exception ex)
-                    {
-                        return Reply(rows, dryRun, true,
-                            Set(chosen.Name, before, after), false,
-                            "The text was written, but pressing accept threw " + ex.GetType().Name
-                            + ". The dialog is still open.");
-                    }
-                }
             }
 
             return Reply(rows, dryRun, applied, Set(chosen.Name, before, after), accepted, null);
@@ -282,6 +269,7 @@ namespace HomeBridge.BridgeTools
         {
             internal string Name;
             internal string Label;
+            internal int? MaxLength;
             internal Func<string> Read;
             internal Action<string> Write;
         }
@@ -323,9 +311,25 @@ namespace HomeBridge.BridgeTools
             slots.Add(new Slot
             {
                 Name = info.Name,
+                MaxLength = PlainLimit(window, info.Name),
                 Read = () => BridgeCommon.SafeString(() => (string)info.GetValue(window)),
                 Write = value => info.SetValue(window, value)
             });
+        }
+
+        private static int? PlainLimit(Window window, string field)
+        {
+            string property = window is Dialog_GiveName
+                ? (field == "curName" ? "FirstCharLimit" : field == "curSecondName" ? "SecondCharLimit" : null)
+                : field == "curName" ? "MaxNameLength" : null;
+            if (property == null) return null;
+            var info = Chain(window.GetType()).Select(t => t.GetProperty(property,
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+                .FirstOrDefault(p => p != null);
+            if (info == null) return null;
+            int? limit = BridgeCommon.TryN(() => (int)info.GetValue(window, null));
+            // Dialog_Rename accepts text.Length strictly below MaxNameLength.
+            return window is Dialog_GiveName ? limit : limit - 1;
         }
 
         /// <summary>Dialog_NamePawn keeps one box per name part in a List of a
@@ -369,6 +373,8 @@ namespace HomeBridge.BridgeTools
                     Label = labelField == null
                         ? null
                         : BridgeCommon.SafeString(() => Text(labelField.GetValue(target))),
+                    MaxLength = BridgeCommon.TryN(() => (int)element.GetField("maximumNameLength",
+                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).GetValue(target)),
                     Read = () => BridgeCommon.SafeString(() => (string)textField.GetValue(target)),
                     Write = value => textField.SetValue(target, value)
                 });

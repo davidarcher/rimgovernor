@@ -185,6 +185,28 @@ updates and makes no capacity or completed-cooling claim.
 build. It creates isolated thermal, bill, battery and stockpile test objects for
 `scripts/inspector_acceptance.py --fixture`; fixture creation is not gameplay.
 
+Naming input recognizes the native `Dialog_Rename<T>`, `Dialog_GiveName` and
+`Dialog_NamePawn` families. It reads their actual input-length limits and excludes
+non-editable pawn name contexts. Native `DoWindowContents` performs validation and
+the final game-object write, so confirmation uses an exact captured UI control;
+the accept-key shortcut is refused before changing text. Window IDs and fresh
+layout targets retain native stale-dialog protections.
+
+`ModalFixture.cs` is excluded unless `ModalFixture=true` is passed to the build.
+It instantiates native naming dialogs, supplies a two-branch native quest and
+reads affected game objects for `scripts/modal_acceptance.py`. Fixture setup is
+separate from the naming/quest actions, which use the normal UI confirmation path.
+
 `PawnConfigTool.cs` marks pawn identity required in SDK discovery, matching the
 native resolver's refusal of an empty target. Execution cannot rely on a selected
 pawn or silently substitute a target.
+
+
+Campaign metrics acceptance uses the original test-only
+`scripts/fixtures/CampaignMetricsFixture.cs`, included only with
+`CampaignMetricsFixture=true`. It clears a disposable patch, places a roofed
+room and sleeping spots, prepares rice/wood and storage, and initializes needs,
+bed assignments and schedules. The fixture does not complete the observed pawn
+work: sleeping, hauling, the committed wall and deconstruction run through normal
+jobs. Production builds exclude this capability. The acceptance harness preserves
+native snapshots and failed trials separately from unit-test evidence.

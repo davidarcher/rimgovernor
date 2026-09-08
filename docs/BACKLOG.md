@@ -9,24 +9,12 @@ in the checkpoint commit; do not append an implementation diary here.
 
 ## P0 — Reliable startup execution
 
-- [ ] **B02 · Modal and quest outcomes.** Exact UI controls, naming fields,
-  letter inspection and owned-pause opening/closing exist. Test actual quest
-  choice effects and final rename effects across supported naming types. Letter
-  opening refuses existing/unknown windows and requires fresh identified-window
-  readback. Accept recovery and UI races in game; never auto-resume external holds
-  or dismiss all dialogs. Require fresh window and game-effect readbacks.
 - [ ] **B04 · Repeatable starter foothold.** Obtain three consecutive fixed-build,
   fixed-model baseline passes: eight living colonists, eight nearby completed
   sleeping places, a nearby stockpile of at least nine cells and allowed starting
   pemmican. Then verify usable enclosed/roofed shelter, storage filters/access and
   feasible food work over at least two game days without player repairs. Follow
   with scarce-wood, low-fertility and ruin variants; no fixed production layout.
-- [ ] **B05 · Outcome and campaign metrics.** Native-readback campaign reports
-  separate retained intent, attempted slots, accepted effects and current completed
-  objects, with frozen thresholds, sleeping-place overshoot/removals and interrupted
-  runs. Accept these against controlled gameplay. Extend functional usable-capacity
-  checks, first useful order/pawn progress, latency, repeated/rejected calls, context
-  use, excess construction, interventions and compact replay evidence.
 
 Acceptance baseline: the documented 20-run adaptive eight-tribal campaign reached
 zero combined footholds, with five stockpiles and one small completed shell as

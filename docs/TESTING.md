@@ -103,6 +103,15 @@ to block private runtime-state publication and reads beyond the retry budget.
 It verifies unchanged receipts and native object identities after handle release,
 without replaying orders. Choose a fresh evidence directory for every run.
 
+For naming and quest-choice checks, `scripts/modal_acceptance.py --source
+.rimbot/bridge --output .rimbot/modal-new` requires a temporary `ModalFixture=true`
+build in a rendered isolated game. For controlled sleeping, hauling, construction
+interruption and removal, `scripts/campaign_metrics_acceptance.py --source
+.rimbot/bridge --output .rimbot/metrics-new` requires `CampaignMetricsFixture=true`.
+Both fixtures are excluded from production builds. Install and restore DLLs only
+after an escalated CIM process check confirms every RimWorld instance is closed.
+The harnesses stop their own games; preserve failures and use new output paths.
+
 For selective native inspector checks, run `scripts/inspector_acceptance.py` with
 `--source .rimbot/bridge --output .rimbot/inspectors-new`. Its optional `--fixture`
 requires a temporary build with `-p:InspectorFixture=true` and populates thermal,
@@ -122,8 +131,16 @@ Use fresh output directories, prepared baseline/mods and local LM Studio. Each
 worker owns its controller, SQLite state, save/config profile, log and GABS runtime.
 Installed game/mod files are shared read-only. Start with two workers; eight is a
 configured maximum, not a throughput recommendation. Commit between batches so
-workers import a fixed revision. The runner stops dispatching after a usable result
-and retains already-running siblings' evidence.
+workers import a fixed revision. Use `--consecutive 3` for the baseline acceptance
+gate and `--direction` to record the same player objective before each run. Use
+`--source-root` for a prepared baseline elsewhere. Every dispatched trial receives
+an isolated profile. The runner stops after the requested consecutive passing
+streak and retains already-running siblings' evidence. A changed revision, model,
+or objective resets the streak; interrupted trials cannot contribute.
+Workers also save `manifest.json` before startup. Multiple consecutive passes
+require matching source-content, effective inference-setting, baseline/profile,
+GABS and installed observation-DLL fingerprints. Model weights and other mod
+binaries remain outside that fingerprint and must be held fixed by the operator.
 
 Regenerate disposable profiles to remove legacy executable-name cleanup fallback.
 Generated profiles use DirectPath process ownership; missing or other launch modes
@@ -139,7 +156,12 @@ Each worker freezes `thresholds.json` before startup and samples native building
 and zone readbacks for completion. Reports separate retained intent, attempted slots,
 accepted effects and current completed objects, including sleeping-place overshoot
 and removal deltas. Truncated or unavailable readbacks cannot establish success.
-The samples do not count all retries/refusals or prove access and sustained survival.
+Diagnostic telemetry separately counts retained repeated/rejected calls, model
+context budgets, dispatch latency and interventions. First observed pawn progress
+requires changed native position or carried item during a continuing work job.
+Functional reports distinguish roofed sleeping geometry, observed bed use and
+stockpile filter/grid configuration from unknown access and sustained food work.
+Observation timestamps are sampling upper bounds, not exact completion times.
 
 With controller/game closed, benchmark disposable simulation separately:
 

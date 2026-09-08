@@ -148,6 +148,13 @@ def observed_supplies(batch):
                'Inspect filtered home/list_things for locations before allowing or hauling. Omitted definitions are unknown, not absent.'}
 
 
+def player_directions(chat):
+    rows = [{'revision': m.get('revision'), 'text': m['text']}
+            for m in chat if m['kind'] == 'human']
+    return {'items': rows[-12:], 'omitted': max(0, len(rows)-12),
+            'note': 'Player directions in chronological order. Later corrections supersede conflicting earlier directions.'}
+
+
 def context(rt):
     state = rt.strategic_state.current
     plan = rt.current_plan
@@ -171,6 +178,7 @@ def context(rt):
         'changes': bounded(rt.strategic_state.pending, 20), 'mode': rt.mode,
         'ai_owned_drafts': [pawn for pawn, token in rt.draft_owners.items() if token == rt.context_token],
         'player_messages': bounded([{'kind': m['kind'], 'text': m['text']} for m in rt.chat[-12:]], 12),
+        'player_directions': player_directions(rt.chat),
         'clock': {k:v for k,v in (rt.supervisor.state if rt.supervisor else {}).items()
             if k in ('active','paused','stopReason','stopDetail','requestedSpeed')},
         'optional_roles': [role.value for role in rt.router.routing.roles if role.value != 'strategist']}
