@@ -22,6 +22,10 @@ class Planner:
             tool('inspect', 'Read native state or perform an explicitly supported dry run. Real writes are forbidden here.', schema({'name':{'type':'string','enum':choices},'arguments':{'type':'object'}},['name','arguments'])),
             tool('inspect_plan', 'Read selected committed step details without loading the whole plan.', schema({'ids':{'type':'array','items':{'type':'string'},'maxItems':8}},['ids']))]
         auxiliary = [role.value for role in rt.router.routing.roles if role != ModelRole.STRATEGIST]
+        if rt.router.enabled(ModelRole.ANALYST):
+            tools.append(tool('scout', 'Delegate one missing-fact investigation to the generic read-only analyst. Raw query evidence stays outside your context; returned findings are advisory.', schema(
+                {'question':{'type':'string','minLength':1,'maxLength':1200},
+                 'sections':{'type':'array','minItems':1,'maxItems':3,'items':{'type':'string','enum':['people','resources','power','construction','space','threats']}}}, ['question','sections'])))
         if auxiliary:
             tools.append(tool('consult', 'Optionally ask one adviser a narrow question. It has no game actions, strategic authority, or recursive consultation. The same analyst handles any topic.', schema(
                 {'role':{'type':'string','enum':auxiliary}, 'question':{'type':'string','minLength':1,'maxLength':1200},
@@ -83,6 +87,8 @@ class Planner:
                         result = [s.model_dump() for s in rt.current_plan.spec.steps if s.id in args['ids']]
                     elif name == 'consult':
                         result = await rt.consult(**args, expected_token=token, expected_revision=seen)
+                    elif name == 'scout':
+                        result = await rt.scout(**args, expected_token=token, expected_revision=seen)
                     else:
                         raise ValueError('Unknown strategist tool')
                 except asyncio.CancelledError:

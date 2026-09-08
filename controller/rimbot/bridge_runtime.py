@@ -138,6 +138,39 @@ class BridgeRuntime:
             self.persist()
         return result
 
+    async def scout(self, question, sections, *, expected_token, expected_revision):
+        from .scout import investigate, SCOUT_READS
+        async def check():
+            await self.sync_identity()
+            if expected_token != self.context_token or expected_revision != self.chat_revision:
+                raise InterruptedError('Scout context changed; investigation discarded')
+        async with self.lock:
+            await check()
+            selected = projection(self, sections)
+        async def describe(name):
+            if name not in SCOUT_READS:
+                raise PermissionError('Scout cannot access this capability')
+            async with self.lock:
+                await check()
+                return await self.game.describe(name)
+        async def read(name, arguments):
+            if name not in SCOUT_READS or is_write(name, arguments):
+                raise PermissionError('Scout cannot write')
+            async with self.lock:
+                await check()
+                value = await self.game.invoke(name, arguments, allow_write=False)
+                await check()
+                return value
+        result, audit = await investigate(self.router, question, selected, describe, read, self.model_progress)
+        async with self.lock:
+            await check()
+            self.advice[result['id']] = result
+            self.advice = dict(list(self.advice.items())[-32:])
+            self.note('scout_evidence', 'Read-only investigation evidence', consultation_id=result['id'], observations=audit)
+            self.note('consultation', result['report']['answer'], consultation_id=result['id'], investigation=result['investigation'])
+            self.persist()
+        return result
+
     async def commit_strategy(self, decision, *, actor, expected_token, expected_revision):
         if actor != ModelRole.STRATEGIST:
             raise PermissionError('Only the strategist can commit a plan')

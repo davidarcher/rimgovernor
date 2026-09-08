@@ -48,6 +48,24 @@ next work. See INSTRUMENTS_REUSE_AUDIT.md for all 54 instrument decisions.
 
 ## Queued: context-saving reviewers
 
+The data scout is now implemented through the optional generic analyst. The
+strategist's `scout` tool starts an independent read-only investigation, validates
+native query schemas and evidence references, and retains raw evidence only in
+the diagnostic audit. Every read and report is guarded by load/direction revision.
+It has six native reads and a bounded evidence context; failed investigations do
+not become advice. Configure `analyst` to advertise it, including the same local
+model as strategist if desired. No extra model is loaded implicitly.
+
+Validation: 48 controller tests; real local Qwen 9B/native query smoke completed
+with unchanged paused game tick. That run took 9.7 seconds, eight model calls and
+six reads, returning roughly 2 KB of findings/source metadata instead of 15 KB of
+raw evidence. This demonstrates isolation and context reduction, not lower total
+inference cost. Query efficiency and a controlled blocked-construction fixture
+remain acceptance work. `scripts/native_scout_smoke.py` repeats the live check.
+
+Player-requested next slice: headless test launch and measured throughput, using
+HeadlessRim as research; retain native bridge semantics and normal interactive mode.
+
 After the current persistence/operational instruments work:
 
 1. **Visual second opinion** — a separate clean-context local VL request after a
