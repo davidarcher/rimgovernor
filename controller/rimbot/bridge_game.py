@@ -117,7 +117,7 @@ def for_model(payload, tool=None, catalog_offset=0):
     return result
 
 
-def inspection_result(payload, name, arguments, catalog_offset=0):
+def inspection_result(payload, name, arguments, catalog_offset=0, callable_name=None):
     """Keep controller pagination separate from the unmodified native contract."""
     from copy import deepcopy
     result = for_model(payload, tool=name, catalog_offset=catalog_offset)
@@ -126,4 +126,7 @@ def inspection_result(payload, name, arguments, catalog_offset=0):
         page['next_call'] = {'name':'inspect', 'arguments':{
             'name':name, 'arguments':deepcopy(arguments), 'catalog_offset':page['next_offset']}}
         page['instruction'] = 'Call next_call exactly. catalog_offset is beside arguments, not inside native arguments.'
+        if callable_name:
+            page['next_call']={'name':callable_name,'arguments':dict(deepcopy(arguments),catalog_offset=page['next_offset'])}
+            page['instruction']='Call next_call exactly to read the next page.'
     return result

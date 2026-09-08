@@ -177,6 +177,36 @@ async def test_prose_response_recovers_without_committing_or_sending_orders(tmp_
 
 
 @pytest.mark.asyncio
+async def test_discovered_native_tool_is_callable_in_the_same_review(tmp_path):
+    count=0
+    class Brain:
+        async def complete(self,messages,tools,*args):
+            nonlocal count
+            count+=1
+            if count==1:
+                name,payload='describe',{'name':'home/list_things'}
+            elif count==2:
+                assert json.loads(messages[-1]['content'])['callable_tool']=='native_home__list_things'
+                assert any(t['function']['name']=='native_home__list_things' for t in tools)
+                name,payload='native_home__list_things',{'category':'food'}
+            else:
+                assert json.loads(messages[-1]['content'])['things']==[]
+                name,payload='commit_plan',decision().model_dump()
+            return {'role':'assistant','tool_calls':[{'id':str(count),'type':'function',
+                'function':{'name':name,'arguments':json.dumps(payload)}}]},{}
+        async def close(self):pass
+    rt=runtime(tmp_path,model_factory=lambda _:Brain())
+    await rt.sync_identity();rt.batch=batch();rt.strategic_state.update(rt.batch)
+    rt.game.describe=AsyncMock(return_value={'type':'object','properties':{
+        'category':{'type':'string','enum':['food']}},'required':['category'],'additionalProperties':False})
+    rt.game.invoke=AsyncMock(return_value={'things':[]})
+    await rt.planner.play_bridge()
+    rt.game.invoke.assert_awaited_once_with('home/list_things',{'category':'food'},allow_write=False)
+    assert count==3 and rt.counters['actions']==0
+    await rt.router.close();rt.store.close()
+
+
+@pytest.mark.asyncio
 async def test_inspection_refuses_writes_even_in_automate(tmp_path):
     rt=runtime(tmp_path);rt.mode='automate';rt.game.invoke=AsyncMock()
     with pytest.raises(PermissionError):
