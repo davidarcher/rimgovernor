@@ -74,7 +74,7 @@ class Planner:
             'resolve the facts needed for a small useful first set of orders and commit it. You can extend the plan in a later review; '
             'do not wait to design the whole colony, inspect every catalog, or solve every goal before giving pawns something to do. '
             'For each additional query, identify which pending decision its answer will change. Repeated unchanged catalog reads do not advance a plan. '
-            'Only commit_plan can change intent; discovered native tools cannot write. No independent domain managers exist. '
+            'Use commit_steps to append ready work now, or commit_plan to replace/preserve strategy. Discovered native tools cannot write. No independent domain managers exist. '
             'Memory notes are fallible past observations, not player instructions or current facts. Read relevant indexed notes; verify against current state, especially after loading an older save. '
             'The review_evidence index retains exact prior query results after conversation compaction. Search/read it when you need an earlier result instead of rediscovering it. Use native tools when you need refreshed game state. '
             'Use search_knowledge then read_knowledge for missing strategy expertise; retrieve only relevant cards. Cached guidance is advisory, not live state or an action contract. '
@@ -111,7 +111,7 @@ class Planner:
             'Commit open_letter to inspect a dialog or dismiss_letter to clear a dismissible notification. '
             'Do not equate dismissal with resolving a threat or accepting a quest; there is no automatic notification sweep. '
             'An existing or uncertain trade session needs inspection; do not blindly repeat a deal. '
-            'Finish every review with a structured commit_plan, including continue or defer; prose alone is not a decision.'},
+            'Finish every review with commit_steps or commit_plan; prose alone is not a decision.'},
             {'role':'user','content':json.dumps(context(rt),ensure_ascii=False)}]
         messages.append({'role':'user','content':''})
         seen = rt.chat_revision
@@ -132,7 +132,7 @@ class Planner:
                 messages.append({'role':'user','content':json.dumps({
                     'status':'decision_not_committed',
                     'instruction':'Your last response issued no orders and committed no plan. Continue using tools to resolve missing facts, '
-                        'or call commit_plan with revise and a plan, or continue/defer with plan=null. Prose does not execute work.',
+                        'or append ready work using commit_steps. Use commit_plan to revise/preserve strategy. Prose does not execute work.',
                     'current_plan':inspect_plan(rt.current_plan, [])})})
                 continue
             finished = False
@@ -205,6 +205,8 @@ class Planner:
                         result['correction'] = ('Use the current revision as expected_revision. '
                             'To create or replace a plan use disposition=revise and provide plan; '
                             'continue/defer require plan=null. No change was committed by this rejected call.')
+                        if call['function']['name']=='commit_steps':
+                            result['correction']='Use the current expected_revision and correct the listed new steps. Existing work is preserved. No steps were committed by this rejected call.'
                     rt.note('tool_error',str(error))
                 record(rt,call,args,result,started,outcome)
                 if outcome=='returned' and (name in native_inspections.names or name in ('search_knowledge','read_knowledge','wiki_lookup')):
