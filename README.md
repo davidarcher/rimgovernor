@@ -119,3 +119,17 @@ protocols and decisions, not sustained colony survival. Native source provenance
 is in `integrations/colony-bridge/PROVENANCE.md`; upstream license notices retained
 under `third_party` also cover inherited dashboard material. No model API calls
 or game mutations run as part of the unit test suite.
+
+For a bounded **real model** test, launch a fresh colony with an empty plan and
+leave the controller in Manual, then run:
+
+```powershell
+.venv\Scripts\python.exe scripts\live_planner_probe.py --seconds 180
+```
+
+This enables automation and lets the model issue game orders. It records time to
+first order, completed steps, rejected calls, and final state in
+`.rimbot/live-planner-probe.json`, then returns the same controller/session to
+Manual. It does not reload a save or reset an existing plan. Start each comparison
+from the same fixture. An `orders_observed` result is progress, not proof of a
+completed starter base or colony survival.
