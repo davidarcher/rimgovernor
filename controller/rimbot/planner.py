@@ -11,6 +11,16 @@ from .wiki import wiki_lookup
 from .knowledge import search_knowledge, read_knowledge
 
 
+def inspect_plan(plan, ids):
+    selected = set(ids)
+    return {'revision': plan.revision,
+        'step_ids': [step.id for step in plan.spec.steps],
+        'steps': [dict(step=step.model_dump(),
+            progress=plan.progress[step.id].model_dump() if step.id in plan.progress else None)
+            for step in plan.spec.steps if step.id in selected],
+        'missing_ids': sorted(selected - {step.id for step in plan.spec.steps})}
+
+
 class Planner:
     def __init__(self, runtime):
         self.rt = runtime
@@ -24,7 +34,7 @@ class Planner:
         tools = [tool('commit_plan', 'Commit the strategic decision, or cheaply continue/defer the existing plan. Ends this review. No native action is executed by this tool.', Decision.model_json_schema()),
             tool('describe', 'Read a native tool contract; write contracts may be inspected for planning.', schema({'name':{'type':'string','enum':choices}},['name'])),
             tool('inspect', 'Read native state or perform an explicitly supported dry run. Real writes are forbidden here.', schema({'name':{'type':'string','enum':choices},'arguments':{'type':'object'}},['name','arguments'])),
-            tool('inspect_plan', 'Read selected committed step details without loading the whole plan.', schema({'ids':{'type':'array','items':{'type':'string'},'maxItems':8}},['ids']))]
+            tool('inspect_plan', 'Read the current revision and step IDs plus selected step details and progress. Use ids=[] for revision and index only.', schema({'ids':{'type':'array','items':{'type':'string'},'maxItems':8}},['ids']))]
         tools.extend([
             tool('search_knowledge', 'Find practical strategy guidance in the local library. Returns up to three card summaries, not live game facts.', schema({'query':{'type':'string','minLength':1,'maxLength':300}},['query'])),
             tool('read_knowledge', 'Read one strategy card and its dated wiki sources using an ID returned by search_knowledge.', schema({'id':{'type':'string','minLength':1,'maxLength':80}},['id']))])
@@ -123,7 +133,7 @@ class Planner:
                     elif name == 'inspect':
                         result = for_model(await rt.inspect_native(args['name'], args['arguments']))
                     elif name == 'inspect_plan':
-                        result = [s.model_dump() for s in rt.current_plan.spec.steps if s.id in args['ids']]
+                        result = inspect_plan(rt.current_plan, args['ids'])
                     elif name == 'wiki_lookup':
                         result = await wiki_lookup(**args)
                         await rt.ensure_context(token)
@@ -149,6 +159,11 @@ class Planner:
                 except Exception as error:
                     outcome='rejected'
                     result = {'status':'blocked','reason':str(error)}
+                    if call.get('function', {}).get('name') == 'commit_plan':
+                        result['current_plan'] = inspect_plan(rt.current_plan, [])
+                        result['correction'] = ('Use the current revision as expected_revision. '
+                            'To create or replace a plan use disposition=revise and provide plan; '
+                            'continue/defer require plan=null. No change was committed by this rejected call.')
                     rt.note('tool_error',str(error))
                 record(rt,call,args,result,started,outcome)
                 messages.append({'role':'tool','tool_call_id':call['id'],'content':json.dumps(result,ensure_ascii=False)})

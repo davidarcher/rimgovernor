@@ -176,8 +176,8 @@ class PlanSpec(Contract):
 
 
 class Decision(Contract):
-    expected_revision: int = Field(ge=0)
-    disposition: Literal['continue', 'revise', 'defer']
+    expected_revision: int = Field(ge=0, description='Current committed plan revision, not the next revision. Read inspect_plan if uncertain.')
+    disposition: Literal['continue', 'revise', 'defer'] = Field(description='revise creates or replaces a plan (including the first plan); continue/defer preserve it and require plan=null.')
     assessment: str = Field(min_length=1, max_length=1500)
     rationale: str = Field(min_length=1, max_length=1500)
     reply: str = Field(min_length=1, max_length=1800)
@@ -214,7 +214,7 @@ class ColonyPlan(Contract):
         if actor != ModelRole.STRATEGIST:
             raise PermissionError('Only the strategist can commit strategic intent')
         if decision.expected_revision != self.revision:
-            raise ValueError('Plan revision changed; inspect the current plan')
+            raise ValueError(f'Expected revision {decision.expected_revision}, but current plan revision is {self.revision}; reconsider against the current plan')
         if decision.disposition != 'revise':
             if decision.plan is not None:
                 raise ValueError('Continue/defer cannot replace the plan')
