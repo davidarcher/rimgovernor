@@ -44,3 +44,16 @@ async def test_notebook_delete_requires_local_header_and_versioned_body():
         response=await client.request('DELETE','/api/memories/camp',json=body,headers={'X-RimBot':'1'})
         assert response.json()=={'deleted':'camp'}
         rt.forget_memory.assert_awaited_once_with('camp','colony-load','a'*64)
+
+
+@pytest.mark.asyncio
+async def test_video_viewers_are_independent_and_expire():
+    rt=SimpleNamespace(video_viewers={'expired':0})
+    app=create_app(rt);app.state.rt=rt
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://testserver',headers={'X-RimBot':'1'}) as client:
+        for viewer in ['one','two']:
+            assert (await client.post('/api/video',json={'viewer':viewer,'playing':True})).status_code==200
+        assert set(rt.video_viewers)=={'one','two'}
+        await client.post('/api/video',json={'viewer':'one','playing':False})
+        assert set(rt.video_viewers)=={'two'}
+        assert (await client.post('/api/video',json={'viewer':'bad','playing':'yes'})).status_code==400

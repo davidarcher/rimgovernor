@@ -12,6 +12,9 @@ it('keeps project details off the main view and sends Enter without navigating',
  const input=screen.getByLabelText('Message the colony manager');fireEvent.change(input,{target:{value:'Protect the supplies'}});fireEvent.keyDown(input,{key:'Enter'});
  await waitFor(()=>expect(requests.some(r=>r.url==='/api/chat'&&JSON.parse(r.options.body).text==='Protect the supplies')).toBe(true));
  expect(location.hash).toBe('');
+ fireEvent.click(screen.getByRole('button',{name:'Pause video'}));
+ await waitFor(()=>expect(requests.some(r=>r.url==='/api/video'&&JSON.parse(r.options.body).playing===false)).toBe(true));
+ expect(screen.getByRole('button',{name:'Play video'})).toBeTruthy();
  location.hash='projects';fireEvent(window,new Event('hashchange'));
  await screen.findByText('Build a lasting settlement');
  expect(screen.queryByLabelText('Message the colony manager')).toBeNull();

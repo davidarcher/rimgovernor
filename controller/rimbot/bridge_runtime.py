@@ -51,6 +51,8 @@ class BridgeRuntime:
         self.mode, self.phase = 'manual', 'Connecting'
         self.connected = self.stopped = self.resume_after_review = False
         self.batch = self.game = self.bridge = self.review_task = None
+        self.video_viewers = {}
+        self.render_state = {}
         self.camera_path = None
         self.camera_version = 0
         self.clock = {}
@@ -155,6 +157,8 @@ class BridgeRuntime:
         async with self.lock:
             await check()
             # Fresh capture of the current view only: never move the player's camera.
+            await self.bridge.call('home/render_demand',seconds=15)
+            await asyncio.sleep(.3)
             capture=await self.bridge.call('rimworld/take_screenshot',fileName='rimbot-review-'+uuid.uuid4().hex,
                 includeTargets=False,suppressMessage=True)
             data=Path(capture.structuredContent['path']).read_bytes()
@@ -672,6 +676,11 @@ class BridgeRuntime:
                                 self.persist()
                                 last_reconcile = time.monotonic()
                             if not self.headless:
+                                watching = any(until > time.monotonic() for until in self.video_viewers.values())
+                                lease = await bridge.call('home/render_demand', seconds=8 if watching else 0)
+                                self.render_state = lease.structuredContent
+                            if not self.headless and watching:
+                                await asyncio.sleep(.15)
                                 image = await bridge.call('rimworld/take_screenshot', fileName='rimbot-live', includeTargets=False, suppressMessage=True)
                                 candidate = Path(image.structuredContent['path']).resolve()
                                 if candidate.is_relative_to(self.root) and candidate.is_file():
@@ -715,5 +724,5 @@ class BridgeRuntime:
                     failure=self.current_plan.progress[s.id].failure.model_dump() if self.current_plan.progress[s.id].failure else None)
                     for s in self.current_plan.spec.steps]}, 'modelRoles': self.router.metrics,
             'clockSupervisor': self.supervisor.state if self.supervisor else {},
-            'headless': self.headless, 'cameraVersion': self.camera_version, 'counters': self.counters,
+            'rendering': self.render_state, 'headless': self.headless, 'cameraVersion': self.camera_version, 'counters': self.counters,
             'observation': summary.model_dump() if summary else None}

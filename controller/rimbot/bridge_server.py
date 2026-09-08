@@ -2,6 +2,7 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 import os
+import time
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, Request
@@ -98,6 +99,23 @@ def create_app(runtime=None):
     @app.delete('/api/memories/{identity}')
     async def forget_memory(identity: str, body: ForgetMemory, request: Request):
         return await request.app.state.rt.forget_memory(identity, body.session_id, body.version)
+
+    @app.post('/api/video')
+    async def video(request: Request):
+        body = await request.json()
+        viewer = body.get('viewer')
+        if not isinstance(viewer, str) or not 1 <= len(viewer) <= 80 or not isinstance(body.get('playing'), bool):
+            raise ValueError('Provide viewer ID and playing flag')
+        rt = request.app.state.rt
+        now = time.monotonic()
+        rt.video_viewers = {key:until for key,until in rt.video_viewers.items() if until > now}
+        if body['playing']:
+            if viewer not in rt.video_viewers and len(rt.video_viewers) >= 32:
+                raise ValueError('Too many video viewers')
+            rt.video_viewers[viewer] = now + 8
+        else:
+            rt.video_viewers.pop(viewer, None)
+        return {'playing': body['playing']}
 
     @app.get('/api/camera')
     async def camera(request: Request):

@@ -57,7 +57,7 @@ async def test_fresh_capture_and_stale_discard(tmp_path,stale):
         result=await rt.visual_review('Check',expected_token='load',expected_revision=0)
         assert result['source']['tick']==4 and len(result['source']['image_sha256'])==64
         assert result['id'] in rt.advice
-    assert [c.args[0] for c in rt.bridge.call.call_args_list]==['rimworld/take_screenshot']
+    assert [c.args[0] for c in rt.bridge.call.call_args_list]==['home/render_demand','rimworld/take_screenshot']
     rt.store.close()
 
 
