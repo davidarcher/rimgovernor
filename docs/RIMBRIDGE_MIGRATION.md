@@ -300,3 +300,9 @@ Expanded the native strategy fixture to cover human and animal sleeping spots pl
 This is a scripted two-decision acceptance test, not live LLM planning or finished pawn construction. Test definitions/materials are fixture choices, not production policy. An initial attempt to use building_config for a loose item correctly failed: it only selects buildings. The native Architect Allow path succeeded. No production action behavior changed in this slice.
 
 Validation: scripts/native_strategy_smoke.py --headless passed; evidence in .rimbot/bridge/strategy-smoke.json. Colony construction by pawn labor remains the next acceptance gap.
+
+### Pawn-built construction acceptance (2026-09-08)
+
+The strategy smoke now supports --build: after its paused instant-versus-blueprint checks, it advances ordinary Superfast time (no ultra boost) for at most 120 seconds and observes the wall project. A finally block pauses the game. Success requires the exact cell to contain one built wall and the committed plan step to be complete. It then replays Hands and requires unchanged action/model-call counts. Failure evidence includes sampled jobs and final native building state.
+
+Two live headless runs passed with ordinary hauling/construction, without forced jobs, work-setting changes, resource spawning or instant completion. Existing fixture wood is allowed through the native designator. This closes single-wall pawn-labor acceptance, not a full starter base or model-selected construction. Strategist decisions remain scripted; no claim about LLM quality. Evidence is saved to .rimbot/bridge/strategy-construction-smoke.json. No production behavior changed in this slice.

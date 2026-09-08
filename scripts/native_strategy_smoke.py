@@ -9,7 +9,7 @@ from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.colony_plan import Decision, PlanSpec
 from rimbot.store import Store
 
-async def main(headless=False):
+async def main(headless=False, build=False):
     root=Path('.rimbot/bridge').resolve()
     answer=None
     class Brain:
@@ -83,8 +83,35 @@ async def main(headless=False):
             status=await rt.game.query('home/status')
             assert status['time']['paused'] and status['time']['ticksGame']==rt.batch.summary.end_tick
             evidence={'paused_tick':status['time']['ticksGame'],'strategist_calls':brain.calls,'native_actions':rt.counters['actions']-before,'progress':progress.model_dump(),'plan_revision':rt.current_plan.revision,'sleeping':sleeping.model_dump(),'animal_sleeping':animal.model_dump(),'wall':wall.model_dump(),'wall_native':matches,'forbidden_wall':blocked_wall,'allowed_stack':stack}
+            if build:
+                history=[]
+                start=asyncio.get_running_loop().time()
+                await rt.game.invoke('rimworld/set_time_speed',{'speed':'Superfast','ultraSpeedBoost':False},allow_write=True)
+                try:
+                    while asyncio.get_running_loop().time()-start < 120:
+                        await asyncio.sleep(2)
+                        await rt.projects.reconcile(rt.game,only_id=wall.project_id)
+                        rt.reconcile_plan()
+                        people=await rt.game.query('home/list_pawns')
+                        jobs=[{'name':p['name'],'job':p['job']} for p in people['pawns']]
+                        history.append({'elapsed':round(asyncio.get_running_loop().time()-start,1),'state':wall.state,'jobs':jobs})
+                        if len(history)%5==0:print('Construction:',history[-1],flush=True)
+                        if wall.state=='complete':break
+                finally:
+                    await rt.game.invoke('rimworld/set_time_speed',{'speed':'Paused','ultraSpeedBoost':False},allow_write=True)
+                evidence['construction_history']=history
+                final=await rt.game.query('home/list_buildings',match='Wall',x=pawn.position.x+9,z=pawn.position.z,radius=1,aggregate=False,playerOnly=True)
+                built=[b for b in final['buildings'] if b['position']=={'x':pawn.position.x+9,'z':pawn.position.z}]
+                evidence['finished_wall']=built
+                evidence['wall']=wall.model_dump()
+                evidence['finished_tick']=(await rt.game.query('home/status'))['time']['ticksGame']
+                (root/'strategy-construction-smoke.json').write_text(json.dumps(evidence,indent=2),encoding='utf8')
+                assert wall.state=='complete' and len(built)==1 and built[0]['status']=='built',(wall.model_dump(),history[-3:])
+                await rt.hands.advance(rt)
+                assert rt.counters['actions']==before+4 and brain.calls==2
+                print('PASS: pawn labor completed the wall; native built state and plan completion agree; no replay writes',flush=True)
             (root/'strategy-smoke.json').write_text(json.dumps(evidence,indent=2),encoding='utf8')
-            print('PASS: committed plan -> native zone and two instant spots complete; normal wall remains a blueprint; replay issued no duplicate and no model call',flush=True)
+            print('PASS: committed plan -> native zone and two instant spots complete; normal wall initially queues as a blueprint; replay issued no duplicate and no model call',flush=True)
         finally:
             await rt.game.invoke('home/zone_cells',{'op':'delete','zone':'Strategy pipeline probe','dryRun':False},allow_write=True)
             await rt.halt();await rt.router.close();store.close()
@@ -92,4 +119,6 @@ async def main(headless=False):
 if __name__=='__main__':
     import argparse
     parser=argparse.ArgumentParser();parser.add_argument('--headless',action='store_true')
-    asyncio.run(main(parser.parse_args().headless))
+    parser.add_argument('--build',action='store_true')
+    args=parser.parse_args()
+    asyncio.run(main(args.headless,args.build))
