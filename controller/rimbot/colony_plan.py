@@ -72,7 +72,7 @@ class NativeOperation(Contract):
     tool: Literal['home/pawn_config', 'home/building_config', 'home/bills', 'home/order',
         'home/zone_cells', 'home/trade', 'home/research', 'rimworld/apply_architect_designator',
         'rimworld/open_letter', 'rimworld/dismiss_letter', 'rimworld/click_screen_target',
-        'rimworld/click_ui_target', 'rimworld/scroll_ui_target',
+        'home/dialog_text', 'rimworld/click_ui_target', 'rimworld/scroll_ui_target',
         'rimworld/open_main_tab', 'rimworld/close_main_tab']
     arguments: dict
     # Honest fallback for native operations lacking a higher-level compiler.

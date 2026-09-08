@@ -11,7 +11,7 @@ READS = OBSERVATION_TOOLS | frozenset({
     'rimworld/get_ui_layout', 'rimworld/list_main_tabs',
 })
 WRITES = frozenset({'home/zone_cells', 'home/place_building', 'home/pawn_config',
-    'home/building_config', 'home/bills', 'home/order', 'home/trade', 'home/research',
+    'home/building_config', 'home/bills', 'home/order', 'home/trade', 'home/research', 'home/dialog_text',
     'rimworld/set_time_speed', 'rimworld/apply_architect_designator',
     'rimworld/open_letter', 'rimworld/dismiss_letter', 'rimworld/click_screen_target',
     'rimworld/click_ui_target', 'rimworld/scroll_ui_target',
@@ -79,6 +79,11 @@ class BridgeGame(ObservationGateway):
             write = payload.get('write') or {}
             if write.get('refused') is not False:
                 raise ValueError(write.get('reason') or 'Native research selection was not accepted')
+        if tool == 'home/dialog_text' and arguments.get('dryRun') is False:
+            if payload.get('applied') is not True or payload.get('error'):
+                raise ValueError(payload.get('error') or 'Dialog text was not applied')
+            if payload.get('set', {}).get('after') != arguments.get('text'):
+                raise ValueError('Dialog field readback does not match the requested text')
         return payload
 
 

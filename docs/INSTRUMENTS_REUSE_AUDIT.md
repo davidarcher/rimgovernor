@@ -22,8 +22,11 @@ its references, retaining source provenance beside copied code.
   click/scroll, and explicit main-tab open/close are connected. A real rendered
   options-dialog capture and OK click passed, preserving pause. Choice effects
   are not certified by successful button activation.
+- **Naming fields copied:** DialogTextTool is installed with exact window/field
+  targeting and reviewed naming inputs. Headless field-write/readback and invalid
+  target refusals passed; final rename effects across naming types remain untested.
 - **UI work remaining:** `letters.py` decision workflow and pause ownership;
-  `dialog.py`/DialogTextTool text fields; `mini_install.py`/`pick.py` exact packed
+  `mini_install.py`/`pick.py` exact packed
   item installation. The reviewed `ui.find()` returns a first match and
   DialogTextTool also uses first partial field matches; do not copy those
   ambiguity behaviors. No blanket dialog dismissal or automatic stale-letter

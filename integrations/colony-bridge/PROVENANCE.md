@@ -130,3 +130,19 @@ accepted only the former and rejected valid observed pawn IDs. The same resolver
 serves master selection. Native name ambiguity handling is unchanged. A real
 local-model commitment changed selfTend using the observed load ID, with paused
 native readback confirming the result.
+
+## Naming-dialog reuse
+
+Copied `DialogTextTool.cs` from pinned companion revision
+`89c2e90fedd51419a3db55a7f9865b0aef29b270`. Local changes require the observed
+window ID and an exact field name; removed partial/default field selection.
+Writes are limited to reviewed naming inputs (`curName`, `curSecondName`, and
+editable Dialog_NamePawn name-context rows), while other dialogs are read-only.
+All validation and writing remain in the upstream single main-thread dispatch.
+Listings add `windowId` and `writable`; the latter identifies a supported naming
+dialog, not a guarantee that every reflected string field is an input.
+
+Live headless acceptance: opened a disposable Dialog_NamePlayerFaction, rejected
+wrong window ID and partial field, changed `curName`, and verified a fresh field
+listing while paused. Final rename acceptance and other naming dialog types are
+not covered by that fixture. No game-setting or simulation patches were added.
