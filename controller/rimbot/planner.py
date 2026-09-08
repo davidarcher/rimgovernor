@@ -86,6 +86,9 @@ class Planner:
             'Use describe to enable a native tool, then call its returned callable_tool directly with its advertised arguments. There is no generic inspect tool. Preserve walkways and existing zones. '
             'Discover construction through rimworld/list_architect_categories, then rimworld/list_architect_designators with an observed categoryId. '
             'Use returned buildableDefName and stuffDefName rather than inventing building names from labels. '
+            'Allow/forbid, haul, mine and deconstruct are Architect Orders designators: discover the Orders category and its designators, '
+            'then commit rimworld/apply_architect_designator with the observed designatorId and supported cell/rectangle parameters. '
+            'home/building_config is not a bulk supply-access tool. '
             'Registry visibility is not proof a particular pawn or site can build it: preview home/place_building with dryRun=true. '
             'Use describe to read a native argument contract before guessing its parameters. '
             'Dependencies may wait for orders issued or completed pawn construction. Buildings complete only from native observations. '
@@ -115,6 +118,13 @@ class Planner:
             'An existing or uncertain trade session needs inspection; do not blindly repeat a deal. '
             'Finish every review with commit_steps or commit_plan; prose alone is not a decision.'},
             {'role':'user','content':json.dumps(context(rt),ensure_ascii=False)}]
+        if not rt.current_plan.spec.steps:
+            card=read_knowledge('first-days')['card']
+            initial=json.loads(messages[1]['content'])
+            initial['startup_guidance']={'source':'local_strategy_library','id':card['id'],
+                'advice':card['approach'][0],
+                'note':'Advisory checklist, not observed needs. Read the card for more detail; adapt to the actual colony.'}
+            messages[1]['content']=json.dumps(initial,ensure_ascii=False)
         messages.append({'role':'user','content':''})
         seen = rt.chat_revision
         for _ in range(100):
