@@ -5,6 +5,14 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
+def _require_owned_launch(game):
+    if game.get('launchMode') != 'DirectPath':
+        raise ValueError('Disposable profiles require DirectPath PID-owned launches')
+    # Let GABS use its recorded process identity; never fall back to all games
+    # with the same executable name when that identity is unavailable.
+    game.pop('stopProcessName', None)
+
+
 def isolated_root(source, destination):
     """Create a fresh worker root; never share GABS claims or writable saves."""
     source, destination=Path(source).resolve(),Path(destination).resolve()
@@ -12,10 +20,7 @@ def isolated_root(source, destination):
         raise ValueError('Worker root already exists; use a fresh directory')
     config=json.loads((source/'config/config.json').read_text(encoding='utf8'))
     game=config['games']['rimbot-trial']
-    if game['launchMode']!='DirectPath':
-        raise ValueError('Parallel workers require DirectPath PID-owned launches')
-    # Without a pinned PID, refuse cleanup rather than scan all RimWorld games.
-    game.pop('stopProcessName',None)
+    _require_owned_launch(game)
     (destination/'config').mkdir(parents=True)
     (destination/'config/config.json').write_text(json.dumps(config,indent=2),encoding='utf8')
     for relative in ('profile/Config/Prefs.xml','profile/Config/ModsConfig.xml',
@@ -30,6 +35,7 @@ def prepare(root):
     root=Path(root).resolve()
     config=json.loads((root/'config/config.json').read_text(encoding='utf8'))
     game=config['games']['rimbot-trial']
+    _require_owned_launch(game)
     installed=Path(game['workingDir'])/'Mods/RimBotHeadless/Assemblies/HeadlessRimPatch.dll'
     if not installed.is_file():
         raise ValueError('Build/install the headless test mod with scripts/build_headless.ps1 -Install first')

@@ -11,8 +11,10 @@ def features(batch):
     s, native = batch.summary, batch.native
     buildings = native.get('buildings', {})
     nets = buildings.get('powerNets')
+    if (buildings.get('powerSummary') or {}).get('readable') is False:
+        nets = None
     power = None if nets is None else [{'net_w': n.get('netW'), 'stored_wd': n.get('storedWd'),
-        'days_at_current_deficit': n['storedWd']/-n['netW'] if n.get('netW', 0)<0 and n.get('storedWd') is not None else None,
+        'days_at_current_deficit': n['storedWd']/-n['netW'] if n.get('netW') is not None and n['netW']<0 and n.get('storedWd') is not None else None,
         'flags': n.get('flags', [])} for n in nets]
     return {'tick': s.end_tick, 'people': {'count': len(s.pawns),
         'downed': [p.thing_id for p in s.pawns if p.downed], 'dead': [p.thing_id for p in s.pawns if p.dead],
@@ -71,10 +73,16 @@ class StrategicState:
         if shortage_defs != self.latches.get('material_shortages', []):
             self.signal('resource.shortage_changed', shortage_defs)
         self.latches['material_shortages'] = shortage_defs
-        low_power = any(n['days_at_current_deficit'] is not None and n['days_at_current_deficit'] < .25 for n in value['power'] or [])
-        if low_power != self.latches.get('low_power', False):
-            self.signal('power.reserve_low' if low_power else 'power.reserve_recovered', value['power'])
-        self.latches['low_power'] = low_power
+        power = value['power']
+        low_power = any(n['days_at_current_deficit'] is not None and n['days_at_current_deficit'] < .25 for n in power or [])
+        # One observed low reserve proves risk; recovery needs every net to be
+        # readable and either non-depleting or backed by an observed reserve.
+        power_known = power is not None and all(n['net_w'] is not None and
+            (n['net_w'] >= 0 or n['days_at_current_deficit'] is not None) for n in power)
+        if low_power or power_known:
+            if low_power != self.latches.get('low_power', False):
+                self.signal('power.reserve_low' if low_power else 'power.reserve_recovered', power)
+            self.latches['low_power'] = low_power
         # Explicit enter/exit thresholds prevent mood and hunger boundary chatter.
         for field, low, recovered in (('mood', .25, .35), ('food_need', .2, .4)):
             for pawn, amount in value['people'][field].items():

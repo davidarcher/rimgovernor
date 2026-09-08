@@ -1,8 +1,21 @@
 import pytest
-from rimbot.dialog_control import dismissal_target, verify_window_dismissal
+from rimbot.dialog_control import (dismissal_target, verify_window_dismissal,
+                                   require_clear_windows, verify_letter_window)
 from rimbot.bridge_game import READS, is_write
 
 WINDOW = {'id': 7, 'type': 'Dialog', 'dismissTargetId': 'exact'}
+
+
+def test_letter_open_requires_clear_fresh_ui_and_an_identified_window_after():
+    require_clear_windows({'success': True, 'windows': []})
+    verify_letter_window({'success': True, 'windows': [WINDOW]})
+    for state in ({}, {'success': False, 'windows': []},
+                  {'success': True, 'windows': [WINDOW]}, {'success': True, 'windows': None}):
+        with pytest.raises(ValueError):require_clear_windows(state)
+    for state in ({}, {'success': False, 'windows': [WINDOW]},
+                  {'success': True, 'windows': []}, {'success': True, 'windows': [{}]},
+                  {'success': True, 'windows': [{'id': True, 'type': 'Dialog'}]}):
+        with pytest.raises(ValueError):verify_letter_window(state)
 
 
 def test_only_current_native_dismiss_target_is_accepted():

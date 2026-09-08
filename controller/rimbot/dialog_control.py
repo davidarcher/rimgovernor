@@ -1,6 +1,22 @@
 """Exact native window dismissal with fresh state verification."""
 
 
+def require_clear_windows(snapshot):
+    """Do not open a letter over an existing window of unknown ownership."""
+    if snapshot.get('success') is not True or not isinstance(snapshot.get('windows'), list):
+        raise ValueError('Current windows are unavailable; inspect UI before opening a letter')
+    if snapshot['windows']:
+        raise ValueError('A window is already open; inspect and resolve it before opening a letter')
+
+
+def verify_letter_window(snapshot):
+    windows = snapshot.get('windows')
+    if (snapshot.get('success') is not True or not isinstance(windows, list) or not windows
+            or any(not isinstance(w, dict) or type(w.get('id')) is not int
+                   or not isinstance(w.get('type'), str) or not w['type'] for w in windows)):
+        raise ValueError('Letter window opening is unverified; inspect before issuing another UI action')
+
+
 def dismissal_target(target_id, snapshot):
     windows = snapshot.get('targets', {}).get('windows')
     if snapshot.get('success') is not True or not isinstance(windows, list):

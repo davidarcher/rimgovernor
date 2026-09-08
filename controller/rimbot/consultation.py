@@ -60,6 +60,8 @@ class Consultations:
             raise ValueError('Ask one concise, specific question')
         if image and role != ModelRole.ARCHITECT:
             raise ValueError('Only the optional architect accepts image context')
+        if image and not projection.get('image_source'):
+            raise ValueError('Image context requires native capture provenance')
         instructions = ('Answer the narrow question from the supplied evidence. You are an adviser, not a manager. '
             'No orders or commitments are possible. Identify missing facts rather than inventing game rules. '
             'Return report once, with concise findings and cited observation IDs. No chain-of-thought. '
@@ -80,4 +82,5 @@ class Consultations:
         if report.design is not None and role != ModelRole.ARCHITECT:
             raise ValueError('Spatial design is reserved for the architect capability')
         return {'id': uuid.uuid4().hex[:12], 'role': role.value, 'question': question,
-            'load_token': projection['load_token'], 'tick': projection['tick'], 'report':report.model_dump(), 'used':False}
+            'load_token': projection['load_token'], 'tick': projection['tick'], 'report':report.model_dump(), 'used':False,
+            **({'image_source':projection['image_source'], 'requires_native_verification':True} if image else {})}

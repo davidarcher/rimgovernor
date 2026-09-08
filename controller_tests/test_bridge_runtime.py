@@ -12,7 +12,7 @@ async def test_direction_during_dialog_pause_prevents_open(tmp_path):
     rt = BridgeRuntime(store, tmp_path, model_factory=lambda _: SimpleNamespace())
     rt.mode = 'automate'
     rt.sync_identity = AsyncMock()
-    rt.game = SimpleNamespace(invoke=AsyncMock())
+    rt.game = SimpleNamespace(invoke=AsyncMock(return_value={'success': True, 'windows': []}))
     rt.supervisor = SimpleNamespace(pause_for_dialog=AsyncMock(side_effect=lambda: None))
     async def pause():
         await rt.steer('Stop opening dialogs')
@@ -20,7 +20,7 @@ async def test_direction_during_dialog_pause_prevents_open(tmp_path):
     try:
         with pytest.raises(ValueError, match='New player direction'):
             await rt.native('rimworld/open_letter', {'letterId': 'Letter1'}, expected_revision=0)
-        rt.game.invoke.assert_not_awaited()
+        rt.game.invoke.assert_awaited_once_with('rimworld/get_ui_state', {})
     finally:
         store.close()
 

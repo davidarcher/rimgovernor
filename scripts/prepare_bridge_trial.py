@@ -60,7 +60,7 @@ def prepare(source: Path, game: Path, root: Path, observations: bool = False):
     ET.ElementTree(tree).write(profile / "Saves" / save.name, encoding="utf8", xml_declaration=True)
     config = {"version": "1.0", "games": {"rimbot-trial": {
         "id": "rimbot-trial", "name": "RimBot bridge trial", "launchMode": "DirectPath",
-        "target": str(executable), "workingDir": str(game), "stopProcessName": "RimWorldWin64.exe",
+        "target": str(executable), "workingDir": str(game),
         "args": ["-savedatafolder=" + str(profile), "-logFile", str(root / "Player.log")]}}}
     (root / "config/config.json").write_text(json.dumps(config, indent=2), encoding="utf8")
     (root / "fixture.json").write_text(json.dumps({"source_sha256": BASELINE_SHA256,

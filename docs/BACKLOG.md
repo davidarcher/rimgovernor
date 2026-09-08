@@ -17,24 +17,27 @@ in the checkpoint commit; do not append an implementation diary here.
   of settings/orders; retain failed model calls.
 - [ ] **B02 · Modal and quest outcomes.** Exact UI controls, naming fields,
   letter inspection and owned-pause opening/closing exist. Test actual quest
-  choice effects and final rename effects across supported naming types. Define
-  safe recovery from already-open external modals; never auto-resume external
-  holds or dismiss all dialogs. Require fresh window and game-effect readbacks.
+  choice effects and final rename effects across supported naming types. Letter
+  opening refuses existing/unknown windows and requires fresh identified-window
+  readback. Accept recovery and UI races in game; never auto-resume external holds
+  or dismiss all dialogs. Require fresh window and game-effect readbacks.
 - [ ] **B03 · GABS runtime-file reliability.** Reproduce the Windows runtime-state
-  rename/read failure and fix or isolate its cause. Existing observation recovery
-  retains construction receipts; verify recovery without duplicate orders or
-  permanent project failure under repeated transient faults.
+  rename/read failure and fix or isolate its external cause. Approved-read and
+  explicit-preview retries have bounded fault-injection coverage; verify live
+  recovery without duplicate orders or permanent project failure, including faults
+  exceeding the retry budget. Observation recovery retains construction receipts.
 - [ ] **B04 · Repeatable starter foothold.** Obtain three consecutive fixed-build,
   fixed-model baseline passes: eight living colonists, eight nearby completed
   sleeping places, a nearby stockpile of at least nine cells and allowed starting
   pemmican. Then verify usable enclosed/roofed shelter, storage filters/access and
   feasible food work over at least two game days without player repairs. Follow
   with scarce-wood, low-fertility and ruin variants; no fixed production layout.
-- [ ] **B05 · Outcome and campaign metrics.** Extend reports to distinguish intent,
-  attempted cells, accepted effects, completed objects and usable capacity. Include
-  first useful order/pawn progress, latency, repeated/rejected calls, context use,
-  excess construction, interventions and compact replay evidence. Add overshoot,
-  removed-work and interrupted-project cases. Freeze thresholds before each run.
+- [ ] **B05 · Outcome and campaign metrics.** Native-readback campaign reports
+  separate retained intent, attempted slots, accepted effects and current completed
+  objects, with frozen thresholds, sleeping-place overshoot/removals and interrupted
+  runs. Accept these against controlled gameplay. Extend functional usable-capacity
+  checks, first useful order/pawn progress, latency, repeated/rejected calls, context
+  use, excess construction, interventions and compact replay evidence.
 
 Acceptance baseline: the documented 20-run adaptive eight-tribal campaign reached
 zero combined footholds, with five stockpiles and one small completed shell as
@@ -58,7 +61,9 @@ evidence is under `.rimbot/headless-campaign-20260908/`; it is not bundled in Gi
 - [ ] **B08 · Native forecasts.** Audit available inputs, then add nutrition,
   diet/access/inventory-aware consumption, spoilage, harvest uncertainty, animal
   feed and labor demand. Extend medical/power/mood risk projections only from
-  observed inputs. Preserve unavailable values; avoid fixed food-stat tables.
+  observed inputs. Power risk persists across unavailable observations; verify
+  native aggregate readability and live reserve recovery. Preserve unavailable
+  values; avoid fixed food-stat tables.
 - [ ] **B09 · Combat and rescue acceptance.** Controlled movement, equip, observed
   melee/ranged hits, tending and owned-draft cleanup have passed scripted tests.
   Rescue delivery tracking exists but actual carry-to-bed has not passed a live
@@ -75,14 +80,17 @@ evidence is under `.rimbot/headless-campaign-20260908/`; it is not bundled in Gi
   history/revision guards with acknowledged durable inbox/outbox semantics.
   Verify crash/reconnect delivery without dropped or duplicated player/game events.
   Audit PID plus process birth time against PID reuse; test lease expiry and
-  lost-worker cleanup. Reuse semantics inside the existing runtime.
+  lost-worker cleanup. Generated disposable profiles require DirectPath launches
+  without process-name cleanup fallback; regenerate existing profiles to adopt this
+  protection. Reuse semantics inside the existing runtime.
 
 ## P2 — Coverage, inspection and evaluation scale
 
 - [ ] **B12 · Compact inspectors.** Finish selective building/bill/zone/alert and
   pawn reports: ingredient blockers, rotation/vent sides, power topology, work,
   schedule, social/health and storage anomalies. Native reads and basic People UI
-  exist. Preserve native IDs, nulls, visibility, filters and omitted counts;
+  exist. Model reports preserve native scope notes. Preserve native IDs, nulls,
+  visibility, filters and omitted counts;
   never infer culprits from prose or absence of danger from a missing alert.
 - [ ] **B13 · Remaining player actions.** Audit supported native contextual orders,
   gizmos, dropdowns, reverse designators and queued jobs before adding fallbacks.
@@ -92,7 +100,8 @@ evidence is under `.rimbot/headless-campaign-20260908/`; it is not bundled in Gi
   Require normal native eligibility and observed effects. Packed-furniture install
   already has exact-identity, rotated pawn-work acceptance.
 - [ ] **B14 · Visual review quality.** Optional visual review and data scouts exist.
-  Add near/wide framing, player camera ownership and source-image concern overlays.
+  Image consultations use fresh captures with source identity and context guards.
+  Add near/wide framing, verify player camera ownership and add source-image concern overlays.
   Validate good/bad layouts including missing doors; measure whether advice and
   evidence recall improve decisions. Avoid fixed reviewer timers and extra writers.
 - [ ] **B15 · World progression.** World/research reads and research selection

@@ -65,6 +65,9 @@ cancel steps or recursively delegate. Only the strategist is configured by
 default; analyst/scout, architect/VL and critic are opt-in local roles. Advice,
 wiki content and saved notes are not current game facts. Vision concerns require
 native verification. Headless mode has no screenshot advisers.
+Image consultations and visual reviews capture the current player view with a
+source hash and post-capture tick, and discard changed contexts. The tick is not
+an atomic screenshot timestamp; cached viewer images are not consultation evidence.
 
 Context budgeting retains complete tool-call groups and reserves output capacity.
 Large inspections require narrower queries or explicit pagination. A bounded
@@ -91,6 +94,11 @@ retain issued work until fresh evidence arrives. Ambiguous non-idempotent writes
 block for inspection instead of automatic replay; only explicitly retryable
 failures can be retried through the plan.
 
+The observed GABS runtime-state publication fault permits two bounded retries for
+approved reads and explicit previews. Mutations and mixed-operation defaults do
+not use these retries. Model inspection reports retain native scope notes, and
+unavailable power observations cannot clear an established reserve-risk signal.
+
 ## Player control and persistence
 
 Startup/reload enters Manual. Saved colony ID plus map scopes durable plans,
@@ -105,6 +113,8 @@ injury, lease expiry and external pause/speed changes interrupt work. External
 holds require explicit player release. Opening an AI-owned letter pauses its
 lease before reading the actual UI; closing a window does not automatically
 resume time. `notifications.py` and `dialog_control.py` retain exact native targets.
+Letter opening requires a fresh empty window list beforehand and identified windows
+afterward; existing or unavailable windows require inspection and resolution.
 
 Draft ownership is written before orders and scoped to the load. Manual, review
 failure and shutdown attempt pause and verified cleanup; unresolved cleanup

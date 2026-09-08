@@ -9,7 +9,7 @@ import time
 
 from jsonschema import Draft202012Validator
 
-from .bridge import BridgeClient
+from .bridge import BridgeClient, runtime_file_read
 from .bridge_models import BridgeObservation
 
 OBSERVATION_TOOLS = frozenset({
@@ -31,14 +31,14 @@ class ObservationGateway:
         if tool not in OBSERVATION_TOOLS:
             raise ValueError(f'Not an approved observation tool: {tool}')
         if tool not in self.schemas:
-            detail = await self.bridge.detail(tool)
+            detail = await runtime_file_read(self.bridge.detail, tool)
             schema = detail.structuredContent['inputSchema']
             Draft202012Validator.check_schema(schema)
             # The SDK historically ignored unknown keys. Enforce the discovered
             # vocabulary here even if an upstream schema allows extra properties.
             self.schemas[tool] = dict(schema, additionalProperties=False)
         Draft202012Validator(self.schemas[tool]).validate(arguments)
-        result = await self.bridge.call(tool, **arguments)
+        result = await runtime_file_read(self.bridge.call, tool, **arguments)
         payload = result.structuredContent
         if not isinstance(payload, dict):
             raise ValueError(f'{tool} did not return structured native state')

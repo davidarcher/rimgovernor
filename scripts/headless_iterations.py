@@ -9,6 +9,7 @@ from pathlib import Path
 from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.config import Settings
 from rimbot.store import Store
+from rimbot.campaign_metrics import CampaignEvidence
 
 
 class FastTrial(BridgeRuntime):
@@ -16,25 +17,6 @@ class FastTrial(BridgeRuntime):
         await super().review()
         if self.mode=='automate' and self.supervisor and not self.supervisor.hold:
             await self.supervisor.change('Superfast')
-
-
-def foothold(rt, anchor):
-    sleeping=set(); stockpile=False
-    near=lambda x,z: max(abs(x-anchor[0]),abs(z-anchor[1]))<=30
-    for step in rt.current_plan.spec.steps:
-        if rt.current_plan.progress[step.id].state!='complete':continue
-        action=step.action
-        if action.kind=='place_buildings':
-            sleeping.update((p.x,p.z) for p in action.placements
-                if p.def_name in ('Bed','SleepingSpot') and near(p.x,p.z))
-        if action.kind=='create_zone' and action.zone_type=='stockpile':
-            cells={c for patch in action.patches for c in patch.cells()}
-            stockpile |= len(cells)>=9 and all(near(x,z) for x,z in cells)
-    pawns=rt.batch.summary.pawns
-    food=any(s.def_name=='Pemmican' and s.owned_unforbidden_units>0 for s in rt.batch.summary.supplies)
-    return {'nearby_sleeping_capacity':len(sleeping),'stockpile':stockpile,'starting_food_allowed':food,
-        'living_colonists':sum(not p.dead for p in pawns),
-        'usable':len(sleeping)>=8 and stockpile and food and len(pawns)==8 and not any(p.dead for p in pawns)}
 
 
 async def worker(args):
@@ -48,6 +30,9 @@ async def worker(args):
     rt=FastTrial(store,root,fresh=True,headless=True,settings=Settings(model=args.model))
     report={'iteration':args.worker,'model':args.model,'headless':True,'speed':'Superfast after review',
             'revision':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()}
+    evidence=CampaignEvidence()
+    report['metrics']=evidence.report()
+    (folder/'thresholds.json').write_text(json.dumps(report['metrics']['thresholds'],indent=2),encoding='utf-8')
     start=time.monotonic()
     try:
         await rt.start()
@@ -58,11 +43,20 @@ async def worker(args):
         anchor=(sum(p.position.x for p in rt.batch.summary.pawns)/8,
                 sum(p.position.z for p in rt.batch.summary.pawns)/8)
         await rt.set_mode('automate')
-        began=time.monotonic();deadline=began+args.seconds;extended=False;last=0;acknowledged=False
+        began=time.monotonic();deadline=began+args.seconds;extended=False;last=0;acknowledged=False;last_sample=-15
         while time.monotonic()<deadline:
             await asyncio.sleep(2)
             elapsed=round(time.monotonic()-began,1)
-            report.update(counters=rt.counters.copy(),elapsed_seconds=elapsed,foothold=foothold(rt,anchor))
+            report.update(counters=rt.counters.copy(),elapsed_seconds=elapsed)
+            if elapsed-last_sample>=15:
+                last_sample=elapsed
+                try:
+                    buildings=await rt.game.query('home/list_buildings', aggregate=False, playerOnly=True)
+                    zones=await rt.game.query('home/list_zones', includeCells=True, maxCellsPerZone=10000)
+                    report['foothold']=evidence.sample(rt.current_plan,rt.batch.summary,anchor,buildings,zones,elapsed)
+                except Exception as error:
+                    report['foothold']={'usable':False,'observation_error':str(error)}
+                    report.setdefault('outcome_observation_errors',[]).append({'elapsed_seconds':elapsed,'error':str(error)})
             if rt.counters['actions'] and not extended:
                 deadline=max(deadline,time.monotonic()+120);extended=True
             if elapsed-last>=15:
@@ -78,7 +72,7 @@ async def worker(args):
                     continue
             if rt.mode!='automate' or not rt.connected:
                 report['stopped_reason']=rt.phase;break
-        report['outcome']='usable_foothold' if report['foothold']['usable'] else 'not_usable'
+        report['outcome']='usable_foothold' if report.get('foothold',{}).get('usable') else 'not_usable'
         report['plan']=rt.current_plan.model_dump()
         report['observation']=rt.batch.summary.model_dump()
     except Exception as error:
@@ -87,6 +81,8 @@ async def worker(args):
         if rt.task:
             try:await asyncio.wait_for(rt.stop(),45)
             except Exception as error:report['cleanup_error']=str(error)
+        report['metrics']=evidence.report()
+        report['interrupted']=bool(report.get('stopped_reason') or report.get('error'))
         report['events']=store.history(rt.colony,limit=10000,include_diagnostics=True)
         store.close()
         (folder/'result.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
@@ -114,7 +110,7 @@ if __name__=='__main__':
             subprocess.run([sys.executable,__file__,'--worker',str(number),'--seconds',str(args.seconds),
                 '--model',args.model,'--output',str(args.output)]+(['--isolated'] if args.parallel>1 else []),check=True)
             result=json.loads((args.output/f'iteration-{number:02}'/'result.json').read_text())
-            return {k:result.get(k) for k in ('iteration','outcome','revision','counters','foothold','error')}
+            return {k:result.get(k) for k in ('iteration','outcome','revision','counters','foothold','interrupted','error')}
         # Small batches leave room for fixes between batches. A successful worker
         # prevents another batch; already-running siblings finish and retain evidence.
         from concurrent.futures import ThreadPoolExecutor, as_completed

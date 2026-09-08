@@ -5,6 +5,8 @@ retains native content, error flags and operation receipts for reconciliation.
 This transport is not exposed to the model until capability policy is applied.
 """
 from contextlib import asynccontextmanager
+import asyncio
+import logging
 from datetime import timedelta
 from pathlib import Path
 
@@ -20,6 +22,28 @@ class BridgeError(RuntimeError):
         super().__init__(f"Bridge tool failed: {tool}: {str(detail)[:1200]}")
         self.tool = tool
         self.result = result
+        self.detail = str(detail)
+
+
+async def runtime_file_read(operation, *args, **kwargs):
+    """Retry only read operations after the observed GABS Windows publish fault.
+
+    Callers must establish read-only policy before entering this helper. A lost
+    mutation receipt is ambiguous even when its error mentions a runtime file.
+    """
+    for attempt in range(3):
+        try:
+            return await operation(*args, **kwargs)
+        except BridgeError as error:
+            detail = error.detail.casefold()
+            transient = all(part in detail for part in (
+                'failed to claim runtime ownership', 'failed to publish runtime state: rename ',
+                'runtime.json', 'access is denied'))
+            if not transient or attempt == 2:
+                raise
+            logging.getLogger(__name__).warning(
+                'Retrying read after GABS runtime publication failure (%s/2): %s', attempt + 1, error)
+            await asyncio.sleep(0.05 * (attempt + 1))
 
 
 class BridgeClient:

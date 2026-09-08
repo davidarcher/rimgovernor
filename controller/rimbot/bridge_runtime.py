@@ -137,7 +137,6 @@ class BridgeRuntime:
 
     async def consult(self, role, question, sections, include_image=False, *, expected_token=None, expected_revision=None):
         from .config import ModelRole
-        import base64
         async with self.lock:
             await self.sync_identity()
             if expected_token != self.context_token or expected_revision != self.chat_revision:
@@ -145,9 +144,13 @@ class BridgeRuntime:
             selected = projection(self, sections)
             image = None
             if include_image:
-                if ModelRole(role) != ModelRole.ARCHITECT or not self.camera_path:
-                    raise ValueError('A current architect image is not available')
-                image = 'data:image/png;base64,'+base64.b64encode(self.camera_path.read_bytes()).decode()
+                if ModelRole(role) != ModelRole.ARCHITECT:
+                    raise ValueError('Only the architect accepts image context')
+                image, source = await self._capture_visual_source()
+                await self.sync_identity()
+                if expected_token != self.context_token or expected_revision != self.chat_revision:
+                    raise ValueError('Consultation context changed during capture')
+                selected['image_source'] = source
         result = await self.consultations.ask(role, question, selected, self.model_progress, image)
         async with self.lock:
             await self.sync_identity()
@@ -159,9 +162,27 @@ class BridgeRuntime:
             self.persist()
         return result
 
-    async def visual_review(self, question, *, expected_token, expected_revision):
+    async def _capture_visual_source(self):
+        """Capture under the runtime lock; callers recheck context after native awaits."""
         import base64
         import hashlib
+        if self.headless:
+            raise ValueError('Visual review needs rendered mode; no image exists in headless mode')
+        # Capture the player's current view without moving their camera.
+        await self.bridge.call('home/render_demand', seconds=15)
+        await asyncio.sleep(.3)
+        capture = await self.bridge.call('rimworld/take_screenshot',
+            fileName='rimbot-review-'+uuid.uuid4().hex, includeTargets=False, suppressMessage=True)
+        data = Path(capture.structuredContent['path']).read_bytes()
+        if not data.startswith(b'\x89PNG\r\n\x1a\n') or len(data) > 12*1024*1024:
+            raise ValueError('Expected a bounded native PNG screenshot')
+        status = await self.game.query('home/status', colonists=False, threats=False)
+        source = {'load_token':self.context_token, 'tick':status['time']['ticksGame'],
+            'image_sha256':hashlib.sha256(data).hexdigest(), 'view':'current player camera',
+            'captured_at':time.time(), 'tick_note':'Read after screenshot; not an atomic state snapshot'}
+        return 'data:image/png;base64,'+base64.b64encode(data).decode(), source
+
+    async def visual_review(self, question, *, expected_token, expected_revision):
         from .visual_review import review
         if self.headless:
             raise ValueError('Visual review needs rendered mode; no image exists in headless mode')
@@ -173,20 +194,9 @@ class BridgeRuntime:
                 raise ValueError('Visual review context changed; report discarded')
         async with self.lock:
             await check()
-            # Fresh capture of the current view only: never move the player's camera.
-            await self.bridge.call('home/render_demand',seconds=15)
-            await asyncio.sleep(.3)
-            capture=await self.bridge.call('rimworld/take_screenshot',fileName='rimbot-review-'+uuid.uuid4().hex,
-                includeTargets=False,suppressMessage=True)
-            data=Path(capture.structuredContent['path']).read_bytes()
-            if not data.startswith(b'\x89PNG\r\n\x1a\n') or len(data)>12*1024*1024:
-                raise ValueError('Expected a bounded native PNG screenshot')
-            status=await self.game.query('home/status',colonists=False,threats=False)
+            image, source = await self._capture_visual_source()
             await check()
-            source={'load_token':self.context_token,'tick':status['time']['ticksGame'],
-                'image_sha256':hashlib.sha256(data).hexdigest(),'view':'current player camera',
-                'captured_at':time.time(),'tick_note':'Read after screenshot; not an atomic state snapshot'}
-        result=await review(self.router,question,'data:image/png;base64,'+base64.b64encode(data).decode(),source,self.model_progress)
+        result=await review(self.router,question,image,source,self.model_progress)
         async with self.lock:
             await check()
             self.advice[result['id']]=result
@@ -563,10 +573,12 @@ class BridgeRuntime:
             if name == 'rimworld/open_letter':
                 if self.mode != 'automate' or not self.supervisor:
                     raise ValueError('Enable Automate before opening a letter')
+                self.resume_after_review = False
+                from .dialog_control import require_clear_windows
+                require_clear_windows(await self.game.invoke('rimworld/get_ui_state', {}))
                 # Deliberately stop the owned lease before a letter forces pause.
                 # Do not clear player holds or resume on window disappearance.
                 await self.supervisor.pause_for_dialog()
-                self.resume_after_review = False
                 await self.sync_identity()
             if name in ('rimworld/click_ui_target', 'rimworld/scroll_ui_target'):
                 target = self.ui_targets.get(arguments.get('targetId'))
@@ -631,8 +643,8 @@ class BridgeRuntime:
                         raise ValueError('Research selection was not confirmed by fresh native readback')
                 elif name == 'rimworld/open_letter':
                     verification = await self.game.invoke('rimworld/get_ui_state', {})
-                    if verification.get('success') is not True:
-                        raise ValueError('Letter UI is unverified; inspect before issuing another UI action')
+                    from .dialog_control import verify_letter_window
+                    verify_letter_window(verification)
                 elif name in ('rimworld/click_ui_target', 'rimworld/scroll_ui_target',
                               'rimworld/open_main_tab', 'rimworld/close_main_tab'):
                     if result.get('success') is not True:

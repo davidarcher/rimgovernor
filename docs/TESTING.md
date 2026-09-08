@@ -91,11 +91,21 @@ configured maximum, not a throughput recommendation. Commit between batches so
 workers import a fixed revision. The runner stops dispatching after a usable result
 and retains already-running siblings' evidence.
 
+Regenerate disposable profiles to remove legacy executable-name cleanup fallback.
+Generated profiles use DirectPath process ownership; missing or other launch modes
+are rejected for headless workers.
+
 The short campaign window starts at 120 seconds and extends after a first action
 to allow another 120 seconds. Its narrow foothold check requires eight living
 colonists, eight nearby completed beds/spots, a nearby nine-cell stockpile and
 allowed starting pemmican. It does not certify shelter, sustained food or survival.
 Any fixture-specific warning acknowledgment is test-only; other holds stop play.
+
+Each worker freezes `thresholds.json` before startup and samples native building
+and zone readbacks for completion. Reports separate retained intent, attempted slots,
+accepted effects and current completed objects, including sleeping-place overshoot
+and removal deltas. Truncated or unavailable readbacks cannot establish success.
+The samples do not count all retries/refusals or prove access and sustained survival.
 
 With controller/game closed, benchmark disposable simulation separately:
 

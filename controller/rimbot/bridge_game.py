@@ -1,5 +1,6 @@
 """Reviewed gameplay surface over native bridge contracts; no HTTP emulation."""
 from jsonschema import Draft202012Validator
+from .bridge import runtime_file_read
 from .bridge_observation import OBSERVATION_TOOLS, ObservationGateway
 from .native_contracts import validate_arguments
 
@@ -36,7 +37,7 @@ class BridgeGame(ObservationGateway):
         if tool not in READS | WRITES:
             raise ValueError('Tool is outside the gameplay surface')
         if tool not in self.schemas:
-            detail = await self.bridge.detail(tool)
+            detail = await runtime_file_read(self.bridge.detail, tool)
             schema = detail.structuredContent['inputSchema']
             Draft202012Validator.check_schema(schema)
             self.schemas[tool] = dict(schema, additionalProperties=False)
@@ -70,7 +71,10 @@ class BridgeGame(ObservationGateway):
             if (tool.startswith('home/') and 'dryRun' in schema.get('properties', {}) and 'dryRun' not in arguments
                     and (tool != 'home/research' or arguments.get('set'))):
                 raise ValueError('State dryRun explicitly: true to preview, false to act')
-        result = await self.bridge.call(tool, **arguments)
+        if not is_write(tool, arguments) and (tool in READS or arguments.get('dryRun') is True):
+            result = await runtime_file_read(self.bridge.call, tool, **arguments)
+        else:
+            result = await self.bridge.call(tool, **arguments)
         payload = result.structuredContent
         if not isinstance(payload, dict):
             raise ValueError('Native structured receipt is missing')
@@ -91,9 +95,11 @@ class BridgeGame(ObservationGateway):
 
 
 def for_model(payload, tool=None, catalog_offset=0):
-    """Omit explanatory boilerplate, never silently cut entity rows or facts."""
+    """Omit transport metadata, preserving native facts and scope caveats."""
     import json
-    result = {k: v for k, v in payload.items() if k not in ('operation', 'notes', 'watch')}
+    # Native notes include visibility and ingredient/reachability limitations.
+    # Dropping them can turn a partial inspection into apparent proof of safety.
+    result = {k: v for k, v in payload.items() if k not in ('operation', 'watch')}
     if tool == 'rimworld/get_ui_layout' and isinstance(payload.get('surfaces'), list):
         from .vendor.companion_ui import slim_surface
         result = {k:v for k,v in result.items() if k != 'surfaces'}

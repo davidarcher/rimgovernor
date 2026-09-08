@@ -69,3 +69,53 @@ async def test_headless_never_uses_old_camera_image(tmp_path):
         await rt.visual_review('Check',expected_token='load',expected_revision=0)
     rt.bridge.call.assert_not_awaited()
     rt.store.close()
+
+
+@pytest.mark.asyncio
+async def test_image_consultation_captures_fresh_source_preserving_advice_schema(tmp_path):
+    import base64
+    import hashlib
+    from rimbot.consultation import Consultations
+    rt=BridgeRuntime(Store(tmp_path/'consult.sqlite'),tmp_path)
+    rt.context_token='load';rt.sync_identity=AsyncMock(return_value=False)
+    old=tmp_path/'old.png';old.write_bytes(b'old cached image');rt.camera_path=old
+    fresh=tmp_path/'fresh.png';data=b'\x89PNG\r\n\x1a\n'+b'fresh';fresh.write_bytes(data)
+    rt.bridge=SimpleNamespace(call=AsyncMock(return_value=SimpleNamespace(structuredContent={'path':str(fresh)})))
+    rt.game=SimpleNamespace(query=AsyncMock(return_value={'time':{'ticksGame':14}}))
+    advice={'answer':'Inspect the entrance.','confidence':'low','recommendations':['Read the door state.']}
+    router=SimpleNamespace(complete=AsyncMock(return_value=({'tool_calls':[{'function':{'name':'report','arguments':json.dumps(advice)}}]},{})))
+    rt.consultations=Consultations(router)
+    result=await rt.consult('architect','Check entrances',['construction'],True,expected_token='load',expected_revision=0)
+    messages=router.complete.call_args.args[1]
+    content=messages[1]['content']
+    assert content[1]['image_url']['url']=='data:image/png;base64,'+base64.b64encode(data).decode()
+    assert result['image_source']['image_sha256']==hashlib.sha256(data).hexdigest()
+    assert result['image_source']['tick']==14
+    assert result['report']['recommendations']==['Read the door state.']
+    assert result['requires_native_verification']
+    assert [c.args[0] for c in rt.bridge.call.call_args_list]==['home/render_demand','rimworld/take_screenshot']
+    rt.store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('reason',['headless','role','changed_capture','changed_inference'])
+async def test_image_consultation_rejects_unusable_or_stale_context(tmp_path,reason):
+    rt=BridgeRuntime(Store(tmp_path/'reject.sqlite'),tmp_path,headless=reason=='headless')
+    rt.context_token='load';rt.sync_identity=AsyncMock(return_value=False)
+    path=tmp_path/'cached.png';path.write_bytes(b'\x89PNG\r\n\x1a\n'+b'test');rt.camera_path=path
+    rt.bridge=SimpleNamespace(call=AsyncMock(return_value=SimpleNamespace(structuredContent={'path':str(path)})))
+    async def status(*args,**kwargs):
+        if reason=='changed_capture':rt.context_token='other-load'
+        return {'time':{'ticksGame':15}}
+    rt.game=SimpleNamespace(query=AsyncMock(side_effect=status))
+    async def ask(*args):
+        if reason=='changed_inference':rt.chat_revision+=1
+        return {'id':'report'}
+    rt.consultations=SimpleNamespace(ask=AsyncMock(side_effect=ask))
+    with pytest.raises(ValueError):
+        await rt.consult('analyst' if reason=='role' else 'architect','Check',['construction'],True,
+                         expected_token='load',expected_revision=0)
+    assert not rt.advice
+    if reason!='changed_inference':rt.consultations.ask.assert_not_awaited()
+    if reason in ('headless','role'):rt.bridge.call.assert_not_awaited()
+    rt.store.close()
