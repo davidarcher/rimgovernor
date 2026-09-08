@@ -112,7 +112,13 @@ class Planner:
             messages.append(response)
             calls = response.get('tool_calls', [])
             if not calls:
-                raise ValueError('Strategist returned no structured decision; the committed plan is unchanged')
+                rt.note('model_diagnostic', 'Requested structured decision after a prose-only response')
+                messages.append({'role':'user','content':json.dumps({
+                    'status':'decision_not_committed',
+                    'instruction':'Your last response issued no orders and committed no plan. Continue using tools to resolve missing facts, '
+                        'or call commit_plan with revise and a plan, or continue/defer with plan=null. Prose does not execute work.',
+                    'current_plan':inspect_plan(rt.current_plan, [])})})
+                continue
             finished = False
             for call in calls:
                 started=time.monotonic()

@@ -153,6 +153,30 @@ async def test_strategist_works_alone_and_plan_survives_model_restart(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_prose_response_recovers_without_committing_or_sending_orders(tmp_path):
+    calls=[]
+    class Brain:
+        async def complete(self,messages,tools,*args):
+            calls.append(len(messages))
+            if len(calls)==1:
+                return {'role':'assistant','content':'I built the shelter.'}, {}
+            assert rt.current_plan.revision==0
+            assert not rt.current_plan.progress
+            repair=json.loads(messages[-1]['content'])
+            assert repair['status']=='decision_not_committed'
+            assert repair['current_plan']['revision']==0
+            return {'role':'assistant','tool_calls':[{'id':'repair','type':'function','function':{
+                'name':'commit_plan','arguments':decision(room_plan()).model_dump_json()}}]}, {}
+        async def close(self):pass
+    rt=runtime(tmp_path,model_factory=lambda _:Brain())
+    await rt.sync_identity();rt.batch=batch();rt.strategic_state.update(rt.batch)
+    await rt.planner.play_bridge()
+    assert len(calls)==2 and rt.current_plan.revision==1
+    assert rt.counters['actions']==0
+    await rt.router.close();rt.store.close()
+
+
+@pytest.mark.asyncio
 async def test_inspection_refuses_writes_even_in_automate(tmp_path):
     rt=runtime(tmp_path);rt.mode='automate';rt.game.invoke=AsyncMock()
     with pytest.raises(PermissionError):
