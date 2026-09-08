@@ -1,5 +1,44 @@
 # Instruments reuse audit
 
+## Burn-down status — 2026-09-08
+
+The original inventory below is historical, not the current implementation queue.
+Keep this document until the remaining reuse work is resolved; then remove it and
+its references, retaining source provenance beside copied code.
+
+- **Already integrated:** native orders and settings (`order`, `gear` reads,
+  `pawns`, `health`), buildings/bills/zones, world/research, CellsPlus spatial
+  queries, save/load identity, draft ownership and native supervised clock.
+  See `controller/rimbot/bridge_game.py`, `clock_control.py`, `bridge_runtime.py`
+  and `integrations/colony-bridge/src`. Their native availability is distinct
+  from autonomous combat, trading and startup acceptance.
+- **Already replaced by our runtime:** local chat, SQLite history and persisted
+  plan revisions, dashboard delivery, generic scout and optional local visual
+  review. Do not add upstream services or Core/Hands routing. Durable event
+  acknowledgement still needs comparison with `event_bus.py`; persisted history
+  alone is not an acknowledged outbox.
+- **Copied this pass:** `ui.py` pure compact report functions are in
+  `controller/rimbot/vendor/companion_ui.py`. Native layout, captured-control
+  click/scroll, and explicit main-tab open/close are connected. A real rendered
+  options-dialog capture and OK click passed, preserving pause. Choice effects
+  are not certified by successful button activation.
+- **UI work remaining:** `letters.py` decision workflow and pause ownership;
+  `dialog.py`/DialogTextTool text fields; `mini_install.py`/`pick.py` exact packed
+  item installation. The reviewed `ui.find()` returns a first match and
+  DialogTextTool also uses first partial field matches; do not copy those
+  ambiguity behaviors. No blanket dialog dismissal or automatic stale-letter
+  policy will be added.
+- **Observation work remaining:** finish selective building/bill/zone/alert
+  projections and native nutrition/consumption/harvest data. Keep native nulls
+  and truncation; do not copy `inv.py`'s fixed food table as game truth.
+- **Operational work remaining:** complete native trade and rescue acceptance,
+  visual near/wide framing and player camera ownership, and compare process
+  lifetime validation against `runtime_binding.py`.
+- **Explicit exclusions remain resolved:** transport duplication, CLI wrappers,
+  turn clocks, external consultants/reviewer daemons, Twitch/audience relay,
+  pixel-only setup helpers, and instant apparel dropping. These are not pending
+  features merely because the inventory contains them.
+
 Audited 2026-09-07. Upstream main resolves to **89c2e90fedd51419a3db55a7f9865b0aef29b270**:
 https://github.com/Snowstar38/rimworld-claude-harness/tree/89c2e90fedd51419a3db55a7f9865b0aef29b270/instruments
 

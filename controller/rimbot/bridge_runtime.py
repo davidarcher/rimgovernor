@@ -48,6 +48,7 @@ class BridgeRuntime:
         self.identity = None
         self.context_token = None
         self.draft_owners = {}
+        self.ui_targets = {}
         self.chat_revision = 0
         self.handled_revision = 0
         self.mode, self.phase = 'manual', 'Connecting'
@@ -80,6 +81,7 @@ class BridgeRuntime:
         token = key+':'+identity['loadToken']
         changed = token != self.context_token
         if changed:
+            self.ui_targets.clear()
             saved = self.store.get('bridge:'+key, {})
             self.colony, self.identity, self.context_token = key, identity, token
             self.supervisor = PlayClock(self.bridge) if self.bridge else None
@@ -123,7 +125,15 @@ class BridgeRuntime:
             raise PermissionError('Inspection cannot execute writes. Use dryRun=true for a supported preview, '
                                   'or commit a native operation for execution. Read describe for the native contract.')
         async with self.lock:
-            return await self.game.invoke(name, arguments, allow_write=False)
+            if name == 'rimworld/get_ui_layout':
+                if self.headless:
+                    raise ValueError('UI layout needs a rendered game; use native state tools in no-graphics tests')
+                await self.bridge.call('home/render_demand', seconds=15)
+            result = await self.game.invoke(name, arguments, allow_write=False)
+            if name == 'rimworld/get_ui_layout':
+                self.ui_targets = {e['targetId']: dict(e, load_token=self.context_token)
+                    for s in result.get('surfaces', []) for e in s.get('elements', []) if e.get('targetId')}
+            return result
 
     async def consult(self, role, question, sections, include_image=False, *, expected_token=None, expected_revision=None):
         from .config import ModelRole
@@ -548,6 +558,21 @@ class BridgeRuntime:
                 raise ValueError('New player direction arrived; no command sent')
             if expected_plan_revision is not None and expected_plan_revision != self.current_plan.revision:
                 raise InterruptedError('Committed plan changed; no order sent')
+            if name == 'rimworld/close_main_tab' and not arguments.get('mainTabId'):
+                raise ValueError('Specify the inspected mainTabId to close')
+            if name in ('rimworld/click_ui_target', 'rimworld/scroll_ui_target'):
+                target = self.ui_targets.get(arguments.get('targetId'))
+                if not target or target.get('load_token') != self.context_token:
+                    raise ValueError('UI target was not observed in this load; inspect get_ui_layout again')
+                if name == 'rimworld/click_ui_target' and (not target.get('actionable') or target.get('disabled') is True):
+                    raise ValueError('Observed UI control is not enabled and actionable')
+                if name == 'rimworld/scroll_ui_target' and target.get('kind') != 'scroll_view':
+                    raise ValueError('Select an observed scroll_view target')
+                if self.headless:
+                    raise ValueError('UI control needs a rendered game')
+                await self.bridge.call('home/render_demand', seconds=15)
+                # A failed or uncertain click must not be replayed from this capture.
+                self.ui_targets.clear()
             if name == 'home/order' and self.mode == 'automate' and not arguments.get('dryRun', False):
                 # Resolve before writing; persist intent even if the write loses its receipt.
                 if arguments.get('action') in ('draft', 'goto', 'attack', 'tend'):
@@ -592,6 +617,19 @@ class BridgeRuntime:
                     current = [verification.get('current')] + list((verification.get('currentByCategory') or {}).values())
                     if not selected or not any(isinstance(p,dict) and p.get('defName') == selected for p in current):
                         raise ValueError('Research selection was not confirmed by fresh native readback')
+                elif name in ('rimworld/click_ui_target', 'rimworld/scroll_ui_target',
+                              'rimworld/open_main_tab', 'rimworld/close_main_tab'):
+                    if result.get('success') is not True:
+                        raise ValueError(result.get('message') or 'Native UI action was not confirmed')
+                    verification = await self.game.invoke('rimworld/get_ui_state', {})
+                    if verification.get('success') is not True:
+                        raise ValueError('UI state readback is unavailable')
+                    if name == 'rimworld/close_main_tab' and verification.get('mainTabOpen') is not False:
+                        raise ValueError('Main tab closure was not confirmed')
+                    if name == 'rimworld/open_main_tab':
+                        opened = result.get('after', {}).get('openMainTabId')
+                        if not opened or verification.get('openMainTabId') != opened:
+                            raise ValueError('Main tab opening was not confirmed')
                 elif name == 'rimworld/click_screen_target':
                     verification = await self.game.invoke('rimworld/get_ui_state', {})
                     from .dialog_control import verify_window_dismissal

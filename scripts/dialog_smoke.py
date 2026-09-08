@@ -10,9 +10,16 @@ from rimbot.headless import prepare, isolated_root
 from rimbot.store import Store
 
 
-async def main():
+async def main(rendered=False):
     root = isolated_root('.rimbot/bridge', Path('.rimbot') / f'dialog-smoke-{time.time_ns()}')
-    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe', prepare(root)) as bridge:
+    config_dir = prepare(root)
+    if rendered:
+        config_file = config_dir/'config.json'
+        config = json.loads(config_file.read_text())
+        config['games']['rimbot-trial']['args'] = [a for a in config['games']['rimbot-trial']['args']
+                                                  if a not in ('-batchmode', '-nographics')]
+        config_file.write_text(json.dumps(config))
+    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe', config_dir) as bridge:
         await bridge.core('games_start', gameId=bridge.game_id)
         await bridge.connect()
         await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',
@@ -36,8 +43,21 @@ async def main():
             opened = [w for w in targets['targets']['windows']
                       if (w['id'], w['type']) not in old and w.get('dismissTargetId')]
             assert len(opened) == 1, targets
-            result = await rt.native('rimworld/click_screen_target',
-                                     {'targetId': opened[0]['dismissTargetId']}, reconcile=False)
+            if rendered:
+                from rimbot.bridge_game import for_model
+                layout = await rt.inspect_native('rimworld/get_ui_layout', {'surfaceId': opened[0]['windowTargetId'], 'timeoutMs': 10000})
+                compact = for_model(layout, 'rimworld/get_ui_layout')
+                assert compact.get('surfaces'), compact
+                (root/'ui-layout.json').write_text(json.dumps({'native': layout, 'compact': compact}, indent=2))
+            if rendered:
+                buttons = [e for s in layout['surfaces'] for e in s['elements']
+                           if e.get('actionable') and e.get('label') in ('OK', 'Close')]
+                assert len(buttons) == 1, buttons
+                result = await rt.native('rimworld/click_ui_target', {'targetId': buttons[0]['targetId']}, reconcile=False)
+                assert all(w['id'] != opened[0]['id'] for w in result['observed_after']['windows']), result
+            else:
+                result = await rt.native('rimworld/click_screen_target',
+                                         {'targetId': opened[0]['dismissTargetId']}, reconcile=False)
             status = await rt.game.query('home/status', colonists=False, threats=False)
             assert status['time']['paused'] is True, status
             report = {'closed': opened[0], 'paused': True, 'result': result}
@@ -50,4 +70,5 @@ async def main():
 
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    import sys
+    asyncio.run(main('--rendered' in sys.argv))

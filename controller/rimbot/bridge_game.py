@@ -8,11 +8,14 @@ READS = OBSERVATION_TOOLS | frozenset({
     'rimworld/list_architect_categories', 'rimworld/list_architect_designators',
     'rimworld/list_selected_gizmos', 'rimworld/get_selection_semantics',
     'rimworld/list_letters', 'rimworld/get_ui_state', 'rimworld/get_screen_targets',
+    'rimworld/get_ui_layout', 'rimworld/list_main_tabs',
 })
 WRITES = frozenset({'home/zone_cells', 'home/place_building', 'home/pawn_config',
     'home/building_config', 'home/bills', 'home/order', 'home/trade', 'home/research',
     'rimworld/set_time_speed', 'rimworld/apply_architect_designator',
-    'rimworld/open_letter', 'rimworld/dismiss_letter', 'rimworld/click_screen_target'})
+    'rimworld/open_letter', 'rimworld/dismiss_letter', 'rimworld/click_screen_target',
+    'rimworld/click_ui_target', 'rimworld/scroll_ui_target',
+    'rimworld/open_main_tab', 'rimworld/close_main_tab'})
 
 
 def is_write(tool, arguments):
@@ -83,6 +86,16 @@ def for_model(payload, tool=None, catalog_offset=0):
     """Omit explanatory boilerplate, never silently cut entity rows or facts."""
     import json
     result = {k: v for k, v in payload.items() if k not in ('operation', 'notes', 'watch')}
+    if tool == 'rimworld/get_ui_layout' and isinstance(payload.get('surfaces'), list):
+        from .vendor.companion_ui import slim_surface
+        result = {k:v for k,v in result.items() if k != 'surfaces'}
+        result['surfaces'] = [slim_surface(surface) for surface in payload['surfaces']]
+        for compact, surface in zip(result['surfaces'], payload['surfaces']):
+            compact['controls'] = [{k: element.get(k) for k in
+                ('targetId', 'label', 'kind', 'disabled', 'isChecked', 'screenRect')}
+                for element in surface.get('elements', [])
+                if element.get('actionable') or element.get('kind') == 'scroll_view']
+        result['meaning'] = 'Companion compact UI report. Text is presentation, not proof of action completion. Query a surfaceId to narrow the next capture.'
     if tool == 'home/get_cells_plus' and result.get('cells'):
         cells = result['cells']
         if all(isinstance(c,dict) and 'x' in c and 'z' in c for c in cells):
