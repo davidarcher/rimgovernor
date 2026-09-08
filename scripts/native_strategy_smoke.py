@@ -9,7 +9,7 @@ from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.colony_plan import Decision, PlanSpec
 from rimbot.store import Store
 
-async def main(headless=False, build=False):
+async def main(headless=False, build=False, room=False):
     root=Path('.rimbot/bridge').resolve()
     answer=None
     class Brain:
@@ -42,6 +42,21 @@ async def main(headless=False, build=False):
             {'id':'wall','title':'Construction probe','completion_criteria':'Wall built by colonist labor',
              'action':{'kind':'place_buildings','placements':[dict(def_name='Wall',materials=['WoodLog'],x=pawn.position.x+9,z=pawn.position.z)]}}])
         answer=Decision(expected_revision=rt.current_plan.revision,disposition='revise',assessment='Supplies need storage',rationale='Use a nearby clear cell',reply='Set up the supplies area.',plan=spec)
+        acknowledged=set()
+        async def check_clock():
+            status=await rt.game.query('home/status')
+            if not status['time']['paused']:return
+            letters=await rt.game.invoke('rimworld/list_letters',{})
+            rows=letters.get('letters',[])
+            # This baseline has a sealed ancient ruin near wandering colonists.
+            # Acknowledge only its known proximity warning, never general threats.
+            if (not letters.get('truncated') and len(rows)==1 and rows[0]['label']=='Ancient danger'
+                    and rows[0]['id'] not in acknowledged and not status['time']['forcePaused']):
+                acknowledged.add(rows[0]['id'])
+                print('Fixture acknowledged sealed ancient-danger proximity warning',flush=True)
+                await rt.game.invoke('rimworld/set_time_speed',{'speed':'Superfast','ultraSpeedBoost':False},allow_write=True)
+                return
+            raise AssertionError({'unexpected_pause':status['time'],'letters':letters})
         rt.mode='automate'
         try:
             await rt.planner.play_bridge()
@@ -92,7 +107,8 @@ async def main(headless=False, build=False):
                         await asyncio.sleep(2)
                         await rt.projects.reconcile(rt.game,only_id=wall.project_id)
                         rt.reconcile_plan()
-                        people=await rt.game.query('home/list_pawns')
+                        people=await rt.game.query('home/list_pawns',colonistsOnly=True)
+                        await check_clock()
                         jobs=[{'name':p['name'],'job':p['job']} for p in people['pawns']]
                         history.append({'elapsed':round(asyncio.get_running_loop().time()-start,1),'state':wall.state,'jobs':jobs})
                         if len(history)%5==0:print('Construction:',history[-1],flush=True)
@@ -110,6 +126,59 @@ async def main(headless=False, build=False):
                 await rt.hands.advance(rt)
                 assert rt.counters['actions']==before+4 and brain.calls==2
                 print('PASS: pawn labor completed the wall; native built state and plan completion agree; no replay writes',flush=True)
+            if room:
+                from rimbot.colony_plan import PlanStep, RoomShell
+                from rimbot.hands import room_placements
+                # Fixed fixture geometry, not a production base-layout policy.
+                shell=RoomShell(bounds={'x':pawn.position.x+10,'z':pawn.position.z+4,'width':5,'height':5},
+                    wall_def='Wall',door_def='Door',materials=['WoodLog'],entrance='south')
+                for pos in wood['positions']:
+                    if pos['thingId']==stack:continue
+                    await rt.game.invoke('rimworld/apply_architect_designator',{'designatorId':allow['id'],'x':pos['x'],'z':pos['z'],'dryRun':False,'keepSelected':False},allow_write=True)
+                # Select an actually legal fixture site before issuing any room orders.
+                for dx,dz in [(2,4),(-8,4),(2,-8),(-8,-8),(10,10)]:
+                    shell.bounds.x=pawn.position.x+dx
+                    shell.bounds.z=pawn.position.z+dz
+                    legal=True
+                    for placement in room_placements(shell):
+                        preview=await rt.inspect_native('home/place_building',dict(defName=placement.def_name,
+                            x=placement.x,z=placement.z,rotation=placement.rotation,stuff='WoodLog',dryRun=True))
+                        if not preview.get('canPlace'):
+                            legal=False
+                            break
+                    if legal:break
+                assert legal,'No legal room fixture footprint found'
+                next_spec=spec.model_copy(deep=True)
+                next_spec.steps.append(PlanStep(id='room',title='Room shell probe',completion_criteria='Full perimeter and door built',action=shell))
+                answer=answer.model_copy(update={'expected_revision':rt.current_plan.revision,'plan':next_spec,'retry_steps':[]})
+                await rt.planner.play_bridge()
+                for _ in range(4):
+                    await rt.hands.advance(rt)
+                    if rt.current_plan.progress['room'].state!='executing':break
+                room_progress=rt.current_plan.progress['room']
+                assert room_progress.state=='waiting',room_progress.model_dump()
+                issued_count=rt.counters['actions']
+                placements=room_placements(shell)
+                assert len(room_progress.issued)==16 and sum(p.def_name=='Door' for p in placements)==1
+                started=asyncio.get_running_loop().time()
+                await rt.game.invoke('rimworld/set_time_speed',{'speed':'Superfast','ultraSpeedBoost':False},allow_write=True)
+                try:
+                    while asyncio.get_running_loop().time()-started<120:
+                        await asyncio.sleep(3)
+                        await check_clock()
+                        await rt.projects.reconcile(rt.game,only_id=room_progress.project_id)
+                        rt.reconcile_plan()
+                        if room_progress.state=='complete':break
+                        print('Room shell:',next(p for p in rt.projects.dump() if p['id']==room_progress.project_id)['evidence'],flush=True)
+                finally:
+                    await rt.game.invoke('rimworld/set_time_speed',{'speed':'Paused','ultraSpeedBoost':False},allow_write=True)
+                evidence['room']={'progress':room_progress.model_dump(),'project':next(p for p in rt.projects.dump() if p['id']==room_progress.project_id),
+                    'elapsed':round(asyncio.get_running_loop().time()-started,1)}
+                (root/'strategy-room-smoke.json').write_text(json.dumps(evidence,indent=2),encoding='utf8')
+                assert room_progress.state=='complete',evidence['room']
+                await rt.hands.advance(rt)
+                assert rt.counters['actions']==issued_count and brain.calls==3
+                print('PASS: complete room perimeter and door built by pawns; replay issued no duplicates',flush=True)
             (root/'strategy-smoke.json').write_text(json.dumps(evidence,indent=2),encoding='utf8')
             print('PASS: committed plan -> native zone and two instant spots complete; normal wall initially queues as a blueprint; replay issued no duplicate and no model call',flush=True)
         finally:
@@ -120,5 +189,6 @@ if __name__=='__main__':
     import argparse
     parser=argparse.ArgumentParser();parser.add_argument('--headless',action='store_true')
     parser.add_argument('--build',action='store_true')
+    parser.add_argument('--room',action='store_true')
     args=parser.parse_args()
-    asyncio.run(main(args.headless,args.build))
+    asyncio.run(main(args.headless,args.build or args.room,args.room))
