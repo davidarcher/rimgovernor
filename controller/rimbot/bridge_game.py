@@ -8,7 +8,8 @@ READS = OBSERVATION_TOOLS | frozenset({
     'rimworld/list_architect_categories', 'rimworld/list_architect_designators',
     'rimworld/list_selected_gizmos', 'rimworld/get_selection_semantics',
     'rimworld/list_letters', 'rimworld/get_ui_state', 'rimworld/get_screen_targets',
-    'rimworld/get_ui_layout', 'rimworld/list_main_tabs',
+    'rimworld/get_ui_layout', 'rimworld/list_main_tabs', 'rimworld/list_inspect_tabs',
+    'rimworld/list_messages', 'rimworld/list_alerts', 'rimworld/get_map_target_info',
 })
 WRITES = frozenset({'home/zone_cells', 'home/place_building', 'home/pawn_config',
     'home/building_config', 'home/bills', 'home/order', 'home/trade', 'home/research', 'home/dialog_text',

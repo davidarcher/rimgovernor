@@ -25,6 +25,11 @@ its references, retaining source provenance beside copied code.
 - **Naming fields copied:** DialogTextTool is installed with exact window/field
   targeting and reviewed naming inputs. Headless field-write/readback and invalid
   target refusals passed; final rename effects across naming types remain untested.
+- **Native inspection paths connected:** `list_messages`, `list_alerts`,
+  `list_inspect_tabs`, and `get_map_target_info`, used by the companion's alert,
+  UI and selection helpers, are exposed through discovered read schemas. Live
+  headless calls passed, including map resolution from our observed pawn load ID.
+  No prose-derived culprit IDs, automatic alert clicks, or selection mutation.
 - **UI work remaining:** `letters.py` decision workflow and pause ownership;
   `mini_install.py`/`pick.py` exact packed
   item installation. The reviewed `ui.find()` returns a first match and

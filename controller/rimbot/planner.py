@@ -128,6 +128,7 @@ class Planner:
             'Its controls retain native targetId values: commit click_ui_target or scroll_ui_target for one inspected control. '
             'A click receipt proves activation only; inspect the resulting quest or game state before claiming its intended effect. '
             'Use list_main_tabs then open_main_tab/close_main_tab with an explicit mainTabId. Opening again does not close a tab. '
+            'list_messages and list_alerts expose native messages and culprit targets; resolve exact map identities with get_map_target_info. '
             'home/dialog_text lists reflected fields with dryRun=true; for a reviewed naming input, commit its exact windowId and field with text and dryRun=false. '
             'Partial field names are rejected. accept means the accept handler was invoked, not proof of the final colony/pawn rename; inspect native state afterward. '
             'to close one exact window, with immediate readback. It does not answer quest choices or resume a held clock. '

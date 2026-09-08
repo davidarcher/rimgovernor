@@ -42,8 +42,12 @@ successes. That evidence determines the ordering below.
    tactics, real carry-to-bed rescue and model-selected triage remain unproven.
 7. **Trade acceptance.** Native session/staging/preview/execution exists. Verify a
    real buy/sell exchange, silver and stock deltas, stale sessions and delivery.
-8. **Remaining player actions and inspectors.** Quest choices, verified UI
-   fallbacks, packed-furniture installation, and richer building/bill/zone details.
+8. **Remaining player actions and inspectors.** Captured native UI controls,
+   compact companion UI reports and exact naming-input writes are connected.
+   Options-dialog activation and naming-field readback passed live fixtures;
+   quest acceptance and final rename effects still need scenario tests.
+   Packed-furniture installation and richer building/bill/zone projections remain.
+   Native message/alert culprit and inspect-tab reads passed a headless fixture.
 9. **Visual reviewer UX.** Near/wide framing, yielding to player camera control,
    source-image concern overlays, and cleaner good/bad layout acceptance fixtures.
 10. **Linux/container workers and throughput.** Two Windows headless instances
