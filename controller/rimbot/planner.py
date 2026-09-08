@@ -9,6 +9,7 @@ from .consultation import structured_tool as tool
 from .strategic_state import context
 from .wiki import wiki_lookup
 from .knowledge import search_knowledge, read_knowledge
+from .hands import GeometryConflict
 
 
 def inspect_plan(plan, ids):
@@ -159,6 +160,8 @@ class Planner:
                 except Exception as error:
                     outcome='rejected'
                     result = {'status':'blocked','reason':str(error)}
+                    if isinstance(error, GeometryConflict):
+                        result['conflict'] = error.evidence
                     if call.get('function', {}).get('name') == 'commit_plan':
                         result['current_plan'] = inspect_plan(rt.current_plan, [])
                         result['correction'] = ('Use the current revision as expected_revision. '

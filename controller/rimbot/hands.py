@@ -16,10 +16,17 @@ def room_placements(room: RoomShell):
         rotation=room.entrance if (x,z)==door else 'north', materials=room.materials) for x,z in perimeter]
 
 
+class GeometryConflict(ValueError):
+    def __init__(self, step, other, point):
+        self.evidence = {'step_id': step, 'conflicts_with': other,
+                         'cell': {'x': point[0], 'z': point[1]}}
+        super().__init__(f'{step} overlaps {other} at x={point[0]}, z={point[1]}; '
+                         'adjust the conflicting footprint or reserved walkway')
+
+
 def validate_geometry(spec):
     reserved = {c for r in spec.reserved_walkways for c in r.cells()}
     claimed = {}
-    rooms = [(s.id, set(s.action.bounds.cells())) for s in spec.steps if isinstance(s.action, RoomShell)]
     for step in spec.steps:
         action = step.action
         if isinstance(action, RoomShell):
@@ -28,15 +35,13 @@ def validate_geometry(spec):
             points = [(p.x,p.z) for p in action.placements]
         elif isinstance(action, Zone):
             points = sorted({c for patch in action.patches for c in patch.cells()})
-            if any(set(points) & cells for _, cells in rooms):
-                raise ValueError('A zone overlaps a committed room footprint')
         else:
             continue
         for point in points:
             if point in reserved:
-                raise ValueError(f'{step.id} occupies a reserved walkway at {point}')
+                raise GeometryConflict(step.id, 'reserved walkway', point)
             if point in claimed and claimed[point] != step.id:
-                raise ValueError(f'{step.id} overlaps {claimed[point]} at {point}')
+                raise GeometryConflict(step.id, claimed[point], point)
             claimed[point] = step.id
 
 
