@@ -34,7 +34,7 @@ class Planner:
         choices = sorted((READS | WRITES)-{'rimworld/set_time_speed'})
         tools = [tool('commit_plan', 'Commit the strategic decision, or cheaply continue/defer the existing plan. Ends this review. No native action is executed by this tool.', Decision.model_json_schema()),
             tool('describe', 'Read a native tool contract; write contracts may be inspected for planning.', schema({'name':{'type':'string','enum':choices}},['name'])),
-            tool('inspect', 'Read native state or preview an action. If omitted, dryRun=true is supplied only when the native contract supports it. Explicit writes are refused. Use describe for required arguments.', schema({'name':{'type':'string','enum':choices},'arguments':{'type':'object'}},['name','arguments'])),
+            tool('inspect', 'Read native state or preview an action. If omitted, dryRun=true is supplied only when the native contract supports it. Explicit writes are refused. Use describe for required arguments. Architect designator results are paged; follow catalog_page.next_offset.', schema({'name':{'type':'string','enum':choices},'arguments':{'type':'object'},'catalog_offset':{'type':'integer','minimum':0,'description':'Only for rimworld/list_architect_designators; outside native arguments. Defaults to zero.'}},['name','arguments'])),
             tool('inspect_plan', 'Read the current revision and step IDs plus selected step details and progress. Use ids=[] for revision and index only.', schema({'ids':{'type':'array','items':{'type':'string'},'maxItems':8}},['ids']))]
         tools.extend([
             tool('search_knowledge', 'Find practical strategy guidance in the local library. Returns up to three card summaries, not live game facts.', schema({'query':{'type':'string','minLength':1,'maxLength':300}},['query'])),
@@ -142,7 +142,10 @@ class Planner:
                     elif name == 'describe':
                         result = await rt.game.describe(args['name'])
                     elif name == 'inspect':
-                        result = for_model(await rt.inspect_native(args['name'], args['arguments']), tool=args['name'])
+                        if 'catalog_offset' in args and args['name'] != 'rimworld/list_architect_designators':
+                            raise ValueError('catalog_offset is only supported for rimworld/list_architect_designators')
+                        result = for_model(await rt.inspect_native(args['name'], args['arguments']),
+                            tool=args['name'], catalog_offset=args.get('catalog_offset',0))
                     elif name == 'inspect_plan':
                         result = inspect_plan(rt.current_plan, args['ids'])
                     elif name == 'wiki_lookup':

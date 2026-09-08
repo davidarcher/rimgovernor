@@ -75,7 +75,7 @@ class BridgeGame(ObservationGateway):
         return payload
 
 
-def for_model(payload, tool=None):
+def for_model(payload, tool=None, catalog_offset=0):
     """Omit explanatory boilerplate, never silently cut entity rows or facts."""
     import json
     result = {k: v for k, v in payload.items() if k not in ('operation', 'notes', 'watch')}
@@ -83,6 +83,18 @@ def for_model(payload, tool=None):
         # The registry entries are authoritative discovery data. The accompanying
         # UI snapshot and duplicate selection-state payload are not definitions.
         result = {k: v for k, v in result.items() if k not in ('state', 'designatorState')}
+    if tool == 'rimworld/list_architect_designators' and isinstance(result.get('designators'), list):
+        rows = result['designators']
+        if catalog_offset < 0 or catalog_offset > len(rows):
+            raise ValueError(f'catalog_offset must be between 0 and {len(rows)}')
+        end = min(catalog_offset+8, len(rows))
+        result = dict(result, designators=rows[catalog_offset:end])
+        while end > catalog_offset+1 and len(json.dumps(result)) > 23000:
+            end -= 1
+            result['designators'] = rows[catalog_offset:end]
+        result['catalog_page'] = {'offset':catalog_offset, 'total':len(rows),
+            'next_offset':end if end < len(rows) else None,
+            'instruction':'Repeat the same inspect call with catalog_offset=next_offset for more entries. Each page is a fresh native read.'}
     if len(json.dumps(result)) > 24000:
         return {'requires_narrower_query': True,
                 'reason': 'Result exceeds this turn\'s detail budget. Use native filters or fewer optional detail blocks.',
