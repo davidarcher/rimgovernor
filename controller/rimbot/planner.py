@@ -5,6 +5,7 @@ from .config import ModelRole
 from .colony_plan import Decision
 from .consultation import structured_tool as tool
 from .strategic_state import context
+from .wiki import wiki_lookup
 from .knowledge import search_knowledge, read_knowledge
 
 
@@ -30,6 +31,7 @@ class Planner:
             'id':{'type':'string','pattern':'^[a-z0-9][a-z0-9-]{0,59}$'},
             'text':{'type':'string','maxLength':1000},
             'evidence':{'type':'string','maxLength':500}}, ['operation','id'])))
+        tools.append(tool('wiki_lookup', 'Search RimWorld Wiki, read a page contents list, or read one numeric section. Prefer cached strategy cards for familiar questions; use this for missing information.', schema({'operation':{'type':'string','enum':['search','read']},'query':{'type':'string','minLength':1,'maxLength':200},'section':{'type':'string','pattern':'^[0-9]{1,4}$'}},['operation','query'])))
         auxiliary = [role.value for role in rt.router.routing.roles if role != ModelRole.STRATEGIST]
         if rt.router.enabled(ModelRole.ARCHITECT) and not rt.headless:
             tools.append(tool('visual_review','Get an independent visual second opinion of the current camera view. No camera movement or orders. Verify concerns with native queries before acting.',
@@ -116,6 +118,11 @@ class Planner:
                         result = for_model(await rt.inspect_native(args['name'], args['arguments']))
                     elif name == 'inspect_plan':
                         result = [s.model_dump() for s in rt.current_plan.spec.steps if s.id in args['ids']]
+                    elif name == 'wiki_lookup':
+                        result = await wiki_lookup(**args)
+                        await rt.ensure_context(token)
+                        if rt.chat_revision != seen:
+                            raise ValueError('Direction changed during wiki lookup; reconsider')
                     elif name == 'memory':
                         result = await rt.memory(**args, expected_token=token, expected_revision=seen)
                     elif name == 'search_knowledge':
