@@ -78,3 +78,30 @@ async def test_draft_intent_committed_before_uncertain_write(tmp_path):
         await rt.native('home/order', {'action': 'draft', 'pawn': 'Pawn1', 'dryRun': False})
     assert rt.draft_owners == {'Pawn1': 'load-a'}
     store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('drafted,explicit,expected', [(False,None,True),(False,False,False),(True,None,None)])
+async def test_tend_cleanup_handshake_only_for_owned_drafts(tmp_path,drafted,explicit,expected):
+    store=Store(tmp_path/'tend.sqlite')
+    rt=BridgeRuntime(store,tmp_path,model_factory=lambda _:SimpleNamespace())
+    rt.mode,rt.context_token='automate','load-a'
+    rt.sync_identity=AsyncMock(return_value=False)
+    async def invoke(name,args,**kwargs):
+        if args['action']=='resolve':
+            return {'pawn':{'thingId':'Doctor','drafted':drafted}}
+        assert args.get('allowPersistentDraft') is expected
+        if not drafted:
+            assert store.get('bridge:'+rt.colony)['draft_owners']=={'Doctor':'load-a'}
+        else:
+            assert not rt.draft_owners
+        raise RuntimeError('receipt lost')
+    rt.game=SimpleNamespace(invoke=AsyncMock(side_effect=invoke))
+    args={'action':'tend','pawn':'Doctor','target':'Patient','dryRun':False}
+    if explicit is not None:args['allowPersistentDraft']=explicit
+    original=dict(args)
+    with pytest.raises(RuntimeError,match='receipt lost'):
+        await rt.native('home/order',args)
+    assert args==original
+    assert rt.draft_owners==({} if drafted else {'Doctor':'load-a'})
+    store.close()

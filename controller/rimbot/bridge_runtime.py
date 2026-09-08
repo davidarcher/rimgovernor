@@ -445,6 +445,13 @@ class BridgeRuntime:
                     if pawn.get('drafted') is False and pawn.get('thingId'):
                         self.draft_owners[str(pawn['thingId'])] = self.context_token
                         self.persist()
+                    if (arguments.get('action') == 'tend'
+                            and pawn.get('thingId') and self.context_token
+                            and self.draft_owners.get(str(pawn.get('thingId'))) == self.context_token):
+                        # This controller has persisted the cleanup obligation.
+                        # The model need not know the native lifecycle handshake.
+                        arguments = dict(arguments)
+                        arguments.setdefault('allowPersistentDraft', True)
             result = await self.game.invoke(name, arguments, allow_write=self.mode == 'automate')
             if name == 'home/order' and not arguments.get('dryRun', False):
                 pawn_after = result.get('pawn') or {}

@@ -105,3 +105,32 @@ hit and was not counted as a pass.
 Validation: native compilation/install, 53 controller tests, and the live ranged
 acceptance above. Evidence is `.rimbot/bridge/ranged-smoke.json`. Actual raids,
 autonomous model tactics, rescue completion and victory handling remain unproven.
+
+## Native treatment after combat
+
+The controller supplies the native `allowPersistentDraft` handshake for a tend
+order only when it has durably recorded that doctor's current-load draft cleanup
+obligation. This saves the model from supplying lifecycle plumbing. An explicit
+false remains false, pre-existing player drafts are not claimed, and a lost write
+receipt retains the cleanup obligation. The input argument object is not mutated.
+
+Run `scripts/native_combat_smoke.py --tend` for the disposable medical acceptance
+case. It obtains actual wounds from the existing melee fixture, retreats the
+patient to the starting group through a native movement order, holds them still,
+and selects an eligible doctor via native tending preview. It requires a new
+observed tended wound AND no remaining native tending need, not an accepted job
+receipt. A missing/dead patient never passes. Both owned medical drafts are
+released afterward; Automate remains enabled and the game is paused on exit.
+
+Live result: Marulo treated Sam's two fox scratches; both were marked tended,
+bleeding was false, and needsTend was false. Both owned drafts were released.
+The earlier attempt beside the fox stopped on additional combat damage instead
+of claiming medical success. This fixture explicitly acknowledges its sealed
+ancient-danger proximity warning once; no production auto-resume changed.
+
+Validation: 56 controller tests, including three lifecycle-handshake cases, and
+actual headless wound/treatment/readback/cleanup. No DLL changed in this slice.
+Evidence: `.rimbot/bridge/medical-smoke.json`. No wound injection, healing cheat,
+boosted time or model call. This verifies treatment, not full healing or rescue.
+Native-operation plan completion still means receipt acceptance; durable medical
+outcome tracking and model-selected triage remain future work.
