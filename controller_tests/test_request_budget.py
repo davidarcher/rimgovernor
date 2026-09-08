@@ -21,6 +21,14 @@ def test_unshrinkable_request_is_rejected_locally():
     with pytest.raises(ValueError,match='cannot fit safely'):fit_request([{'role':'system','content':'x'*100000}],[],16384,8192)
 
 
+def test_bounded_calibration_retains_context_without_changing_output_reserve():
+    messages=[{'role':'system','content':'x'*9000}]
+    with pytest.raises(ValueError):fit_request(messages,[],16384,8192)
+    kept,_,budget=fit_request(messages,[],16384,8192,2)
+    assert kept==messages and budget['input_budget']==12288
+    with pytest.raises(ValueError,match='Calibration'):fit_request(messages,[],16384,8192,3)
+
+
 async def test_context_stream_failure_retries_once_with_smaller_budget():
     import httpx
     from rimbot.model import LocalModel

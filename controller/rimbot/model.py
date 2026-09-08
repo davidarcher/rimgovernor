@@ -30,6 +30,7 @@ class LocalModel:
         self.settings = settings
         self.reasoning_style = 'standard'
         self.context_limit = settings.model_context_tokens
+        self.units_per_token = 1.0
         self.http = httpx.AsyncClient(base_url=settings.model_url, timeout=httpx.Timeout(settings.timeout_seconds, connect=10), transport=transport, trust_env=False)
 
     async def close(self):
@@ -37,7 +38,7 @@ class LocalModel:
 
     async def complete(self, messages, tools, thinking, progress, _retried=False, _context_retry=0):
         from .request_budget import fit_request
-        try:messages,tools,budget=fit_request(messages,tools,self.context_limit,self.settings.max_output_tokens)
+        try:messages,tools,budget=fit_request(messages,tools,self.context_limit,self.settings.max_output_tokens,self.units_per_token)
         except ValueError as error:raise ModelError(str(error)) from error
         if budget['compacted']:await progress({'phase':'Preparing decisions','detail':'Compacted model context','request_budget':budget})
         effort = ('medium' if thinking else 'none') if self.reasoning_style == 'standard' else ('on' if thinking else 'off')
@@ -75,6 +76,7 @@ class LocalModel:
                         detail=error.get('message',str(error)) if isinstance(error,dict) else str(error)
                         if 'context' in detail.lower() and any(word in detail.lower() for word in ('exceeded','length','size')) and _context_retry<2:
                             self.context_limit=max(self.settings.max_output_tokens+6144,self.context_limit//2)
+                            self.units_per_token=1.0
                             await progress({'phase':'Preparing decisions','detail':'Retrying with a smaller context budget'})
                             return await self.complete(messages,tools,thinking,progress,_retried=True,_context_retry=_context_retry+1)
                         raise ModelError('Local model stream error: '+detail[:800])
@@ -101,4 +103,9 @@ class LocalModel:
             raise ModelError('Model output limit reached; incomplete decisions were not executed. Increase output tokens in Settings or simplify this review.')
         if finish not in ('stop', 'tool_calls'):
             raise ModelError(f'Model stream ended without a complete response ({finish}).')
+        if usage.get('prompt_tokens',0)>0:
+            # Use only half the measured character/structure-to-token ratio,
+            # capped at two. Never assume prose token density for arbitrary JSON.
+            measured=budget['budget_units']/usage['prompt_tokens']
+            self.units_per_token=min(2.0,max(1.0,measured/2))
         return {'role':'assistant', 'content':text or None, **({'tool_calls':list(calls.values())} if calls else {})}, usage

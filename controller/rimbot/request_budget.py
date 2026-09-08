@@ -20,9 +20,11 @@ def shorten(value,limit):
         return {k:v if k in spatial else shorten(v,limit) for k,v in value.items()}
     return value
 
-def fit_request(messages,tools,context_tokens,output_tokens):
-    budget=context_tokens-output_tokens-2048
-    if budget<4096:raise ValueError('Context window must leave at least 4096 input tokens after output allowance and safety reserve')
+def fit_request(messages,tools,context_tokens,output_tokens,units_per_token=1.0):
+    token_budget=context_tokens-output_tokens-2048
+    if token_budget<4096:raise ValueError('Context window must leave at least 4096 input tokens after output allowance and safety reserve')
+    if not 1<=units_per_token<=2:raise ValueError('Calibration must stay between one and two units per token')
+    budget=int(token_budget*units_per_token)
     messages=copy.deepcopy(messages);tools=copy.deepcopy(tools)
     size=lambda:encoded_size(messages)+encoded_size(tools)
     original=size()
