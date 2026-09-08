@@ -146,3 +146,9 @@ optional and require native verification. Current evidence is
 Next: isolate fixtures from existing ruins, compare absent/present entrances, and
 expose the source image plus concern regions for player review. No model was
 trained or prompt tuned to force the expected answer in this run.
+
+Follow-up camera check: map ID, center and root zoom were unchanged, but the
+reported visible width changed from 49 to 93 cells (height stayed 27). The cause
+was not established. The fixture now separates position/zoom invariance from a
+recorded viewport change instead of treating both as the same assertion. This
+run does not prove stable framing; image regions refer only to the captured PNG.

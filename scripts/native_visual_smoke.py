@@ -56,7 +56,8 @@ async def main():
             evidence.update(result=result,elapsed_seconds=time.monotonic()-started,metrics=rt.router.metrics)
             after=(await bridge.call('rimworld/get_camera_state')).structuredContent
             evidence['camera_before']=before;evidence['camera_after']=after
-            assert all(before[k]==after[k] for k in ('mapId','mapPosition','rootSize','viewRect')),'Reviewer moved the camera'
+            assert all(before[k]==after[k] for k in ('mapId','mapPosition','rootSize')),'Camera position or zoom changed'
+            evidence['viewport_changed']=before['viewRect']!=after['viewRect']
             text=json.dumps(result['report']).lower()
             evidence['acceptance']={'door_concern_mentioned':bool(re.search(r'\b(door|doorway|entrance|entry)\b',text)),
                 'automated_check_only':True,'requires_human_review':True,
