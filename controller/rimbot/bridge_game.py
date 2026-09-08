@@ -100,6 +100,11 @@ def for_model(payload, tool=None, catalog_offset=0):
         result = {k: v for k, v in result.items() if k not in ('state', 'designatorState')}
     if tool == 'rimworld/list_architect_designators' and isinstance(result.get('designators'), list):
         rows = result['designators']
+        # A page is not the whole construction vocabulary. Keep a small index so
+        # ordinary walls are not hidden behind bridges/doors on the first page.
+        result['buildable_index'] = [{'defName': row['buildableDefName'],
+            'label': row.get('buildableLabel') or row.get('label')}
+            for row in rows if row.get('buildableDefName')]
         if catalog_offset < 0 or catalog_offset > len(rows):
             raise ValueError(f'catalog_offset must be between 0 and {len(rows)}')
         end = min(catalog_offset+8, len(rows))

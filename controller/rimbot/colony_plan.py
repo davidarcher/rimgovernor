@@ -44,6 +44,8 @@ class RoomShell(Contract):
 
     @model_validator(mode='after')
     def interior(self):
+        if self.wall_def == self.door_def:
+            raise ValueError('A room shell needs distinct wall and entrance definitions; a perimeter of doors is not a wall shell. Inspect the construction catalog index.')
         if self.bounds.width < 4 or self.bounds.height < 4:
             raise ValueError('A room shell needs an interior; use a building batch for a wall segment')
         return self

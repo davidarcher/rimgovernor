@@ -170,8 +170,7 @@ class Planner:
                         result = inspection_result(await rt.inspect_native(native_name, native_args),
                             native_name, native_args, offset, callable_name=name)
                         if native_name=='rimworld/list_architect_designators':
-                            construction_definitions.update(row['buildableDefName'] for row in result.get('designators',[])
-                                if isinstance(row.get('buildableDefName'),str) and row['buildableDefName'])
+                            construction_definitions.update(row['defName'] for row in result.get('buildable_index',[]))
                             ground_construction(tools,construction_definitions)
                     elif name == 'inspect_plan':
                         result = inspect_plan(rt.current_plan, args['ids'])

@@ -70,7 +70,7 @@ async def main(headless=False, build=False, room=False):
             animal=rt.current_plan.progress['animal-sleep']
             wall=rt.current_plan.progress['wall']
             assert animal.state=='complete',animal.model_dump()
-            assert wall.state=='blocked' and wall.failure.code=='construction_unavailable',wall.model_dump()
+            assert wall.state=='waiting',wall.model_dump()
             blocked_wall=wall.model_dump()
             supplies=await rt.game.query('home/list_things',ownership='ours',x=pawn.position.x,z=pawn.position.z,radius=20,maxPositionsPerDef=10)
             wood=next(r for r in supplies['things'] if r['defName']=='WoodLog')
@@ -81,9 +81,8 @@ async def main(headless=False, build=False, room=False):
             allowed=await rt.game.invoke('rimworld/apply_architect_designator',{'designatorId':allow['id'],'x':position['x'],'z':position['z'],'dryRun':False,'keepSelected':False},allow_write=True)
             updated=await rt.game.query('home/list_things',ownership='ours',maxPositionsPerDef=0)
             assert next(r for r in updated['things'] if r['defName']=='WoodLog')['oursUnforbidden']>=5,allowed
-            # New evidence permits an explicit retry commitment, not an automatic retry.
-            answer=answer.model_copy(update={'expected_revision':rt.current_plan.revision,'plan':spec,'retry_steps':['wall']})
-            await rt.planner.play_bridge()
+            # The native-legal blueprint already exists. Allowing materials lets
+            # ordinary labor proceed; no second model commitment is necessary.
             await rt.hands.advance(rt)
             wall=rt.current_plan.progress['wall']
             assert wall.state=='waiting',wall.model_dump()
@@ -92,7 +91,7 @@ async def main(headless=False, build=False, room=False):
             assert len(matches)==1 and matches[0]['status']=='blueprint',matches
             assert matches[0]['workToBuild']>0,matches
             await rt.hands.advance(rt)
-            assert rt.counters['actions']==before+4 and brain.calls==2
+            assert rt.counters['actions']==before+4 and brain.calls==1
             await rt.projects.reconcile(rt.game);rt.reconcile_plan();rt.persist()
             assert progress.state=='complete' and wall.state=='waiting'
             status=await rt.game.query('home/status')
