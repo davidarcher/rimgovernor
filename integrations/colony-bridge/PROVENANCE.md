@@ -121,3 +121,12 @@ CellsPlusTool.cs copied unchanged from pinned companion revision
 89c2e90fedd51419a3db55a7f9865b0aef29b270. Exposed as an on-demand read for the
 strategist and scout. Native rectangular/filter/sparse/summary and refusal tests
 passed in the headless baseline; no changes to native execution or geometry.
+
+## Pawn settings identity compatibility
+
+PawnConfig's exact-ID resolver now compares both ThingID and GetUniqueLoadID().
+Our ListPawns top-level identity uses the latter; the copied resolver previously
+accepted only the former and rejected valid observed pawn IDs. The same resolver
+serves master selection. Native name ambiguity handling is unchanged. A real
+local-model commitment changed selfTend using the observed load ID, with paused
+native readback confirming the result.

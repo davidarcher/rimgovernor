@@ -15,6 +15,8 @@ from .native_contracts import validate_arguments
 from .construction_preflight import ConstructionRefusal
 from .review_evidence import ReviewEvidence
 from .construction_grounding import ground_construction
+from .execution_contracts import ExecutionContracts
+from .colony_plan import NativeOperation
 
 
 def inspect_plan(plan, ids):
@@ -69,6 +71,10 @@ class Planner:
                 {'role':{'type':'string','enum':auxiliary}, 'question':{'type':'string','minLength':1,'maxLength':1200},
                  'sections':{'type':'array','minItems':1,'maxItems':3,'items':{'type':'string','enum':['people','resources','power','construction','space','threats']}},
                  'include_image':{'type':'boolean'}}, ['role','question','sections'])))
+        execution_contracts = ExecutionContracts(tools)
+        for step in rt.current_plan.spec.steps:
+            if isinstance(step.action, NativeOperation):
+                execution_contracts.expose(step.action.tool, await rt.game.describe(step.action.tool))
         messages = [{'role':'system','content':
             'You are the single RimWorld colony strategist. Resolve food, labor, shelter, health, defense and space together. '
             'Continue an adequate committed plan rather than replacing it each review. Code computes state and executes committed steps. '
@@ -91,6 +97,8 @@ class Planner:
             'home/building_config is not a bulk supply-access tool. '
             'Registry visibility is not proof a particular pawn or site can build it: preview home/place_building with dryRun=true. '
             'Use describe to read a native argument contract before guessing its parameters. '
+            'describe also enables that exact native_operation argument schema in the commitment tools. '
+            'Undiscovered native operations cannot be committed; choose a discovered tool and its exact fields. '
             'Dependencies may wait for orders issued or completed pawn construction. Buildings complete only from native observations. '
             'native_operation is the limited fallback for bills, priorities, equipment and other native mechanics; its completion means the command was issued, not all pawn labor finished. '
             'Unknown nutrition/forecasts are unknown, never zero. Loose allowed supplies can be used without being stockpiled. '
@@ -174,6 +182,7 @@ class Planner:
                     elif name == 'describe':
                         native_schema = await rt.game.describe(args['name'])
                         await rt.ensure_context(token)
+                        execution_contracts.expose(args['name'], native_schema)
                         result = native_inspections.expose(args['name'], native_schema, tools)
                     elif name in native_inspections.names:
                         native_name = native_inspections.names[name]

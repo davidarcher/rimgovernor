@@ -10,12 +10,12 @@ successes. That evidence determines the ordering below.
 
 ## Current priorities
 
-1. **Ground execution arguments in native schemas.** Inspection tools are typed,
-   but `native_operation.arguments` remains an open dictionary in the model's
-   commitment schema. Bind it to discovered native contracts, retaining runtime
-   validation. Test allowing nearby supplies, setting work priorities and issuing
-   a bill independently before another broad startup campaign. Invented job and
-   configuration fields repeatedly prevented otherwise useful plans from landing.
+1. **Native execution acceptance.** [Schema-bound commitments](EXECUTION_CONTRACTS.md)
+   are implemented and passed a real Qwen pawn-setting/readback test while paused.
+   This also fixed PawnConfig rejecting the load IDs returned by ListPawns.
+   Test allowing nearby supplies, setting work priorities and issuing a bill
+   independently before another broad startup campaign. These gameplay cases
+   remain unproven; valid argument structure alone is not a useful strategy.
 2. **Complete modal control and pause ownership.** Native letter reads contain
    full text. Opening a letter can force-pause the game with no connected close/
    choice path. Integrate inspected native window/choice controls and distinguish
