@@ -186,6 +186,21 @@ class Decision(Contract):
     retry_steps: list[str] = Field(default_factory=list, max_length=16, description='Explicitly retry blocked steps only when their failure is marked retryable and new evidence supports it.')
 
 
+class CommitSteps(Contract):
+    expected_revision: int = Field(ge=0)
+    reason: str = Field(min_length=1,max_length=1200)
+    steps: list[PlanStep] = Field(min_length=1,max_length=8)
+
+    def decision(self, current):
+        existing={step.id for step in current.spec.steps}
+        if any(step.id in existing for step in self.steps):
+            raise ValueError('Append new step IDs only; existing work is preserved. Use commit_plan to revise it.')
+        spec=PlanSpec.model_validate(dict(current.spec.model_dump(),
+            steps=[step.model_dump() for step in [*current.spec.steps,*self.steps]]))
+        return Decision(expected_revision=self.expected_revision,disposition='revise',
+            assessment=self.reason,rationale=self.reason,reply=self.reason,plan=spec)
+
+
 class Failure(Contract):
     code: str
     detail: str

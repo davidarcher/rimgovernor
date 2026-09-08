@@ -4,7 +4,7 @@ import json
 import time
 from .tool_diagnostics import record
 from .config import ModelRole
-from .colony_plan import Decision
+from .colony_plan import Decision, CommitSteps
 from .consultation import structured_tool as tool
 from .strategic_state import context
 from .wiki import wiki_lookup
@@ -42,6 +42,7 @@ class Planner:
             tool('describe', 'Discover a native contract and enable a directly callable, schema-backed inspection tool for the rest of this review. Execution-only tools return their contract for planning.', schema({'name':{'type':'string','enum':choices}},['name'])),
             tool('inspect_plan', 'Read the current revision and step IDs plus selected step details and progress. Use ids=[] for revision and index only.', schema({'ids':{'type':'array','items':{'type':'string'},'maxItems':8}},['ids']))]
         tools.extend([
+            tool('commit_steps','Append a small set of ready executable steps now, preserving the existing plan and goals. Ends this review so Hands can start. Prefer this for incremental startup work; native validation still applies.',CommitSteps.model_json_schema()),
             tool('review_evidence', 'Search or read exact observations retained from this review after older messages are compacted. Historical only; never executes or refreshes a game query.', schema({
                 'operation':{'type':'string','enum':['search','read']},'query':{'type':'string','maxLength':200},
                 'id':{'type':'string'}},['operation'])),
@@ -151,8 +152,9 @@ class Planner:
                     if advertised is None:
                         raise ValueError('Unknown tool; use describe to enable a native inspection first')
                     validate_arguments(name, advertised, args)
-                    if name == 'commit_plan':
-                        result = await rt.commit_strategy(Decision.model_validate(args), actor=ModelRole.STRATEGIST,
+                    if name in ('commit_plan','commit_steps'):
+                        decision=CommitSteps.model_validate(args).decision(rt.current_plan) if name=='commit_steps' else Decision.model_validate(args)
+                        result = await rt.commit_strategy(decision, actor=ModelRole.STRATEGIST,
                             expected_token=token, expected_revision=seen)
                         finished = True
                     elif name == 'describe':
@@ -198,7 +200,7 @@ class Planner:
                         result['conflict'] = error.evidence
                     if isinstance(error, ConstructionRefusal):
                         result['construction'] = error.evidence
-                    if call.get('function', {}).get('name') == 'commit_plan':
+                    if call.get('function', {}).get('name') in ('commit_plan','commit_steps'):
                         result['current_plan'] = inspect_plan(rt.current_plan, [])
                         result['correction'] = ('Use the current revision as expected_revision. '
                             'To create or replace a plan use disposition=revise and provide plan; '
