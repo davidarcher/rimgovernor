@@ -120,3 +120,29 @@ No live VL inference or missing-door detection claim in this slice. Deliberate
 layout-error acceptance, actual loaded-model latency, and UI image-region display
 remain backlog. Camera framing is intentionally the current view; automatic
 near/wide positioning and player camera-ownership detection are not implemented.
+
+## Visual reviewer: first live result (2026-09-08)
+
+`scripts/native_visual_smoke.py` creates an ordinary 7x7 wall-blueprint perimeter
+without a door on the disposable tribal baseline, frames it, and asks a neutral
+usability question. Placement uses each native rotation's accepted flag, not the
+request-level success flag. It runs the configured test Qwen 9B with a clean
+reviewer context, preserving paused ticks and an unchanged strategic plan. The
+script records the fixture, report, camera state, inference metrics and a simple
+entrance-mention check; a human must judge accuracy. It does not build instantly.
+
+First completed live run: 8.69 seconds end to end, 4,347 input tokens, 440 output
+tokens, one model call. The model missed the doorless perimeter. It asserted
+impassable cliff/pit terrain with high confidence and inferred remoteness despite
+nearby colonists. The screenshot also has a ruin abutting part of the perimeter,
+so a cleaner isolated fixture is needed for subsequent comparisons. These are
+not accepted actionable facts. Native legal-placement checks do not prove overall
+room accessibility, but neither does the model's interpretation prove a cliff.
+
+Result: capture/local inference/structured report worked; visual-quality acceptance
+FAILED. Do not treat this as a reliable autonomous layout inspector. Keep it
+optional and require native verification. Current evidence is
+`.rimbot/bridge/visual-smoke.json` and the native review PNG in profile/Screenshots.
+Next: isolate fixtures from existing ruins, compare absent/present entrances, and
+expose the source image plus concern regions for player review. No model was
+trained or prompt tuned to force the expected answer in this run.
