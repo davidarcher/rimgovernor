@@ -19,6 +19,7 @@ def create_app(runtime=None):
         rt = runtime or BridgeRuntime(Store(DATA_DIR/'bridge.sqlite'),
             os.environ.get('RIMBOT_BRIDGE_ROOT', '.rimbot/bridge'),
             fresh=os.environ.get('RIMBOT_BRIDGE_FRESH') == '1',
+            headless=os.environ.get('RIMBOT_HEADLESS') == '1',
             settings=Settings(model=os.environ.get('RIMBOT_MODEL', 'qwen3.5-9b')),
             routing=load_model_routing(Settings(model=os.environ.get('RIMBOT_MODEL', 'qwen3.5-9b')), os.environ.get('RIMBOT_MODELS_CONFIG')))
         app.state.rt = rt

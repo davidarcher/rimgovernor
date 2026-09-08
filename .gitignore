@@ -1,6 +1,7 @@
 # Build output
 bin/
 obj/
+integrations/headless-rim/Assemblies/
 
 # User-specific files
 *.user

@@ -10,7 +10,7 @@ from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.colony_plan import Decision, PlanSpec
 from rimbot.store import Store
 
-async def main():
+async def main(headless=False):
     root=Path('.rimbot/bridge').resolve()
     answer=None
     class Brain:
@@ -20,9 +20,11 @@ async def main():
             return {'role':'assistant','tool_calls':[{'id':'commit','type':'function','function':{'name':'commit_plan','arguments':answer.model_dump_json()}}]},{}
         async def close(self):pass
     brain=Brain()
-    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe', root/'config') as bridge:
+    from rimbot.headless import prepare
+    configuration=prepare(root) if headless else root/'config'
+    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe', configuration) as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
-        await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',timeoutMs=90000)
+        await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',timeoutMs=90000,ignoreModCompatibility=headless)
         await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
         store=Store(root/'strategy-smoke.sqlite')
         rt=BridgeRuntime(store,root,model_factory=lambda _:brain)
@@ -53,4 +55,7 @@ async def main():
             await rt.game.invoke('home/zone_cells',{'op':'delete','zone':'Strategy pipeline probe','dryRun':False},allow_write=True)
             await rt.halt();await rt.router.close();store.close()
 
-if __name__=='__main__':asyncio.run(main())
+if __name__=='__main__':
+    import argparse
+    parser=argparse.ArgumentParser();parser.add_argument('--headless',action='store_true')
+    asyncio.run(main(parser.parse_args().headless))

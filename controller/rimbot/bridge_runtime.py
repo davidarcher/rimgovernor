@@ -27,7 +27,8 @@ def failure_text(error):
 
 
 class BridgeRuntime:
-    def __init__(self, store, root, *, fresh=False, settings=None, model_factory=LocalModel, routing=None):
+    def __init__(self, store, root, *, fresh=False, settings=None, model_factory=LocalModel, routing=None, headless=False):
+        self.headless = headless
         self.store, self.root, self.fresh = store, Path(root).resolve(), fresh
         self.settings = settings or Settings()
         self.router = ModelRouter(routing or load_model_routing(self.settings), store, model_factory)
@@ -490,13 +491,15 @@ class BridgeRuntime:
     async def run(self):
         executable = self.root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe'
         try:
-            async with bridge_session(executable, self.root/'config') as bridge:
+            from .headless import prepare
+            configuration = prepare(self.root) if self.headless else self.root/'config'
+            async with bridge_session(executable, configuration) as bridge:
                 self.bridge = bridge
                 if self.fresh:
                     await bridge.core('games_start', gameId=bridge.game_id)
                 await bridge.connect()
                 if self.fresh:
-                    await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline', readiness='visual', timeoutMs=90000)
+                    await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline', readiness='visual', timeoutMs=90000, ignoreModCompatibility=self.headless)
                 await bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
                 self.game = BridgeGame(bridge)
                 await self.sync_identity()
@@ -533,11 +536,12 @@ class BridgeRuntime:
                                     self.wake.set()
                                 self.persist()
                                 last_reconcile = time.monotonic()
-                            image = await bridge.call('rimworld/take_screenshot', fileName='rimbot-live', includeTargets=False, suppressMessage=True)
-                            candidate = Path(image.structuredContent['path']).resolve()
-                            if candidate.is_relative_to(self.root) and candidate.is_file():
-                                self.camera_path = candidate
-                                self.camera_version += 1
+                            if not self.headless:
+                                image = await bridge.call('rimworld/take_screenshot', fileName='rimbot-live', includeTargets=False, suppressMessage=True)
+                                candidate = Path(image.structuredContent['path']).resolve()
+                                if candidate.is_relative_to(self.root) and candidate.is_file():
+                                    self.camera_path = candidate
+                                    self.camera_version += 1
                     except Exception as error:
                         self.note('camera_error', str(error))
                     try:
@@ -576,5 +580,5 @@ class BridgeRuntime:
                     failure=self.current_plan.progress[s.id].failure.model_dump() if self.current_plan.progress[s.id].failure else None)
                     for s in self.current_plan.spec.steps]}, 'modelRoles': self.router.metrics,
             'clockSupervisor': self.supervisor.state if self.supervisor else {},
-            'cameraVersion': self.camera_version, 'counters': self.counters,
+            'headless': self.headless, 'cameraVersion': self.camera_version, 'counters': self.counters,
             'observation': summary.model_dump() if summary else None}

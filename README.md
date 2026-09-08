@@ -92,6 +92,9 @@ strategist during normal play.
 
 ## Remaining migration work
 
+Headless native testing is available with `launch.ps1 -Headless` after installing
+the source-built test patch. See [headless setup and measured limits](docs/TEST_SPEED.md).
+
 The retired RIMAPI implementation is preserved in Git at `9209b74`. Its richer
 project reconciliation, visual architect/reservations, colony detail inspectors,
 and full session lifecycle handling have **not** all been ported to the bridge.
