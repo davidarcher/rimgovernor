@@ -314,3 +314,11 @@ The strategy fixture supports --room (includes --build). It chooses a native-pre
 The fixture now explicitly reports unexpected pauses and acknowledges its known sealed ancient-danger proximity letter once; production behavior is unchanged. It also avoids repeating Allow on the already allowed stack. An earlier unchecked candidate hit compacted steel after four placements, exposing a remaining production gap: whole-room preflight before the first write. The fixture's site validation does not fix that executor behavior; address it next.
 
 Validation: scripts/native_strategy_smoke.py --headless --room passed. Evidence: .rimbot/bridge/strategy-room-smoke.json. No production files or native DLL changed.
+
+### Production room preflight (2026-09-08)
+
+Hands now runs its native placement checks for the whole room shell before each execution pass can issue a piece. It reuses the same read-only placement path (existing matching structures, native placement/material eligibility, walkway and zone checks), without creating journals or native writes. Individual placement validation still repeats before writes. This catches known obstructed cells before a partial shell is issued, and rechecks after yielding between controller passes.
+
+This is not an atomic native transaction: map changes during execution can still interrupt a shell, and individual material eligibility does not reserve the entire room's material budget. No rollback or cheat completion was introduced.
+
+Validation: 134 controller tests and actual headless --room regression passed. The previously failing compacted-steel footprint now blocks with zero issued pieces and no action-count increase. A native-preview-legal footprint then builds all 15 walls and one door through normal labor; replay adds no writes. Scripted decisions, not LLM layout validation. No native DLL change.

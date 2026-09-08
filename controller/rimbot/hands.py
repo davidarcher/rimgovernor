@@ -56,6 +56,13 @@ class Hands:
                 self.guard(rt, revision, token, direction)
                 action = step.action
                 placements = room_placements(action) if isinstance(action, RoomShell) else action.placements if isinstance(action, Buildings) else None
+                if isinstance(action, RoomShell):
+                    # Check the entire remaining shell before this pass can write any piece.
+                    # Per-piece validation still runs immediately before each write.
+                    for index, placement in enumerate(placements):
+                        self.guard(rt, revision, token, direction)
+                        await self.place(rt, placement, progress, str(index), revision, token, direction, preview_only=True)
+                    self.guard(rt, revision, token, direction)
                 operations = placements if placements is not None else [action]
                 for index, operation in enumerate(operations):
                     self.guard(rt, revision, token, direction)
@@ -168,7 +175,7 @@ class Hands:
                 or rt.chat_revision != direction or rt.chat_revision > rt.handled_revision):
             raise InterruptedError('Plan or player direction changed')
 
-    async def place(self, rt, p, progress, key, revision, token, direction):
+    async def place(self, rt, p, progress, key, revision, token, direction, *, preview_only=False):
         found = await rt.game.query('home/list_buildings', match=p.def_name, x=p.x, z=p.z, radius=1, aggregate=False, playerOnly=True)
         if found.get('skipped', {}).get('byMaxDetailed'):
             raise Blocked('incomplete_observation', 'Construction query was truncated')
@@ -202,6 +209,8 @@ class Hands:
                 if occupied & {(c['x'], c['z']) for c in cells}:
                     raise Blocked('existing_zone', 'Building footprint overlaps an existing zone', evidence={'zone': zone['label']})
             self.guard(rt, revision, token, direction)
+            if preview_only:
+                return {'validated': True, 'stuff': stuff}
             progress.issued[key] = {'confirmed': False}
             rt.persist()
             result = await rt.native('home/place_building', dict(args, dryRun=False), expected_revision=direction,
