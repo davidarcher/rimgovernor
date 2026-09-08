@@ -134,3 +134,29 @@ Evidence: `.rimbot/bridge/medical-smoke.json`. No wound injection, healing cheat
 boosted time or model call. This verifies treatment, not full healing or rescue.
 Native-operation plan completion still means receipt acceptance; durable medical
 outcome tracking and model-selected triage remain future work.
+
+## Durable medical completion
+
+Native tend steps can select `completion: patient_tended` with exact observed
+colonist doctor/patient Thing IDs. Hands still calls the same native tending API,
+verifies the issued job, and stores a waiting step instead of equating the receipt
+with treatment. The strategist's tool guidance now explains this completion mode.
+
+Existing periodic colony observations reconcile the step: an observed living
+patient with `needsTend=false` satisfies it. Missing/dead patients, unreadable
+health, unavailable doctors and interrupted tending produce explicit blockers.
+This is a current-state goal, not proof of which doctor caused recovery, nor proof
+of full healing. It currently covers colonists in the normal colony observation.
+
+A persisted issue timestamp rejects observations that began before the order.
+Waiting state survives reload, and `after: complete` dependencies (including
+stand-down) remain gated. Terminal medical outcomes emit one event; they do not
+reissue tending automatically. Interrupted tending permits explicit strategist
+retry after new evidence. No additional observation or model calls are scheduled.
+
+Validation: 65 controller tests and the real headless `--tend` fixture through
+committed-plan Hands execution. The step was observed waiting after issue and
+complete after fresh treated-patient readback; medical draft cleanup succeeded.
+The fixture's existing one-time ancient-warning acknowledgment now also handles
+the warning arriving during retreat. Production pause behavior is unchanged.
+No DLL changed. Rescue completion and model-selected triage remain open.

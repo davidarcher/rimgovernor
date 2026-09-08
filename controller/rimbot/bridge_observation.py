@@ -5,6 +5,7 @@ response adapter; missing fields fail validation instead of becoming zeroes.
 """
 from dataclasses import dataclass
 from typing import Any
+import time
 
 from jsonschema import Draft202012Validator
 
@@ -46,6 +47,7 @@ class ObservationGateway:
 class ObservationBatch:
     summary: BridgeObservation
     native: dict[str, dict[str, Any]]
+    started_at: float = 0
 
 
 def project(native: dict[str, dict]) -> BridgeObservation:
@@ -90,6 +92,7 @@ def project(native: dict[str, dict]) -> BridgeObservation:
 
 
 async def observe(gateway: ObservationGateway) -> ObservationBatch:
+    started_at = time.time()
     native = {}
     for section, tool, arguments in [
         ('status_before', 'home/status', {}),
@@ -100,4 +103,4 @@ async def observe(gateway: ObservationGateway) -> ObservationBatch:
         ('status_after', 'home/status', {}),
     ]:
         native[section] = await gateway.query(tool, **arguments)
-    return ObservationBatch(project(native), native)
+    return ObservationBatch(project(native), native, started_at)

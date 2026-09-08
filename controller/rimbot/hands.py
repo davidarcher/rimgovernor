@@ -1,4 +1,5 @@
 """Deterministic intent compilation and native validation. No model dependency."""
+import time
 from .colony_plan import Buildings, RoomShell, Zone, NativeOperation, ClockAction, StandDown, Placement, Failure
 from .receipts import reason
 
@@ -93,8 +94,12 @@ class Hands:
                             rt.persist()
                             result = await rt.native(action.tool, args, expected_revision=direction, expected_token=token,
                                 expected_plan_revision=revision, reconcile=False)
+                            if action.completion == 'patient_tended' and result.get('receipt', {}).get('job', {}).get('verified') is not True:
+                                raise Blocked('tend_order_unverified', 'Native state did not confirm the tending job.', evidence=result)
                             receipt = {'native_outcome': result.get('receipt', result).get('outcome', 'receipt'),
                                 'meaning': 'Native command observed; this does not certify completion of pawn labor'}
+                            if action.completion == 'patient_tended':
+                                receipt['issued_at'] = time.time()
                         else:
                             self.guard(rt, revision, token, direction)
                             progress.issued[key] = {'confirmed': False}
@@ -112,9 +117,12 @@ class Hands:
                         'stuff': progress.issued[str(i)].get('stuff') or ''} for i,p in enumerate(placements)]
                     row = rt.projects.upsert({'title': step.title, 'detail': step.completion_criteria, 'targets': targets})
                     progress.project_id, progress.state = row.id, 'waiting'
+                elif isinstance(action, NativeOperation) and action.completion == 'patient_tended':
+                    progress.state = 'waiting'
                 else:
                     progress.state = 'complete'
-                rt.note('execution', step.title+(': orders issued; awaiting construction' if placements else ': native operation verified'))
+                rt.note('execution', step.title+(': orders issued; awaiting construction' if placements else
+                    ': tending ordered; awaiting patient outcome' if progress.state == 'waiting' else ': native operation verified'))
                 if all(rt.current_plan.progress[s.id].state in ('complete', 'cancelled') for s in rt.current_plan.spec.steps):
                     rt.signal('plan.completed', {'revision': revision})
                 rt.persist()

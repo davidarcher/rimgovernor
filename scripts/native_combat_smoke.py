@@ -13,6 +13,8 @@ from rimbot.bridge_observation import observe
 from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.headless import prepare
 from rimbot.store import Store
+from rimbot.colony_plan import Decision, PlanSpec
+from rimbot.config import ModelRole
 
 
 async def tend_wounded(rt, evidence):
@@ -34,7 +36,14 @@ async def tend_wounded(rt, evidence):
         state=(await rt.game.invoke('home/order',dict(action='resolve',pawn=patient['thingId'],dryRun=True)))['pawn']
         if state['position']==destination:
             arrived=True;break
-        if not rt.supervisor.state.get('active'):break
+        clock=rt.supervisor.state
+        if (clock.get('stopReason')=='external_pause' and 'Ancient danger' in clock.get('stopDetail','')
+                and not evidence.get('acknowledged_ancient_warning')):
+            evidence['acknowledged_ancient_warning']=clock['stopDetail']
+            rt.supervisor.allow_resume()
+            await rt.control_clock('Superfast',mode='combat')
+            continue
+        if not clock.get('active'):break
         await asyncio.sleep(.2)
     evidence['retreat']=dict(arrived=arrived,pawn=state,clock=rt.supervisor.state)
     await rt.control_clock('Paused')
@@ -58,8 +67,16 @@ async def tend_wounded(rt, evidence):
     assert selected,'No eligible native tend order'
     patient,args=selected
     evidence['patient_before']=patient
-    evidence['tend_receipt']=(await rt.native('home/order',dict(args,dryRun=False)))['receipt']
-    assert evidence['tend_receipt']['job']['verified']
+    spec=PlanSpec(steps=[dict(id='tend',title='Treat combat wounds',completion_criteria='Patient no longer needs tending',
+        action=dict(kind='native_operation',tool='home/order',arguments=args,completion='patient_tended'))])
+    rt.current_plan.commit(Decision(expected_revision=rt.current_plan.revision,disposition='revise',
+        assessment='Patient wounded',rationale='Verify native treatment',reply='Treating wounds',plan=spec),
+        actor=ModelRole.STRATEGIST,tick=rt.batch.summary.end_tick)
+    rt.handled_revision=rt.chat_revision
+    await rt.hands.advance(rt)
+    progress=rt.current_plan.progress['tend']
+    assert progress.state=='waiting',progress
+    evidence['tend_plan_issued']=progress.model_dump()
     await rt.control_clock('Superfast',mode='combat')
     deadline=asyncio.get_running_loop().time()+45
     treated=None;events=[]
@@ -77,6 +94,10 @@ async def tend_wounded(rt, evidence):
     evidence.update(patient_after=treated,medical_events=events,medical_clock=rt.supervisor.state)
     await rt.control_clock('Paused')
     assert treated,'No observed completed treatment; issuing a tend job is not treatment'
+    rt.batch=await observe(rt.game)
+    rt.reconcile_plan()
+    assert progress.state=='complete',progress
+    evidence['tend_plan_completed']=progress.model_dump()
     cleanup=await rt.stand_down(list(rt.draft_owners),expected_token=rt.context_token,
         expected_revision=rt.chat_revision,expected_plan_revision=rt.current_plan.revision)
     evidence['medical_cleanup']=cleanup

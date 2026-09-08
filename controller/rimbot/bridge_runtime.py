@@ -10,7 +10,8 @@ from .bridge_game import BridgeGame, WRITES, is_write
 from .bridge_observation import observe
 from .config import Settings, ModelRole, load_model_routing
 from .model_router import ModelRouter
-from .colony_plan import ColonyPlan, Decision, Failure
+from .colony_plan import ColonyPlan, Decision, Failure, NativeOperation
+from .medical_outcome import patient_outcome
 from .consultation import Consultations
 from .hands import Hands, validate_geometry
 from .strategic_state import StrategicState, projection
@@ -209,6 +210,18 @@ class BridgeRuntime:
     def reconcile_plan(self):
         for step in self.current_plan.spec.steps:
             progress = self.current_plan.progress[step.id]
+            if (isinstance(step.action, NativeOperation) and step.action.completion == 'patient_tended'
+                    and progress.state == 'waiting' and self.batch):
+                if self.batch.started_at <= progress.issued.get('0', {}).get('issued_at', float('inf')):
+                    continue  # Never reconcile against a batch started before the order.
+                outcome = patient_outcome(step.action.arguments, self.batch.native.get('pawns', {}).get('pawns', []))
+                if outcome != 'waiting':
+                    progress.state = 'blocked' if isinstance(outcome, Failure) else 'complete'
+                    progress.failure = outcome if isinstance(outcome, Failure) else None
+                    detail = outcome.detail if isinstance(outcome, Failure) else 'Patient no longer needs tending.'
+                    self.note('execution_blocked' if progress.failure else 'execution', step.title+': '+detail)
+                    self.signal('plan.step_'+progress.state, {'step': step.id, 'evidence': detail})
+                continue
             if not progress.project_id or progress.state in ('blocked', 'cancelled'):
                 continue
             row = next((p for p in self.projects.rows if p.id == progress.project_id), None)

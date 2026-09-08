@@ -71,7 +71,18 @@ class NativeOperation(Contract):
         'home/zone_cells', 'home/trade', 'rimworld/apply_architect_designator']
     arguments: dict
     # Honest fallback for native operations lacking a higher-level compiler.
-    completion: Literal['native_receipt'] = 'native_receipt'
+    completion: Literal['native_receipt', 'patient_tended'] = 'native_receipt'
+
+    @model_validator(mode='after')
+    def medical_completion(self):
+        if self.completion == 'patient_tended':
+            if (self.tool != 'home/order' or self.arguments.get('action') != 'tend'
+                    or not isinstance(self.arguments.get('target'), str)
+                    or not self.arguments['target'].startswith('Thing_')
+                    or not isinstance(self.arguments.get('pawn'), str)
+                    or not self.arguments['pawn'].startswith('Thing_')):
+                raise ValueError('patient_tended requires a native tend order with exact observed pawn and patient Thing IDs')
+        return self
 
 
 class ClockAction(Contract):
