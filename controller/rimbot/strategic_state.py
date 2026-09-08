@@ -116,6 +116,19 @@ def observed_roster(batch):
         'note': 'Observed pawn locations, not validated construction sites. Inspect nearby terrain before placement.'}
 
 
+def observed_supplies(batch):
+    if batch is None:
+        return None
+    rows = [{'def_name': s.def_name, 'owned_units': s.owned_units,
+             'allowed_units': s.owned_unforbidden_units,
+             'forbidden_owned_units': s.owned_units-s.owned_unforbidden_units}
+            for s in sorted(batch.summary.supplies, key=lambda s:s.def_name)]
+    return {'observed_tick':batch.summary.end_tick, 'supplies':bounded(rows,32),
+        'note':'Counts of colony-owned or unowned supplies from the native ownership query. Allowed loose items can be used without stockpiling. '
+               'Counts do not establish reachability, safe access, nutrition or unreserved material availability. '
+               'Inspect filtered home/list_things for locations before allowing or hauling. Omitted definitions are unknown, not absent.'}
+
+
 def context(rt):
     state = rt.strategic_state.current
     plan = rt.current_plan
@@ -127,6 +140,7 @@ def context(rt):
     resources = state.get('resources', {})
     return {'colony': {'people': people, 'threats': state.get('threats'), 'alerts': state.get('alerts'),
         'observed_roster': observed_roster(rt.batch),
+        'observed_supplies': observed_supplies(rt.batch),
         'space': state.get('space'), 'power': state.get('power'), 'construction': state.get('construction'),
         'resources': {k:v for k,v in resources.items() if k != 'allowed_units_by_def'},
         'available_supply_definitions': len(resources.get('allowed_units_by_def', {})), 'warnings': state.get('warnings')},
