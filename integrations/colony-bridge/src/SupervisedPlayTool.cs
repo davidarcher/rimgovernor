@@ -597,7 +597,7 @@ namespace HomeBridge.BridgeTools
                         Add("injury_observed", HomePlayUntilEventTools.SafeName(p)
                             + (suppressed
                                 ? (acknowledged
-                                    ? " took another injury; play continues (acknowledged with --allow-injured)."
+                                    ? " took another injury; play continues under the configured injury acknowledgement."
                                     : " took another injury; play continues (within the "
                                         + (s.InjuryStopCooldownMs / 1000) + " s injury-stop cooldown).")
                                 : (newWound
@@ -658,11 +658,11 @@ namespace HomeBridge.BridgeTools
                 parts.Add(downed.Count + " downed (" + string.Join("; ", downed
                     .Select(p => HomePlayUntilEventTools.SafeName(p) + " at "
                         + p.Position.x + "," + p.Position.z).ToArray())
-                    + ") -- finish off or capture");
+                    + ")");
             if (drafted.Count > 0)
                 parts.Add(drafted.Count + " colonist" + (drafted.Count == 1 ? "" : "s")
                     + " still drafted (" + string.Join(", ", drafted
-                        .Select(HomePlayUntilEventTools.SafeName).ToArray()) + ") -- undraft them");
+                        .Select(HomePlayUntilEventTools.SafeName).ToArray()) + ")");
             Add("hostiles_cleared", "No conscious hostiles remain: "
                 + (parts.Count > 0 ? string.Join("; ", parts.ToArray())
                     : "nothing downed and nobody drafted") + ".", s,
@@ -698,20 +698,14 @@ namespace HomeBridge.BridgeTools
                 Name = HomePlayUntilEventTools.SafeName(pawn) };
         }
 
-        /// One line, because it goes on screen: what changed and what to do.
+        /// Observations only: the controller decides how to respond.
         private static string InjuryDetail(State s, Pawn p, InjurySnapshot before, InjurySnapshot after)
         {
             var name = HomePlayUntilEventTools.SafeName(p);
-            var seconds = s.InjuryStopCooldownMs / 1000;
-            var advice = seconds > 0
-                ? "a restart within " + seconds + " s will not stop again on minor injuries for "
-                    + name + ", or pass --allow-injured " + p.thingIDNumber + "."
-                : "pass --allow-injured " + p.thingIDNumber + " to acknowledge the wound.";
             return name + " was injured (injuries " + before.Count + " -> " + after.Count
                 + ", bleed " + Num(before.BleedRate) + " -> " + Num(after.BleedRate)
                 + "/day, blood loss " + Num(before.BloodLoss) + " -> " + Num(after.BloodLoss)
-                + ", health " + Num(after.Health) + "). If this repeats, break the contact: "
-                + "move them away or undraft them so they seek care; " + advice;
+                + ", health " + Num(after.Health) + "). Game paused for review.";
         }
 
         private static string Num(float value) { return value.ToString("0.00", CultureInfo.InvariantCulture); }

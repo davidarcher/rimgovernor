@@ -15,6 +15,10 @@ local submodule branches were also preserved in `.rimbot/rimapi-retired.bundle`.
 
 ## Next acceptance milestones
 
+Combat execution now has a repeatable headless melee/injury-stop test and selected
+AI-owned stand-down. See `NATIVE_CONTROL_CHECKPOINT.md` for the precise observed
+outcomes and remaining ranged/rescue/hostile-victory acceptance cases.
+
 1. Validate normal construction, instant zones and settings end-to-end through
    the current planner. Check duplicate/no-op receipts and pawn completion.
 2. Restore durable objectives and project lifecycle against native state: cancel,

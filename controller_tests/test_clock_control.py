@@ -141,3 +141,21 @@ async def test_player_resume_is_not_undone_by_buffered_old_pause(tmp_path):
     assert rt.mode == 'automate' and rt.resume_after_review
     assert (await rt.control_clock('Normal'))['active']
     store.close()
+
+
+@pytest.mark.asyncio
+async def test_combat_injury_wakes_strategist_and_invalidates_prior_orders(tmp_path):
+    store=Store(tmp_path/'injury.sqlite')
+    rt=BridgeRuntime(store,tmp_path,model_factory=lambda _:SimpleNamespace())
+    rt.mode='automate';rt.game=SimpleNamespace(invoke=AsyncMock())
+    rt.clock_events=[dict(kind='colonist_injury',detail='Sam was injured. Game paused for review.',
+        epoch=1,event={'pawnId':275,'newWound':True,'healthNow':.89})]
+    prior=rt.chat_revision
+    rt.receive_clock_events()
+    assert rt.mode=='automate' and rt.wake.is_set() and not rt.resume_after_review
+    assert rt.strategic_state.pending[0]['kind']=='native.colonist_injury'
+    assert rt.chat[-1]['kind']=='clock_event'
+    with pytest.raises(ValueError,match='New player direction'):
+        await rt.native('home/order',{'action':'attack'},expected_revision=prior)
+    rt.game.invoke.assert_not_awaited()
+    store.close()

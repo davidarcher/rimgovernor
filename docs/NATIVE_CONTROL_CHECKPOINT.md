@@ -53,3 +53,29 @@ up afterward. No model call or actual fight was part of this check.
 Next combat acceptance: a controlled threat scenario with observed attack outcome,
 injury interruption and strategy-selected stand-down. Victory detection, rescue
 completion and human undraft/redraft ownership ambiguity remain open.
+
+## Real melee and injury interruption
+
+`scripts/native_combat_smoke.py` now reloads the isolated headless baseline,
+selects a reachable existing wild animal through native query/preview, and issues
+a normal melee attack. It uses supervised Superfast with colony injury monitoring
+and acknowledges only its selected target for hostility checks. It does not spawn
+or weaken anything, inject wounds, heal pawns, or enable boosted time.
+
+Two live runs observed a tribal hit a red fox, receive a wound, and pause through
+the native `colonist_injury` event. The target remained alive and active. The test
+verifies actual target health change or an observed incapacity/injury stop; a
+missing target is explicitly unobserved and does not count as victory. It also
+checks that the event wakes the strategist and changes its revision, then releases
+the selected owned draft without disabling Automate. The game is paused and the
+fixture is discarded at the end. Evidence is `.rimbot/bridge/combat-smoke.json`.
+
+The run exposed imported event instructions for an unsupported `--allow-injured`
+CLI and automatic post-combat handling. Native event text now reports observations
+only; structured wound and hostility evidence remains unchanged. The strategist
+must decide how to respond rather than treating event prose as orders.
+
+Validation: native build/install, two real headless melee runs, and 53 controller
+tests including stale-order rejection after injury delivery. No local-model combat
+decision was tested. Ranged equipment/fire, rescue completion, actual hostile
+encounters and strategy-selected victory/stand-down still need acceptance tests.
