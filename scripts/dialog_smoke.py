@@ -31,13 +31,18 @@ async def main(rendered=False):
         try:
             await rt.sync_identity()
             rt.mode = 'automate'
+            await rt.supervisor.change('Normal')
             before = await rt.game.invoke('rimworld/get_ui_state', {})
             letters = await rt.game.invoke('rimworld/list_letters', {'limit': 1000})
             if letters['letters']:
                 await rt.native('rimworld/open_letter', {'letterId': letters['letters'][0]['id']}, reconcile=False)
             else:
                 # Fixture setup only; arbitrary window opening is not exposed to the model.
+                await rt.supervisor.pause_for_dialog()
                 await bridge.call('rimworld/open_window_by_type', windowType='RimWorld.Dialog_Options', replaceExisting=False)
+            rt.clock_events.extend(await rt.supervisor.poll())
+            rt.receive_clock_events()
+            assert rt.mode == 'automate', 'Our own dialog incorrectly disabled automation'
             targets = await rt.game.invoke('rimworld/get_screen_targets', {})
             old = {(w['id'], w['type']) for w in before['windows']}
             opened = [w for w in targets['targets']['windows']
@@ -60,7 +65,9 @@ async def main(rendered=False):
                                          {'targetId': opened[0]['dismissTargetId']}, reconcile=False)
             status = await rt.game.query('home/status', colonists=False, threats=False)
             assert status['time']['paused'] is True, status
-            report = {'closed': opened[0], 'paused': True, 'result': result}
+            assert rt.mode == 'automate'
+            assert rt.supervisor.hold is None
+            report = {'closed': opened[0], 'paused': True, 'automation_preserved': True, 'result': result}
             (root/'result.json').write_text(json.dumps(report, indent=2))
             print(json.dumps({'closed': opened[0]['type'], 'paused': True, 'report': str(root/'result.json')}))
         finally:

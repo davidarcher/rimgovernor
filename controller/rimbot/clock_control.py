@@ -35,6 +35,26 @@ class PlayClock:
         self.acknowledged_stop = (self.state.get('epoch'), self.state.get('stopReason'))
         self.hold = None
 
+    async def pause_for_dialog(self):
+        """Stop our running lease before a modal can be mistaken for a player pause.
+
+        Closing the dialog never resumes time or acknowledges an external hold.
+        """
+        async with self.lock:
+            state = await self.call(op='status')
+            self.absorb(state)
+            if self.hold:
+                raise ValueError('Clock held: '+self.hold+'; enable Automate before opening a dialog')
+            if state.get('active'):
+                if state.get('owner') != self.owner:
+                    raise ValueError('Another controller owns the clock; no dialog opened')
+                state = await self.call(op='pause', owner=self.owner, epoch=state['epoch'])
+                self.absorb(state)
+            status = (await self.bridge.call('home/status', colonists=False, threats=False)).structuredContent
+            if not isinstance(status, dict) or status.get('time', {}).get('paused') is not True:
+                raise ValueError('Dialog preparation requires a verified pause; no dialog opened')
+            return state
+
     async def change(self, speed, *, mode='colony', ignored_hostiles='', ignored_downed=''):
         if speed not in ('Paused', 'Normal', 'Fast', 'Superfast'):
             raise ValueError('Choose Paused, Normal, Fast or Superfast')

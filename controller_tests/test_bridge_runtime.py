@@ -5,6 +5,25 @@ import pytest
 from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.store import Store
 
+
+@pytest.mark.asyncio
+async def test_direction_during_dialog_pause_prevents_open(tmp_path):
+    store = Store(tmp_path/'dialog-direction.sqlite')
+    rt = BridgeRuntime(store, tmp_path, model_factory=lambda _: SimpleNamespace())
+    rt.mode = 'automate'
+    rt.sync_identity = AsyncMock()
+    rt.game = SimpleNamespace(invoke=AsyncMock())
+    rt.supervisor = SimpleNamespace(pause_for_dialog=AsyncMock(side_effect=lambda: None))
+    async def pause():
+        await rt.steer('Stop opening dialogs')
+    rt.supervisor.pause_for_dialog.side_effect = pause
+    try:
+        with pytest.raises(ValueError, match='New player direction'):
+            await rt.native('rimworld/open_letter', {'letterId': 'Letter1'}, expected_revision=0)
+        rt.game.invoke.assert_not_awaited()
+    finally:
+        store.close()
+
 @pytest.mark.asyncio
 async def test_direction_rechecked_after_lock(tmp_path):
     store = Store(tmp_path/'test.sqlite')

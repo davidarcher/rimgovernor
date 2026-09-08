@@ -32,6 +32,36 @@ class NativeClock:
 
 
 @pytest.mark.asyncio
+async def test_dialog_stops_owned_lease_without_resuming():
+    bridge = NativeClock(); clock = PlayClock(bridge)
+    await clock.change('Normal')
+    await clock.pause_for_dialog()
+    assert bridge.state['stopReason'] == 'requested_pause'
+    assert bridge.state['active'] is False and clock.hold is None
+    assert len([c for c in bridge.calls if c[1].get('op') == 'start']) == 1
+
+
+@pytest.mark.asyncio
+async def test_dialog_preserves_external_hold():
+    bridge = NativeClock(); clock = PlayClock(bridge)
+    await clock.change('Normal')
+    bridge.state.update(active=False, stopReason='external_pause')
+    with pytest.raises(ValueError, match='Clock held'):
+        await clock.pause_for_dialog()
+    assert clock.hold == 'external_pause'
+    assert not any(c[1].get('op') == 'pause' for c in bridge.calls)
+
+
+@pytest.mark.asyncio
+async def test_dialog_does_not_stop_another_owner():
+    bridge = NativeClock(); owner = PlayClock(bridge); other = PlayClock(bridge)
+    await owner.change('Normal')
+    with pytest.raises(ValueError, match='Another controller'):
+        await other.pause_for_dialog()
+    assert bridge.state['active'] is True
+
+
+@pytest.mark.asyncio
 async def test_external_pause_latches_until_explicit_player_resume():
     bridge = NativeClock(); clock = PlayClock(bridge)
     await clock.change('Normal')

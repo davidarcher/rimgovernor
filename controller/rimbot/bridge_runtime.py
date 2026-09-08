@@ -560,6 +560,14 @@ class BridgeRuntime:
                 raise InterruptedError('Committed plan changed; no order sent')
             if name == 'rimworld/close_main_tab' and not arguments.get('mainTabId'):
                 raise ValueError('Specify the inspected mainTabId to close')
+            if name == 'rimworld/open_letter':
+                if self.mode != 'automate' or not self.supervisor:
+                    raise ValueError('Enable Automate before opening a letter')
+                # Deliberately stop the owned lease before a letter forces pause.
+                # Do not clear player holds or resume on window disappearance.
+                await self.supervisor.pause_for_dialog()
+                self.resume_after_review = False
+                await self.sync_identity()
             if name in ('rimworld/click_ui_target', 'rimworld/scroll_ui_target'):
                 target = self.ui_targets.get(arguments.get('targetId'))
                 if not target or target.get('load_token') != self.context_token:
@@ -593,6 +601,10 @@ class BridgeRuntime:
                 from .dialog_control import dismissal_target
                 dismissed_window = dismissal_target(arguments.get('targetId'),
                     await self.game.invoke('rimworld/get_screen_targets', {}))
+            if expected_revision is not None and expected_revision != self.chat_revision:
+                raise ValueError('New player direction arrived during preparation; no command sent')
+            if expected_token is not None and expected_token != self.context_token:
+                raise ValueError('Loaded colony changed during preparation; no command sent')
             result = await self.game.invoke(name, arguments, allow_write=self.mode == 'automate')
             if name == 'home/order' and not arguments.get('dryRun', False):
                 pawn_after = result.get('pawn') or {}
@@ -617,6 +629,10 @@ class BridgeRuntime:
                     current = [verification.get('current')] + list((verification.get('currentByCategory') or {}).values())
                     if not selected or not any(isinstance(p,dict) and p.get('defName') == selected for p in current):
                         raise ValueError('Research selection was not confirmed by fresh native readback')
+                elif name == 'rimworld/open_letter':
+                    verification = await self.game.invoke('rimworld/get_ui_state', {})
+                    if verification.get('success') is not True:
+                        raise ValueError('Letter UI is unverified; inspect before issuing another UI action')
                 elif name in ('rimworld/click_ui_target', 'rimworld/scroll_ui_target',
                               'rimworld/open_main_tab', 'rimworld/close_main_tab'):
                     if result.get('success') is not True:

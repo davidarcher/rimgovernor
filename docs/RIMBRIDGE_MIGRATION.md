@@ -20,10 +20,13 @@ successes. That evidence determines the ordering below.
    full text. UI state and screen-target inspection plus exact-window dismissal
    are connected, schema-bound and verified by fresh native readback. A headless
    options-dialog fixture passed while preserving pause; the baseline had no
-   letters, so letter-dialog recovery remains untested. General quest choices and
-   AI-owned modal recovery/resumption remain unfinished: force-pause still switches
-   to Manual, preventing autonomous cleanup until Automate is explicitly restored.
-   Distinguish AI-opened modals from player pauses before enabling that recovery.
+   letters, so letter-specific quest effects remain untested. Opening a letter now
+   deliberately pauses our owned lease first and reads back the actual UI, avoiding
+   the self-induced force-pause/Manual trap. A rendered live options-dialog test
+   verified that Automate stays enabled and closure leaves time paused. Existing
+   external holds are never acknowledged by this path. General quest effects and
+   recovery from already-open external modals remain unfinished; no automatic
+   resume on window disappearance is implemented.
    Do not automatically dismiss all dialogs. See `scripts/dialog_smoke.py`.
 3. **Autonomous eight-tribal starter foothold.** Repeatable headless campaigns now
    exist; small real-model rooms/stockpiles have worked, but the combined starter

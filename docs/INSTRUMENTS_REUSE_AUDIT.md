@@ -30,7 +30,12 @@ its references, retaining source provenance beside copied code.
   UI and selection helpers, are exposed through discovered read schemas. Live
   headless calls passed, including map resolution from our observed pawn load ID.
   No prose-derived culprit IDs, automatic alert clicks, or selection mutation.
-- **UI work remaining:** `letters.py` decision workflow and pause ownership;
+- **Letter pause integration:** read-before-assuming dialog state follows
+  `letters.py`; local clock integration pauses the owned lease before open and
+  returns fresh UI state. Rendered open/button-close testing preserves Automate
+  and leaves time paused. External holds and other owners are refused. No viewer
+  delays or automatic resume were copied.
+- **UI work remaining:** letter/quest-specific decision-effect acceptance;
   `mini_install.py`/`pick.py` exact packed
   item installation. The reviewed `ui.find()` returns a first match and
   DialogTextTool also uses first partial field matches; do not copy those
