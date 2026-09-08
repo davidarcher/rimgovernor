@@ -17,9 +17,14 @@ successes. That evidence determines the ordering below.
    independently before another broad startup campaign. These gameplay cases
    remain unproven; valid argument structure alone is not a useful strategy.
 2. **Complete modal control and pause ownership.** Native letter reads contain
-   full text. Opening a letter can force-pause the game with no connected close/
-   choice path. Integrate inspected native window/choice controls and distinguish
-   AI-opened modals from player pauses. Do not automatically dismiss all dialogs.
+   full text. UI state and screen-target inspection plus exact-window dismissal
+   are connected, schema-bound and verified by fresh native readback. A headless
+   options-dialog fixture passed while preserving pause; the baseline had no
+   letters, so letter-dialog recovery remains untested. General quest choices and
+   AI-owned modal recovery/resumption remain unfinished: force-pause still switches
+   to Manual, preventing autonomous cleanup until Automate is explicitly restored.
+   Distinguish AI-opened modals from player pauses before enabling that recovery.
+   Do not automatically dismiss all dialogs. See `scripts/dialog_smoke.py`.
 3. **Autonomous eight-tribal starter foothold.** Repeatable headless campaigns now
    exist; small real-model rooms/stockpiles have worked, but the combined starter
    check remains unproven. Test supply access, eight sleeping places and storage,

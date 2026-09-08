@@ -563,6 +563,11 @@ class BridgeRuntime:
                         # The model need not know the native lifecycle handshake.
                         arguments = dict(arguments)
                         arguments.setdefault('allowPersistentDraft', True)
+            dismissed_window = None
+            if name == 'rimworld/click_screen_target':
+                from .dialog_control import dismissal_target
+                dismissed_window = dismissal_target(arguments.get('targetId'),
+                    await self.game.invoke('rimworld/get_screen_targets', {}))
             result = await self.game.invoke(name, arguments, allow_write=self.mode == 'automate')
             if name == 'home/order' and not arguments.get('dryRun', False):
                 pawn_after = result.get('pawn') or {}
@@ -587,6 +592,10 @@ class BridgeRuntime:
                     current = [verification.get('current')] + list((verification.get('currentByCategory') or {}).values())
                     if not selected or not any(isinstance(p,dict) and p.get('defName') == selected for p in current):
                         raise ValueError('Research selection was not confirmed by fresh native readback')
+                elif name == 'rimworld/click_screen_target':
+                    verification = await self.game.invoke('rimworld/get_ui_state', {})
+                    from .dialog_control import verify_window_dismissal
+                    verify_window_dismissal(arguments['targetId'], dismissed_window, result, verification)
                 elif name == 'rimworld/dismiss_letter':
                     verification = await self.game.invoke('rimworld/list_letters', {'limit': 1000})
                     from .notifications import verify_dismissal

@@ -7,12 +7,12 @@ READS = OBSERVATION_TOOLS | frozenset({
     'rimworld/get_cells_info', 'rimworld/get_cell_info',
     'rimworld/list_architect_categories', 'rimworld/list_architect_designators',
     'rimworld/list_selected_gizmos', 'rimworld/get_selection_semantics',
-    'rimworld/list_letters',
+    'rimworld/list_letters', 'rimworld/get_ui_state', 'rimworld/get_screen_targets',
 })
 WRITES = frozenset({'home/zone_cells', 'home/place_building', 'home/pawn_config',
     'home/building_config', 'home/bills', 'home/order', 'home/trade', 'home/research',
     'rimworld/set_time_speed', 'rimworld/apply_architect_designator',
-    'rimworld/open_letter', 'rimworld/dismiss_letter'})
+    'rimworld/open_letter', 'rimworld/dismiss_letter', 'rimworld/click_screen_target'})
 
 
 def is_write(tool, arguments):
@@ -48,6 +48,10 @@ class BridgeGame(ObservationGateway):
         schema = await self.describe(tool)
         validate_arguments(tool, schema, arguments)
         arguments = dict(arguments)
+        if tool == 'rimworld/click_screen_target':
+            from .dialog_control import dismissal_target
+            targets = await self.invoke('rimworld/get_screen_targets', {})
+            dismissal_target(arguments.get('targetId'), targets)
         if tool == 'home/pawn_config' and arguments.get('drop'):
             raise ValueError('Instant gear dropping bypasses normal pawn work; use a native pawn order')
         if arguments.get('ultraSpeedBoost'):

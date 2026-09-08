@@ -71,7 +71,7 @@ class NativeOperation(Contract):
     kind: Literal['native_operation'] = 'native_operation'
     tool: Literal['home/pawn_config', 'home/building_config', 'home/bills', 'home/order',
         'home/zone_cells', 'home/trade', 'home/research', 'rimworld/apply_architect_designator',
-        'rimworld/open_letter', 'rimworld/dismiss_letter']
+        'rimworld/open_letter', 'rimworld/dismiss_letter', 'rimworld/click_screen_target']
     arguments: dict
     # Honest fallback for native operations lacking a higher-level compiler.
     completion: Literal['native_receipt', 'patient_tended', 'patient_in_bed'] = 'native_receipt'

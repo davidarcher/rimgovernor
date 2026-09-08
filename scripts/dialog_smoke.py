@@ -1,0 +1,53 @@
+"""Close an inspected native letter dialog and preserve a paused test game."""
+import asyncio
+import json
+import time
+from pathlib import Path
+from rimbot.bridge import bridge_session
+from rimbot.bridge_game import BridgeGame
+from rimbot.bridge_runtime import BridgeRuntime
+from rimbot.headless import prepare, isolated_root
+from rimbot.store import Store
+
+
+async def main():
+    root = isolated_root('.rimbot/bridge', Path('.rimbot') / f'dialog-smoke-{time.time_ns()}')
+    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe', prepare(root)) as bridge:
+        await bridge.core('games_start', gameId=bridge.game_id)
+        await bridge.connect()
+        await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',
+                          readiness='visual', timeoutMs=90000, ignoreModCompatibility=True)
+        await bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
+        store = Store(root/'dialog.sqlite')
+        rt = BridgeRuntime(store, root)
+        rt.bridge, rt.game = bridge, BridgeGame(bridge)
+        try:
+            await rt.sync_identity()
+            rt.mode = 'automate'
+            before = await rt.game.invoke('rimworld/get_ui_state', {})
+            letters = await rt.game.invoke('rimworld/list_letters', {'limit': 1000})
+            if letters['letters']:
+                await rt.native('rimworld/open_letter', {'letterId': letters['letters'][0]['id']}, reconcile=False)
+            else:
+                # Fixture setup only; arbitrary window opening is not exposed to the model.
+                await bridge.call('rimworld/open_window_by_type', windowType='RimWorld.Dialog_Options', replaceExisting=False)
+            targets = await rt.game.invoke('rimworld/get_screen_targets', {})
+            old = {(w['id'], w['type']) for w in before['windows']}
+            opened = [w for w in targets['targets']['windows']
+                      if (w['id'], w['type']) not in old and w.get('dismissTargetId')]
+            assert len(opened) == 1, targets
+            result = await rt.native('rimworld/click_screen_target',
+                                     {'targetId': opened[0]['dismissTargetId']}, reconcile=False)
+            status = await rt.game.query('home/status', colonists=False, threats=False)
+            assert status['time']['paused'] is True, status
+            report = {'closed': opened[0], 'paused': True, 'result': result}
+            (root/'result.json').write_text(json.dumps(report, indent=2))
+            print(json.dumps({'closed': opened[0]['type'], 'paused': True, 'report': str(root/'result.json')}))
+        finally:
+            await rt.halt()
+            await rt.router.close()
+            store.close()
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
