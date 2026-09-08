@@ -1,6 +1,8 @@
 """One strategic authority. Models inspect and propose; deterministic hands act."""
 import asyncio
 import json
+import time
+from .tool_diagnostics import record
 from .config import ModelRole
 from .colony_plan import Decision
 from .consultation import structured_tool as tool
@@ -98,6 +100,10 @@ class Planner:
                 raise ValueError('Strategist returned no structured decision; the committed plan is unchanged')
             finished = False
             for call in calls:
+                started=time.monotonic()
+                args=call.get('function',{}).get('arguments')
+                outcome='returned'
+                rt.counters['planner_tools']=rt.counters.get('planner_tools',0)+1
                 try:
                     if finished:
                         raise ValueError('Decision already committed; remaining calls were not executed')
@@ -138,10 +144,13 @@ class Planner:
                     else:
                         raise ValueError('Unknown strategist tool')
                 except asyncio.CancelledError:
+                    record(rt,call,args,{'reason':'Review cancelled'},started,'cancelled')
                     raise
                 except Exception as error:
+                    outcome='rejected'
                     result = {'status':'blocked','reason':str(error)}
                     rt.note('tool_error',str(error))
+                record(rt,call,args,result,started,outcome)
                 messages.append({'role':'tool','tool_call_id':call['id'],'content':json.dumps(result,ensure_ascii=False)})
             if finished:
                 return

@@ -59,7 +59,7 @@ class BridgeRuntime:
         self.supervisor = None
         self.clock_task = None
         self.clock_events = []
-        self.counters = {'tools': 0, 'actions': 0, 'model_calls': 0, 'input_tokens': 0, 'output_tokens': 0}
+        self.counters = {'planner_tools': 0, 'tools': 0, 'actions': 0, 'model_calls': 0, 'input_tokens': 0, 'output_tokens': 0}
         self.lock = asyncio.Lock()
         self.wake = asyncio.Event()
         self.shutdown = asyncio.Event()
@@ -711,7 +711,7 @@ class BridgeRuntime:
         recent = next((m for m in reversed(feed) if m['kind'] == 'summary'), None)
         return {'memories': self.public_memories(), 'sessionId': self.context_token or self.colony, 'projects': self.projects.dump(), 'goals': self.plan, 'mood': 'thinking' if self.review_task and not self.review_task.done() else 'happy',
             'status': {'phase': 'core', 'turn': self.counters['model_calls'],
-                       'label': self.phase+f" · {self.counters['tools']} calls · {self.counters['actions']} orders"},
+                       'label': self.phase+f" · {self.counters.get('planner_tools',0)} strategy calls · {self.counters['tools']} native calls · {self.counters['actions']} orders"},
             'game': {'tick': self.clock.get('ticksGame', summary.end_tick if summary else None), 'paused': self.clock.get('paused', True),
                      'stale': not self.connected, 'wallTs': time.time()},
             'lastSummary': recent, 'feed': feed, 'mode': self.mode, 'connected': self.connected,

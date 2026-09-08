@@ -350,3 +350,9 @@ Ran scripts/native_throughput.py: two roughly eleven-second wall-clock samples p
 Results (TPS): rendered 3284.4 / 3065.2 (mean 3174.8); suspended 3336.1 / 3253.2 (mean 3294.6, +3.8%); headless 3410.4 / 3843.1 (mean 3626.8, +14.2%). Every sample includes wall time spent acknowledging the known ancient-danger proximity warning. These short sequential samples are preliminary, not steady-state long-colony benchmarks or GPU measurements. Differences include the complete mode configuration, including headless frame-cap handling. Do not interpret the small suspended-rendering advantage as statistically established. Evidence: .rimbot/bridge/throughput.json.
 
 Benchmark speed overrides are test-only and reset in cleanup. The production controller's ordinary gameplay speed policy is unchanged.
+
+### Strategy tool diagnostics (2026-09-08)
+
+The dashboard now distinguishes strategy tool attempts from native calls and orders. Every dispatched planner tool records name, call ID, query summary, duration, returned/rejected/cancelled outcome and bounded argument/result evidence (6000 characters per payload, explicit truncation). These diagnostic events remain out of the default history and model context, and appear in a collapsed Strategy tool attempts section. Native details remain separate. A returned tool response is not described as successful game execution.
+
+This fixes the misleading zero-call display during local knowledge, contract and rejected-plan attempts. It does not change model retry policy or claim native-call counters include all passive polling. Validation: 139 controller tests, six dashboard tests, TypeScript and production build passed. No new gameplay result claimed.
