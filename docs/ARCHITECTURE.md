@@ -59,6 +59,9 @@ Paths in the table without a directory prefix are under `controller/rimbot/`.
 
 Bill commitments require an explicit mutation action; read-only bill defaults
 remain inspection-only. Architect dry runs use the read-only preview path.
+Commitment schemas require explicit `dryRun` where the native tool supports it,
+matching the gateway's preview/write distinction. Native pawn configuration requires
+an explicit pawn identity in discovery as well as execution.
 
 The model cannot issue immediate game writes. Advisers cannot commit plans,
 cancel steps or recursively delegate. Only the strategist is configured by
@@ -98,6 +101,10 @@ The observed GABS runtime-state publication fault permits two bounded retries fo
 approved reads and explicit previews. Mutations and mixed-operation defaults do
 not use these retries. Model inspection reports retain native scope notes, and
 unavailable power observations cannot clear an established reserve-risk signal.
+Selective native building reports include cooler intake/exhaust and vent front/back
+cells for current rotation, including intended blueprint/frame geometry. Fogged or
+out-of-bounds cell state remains unknown. Unsupported custom thermal classes remain
+unknown; geometry alone does not certify cooling or usable rooms.
 
 ## Player control and persistence
 

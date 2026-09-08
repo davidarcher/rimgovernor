@@ -6,6 +6,25 @@ from rimbot.consultation import structured_tool
 from rimbot.execution_contracts import ExecutionContracts
 
 
+def test_execution_requires_explicit_preview_or_write_intent():
+    tools=[structured_tool('commit_steps','Append',CommitSteps.model_json_schema())]
+    bindings=ExecutionContracts(tools)
+    native={'type':'object','properties':{'pawn':{'type':'string'},
+        'dryRun':{'type':'boolean','default':True}},'required':['pawn'],'additionalProperties':False}
+    original=deepcopy(native)
+    bindings.expose('home/pawn_config',native)
+    arguments={'pawn':'Thing_1'}
+    request={'expected_revision':0,'reason':'Work','steps':[{'id':'work','title':'Work',
+        'completion_criteria':'Observed','action':{'kind':'native_operation',
+        'tool':'home/pawn_config','arguments':arguments}}]}
+    validator=Draft202012Validator(tools[0]['function']['parameters'])
+    assert not validator.is_valid(request)
+    for value in (True, False):
+        arguments['dryRun']=value
+        validator.validate(request)
+    assert native==original
+
+
 def test_native_argument_schema_is_discovered_not_an_open_dictionary():
     tools=[structured_tool('commit_steps','Append',CommitSteps.model_json_schema())]
     bindings=ExecutionContracts(tools)

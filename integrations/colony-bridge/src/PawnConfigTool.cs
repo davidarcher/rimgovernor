@@ -1520,7 +1520,7 @@ namespace HomeBridge.BridgeTools
         public async Task<object> PawnConfig(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
-            [ToolParameter(Description = "Which pawn: the exact top-level thingId from home/list_pawns (load ID), the exact ThingID from settings.thingId, or an unambiguous pawn name.")] string pawn = null,
+            [ToolParameter(Description = "Which pawn: the exact top-level thingId from home/list_pawns (load ID), the exact ThingID from settings.thingId, or an unambiguous pawn name.", Required = true)] string pawn,
             [ToolParameter(Description = "Work priorities as \"WorkTypeDefName=priority\" pairs, comma separated: \"Cooking=1,Hauling=3,Doctor=0\". 0 = never do this, 1 = most urgent, 4 = least. Names are the defNames work{} returns (Cooking, PlantCutting, Doctor...). A work type this pawn cannot do is REFUSED with the reason, never skipped.")] string work = null,
             [ToolParameter(Description = "The whole 24-hour schedule as one letter per hour, hour 0 first, e.g. \"SSSSSSAAWWWWAAWWWWJJAASS\". The letters are the key{} that schedule{} returns (A Anything, W Work, J Joy, S Sleep, M Meditate). Must be exactly 24 characters; an unknown letter refuses the WHOLE schedule rather than writing half a day.")] string schedule = null,
             [ToolParameter(Description = "Medical care: NoCare, NoMeds, HerbalOrWorse, NormalOrWorse or Best.")] string medCare = null,

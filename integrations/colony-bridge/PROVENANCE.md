@@ -171,3 +171,20 @@ must finish the installation. It restores the prior DLL and then installs the
 normal build without fixture tools. Live tests passed north/east installation,
 same-order replay, conflicting-destination refusal and invalid ID/cell refusal.
 This proves native execution, not autonomous model furniture selection.
+
+`ThermalSides.cs` reports rotation-dependent temperature-exchange cells from the
+installed game's `Building_Cooler.TickRare` and
+`GenTemperature.EqualizeTemperaturesThroughBuilding` contracts. Cooler south is
+intake and north is exhaust before rotation; vents exchange across both facing
+sides of each occupied cell. Only the exact native cooler/vent classes are
+recognized; custom subclasses remain unsupported. Fogged or out-of-bounds cell
+passability is null. The report reads geometry without invoking temperature
+updates and makes no capacity or completed-cooling claim.
+
+`InspectorFixture.cs` is excluded unless `InspectorFixture=true` is passed to the
+build. It creates isolated thermal, bill, battery and stockpile test objects for
+`scripts/inspector_acceptance.py --fixture`; fixture creation is not gameplay.
+
+`PawnConfigTool.cs` marks pawn identity required in SDK discovery, matching the
+native resolver's refusal of an empty target. Execution cannot rely on a selected
+pawn or silently substitute a target.

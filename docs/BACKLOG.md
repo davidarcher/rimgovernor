@@ -9,23 +9,12 @@ in the checkpoint commit; do not append an implementation diary here.
 
 ## P0 — Reliable startup execution
 
-- [ ] **B01 · Work scheduling and production outcomes.** Real-model supply Allow,
-  checkbox-mode work enabling and one-repeat bill creation have passed fresh
-  native readback. Verify numbered work-priority mode, actual worker scheduling,
-  ingredient delivery and completed production. The paused bill fixture had no
-  corpses and proves no food output. Keep these outcomes distinct from acceptance
-  of settings/orders; retain failed model calls.
 - [ ] **B02 · Modal and quest outcomes.** Exact UI controls, naming fields,
   letter inspection and owned-pause opening/closing exist. Test actual quest
   choice effects and final rename effects across supported naming types. Letter
   opening refuses existing/unknown windows and requires fresh identified-window
   readback. Accept recovery and UI races in game; never auto-resume external holds
   or dismiss all dialogs. Require fresh window and game-effect readbacks.
-- [ ] **B03 · GABS runtime-file reliability.** Reproduce the Windows runtime-state
-  rename/read failure and fix or isolate its external cause. Approved-read and
-  explicit-preview retries have bounded fault-injection coverage; verify live
-  recovery without duplicate orders or permanent project failure, including faults
-  exceeding the retry budget. Observation recovery retains construction receipts.
 - [ ] **B04 · Repeatable starter foothold.** Obtain three consecutive fixed-build,
   fixed-model baseline passes: eight living colonists, eight nearby completed
   sleeping places, a nearby stockpile of at least nine cells and allowed starting
@@ -86,16 +75,11 @@ evidence is under `.rimbot/headless-campaign-20260908/`; it is not bundled in Gi
 
 ## P2 — Coverage, inspection and evaluation scale
 
-- [ ] **B12 · Compact inspectors.** Finish selective building/bill/zone/alert and
-  pawn reports: ingredient blockers, rotation/vent sides, power topology, work,
-  schedule, social/health and storage anomalies. Native reads and basic People UI
-  exist. Model reports preserve native scope notes. Preserve native IDs, nulls,
-  visibility, filters and omitted counts;
-  never infer culprits from prose or absence of danger from a missing alert.
 - [ ] **B13 · Remaining player actions.** Audit supported native contextual orders,
   gizmos, dropdowns, reverse designators and queued jobs before adding fallbacks.
   Revalidate short-lived target/session references and selection after UI clicks.
-  Cover existing-zone edits/deletion/expansion, crops and special storage filters;
+  Cover existing-zone edits/deletion/expansion, crops, special storage filters and
+  model-selected bill ingredient whitelists;
   identify gaps in animals, medical/surgery/prisoner and food/drug/apparel policies.
   Require normal native eligibility and observed effects. Packed-furniture install
   already has exact-identity, rotated pawn-work acceptance.

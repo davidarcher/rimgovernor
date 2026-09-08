@@ -29,6 +29,11 @@ class ExecutionContracts:
         if name not in get_args(NativeOperation.model_fields['tool'].annotation):
             return
         contract = structured_tool(name, '', schema)['function']['parameters']
+        if 'dryRun' in contract.get('properties', {}):
+            # The gameplay gateway refuses implicit preview/write defaults.
+            # Advertise that same requirement to the model before commitment.
+            contract['required'] = list(dict.fromkeys([*contract.get('required', []), 'dryRun']))
+            contract['properties']['dryRun'].pop('default', None)
         for key in ('watch','godMode','ultraSpeedBoost'):
             if key in contract.get('properties',{}):
                 contract['properties'][key].update(const=False,default=False)

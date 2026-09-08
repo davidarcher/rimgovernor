@@ -77,6 +77,40 @@ created on the exact bench. It does not certify numbered priority scheduling or
 completed production. All three cases passed with Qwen 3.5 9B; local evidence is
 under `.rimbot/execution-acceptance-1788898095948598300/`.
 
+For numbered priorities and actual cooking, run:
+
+```powershell
+.venv\Scripts\python.exe scripts\production_acceptance.py --source-root .rimbot/bridge --output .rimbot/production-new
+```
+
+This isolated fixture enables numbered work priorities, replaces one starting food
+stack with rice, and uses ordinary pawn labor to build a campfire. Qwen commits
+Cooking priority 1 and a two-repeat meal bill through the normal Hands path. Fresh
+readbacks must show effective/stored priority 1, rice carried during DoBill, fewer
+ingredients, produced meals and the exact bill counter changing from 2 to 0.
+All rejected model proposals are retained. This accepts controlled worker scheduling
+and production, not autonomous food strategy or sustained survival. Ingredient
+whitelist selection is a separate player-action acceptance case.
+
+For Windows runtime-file recovery, run the following with the controller environment:
+
+```powershell
+.venv\Scripts\python.exe scripts\runtime_file_acceptance.py --source .rimbot/bridge --output .rimbot/runtime-file-new
+```
+
+The test owns an isolated game and uses real Windows file handles
+to block private runtime-state publication and reads beyond the retry budget.
+It verifies unchanged receipts and native object identities after handle release,
+without replaying orders. Choose a fresh evidence directory for every run.
+
+For selective native inspector checks, run `scripts/inspector_acceptance.py` with
+`--source .rimbot/bridge --output .rimbot/inspectors-new`. Its optional `--fixture`
+requires a temporary build with `-p:InspectorFixture=true` and populates thermal,
+ingredient, power and storage cases. Keep all games closed while swapping DLLs,
+restore the previous DLL afterward, and exclude fixture tools from the production
+build. The inspector report tests data and scope contracts, not cooling capacity
+or completed production.
+
 ## Campaigns and performance
 
 ```powershell

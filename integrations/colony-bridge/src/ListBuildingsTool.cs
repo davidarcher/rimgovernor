@@ -195,6 +195,7 @@ namespace HomeBridge.BridgeTools
         [ToolResponse("powerNets", "array", "One row per PowerNet on the map: transmitterCount, connectorCount, producerCount, consumerCount, batteryCount, playerBuildingCount, buildingCount, generationW, consumptionW, netW, storedWd, storedMaxWd, hasPowerSource, hasActivePowerSource, flags[] (noProducer, noConsumer, isolatedBattery, isolatedTransmitter) and, on a flagged net only, buildings[] naming them with buildingsNotListed. This is the read that can see an orphaned battery; the per-building power block structurally cannot.", Always = true)]
         [ToolResponse("powerSummary", "object", "netCount, flaggedNetCount, readable, error and a flags{} tally across every net. readable false with an error means the power-net manager could not be read at all, which is not the same as a clean grid.", Always = true)]
         [ToolResponse("resourceDeficit", "array", "Every resource still needed by any blueprint or frame, summed across the map, with how much of it exists.", Always = true)]
+        [ToolResponse("thermalSides", "object", "On detailed building rows: native cooler intake/exhaust or vent front/back cells for the current rotation, including blueprint/frame intended geometry. Each side preserves inBounds, fogged and nullable impassable. Null for unsupported building classes; readable=false reports failures. Coolers and vents are promoted out of aggregation. Geometry does not prove cooling, room connectivity or usable capacity.", Nullable = true)]
         [ToolResponse("attention", "object", "Counts of the actionable states: blueprints, frames, pending short of materials, unpowered, broken down, switched off, out of fuel, worktables with no bills, finished bills, suspended bills, damaged. Always present, zeros included. billsShortOfIngredients is added by billIngredients=true and only then.", Always = true)]
         [ToolResponse("inspectSkipped", "array", "Present only when inspect=true. One entry per DEF whose GetInspectString() threw: defName, count, error. An empty array with inspect=true means every row's string was read; the key's ABSENCE means inspect was off and nothing was attempted. filters.inspect says which.", Nullable = true)]
         [ToolResponse("unknownArguments", "array", "Every argument key the caller sent that this tool does not declare, sorted, case-sensitively. Empty array = every key was recognised. The host's own _rimBridgeTimeoutMs is never listed.", Always = true)]
@@ -577,6 +578,7 @@ namespace HomeBridge.BridgeTools
 
             if (thing is IBillGiver) reasons.Add("billGiver");
             if (thing is Building_Bed) reasons.Add("bed");
+            if (ThermalSides.Applies(thing.def)) reasons.Add("thermalSides");
             if (thing.def.building != null && thing.def.building.turretGunDef != null) reasons.Add("turret");
 
             var power = SafeComp<CompPowerTrader>(thing);
@@ -628,6 +630,7 @@ namespace HomeBridge.BridgeTools
                 // own answer on every row.
                 { "rotation", SafeRotationHuman(thing) },
                 { "rotatable", SafeRotatable(thing) },
+                { "thermalSides", ThermalSides.Read(map, thing, (isBlueprint || isFrame) ? buildDef as ThingDef : thing.def) },
                 { "faction", SafeFactionName(thing) },
                 { "stuff", SafeStuffName(thing, isBlueprint || isFrame) },
                 { "reasons", reasons }
