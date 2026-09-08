@@ -25,9 +25,10 @@ def test_discovered_mod_definitions_update_commitment_choices_without_touching_n
 
 
 def test_catalog_index_includes_definitions_beyond_first_detail_page():
-    rows=[{'buildableDefName':f'Custom{i}','label':f'Building {i}'} for i in range(12)]
+    rows=[{'id':f'custom:{i}','buildableDefName':f'Custom{i}','label':f'Building {i}'} for i in range(12)]
     result=for_model({'designators':rows},tool='rimworld/list_architect_designators')
     assert len(result['designators'])==8
     assert [r['defName'] for r in result['buildable_index']]==[r['buildableDefName'] for r in rows]
+    assert [r['id'] for r in result['designator_index']]==[r['id'] for r in rows]
     with pytest.raises(ValueError,match='distinct wall'):
         RoomShell(bounds={'x':1,'z':1,'width':5,'height':5},wall_def='ModDoor',door_def='ModDoor',materials=['Wood'],entrance='south')

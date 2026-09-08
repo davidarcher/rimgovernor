@@ -105,6 +105,9 @@ def for_model(payload, tool=None, catalog_offset=0):
         result['buildable_index'] = [{'defName': row['buildableDefName'],
             'label': row.get('buildableLabel') or row.get('label')}
             for row in rows if row.get('buildableDefName')]
+        result['designator_index'] = [{k:row[k] for k in ('id','label','applicationKind',
+            'supportsCellApplication','supportsRectangleApplication') if k in row}
+            for row in rows if row.get('id')]
         if catalog_offset < 0 or catalog_offset > len(rows):
             raise ValueError(f'catalog_offset must be between 0 and {len(rows)}')
         end = min(catalog_offset+8, len(rows))
