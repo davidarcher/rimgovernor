@@ -86,6 +86,17 @@ class StrategicState:
                 self.latches[key] = now
                 if now != was:
                     self.signal(field+'.risk' if now else field+'.recovered', {'pawn': pawn, 'value': amount})
+        # An unrelated decision (e.g. dismissing a letter) acknowledges the old
+        # event batch, but does not resolve starvation or a material shortage.
+        # Revisit persistent urgent evidence after two game hours. Stable healthy
+        # colonies keep the cheaper daily cadence below.
+        if value['tick']-self.last_decision_tick >= 5000:
+            unresolved = {'material_shortages': shortage_defs,
+                'hungry_pawns': sorted(p for p,v in value['people']['food_need'].items()
+                    if v is not None and v < .2),
+                'needs_tend': value['people']['needs_tend']}
+            if any(unresolved.values()):
+                self.signal('urgent.unresolved', unresolved)
         # Daily checkpoint only when strategic facts changed, never on ticks alone.
         material = {k:v for k,v in value.items() if k not in ('tick', 'warnings')}
         if value['tick']-self.last_decision_tick >= 60000 and material != self.last_decision:
