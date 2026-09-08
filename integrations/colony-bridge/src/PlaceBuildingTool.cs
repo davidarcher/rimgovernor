@@ -471,7 +471,8 @@ namespace HomeBridge.BridgeTools
                 // PlaceBlueprintForBuild calls, defaults to WipeMode.Vanish and runs
                 // WipeExistingThings(..., DestroyMode.Vanish) itself. Skipping this
                 // step does not spare anything; it only downgrades the refund.
-                if (bpDef != null)
+                bool instantThing = entDef is ThingDef && entDef.GetStatValueAbstract(StatDefOf.WorkToBuild, stuffDef) == 0f;
+                if (bpDef != null && !instantThing)
                 {
                     var seenIds = new HashSet<int>();
                     foreach (var c in GenAdj.CellsOccupiedBy(center, chosen, bpDef.Size))
@@ -497,7 +498,17 @@ namespace HomeBridge.BridgeTools
                 payload["framesCancelled"] = cancelledFrames;
 
                 // STEP 3.
-                var blueprint = GenConstruct.PlaceBlueprintForBuild(entDef, center, map, chosen, player, stuffDef);
+                // Match Designator_Build's ordinary zero-work ThingDef branch.
+                // Never consult god mode and never special-case sleeping definitions.
+                Thing blueprint;
+                if (instantThing)
+                {
+                    var thing = ThingMaker.MakeThing((ThingDef)entDef, stuffDef);
+                    thing.SetFactionDirect(player);
+                    blueprint = GenSpawn.Spawn(thing, center, map, chosen);
+                }
+                else
+                    blueprint = GenConstruct.PlaceBlueprintForBuild(entDef, center, map, chosen, player, stuffDef);
                 if (blueprint == null)
                 {
                     payload["success"] = false;
@@ -521,7 +532,7 @@ namespace HomeBridge.BridgeTools
                 };
                 payload["applied"] = true;
                 payload["outcome"] = "placed";
-                payload["detail"] = "PLACED: blueprint created at the requested cell and rotation.";
+                payload["detail"] = instantThing ? "PLACED: zero-work structure created immediately." : "PLACED: blueprint created at the requested cell and rotation.";
                 if (onPlaced != null)
                     onPlaced(blueprint);
                 return payload;

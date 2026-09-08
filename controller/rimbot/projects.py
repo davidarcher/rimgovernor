@@ -65,11 +65,11 @@ class ProjectBook:
         row.state, row.evidence = 'cancelled', 'Cancelled by player; existing game orders are unchanged'
         return row
 
-    async def reconcile(self, game):
+    async def reconcile(self, game, *, only_id=None):
         # Queries are memoized for this pass, not persisted across changes in game state.
         cache = {}
         for row in self.rows:
-            if row.state == 'cancelled' or not row.targets:
+            if (only_id is not None and row.id != only_id) or row.state == 'cancelled' or not row.targets:
                 continue
             found, pending, missing, ids = 0, 0, 0, []
             try:

@@ -284,3 +284,11 @@ Validation: 134 controller tests passed; live search for bedroom, redirect from 
 Added the People dashboard tab using the existing typed native observation, with no additional game or model queries. The roster shows current native job, weapon and flagged conditions; selecting a colonist exposes mood, food/rest needs, tending, bleeding and position. Unknown readings remain unknown, zero needs remain zero, and no-job does not imply idle. Last-observation and non-atomic collection notices are shown. Selection clears with the loaded session; removed pawns no longer retain displayed details.
 
 Validation: six dashboard tests, TypeScript and production build passed. The live controller is connected in Manual mode and supplies all eight tribal colonists with current job/equipment/health fields. No new gameplay test or visual browser inspection performed. This is a compact read-only inspector; skills, traits and detailed health/work settings remain future extensions.
+
+### Instant construction acceptance (2026-09-08)
+
+The extended scripted-strategist/native-hands fixture reproduced a real bridge bug: SleepingSpot became Blueprint_SleepingSpot with zero work, while the planner waited. Inspection of the installed game's Designator_Build.DesignateSingleCell confirmed its ordinary ThingDef branch directly creates structures when WorkToBuild equals zero. PlaceBuildingTool now follows that rule without consulting god mode or enumerating sleeping definitions. This slice covers ThingDefs, not zero-work TerrainDefs. Existing cosmetic style selection limitations remain.
+
+Hands now reconciles only the newly issued construction project immediately. Observed built structures complete immediately; blueprint/frame projects still wait for pawn work. The repeatable fixture asserts stockpile plus sleeping spot completion while paused, unchanged ticks, and no duplicate writes on replay. It uses a scripted strategic decision, not a live model, and does not establish room-construction or model layout quality.
+
+Validation: native build/install, 134 controller tests, and repeated headless strategy smoke passed after reproducing failure before the fix. Evidence: .rimbot/bridge/strategy-smoke.json. No saves or generated artifacts committed.

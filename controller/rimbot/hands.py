@@ -132,11 +132,15 @@ class Hands:
                         'stuff': progress.issued[str(i)].get('stuff') or ''} for i,p in enumerate(placements)]
                     row = rt.projects.upsert({'title': step.title, 'detail': step.completion_criteria, 'targets': targets})
                     progress.project_id, progress.state = row.id, 'waiting'
+                    await rt.projects.reconcile(rt.game, only_id=row.id)
+                    self.guard(rt, revision, token, direction)
+                    if row.state == 'complete':
+                        progress.state = 'complete'
                 elif isinstance(action, NativeOperation) and action.completion in ('patient_tended', 'patient_in_bed'):
                     progress.state = 'waiting'
                 else:
                     progress.state = 'complete'
-                rt.note('execution', step.title+(': orders issued; awaiting construction' if placements else
+                rt.note('execution', step.title+(': orders issued; awaiting construction' if placements and progress.state != 'complete' else
                     ': medical order issued; awaiting patient outcome' if progress.state == 'waiting' else ': native operation verified'))
                 if all(rt.current_plan.progress[s.id].state in ('complete', 'cancelled') for s in rt.current_plan.spec.steps):
                     rt.signal('plan.completed', {'revision': revision})

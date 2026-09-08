@@ -31,10 +31,13 @@ async def main(headless=False):
         rt.bridge=bridge;rt.game=BridgeGame(bridge)
         await rt.sync_identity();rt.batch=await observe(rt.game);rt.strategic_state.update(rt.batch)
         pawn=rt.batch.summary.pawns[0]
+        sleep_cell={'x':pawn.position.x+3,'z':pawn.position.z}
         spec=PlanSpec(goals=['Consolidate starting supplies'],long_term='Stable tribal colony',right_now='Create the starter stockpile',steps=[{
             'id':'stockpile','title':'Starting supplies','completion_criteria':'Zone exists at the committed cell',
             'action':{'kind':'create_zone','zone_type':'stockpile','label':'Strategy pipeline probe',
-                'patches':[{'x':pawn.position.x,'z':pawn.position.z,'width':1,'height':1}]}}])
+                'patches':[{'x':pawn.position.x,'z':pawn.position.z,'width':1,'height':1}]}},
+            {'id':'sleep','title':'Temporary sleeping capacity','completion_criteria':'Sleeping spot exists immediately',
+             'action':{'kind':'place_buildings','placements':[dict(def_name='SleepingSpot',**sleep_cell)]}}])
         answer=Decision(expected_revision=rt.current_plan.revision,disposition='revise',assessment='Supplies need storage',rationale='Use a nearby clear cell',reply='Set up the supplies area.',plan=spec)
         rt.mode='automate'
         try:
@@ -44,13 +47,17 @@ async def main(headless=False):
             await rt.hands.advance(rt)
             progress=rt.current_plan.progress['stockpile']
             assert progress.state=='complete',progress.model_dump()
+            sleeping=rt.current_plan.progress['sleep']
+            assert sleeping.state=='complete',{'progress':sleeping.model_dump(),'projects':rt.projects.dump(),'native':await rt.game.query('home/list_buildings',match='SleepingSpot',aggregate=False,playerOnly=True)}
             await rt.hands.advance(rt)
-            assert rt.counters['actions']==before+1 and brain.calls==1
+            assert rt.counters['actions']==before+2 and brain.calls==1
             await rt.projects.reconcile(rt.game);rt.reconcile_plan();rt.persist()
             assert progress.state=='complete'
-            evidence={'strategist_calls':brain.calls,'native_actions':rt.counters['actions']-before,'progress':progress.model_dump(),'plan_revision':rt.current_plan.revision}
+            status=await rt.game.query('home/status')
+            assert status['time']['paused'] and status['time']['ticksGame']==rt.batch.summary.end_tick
+            evidence={'paused_tick':status['time']['ticksGame'],'strategist_calls':brain.calls,'native_actions':rt.counters['actions']-before,'progress':progress.model_dump(),'plan_revision':rt.current_plan.revision,'sleeping':sleeping.model_dump()}
             (root/'strategy-smoke.json').write_text(json.dumps(evidence,indent=2),encoding='utf8')
-            print('PASS: committed plan -> native validated zone -> observed completion; replay issued no duplicate and no model call',flush=True)
+            print('PASS: committed plan -> native zone and instant sleeping spot -> observed completion; replay issued no duplicate and no model call',flush=True)
         finally:
             await rt.game.invoke('home/zone_cells',{'op':'delete','zone':'Strategy pipeline probe','dryRun':False},allow_write=True)
             await rt.halt();await rt.router.close();store.close()
