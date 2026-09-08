@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([int]$Port=8787,[string]$Model='qwen3.5-9b',[switch]$FreshGame,[switch]$NoGame,[switch]$NoBrowser,[switch]$Reload)
+param([int]$Port=8787,[string]$Model='qwen3.5-9b',[string]$ModelsConfig='', [switch]$FreshGame,[switch]$NoGame,[switch]$NoBrowser,[switch]$Reload)
 $ErrorActionPreference='Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $taskPython=Join-Path $PSScriptRoot '.venv/Scripts/python.exe'
@@ -21,6 +21,7 @@ if ($taskHealth) {
  if ($FreshGame -and $taskGame) { throw 'Close RimWorld before starting a fresh fixture.' }
  if ($NoGame -and !$taskGame) { throw 'NoGame requires a running game with RimBridgeServer.' }
  $env:RIMBOT_MODEL=$Model
+ if ($ModelsConfig) { $env:RIMBOT_MODELS_CONFIG=(Resolve-Path -LiteralPath $ModelsConfig).Path } else { Remove-Item Env:RIMBOT_MODELS_CONFIG -ErrorAction SilentlyContinue }
  $taskArguments=@('-m','rimbot','--port',"$Port")
  if ($FreshGame -or (!$NoGame -and !$taskGame)) { $taskArguments+='--fresh-game' }
  if ($Reload) { $taskArguments+='--reload' }

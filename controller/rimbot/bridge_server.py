@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from .bridge_runtime import BridgeRuntime
-from .config import DATA_DIR, Settings
+from .config import DATA_DIR, Settings, load_model_routing
 from .store import Store
 
 
@@ -19,7 +19,8 @@ def create_app(runtime=None):
         rt = runtime or BridgeRuntime(Store(DATA_DIR/'bridge.sqlite'),
             os.environ.get('RIMBOT_BRIDGE_ROOT', '.rimbot/bridge'),
             fresh=os.environ.get('RIMBOT_BRIDGE_FRESH') == '1',
-            settings=Settings(model=os.environ.get('RIMBOT_MODEL', 'qwen3.5-4b')))
+            settings=Settings(model=os.environ.get('RIMBOT_MODEL', 'qwen3.5-9b')),
+            routing=load_model_routing(Settings(model=os.environ.get('RIMBOT_MODEL', 'qwen3.5-9b')), os.environ.get('RIMBOT_MODELS_CONFIG')))
         app.state.rt = rt
         await rt.start()
         try:
@@ -80,6 +81,11 @@ def create_app(runtime=None):
     @app.delete('/api/projects/{identity}')
     async def cancel(identity: str, request: Request):
         return await request.app.state.rt.cancel_project(identity)
+
+    @app.delete('/api/plan/steps/{identity}')
+    async def cancel_step(identity: str, request: Request):
+        await request.app.state.rt.cancel_plan_step(identity)
+        return {'cancelled': identity}
 
     @app.get('/api/camera')
     async def camera(request: Request):

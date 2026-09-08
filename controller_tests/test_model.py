@@ -4,6 +4,21 @@ import pytest
 from rimbot.model import LocalModel, ModelError
 from rimbot.config import Settings
 
+
+def test_inference_grammar_preserves_controller_validation():
+    from rimbot.model import inference_tools
+    from rimbot.colony_plan import Decision
+    from rimbot.consultation import structured_tool
+    from jsonschema import Draft202012Validator, ValidationError
+    original = [structured_tool('commit_plan', 'Commit', Decision.model_json_schema())]
+    wire = inference_tools(original)
+    assert 'maxLength' not in json.dumps(wire)
+    assert 'maxLength' in json.dumps(original)
+    invalid = dict(expected_revision=0, disposition='continue', assessment='x',
+                   rationale='x', reply='x'*1801)
+    with pytest.raises(ValidationError):
+        Draft202012Validator(original[0]['function']['parameters']).validate(invalid)
+
 async def test_local_qwen_stream_on_off_and_output_limit():
     bodies=[]
     def respond(r):

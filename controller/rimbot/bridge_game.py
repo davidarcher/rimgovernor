@@ -13,6 +13,10 @@ WRITES = frozenset({'home/zone_cells', 'home/place_building', 'home/pawn_config'
 
 
 def is_write(tool, arguments):
+    if tool.startswith('home/') and arguments.get('dryRun') is True:
+        return False
+    if tool == 'home/order' and arguments.get('action', 'resolve') == 'resolve':
+        return False
     if tool == 'home/trade':
         return arguments.get('action', 'list_traders') not in ('list_traders', 'sheet', 'preview', 'status')
     return tool in WRITES

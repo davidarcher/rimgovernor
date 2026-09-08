@@ -58,8 +58,37 @@ create them. LM Studio defaults to http://127.0.0.1:1234/v1.
 - **Activity:** outcomes with tool details collapsed.
 
 Snapshots refresh every few seconds; this is not a continuous video stream.
-The planner queries native tool schemas and observations, and can issue native
-orders in Automate. Receipts do not mean pawn work has finished.
+One strategist reads compact state and commits a durable structured plan. Deterministic
+Hands executes validated semantic steps in Automate; optional advisers cannot write
+orders or commit goals. Unchanged observations do not cause timed model reviews.
+Receipts do not mean pawn work has finished. See [the active architecture](docs/STRATEGIC_BRAIN.md).
+
+## Optional local model roles
+
+The default uses only the strategist. To configure a generic 4B analyst, copy/edit
+`config/models.example.json`, then restart the controller with:
+
+```powershell
+.\launch.cmd -ModelsConfig config\models.example.json
+```
+
+Role names are `strategist`, `analyst`, `architect`, and `critic`. All optional roles
+can be omitted or point at the same loaded model. Consultations happen only when
+the strategist asks a specific question; there is no domain-manager fan-out.
+
+## Test-only speed benchmark
+
+With the controller and disposable game closed:
+
+```powershell
+.venv\Scripts\python.exe scripts\native_speed_benchmark.py --seconds 5 --repeats 2
+```
+
+This uses native `play_for` with boosted Ultrafast/forced-speed support, restoring
+Paused and disabling the boost afterward. It omits dashboard captures but does not
+disable Unity rendering. Interrupted samples are explicitly marked. Measurements
+are local in `.rimbot/bridge/speed-benchmark.json`. This option is not exposed to the
+strategist during normal play.
 
 ## Remaining migration work
 

@@ -17,7 +17,7 @@ class ProjectSpec(BaseModel):
     model_config = ConfigDict(extra='forbid')
     title: str = Field(min_length=1, max_length=160)
     detail: str = Field(default='', max_length=1000)
-    targets: list[Target] = Field(default_factory=list, max_length=100)
+    targets: list[Target] = Field(default_factory=list, max_length=256)
 
 class Project(ProjectSpec):
     id: str

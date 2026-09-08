@@ -8,12 +8,29 @@ class ModelError(RuntimeError):
     pass
 
 
+def inference_tools(tools):
+    """Keep validation contracts intact; adapt only the inference grammar.
+
+    LM Studio's Qwen grammar compiler rejects nested bounded strings in the
+    plan schema. The controller still enforces these bounds on every result.
+    """
+    def portable(value):
+        if isinstance(value, list):
+            return [portable(item) for item in value]
+        if isinstance(value, dict):
+            return {key: portable(item) for key, item in value.items()
+                    if key not in ('minLength', 'maxLength')}
+        return value
+    return [dict(tool, function=dict(tool['function'],
+                parameters=portable(tool['function']['parameters']))) for tool in tools]
+
+
 class LocalModel:
     def __init__(self, settings, transport=None):
         self.settings = settings
         self.reasoning_style = 'standard'
         self.context_limit = settings.model_context_tokens
-        self.http = httpx.AsyncClient(base_url=settings.model_url, timeout=httpx.Timeout(600, connect=10), transport=transport, trust_env=False)
+        self.http = httpx.AsyncClient(base_url=settings.model_url, timeout=httpx.Timeout(settings.timeout_seconds, connect=10), transport=transport, trust_env=False)
 
     async def close(self):
         await self.http.aclose()
@@ -25,12 +42,12 @@ class LocalModel:
         if budget['compacted']:await progress({'phase':'Preparing decisions','detail':'Compacted model context','request_budget':budget})
         effort = ('medium' if thinking else 'none') if self.reasoning_style == 'standard' else ('on' if thinking else 'off')
         body = {'model':self.settings.model, 'messages':messages, 'stream':True,
-                'stream_options':{'include_usage':True}, 'temperature':0.35,
+                'stream_options':{'include_usage':True}, 'temperature':self.settings.temperature,
                 'max_tokens':self.settings.max_output_tokens,
                 'reasoning_effort':effort,
                 'chat_template_kwargs':{'enable_thinking':thinking}}
         if tools:
-            body.update(tools=tools, tool_choice='auto')
+            body.update(tools=inference_tools(tools), tool_choice='auto')
         text, reasoning, calls, usage, finish = '', 0, {}, {}, None
         last = 0
         try:
