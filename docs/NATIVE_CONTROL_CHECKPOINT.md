@@ -79,3 +79,29 @@ Validation: native build/install, two real headless melee runs, and 53 controlle
 tests including stale-order rejection after injury delivery. No local-model combat
 decision was tested. Ranged equipment/fire, rescue completion, actual hostile
 encounters and strategy-selected victory/stand-down still need acceptance tests.
+
+## Ranged equipment and observed hit
+
+Native item discovery now supports `category=weapons` and reports the game's
+ranged/melee flags, without a list of weapon def names. Invalid categories fail
+explicitly rather than silently becoming a broad haulable query.
+
+`scripts/native_ranged_smoke.py` is a repeatable headless acceptance test. It
+selects a nearby native ranged weapon and eligible pawn through query/preview,
+issues equip, then checks the exact weapon ID in the pawn's actual equipment.
+It moves through the normal drafted order, verifies the game's snapped destination
+rather than the requested cell, validates a ranged target, and requires an observed
+new injury. An accepted attack receipt or a disappeared target does not pass.
+
+Live run: Marulo equipped a short bow, reached the native movement destination,
+and inflicted an observed `Cut (short bow)` on an existing red fox. Selected owned
+draft cleanup succeeded. The test explicitly acknowledges this fixture's sealed
+ancient-danger proximity warning once; production pause handling is unchanged.
+There is no spawning, injected damage, boosted time or model call. Earlier attempts
+correctly refused out-of-range shots and exposed test assumptions about movement
+snapping and vanilla warning pauses. A farther firing position yielded no observed
+hit and was not counted as a pass.
+
+Validation: native compilation/install, 53 controller tests, and the live ranged
+acceptance above. Evidence is `.rimbot/bridge/ranged-smoke.json`. Actual raids,
+autonomous model tactics, rescue completion and victory handling remain unproven.

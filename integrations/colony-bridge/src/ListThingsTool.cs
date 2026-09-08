@@ -168,7 +168,7 @@ namespace HomeBridge.BridgeTools
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
             [ToolParameter(Description = "Only defs whose defName or label contains this text (case-insensitive).")] string match = null,
-            [ToolParameter(Description = "What to count: 'haulable' (items you can carry, the default), 'food' (the game's nutrition-giving ingestibles, including animal feed and nutrition-carrying drugs), 'all' (every thing including walls, plants and filth), or 'buildings'.", DefaultValue = "haulable")] string category = "haulable",
+            [ToolParameter(Description = "What to count: 'haulable' (default), 'food' (native nutrition-giving ingestibles), 'weapons' (native weapon defs; rows include weapon.ranged/melee), 'all', or 'buildings'. Unknown categories are refused.", DefaultValue = "haulable")] string category = "haulable",
             [ToolParameter(Description = "Whose things to report: 'ours' (the default — only defs the colony actually has some of, and only our stacks' positions) or 'all' (every def on the map, trader stock and ancient-ruin loot included). Either way every row carries the full ownership breakdown.", DefaultValue = "ours")] string ownership = "ours",
             [ToolParameter(Description = "Also walk pawn inventories, carry trackers, corpses and container things. Worn apparel and wielded weapons are never walked. False = spawned things only, the pre-2026-09-01 source.", DefaultValue = true)] bool includeHeld = true,
             [ToolParameter(Description = "Only things that are currently forbidden.", DefaultValue = false)] bool forbiddenOnly = false,
@@ -233,8 +233,8 @@ namespace HomeBridge.BridgeTools
                 maxCorpsesPerRow = 0;
             var useRadius = radius > 0 && cx >= 0 && cz >= 0;
             var cat = (category ?? "haulable").Trim().ToLowerInvariant();
-            if (cat != "all" && cat != "buildings" && cat != "food")
-                cat = "haulable";
+            if (cat != "all" && cat != "buildings" && cat != "food" && cat != "weapons" && cat != "haulable")
+                return Failure("Unknown category. Use haulable, food, weapons, all or buildings.");
             var oursOnly = !string.Equals((ownership ?? "ours").Trim(), "all", StringComparison.OrdinalIgnoreCase);
 
             // Faction.OfPlayer routes through Log.Error when there is no player
@@ -251,7 +251,7 @@ namespace HomeBridge.BridgeTools
                     spawned = map.listerThings.ThingsInGroup(ThingRequestGroup.BuildingArtificial).ToList();
                 else
                     spawned = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver).ToList();
-                if (cat == "food")
+                if (cat == "food" || cat == "weapons")
                     spawned = spawned.Where(t => PassesCategory(t, cat)).ToList();
             }
             catch (Exception e)
@@ -343,7 +343,8 @@ namespace HomeBridge.BridgeTools
                     // def's label ("human corpse"); corpses[] names each body.
                     row = new Row { DefName = defName,
                                     Label = thing is Corpse ? SafeDefLabel(thing) : SafeLabel(thing),
-                                    Food = IsFood(thing) };
+                                    Food = IsFood(thing), Weapon = thing.def.IsWeapon,
+                                    Ranged = thing.def.IsRangedWeapon, Melee = thing.def.IsMeleeWeapon };
                     rows[defName] = row;
                 }
                 if (corpse != null)
@@ -406,6 +407,7 @@ namespace HomeBridge.BridgeTools
                     { "defName", r.DefName },
                     { "label", r.Label },
                     { "food", r.Food },
+                    { "weapon", r.Weapon ? new Dictionary<string, object> { { "ranged", r.Ranged }, { "melee", r.Melee } } : null },
                     // Whole-map figures, both modes. `stacks`/`total` are every
                     // stack of this def anywhere; `oursStacks`/`ours` are the
                     // colony's share of them.
@@ -701,6 +703,7 @@ namespace HomeBridge.BridgeTools
                 if (cat == "all") return true;
                 if (cat == "buildings") return false;      // nothing held is a spawned building
                 if (cat == "food") return IsFood(t);
+                if (cat == "weapons") return t.def.IsWeapon;
                 return t.def.EverHaulable;
             }
             catch { return false; }
@@ -829,6 +832,7 @@ namespace HomeBridge.BridgeTools
             public string DefName;
             public string Label;
             public bool Food;
+            public bool Weapon, Ranged, Melee;
             public int Stacks;
             public int OursStacks;
             public int Total;

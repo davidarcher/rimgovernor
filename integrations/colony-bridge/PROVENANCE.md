@@ -79,3 +79,11 @@ Live validation: native lease expiry without heartbeat, external pause latch and
 explicit resume, actual pawn movement, and runtime-owned undraft/pause cleanup.
 Evidence is recorded locally in `.rimbot/bridge/clock-smoke.json` by
 `scripts/native_clock_smoke.py`. This is not a live raid/combat test.
+
+## Native weapon discovery
+
+`home/list_things` adds `category=weapons`, filtered through RimWorld's weapon
+flags, with `weapon.ranged` and `weapon.melee` on matching rows. Positions retain
+native thing IDs. Equipped weapons remain in pawn equipment/resolve readback;
+this item query does not count wielded equipment as loose supplies. Unknown
+categories now fail explicitly instead of silently returning all haulables.
