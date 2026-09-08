@@ -342,3 +342,11 @@ Validation: native build/install, 137 controller tests, six dashboard tests, Typ
 Added scripts/native_render_smoke.py for the normal Windows graphics process. It minimizes the disposable game, verifies demand wake and PNG capture, verifies lease expiry, samples actual game ticks with rendering on/off/on, and restores the window and pauses in cleanup. Uses ordinary Superfast with no boost and no model. Only the baseline's known sealed ancient proximity warning may be acknowledged during warm-up; other pauses fail measurement.
 
 Live result: 359.7 / 359.6 / 352.9 TPS (rendering on/off/on, about five seconds per sample). Ticks advanced while suspended and window restore woke rendering. This short young-colony sample demonstrates continuity, not a simulation speedup: it is already near ordinary Superfast throughput. GPU load and uncapped/headless comparisons were not measured. Evidence: .rimbot/bridge/render-smoke.json. No production behavior changed.
+
+### Boosted throughput comparison (2026-09-08)
+
+Ran scripts/native_throughput.py: two roughly eleven-second wall-clock samples per mode, reloading the same eight-tribal baseline each time. Native receipt confirmed Ultrafast and currentUltraSpeedBoost=true; installed TickManager targets 150x normal (9000 TPS), so this is high-ceiling rather than literally uncapped. No dashboard captures or model calls. Rendered and suspended used the same minimized graphics process; headless used its separate startup profile.
+
+Results (TPS): rendered 3284.4 / 3065.2 (mean 3174.8); suspended 3336.1 / 3253.2 (mean 3294.6, +3.8%); headless 3410.4 / 3843.1 (mean 3626.8, +14.2%). Every sample includes wall time spent acknowledging the known ancient-danger proximity warning. These short sequential samples are preliminary, not steady-state long-colony benchmarks or GPU measurements. Differences include the complete mode configuration, including headless frame-cap handling. Do not interpret the small suspended-rendering advantage as statistically established. Evidence: .rimbot/bridge/throughput.json.
+
+Benchmark speed overrides are test-only and reset in cleanup. The production controller's ordinary gameplay speed policy is unchanged.
