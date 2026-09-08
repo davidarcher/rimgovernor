@@ -200,8 +200,6 @@ class Hands:
                 continue
             if preview.get('madeFromStuff') and not stuff:
                 raise Blocked('material_choice_required', 'Specify acceptable observed materials; no implicit native default material')
-            if preview.get('materials', {}).get('canBuildNow') is not True:
-                continue
             occupied = {(c['x'], c['z']) for r in preview['rotations'] for c in r.get('occupiedCells', [])}
             reserved = {c for r in rt.current_plan.spec.reserved_walkways for c in r.cells()}
             if occupied & reserved:

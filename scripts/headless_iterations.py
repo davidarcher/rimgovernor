@@ -54,7 +54,7 @@ async def worker(args):
         anchor=(sum(p.position.x for p in rt.batch.summary.pawns)/8,
                 sum(p.position.z for p in rt.batch.summary.pawns)/8)
         await rt.set_mode('automate')
-        began=time.monotonic();deadline=began+args.seconds;extended=False;last=0
+        began=time.monotonic();deadline=began+args.seconds;extended=False;last=0;acknowledged=False
         while time.monotonic()<deadline:
             await asyncio.sleep(2)
             elapsed=round(time.monotonic()-began,1)
@@ -64,6 +64,14 @@ async def worker(args):
             if elapsed-last>=15:
                 print(json.dumps({'iteration':args.worker,'seconds':elapsed,**rt.counters}),flush=True);last=elapsed
             if report['foothold']['usable']:break
+            if rt.mode!='automate' and not acknowledged and rt.connected:
+                letters=await rt.game.invoke('rimworld/list_letters',{})
+                rows=letters.get('letters',[])
+                if (not letters.get('truncated') and len(rows)==1 and rows[0].get('label')=='Ancient danger'
+                        and rt.batch.summary.hostile_count==0 and not any(p.dead or p.downed or p.bleeding for p in rt.batch.summary.pawns)):
+                    acknowledged=True;report['fixture_warning_acknowledged']=rows[0].get('id')
+                    await rt.set_mode('automate')
+                    continue
             if rt.mode!='automate' or not rt.connected:
                 report['stopped_reason']=rt.phase;break
         report['outcome']='usable_foothold' if report['foothold']['usable'] else 'not_usable'
