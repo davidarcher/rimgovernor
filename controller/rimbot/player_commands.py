@@ -59,6 +59,12 @@ class BuildRoom(Contract):
     purpose: Literal['shelter', 'defense', 'production', 'storage', 'comfort'] = 'shelter'
 
 
+class RelocateConstruction(Contract):
+    kind: Literal['RelocateConstruction']
+    intent_id: str = Field(min_length=1, description='Exact tracked player construction intent or step ID to move. Explicit removal of its old pending orders is required.')
+    replacement: Annotated[RoomShell | Buildings, Field(discriminator='kind')]
+
+
 class CreateZone(Contract):
     kind: Literal['CreateZone']
     intent_id: str = Field(pattern=r'^[a-zA-Z0-9_-]{1,40}$')
@@ -98,10 +104,10 @@ class MovePawn(Contract):
     z: int = Field(ge=0)
 
 
-Command = Annotated[SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | BuildRoom |
+Command = Annotated[SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | RelocateConstruction | BuildRoom |
                     PlaceBuildings | CreateZone | SetWorkPriority | CreateBill | DraftPawn | MovePawn, Field(discriminator='kind')]
 COMMAND = TypeAdapter(Command)
-COMMAND_TYPES = (SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,BuildRoom,PlaceBuildings,
+COMMAND_TYPES = (SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,RelocateConstruction,BuildRoom,PlaceBuildings,
                  CreateZone,SetWorkPriority,CreateBill,DraftPawn,MovePawn)
 COMMAND_NAMES = {kind.__name__ for kind in COMMAND_TYPES}
 
@@ -131,6 +137,7 @@ def semantic_tools(resources=None):
         'CancelGoal':'Stop future controller orders for a named goal. KEEP all existing game blueprints and frames. Use this when the player says to keep, retain or leave existing orders in place.',
         'CancelConstruction':'REMOVE existing pending blueprints and partly built frames for a tracked player intent. Use ONLY when the player explicitly requests removing those game orders. NEVER use when told to keep blueprints, frames or existing orders; use CancelGoal instead. Completed buildings remain.',
         'BuildRoom':'Request a room shell with walls and an entrance using inspected geometry.',
+        'RelocateConstruction':'Explicitly move a tracked unfinished construction intent. Validates the replacement before removing exact old pending orders. Requires explicit permission to remove old orders; completed buildings cannot be relocated this way. Use inspected replacement geometry.',
         'PlaceBuildings':'Place a semantic batch of furniture or buildings using observed definitions and positions.',
         'CreateZone':'Create a growing zone or stockpile specifically requested by the player.',
         'SetWorkPriority':'Change persistent work assignments, independently of the current pawn job. Priority 0 disables a work type even when the pawn is currently doing another job.',
@@ -198,6 +205,8 @@ def command_confirmation(name, result):
         return 'Cancelled '+result['cancelled'].removeprefix('intent-').replace('-',' ')+'. Existing game orders remain in place.'
     if name=='CancelConstruction':
         return 'Construction cancellation accepted. Exact pending targets are tracked in the colony plan; completed buildings are preserved.'
+    if name=='RelocateConstruction':
+        return 'Construction relocation accepted. The validated replacement waits for exact old-order cancellation; pawn construction is tracked separately.'
     titles={'SetResearch':'Research change','SetWorkPriority':'Work assignment change','DraftPawn':'Draft change',
             'MovePawn':'Movement order','BuildRoom':'Room shell','PlaceBuildings':'Building batch',
             'CreateZone':'Zone','CreateBill':'Production bill'}
@@ -233,6 +242,9 @@ async def apply_command(rt, payload, *, token, revision):
         policy = plan.control.setdefault('resource_policy', {}).setdefault(request.resource, {'reserve':0,'spending':'normal'})
         policy.update(request.model_dump(exclude={'kind','resource'}))
         result = {'resource': request.resource, 'policy': plan.control['resource_policy'][request.resource]}
+    elif isinstance(request, RelocateConstruction):
+        from .construction_relocation import relocate
+        result = await relocate(rt, request, token=token, revision=revision)
     elif isinstance(request, CancelConstruction):
         from .construction_cancellation import capture_targets, validate_player_authorization
         from .colony_plan import CancelConstructionAction

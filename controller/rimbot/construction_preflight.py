@@ -53,8 +53,16 @@ async def preflight_construction(spec, current, game):
                     continue
                 # Dependent work can need clearance first. Still require a resolved
                 # definition; leave site readiness to execution after dependencies.
+                relocation = any(dependency.step == candidate.id and candidate.action.kind == 'cancel_construction'
+                    for dependency in step.after for candidate in spec.steps)
+                if relocation:
+                    from .shelter_handoff import safe_rotation
+                    rows = result.get('rotations', [])
+                    if len(rows) != 1 or not safe_rotation(rows[0]):
+                        evidence['error'] = 'Relocation replacement must preserve all existing native objects.'
+                        continue
                 if result.get('success') is not False and (unchanged or
-                        result.get('canPlace') is True or (step.after and 'canPlace' in result)):
+                        result.get('canPlace') is True or (step.after and not relocation and 'canPlace' in result)):
                     try:
                         footprints[(step.id, str(index))] = native_footprint(result, placement)
                     except ValueError as error:

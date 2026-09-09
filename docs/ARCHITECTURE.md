@@ -209,6 +209,14 @@ Explicit English preservation clauses refuse removal at command admission,
 plan admission and execution even if the model selects the removal tool. This
 conservative refusal does not certify arbitrary wording or multi-intent scope.
 
+`RelocateConstruction` admits replacement geometry and exact old-order removal
+in one validated plan. Replacement placements must already pass native placement,
+resource policy and preservation checks before any removal; their dependency does
+not waive placement refusals. Shared Hands waits for the entire cancellation to
+complete before issuing the replacement. Completed, missing or uncertain old
+placements and dependent projects require explicit inspection instead of relocation.
+The conversational intent points to the replacement while old receipts remain durable.
+
 After a player shelter shell completes, sleeping handoff verifies its exact native
 interior and roof coverage before furnishing the missing indoor sleeping capacity.
 Each spot uses a native accepted footprint wholly inside that room; existing

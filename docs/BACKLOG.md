@@ -33,7 +33,9 @@ in the checkpoint commit; do not append an implementation diary here.
 - [ ] **B04c · Shared intent completion.** Broaden adopted-room furnishing acceptance to
   edited rooms and hot/cold variants. Support safe explicit
   relocation/cancellation of issued construction through native cancellation
-  skills; preserve existing orders until validated. Exact-target blueprint cancellation
+  skills; preserve existing orders until validated. Relocation admission and ordered
+  cancellation/replacement have controller coverage; native and local-model acceptance
+  remain required. Exact-target blueprint cancellation
   has semantic-command/shared Hands acceptance, including a lost successful receipt.
   A partly built wooden bed also has native material-refund acceptance.
   Broaden interrupted cancellation across native
