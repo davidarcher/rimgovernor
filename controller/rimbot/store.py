@@ -14,6 +14,9 @@ class Store:
         self.db.executescript('''
           CREATE TABLE IF NOT EXISTS state(key TEXT PRIMARY KEY, value TEXT NOT NULL);
           CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY, at REAL, colony TEXT, kind TEXT, data TEXT);
+          CREATE INDEX IF NOT EXISTS events_colony_id ON events(colony,id);
+          CREATE INDEX IF NOT EXISTS events_visible_colony_id ON events(colony,id)
+            WHERE kind NOT IN ('model_diagnostic','model_call','tool_result','planner_tool');
           CREATE TABLE IF NOT EXISTS decisions(id INTEGER PRIMARY KEY, at REAL, colony TEXT, role TEXT, payload BLOB, result BLOB);
           CREATE TABLE IF NOT EXISTS retired_actions(colony TEXT NOT NULL, identity TEXT NOT NULL, record BLOB NOT NULL,
             PRIMARY KEY(colony,identity));

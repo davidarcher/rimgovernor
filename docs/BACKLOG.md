@@ -36,6 +36,9 @@ in the checkpoint commit; do not append an implementation diary here.
   policies and conversational refinements with a real local model.
 - [ ] **B04d · Long-running goal lifecycle.** Broaden retention measurement from archived completed actions to
   goal-method evidence and event history in sustained native campaigns.
+  Indexed recent-history reads preserve the full ledger. Synthetic lifecycle
+  audits expose growing method-name evidence; bound its live representation
+  without losing deduplication across restart or changing goal-reopen semantics.
   Add bounded
   recovery for other known transient failures beyond confirmed interrupted tending, verify new-colonist work batches natively and
   expand sleeping/farming templates beyond the eight-colonist starter. Reconcile

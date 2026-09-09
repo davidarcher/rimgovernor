@@ -7,7 +7,7 @@ import argparse
 import json
 from pathlib import Path
 import time
-from rimbot.colony_plan import ColonyPlan, CommitSteps, PlanStep, StepProgress
+from rimbot.colony_plan import ColonyPlan, ColonyGoal, CommitSteps, PlanStep, StepProgress
 from rimbot.store import Store
 from rimbot.plan_archive import bind_archive,prepare_archive,finish_archive
 
@@ -19,6 +19,8 @@ def run(args):
                   if p['state']=='complete' and p['issued'])
     store=Store(args.output/'audit.sqlite')
     plan=ColonyPlan()
+    if args.lifecycle:
+        plan.colony_goals['EnsureWorkAssignments']=ColonyGoal(priority_class=2)
     bind_archive(plan,store,'audit')
     report={'scope':'Synthetic retention audit using observed receipt shape; no native execution',
             'source_evidence':str(args.evidence.resolve()),'samples':[]}
@@ -26,12 +28,22 @@ def run(args):
         for index in range(args.steps):
             identity=f'audit-{index}'
             step=PlanStep(id=identity,title='Work coverage',source='AUTOPILOT',
+                goal_id='EnsureWorkAssignments' if args.lifecycle else None,
                 completion_criteria='Synthetic completed outcome; no game write',
                 action={'kind':'native_operation','tool':'home/pawn_config',
                         'arguments':{'pawn':f'Thing_Human{index}','work':'Growing=1','dryRun':False}})
             plan.commit(CommitSteps(expected_revision=plan.revision,reason='Retention workload',steps=[step]).decision(plan),
                         actor='strategist',tick=index*600)
             plan.progress[identity]=StepProgress(state='complete',issued=template)
+            if args.lifecycle:
+                goal=plan.colony_goals['EnsureWorkAssignments']
+                method=f'coverage-{index}'
+                goal.steps.append(identity)
+                goal.evidence.setdefault('methods',{})[method]=[identity]
+                store.event('audit','htn_method_selected',goal_id='EnsureWorkAssignments',method=method)
+                for _ in range(10):
+                    store.event('other-colony','tool_result',result=template)
+                    store.event('audit','tool_result',result=template)
             snapshot,records=prepare_archive(plan)
             store.archive_and_set('audit','plan',snapshot,records)
             finish_archive(plan,snapshot,records)
@@ -50,6 +62,23 @@ def run(args):
                      'progress_records':len(plan.progress),'history_entries':len(plan.history),
                      'snapshot_bytes':len(encoded.encode()),'sqlite_bytes':(args.output/'audit.sqlite').stat().st_size,
                      'serialization_ms':round(serialize_ms,3)}
+                if args.lifecycle:
+                    goal=plan.colony_goals['EnsureWorkAssignments']
+                    row['method_entries']=len(goal.evidence['methods'])
+                    row['method_bytes']=len(json.dumps(goal.evidence['methods']).encode())
+                    row['events']=store.db.execute('SELECT COUNT(*) FROM events').fetchone()[0]
+                    row['event_payload_bytes']=store.db.execute('SELECT COALESCE(SUM(length(data)),0) FROM events').fetchone()[0]
+                    started=time.perf_counter()
+                    visible=store.history('audit',100)
+                    row['recent_history_ms']=round((time.perf_counter()-started)*1000,3)
+                    assert len(visible)==100 and all(e['kind']=='htn_method_selected' for e in visible)
+                    assert visible[-1]['method']==method
+                    for diagnostics in (False,True):
+                        filtered='' if diagnostics else " AND kind NOT IN ('model_diagnostic','model_call','tool_result','planner_tool')"
+                        query='SELECT id,at,kind,data FROM events WHERE colony=?'+filtered+' ORDER BY id DESC LIMIT ?'
+                        description=[r[3] for r in store.db.execute('EXPLAIN QUERY PLAN '+query,('audit',100))]
+                        row['query_plan_'+str(diagnostics)]=description
+                        assert all('SCAN events' not in detail for detail in description),description
                 report['samples'].append(row)
                 (args.output/'result.json').write_text(json.dumps(report,indent=2))
                 print(json.dumps(row),flush=True)
@@ -68,6 +97,7 @@ if __name__=='__main__':
     parser.add_argument('--evidence',type=Path,required=True,help='Native trial result.json containing plan/progress')
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--steps',type=int,default=1000)
+    parser.add_argument('--lifecycle',action='store_true',help='Include persistent method evidence and interleaved colony/diagnostic events')
     args=parser.parse_args()
     if not 100<=args.steps<=10000: parser.error('--steps must be between 100 and 10000')
     run(args)

@@ -248,6 +248,10 @@ after restart; missing archive data blocks admission. `inspect_plan` retrieves
 archived records by exact ID. The last twelve plan revisions remain in the live
 history; immutable archive storage grows with completed work.
 
+Recent event reads use colony/sequence indexes, including a partial index for
+non-diagnostic history. Index migration preserves every event and its identity;
+it does not bound ledger disk growth or discard method deduplication evidence.
+
 Confirmed interrupted autonomous treatment has bounded recovery on the same action
 identity. Under the runtime writer lock, fresh patient/doctor observations and the
 native tick must match the issued load and current direction. Completed or resumed treatment
