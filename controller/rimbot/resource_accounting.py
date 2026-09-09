@@ -3,6 +3,13 @@ from .colony_plan import Buildings, RoomShell, NativeOperation
 from .hands import room_placements
 
 
+class ResourceShortage(ValueError):
+    """Known pre-write stock shortage; unknown costs and policies remain refusals."""
+    def __init__(self, resource, required, available):
+        self.evidence = {'resource':resource,'required':required,'available':available}
+        super().__init__('Current resources no longer cover reservations: '+resource)
+
+
 async def validate_allocations(spec, current, game):
     previous = {s.id: s for s in current.spec.steps}
     slots_by_step = {}
@@ -82,7 +89,7 @@ def validate_execution_costs(plan, progress, slot, preview):
     held = {}
     for identity, slots in plan.control.get('costs', {}).items():
         state = plan.progress.get(identity)
-        if state is None or state.state in ('complete','cancelled','blocked'): continue
+        if state is None or state.state in ('complete','cancelled') or (state.state=='blocked' and state is not progress): continue
         for key, values in slots.items():
             if state.issued.get(key, {}).get('confirmed'): continue
             for resource, count in values.items(): held[resource] = held.get(resource,0)+count
@@ -92,5 +99,7 @@ def validate_execution_costs(plan, progress, slot, preview):
         if policy.get('spending') == 'stop' or (policy.get('spending') == 'defense_only' and step.purpose != 'defense'):
             raise ValueError('Player resource policy prevents '+resource+' spending for '+step.purpose)
         required = max(count,held.get(resource,0)) + policy.get('reserve',0)
-        if available.get(resource) is None or available[resource] < required:
-            raise ValueError('Current resources no longer cover reservations: '+resource)
+        if available.get(resource) is None:
+            raise ValueError('Current resource availability is unknown: '+resource)
+        if available[resource] < required:
+            raise ResourceShortage(resource,required,available[resource])

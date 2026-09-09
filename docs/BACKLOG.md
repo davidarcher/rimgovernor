@@ -24,6 +24,8 @@ in the checkpoint commit; do not append an implementation diary here.
   attribution, real player pause/speed holds, danger preemption and load changes
   on the final binary. Native execution tick boundaries are implemented; broaden
   interruption coverage to autosaves and real player input during those windows.
+  Include the current headless long-event presentation patch in autosave trials;
+  the older installed headless binary can stall before producing the save.
 - [ ] **B04c · Shared intent completion.** Broaden adopted-room furnishing acceptance to
   edited rooms and hot/cold variants. Support safe explicit
   relocation/cancellation of issued construction through native cancellation
@@ -41,12 +43,11 @@ in the checkpoint commit; do not append an implementation diary here.
   restart coverage. Broaden sustained native coverage to remaining goal evidence
   such as hunting targets and recovery histories, and measure ledger disk growth.
   Add bounded
+  native acceptance for known pre-write construction-resource recovery and add
   recovery for other known transient failures beyond confirmed interrupted tending,
-  repeat larger-start work acceptance on the fully validated scenario-editor
-  baseline, verify work reassignment when colonists join an existing colony and
-  verify larger starter sleeping capacity natively and expand farming and shelter
-  capacity beyond the fixed shell. Native-footprint fitting above eight has
-  controller coverage, including reserved service rows and capacity refusal. Reconcile
+  verify work reassignment when colonists join an existing colony and
+  broaden larger-starter native acceptance to bed use and additional seeds, and
+  expand farming and shelter capacity beyond the fixed shell. Reconcile
   player interruptions and partial work across save rewind. Broaden paired native
   restart acceptance beyond a cancelled room shell to mixed pending work,
   resource reservations and interrupted non-idempotent actions.

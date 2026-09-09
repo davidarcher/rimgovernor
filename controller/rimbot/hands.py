@@ -241,8 +241,14 @@ class Hands:
                 continue
             if preview.get('madeFromStuff') and not stuff:
                 raise Blocked('material_choice_required', 'Specify acceptable observed materials; no implicit native default material')
-            from .resource_accounting import validate_execution_costs
-            validate_execution_costs(rt.current_plan, progress, key, preview)
+            from .resource_accounting import ResourceShortage, validate_execution_costs
+            try:
+                validate_execution_costs(rt.current_plan, progress, key, preview)
+            except ResourceShortage as error:
+                step=next(s for s in rt.current_plan.spec.steps if rt.current_plan.progress[s.id] is progress)
+                raise Blocked('construction_resources',str(error),retryable=True,evidence=dict(error.evidence,
+                    slot=key,load_token=token,direction=direction,signature=step.signature(),
+                    tick=rt.batch.summary.end_tick)) from error
             occupied = {(c['x'], c['z']) for r in preview['rotations'] for c in r.get('occupiedCells', [])}
             reserved = {c for r in rt.current_plan.spec.reserved_walkways for c in r.cells()}
             if occupied & reserved:

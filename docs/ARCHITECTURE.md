@@ -57,7 +57,10 @@ Paths in the table without a directory prefix are under `controller/rimbot/`.
    progress evidence live in the existing SQLite-backed ColonyPlan.
 4. Methods compile small batches of semantic construction/zone/native actions.
    Starter templates rank nearby legal shelter sites and disjoint fertile farm
-   patches, then use bounded native previews. Work allocation uses observed
+   patches, then use bounded native previews. Fragmented soil can use smaller
+   patches within the same zone budget; insufficient farmland does not reject an
+   otherwise legal shelter. Selected field capacity remains separate from observed
+   growing cells and the production gate. Work allocation uses observed
    capabilities/skills, job load and stable identity tie breaks; it respects the
    game's checkbox versus manual-priority modes and explicit player overrides.
 5. Both entry paths commit through revision/context guards, geometry/native
@@ -270,6 +273,16 @@ The existing method-attempt limit bounds replacements. Unknown/legacy receipt sc
 save rewinds, competing treatment, incapable doctors and player overrides retain an
 explicit hold. Goal recovery evidence and reasons are shared with chat and the
 Autopilot panel. Medical priorities include native tending needs even without bleeding.
+
+An autonomous construction action can recover from a known pre-write material
+shortage on the same action identity. Unknown cost/stock observations, native
+write failures and policy refusals are not classified as resource shortages.
+Under the writer lock, recovery verifies the saved load, direction, action
+signature and tick, then previews every unissued placement against current
+resources, reservations and geometry. Confirmed slots are retained; any uncertain
+slot prevents automatic recovery. Resumption history survives persistence, and
+the method-attempt limit bounds successful resumptions. Hands rechecks each
+placement before writing; a recovered reservation does not certify construction.
 
 The observed GABS runtime-state publication fault permits two bounded retries for
 approved reads and explicit previews. Mutations and mixed-operation defaults do

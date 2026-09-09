@@ -348,3 +348,23 @@ def test_layout_rejects_walkable_marsh_without_building_support():
     assert all(layout['room']['x']+layout['room']['width']<=27 for layout in layouts)
     for cell in state['cells']: cell.pop('supportsLight')
     assert starter_layouts(state)==[]
+
+
+def test_fragmented_soil_uses_small_disjoint_patches_and_never_blocks_shelter():
+    state=facts(10)
+    for cell in state['cells']:
+        cell['fertility']=1 if cell['x']%4 in (0,1) and cell['z']%4 in (0,1) else .1
+    layouts=starter_layouts(state)
+    assert layouts
+    for layout in layouts:
+        assert layout['farms'] and len(layout['farms'])<=32
+        room=layout['room'];used=set()
+        room_cells={(x,z) for x in range(room['x'],room['x']+9) for z in range(room['z'],room['z']+9)}
+        for patch in layout['farms']:
+            cells={(x,z) for x in range(patch['x'],patch['x']+patch['width']) for z in range(patch['z'],patch['z']+patch['height'])}
+            assert not cells&(used|room_cells)
+            assert all(x%4 in (0,1) and z%4 in (0,1) for x,z in cells)
+            used|=cells
+    for cell in state['cells']:cell['fertility']=.1
+    layouts=starter_layouts(state)
+    assert layouts and all(layout['farms']==[] and layout['farm'] is None for layout in layouts)

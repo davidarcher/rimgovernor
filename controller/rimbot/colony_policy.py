@@ -197,14 +197,17 @@ def work_assignment(pawns):
     return result, all(work in owners for work in ('Doctor', 'Cooking', 'Construction', 'Growing'))
 
 
+def farm_patches(layout):
+    return layout['farms'] if 'farms' in layout else [layout['farm']] if layout.get('farm') else []
+
+
 def starter_layouts(facts):
     """Rank shelter sites, then fit several nearby fertile field patches."""
     rice = facts.get('definitions', {}).get('Plant_Rice', {})
     yield_, grow_days = rice.get('harvestNutrition'), rice.get('growDays')
-    if not yield_ or not grow_days: return []
     cells = {(c['x'], c['z']): c for c in facts.get('cells', [])}
     anchor = facts['center']
-    target = ceil(facts.get('nutritionPerDay', 0) * grow_days * 2.5 / yield_)
+    target = ceil(facts.get('nutritionPerDay', 0) * grow_days * 2.5 / yield_) if yield_ and grow_days else 0
     def points(x, z, width, height):
         return {(a, b) for a in range(x, x+width) for b in range(z, z+height)}
     def free(p):
@@ -222,18 +225,19 @@ def starter_layouts(facts):
         reserved = points(x-1, z-1, 11, 11) | points(x, z-5, 9, 4)
         patches, chosen = [], set()
         farmland = sorted(cells, key=lambda p: ((p[0]-x-4)**2+(p[1]-z-4)**2, p))
-        for a, b in farmland:
-            patch = points(a, b, 4, 4)
-            if patch & (reserved | chosen): continue
-            if not all(free(p) and cells[p].get('fertility', 0)>=rice.get('fertilityMin', 1) for p in patch): continue
-            patches.append({'x':a,'z':b,'width':4,'height':4})
-            chosen |= patch
-            if len(chosen)>=target or len(patches)>=32: break
+        for size in (4,3,2,1):
+            if len(chosen)>=target or len(patches)>=32:break
+            for a,b in farmland:
+                patch=points(a,b,size,size)
+                if patch & (reserved|chosen):continue
+                if not all(free(p) and cells[p].get('fertility',0)>=rice.get('fertilityMin',1) for p in patch):continue
+                patches.append({'x':a,'z':b,'width':size,'height':size})
+                chosen|=patch
+                if len(chosen)>=target or len(patches)>=32:break
         # A reduced initial field is useful on constrained maps, but its actual
         # production remains a measured goal rather than a promised future harvest.
-        if len(chosen)<facts['colonists']*10: continue
         penalty = max(0,target-len(chosen))*2
-        layout = {'room':{'x':x,'z':z,'width':9,'height':9}, 'farm':patches[0], 'farms':patches,
+        layout = {'room':{'x':x,'z':z,'width':9,'height':9}, 'farm':patches[0] if patches else None, 'farms':patches,
                   'storage':{'x':x+3,'z':z+5,'width':3,'height':3}}
         layouts.append((score+penalty,x,z,layout))
     return [row[-1] for row in sorted(layouts,key=lambda row:row[:3])[:12]]

@@ -406,6 +406,12 @@ batch, native per-setting readbacks, an observed work-coverage gate and no infer
 It does not certify pawn labor, a mid-campaign joining event or a sustained foothold;
 the audit retains the source report hash and the campaign's separate outcome.
 
+Run `scripts/shelter_capacity_audit.py --report <foothold-result.json> --output <audit.json>`
+for a larger starter on fragmented soil. It requires completed native shell and
+sleeping actions, enough observed indoor sleeping capacity for the starting
+population, smaller accepted field patches and an observed production gate.
+Its scope excludes actual bed use, crop harvest replacement and sustained survival.
+
 The runner rejects fresh baselines past tick 600 and injects a model client that
 fails on any attempted inference. By default it requires two consecutive game
 days with all eleven gates verified and reports `SUSTAINED_FOOTHOLD`. Use

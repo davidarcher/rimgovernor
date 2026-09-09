@@ -2,7 +2,7 @@
 from math import ceil
 from .colony_plan import PlanStep, RoomShell, Dependency
 from .hands import room_placements
-from .colony_policy import starter_layouts, work_assignment
+from .colony_policy import starter_layouts, work_assignment, farm_patches
 from .strategic_state import fingerprint
 from .hunting import screen_prey
 from .food_forecast import acquisition_targets
@@ -28,7 +28,7 @@ class ColonySkills:
                        for cell in step.action.bounds.cells()}
             protected.update(cell for walkway in plan.spec.reserved_walkways for cell in walkway.cells())
             cached=control['layout']
-            farm_cells={(x,z) for p in cached.get('farms',[cached['farm']])
+            farm_cells={(x,z) for p in farm_patches(cached)
                         for x in range(p['x'],p['x']+p['width']) for z in range(p['z'],p['z']+p['height'])}
             if protected&farm_cells:
                 if any(s.action.kind=='create_zone' and s.action.zone_type=='growing' and plan.progress[s.id].issued
@@ -186,8 +186,12 @@ class ColonySkills:
                 return None
             if unused('rice') and not any(f.get('edible') and f.get('usableCells', 0) >= facts['colonists']*10 for f in facts.get('farms', [])):
                 layout = await self.layout(facts)
-                return 'rice', [{'kind': 'create_zone', 'zone_type': 'growing', 'label': 'RimBot rice',
-                                 'crop': 'Plant_Rice', 'patches': layout.get('farms', [layout['farm']])}]
+                patches=farm_patches(layout)
+                goal.evidence['field_capacity']={'selected_cells':sum(p['width']*p['height'] for p in patches),
+                    'minimum_growing_cells':facts['colonists']*10}
+                if patches:
+                    return 'rice', [{'kind': 'create_zone', 'zone_type': 'growing', 'label': 'RimBot rice',
+                                     'crop': 'Plant_Rice', 'patches': patches}]
             if facts.get('foodRunwayDays', 0) < rt.controller.policy.food_min_days and facts.get('armed', 0):
                 butcher = facts.get('butchering', [])
                 if not butcher and unused('butcher-spot'):
