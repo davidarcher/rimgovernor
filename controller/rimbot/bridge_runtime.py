@@ -615,8 +615,12 @@ class BridgeRuntime:
             if self.mode != 'automate':
                 raise ValueError('Automation is off; clock was not changed')
             if speed != 'Paused':
+                dispatch_direction = self.chat_revision
                 from .production_policy import sync_production_policy
                 await sync_production_policy(self)
+                await self.refresh_clock_events()
+                if self.chat_revision != dispatch_direction:
+                    raise InterruptedError('Native interruption arrived while preparing the clock; no resume sent')
             self.resume_after_review = False
             self.execution_window_end = None
             self.execution_wait_explicit = False
@@ -994,6 +998,7 @@ class BridgeRuntime:
                     await sync_production_policy(self)
                     status = await self.game.query('home/status', colonists=False, threats=False)
                     await self.sync_identity()
+                    await self.refresh_clock_events()
                     if (self.mode != 'automate' or self.context_token != token
                             or self.chat_revision != direction or self.wake.is_set()):
                         return

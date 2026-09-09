@@ -277,3 +277,22 @@ async def test_old_clock_order_cannot_resume_after_unconsumed_injury(tmp_path):
         assert rt.wake.is_set() and not rt.resume_after_review
     finally:
         store.close()
+
+
+@pytest.mark.asyncio
+async def test_pause_during_policy_preparation_prevents_clock_start(tmp_path, monkeypatch):
+    store = Store(tmp_path/'policy-interruption.sqlite')
+    rt = BridgeRuntime(store, tmp_path, model_factory=lambda _: SimpleNamespace())
+    rt.mode = 'automate'
+    rt.sync_identity = AsyncMock(return_value=False)
+    monkeypatch.setattr('rimbot.production_policy.sync_production_policy', AsyncMock())
+    rt.supervisor = SimpleNamespace(poll=AsyncMock(side_effect=[[], [
+        dict(kind='external_pause', detail='Pause during policy preparation', epoch=1)]]),
+        change=AsyncMock(), acknowledged_stop=None)
+    try:
+        with pytest.raises(InterruptedError, match='preparing the clock'):
+            await rt.control_clock('Normal', expected_revision=0)
+        rt.supervisor.change.assert_not_awaited()
+        assert rt.mode == 'manual'
+    finally:
+        store.close()
