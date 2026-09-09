@@ -307,6 +307,9 @@ class ColonyPlan(Contract):
             if step.id in self.control.get('retired_steps',{}):
                 raise ValueError('Retired action identity cannot be reused: '+step.id)
             if step.id in self.cancelled_ids or step.signature() in self.cancelled_actions:
+                # Retained cancelled work is history, not a request to issue it again.
+                if old.get(step.id)==step and self.progress[step.id].state=='cancelled':
+                    continue
                 raise ValueError('Player cancelled step '+step.id)
             if any(prior.id != step.id and prior.signature() == step.signature() for prior in old.values()):
                 raise ValueError('Reuse the existing step ID for identical intent')

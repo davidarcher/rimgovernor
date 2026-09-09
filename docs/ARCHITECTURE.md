@@ -171,7 +171,9 @@ current player requests and does not resume time or release an external hold.
 Dependencies distinguish orders issued from work complete. Stable step identities
 retain receipts; changed intent requires a new identity. Duplicate intent and
 cancelled fingerprints prevent recreating the same work under another ID.
-Cancelling a plan step does not cancel existing game orders. Observation failures
+An unchanged cancelled step can remain in subsequent plan revisions with its
+receipts intact; it is never ready for execution. Changing or reintroducing that
+cancelled work is rejected. Cancelling a plan step does not cancel existing game orders. Observation failures
 retain issued work until fresh evidence arrives. Ambiguous non-idempotent writes
 block for inspection instead of automatic replay; only explicitly retryable
 failures can be retried through the plan.
