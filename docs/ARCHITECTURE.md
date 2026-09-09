@@ -95,8 +95,14 @@ Autonomous hunting screens current wild-animal observations before compiling a
 designation. Harmless, undesignated prey must be within 50 cells of the colony
 anchor and more than 25 cells from live wild predators, using square-grid distance.
 Unknown predator flags or positions prevent selection. The food goal retains
-candidate IDs and predator rejection evidence. This does not certify a hunter's
-route or revalidate animal movement after the designation is compiled.
+candidate IDs and predator rejection evidence. Compiled hunting methods retain
+the exact prey identity, anchor and action signature. Immediately before writing,
+the shared runtime rechecks wildlife, the planned cell, outstanding hunt count and
+paused native tick under its writer lock. It then verifies the selected animal's
+hunt designation. Missing legacy target metadata and changed observations block
+without a write; unconfirmed writes remain uncertain. This does not certify a
+hunter's route or monitor threats after designation. Native external inputs are
+not atomic with these Python checks.
 
 A bounded combat method prepares two capable colonists for one small manhunting
 animal or confirmed small predator hunting colony members, then uses native attacks, threat readback, treatment and owned-draft

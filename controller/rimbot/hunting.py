@@ -1,6 +1,26 @@
 """Candidate screening from current native wildlife observations, not path safety."""
 
 
+class HuntingRefused(ValueError):
+    """A known pre-write refusal, never an ambiguous native receipt."""
+
+
+async def validate_hunt(game,arguments,target):
+    if not target: raise HuntingRefused('Hunting target identity is missing; no designation sent')
+    wildlife=await game.query('home/list_pawns',wildOnly=True,animalsOnly=True,animals=True)
+    if wildlife.get('success') is False or not isinstance(wildlife.get('pawns'),list):
+        raise HuntingRefused('Wildlife observation unavailable; no designation sent')
+    prey=next((p for p in wildlife['pawns'] if p.get('thingId')==target['prey']),None)
+    if not prey or prey.get('position')!={'x':arguments.get('x'),'z':arguments.get('z')}:
+        raise HuntingRefused('Selected prey moved or disappeared; no designation sent')
+    candidates,evidence=screen_prey(wildlife['pawns'],target['anchor'])
+    if target['prey'] not in evidence['candidates']:
+        raise HuntingRefused('Selected prey no longer passes hunting screening; no designation sent')
+    if sum((p.get('animals') or {}).get('designations',{}).get('hunt') is True for p in wildlife['pawns'])>=2:
+        raise HuntingRefused('Two hunting designations already exist; no designation sent')
+    return evidence
+
+
 def screen_prey(pawns,anchor,*,predator_radius=25,max_distance=50):
     distance=lambda a,b:max(abs(a['x']-b['x']),abs(a['z']-b['z']))
     threats=[p for p in pawns if p.get('dead') is not True and p.get('predator') is not False]

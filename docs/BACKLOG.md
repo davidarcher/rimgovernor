@@ -16,7 +16,7 @@ in the checkpoint commit; do not append an implementation diary here.
   bounded window do not establish arbitrary long-term colony survival.
 - [ ] **B04a · Complete deterministic food control.** Verify hunting, butchering,
   crop labor, food runway and spoilage-aware storage under real pawn behavior.
-  Add safe prey reachability and dispatch-time predator revalidation, nutrition-based acquisition
+  Add safe prey reachability and monitoring after designation, nutrition-based acquisition
   limits, inventory-aware forecasts and season/biome-specific methods. Enforce
   persistent player food targets through production capacity as well as stock.
 - [ ] **B04b · Native interruption acceptance.** Verify autosave recovery, letter

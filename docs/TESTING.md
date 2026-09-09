@@ -53,6 +53,10 @@ deterministic hunting screen. It retains observations, candidates and predator
 rejections in `result.json`, with no hunting orders or model calls. This checks
 native observation compatibility; boundary/unknown-data rejection and compiler
 integration are tested separately. It does not prove reachability or successful hunting.
+Add `--dispatch` to issue one designation through the deterministic compiler and
+shared Hands under a scripted PLAYER goal in Manual. It verifies exact-prey native
+readback and one write, then stops the disposable game. Rejection races are covered
+by runtime tests; this fixture does not certify predator movement during live hunting.
 
 ## Real model probe
 

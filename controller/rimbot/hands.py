@@ -133,7 +133,7 @@ class Hands:
                             progress.issued[key] = {'confirmed': False}
                             rt.persist()
                             result = await rt.native(action.tool, args, expected_revision=direction, expected_token=token,
-                                expected_plan_revision=revision, reconcile=False)
+                                expected_plan_revision=revision, reconcile=False, expected_step_id=step.id)
                             if action.completion in ('patient_tended', 'patient_in_bed') and result.get('receipt', {}).get('job', {}).get('verified') is not True:
                                 raise Blocked('medical_order_unverified', 'Native state did not confirm the medical job.', evidence=result)
                             receipt = {'native_outcome': result.get('receipt', result).get('outcome', 'receipt'),
@@ -197,7 +197,11 @@ class Hands:
                     self.guard(rt, revision, token, direction)
                 except InterruptedError:
                     return
-                if isinstance(error, Blocked):
+                from .hunting import HuntingRefused
+                if isinstance(error,HuntingRefused):
+                    progress.issued.pop(key,None)
+                    failure=Failure(code='hunting_precondition',detail=str(error),retryable=False)
+                elif isinstance(error, Blocked):
                     failure = error.failure
                 else:
                     payload = getattr(getattr(error, 'result', None), 'structuredContent', None) or {}

@@ -259,6 +259,11 @@ class ColonySkills:
             step = PlanStep(id=identity, title=f'{goal_id}: {method}', goal_id=goal_id, source=goal.source,
                 priority=max(75 if goal.source=='PLAYER' else 0,100-goal.priority_class*20), action=action,
                 completion_criteria='Native effect observed; colony goal separately verifies functional postconditions')
+            if goal_id=='EnsureFoodSupply' and method.startswith('hunt-'):
+                home=self.rt.current_plan.control.get('layout',{}).get('room')
+                anchor={'x':home['x']+home['width']//2,'z':home['z']+home['height']//2} if home else facts['center']
+                goal.evidence.setdefault('hunting_targets',{})[identity]={'prey':method.removeprefix('hunt-'),
+                    'anchor':dict(anchor),'signature':step.signature()}
             if index:
                 step.after = [Dependency(step=result[-1].id, when='complete')]
             costs = {}

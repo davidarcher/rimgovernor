@@ -638,7 +638,7 @@ class BridgeRuntime:
         if events:
             self.persist()
 
-    async def native(self, name, arguments, *, expected_revision=None, expected_token=None, expected_plan_revision=None, reconcile=True):
+    async def native(self, name, arguments, *, expected_revision=None, expected_token=None, expected_plan_revision=None, reconcile=True, expected_step_id=None):
         if name == 'rimworld/set_time_speed':
             if set(arguments) - {'speed', 'ultraSpeedBoost'}:
                 raise ValueError('Unknown time control argument')
@@ -704,10 +704,37 @@ class BridgeRuntime:
                 raise ValueError('New player direction arrived during preparation; no command sent')
             if expected_token is not None and expected_token != self.context_token:
                 raise ValueError('Loaded colony changed during preparation; no command sent')
+            hunting_target=None
+            if expected_step_id and name=='rimworld/apply_architect_designator':
+                step=next((s for s in self.current_plan.spec.steps if s.id==expected_step_id),None)
+                if step and step.goal_id=='EnsureFoodSupply' and '-hunt-' in step.id:
+                    from .hunting import HuntingRefused,validate_hunt
+                    goal=self.current_plan.colony_goals.get(step.goal_id)
+                    target=goal.evidence.get('hunting_targets',{}).get(step.id) if goal else None
+                    if not target or target.get('signature')!=step.signature() or arguments!=step.action.arguments:
+                        raise HuntingRefused('Hunting intent is missing or changed; no designation sent')
+                    status=await self.game.query('home/status',colonists=False,threats=False)
+                    if status.get('time',{}).get('paused') is not True or type(status.get('time',{}).get('ticksGame')) is not int:
+                        raise HuntingRefused('Hunting validation requires a paused game; no designation sent')
+                    evidence=await validate_hunt(self.game,arguments,target)
+                    await self.sync_identity()
+                    after=await self.game.query('home/status',colonists=False,threats=False)
+                    if (self.context_token!=expected_token or self.chat_revision!=expected_revision
+                            or self.current_plan.revision!=expected_plan_revision
+                            or after.get('time',{}).get('paused') is not True
+                            or after.get('time',{}).get('ticksGame')!=status.get('time',{}).get('ticksGame')):
+                        raise HuntingRefused('Colony, direction or tick changed during hunting validation; no designation sent')
+                    goal.evidence['hunting_dispatch']=evidence
+                    hunting_target=target['prey']
             explicit = (self.manual_execution is not None and self.manual_execution ==
                         (expected_token, expected_revision, expected_plan_revision) ==
                         (self.context_token, self.chat_revision, self.current_plan.revision))
             result = await self.game.invoke(name, arguments, allow_write=self.mode == 'automate' or explicit)
+            if hunting_target:
+                observed=await self.game.query('home/list_pawns',wildOnly=True,animalsOnly=True,animals=True)
+                prey=next((p for p in observed.get('pawns',[]) if p.get('thingId')==hunting_target),None)
+                if not prey or (prey.get('animals') or {}).get('designations',{}).get('hunt') is not True:
+                    raise ValueError('Hunting write was not confirmed on the selected animal; inspect before retrying')
             if name == 'home/order' and not arguments.get('dryRun', False):
                 pawn_after = result.get('pawn') or {}
                 if pawn_after.get('drafted') is False:
