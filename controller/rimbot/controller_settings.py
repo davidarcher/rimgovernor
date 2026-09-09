@@ -47,7 +47,7 @@ FIELDS=[
     ('temperature_exit_high','Temperature','Cool until','°C','Stop requesting more cooling after this recovery temperature.'),
     ('temperature_enter_high','Temperature','Cool above','°C','Start cooling sleeping rooms above this temperature.'),
     ('foothold_food_days','Verification','Minimum foothold food','days','Food required to certify the starter colony. This verification rule is read-only here.'),
-    ('max_method_attempts','Verification','Layout alternatives','sites','Maximum ranked starter sites checked per layout search.'),
+    ('max_method_attempts','Verification','Method attempt limit','attempts','Maximum layout alternatives per search and confirmed treatment replacements per action.'),
     ('blocked_after_ticks','Verification','No-progress limit','game ticks','Block ordinary work after this many game ticks without measurable progress; 60,000 ticks is one day.'),
 ]
 

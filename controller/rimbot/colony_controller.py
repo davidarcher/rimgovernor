@@ -74,6 +74,15 @@ class ColonyController:
         plan.control['criteria'] = gates
         applicable = dict(nodes)
         plan.control.pop('execution_hold',None)
+        if not facts.get('hostiles'):
+            for step in plan.spec.steps:
+                progress = plan.progress[step.id]
+                if (step.source == 'AUTOPILOT' and step.goal_id == 'CriticalMedical'
+                        and progress.state == 'blocked' and progress.failure
+                        and progress.failure.code == 'tending_interrupted' and progress.failure.retryable):
+                    await rt.recover_medical(step.id, expected_token=token, expected_revision=direction,
+                                             limit=self.policy.max_method_attempts)
+                    if rt.context_token != token or rt.chat_revision != direction or rt.mode != 'automate': return
         player_work = set()
         for identity, goal in plan.colony_goals.items():
             if not identity.startswith('intent-') or goal.cancelled: continue
@@ -152,7 +161,10 @@ class ColonyController:
             existing = [plan.progress[s] for s in goal.steps if s in plan.progress]
             failed = next((p.failure for p in existing if p.state == 'blocked'), None)
             if failed:
-                self.block(goal, identity, failed.detail)
+                recovery = goal.evidence.get('recovery', {})
+                self.block(goal, identity, recovery.get('message', failed.detail)
+                           if identity == 'CriticalMedical' and failed.code == 'tending_interrupted'
+                           and recovery.get('state') == 'blocked' else failed.detail)
                 continue
             timeout = 3000 if identity=='ActiveCombat' else self.policy.blocked_after_ticks
             if goal.steps and facts['tick'] - goal.last_progress_tick >= timeout:

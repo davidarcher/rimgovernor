@@ -13,6 +13,7 @@ from .config import Settings, ModelRole, load_model_routing
 from .model_router import ModelRouter
 from .colony_plan import ColonyPlan, Decision, Failure, NativeOperation
 from .medical_outcome import patient_outcome, rescue_outcome, pawn_order_outcome
+from .medical_recovery import recover_treatment
 from .consultation import Consultations
 from .hands import Hands, validate_geometry
 from .native_contracts import validate_native_steps, validate_stand_down_steps
@@ -298,6 +299,41 @@ class BridgeRuntime:
             self.reply(decision.reply)
             self.persist()
             return {'committed':True, 'changed':changed, 'revision':self.current_plan.revision}
+
+    async def recover_medical(self, step_id, *, expected_token, expected_revision, limit):
+        async with self.lock:
+            await self.sync_identity()
+            if self.mode != 'automate' or self.context_token != expected_token or self.chat_revision != expected_revision:
+                return None
+            plan = self.current_plan
+            step = next((s for s in plan.spec.steps if s.id == step_id), None)
+            if step is None: return None
+            revision = plan.revision
+            people = await self.game.query('home/list_pawns', colonistsOnly=True, health=True, work=True)
+            status = await self.game.query('home/status', colonists=False, threats=False)
+            await self.sync_identity()
+            if (self.current_plan is not plan or plan.revision != revision or self.mode != 'automate'
+                    or self.context_token != expected_token or self.chat_revision != expected_revision):
+                return None
+            tick = status.get('time', {}).get('ticksGame')
+            if not isinstance(tick, int) or not isinstance(people.get('pawns'), list): return None
+            before = plan.progress[step_id].model_dump()
+            message = recover_treatment(plan, step, people['pawns'], token=expected_token, tick=tick,
+                                        owners=self.draft_owners, limit=limit)
+            if message:
+                goal = plan.colony_goals[step.goal_id]
+                changed = before != plan.progress[step_id].model_dump()
+                goal.status = 'active' if plan.progress[step_id].state != 'blocked' else 'blocked'
+                if goal.reason != message or changed:
+                    goal.reason = message
+                    goal.evidence['recovery'] = {'step': step_id, 'attempts': len(plan.progress[step_id].recovery_history),
+                        'limit': limit, 'state': plan.progress[step_id].state, 'message': message}
+                    if changed:
+                        plan.revision += 1
+                        goal.last_progress_tick = tick
+                    self.note('treatment_recovery', message, step=step_id, changed=changed)
+                    self.persist()
+            return message
 
     def reconcile_plan(self):
         for step in self.current_plan.spec.steps:

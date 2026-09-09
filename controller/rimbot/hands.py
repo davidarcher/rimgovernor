@@ -144,6 +144,8 @@ class Hands:
                                 receipt['rotation'] = (native.get('blueprint') or {}).get('rotation', native.get('rotation'))
                             if action.completion != 'native_receipt':
                                 receipt['issued_at'] = time.time()
+                                receipt['load_token'] = token
+                                receipt['issued_tick'] = rt.batch.summary.end_tick
                         else:
                             self.guard(rt, revision, token, direction)
                             progress.issued[key] = {'confirmed': False}

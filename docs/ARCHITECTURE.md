@@ -160,6 +160,17 @@ retain issued work until fresh evidence arrives. Ambiguous non-idempotent writes
 block for inspection instead of automatic replay; only explicitly retryable
 failures can be retried through the plan.
 
+Confirmed interrupted autonomous treatment has bounded recovery on the same action
+identity. Under the runtime writer lock, fresh patient/doctor observations and the
+native tick must match the issued load and current direction. Completed or resumed treatment
+is observed without another order. A replacement archives the prior receipt/failure
+in durable action recovery history, clears only that attempt's issued slots, and
+passes through normal Hands preview, validation and postcondition tracking again.
+The existing method-attempt limit bounds replacements. Unknown/legacy receipt scope,
+save rewinds, competing treatment, incapable doctors and player overrides retain an
+explicit hold. Goal recovery evidence and reasons are shared with chat and the
+Autopilot panel. Medical priorities include native tending needs even without bleeding.
+
 The observed GABS runtime-state publication fault permits two bounded retries for
 approved reads and explicit previews. Mutations and mixed-operation defaults do
 not use these retries. Model inspection reports retain native scope notes, and

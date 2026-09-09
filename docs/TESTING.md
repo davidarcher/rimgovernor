@@ -62,6 +62,21 @@ Check each script's `--help` and fixture requirements before running it:
 | Native domains and UI | `native_trade_smoke.py`, `native_research_smoke.py`, `native_world_smoke.py`, `native_letters_smoke.py`, `dialog_smoke.py`, `dialog_text_smoke.py`, `companion_inspection_smoke.py` |
 | Models and rendering | `execution_schema_smoke.py`, `native_scout_smoke.py`, `native_visual_smoke.py`, `native_render_smoke.py` |
 
+For confirmed treatment interruption and recovery, use a fresh isolated worker:
+
+```powershell
+python scripts/native_combat_smoke.py --recovery --source-root <prepared-root> --output <new-worker-root>
+```
+
+The fixture requires suitable nearby wildlife and an ordinary combat wound. It
+interrupts a confirmed tend job through owned stand-down while paused, verifies
+the interruption, recovers the same action with archived receipts, observes native
+treatment completion and checks owned-draft cleanup. It does not inject damage or
+heal pawns. `--patient-save <native-save>` can copy an existing wounded-patient save
+unchanged into the new worker. A fixture with no patient is a failed prerequisite,
+not a recovery pass. Preserve all reports. Recovery exhaustion, stale reads, save
+rewinds and player overrides also have deterministic replay coverage.
+
 Read assertions before interpreting results: for example, a healthy-pawn rescue
 refusal does not validate carrying a patient to bed. Some scripts use real models,
 some scripted decisions, and some only inspect/refuse actions. Reports stay local

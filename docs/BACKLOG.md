@@ -30,7 +30,7 @@ in the checkpoint commit; do not append an implementation diary here.
   research, policies and conversational refinements with a real local model.
 - [ ] **B04d · Long-running goal lifecycle.** Audit durable receipt/history growth after active-plan retirement of completed
   routine native actions. Add bounded
-  recovery for known transient failures, preserve new-colonist work coverage and
+  recovery for other known transient failures beyond confirmed interrupted tending, preserve new-colonist work coverage and
   expand sleeping/farming templates beyond the eight-colonist starter. Reconcile
   player interruptions and partial work across restart and save rewind.
 - [ ] **B04e · Resource policy completeness.** Add exact bill ingredient accounting
@@ -39,7 +39,8 @@ in the checkpoint commit; do not append an implementation diary here.
   production. Cover components, medicine, steel, fuel and material substitutions
   with target controllers, production deficits and persistent reservations.
 - [ ] **B04f · Deterministic emergency/development methods.** Extend small-animal
-  defense to larger encounters and verify medical cleanup across interruption,
+  defense to larger encounters and extend medical recovery to unavailable doctors,
+  multiple competing patients and player interruption ownership beyond tracked overrides,
   then add electrical generation/connectivity,
   research, comfort and expansion methods. Threats beyond the bounded small-animal method and unavailable power methods
   report explicit blockers instead of asking a model to improvise.

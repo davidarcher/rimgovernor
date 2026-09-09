@@ -259,6 +259,7 @@ class StepProgress(Contract):
     issued: dict[str, dict] = Field(default_factory=dict)
     failure: Failure | None = None
     project_id: str | None = None
+    recovery_history: list[dict] = Field(default_factory=list)
 
 
 class ColonyGoal(Contract):

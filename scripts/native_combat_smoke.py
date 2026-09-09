@@ -6,18 +6,19 @@ This tests execution and interruption, not autonomous combat tactics.
 import asyncio
 import argparse
 import json
+import shutil
 from pathlib import Path
 from rimbot.bridge import bridge_session, BridgeError
 from rimbot.bridge_game import BridgeGame
 from rimbot.bridge_observation import observe
 from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.headless import prepare
+from rimbot.headless import prepare, isolated_root
 from rimbot.store import Store
-from rimbot.colony_plan import Decision, PlanSpec
+from rimbot.colony_plan import Decision, PlanSpec, ColonyGoal
 from rimbot.config import ModelRole
 
 
-async def tend_wounded(rt, evidence):
+async def tend_wounded(rt, evidence, recovery=False):
     """Use native ground tending and require an observed treated wound."""
     pawns=(await rt.game.query('home/list_pawns',colonistsOnly=True,health=True))['pawns']
     patients=[p for p in pawns if p['health']['needsTend'] and not p['dead']]
@@ -68,7 +69,9 @@ async def tend_wounded(rt, evidence):
     patient,args=selected
     evidence['patient_before']=patient
     spec=PlanSpec(steps=[dict(id='tend',title='Treat combat wounds',completion_criteria='Patient no longer needs tending',
+        source='AUTOPILOT',goal_id='CriticalMedical',
         action=dict(kind='native_operation',tool='home/order',arguments=args,completion='patient_tended'))])
+    rt.current_plan.colony_goals['CriticalMedical']=ColonyGoal(priority_class=1,steps=['tend'])
     rt.current_plan.commit(Decision(expected_revision=rt.current_plan.revision,disposition='revise',
         assessment='Patient wounded',rationale='Verify native treatment',reply='Treating wounds',plan=spec),
         actor=ModelRole.STRATEGIST,tick=rt.batch.summary.end_tick)
@@ -77,6 +80,22 @@ async def tend_wounded(rt, evidence):
     progress=rt.current_plan.progress['tend']
     assert progress.state=='waiting',progress
     evidence['tend_plan_issued']=progress.model_dump()
+    if recovery:
+        # Ordinary stand-down interrupts the owned doctor while simulation stays paused.
+        await rt.stand_down([args['pawn']],expected_token=rt.context_token,
+            expected_revision=rt.chat_revision,expected_plan_revision=rt.current_plan.revision)
+        rt.batch=await observe(rt.game)
+        rt.reconcile_plan()
+        evidence['interrupted']=progress.model_dump()
+        assert progress.state=='blocked' and progress.failure.code=='tending_interrupted',progress
+        await rt.recover_medical('tend',expected_token=rt.context_token,
+            expected_revision=rt.chat_revision,limit=3)
+        evidence['recovery']=progress.model_dump()
+        assert progress.state=='pending' and len(progress.recovery_history)==1,progress
+        rt.handled_revision=rt.chat_revision
+        await rt.hands.advance(rt)
+        assert progress.state=='waiting',progress
+        evidence['replacement_issued']=progress.model_dump()
     await rt.control_clock('Superfast',mode='combat')
     deadline=asyncio.get_running_loop().time()+45
     treated=None;events=[]
@@ -105,8 +124,8 @@ async def tend_wounded(rt, evidence):
     print('PASS: native wound treated, no tending remains, owned medical drafts released',flush=True)
 
 
-async def main(tend=False):
-    root=Path('.rimbot/bridge').resolve();evidence={}
+async def main(tend=False, root=None, recovery=False, existing_patient=False):
+    root=Path(root or '.rimbot/bridge').resolve();evidence={}
     async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',prepare(root)) as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
         await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
@@ -115,11 +134,17 @@ async def main(tend=False):
         rt.bridge=bridge;rt.game=BridgeGame(bridge)
         await rt.sync_identity();rt.batch=await observe(rt.game);rt.mode='automate'
         try:
+            if existing_patient:
+                await tend_wounded(rt,evidence,recovery)
+                return
             animals=(await rt.game.query('home/list_pawns',animalsOnly=True,includeColonists=False,
-                withinOfColonists=50,health=True))['pawns']
+                withinOfColonists=50,health=True,animals=True))['pawns']
+            evidence['candidate_animals']=animals
             candidates=[]
             for target in animals:
                 if not target.get('wild') or target.get('downed') or target.get('dead'):continue
+                if recovery and not (.5 <= (target.get('animals') or {}).get('bodySize',0) <= 3
+                                     and (target.get('predator') is True or target.get('manhunterOnDamageChance',0)>0)): continue
                 for pawn in rt.batch.summary.pawns:
                     distance=max(abs(pawn.position.x-target['position']['x']),abs(pawn.position.z-target['position']['z']))
                     candidates.append((distance,pawn.thing_id,target))
@@ -142,7 +167,8 @@ async def main(tend=False):
             events=[];observed=None
             while asyncio.get_running_loop().time()<deadline:
                 events.extend(await rt.supervisor.poll())
-                current=await rt.game.query('home/list_pawns',health=True,withinOfColonists=60)
+                current=await rt.game.query('home/list_pawns',animalsOnly=True,includeColonists=False,includeDead=True,health=True,withinOfColonists=60)
+                evidence['last_animal_read']=current
                 observed=next((p for p in current['pawns'] if p['thingId']==target['thingId']),None)
                 state=rt.supervisor.state
                 if (tend and state.get('stopReason')=='external_pause'
@@ -178,7 +204,7 @@ async def main(tend=False):
             evidence['cleanup']=result
             print('PASS: native attack produced combat evidence; selected draft released; game paused',flush=True)
             if tend:
-                await tend_wounded(rt,evidence)
+                await tend_wounded(rt,evidence,recovery)
         finally:
             await rt.halt();await rt.router.close();store.close()
             (root/('medical-smoke.json' if tend else 'combat-smoke.json')).write_text(json.dumps(evidence,indent=2),encoding='utf8')
@@ -187,4 +213,13 @@ async def main(tend=False):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--tend',action='store_true',help='Continue into native wound treatment and medical draft cleanup')
-    asyncio.run(main(parser.parse_args().tend))
+    parser.add_argument('--recovery',action='store_true',help='Interrupt confirmed tending and verify bounded recovery plus actual treatment')
+    parser.add_argument('--source-root',type=Path,help='Prepared baseline to copy into a fresh isolated output')
+    parser.add_argument('--output',type=Path,help='New isolated worker root; required with --source-root')
+    parser.add_argument('--patient-save',type=Path,help='Copy an ordinary native save containing a wounded patient into the isolated fixture, without modifying its contents')
+    args=parser.parse_args()
+    if bool(args.source_root)!=bool(args.output): parser.error('--source-root and --output are required together')
+    if args.patient_save and not args.output: parser.error('--patient-save requires a fresh --output and --source-root')
+    root=isolated_root(args.source_root,args.output) if args.source_root else None
+    if args.patient_save: shutil.copy2(args.patient_save,root/'profile/Saves/RimBot-tribal8-baseline.rws')
+    asyncio.run(main(args.tend or args.recovery,root,args.recovery,bool(args.patient_save)))
