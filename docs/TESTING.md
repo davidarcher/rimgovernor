@@ -36,6 +36,19 @@ changes. Add `--rendered` for a visible game. Native clock commands reproduce
 time-state transitions; they do not certify physical keyboard input, autosaves
 or every danger race. Keep all failed reports.
 
+`scripts/native_autosave_acceptance.py --source-root <prepared-root> --output
+<fresh-directory>` tests an ordinary one-day autosave during a 61,000-tick
+Superfast window. Install both the current observation bridge and headless build
+with every game stopped; `build_headless.ps1` accepts an optional `-DotNet` path.
+The isolated profile enables the ordinary pause-on-load preference. The test
+requires long-event/clear events, an unchanged exact tick deadline, a newly
+written native save whose saved tick matches the event, and a paused reload with
+the same colony and a new load token. It records both installed DLL hashes and
+does not edit save XML or pawn state. Other autosave intervals need an appropriate
+`--ticks` value. Restore both original installed DLLs after the test stops.
+This focused clock/save case does not certify real keyboard input or every
+controller action racing an autosave.
+
 ## Retained cancelled action acceptance
 
 Run `scripts/cancelled_action_acceptance.py --checkpoint <checkpoint.json>
@@ -228,8 +241,10 @@ streak and retains already-running siblings' evidence. A changed revision, model
 or objective resets the streak; interrupted trials cannot contribute.
 Workers also save `manifest.json` before startup. Multiple consecutive passes
 require matching source-content, effective inference-setting, baseline/profile,
-GABS and installed observation-DLL fingerprints. Model weights and other mod
-binaries remain outside that fingerprint and must be held fixed by the operator.
+GABS, installed observation DLL and (for no-graphics launches) installed headless
+DLL fingerprints. Listed untracked code is included alongside tracked source so
+new modules cannot silently escape the source hash. Model weights and remaining
+mod binaries are outside that fingerprint and must be held fixed by the operator.
 
 Regenerate disposable profiles to remove legacy executable-name cleanup fallback.
 Generated profiles use DirectPath process ownership; missing or other launch modes

@@ -20,12 +20,13 @@ in the checkpoint commit; do not append an implementation diary here.
   Nutrition-based harvest limits and per-colonist inventory/rot forecasts exist;
   validate actual spoilage, changing temperatures and food sharing during sustained runs. Enforce
   persistent player food targets through production capacity as well as stock.
-- [ ] **B04b · Native interruption acceptance.** Verify autosave recovery, letter
-  attribution, real player pause/speed holds, danger preemption and load changes
+- [ ] **B04b · Native interruption acceptance.** Verify controller actions racing autosaves,
+  letter attribution, real player pause/speed holds, danger preemption and load changes
   on the final binary. Native execution tick boundaries are implemented; broaden
   interruption coverage to autosaves and real player input during those windows.
-  Include the current headless long-event presentation patch in autosave trials;
-  the older installed headless binary can stall before producing the save.
+  Require both current native DLLs in headless trials. One ordinary autosave has
+  save creation, long-event recovery, exact clock-boundary and paused reload acceptance;
+  broaden seeds, timings and mixed pending work.
 - [ ] **B04c · Shared intent completion.** Broaden adopted-room furnishing acceptance to
   edited rooms and hot/cold variants. Support safe explicit
   relocation/cancellation of issued construction through native cancellation

@@ -28,9 +28,12 @@ def tracked_source(source):
         path = source/name
         rows.append([name, file_hash(path) if path.is_file() else None])
     status = git('status', '--porcelain=v1', '--untracked-files=no').decode('utf8').splitlines()
+    untracked = sorted(name for name in git('ls-files','-z','--others','--exclude-standard').decode('utf8').split('\0')
+        if name and Path(name).suffix.lower() in {'.py','.cs','.ps1','.ts','.tsx','.js','.json','.toml','.csproj'})
+    additional = [[name,file_hash(source/name)] for name in untracked]
     return dict(revision=git('rev-parse', 'HEAD').decode().strip(),
                 tracked_dirty=bool(status), tracked_status=status,
-                tracked_files=len(rows), content_sha256=_digest(rows))
+                tracked_files=len(rows), untracked_code=untracked, content_sha256=_digest(rows+additional))
 
 
 def capture_manifest(source, worker_root, configuration, routing, *, profile=None):
@@ -67,9 +70,11 @@ def capture_manifest(source, worker_root, configuration, routing, *, profile=Non
         'gabs': root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',
         'observations_dll': candidates[0],
     }
-    inputs = dict(version=1, source=tracked_source(source), inference=routing,
+    if '-nographics' in game.get('args',[]):
+        paths['headless_dll']=game_root/'Mods/RimBotHeadless/Assemblies/HeadlessRimPatch.dll'
+    inputs = dict(version=2, source=tracked_source(source), inference=routing,
                   observations_package=package, observations_assembly=assembly,
                   artifacts={key: file_hash(path) for key, path in paths.items()})
     return dict(fingerprint=_digest(inputs), inputs=inputs,
                 locations={key: str(path.resolve()) for key, path in paths.items()},
-                scope='Tracked working-tree bytes, effective inference configuration, prepared fixture/profile, GABS and installed observation assembly. Model weight bytes and other installed mods are not fingerprinted.')
+                scope='Tracked working-tree bytes and listed untracked code, effective inference configuration, prepared fixture/profile, GABS, installed observation assembly and headless assembly for no-graphics launches. Model weight bytes and other installed mods are not fingerprinted.')

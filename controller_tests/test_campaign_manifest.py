@@ -85,3 +85,27 @@ def test_tracked_deletion_changes_source_hash_but_ignored_outputs_do_not(tmp_pat
     (source/'controller/example.py').unlink()
     after = tracked_source(source)
     assert after['tracked_dirty'] and after['content_sha256'] != before['content_sha256']
+
+
+def test_untracked_executable_source_changes_manifest(tmp_path):
+    source,*_=fixture(tmp_path)
+    before=tracked_source(source)
+    write(source/'controller/new_recovery.py','new code')
+    after=tracked_source(source)
+    assert after['untracked_code']==['controller/new_recovery.py']
+    assert after['content_sha256']!=before['content_sha256']
+
+
+def test_headless_binary_is_required_and_changes_campaign_identity(tmp_path):
+    source,root,config,routing=fixture(tmp_path)
+    data=json.loads((config/'config.json').read_text())
+    data['games']['rimbot-trial']['args']=['-batchmode','-nographics']
+    write(config/'config.json',json.dumps(data))
+    with pytest.raises(FileNotFoundError):capture_manifest(source,root,config,routing)
+    dll=Path(data['games']['rimbot-trial']['workingDir'])/'Mods/RimBotHeadless/Assemblies/HeadlessRimPatch.dll'
+    write(dll,'old headless binary')
+    before=capture_manifest(source,root,config,routing)
+    write(dll,'current headless binary')
+    after=capture_manifest(source,root,config,routing)
+    assert before['inputs']['artifacts']['headless_dll']!=after['inputs']['artifacts']['headless_dll']
+    assert before['fingerprint']!=after['fingerprint']
