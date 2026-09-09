@@ -187,7 +187,7 @@ class ColonySkills:
             if not food:
                 if not targets and outstanding == 0: raise SkillBlocked('No safe mature trees in acquisition radius')
                 return None
-            if unused('rice') and not any(f.get('edible') and f.get('usableCells', 0) >= facts['colonists']*10 for f in facts.get('farms', [])):
+            if unused('rice') and sum(f.get('usableCells',0) for f in facts.get('farms',[]) if f.get('edible')) < facts['colonists']*10:
                 layout = await self.layout(facts)
                 patches=farm_patches(layout)
                 goal.evidence['field_capacity']={'selected_cells':sum(p['width']*p['height'] for p in patches),
@@ -195,6 +195,13 @@ class ColonySkills:
                 if patches:
                     return 'rice', [{'kind': 'create_zone', 'zone_type': 'growing', 'label': 'RimBot rice',
                                      'crop': 'Plant_Rice', 'patches': patches}]
+            if not unused('rice'):
+                from .capacity_growth import growth_fields
+                patches=growth_fields(rt.current_plan,facts)
+                method='rice-expand-'+fingerprint(patches)[:8]
+                if patches and unused(method):
+                    return method,[{'kind':'create_zone','zone_type':'growing','label':'RimBot '+method,
+                        'crop':'Plant_Rice','patches':patches}]
             if facts.get('foodRunwayDays', 0) < rt.controller.policy.food_min_days and facts.get('armed', 0):
                 butcher = facts.get('butchering', [])
                 if not butcher and unused('butcher-spot'):
@@ -229,15 +236,26 @@ class ColonySkills:
                 return None
             layout = await self.layout(facts)
             if unused('shell') and facts.get('indoorSleepingCapacity', 0) < facts['colonists']:
-                return 'shell', [self.shell(layout)]
+                if goal.method_epoch:
+                    from .shelter_handoff import verified_room
+                    if await verified_room(rt,self.shell(layout)) is None:return None
+                else:
+                    return 'shell', [self.shell(layout)]
             if facts['colonists']>8:
                 method='starter-sleep-'+str(facts['colonists'])
-                if not unused(method):return None
+                if not unused(method):
+                    from .capacity_growth import grow_shelter
+                    return await grow_shelter(self,facts) if facts.get('indoorSleepingCapacity',0)<facts['colonists'] else None
                 room=layout['room']
                 # Leave the service rows free for storage, cooking and temperature furniture.
                 reserved={(x,z) for x in range(room['x']+1,room['x']+room['width']-1)
                           for z in range(room['z']+5,room['z']+room['height']-1)}
-                return await sleeping_handoff(rt,facts,None,self.shell(layout),reserved_cells=reserved)
+                try:
+                    return await sleeping_handoff(rt,facts,None,self.shell(layout),reserved_cells=reserved,allow_partial=True)
+                except SkillBlocked as error:
+                    if 'insufficient verified sleeping space' not in str(error):raise
+                    from .capacity_growth import grow_shelter
+                    return await grow_shelter(self,facts)
             if unused('sleeping'):
                 room = layout['room']
                 placements = [{'def_name': 'SleepingSpot', 'x': room['x']+x, 'z': room['z']+z}

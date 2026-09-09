@@ -13,8 +13,9 @@ async def recover_construction(rt, step_id, *, token, direction, limit):
         failure=progress.failure
         if (step.source!='AUTOPILOT' or not isinstance(step.action,(Buildings,RoomShell))
                 or not goal or goal.cancelled or progress.state!='blocked' or not failure
-                or failure.code!='construction_resources' or not failure.retryable):return False
+                or failure.code not in ('construction_resources','construction_unavailable') or not failure.retryable):return False
         evidence=failure.evidence;revision=plan.revision
+        if failure.code=='construction_unavailable' and evidence.get('prewrite') is not True:return False
         def valid():
             return (rt.current_plan is plan and plan.revision==revision and rt.mode=='automate'
                 and rt.context_token==token==evidence.get('load_token')
@@ -45,7 +46,7 @@ async def recover_construction(rt, step_id, *, token, direction, limit):
         goal.status,goal.reason='active',''
         goal.last_progress_tick=tick
         plan.revision+=1
-        rt.note('construction_recovery','Material availability recovered; retained confirmed placements',
+        rt.note('construction_recovery','Native construction preconditions recovered; retained confirmed placements',
             step=step_id,attempts=len(progress.recovery_history),limit=limit)
         rt.persist()
         return True

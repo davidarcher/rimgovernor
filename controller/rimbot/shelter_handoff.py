@@ -49,7 +49,7 @@ def safe_rotation(row):
     return True
 
 
-async def sleeping_handoff(rt, facts, identity, shell, *, reserved_cells=()):
+async def sleeping_handoff(rt, facts, identity, shell, *, reserved_cells=(), allow_partial=False):
     from .colony_skills import SkillBlocked
     observed=await verified_room(rt,shell)
     if observed is None:return None
@@ -76,7 +76,7 @@ async def sleeping_handoff(rt, facts, identity, shell, *, reserved_cells=()):
             reserved|=footprint
             break
         if len(placements)==required:break
-    if len(placements)<required:
+    if len(placements)<required and not (allow_partial and placements):
         rt.current_plan.colony_goals['EnsureInitialShelter'].evidence['sleeping_fit']={
             'required':required,'selected':len(placements),'previews':attempts,'rejections':rejections}
         raise SkillBlocked('Shelter has insufficient verified sleeping space; expand or refine this room')

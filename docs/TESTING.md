@@ -508,6 +508,16 @@ days with all eleven gates verified and reports `SUSTAINED_FOOTHOLD`. Use
 `--stability-days 0` for establishment-only `FOOTHOLD_STABLE`, or an explicit
 number up to 30 for another duration. `--seconds` bounds the whole episode.
 
+Add `--lifecycle-days 2` to measure a bounded native lifecycle campaign separately
+from food-gate acceptance. The report samples real pawn `inBed`/`bedThingId`, exact
+live action identities and receipts, goal evidence bytes, immutable archive/event
+counts, SQLite/WAL/page growth and indexed recent-history latency. Native autosave
+long-event, recovery and execution-boundary events retain the contemporaneous plan
+and deadline. `LIFECYCLE_WINDOW` means the requested native duration completed with
+the original colonists alive and no inference; it does not certify all food gates,
+bed use by every pawn, joining events or arbitrary long-term survival. Evaluate
+those readbacks explicitly against the relevant acceptance checklist.
+
 Stability uses the native facts' tick, not wall time or a newer clock reading.
 A recorded stability loss resets the window even when recovery occurs between
 report samples. Unknown/failed gates and observation gaps over 6,000 ticks also

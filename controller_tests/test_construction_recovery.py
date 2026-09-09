@@ -108,3 +108,23 @@ def test_unknown_availability_is_not_a_retryable_resource_shortage():
         validate_execution_costs(rt.current_plan,rt.current_plan.progress['build'],'0',{
             'costList':[{'defName':'WoodLog','count':5}], 'materials':{'rows':[]}})
     assert not isinstance(error.value,ResourceShortage)
+
+
+@pytest.mark.asyncio
+async def test_known_prewrite_placement_refusal_recovers_only_after_native_preview_changes():
+    rt,stock=fixture();preview=rt.inspect_native.side_effect
+    rt.inspect_native.side_effect=None
+    rt.inspect_native.return_value={'canPlace':False,'researchFinished':True,'buildableByPlayer':True}
+    await rt.hands.advance(rt)
+    p=rt.current_plan.progress['build']
+    assert p.failure.code=='construction_unavailable' and p.failure.evidence['prewrite']
+    rt.native.assert_not_awaited()
+    assert not await recover(rt)
+    rt.inspect_native.side_effect=preview
+    assert await recover(rt)
+    assert p.state=='pending' and not p.issued and len(p.recovery_history)==1
+    rt.native.assert_not_awaited()
+    # Legacy/unknown refusals cannot gain retry authority through fresh observations.
+    p.state='blocked'
+    p.failure=Failure(code='construction_unavailable',detail='old',retryable=True,evidence={})
+    assert not await recover(rt)

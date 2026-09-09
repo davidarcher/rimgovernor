@@ -76,6 +76,18 @@ async def run(args):
     store = Store(args.output/'state.sqlite')
     rt = BridgeRuntime(store, root, fresh=True, headless=not args.rendered, model_factory=lambda _: NoInference())
     report = {'outcome':'error','model_calls':0,'history':[],'save_edits':[]}
+    lifecycle_days=getattr(args,'lifecycle_days',None)
+    if lifecycle_days is not None:
+        from lifecycle_measurement import ledger_sample,bed_use_sample
+        report['lifecycle']={'scope':'Native goal lifecycle and bed use; food/survival gates scored separately',
+            'days':lifecycle_days,'ledger':[],'bed_use':[],'boundaries':[]}
+        original_note=rt.note
+        def measured_note(kind,*values,**data):
+            if kind=='clock_event' and data.get('native_event',{}).get('kind') in ('long_event','force_pause_cleared','tick_budget'):
+                report['lifecycle']['boundaries'].append({'event':data['native_event'],
+                    'window_deadline':rt.execution_window_end,'plan':ledger_sample(rt,args.output/'state.sqlite')})
+            return original_note(kind,*values,**data)
+        rt.note=measured_note
     report['start_type']='saved_checkpoint' if args.checkpoint else 'fresh_baseline'
     if args.checkpoint: report['checkpoint_source']=str(args.checkpoint.resolve())
     start = time.monotonic()
@@ -109,6 +121,10 @@ async def run(args):
                    'stability':asdict(window),
                    'goals':{k:{'status':v.status,'reason':v.reason,'method':v.method} for k,v in rt.current_plan.colony_goals.items()}}
             report['history'].append(row)
+            if lifecycle_days is not None:
+                async with rt.lock:
+                    report['lifecycle']['ledger'].append(ledger_sample(rt,args.output/'state.sqlite'))
+                    report['lifecycle']['bed_use'].append(await bed_use_sample(rt))
             (args.output/'progress.json').write_text(json.dumps(row,indent=2),encoding='utf8')
             print(json.dumps(row),flush=True)
             if rt.context_token!=initial_token: raise RuntimeError('Colony/load identity changed during acceptance')
@@ -123,7 +139,10 @@ async def run(args):
                     and any(g.status=='blocked' for g in rt.current_plan.colony_goals.values())):
                 report['outcome']='blocked'
                 break
-            if passed:
+            if lifecycle_days is not None and facts.get('tick',0)-report['initial_game_tick']>=math.ceil(lifecycle_days*60000):
+                report['outcome']='LIFECYCLE_WINDOW'
+                break
+            if passed and lifecycle_days is None:
                 report['outcome']='SUSTAINED_FOOTHOLD' if window.required_ticks else 'FOOTHOLD_STABLE'
                 break
         else:
@@ -151,7 +170,7 @@ async def run(args):
         report['elapsed_seconds']=round(time.monotonic()-start,2)
         store.close()
         (args.output/'result.json').write_text(json.dumps(report,indent=2),encoding='utf8')
-    return report['outcome'] in ('FOOTHOLD_STABLE','SUSTAINED_FOOTHOLD')
+    return report['outcome'] in ('FOOTHOLD_STABLE','SUSTAINED_FOOTHOLD','LIFECYCLE_WINDOW')
 
 
 if __name__=='__main__':
@@ -162,5 +181,6 @@ if __name__=='__main__':
     parser.add_argument('--stability-days',type=stability_days,default=2,help='Consecutive observed stable game days after bootstrap; 0 checks establishment only (default: 2)')
     parser.add_argument('--rendered',action='store_true')
     parser.add_argument('--checkpoint',type=Path,help='Debug resume from an unmodified native save; not a fresh-colony acceptance run')
+    parser.add_argument('--lifecycle-days',type=stability_days,help='Measure bounded native lifecycle/ledger/bed use over this duration; does not require or certify sustained food gates')
     parser.add_argument('--speed',choices=['Normal','Fast','Superfast'],default='Fast')
     raise SystemExit(0 if asyncio.run(run(parser.parse_args())) else 1)

@@ -71,13 +71,14 @@ async def test_larger_starter_fits_native_footprints_without_using_service_rows(
         occupied|=footprint
     assert 'adopted_shelter' not in rt.current_plan.control
     goal.evidence['methods'][method]=['sleeping-action']
+    facts['indoorSleepingCapacity']=count
     rt.inspect_native.reset_mock()
     assert await skill.compile('EnsureInitialShelter',facts,[]) is None
     rt.inspect_native.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_larger_starter_waits_for_roof_and_refuses_overcapacity_without_orders():
+async def test_larger_starter_waits_for_roof_then_uses_available_capacity_before_expansion():
     rt,room,facts=fixture(13)
     del rt.current_plan.colony_goals['intent-home']
     rt.current_plan.colony_goals['EnsureInitialShelter'].evidence['methods']={'shell':['completed-shell']}
@@ -87,9 +88,8 @@ async def test_larger_starter_waits_for_roof_and_refuses_overcapacity_without_or
     assert await skill.compile('EnsureInitialShelter',facts,[]) is None
     rt.inspect_native.assert_not_awaited()
     room['openRoofCount']=0
-    with pytest.raises(SkillBlocked,match='insufficient'):
-        await skill.compile('EnsureInitialShelter',facts,[])
-    assert rt.current_plan.colony_goals['EnsureInitialShelter'].evidence['sleeping_fit']['selected']==12
+    method,actions=await skill.compile('EnsureInitialShelter',facts,[])
+    assert method=='starter-sleep-13' and len(actions[0]['placements'])==12
 
 
 @pytest.mark.asyncio

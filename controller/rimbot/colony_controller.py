@@ -86,7 +86,7 @@ class ColonyController:
             for step in plan.spec.steps:
                 progress = plan.progress[step.id]
                 if (progress.state=='blocked' and progress.failure
-                        and progress.failure.code=='construction_resources'):
+                        and progress.failure.code in ('construction_resources','construction_unavailable')):
                     from .construction_recovery import recover_construction
                     await recover_construction(rt,step.id,token=token,direction=direction,
                         limit=self.policy.max_method_attempts)

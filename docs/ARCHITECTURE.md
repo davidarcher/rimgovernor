@@ -107,8 +107,11 @@ Invalid templates have a bounded alternative-site search; unknown or failed
 native actions become explicit blockers. A no-progress watchdog prevents silent
 indefinite waiting. Above eight colonists, starter sleeping uses verified room and
 native footprint fitting, preserving its entrance aisle and three service rows.
-The fixed shell can still exhaust capacity and then requires explicit expansion;
-controller fitting checks do not establish larger-colony gameplay acceptance.
+The starter uses its available sleeping capacity before proposing another nearby
+shell on observed free ground with native placement previews. Existing rooms,
+zones and their entrances remain intact. Additional farm batches use native crop
+requirements and current usable capacity, bounded to 32 disjoint patches per action.
+Controller fitting checks do not establish larger-colony gameplay acceptance.
 Watchdog holds retain their tick, reason and completed action identities. A newly
 observed completion of tracked work can release that exact hold and continue the
 existing goal without replacing methods or receipts. Unchanged state, rewinds,
@@ -361,7 +364,7 @@ explicit hold. Goal recovery evidence and reasons are shared with chat and the
 Autopilot panel. Medical priorities include native tending needs even without bleeding.
 
 An autonomous construction action can recover from a known pre-write material
-shortage on the same action identity. Unknown cost/stock observations, native
+shortage or placement refusal on the same action identity. Unknown cost/stock observations, native
 write failures and policy refusals are not classified as resource shortages.
 Under the writer lock, recovery verifies the saved load, direction, action
 signature and tick, then previews every unissued placement against current
@@ -369,6 +372,8 @@ resources, reservations and geometry. Confirmed slots are retained; any uncertai
 slot prevents automatic recovery. Resumption history survives persistence, and
 the method-attempt limit bounds successful resumptions. Hands rechecks each
 placement before writing; a recovered reservation does not certify construction.
+Placement refusals require explicitly recorded pre-write scope; legacy refusals
+without that evidence remain blocked even if a later preview succeeds.
 
 The observed GABS runtime-state publication fault permits two bounded retries for
 approved reads and explicit previews. Mutations and mixed-operation defaults do

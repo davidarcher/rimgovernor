@@ -265,8 +265,12 @@ class Hands:
             if receipt.get('outcome') not in ('placed', 'already_present'):
                 raise Blocked('placement_refused', reason(receipt), evidence=receipt)
             return {'stuff': stuff, 'outcome': receipt['outcome']}
+        step=next(s for s in rt.current_plan.spec.steps if rt.current_plan.progress[s.id] is progress)
+        evidence={k:last.get(k) for k in ('materials','rotations','researchFinished','buildableByPlayer')} if last else {}
+        evidence.update(slot=key,load_token=token,direction=direction,signature=step.signature(),
+            tick=getattr(getattr(rt.batch,'summary',None),'end_tick',None),prewrite=True)
         raise Blocked('construction_unavailable', 'No acceptable material/placement is currently buildable', retryable=True,
-            evidence={k:last.get(k) for k in ('materials','rotations','researchFinished','buildableByPlayer')} if last else {})
+            evidence=evidence)
 
     async def zone(self, rt, action, progress, key, revision, token, direction):
         cells = sorted({c for patch in action.patches for c in patch.cells()})
