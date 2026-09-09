@@ -55,11 +55,13 @@ class PlayClock:
                 raise ValueError('Dialog preparation requires a verified pause; no dialog opened')
             return state
 
-    async def change(self, speed, *, mode='colony', ignored_hostiles='', ignored_downed=''):
+    async def change(self, speed, *, mode='colony', ignored_hostiles='', ignored_downed='', max_ticks=None):
         if speed not in ('Paused', 'Normal', 'Fast', 'Superfast'):
             raise ValueError('Choose Paused, Normal, Fast or Superfast')
         if mode not in ('colony', 'combat'):
             raise ValueError('Choose colony or combat clock monitoring')
+        if max_ticks is not None and (type(max_ticks) is not int or not 1 <= max_ticks <= 1800000):
+            raise ValueError('Native execution budget must be 1..1800000 game ticks')
         async with self.lock:
             state = await self.call(op='status')
             self.absorb(state)
@@ -67,6 +69,8 @@ class PlayClock:
                 raise ValueError('Clock held: '+self.hold+'. The player must enable Automate again to resume.')
             if state.get('active') and state.get('owner') != self.owner:
                 raise ValueError('Another controller owns the native clock; waiting for its lease to expire')
+            if speed != 'Paused' and max_ticks is not None and state.get('nativeTickBoundary') is not True:
+                raise ValueError('Installed native clock lacks tick boundaries; update the observation companion before automatic execution')
             if speed == 'Paused':
                 if state.get('active'):
                     result = await self.call(op='pause', owner=self.owner, epoch=state['epoch'])
@@ -86,7 +90,7 @@ class PlayClock:
             result = await self.call(op='start', owner=self.owner, leaseMs=15000,
                 speed=speed, mode=mode, hostileWithin=40,
                 ignoredHostileIds=ignored_hostiles, ignoredDownedColonistIds=ignored_downed,
-                injuryStopCooldownMs=0)
+                injuryStopCooldownMs=0, **({'maxTicks': max_ticks} if max_ticks is not None else {}))
             self.epoch = result['epoch']
             self.absorb(result)
             return result

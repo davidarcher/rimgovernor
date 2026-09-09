@@ -21,8 +21,8 @@ in the checkpoint commit; do not append an implementation diary here.
   persistent player food targets through production capacity as well as stock.
 - [ ] **B04b · Native interruption acceptance.** Verify autosave recovery, letter
   attribution, real player pause/speed holds, danger preemption and load changes
-  on the final binary. Add a native tick-budget boundary for execution windows;
-  current polling can overshoot.
+  on the final binary. Native execution tick boundaries are implemented; broaden
+  interruption coverage to autosaves and real player input during those windows.
 - [ ] **B04c · Shared intent completion.** Adopt completed player room shells for
   deterministic furnishing without duplicate shelter. Support safe explicit
   relocation/cancellation of issued construction through native cancellation

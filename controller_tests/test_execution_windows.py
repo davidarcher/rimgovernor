@@ -14,7 +14,10 @@ def runtime(tmp_path, state='waiting', confirmed=True):
     rt.mode = 'automate'
     rt.sync_identity = AsyncMock(return_value=False)
     rt.resume_after_review = True
-    rt.supervisor = SimpleNamespace(change=AsyncMock(), hold=None)
+    async def change(speed, **kwargs):
+        return {'active': speed != 'Paused', 'startTick': 100,
+                'tickDeadline': 100 + kwargs.get('max_ticks', 0)}
+    rt.supervisor = SimpleNamespace(change=AsyncMock(side_effect=change), hold=None)
     rt.game = SimpleNamespace(query=AsyncMock(return_value={'time': {'ticksGame': 100}}))
     rt.hands = SimpleNamespace(advance=AsyncMock())
     rt.current_plan.spec = PlanSpec(steps=[dict(id='build', title='Build',
@@ -57,7 +60,7 @@ async def test_confirmed_work_gets_bounded_window_then_pauses_for_review(tmp_pat
     rt, store = runtime(tmp_path)
     try:
         await rt.advance_execution()
-        rt.supervisor.change.assert_awaited_once_with('Normal',mode='colony',ignored_hostiles='')
+        rt.supervisor.change.assert_awaited_once_with('Normal',mode='colony',ignored_hostiles='',max_ticks=600)
         assert rt.execution_window_end == 700
         rt.game.query.return_value = {'time': {'ticksGame': 705}}
         await rt.advance_execution()
@@ -136,7 +139,6 @@ async def test_clock_failure_stops_execution_instead_of_retrying_unattended(tmp_
 async def test_planned_clock_wait_is_bounded_even_without_construction(tmp_path):
     rt, store = runtime(tmp_path, 'complete')
     rt.sync_identity = AsyncMock(return_value=False)
-    rt.supervisor.change.return_value = {'active': True}
     try:
         await rt.control_clock('Fast', expected_plan_revision=rt.current_plan.revision)
         assert rt.execution_window_end == 700 and rt.execution_wait_explicit
@@ -185,7 +187,7 @@ async def test_combat_clock_acknowledges_only_a_dispatched_active_defense(tmp_pa
         rt.current_plan.colony_goals['ActiveCombat']=ColonyGoal(priority_class=0)
         await rt.advance_execution()
         rt.supervisor.change.assert_awaited_once_with('Normal',mode=profile,
-            ignored_hostiles='Thing_Hare1' if profile=='combat' else '')
+            ignored_hostiles='Thing_Hare1' if profile=='combat' else '',max_ticks=600)
     finally: store.close()
 
 
@@ -196,5 +198,5 @@ async def test_native_production_wait_has_bounded_window_and_retains_normal_guar
         rt.current_plan.control['simulation_needed']=True
         await rt.advance_execution()
         assert rt.execution_window_end==3100
-        rt.supervisor.change.assert_awaited_once_with('Normal',mode='colony',ignored_hostiles='')
+        rt.supervisor.change.assert_awaited_once_with('Normal',mode='colony',ignored_hostiles='',max_ticks=3000)
     finally: store.close()

@@ -40,14 +40,15 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Stable IDs of colonists whose non-severe injuries are acknowledged; they never stop the clock in this epoch, comma-separated.", DefaultValue = "")] string ignoredInjuredColonistIds = "",
             [ToolParameter(Description = "After a colonist_injury stop, that colonist non-severe injuries do not stop the clock again for this many real milliseconds, across restarts. Clamped 0..1800000; 0 disables.", DefaultValue = 180000)] int injuryStopCooldownMs = 180000,
             [ToolParameter(Description = "For events, return rows strictly after this cursor.", DefaultValue = 0L)] long afterCursor = 0L,
-            [ToolParameter(Description = "For events, maximum rows, clamped to 1..128.", DefaultValue = 64)] int limit = 64)
+            [ToolParameter(Description = "For events, maximum rows, clamped to 1..128.", DefaultValue = 64)] int limit = 64,
+            [ToolParameter(Description = "Start only: pause after exactly this many ordinary game ticks, independently of controller polling and heartbeat renewal. 0 leaves tick duration unbounded; otherwise 1..1800000.", DefaultValue = 0)] int maxTicks = 0)
         {
             return BridgeCommon.WithUnknownArguments(
                 await SupervisedPlayCore(ctx, cancellationToken, op, owner, epoch,
                     leaseMs, speed, mode, healthDropFraction, minHealthFraction,
                     ignoredAlertLabels, hostileWithin, ignoredHostileIds, ignoredDownedColonistIds,
                     ignoredInjuredColonistIds, injuryStopCooldownMs,
-                    afterCursor, limit).ConfigureAwait(false),
+                    afterCursor, limit, maxTicks).ConfigureAwait(false),
                 ctx, typeof(HomeSupervisedPlayTools), ToolName);
         }
 
@@ -57,7 +58,7 @@ namespace HomeBridge.BridgeTools
             string mode, float healthDropFraction, float minHealthFraction,
             string ignoredAlertLabels, float hostileWithin, string ignoredHostileIds,
             string ignoredDownedColonistIds, string ignoredInjuredColonistIds,
-            int injuryStopCooldownMs, long afterCursor, int limit)
+            int injuryStopCooldownMs, long afterCursor, int limit, int maxTicks)
         {
             if (ctx == null || ctx.MainThread == null)
                 return Fail("No main-thread dispatcher is available.");
@@ -75,6 +76,8 @@ namespace HomeBridge.BridgeTools
             }
             if (action == "start")
             {
+                if (maxTicks < 0 || maxTicks > 1800000)
+                    return Fail("maxTicks must be between 0 and 1800000.");
                 Supervisor.EnsurePatched();
                 TimeSpeed requested;
                 if (!Enum.TryParse(speed ?? string.Empty, true, out requested)
@@ -83,7 +86,7 @@ namespace HomeBridge.BridgeTools
                 return await ctx.MainThread.InvokeAsync(() => Supervisor.Start(owner, requested,
                     leaseMs, mode, healthDropFraction, minHealthFraction, hostileWithin,
                     ignoredHostileIds, ignoredDownedColonistIds,
-                    ignoredInjuredColonistIds, injuryStopCooldownMs),
+                    ignoredInjuredColonistIds, injuryStopCooldownMs, maxTicks),
                     cancellationToken).ConfigureAwait(false);
             }
             if (action == "pause")
@@ -138,6 +141,13 @@ namespace HomeBridge.BridgeTools
                 var info = Harmony.GetPatchInfo(target);
                 if (info == null || !info.Owners.Contains("homebridge.supervised-play"))
                     throw new InvalidOperationException("Harmony did not report the supervised-play patch after installation.");
+                var tick = AccessTools.Method(typeof(TickManager), "DoSingleTick");
+                if (tick == null) throw new MissingMethodException("TickManager.DoSingleTick");
+                new Harmony("homebridge.supervised-play").Patch(tick,
+                    postfix: new HarmonyMethod(typeof(Supervisor), nameof(OnTick)));
+                var tickInfo = Harmony.GetPatchInfo(tick);
+                if (tickInfo == null || !tickInfo.Owners.Contains("homebridge.supervised-play"))
+                    throw new InvalidOperationException("Native tick boundary patch was not installed.");
                 _patchError = null;
             }
             catch (Exception ex)
@@ -151,7 +161,7 @@ namespace HomeBridge.BridgeTools
         internal static object Start(string owner, TimeSpeed speed, int leaseMs,
             string mode, float healthDropFraction, float minHealthFraction, float hostileWithin,
             string ignoredHostiles, string ignoredDowned, string ignoredInjured,
-            int injuryStopCooldownMs)
+            int injuryStopCooldownMs, int maxTicks)
         {
             lock (Gate)
             {
@@ -183,6 +193,9 @@ namespace HomeBridge.BridgeTools
                     HealthDropFraction = ClampFloat(healthDropFraction, 0.01f, 1f),
                     MinHealthFraction = ClampFloat(minHealthFraction, 0.01f, 1f),
                     LeaseExpiresMs = NowMs() + Clamp(leaseMs, 1000, 30000),
+                    StartTick = Find.TickManager.TicksGame,
+                    TickDeadline = maxTicks == 0 ? (long?)null : (long)Find.TickManager.TicksGame + maxTicks,
+                    LastTick = Find.TickManager.TicksGame,
                     IgnoredHostiles = PawnIds(ignoredHostiles),
                     IgnoredDowned = PawnIds(ignoredDowned),
                     IgnoredInjured = PawnIds(ignoredInjured),
@@ -294,6 +307,31 @@ namespace HomeBridge.BridgeTools
                     { "oldestCursor", oldest }, { "newestCursor", _cursor },
                     { "nextCursor", rows.Count > 0 ? Convert.ToInt64(rows[rows.Count - 1]["cursor"]) : after }
                 };
+            }
+        }
+
+        // TickManagerUpdate checks Paused after each DoSingleTick. Pausing here
+        // stops its frame batch at the boundary, including accelerated frames.
+        internal static void OnTick()
+        {
+            lock (Gate)
+            {
+                var s = _state;
+                if (s == null || !s.Active || !s.TickDeadline.HasValue) return;
+                if (!ReferenceEquals(Current.Game, s.Session) || !ReferenceEquals(Find.CurrentMap, s.Map))
+                { Stop(s, "session_changed", "Loaded game changed.", false, null); return; }
+                var tm = Find.TickManager;
+                if (tm == null) { Stop(s, "unavailable", "Tick manager disappeared.", false, null); return; }
+                if (tm.TicksGame < s.LastTick)
+                { Stop(s, "session_changed", "Game clock rewound.", true, null); return; }
+                s.LastTick = tm.TicksGame;
+                // Preserve player and letter attribution if the final tick also
+                // changed the clock. The frame watcher handles those stops.
+                if (tm.CurTimeSpeed != s.RequestedSpeed) return;
+                if (tm.TicksGame >= s.TickDeadline.Value)
+                    Stop(s, "tick_budget", "Native execution tick budget reached.", true,
+                        new Dictionary<string, object> { { "startTick", s.StartTick },
+                            { "tickDeadline", s.TickDeadline.Value }, { "tick", tm.TicksGame } });
             }
         }
 
@@ -822,6 +860,9 @@ namespace HomeBridge.BridgeTools
                 { "healthDropFraction", s != null ? s.HealthDropFraction : 0 },
                 { "minHealthFraction", s != null ? s.MinHealthFraction : 0 },
                 { "lastTick", s != null ? s.LastTick : 0 },
+                { "nativeTickBoundary", true },
+                { "startTick", s != null ? (object)s.StartTick : null },
+                { "tickDeadline", s != null ? (object)s.TickDeadline : null },
                 { "injuryStopCooldownMs", s != null ? s.InjuryStopCooldownMs : 0 },
                 { "suppressedInjuryPawns", s != null ? (object)s.SuppressedInjuries : null },
                 { "baselineAlerts", s != null ? (object)s.BaselineAlerts : null },
@@ -879,6 +920,7 @@ namespace HomeBridge.BridgeTools
             public bool Active; public long Epoch; public string Owner; public object Session; public Map Map; public TimeSpeed RequestedSpeed;
             public string Mode; public float HostileWithin; public float HealthDropFraction; public float MinHealthFraction;
             public long LeaseExpiresMs; public long LastProbeMs; public int LastTick; public bool PausedAtStop;
+            public int StartTick; public long? TickDeadline;
             public bool? PauseVerified; public bool PauseFailureReported;
             public string StopReason; public string StopDetail;
             public string PendingKind; public string PendingDetail;

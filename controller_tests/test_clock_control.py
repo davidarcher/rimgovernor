@@ -8,7 +8,8 @@ from rimbot.store import Store
 
 class NativeClock:
     def __init__(self):
-        self.state = {'success': True, 'active': False, 'epoch': 0, 'newestCursor': 0}
+        self.state = {'success': True, 'active': False, 'epoch': 0, 'newestCursor': 0,
+                      'nativeTickBoundary': True}
         self.calls = []
         self.events = []
         self.race = False
@@ -19,7 +20,9 @@ class NativeClock:
         if name == 'home/status':
             return SimpleNamespace(structuredContent={'time': {'paused': True}})
         if op == 'start':
-            self.state = dict(success=True, active=True, owner=args['owner'], epoch=self.state['epoch']+1, newestCursor=len(self.events))
+            self.state = dict(success=True, active=True, owner=args['owner'], epoch=self.state['epoch']+1,
+                              newestCursor=len(self.events), nativeTickBoundary=True, startTick=100,
+                              tickDeadline=100+args['maxTicks'] if args.get('maxTicks') else None)
         elif op == 'pause':
             self.state.update(active=False, stopReason='requested_pause', paused=True, pauseVerified=True)
         elif op == 'heartbeat' and self.race:
@@ -106,6 +109,51 @@ async def test_live_clock_renewal_uses_native_lease_not_turn_budget():
     assert start['hostileWithin'] == 40 and start['ignoredHostileIds'] == 'Thing_Megaspider99'
     assert start['mode'] == 'combat'
     assert any(c[1].get('op') == 'heartbeat' and c[1]['epoch'] == clock.epoch for c in bridge.calls)
+
+
+@pytest.mark.asyncio
+async def test_bounded_clock_requires_native_support_before_start():
+    bridge = NativeClock(); clock = PlayClock(bridge)
+    bridge.state.pop('nativeTickBoundary')
+    with pytest.raises(ValueError, match='lacks tick boundaries'):
+        await clock.change('Superfast', max_ticks=600)
+    assert not any(args.get('op') == 'start' for _, args in bridge.calls)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('budget', [0, -1, 1800001, True, 1.5])
+async def test_invalid_tick_budget_cannot_start(budget):
+    bridge = NativeClock(); clock = PlayClock(bridge)
+    with pytest.raises(ValueError, match='budget'):
+        await clock.change('Fast', max_ticks=budget)
+    assert not bridge.calls
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_does_not_extend_tick_budget_and_budget_stop_is_not_player_hold():
+    bridge = NativeClock(); clock = PlayClock(bridge)
+    started = await clock.change('Superfast', max_ticks=600)
+    await clock.poll()
+    assert started['tickDeadline'] == clock.state['tickDeadline'] == 700
+    heartbeat = next(args for _, args in bridge.calls if args.get('op') == 'heartbeat')
+    assert 'maxTicks' not in heartbeat
+    bridge.state.update(active=False, stopReason='tick_budget', paused=True, pauseVerified=True)
+    bridge.events = [dict(cursor=1, epoch=clock.epoch, kind='tick_budget', detail='Budget reached')]
+    assert (await clock.poll())[0]['kind'] == 'tick_budget'
+    assert clock.hold is None and await clock.poll() == []
+    assert (await clock.change('Normal', max_ticks=20))['active']
+
+
+def test_native_tick_boundary_wakes_review_without_switching_to_manual(tmp_path):
+    store = Store(tmp_path/'budget.sqlite')
+    rt = BridgeRuntime(store, tmp_path, model_factory=lambda _: SimpleNamespace())
+    rt.mode = 'automate'; rt.execution_window_end = 700; rt.execution_wait_explicit = True
+    rt.clock_events = [dict(kind='tick_budget', detail='Budget reached', epoch=1, tick=700)]
+    rt.receive_clock_events()
+    assert rt.mode == 'automate' and rt.wake.is_set()
+    assert rt.execution_window_end is None and not rt.execution_wait_explicit
+    assert rt.strategic_state.pending[0]['kind'] == 'native.tick_budget'
+    store.close()
 
 
 @pytest.mark.asyncio

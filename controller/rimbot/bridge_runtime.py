@@ -586,10 +586,10 @@ class BridgeRuntime:
             self.execution_window_end = None
             self.execution_wait_explicit = False
             result = await self.supervisor.change(speed, mode=mode,
-                ignored_hostiles=ignored_hostiles, ignored_downed=ignored_downed)
+                ignored_hostiles=ignored_hostiles, ignored_downed=ignored_downed,
+                max_ticks=600 if speed != 'Paused' and expected_plan_revision is not None else None)
             if speed != 'Paused' and expected_plan_revision is not None and result.get('active'):
-                status = await self.game.query('home/status', colonists=False, threats=False)
-                self.execution_window_end = status['time']['ticksGame'] + 600
+                self.execution_window_end = result['tickDeadline']
                 self.execution_wait_explicit = True
             self.note('action', 'Clock: '+(result.get('stopReason') or speed), result=result)
             return result
@@ -627,6 +627,9 @@ class BridgeRuntime:
             saved_event = self.note('clock_event', event['detail'], native_event=event)
             self.strategic_state.signal('native.'+kind, event)
             self.resume_after_review = False
+            if kind == 'tick_budget':
+                self.execution_window_end = None
+                self.execution_wait_explicit = False
             if kind in HOLD_REASONS or kind == 'clock_error':
                 self.mode = 'manual'
                 self.phase = 'Clock held'
@@ -930,13 +933,13 @@ class BridgeRuntime:
                     engaged = bool(fighting and fighting.status=='active' and not fighting.cancelled
                         and combat.get('steps') and all(s in self.current_plan.progress
                             and self.current_plan.progress[s].state=='complete' for s in combat['steps']))
-                    await self.supervisor.change('Normal' if engaged else self.controller.policy.execution_speed,
-                        mode='combat' if engaged else 'colony',
-                        ignored_hostiles=combat['target'] if engaged else '')
                     ticks=600 if waiting or engaged else 3000
-                    self.execution_window_end = status['time']['ticksGame'] + ticks
+                    clock = await self.supervisor.change('Normal' if engaged else self.controller.policy.execution_speed,
+                        mode='combat' if engaged else 'colony',
+                        ignored_hostiles=combat['target'] if engaged else '', max_ticks=ticks)
+                    self.execution_window_end = clock['tickDeadline'] if clock.get('active') else None
                     self.execution_wait_explicit = False
-                    self.note('execution_window', f'Native work: target {ticks} game ticks before review; polling may overshoot')
+                    self.note('execution_window', f'Native work: at most {ticks} game ticks before review', clock=clock)
             if self.execution_window_end is not None:
                 status = await self.game.query('home/status', colonists=False, threats=False)
                 if (not waiting and not ongoing and not self.execution_wait_explicit

@@ -268,9 +268,11 @@ Controller reviews pause before observation and optional player inference. Hands
 runs between reviews; automatic execution requires confirmed native work or a
 deterministic goal waiting for simulation. Production defaults to Normal speed. An automatic window targets 600 game ticks, ending sooner when work
 finishes. Existing explicit clock steps also get a bounded window; direct player clock
-commands retain player control. The controller polls for the boundary, so it can
-overshoot. Native danger and lease stops remain independent. Uncapped execution
-requires a native tick boundary before it can use this policy safely.
+commands retain player control. The native supervisor pauses at the tick boundary
+through the game's single-tick callback; controller polling does not extend the
+window. Heartbeats renew only the wall-clock lease. Native danger and lease stops
+remain independent. Automatic execution refuses companion versions without native
+tick-boundary support.
 Native letter-triggered pauses are attributed at the actual clock transition and
 can trigger a deterministic review; unrelated player pauses retain their hold.
 A pre-dispatch native autosave refusal causes a bounded re-observation, never
