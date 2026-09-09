@@ -35,9 +35,15 @@ def failure_text(error):
 
 
 class BridgeRuntime:
-    def __init__(self, store, root, *, fresh=False, settings=None, model_factory=LocalModel, routing=None, headless=False):
+    def __init__(self, store, root, *, fresh=False, settings=None, model_factory=LocalModel, routing=None, headless=False, resume=None):
         self.headless = headless
         self.store, self.root, self.fresh = store, Path(root).resolve(), fresh
+        self.resume = resume
+        if resume:
+            from .session_checkpoint import read_checkpoint
+            checkpoint = read_checkpoint(resume)
+            if Path(checkpoint['root']).resolve() != self.root or checkpoint['headless'] != headless or not fresh:
+                raise ValueError('Resume requires its matching owned root and render mode')
         self.settings = settings or Settings()
         self.router = ModelRouter(routing or load_model_routing(self.settings), store, model_factory)
         self.consultations = Consultations(self.router)
@@ -468,6 +474,7 @@ class BridgeRuntime:
         self.persist()
 
     async def steer(self, text, *, interpret=True):
+        if getattr(self, 'session_closing', False): raise ValueError('Session is restarting; keep your draft and send it after reconnection')
         text = text.strip()
         if not text or len(text) > 4000:
             raise ValueError('Send a message between 1 and 4000 characters')
@@ -917,16 +924,29 @@ class BridgeRuntime:
         try:
             from .headless import prepare
             configuration = prepare(self.root) if self.headless else self.root/'config'
+            checkpoint = None
+            if self.resume:
+                from .session_checkpoint import install_saved_game
+                checkpoint = install_saved_game(self.resume)
             async with bridge_session(executable, configuration) as bridge:
                 self.bridge = bridge
                 if self.fresh:
                     await bridge.core('games_start', gameId=bridge.game_id)
                 await bridge.connect()
-                if self.fresh:
+                if self.resume:
+                    await bridge.call('rimworld/load_game_ready', saveName=checkpoint['save_name'], readiness='visual', timeoutMs=90000, ignoreModCompatibility=False)
+                elif self.fresh:
                     await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline', readiness='visual', timeoutMs=90000, ignoreModCompatibility=self.headless or rendered_headless_mismatch(self.root))
                 await bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
                 self.game = BridgeGame(bridge)
                 await self.sync_identity()
+                if checkpoint:
+                    status = await self.game.query('home/status', colonists=False, threats=False)
+                    if (self.identity['colonyId'] != checkpoint['colony_id'] or self.identity['mapId'] != checkpoint['map_id']
+                            or status.get('time', {}).get('ticksGame') not in (checkpoint['tick'], checkpoint['tick'] + 1)):
+                        raise ValueError(f"Resumed native colony does not match checkpoint: expected {checkpoint['colony_id']}:{checkpoint['map_id']} at {checkpoint['tick']}, observed {self.colony} at {status.get('time', {}).get('ticksGame')}; automation remains off")
+                    self.note('checkpoint_resumed', 'Checkpoint restored in Manual.',
+                              saved_tick=checkpoint['tick'], loaded_tick=status['time']['ticksGame'])
                 await self.projects.reconcile(self.game)
                 self.persist()
                 self.batch = await observe(self.game)
@@ -990,7 +1010,7 @@ class BridgeRuntime:
                     except TimeoutError:
                         pass
                 async with self.lock:
-                    await self.halt()
+                    if not getattr(self, 'owned_game_stopped', False): await self.halt()
         except Exception as error:
             import logging
             logging.exception('Native bridge connection failed')

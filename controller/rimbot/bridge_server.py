@@ -14,6 +14,16 @@ from .bridge_runtime import BridgeRuntime
 from .config import DATA_DIR, Settings, load_model_routing
 from .store import Store
 from .controller_settings import PolicyUpdate, update_policy
+from .session_checkpoint import create_checkpoint, stop_for_restart
+
+
+class CheckpointRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    session_id: str = Field(min_length=1, max_length=300)
+
+
+class CheckpointStop(CheckpointRequest):
+    manifest_path: str = Field(min_length=1, max_length=2000)
 
 
 class ForgetMemory(BaseModel):
@@ -28,6 +38,7 @@ def create_app(runtime=None):
         rt = runtime or BridgeRuntime(Store(DATA_DIR/'bridge.sqlite'),
             os.environ.get('RIMBOT_BRIDGE_ROOT', '.rimbot/bridge'),
             fresh=os.environ.get('RIMBOT_BRIDGE_FRESH') == '1',
+            resume=os.environ.get('RIMBOT_RESUME_CHECKPOINT'),
             headless=os.environ.get('RIMBOT_HEADLESS') == '1',
             settings=Settings(model=os.environ.get('RIMBOT_MODEL', 'qwen3.5-9b')),
             routing=load_model_routing(Settings(model=os.environ.get('RIMBOT_MODEL', 'qwen3.5-9b')), os.environ.get('RIMBOT_MODELS_CONFIG')))
@@ -85,6 +96,14 @@ def create_app(runtime=None):
     @app.post('/api/autopilot/settings')
     async def autopilot_settings(body: PolicyUpdate, request: Request):
         return await update_policy(request.app.state.rt, body)
+
+    @app.post('/api/session/checkpoint')
+    async def checkpoint(body: CheckpointRequest, request: Request):
+        return await create_checkpoint(request.app.state.rt, body.session_id)
+
+    @app.post('/api/session/stop')
+    async def stop_checkpoint(body: CheckpointStop, request: Request):
+        return await stop_for_restart(request.app.state.rt, body.session_id, body.manifest_path)
 
     @app.post('/api/projects')
     async def project(request: Request):

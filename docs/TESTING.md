@@ -290,3 +290,24 @@ Stopping the controller may terminate its owned disposable game through the proc
 lifecycle. Preserve native saves before planned restarts; do not assume the game
 survives killing the controller process. A player-facing session intentionally left
 running needs its matching installed companion until that session is closed.
+
+### Paired checkpoints and restart
+
+On a checkpoint-capable owned session, use Autopilot's **Save checkpoint and pause**
+or run `scripts/restart_session.ps1 -Port 8787`. The restart command first saves and
+verifies the native game and controller snapshot; unsupported older servers remain
+running. A worktree can supply `-Python <venv-python.exe>`. Keep the existing game
+DLLs installed until all sessions have closed.
+
+For a retained checkpoint, run `python -m rimbot --resume <checkpoint.json> --port 8787`.
+Close the previous owned process before manually resuming. This restores into a new
+SQLite database and starts in Manual. Resume preserves the saved colony/map and
+allows at most one native loading tick with pause-on-load enabled. Larger changes
+fail closed. Do not edit or separate `game.rws`, `bridge.sqlite` and `checkpoint.json`.
+
+Run `python scripts/session_checkpoint_acceptance.py --source-root <prepared-root>
+--output <new-output>` for native save, process shutdown, restart and state comparison.
+Add `--rendered` for the visible profile. The probe verifies a PLAYER food goal,
+policy and conversation, unchanged native colony identity, a new load token and no
+model calls. Checkpoint tampering, failed saves, stale direction and unresolved drafts
+are also covered by focused tests.

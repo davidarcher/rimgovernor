@@ -1,6 +1,7 @@
 import {useEffect,useState} from 'react';
 import type {Committed} from './CommittedPlan';
 import './Autopilot.css';
+import SessionCheckpoint from './SessionCheckpoint';
 
 export type AutopilotSettings={version:string;source:string;values:Record<string,number|string>;defaults:Record<string,number|string>;fields:{key:string;group:string;label:string;unit:string;help:string;editable:boolean}[]};
 export const goalName=(id:string)=>(({AllowStartingSupplies:'Allow starting supplies',EnsureWorkAssignments:'Assign colony work',EnsureFoodSupply:'Maintain food supply',EnsureInitialShelter:'Establish shelter',EnsureTemperatureSafety:'Keep sleeping rooms comfortable',EnsureCooking:'Maintain cooking',EnsureFoodStorage:'Store food indoors',EnsureBasicDefense:'Equip defenders',MaintainWood:'Maintain wood supply',ActiveCombat:'Defend the colony',CriticalMedical:'Treat urgent injuries',RestoreWorkers:'Return defenders to work',ConfirmColonyNames:'Confirm colony names'} as Record<string,string>)[id]||id.replace(/([a-z])([A-Z])/g,'$1 $2').replace(/^intent-/,'').replaceAll('-',' '));
@@ -60,6 +61,6 @@ export default function Autopilot({settings,plan,sessionId,connected,mode,onSave
    {error&&<p role="alert" className="autopilot-notice">{error}</p>}{message&&<p role="status">{message}</p>}
    <div className="autopilot-save"><button className="mgr-primary" disabled={!dirty||saving||conflict||!connected}>{saving?'Saving…':'Save settings'}</button><button type="button" onClick={reload} disabled={saving}>Reload current settings</button><span>{dirty?'Unsaved changes':'Saved values'}</span></div>
    <details className="autopilot-verification"><summary>Verification and recovery limits</summary><p className="mgr-muted">These are controller safeguards, shown for transparency.</p><dl>{settings.fields.filter(f=>!f.editable).map(f=><div key={f.key}><dt>{f.label}</dt><dd>{settings.values[f.key]} {f.unit}</dd><small>{f.help}</small></div>)}</dl></details>
-  </form></div>
+  </form></div><SessionCheckpoint key={sessionId} sessionId={sessionId} connected={connected}/>
  </section>;
 }

@@ -7,7 +7,17 @@ def main():
     parser.add_argument('--port',type=int,default=8787)
     parser.add_argument('--fresh-game', action='store_true', help='Launch the isolated bridge fixture')
     parser.add_argument('--reload',action='store_true',help='Reload controller code during development')
+    parser.add_argument('--resume', help='Resume a verified native-save/controller checkpoint in Manual')
     args = parser.parse_args()
+    if args.resume:
+        if args.fresh_game or args.reload: parser.error('--resume cannot be combined with --fresh-game or --reload')
+        import os
+        from pathlib import Path
+        from .session_checkpoint import prepare_resume
+        checkpoint, state = prepare_resume(args.resume)
+        os.environ.update(RIMBOT_BRIDGE_ROOT=checkpoint['root'], RIMBOT_DATA=str(state),
+            RIMBOT_BRIDGE_FRESH='1', RIMBOT_HEADLESS='1' if checkpoint['headless'] else '0',
+            RIMBOT_RESUME_CHECKPOINT=str(Path(args.resume).resolve()))
     if args.fresh_game:
         import os
         os.environ['RIMBOT_BRIDGE_FRESH'] = '1'

@@ -188,6 +188,27 @@ work. Save after identity attachment to retain identity across game restarts.
 Model changes do not erase colony intent. SQLite defaults to
 `.rimbot/bridge.sqlite`; `RIMBOT_DATA` can isolate controller state.
 
+Owned DirectPath sessions support paired checkpoints through the local
+`POST /api/session/checkpoint` endpoint and Autopilot's checkpoint control. Saving
+invalidates pending direction, enters Manual, verifies pause and owned-draft cleanup,
+then records an ordinary native save and a SQLite backup under the writer lock.
+Identity/tick changes, partial saves and unresolved ownership prevent publication.
+The final manifest records hashes for both artifacts. No native save content is edited.
+`python -m rimbot --resume <checkpoint.json>` validates the pair, restores into a new
+database, enables the private profile's native pause-on-load preference before launch,
+and checks colony/map identity and tick before connecting. Native load may advance
+one tick; larger advancement or rewind fails closed. The controller resumes in Manual
+with a new load token; old draft ownership is not reclaimed.
+
+`scripts/restart_session.ps1` requests a checkpoint before stopping a server. It
+checks the source, process birth time and retained process handle, validates checkpoint
+hashes, stops the owned game through GABS after rechecking player direction/tick,
+and verifies the restored session. New chat is rejected while closing so the player
+can retain and resend its draft. Older servers lacking checkpoint support
+are left running. Snapshots remain reusable if startup fails; later database writes
+do not mutate them. The initial upgrade from a server without this endpoint still
+requires an ordinary native save and a planned migration.
+
 `clock_control.py` and native supervised play enforce a lease independently of
 model inference (15-second production lease, renewed every 3 seconds). Danger,
 injury, lease expiry and external pause/speed changes interrupt work. External
