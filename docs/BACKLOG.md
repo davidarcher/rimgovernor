@@ -46,14 +46,18 @@ in the checkpoint commit; do not append an implementation diary here.
   then add electrical generation/connectivity,
   research, comfort and expansion methods. Threats beyond the bounded small-animal method and unavailable power methods
   report explicit blockers instead of asking a model to improvise.
-- [ ] **B04g · Native command acceptance.** Extend the fixed-fact benchmark to
-  research/cancellation and the isolated native chat probe to construction, room
+- [ ] **B04g · Native command acceptance.** Extend the isolated native chat probe to construction, room
   refinements and cancellation of issued construction. Broaden research selection,
   refusal and persistent goal cancel/resume coverage across projects, models and
   save/load boundaries. Measure schema-valid semantic errors, including wrong
   resources and unrequested numeric reserves, separately from native refusals and
   zero-inference controller acceptance. A passing scripted model run is not a
   reliability rate.
+- [ ] **B04h · Player policy parameter fidelity.** Prevent spending-only chat
+  instructions from inventing a numeric reserve or overwriting an existing one.
+  Keep explicitly requested reserve changes available through semantic commands;
+  enforce the distinction beyond prompt guidance and verify it with the local
+  model in the native controller context.
 
 ## P1 — Functional colony planning and recovery
 

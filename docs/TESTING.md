@@ -255,6 +255,13 @@ inference. Full episode comparisons must include model waits and useful outcomes
 
 `scripts/semantic_command_benchmark.py --output <fresh-directory>` measures the
 configured local model against fixed controller facts with no game writes.
+It compares complete typed requests, including default reserves, and separates
+schema failures, schema-valid semantic errors, extra calls and request failures.
+Research labels may resolve only to their exact observed fixture definitions;
+goal aliases use the shared goal resolver. Cases cover research, food targets,
+policy reserves, cancellation and goal resumption. The explanation case checks
+the fixture's steel amounts and absence of writes; this is a limited text check,
+not a general measure of answer quality. A single passing run is not a reliability rate.
 `scripts/interactive_commands_probe.py --source-root <prepared-root> --output
 <fresh-directory>` runs real chat requests in a private paused colony, then
 verifies a work assignment, a persistent food target and a component policy.

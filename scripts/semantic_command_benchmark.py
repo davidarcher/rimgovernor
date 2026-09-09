@@ -16,14 +16,54 @@ CASES = [
     ('policy', "Stop spending components unless needed for defense.",
      {'kind':'ModifyResourcePolicy','resource':'ComponentIndustrial','spending':'defense_only'}),
     ('cancel', 'Cancel the food expansion.', {'kind':'CancelGoal','goal':'intent-food-expansion'}),
+    ('cancel_supply', 'Cancel the food supply goal, not the expansion.', {'kind':'CancelGoal','goal':'EnsureFoodSupply'}),
+    ('resume_supply', 'Resume the food supply goal with a target of 12 days.',
+     {'kind':'CreateGoal','goal':'EnsureFoodSupply','food_days':12}),
+    ('research_label', 'Set research to advanced lights.', {'kind':'SetResearch','project':'ColoredLights'}),
+    ('steel_reserve', 'Keep 100 steel in reserve; otherwise allow normal spending.',
+     {'kind':'ModifyResourcePolicy','resource':'Steel','reserve':100,'spending':'normal'}),
     ('explain', "Why aren't you building the workshop?", None),
 ]
 FACTS = {
-    'research_projects':[{'label':'Geothermal power','defName':'GeothermalPower'}],
+    'research_projects':[{'label':'Geothermal power','defName':'GeothermalPower'},
+                         {'label':'Advanced lights','defName':'ColoredLights'}],
     'resources':{'ComponentIndustrial':10,'Steel':120},
     'goals':{'intent-food-expansion':{'label':'food expansion','status':'active'},
+             'EnsureFoodSupply':{'label':'food supply','status':'blocked','cancelled':True,'target':{'food_days':20}},
              'workshop':{'status':'blocked','reason':'Requires 160 steel; only 120 is unreserved'}},
 }
+
+
+def normalize(request):
+    request=dict(request)
+    if request['kind']=='CancelGoal': request['goal']=resolve_goal_id(request['goal'],FACTS['goals'])
+    if request['kind']=='SetResearch':
+        matches=[p['defName'] for p in FACTS['research_projects']
+                 if request['project'].casefold() in (p['label'].casefold(),p['defName'].casefold())]
+        if len(matches)==1: request['project']=matches[0]
+    return request
+
+
+def score(answer,expected):
+    calls=answer.get('tool_calls',[])
+    row={'schema_failures':0,'semantic_errors':0,'unnecessary_calls':max(0,len(calls)-(1 if expected else 0)),
+         'correct':False,'requests':[]}
+    for call in calls:
+        try:
+            name=call.get('function',{}).get('name')
+            if name not in COMMAND_NAMES: raise ValueError('Unsupported tool')
+            request=COMMAND.validate_python(dict(json.loads(call['function']['arguments']),kind=name)).model_dump()
+            row['requests'].append(request)
+        except (ValueError,KeyError,TypeError): row['schema_failures']+=1
+    if row['schema_failures']: return row
+    try:
+        # Compare the entire typed request, including default values. Extra writes
+        # and unrequested numeric parameters cannot earn a passing score.
+        row['correct']=(len(calls)==1 and normalize(row['requests'][0])==normalize(COMMAND.validate_python(expected).model_dump())
+            if expected else not calls and all(word in (answer.get('content') or '').lower() for word in ('steel','160','120')))
+    except ValueError: pass  # A valid schema with an unresolved goal is a semantic error.
+    row['semantic_errors']=int(not row['correct'])
+    return row
 
 
 async def run(output):
@@ -36,27 +76,14 @@ async def run(output):
     try:
         for identity,prompt,expected in CASES:
             start=time.monotonic()
-            row={'id':identity,'prompt':prompt,'expected':expected,'schema_failures':0,'unnecessary_calls':0,'correct':False}
+            row={'id':identity,'prompt':prompt,'expected':expected,'schema_failures':0,'semantic_errors':0,'unnecessary_calls':0,'correct':False}
             try:
                 answer,usage=await router.complete(ModelRole.STRATEGIST,[
                     {'role':'system','content':'You interpret RimWorld player commands. Use semantic tools only for '
                      'explicit orders. Explain questions from facts. The deterministic validator owns legality and '
                      'execution; never claim a requested action has completed. Facts: '+json.dumps(FACTS)},
                     {'role':'user','content':prompt}], tools, progress)
-                calls=answer.get('tool_calls',[])
-                parsed=[]
-                for call in calls:
-                    try:
-                        name=call.get('function',{}).get('name')
-                        if name not in COMMAND_NAMES: raise ValueError('Unsupported tool')
-                        request=COMMAND.validate_python(dict(json.loads(call['function']['arguments']),kind=name)).model_dump()
-                        if request['kind']=='CancelGoal': request['goal']=resolve_goal_id(request['goal'],FACTS['goals'])
-                        parsed.append(request)
-                    except (ValueError,KeyError,TypeError): row['schema_failures']+=1
-                row.update(answer=answer,usage=usage,requests=parsed)
-                row['unnecessary_calls']=max(0,len(calls)-(1 if expected else 0))
-                row['correct']=(len(parsed)==1 and all(parsed[0].get(k)==v for k,v in expected.items())
-                                if expected else not calls and 'steel' in answer.get('content','').lower())
+                row.update(answer=answer,usage=usage,**score(answer,expected))
             except Exception as error:
                 row['error']=str(error)
             row['seconds']=round(time.monotonic()-start,3)
@@ -68,6 +95,8 @@ async def run(output):
         store.close()
     report={'correct':sum(r['correct'] for r in rows),'total':len(rows),
             'schema_failures':sum(r['schema_failures'] for r in rows),
+            'semantic_errors':sum(r['semantic_errors'] for r in rows),
+            'request_errors':sum('error' in r for r in rows),
             'unnecessary_calls':sum(r['unnecessary_calls'] for r in rows),'game_writes':0,'cases':rows}
     (output/'results.json').write_text(json.dumps(report,indent=2),encoding='utf8')
     return report['correct']==len(CASES)
