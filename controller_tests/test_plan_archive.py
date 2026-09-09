@@ -24,9 +24,9 @@ def retired_plan():
 
 def persist(store,plan):
     bind_archive(plan,store,'colony')
-    snapshot,records,methods=prepare_archive(plan)
-    store.archive_and_set('colony','plan',snapshot,records,methods)
-    finish_archive(plan,snapshot,records,methods)
+    snapshot,records,methods,evidence=prepare_archive(plan)
+    store.archive_and_set('colony','plan',snapshot,records,methods,evidence)
+    finish_archive(plan,snapshot,records,methods,evidence)
 
 
 def test_archive_preserves_receipts_across_sqlite_backup_and_rejects_identity_reuse(tmp_path):
@@ -113,6 +113,35 @@ def test_method_deduplication_and_exact_steps_survive_backup(tmp_path):
     assert goal.method_seen('assign-0')
     assert store.retired_method('colony','EnsureWorkAssignments',1,'assign-0')=={'steps':['action-1']}
     assert store.retired_method('colony','EnsureWorkAssignments',0,'assign-0')=={'steps':['action-0']}
+    store.close()
+
+
+def test_hunting_metadata_archives_atomically_including_legacy_completed_actions(tmp_path):
+    store=Store(tmp_path/'state.sqlite');plan=retired_plan()
+    goal=plan.colony_goals['EnsureWorkAssignments']
+    metadata={'prey':'Animal_17','anchor':{'x':10,'z':20},'signature':'exact'}
+    goal.evidence['hunting_targets']={'action-0':metadata,'action-72':metadata}
+    plan.progress['action-0'].recovery_history=[{'tick':20,'failure':{'code':'interrupted'}}]
+    before=plan.model_dump()
+    store.db.execute("CREATE TRIGGER fail_state BEFORE INSERT ON state BEGIN SELECT RAISE(ABORT,'disk failure'); END")
+    with pytest.raises(sqlite3.IntegrityError):persist(store,plan)
+    assert plan.model_dump()==before
+    assert store.retired_goal_evidence('colony','EnsureWorkAssignments','hunting_targets','action-0') is None
+    store.db.execute('DROP TRIGGER fail_state');persist(store,plan)
+    assert goal.evidence['hunting_targets']=={'action-72':metadata}
+    assert store.retired_action('colony','action-0')['progress']['recovery_history']==before['progress']['action-0']['recovery_history']
+    # A pre-migration snapshot can still hold metadata for already archived actions.
+    goal.evidence['hunting_targets']['action-1']=metadata
+    persist(store,plan)
+    assert 'action-1' not in goal.evidence['hunting_targets']
+    with sqlite3.connect(tmp_path/'backup.sqlite') as backup:store.db.backup(backup)
+    store.close();store=Store(tmp_path/'backup.sqlite')
+    for identity in ('action-0','action-1'):
+        assert store.retired_goal_evidence('colony','EnsureWorkAssignments','hunting_targets',identity)==metadata
+    with pytest.raises(ValueError,match='goal evidence changed'):
+        store.archive_and_set('colony','plan',{}, {},evidence=[{'goal':'EnsureWorkAssignments',
+            'field':'hunting_targets','identity':'action-0','record':{'prey':'replacement'}}])
+    assert store.get('plan')==plan.model_dump()
     store.close()
 
 

@@ -38,10 +38,10 @@ def run(args):
             plan.commit(Decision(expected_revision=plan.revision,disposition='revise',
                 assessment='Archive audit',rationale='Retire observed completed actions',reply='Archive audit',
                 plan=PlanSpec.model_validate(spec)),actor='strategist',tick=plan.chosen_tick)
-            snapshot,records,methods=prepare_archive(plan)
+            snapshot,records,methods,evidence=prepare_archive(plan)
             state['current_plan']=snapshot
-            store.archive_and_set(colony,key,state,records,methods)
-            finish_archive(plan,snapshot,records,methods)
+            store.archive_and_set(colony,key,state,records,methods,evidence)
+            finish_archive(plan,snapshot,records,methods,evidence)
             assert store.get(key)['current_plan']==plan.model_dump()
             report['states'].append({'key':key,'before_bytes':before,'after_bytes':len(plan.model_dump_json().encode()),
                 'retired_completed_actions':len(retired),

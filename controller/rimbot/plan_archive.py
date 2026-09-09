@@ -30,8 +30,12 @@ def prepare_archive(plan):
             raise ValueError('Retired action lacks an immutable completed outcome: '+identity)
         records[identity]={'step':step,'progress':progress.model_dump(),
                            'costs':plan.control.get('costs',{}).get(identity)}
-    methods=[]
+    methods=[];evidence=[]
     for identity,goal in plan.colony_goals.items():
+        for step,record in goal.evidence.get('hunting_targets',{}).items():
+            if step not in records and not (plan._archive_contains is not None and plan._archive_contains(step)):continue
+            evidence.append({'goal':identity,'field':'hunting_targets','identity':step,'record':record})
+            snapshot['colony_goals'][identity]['evidence']['hunting_targets'].pop(step)
         for name,steps in goal.evidence.get('methods',{}).items():
             if not steps or not isinstance(steps,list):continue
             if not all(step in records or plan._archive_contains is not None and plan._archive_contains(step) for step in steps):continue
@@ -39,7 +43,7 @@ def prepare_archive(plan):
             row=snapshot['colony_goals'][identity]
             row['evidence']['methods'].pop(name)
             row['archived_methods']+=1
-    if not records:return snapshot,records,methods
+    if not records:return snapshot,records,methods,evidence
     control=snapshot['control']
     for identity in records:control['retired_steps'].pop(identity)
     if not control['retired_steps']:control.pop('retired_steps')
@@ -49,11 +53,13 @@ def prepare_archive(plan):
         control.get('costs',{}).pop(identity,None)
     for goal in snapshot['colony_goals'].values():
         goal['steps']=[identity for identity in goal['steps'] if identity not in records]
-    return snapshot,records,methods
+    return snapshot,records,methods,evidence
 
 
-def finish_archive(plan, snapshot, records, methods=()):
+def finish_archive(plan, snapshot, records, methods=(), evidence=()):
     """Compact live state only after the database transaction has committed."""
+    for entry in evidence:
+        plan.colony_goals[entry['goal']].evidence[entry['field']].pop(entry['identity'])
     for entry in methods:
         goal=plan.colony_goals[entry['goal']]
         goal.evidence['methods'].pop(entry['method'])

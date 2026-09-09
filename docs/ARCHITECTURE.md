@@ -338,6 +338,13 @@ both live method entries and that table. Each natural goal reopening advances a
 method epoch, allowing new work without deleting archived associations. Pending
 methods remain live, and a missing method archive blocks replay after restart.
 
+Hunting target metadata follows its completed action into an immutable goal-evidence
+table in the same snapshot transaction. Pending targets remain live; metadata from
+older snapshots whose actions were already archived is migrated without altering
+the original receipts. Per-action bounded recovery histories remain in their exact
+action archive. These tables preserve evidence while the live working set compacts;
+their disk usage still grows with completed work.
+
 Recent event reads use colony/sequence indexes, including a partial index for
 non-diagnostic history. Index migration preserves every event and its identity;
 it does not bound ledger disk growth or discard method deduplication evidence.

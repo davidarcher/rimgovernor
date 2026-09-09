@@ -44,9 +44,9 @@ def run(args):
                 for _ in range(10):
                     store.event('other-colony','tool_result',result=template)
                     store.event('audit','tool_result',result=template)
-            snapshot,records,methods=prepare_archive(plan)
-            store.archive_and_set('audit','plan',snapshot,records,methods)
-            finish_archive(plan,snapshot,records,methods)
+            snapshot,records,methods,evidence=prepare_archive(plan)
+            store.archive_and_set('audit','plan',snapshot,records,methods,evidence)
+            finish_archive(plan,snapshot,records,methods,evidence)
             if (index+1)%100==0 or index+1==args.steps:
                 started=time.perf_counter()
                 encoded=plan.model_dump_json()

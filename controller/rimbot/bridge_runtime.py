@@ -91,12 +91,12 @@ class BridgeRuntime:
     def persist(self):
         from .plan_archive import bind_archive,prepare_archive,finish_archive
         bind_archive(self.current_plan,self.store,self.colony)
-        snapshot,records,methods=prepare_archive(self.current_plan)
+        snapshot,records,methods,evidence=prepare_archive(self.current_plan)
         self.store.archive_and_set(self.colony,'bridge:'+self.colony, {'chat': self.chat, 'plan': self.plan, 'projects': self.projects.dump(),
             'chat_revision': self.chat_revision, 'handled_revision': self.handled_revision,
             'draft_owners': self.draft_owners, 'current_plan': snapshot,
-            'strategic_state': self.strategic_state.dump(), 'advice': self.advice},records,methods)
-        finish_archive(self.current_plan,snapshot,records,methods)
+            'strategic_state': self.strategic_state.dump(), 'advice': self.advice},records,methods,evidence)
+        finish_archive(self.current_plan,snapshot,records,methods,evidence)
 
     async def sync_identity(self):
         if self.game is None:

@@ -22,6 +22,9 @@ class Store:
             PRIMARY KEY(colony,identity));
           CREATE TABLE IF NOT EXISTS retired_methods(colony TEXT NOT NULL, goal TEXT NOT NULL, epoch INTEGER NOT NULL,
             method TEXT NOT NULL, record BLOB NOT NULL, PRIMARY KEY(colony,goal,epoch,method));
+          CREATE TABLE IF NOT EXISTS retired_goal_evidence(colony TEXT NOT NULL, goal TEXT NOT NULL,
+            field TEXT NOT NULL, identity TEXT NOT NULL, record BLOB NOT NULL,
+            PRIMARY KEY(colony,goal,field,identity));
         ''')
 
     def get(self, key, default=None):
@@ -48,7 +51,12 @@ class Store:
         return self.db.execute('SELECT 1 FROM retired_methods WHERE colony=? AND goal=? AND epoch=? AND method=?',
             (colony,goal,epoch,method)).fetchone() is not None
 
-    def archive_and_set(self, colony, key, value, records, methods=()):
+    def retired_goal_evidence(self, colony, goal, field, identity):
+        row=self.db.execute('SELECT record FROM retired_goal_evidence WHERE colony=? AND goal=? AND field=? AND identity=?',
+            (colony,goal,field,identity)).fetchone()
+        return json.loads(gzip.decompress(row[0])) if row else None
+
+    def archive_and_set(self, colony, key, value, records, methods=(), evidence=()):
         """Archive immutable outcomes and publish their compact snapshot atomically."""
         with self.db:
             for identity, record in records.items():
@@ -66,6 +74,14 @@ class Store:
                 if prior is None:
                     packed=gzip.compress(json.dumps(entry['record'],ensure_ascii=False).encode('utf8'))
                     self.db.execute('INSERT INTO retired_methods VALUES (?,?,?,?,?)',(*identity,packed))
+            for entry in evidence:
+                identity=(colony,entry['goal'],entry['field'],entry['identity'])
+                prior=self.retired_goal_evidence(*identity)
+                if prior is not None and prior!=entry['record']:
+                    raise ValueError('Retired goal evidence changed: '+entry['identity'])
+                if prior is None:
+                    packed=gzip.compress(json.dumps(entry['record'],ensure_ascii=False).encode('utf8'))
+                    self.db.execute('INSERT INTO retired_goal_evidence VALUES (?,?,?,?,?)',(*identity,packed))
             self.db.execute('INSERT OR REPLACE INTO state VALUES (?,?)',(key,json.dumps(value)))
 
     def event(self, colony, kind, **data):
