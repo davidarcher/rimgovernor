@@ -68,10 +68,14 @@ async def main(args):
                 report['method_archive']=store.retired_method(rt.colony,'EnsureWorkAssignments',goal.method_epoch,'native-hauling-off')
                 assert report['method_archive']=={'steps':[identity]}
         rt.reply('Checkpoint acceptance: preserve this conversation.')
-        await rt.bridge.call('rimworld/set_time_speed',speed='Fast',ultraSpeedBoost=False)
-        await asyncio.sleep(2)
+        if getattr(args,'mixed',False):
+            from mixed_checkpoint_fixture import prepare_mixed
+            report['mixed']=await prepare_mixed(rt)
+        else:
+            await rt.bridge.call('rimworld/set_time_speed',speed='Fast',ultraSpeedBoost=False)
+            await asyncio.sleep(2)
         checkpoint=await create_checkpoint(rt,rt.context_token)
-        assert checkpoint['tick']>initial
+        assert checkpoint['tick']>=initial if getattr(args,'mixed',False) else checkpoint['tick']>initial
         report.update(checkpoint=checkpoint,initial_tick=initial,old_token=rt.context_token,
                       plan=rt.current_plan.model_dump(),chat=rt.chat)
         await stop_for_restart(rt,rt.context_token,checkpoint['manifest_path'])
@@ -91,6 +95,9 @@ async def main(args):
         assert resumed.current_plan.model_dump()==report['plan']
         assert resumed.chat==report['chat']
         assert not resumed.draft_owners and resumed.counters['model_calls']==0
+        if getattr(args,'mixed',False):
+            from mixed_checkpoint_fixture import verify_mixed
+            report['mixed_verification']=await verify_mixed(resumed,report['mixed'])
         if args.archive:
             archived=report['archive'];identity=archived['identity']
             assert store.retired_action(resumed.colony,identity)==archived['record']
@@ -123,6 +130,7 @@ if __name__=='__main__':
     parser.add_argument('--rendered',action='store_true',help='Verify the visible private profile instead of headless mode')
     parser.add_argument('--archive',action='store_true',help='Retire a completed native work assignment and verify its archive and no replay after restart')
     parser.add_argument('--methods',action='store_true',help='With --archive, also verify durable method deduplication after native paired restart')
+    parser.add_argument('--mixed',action='store_true',help='Preserve partial native shell, unissued reservations, pending growing zone and work assignment without replay')
     args=parser.parse_args()
     if args.methods and not args.archive:parser.error('--methods requires --archive')
     asyncio.run(asyncio.wait_for(main(args),240))

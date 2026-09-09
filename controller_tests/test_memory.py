@@ -72,7 +72,7 @@ async def test_player_forget_checks_version_and_invalidates_review():
     state = StrategicState()
     call(state.memories, 'write', text='Lesson', evidence='Observation')
     rt = SimpleNamespace(lock=asyncio.Lock(), sync_identity=AsyncMock(),
-        context_token='current', chat_revision=2, strategic_state=state,
+        context_token='current', chat_revision=2, strategic_state=state,current_plan=SimpleNamespace(control={}),
         persist=Mock(), note=Mock(), mode='automate', wake=asyncio.Event())
     version = fingerprint(state.memories['camp'])
     for session, stamp in [('old', version), ('current', 'stale')]:

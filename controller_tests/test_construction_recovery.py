@@ -34,6 +34,10 @@ def fixture():
         native=AsyncMock(side_effect=native),batch=SimpleNamespace(summary=SimpleNamespace(end_tick=100)),
         note=Mock(),persist=Mock(),signal=Mock(),projects=SimpleNamespace(
             upsert=Mock(return_value=SimpleNamespace(id='project',state='complete')),reconcile=AsyncMock()))
+    async def locked_preview(name,args,allow_write):
+        assert allow_write is False and rt.lock.locked()
+        return await rt.inspect_native(name,args)
+    rt.game.invoke=AsyncMock(side_effect=locked_preview)
     return rt,stock
 
 
@@ -75,7 +79,7 @@ async def test_recovery_refuses_uncertainty_changed_authority_and_unverified_pre
     p=rt.current_plan.progress['build'];step=rt.current_plan.spec.steps[0]
     if change=='unknown_write':p.issued['1']={'confirmed':False}
     if change=='new_load':rt.context_token='new-load'
-    if change=='new_direction':rt.chat_revision=1
+    if change=='new_direction':rt.chat_revision=1;rt.current_plan.control['player_direction']=1
     if change=='manual':rt.mode='manual'
     if change=='cancelled':rt.current_plan.colony_goals['EnsureInitialShelter'].cancelled=True
     if change=='changed_action':step.action.placements[1].x=99
@@ -128,3 +132,32 @@ async def test_known_prewrite_placement_refusal_recovers_only_after_native_previ
     p.state='blocked'
     p.failure=Failure(code='construction_unavailable',detail='old',retryable=True,evidence={})
     assert not await recover(rt)
+
+
+@pytest.mark.asyncio
+async def test_failure_and_native_evidence_revisions_do_not_impersonate_player_direction():
+    rt,stock=await blocked_fixture();stock['wood']=15
+    rt.chat_revision=4  # The review has not marked these internal events handled yet.
+    assert await recover_construction(rt,'build',token='load',direction=4,limit=3)
+    rt,stock=await blocked_fixture();stock['wood']=15
+    rt.chat_revision=4;rt.handled_revision=4
+    rt.current_plan.control['player_direction']=1
+    assert not await recover_construction(rt,'build',token='load',direction=4,limit=3)
+    # Previously persisted failures lack a separate authority scope and stay strict.
+    rt.current_plan.control['player_direction']=0
+    del rt.current_plan.progress['build'].failure.evidence['player_direction']
+    assert not await recover_construction(rt,'build',token='load',direction=4,limit=3)
+
+
+@pytest.mark.asyncio
+async def test_recovery_uses_read_only_preview_under_existing_writer_lock():
+    rt,stock=await blocked_fixture();stock['wood']=15
+    preview=rt.inspect_native.side_effect
+    async def locking_inspect(name,args):
+        async with rt.lock:return await preview(name,args)
+    async def invoke(name,args,allow_write):
+        assert allow_write is False and rt.lock.locked()
+        return await preview(name,args)
+    rt.inspect_native.side_effect=locking_inspect
+    rt.game.invoke.side_effect=invoke
+    assert await asyncio.wait_for(recover(rt),1)

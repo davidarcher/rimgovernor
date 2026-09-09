@@ -374,6 +374,11 @@ the method-attempt limit bounds successful resumptions. Hands rechecks each
 placement before writing; a recovered reservation does not certify construction.
 Placement refusals require explicitly recorded pre-write scope; legacy refusals
 without that evidence remain blocked even if a later preview succeeds.
+Recovery records the persisted player-direction generation separately from the
+review revision: internal failure/observation events invalidate in-flight reviews
+without impersonating a new player instruction. Fresh preview transactions still
+guard the current review revision, plan, mode and load. Their read-only previews
+reuse the held writer lock and do not require the review to be marked finished.
 
 The observed GABS runtime-state publication fault permits two bounded retries for
 approved reads and explicit previews. Mutations and mixed-operation defaults do

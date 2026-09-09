@@ -517,6 +517,12 @@ and deadline. `LIFECYCLE_WINDOW` means the requested native duration completed w
 the original colonists alive and no inference; it does not certify all food gates,
 bed use by every pawn, joining events or arbitrary long-term survival. Evaluate
 those readbacks explicitly against the relevant acceptance checklist.
+With the separate interruption fixture installed, add `--join-count 3` to request
+ordinary WandererJoin incidents after tick 50000. Each request first requires the
+native incident worker's `CanFireNow`, then calls its usual `TryExecute`; failed
+eligibility fails the probe instead of forcing pawn creation. The report retains
+the original and joined roster IDs. This test-only scenario setup is excluded from
+the gameplay gateway and does not edit pawn stats or saves.
 
 Stability uses the native facts' tick, not wall time or a newer clock reading.
 A recorded stability loss resets the window even when recovery occurs between
@@ -582,6 +588,19 @@ player preservation and paired restart. Failed trials retain their checkpoint.
 after an infrastructure startup failure. It deliberately queues the old cancellation
 in the new load to test its context guard, then requires a fresh local-model request
 and exact native removal delta. Neither probe certifies pawn construction or cooling.
+
+`scripts/construction_recovery_acceptance.py --source-root <prepared-root> --output
+<fresh-directory>` uses ordinary forbid/unforbid designators to make a costed
+two-wall commitment temporarily unaffordable. It requires an exact pre-write
+resource failure, refusal while stock remains forbidden, same-action recovery after
+native availability returns, and exactly two observed native blueprint identities.
+The probe runs shared Hands and preserves the recovery history with no inference;
+blueprint issuance does not certify subsequent pawn construction.
+
+Add `--mixed` to `scripts/session_checkpoint_acceptance.py` for an issued shell
+slot, its unissued material reservations, a pending growing zone and pending work
+setting. The paired native restart must retain exact controller state and native
+building IDs while staying in Manual with no replay or stale manual requests.
 
 `scripts/cancel_construction_acceptance.py --source-root <prepared-root> --output
 <fresh-directory>` tests the native exact-target cancellation contract in a private

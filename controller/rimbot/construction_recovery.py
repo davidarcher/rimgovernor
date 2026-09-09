@@ -17,9 +17,11 @@ async def recover_construction(rt, step_id, *, token, direction, limit):
         evidence=failure.evidence;revision=plan.revision
         if failure.code=='construction_unavailable' and evidence.get('prewrite') is not True:return False
         def valid():
+            same_player=(plan.control.get('player_direction',0)==evidence['player_direction']
+                if 'player_direction' in evidence else direction==evidence.get('direction'))
             return (rt.current_plan is plan and plan.revision==revision and rt.mode=='automate'
                 and rt.context_token==token==evidence.get('load_token')
-                and rt.chat_revision==direction==evidence.get('direction')
+                and rt.chat_revision==direction and same_player
                 and step.signature()==evidence.get('signature') and not goal.cancelled)
         if not valid() or len(progress.recovery_history)>=limit:return False
         if any(v.get('confirmed') is not True for v in progress.issued.values()):return False
@@ -34,7 +36,7 @@ async def recover_construction(rt, step_id, *, token, direction, limit):
         try:
             for index,placement in enumerate(placements):
                 if str(index) in progress.issued:continue
-                await rt.hands.place(rt,placement,progress,str(index),revision,token,direction,preview_only=True)
+                await rt.hands.place(rt,placement,progress,str(index),revision,token,direction,preview_only=True,writer_locked=True)
                 if not valid():return False
         except (Blocked,ValueError,InterruptedError):
             return False

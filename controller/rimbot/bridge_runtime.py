@@ -450,6 +450,7 @@ class BridgeRuntime:
             del self.strategic_state.memories[identity]
             # Invalidate pending strategy/hands work just like fresh player direction.
             self.chat_revision += 1
+            self.current_plan.control['player_direction']=self.current_plan.control.get('player_direction',0)+1
             self.strategic_state.signal('player.forgot_memory', {'id': identity})
             self.note('memory', 'Player forgot memory: '+identity)
             self.persist()
@@ -495,6 +496,7 @@ class BridgeRuntime:
         if not text or len(text) > 4000:
             raise ValueError('Send a message between 1 and 4000 characters')
         self.chat_revision += 1
+        self.current_plan.control['player_direction']=self.current_plan.control.get('player_direction',0)+1
         event = self.note('human' if interpret else 'control', text)
         self.chat.append(dict(event, ts=event['at'], revision=self.chat_revision))
         self.persist()

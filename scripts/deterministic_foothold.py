@@ -77,6 +77,8 @@ async def run(args):
     rt = BridgeRuntime(store, root, fresh=True, headless=not args.rendered, model_factory=lambda _: NoInference())
     report = {'outcome':'error','model_calls':0,'history':[],'save_edits':[]}
     lifecycle_days=getattr(args,'lifecycle_days',None)
+    join_count=getattr(args,'join_count',0)
+    report['join_incidents']=[]
     if lifecycle_days is not None:
         from lifecycle_measurement import ledger_sample,bed_use_sample
         report['lifecycle']={'scope':'Native goal lifecycle and bed use; food/survival gates scored separately',
@@ -125,6 +127,17 @@ async def run(args):
                 async with rt.lock:
                     report['lifecycle']['ledger'].append(ledger_sample(rt,args.output/'state.sqlite'))
                     report['lifecycle']['bed_use'].append(await bed_use_sample(rt))
+            if join_count and len(report['join_incidents'])<join_count and facts.get('tick',0)>=50000:
+                async with rt.lock:
+                    await rt.supervisor.change('Paused')
+                    preview=(await rt.bridge.call('test/join_incident',dryRun=True)).structuredContent
+                    report['join_incidents'].append({'preview':preview})
+                    if preview.get('eligible') is not True:
+                        raise AssertionError('Ordinary joining incident native prerequisites refused: '+str(preview))
+                    joined=(await rt.bridge.call('test/join_incident',dryRun=False)).structuredContent
+                    report['join_incidents'][-1]['result']=joined
+                    if not joined.get('joined'):raise AssertionError('Native joining incident did not add a colonist')
+                    rt.wake.set()
             (args.output/'progress.json').write_text(json.dumps(row,indent=2),encoding='utf8')
             print(json.dumps(row),flush=True)
             if rt.context_token!=initial_token: raise RuntimeError('Colony/load identity changed during acceptance')
@@ -182,5 +195,6 @@ if __name__=='__main__':
     parser.add_argument('--rendered',action='store_true')
     parser.add_argument('--checkpoint',type=Path,help='Debug resume from an unmodified native save; not a fresh-colony acceptance run')
     parser.add_argument('--lifecycle-days',type=stability_days,help='Measure bounded native lifecycle/ledger/bed use over this duration; does not require or certify sustained food gates')
+    parser.add_argument('--join-count',type=int,choices=range(4),default=0,help='After tick 50000 request up to three ordinary test-only WandererJoin incidents; requires native CanFireNow and the separate incident fixture')
     parser.add_argument('--speed',choices=['Normal','Fast','Superfast'],default='Fast')
     raise SystemExit(0 if asyncio.run(run(parser.parse_args())) else 1)

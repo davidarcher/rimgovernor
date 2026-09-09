@@ -186,13 +186,14 @@ class Hands:
                 rt.signal('plan.step_failed', {'step': step.id, 'failure': failure.model_dump()})
 
     @staticmethod
-    def guard(rt, revision, token, direction):
+    def guard(rt, revision, token, direction, *, reviewing=False):
         explicit = getattr(rt,'manual_execution',None) == (token,direction,revision)
         if ((rt.mode != 'automate' and not explicit) or rt.context_token != token or rt.current_plan.revision != revision
-                or rt.chat_revision != direction or rt.chat_revision > rt.handled_revision):
+                or rt.chat_revision != direction or (not reviewing and rt.chat_revision > rt.handled_revision)):
             raise InterruptedError('Plan or player direction changed')
 
-    async def place(self, rt, p, progress, key, revision, token, direction, *, preview_only=False):
+    async def place(self, rt, p, progress, key, revision, token, direction, *, preview_only=False, writer_locked=False):
+        if writer_locked and not preview_only:raise ValueError('Locked construction preflight cannot write')
         found = await rt.game.query('home/list_buildings', match=p.def_name, x=p.x, z=p.z, radius=1, aggregate=False, playerOnly=True)
         if found.get('skipped', {}).get('byMaxDetailed'):
             raise Blocked('incomplete_observation', 'Construction query was truncated')
@@ -206,7 +207,8 @@ class Hands:
             args = dict(defName=p.def_name, x=p.x, z=p.z, rotation=p.rotation, dryRun=True)
             if stuff:
                 args['stuff'] = stuff
-            preview = await rt.inspect_native('home/place_building', args)
+            preview = (await rt.game.invoke('home/place_building',args,allow_write=False) if writer_locked
+                else await rt.inspect_native('home/place_building', args))
             last = preview
             if not preview.get('canPlace'):
                 continue
@@ -219,7 +221,7 @@ class Hands:
                 step=next(s for s in rt.current_plan.spec.steps if rt.current_plan.progress[s.id] is progress)
                 raise Blocked('construction_resources',str(error),retryable=True,evidence=dict(error.evidence,
                     slot=key,load_token=token,direction=direction,signature=step.signature(),
-                    tick=rt.batch.summary.end_tick)) from error
+                    player_direction=rt.current_plan.control.get('player_direction',0),tick=rt.batch.summary.end_tick)) from error
             try:
                 occupied = native_footprint(preview, p)
                 owner = next((s for s in rt.current_plan.spec.steps
@@ -254,7 +256,7 @@ class Hands:
                     raise Blocked('incomplete_zone_geometry', 'Cannot prove that construction avoids existing zones')
                 if occupied & {(c['x'], c['z']) for c in cells}:
                     raise Blocked('existing_zone', 'Building footprint overlaps an existing zone', evidence={'zone': zone['label']})
-            self.guard(rt, revision, token, direction)
+            self.guard(rt, revision, token, direction,reviewing=writer_locked)
             if preview_only:
                 return {'validated': True, 'stuff': stuff}
             progress.issued[key] = {'confirmed': False}
@@ -268,6 +270,7 @@ class Hands:
         step=next(s for s in rt.current_plan.spec.steps if rt.current_plan.progress[s.id] is progress)
         evidence={k:last.get(k) for k in ('materials','rotations','researchFinished','buildableByPlayer')} if last else {}
         evidence.update(slot=key,load_token=token,direction=direction,signature=step.signature(),
+            player_direction=rt.current_plan.control.get('player_direction',0),
             tick=getattr(getattr(rt.batch,'summary',None),'end_tick',None),prewrite=True)
         raise Blocked('construction_unavailable', 'No acceptable material/placement is currently buildable', retryable=True,
             evidence=evidence)
