@@ -24,15 +24,15 @@ in the checkpoint commit; do not append an implementation diary here.
   attribution, real player pause/speed holds, danger preemption and load changes
   on the final binary. Native execution tick boundaries are implemented; broaden
   interruption coverage to autosaves and real player input during those windows.
-- [ ] **B04c · Shared intent completion.** Extend accepted player-shell sleeping handoff to
-  storage/cooking/thermal furnishing in the adopted room and broader edited-room coverage. Support safe explicit
+- [ ] **B04c · Shared intent completion.** Broaden adopted-room furnishing acceptance to
+  edited rooms and hot/cold variants. Support safe explicit
   relocation/cancellation of issued construction through native cancellation
   skills; preserve existing orders until validated. Verify freezer expansion,
   policies and conversational refinements with a real local model.
 - [ ] **B04d · Long-running goal lifecycle.** Broaden retention measurement from archived completed actions to
   goal-method evidence and event history in sustained native campaigns.
   Add bounded
-  recovery for other known transient failures beyond confirmed interrupted tending, preserve new-colonist work coverage and
+  recovery for other known transient failures beyond confirmed interrupted tending, verify new-colonist work batches natively and
   expand sleeping/farming templates beyond the eight-colonist starter. Reconcile
   player interruptions and partial work across save rewind. Broaden paired native
   restart acceptance beyond a cancelled room shell to mixed pending work,

@@ -181,8 +181,15 @@ interior and roof coverage before furnishing the missing indoor sleeping capacit
 Each spot uses a native accepted footprint wholly inside that room; existing
 obstructions and a continuous entrance aisle are excluded. Changed/unknown rooms
 or insufficient space block for refinement instead of issuing another shell.
-Roof work keeps simulation requested. Storage, cooking and thermal methods still
-use the starter layout until their adopted-room integration is completed.
+Roof work keeps simulation requested. Storage, cooking and thermal furniture wait
+for the chosen player shell and use its verified room geometry. Building footprints
+and entrance aisles are excluded; food-zone previews must preserve existing zones.
+The native footprint census can contain harmless things: accepted placements are
+screened for actual building conflicts, wipes and frame cancellation. Unissued
+cached farm patches are recomputed around accepted player shells and walkways;
+issued growing zones require explicit refinement instead of silent replacement.
+Work allocation batches are identified by the remaining native changes so cohorts
+larger than eight continue through subsequent batches.
 
 Chat can inspect structured controller facts, gates, goals, blockers, reservations,
 policies and intent history to explain what is running or why work is blocked.

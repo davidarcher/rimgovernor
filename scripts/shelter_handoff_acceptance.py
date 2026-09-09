@@ -11,14 +11,18 @@ from rimbot.headless import isolated_root,prepare
 from rimbot.player_commands import apply_command
 from rimbot.store import Store
 from rimbot.colony_plan import ColonyGoal,CommitSteps
+from rimbot.colony_policy import starter_layouts
+from rimbot.campaign_manifest import capture_manifest
 
 
 async def run(args):
-    root=isolated_root(args.source_root,args.output/'bridge');prepare(root)
+    root=isolated_root(args.source_root,args.output/'bridge');configuration=prepare(root)
     store=Store(args.output/'state.sqlite')
     rt=BridgeRuntime(store,root,fresh=True,headless=True,model_factory=lambda _:NoInference())
     report={'outcome':'failed','history':[],'scope':'Native player shell construction and sleeping handoff; no survival claim'}
     try:
+        (args.output/'manifest.json').write_text(json.dumps(capture_manifest(Path(__file__).resolve().parents[1],
+            root,configuration,rt.router.routing.model_dump(mode='json')),indent=2))
         await ready(rt)
         facts=await rt.game.query('home/colony_facts',planning=True)
         # Explicit fixture setup uses the production supply method and Hands.
@@ -39,6 +43,15 @@ async def run(args):
             facts=await rt.game.query('home/colony_facts',planning=True)
         layout=await rt.controller.skills.layout(facts)
         shell=rt.controller.skills.shell(layout)
+        if args.services:
+            # A player asks for another observed site; keep the old cached layout
+            # so a stale-coordinate service method cannot accidentally pass.
+            preference=dict(facts,center={'x':facts['center']['x']+16,'z':facts['center']['z']+12})
+            alternatives=starter_layouts(preference)
+            selected=next(candidate for candidate in alternatives
+                if abs(candidate['room']['x']-layout['room']['x'])>=9 or abs(candidate['room']['z']-layout['room']['z'])>=9)
+            shell=rt.controller.skills.shell(selected)
+            report['cached_starter_room']=layout['room']
         result=await apply_command(rt,{'kind':'BuildRoom','intent_id':'handoff-home','room':shell,'purpose':'shelter'},
                                    token=rt.context_token,revision=rt.chat_revision)
         await rt.execute_manual_requests()
@@ -60,13 +73,25 @@ async def run(args):
             print(json.dumps(row),flush=True)
             assert NoInference.attempts==0
             assert not any(s.action.kind=='build_room_shell' and s.source=='AUTOPILOT' for s in rt.current_plan.spec.steps)
+            blockers={name:goal.reason for name,goal in rt.current_plan.colony_goals.items()
+                if name in ('EnsureInitialShelter','EnsureCooking','EnsureFoodStorage') and goal.status=='blocked'
+                and not goal.reason.startswith('Resources:')}
+            if blockers:
+                report['blockers']=blockers
+                break
             if (row['player_state']=='complete' and row['adopted'] and row['adopted']['intent']=='intent-handoff-home'
-                    and (row['indoorSleepingCapacity'] or 0)>=facts['colonists']):
+                    and (row['indoorSleepingCapacity'] or 0)>=facts['colonists']
+                    and (not args.services or (control.get('criteria',{}).get('cooking') and control.get('criteria',{}).get('storage')))):
                 await rt.set_mode('manual')
                 rooms=await rt.game.query('home/list_rooms',cells=True,x=shell['bounds']['x']+1,z=shell['bounds']['z']+1)
+                adopted=next(room for room in rooms['rooms'] if room['id']==row['adopted']['room_id'])
+                assert adopted['properRoom'] and adopted['openRoofCount']==0 and len(adopted['beds'])>=facts['colonists']
+                if args.services:
+                    assert adopted['stockpileCellsInRoom']>=9
+                    assert any(item['defName']=='Campfire' and item['count']>=1 for item in adopted['contents'])
                 report.update(outcome='passed',rooms=rooms)
                 break
-        if report['outcome']!='passed':report['error']='Native handoff did not complete within the bounded trial'
+        if report['outcome']!='passed':report['error']='Native handoff blocked or did not complete within the bounded trial'
     except Exception as error:
         report['error']=str(error)
         raise
@@ -82,5 +107,6 @@ if __name__=='__main__':
     parser.add_argument('--source-root',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--seconds',type=int,default=600)
+    parser.add_argument('--services',action='store_true',help='Use a different player site and require native indoor cooking and food storage there')
     args=parser.parse_args()
     raise SystemExit(0 if asyncio.run(asyncio.wait_for(run(args),args.seconds+240)) else 1)

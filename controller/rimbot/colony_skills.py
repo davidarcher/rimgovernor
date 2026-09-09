@@ -23,6 +23,23 @@ class ColonySkills:
     async def layout(self, facts):
         control = self.rt.current_plan.control
         if control.get('layout'):
+            plan=self.rt.current_plan
+            protected={cell for step in plan.spec.steps if step.source=='PLAYER' and isinstance(step.action,RoomShell)
+                       for cell in step.action.bounds.cells()}
+            protected.update(cell for walkway in plan.spec.reserved_walkways for cell in walkway.cells())
+            cached=control['layout']
+            farm_cells={(x,z) for p in cached.get('farms',[cached['farm']])
+                        for x in range(p['x'],p['x']+p['width']) for z in range(p['z'],p['z']+p['height'])}
+            if protected&farm_cells:
+                if any(s.action.kind=='create_zone' and s.action.zone_type=='growing' and plan.progress[s.id].issued
+                       for s in plan.spec.steps):
+                    raise SkillBlocked('Issued growing zones conflict with player construction; refine existing zones explicitly')
+                filtered=dict(facts,cells=[dict(c,occupied=True) if (c['x'],c['z']) in protected else c for c in facts.get('cells',[])])
+                alternatives=starter_layouts(filtered)
+                if not alternatives:raise SkillBlocked('No observed fertile field space outside accepted player construction')
+                control['layout']=dict(cached,farm=alternatives[0]['farm'],farms=alternatives[0]['farms'])
+                self.rt.note('farm_layout_revised','Unissued fields now avoid accepted player construction',farms=control['layout']['farms'])
+                self.rt.persist()
             return control['layout']
         candidates = starter_layouts(facts)
         if not candidates:
@@ -127,20 +144,19 @@ class ColonySkills:
             for pawn, values in rt.current_plan.control.get('work_overrides', {}).items():
                 if pawn in assignments: assignments[pawn].update(values)
             if not covered: raise SkillBlocked('Cannot cover doctor, cook, construction and growing with capable available pawns')
-            method='assign-'+fingerprint(assignments)[:8]
-            if unused(method):
-                actions = []
-                for pawn, values in assignments.items():
-                    observed = next(p for p in people if p['thingId'] == pawn)['work']
-                    types = {w['name']:w for w in observed['types']}
-                    changed = {name:value for name,value in values.items() if
-                        (types[name].get('priorityStored') != value if observed.get('manualPriorities') else
-                         (types[name].get('priority',0)>0) != (value>0))}
-                    if changed:
-                        actions.append(native('home/pawn_config', pawn=pawn, work=','.join(f'{work}={priority}'
-                            for work,priority in sorted(changed.items())), watch=False))
-                if actions: return method, actions[:8]
-                return None
+            actions = []
+            for pawn, values in assignments.items():
+                observed = next(p for p in people if p['thingId'] == pawn)['work']
+                types = {w['name']:w for w in observed['types']}
+                changed = {name:value for name,value in values.items() if
+                    (types[name].get('priorityStored') != value if observed.get('manualPriorities') else
+                     (types[name].get('priority',0)>0) != (value>0))}
+                if changed:
+                    actions.append(native('home/pawn_config', pawn=pawn, work=','.join(f'{work}={priority}'
+                        for work,priority in sorted(changed.items())), watch=False))
+            batch=actions[:8]
+            method='assign-'+fingerprint(batch)[:8]
+            if batch and unused(method):return method,batch
             return None
         if goal_id in ('MaintainWood', 'EnsureFoodSupply'):
             food = goal_id == 'EnsureFoodSupply'
@@ -216,12 +232,20 @@ class ColonySkills:
             return None
         if goal_id == 'EnsureFoodStorage':
             if unused('storage'):
+                from .shelter_handoff import player_shelter,furniture_handoff
+                if selection:=player_shelter(rt.current_plan):
+                    actions=await furniture_handoff(rt,selection)
+                    return ('storage',actions) if actions else None
                 layout = await self.layout(facts)
                 return 'storage', [{'kind': 'create_zone', 'zone_type': 'stockpile', 'label': 'RimBot food',
                     'patches': [layout['storage']], 'preset': 'food', 'priority': 'Important'}]
             return None
         if goal_id == 'EnsureCooking':
             if not facts.get('cooking') and unused('campfire'):
+                from .shelter_handoff import player_shelter,furniture_handoff
+                if selection:=player_shelter(rt.current_plan):
+                    actions=await furniture_handoff(rt,selection,'Campfire')
+                    return ('campfire',actions) if actions else None
                 layout = await self.layout(facts)
                 return 'campfire', [{'kind': 'place_buildings', 'placements': [{'def_name': 'Campfire',
                     'x': layout['room']['x']+6, 'z': layout['room']['z']+6}]}]
@@ -235,10 +259,14 @@ class ColonySkills:
         if goal_id == 'EnsureTemperatureSafety':
             if facts.get('indoorSleepingCapacity', 0) < facts['colonists']: return None
             if unused('thermal'):
-                layout = await self.layout(facts)
                 cold = facts.get('sleepingTemperatureMin', 20) < rt.controller.policy.temperature_enter_low
-                if cold and facts.get('cooking'): return None  # A fueled campfire already heats the shared starter room.
                 definition = 'Campfire' if cold else 'PassiveCooler'
+                from .shelter_handoff import player_shelter,furniture_handoff
+                if selection:=player_shelter(rt.current_plan):
+                    actions=await furniture_handoff(rt,selection,definition)
+                    return ('thermal',actions) if actions else None
+                layout = await self.layout(facts)
+                if cold and facts.get('cooking'): return None  # A fueled campfire already heats the shared starter room.
                 return 'thermal', [{'kind': 'place_buildings', 'placements': [{'def_name': definition,
                     'x': layout['room']['x']+2, 'z': layout['room']['z']+6}]}]
             return None

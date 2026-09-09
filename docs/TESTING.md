@@ -340,6 +340,11 @@ labor must complete it, after which the deterministic controller furnishes sleep
 places in that roofed native room without issuing an autonomous shell. The report
 retains native rooms, player progress and zero-inference counters. This is bounded
 sleeping handoff acceptance, not food survival or complete adopted-room furnishing.
+Add `--services` to request a different observed site while retaining the old
+starter cache. Completion also requires a native campfire, active cooking bill
+and nine food-storage cells inside the adopted room. The report preserves the
+source/input manifest, blocked trials and zero-inference counters. This does not
+certify sustained food replacement or heating/cooling under temperature extremes.
 
 Prepare a fresh isolated native start, then run the production controller:
 
