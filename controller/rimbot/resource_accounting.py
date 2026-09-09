@@ -29,23 +29,71 @@ async def validate_allocations(spec, current, game):
         if step.source == 'LLM_ADVISOR':
             raise ValueError('Advisory recommendations cannot commit game orders')
         action = step.action
+        if isinstance(action, RoomShell) and len(action.materials or []) > 1:
+            chosen = None
+            for material in action.materials:
+                candidate_costs, candidate_stock = {}, {}
+                valid = True
+                for placement in room_placements(action):
+                    preview = await game.invoke('home/place_building', dict(defName=placement.def_name,
+                        x=placement.x, z=placement.z, rotation=placement.rotation, stuff=material, dryRun=True), allow_write=False)
+                    values = preview.get('materials')
+                    if preview.get('canPlace') is not True or values is None or values.get('unreadable') or 'costList' not in preview:
+                        valid = False; break
+                    for row in values.get('rows', []):
+                        if row.get('available') is None: valid = False; break
+                        resource = row['defName']
+                        candidate_stock[resource] = min(candidate_stock.get(resource, row['available']), row['available'])
+                    for row in preview['costList']:
+                        resource = row['defName']
+                        candidate_costs[resource] = candidate_costs.get(resource, 0) + row['count']
+                for resource, count in candidate_costs.items():
+                    rules = policy.get(resource, {})
+                    if (rules.get('spending') == 'stop' or (rules.get('spending') == 'defense_only' and step.purpose != 'defense')
+                            or count + held.get(resource, 0) + requested.get(resource, 0) + rules.get('reserve', 0)
+                            > min(candidate_stock.get(resource, 0), spendable.get(resource, candidate_stock.get(resource, 0)))):
+                        valid = False
+                if valid: chosen = material; break
+            if chosen is None: raise ValueError('Resource reservation rejected: no single permitted material covers the complete room shell')
+            action.materials = [chosen]
         placements = room_placements(action) if isinstance(action, RoomShell) else action.placements if isinstance(action, Buildings) else []
         slots = {}
         for index, placement in enumerate(placements):
             choices = placement.materials or [None]
             accepted = None
+            refusal = None
             for material in choices:
                 args = dict(defName=placement.def_name, x=placement.x, z=placement.z,
                             rotation=placement.rotation, dryRun=True)
                 if material: args['stuff'] = material
                 preview = await game.invoke('home/place_building', args, allow_write=False)
-                if preview.get('canPlace') is True:
-                    accepted = preview
-                    # Reserve the material that was actually costed. A fallback
-                    # needs a new validation, not a different execution budget.
-                    if material: placement.materials = [material]
-                    break
-            if accepted is None: raise ValueError('No legal costed placement: '+placement.def_name)
+                if preview.get('canPlace') is not True: continue
+                material_rows = preview.get('materials')
+                if material_rows is None or material_rows.get('unreadable') or 'costList' not in preview:
+                    refusal = 'Native construction costs are unavailable; no allocation accepted'
+                    continue
+                available = {r['defName']: r.get('available') for r in material_rows.get('rows', [])}
+                refused = None
+                for row in preview['costList']:
+                    resource, count = row['defName'], row['count']
+                    rules = policy.get(resource, {})
+                    if rules.get('spending') == 'stop' or (rules.get('spending') == 'defense_only' and step.purpose != 'defense'):
+                        refused = 'Player resource policy prevents '+resource+' spending for '+step.purpose
+                        break
+                    if available.get(resource) is None:
+                        refused = 'Spendable '+resource+' is unknown'
+                        break
+                    needed = count + requested.get(resource, 0) + held.get(resource, 0) + rules.get('reserve', 0)
+                    if min(available[resource], spendable.get(resource, available[resource])) < needed:
+                        refused = 'Resource reservation rejected: '+resource
+                        break
+                if refused:
+                    refusal = refused
+                    continue
+                accepted = preview
+                if material: placement.materials = [material]
+                break
+            if accepted is None: raise ValueError(refusal or 'No legal costed placement: '+placement.def_name)
             materials = accepted.get('materials')
             if materials is None or materials.get('unreadable') or 'costList' not in accepted:
                 raise ValueError('Native construction costs are unavailable; no allocation accepted')

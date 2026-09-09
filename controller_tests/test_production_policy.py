@@ -116,3 +116,24 @@ def test_resource_target_contract_rejects_missing_and_misplaced_quantities():
     for payload in ({'goal':'MaintainResource'}, {'goal':'MaintainResource','resource':'Steel'},
                     {'goal':'EnsureFoodSupply','quantity':10}, {'goal':'MaintainWood','resource':'Steel'}):
         with pytest.raises(ValueError):CreateGoal(kind='CreateGoal',**payload)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('restriction', ['stop','reserve','competing'])
+async def test_explicit_material_substitution_selects_an_affordable_permitted_native_cost(restriction):
+    from rimbot.colony_plan import PlanSpec
+    from rimbot.resource_accounting import validate_allocations
+    plan = ColonyPlan()
+    if restriction == 'stop': plan.control['resource_policy']={'WoodLog':{'spending':'stop'}}
+    if restriction == 'reserve': plan.control['resource_policy']={'WoodLog':{'reserve':10}}
+    spec = PlanSpec(steps=[{'id':'furniture','title':'Furniture','completion_criteria':'Built',
+        'action':{'kind':'place_buildings','placements':[{'def_name':'Bed','x':1,'z':1,'materials':['WoodLog','Steel']}]}}])
+    if restriction == 'competing':
+        spec.steps[0].action.placements.insert(0, spec.steps[0].action.placements[0].model_copy(update={'x':2,'materials':['WoodLog']}))
+    async def invoke(name, args, **kwargs):
+        resource=args['stuff']
+        return {'canPlace':True,'costList':[{'defName':resource,'count':10}],
+                'materials':{'rows':[{'defName':resource,'available':10 if resource=='WoodLog' else 100}]}}
+    allocations = await validate_allocations(spec, plan, SimpleNamespace(invoke=invoke))
+    assert spec.steps[0].action.placements[-1].materials == ['Steel']
+    assert allocations['furniture'][str(len(spec.steps[0].action.placements)-1)] == {'Steel':10}

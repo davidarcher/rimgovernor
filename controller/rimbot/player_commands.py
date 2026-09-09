@@ -250,6 +250,12 @@ async def apply_command(rt, payload, *, token, revision):
             await rt.ensure_context(token)
             if rt.chat_revision != revision: raise ValueError('Player direction changed; target not updated')
             goal_id += '-' + request.resource
+        if request.goal == 'MaintainResource' and goal_id in plan.colony_goals:
+            prior = plan.colony_goals[goal_id]
+            prior.reopen_methods()
+            prior.attempts += 1
+            for step_id in prior.steps:
+                if step_id in plan.progress and plan.progress[step_id].state == 'blocked': plan.cancel(step_id)
         goal = plan.colony_goals.setdefault(goal_id, ColonyGoal(priority_class=2))
         if request.goal == 'MaintainResource': goal.target = {'resource': request.resource, 'quantity': request.quantity}
         plan.control.setdefault('suppressed_goals',{}).pop(request.goal,None)

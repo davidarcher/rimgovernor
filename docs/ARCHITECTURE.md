@@ -196,7 +196,11 @@ clock admission refreshes the current budgets before simulation. Persistent
 They acquire nearby reachable mineables or mature wild plants with identity-guarded
 ordinary designators, or discover native bench recipes and create target-count
 bills. Existing bills count as continuing capacity only when their repeat mode
-and target cover the request. Unavailable sources, recipes and benches remain
+and target cover the request. Player bill edits are preserved; an explicit goal
+renewal is required before replacing previously issued production that no longer
+covers its target. Construction material alternatives are selected against both
+native costs and current policy/reservations; a room shell needs one affordable
+material for its entire perimeter. Unavailable sources, recipes and benches remain
 explicit prerequisites; accepted orders and projected yield do not count as stock.
 The spending contract rejects reserve fields; combined requests use separate
 policy calls in one interpreter response. Existing stored policies retain their

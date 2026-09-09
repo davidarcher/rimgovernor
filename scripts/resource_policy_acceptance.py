@@ -37,7 +37,7 @@ async def run(args):
                 if not state['active']:break
                 await asyncio.sleep(.1)
         if state['stopReason']=='letter_pause':
-            letters=await rt.game.query('rimworld/list_letters')
+            letters=await rt.game.invoke('rimworld/list_letters', {})
             danger=await rt.game.query('home/status',colonists=False,threats=True)
             record('letter_observed',state['pauseVerified'] and danger['counts']['hostileCount']==0
                 and danger['counts']['huntingPredatorCount']==0,clock=state,letters=letters)
@@ -64,8 +64,10 @@ async def run(args):
             await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
                 reason='Allow ordinary starting supplies',steps=steps).decision(rt.current_plan),actor='strategist',
                 expected_token=rt.context_token,expected_revision=rt.chat_revision)
-            rt.manual_requests.extend((s.id,rt.context_token,rt.chat_revision) for s in steps)
-            await rt.execute_manual_requests()
+            for _ in steps:
+                rt.manual_requests.extend((s.id,rt.context_token,rt.chat_revision) for s in steps if rt.current_plan.progress[s.id].state=='pending')
+                await rt.execute_manual_requests()
+            assert all(rt.current_plan.progress[s.id].state=='complete' for s in steps)
             goal.evidence.setdefault('methods',{})[method]=[s.id for s in steps]
             observed=await facts()
         # A crafting spot is an ordinary zero-work player building; products still require pawn labor.
@@ -88,6 +90,7 @@ async def run(args):
             and any(c['defName']=='WoodLog' and c['needed']>0 for c in r['ingredients'][0].get('costOptions',[]))
             and len(r['products'])==1 and not r.get('minSkill'))
         needed=next(c['needed'] for c in recipe['ingredients'][0]['costOptions'] if c['defName']=='WoodLog')
+        available=next(c['available'] for c in recipe['ingredients'][0]['costOptions'] if c['defName']=='WoodLog')
         output=recipe['products'][0]['defName'];before=await stock('WoodLog');products=await stock(output)
         assert before >= needed*2,(before,needed)
         await command(kind='CreateBill',bench=bench,recipe=recipe['defName'],target_count=products+10)
@@ -97,7 +100,7 @@ async def run(args):
         await window(600)
         record('existing_bill_stopped',await stock('WoodLog')==before and await stock(output)==products,
             before=before,after=await stock('WoodLog'),bill=(await bills(bench))['benches'][0]['bills'][0])
-        await command(kind='SetResourceReserve',resource='WoodLog',reserve=before-needed)
+        await command(kind='SetResourceReserve',resource='WoodLog',reserve=available-needed)
         await command(kind='ModifyResourcePolicy',resource='WoodLog',spending='normal')
         deadline=time.monotonic()+args.seconds
         while await stock(output)==products and time.monotonic()<deadline:
@@ -122,11 +125,37 @@ async def run(args):
             observed=await facts();quantity=observed['resources'].get(resource,0)+1
             result=await command(kind='CreateGoal',goal='MaintainResource',resource=resource,quantity=quantity)
             record('target_'+resource,rt.current_plan.colony_goals[result['goal']].target=={'resource':resource,'quantity':quantity},sources=source)
+        if args.acquisition:
+            from rimbot.production_policy import resource_method
+            for resource in ('Steel','ComponentIndustrial','MedicineHerbal'):
+                observed=await facts();goal_id='MaintainResource-'+resource
+                goal=rt.current_plan.colony_goals[goal_id]
+                goal.target['quantity']=observed['resources'].get(resource,0)+1
+                before_native=await stock(resource)
+                method,actions=await resource_method(rt,goal_id,observed)
+                assert actions and all(a['tool']=='home/acquire_resource' for a in actions)
+                steps,_=rt.controller.skills.steps(goal_id,method,actions,observed)
+                await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
+                    reason='Resource target native acquisition',steps=steps).decision(rt.current_plan),
+                    actor='strategist',expected_token=rt.context_token,expected_revision=rt.chat_revision)
+                rt.manual_requests.extend((s.id,rt.context_token,rt.chat_revision) for s in steps)
+                await rt.execute_manual_requests()
+                record('issued_'+resource,all(rt.current_plan.progress[s.id].state=='complete' for s in steps),actions=actions)
+                until=time.monotonic()+args.seconds
+                while time.monotonic()<until:
+                    await window(600)
+                    observed=await facts()
+                    if observed['resources'].get(resource,0)>=goal.target['quantity']:break
+                record('native_acquired_'+resource,observed['resources'].get(resource,0)>=goal.target['quantity']
+                    and await stock(resource)>before_native,before=before_native,after=await stock(resource),
+                    goal=goal.model_dump(mode='json'),tick=observed['tick'])
         record('zero_inference',rt.counters.get('model_calls',0)==0,counters=rt.counters)
         report['outcome']='passed'
     except Exception as error:
         report['error']=str(error);raise
     finally:
+        report['plan']=rt.current_plan.model_dump(mode='json')
+        report['counters']=rt.counters
         await rt.stop();store.close()
         (args.output/'result.json').write_text(json.dumps(report,indent=2))
 
@@ -136,5 +165,6 @@ if __name__=='__main__':
     parser.add_argument('--source-root',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--seconds',type=int,default=300)
+    parser.add_argument('--acquisition',action='store_true',help='Require actual native mined steel/components and harvested herbal medicine')
     args=parser.parse_args()
-    asyncio.run(asyncio.wait_for(run(args),args.seconds+240))
+    asyncio.run(asyncio.wait_for(run(args),args.seconds*(4 if args.acquisition else 1)+240))

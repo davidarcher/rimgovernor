@@ -107,6 +107,9 @@ async def resource_method(rt, goal_id, facts):
     goal.evidence['production_deficits'] = deficits
     if not candidates: raise SkillBlocked('No available native production recipe and workbench for ' + resource)
     bench, recipe = sorted(candidates)[0]
-    return 'resource-' + fingerprint({'resource':resource,'target':target,'bench':bench,'recipe':recipe})[:12], [native('home/bills', action='add', bench=bench, recipe=recipe,
+    method = 'resource-' + fingerprint({'resource':resource,'target':target,'bench':bench,'recipe':recipe})[:12]
+    if goal.method_seen(method):
+        raise SkillBlocked('Previously issued production bill no longer covers this target; explicitly renew the resource goal to replace it')
+    return method, [native('home/bills', action='add', bench=bench, recipe=recipe,
         repeatMode='TargetCount', targetCount=target, unpauseWhenYouHave=max(0, target-1),
         pauseWhenSatisfied='on', watch=False)]
