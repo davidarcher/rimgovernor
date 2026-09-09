@@ -69,6 +69,14 @@ controller fixtures do not establish actual in-game zone or rotation editing.
 
 ## Native execution windows
 
+`scripts/native_player_input_acceptance.py --source-root <prepared-root> --output
+<fresh-directory>` runs a visible isolated game. After each `ready.json` update,
+send the requested Space or number-row 2 key through the actual window input path.
+The probe requires native external-pause/speed attribution, a persistent Manual
+hold, rejection of a stale controller write, unchanged paused pawn state, and
+successful explicit resume to an exact tick boundary. API time-speed calls are
+used only for setup and explicit resume, never as the input under test.
+
 Run `scripts/native_tick_budget_acceptance.py --source-root <prepared-root>
 --output <new-directory>` with `controller` on `PYTHONPATH`. Each speed/budget
 case reloads the unchanged baseline. The native companion must independently
