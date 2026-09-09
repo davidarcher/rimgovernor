@@ -173,6 +173,61 @@ in the checkpoint commit; do not append an implementation diary here.
   Verify discovery, independent clocks, shutdown and peer survival before comparing
   cost/throughput with Windows. No Linux/cloud acceptance is established.
 
+- [ ] **B18 · Interactive game view and low-latency streaming.** Keep the React
+  dashboard and replace the watch-only game panel with explicit player control.
+  Deliver native input first, then continuous video. Snapshot polling remains a
+  fallback; a faster transport alone does not remove capture or dispatch latency.
+
+  **Native input prototype.** Discover the installed RimBridgeServer schemas for
+  map/UI clicks, drag, hover, scrolling, camera movement and modifier/key handling.
+  Upstream capabilities are candidates, not proof of installed support. Prefer
+  native input that does not require OS focus; preserve normal vanilla/modded
+  eligibility. Start with selection, context menus and camera navigation against
+  the current snapshot view, then test drag selection and placement gestures.
+  Keep explicit player input outside model execution and route it through the
+  existing runtime's identity and writer guards, not a second game-order owner.
+
+  **Player handoff.** Add Take control and Resume automation. Taking control must
+  invalidate pending autonomous work, suspend cinematic framing and acknowledge
+  ownership before accepting input. Preserve the existing Manual clock semantics;
+  taking input ownership must not implicitly resume simulation. Only explicit
+  player release resumes automation. Scope input ownership to one viewer and the
+  current colony/load/map. Release held buttons/modifiers on blur, disconnect,
+  lease expiry or handoff; reject input from stale or non-owning viewers. Account
+  for native player camera input so remote gestures and cinematic framing do not
+  fight it. Keep input loopback-only with equivalent origin/session protection.
+
+  **Frame and gesture integrity.** Map browser coordinates through the actual
+  displayed image bounds, including letterboxing, resolution changes, fullscreen
+  and browser scaling. Bind requests to frame/view identity and reject stale frames
+  or changed camera/map context. Preserve button-down/up and key ordering; coalesce
+  obsolete pointer movement without dropping gesture boundaries. Define what happens
+  when the view changes during a drag. Never replay an uncertain click automatically.
+  Confirm effects from native state rather than treating input delivery as completion.
+
+  **Continuous video.** Evaluate a dedicated WebRTC video path, targeting 30–60 fps
+  on desktop Chrome; this is a design target, not an established performance result.
+  Prototype capture and encoding without PNG disk round trips, using hardware
+  encoding where available. Capture/encode/delivery must run independently of slow
+  controller reviews and inference while preserving native main-thread constraints.
+  Evaluate WebRTC data channels versus the existing server's WebSocket support for
+  small input messages; use one authoritative input path. Bound queues and discard
+  stale video frames instead of accumulating latency. Keep snapshots as a visible
+  degraded mode and disable unsafe interaction when video is stalled. Separate
+  streaming demand from simulation speed; acceptance/headless runs must incur no
+  capture, encoding or cinematic delay when streaming is off.
+
+  **Acceptance.** Use an isolated rendered colony to verify click selection,
+  right-click menus, scroll/zoom, camera pan, drag selection/designation and
+  modifiers without stealing desktop focus. Cover browser resize/fullscreen,
+  disconnect mid-drag, multiple viewers, stale frames, load/map changes, native
+  player input and handoff during pending controller work. Measure capture-to-display
+  and input-to-visible-effect latency (median/p95), delivered fps, dropped frames,
+  CPU/GPU cost and end-to-end simulation TPS with streaming on/off, including while
+  a review is busy. Retain native outcome evidence. Smooth video does not certify
+  safe Ultrafast control; pair that claim with B16's separate reaction/throughput
+  acceptance. Prototype feasibility and measured results decide the final media stack.
+
 ## Completion rule
 
 For each item record the observed failure, focused fix, source revision, checks,

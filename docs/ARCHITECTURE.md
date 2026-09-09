@@ -410,7 +410,7 @@ This frames orders, not continuous pawn labor or every inspection. Video pause
 only stops dashboard capture demand. The observed TPS indicator includes controller
 pauses and resets on load, rewind or stale samples; it does not certify safety.
 
-The native capture The native capture
+The native capture
 is copied into immutable bytes before publication, so a subsequent screenshot
 cannot truncate an in-flight HTTP response. A failed refresh retains the last good
 frame and reports the delay. Visible game windows render independently of browser
