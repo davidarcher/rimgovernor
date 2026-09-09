@@ -111,6 +111,12 @@ Acknowledgments come from accepted structured results, not inferred completion. 
 knowledge/wiki lookup, colony notebook, scout, visual review and consultations
 remain chat tools. Advice is evidence, never executable authority.
 
+Initial chat context includes the shared controller state and a native fact-section
+index. Large native definition catalogs are retrieved through `inspect_colony_facts`
+in one to three sections instead of being inlined into every question. These reads
+are explicitly historical observations from the current review; native validation
+still refreshes facts before a command is accepted.
+
 Actions carry PLAYER, AUTOPILOT or LLM_ADVISOR provenance. Advisory provenance
 cannot commit orders. Player steps normally run before routine optimization;
 hard validation and resource policies still apply. A food target updates the

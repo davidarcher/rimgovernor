@@ -23,6 +23,18 @@ def inspect_plan(plan, ids):
         'missing_ids': sorted(selected - {s.id for s in plan.spec.steps})}
 
 
+def facts_index(facts):
+    return {'available_sections':sorted(k for k in facts if k!='cells'),
+        'note':'Detailed native facts are available through inspect_colony_facts. Omitted sections are not empty or unavailable.'}
+
+
+def inspect_facts(facts, sections):
+    if not 1<=len(sections)<=3 or any(k not in facts or k=='cells' for k in sections):
+        raise ValueError('Choose one to three available non-spatial fact sections')
+    return {'sections':{k:facts[k] for k in sections},'historical':True,
+        'note':'Facts captured at the start of this chat review; refresh native observations before acting.'}
+
+
 class Planner:
     def __init__(self, runtime):
         self.rt = runtime
@@ -46,6 +58,10 @@ class Planner:
                  'required':['ids'],'additionalProperties':False}),
             tool('inspect_controller', 'Inspect persistent goals, selected methods, blockers, resource reservations, '
                 'policies, criteria and player intent history.', {'type':'object','properties':{},'additionalProperties':False}),
+            tool('inspect_colony_facts', 'Read selected native fact sections captured at the start of this chat review. '
+                'Use the observed available_sections index; these are historical observations, not new orders.',
+                {'type':'object','properties':{'sections':{'type':'array','items':{'type':'string'},'minItems':1,'maxItems':3}},
+                 'required':['sections'],'additionalProperties':False}),
             tool('review_evidence', 'Read or search observations retained during this conversation review.',
                 {'type':'object','properties':{'operation':{'type':'string','enum':['search','read']},
                  'id':{'type':'string'},'query':{'type':'string'}},'required':['operation'],'additionalProperties':False})]
@@ -69,7 +85,7 @@ class Planner:
             'Keep answers concise. If a model/tool request fails, the controller can continue without you.'},
             ]
         state=context(rt)
-        state['colony_facts']={k:v for k,v in native_facts.items() if k!='cells'}
+        state['colony_facts']=facts_index(native_facts)
         state.pop('player_messages',None)
         state.pop('player_directions',None)
         humans=[m for m in rt.chat if m.get('kind')=='human'][-6:]
@@ -116,6 +132,8 @@ class Planner:
                     elif name == 'inspect_controller':
                         result = {'goals': {k:v.model_dump() for k,v in rt.current_plan.colony_goals.items()},
                                   'state': rt.current_plan.control}
+                    elif name == 'inspect_colony_facts':
+                        result = inspect_facts(native_facts,args['sections'])
                     elif name == 'review_evidence':
                         result = evidence.read(args.get('id','')) if args['operation']=='read' else evidence.index(args.get('query',''))
                     elif name in inspections.names:
