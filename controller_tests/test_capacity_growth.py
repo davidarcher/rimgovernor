@@ -47,3 +47,14 @@ async def test_expansion_selects_new_native_validated_room_and_reuses_pending_pr
     before=rt.inspect_native.await_count
     assert await grow_shelter(skill,facts)==(method,actions)
     assert rt.inspect_native.await_count==before and len(plan.control['shelter_expansions'])==1
+
+
+@pytest.mark.asyncio
+async def test_additional_fields_wait_for_missing_sleeping_capacity():
+    from test_colony_controller import Replay
+    rt=Replay(13);rt.facts.update(foodRunwayDays=10,armed=0)
+    rt.current_plan.colony_goals['EnsureFoodSupply']=ColonyGoal(priority_class=2,evidence={'methods':{'rice':['field']}})
+    assert await rt.controller.skills.compile('EnsureFoodSupply',rt.facts,rt.people) is None
+    rt.facts['indoorSleepingCapacity']=13
+    method,actions=await rt.controller.skills.compile('EnsureFoodSupply',rt.facts,rt.people)
+    assert method.startswith('rice-expand-') and actions[0]['kind']=='create_zone'

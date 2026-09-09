@@ -116,7 +116,11 @@ async def main(args):
                 assert goal.archived_methods==1 and goal.evidence['methods']=={}
                 assert goal.method_seen('native-hauling-off') and not goal.method_seen('never-issued')
                 assert store.retired_method(resumed.colony,'EnsureWorkAssignments',goal.method_epoch,'native-hauling-off')==report['method_archive']
-        report.update(outcome='PASS',resumed_tick=resumed.batch.summary.end_tick,new_token=resumed.context_token)
+        report.update(resumed_tick=resumed.batch.summary.end_tick,new_token=resumed.context_token)
+        if getattr(args,'rewind',False):
+            from mixed_checkpoint_fixture import verify_rewind
+            report['rewind']=await verify_rewind(resumed,report['mixed'])
+        report['outcome']='PASS'
         print('PASS: native tick, identity, PLAYER goal, policy and conversation preserved; new load in Manual',flush=True)
     finally:
         await resumed.stop();store.close()
@@ -131,6 +135,8 @@ if __name__=='__main__':
     parser.add_argument('--archive',action='store_true',help='Retire a completed native work assignment and verify its archive and no replay after restart')
     parser.add_argument('--methods',action='store_true',help='With --archive, also verify durable method deduplication after native paired restart')
     parser.add_argument('--mixed',action='store_true',help='Preserve partial native shell, unissued reservations, pending growing zone and work assignment without replay')
+    parser.add_argument('--rewind',action='store_true',help='With --mixed, reload the original native save and verify obsolete queued work and writes cannot replay')
     args=parser.parse_args()
     if args.methods and not args.archive:parser.error('--methods requires --archive')
+    if args.rewind and not args.mixed:parser.error('--rewind requires --mixed')
     asyncio.run(asyncio.wait_for(main(args),240))

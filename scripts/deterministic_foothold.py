@@ -7,6 +7,8 @@ import json
 import time
 import traceback
 import shutil
+import hashlib
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.campaign_manifest import capture_manifest
@@ -120,6 +122,8 @@ async def run(args):
             row = {'elapsed':round(time.monotonic()-start,1),'tick':rt.clock.get('ticksGame'),
                    'status':control.get('status'),'criteria':control.get('criteria'),
                    'mode':rt.mode,'phase':rt.phase,'steps':len(rt.current_plan.spec.steps),
+                   'colonists':facts.get('colonists'),'indoor_sleeping':facts.get('indoorSleepingCapacity'),
+                   'usable_farm_cells':sum(f.get('usableCells',0) for f in facts.get('farms',[]) if f.get('edible')),
                    'stability':asdict(window),
                    'goals':{k:{'status':v.status,'reason':v.reason,'method':v.method} for k,v in rt.current_plan.colony_goals.items()}}
             report['history'].append(row)
@@ -181,6 +185,14 @@ async def run(args):
         report['model_calls']=rt.counters['model_calls']
         report['model_attempts']=NoInference.attempts
         report['elapsed_seconds']=round(time.monotonic()-start,2)
+        if lifecycle_days is not None:
+            profile=root/('profile' if args.rendered else 'headless-profile')
+            report['lifecycle']['autosaves']=[]
+            for save in (profile/'Saves').glob('*.rws'):
+                if save.name=='RimBot-tribal8-baseline.rws':continue
+                xml=ET.parse(save).getroot()
+                report['lifecycle']['autosaves'].append({'name':save.name,'tick':int(xml.findtext('.//tickManager/ticksGame')),
+                    'sha256':hashlib.sha256(save.read_bytes()).hexdigest()})
         store.close()
         (args.output/'result.json').write_text(json.dumps(report,indent=2),encoding='utf8')
     return report['outcome'] in ('FOOTHOLD_STABLE','SUSTAINED_FOOTHOLD','LIFECYCLE_WINDOW')

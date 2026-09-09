@@ -1,6 +1,7 @@
 """Read-only native campaign retention and bed-use measurements."""
 import json
 import time
+from copy import deepcopy
 
 
 def ledger_sample(rt,path):
@@ -17,12 +18,13 @@ def ledger_sample(rt,path):
         'hunting_targets':sum(len(g.evidence.get('hunting_targets',{})) for g in plan.colony_goals.values()),
         'recovery_entries':sum(len(p.recovery_history) for p in plan.progress.values()),
         'actions':{s.id:{'signature':s.signature(),'state':plan.progress[s.id].state,
-            'issued':plan.progress[s.id].issued} for s in plan.spec.steps}}
+            'issued':deepcopy(plan.progress[s.id].issued)} for s in plan.spec.steps}}
 
 
 async def bed_use_sample(rt):
-    roster=await rt.game.query('home/list_pawns',colonistsOnly=True,health=True)
+    roster=await rt.game.query('home/list_pawns',colonistsOnly=True,health=True,work=True,bio=True)
     if roster.get('success') is not True:raise ValueError('Native bed-use roster unavailable')
     return {'tick':rt.batch.summary.end_tick,'pawns':[{'id':p['thingId'],'job':p.get('job'),
+        'dead':p.get('dead'),'downed':p.get('downed'),'drafted':p.get('drafted'),'mentalState':p.get('mentalState'),
         'position':p.get('position'),'in_bed':(p.get('health') or {}).get('inBed'),
-        'bed':(p.get('health') or {}).get('bedThingId')} for p in roster['pawns']]}
+        'bed':(p.get('health') or {}).get('bedThingId'),'work':p.get('work'),'bio':p.get('bio')} for p in roster['pawns']]}

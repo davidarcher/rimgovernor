@@ -195,7 +195,7 @@ class ColonySkills:
                 if patches:
                     return 'rice', [{'kind': 'create_zone', 'zone_type': 'growing', 'label': 'RimBot rice',
                                      'crop': 'Plant_Rice', 'patches': patches}]
-            if not unused('rice'):
+            if not unused('rice') and facts.get('indoorSleepingCapacity',0)>=facts['colonists']:
                 from .capacity_growth import growth_fields
                 patches=growth_fields(rt.current_plan,facts)
                 method='rice-expand-'+fingerprint(patches)[:8]

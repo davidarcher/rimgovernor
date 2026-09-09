@@ -55,3 +55,31 @@ async def verify_mixed(rt,evidence):
     assert zones['zones']==evidence['zones']['zones']
     assert rt.counters['actions']==0 and not rt.manual_requests
     return {'native_building_ids':sorted(old),'pending_preserved':True,'reservations_preserved':True,'no_replay':True}
+
+
+async def verify_rewind(rt,evidence):
+    old_token=rt.context_token;old_revision=rt.chat_revision
+    await rt.bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',timeoutMs=90000)
+    await rt.sync_identity()
+    assert rt.context_token!=old_token and rt.mode=='manual'
+    await rt.projects.reconcile(rt.game)
+    rt.reconcile_plan()
+    buildings=await rt.game.query('home/list_buildings',aggregate=False,playerOnly=True)
+    prior={b['thingId'] for b in evidence['buildings']['buildings']}
+    current={b['thingId'] for b in buildings['buildings']}
+    assert prior-current,'Rewind did not remove the later issued shell fixture'
+    # Deliberately deliver the saved queued request under its obsolete load authority.
+    rt.manual_requests=[(evidence['zone'],old_token,old_revision)]
+    before=rt.counters['actions']
+    await rt.execute_manual_requests()
+    assert rt.counters['actions']==before and not rt.manual_requests
+    rejected=False
+    try:await rt.native('home/place_building',{'defName':'Wall','stuff':'WoodLog','x':1,'z':1,'dryRun':False},
+        expected_token=old_token,expected_revision=old_revision)
+    except (ValueError,InterruptedError):rejected=True
+    assert rejected and rt.counters['actions']==before
+    after=await rt.game.query('home/list_buildings',aggregate=False,playerOnly=True)
+    assert {b['thingId'] for b in after['buildings']}==current
+    return {'new_load':rt.context_token,'obsolete_load':old_token,'removed_future_buildings':sorted(prior-current),
+        'stale_queue_discarded':True,'stale_write_refused':True,'mode':rt.mode,
+        'plan':rt.current_plan.model_dump()}
