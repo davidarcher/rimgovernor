@@ -20,7 +20,7 @@ export function ColonyReadings({plan}:{plan?:Committed}){
  const facts=plan?.controller?.facts;
  return <div className="autopilot-readings" aria-label="Current colony readings">
   <div><span>Food runway</span><strong>{number(facts?.foodRunwayDays,1)} <small>days</small></strong></div>
-  <div><span>Available wood</span><strong>{number(facts?.resources?.WoodLog)}</strong></div>
+  <div><span>Available wood</span><strong>{number(facts?.resources ? (facts.resources.WoodLog ?? 0) : undefined)}</strong></div>
   <div><span>Indoor sleeping</span><strong>{number(facts?.indoorSleepingCapacity)} <small>/ {number(facts?.colonists)}</small></strong></div>
   <div><span>Sleeping temperature</span><strong>{number(facts?.sleepingTemperatureMin,1)} <small>°C</small></strong></div>
  </div>;
