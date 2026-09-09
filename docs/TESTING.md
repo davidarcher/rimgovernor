@@ -244,6 +244,15 @@ filename still says `tribal8`; the saved scenario and observed colonist count ar
 the authority. Generate another isolated root for another random map seed.
 
 The runner rejects fresh baselines past tick 600 and injects a model client that
-fails on any attempted inference. `FOOTHOLD_STABLE` requires every functional
-gate. A pass certifies establishment at that observation, not sustained survival;
-longer stability and difficult-biome acceptance remain separate backlog work.
+fails on any attempted inference. By default it requires two consecutive game
+days with all eleven gates verified and reports `SUSTAINED_FOOTHOLD`. Use
+`--stability-days 0` for establishment-only `FOOTHOLD_STABLE`, or an explicit
+number up to 30 for another duration. `--seconds` bounds the whole episode.
+
+Stability uses the native facts' tick, not wall time or a newer clock reading.
+A recorded stability loss resets the window even when recovery occurs between
+report samples. Unknown/failed gates and observation gaps over 6,000 ticks also
+reset it. Save/load identity changes, rewinds and missing/dead starting colonists
+fail the episode. Reports preserve losses, the longest qualifying interval and
+maximum observation gap. This certifies sampled maintained gates over the stated
+window, not arbitrary long-term survival or difficult-biome coverage.

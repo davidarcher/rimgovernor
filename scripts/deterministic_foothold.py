@@ -1,4 +1,6 @@
 """Run the production deterministic controller in a fresh, isolated colony."""
+from dataclasses import dataclass, asdict
+import math
 import argparse
 import asyncio
 import json
@@ -12,6 +14,9 @@ from rimbot.headless import isolated_root, prepare, prepare_rendered
 from rimbot.store import Store
 
 
+STABILITY_GATES=frozenset(('sleeping','shelter','food','production','storage','cooking','temperature','power','medical','defense','work'))
+
+
 class NoInference:
     attempts = 0
     async def complete(self, *_):
@@ -21,8 +26,49 @@ class NoInference:
         pass
 
 
+@dataclass
+class StabilityWindow:
+    required_ticks: int
+    first_stable_tick: int | None = None
+    window_start_tick: int | None = None
+    last_tick: int | None = None
+    stable_ticks: int = 0
+    longest_stable_ticks: int = 0
+    losses: int = 0
+    max_observation_gap: int = 0
+    gap_resets: int = 0
+
+    def observe(self, tick, status, gates, losses):
+        # Use the tick belonging to the facts, never a newer live clock tick.
+        if tick is None: return False
+        if self.last_tick is not None and tick < self.last_tick:
+            raise ValueError('Game observations moved backward; a rewound episode cannot certify stability')
+        gap=0 if self.last_tick is None else tick-self.last_tick
+        self.max_observation_gap=max(self.max_observation_gap,gap)
+        stable=status=='FOOTHOLD_STABLE' and STABILITY_GATES.issubset(gates) and all(v is True for v in gates.values())
+        if not stable or losses!=self.losses or gap>6000:
+            if gap>6000: self.gap_resets+=1
+            self.window_start_tick=None
+            self.stable_ticks=0
+        self.last_tick,self.losses=tick,losses
+        if not stable: return False
+        if self.first_stable_tick is None: self.first_stable_tick=tick
+        if self.window_start_tick is None: self.window_start_tick=tick
+        self.stable_ticks=tick-self.window_start_tick
+        self.longest_stable_ticks=max(self.longest_stable_ticks,self.stable_ticks)
+        return self.stable_ticks>=self.required_ticks
+
+
+def stability_days(value):
+    days=float(value)
+    if not math.isfinite(days) or not 0<=days<=30:
+        raise argparse.ArgumentTypeError('Stability days must be finite and between 0 and 30')
+    return days
+
+
 async def run(args):
     NoInference.attempts = 0
+    window=StabilityWindow(math.ceil(args.stability_days*60000))
     root = isolated_root(args.source_root, args.output/'bridge')
     if args.checkpoint:
         shutil.copy2(args.checkpoint,root/'profile/Saves/RimBot-tribal8-baseline.rws')
@@ -44,6 +90,8 @@ async def run(args):
             await asyncio.sleep(1)
         if not rt.connected: raise RuntimeError('Colony connection timed out')
         report['initial_game_tick']=rt.batch.summary.end_tick
+        report['starting_colonists']=sorted(p.thing_id for p in rt.batch.summary.pawns if not p.dead)
+        initial_token=rt.context_token
         if not args.checkpoint and report['initial_game_tick']>600:
             raise ValueError('Fresh baseline must be within its first 600 game ticks; use --checkpoint for resumed saves')
         rt.current_plan.control.setdefault('policy', {})['execution_speed'] = args.speed
@@ -52,13 +100,21 @@ async def run(args):
         while time.monotonic()<deadline:
             await asyncio.sleep(5)
             control = rt.current_plan.control
+            facts=control.get('facts',{})
+            losses=store.db.execute("SELECT COUNT(*) FROM events WHERE colony=? AND kind='bootstrap_stability_lost'",(rt.colony,)).fetchone()[0]
+            passed=window.observe(facts.get('tick'),control.get('status'),control.get('criteria',{}),losses)
             row = {'elapsed':round(time.monotonic()-start,1),'tick':rt.clock.get('ticksGame'),
                    'status':control.get('status'),'criteria':control.get('criteria'),
                    'mode':rt.mode,'phase':rt.phase,'steps':len(rt.current_plan.spec.steps),
+                   'stability':asdict(window),
                    'goals':{k:{'status':v.status,'reason':v.reason,'method':v.method} for k,v in rt.current_plan.colony_goals.items()}}
             report['history'].append(row)
             (args.output/'progress.json').write_text(json.dumps(row,indent=2),encoding='utf8')
             print(json.dumps(row),flush=True)
+            if rt.context_token!=initial_token: raise RuntimeError('Colony/load identity changed during acceptance')
+            living={p.thing_id for p in rt.batch.summary.pawns if not p.dead}
+            missing=set(report['starting_colonists'])-living
+            if missing: raise RuntimeError('Starting colonists died or left the observed colony: '+str(sorted(missing)))
             if rt.counters['model_calls'] or NoInference.attempts: raise AssertionError('Routine controller attempted a model call')
             if rt.mode != 'automate': raise RuntimeError('Controller left Automate: '+str(rt.chat[-1] if rt.chat else rt.phase))
             if (not rt.deliberating and not rt.wake.is_set() and rt.handled_revision >= rt.chat_revision
@@ -67,9 +123,8 @@ async def run(args):
                     and any(g.status=='blocked' for g in rt.current_plan.colony_goals.values())):
                 report['outcome']='blocked'
                 break
-            if control.get('status') == 'FOOTHOLD_STABLE':
-                report['outcome']='FOOTHOLD_STABLE'
-                report['game_ticks_to_foothold']=rt.clock.get('ticksGame')-report['initial_game_tick']
+            if passed:
+                report['outcome']='SUSTAINED_FOOTHOLD' if window.required_ticks else 'FOOTHOLD_STABLE'
                 break
         else:
             report['outcome']='timeout'
@@ -86,6 +141,9 @@ async def run(args):
         finally:
             await rt.stop()
         # Runtime stops its own GABS/game only through the PID-owned launch profile.
+        report['stability']=asdict(window)
+        if window.first_stable_tick is not None:
+            report['game_ticks_to_foothold']=window.first_stable_tick-report['initial_game_tick']
         report['plan']=rt.current_plan.model_dump()
         report['events']=store.history(rt.colony,limit=10000,include_diagnostics=True)
         report['model_calls']=rt.counters['model_calls']
@@ -93,14 +151,15 @@ async def run(args):
         report['elapsed_seconds']=round(time.monotonic()-start,2)
         store.close()
         (args.output/'result.json').write_text(json.dumps(report,indent=2),encoding='utf8')
-    return report['outcome']=='FOOTHOLD_STABLE'
+    return report['outcome'] in ('FOOTHOLD_STABLE','SUSTAINED_FOOTHOLD')
 
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source-root',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
-    parser.add_argument('--seconds',type=int,default=900)
+    parser.add_argument('--seconds',type=int,default=1800)
+    parser.add_argument('--stability-days',type=stability_days,default=2,help='Consecutive observed stable game days after bootstrap; 0 checks establishment only (default: 2)')
     parser.add_argument('--rendered',action='store_true')
     parser.add_argument('--checkpoint',type=Path,help='Debug resume from an unmodified native save; not a fresh-colony acceptance run')
     parser.add_argument('--speed',choices=['Normal','Fast','Superfast'],default='Fast')
