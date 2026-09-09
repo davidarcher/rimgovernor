@@ -206,8 +206,20 @@ hashes, stops the owned game through GABS after rechecking player direction/tick
 and verifies the restored session. New chat is rejected while closing so the player
 can retain and resend its draft. Older servers lacking checkpoint support
 are left running. Snapshots remain reusable if startup fails; later database writes
-do not mutate them. The initial upgrade from a server without this endpoint still
-requires an ordinary native save and a planned migration.
+do not mutate them.
+
+On Windows, `scripts/migrate_legacy_session.py` upgrades an owned legacy server
+without the checkpoint endpoint. It verifies the checkout and retained process
+birth identity, enters Manual, pauses the old writer with a bounded recovery
+watchdog, and backs up SQLite without modifying the original. Pending chat,
+unreleased drafts or disagreement with public goals/policies/history block migration.
+An explicit GABS ownership takeover then verifies the same native load and tick
+before using the existing paired checkpoint and restart path. The replacement
+must retain the shared plan, settings and conversation in Manual.
+Ownership transfer is one-way: an interrupted handoff can leave the old dashboard
+disconnected while the native game remains paused. Retained migration artifacts
+support an explicit guarded retry or checkpoint resume; resuming the old process
+alone does not restore its GABS connection. Attached external games remain unsupported.
 
 `clock_control.py` and native supervised play enforce a lease independently of
 model inference (15-second production lease, renewed every 3 seconds). Danger,

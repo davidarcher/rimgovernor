@@ -83,8 +83,10 @@ in the checkpoint commit; do not append an implementation diary here.
 - [ ] **B11 · Event delivery and process ownership.** Compare current persisted
   history/revision guards with acknowledged durable inbox/outbox semantics.
   Verify crash/reconnect delivery without dropped or duplicated player/game events.
-  Extend paired checkpoint restart to migration from legacy servers lacking its endpoint,
-  checkpoint retention/deletion and attached external games. Audit game-worker PID
+  Extend paired checkpoint restart with checkpoint retention/deletion and attached
+  external games. Broaden Windows legacy-migration acceptance to interruption at
+  every ownership/save/stop boundary; automatic legacy reconnection is unavailable
+  after takeover and requires explicit recovery. Audit game-worker PID
   plus process birth time against PID reuse; test lease expiry and
   lost-worker cleanup. Generated disposable profiles require DirectPath launches
   without process-name cleanup fallback; regenerate existing profiles to adopt this
