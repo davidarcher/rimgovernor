@@ -124,11 +124,13 @@ generation still report explicit blockers.
 
 The chat command union supports SetResearch, BuildRoom, PlaceBuildings, CreateZone,
 SetWorkPriority, CreateBill, DraftPawn, MovePawn, CreateGoal, CancelGoal and
-ModifyResourcePolicy. The model receives individually named semantic tools and read-only native
+ModifyResourcePolicy and SetResourceReserve. The model receives individually named semantic tools and read-only native
 inspection/preview tools, not arbitrary native execution. Fresh native facts and
 resource-definition labels are available in Manual as well as Automate. The
-latest player message follows the evidence context; accepted goals and policies
-end interpretation so downstream routine work stays with the controller.
+latest player message follows the evidence context. Consecutive maintained goal
+and policy requests in the same response are applied before interpretation ends;
+downstream routine work stays with the controller. Partial rejections are included
+in the acknowledgment alongside accepted requests.
 Acknowledgments come from accepted structured results, not inferred completion. Optional local
 knowledge/wiki lookup, colony notebook, scout, visual review and consultations
 remain chat tools. Advice is evidence, never executable authority.
@@ -148,6 +150,10 @@ are explicitly historical observations from the current review; native validatio
 still refreshes facts before a command is accepted.
 The initial context retains a bounded native resource-label glossary so resource
 policy names remain grounded when the larger definition catalog is omitted.
+Resource choices expose exact native display labels, with definition IDs used for
+ambiguous labels. Exact observed IDs from earlier context remain valid aliases.
+Resolution persists the native definition ID; base names do not include qualified
+resource variants automatically.
 
 Actions carry PLAYER, AUTOPILOT or LLM_ADVISOR provenance. Advisory provenance
 cannot commit orders. Player steps normally run before routine optimization;

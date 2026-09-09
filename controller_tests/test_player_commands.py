@@ -196,6 +196,31 @@ async def test_chat_can_apply_both_explicit_policy_changes_without_another_model
 
 
 @pytest.mark.asyncio
+async def test_food_target_does_not_discard_explicit_policies_in_same_response(tmp_path):
+    from rimbot.planner import Planner
+    rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch();rt.mode='manual'
+    query=rt.game.query
+    async def observed(name,**args):
+        if name=='home/colony_facts': return {'success':True,'resources':{'Steel':200,'ComponentIndustrial':10},
+            'policyResources':{'Steel':'steel','ComponentIndustrial':'component','ComponentSpacer':'advanced component'}}
+        return await query(name,**args)
+    rt.game.query=observed
+    rt.chat_revision=1
+    rt.chat=[{'kind':'human','revision':1,'text':'Set a 12-day food target, reserve 80 steel and stop spending components.'}]
+    rt.router.complete=AsyncMock(return_value=({'role':'assistant','tool_calls':[
+        {'id':'goal','type':'function','function':{'name':'CreateGoal','arguments':'{"goal":"EnsureFoodSupply","food_days":12}'}},
+        {'id':'reserve','type':'function','function':{'name':'SetResourceReserve','arguments':'{"resource":"Steel","reserve":80}'}},
+        {'id':'spending','type':'function','function':{'name':'ModifyResourcePolicy','arguments':'{"resource":"ComponentIndustrial","spending":"stop"}'}}]},{}))
+    await Planner(rt).play_bridge()
+    rt.router.complete.assert_awaited_once()
+    assert rt.current_plan.colony_goals['EnsureFoodSupply'].target['food_days']==12
+    assert rt.current_plan.control['resource_policy']=={
+        'Steel':{'reserve':80,'spending':'normal'},'ComponentIndustrial':{'reserve':0,'spending':'stop'}}
+    assert not rt.manual_requests and rt.counters['actions']==0
+    rt.store.close()
+
+
+@pytest.mark.asyncio
 async def test_invalid_followup_preserves_original_pending_intent(tmp_path):
     rt=runtime(tmp_path); await rt.sync_identity();rt.batch=batch()
     command={'kind':'BuildRoom','intent_id':'bedroom','room':room_plan().steps[0].action.model_dump()}
@@ -270,3 +295,32 @@ def test_policy_tool_uses_native_definition_catalog_even_when_stock_is_zero():
     validate_arguments(tool['name'],tool['parameters'],{'resource':'ComponentIndustrial','spending':'defense_only'})
     with pytest.raises(ValueError):
         validate_arguments(tool['name'],tool['parameters'],{'resource':'InventedResource'})
+
+
+def test_resource_names_resolve_exact_native_labels_without_expanding_base_names():
+    from rimbot.player_commands import resolve_resource,semantic_tools
+    labels={'ComponentIndustrial':'component','ComponentSpacer':'advanced component','Steel':'steel'}
+    assert resolve_resource('component',labels)=='ComponentIndustrial'
+    assert resolve_resource('advanced component',labels)=='ComponentSpacer'
+    assert resolve_resource('Steel',labels)=='Steel'
+    choice=next(t['function']['parameters']['properties']['resource']['enum'] for t in semantic_tools(labels)
+                if t['function']['name']=='ModifyResourcePolicy')
+    assert choice==['advanced component','component','steel']
+    with pytest.raises(ValueError,match='ambiguous'):
+        resolve_resource('leather',{'LeatherA':'leather','LeatherB':'leather'})
+
+
+@pytest.mark.asyncio
+async def test_native_resource_label_is_persisted_as_exact_definition_id(tmp_path):
+    rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch()
+    query=rt.game.query
+    async def observed(name,**args):
+        if name=='home/colony_facts': return {'resources':{'ComponentIndustrial':10},
+            'policyResources':{'ComponentIndustrial':'component','ComponentSpacer':'advanced component'}}
+        return await query(name,**args)
+    rt.game.query=observed
+    result=await apply_command(rt,{'kind':'ModifyResourcePolicy','resource':'component','spending':'stop'},
+        token=rt.context_token,revision=rt.chat_revision)
+    assert result['resource']=='ComponentIndustrial'
+    assert rt.current_plan.control['resource_policy']=={'ComponentIndustrial':{'reserve':0,'spending':'stop'}}
+    rt.store.close()

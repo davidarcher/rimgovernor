@@ -9,6 +9,7 @@ from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.config import Settings
 from rimbot.headless import isolated_root,prepare,prepare_rendered
 from rimbot.store import Store
+from rimbot.session_checkpoint import create_checkpoint,prepare_resume,stop_for_restart
 
 
 def work_priorities(roster):
@@ -78,6 +79,21 @@ async def run(args):
             policy=rt.current_plan.control.get('resource_policy',{}).get('ComponentIndustrial',{})
             record({'command':'clear_reserve','reply':reply,'observed':dict(policy),
                 'passed':policy=={'spending':'normal','reserve':0}})
+            before_actions=rt.counters['actions']
+            reply=await chat('Set a 12-day food target, keep 80 steel in reserve, and stop spending components.')
+            goal=rt.current_plan.colony_goals.get('EnsureFoodSupply')
+            policy=rt.current_plan.control.get('resource_policy',{})
+            record({'command':'combined_goal_and_policies','reply':reply,'observed':json.loads(json.dumps(policy)),
+                'passed':bool(goal and goal.target.get('food_days')==12 and goal.source=='PLAYER'
+                    and policy=={'Steel':{'reserve':80,'spending':'normal'},
+                                 'ComponentIndustrial':{'reserve':0,'spending':'stop'}}
+                    and rt.counters['actions']==before_actions)})
+            reply=await chat('Allow normal component spending, and allow steel spending only for defense. Keep both reserves unchanged.')
+            policy=rt.current_plan.control.get('resource_policy',{})
+            record({'command':'two_resource_policies','reply':reply,'observed':json.loads(json.dumps(policy)),
+                'passed':policy=={'Steel':{'reserve':80,'spending':'defense_only'},
+                                  'ComponentIndustrial':{'reserve':0,'spending':'normal'}}
+                    and rt.counters['actions']==before_actions})
             research=await rt.game.invoke('home/research',{'locked':True})
             (args.output/'research-before.json').write_text(json.dumps(research,indent=2))
             available=[p for p in research.get('available',[]) if p.get('defName')!=(research.get('current') or {}).get('defName')]
@@ -121,6 +137,38 @@ async def run(args):
             goal=rt.current_plan.colony_goals.get('EnsureFoodSupply')
             record({'command':'resume_goal','reply':reply,'passed':bool(goal and not goal.cancelled
                 and goal.source=='PLAYER' and goal.target.get('food_days')==12)})
+        if args.restart:
+            checkpoint=await create_checkpoint(rt,rt.context_token)
+            old_token=rt.context_token
+            expected_plan=rt.current_plan.model_dump()
+            expected_chat=list(rt.chat)
+            old_counters=dict(rt.counters)
+            await stop_for_restart(rt,old_token,checkpoint['manifest_path'])
+            await rt.stop()
+            store.close()
+            data,state=prepare_resume(checkpoint['manifest_path'])
+            store=Store(state/'bridge.sqlite')
+            rt=BridgeRuntime(store,root,fresh=True,headless=not args.rendered,
+                settings=Settings(model=args.model,timeout_seconds=90),resume=checkpoint['manifest_path'])
+            await rt.start()
+            async with asyncio.timeout(120):
+                while not rt.connected:
+                    if rt.phase=='Connection failed': raise ValueError('Paired restart failed: '+str(rt.chat[-1:]))
+                    await asyncio.sleep(.5)
+            record({'command':'paired_restart','checkpoint':checkpoint,'old_token':old_token,
+                'new_token':rt.context_token,'old_counters':old_counters,
+                'passed':rt.context_token!=old_token and rt.mode=='manual'
+                    and rt.batch.summary.end_tick in (data['tick'],data['tick']+1)
+                    and rt.current_plan.model_dump()==expected_plan and rt.chat==expected_chat
+                    and not rt.draft_owners and not rt.manual_requests and rt.counters['model_calls']==0})
+            reply=await chat('Cancel the food supply goal. Keep existing game orders in place.')
+            goal=rt.current_plan.colony_goals.get('EnsureFoodSupply')
+            record({'command':'cancel_after_restart','reply':reply,'passed':bool(goal and goal.cancelled)})
+            reply=await chat('Resume the food supply goal with a target of 12 days.')
+            goal=rt.current_plan.colony_goals.get('EnsureFoodSupply')
+            record({'command':'resume_after_restart','reply':reply,'passed':bool(goal and not goal.cancelled
+                and goal.target.get('food_days')==12 and rt.current_plan.control.get('resource_policy')
+                    ==expected_plan['control'].get('resource_policy'))})
         status=await rt.game.query('home/status',colonists=False,threats=False)
         report.update(mode=rt.mode,paused=status['time']['paused'],actions=rt.counters['actions'])
         if all(r['passed'] for r in report['cases']) and rt.mode=='manual' and report['paused']:
@@ -154,4 +202,7 @@ if __name__=='__main__':
     parser.add_argument('--rendered',action='store_true',help='Run the disposable colony visibly')
     parser.add_argument('--port',type=int,help='Serve the disposable colony dashboard while testing')
     parser.add_argument('--extended',action='store_true',help='Also verify research, native refusal and cancellation across autonomous reviews')
-    raise SystemExit(0 if asyncio.run(run(parser.parse_args())) else 1)
+    parser.add_argument('--restart',action='store_true',help='Verify paired native restart, preserved plan/chat/policies and subsequent goal cancel/resume')
+    args=parser.parse_args()
+    if args.restart and args.port: parser.error('--restart uses the headless controller lifecycle; omit --port')
+    raise SystemExit(0 if asyncio.run(run(args)) else 1)

@@ -70,6 +70,15 @@ def test_multiple_resources_do_not_pass_when_both_calls_target_same_resource():
     assert result['semantic_errors']==1 and result['schema_failures']==0
 
 
+def test_native_display_labels_resolve_exactly_and_extra_variants_fail():
+    request=call('ModifyResourcePolicy',resource='component',spending='defense_only')
+    assert benchmark.score({'tool_calls':[request]},POLICY)['correct']
+    advanced=call('ModifyResourcePolicy',resource='advanced component',spending='defense_only')
+    assert benchmark.score({'tool_calls':[advanced]},POLICY)['semantic_errors']==1
+    result=benchmark.score({'tool_calls':[request,advanced]},POLICY)
+    assert not result['correct'] and result['unnecessary_calls']==1
+
+
 def test_small_perfect_sample_has_uncertainty_and_failed_requests_count():
     report=benchmark.reliability([{'correct':True}]*3)
     assert report['accuracy']==1 and 0<report['wilson95'][0]<.5

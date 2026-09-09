@@ -9,7 +9,7 @@ from .knowledge import search_knowledge, read_knowledge
 from .consultation import structured_tool as tool
 from .native_inspections import NativeInspections, DESCRIBABLE
 from .native_contracts import validate_arguments
-from .player_commands import semantic_tools,COMMAND_NAMES,apply_command,command_confirmation,ResearchRefused
+from .player_commands import semantic_tools,COMMAND_NAMES,apply_command,command_confirmation,ResearchRefused,resource_options
 from .review_evidence import ReviewEvidence
 from .strategic_state import context
 from .tool_diagnostics import record
@@ -52,7 +52,8 @@ class Planner:
         native_facts = native_facts if native_facts.get('success') is True else {}
         resources = set(native_facts.get('policyResources',{})) | set(native_facts.get('resources',{})) | {
             key for definition in native_facts.get('definitions',{}).values() for key in definition.get('costs',{})}
-        tools = semantic_tools(resources)+[tool('describe', 'Discover a native read or preview contract. This never permits immediate game writes.',
+        resource_labels={key:native_facts.get('policyResources',{}).get(key,key) for key in resources}
+        tools = semantic_tools(resource_labels)+[tool('describe', 'Discover a native read or preview contract. This never permits immediate game writes.',
                 {'type':'object','properties':{'name':{'type':'string','enum':sorted(DESCRIBABLE)}},
                  'required':['name'],'additionalProperties':False}),
             tool('inspect_plan', 'Read exact plan steps and their native progress. Empty ids returns the index.',
@@ -78,7 +79,8 @@ class Planner:
             'and SetResourceReserve only for an explicitly requested numeric reserve. These policy commands preserve the other setting. '
             'If both settings are explicitly requested, return both policy calls in the same response. '
             'and CancelGoal to prevent automatic recreation. '
-            'Use the native resource_labels glossary to match resource names to IDs; never substitute an unrelated resource. '
+            'For resource policies use the exact displayed resource name in the tool enum; the runtime resolves native IDs. '
+            'Never include qualified variants of a resource unless the player requested those variants. '
             'Do not invent optional numeric targets or reserves, or copy a number from an unrelated earlier request. '
             'Use the same intent_id for conversational refinements of a room/zone. '
             'Inspect player_intents and prior messages to resolve "same size" and "north side instead". '
@@ -118,6 +120,7 @@ class Planner:
                 rt.reply(answer.get('content') or 'No command was requested.')
                 return
             accepted=[]
+            rejected=[]
             for index, call in enumerate(calls):
                 started = time.monotonic()
                 name = call.get('function', {}).get('name')
@@ -129,6 +132,12 @@ class Planner:
                     if index >= 4: raise ValueError('At most four tool requests per chat response; remaining requests were not executed')
                     if rt.chat_revision != revision: return
                     args = json.loads(args)
+                    if name in ('ModifyResourcePolicy','SetResourceReserve') and isinstance(args,dict) and args.get('resource') in resource_labels:
+                        # Previously stored examples and replies can contain native
+                        # IDs. Normalize exact observed aliases before label-schema
+                        # validation; this never substitutes a different resource.
+                        args['resource']=next(label for label,identity in resource_options(resource_labels).items()
+                                              if identity==args['resource'])
                     schema = next((t['function']['parameters'] for t in tools if t['function']['name']==name), None)
                     if schema is None: raise ValueError('Unknown tool; use describe for read-only inspections')
                     validate_arguments(name, schema, args)
@@ -182,6 +191,7 @@ class Planner:
                     if isinstance(error, ConstructionRefusal): result['construction'] = error.evidence
                     if isinstance(error, GeometryConflict): result['conflict'] = error.evidence
                 record(rt, call, args, result, started, outcome)
+                if outcome=='rejected': rejected.append(name+' was not accepted: '+str(result.get('reason',''))[:300])
                 messages.append({'role':'tool','tool_call_id':call['id'],'content':json.dumps(result,ensure_ascii=False)})
                 if terminal_refusal:
                     rt.reply(' '.join(accepted+[terminal_refusal]))
@@ -189,14 +199,14 @@ class Planner:
                 if outcome=='returned' and name in COMMAND_NAMES:
                     accepted.append(command_confirmation(name,result))
                 if outcome=='returned' and name in ('CreateGoal','ModifyResourcePolicy','SetResourceReserve','CancelGoal'):
-                    if (name in ('ModifyResourcePolicy','SetResourceReserve') and index+1<len(calls)
-                            and calls[index+1].get('function',{}).get('name') in ('ModifyResourcePolicy','SetResourceReserve')):
+                    if (index+1<len(calls) and calls[index+1].get('function',{}).get('name')
+                            in ('CreateGoal','ModifyResourcePolicy','SetResourceReserve','CancelGoal')):
                         continue
-                    # A maintained target is the whole command. Stop here so an
-                    # interpreter cannot take over its downstream autonomous work.
-                    rt.reply(' '.join(accepted))
+                    # Consume explicit maintained goals/policies from this response,
+                    # but leave downstream construction to deterministic methods.
+                    rt.reply(' '.join(accepted+rejected))
                     return
             if accepted:
-                rt.reply(' '.join(accepted))
+                rt.reply(' '.join(accepted+rejected))
                 return
         rt.reply('The chat request reached its bounded interpretation limit. Accepted requests remain tracked; autopilot can continue.')

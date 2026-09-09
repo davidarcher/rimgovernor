@@ -101,6 +101,21 @@ COMMAND_TYPES = (SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,
 COMMAND_NAMES = {kind.__name__ for kind in COMMAND_TYPES}
 
 
+def resource_options(resources):
+    """Prefer exact native display labels; ambiguous labels retain definition IDs."""
+    labels=[str(label).strip().casefold() for label in resources.values()]
+    return {label if label and labels.count(str(label).strip().casefold())==1 else identity:identity
+            for identity,label in resources.items()}
+
+
+def resolve_resource(value, resources):
+    if value in resources: return value
+    matches=[identity for label,identity in resource_options(resources).items()
+             if label.strip().casefold()==value.strip().casefold()]
+    if len(matches)!=1: raise ValueError('Use an exact observed resource name; the resource is unknown or ambiguous: '+value)
+    return matches[0]
+
+
 def semantic_tools(resources=None):
     from .consultation import structured_tool
     descriptions = {
@@ -123,7 +138,11 @@ def semantic_tools(resources=None):
         schema['properties'].pop('kind')
         schema['required']=[key for key in schema.get('required',[]) if key!='kind']
         if kind in (ModifyResourcePolicy,SetResourceReserve) and resources:
-            schema['properties']['resource']['enum']=sorted(resources)
+            schema['properties']['resource']['enum']=sorted(resource_options(resources) if isinstance(resources,dict) else resources)
+            schema['properties']['resource']['description']=(
+                'Choose exactly the native resource named by the player. A base resource name does not '
+                'include other resources with extra qualifiers in their labels. Change multiple resources '
+                'only when each is requested. Use the exact displayed name from the enum.')
         result.append(structured_tool(kind.__name__,descriptions[kind.__name__],schema))
     return result
 
@@ -197,6 +216,8 @@ async def apply_command(rt, payload, *, token, revision):
         observed = await rt.game.query('home/colony_facts', planning=True)
         known = set(observed.get('resources', {})) | set(observed.get('policyResources', {})) | {resource for definition in observed.get('definitions', {}).values()
                                                     for resource in definition.get('costs', {})}
+        request.resource=resolve_resource(request.resource,
+            {identity:observed.get('policyResources',{}).get(identity,identity) for identity in known})
         if request.resource not in known:
             raise ValueError('Use an observed resource definition; this policy key is unknown: '+request.resource)
         await rt.ensure_context(token)

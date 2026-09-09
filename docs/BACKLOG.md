@@ -29,8 +29,10 @@ in the checkpoint commit; do not append an implementation diary here.
   relocation/cancellation of issued construction through native cancellation
   skills; preserve existing orders until validated. Verify freezer expansion,
   policies and conversational refinements with a real local model.
-- [ ] **B04d · Long-running goal lifecycle.** Audit durable receipt/history growth after active-plan retirement of completed
-  routine native actions. Add bounded
+- [ ] **B04d · Long-running goal lifecycle.** Archive retired routine action specifications and receipts durably outside the
+  live plan snapshot while preserving identity rejection, goal progress and paired restart.
+  Active steps are bounded, but the retention audit confirms linear snapshot growth.
+  Add bounded
   recovery for other known transient failures beyond confirmed interrupted tending, preserve new-colonist work coverage and
   expand sleeping/farming templates beyond the eight-colonist starter. Reconcile
   player interruptions and partial work across save rewind. Broaden paired native
@@ -54,8 +56,10 @@ in the checkpoint commit; do not append an implementation diary here.
   resources and erroneous reserve-tool selection, separately from native refusals and
   zero-inference controller acceptance. A passing scripted model run is not a
   reliability rate.
-  Combined and multi-resource requests have a repeated fixed-fact benchmark;
-  extend their acceptance to native effects and persistence.
+  Combined goal/policy and multi-resource requests have native paused-session
+  acceptance, including paired restart and subsequent goal cancellation/resumption.
+  Repeated fixed-fact measurement includes native resource-label distractors;
+  broaden wording, contexts and models beyond this bounded acceptance.
 
 ## P1 — Functional colony planning and recovery
 

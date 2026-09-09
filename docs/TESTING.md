@@ -312,6 +312,21 @@ All interactive orders start in Manual; the two cancellation checks
 temporarily enable routine autonomous operation in this disposable colony only.
 The probe stops its owned game/server afterward and retains results and failures.
 
+Extended checks also combine a food target with steel reserves and component
+spending, then change both resource policies while preserving reserves. They reject
+unrequested advanced-component policies and extra native actions. Add `--restart`
+without `--port` to save and stop the owned game, resume the paired controller/native
+checkpoint, compare the complete plan and conversation, and exercise goal cancellation
+and resumption afterward. A passed paused-session check does not prove pawn production.
+The semantic benchmark includes native labels for related resources as distractors;
+score exact resolved definitions rather than accepting extra resource changes.
+
+For receipt retention, run `scripts/plan_retention_audit.py --evidence <native-result.json>
+--output <fresh-directory> --steps 1000`. The source must contain completed plan
+receipts. This synthetic workload uses their shape without executing native orders,
+checks SQLite round trips, and records active/retired counts, snapshot/database size
+and serialization time. It measures retention overhead, not native recovery.
+
 
 ### Ordinary Crashlanded acceptance
 

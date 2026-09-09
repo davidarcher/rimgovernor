@@ -9,7 +9,7 @@ from pathlib import Path
 from rimbot.config import Settings, ModelRole, load_model_routing
 from rimbot.model import LocalModel
 from rimbot.model_router import ModelRouter
-from rimbot.player_commands import COMMAND,COMMAND_NAMES,semantic_tools,resolve_goal_id
+from rimbot.player_commands import COMMAND,COMMAND_NAMES,semantic_tools,resolve_goal_id,resolve_resource
 from rimbot.store import Store
 
 CASES = [
@@ -41,12 +41,20 @@ CASES = [
      [{'kind':'CreateGoal','goal':'EnsureFoodSupply','food_days':12},
       {'kind':'SetResourceReserve','resource':'Steel','reserve':80},
       {'kind':'ModifyResourcePolicy','resource':'ComponentIndustrial','spending':'stop'}]),
+    ('advanced_components', 'Stop spending advanced components. Leave ordinary components alone.',
+     {'kind':'ModifyResourcePolicy','resource':'ComponentSpacer','spending':'stop'}),
+    ('medicine', 'Keep 10 medicine in reserve. Leave herbal and glitterworld medicine unchanged.',
+     {'kind':'SetResourceReserve','resource':'MedicineIndustrial','reserve':10}),
     ('explain', "Why aren't you building the workshop?", None),
 ]
 FACTS = {
     'research_projects':[{'label':'Geothermal power','defName':'GeothermalPower'},
                          {'label':'Advanced lights','defName':'ColoredLights'}],
-    'resources':{'ComponentIndustrial':10,'Steel':120},
+    'resources':{'ComponentIndustrial':10,'Steel':120,'ComponentSpacer':2,'Plasteel':30,
+                 'MedicineHerbal':20,'MedicineIndustrial':10,'MedicineUltratech':2},
+    'policyResources':{'ComponentIndustrial':'component','ComponentSpacer':'advanced component',
+                       'Steel':'steel','Plasteel':'plasteel','MedicineHerbal':'herbal medicine',
+                       'MedicineIndustrial':'medicine','MedicineUltratech':'glitterworld medicine'},
     'resource_policy':{'ComponentIndustrial':{'reserve':3,'spending':'defense_only'},
                        'Steel':{'reserve':40,'spending':'stop'}},
     'goals':{'intent-food-expansion':{'label':'food expansion','status':'active'},
@@ -57,6 +65,8 @@ FACTS = {
 
 def normalize(request):
     request=dict(request)
+    if request['kind'] in ('ModifyResourcePolicy','SetResourceReserve'):
+        request['resource']=resolve_resource(request['resource'],FACTS['policyResources'])
     if request['kind']=='CancelGoal': request['goal']=resolve_goal_id(request['goal'],FACTS['goals'])
     if request['kind']=='SetResearch':
         matches=[p['defName'] for p in FACTS['research_projects']
@@ -107,7 +117,7 @@ async def run(output, *, model=None, repeats=1):
     router=ModelRouter(load_model_routing(settings),store,LocalModel)
     rows=[]
     async def progress(_): pass
-    tools=semantic_tools(resources=FACTS['resources'])
+    tools=semantic_tools(resources=FACTS['policyResources'])
     manifest={'settings':settings.model_dump(),'repeats':repeats,
               'case_sha256':hashlib.sha256(json.dumps([CASES,FACTS,tools],sort_keys=True).encode()).hexdigest(),
               'scope':'Fixed-fact semantic interpretation only; no native gameplay acceptance or general reliability guarantee.'}
