@@ -44,7 +44,8 @@ Paths in the table without a directory prefix are under `controller/rimbot/`.
 1. Pause and read native state. Sequential observations are not an atomic
    snapshot. `home/colony_facts` reports accessible shared-diet nutrition and fed
    consumption, viable crop cells, indoor sleeping, temperatures, cooking, safe
-   nearby plant access, starter terrain and actual definition costs. Unknown
+   nearby wild-plant access, starter terrain and actual definition costs. Native
+   growers retain ownership of cultivated crop harvest timing. Unknown
    observations never certify recovery.
 2. Only a new human chat revision invokes `planner.py`. Mode changes and routine
    native events do not invoke inference. Model failure is reported to the player
@@ -85,6 +86,11 @@ Goals record selected methods, attempts, step IDs and observable progress.
 Invalid templates have a bounded alternative-site search; unknown or failed
 native actions become explicit blockers. A no-progress watchdog prevents silent
 indefinite waiting. The current starter template supports up to eight colonists.
+The initial faction/settlement naming prompt is a maintained bootstrap goal.
+Its semantic native action validates the exact observed generated suggestions,
+uses the native naming callbacks and verifies the names and dialog closure.
+Other forced dialogs retain the normal hold behavior.
+
 A bounded combat method prepares two capable colonists for one small manhunting
 animal, then uses native attacks, threat readback, treatment and owned-draft
 cleanup. Its clock acknowledges only that inspected target after orders dispatch;

@@ -39,7 +39,7 @@ class Planner:
         resources = set(native_facts.get('policyResources',{})) | set(native_facts.get('resources',{})) | {
             key for definition in native_facts.get('definitions',{}).values() for key in definition.get('costs',{})}
         tools = semantic_tools(resources)+[tool('describe', 'Discover a native read or preview contract. This never permits immediate game writes.',
-                {'type':'object','properties':{'name':{'type':'string','enum':sorted(READS | WRITES)}},
+                {'type':'object','properties':{'name':{'type':'string','enum':sorted(READS | {'home/place_building','home/install','home/zone_cells'})}},
                  'required':['name'],'additionalProperties':False}),
             tool('inspect_plan', 'Read exact plan steps and their native progress. Empty ids returns the index.',
                 {'type':'object','properties':{'ids':{'type':'array','items':{'type':'string'},'maxItems':12}},

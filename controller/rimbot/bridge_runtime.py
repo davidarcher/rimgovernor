@@ -856,9 +856,10 @@ class BridgeRuntime:
                     await self.supervisor.change('Normal' if engaged else self.controller.policy.execution_speed,
                         mode='combat' if engaged else 'colony',
                         ignored_hostiles=combat['target'] if engaged else '')
-                    self.execution_window_end = status['time']['ticksGame'] + 600
+                    ticks=600 if waiting or engaged else 3000
+                    self.execution_window_end = status['time']['ticksGame'] + ticks
                     self.execution_wait_explicit = False
-                    self.note('execution_window', 'Confirmed work: target 600 game ticks before review; polling may overshoot')
+                    self.note('execution_window', f'Native work: target {ticks} game ticks before review; polling may overshoot')
             if self.execution_window_end is not None:
                 status = await self.game.query('home/status', colonists=False, threats=False)
                 if (not waiting and not ongoing and not self.execution_wait_explicit

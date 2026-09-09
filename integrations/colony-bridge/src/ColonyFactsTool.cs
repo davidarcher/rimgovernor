@@ -76,7 +76,8 @@ namespace HomeBridge.BridgeTools
                 .Select(b => new { id = b.ThingID,
                     bills = b.BillStack.Bills.Select(bill => new { recipe = bill.recipe.defName, suspended = bill.suspended }).ToList() }).ToList();
             var acquisition = things.OfType<Plant>().Where(p => p.HarvestableNow && p.Position.DistanceTo(center) <= 35
-                && reachable(p) && (p.def.plant.IsTree || humanFood(p.def.plant.harvestedThingDef)))
+                && reachable(p) && (p.def.plant.IsTree || (humanFood(p.def.plant.harvestedThingDef)
+                    && !(map.zoneManager.ZoneAt(p.Position) is Zone_Growing))))
                 .GroupBy(p => p.def.plant.IsTree)
                 .SelectMany(g => g.OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber).Take(40))
                 .Select(p => new { id = p.GetUniqueLoadID(), x = p.Position.x, z = p.Position.z,
@@ -99,7 +100,7 @@ namespace HomeBridge.BridgeTools
                 .Where(d => d != null).Distinct().OrderBy(d => d.defName)
                 .ToDictionary(d => d.defName, d => d.label);
             var result = new Dictionary<string, object> {
-                ["success"] = true, ["tick"] = Find.TickManager.TicksGame,
+                ["success"] = true, ["tick"] = Find.TickManager.TicksGame, ["colonyNaming"] = ColonyNamingTools.Snapshot(),
                 ["colonists"] = people.Count, ["workers"] = workers.Count, ["center"] = new { x = center.x, z = center.z },
                 ["mapSize"] = new { width = map.Size.x, height = map.Size.z }, ["biome"] = map.Biome.defName,
                 ["foodNutrition"] = nutrition, ["nutritionPerDay"] = demand,

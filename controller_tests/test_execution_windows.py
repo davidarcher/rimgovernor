@@ -187,3 +187,14 @@ async def test_combat_clock_acknowledges_only_a_dispatched_active_defense(tmp_pa
         rt.supervisor.change.assert_awaited_once_with('Normal',mode=profile,
             ignored_hostiles='Thing_Hare1' if profile=='combat' else '')
     finally: store.close()
+
+
+@pytest.mark.asyncio
+async def test_native_production_wait_has_bounded_window_and_retains_normal_guard(tmp_path):
+    rt,store=runtime(tmp_path,state='complete')
+    try:
+        rt.current_plan.control['simulation_needed']=True
+        await rt.advance_execution()
+        assert rt.execution_window_end==3100
+        rt.supervisor.change.assert_awaited_once_with('Normal',mode='colony',ignored_hostiles='')
+    finally: store.close()

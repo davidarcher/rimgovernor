@@ -220,3 +220,13 @@ pollution conditions as native `PollutionUtility.CanPlantAt`, without allocating
 a zone ID. Creation uses `SetPlantDefToGrow` and returns the observed definition.
 Status and supervised play share prey ownership for predator threat detection;
 known wildlife hunts are ignored, while unreadable prey retains a danger hold.
+
+
+`ColonyNamingTool.cs` follows the initial `Dialog_GiveName` OK branch for the
+specific `Dialog_NamePlayerFactionAndSettlement` dialog. It checks the exact
+observed window and suggestions, invokes that dialog's native `IsValidName`,
+`IsValidSecondName`, `Named` and `NamedSecond` callbacks, posts the ordinary
+completion message and removes the dialog. It verifies faction/settlement names
+and closure; it does not use the ineffective accept-key shortcut or generic
+window-field writes. The supervisor distinguishes this known bootstrap request
+from unrelated forced dialogs.

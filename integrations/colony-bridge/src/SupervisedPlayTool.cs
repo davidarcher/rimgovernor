@@ -355,7 +355,13 @@ namespace HomeBridge.BridgeTools
         private static void HandleForcePause(State s)
         {
             var windows = ForcePausingWindows();
-            if (windows.Count > 0) { Stop(s, "force_paused", ForcePauseDetail(), true, null); return; }
+            if (windows.Count > 0)
+            {
+                var naming = ColonyNamingTools.Pending() != null;
+                Stop(s, naming ? "colony_naming" : "force_paused",
+                    naming ? "RimWorld requests initial faction and settlement names." : ForcePauseDetail(), true, null);
+                return;
+            }
             var now = NowMs();
             if (s.ForcePauseSinceMs == 0)
             {

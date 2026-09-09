@@ -289,3 +289,21 @@ def test_cleanup_preempts_routine_work_after_threat_clears():
     assert ('RestoreWorkers',1) in priority_nodes(f,{},ColonyPolicy())
     f['hostiles']=1
     assert ('RestoreWorkers',1) not in priority_nodes(f,{},ColonyPolicy())
+
+
+@pytest.mark.asyncio
+async def test_initial_naming_uses_exact_native_suggestions_in_shared_plan():
+    rt=Replay()
+    rt.facts['colonyNaming']={'windowId':42,'factionName':'Native faction','settlementName':'Native town'}
+    await rt.controller.cycle()
+    step=rt.current_plan.spec.steps[0]
+    assert step.goal_id=='ConfirmColonyNames' and step.source=='AUTOPILOT'
+    assert step.action.tool=='home/confirm_colony_names'
+    assert step.action.arguments==dict(rt.facts['colonyNaming'],dryRun=False)
+    assert rt.current_plan.colony_goals['ConfirmColonyNames'].status=='active'
+    rt.current_plan.progress[step.id].state='complete'
+    await rt.controller.cycle()
+    assert rt.current_plan.colony_goals['ConfirmColonyNames'].status=='active'
+    rt.facts['colonyNaming']=None
+    await rt.controller.cycle()
+    assert rt.current_plan.colony_goals['ConfirmColonyNames'].status=='complete'

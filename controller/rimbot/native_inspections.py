@@ -16,7 +16,7 @@ class NativeInspections:
         can_preview = name.startswith('home/') and isinstance(preview,dict) and preview.get('type')=='boolean'
         if name not in READS and not can_preview and name not in ('home/research','home/order','home/trade'):
             return {'native_tool':name, 'input_schema':schema,
-                    'execution_only':True, 'instruction':'Use a committed native_operation; this tool has no reviewed inspection mode.'}
+                    'execution_only':True, 'instruction':'Use the appropriate semantic command; this tool has no reviewed inspection mode.'}
         alias='native_'+name.replace('/','__')
         if alias not in self.names:
             if name=='rimworld/list_architect_designators':
@@ -28,7 +28,7 @@ class NativeInspections:
                 preview['description']='Inspection only: must be true. Execution belongs in the committed plan.'
             tools.append(structured_tool(alias,
                 f'Inspect {name} using its native arguments directly. Read-only or dry-run only; never executes orders. '
-                'For execution, commit a native_operation with the original native tool name.',parameters))
+                'Request game changes with the appropriate semantic command tool.',parameters))
             self.names[alias]=name
         return {'native_tool':name,'callable_tool':alias,
                 'instruction':'Call this tool directly with its advertised native parameters; do not wrap them in name/arguments. '

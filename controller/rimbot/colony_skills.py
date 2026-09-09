@@ -61,6 +61,11 @@ class ColonySkills:
         goal = rt.current_plan.colony_goals[goal_id]
         methods = goal.evidence.setdefault('methods', {})
         def unused(name): return name not in methods
+        if goal_id == 'ConfirmColonyNames':
+            naming=facts['colonyNaming']
+            method='names-'+str(naming['windowId'])
+            if unused(method): return method, [native('home/confirm_colony_names',**naming)]
+            return None
         if goal_id == 'RestoreWorkers':
             if facts.get('cleanupPawns') and unused('release'):
                 return 'release', [{'kind':'stand_down','pawn_ids':facts['cleanupPawns']}]

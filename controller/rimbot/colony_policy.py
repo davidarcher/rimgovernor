@@ -80,7 +80,7 @@ def criteria(facts, policy):
                                                          and facts['powerHeadroom'] >= 0),
         'medical': facts.get('medicalKnown') is True and facts.get('criticalPatients') == [],
         'defense': facts.get('hostiles') == 0 and facts.get('armed', 0) >= min(2, count),
-        'work': facts.get('workCoverage') is True and not facts.get('cleanupPawns'),
+        'work': facts.get('workCoverage') is True and not facts.get('cleanupPawns') and not facts.get('colonyNaming'),
     }
 
 
@@ -93,6 +93,7 @@ def priority_nodes(facts, latches, policy):
                 policy.temperature_enter_high, policy.temperature_exit_high, high=True)
     wood = latch(latches, 'wood', facts.get('resources', {}).get('WoodLog', 0), policy.wood_min, policy.wood_target)
     nodes = []
+    if facts.get('colonyNaming'): nodes.append(('ConfirmColonyNames',0))
     if facts.get('hostiles', 0): nodes.append(('ActiveCombat', 0))
     if not gates['medical']: nodes.append(('CriticalMedical', 1))
     if not facts.get('hostiles') and facts.get('cleanupPawns'): nodes.append(('RestoreWorkers', 1))
