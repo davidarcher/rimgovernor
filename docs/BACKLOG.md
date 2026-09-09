@@ -41,7 +41,9 @@ in the checkpoint commit; do not append an implementation diary here.
   restart coverage. Broaden sustained native coverage to remaining goal evidence
   such as hunting targets and recovery histories, and measure ledger disk growth.
   Add bounded
-  recovery for other known transient failures beyond confirmed interrupted tending, verify new-colonist work batches natively and
+  recovery for other known transient failures beyond confirmed interrupted tending,
+  repeat larger-start work acceptance on the fully validated scenario-editor
+  baseline, verify work reassignment when colonists join an existing colony and
   verify larger starter sleeping capacity natively and expand farming and shelter
   capacity beyond the fixed shell. Native-footprint fitting above eight has
   controller coverage, including reserved service rows and capacity refusal. Reconcile

@@ -383,6 +383,29 @@ Its report records the initial tick and save provenance. The inherited baseline
 filename still says `tribal8`; the saved scenario and observed colonist count are
 the authority. Generate another isolated root for another random map seed.
 
+For a configurable starting population, build the companion with
+`-p:ScenarioStartFixture=true` and temporarily install it while every game is
+closed. Run `scripts/prepare_scenario.py --source-root <prepared-bridge-root>
+--output <fresh-bridge-root> --scenario Crashlanded --count 10 --seed <world-seed>`.
+The test-only `test/list_start_scenarios` discovers other native ScenarioDef names.
+The fixture copies the chosen scenario, applies the native editor's 1..10 pawn
+count and runs ordinary world/pawn generation. It leaves supplies and pawn stats
+to that scenario. World seed alone does not promise identical pawn rolls or
+starting tiles across preparations. The report records the installed fixture
+hash, roster, unchanged global definitions and an unchanged native save hash.
+It also verifies that setup refuses an existing colony. Failed trials are retained.
+After preparation stops, rebuild without the fixture flag and install the
+production companion before running gameplay acceptance on that saved baseline.
+Restore the original installed DLL after testing. The fixture is excluded from
+normal builds and the controller's gameplay capability surface.
+
+Run `scripts/work_batch_audit.py --report <foothold-result.json> --output <audit.json>`
+to verify a larger colony's work-setting batches. It requires more than eight
+starting colonists and changed pawns, a full eight-action batch followed by another
+batch, native per-setting readbacks, an observed work-coverage gate and no inference.
+It does not certify pawn labor, a mid-campaign joining event or a sustained foothold;
+the audit retains the source report hash and the campaign's separate outcome.
+
 The runner rejects fresh baselines past tick 600 and injects a model client that
 fails on any attempted inference. By default it requires two consecutive game
 days with all eleven gates verified and reports `SUSTAINED_FOOTHOLD`. Use

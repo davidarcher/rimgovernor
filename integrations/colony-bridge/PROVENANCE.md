@@ -14,6 +14,13 @@ RimWorld and RimBridgeServer SDK assemblies are referenced, never bundled.
 Any subsequent source modifications must be recorded here and tested in-game.
 
 Local changes:
+- `scripts/fixtures/ScenarioStartFixture.cs` is an optional test-build setup hook.
+  Native `ScenPart_ConfigPage_ConfigureStartingPawns.DoEditInterface` supplies the
+  1..10 count bounds; the hook changes a `Scenario.CopyForEditing` copy and follows
+  `Root_Play.SetupForQuickTestPlay` lifecycle calls with the selected world seed.
+  RimWorld generates all pawns, supplies and terrain. The default scenario defs
+  remain unchanged. No game assembly or decompiled source file is distributed.
+  The fixture is absent from normal builds and rejects existing colonies.
 - `FoodSupplyFacts.cs` reads native fed consumption, individual held food,
   `FoodUtility.NutritionForEater` and `CompRottable.TicksUntilRotAtCurrentTemp`.
   `ColonyFactsTool.cs` includes these observations and native wild-plant nutrition
