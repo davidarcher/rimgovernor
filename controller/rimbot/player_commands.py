@@ -47,6 +47,11 @@ class CancelGoal(Contract):
     goal: str = Field(min_length=1)
 
 
+class CancelConstruction(Contract):
+    kind: Literal['CancelConstruction']
+    intent_id: str = Field(min_length=1, description='Exact tracked player construction intent or step ID. Removes its current pending blueprints/frames and stops future placement; preserves completed buildings.')
+
+
 class BuildRoom(Contract):
     kind: Literal['BuildRoom']
     intent_id: str = Field(pattern=r'^[a-zA-Z0-9_-]{1,40}$')
@@ -93,10 +98,10 @@ class MovePawn(Contract):
     z: int = Field(ge=0)
 
 
-Command = Annotated[SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | BuildRoom |
+Command = Annotated[SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | BuildRoom |
                     PlaceBuildings | CreateZone | SetWorkPriority | CreateBill | DraftPawn | MovePawn, Field(discriminator='kind')]
 COMMAND = TypeAdapter(Command)
-COMMAND_TYPES = (SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,BuildRoom,PlaceBuildings,
+COMMAND_TYPES = (SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,BuildRoom,PlaceBuildings,
                  CreateZone,SetWorkPriority,CreateBill,DraftPawn,MovePawn)
 COMMAND_NAMES = {kind.__name__ for kind in COMMAND_TYPES}
 
@@ -124,6 +129,7 @@ def semantic_tools(resources=None):
         'ModifyResourcePolicy':'Change a resource spending restriction while preserving its existing reserve.',
         'SetResourceReserve':'Change only an explicitly requested numeric resource reserve, preserving the spending restriction. Do not use for spending-only instructions.',
         'CancelGoal':'Cancel a named goal and suppress its autonomous recreation.',
+        'CancelConstruction':'Explicitly remove pending blueprints/frames for a tracked player construction intent. Preserve completed buildings. Use CancelGoal when only future controller work should stop.',
         'BuildRoom':'Request a room shell with walls and an entrance using inspected geometry.',
         'PlaceBuildings':'Place a semantic batch of furniture or buildings using observed definitions and positions.',
         'CreateZone':'Create a growing zone or stockpile specifically requested by the player.',
@@ -190,6 +196,8 @@ def command_confirmation(name, result):
         return f"{label}: {rule} for new controller orders. Reserve: {policy['reserve']}. Existing production bills remain active."
     if name=='CancelGoal':
         return 'Cancelled '+result['cancelled'].removeprefix('intent-').replace('-',' ')+'. Existing game orders remain in place.'
+    if name=='CancelConstruction':
+        return 'Construction cancellation accepted. Exact pending targets are tracked in the colony plan; completed buildings are preserved.'
     titles={'SetResearch':'Research change','SetWorkPriority':'Work assignment change','DraftPawn':'Draft change',
             'MovePawn':'Movement order','BuildRoom':'Room shell','PlaceBuildings':'Building batch',
             'CreateZone':'Zone','CreateBill':'Production bill'}
@@ -225,6 +233,32 @@ async def apply_command(rt, payload, *, token, revision):
         policy = plan.control.setdefault('resource_policy', {}).setdefault(request.resource, {'reserve':0,'spending':'normal'})
         policy.update(request.model_dump(exclude={'kind','resource'}))
         result = {'resource': request.resource, 'policy': plan.control['resource_policy'][request.resource]}
+    elif isinstance(request, CancelConstruction):
+        from .construction_cancellation import capture_targets
+        from .colony_plan import CancelConstructionAction
+        intent = plan.control.get('player_intents', {}).get(request.intent_id, {})
+        source_id = intent.get('step', request.intent_id)
+        source = next((s for s in plan.spec.steps if s.id == source_id), None)
+        if source is None:
+            raise ValueError('Unknown construction intent; inspect the plan for an exact intent or step ID')
+        targets = await capture_targets(rt.game, plan, source.id)
+        await rt.ensure_context(token)
+        if rt.chat_revision != revision:
+            raise ValueError('Player direction changed; existing construction preserved')
+        action = CancelConstructionAction(source_step=source.id, targets=targets,
+            **{k:rt.identity[k] for k in ('colonyId','loadToken','mapId')})
+        identity = 'cancel-construction-'+fingerprint(action.model_dump())[:24]
+        existing = next((s for s in plan.spec.steps if s.id == identity), None)
+        if existing:
+            return {'step':identity, 'state':plan.progress[identity].state, 'targets':len(targets)}
+        step = PlanStep(id=identity, title='Cancel construction: '+request.intent_id[:100],
+            action=action, source='PLAYER', priority=100, completion_criteria='Exact captured pending construction targets removed or observed absent')
+        decision = CommitSteps(expected_revision=plan.revision, reason='Explicit player construction cancellation', steps=[step]).decision(plan)
+        await rt.commit_strategy(decision, actor=ModelRole.STRATEGIST, expected_token=token, expected_revision=revision)
+        if rt.mode == 'manual':
+            rt.manual_requests.append((identity,token,revision))
+        result = {'step':identity, 'state':plan.progress[identity].state, 'targets':len(targets),
+            'execution':'Queued for Hands; completed buildings preserved'}
     elif isinstance(request, CancelGoal):
         request.goal = resolve_goal_id(request.goal,plan.colony_goals)
         goal = plan.colony_goals.get(request.goal)

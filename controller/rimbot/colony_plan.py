@@ -89,6 +89,27 @@ class Zone(Contract):
         return self
 
 
+class ConstructionTarget(Cell):
+    thing: str = Field(min_length=1)
+    expectedDef: str = Field(min_length=1)
+    expectedStuff: str = ''
+
+
+class CancelConstructionAction(Contract):
+    kind: Literal['cancel_construction'] = 'cancel_construction'
+    source_step: str = Field(min_length=1)
+    colonyId: str = Field(min_length=1)
+    loadToken: str = Field(min_length=1)
+    mapId: int
+    targets: list[ConstructionTarget] = Field(default_factory=list, max_length=256)
+
+    @model_validator(mode='after')
+    def unique_targets(self):
+        if len({t.thing for t in self.targets}) != len(self.targets):
+            raise ValueError('Construction cancellation targets must be unique')
+        return self
+
+
 class NativeOperation(Contract):
     kind: Literal['native_operation'] = 'native_operation'
     tool: Literal['home/confirm_colony_names', 'home/pawn_config', 'home/building_config', 'home/bills', 'home/order',
@@ -160,7 +181,7 @@ class StandDown(Contract):
         description='Exact observed pawn IDs to release from AI-owned drafting. Player-owned drafts are untouched.')
 
 
-Action = Annotated[Buildings | RoomShell | Zone | NativeOperation | ClockAction | StandDown | TradeAction, Field(discriminator='kind')]
+Action = Annotated[Buildings | RoomShell | Zone | NativeOperation | ClockAction | StandDown | TradeAction | CancelConstructionAction, Field(discriminator='kind')]
 
 
 class Dependency(Contract):

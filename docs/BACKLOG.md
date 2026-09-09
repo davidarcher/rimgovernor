@@ -27,9 +27,10 @@ in the checkpoint commit; do not append an implementation diary here.
 - [ ] **B04c · Shared intent completion.** Broaden adopted-room furnishing acceptance to
   edited rooms and hot/cold variants. Support safe explicit
   relocation/cancellation of issued construction through native cancellation
-  skills; preserve existing orders until validated. The exact-target companion has
-  blueprint refusal/removal acceptance; integrate it with semantic commands and
-  shared Hands, and verify partial-frame refunds and interrupted cancellation.
+  skills; preserve existing orders until validated. Exact-target blueprint cancellation
+  has semantic-command/shared Hands acceptance, including a lost successful receipt.
+  Verify partial-frame refunds and broaden interrupted cancellation across native
+  save/load and real player direction changes.
   Verify freezer expansion,
   policies and conversational refinements with a real local model.
 - [ ] **B04d · Long-running goal lifecycle.** Broaden retention measurement from archived completed actions to

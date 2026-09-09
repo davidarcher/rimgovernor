@@ -1,6 +1,6 @@
 """Deterministic intent compilation and native validation. No model dependency."""
 import time
-from .colony_plan import Buildings, RoomShell, Zone, NativeOperation, ClockAction, StandDown, Placement, Failure, TradeAction
+from .colony_plan import Buildings, RoomShell, Zone, NativeOperation, ClockAction, StandDown, Placement, Failure, TradeAction, CancelConstructionAction
 from .receipts import reason
 
 
@@ -69,20 +69,23 @@ class Hands:
                         self.guard(rt, revision, token, direction)
                         await self.place(rt, placement, progress, str(index), revision, token, direction, preview_only=True)
                     self.guard(rt, revision, token, direction)
-                operations = placements if placements is not None else [action]
+                operations = placements if placements is not None else action.targets if isinstance(action, CancelConstructionAction) else [action]
                 for index, operation in enumerate(operations):
                     self.guard(rt, revision, token, direction)
                     key = str(index)
                     recorded = progress.issued.get(key)
                     if recorded and recorded.get('confirmed'):
                         continue
-                    if recorded and not placements and not isinstance(action, (Zone, StandDown)):
+                    if recorded and not placements and not isinstance(action, (Zone, StandDown, CancelConstructionAction)):
                         raise Blocked('uncertain_write', 'Prior write has no confirmed receipt. Inspect its effects before replacing this step.')
                     if count >= max_operations:
                         return
                     progress.state = 'executing'
                     if placements is not None:
                         receipt = await self.place(rt, operation, progress, key, revision, token, direction)
+                    elif isinstance(action, CancelConstructionAction):
+                        from .construction_cancellation import execute_target
+                        receipt = await execute_target(self, rt, action, operation, progress, key, revision, token, direction)
                     elif isinstance(action, Zone):
                         receipt = await self.zone(rt, action, progress, key, revision, token, direction)
                     elif isinstance(action, StandDown):

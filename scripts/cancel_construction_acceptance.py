@@ -8,6 +8,8 @@ from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.bridge import BridgeError
 from rimbot.headless import isolated_root,prepare
 from rimbot.store import Store
+from rimbot.player_commands import apply_command
+from rimbot.colony_plan import ColonyGoal, CommitSteps
 
 
 async def run(args):
@@ -66,6 +68,63 @@ async def run(args):
         try:await cancel(dict(arguments,dryRun=False))
         except BridgeError:refused=True
         record('repeat_refuses_without_retargeting',refused and neighbor['thingId'] in {b['thingId'] for b in (await listed())['buildings']})
+        if args.shared:
+            facts=await rt.game.query('home/colony_facts',planning=True)
+            while facts.get('forbiddenSupplies'):
+                goal=rt.current_plan.colony_goals.setdefault('AllowStartingSupplies',ColonyGoal(priority_class=2,source='PLAYER'))
+                method,actions=await rt.controller.skills.compile('AllowStartingSupplies',facts,[])
+                steps,_=rt.controller.skills.steps('AllowStartingSupplies',method,actions,facts)
+                await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
+                    reason='Allow starting supplies for cancellation acceptance',steps=steps).decision(rt.current_plan),
+                    actor='strategist',expected_token=rt.context_token,expected_revision=rt.chat_revision)
+                for _ in steps:
+                    rt.manual_requests.extend((s.id,rt.context_token,rt.chat_revision) for s in steps
+                        if rt.current_plan.progress[s.id].state=='pending')
+                    await rt.execute_manual_requests()
+                assert all(rt.current_plan.progress[s.id].state=='complete' for s in steps)
+                goal.evidence.setdefault('methods',{})[method]=[s.id for s in steps]
+                facts=await rt.game.query('home/colony_facts',planning=True)
+            shell=rt.controller.skills.shell(await rt.controller.skills.layout(facts))
+            async def command(**payload):
+                return await apply_command(rt,payload,token=rt.context_token,revision=rt.chat_revision)
+            placed=await command(kind='BuildRoom',intent_id='cancel-room',room=shell,purpose='shelter')
+            await rt.execute_manual_requests()
+            issued=rt.current_plan.progress[placed['step']]
+            record('shared_room_orders_issued',issued.state=='waiting' and len(issued.issued)>=12,
+                progress=issued.model_dump())
+            requested=await command(kind='CancelConstruction',intent_id='cancel-room')
+            step=next(s for s in rt.current_plan.spec.steps if s.id==requested['step'])
+            captured={t.thing for t in step.action.targets}
+            record('shared_prevalidated_before_execution',len(captured)==len(issued.issued)
+                and captured<={b['thingId'] for b in (await listed())['buildings']}
+                and rt.current_plan.progress[placed['step']].state=='cancelled')
+            # Interrupt a real native removal after it succeeds but before Hands
+            # receives the receipt. The persisted uncertain slot must not replay.
+            native=rt.native
+            async def lost_receipt(name,arguments,**kwargs):
+                result=await native(name,arguments,**kwargs)
+                if name=='home/cancel_construction':raise ConnectionError('Acceptance: lost successful cancellation receipt')
+                return result
+            rt.native=lost_receipt
+            await rt.execute_manual_requests()
+            rt.native=native
+            remaining=captured & {b['thingId'] for b in (await listed())['buildings']}
+            record('lost_receipt_stops_batch',len(remaining)==len(captured)-1
+                and rt.current_plan.progress[requested['step']].state=='blocked')
+            retry=await command(kind='CancelConstruction',intent_id='cancel-room')
+            retry_step=next(s for s in rt.current_plan.spec.steps if s.id==retry['step'])
+            record('repeat_observes_remaining_exact_targets',{t.thing for t in retry_step.action.targets}==remaining)
+            await rt.execute_manual_requests()
+            present={b['thingId'] for b in (await listed())['buildings']}
+            record('shared_cancellation_complete',not captured & present and neighbor['thingId'] in present
+                and completed['thingId'] in present and rt.current_plan.progress[retry['step']].state=='complete')
+            repeated=await command(kind='CancelConstruction',intent_id='cancel-room')
+            await rt.execute_manual_requests()
+            record('completed_repeat_has_no_native_targets',repeated['targets']==0
+                and rt.current_plan.progress[repeated['step']].state=='complete')
+            record('shared_manual_paused_zero_inference',rt.mode=='manual' and rt.counters['model_calls']==0
+                and (await rt.game.query('home/status',colonists=False,threats=False))['time']['paused'])
+            report['scope']='Native blueprint and shared semantic/Hands cancellation, including a lost successful receipt; no frame-refund or local-model acceptance'
         report['outcome']='passed'
     except Exception as error:
         report['error']=str(error)
@@ -80,4 +139,5 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source-root',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
-    raise SystemExit(0 if asyncio.run(asyncio.wait_for(run(parser.parse_args()),180)) else 1)
+    parser.add_argument('--shared',action='store_true')
+    raise SystemExit(0 if asyncio.run(asyncio.wait_for(run(parser.parse_args()),240)) else 1)

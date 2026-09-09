@@ -276,6 +276,8 @@ class BridgeRuntime:
             if decision.plan:
                 validate_geometry(decision.plan)
                 await validate_native_steps(decision.plan, self.game)
+                from .construction_cancellation import validate_cancellations
+                await validate_cancellations(decision.plan, self.current_plan, self.game, self.identity)
                 await preflight_construction(decision.plan, self.current_plan, self.game)
                 allocations = await validate_allocations(decision.plan, self.current_plan, self.game)
                 # Contract discovery can yield while the game loads another colony.
@@ -291,7 +293,10 @@ class BridgeRuntime:
                 progress = self.current_plan.progress.get(step_id)
                 if not progress or progress.state != 'blocked' or not progress.failure or not progress.failure.retryable:
                     raise ValueError('Step is not safely retryable: '+step_id)
+            previous_ids = {step.id for step in self.current_plan.spec.steps}
             changed = self.current_plan.commit(decision, actor=actor, tick=self.batch.summary.end_tick)
+            from .construction_cancellation import retire_sources
+            retire_sources(self.current_plan, previous_ids)
             self.current_plan.control.setdefault('costs', {}).update(allocations)
             for step_id in decision.retry_steps:
                 progress = self.current_plan.progress[step_id]

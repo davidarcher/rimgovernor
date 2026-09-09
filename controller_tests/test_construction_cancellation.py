@@ -1,0 +1,117 @@
+from copy import deepcopy
+from unittest.mock import AsyncMock
+import pytest
+from rimbot.colony_plan import PlanSpec, StepProgress, ColonyGoal
+from rimbot.player_commands import apply_command
+from test_strategic_architecture import runtime, batch
+
+
+async def fixture(tmp_path):
+    rt = runtime(tmp_path); await rt.sync_identity(); rt.batch = batch(); rt.mode = 'manual'
+    plan = rt.current_plan
+    plan.spec = PlanSpec(steps=[dict(id='player-room',title='Room',goal_id='intent-room',
+        completion_criteria='Built',action=dict(kind='place_buildings',placements=[
+            dict(def_name='Wall',x=20,z=20,materials=['WoodLog']),
+            dict(def_name='Wall',x=21,z=20,materials=['WoodLog'])]))])
+    plan.progress['player-room'] = StepProgress(state='waiting',issued={
+        '0':{'confirmed':True,'stuff':'WoodLog'},'1':{'confirmed':True,'stuff':'WoodLog'}})
+    plan.colony_goals['intent-room'] = ColonyGoal(source='PLAYER',priority_class=2,
+        steps=['player-room'],target={'satisfies':'EnsureInitialShelter'})
+    plan.control['player_intents'] = {'room':{'step':'player-room'}}
+    rows = [dict(thingId='Blueprint_Wall1',buildDefName='Wall',stuff='WoodLog',isBlueprint=True,
+        position={'x':20,'z':20}),dict(thingId='Wall2',defName='Wall',stuff='WoodLog',
+        position={'x':21,'z':20},isBlueprint=False,isFrame=False)]
+    async def query(name, **args):
+        if name == 'home/list_buildings': return {'buildings':deepcopy(rows)}
+        return {'colonyId':'test','mapId':1,'loadToken':'load'}
+    rt.game.query = AsyncMock(side_effect=query)
+    rt.game.invoke = AsyncMock(return_value={'success':True,'applied':False})
+    rt.inspect_native = AsyncMock(return_value={'success':True,'applied':False})
+    async def write(name, args, **kwargs):
+        assert name == 'home/cancel_construction' and args['thing'] == 'Blueprint_Wall1'
+        rows[:] = [b for b in rows if b['thingId'] != args['thing']]
+        return {'receipt':{'success':True,'removed':True,'target':{'thingId':args['thing']}}}
+    rt.native = AsyncMock(side_effect=write)
+    return rt, rows
+
+
+async def cancel(rt):
+    return await apply_command(rt, {'kind':'CancelConstruction','intent_id':'room'},
+        token=rt.context_token,revision=rt.chat_revision)
+
+
+@pytest.mark.asyncio
+async def test_semantic_cancellation_suppresses_source_then_hands_removes_only_pending(tmp_path):
+    rt, rows = await fixture(tmp_path)
+    result = await cancel(rt)
+    assert result['targets'] == 1 and rt.native.await_count == 0
+    assert rt.current_plan.progress['player-room'].state == 'cancelled'
+    assert rt.current_plan.colony_goals['intent-room'].cancelled
+    assert rt.current_plan.control['suppressed_goals']['EnsureInitialShelter'] == 'intent-room'
+    await rt.execute_manual_requests()
+    assert rt.current_plan.progress[result['step']].state == 'complete'
+    assert [b['thingId'] for b in rows] == ['Wall2']
+    assert rt.native.await_count == 1 and rt.mode == 'manual'
+    rt.store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('change', ['material','definition','uncertain','truncated','native_refusal'])
+async def test_failed_validation_preserves_original_plan_and_orders(tmp_path,change):
+    rt, rows = await fixture(tmp_path)
+    if change == 'material': rows[0]['stuff'] = 'Steel'
+    if change == 'definition': rows[0]['buildDefName'] = 'Door'
+    if change == 'uncertain': rt.current_plan.progress['player-room'].issued['0']['confirmed'] = False
+    if change == 'native_refusal': rt.game.invoke.return_value = {'success':False,'applied':False}
+    if change == 'truncated':
+        query = rt.game.query
+        async def truncated(name,**args):
+            result = await query(name,**args)
+            if name == 'home/list_buildings': result['skipped'] = {'byMaxDetailed':1}
+            return result
+        rt.game.query = truncated
+    before = deepcopy(rt.current_plan.model_dump())
+    with pytest.raises(ValueError): await cancel(rt)
+    assert rt.current_plan.model_dump() == before
+    assert len(rows) == 2
+    rt.native.assert_not_awaited()
+    rt.store.close()
+
+
+@pytest.mark.asyncio
+async def test_unknown_cancellation_observes_absence_without_removing_replacement(tmp_path):
+    rt, rows = await fixture(tmp_path)
+    result = await cancel(rt)
+    progress = rt.current_plan.progress[result['step']]
+    progress.issued['0'] = {'confirmed':False,'thing_id':'Blueprint_Wall1'}
+    rows[0]['thingId'] = 'Blueprint_WallReplacement'
+    await rt.execute_manual_requests()
+    assert progress.state == 'complete' and progress.issued['0']['observed_absent']
+    assert rows[0]['thingId'] == 'Blueprint_WallReplacement'
+    rt.native.assert_not_awaited()
+    rt.store.close()
+
+
+@pytest.mark.asyncio
+async def test_unknown_cancellation_still_present_is_not_replayed(tmp_path):
+    rt, rows = await fixture(tmp_path)
+    result = await cancel(rt)
+    progress = rt.current_plan.progress[result['step']]
+    progress.issued['0'] = {'confirmed':False}
+    await rt.execute_manual_requests()
+    assert progress.state == 'blocked' and progress.failure.code == 'uncertain_write'
+    rt.native.assert_not_awaited()
+    assert len(rows) == 2
+    rt.store.close()
+
+
+@pytest.mark.asyncio
+async def test_loaded_cancellation_cannot_retarget_after_load_change(tmp_path):
+    rt, rows = await fixture(tmp_path)
+    result = await cancel(rt)
+    action = rt.current_plan.spec.steps[-1].action
+    action.loadToken = 'prior-load'
+    await rt.execute_manual_requests()
+    assert rt.current_plan.progress[result['step']].failure.code == 'cancellation_context_changed'
+    rt.native.assert_not_awaited()
+    rt.store.close()

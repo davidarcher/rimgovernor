@@ -174,7 +174,17 @@ requires an explicit construction change rather than silent relocation. Player
 construction has tracked goals; related pending or blocked player work prevents
 a competing autonomous project. Cancelling related player work suppresses its
 autonomous replacement until an explicit goal request re-enables it. Existing
-native blueprints/designations are retained by cancellation.
+native blueprints/designations are retained by `CancelGoal`.
+
+Explicit `CancelConstruction` resolves a tracked player construction intent and
+captures its current pending native objects from issued placements. Admission
+previews every exact target before atomically accepting the removal batch and
+suppressing the original source. Shared Hands persists each removal intent and
+uses the native cancellation path with colony/load/map, ThingID, definition,
+stuff and position checks. Completed buildings remain. An uncertain removal is
+observed before any further action: absence satisfies that exact target, while
+a still-present target blocks replay. A fresh explicit request can capture the
+remaining orders; existing accepted batches never retarget replacements or loads.
 
 After a player shelter shell completes, sleeping handoff verifies its exact native
 interior and roof coverage before furnishing the missing indoor sleeping capacity.

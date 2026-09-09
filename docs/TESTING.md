@@ -401,9 +401,13 @@ running needs its matching installed companion until that session is closed.
 paused colony. It creates ordinary blueprint orders and a zero-work sleeping spot,
 then verifies dry-run preservation, stale colony/map/load and metadata refusal,
 completed-building refusal, exact blueprint removal and repeated-request refusal
-without retargeting its neighbor. This is a native contract test, not semantic
-command, frame-refund or mixed restart acceptance. Install its companion and restore
-the previous DLL only with every game stopped.
+without retargeting its neighbor. Add `--shared` to create a room through the
+semantic command and shared Hands, prevalidate its cancellation, drop a successful
+native removal receipt, and verify that a fresh request removes only the remaining
+targets. Repetition after completion creates no native removals; unrelated pending
+orders and completed buildings remain. This does not establish frame refunds,
+local-model interpretation or mixed restart acceptance. Install its companion and
+restore the previous DLL only with every game stopped.
 
 On a checkpoint-capable owned session, use Autopilot's **Save checkpoint and pause**
 or run `scripts/restart_session.ps1 -Port 8787`. The restart command first saves and
