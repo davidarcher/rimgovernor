@@ -7,9 +7,9 @@ from .chat_advice import add_advisory_tools
 from .wiki import wiki_lookup
 from .knowledge import search_knowledge, read_knowledge
 from .consultation import structured_tool as tool
-from .native_inspections import NativeInspections
+from .native_inspections import NativeInspections, DESCRIBABLE
 from .native_contracts import validate_arguments
-from .player_commands import semantic_tools,COMMAND_NAMES,apply_command,command_confirmation
+from .player_commands import semantic_tools,COMMAND_NAMES,apply_command,command_confirmation,ResearchRefused
 from .review_evidence import ReviewEvidence
 from .strategic_state import context
 from .tool_diagnostics import record
@@ -25,6 +25,8 @@ def inspect_plan(plan, ids):
 
 def facts_index(facts):
     return {'available_sections':sorted(k for k in facts if k!='cells'),
+        'resource_labels':dict(sorted(facts.get('policyResources',{}).items())[:128]),
+        'omitted_resource_labels':max(0,len(facts.get('policyResources',{}))-128),
         'note':'Detailed native facts are available through inspect_colony_facts. Omitted sections are not empty or unavailable.'}
 
 
@@ -40,7 +42,7 @@ class Planner:
         self.rt = runtime
 
     async def play_bridge(self):
-        from .bridge_game import READS, WRITES, inspection_result
+        from .bridge_game import inspection_result
         rt = self.rt
         token, revision = rt.context_token, rt.chat_revision
         inspections, evidence = NativeInspections(), ReviewEvidence()
@@ -51,7 +53,7 @@ class Planner:
         resources = set(native_facts.get('policyResources',{})) | set(native_facts.get('resources',{})) | {
             key for definition in native_facts.get('definitions',{}).values() for key in definition.get('costs',{})}
         tools = semantic_tools(resources)+[tool('describe', 'Discover a native read or preview contract. This never permits immediate game writes.',
-                {'type':'object','properties':{'name':{'type':'string','enum':sorted(READS | {'home/place_building','home/install','home/zone_cells'})}},
+                {'type':'object','properties':{'name':{'type':'string','enum':sorted(DESCRIBABLE)}},
                  'required':['name'],'additionalProperties':False}),
             tool('inspect_plan', 'Read exact plan steps and their native progress. Empty ids returns the index.',
                 {'type':'object','properties':{'ids':{'type':'array','items':{'type':'string'},'maxItems':12}},
@@ -73,10 +75,15 @@ class Planner:
             'For orders, use semantic command tools, never arbitrary native writes. Discover native facts and exact identities when needed. '
             'Direct actions, maintained goals and resource policy changes share ColonyPlan and Hands with autopilot. '
             'Use CreateGoal for persistent targets such as 20 days of food, ModifyResourcePolicy for spending constraints, '
-            'and CancelGoal to prevent automatic recreation. Use the same intent_id for conversational refinements of a room/zone. '
+            'and CancelGoal to prevent automatic recreation. '
+            'Use the native resource_labels glossary to match resource names to IDs; never substitute an unrelated resource. '
+            'Do not invent optional numeric targets or reserves, or copy a number from an unrelated earlier request. '
+            'Use the same intent_id for conversational refinements of a room/zone. '
             'Inspect player_intents and prior messages to resolve "same size" and "north side instead". '
             'Already issued construction cannot be silently relocated. State the blocker or ask a focused question when required facts are missing. '
             'Prefer SetResearch, SetWorkPriority, CreateBill, DraftPawn and MovePawn to raw tool mechanics. '
+            'A pawn job is its current activity, not its work assignments. Use SetWorkPriority for explicit work changes '
+            'even if the pawn is currently doing another job; inspect home/list_pawns with work=true when assignments are needed. '
             'BuildRoom creates a shell with an entrance; the executor verifies construction and does not claim usable shelter from a blueprint. '
             'Readbacks and criteria distinguish accepted commands from completed work. Do not claim completion before those postconditions. '
             'Explicit player orders can dispatch in Manual while time stays paused; Automate also runs routine colony work. '
@@ -114,6 +121,7 @@ class Planner:
                 name = call.get('function', {}).get('name')
                 args = call.get('function', {}).get('arguments')
                 outcome = 'returned'
+                terminal_refusal = None
                 rt.counters['planner_tools'] += 1
                 try:
                     if index >= 4: raise ValueError('At most four tool requests per chat response; remaining requests were not executed')
@@ -166,12 +174,16 @@ class Planner:
                     raise
                 except Exception as error:
                     outcome, result = 'rejected', {'status':'blocked','reason':str(error)}
+                    if isinstance(error,ResearchRefused): terminal_refusal=str(error)
                     from .construction_preflight import ConstructionRefusal
                     from .hands import GeometryConflict
                     if isinstance(error, ConstructionRefusal): result['construction'] = error.evidence
                     if isinstance(error, GeometryConflict): result['conflict'] = error.evidence
                 record(rt, call, args, result, started, outcome)
                 messages.append({'role':'tool','tool_call_id':call['id'],'content':json.dumps(result,ensure_ascii=False)})
+                if terminal_refusal:
+                    rt.reply(' '.join(accepted+[terminal_refusal]))
+                    return
                 if outcome=='returned' and name in COMMAND_NAMES:
                     accepted.append(command_confirmation(name,result))
                 if outcome=='returned' and name in ('CreateGoal','ModifyResourcePolicy','CancelGoal'):

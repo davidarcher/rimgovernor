@@ -111,11 +111,21 @@ Acknowledgments come from accepted structured results, not inferred completion. 
 knowledge/wiki lookup, colony notebook, scout, visual review and consultations
 remain chat tools. Advice is evidence, never executable authority.
 
+Research admission resolves the player's project label through native dry-run
+validation before adding an action. Refusals return the native reason directly;
+successful requests use the resolved definition and still pass through Hands and
+fresh research readback. Research contract discovery permits reads/previews only.
+Work commands accept an exact unambiguous colonist name or observed ID, then retain
+the native ID for execution and persistent work overrides. Current pawn jobs do
+not establish work-type assignments.
+
 Initial chat context includes the shared controller state and a native fact-section
 index. Large native definition catalogs are retrieved through `inspect_colony_facts`
 in one to three sections instead of being inlined into every question. These reads
 are explicitly historical observations from the current review; native validation
 still refreshes facts before a command is accepted.
+The initial context retains a bounded native resource-label glossary so resource
+policy names remain grounded when the larger definition catalog is omitted.
 
 Actions carry PLAYER, AUTOPILOT or LLM_ADVISOR provenance. Advisory provenance
 cannot commit orders. Player steps normally run before routine optimization;

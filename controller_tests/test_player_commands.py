@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.player_commands import apply_command,command_schema,resolve_goal_id
+from rimbot.player_commands import apply_command,command_schema,resolve_goal_id,resolve_colonist
 from rimbot.colony_plan import ColonyPlan, CommitSteps, PlanStep, StepProgress
 from rimbot.resource_accounting import validate_allocations
 from rimbot.resource_accounting import validate_execution_costs
@@ -17,11 +17,43 @@ def test_semantic_schema_has_provider_object_envelope_and_goal_names_resolve_onl
         resolve_goal_id('food expansion',{'intent-food-expansion':{},'other':{'label':'food expansion'}})
 
 
+def test_colonist_names_resolve_exactly_and_never_guess_between_duplicates():
+    pawns=[{'thingId':'Pawn1','name':'Wobbler'},{'thingId':'Pawn2','name':'Yuto'}]
+    assert resolve_colonist(' wObBlEr ',pawns)['thingId']=='Pawn1'
+    assert resolve_colonist('Pawn2',pawns)['name']=='Yuto'
+    with pytest.raises(ValueError,match='unknown or ambiguous'):resolve_colonist('Wobb',pawns)
+    pawns.append({'thingId':'Pawn3','name':'Wobbler'})
+    with pytest.raises(ValueError,match='unknown or ambiguous'):resolve_colonist('Wobbler',pawns)
+    assert resolve_colonist('Pawn1',pawns)['thingId']=='Pawn1'
+
+
+@pytest.mark.asyncio
+async def test_named_work_command_uses_stable_identity_for_execution_and_override(tmp_path):
+    rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch();rt.mode='manual'
+    async def query(name,**args):
+        if name=='home/list_pawns':
+            return {'pawns':[{'thingId':'Pawn1','name':'Wobbler','work':{
+                'types':[{'name':'Hauling','disabled':False,'priority':1}]}}]}
+        return {'colonyId':'test','mapId':1,'loadToken':'load'}
+    rt.game.query=AsyncMock(side_effect=query)
+    rt.game.describe=AsyncMock(return_value={'type':'object','properties':{
+        'pawn':{'type':'string'},'work':{'type':'string'},'watch':{'type':'boolean'},'dryRun':{'type':'boolean'}},
+        'additionalProperties':False})
+    result=await apply_command(rt,{'kind':'SetWorkPriority','pawn':'Wobbler','work_type':'Hauling','priority':0},
+        token=rt.context_token,revision=rt.chat_revision)
+    step=next(s for s in rt.current_plan.spec.steps if s.id==result['step'])
+    assert step.source=='PLAYER' and step.action.arguments['pawn']=='Pawn1'
+    assert rt.current_plan.control['work_overrides']=={'Pawn1':{'Hauling':0}}
+    assert rt.mode=='manual' and rt.counters['actions']==0
+    rt.store.close()
+
+
 @pytest.mark.asyncio
 async def test_manual_chat_dispatches_only_current_player_order_without_resuming_clock(tmp_path):
     rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch();rt.mode='manual'
     rt.game.describe=AsyncMock(return_value={'type':'object','properties':{'set':{'type':'string'},
         'dryRun':{'type':'boolean'},'watch':{'type':'boolean'}},'additionalProperties':False})
+    rt.game.invoke=AsyncMock(return_value={'write':{'resolved':{'defName':'GeothermalPower'},'refused':False}})
     result=await apply_command(rt,{'kind':'SetResearch','project':'GeothermalPower'},token=rt.context_token,revision=rt.chat_revision)
     auto=rt.current_plan.spec.steps[0].model_copy(deep=True)
     auto.id='autopilot';auto.source='AUTOPILOT';auto.action.arguments['set']='Battery'
@@ -66,13 +98,50 @@ async def test_player_research_request_is_validated_and_queued_for_same_hands(tm
     rt=runtime(tmp_path); await rt.sync_identity();rt.batch=batch()
     rt.game.describe=AsyncMock(return_value={'type':'object','properties':{'set':{'type':'string'},
         'dryRun':{'type':'boolean'},'watch':{'type':'boolean'}},'additionalProperties':False})
-    result=await apply_command(rt,{'kind':'SetResearch','project':'GeothermalPower'},token=rt.context_token,revision=rt.chat_revision)
+    rt.game.invoke=AsyncMock(return_value={'write':{'resolved':{'defName':'GeothermalPower'},'refused':False}})
+    result=await apply_command(rt,{'kind':'SetResearch','project':'geothermal'},token=rt.context_token,revision=rt.chat_revision)
     step=rt.current_plan.spec.steps[0]
     assert step.source=='PLAYER' and step.action.tool=='home/research'
     assert step.action.arguments=={'set':'GeothermalPower','dryRun':False,'watch':False}
     assert rt.current_plan.progress[result['step']].state=='pending'
     assert list(rt.current_plan.ready())==[step]
     assert rt.counters['actions']==0
+    rt.game.invoke.assert_awaited_once_with('home/research',{'set':'geothermal','dryRun':True,'watch':False},allow_write=False)
+    rt.store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('case',['locked','ambiguous','missing','direction'])
+async def test_research_preflight_failure_never_commits_a_player_order(tmp_path,case):
+    rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch();rt.mode='manual'
+    before=rt.current_plan.model_dump();revision=rt.chat_revision
+    async def preview(*args):
+        if case=='direction':
+            rt.chat_revision+=1
+            return {'write':{'refused':False,'resolved':{'defName':'GeothermalPower'}}}
+        if case=='missing': return {}
+        return {'write':{'refused':True,'reason':'Unfinished prerequisite' if case=='locked' else 'Ambiguous name'}}
+    rt.inspect_native=AsyncMock(side_effect=preview)
+    with pytest.raises(ValueError):
+        await apply_command(rt,{'kind':'SetResearch','project':'geothermal'},token=rt.context_token,revision=revision)
+    assert rt.current_plan.model_dump()==before
+    assert not rt.manual_requests and rt.counters['actions']==0
+    rt.store.close()
+
+
+@pytest.mark.asyncio
+async def test_chat_returns_native_research_refusal_without_model_rephrasing(tmp_path):
+    from rimbot.planner import Planner
+    rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch();rt.mode='manual'
+    rt.chat_revision=1
+    rt.chat=[{'kind':'human','revision':1,'text':'Set research to geothermal.'}]
+    rt.inspect_native=AsyncMock(side_effect=ValueError('Missing prerequisite: Microelectronics. Nothing was written.'))
+    rt.router.complete=AsyncMock(return_value=({'role':'assistant','tool_calls':[{
+        'id':'research-request','type':'function','function':{'name':'SetResearch','arguments':'{"project":"geothermal"}'}}]},{}))
+    await Planner(rt).play_bridge()
+    rt.router.complete.assert_awaited_once()
+    assert rt.chat[-1]['text']=='Research request blocked: Missing prerequisite: Microelectronics. Nothing was written.'
+    assert rt.current_plan.revision==0 and not rt.manual_requests and rt.counters['actions']==0
     rt.store.close()
 
 

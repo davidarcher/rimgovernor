@@ -4,6 +4,19 @@ from jsonschema import Draft202012Validator, ValidationError
 from rimbot.native_inspections import NativeInspections
 
 
+def test_research_discovery_exposes_reads_and_previews_without_write_authority():
+    from rimbot.native_inspections import DESCRIBABLE
+    assert 'home/research' in DESCRIBABLE and 'rimworld/set_time_speed' not in DESCRIBABLE
+    schema={'type':'object','properties':{'set':{'type':'string'},'locked':{'type':'boolean'},
+        'dryRun':{'type':'boolean','default':True}},'additionalProperties':False}
+    tools=[];meta=NativeInspections().expose('home/research',schema,tools)
+    assert meta['callable_tool']=='native_home__research'
+    validator=Draft202012Validator(tools[0]['function']['parameters'])
+    validator.validate({'locked':True})
+    validator.validate({'set':'GeothermalPower','dryRun':True})
+    with pytest.raises(ValidationError):validator.validate({'set':'GeothermalPower','dryRun':False})
+
+
 def test_discovery_advertises_real_contract_once_without_mutating_it():
     registry=NativeInspections(); tools=[]
     schema={'type':'object','properties':{'category':{'type':'string','enum':['food','weapons']}},

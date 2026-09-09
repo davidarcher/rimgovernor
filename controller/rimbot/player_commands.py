@@ -6,6 +6,9 @@ from .colony_skills import native
 from .config import ModelRole
 from .strategic_state import fingerprint
 
+class ResearchRefused(ValueError):
+    """Native research admission failed; preserve its factual explanation."""
+
 
 class SetResearch(Contract):
     kind: Literal['SetResearch']
@@ -60,7 +63,7 @@ class PlaceBuildings(Contract):
 
 class SetWorkPriority(Contract):
     kind: Literal['SetWorkPriority']
-    pawn: str = Field(min_length=1)
+    pawn: str = Field(min_length=1, description='Observed colonist ID or an exact, unambiguous colonist name.')
     work_type: str = Field(min_length=1)
     priority: int = Field(ge=0, le=4)
 
@@ -103,7 +106,7 @@ def semantic_tools(resources=None):
         'BuildRoom':'Request a room shell with walls and an entrance using inspected geometry.',
         'PlaceBuildings':'Place a semantic batch of furniture or buildings using observed definitions and positions.',
         'CreateZone':'Create a growing zone or stockpile specifically requested by the player.',
-        'SetWorkPriority':'Enable, disable or rank a colonist work type, such as hauling. Priority 0 disables that work.',
+        'SetWorkPriority':'Change persistent work assignments, independently of the current pawn job. Priority 0 disables a work type even when the pawn is currently doing another job.',
         'CreateBill':'Create a production bill with a target count.',
         'DraftPawn':'Draft or undraft a pawn for direct combat control. This does not change work assignments.',
         'MovePawn':'Order a pawn to a specific inspected position.',
@@ -138,6 +141,16 @@ def resolve_goal_id(query, goals):
                    row.get('target',{}).get('intent_id','')]
         if normalized(query) in {normalized(a) for a in aliases if a}: matches.append(identity)
     if len(matches)!=1: raise ValueError('Goal name is unknown or ambiguous; inspect controller state for an exact ID')
+    return matches[0]
+
+
+def resolve_colonist(query, pawns):
+    matches=[p for p in pawns if p.get('thingId')==query]
+    if not matches:
+        matches=[p for p in pawns if isinstance(p.get('name'),str)
+                 and p['name'].strip().casefold()==query.strip().casefold()]
+    if len(matches)!=1 or not matches[0].get('thingId'):
+        raise ValueError('Colonist name is unknown or ambiguous; use an observed exact colonist ID')
     return matches[0]
 
 
@@ -196,13 +209,24 @@ async def apply_command(rt, payload, *, token, revision):
         result = {'cancelled': request.goal, 'existing_native_orders': 'Retained; cancellation stops new controller orders and does not erase already issued game orders'}
     else:
         purpose = getattr(request, 'purpose', 'production')
-        if isinstance(request, SetResearch): action = native('home/research', set=request.project, watch=False)
+        if isinstance(request, SetResearch):
+            try:
+                preview=await rt.inspect_native('home/research',{'set':request.project,'dryRun':True,'watch':False})
+            except ValueError as error:
+                raise ResearchRefused('Research request blocked: '+str(error)) from error
+            write=preview.get('write') or {}
+            resolved=(write.get('resolved') or {}).get('defName')
+            if write.get('refused') is not False or not resolved:
+                raise ResearchRefused('Research request blocked: '+(write.get('reason') or 'Project could not be resolved and validated'))
+            request.project=resolved
+            action = native('home/research', set=request.project, watch=False)
         elif isinstance(request, BuildRoom): action = request.room.model_dump()
         elif isinstance(request, PlaceBuildings): action = request.buildings.model_dump()
         elif isinstance(request, CreateZone): action = request.zone.model_dump()
         elif isinstance(request, SetWorkPriority):
             roster = await rt.game.query('home/list_pawns',colonistsOnly=True,work=True)
-            pawn = next((p for p in roster.get('pawns',[]) if p.get('thingId')==request.pawn),None)
+            pawn = resolve_colonist(request.pawn,roster.get('pawns',[]))
+            request.pawn=pawn['thingId']
             work = next((w for w in (pawn or {}).get('work',{}).get('types',[]) if w.get('name')==request.work_type),None)
             if not work or work.get('disabled') is not False:
                 raise ValueError('Work type must be observed and available for this colonist')

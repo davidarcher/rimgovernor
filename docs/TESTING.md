@@ -240,6 +240,18 @@ verifies a work assignment, a persistent food target and a component policy.
 The probe uses the normal shared validator and Hands. Preserve failed responses;
 fixed-fact model correctness and native command acceptance are separate results.
 
+Add `--extended --model qwen3.5-4b --rendered --port 8788` to watch the disposable
+colony in its own dashboard while testing research selection, locked-project
+refusal, food-goal cancellation, two autonomous reviews and explicit goal resumption.
+Research candidates come from native available/locked catalogs. The probe requires
+the requested current-project readback and completed PLAYER action; locked research
+must preserve the selected project without adding an action. Cancelled food work
+must remain suppressed across the two reviews, which must not invoke a model.
+The basic checks also reject unrelated work changes and unrequested component
+reserves. All interactive orders start in Manual; the two cancellation checks
+temporarily enable routine autonomous operation in this disposable colony only.
+The probe stops its owned game/server afterward and retains results and failures.
+
 
 ### Ordinary Crashlanded acceptance
 

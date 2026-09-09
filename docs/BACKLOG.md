@@ -27,7 +27,7 @@ in the checkpoint commit; do not append an implementation diary here.
   deterministic furnishing without duplicate shelter. Support safe explicit
   relocation/cancellation of issued construction through native cancellation
   skills; preserve existing orders until validated. Verify freezer expansion,
-  research, policies and conversational refinements with a real local model.
+  policies and conversational refinements with a real local model.
 - [ ] **B04d · Long-running goal lifecycle.** Audit durable receipt/history growth after active-plan retirement of completed
   routine native actions. Add bounded
   recovery for other known transient failures beyond confirmed interrupted tending, preserve new-colonist work coverage and
@@ -44,10 +44,14 @@ in the checkpoint commit; do not append an implementation diary here.
   then add electrical generation/connectivity,
   research, comfort and expansion methods. Threats beyond the bounded small-animal method and unavailable power methods
   report explicit blockers instead of asking a model to improvise.
-- [ ] **B04g · Native command acceptance.** Extend the fixed-fact benchmark and
-  isolated native chat probe to research, construction, follow-ups and cancellation.
-  Verify policy identity from fresh native definitions; schema-valid semantic
-  errors remain distinct from native refusals and zero-inference acceptance.
+- [ ] **B04g · Native command acceptance.** Extend the fixed-fact benchmark to
+  research/cancellation and the isolated native chat probe to construction, room
+  refinements and cancellation of issued construction. Broaden research selection,
+  refusal and persistent goal cancel/resume coverage across projects, models and
+  save/load boundaries. Measure schema-valid semantic errors, including wrong
+  resources and unrequested numeric reserves, separately from native refusals and
+  zero-inference controller acceptance. A passing scripted model run is not a
+  reliability rate.
 
 ## P1 — Functional colony planning and recovery
 
