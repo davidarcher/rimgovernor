@@ -16,8 +16,9 @@ in the checkpoint commit; do not append an implementation diary here.
   bounded window do not establish arbitrary long-term colony survival.
 - [ ] **B04a · Complete deterministic food control.** Verify hunting, butchering,
   crop labor, food runway and spoilage-aware storage under real pawn behavior.
-  Add safe prey reachability and monitoring after designation, nutrition-based acquisition
-  limits, inventory-aware forecasts and season/biome-specific methods. Enforce
+  Add safe prey reachability and monitoring after designation and season/biome-specific methods.
+  Nutrition-based harvest limits and per-colonist inventory/rot forecasts exist;
+  validate actual spoilage, changing temperatures and food sharing during sustained runs. Enforce
   persistent player food targets through production capacity as well as stock.
 - [ ] **B04b · Native interruption acceptance.** Verify autosave recovery, letter
   attribution, real player pause/speed holds, danger preemption and load changes
@@ -53,7 +54,8 @@ in the checkpoint commit; do not append an implementation diary here.
   resources and erroneous reserve-tool selection, separately from native refusals and
   zero-inference controller acceptance. A passing scripted model run is not a
   reliability rate.
-  Broaden policy coverage to combined requests and multi-resource references.
+  Combined and multi-resource requests have a repeated fixed-fact benchmark;
+  extend their acceptance to native effects and persistence.
 
 ## P1 — Functional colony planning and recovery
 

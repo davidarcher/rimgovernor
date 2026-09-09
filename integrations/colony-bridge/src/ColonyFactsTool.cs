@@ -83,6 +83,8 @@ namespace HomeBridge.BridgeTools
                 .Select(p => new { id = p.GetUniqueLoadID(), x = p.Position.x, z = p.Position.z,
                     resource = p.def.plant.harvestedThingDef?.defName, tree = p.def.plant.IsTree,
                     food = humanFood(p.def.plant.harvestedThingDef), yield = p.YieldNow(),
+                    nutritionYield = humanFood(p.def.plant.harvestedThingDef)
+                        ? p.YieldNow() * p.def.plant.harvestedThingDef.GetStatValueAbstract(StatDefOf.Nutrition) : 0f,
                     designated = map.designationManager.DesignationOn(p) != null }).ToList();
             var allowedSupplies = things.Where(t => t.def.category == ThingCategory.Item && (t.Faction == null || t.Faction.IsPlayer)
                 && (t.def.IsNutritionGivingIngestible || t.def.IsWeapon || t.def.IsMedicine || t.def.IsStuff || t.def.defName == "Silver")
@@ -105,6 +107,11 @@ namespace HomeBridge.BridgeTools
                 ["mapSize"] = new { width = map.Size.x, height = map.Size.z }, ["biome"] = map.Biome.defName,
                 ["foodNutrition"] = nutrition, ["nutritionPerDay"] = demand,
                 ["foodRunwayDays"] = demand > 0 ? (object)(nutrition / demand) : null,
+                ["foodSupply"] = FoodSupplyFacts.Read(people, food),
+                ["pendingFoodNutrition"] = things.OfType<Plant>().Where(p => p.HarvestableNow
+                    && humanFood(p.def.plant.harvestedThingDef) && !(map.zoneManager.ZoneAt(p.Position) is Zone_Growing)
+                    && map.designationManager.DesignationOn(p, DesignationDefOf.HarvestPlant) != null)
+                    .Sum(p => p.YieldNow() * p.def.plant.harvestedThingDef.GetStatValueAbstract(StatDefOf.Nutrition)),
                 ["resources"] = supplies, ["policyResources"] = policyDefs, ["bedCapacity"] = beds.Sum(b => b.SleepingSlotsCount),
                 ["indoorSleepingCapacity"] = indoorBeds.Sum(b => b.SleepingSlotsCount),
                 ["sleepingTemperatureMin"] = temperatures.Count == 0 ? (object)null : temperatures.Min(),
@@ -114,7 +121,7 @@ namespace HomeBridge.BridgeTools
                 ["butchering"] = butchering,
                 ["foodStorage"] = foodStorage,
                 ["forbiddenSupplies"] = allowedSupplies,
-                ["notes"] = new[] { "Runway is current shared-diet accessible stock divided by fed consumption, excluding inventories and future harvest. It does not certify spoilage or future access.",
+                ["notes"] = new[] { "Raw runway is shared-diet accessible stock divided by fed consumption. foodSupply separately observes holder-owned inventory and native rot deadlines for the controller's per-colonist forecast; neither guarantees future temperature or access.",
                     "Harvest ETA is an optimistic lower bound; it cannot clear food risk. Growing cells exclude temperature/fertility failures but do not forecast seasons." }
             };
             if (planning) {

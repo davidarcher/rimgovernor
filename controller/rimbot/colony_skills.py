@@ -5,6 +5,7 @@ from .hands import room_placements
 from .colony_policy import starter_layouts, work_assignment
 from .strategic_state import fingerprint
 from .hunting import screen_prey
+from .food_forecast import acquisition_targets
 
 
 class SkillBlocked(ValueError):
@@ -145,11 +146,16 @@ class ColonySkills:
             food = goal_id == 'EnsureFoodSupply'
             resource = 'food' if food else 'tree'
             targets = [p for p in facts.get('acquisition', []) if p[resource] and not p['designated']]
+            if food:
+                try:
+                    targets, budget = acquisition_targets(facts, rt.controller.policy.food_target_days)
+                except ValueError as error:
+                    raise SkillBlocked('Food acquisition accounting: '+str(error)) from error
+                goal.evidence['acquisition_budget'] = budget
             method = 'acquire-'+fingerprint([p['id'] for p in targets[:8]])[:8]
             outstanding = sum(p.get('yield', 0) for p in facts.get('acquisition', []) if p[resource] and p['designated'])
             needed = max(0, rt.controller.policy.wood_target-facts.get('resources', {}).get('WoodLog', 0)-outstanding)
-            food_pending = any(p['food'] and p['designated'] for p in facts.get('acquisition', []))
-            if targets and unused(method) and ((food and not food_pending) or (not food and needed > 0)):
+            if targets and unused(method) and (food or needed > 0):
                 designator = await self.designator('Designator_PlantsHarvest' if food else 'Designator_PlantsCut')
                 selected = []
                 amount = 0

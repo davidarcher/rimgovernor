@@ -42,6 +42,12 @@ def latch(latches, name, value, enter, exit, *, high=False):
 def derive(batch, native, policy):
     """Combine fresh domain facts with the existing native observation contract."""
     value = dict(native)
+    if 'foodSupply' in native:
+        from .food_forecast import food_forecast
+        forecast = food_forecast(native['foodSupply'])
+        value['foodForecast'] = forecast
+        value['rawFoodRunwayDays'] = native.get('foodRunwayDays')
+        value['foodRunwayDays'] = forecast['runwayDays']
     people = batch.summary.pawns
     value['medicalKnown'] = all(p.bleeding is not None and getattr(p,'needs_tend',None) is not None for p in people if not p.dead)
     value['criticalPatients'] = [p.thing_id for p in people if not p.dead and (p.downed or p.bleeding or p.needs_tend)]

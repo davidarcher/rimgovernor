@@ -287,6 +287,11 @@ goal aliases use the shared goal resolver. Cases cover research, food targets,
 policy reserves, cancellation and goal resumption. The explanation case checks
 the fixture's steel amounts and absence of writes; this is a limited text check,
 not a general measure of answer quality. A single passing run is not a reliability rate.
+Add `--model <local-model-id> --repeats 3` to repeat the fixed cases, including
+combined spending/reserve changes and multi-resource requests. Complete typed
+request multisets must match; duplicates, omitted calls and unrequested fields
+fail. The manifest preserves settings and a case/fact/tool fingerprint. Per-case
+rates and Wilson intervals describe this fixed benchmark, not arbitrary commands.
 `scripts/interactive_commands_probe.py --source-root <prepared-root> --output
 <fresh-directory>` runs real chat requests in a private paused colony, then
 verifies a work assignment, a persistent food target and a component policy.

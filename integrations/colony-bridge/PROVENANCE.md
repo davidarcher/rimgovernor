@@ -14,6 +14,11 @@ RimWorld and RimBridgeServer SDK assemblies are referenced, never bundled.
 Any subsequent source modifications must be recorded here and tested in-game.
 
 Local changes:
+- `FoodSupplyFacts.cs` reads native fed consumption, individual held food,
+  `FoodUtility.NutritionForEater` and `CompRottable.TicksUntilRotAtCurrentTemp`.
+  `ColonyFactsTool.cs` includes these observations and native wild-plant nutrition
+  yield/pending harvest totals. These reads do not manufacture food, change rot
+  progress, transfer inventory or issue harvest orders.
 - `SupervisedPlayTool.cs` accepts an optional ordinary-game tick budget and
   pauses from a Harmony postfix on `TickManager.DoSingleTick`. The native
   `TickManagerUpdate` loop checks `Paused` after each tick. Heartbeat renewal

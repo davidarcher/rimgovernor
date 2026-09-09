@@ -79,8 +79,12 @@ indoor food storage, usable cooking with a bill, safe sleeping temperature,
 sufficient power if electrical thermal loads exist, no critical patient, two
 armed colonists (or everyone in a smaller colony), no active threat, and verified
 work assignments. Accepted blueprints cannot satisfy these gates. Stability is
-reversible when observations change. Stock runway excludes future harvest,
-spoilage guarantees and inventories; harvest ETA is an optimistic lower bound.
+reversible when observations change. The food forecast apportions shared nutrition
+by native demand and credits held food only to its observed holder. Earliest-expiry
+allocation uses native rot deadlines at the current temperature; the lowest
+per-colonist runway drives the food gate. Invalid supply observations remain unknown.
+Future harvest, changing temperatures, job selection and food sharing are not
+guaranteed. Harvest ETA remains an optimistic lower bound.
 
 Goals record selected methods, attempts, step IDs and observable progress.
 Invalid templates have a bounded alternative-site search; unknown or failed
@@ -103,6 +107,11 @@ hunt designation. Missing legacy target metadata and changed observations block
 without a write; unconfirmed writes remain uncertain. This does not certify a
 hunter's route or monitor threats after designation. Native external inputs are
 not atomic with these Python checks.
+
+Wild-plant acquisition limits new orders by the remaining per-colonist nutrition
+target and already designated native harvest yield. Pending yield limits duplicate
+acquisition but never counts as stored food or clears food risk. Individual plants
+are indivisible, so a batch can exceed its remaining target by one plant's yield.
 
 A bounded combat method prepares two capable colonists for one small manhunting
 animal or confirmed small predator hunting colony members, then uses native attacks, threat readback, treatment and owned-draft
