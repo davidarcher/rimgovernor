@@ -42,6 +42,19 @@ def validate_saved_state(saved, state):
         raise ValueError('A player request is still pending; finish it before migration')
 
 
+def validate_restored_state(restored, state, checkpoint):
+    # Labels/help can evolve with the upgraded code; effective policy cannot.
+    if (restored['mode']!='manual' or not restored['game']['paused']
+            or restored['sessionId'].rsplit(':',1)[0]!=state['sessionId'].rsplit(':',1)[0]
+            or restored['sessionId']==state['sessionId']
+            or restored['game']['tick'] not in (checkpoint['tick'],checkpoint['tick']+1)
+            or restored['currentPlan']!=state['currentPlan']
+            or restored['autopilotSettings']['values']!=state['autopilotSettings']['values']
+            or restored['autopilotSettings']['version']!=state['autopilotSettings']['version']
+            or restored['feed']!=state['feed']):
+        raise ValueError('Restored state mismatch; checkpoint retained and automation remains off')
+
+
 async def migrate(args):
     root=args.root.resolve();source=args.source.resolve()
     url=f'http://127.0.0.1:{args.port}'
@@ -111,14 +124,9 @@ async def migrate(args):
                 except httpx.HTTPError: continue
                 if restored.get('connected'):
                     new_health=(await client.get('/api/health')).json()
-                    if (restored['mode']!='manual' or not restored['game']['paused']
-                            or new_health['pid']==health['pid'] or new_health['source_root']!=str(source)
-                            or restored['sessionId'].rsplit(':',1)[0]!=colony
-                            or restored['game']['tick'] not in (checkpoint['tick'],checkpoint['tick']+1)
-                            or restored['currentPlan']!=state['currentPlan']
-                            or restored['autopilotSettings']!=state['autopilotSettings']
-                            or restored['feed']!=state['feed']):
-                        raise ValueError('Restored state mismatch; checkpoint retained and automation remains off')
+                    if new_health['pid']==health['pid'] or new_health['source_root']!=str(source):
+                        raise ValueError('Replacement server identity mismatch')
+                    validate_restored_state(restored,state,checkpoint)
                     report.update(outcome='PASS',new_session=restored['sessionId'],resumed_tick=restored['game']['tick'])
                     break
             else: raise ValueError('New controller did not become ready; checkpoint and logs retained in '+str(work))
