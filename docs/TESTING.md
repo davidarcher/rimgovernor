@@ -396,6 +396,15 @@ running needs its matching installed companion until that session is closed.
 
 ### Paired checkpoints and restart
 
+`scripts/cancel_construction_acceptance.py --source-root <prepared-root> --output
+<fresh-directory>` tests the native exact-target cancellation contract in a private
+paused colony. It creates ordinary blueprint orders and a zero-work sleeping spot,
+then verifies dry-run preservation, stale colony/map/load and metadata refusal,
+completed-building refusal, exact blueprint removal and repeated-request refusal
+without retargeting its neighbor. This is a native contract test, not semantic
+command, frame-refund or mixed restart acceptance. Install its companion and restore
+the previous DLL only with every game stopped.
+
 On a checkpoint-capable owned session, use Autopilot's **Save checkpoint and pause**
 or run `scripts/restart_session.ps1 -Port 8787`. The restart command first saves and
 verifies the native game and controller snapshot; unsupported older servers remain

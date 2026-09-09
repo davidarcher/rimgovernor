@@ -240,3 +240,13 @@ completion message and removes the dialog. It verifies faction/settlement names
 and closure; it does not use the ineffective accept-key shortcut or generic
 window-field writes. The supervisor distinguishes this known bootstrap request
 from unrelated forced dialogs.
+
+`CancelConstructionTool.cs` follows the blueprint/frame branch of native
+`RimWorld.Designator_Cancel.DesignateThing`: `Thing.Destroy(DestroyMode.Cancel)`
+owns resource refunds and construction cleanup. The companion narrows admission
+to an exact player `Blueprint_Build` or `Frame`, verifies saved colony/map/load,
+material, build definition and position while paused, and observes removal in the
+same main-thread callback. It does not use cell-wide cancellation, which can also
+remove unrelated designations, or cancel completed buildings and installation
+blueprints. Blueprint refusal/removal has native acceptance; partially supplied
+frame refunds remain a separate gameplay acceptance requirement.
