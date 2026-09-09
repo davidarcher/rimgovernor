@@ -18,14 +18,21 @@ class SetResearch(Contract):
 class CreateGoal(Contract):
     kind: Literal['CreateGoal']
     goal: Literal['EnsureFoodSupply', 'EnsureInitialShelter', 'EnsureFoodStorage', 'EnsureCooking',
-                  'EnsureTemperatureSafety', 'EnsureBasicPower', 'EnsureBasicDefense', 'MaintainWood']
+                  'EnsureTemperatureSafety', 'EnsureBasicPower', 'EnsureBasicDefense', 'MaintainWood', 'MaintainResource']
     food_days: float | None = Field(default=None, ge=1, le=120,
         description='Food stock runway target in days, valid only for EnsureFoodSupply. Food storage is a separate stockpile goal.')
+
+    resource: str | None = Field(default=None, description='Exact native resource definition or label, required for MaintainResource.')
+    quantity: int | None = Field(default=None, ge=1, le=100000, description='Maintained stock target, required for MaintainResource.')
 
     @model_validator(mode='after')
     def valid_target(self):
         if self.food_days is not None and self.goal!='EnsureFoodSupply':
             raise ValueError('food_days applies only to EnsureFoodSupply, not storage or another goal')
+        if (self.goal == 'MaintainResource') != (self.resource is not None and self.quantity is not None):
+            raise ValueError('MaintainResource requires both resource and quantity; other goals do not take these fields')
+        if self.goal != 'MaintainResource' and (self.resource is not None or self.quantity is not None):
+            raise ValueError('Resource targets apply only to MaintainResource')
         return self
 
 
@@ -207,7 +214,7 @@ def command_confirmation(name, result):
         label='Components' if result['resource']=='ComponentIndustrial' else result['resource']
         policy=result['policy']
         rule={'normal':'normal spending','defense_only':'defense spending only','stop':'all spending stopped, including defense'}[policy['spending']]
-        return f"{label}: {rule} for new controller orders. Reserve: {policy['reserve']}. Existing production bills remain active."
+        return f"{label}: {rule} for controller orders and production inputs. Reserve: {policy['reserve']}. Native enforcement is queued through Hands."
     if name=='CancelGoal':
         return 'Cancelled '+result['cancelled'].removeprefix('intent-').replace('-',' ')+'. Existing game orders remain in place.'
     if name=='CancelConstruction':
@@ -226,7 +233,15 @@ async def apply_command(rt, payload, *, token, revision):
     if rt.chat_revision != revision: raise ValueError('Player direction changed; request discarded')
     plan = rt.current_plan
     if isinstance(request, CreateGoal):
-        goal = plan.colony_goals.setdefault(request.goal, ColonyGoal(priority_class=2))
+        goal_id = request.goal
+        if request.goal == 'MaintainResource':
+            observed = await rt.game.query('home/colony_facts', planning=True)
+            request.resource = resolve_resource(request.resource, observed.get('policyResources', {}))
+            await rt.ensure_context(token)
+            if rt.chat_revision != revision: raise ValueError('Player direction changed; target not updated')
+            goal_id += '-' + request.resource
+        goal = plan.colony_goals.setdefault(goal_id, ColonyGoal(priority_class=2))
+        if request.goal == 'MaintainResource': goal.target = {'resource': request.resource, 'quantity': request.quantity}
         plan.control.setdefault('suppressed_goals',{}).pop(request.goal,None)
         goal.source, goal.cancelled, goal.status = 'PLAYER', False, 'active'
         goal.reason = ''
@@ -235,7 +250,7 @@ async def apply_command(rt, payload, *, token, revision):
             policy = plan.control.setdefault('policy', {})
             policy['food_target_days'] = request.food_days
             policy['food_min_days'] = min(request.food_days*.7, request.food_days-0.1)
-        result = {'goal': request.goal, 'source': 'PLAYER', 'status': goal.status, 'target': goal.target}
+        result = {'goal': goal_id, 'source': 'PLAYER', 'status': goal.status, 'target': goal.target}
     elif isinstance(request, (ModifyResourcePolicy,SetResourceReserve)):
         observed = await rt.game.query('home/colony_facts', planning=True)
         known = set(observed.get('resources', {})) | set(observed.get('policyResources', {})) | {resource for definition in observed.get('definitions', {}).values()
@@ -246,9 +261,26 @@ async def apply_command(rt, payload, *, token, revision):
             raise ValueError('Use an observed resource definition; this policy key is unknown: '+request.resource)
         await rt.ensure_context(token)
         if rt.chat_revision != revision: raise ValueError('Player direction changed; policy not updated')
+        previous_policy = dict(plan.control['resource_policy'][request.resource]) if request.resource in plan.control.get('resource_policy', {}) else None
         policy = plan.control.setdefault('resource_policy', {}).setdefault(request.resource, {'reserve':0,'spending':'normal'})
         policy.update(request.model_dump(exclude={'kind','resource'}))
-        result = {'resource': request.resource, 'policy': plan.control['resource_policy'][request.resource]}
+        from .production_policy import policy_arguments
+        from .colony_plan import NativeOperation
+        action = NativeOperation(tool='home/production_policy', arguments=policy_arguments(rt))
+        identity = 'resource-policy-' + fingerprint({'arguments': action.arguments, 'revision': revision})[:24]
+        try:
+            if not any(s.id == identity for s in plan.spec.steps):
+                step = PlanStep(id=identity, title='Apply resource production policy', action=action, source='PLAYER', priority=100,
+                                completion_criteria='Native production budgets match persistent player policy')
+                decision = CommitSteps(expected_revision=plan.revision, reason='Player production budget', steps=[step]).decision(plan)
+                await rt.commit_strategy(decision, actor=ModelRole.STRATEGIST, expected_token=token, expected_revision=revision)
+        except Exception:
+            if previous_policy is None: plan.control['resource_policy'].pop(request.resource, None)
+            else: plan.control['resource_policy'][request.resource] = previous_policy
+            if not plan.control['resource_policy']: plan.control.pop('resource_policy')
+            raise
+        if rt.mode == 'manual': rt.manual_requests.append((identity, token, revision))
+        result = {'resource': request.resource, 'policy': plan.control['resource_policy'][request.resource], 'step': identity}
     elif isinstance(request, RelocateConstruction):
         from .construction_relocation import relocate
         result = await relocate(rt, request, token=token, revision=revision)

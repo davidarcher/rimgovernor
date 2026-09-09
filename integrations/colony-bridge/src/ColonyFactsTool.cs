@@ -99,6 +99,7 @@ namespace HomeBridge.BridgeTools
             var policyDefs = DefDatabase<ThingDef>.AllDefsListForReading
                 .SelectMany(d => d.costList ?? new List<ThingDefCountClass>()).Select(c => c.thingDef)
                 .Concat(DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.IsStuff || d.IsMedicine || supplies.ContainsKey(d.defName)))
+                .Concat(DefDatabase<RecipeDef>.AllDefsListForReading.SelectMany(r => r.products ?? new List<ThingDefCountClass>()).Select(p => p.thingDef))
                 .Where(d => d != null).Distinct().OrderBy(d => d.defName)
                 .ToDictionary(d => d.defName, d => d.label);
             var result = new Dictionary<string, object> {

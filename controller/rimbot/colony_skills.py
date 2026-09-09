@@ -75,6 +75,9 @@ class ColonySkills:
         return rows[0]['id']
 
     async def compile(self, goal_id, facts, people):
+        if goal_id.startswith('MaintainResource-'):
+            from .production_policy import resource_method
+            return await resource_method(self.rt, goal_id, facts)
         """Return a named method and bounded actions, or wait for its postcondition."""
         rt = self.rt
         goal = rt.current_plan.colony_goals[goal_id]
@@ -307,7 +310,8 @@ class ColonySkills:
         goal = self.rt.current_plan.colony_goals[goal_id]
         result, slots = [], {}
         for index, action in enumerate(actions):
-            identity = f'{goal_id}-{goal.attempts}-{method}-{index}'[:64]
+            identity = ('resource-' + fingerprint({'goal':goal_id,'attempt':goal.attempts,'method':method,'index':index})[:32]
+                        if goal_id.startswith('MaintainResource-') else f'{goal_id}-{goal.attempts}-{method}-{index}'[:64])
             step = PlanStep(id=identity, title=f'{goal_id}: {method}', goal_id=goal_id, source=goal.source,
                 priority=max(75 if goal.source=='PLAYER' else 0,100-goal.priority_class*20), action=action,
                 completion_criteria='Native effect observed; colony goal separately verifies functional postconditions')

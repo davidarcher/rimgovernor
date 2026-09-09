@@ -39,6 +39,7 @@ class Replay:
         self.current_plan=ColonyPlan()
         self.mode='automate'
         self.context_token='colony:1:load'
+        self.identity={'colonyId':'colony','mapId':1,'loadToken':'load'}
         self.chat_revision=self.handled_revision=0
         self.wake=asyncio.Event()
         self.events=[]

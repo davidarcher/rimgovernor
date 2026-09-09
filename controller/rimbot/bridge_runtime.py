@@ -614,6 +614,9 @@ class BridgeRuntime:
                 raise InterruptedError('Committed plan changed; clock was not changed')
             if self.mode != 'automate':
                 raise ValueError('Automation is off; clock was not changed')
+            if speed != 'Paused':
+                from .production_policy import sync_production_policy
+                await sync_production_policy(self)
             self.resume_after_review = False
             self.execution_window_end = None
             self.execution_wait_explicit = False
@@ -779,6 +782,9 @@ class BridgeRuntime:
             explicit = (self.manual_execution is not None and self.manual_execution ==
                         (expected_token, expected_revision, expected_plan_revision) ==
                         (self.context_token, self.chat_revision, self.current_plan.revision))
+            if name == 'home/bills' and not arguments.get('dryRun', True) and (self.mode == 'automate' or explicit):
+                from .production_policy import sync_production_policy
+                await sync_production_policy(self)
             await self.refresh_clock_events()
             if expected_revision is not None and expected_revision != self.chat_revision:
                 raise ValueError('Native interruption arrived during preparation; no command sent')
@@ -984,6 +990,8 @@ class BridgeRuntime:
                 self.resume_after_review = False
                 if (waiting or ongoing) and not self.supervisor.hold:
                     token, direction = self.context_token, self.chat_revision
+                    from .production_policy import sync_production_policy
+                    await sync_production_policy(self)
                     status = await self.game.query('home/status', colonists=False, threats=False)
                     await self.sync_identity()
                     if (self.mode != 'automate' or self.context_token != token

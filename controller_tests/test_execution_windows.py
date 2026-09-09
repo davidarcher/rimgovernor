@@ -12,13 +12,15 @@ def runtime(tmp_path, state='waiting', confirmed=True):
     store = Store(tmp_path/'windows.sqlite')
     rt = BridgeRuntime(store, tmp_path, model_factory=lambda _: SimpleNamespace())
     rt.mode = 'automate'
+    rt.identity = {'colonyId':'test','mapId':1,'loadToken':'load'}
     rt.sync_identity = AsyncMock(return_value=False)
     rt.resume_after_review = True
     async def change(speed, **kwargs):
         return {'active': speed != 'Paused', 'startTick': 100,
                 'tickDeadline': 100 + kwargs.get('max_ticks', 0)}
     rt.supervisor = SimpleNamespace(change=AsyncMock(side_effect=change), hold=None)
-    rt.game = SimpleNamespace(query=AsyncMock(return_value={'time': {'ticksGame': 100}}))
+    rt.game = SimpleNamespace(query=AsyncMock(return_value={'time': {'ticksGame': 100}}),
+        invoke=AsyncMock(return_value={'success':True,'floors':{},'commitments':{},'stopped':[]}))
     rt.hands = SimpleNamespace(advance=AsyncMock())
     rt.current_plan.spec = PlanSpec(steps=[dict(id='build', title='Build',
         completion_criteria='Built', action={'kind':'place_buildings',

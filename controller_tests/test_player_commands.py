@@ -11,7 +11,7 @@ from test_construction_preflight import footprint
 
 @pytest.mark.asyncio
 async def test_resource_policy_commands_preserve_other_field_and_other_resources(tmp_path):
-    rt=runtime(tmp_path);await rt.sync_identity()
+    rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch()
     query=rt.game.query
     async def observed(name,**args):
         if name=='home/colony_facts': return {'resources':{'ComponentIndustrial':30,'Steel':100}}
@@ -192,7 +192,7 @@ async def test_chat_can_apply_both_explicit_policy_changes_without_another_model
     await Planner(rt).play_bridge()
     rt.router.complete.assert_awaited_once()
     assert rt.current_plan.control['resource_policy']['Steel']=={'reserve':100,'spending':'stop'}
-    assert not rt.manual_requests and rt.counters['actions']==0
+    assert len(rt.manual_requests)==2 and rt.counters['actions']==0
     rt.store.close()
 
 
@@ -217,7 +217,7 @@ async def test_food_target_does_not_discard_explicit_policies_in_same_response(t
     assert rt.current_plan.colony_goals['EnsureFoodSupply'].target['food_days']==12
     assert rt.current_plan.control['resource_policy']=={
         'Steel':{'reserve':80,'spending':'normal'},'ComponentIndustrial':{'reserve':0,'spending':'stop'}}
-    assert not rt.manual_requests and rt.counters['actions']==0
+    assert len(rt.manual_requests)==2 and rt.counters['actions']==0
     rt.store.close()
 
 

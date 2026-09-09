@@ -29,12 +29,6 @@ async def validate_allocations(spec, current, game):
         if step.source == 'LLM_ADVISOR':
             raise ValueError('Advisory recommendations cannot commit game orders')
         action = step.action
-        if isinstance(action, NativeOperation) and action.tool == 'home/bills' and action.arguments.get('action') == 'add':
-            # Production bills can consume many ingredients over time. Until exact
-            # recipe input accounting is exposed, protected-resource policies cannot
-            # be bypassed by committing an uncosted production loop.
-            if any(p.get('spending') != 'normal' or p.get('reserve', 0) for p in policy.values()):
-                raise ValueError('Bill needs verified ingredient costs under the active resource policy')
         placements = room_placements(action) if isinstance(action, RoomShell) else action.placements if isinstance(action, Buildings) else []
         slots = {}
         for index, placement in enumerate(placements):

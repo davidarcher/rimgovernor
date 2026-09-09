@@ -83,11 +83,10 @@ class Hands:
                         receipt = await execute_trade(action, read_trade, write_trade)
                     else:
                         if isinstance(action, NativeOperation):
-                            if action.tool == 'home/bills' and action.arguments.get('action') == 'add' and any(
-                                    p.get('spending') != 'normal' or p.get('reserve',0)
-                                    for p in rt.current_plan.control.get('resource_policy',{}).values()):
-                                raise Blocked('resource_policy', 'Bill requires verified ingredient accounting under the current resource policy')
                             args = dict(action.arguments)
+                            if action.tool == 'home/production_policy':
+                                from .production_policy import policy_arguments
+                                args = policy_arguments(rt)
                             if step.source=='AUTOPILOT' and step.goal_id=='ActiveCombat':
                                 status=(await rt.game.query('home/status',colonists=False,threats=True)).get('threats',{})
                                 current={p['thingId'] for p in status.get('hostiles',[]) if p.get('downed') is False}

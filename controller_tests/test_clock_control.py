@@ -210,6 +210,8 @@ async def test_player_resume_is_not_undone_by_buffered_old_pause(tmp_path):
     bridge = NativeClock()
     rt = BridgeRuntime(store, tmp_path, model_factory=lambda _: SimpleNamespace())
     rt.bridge = bridge; rt.supervisor = PlayClock(bridge); rt.connected = True
+    rt.identity = {'colonyId':'test','mapId':1,'loadToken':'load'}
+    rt.game = SimpleNamespace(invoke=AsyncMock(return_value={'success':True,'floors':{},'commitments':{},'stopped':[]}))
     rt.sync_identity = AsyncMock(return_value=False)
     await rt.supervisor.change('Normal')
     bridge.state.update(active=False, stopReason='external_pause', paused=True)

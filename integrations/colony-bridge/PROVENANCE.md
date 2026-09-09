@@ -274,3 +274,10 @@ scenario tool discovers the native `WandererJoin` incident, requires
 `CanFireNow`, and invokes `TryExecute` using current storyteller parameters.
 RimWorld owns pawn generation, entry-cell legality, relationships and the joining
 letter; the fixture records roster IDs without directly creating or editing pawns.
+
+Resource policies use native recipe quantities, ingredient selection and recipe
+completion to enforce ordinary production budgets. Original RimBot guard code
+wraps these callbacks without copying game implementation or replacing bill
+settings. Exact-identity acquisition invokes the normal mining/plant designators.
+The identity assembly stores resource policy metadata beside colony identity;
+transient controller construction holds are excluded from native saves.

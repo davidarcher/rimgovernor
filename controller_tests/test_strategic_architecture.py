@@ -62,7 +62,7 @@ async def test_invalid_native_step_rejected_before_plan_commit(tmp_path):
 def runtime(tmp_path, **kwargs):
     store = Store(tmp_path/'state.sqlite')
     rt = BridgeRuntime(store, tmp_path, **kwargs)
-    rt.game = SimpleNamespace(query=AsyncMock(return_value={'colonyId':'test','mapId':1,'loadToken':'load'}),
+    rt.game = SimpleNamespace(describe=AsyncMock(return_value={'type':'object'}), query=AsyncMock(return_value={'colonyId':'test','mapId':1,'loadToken':'load'}),
         invoke=AsyncMock(side_effect=lambda name,args,**kw: native_reply(name,args,success=True,canPlace=True,costList=[{'defName':'WoodLog','count':5}], materials={'rows':[{'defName':'WoodLog','available':1000}]})))
     return rt
 

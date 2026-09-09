@@ -810,3 +810,13 @@ dotnet build integrations/headless-rim/src/HeadlessRim.csproj -c Release "-p:Rim
 Use a Linux GABS release matching the tested bridge version, verify the upstream
 release asset SHA-256, and retain its LICENSE/provenance alongside the executable.
 Do not install these task builds into the shared Windows game.
+### Resource production budgets
+
+`scripts/resource_policy_acceptance.py --source-root <ordinary-prepared-root>
+--output <fresh-directory>` creates a normal crafting spot and a native bill,
+then verifies stopped production, one actual pawn-produced output, exact input
+consumption and a reserve preventing another cycle. It also records native sources
+for the named resource targets. Install both the current observation and identity
+assemblies plus the current headless companion before launching; restore originals
+only after every game closes. This focused probe does not certify unavailable
+industrial recipes, every material alternative or sustained production.

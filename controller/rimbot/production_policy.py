@@ -1,0 +1,112 @@
+"""Persistent player budgets projected onto native bill job admission."""
+from .strategic_state import fingerprint
+
+
+def production_budgets(plan):
+    floors, stopped = {}, []
+    for resource, policy in plan.control.get('resource_policy', {}).items():
+        floors[resource] = policy.get('reserve', 0)
+        if policy.get('spending', 'normal') != 'normal': stopped.append(resource)
+    for identity, slots in plan.control.get('costs', {}).items():
+        progress = plan.progress.get(identity)
+        if progress is None or progress.state in ('complete', 'cancelled', 'blocked'): continue
+        for slot, costs in slots.items():
+            if progress.issued.get(slot, {}).get('confirmed'): continue
+            for resource, count in costs.items(): floors[resource] = floors.get(resource, 0) + count
+    return {k: v for k, v in floors.items() if v}, sorted(stopped)
+
+
+def policy_arguments(rt):
+    floors, stopped = production_budgets(rt.current_plan)
+    reserves = {k:p.get('reserve', 0) for k,p in rt.current_plan.control.get('resource_policy', {}).items() if p.get('reserve', 0)}
+    holds = {k:v-reserves.get(k,0) for k,v in floors.items() if v > reserves.get(k,0)}
+    return {**{k: rt.identity[k] for k in ('colonyId', 'loadToken', 'mapId')},
+            'floors': ','.join(f'{k}={v}' for k, v in sorted(reserves.items())),
+            'commitments': ','.join(f'{k}={v}' for k, v in sorted(holds.items())),
+            'stopped': ','.join(stopped), 'dryRun': False}
+
+
+async def sync_production_policy(rt):
+    """Called while holding the runtime writer lock, before starting simulation."""
+    args = policy_arguments(rt)
+    signature = fingerprint(args)
+    # Native policies can outlive a controller database: even an empty snapshot
+    # must clear the current map's old budgets after loading or reconnecting.
+    if getattr(rt, '_production_policy_signature', None) == signature: return
+    token, direction, revision = rt.context_token, rt.chat_revision, rt.current_plan.revision
+    rt.current_plan.control['production_policy_dispatch'] = {'arguments': args, 'confirmed': False}
+    rt.persist()
+    result = await rt.game.invoke('home/production_policy', args, allow_write=True)
+    await rt.sync_identity()
+    if (rt.context_token != token or rt.chat_revision != direction or rt.current_plan.revision != revision):
+        raise InterruptedError('Direction or colony changed while applying production policy; clock remains paused')
+    expected = {k:dict((part.split('=')[0], int(part.split('=')[1])) for part in args[k].split(',') if part) for k in ('floors','commitments')}
+    if result.get('success') is not True or any(result.get(k) != v for k,v in expected.items()):
+        raise ValueError('Native production policy was not verified; clock remains paused')
+    if sorted(result.get('stopped', [])) != production_budgets(rt.current_plan)[1]:
+        raise ValueError('Native stopped production inputs were not verified')
+    rt.current_plan.control['production_policy_dispatch'] = {'arguments': args, 'confirmed': True, 'receipt': result}
+    rt._production_policy_signature = signature
+    rt.persist()
+
+
+def ingredient_deficits(recipe, resources):
+    """Native per-definition recipe quantities, including alternatives; no fixed game tables."""
+    result = []
+    for row in recipe.get('ingredients', []):
+        choices = row.get('costOptions')
+        if choices is None or row.get('unreadable'):
+            raise ValueError('Exact native ingredient quantities unavailable')
+        result.append([{'resource': c['defName'], 'required': c['needed'],
+                        'deficit': max(0, c['needed'] - resources.get(c['defName'], 0))}
+                       for c in choices])
+    return result
+
+
+async def resource_method(rt, goal_id, facts):
+    from .colony_skills import SkillBlocked, native
+    goal = rt.current_plan.colony_goals[goal_id]
+    resource, target = goal.target['resource'], goal.target['quantity']
+    stock = facts.get('resources', {}).get(resource, 0) if resource in facts.get('policyResources', {}) else None
+    if stock is None: raise SkillBlocked('Resource stock is unavailable: ' + resource)
+    goal.evidence['stock'] = stock
+    goal.evidence['deficit'] = max(0, target - stock)
+    if stock >= target: return None
+    sources = await rt.game.invoke('home/resource_sources', {'resource': resource})
+    if sources.get('success') is not True: raise SkillBlocked('Native resource sources unavailable')
+    pending = sum(s['yield'] for s in sources.get('sources', []) if s.get('designated'))
+    goal.evidence['pending_acquisition'] = pending
+    needed = max(0, target - stock - pending)
+    selected = []
+    for source in sources.get('sources', []):
+        if needed <= 0 or len(selected) == 8: break
+        if source.get('designated') or source.get('yield', 0) <= 0: continue
+        selected.append(source); needed -= source['yield']
+    if selected:
+        return 'acquire-' + fingerprint([s['thingId'] for s in selected])[:12], [native('home/acquire_resource',
+            **{k: rt.identity[k] for k in ('colonyId', 'loadToken', 'mapId')},
+            **{k: s[k] for k in ('thingId', 'resource', 'x', 'z')}) for s in selected]
+    if pending: return None
+    listing = await rt.game.invoke('home/bills', {'action': 'list', 'dryRun': True})
+    candidates, deficits = [], []
+    for bench in listing.get('benches', []):
+        for bill in bench.get('bills', []):
+            config = bill.get('config', {})
+            covers = config.get('repeatMode') == 'Forever' or (config.get('repeatMode') == 'TargetCount' and config.get('targetCount', 0) >= target)
+            if (covers and not bill.get('suspended') and not bill.get('finished')
+                    and any(p.get('defName') == resource for p in bill.get('products', []))):
+                goal.evidence['existing_bill'] = {'bench': bench['thingId'], 'bill': bill.get('billId')}
+                return None
+        recipes = await rt.game.invoke('home/bills', {'action': 'recipes', 'bench': bench['thingId'], 'dryRun': True})
+        for recipe in recipes.get('recipes') or []:
+            if not any(p.get('defName') == resource for p in recipe.get('products', [])): continue
+            costs = ingredient_deficits(recipe, facts.get('resources', {}))
+            deficits.append({'bench': bench['thingId'], 'recipe': recipe['defName'], 'ingredients': costs})
+            if recipe.get('availableNow') is True and recipe.get('availableOnNow') is True:
+                candidates.append((bench['thingId'], recipe['defName']))
+    goal.evidence['production_deficits'] = deficits
+    if not candidates: raise SkillBlocked('No available native production recipe and workbench for ' + resource)
+    bench, recipe = sorted(candidates)[0]
+    return 'resource-' + fingerprint({'resource':resource,'target':target,'bench':bench,'recipe':recipe})[:12], [native('home/bills', action='add', bench=bench, recipe=recipe,
+        repeatMode='TargetCount', targetCount=target, unpauseWhenYouHave=max(0, target-1),
+        pauseWhenSatisfied='on', watch=False)]

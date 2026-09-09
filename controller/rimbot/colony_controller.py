@@ -64,8 +64,16 @@ class ColonyController:
                 by_id[pawn]['work'].get('manualPriorities') else (w.get('priority', 0) > 0) == (priority > 0))
                 for w in by_id[pawn]['work']['types']) for name, priority in work.items())
             for pawn, work in assignments.items())
+        resource_nodes = []
+        for identity, goal in plan.colony_goals.items():
+            if identity.startswith('MaintainResource-') and not goal.cancelled:
+                stock = facts.get('resources', {}).get(goal.target['resource'], 0) if goal.target['resource'] in facts.get('policyResources', {}) else None
+                goal.evidence['stock'] = stock
+                goal.evidence['deficit'] = None if stock is None else max(0, goal.target['quantity'] - stock)
+                if stock is None or stock < goal.target['quantity']:
+                    resource_nodes.append((identity, 3))
         old_latches = dict(plan.control.get('latches', {}))
-        nodes = priority_nodes(facts, plan.control.setdefault('latches', {}), self.policy)
+        nodes = priority_nodes(facts, plan.control.setdefault('latches', {}), self.policy) + resource_nodes
         for name, value in plan.control['latches'].items():
             if old_latches.get(name) != value:
                 self.event('hysteresis_changed', name, active=value)
@@ -125,7 +133,7 @@ class ColonyController:
                 'CriticalMedical': ['criticalPatients'], 'ActiveCombat': ['hostiles'],
                 'EnsureTemperatureSafety': ['sleepingTemperatureMin', 'sleepingTemperatureMax'],
                 'EnsureBasicPower': ['powerHeadroom'], 'AllowStartingSupplies': ['forbiddenSupplies']}
-            signature = fingerprint({'facts': {key: facts.get(key) for key in progress_fields.get(identity, [])},
+            signature = fingerprint({'facts': {key: facts.get(key) for key in progress_fields.get(identity, ['resources'] if identity.startswith('MaintainResource-') else [])},
                 'steps': {s: plan.progress[s].state for s in goal.steps if s in plan.progress}})
             if signature != goal.evidence.get('progress'):
                 goal.evidence['progress'] = signature
@@ -200,7 +208,7 @@ class ColonyController:
                 if compiled is None:
                     existing_process = (identity=='EnsureFoodSupply' and any(f.get('growingCells',0)>0 for f in facts.get('farms',[]))) or (
                         identity in ('EnsureFoodSupply','MaintainWood') and any(p.get('designated') for p in facts.get('acquisition',[])))
-                    if goal.evidence.get('methods') or goal.archived_methods or existing_process: plan.control['simulation_needed'] = True
+                    if goal.evidence.get('methods') or goal.archived_methods or existing_process or identity.startswith('MaintainResource-'): plan.control['simulation_needed'] = True
                     continue
                 method, actions = compiled
                 steps, slots = self.skills.steps(identity, method, actions, facts)

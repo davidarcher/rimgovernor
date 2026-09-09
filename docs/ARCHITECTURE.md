@@ -71,8 +71,12 @@ Paths in the table without a directory prefix are under `controller/rimbot/`.
    consumed. Later and dependency-gated projects yield; the selected remaining
    batch, earlier ready work, player reserves and uncertain writes stay protected.
    Dispatch rechecks current stock and player resource policies. Changed or
-   unknown costs require validation. Production bills under protected-resource
-   policies currently block until ingredient accounting is available.
+   unknown costs require validation. Native bill ingredient selection and final
+   consumption enforce persisted player resource floors and stopped inputs.
+   Transient unissued construction commitments apply only during a supervised
+   clock lease; native blueprint/frame deficits are counted directly. Player bill
+   filters and suspension settings remain unchanged. Exact native ingredient
+   alternatives include quantity conversion and are not truncated with display rows.
    Dispatch ingests buffered and fresh native clock events before using a captured
    direction and again after preparation. A busy writer cannot defer a known
    player hold or danger event until after an old order has been sent. External
@@ -183,6 +187,14 @@ by the deterministic allocator. Resource constraints include reserves and
 normal/defense-only/stopped spending. `ModifyResourcePolicy` changes only spending;
 `SetResourceReserve` changes only an explicit numeric reserve, including zero.
 Each preserves the other field and validates the resource against native facts.
+Policy changes queue a shared Hands action for native production enforcement;
+clock admission refreshes the current budgets before simulation. Persistent
+`MaintainResource` goals use exact native output definitions and stock targets.
+They acquire nearby reachable mineables or mature wild plants with identity-guarded
+ordinary designators, or discover native bench recipes and create target-count
+bills. Existing bills count as continuing capacity only when their repeat mode
+and target cover the request. Unavailable sources, recipes and benches remain
+explicit prerequisites; accepted orders and projected yield do not count as stock.
 The spending contract rejects reserve fields; combined requests use separate
 policy calls in one interpreter response. Existing stored policies retain their
 values. Explicit draft/movement overrides prevent

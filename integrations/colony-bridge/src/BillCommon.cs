@@ -635,6 +635,13 @@ namespace HomeBridge.BridgeTools
                 })
                 .ToList();
 
+            try {
+                row["costOptions"] = allowedDefs.Where(d => d != null && (isFixed || (FixedAllows(recipe, d) && FilterAllows(billFilter, d))))
+                    .OrderBy(d => d.defName).Select(d => (object)new Dictionary<string, object> {
+                        { "defName", d.defName }, { "needed", ing.CountRequiredOfFor(d, recipe, bill) },
+                        { "available", haveByDef.TryGetValue(d, out var n) ? n : 0 }
+                    }).ToList();
+            } catch { row["costOptions"] = null; row["unreadable"] = true; }
             row["summary"] = BridgeCommon.SafeString(() => ing.SummaryFor(recipe));
             row["label"] = generic ? GenericLabel(ing, best) : IngredientLabel(ing, best);
             // True = `label` is the slot's own noun, not a def anyone counted.

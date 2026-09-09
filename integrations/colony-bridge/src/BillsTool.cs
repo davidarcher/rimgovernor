@@ -475,6 +475,8 @@ namespace HomeBridge.BridgeTools
             var row = new Dictionary<string, object>(StringComparer.Ordinal)
             {
                 { "index", index },
+                { "billId", bill.GetUniqueLoadID() },
+                { "products", Products(bill.recipe) },
                 { "label", BillCommon.Label(bill) },
                 { "recipe", BridgeCommon.SafeString(() => bill.recipe == null ? null : bill.recipe.defName) },
                 { "recipeLabel", BridgeCommon.SafeString(() => bill.recipe == null ? null : bill.recipe.label) },
