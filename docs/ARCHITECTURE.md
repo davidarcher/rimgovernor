@@ -363,7 +363,8 @@ remains durable. Pre-existing player drafts are not claimed. A human
 undraft/redraft between observations is still ambiguous.
 
 The gameplay gateway disallows cheat placement, instant gear dropping, boosted
-simulation and native watch delays; map trade requires adjacency. Native game
+simulation; map trade requires adjacency. Native watch presentation is off unless
+the player enables action follow for the current load. Native game
 eligibility remains authoritative. The server binds to loopback and guards
 dashboard mutations with same-origin/header checks. Model configuration accepts
 local HTTP loopback endpoints only, with no paid-provider fallback.
@@ -386,7 +387,30 @@ acceptance. The combined autonomous starter colony remains unproven.
 
 ## Live interface delivery
 
-The Colony page keeps chat beside the current game snapshots. The native capture
+Outpost is the dashboard display name; runtime and package names remain RimBot.
+Watch keeps chat beside the current game snapshots. Priorities explains actual
+priority classes, selected methods, blockers and observed foothold gates; targets
+edit the same controller policy. Work separates unfinished orders from optional
+history. Colony groups people and field notes. Raw IDs, receipts and tool details
+stay behind closed diagnostic disclosures. Mounted views preserve drafts across
+navigation, and background refreshes preserve the last good data.
+
+`dashboard_controls.py` adds session-bound player time and camera endpoints.
+Time controls enter Manual, invalidate pending execution, verify a native pause
+and release owned drafts before requesting Normal, Fast or Superfast through the
+existing supervisor. An in-flight review must finish before a play request;
+Pause remains available. New direction or a load change prevents resuming.
+Ultrafast and boosted simulation remain outside the production gameplay surface.
+
+Action follow opts into the discovered native `watch` argument for supported real
+writes only. Reads, dry runs and unsupported tools do not gain camera behavior.
+The preference resets on load and is unavailable in headless mode. Native follow
+adds about 1.5 seconds of viewing lead; leaving it off retains the fast write path.
+This frames orders, not continuous pawn labor or every inspection. Video pause
+only stops dashboard capture demand. The observed TPS indicator includes controller
+pauses and resets on load, rewind or stale samples; it does not certify safety.
+
+The native capture The native capture
 is copied into immutable bytes before publication, so a subsequent screenshot
 cannot truncate an in-flight HTTP response. A failed refresh retains the last good
 frame and reports the delay. Visible game windows render independently of browser

@@ -18,6 +18,6 @@ export default function People({observation,stale}:{observation?:PeopleObservati
   {pawn&&<article className="mgr-card" style={{padding:'1rem'}}><h2>{pawn.name}</h2><dl>
    <dt>Mood</dt><dd>{percent(pawn.mood)}</dd><dt>Food need</dt><dd>{percent(pawn.food)}</dd><dt>Rest</dt><dd>{percent(pawn.rest)}</dd>
    <dt>Tending needed</dt><dd>{pawn.needs_tend==null?'Unknown':pawn.needs_tend?'Yes':'No'}</dd><dt>Bleeding</dt><dd>{pawn.bleeding==null?'Unknown':pawn.bleeding?'Yes':'No'}</dd>
-   <dt>Position</dt><dd>{pawn.position.x}, {pawn.position.z}</dd></dl><small className="mgr-muted">Native ID: {pawn.thing_id}. No current job alone does not prove a pawn is idle or available for work.</small></article>}
+   <dt>Position</dt><dd>{pawn.position.x}, {pawn.position.z}</dd></dl><details className="technical"><summary>Native diagnostic identity</summary><small className="mgr-muted">Native ID: {pawn.thing_id}. No current job alone does not prove a pawn is idle or available for work.</small></details></article>}
  </section>;
 }

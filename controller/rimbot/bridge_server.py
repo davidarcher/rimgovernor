@@ -14,6 +14,7 @@ from .bridge_runtime import BridgeRuntime
 from .config import DATA_DIR, Settings, load_model_routing
 from .store import Store
 from .controller_settings import PolicyUpdate, update_policy
+from .dashboard_controls import router as dashboard_controls
 from .session_checkpoint import create_checkpoint, stop_for_restart
 
 
@@ -51,6 +52,7 @@ def create_app(runtime=None):
             if runtime is None:
                 rt.store.close()
     app = FastAPI(title='RimBot live colony', lifespan=lifespan)
+    app.include_router(dashboard_controls)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=['127.0.0.1', 'localhost', '[::1]', 'testserver'])
     assets = Path(__file__).parent/'static'
     app.mount('/assets', StaticFiles(directory=assets/'assets'), name='overlay-assets')

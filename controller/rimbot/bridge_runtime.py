@@ -123,6 +123,7 @@ class BridgeRuntime:
             self.mode, self.resume_after_review = 'manual', False
             self.execution_window_end = None
             self.wake.clear()
+            self.game.cinematic = False
             self.camera_path, self.camera_version = None, 0
             self.camera_bytes = None
             self.camera_error, self.camera_captured_at = '', 0
@@ -1086,6 +1087,7 @@ class BridgeRuntime:
                     issued=len(self.current_plan.progress[s.id].issued),
                     failure=self.current_plan.progress[s.id].failure.model_dump() if self.current_plan.progress[s.id].failure else None)
                     for s in self.current_plan.spec.steps]}, 'modelRoles': self.router.metrics,
+            'cinematic': getattr(self.game, 'cinematic', False),
             'clockSupervisor': self.supervisor.state if self.supervisor else {},
             'rendering': self.render_state, 'headless': self.headless, 'cameraError': self.camera_error, 'cameraCapturedAt': self.camera_captured_at, 'cameraVersion': self.camera_version, 'counters': self.counters,
             'observation': summary.model_dump() if summary else None}

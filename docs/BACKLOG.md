@@ -132,6 +132,13 @@ in the checkpoint commit; do not append an implementation diary here.
   identify gaps in animals, medical/surgery/prisoner and food/drug/apparel policies.
   Require normal native eligibility and observed effects. Packed-furniture install
   already has exact-identity, rotated pawn-work acceptance.
+- [ ] **Dashboard native acceptance.** Verify Outpost time controls against a
+  rendered isolated session: pause, normal/fast/superfast, danger refusal, new
+  player direction and load invalidation. Verify action follow on pawn, building
+  and placement writes, turning it off and loading another map. Validate that
+  native lead/capture timing makes the selected action visible. Add manual-camera
+  suppression and configurable/decoupled cinematic pacing before claiming a
+  continuous high-speed director.
 - [ ] **B14 · Visual review quality.** Optional visual review and data scouts exist.
   Image consultations use fresh captures with source identity and context guards.
   Add near/wide framing, verify player camera ownership and add source-image concern overlays.
@@ -145,7 +152,21 @@ in the checkpoint commit; do not append an implementation diary here.
   passed; parallel inference throughput remains unmeasured. Identify boosted-speed
   pause causes; measure useful completed tests/minute, memory, startup, inference,
   observation and action overhead across colony ages and render/capture modes.
-  Interrupted burst TPS is not sustained episode throughput.
+  Interrupted burst TPS is not sustained episode throughput. Use the read-only
+  `scripts/dashboard_throughput.py` to retain wall TPS including pauses and exclude
+  load/rewind/disconnection intervals. Compare isolated rendered, suspended and
+  headless runs from the same checkpoint, with follow off and no competing workers.
+  Measure observation age in game ticks, danger-to-pause latency, player-stop latency,
+  verified outcomes per minute and missed safety gates at each candidate speed.
+  Keep Ultrafast test-only until its reaction envelope is accepted.
+  Batch only the retained starting-supply targets through discovered native contracts:
+  the current method emits up to eight cell-wise Unforbid operations with repeated
+  validation. Whole-map unforbid would broaden scope to unrelated player restrictions.
+  Profile per-operation preview, identity, native dispatch and readback cost before
+  removing redundant reads; uncertain writes still require observation before retry.
+  Consider adaptive game-tick review windows for stable colonies, preserving native
+  hazard supervision and a bounded observation age. Archive/reuse verified checkpoints
+  for long-lived scenarios while keeping fresh-start acceptance separate.
 - [ ] **B17 · Linux/container workers.** Parameterize game/GABS paths, explicitly
   configure inference networking beyond current loopback validation, mount licensed
   game/mod inputs and separate writable profiles, and persist artifacts externally.

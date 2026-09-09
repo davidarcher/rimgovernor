@@ -33,6 +33,8 @@ def is_write(tool, arguments):
 
 
 class BridgeGame(ObservationGateway):
+    cinematic = False
+
     async def describe(self, tool):
         if tool not in READS | WRITES:
             raise ValueError('Tool is outside the gameplay surface')
@@ -67,7 +69,7 @@ class BridgeGame(ObservationGateway):
             raise ValueError('Use normal gameplay placement')
         if tool in WRITES:
             if 'watch' in schema.get('properties', {}):
-                arguments['watch'] = False
+                arguments['watch'] = self.cinematic and is_write(tool, arguments)
             if (tool.startswith('home/') and 'dryRun' in schema.get('properties', {}) and 'dryRun' not in arguments
                     and (tool != 'home/research' or arguments.get('set'))):
                 raise ValueError('State dryRun explicitly: true to preview, false to act')
