@@ -54,6 +54,10 @@ def capture_manifest(source, worker_root, configuration, routing, *, profile=Non
     if not package or not assembly:
         raise ValueError('Observation package/assembly identity is unavailable')
     candidates = []
+    identity_candidates = []
+    identity_assembly = ET.parse(source/'integrations/colony-bridge/src/identity/ColonyIdentity.csproj').getroot().findtext('PropertyGroup/AssemblyName')
+    if not identity_assembly:
+        raise ValueError('Colony identity assembly name is unavailable')
     for metadata in (game_root/'Mods').glob('*/About/About.xml'):
         try:
             installed_package = ET.parse(metadata).getroot().findtext('packageId')
@@ -61,21 +65,25 @@ def capture_manifest(source, worker_root, configuration, routing, *, profile=Non
             continue
         if installed_package and installed_package.casefold() == package.casefold():
             candidates.extend(metadata.parent.parent.rglob(assembly+'.dll'))
+            identity_candidates.extend(metadata.parent.parent.rglob(identity_assembly+'.dll'))
     if len(candidates) != 1:
         raise ValueError('Expected one installed production observation assembly, found '+str(len(candidates)))
     profile = Path(profile) if profile is not None else root/'headless-profile'
+    if len(identity_candidates) != 1:
+        raise ValueError('Expected one installed colony identity assembly')
     paths = {
         'baseline_save': profile/'Saves/RimBot-tribal8-baseline.rws',
         'profile_preferences': profile/'Config/Prefs.xml',
         'profile_mods': profile/'Config/ModsConfig.xml',
         'gabs': gabs_executable(root, configuration),
         'observations_dll': candidates[0],
+        'identity_dll': identity_candidates[0],
     }
     if '-nographics' in game.get('args',[]):
         paths['headless_dll']=game_root/'Mods/RimBotHeadless/Assemblies/HeadlessRimPatch.dll'
-    inputs = dict(version=2, source=tracked_source(source), inference=routing,
+    inputs = dict(version=3, source=tracked_source(source), inference=routing,
                   observations_package=package, observations_assembly=assembly,
                   artifacts={key: file_hash(path) for key, path in paths.items()})
     return dict(fingerprint=_digest(inputs), inputs=inputs,
                 locations={key: str(path.resolve()) for key, path in paths.items()},
-                scope='Tracked working-tree bytes and listed untracked code, effective inference configuration, prepared fixture/profile, GABS, installed observation assembly and headless assembly for no-graphics launches. Model weight bytes and other installed mods are not fingerprinted.')
+                scope='Tracked working-tree bytes and listed untracked code, effective inference configuration, prepared fixture/profile, GABS, installed observation and colony identity assemblies, and headless assembly for no-graphics launches. Model weight bytes and other installed mods are not fingerprinted.')

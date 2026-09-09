@@ -262,3 +262,11 @@ blueprints. Blueprint refusal/removal and cancellation of an ordinarily built
 partial wooden-bed frame have native acceptance. The frame's 45 delivered wood
 returned to spawned stock at an unchanged game tick; this is a bounded refund
 case, not coverage of every material, partial delivery or modded frame.
+
+The separate `scripts/fixtures/InterruptionFixtures.csproj` acceptance assembly
+delivers disposable letters through `LetterMaker.MakeLetter` and
+`LetterStack.ReceiveLetter`, following vanilla automatic-pause preferences.
+Subsequent same-frame `TickManager.Pause` and speed-setting calls test source
+precedence; actual keyboard input is checked separately. The assembly is excluded
+from production builds and the model gameplay capability list. It does not edit
+pawns, resources, save contents or production supervisor code.

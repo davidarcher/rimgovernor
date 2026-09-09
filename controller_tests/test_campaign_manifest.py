@@ -22,11 +22,14 @@ def fixture(tmp_path):
     write(source/'integrations/colony-bridge/About/About.xml', metadata)
     write(source/'integrations/colony-bridge/src/ColonyObservations.csproj',
           '<Project><PropertyGroup><AssemblyName>Test.Observations</AssemblyName></PropertyGroup></Project>')
+    write(source/'integrations/colony-bridge/src/identity/ColonyIdentity.csproj',
+          '<Project><PropertyGroup><AssemblyName>Test.Identity</AssemblyName></PropertyGroup></Project>')
     for args in (['init', '-q'], ['add', '.'],
                  ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'fixture']):
         subprocess.run(['git', '-C', str(source), *args], check=True, capture_output=True)
     write(game/'Mods/CustomFolder/About/About.xml', metadata)
     write(game/'Mods/CustomFolder/BridgeTools/Test.Observations.dll', 'production dll')
+    write(game/'Mods/CustomFolder/Assemblies/Test.Identity.dll', 'identity dll')
     for relative in ('headless-profile/Saves/RimBot-tribal8-baseline.rws',
                      'headless-profile/Config/Prefs.xml', 'headless-profile/Config/ModsConfig.xml',
                      'gabs/gabs-v1.1.1-windows-amd64/gabs.exe'):
@@ -49,7 +52,7 @@ def test_isolated_paths_do_not_change_content_identity(tmp_path):
     assert before['inputs']['inference'] == routing
 
 
-@pytest.mark.parametrize('changed', ['source', 'baseline_save', 'observations_dll', 'gabs',
+@pytest.mark.parametrize('changed', ['source', 'baseline_save', 'observations_dll', 'identity_dll', 'gabs',
                                     'profile_preferences', 'profile_mods', 'temperature'])
 def test_input_changes_break_manifest_identity(tmp_path, changed):
     source, root, config, routing = fixture(tmp_path)
@@ -85,6 +88,20 @@ def test_tracked_deletion_changes_source_hash_but_ignored_outputs_do_not(tmp_pat
     (source/'controller/example.py').unlink()
     after = tracked_source(source)
     assert after['tracked_dirty'] and after['content_sha256'] != before['content_sha256']
+
+
+def test_identity_assembly_must_be_unique_and_present(tmp_path):
+    source, root, config, routing = fixture(tmp_path)
+    manifest = capture_manifest(source, root, config, routing)
+    dll = Path(manifest['locations']['identity_dll'])
+    duplicate = dll.parent/'duplicate'/dll.name
+    write(duplicate, 'another identity build')
+    with pytest.raises(ValueError, match='one installed colony identity'):
+        capture_manifest(source, root, config, routing)
+    duplicate.unlink()
+    dll.unlink()
+    with pytest.raises(ValueError, match='one installed colony identity'):
+        capture_manifest(source, root, config, routing)
 
 
 def test_untracked_executable_source_changes_manifest(tmp_path):

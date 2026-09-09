@@ -77,6 +77,25 @@ hold, rejection of a stale controller write, unchanged paused pawn state, and
 successful explicit resume to an exact tick boundary. API time-speed calls are
 used only for setup and explicit resume, never as the input under test.
 
+For deterministic letter ordering, build `scripts/fixtures/InterruptionFixtures.csproj`
+and, with every game stopped, temporarily place its output DLL under the installed
+observation mod's `BridgeTools/InterruptionFixtures/` directory. This separate
+test assembly calls the real `LetterStack.ReceiveLetter`; it does not change
+production code, pawns or saves. Run `scripts/native_interruption_acceptance.py`
+with the same source-root/output arguments. It checks exact letter ID attribution,
+same-frame non-letter pause/speed precedence, non-pausing threat preemption,
+nonstopping announcement delivery, and stale dispatch rejection after native load.
+The profile must use the ordinary `MajorThreat` automatic-pause preference.
+Remove the test DLL after all owned games stop, and preserve its hash in evidence.
+
+For actual injury preemption, run `scripts/native_combat_smoke.py
+--require-interruption --source-root <prepared-root> --output <fresh-directory>`.
+An ordinary attack on existing wildlife must cause a native colonist health stop,
+deliver controller evidence and reject the old attack revision. Target injury
+alone cannot pass this variant. The disposable test may acknowledge one observed
+Ancient danger warning; production does not automatically acknowledge it.
+The isolated game is stopped in cleanup and the report records termination.
+
 Run `scripts/native_tick_budget_acceptance.py --source-root <prepared-root>
 --output <new-directory>` with `controller` on `PYTHONPATH`. Each speed/budget
 case reloads the unchanged baseline. The native companion must independently
@@ -292,7 +311,7 @@ streak and retains already-running siblings' evidence. A changed revision, model
 or objective resets the streak; interrupted trials cannot contribute.
 Workers also save `manifest.json` before startup. Multiple consecutive passes
 require matching source-content, effective inference-setting, baseline/profile,
-GABS, installed observation DLL and (for no-graphics launches) installed headless
+GABS, installed observation and colony identity DLLs, and (for no-graphics launches) installed headless
 DLL fingerprints. Listed untracked code is included alongside tracked source so
 new modules cannot silently escape the source hash. Model weights and remaining
 mod binaries are outside that fingerprint and must be held fixed by the operator.

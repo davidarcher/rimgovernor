@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>RimBot.InterruptionFixtures.BridgeTools</AssemblyName>
+    <OutputPath>../../work/interruption-fixtures/</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <DebugType>none</DebugType>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <RimWorldDir>C:/Program Files (x86)/Steam/steamapps/common/RimWorld</RimWorldDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="InterruptionFixture.cs" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="RimBridgeServer.Sdk"><HintPath>$(RimWorldDir)/Mods/RimBridgeServer/1.6/Assemblies/RimBridgeServer.Sdk.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldDir)/RimWorldWin64_Data/Managed/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(RimWorldDir)/RimWorldWin64_Data/Managed/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>
