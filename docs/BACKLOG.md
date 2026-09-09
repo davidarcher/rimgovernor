@@ -29,9 +29,8 @@ in the checkpoint commit; do not append an implementation diary here.
   relocation/cancellation of issued construction through native cancellation
   skills; preserve existing orders until validated. Verify freezer expansion,
   policies and conversational refinements with a real local model.
-- [ ] **B04d · Long-running goal lifecycle.** Archive retired routine action specifications and receipts durably outside the
-  live plan snapshot while preserving identity rejection, goal progress and paired restart.
-  Active steps are bounded, but the retention audit confirms linear snapshot growth.
+- [ ] **B04d · Long-running goal lifecycle.** Broaden retention measurement from archived completed actions to
+  goal-method evidence and event history in sustained native campaigns.
   Add bounded
   recovery for other known transient failures beyond confirmed interrupted tending, preserve new-colonist work coverage and
   expand sleeping/farming templates beyond the eight-colonist starter. Reconcile

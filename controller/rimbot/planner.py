@@ -17,10 +17,13 @@ from .tool_diagnostics import record
 
 def inspect_plan(plan, ids):
     selected = set(ids)
+    archived={identity:record for identity in selected
+              if plan._archive_read is not None and (record:=plan._archive_read(identity)) is not None}
     return {'revision': plan.revision, 'step_ids': [s.id for s in plan.spec.steps],
         'steps': [dict(step=s.model_dump(), progress=plan.progress[s.id].model_dump()
             if s.id in plan.progress else None) for s in plan.spec.steps if s.id in selected],
-        'missing_ids': sorted(selected - {s.id for s in plan.spec.steps})}
+        'archived_steps':archived,
+        'missing_ids': sorted(selected - {s.id for s in plan.spec.steps} - set(archived))}
 
 
 def facts_index(facts):

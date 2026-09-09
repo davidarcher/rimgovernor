@@ -88,10 +88,14 @@ class BridgeRuntime:
         self.shutdown = asyncio.Event()
 
     def persist(self):
-        self.store.set('bridge:'+self.colony, {'chat': self.chat, 'plan': self.plan, 'projects': self.projects.dump(),
+        from .plan_archive import bind_archive,prepare_archive,finish_archive
+        bind_archive(self.current_plan,self.store,self.colony)
+        snapshot,records=prepare_archive(self.current_plan)
+        self.store.archive_and_set(self.colony,'bridge:'+self.colony, {'chat': self.chat, 'plan': self.plan, 'projects': self.projects.dump(),
             'chat_revision': self.chat_revision, 'handled_revision': self.handled_revision,
-            'draft_owners': self.draft_owners, 'current_plan': self.current_plan.model_dump(),
-            'strategic_state': self.strategic_state.dump(), 'advice': self.advice})
+            'draft_owners': self.draft_owners, 'current_plan': snapshot,
+            'strategic_state': self.strategic_state.dump(), 'advice': self.advice},records)
+        finish_archive(self.current_plan,snapshot,records)
 
     async def sync_identity(self):
         if self.game is None:

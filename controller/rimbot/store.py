@@ -15,6 +15,8 @@ class Store:
           CREATE TABLE IF NOT EXISTS state(key TEXT PRIMARY KEY, value TEXT NOT NULL);
           CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY, at REAL, colony TEXT, kind TEXT, data TEXT);
           CREATE TABLE IF NOT EXISTS decisions(id INTEGER PRIMARY KEY, at REAL, colony TEXT, role TEXT, payload BLOB, result BLOB);
+          CREATE TABLE IF NOT EXISTS retired_actions(colony TEXT NOT NULL, identity TEXT NOT NULL, record BLOB NOT NULL,
+            PRIMARY KEY(colony,identity));
         ''')
 
     def get(self, key, default=None):
@@ -24,6 +26,25 @@ class Store:
     def set(self, key, value):
         with self.db:
             self.db.execute('INSERT OR REPLACE INTO state VALUES (?,?)', (key, json.dumps(value)))
+
+    def retired_action(self, colony, identity):
+        row=self.db.execute('SELECT record FROM retired_actions WHERE colony=? AND identity=?',(colony,identity)).fetchone()
+        return json.loads(gzip.decompress(row[0])) if row else None
+
+    def has_retired_action(self, colony, identity):
+        return self.db.execute('SELECT 1 FROM retired_actions WHERE colony=? AND identity=?',(colony,identity)).fetchone() is not None
+
+    def archive_and_set(self, colony, key, value, records):
+        """Archive immutable outcomes and publish their compact snapshot atomically."""
+        with self.db:
+            for identity, record in records.items():
+                prior=self.retired_action(colony,identity)
+                if prior is not None and prior!=record:
+                    raise ValueError('Retired action record changed: '+identity)
+                if prior is None:
+                    packed=gzip.compress(json.dumps(record,ensure_ascii=False).encode('utf8'))
+                    self.db.execute('INSERT INTO retired_actions VALUES (?,?,?)',(colony,identity,packed))
+            self.db.execute('INSERT OR REPLACE INTO state VALUES (?,?)',(key,json.dumps(value)))
 
     def event(self, colony, kind, **data):
         at = time.time()

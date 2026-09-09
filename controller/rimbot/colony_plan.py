@@ -3,7 +3,7 @@ import hashlib
 import json
 from copy import deepcopy
 from typing import Annotated, Literal
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 from .config import ModelRole
 
 
@@ -288,6 +288,8 @@ class ColonyPlan(Contract):
     history: list[dict] = Field(default_factory=list)
     colony_goals: dict[str, ColonyGoal] = Field(default_factory=dict)
     control: dict = Field(default_factory=dict)
+    _archive_contains: object = PrivateAttr(default=None)
+    _archive_read: object = PrivateAttr(default=None)
 
     def commit(self, decision: Decision, *, actor: ModelRole, tick: int):
         if actor != ModelRole.STRATEGIST:
@@ -303,8 +305,11 @@ class ColonyPlan(Contract):
         if decision.plan == self.spec:
             return False
         old = {s.id: s for s in self.spec.steps}
+        if self.control.get('archived_action_count') and self._archive_contains is None:
+            raise ValueError('Retired action archive is unavailable; cannot safely admit new identities')
         for step in decision.plan.steps:
-            if step.id in self.control.get('retired_steps',{}):
+            if (step.id in self.control.get('retired_steps',{})
+                    or self._archive_contains is not None and self._archive_contains(step.id)):
                 raise ValueError('Retired action identity cannot be reused: '+step.id)
             if step.id in self.cancelled_ids or step.signature() in self.cancelled_actions:
                 # Retained cancelled work is history, not a request to issue it again.

@@ -10,7 +10,7 @@ def test_inspection_exposes_revision_progress_and_unknown_ids():
     plan = ColonyPlan(revision=7, spec=PlanSpec(steps=[step]),
         progress={'store': StepProgress(state='complete')})
     index = inspect_plan(plan, [])
-    assert index == dict(revision=7, step_ids=['store'], steps=[], missing_ids=[])
+    assert index == dict(revision=7, step_ids=['store'], steps=[], archived_steps={}, missing_ids=[])
     details = inspect_plan(plan, ['store', 'missing'])
     assert details['steps'][0]['progress']['state'] == 'complete'
     assert details['missing_ids'] == ['missing']

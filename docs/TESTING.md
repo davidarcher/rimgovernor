@@ -326,6 +326,9 @@ For receipt retention, run `scripts/plan_retention_audit.py --evidence <native-r
 receipts. This synthetic workload uses their shape without executing native orders,
 checks SQLite round trips, and records active/retired counts, snapshot/database size
 and serialization time. It measures retention overhead, not native recovery.
+The audit uses the production archive transaction, reloads the compact plan every
+hundred actions and checks all live/archived receipts at the end. Use `--steps 10000`
+to distinguish a bounded live working set from the growing immutable ledger.
 
 
 ### Ordinary Crashlanded acceptance
@@ -398,6 +401,11 @@ Add `--rendered` for the visible profile. The probe verifies a PLAYER food goal,
 policy and conversation, unchanged native colony identity, a new load token and no
 model calls. Checkpoint tampering, failed saves, stale direction and unresolved drafts
 are also covered by focused tests.
+Add `--archive` to execute and verify a native hauling-priority change through
+Hands, retire its completed action, and check the exact archived receipt and
+native assignment after paired restart. Reintroducing its old identity must be
+rejected with no native action. This check uses no inference and does not certify
+mixed pending construction or interrupted non-idempotent actions.
 
 For an owned Windows legacy server without the checkpoint endpoint, first install
 the current Python source in the checkout reported by `/api/health`. Keep native

@@ -211,6 +211,15 @@ retain issued work until fresh evidence arrives. Ambiguous non-idempotent writes
 block for inspection instead of automatic replay; only explicitly retryable
 failures can be retried through the plan.
 
+Completed actions removed from the active specification move to a compressed,
+colony-scoped SQLite archive. Their exact specification, progress/receipts and
+cost metadata are committed atomically with the compact live snapshot before
+in-memory removal. Current combat references remain live until released. The
+archive participates in paired database backups and rejects reused identities
+after restart; missing archive data blocks admission. `inspect_plan` retrieves
+archived records by exact ID. The last twelve plan revisions remain in the live
+history; immutable archive storage grows with completed work.
+
 Confirmed interrupted autonomous treatment has bounded recovery on the same action
 identity. Under the runtime writer lock, fresh patient/doctor observations and the
 native tick must match the issued load and current direction. Completed or resumed treatment
