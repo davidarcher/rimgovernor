@@ -16,6 +16,7 @@ from rimbot.headless import prepare, isolated_root
 from rimbot.store import Store
 from rimbot.colony_plan import Decision, PlanSpec, ColonyGoal
 from rimbot.config import ModelRole
+from rimbot.campaign_manifest import capture_manifest
 
 
 async def tend_wounded(rt, evidence, recovery=False):
@@ -127,7 +128,9 @@ async def tend_wounded(rt, evidence, recovery=False):
 async def main(tend=False, root=None, recovery=False, existing_patient=False, require_interruption=False):
     isolated = root is not None
     root=Path(root or '.rimbot/bridge').resolve();evidence={}
-    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',prepare(root)) as bridge:
+    configuration=prepare(root)
+    evidence['manifest']=capture_manifest(Path(__file__).resolve().parents[1],root,configuration,{'mode':'no inference'})
+    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',configuration) as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
         await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
         await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
