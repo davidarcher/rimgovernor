@@ -605,6 +605,7 @@ class BridgeRuntime:
     async def control_clock(self, speed, *, mode='colony', ignored_hostiles='', ignored_downed='', expected_revision=None, expected_token=None, expected_plan_revision=None):
         async with self.lock:
             await self.sync_identity()
+            await self.refresh_clock_events()
             if expected_token is not None and expected_token != self.context_token:
                 raise ValueError('Loaded colony changed; clock was not changed')
             if expected_revision is not None and expected_revision != self.chat_revision:
@@ -662,6 +663,7 @@ class BridgeRuntime:
                 self.execution_window_end = None
                 self.execution_wait_explicit = False
             if kind in HOLD_REASONS or kind == 'clock_error':
+                self.current_plan.control['player_direction'] = self.current_plan.control.get('player_direction', 0) + 1
                 self.mode = 'manual'
                 self.phase = 'Clock held'
             # Deliver evidence to an in-flight planner, invalidate stale calls,
@@ -672,6 +674,17 @@ class BridgeRuntime:
         if events:
             self.persist()
 
+    async def refresh_clock_events(self):
+        """Ingest native interruptions before a writer uses its captured direction.
+
+        The background observer may have been waiting behind this writer lock.
+        Buffered events and fresh native events must both invalidate old work.
+        """
+        poll = getattr(self.supervisor, 'poll', None)
+        if poll is not None:
+            self.clock_events.extend(await poll())
+        self.receive_clock_events()
+
     async def native(self, name, arguments, *, expected_revision=None, expected_token=None, expected_plan_revision=None, reconcile=True, expected_step_id=None):
         if name == 'rimworld/set_time_speed':
             if set(arguments) - {'speed', 'ultraSpeedBoost'}:
@@ -680,6 +693,7 @@ class BridgeRuntime:
                 raise ValueError('Use normal game speeds')
             return await self.control_clock(arguments.get('speed'), expected_revision=expected_revision, expected_token=expected_token, expected_plan_revision=expected_plan_revision)
         async with self.lock:
+            await self.refresh_clock_events()
             if getattr(self, 'player_input', None) is not None and is_write(name, arguments):
                 raise ValueError('Player control is held; no model or controller order was sent')
             if expected_revision is not None and expected_revision != self.chat_revision:
@@ -765,6 +779,9 @@ class BridgeRuntime:
             explicit = (self.manual_execution is not None and self.manual_execution ==
                         (expected_token, expected_revision, expected_plan_revision) ==
                         (self.context_token, self.chat_revision, self.current_plan.revision))
+            await self.refresh_clock_events()
+            if expected_revision is not None and expected_revision != self.chat_revision:
+                raise ValueError('Native interruption arrived during preparation; no command sent')
             result = await self.game.invoke(name, arguments, allow_write=self.mode == 'automate' or explicit)
             if hunting_target:
                 observed=await self.game.query('home/list_pawns',wildOnly=True,animalsOnly=True,animals=True)

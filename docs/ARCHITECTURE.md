@@ -73,6 +73,11 @@ Paths in the table without a directory prefix are under `controller/rimbot/`.
    Dispatch rechecks current stock and player resource policies. Changed or
    unknown costs require validation. Production bills under protected-resource
    policies currently block until ingredient accounting is available.
+   Dispatch ingests buffered and fresh native clock events before using a captured
+   direction and again after preparation. A busy writer cannot defer a known
+   player hold or danger event until after an old order has been sent. External
+   holds advance the durable player-direction counter independently of routine
+   observation and review revisions.
 6. New growing zones validate crop identity and pollution compatibility before
    registration, and configure the crop in the same native operation.
    Hands records intent before writes, retains partial progress and verifies

@@ -60,8 +60,8 @@ async def run(args):
                     assert stop['stopReason'] == reason, stop
                     assert stop['pauseVerified'] and stop['lastTick'] < stop['tickDeadline'], stop
                     rt.clock_events.extend(events)
-                    rt.receive_clock_events()
-                    assert rt.mode == 'manual' and rt.chat_revision > direction
+                    # Deliberately leave the background relay unconsumed: dispatch
+                    # must ingest the queued interruption before sending this write.
                     before = await rt.game.query('home/status')
                     pawn = before['colonists'][0]['thingId']
                     actions = rt.counters['actions']
@@ -73,6 +73,7 @@ async def run(args):
                         assert 'direction' in refused.lower(), refused
                     else:
                         raise AssertionError('A stale controller write survived player interruption')
+                    assert rt.mode == 'manual' and rt.chat_revision > direction
                     try:
                         await rt.supervisor.change('Normal', max_ticks=37)
                     except ValueError as error:

@@ -269,4 +269,8 @@ delivers disposable letters through `LetterMaker.MakeLetter` and
 Subsequent same-frame `TickManager.Pause` and speed-setting calls test source
 precedence; actual keyboard input is checked separately. The assembly is excluded
 from production builds and the model gameplay capability list. It does not edit
-pawns, resources, save contents or production supervisor code.
+resources, save contents or production supervisor code. Its separate joining
+scenario tool discovers the native `WandererJoin` incident, requires
+`CanFireNow`, and invokes `TryExecute` using current storyteller parameters.
+RimWorld owns pawn generation, entry-cell legality, relationships and the joining
+letter; the fixture records roster IDs without directly creating or editing pawns.

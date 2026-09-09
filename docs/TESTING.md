@@ -87,6 +87,11 @@ same-frame non-letter pause/speed precedence, non-pausing threat preemption,
 nonstopping announcement delivery, and stale dispatch rejection after native load.
 The profile must use the ordinary `MajorThreat` automatic-pause preference.
 Remove the test DLL after all owned games stop, and preserve its hash in evidence.
+For explicit join-scenario setup, the same test assembly provides
+`test/join_incident`: preview eligibility with `dryRun=true`, then use
+`dryRun=false` to request the ordinary native WandererJoin event. Record returned
+before/after IDs, actual joined-pawn work settings and outcomes separately from
+the incident receipt. This setup tool is unavailable to model execution.
 
 For actual injury preemption, run `scripts/native_combat_smoke.py
 --require-interruption --source-root <prepared-root> --output <fresh-directory>`.

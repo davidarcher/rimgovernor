@@ -237,3 +237,41 @@ async def test_combat_injury_wakes_strategist_and_invalidates_prior_orders(tmp_p
         await rt.native('home/order',{'action':'attack'},expected_revision=prior)
     rt.game.invoke.assert_not_awaited()
     store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('buffered', [True, False])
+async def test_native_dispatch_ingests_interruption_before_background_loop(tmp_path, buffered):
+    store = Store(tmp_path/'dispatch-interruption.sqlite')
+    rt = BridgeRuntime(store, tmp_path, model_factory=lambda _: SimpleNamespace())
+    rt.mode = 'automate'
+    rt.sync_identity = AsyncMock(return_value=False)
+    rt.game = SimpleNamespace(invoke=AsyncMock())
+    event = dict(kind='external_pause', detail='Real native pause before dispatch', epoch=1)
+    rt.clock_events = [event] if buffered else []
+    rt.supervisor = SimpleNamespace(poll=AsyncMock(return_value=[] if buffered else [event]), acknowledged_stop=None)
+    try:
+        with pytest.raises(ValueError, match='direction'):
+            await rt.native('home/order', {'action': 'draft', 'pawn': 'Thing_Human1', 'dryRun': False}, expected_revision=0)
+        assert rt.mode == 'manual' and rt.chat_revision == 1
+        assert rt.current_plan.control['player_direction'] == 1
+        rt.game.invoke.assert_not_awaited()
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+async def test_old_clock_order_cannot_resume_after_unconsumed_injury(tmp_path):
+    store = Store(tmp_path/'clock-interruption.sqlite')
+    rt = BridgeRuntime(store, tmp_path, model_factory=lambda _: SimpleNamespace())
+    rt.mode = 'automate'
+    rt.sync_identity = AsyncMock(return_value=False)
+    rt.supervisor = SimpleNamespace(poll=AsyncMock(return_value=[
+        dict(kind='colonist_injury', detail='Native injury before clock dispatch', epoch=1)]), change=AsyncMock())
+    try:
+        with pytest.raises(ValueError, match='New direction'):
+            await rt.control_clock('Normal', expected_revision=0)
+        rt.supervisor.change.assert_not_awaited()
+        assert rt.wake.is_set() and not rt.resume_after_review
+    finally:
+        store.close()
