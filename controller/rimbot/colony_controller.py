@@ -106,7 +106,7 @@ class ColonyController:
             if goal.cancelled: continue
             if goal.status == 'complete':
                 goal.status = 'active'
-                goal.evidence['methods'] = {}
+                goal.reopen_methods()
                 goal.attempts += 1
                 goal.last_progress_tick = facts['tick']
                 self.event('goal_reopened', identity)
@@ -178,7 +178,7 @@ class ColonyController:
                 if compiled is None:
                     existing_process = (identity=='EnsureFoodSupply' and any(f.get('growingCells',0)>0 for f in facts.get('farms',[]))) or (
                         identity in ('EnsureFoodSupply','MaintainWood') and any(p.get('designated') for p in facts.get('acquisition',[])))
-                    if goal.evidence.get('methods') or existing_process: plan.control['simulation_needed'] = True
+                    if goal.evidence.get('methods') or goal.archived_methods or existing_process: plan.control['simulation_needed'] = True
                     continue
                 method, actions = compiled
                 steps, slots = self.skills.steps(identity, method, actions, facts)

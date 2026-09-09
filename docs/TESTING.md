@@ -342,6 +342,16 @@ Both diagnostic modes and an absent colony are checked. Add `--unindexed-baselin
 to remove only the copy's history indexes before the comparison. Source databases
 and their receipts remain unchanged.
 
+`scripts/goal_method_archive_audit.py --source <controller.sqlite> --output
+<fresh-directory>` retires completed native action records only on a read-only
+source's copy, archives eligible method associations, and verifies exact mappings,
+deduplication, goal reopening and event preservation after SQLite backup. This
+does not run the game. For a real paired save/stop/load check, add `--archive
+--methods` to `scripts/session_checkpoint_acceptance.py`; it verifies the archived
+method alongside its exact native hauling outcome, a new load token, Manual mode
+and zero replayed actions. Installed DLL replacement/restoration still requires
+every game to be stopped.
+
 
 ### Ordinary Crashlanded acceptance
 

@@ -24,9 +24,9 @@ def retired_plan():
 
 def persist(store,plan):
     bind_archive(plan,store,'colony')
-    snapshot,records=prepare_archive(plan)
-    store.archive_and_set('colony','plan',snapshot,records)
-    finish_archive(plan,snapshot,records)
+    snapshot,records,methods=prepare_archive(plan)
+    store.archive_and_set('colony','plan',snapshot,records,methods)
+    finish_archive(plan,snapshot,records,methods)
 
 
 def test_archive_preserves_receipts_across_sqlite_backup_and_rejects_identity_reuse(tmp_path):
@@ -87,4 +87,81 @@ def test_archival_preserves_pending_receipts_and_refuses_changed_history(tmp_pat
         store.archive_and_set('colony','plan',{'invalid':'replacement'},{'action-0':altered})
     assert store.get('plan')==original
     assert store.retired_action('colony','action-0')['progress']['issued']['0']['receipt']=={'id':'action-0'}
+    store.close()
+
+
+def test_method_deduplication_and_exact_steps_survive_backup(tmp_path):
+    store=Store(tmp_path/'state.sqlite');plan=retired_plan()
+    goal=plan.colony_goals['EnsureWorkAssignments']
+    goal.evidence['methods']={f'assign-{i}':[f'action-{i}'] for i in range(73)}
+    persist(store,plan)
+    assert goal.archived_methods==72 and goal.evidence['methods']=={'assign-72':['action-72']}
+    assert all(goal.method_seen(f'assign-{i}') for i in range(73))
+    with sqlite3.connect(tmp_path/'backup.sqlite') as backup:store.db.backup(backup)
+    store.close();store=Store(tmp_path/'backup.sqlite')
+    restored=ColonyPlan.model_validate(store.get('plan'))
+    goal=restored.colony_goals['EnsureWorkAssignments']
+    with pytest.raises(ValueError,match='method archive is unavailable'):goal.method_seen('assign-0')
+    bind_archive(restored,store,'colony')
+    assert goal.method_seen('assign-0') and not goal.method_seen('never-issued')
+    assert store.retired_method('colony','EnsureWorkAssignments',0,'assign-0')=={'steps':['action-0']}
+    goal.reopen_methods()
+    assert goal.method_epoch==1 and goal.archived_methods==0 and not goal.method_seen('assign-0')
+    assert store.retired_method('colony','EnsureWorkAssignments',0,'assign-0')=={'steps':['action-0']}
+    goal.evidence['methods']['assign-0']=['action-1']
+    persist(store,restored)
+    assert goal.method_seen('assign-0')
+    assert store.retired_method('colony','EnsureWorkAssignments',1,'assign-0')=={'steps':['action-1']}
+    assert store.retired_method('colony','EnsureWorkAssignments',0,'assign-0')=={'steps':['action-0']}
+    store.close()
+
+
+def test_method_snapshot_failure_rolls_back_and_missing_archive_refuses(tmp_path):
+    store=Store(tmp_path/'state.sqlite');plan=retired_plan()
+    plan.colony_goals['EnsureWorkAssignments'].evidence['methods']={'assign':['action-0']}
+    before=plan.model_dump()
+    store.db.execute("CREATE TRIGGER fail_state BEFORE INSERT ON state BEGIN SELECT RAISE(ABORT,'disk failure'); END")
+    with pytest.raises(sqlite3.IntegrityError):persist(store,plan)
+    assert plan.model_dump()==before and store.retired_method('colony','EnsureWorkAssignments',0,'assign') is None
+    store.db.execute('DROP TRIGGER fail_state');persist(store,plan)
+    restored=ColonyPlan.model_validate(store.get('plan'))
+    store.db.execute('DELETE FROM retired_methods');store.db.commit()
+    with pytest.raises(ValueError,match='method archive is missing'):bind_archive(restored,store,'colony')
+    store.close()
+
+
+def test_mixed_pending_method_stays_live_and_old_action_methods_can_compact_later(tmp_path):
+    store=Store(tmp_path/'state.sqlite');plan=retired_plan()
+    plan.progress['action-72'].state='waiting'
+    goal=plan.colony_goals['EnsureWorkAssignments']
+    goal.evidence['methods']={'mixed':['action-0','action-72']}
+    persist(store,plan)
+    assert goal.archived_methods==0 and goal.evidence['methods']['mixed']==['action-0','action-72']
+    goal.evidence['methods']['late-observed']=['action-0']
+    persist(store,plan)
+    assert goal.archived_methods==1 and goal.method_seen('late-observed')
+    assert store.retired_method('colony','EnsureWorkAssignments',0,'late-observed')=={'steps':['action-0']}
+    before=store.get('plan')
+    with pytest.raises(ValueError,match='method record changed'):
+        store.archive_and_set('colony','plan',{}, {},[{'goal':'EnsureWorkAssignments','epoch':0,
+            'method':'late-observed','record':{'steps':['different']}}])
+    assert store.get('plan')==before
+    store.close()
+
+
+@pytest.mark.asyncio
+async def test_skill_compiler_uses_archived_method_membership(tmp_path):
+    from types import SimpleNamespace
+    from rimbot.colony_skills import ColonySkills
+    store=Store(tmp_path/'state.sqlite');plan=retired_plan()
+    goal=ColonyGoal(priority_class=0,evidence={'methods':{'names-7':['action-0']}})
+    plan.colony_goals['ConfirmColonyNames']=goal
+    persist(store,plan)
+    assert goal.evidence['methods']=={} and goal.archived_methods==1
+    skills=ColonySkills(SimpleNamespace(current_plan=plan))
+    facts={'colonyNaming':{'windowId':7}}
+    assert await skills.compile('ConfirmColonyNames',facts,[]) is None
+    goal.reopen_methods()
+    method,actions=await skills.compile('ConfirmColonyNames',facts,[])
+    assert method=='names-7' and len(actions)==1
     store.close()

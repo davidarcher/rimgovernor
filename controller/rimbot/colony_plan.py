@@ -296,6 +296,20 @@ class ColonyGoal(Contract):
     source: Literal['PLAYER', 'AUTOPILOT', 'LLM_ADVISOR'] = 'AUTOPILOT'
     target: dict = Field(default_factory=dict)
     cancelled: bool = False
+    method_epoch: int = Field(default=0, ge=0)
+    archived_methods: int = Field(default=0, ge=0)
+    _method_contains: object = PrivateAttr(default=None)
+
+    def method_seen(self, name):
+        if name in self.evidence.get('methods',{}):return True
+        if self.archived_methods and self._method_contains is None:
+            raise ValueError('Goal method archive is unavailable; cannot safely repeat work')
+        return bool(self.archived_methods and self._method_contains(name))
+
+    def reopen_methods(self):
+        self.method_epoch += 1
+        self.archived_methods = 0
+        self.evidence['methods'] = {}
 
 
 class ColonyPlan(Contract):

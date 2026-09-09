@@ -9,7 +9,7 @@ from rimbot.headless import isolated_root, prepare_rendered
 from rimbot.player_commands import apply_command
 from rimbot.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
 from rimbot.store import Store
-from rimbot.colony_plan import Decision,PlanSpec,CommitSteps,PlanStep
+from rimbot.colony_plan import Decision,PlanSpec,CommitSteps,PlanStep,ColonyGoal
 
 
 async def ready(rt):
@@ -51,6 +51,9 @@ async def main(args):
                 plan=rt.current_plan
                 original=next(s.model_dump() for s in plan.spec.steps if s.id==identity)
                 progress=plan.progress[identity].model_dump()
+                if args.methods:
+                    plan.colony_goals['EnsureWorkAssignments']=ColonyGoal(priority_class=2,source='PLAYER',
+                        steps=[identity],evidence={'methods':{'native-hauling-off':[identity]}})
                 spec=plan.spec.model_dump();spec['steps']=[s for s in spec['steps'] if s['id']!=identity]
                 decision=Decision(expected_revision=plan.revision,disposition='revise',assessment='Archive completed work',
                     rationale='Archive completed work',reply='Archive completed work',plan=PlanSpec.model_validate(spec))
@@ -59,6 +62,11 @@ async def main(args):
             record=store.retired_action(rt.colony,identity)
             assert record['step']==original and record['progress']==progress and identity not in plan.progress
             report['archive']={'identity':identity,'record':record,'work':expected}
+            if args.methods:
+                goal=plan.colony_goals['EnsureWorkAssignments']
+                assert goal.archived_methods==1 and goal.method_seen('native-hauling-off')
+                report['method_archive']=store.retired_method(rt.colony,'EnsureWorkAssignments',goal.method_epoch,'native-hauling-off')
+                assert report['method_archive']=={'steps':[identity]}
         rt.reply('Checkpoint acceptance: preserve this conversation.')
         await rt.bridge.call('rimworld/set_time_speed',speed='Fast',ultraSpeedBoost=False)
         await asyncio.sleep(2)
@@ -96,6 +104,11 @@ async def main(args):
                 assert 'Retired action identity' in str(error)
             else:raise AssertionError('Archived action identity was admitted again')
             assert resumed.counters['actions']==0
+            if args.methods:
+                goal=plan.colony_goals['EnsureWorkAssignments']
+                assert goal.archived_methods==1 and goal.evidence['methods']=={}
+                assert goal.method_seen('native-hauling-off') and not goal.method_seen('never-issued')
+                assert store.retired_method(resumed.colony,'EnsureWorkAssignments',goal.method_epoch,'native-hauling-off')==report['method_archive']
         report.update(outcome='PASS',resumed_tick=resumed.batch.summary.end_tick,new_token=resumed.context_token)
         print('PASS: native tick, identity, PLAYER goal, policy and conversation preserved; new load in Manual',flush=True)
     finally:
@@ -109,4 +122,7 @@ if __name__=='__main__':
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--rendered',action='store_true',help='Verify the visible private profile instead of headless mode')
     parser.add_argument('--archive',action='store_true',help='Retire a completed native work assignment and verify its archive and no replay after restart')
-    asyncio.run(asyncio.wait_for(main(parser.parse_args()),240))
+    parser.add_argument('--methods',action='store_true',help='With --archive, also verify durable method deduplication after native paired restart')
+    args=parser.parse_args()
+    if args.methods and not args.archive:parser.error('--methods requires --archive')
+    asyncio.run(asyncio.wait_for(main(args),240))

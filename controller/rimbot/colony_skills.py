@@ -78,8 +78,8 @@ class ColonySkills:
         """Return a named method and bounded actions, or wait for its postcondition."""
         rt = self.rt
         goal = rt.current_plan.colony_goals[goal_id]
-        methods = goal.evidence.setdefault('methods', {})
-        def unused(name): return name not in methods
+        goal.evidence.setdefault('methods', {})
+        def unused(name): return not goal.method_seen(name)
         if goal_id == 'ConfirmColonyNames':
             naming=facts['colonyNaming']
             method='names-'+str(naming['windowId'])

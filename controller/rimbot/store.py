@@ -20,6 +20,8 @@ class Store:
           CREATE TABLE IF NOT EXISTS decisions(id INTEGER PRIMARY KEY, at REAL, colony TEXT, role TEXT, payload BLOB, result BLOB);
           CREATE TABLE IF NOT EXISTS retired_actions(colony TEXT NOT NULL, identity TEXT NOT NULL, record BLOB NOT NULL,
             PRIMARY KEY(colony,identity));
+          CREATE TABLE IF NOT EXISTS retired_methods(colony TEXT NOT NULL, goal TEXT NOT NULL, epoch INTEGER NOT NULL,
+            method TEXT NOT NULL, record BLOB NOT NULL, PRIMARY KEY(colony,goal,epoch,method));
         ''')
 
     def get(self, key, default=None):
@@ -37,7 +39,16 @@ class Store:
     def has_retired_action(self, colony, identity):
         return self.db.execute('SELECT 1 FROM retired_actions WHERE colony=? AND identity=?',(colony,identity)).fetchone() is not None
 
-    def archive_and_set(self, colony, key, value, records):
+    def retired_method(self, colony, goal, epoch, method):
+        row=self.db.execute('SELECT record FROM retired_methods WHERE colony=? AND goal=? AND epoch=? AND method=?',
+            (colony,goal,epoch,method)).fetchone()
+        return json.loads(gzip.decompress(row[0])) if row else None
+
+    def has_retired_method(self, colony, goal, epoch, method):
+        return self.db.execute('SELECT 1 FROM retired_methods WHERE colony=? AND goal=? AND epoch=? AND method=?',
+            (colony,goal,epoch,method)).fetchone() is not None
+
+    def archive_and_set(self, colony, key, value, records, methods=()):
         """Archive immutable outcomes and publish their compact snapshot atomically."""
         with self.db:
             for identity, record in records.items():
@@ -47,6 +58,14 @@ class Store:
                 if prior is None:
                     packed=gzip.compress(json.dumps(record,ensure_ascii=False).encode('utf8'))
                     self.db.execute('INSERT INTO retired_actions VALUES (?,?,?)',(colony,identity,packed))
+            for entry in methods:
+                identity=(colony,entry['goal'],entry['epoch'],entry['method'])
+                prior=self.retired_method(*identity)
+                if prior is not None and prior!=entry['record']:
+                    raise ValueError('Retired method record changed: '+entry['method'])
+                if prior is None:
+                    packed=gzip.compress(json.dumps(entry['record'],ensure_ascii=False).encode('utf8'))
+                    self.db.execute('INSERT INTO retired_methods VALUES (?,?,?,?,?)',(*identity,packed))
             self.db.execute('INSERT OR REPLACE INTO state VALUES (?,?)',(key,json.dumps(value)))
 
     def event(self, colony, kind, **data):

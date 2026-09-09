@@ -247,6 +247,11 @@ archive participates in paired database backups and rejects reused identities
 after restart; missing archive data blocks admission. `inspect_plan` retrieves
 archived records by exact ID. The last twelve plan revisions remain in the live
 history; immutable archive storage grows with completed work.
+Method-to-action references whose actions are all archived move into a separate
+immutable SQLite table in the same snapshot transaction. Goal deduplication checks
+both live method entries and that table. Each natural goal reopening advances a
+method epoch, allowing new work without deleting archived associations. Pending
+methods remain live, and a missing method archive blocks replay after restart.
 
 Recent event reads use colony/sequence indexes, including a partial index for
 non-diagnostic history. Index migration preserves every event and its identity;
