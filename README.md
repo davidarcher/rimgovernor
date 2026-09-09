@@ -6,7 +6,8 @@ runtime dependency or supported backend.
 
 ## Launch
 
-Start LM Studio's local server with Qwen3.5-9B loaded, then run:
+Autopilot runs without a model. For interactive chat, start LM Studio's local
+server with the configured model loaded (Qwen3.5-9B by default), then run:
 
 ```powershell
 .\launch.cmd

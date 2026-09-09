@@ -224,3 +224,26 @@ configured local model against fixed controller facts with no game writes.
 verifies a work assignment, a persistent food target and a component policy.
 The probe uses the normal shared validator and Hands. Preserve failed responses;
 fixed-fact model correctness and native command acceptance are separate results.
+
+
+### Ordinary Crashlanded acceptance
+
+Prepare a fresh isolated native start, then run the production controller:
+
+```powershell
+python scripts/prepare_crashlanded.py --source-root <prepared-bridge-root> --output <fresh-bridge-root>
+python scripts/deterministic_foothold.py --source-root <fresh-bridge-root> --output <fresh-report-directory> --seconds 1800 --speed Superfast
+```
+
+The preparer discovers `rimworld/start_debug_game_ready`. That native lifecycle
+entry uses the ordinary Crashlanded scenario, Cassandra/Rough and normal world/
+pawn generation. It waits for the three starting colonists to arrive, pauses and
+uses native SaveGame; it does not alter pawn stats, needs, supplies or save XML.
+Its report records the initial tick and save provenance. The inherited baseline
+filename still says `tribal8`; the saved scenario and observed colonist count are
+the authority. Generate another isolated root for another random map seed.
+
+The runner rejects fresh baselines past tick 600 and injects a model client that
+fails on any attempted inference. `FOOTHOLD_STABLE` requires every functional
+gate. A pass certifies establishment at that observation, not sustained survival;
+longer stability and difficult-biome acceptance remain separate backlog work.

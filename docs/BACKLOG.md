@@ -9,12 +9,11 @@ in the checkpoint commit; do not append an implementation diary here.
 
 ## P0 — Reliable startup execution
 
-- [ ] **B04 · Repeatable zero-inference foothold.** Obtain three consecutive
-  fixed-revision native FOOTHOLD_STABLE passes, then a normal crashlanded start,
-  multiple seeds, scarce wood, low fertility and temperature variants. Include
-  at least two game days of maintained stability and no player repairs. The
-  production harness now measures functional gates; partial shelter/cooking
-  evidence and replay success do not close this acceptance gate.
+- [ ] **B04 · Sustained zero-inference foothold.** Extend ordinary-map establishment
+  acceptance to at least two game days of maintained stability and no player
+  repairs. Cover more seeds, eight-colonist starts, scarce wood, low fertility
+  and temperature variants. Establishment at one verified observation does not
+  certify sustained food production or survival.
 - [ ] **B04a · Complete deterministic food control.** Verify hunting, butchering,
   crop labor, food runway and spoilage-aware storage under real pawn behavior.
   Add safe prey reachability/nearby-predator checks, nutrition-based acquisition
