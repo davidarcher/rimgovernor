@@ -45,6 +45,15 @@ This is zero-inference command/executor acceptance; it does not test language
 interpretation, completed construction, native blueprint cancellation, or save
 rewind. Unit tests separately cover serialized plan restoration.
 
+## Hunting candidate screening
+
+`scripts/hunting_screen_probe.py --source-root <prepared-root> --output <new-directory>
+--port 8788` starts a disposable visible colony and samples native wildlife for the
+deterministic hunting screen. It retains observations, candidates and predator
+rejections in `result.json`, with no hunting orders or model calls. This checks
+native observation compatibility; boundary/unknown-data rejection and compiler
+integration are tested separately. It does not prove reachability or successful hunting.
+
 ## Real model probe
 
 Launch a fresh disposable colony with an empty plan and leave it in Manual:

@@ -4,6 +4,7 @@ from .colony_plan import PlanStep, RoomShell, Dependency
 from .hands import room_placements
 from .colony_policy import starter_layouts, work_assignment
 from .strategic_state import fingerprint
+from .hunting import screen_prey
 
 
 class SkillBlocked(ValueError):
@@ -181,15 +182,8 @@ class ColonySkills:
                            for p in wildlife.get('pawns', [])) >= 2: return None
                     home=rt.current_plan.control.get('layout',{}).get('room')
                     anchor={'x':home['x']+home['width']//2,'z':home['z']+home['height']//2} if home else facts['center']
-                    distance=lambda p:max(abs(p['position']['x']-anchor['x']),abs(p['position']['z']-anchor['z']))
-                    prey = [p for p in wildlife.get('pawns', []) if p.get('hostile') is False
-                        and p.get('predator') is False and p.get('manhunterOnDamageChance') == 0
-                        and not p.get('dead') and not p.get('downed') and p.get('position') and distance(p) <= 50
-                        and (p.get('animals') or {}).get('designations', {}).get('hunt') is False]
-                    # Prefer useful food yield without relying on species tables.
-                    # Native body size is a ranking proxy, never credited as stock.
-                    prey.sort(key=lambda p:(-(p.get('animals') or {}).get('bodySize',0) /
-                        (1+distance(p)/25),distance(p),p['thingId']))
+                    prey,evidence=screen_prey(wildlife.get('pawns',[]),anchor)
+                    goal.evidence['hunting_screen']=evidence
                     target = next((p for p in prey if unused('hunt-'+p['thingId'])),None)
                     if target:
                         designator = await self.designator('Designator_Hunt')

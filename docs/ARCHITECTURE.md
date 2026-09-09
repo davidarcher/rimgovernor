@@ -91,6 +91,13 @@ Its semantic native action validates the exact observed generated suggestions,
 uses the native naming callbacks and verifies the names and dialog closure.
 Other forced dialogs retain the normal hold behavior.
 
+Autonomous hunting screens current wild-animal observations before compiling a
+designation. Harmless, undesignated prey must be within 50 cells of the colony
+anchor and more than 25 cells from live wild predators, using square-grid distance.
+Unknown predator flags or positions prevent selection. The food goal retains
+candidate IDs and predator rejection evidence. This does not certify a hunter's
+route or revalidate animal movement after the designation is compiled.
+
 A bounded combat method prepares two capable colonists for one small manhunting
 animal or confirmed small predator hunting colony members, then uses native attacks, threat readback, treatment and owned-draft
 cleanup. Its clock acknowledges only that inspected target after orders dispatch;
