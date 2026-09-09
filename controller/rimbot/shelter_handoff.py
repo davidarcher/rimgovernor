@@ -1,15 +1,25 @@
 """Furnish a completed player shelter using observed rooms and native footprints."""
 
 
+def requested_shell(request):
+    return ({'bounds':request['bounds'],'entrance':request['entrance']}
+            if request.get('kind')=='AdoptRoom' else request['room'])
+
+
+def shelter_goals(plan):
+    preferred=plan.control.get('preferred_shelter')
+    return sorted(plan.colony_goals.items(),key=lambda pair:(pair[0]!=preferred,pair[0]))
+
+
 def completed_shelters(plan):
-    for identity,goal in sorted(plan.colony_goals.items()):
+    for identity,goal in shelter_goals(plan):
         request=goal.evidence.get('request',{})
-        if (not goal.cancelled and goal.status=='complete' and request.get('kind')=='BuildRoom'
+        if (not goal.cancelled and goal.status=='complete' and request.get('kind') in ('BuildRoom','AdoptRoom')
                 and request.get('purpose','shelter')=='shelter'):
-            yield identity,request['room']
+            yield identity,requested_shell(request)
 
 
-async def verified_room(rt, shell):
+async def verified_room(rt, shell, *, request_simulation=True):
     from .colony_skills import SkillBlocked
     bounds=shell['bounds'];x,z=bounds['x'],bounds['z']
     width,height=bounds['width'],bounds['height']
@@ -25,7 +35,7 @@ async def verified_room(rt, shell):
     if type(room.get('openRoofCount')) is not int:
         raise SkillBlocked('Shelter roof coverage is unknown')
     if room['openRoofCount']:
-        rt.current_plan.control['simulation_needed']=True
+        if request_simulation:rt.current_plan.control['simulation_needed']=True
         return None
     if room.get('psychologicallyOutdoors') is not False:
         raise SkillBlocked('Shelter does not have verified indoor conditions')
@@ -51,6 +61,9 @@ def safe_rotation(row):
 
 async def sleeping_handoff(rt, facts, identity, shell, *, reserved_cells=(), allow_partial=False):
     from .colony_skills import SkillBlocked
+    if identity is not None:
+        from .room_adoption import validate_adoption
+        await validate_adoption(rt,rt.current_plan.colony_goals[identity])
     observed=await verified_room(rt,shell)
     if observed is None:return None
     room,interior=observed
@@ -87,10 +100,10 @@ async def sleeping_handoff(rt, facts, identity, shell, *, reserved_cells=(), all
 
 
 def player_shelter(plan):
-    for identity,goal in sorted(plan.colony_goals.items()):
+    for identity,goal in shelter_goals(plan):
         request=goal.evidence.get('request',{})
-        if not goal.cancelled and request.get('kind')=='BuildRoom' and request.get('purpose','shelter')=='shelter':
-            return identity,goal,request['room']
+        if not goal.cancelled and request.get('kind') in ('BuildRoom','AdoptRoom') and request.get('purpose','shelter')=='shelter':
+            return identity,goal,requested_shell(request)
     return None
 
 
@@ -98,6 +111,8 @@ async def furniture_handoff(rt, selection, definition=None):
     """Place service furniture or food storage inside the player's chosen shelter."""
     from .colony_skills import SkillBlocked
     identity,goal,shell=selection
+    from .room_adoption import validate_adoption
+    await validate_adoption(rt,goal)
     if goal.status!='complete':
         rt.current_plan.control['simulation_needed']=True
         return None

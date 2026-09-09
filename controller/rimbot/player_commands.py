@@ -1,7 +1,7 @@
 """Player semantic requests join the same durable goals and action executor."""
 from typing import Annotated, Literal
 from pydantic import Field, TypeAdapter, model_validator
-from .colony_plan import Contract, ColonyGoal, CommitSteps, Decision, PlanSpec, PlanStep, RoomShell, Buildings, Zone
+from .colony_plan import Contract, ColonyGoal, CommitSteps, Decision, PlanSpec, PlanStep, RoomShell, RoomBounds, Buildings, Zone
 from .colony_skills import native
 from .config import ModelRole
 from .strategic_state import fingerprint
@@ -72,6 +72,13 @@ class RelocateConstruction(Contract):
     replacement: Annotated[RoomShell | Buildings, Field(discriminator='kind')]
 
 
+class AdoptRoom(Contract):
+    kind: Literal['AdoptRoom']
+    intent_id: str = Field(pattern=r'^[a-zA-Z0-9_-]{1,40}$')
+    bounds: RoomBounds
+    entrance: Literal['north','east','south','west']
+
+
 class CreateZone(Contract):
     kind: Literal['CreateZone']
     intent_id: str = Field(pattern=r'^[a-zA-Z0-9_-]{1,40}$')
@@ -117,10 +124,10 @@ class MovePawn(Contract):
     z: int = Field(ge=0)
 
 
-Command = Annotated[SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | RelocateConstruction | BuildRoom |
+Command = Annotated[SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | RelocateConstruction | AdoptRoom | BuildRoom |
                     PlaceBuildings | CreateZone | SetWorkPriority | CreateBill | SetBuildingTemperature | DraftPawn | MovePawn, Field(discriminator='kind')]
 COMMAND = TypeAdapter(Command)
-COMMAND_TYPES = (SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,RelocateConstruction,BuildRoom,PlaceBuildings,
+COMMAND_TYPES = (SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,RelocateConstruction,AdoptRoom,BuildRoom,PlaceBuildings,
                  CreateZone,SetWorkPriority,CreateBill,SetBuildingTemperature,DraftPawn,MovePawn)
 COMMAND_NAMES = {kind.__name__ for kind in COMMAND_TYPES}
 
@@ -151,6 +158,7 @@ def semantic_tools(resources=None):
         'CancelConstruction':'REMOVE existing pending blueprints and partly built frames for a tracked player intent. Use ONLY when the player explicitly requests removing those game orders. NEVER use when told to keep blueprints, frames or existing orders; use CancelGoal instead. Completed buildings remain.',
         'BuildRoom':'Request a room shell with walls and an entrance using inspected geometry.',
         'RelocateConstruction':'Explicitly move a tracked unfinished construction intent. Validates the replacement before removing exact old pending orders. Requires explicit permission to remove old orders; completed buildings cannot be relocated this way. Use inspected replacement geometry.',
+        'AdoptRoom':'Use one existing enclosed, fully roofed native room as the preferred colony shelter. Supply inspected perimeter bounds and entrance side. Adds no building orders; future deterministic furnishing uses fresh room geometry. Existing construction orders are preserved.',
         'PlaceBuildings':'Place a semantic batch of furniture or buildings using observed definitions and positions.',
         'CreateZone':'Create a growing zone or stockpile specifically requested by the player.',
         'SetWorkPriority':'Change persistent work assignments, independently of the current pawn job. Priority 0 disables a work type even when the pawn is currently doing another job.',
@@ -221,6 +229,8 @@ def command_confirmation(name, result):
         return 'Construction cancellation accepted. Exact pending targets are tracked in the colony plan; completed buildings are preserved.'
     if name=='RelocateConstruction':
         return 'Construction relocation accepted. The validated replacement waits for exact old-order cancellation; pawn construction is tracked separately.'
+    if name=='AdoptRoom':
+        return 'Existing roofed room selected as the colony shelter. Native furnishings and temperature remain separately verified.'
     titles={'SetResearch':'Research change','SetWorkPriority':'Work assignment change','DraftPawn':'Draft change',
             'MovePawn':'Movement order','BuildRoom':'Room shell','PlaceBuildings':'Building batch',
             'CreateZone':'Zone','CreateBill':'Production bill','SetBuildingTemperature':'Temperature setpoint'}
@@ -281,6 +291,9 @@ async def apply_command(rt, payload, *, token, revision):
             raise
         if rt.mode == 'manual': rt.manual_requests.append((identity, token, revision))
         result = {'resource': request.resource, 'policy': plan.control['resource_policy'][request.resource], 'step': identity}
+    elif isinstance(request, AdoptRoom):
+        from .room_adoption import adopt
+        result = await adopt(rt, request, token=token, revision=revision)
     elif isinstance(request, RelocateConstruction):
         from .construction_relocation import relocate
         result = await relocate(rt, request, token=token, revision=revision)

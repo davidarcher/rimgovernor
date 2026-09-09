@@ -240,6 +240,14 @@ another action's completion targets. Legacy descriptive projects remain separate
 a successful native temperature-control preview. It uses shared Hands and the native
 setpoint control. The accepted setpoint does not certify room temperature or power.
 
+`AdoptRoom` selects an existing native room as the preferred shelter without changing
+its old construction project or issuing orders. Admission verifies exact enclosed
+interior, complete roof and a native central doorway on the requested side. Native
+colony/map/load identity is retained with the adoption; another load requires fresh
+explicit adoption. Handoff rechecks geometry and entrance after player edits, retains
+existing objects and fits furnishings through the shared native previews. Missing or
+sealed rooms block furnishing. The original construction receipts remain history.
+
 After a player shelter shell completes, sleeping handoff verifies its exact native
 interior and roof coverage before furnishing the missing indoor sleeping capacity.
 Each spot uses a native accepted footprint wholly inside that room; existing

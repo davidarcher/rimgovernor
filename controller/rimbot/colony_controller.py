@@ -100,6 +100,23 @@ class ColonyController:
         player_work = set()
         for identity, goal in plan.colony_goals.items():
             if not identity.startswith('intent-') or goal.cancelled: continue
+            if goal.evidence.get('request',{}).get('kind')=='AdoptRoom':
+                from .room_adoption import validate_adoption
+                from .shelter_handoff import requested_shell,verified_room
+                try:
+                    await validate_adoption(rt,goal)
+                    observed=await verified_room(rt,requested_shell(goal.evidence['request']))
+                    await rt.ensure_context(token)
+                    if direction!=rt.chat_revision:return
+                    if observed is None:
+                        goal.status,goal.reason='active','Waiting for adopted room roof coverage'
+                        player_work.add('EnsureInitialShelter')
+                    else:
+                        goal.status,goal.reason='complete',''
+                except SkillBlocked as error:
+                    goal.status,goal.reason='blocked',str(error)
+                    player_work.add('EnsureInitialShelter')
+                continue
             states = [plan.progress[s] for s in goal.steps if s in plan.progress]
             if states and all(p.state=='complete' for p in states):
                 goal.status = 'complete'
@@ -108,6 +125,9 @@ class ColonyController:
                 player_work.add(goal.target.get('satisfies'))
             else:
                 player_work.add(goal.target.get('satisfies'))
+        preferred=plan.colony_goals.get(plan.control.get('preferred_shelter'))
+        if preferred and not preferred.cancelled and preferred.status=='complete':
+            player_work.discard('EnsureInitialShelter')
         minimum = min(applicable.values(), default=4)
         for identity, priority in nodes:
             goal = plan.colony_goals.get(identity)
