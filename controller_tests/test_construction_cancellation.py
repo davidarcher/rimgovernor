@@ -115,3 +115,59 @@ async def test_loaded_cancellation_cannot_retarget_after_load_change(tmp_path):
     assert rt.current_plan.progress[result['step']].failure.code == 'cancellation_context_changed'
     rt.native.assert_not_awaited()
     rt.store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('instruction', [
+    'Stop the room goal. Keep the blueprints already in the game.',
+    'Cancel future work; leave existing construction orders in place.',
+    'Do not remove its frames.',
+    "Don't delete any pending blueprints."])
+async def test_preservation_instruction_overrules_model_removal(tmp_path,instruction):
+    rt, rows = await fixture(tmp_path)
+    rt.chat.append({'kind':'human','revision':rt.chat_revision,'text':instruction})
+    before=deepcopy(rt.current_plan.model_dump())
+    with pytest.raises(ValueError,match='preserving existing construction'):
+        await cancel(rt)
+    assert rt.current_plan.model_dump()==before and len(rows)==2
+    rt.native.assert_not_awaited()
+    rt.store.close()
+
+
+@pytest.mark.parametrize('instruction', [
+    'Remove the blueprints but keep completed buildings.',
+    'Cancel its frames; leave the finished walls alone.',
+    'Do not keep constructing this bedroom. Remove its pending blueprints.'])
+def test_completed_building_preservation_does_not_refuse_pending_removal(instruction):
+    from rimbot.construction_cancellation import preserves_pending_orders
+    assert not preserves_pending_orders(instruction)
+
+
+@pytest.mark.asyncio
+async def test_raw_plan_cannot_bypass_player_preservation_instruction(tmp_path):
+    from rimbot.colony_plan import CommitSteps
+    rt, rows = await fixture(tmp_path)
+    result=await cancel(rt)
+    action=next(s for s in rt.current_plan.spec.steps if s.id==result['step']).model_copy(deep=True)
+    action.id='bypass';rt.current_plan.spec.steps.pop()
+    rt.current_plan.progress.pop(result['step'])
+    rt.chat.append({'kind':'human','revision':rt.chat_revision,'text':'Keep the blueprints.'})
+    before=deepcopy(rt.current_plan.model_dump())
+    with pytest.raises(ValueError,match='preserving existing construction'):
+        await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,reason='Remove',steps=[action]).decision(rt.current_plan),
+            actor='strategist',expected_token=rt.context_token,expected_revision=rt.chat_revision)
+    assert rt.current_plan.model_dump()==before
+    rt.store.close()
+
+
+@pytest.mark.asyncio
+async def test_pending_removal_rechecks_preservation_before_execution(tmp_path):
+    rt, rows=await fixture(tmp_path)
+    result=await cancel(rt)
+    rt.chat.append({'kind':'human','revision':rt.chat_revision,'text':'Leave the blueprints in place.'})
+    await rt.execute_manual_requests()
+    progress=rt.current_plan.progress[result['step']]
+    assert progress.state=='blocked' and 'preserving existing construction' in progress.failure.detail
+    rt.native.assert_not_awaited()
+    assert len(rows)==2
+    rt.store.close()

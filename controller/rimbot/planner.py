@@ -202,9 +202,9 @@ class Planner:
                     return
                 if outcome=='returned' and name in COMMAND_NAMES:
                     accepted.append(command_confirmation(name,result))
-                if outcome=='returned' and name in ('CreateGoal','ModifyResourcePolicy','SetResourceReserve','CancelGoal'):
+                if outcome=='returned' and name in ('CreateGoal','ModifyResourcePolicy','SetResourceReserve','CancelGoal','CancelConstruction'):
                     if (index+1<len(calls) and calls[index+1].get('function',{}).get('name')
-                            in ('CreateGoal','ModifyResourcePolicy','SetResourceReserve','CancelGoal')):
+                            in ('CreateGoal','ModifyResourcePolicy','SetResourceReserve','CancelGoal','CancelConstruction')):
                         continue
                     # Consume explicit maintained goals/policies from this response,
                     # but leave downstream construction to deterministic methods.

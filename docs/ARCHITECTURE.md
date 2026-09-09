@@ -185,6 +185,9 @@ stuff and position checks. Completed buildings remain. An uncertain removal is
 observed before any further action: absence satisfies that exact target, while
 a still-present target blocks replay. A fresh explicit request can capture the
 remaining orders; existing accepted batches never retarget replacements or loads.
+Explicit English preservation clauses refuse removal at command admission,
+plan admission and execution even if the model selects the removal tool. This
+conservative refusal does not certify arbitrary wording or multi-intent scope.
 
 After a player shelter shell completes, sleeping handoff verifies its exact native
 interior and roof coverage before furnishing the missing indoor sleeping capacity.

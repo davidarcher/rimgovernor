@@ -45,6 +45,12 @@ CASES = [
      {'kind':'ModifyResourcePolicy','resource':'ComponentSpacer','spending':'stop'}),
     ('medicine', 'Keep 10 medicine in reserve. Leave herbal and glitterworld medicine unchanged.',
      {'kind':'SetResourceReserve','resource':'MedicineIndustrial','reserve':10}),
+    ('remove_blueprints', 'Cancel construction of the bedroom. Remove its pending blueprints, but keep completed buildings.',
+     {'kind':'CancelConstruction','intent_id':'bedroom'}),
+    ('retain_blueprints', 'Stop the bedroom goal from placing any more orders. Keep the blueprints already in the game.',
+     {'kind':'CancelGoal','goal':'intent-bedroom'}),
+    ('remove_frames', 'Remove the bedroom construction orders, including its partly built frames. Leave the completed walls in place.',
+     {'kind':'CancelConstruction','intent_id':'bedroom'}),
     ('explain', "Why aren't you building the workshop?", None),
 ]
 FACTS = {
@@ -59,7 +65,10 @@ FACTS = {
                        'Steel':{'reserve':40,'spending':'stop'}},
     'goals':{'intent-food-expansion':{'label':'food expansion','status':'active'},
              'EnsureFoodSupply':{'label':'food supply','status':'blocked','cancelled':True,'target':{'food_days':20}},
-             'workshop':{'status':'blocked','reason':'Requires 160 steel; only 120 is unreserved'}},
+             'workshop':{'status':'blocked','reason':'Requires 160 steel; only 120 is unreserved'},
+             'intent-bedroom':{'label':'bedroom','status':'active','target':{'intent_id':'bedroom'}}},
+    'player_intents':{'bedroom':{'step':'player-bedroom','kind':'BuildRoom','pending_blueprints':12,
+                                'partial_frames':2,'completed_walls':7}},
 }
 
 
@@ -68,6 +77,9 @@ def normalize(request):
     if request['kind'] in ('ModifyResourcePolicy','SetResourceReserve'):
         request['resource']=resolve_resource(request['resource'],FACTS['policyResources'])
     if request['kind']=='CancelGoal': request['goal']=resolve_goal_id(request['goal'],FACTS['goals'])
+    if request['kind']=='CancelConstruction':
+        for intent, row in FACTS['player_intents'].items():
+            if request['intent_id']==row['step']: request['intent_id']=intent
     if request['kind']=='SetResearch':
         matches=[p['defName'] for p in FACTS['research_projects']
                  if request['project'].casefold() in (p['label'].casefold(),p['defName'].casefold())]

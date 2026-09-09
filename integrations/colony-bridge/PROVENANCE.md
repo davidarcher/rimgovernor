@@ -248,5 +248,7 @@ to an exact player `Blueprint_Build` or `Frame`, verifies saved colony/map/load,
 material, build definition and position while paused, and observes removal in the
 same main-thread callback. It does not use cell-wide cancellation, which can also
 remove unrelated designations, or cancel completed buildings and installation
-blueprints. Blueprint refusal/removal has native acceptance; partially supplied
-frame refunds remain a separate gameplay acceptance requirement.
+blueprints. Blueprint refusal/removal and cancellation of an ordinarily built
+partial wooden-bed frame have native acceptance. The frame's 45 delivered wood
+returned to spawned stock at an unchanged game tick; this is a bounded refund
+case, not coverage of every material, partial delivery or modded frame.

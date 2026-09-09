@@ -1,5 +1,21 @@
 """Capture explicit construction removals, then execute only those native identities."""
 from .colony_plan import Buildings, RoomShell, ConstructionTarget, CancelConstructionAction
+import re
+
+
+def preserves_pending_orders(text):
+    """Refuse explicit preservation clauses even if the interpreter chooses removal."""
+    qualifiers = r'(?:(?:all|the|its|these|those|my|our|any|existing|pending|current|issued|already|placed|game|construction)\s+)*'
+    objects = r'(?:blueprints?|frames?|orders)\b'
+    keep = r'\b(?:keep|retain|preserve|leave)\s+'
+    negative = r"\b(?:do\s+not|don't|don’t|never)\s+(?:remove|delete|cancel|clear)\s+"
+    return bool(re.search('(?:'+keep+'|'+negative+')'+qualifiers+objects, text, re.IGNORECASE))
+
+
+def validate_player_authorization(rt, revision):
+    messages = [m.get('text','') for m in rt.chat if m.get('kind')=='human' and m.get('revision')==revision]
+    if any(preserves_pending_orders(text) for text in messages):
+        raise ValueError('Player explicitly requested preserving existing construction orders; removal refused. Use CancelGoal to stop future work.')
 
 
 async def capture_targets(game, plan, source_step):
@@ -76,6 +92,7 @@ def retire_sources(plan, previous_ids):
 
 async def execute_target(hands, rt, action, target, progress, key, revision, token, direction):
     from .hands import Blocked
+    validate_player_authorization(rt, direction)
     if any(getattr(action, k) != rt.identity[k] for k in ('colonyId','loadToken','mapId')):
         raise Blocked('cancellation_context_changed', 'Observe the construction in this load and request cancellation again')
     found = await rt.game.query('home/list_buildings', x=target.x, z=target.z,

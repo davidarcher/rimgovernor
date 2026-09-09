@@ -128,8 +128,8 @@ def semantic_tools(resources=None):
         'CreateGoal':'Set a persistent colony target. The deterministic controller chooses downstream actions.',
         'ModifyResourcePolicy':'Change a resource spending restriction while preserving its existing reserve.',
         'SetResourceReserve':'Change only an explicitly requested numeric resource reserve, preserving the spending restriction. Do not use for spending-only instructions.',
-        'CancelGoal':'Cancel a named goal and suppress its autonomous recreation.',
-        'CancelConstruction':'Explicitly remove pending blueprints/frames for a tracked player construction intent. Preserve completed buildings. Use CancelGoal when only future controller work should stop.',
+        'CancelGoal':'Stop future controller orders for a named goal. KEEP all existing game blueprints and frames. Use this when the player says to keep, retain or leave existing orders in place.',
+        'CancelConstruction':'REMOVE existing pending blueprints and partly built frames for a tracked player intent. Use ONLY when the player explicitly requests removing those game orders. NEVER use when told to keep blueprints, frames or existing orders; use CancelGoal instead. Completed buildings remain.',
         'BuildRoom':'Request a room shell with walls and an entrance using inspected geometry.',
         'PlaceBuildings':'Place a semantic batch of furniture or buildings using observed definitions and positions.',
         'CreateZone':'Create a growing zone or stockpile specifically requested by the player.',
@@ -234,8 +234,9 @@ async def apply_command(rt, payload, *, token, revision):
         policy.update(request.model_dump(exclude={'kind','resource'}))
         result = {'resource': request.resource, 'policy': plan.control['resource_policy'][request.resource]}
     elif isinstance(request, CancelConstruction):
-        from .construction_cancellation import capture_targets
+        from .construction_cancellation import capture_targets, validate_player_authorization
         from .colony_plan import CancelConstructionAction
+        validate_player_authorization(rt, revision)
         intent = plan.control.get('player_intents', {}).get(request.intent_id, {})
         source_id = intent.get('step', request.intent_id)
         source = next((s for s in plan.spec.steps if s.id == source_id), None)

@@ -405,7 +405,13 @@ without retargeting its neighbor. Add `--shared` to create a room through the
 semantic command and shared Hands, prevalidate its cancellation, drop a successful
 native removal receipt, and verify that a fresh request removes only the remaining
 targets. Repetition after completion creates no native removals; unrelated pending
-orders and completed buildings remain. This does not establish frame refunds,
+orders and completed buildings remain. Add `--frame` with `--shared` to assign
+ordinary builders and observe a partly built wooden bed before cancellation.
+The frame's observed held materials must return to spawned stock while the native
+tick remains unchanged. The fixture rejects footprints overlapping existing orders.
+Its explicit simulation driver waits for controller review pauses; an ancient-danger
+warning can be acknowledged only after recording it and verifying no active hostile
+or hunting-predator count. Other danger stops fail the probe. This does not establish
 local-model interpretation or mixed restart acceptance. Install its companion and
 restore the previous DLL only with every game stopped.
 

@@ -10,21 +10,25 @@ from rimbot.headless import isolated_root,prepare
 from rimbot.store import Store
 from rimbot.player_commands import apply_command
 from rimbot.colony_plan import ColonyGoal, CommitSteps
+from rimbot.campaign_manifest import capture_manifest
 
 
 async def run(args):
-    root=isolated_root(args.source_root,args.output/'bridge');prepare(root)
+    root=isolated_root(args.source_root,args.output/'bridge');configuration=prepare(root)
     store=Store(args.output/'state.sqlite');rt=BridgeRuntime(store,root,fresh=True,headless=True)
     report={'outcome':'failed','cases':[],'scope':'Native blueprint cancellation only; no frame-refund or semantic acceptance'}
     def record(name,passed,**evidence):
         report['cases'].append(dict(name=name,passed=bool(passed),**evidence))
         (args.output/'progress.json').write_text(json.dumps(report,indent=2))
+        print(name+': '+str(bool(passed)),flush=True)
         assert passed,name
     async def listed():
         return await rt.game.query('home/list_buildings',aggregate=False,playerOnly=True)
     async def cancel(arguments):
         return (await rt.bridge.call('home/cancel_construction',**arguments)).structuredContent
     try:
+        (args.output/'manifest.json').write_text(json.dumps(capture_manifest(Path(__file__).resolve().parents[1],
+            root,configuration,rt.router.routing.model_dump(mode='json')),indent=2))
         await ready(rt)
         facts=await rt.game.query('home/colony_facts',planning=True)
         candidates=sorted((c for c in facts['cells'] if c['walkable'] and not c['occupied']),
@@ -125,6 +129,88 @@ async def run(args):
             record('shared_manual_paused_zero_inference',rt.mode=='manual' and rt.counters['model_calls']==0
                 and (await rt.game.query('home/status',colonists=False,threats=False))['time']['paused'])
             report['scope']='Native blueprint and shared semantic/Hands cancellation, including a lost successful receipt; no frame-refund or local-model acceptance'
+            if args.frame:
+                roster=await rt.game.query('home/list_pawns',colonistsOnly=True,work=True)
+                report['frame_workers_before']=roster
+                for pawn in roster['pawns']:
+                    construction=next((w for w in pawn.get('work',{}).get('types',[])
+                        if 'construct' in w['name'].casefold() and w.get('disabled') is False),None)
+                    if construction:
+                        await command(kind='SetWorkPriority',pawn=pawn['thingId'],work_type=construction['name'],priority=1)
+                        await rt.execute_manual_requests()
+                facts=await rt.game.query('home/colony_facts',planning=True)
+                candidates=sorted((c for c in facts['cells'] if c['walkable'] and not c['occupied']),
+                    key=lambda c:(c['x']-facts['center']['x'])**2+(c['z']-facts['center']['z'])**2)
+                for cell in candidates:
+                    preview=await rt.game.invoke('home/place_building',dict(defName='Bed',stuff='WoodLog',
+                        x=cell['x'],z=cell['z'],rotation='north',dryRun=True))
+                    if not preview.get('canPlace'):continue
+                    from rimbot.shelter_handoff import safe_rotation
+                    if not any(safe_rotation(row) for row in preview.get('rotations',[])):continue
+                    try:
+                        bed=await command(kind='PlaceBuildings',buildings={'kind':'place_buildings',
+                            'placements':[{'def_name':'Bed','materials':['WoodLog'],'x':cell['x'],'z':cell['z']}]})
+                    except ValueError:continue
+                    report['frame_placement_preview']=preview
+                    break
+                else:raise AssertionError('No accepted native bed fixture')
+                await rt.execute_manual_requests()
+                assert rt.current_plan.progress[bed['step']].state=='waiting'
+                frame=None
+                for window in range(80):
+                    # Normal supervised simulation with an exact native boundary;
+                    # no save edits, instant construction or synthetic deliveries.
+                    if rt.review_task and not rt.review_task.done():await rt.review_task
+                    await rt.supervisor.change('Superfast',max_ticks=100)
+                    async with asyncio.timeout(20):
+                        while True:
+                            state=(await rt.bridge.call('home/supervised_play',op='status')).structuredContent
+                            if not state['active']:break
+                            await asyncio.sleep(.1)
+                    if state['stopReason']=='letter_pause' and 'Ancient danger' in state.get('stopDetail',''):
+                        warning=await rt.game.query('rimworld/list_letters')
+                        threats=await rt.game.query('home/status',colonists=False,threats=True)
+                        counts=threats.get('counts',{})
+                        record('ancient_danger_warning_observed_before_explicit_test_resume',
+                            state['pauseVerified'] and counts.get('hostileCount')==0
+                            and counts.get('huntingPredatorCount')==0,clock=state,letters=warning,threats=threats)
+                        # This is explicit fixture control after observing the
+                        # warning, never an automatic runtime danger override.
+                        rt.supervisor.absorb(state)
+                        rt.supervisor.allow_resume()
+                    else:
+                        assert state['stopReason'] in ('tick_budget','requested_pause') and state['pauseVerified'],state
+                    if rt.review_task and not rt.review_task.done():await rt.review_task
+                    observed=await listed()
+                    current=next((b for b in observed['buildings'] if b['position']['x']==cell['x']
+                        and b['position']['z']==cell['z'] and (b.get('buildDefName') or b['defName'])=='Bed'),None)
+                    report['frame_progress']={'window':window,'clock':state,'target':current}
+                    (args.output/'progress.json').write_text(json.dumps(report,indent=2))
+                    if current and current.get('isFrame') and 0<current.get('workLeft',0)<current.get('workToBuild',0):
+                        frame=current;break
+                    assert current and (current.get('isBlueprint') or current.get('isFrame')),'Bed finished before partial-frame observation'
+                assert frame,'No ordinarily constructed partial frame observed'
+                held={r['defName']:r['have'] for r in frame['resources'] if r['have']>0}
+                assert held and frame.get('materialCostUnreadable') is False
+                async def stocks():
+                    totals={}
+                    for definition in held:
+                        stock=await rt.game.query('home/list_things',match=definition,ownership='all',includeHeld=False,maxPositionsPerDef=0)
+                        totals[definition]=sum(r['total'] for r in stock['things'] if r['defName']==definition)
+                    return totals
+                before=await stocks()
+                tick=(await rt.game.query('home/status',colonists=False,threats=False))['time']['ticksGame']
+                removed=await command(kind='CancelConstruction',intent_id=bed['step'])
+                await rt.execute_manual_requests()
+                after=await stocks()
+                status=await rt.game.query('home/status',colonists=False,threats=False)
+                present={b['thingId'] for b in (await listed())['buildings']}
+                record('partial_frame_native_refund',frame['thingId'] not in present
+                    and rt.current_plan.progress[removed['step']].state=='complete'
+                    and status['time']['paused'] and status['time']['ticksGame']==tick
+                    and all(after[d]-before[d]==count for d,count in held.items()),
+                    frame=frame,held=held,ground_before=before,ground_after=after,tick=tick)
+                report['scope']='Native blueprint/shared Hands cancellation, lost receipt, and ordinary partial-frame material refund; no local-model or mixed restart acceptance'
         report['outcome']='passed'
     except Exception as error:
         report['error']=str(error)
@@ -140,4 +226,7 @@ if __name__=='__main__':
     parser.add_argument('--source-root',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--shared',action='store_true')
-    raise SystemExit(0 if asyncio.run(asyncio.wait_for(run(parser.parse_args()),240)) else 1)
+    parser.add_argument('--frame',action='store_true',help='With --shared, verify ordinary partial-frame construction and material refund')
+    args=parser.parse_args()
+    if args.frame and not args.shared:parser.error('--frame requires --shared')
+    raise SystemExit(0 if asyncio.run(asyncio.wait_for(run(args),420)) else 1)

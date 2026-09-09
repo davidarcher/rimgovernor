@@ -29,7 +29,8 @@ in the checkpoint commit; do not append an implementation diary here.
   relocation/cancellation of issued construction through native cancellation
   skills; preserve existing orders until validated. Exact-target blueprint cancellation
   has semantic-command/shared Hands acceptance, including a lost successful receipt.
-  Verify partial-frame refunds and broaden interrupted cancellation across native
+  A partly built wooden bed also has native material-refund acceptance.
+  Broaden interrupted cancellation across native
   save/load and real player direction changes.
   Verify freezer expansion,
   policies and conversational refinements with a real local model.
@@ -62,7 +63,10 @@ in the checkpoint commit; do not append an implementation diary here.
   Combined goal/policy and multi-resource requests have native paused-session
   acceptance, including paired restart and subsequent goal cancellation/resumption.
   Repeated fixed-fact measurement includes native resource-label distractors;
-  broaden wording, contexts and models beyond this bounded acceptance.
+  broaden wording, contexts and models beyond this bounded acceptance. Include
+  preservation-versus-removal ambiguity and conflicting instructions across
+  multiple construction intents; the conservative preservation guard is not a
+  general natural-language authorization proof.
 
 ## P1 — Functional colony planning and recovery
 
@@ -72,6 +76,8 @@ in the checkpoint commit; do not append an implementation diary here.
   using bounded terrain, supplies, danger, fertility and travel evidence. Accept
   ruins/nonrectangular shelters; reject sealed rooms, blocked corridors and farm
   overlap. Validate native floor/roof/area/designator coverage before adding tools.
+  Reject furniture footprints crossing another pending blueprint even when the
+  native placement preview accepts that overlapping designation.
 - [ ] **B07 · Durable project scheduling.** Extend basic building/zone/installation
   reconciliation with maintained functional goals, resource competition and
   production consumption. Verify dependent work, player edits, save rewinds and
