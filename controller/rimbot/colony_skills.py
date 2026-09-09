@@ -71,14 +71,18 @@ class ColonySkills:
                 return 'release', [{'kind':'stand_down','pawn_ids':facts['cleanupPawns']}]
             return None
         if goal_id == 'ActiveCombat':
-            threats = await rt.game.query('home/list_pawns', hostileOnly=True, animals=True)
-            enemies = [p for p in threats.get('pawns',[]) if not p.get('dead') and not p.get('downed')]
+            status=rt.batch.native.get('status_after',{}).get('threats',{})
+            predators={p['thingId'] for p in status.get('huntingPredators',[]) if p.get('preyIsOurs') is True
+                and p.get('predatorIsOurs') is False}
+            threats = await rt.game.query('home/list_pawns', includeDead=False, animals=True)
+            enemies = [p for p in threats.get('pawns',[]) if (p.get('hostile') is True or p['thingId'] in predators)
+                and not p.get('dead') and not p.get('downed')]
             goal.evidence['threat_assessment']=[{k:p.get(k) for k in ('thingId','animal','predator','mentalState','animals','nearestColonistDistance')} for p in enemies]
             if (len(enemies)!=1 or enemies[0].get('animal') is not True
-                    or not 0 < (enemies[0].get('animals') or {}).get('bodySize',0) <= .5
-                    or enemies[0].get('predator') is not False
-                    or enemies[0].get('mentalState') not in ('Manhunter','ManhunterPermanent')):
-                raise SkillBlocked('Threat exceeds the bounded small-animal defense method; danger hold retained')
+                    or not 0 < (enemies[0].get('animals') or {}).get('bodySize',0) <= 1
+                    or (enemies[0].get('mentalState') not in ('Manhunter','ManhunterPermanent')
+                        and enemies[0]['thingId'] not in predators)):
+                raise SkillBlocked('Threat exceeds the bounded single-animal defense method; danger hold retained')
             target=enemies[0]['thingId']
             goal.evidence['combat_target']=target
             distant=enemies[0].get('nearestColonistDistance',1000)>40
@@ -121,7 +125,8 @@ class ColonySkills:
             for pawn, values in rt.current_plan.control.get('work_overrides', {}).items():
                 if pawn in assignments: assignments[pawn].update(values)
             if not covered: raise SkillBlocked('Cannot cover doctor, cook, construction and growing with capable available pawns')
-            if unused('assign'):
+            method='assign-'+fingerprint(assignments)[:8]
+            if unused(method):
                 actions = []
                 for pawn, values in assignments.items():
                     observed = next(p for p in people if p['thingId'] == pawn)['work']
@@ -132,7 +137,7 @@ class ColonySkills:
                     if changed:
                         actions.append(native('home/pawn_config', pawn=pawn, work=','.join(f'{work}={priority}'
                             for work,priority in sorted(changed.items())), watch=False))
-                if actions: return 'assign', actions[:8]
+                if actions: return method, actions[:8]
                 return None
             return None
         if goal_id in ('MaintainWood', 'EnsureFoodSupply'):

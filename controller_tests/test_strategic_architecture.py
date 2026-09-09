@@ -284,3 +284,17 @@ async def test_new_material_event_invalidates_inflight_decision(tmp_path):
             expected_token=rt.context_token,expected_revision=revision)
     assert rt.current_plan.revision==0 and rt.strategic_state.pending
     rt.store.close()
+
+
+@pytest.mark.asyncio
+async def test_autonomous_attack_rechecks_threat_before_dispatch(tmp_path):
+    rt=runtime(tmp_path); await rt.sync_identity(); rt.mode='automate'
+    spec=PlanSpec(steps=[dict(id='repel',title='Defend colony',source='AUTOPILOT',goal_id='ActiveCombat',
+        completion_criteria='Threat cleared',action=dict(kind='native_operation',tool='home/order',
+        arguments=dict(action='attack',mode='melee',pawn='Pawn1',target='Fox1',watch=False)))])
+    rt.current_plan.commit(decision(spec),actor=ModelRole.STRATEGIST,tick=100)
+    rt.game.query=AsyncMock(return_value={'threats':{'hostiles':[],'huntingPredators':[]}})
+    rt.native=AsyncMock()
+    await rt.hands.advance(rt)
+    assert rt.current_plan.progress['repel'].failure.code=='threat_changed'
+    rt.native.assert_not_awaited(); rt.store.close()

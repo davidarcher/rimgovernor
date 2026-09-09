@@ -270,7 +270,7 @@ async def test_small_manhunter_method_uses_native_orders_and_owned_cleanup(dista
     rt.draft_owners={}
     rt.current_plan.colony_goals['ActiveCombat']=ColonyGoal(priority_class=0)
     for person in rt.people: person['bio'].update(incapableOfRead=True,incapableOfTags=[])
-    enemy=dict(thingId='Thing_Hare1',animal=True,predator=False,mentalState='Manhunter',
+    enemy=dict(thingId='Thing_Hare1',hostile=True,animal=True,predator=False,mentalState='Manhunter',
         animals={'bodySize':.2},nearestColonistDistance=distance)
     rt.game.query=AsyncMock(return_value={'pawns':[enemy]})
     method,actions=await rt.controller.skills.compile('ActiveCombat',rt.facts,rt.people)
@@ -307,3 +307,33 @@ async def test_initial_naming_uses_exact_native_suggestions_in_shared_plan():
     rt.facts['colonyNaming']=None
     await rt.controller.cycle()
     assert rt.current_plan.colony_goals['ConfirmColonyNames'].status=='complete'
+
+
+@pytest.mark.asyncio
+async def test_predation_response_requires_confirmed_colony_prey():
+    from rimbot.colony_skills import SkillBlocked
+    rt=Replay();rt.draft_owners={}
+    rt.current_plan.colony_goals['ActiveCombat']=ColonyGoal(priority_class=0)
+    for person in rt.people: person['bio'].update(incapableOfRead=True,incapableOfTags=[])
+    fox=dict(thingId='Thing_Fox1',hostile=False,animal=True,predator=True,
+        animals={'bodySize':.6},nearestColonistDistance=20)
+    rt.game.query=AsyncMock(return_value={'pawns':[fox]})
+    with pytest.raises(SkillBlocked):
+        await rt.controller.skills.compile('ActiveCombat',rt.facts,rt.people)
+    rt.batch.native['status_after']={'threats':{'huntingPredators':[
+        {'thingId':'Thing_Fox1','preyIsOurs':True,'predatorIsOurs':False}]}}
+    _,actions=await rt.controller.skills.compile('ActiveCombat',rt.facts,rt.people)
+    assert len(actions)==2 and all(a['arguments']['target']=='Thing_Fox1' for a in actions)
+
+
+@pytest.mark.asyncio
+async def test_work_assignment_reconciles_after_equipping_hunter():
+    rt=Replay()
+    goal=rt.current_plan.colony_goals['EnsureWorkAssignments']=ColonyGoal(priority_class=2)
+    first, actions=await rt.controller.skills.compile('EnsureWorkAssignments',rt.facts,rt.people)
+    goal.evidence['methods'][first]=['completed-assignment']
+    assert await rt.controller.skills.compile('EnsureWorkAssignments',rt.facts,rt.people) is None
+    rt.people[0]['equipment']={'primary':{'ranged':True}}
+    second, actions=await rt.controller.skills.compile('EnsureWorkAssignments',rt.facts,rt.people)
+    assert second!=first
+    assert any('Hunting=1' in a['arguments']['work'] for a in actions)

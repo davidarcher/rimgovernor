@@ -92,7 +92,7 @@ uses the native naming callbacks and verifies the names and dialog closure.
 Other forced dialogs retain the normal hold behavior.
 
 A bounded combat method prepares two capable colonists for one small manhunting
-animal, then uses native attacks, threat readback, treatment and owned-draft
+animal or confirmed small predator hunting colony members, then uses native attacks, threat readback, treatment and owned-draft
 cleanup. Its clock acknowledges only that inspected target after orders dispatch;
 other threats and severe injury remain guarded. Blocked emergencies prevent
 routine waiting work from restarting time. Larger threats and electrical

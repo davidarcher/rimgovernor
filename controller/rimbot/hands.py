@@ -115,6 +115,14 @@ class Hands:
                                     for p in rt.current_plan.control.get('resource_policy',{}).values()):
                                 raise Blocked('resource_policy', 'Bill requires verified ingredient accounting under the current resource policy')
                             args = dict(action.arguments)
+                            if step.source=='AUTOPILOT' and step.goal_id=='ActiveCombat':
+                                status=(await rt.game.query('home/status',colonists=False,threats=True)).get('threats',{})
+                                current={p['thingId'] for p in status.get('hostiles',[]) if p.get('downed') is False}
+                                current.update(p['thingId'] for p in status.get('huntingPredators',[])
+                                    if p.get('preyIsOurs') is True and p.get('predatorIsOurs') is False)
+                                target=args.get('target') or rt.current_plan.control.get('combat',{}).get('target')
+                                if target not in current:
+                                    raise Blocked('threat_changed','The accepted threat is no longer confirmed; no combat order sent')
                             schema = await rt.game.describe(action.tool)
                             if 'dryRun' in schema.get('properties', {}):
                                 preview = await rt.inspect_native(action.tool, dict(args, dryRun=True))
