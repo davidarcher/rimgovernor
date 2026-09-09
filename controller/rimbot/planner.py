@@ -75,6 +75,8 @@ class Planner:
             'For orders, use semantic command tools, never arbitrary native writes. Discover native facts and exact identities when needed. '
             'Direct actions, maintained goals and resource policy changes share ColonyPlan and Hands with autopilot. '
             'Use CreateGoal for persistent targets such as 20 days of food, ModifyResourcePolicy for spending constraints, '
+            'and SetResourceReserve only for an explicitly requested numeric reserve. These policy commands preserve the other setting. '
+            'If both settings are explicitly requested, return both policy calls in the same response. '
             'and CancelGoal to prevent automatic recreation. '
             'Use the native resource_labels glossary to match resource names to IDs; never substitute an unrelated resource. '
             'Do not invent optional numeric targets or reserves, or copy a number from an unrelated earlier request. '
@@ -186,7 +188,10 @@ class Planner:
                     return
                 if outcome=='returned' and name in COMMAND_NAMES:
                     accepted.append(command_confirmation(name,result))
-                if outcome=='returned' and name in ('CreateGoal','ModifyResourcePolicy','CancelGoal'):
+                if outcome=='returned' and name in ('CreateGoal','ModifyResourcePolicy','SetResourceReserve','CancelGoal'):
+                    if (name in ('ModifyResourcePolicy','SetResourceReserve') and index+1<len(calls)
+                            and calls[index+1].get('function',{}).get('name') in ('ModifyResourcePolicy','SetResourceReserve')):
+                        continue
                     # A maintained target is the whole command. Stop here so an
                     # interpreter cannot take over its downstream autonomous work.
                     rt.reply(' '.join(accepted))

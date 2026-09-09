@@ -66,6 +66,18 @@ async def run(args):
             'passed':rt.current_plan.control.get('resource_policy')=={
                 'ComponentIndustrial':{'spending':'defense_only','reserve':0}}})
         if args.extended:
+            reply=await chat('Set the component reserve to 40. Keep the current spending restriction.')
+            policy=rt.current_plan.control.get('resource_policy',{}).get('ComponentIndustrial',{})
+            record({'command':'explicit_reserve','reply':reply,'observed':dict(policy),
+                'passed':policy=={'spending':'defense_only','reserve':40}})
+            reply=await chat('Allow normal component spending. Keep the existing reserve unchanged.')
+            policy=rt.current_plan.control.get('resource_policy',{}).get('ComponentIndustrial',{})
+            record({'command':'spending_preserves_reserve','reply':reply,'observed':dict(policy),
+                'passed':policy=={'spending':'normal','reserve':40}})
+            reply=await chat('Set the component reserve to 0. Keep the spending policy unchanged.')
+            policy=rt.current_plan.control.get('resource_policy',{}).get('ComponentIndustrial',{})
+            record({'command':'clear_reserve','reply':reply,'observed':dict(policy),
+                'passed':policy=={'spending':'normal','reserve':0}})
             research=await rt.game.invoke('home/research',{'locked':True})
             (args.output/'research-before.json').write_text(json.dumps(research,indent=2))
             available=[p for p in research.get('available',[]) if p.get('defName')!=(research.get('current') or {}).get('defName')]

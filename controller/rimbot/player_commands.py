@@ -32,9 +32,14 @@ class CreateGoal(Contract):
 class ModifyResourcePolicy(Contract):
     kind: Literal['ModifyResourcePolicy']
     resource: str = Field(min_length=1)
-    reserve: int = Field(default=0, ge=0)
-    spending: Literal['normal', 'defense_only', 'stop'] = Field(default='normal',
+    spending: Literal['normal', 'defense_only', 'stop'] = Field(
         description='normal allows routine spending; defense_only permits only defensive work; stop prohibits all spending, including defense.')
+
+
+class SetResourceReserve(Contract):
+    kind: Literal['SetResourceReserve']
+    resource: str = Field(min_length=1)
+    reserve: int = Field(ge=0, description='Explicitly requested reserve quantity. Zero removes the reserve; spending restrictions remain unchanged.')
 
 
 class CancelGoal(Contract):
@@ -88,10 +93,10 @@ class MovePawn(Contract):
     z: int = Field(ge=0)
 
 
-Command = Annotated[SetResearch | CreateGoal | ModifyResourcePolicy | CancelGoal | BuildRoom |
+Command = Annotated[SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | BuildRoom |
                     PlaceBuildings | CreateZone | SetWorkPriority | CreateBill | DraftPawn | MovePawn, Field(discriminator='kind')]
 COMMAND = TypeAdapter(Command)
-COMMAND_TYPES = (SetResearch,CreateGoal,ModifyResourcePolicy,CancelGoal,BuildRoom,PlaceBuildings,
+COMMAND_TYPES = (SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,BuildRoom,PlaceBuildings,
                  CreateZone,SetWorkPriority,CreateBill,DraftPawn,MovePawn)
 COMMAND_NAMES = {kind.__name__ for kind in COMMAND_TYPES}
 
@@ -101,7 +106,8 @@ def semantic_tools(resources=None):
     descriptions = {
         'SetResearch':'Select a research project requested by the player.',
         'CreateGoal':'Set a persistent colony target. The deterministic controller chooses downstream actions.',
-        'ModifyResourcePolicy':'Set a persistent resource reserve or spending restriction requested by the player.',
+        'ModifyResourcePolicy':'Change a resource spending restriction while preserving its existing reserve.',
+        'SetResourceReserve':'Change only an explicitly requested numeric resource reserve, preserving the spending restriction. Do not use for spending-only instructions.',
         'CancelGoal':'Cancel a named goal and suppress its autonomous recreation.',
         'BuildRoom':'Request a room shell with walls and an entrance using inspected geometry.',
         'PlaceBuildings':'Place a semantic batch of furniture or buildings using observed definitions and positions.',
@@ -116,7 +122,7 @@ def semantic_tools(resources=None):
         schema=kind.model_json_schema()
         schema['properties'].pop('kind')
         schema['required']=[key for key in schema.get('required',[]) if key!='kind']
-        if kind is ModifyResourcePolicy and resources:
+        if kind in (ModifyResourcePolicy,SetResourceReserve) and resources:
             schema['properties']['resource']['enum']=sorted(resources)
         result.append(structured_tool(kind.__name__,descriptions[kind.__name__],schema))
     return result
@@ -158,7 +164,7 @@ def command_confirmation(name, result):
     if name=='CreateGoal':
         days=result.get('target',{}).get('food_days')
         return f'Food target set to {days:g} days.' if days is not None else 'Persistent colony goal accepted: '+result['goal']+'.'
-    if name=='ModifyResourcePolicy':
+    if name in ('ModifyResourcePolicy','SetResourceReserve'):
         label='Components' if result['resource']=='ComponentIndustrial' else result['resource']
         policy=result['policy']
         rule={'normal':'normal spending','defense_only':'defense spending only','stop':'all spending stopped, including defense'}[policy['spending']]
@@ -187,7 +193,7 @@ async def apply_command(rt, payload, *, token, revision):
             policy['food_target_days'] = request.food_days
             policy['food_min_days'] = min(request.food_days*.7, request.food_days-0.1)
         result = {'goal': request.goal, 'source': 'PLAYER', 'status': goal.status, 'target': goal.target}
-    elif isinstance(request, ModifyResourcePolicy):
+    elif isinstance(request, (ModifyResourcePolicy,SetResourceReserve)):
         observed = await rt.game.query('home/colony_facts', planning=True)
         known = set(observed.get('resources', {})) | set(observed.get('policyResources', {})) | {resource for definition in observed.get('definitions', {}).values()
                                                     for resource in definition.get('costs', {})}
@@ -195,7 +201,8 @@ async def apply_command(rt, payload, *, token, revision):
             raise ValueError('Use an observed resource definition; this policy key is unknown: '+request.resource)
         await rt.ensure_context(token)
         if rt.chat_revision != revision: raise ValueError('Player direction changed; policy not updated')
-        plan.control.setdefault('resource_policy', {})[request.resource] = request.model_dump(exclude={'kind','resource'})
+        policy = plan.control.setdefault('resource_policy', {}).setdefault(request.resource, {'reserve':0,'spending':'normal'})
+        policy.update(request.model_dump(exclude={'kind','resource'}))
         result = {'resource': request.resource, 'policy': plan.control['resource_policy'][request.resource]}
     elif isinstance(request, CancelGoal):
         request.goal = resolve_goal_id(request.goal,plan.colony_goals)

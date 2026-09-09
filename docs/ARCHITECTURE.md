@@ -132,7 +132,12 @@ cannot commit orders. Player steps normally run before routine optimization;
 hard validation and resource policies still apply. A food target updates the
 same EnsureFoodSupply goal and hysteresis policy. Work overrides are retained
 by the deterministic allocator. Resource constraints include reserves and
-normal/defense-only/stopped spending. Explicit draft/movement overrides prevent
+normal/defense-only/stopped spending. `ModifyResourcePolicy` changes only spending;
+`SetResourceReserve` changes only an explicit numeric reserve, including zero.
+Each preserves the other field and validates the resource against native facts.
+The spending contract rejects reserve fields; combined requests use separate
+policy calls in one interpreter response. Existing stored policies retain their
+values. Explicit draft/movement overrides prevent
 autonomous recruitment or cleanup from taking ownership of those pawns.
 
 Room and zone commands retain an intent ID and request history. A follow-up can

@@ -20,8 +20,8 @@ CASES = [
     ('resume_supply', 'Resume the food supply goal with a target of 12 days.',
      {'kind':'CreateGoal','goal':'EnsureFoodSupply','food_days':12}),
     ('research_label', 'Set research to advanced lights.', {'kind':'SetResearch','project':'ColoredLights'}),
-    ('steel_reserve', 'Keep 100 steel in reserve; otherwise allow normal spending.',
-     {'kind':'ModifyResourcePolicy','resource':'Steel','reserve':100,'spending':'normal'}),
+    ('steel_reserve', 'Keep 100 steel in reserve.',
+     {'kind':'SetResourceReserve','resource':'Steel','reserve':100}),
     ('explain', "Why aren't you building the workshop?", None),
 ]
 FACTS = {

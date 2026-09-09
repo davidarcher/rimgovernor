@@ -1,10 +1,39 @@
 from unittest.mock import AsyncMock
+from copy import deepcopy
 import pytest
 from rimbot.player_commands import apply_command,command_schema,resolve_goal_id,resolve_colonist
 from rimbot.colony_plan import ColonyPlan, CommitSteps, PlanStep, StepProgress
 from rimbot.resource_accounting import validate_allocations
 from rimbot.resource_accounting import validate_execution_costs
 from test_strategic_architecture import runtime, batch, room_plan
+
+
+@pytest.mark.asyncio
+async def test_resource_policy_commands_preserve_other_field_and_other_resources(tmp_path):
+    rt=runtime(tmp_path);await rt.sync_identity()
+    query=rt.game.query
+    async def observed(name,**args):
+        if name=='home/colony_facts': return {'resources':{'ComponentIndustrial':30,'Steel':100}}
+        return await query(name,**args)
+    rt.game.query=observed
+    rt.current_plan.control['resource_policy']={'Steel':{'reserve':100,'spending':'stop'}}
+    async def command(**payload):
+        return await apply_command(rt,payload,token=rt.context_token,revision=rt.chat_revision)
+    await command(kind='ModifyResourcePolicy',resource='ComponentIndustrial',spending='defense_only')
+    await command(kind='SetResourceReserve',resource='ComponentIndustrial',reserve=40)
+    assert rt.current_plan.control['resource_policy']['ComponentIndustrial']=={'reserve':40,'spending':'defense_only'}
+    await command(kind='ModifyResourcePolicy',resource='ComponentIndustrial',spending='normal')
+    assert rt.current_plan.control['resource_policy']['ComponentIndustrial']=={'reserve':40,'spending':'normal'}
+    await command(kind='SetResourceReserve',resource='ComponentIndustrial',reserve=0)
+    assert rt.current_plan.control['resource_policy']=={'Steel':{'reserve':100,'spending':'stop'},
+        'ComponentIndustrial':{'reserve':0,'spending':'normal'}}
+    before=deepcopy(rt.current_plan.model_dump())
+    with pytest.raises(ValueError):
+        await command(kind='ModifyResourcePolicy',resource='ComponentIndustrial',spending='stop',reserve=30)
+    with pytest.raises(ValueError):
+        await command(kind='SetResourceReserve',resource='Unknown',reserve=5)
+    assert rt.current_plan.model_dump()==before
+    rt.store.close()
 
 
 def test_semantic_schema_has_provider_object_envelope_and_goal_names_resolve_only_unambiguously():
@@ -142,6 +171,27 @@ async def test_chat_returns_native_research_refusal_without_model_rephrasing(tmp
     rt.router.complete.assert_awaited_once()
     assert rt.chat[-1]['text']=='Research request blocked: Missing prerequisite: Microelectronics. Nothing was written.'
     assert rt.current_plan.revision==0 and not rt.manual_requests and rt.counters['actions']==0
+    rt.store.close()
+
+
+@pytest.mark.asyncio
+async def test_chat_can_apply_both_explicit_policy_changes_without_another_model_turn(tmp_path):
+    from rimbot.planner import Planner
+    rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch();rt.mode='manual'
+    query=rt.game.query
+    async def observed(name,**args):
+        if name=='home/colony_facts': return {'resources':{'Steel':200}}
+        return await query(name,**args)
+    rt.game.query=observed
+    rt.chat_revision=1
+    rt.chat=[{'kind':'human','revision':1,'text':'Reserve 100 steel and stop steel spending.'}]
+    rt.router.complete=AsyncMock(return_value=({'role':'assistant','tool_calls':[
+        {'id':'reserve','type':'function','function':{'name':'SetResourceReserve','arguments':'{"resource":"Steel","reserve":100}'}},
+        {'id':'spending','type':'function','function':{'name':'ModifyResourcePolicy','arguments':'{"resource":"Steel","spending":"stop"}'}}]},{}))
+    await Planner(rt).play_bridge()
+    rt.router.complete.assert_awaited_once()
+    assert rt.current_plan.control['resource_policy']['Steel']=={'reserve':100,'spending':'stop'}
+    assert not rt.manual_requests and rt.counters['actions']==0
     rt.store.close()
 
 

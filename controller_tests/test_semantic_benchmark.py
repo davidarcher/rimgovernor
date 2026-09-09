@@ -16,7 +16,6 @@ POLICY={'kind':'ModifyResourcePolicy','resource':'ComponentIndustrial','spending
 
 
 @pytest.mark.parametrize('arguments',[
-    {'resource':'ComponentIndustrial','spending':'defense_only','reserve':10},
     {'resource':'Steel','spending':'defense_only'},
     {'resource':'ComponentIndustrial','spending':'stop'},
 ])
@@ -25,9 +24,9 @@ def test_valid_schema_wrong_policy_is_semantic_failure(arguments):
     assert not result['correct'] and result['semantic_errors']==1 and result['schema_failures']==0
 
 
-def test_omitted_default_and_explicit_zero_are_equivalent():
-    for extra in ({},{'reserve':0}):
-        assert benchmark.score({'tool_calls':[call('ModifyResourcePolicy',resource='ComponentIndustrial',spending='defense_only',**extra)]},POLICY)['correct']
+def test_reserve_on_spending_command_is_a_schema_failure():
+    result=benchmark.score({'tool_calls':[call('ModifyResourcePolicy',resource='ComponentIndustrial',spending='defense_only',reserve=30)]},POLICY)
+    assert not result['correct'] and result['schema_failures']==1
 
 
 @pytest.mark.parametrize('extra',[call('CreateGoal',goal='EnsureFoodSupply'),call('InternalTool')])
