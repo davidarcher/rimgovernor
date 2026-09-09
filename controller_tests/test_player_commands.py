@@ -1,10 +1,20 @@
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.player_commands import apply_command
+from rimbot.player_commands import apply_command,command_schema,resolve_goal_id
 from rimbot.colony_plan import ColonyPlan, CommitSteps, PlanStep, StepProgress
 from rimbot.resource_accounting import validate_allocations
 from rimbot.resource_accounting import validate_execution_costs
 from test_strategic_architecture import runtime, batch, room_plan
+
+
+def test_semantic_schema_has_provider_object_envelope_and_goal_names_resolve_only_unambiguously():
+    from rimbot.consultation import structured_tool
+    schema=structured_tool('command','Command',command_schema())['function']['parameters']
+    assert schema['type']=='object' and schema['required']==['request']
+    assert 'request' in schema['properties']
+    assert resolve_goal_id('food expansion',{'intent-food-expansion':{}})=='intent-food-expansion'
+    with pytest.raises(ValueError,match='ambiguous'):
+        resolve_goal_id('food expansion',{'intent-food-expansion':{},'other':{'label':'food expansion'}})
 
 
 @pytest.mark.asyncio
@@ -130,3 +140,14 @@ async def test_defense_only_component_policy_is_a_hard_shared_gate(tmp_path):
     proposal.plan.steps[0].purpose='defense'
     assert await validate_allocations(proposal.plan,rt.current_plan,rt.game)
     rt.store.close()
+
+
+
+def test_policy_tool_uses_native_definition_catalog_even_when_stock_is_zero():
+    from rimbot.player_commands import semantic_tools
+    from rimbot.native_contracts import validate_arguments
+    tool=next(t for t in semantic_tools({'WoodLog','ComponentIndustrial'})
+        if t['function']['name']=='ModifyResourcePolicy')['function']
+    validate_arguments(tool['name'],tool['parameters'],{'resource':'ComponentIndustrial','spending':'defense_only'})
+    with pytest.raises(ValueError):
+        validate_arguments(tool['name'],tool['parameters'],{'resource':'InventedResource'})

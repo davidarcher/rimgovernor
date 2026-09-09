@@ -138,7 +138,7 @@ async def test_player_room_command_and_plan_survive_model_restart(tmp_path):
             calls.append(tools)
             if len(calls)>1: return {'role':'assistant','content':'Room shell queued.'}, {}
             return {'role':'assistant','tool_calls':[{'id':'d','type':'function','function':{
-                'name':'command','arguments':json.dumps({'kind':'BuildRoom','intent_id':'bedroom','room':room_plan().steps[0].action.model_dump()})}}]}, {'prompt_tokens':100,'completion_tokens':50}
+                'name':'BuildRoom','arguments':json.dumps({'intent_id':'bedroom','room':room_plan().steps[0].action.model_dump()})}}]}, {'prompt_tokens':100,'completion_tokens':50}
         async def close(self):pass
     rt=runtime(tmp_path,model_factory=lambda _:Brain())
     await rt.sync_identity();rt.batch=batch();rt.strategic_state.update(rt.batch)
@@ -217,7 +217,7 @@ async def test_invented_construction_is_repaired_before_any_plan_is_saved(tmp_pa
                 assert error['construction']['definition']=='Door_Wood'
                 assert rt.current_plan.revision==0 and not rt.current_plan.history
             return {'role':'assistant','tool_calls':[{'id':str(turns),'type':'function',
-                'function':{'name':'command','arguments':json.dumps({'kind':'BuildRoom','intent_id':'bedroom','room':spec.steps[0].action.model_dump()})}}]},{}
+                'function':{'name':'BuildRoom','arguments':json.dumps({'intent_id':'bedroom','room':spec.steps[0].action.model_dump()})}}]},{}
         async def close(self):pass
     async def preview(name,args,**kwargs):
         assert args['dryRun'] is True and kwargs['allow_write'] is False
@@ -227,7 +227,7 @@ async def test_invented_construction_is_repaired_before_any_plan_is_saved(tmp_pa
     await rt.sync_identity();rt.batch=batch();rt.strategic_state.update(rt.batch)
     rt.game.invoke=AsyncMock(side_effect=preview)
     await rt.planner.play_bridge()
-    assert turns==3 and rt.current_plan.revision==1
+    assert turns==2 and rt.current_plan.revision==1
     assert rt.current_plan.spec.steps[0].action==room_plan().steps[0].action and rt.counters['actions']==0
     await rt.router.close();rt.store.close()
 

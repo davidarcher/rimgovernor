@@ -7,6 +7,8 @@ The three C# source files and About metadata originate upstream.
 Local changes: build against installed assemblies; remove upstream's unconditional
 30 FPS cap only in batch mode; report patch exceptions; patch build-icon generation
 before def resolution; skip resolution maintenance without a display; skip drawing
-disposal only when neither drawing collection was allocated. This mod is enabled only
+disposal only when neither drawing collection was allocated; acknowledge the hidden
+loading-window presentation so native synchronous events and autosaves execute.
+This mod is enabled only
 in the separate headless test profile. It removes presentation paths, including
 UI updates, and must be validated with native gameplay rather than assumed safe.

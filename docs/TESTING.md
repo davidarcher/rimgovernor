@@ -135,7 +135,10 @@ inference are permitted. `--speed` selects ordinary native Normal/Fast/Superfast
 not boosted simulation. The harness runs production BridgeRuntime, controller,
 validation and Hands, writes a manifest, incremental `progress.json` and final
 `result.json`, and exits successfully only for all FOOTHOLD_STABLE predicates.
-Results include goal/method/lifecycle evidence, model-call count and game ticks.
+Results include goal/method/lifecycle evidence, attempted and completed model-call
+counts and game ticks. `--checkpoint <native-save.rws>` copies an unmodified save
+for targeted debugging; those reports are labelled `saved_checkpoint` and do not
+count as fresh-colony acceptance.
 A timeout, blocker or partial shelter is not a pass. Stop uses this profile's
 PID-owned GABS launch; never terminate all processes by executable name.
 
@@ -210,3 +213,14 @@ Paused with boost disabled. Boost is excluded from normal strategist gameplay.
 Report interruptions, native tick rate and end-to-end throughput separately.
 Headless simulation and parallel lifecycle isolation do not establish faster model
 inference. Full episode comparisons must include model waits and useful outcomes.
+
+
+### Interactive semantic commands
+
+`scripts/semantic_command_benchmark.py --output <fresh-directory>` measures the
+configured local model against fixed controller facts with no game writes.
+`scripts/interactive_commands_probe.py --source-root <prepared-root> --output
+<fresh-directory>` runs real chat requests in a private paused colony, then
+verifies a work assignment, a persistent food target and a component policy.
+The probe uses the normal shared validator and Hands. Preserve failed responses;
+fixed-fact model correctness and native command acceptance are separate results.

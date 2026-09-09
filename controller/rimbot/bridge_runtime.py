@@ -345,8 +345,14 @@ class BridgeRuntime:
         async with self.lock:
             await self.sync_identity()
             self.current_plan.cancel(identity)
+            step = next(s for s in self.current_plan.spec.steps if s.id==identity)
+            goal = self.current_plan.colony_goals.get(step.goal_id) if step.goal_id else None
+            if goal:
+                goal.cancelled,goal.status,goal.reason = True,'blocked','Player cancelled an action in this goal'
+                if goal.target.get('satisfies'):
+                    self.current_plan.control.setdefault('suppressed_goals',{})[goal.target['satisfies']] = step.goal_id
             self.persist()
-        await self.steer('Player cancelled plan step '+identity+'. Existing game orders are unchanged.')
+        await self.steer('Player cancelled plan step '+identity+'. Existing game orders are unchanged.',interpret=False)
 
     async def ensure_context(self, token):
         async with self.lock:
@@ -826,7 +832,8 @@ class BridgeRuntime:
         async with self.lock:
             await self.sync_identity()
             if (self.mode != 'automate' or self.deliberating or self.wake.is_set()
-                    or self.chat_revision > self.handled_revision or not self.supervisor):
+                    or self.chat_revision > self.handled_revision or not self.supervisor
+                    or self.current_plan.control.get('execution_hold')):
                 return
             waiting = [p for s in self.current_plan.spec.steps
                        if (p := self.current_plan.progress[s.id]).state == 'waiting'
@@ -841,7 +848,14 @@ class BridgeRuntime:
                     if (self.mode != 'automate' or self.context_token != token
                             or self.chat_revision != direction or self.wake.is_set()):
                         return
-                    await self.supervisor.change(self.controller.policy.execution_speed)
+                    combat = self.current_plan.control.get('combat',{})
+                    fighting = self.current_plan.colony_goals.get('ActiveCombat')
+                    engaged = bool(fighting and fighting.status=='active' and not fighting.cancelled
+                        and combat.get('steps') and all(s in self.current_plan.progress
+                            and self.current_plan.progress[s].state=='complete' for s in combat['steps']))
+                    await self.supervisor.change('Normal' if engaged else self.controller.policy.execution_speed,
+                        mode='combat' if engaged else 'colony',
+                        ignored_hostiles=combat['target'] if engaged else '')
                     self.execution_window_end = status['time']['ticksGame'] + 600
                     self.execution_wait_explicit = False
                     self.note('execution_window', 'Confirmed work: target 600 game ticks before review; polling may overshoot')

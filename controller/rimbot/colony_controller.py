@@ -39,6 +39,13 @@ class ColonyController:
         if native.get('success') is not True:
             raise ValueError('Deterministic state unavailable: '+str(native.get('error')))
         facts = derive(rt.batch, native, self.policy)
+        managed=set(plan.control.get('combat',{}).get('pawns',[]))
+        managed.update(s.action.arguments.get('pawn') for s in plan.spec.steps
+            if s.source=='AUTOPILOT' and s.action.kind=='native_operation'
+            and s.action.tool=='home/order' and s.action.arguments.get('action')=='tend'
+            and plan.progress[s.id].state=='complete')
+        facts['cleanupPawns'] = sorted(p for p in managed
+            if getattr(rt,'draft_owners',{}).get(p)==token and p not in plan.control.get('player_draft_overrides',{}))
         # Claim only the initially observed starter supplies. Once a cell is
         # allowed, later player forbidding must not restart an allow loop.
         pending_supplies = plan.control.setdefault('starting_supplies',facts.get('forbiddenSupplies',[]))
@@ -66,6 +73,7 @@ class ColonyController:
         plan.control['facts'] = {k: v for k, v in facts.items() if k not in ('cells', 'definitions')}
         plan.control['criteria'] = gates
         applicable = dict(nodes)
+        plan.control.pop('execution_hold',None)
         player_work = set()
         for identity, goal in plan.colony_goals.items():
             if not identity.startswith('intent-') or goal.cancelled: continue
@@ -123,6 +131,10 @@ class ColonyController:
             if identity not in applicable and not identity.startswith('intent-') and goal.source != 'LLM_ADVISOR' and not goal.cancelled and goal.status != 'complete':
                 goal.status = 'complete'
                 self.event('goal_completed', identity, criteria=gates)
+        for identity,priority in nodes:
+            emergency=plan.colony_goals[identity]
+            if priority<2 and emergency.status=='blocked' and not emergency.cancelled:
+                plan.control['execution_hold']=emergency.reason
         stable = bool(gates) and all(gates.values())
         if stable != (plan.control.get('status') == 'FOOTHOLD_STABLE'):
             self.event('bootstrap_stability_reached' if stable else 'bootstrap_stability_lost', 'EstablishFoothold', criteria=gates)
@@ -142,8 +154,9 @@ class ColonyController:
             if failed:
                 self.block(goal, identity, failed.detail)
                 continue
-            if goal.steps and facts['tick'] - goal.last_progress_tick >= self.policy.blocked_after_ticks:
-                self.block(goal, identity, 'No measurable progress within one game day; inspect labor/materials/postconditions')
+            timeout = 3000 if identity=='ActiveCombat' else self.policy.blocked_after_ticks
+            if goal.steps and facts['tick'] - goal.last_progress_tick >= timeout:
+                self.block(goal, identity, f'No measurable progress within {timeout} game ticks; inspect labor/materials/postconditions')
                 continue
             if any(p.state in ('pending', 'executing', 'waiting') for p in existing):
                 plan.control['simulation_needed'] = True
@@ -151,7 +164,9 @@ class ColonyController:
             try:
                 compiled = await self.skills.compile(identity, facts, people['pawns'])
                 if compiled is None:
-                    if goal.evidence.get('methods'): plan.control['simulation_needed'] = True
+                    existing_process = (identity=='EnsureFoodSupply' and any(f.get('growingCells',0)>0 for f in facts.get('farms',[]))) or (
+                        identity in ('EnsureFoodSupply','MaintainWood') and any(p.get('designated') for p in facts.get('acquisition',[])))
+                    if goal.evidence.get('methods') or existing_process: plan.control['simulation_needed'] = True
                     continue
                 method, actions = compiled
                 steps, slots = self.skills.steps(identity, method, actions, facts)
@@ -171,6 +186,9 @@ class ColonyController:
                     reason=f'{identity}: {method}', steps=steps).decision(plan)
                 await rt.commit_strategy(decision, actor=ModelRole.STRATEGIST,
                     expected_token=token, expected_revision=direction)
+                if identity=='ActiveCombat':
+                    plan.control['combat']={'target':goal.evidence['combat_target'],
+                        'pawns':[a['arguments']['pawn'] for a in actions], 'steps':[s.id for s in steps]}
                 goal.method = method
                 goal.steps.extend(s.id for s in steps)
                 goal.evidence.setdefault('methods', {})[method] = [s.id for s in steps]
@@ -192,5 +210,7 @@ class ColonyController:
 
     def block(self, goal, identity, reason):
         goal.status, goal.reason = 'blocked', reason
+        if goal.priority_class<2:
+            self.rt.current_plan.control['execution_hold']=reason
         self.event('goal_blocked', identity, reason=reason)
         self.rt.persist()

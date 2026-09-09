@@ -1010,7 +1010,7 @@ namespace HomeBridge.BridgeTools
                     row["ignoredReason"] = "tame: this predator is on the player faction, so its hunt is ours";
                     ignored.Add(row);
                 }
-                else if (!preyIsOurs)
+                else if (!preyIsOurs && prey != null)
                 {
                     row["ignoredReason"] = prey == null
                         ? "prey could not be read off the job; a hunt with no readable target is not treated as a threat"
@@ -1126,7 +1126,7 @@ namespace HomeBridge.BridgeTools
         /// it. job.targetA is the prey (JobDriver_PredatorHunt.PreyInd is
         /// TargetIndex.A); it holds the prey pawn during the chase and the prey's
         /// Corpse once the kill is made, so both are unwrapped.</summary>
-        private static bool PreyBelongsToPlayer(Pawn predator, out Pawn prey)
+        internal static bool PreyBelongsToPlayer(Pawn predator, out Pawn prey)
         {
             prey = null;
             try

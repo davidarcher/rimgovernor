@@ -263,6 +263,8 @@ class Hands:
                 cells=';'.join(f'{x},{z}' for x,z in cells), priority=action.priority)
             if action.preset:
                 args['preset'] = action.preset
+            if action.crop:
+                args['plant'] = action.crop
             preview = await rt.inspect_native('home/zone_cells', dict(args, dryRun=True))
             if preview.get('cellsAccepted') != len(cells):
                 raise Blocked('zone_cells_refused', 'Not all proposed zone cells are legal', evidence=preview)
@@ -273,7 +275,7 @@ class Hands:
                 expected_token=token, expected_plan_revision=revision, reconcile=False)
             if result['receipt'].get('cellsAccepted') != len(cells):
                 raise Blocked('zone_partial', 'Zone was only partially created; inspect before revising', evidence=result['receipt'])
-        if action.crop:
+        if action.crop and matches:
             self.guard(rt, revision, token, direction)
             await rt.native('home/zone_cells', dict(op='crop', zone=action.label, plant=action.crop, dryRun=False),
                 expected_revision=direction, expected_token=token, expected_plan_revision=revision, reconcile=False)

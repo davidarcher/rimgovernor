@@ -43,6 +43,7 @@ def derive(batch, native, policy):
     """Combine fresh domain facts with the existing native observation contract."""
     value = dict(native)
     people = batch.summary.pawns
+    value['medicalKnown'] = all(p.bleeding is not None and getattr(p,'needs_tend',None) is not None for p in people if not p.dead)
     value['criticalPatients'] = [p.thing_id for p in people if not p.dead and (p.downed or p.bleeding)]
     value['hostiles'] = batch.summary.hostile_count + batch.summary.hunting_predator_count
     value['armed'] = sum(p.armed is True and not p.downed and not p.dead for p in people)
@@ -77,9 +78,9 @@ def criteria(facts, policy):
                        and high <= policy.temperature_enter_high,
         'power': not facts.get('powerRequired', True) or (facts.get('powerHeadroom') is not None
                                                          and facts['powerHeadroom'] >= 0),
-        'medical': facts.get('criticalPatients') == [],
+        'medical': facts.get('medicalKnown') is True and facts.get('criticalPatients') == [],
         'defense': facts.get('hostiles') == 0 and facts.get('armed', 0) >= min(2, count),
-        'work': facts.get('workCoverage') is True,
+        'work': facts.get('workCoverage') is True and not facts.get('cleanupPawns'),
     }
 
 
@@ -94,6 +95,7 @@ def priority_nodes(facts, latches, policy):
     nodes = []
     if facts.get('hostiles', 0): nodes.append(('ActiveCombat', 0))
     if not gates['medical']: nodes.append(('CriticalMedical', 1))
+    if not facts.get('hostiles') and facts.get('cleanupPawns'): nodes.append(('RestoreWorkers', 1))
     if facts.get('forbiddenSupplies'): nodes.append(('AllowStartingSupplies', 2))
     if not gates['work']: nodes.append(('EnsureWorkAssignments', 2))
     if food_risk or not gates['food'] or not gates['production']: nodes.append(('EnsureFoodSupply', 2))
@@ -138,7 +140,7 @@ def work_assignment(pawns):
     for work, skill in skill_for.items():
         candidates = []
         for pawn in available:
-            if work == 'Hunting' and (pawn.get('equipment') or {}).get('armed') is not True: continue
+            if work == 'Hunting' and ((pawn.get('equipment') or {}).get('primary') or {}).get('ranged') is not True: continue
             types = {w['name']: w for w in pawn['work'].get('types', [])}
             if work not in types or types[work].get('disabled') is not False:
                 continue
@@ -152,6 +154,21 @@ def work_assignment(pawns):
             owner = min(candidates)[2]
             owners[work] = owner
             load[owner] += 1
+    hunters = {owners['Hunting']} if 'Hunting' in owners else set()
+    second_hunters = [p for p in available if p['thingId'] not in hunters
+        and ((p.get('equipment') or {}).get('primary') or {}).get('ranged') is True
+        and any(w['name']=='Hunting' and w.get('disabled') is False for w in p['work']['types'])]
+    if second_hunters:
+        hunters.add(min(second_hunters,key=lambda p:(load[p['thingId']],p['thingId']))['thingId'])
+    growers = {owners['Growing']} if 'Growing' in owners else set()
+    spare_growers = []
+    for pawn in available:
+        if load[pawn['thingId']]: continue
+        capable = any(w['name']=='Growing' and w.get('disabled') is False for w in pawn['work']['types'])
+        skill = next((s for s in (pawn.get('bio') or {}).get('skills',[]) if s['name']=='Plants'),{})
+        if capable and skill.get('level') is not None and not skill.get('disabled'):
+            spare_growers.append((-skill['level'],pawn['thingId']))
+    if spare_growers: growers.add(min(spare_growers)[1])
     for pawn in available:
         identity = pawn['thingId']
         manual = pawn['work'].get('manualPriorities') is True
@@ -162,7 +179,8 @@ def work_assignment(pawns):
             if work in ('Firefighter', 'Patient', 'BedRest', 'PatientBedRest', 'Childcare'):
                 result[identity][work] = 1
             elif work in owners:
-                result[identity][work] = 1 if owners[work] == identity else (3 if manual else 0)
+                primary = identity in growers if work=='Growing' else identity in hunters if work=='Hunting' else owners[work]==identity
+                result[identity][work] = 1 if primary else (3 if manual else 0)
             elif work in ('Hauling', 'Cleaning', 'BasicWorker'):
                 result[identity][work] = 3
             else:

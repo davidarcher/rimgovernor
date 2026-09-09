@@ -158,7 +158,7 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "For op=filter and op=create: a prebuilt filter to start from. One of everything, nothing, food, perishables, nonperishables, outdoorSafe. The reply's presetDefinition says exactly what each covers.")] string preset = null,
             [ToolParameter(Description = "For op=filter and op=create: extra ThingCategoryDef or ThingDef names to allow, comma-separated, applied after the preset. defName or label, case-insensitive. A name that matches nothing refuses the whole call.")] string allow = null,
             [ToolParameter(Description = "For op=filter and op=create: ThingCategoryDef or ThingDef names to disallow, comma-separated, applied last. Same matching and the same refusal.")] string disallow = null,
-            [ToolParameter(Description = "For op=crop: the plant to grow, as a ThingDef defName (Plant_Potato) or label (potato plant), case-insensitive. A name that matches no sowable plant refuses and lists what the zone will take.")] string plant = null,
+            [ToolParameter(Description = "For op=crop or op=create with zoneType=growing: the plant to grow, as a ThingDef defName (Plant_Potato) or label (potato plant), case-insensitive. A name that matches no sowable plant refuses and lists what the zone will take.")] string plant = null,
             [ToolParameter(Description = "After op=add, call Zone.CheckContiguous() when the zone has become non-contiguous. CheckContiguous DELETES the cells it cannot reach, so this is off by default: the tool reports contiguous:false and leaves the zone alone.", DefaultValue = false)] bool allowSplit = false,
             [ToolParameter(Description = "Show the write happening: select the zone, open the tab a player would use, then close it again. Decorative only.", DefaultValue = true)] bool watch = true,
             [ToolParameter(Description = "How long the menu stays open after the write, in seconds.", DefaultValue = Watch.DefaultSeconds)] int watchSeconds = Watch.DefaultSeconds,
@@ -370,8 +370,8 @@ namespace HomeBridge.BridgeTools
 
             // `plant` does nothing on the other ops, so a call that sends it
             // there is refused rather than silently ignoring it.
-            if (wantOp != "crop" && !string.IsNullOrEmpty(plantSpec))
-                return Failure("plant applies to op=crop only. Run op=crop on the growing zone instead.");
+            if (wantOp != "crop" && wantOp != "create" && !string.IsNullOrEmpty(plantSpec))
+                return Failure("plant applies to op=crop or a new growing zone only.");
 
             // The filter arguments do nothing on the other ops, so a call that
             // sends them there is refused rather than silently ignoring them.
@@ -409,7 +409,7 @@ namespace HomeBridge.BridgeTools
                 }
                 case "create":
                     return AddOrCreate(map, sim, null, zoneType, newLabel, priority,
-                                       preset, allowSpec, disallowSpec,
+                                       preset, allowSpec, disallowSpec, plantSpec,
                                        x, z, width, height, cellSpec, allowSplit, dryRun, true);
                 case "add":
                 {
@@ -418,7 +418,7 @@ namespace HomeBridge.BridgeTools
                     if (!TryResolveZone(zoneManager, zoneSpec, out target, out resolveError))
                         return Failure(resolveError);
                     return AddOrCreate(map, sim, target, zoneType, newLabel, priority,
-                                       preset, allowSpec, disallowSpec,
+                                       preset, allowSpec, disallowSpec, null,
                                        x, z, width, height, cellSpec, allowSplit, dryRun, false);
                 }
                 default:
@@ -778,7 +778,7 @@ namespace HomeBridge.BridgeTools
         // =============================================================== add/create
 
         private static object AddOrCreate(Map map, Sim sim, Zone target, string zoneType, string newLabel,
-                                          string priority, string filterPreset, string allowSpec, string disallowSpec,
+                                          string priority, string filterPreset, string allowSpec, string disallowSpec, string plantSpec,
                                           int x, int z, int width, int height,
                                           string cellSpec, bool allowSplit, bool dryRun, bool creating)
         {
@@ -798,6 +798,18 @@ namespace HomeBridge.BridgeTools
                 else if (wantType == "dumping") preset = StorageSettingsPreset.DumpingStockpile;
                 else if (wantType == "growing") makeGrowing = true;
                 else return Failure("zoneType must be one of: stockpile, dumping, growing. Got: " + zoneType);
+            }
+
+            // Resolve a new zone's crop before consuming an ID or changing cells.
+            ThingDef wantedPlant = null;
+            if (!string.IsNullOrEmpty(plantSpec))
+            {
+                if (!creating || !makeGrowing) return Failure("plant needs a new growing zone.");
+                wantedPlant = DefDatabase<ThingDef>.AllDefsListForReading.FirstOrDefault(d =>
+                    d.plant != null && d.plant.Sowable && d.plant.sowTags.Contains("Ground")
+                    && (string.Equals(d.defName, plantSpec, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(d.label, plantSpec, StringComparison.OrdinalIgnoreCase)));
+                if (wantedPlant == null) return Failure("No sowable ground plant matches " + plantSpec);
             }
 
             // Every filter name is resolved BEFORE the zone is registered, so an
@@ -952,6 +964,18 @@ namespace HomeBridge.BridgeTools
                                "No cell was acceptable, so no zone was created.");
             }
 
+            if (wantedPlant != null)
+            {
+                // Match PollutionUtility.CanPlantAt over the accepted cells,
+                // without constructing a Zone (which allocates an ID in previews).
+                var acceptedCells = results.OfType<Dictionary<string, object>>()
+                    .Where(r => r.ContainsKey("accepted") && r["accepted"] is bool ok && ok)
+                    .Select(r => new IntVec3((int)r["x"], 0, (int)r["z"])).ToList();
+                if ((wantedPlant.plant.RequiresNoPollution && !acceptedCells.Any(c => !c.IsPolluted(map)))
+                    || (wantedPlant.plant.RequiresPollution && !acceptedCells.Any(c => c.IsPolluted(map))))
+                    return Failure("The requested crop cannot grow under this zone's pollution conditions.");
+            }
+
             Zone created = null;
             string applyError = null;
             Dictionary<string, object> filterSummary = null;
@@ -994,6 +1018,11 @@ namespace HomeBridge.BridgeTools
                 }
 
                 applyError = Apply(map, actions, target);
+                if (wantedPlant != null && applyError == null)
+                {
+                    try { ((Zone_Growing)target).SetPlantDefToGrow(wantedPlant); }
+                    catch (Exception e) { applyError = "Crop assignment failed: " + e.Message; }
+                }
 
                 // The game does this after its own zone adds, so a stockpile that
                 // just grew over a pile of stuff stops asking for it to be hauled
@@ -1057,6 +1086,8 @@ namespace HomeBridge.BridgeTools
 
             var payload = Payload(creating ? "create" : "add", dryRun, target, results, before, after,
                                   changes, zonesRemoved, contiguous, splitApplied, accepted, applyError);
+            if (wantedPlant != null)
+                payload["plantDef"] = dryRun ? wantedPlant.defName : ReadPlantDef(target as Zone_Growing)?.defName;
             payload["allowSplit"] = allowSplit;
             payload["filter"] = filterSummary;
             payload["presetDefinition"] = StockpileFilter.Definition(filterRequest.Preset);

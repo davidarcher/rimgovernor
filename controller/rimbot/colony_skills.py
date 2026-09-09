@@ -61,9 +61,40 @@ class ColonySkills:
         goal = rt.current_plan.colony_goals[goal_id]
         methods = goal.evidence.setdefault('methods', {})
         def unused(name): return name not in methods
+        if goal_id == 'RestoreWorkers':
+            if facts.get('cleanupPawns') and unused('release'):
+                return 'release', [{'kind':'stand_down','pawn_ids':facts['cleanupPawns']}]
+            return None
         if goal_id == 'ActiveCombat':
-            raise SkillBlocked('Active hostile encounter: native danger hold retained; combat policy requires a defensive assignment')
+            threats = await rt.game.query('home/list_pawns', hostileOnly=True, animals=True)
+            enemies = [p for p in threats.get('pawns',[]) if not p.get('dead') and not p.get('downed')]
+            goal.evidence['threat_assessment']=[{k:p.get(k) for k in ('thingId','animal','predator','mentalState','animals','nearestColonistDistance')} for p in enemies]
+            if (len(enemies)!=1 or enemies[0].get('animal') is not True
+                    or not 0 < (enemies[0].get('animals') or {}).get('bodySize',0) <= .5
+                    or enemies[0].get('predator') is not False
+                    or enemies[0].get('mentalState') not in ('Manhunter','ManhunterPermanent')):
+                raise SkillBlocked('Threat exceeds the bounded small-animal defense method; danger hold retained')
+            target=enemies[0]['thingId']
+            goal.evidence['combat_target']=target
+            distant=enemies[0].get('nearestColonistDistance',1000)>40
+            method=('muster-' if distant else 'repel-')+target
+            if not unused(method): return None
+            managed=rt.current_plan.control.get('combat',{}).get('pawns',[])
+            defenders=[p for p in people if not p.get('dead') and not p.get('downed')
+                and p['thingId'] not in rt.current_plan.control.get('player_draft_overrides',{})
+                and (not p.get('drafted') or (p['thingId'] in managed and rt.draft_owners.get(p['thingId'])==rt.context_token))
+                and not p.get('mentalState') and (p.get('bio') or {}).get('incapableOfRead') is True
+                and 'Violent' not in p['bio'].get('incapableOfTags',[])]
+            defenders.sort(key=lambda p:(-next((v.get('level',0) or 0 for v in p['bio'].get('skills',[])
+                if v['name']=='Melee'),0),p['thingId']))
+            if len(defenders)<2: raise SkillBlocked('Small-animal defense requires two available capable colonists')
+            if distant:
+                return method, [native('home/order',action='draft',pawn=p['thingId'],watch=False) for p in defenders[:2]]
+            return method, [native('home/order',action='attack',mode='melee',pawn=p['thingId'],target=target,watch=False)
+                for p in defenders[:2]]
         if goal_id == 'CriticalMedical':
+            if facts.get('medicalKnown') is not True:
+                raise SkillBlocked('Native medical state is unavailable; treatment and stability cannot be verified')
             assignments, _ = work_assignment(people)
             doctors = sorted(p for p, w in assignments.items() if w.get('Doctor') == 1)
             if not doctors: raise SkillBlocked('No available doctor')
@@ -133,16 +164,22 @@ class ColonySkills:
                 if butcher and unused('butcher-bill') and not any(b.get('recipe')=='ButcherCorpseFlesh'
                         and b.get('suspended') is False for b in butcher[0].get('bills', [])):
                     return 'butcher-bill', [native('home/bills',action='add',bench=butcher[0]['id'],recipe='ButcherCorpseFlesh',
-                        repeatMode='Forever',ingredientSearchRadius=60,watch=False)]
+                        repeatMode='Forever',ingredientSearchRadius=999,watch=False)]
                 if butcher:
                     wildlife = await rt.game.query('home/list_pawns', wildOnly=True, animalsOnly=True, animals=True)
                     if sum((p.get('animals') or {}).get('designations', {}).get('hunt') is True
                            for p in wildlife.get('pawns', [])) >= 2: return None
+                    home=rt.current_plan.control.get('layout',{}).get('room')
+                    anchor={'x':home['x']+home['width']//2,'z':home['z']+home['height']//2} if home else facts['center']
+                    distance=lambda p:max(abs(p['position']['x']-anchor['x']),abs(p['position']['z']-anchor['z']))
                     prey = [p for p in wildlife.get('pawns', []) if p.get('hostile') is False
                         and p.get('predator') is False and p.get('manhunterOnDamageChance') == 0
-                        and not p.get('dead') and not p.get('downed') and p.get('nearestColonistDistance', 1000) <= 50
+                        and not p.get('dead') and not p.get('downed') and p.get('position') and distance(p) <= 50
                         and (p.get('animals') or {}).get('designations', {}).get('hunt') is False]
-                    prey.sort(key=lambda p:(p['nearestColonistDistance'],p['thingId']))
+                    # Prefer useful food yield without relying on species tables.
+                    # Native body size is a ranking proxy, never credited as stock.
+                    prey.sort(key=lambda p:(-(p.get('animals') or {}).get('bodySize',0) /
+                        (1+distance(p)/25),distance(p),p['thingId']))
                     target = next((p for p in prey if unused('hunt-'+p['thingId'])),None)
                     if target:
                         designator = await self.designator('Designator_Hunt')
@@ -216,7 +253,7 @@ class ColonySkills:
         for index, action in enumerate(actions):
             identity = f'{goal_id}-{goal.attempts}-{method}-{index}'[:64]
             step = PlanStep(id=identity, title=f'{goal_id}: {method}', goal_id=goal_id, source=goal.source,
-                priority=100-goal.priority_class*20, action=action,
+                priority=max(75 if goal.source=='PLAYER' else 0,100-goal.priority_class*20), action=action,
                 completion_criteria='Native effect observed; colony goal separately verifies functional postconditions')
             if index:
                 step.after = [Dependency(step=result[-1].id, when='complete')]

@@ -224,3 +224,68 @@ def test_completed_native_actions_retire_without_losing_receipts_or_pending_work
     assert len(plan.spec.steps)<80 and len(plan.progress)==100
     assert plan.control['retired_steps']['a0']['source']=='AUTOPILOT'
     assert plan.progress['a0'].issued['0']['confirmed']
+
+
+@pytest.mark.asyncio
+async def test_native_food_process_survives_controller_restart_without_duplicate_fields():
+    rt=Replay()
+    for _ in range(30):
+        await rt.controller.cycle()
+        rt.labor()
+        if rt.current_plan.control.get('status')=='FOOTHOLD_STABLE': break
+    rt.current_plan=ColonyPlan()
+    rt.facts.update(foodNutrition=1,foodRunwayDays=.2,butchering=[{'id':'ButcherSpot1',
+        'bills':[{'recipe':'ButcherCorpseFlesh','suspended':False}]}])
+    await rt.controller.cycle()
+    assert rt.current_plan.control['simulation_needed'] is True
+    assert not rt.current_plan.spec.steps
+    assert rt.current_plan.colony_goals['EnsureFoodSupply'].status=='active'
+
+
+@pytest.mark.asyncio
+async def test_unknown_medical_observation_cannot_certify_stability():
+    rt=Replay()
+    rt.batch.summary.pawns[0].bleeding=None
+    await rt.controller.cycle()
+    assert rt.current_plan.control['criteria']['medical'] is False
+    assert rt.current_plan.colony_goals['CriticalMedical'].status=='blocked'
+    assert 'unavailable' in rt.current_plan.colony_goals['CriticalMedical'].reason
+
+
+def test_spare_capable_pawn_supplies_second_grower_without_displacing_specialists():
+    people=roster(8)
+    for pawn in people: pawn['equipment']={'armed':True,'primary':{'ranged':True}}
+    assigned,covered=work_assignment(people)
+    assert covered
+    assert sum(w.get('Growing')==1 for w in assigned.values())==2
+    assert sum(w.get('Hunting')==1 for w in assigned.values())==2
+    for work in ('Cooking','Construction','Doctor'):
+        assert sum(w.get(work)==1 for w in assigned.values())==1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('distance,expected',[(20,'attack'),(60,'draft')])
+async def test_small_manhunter_method_uses_native_orders_and_owned_cleanup(distance,expected):
+    rt=Replay()
+    rt.draft_owners={}
+    rt.current_plan.colony_goals['ActiveCombat']=ColonyGoal(priority_class=0)
+    for person in rt.people: person['bio'].update(incapableOfRead=True,incapableOfTags=[])
+    enemy=dict(thingId='Thing_Hare1',animal=True,predator=False,mentalState='Manhunter',
+        animals={'bodySize':.2},nearestColonistDistance=distance)
+    rt.game.query=AsyncMock(return_value={'pawns':[enemy]})
+    method,actions=await rt.controller.skills.compile('ActiveCombat',rt.facts,rt.people)
+    assert len(actions)==2 and all(a['arguments']['action']==expected for a in actions)
+    assert all(a['tool']=='home/order' and a['arguments']['dryRun'] is False for a in actions)
+    rt.current_plan.colony_goals['ActiveCombat'].evidence['methods'][method]=['a','b']
+    assert await rt.controller.skills.compile('ActiveCombat',rt.facts,rt.people) is None
+    enemy['animals']['bodySize']=2
+    from rimbot.colony_skills import SkillBlocked
+    with pytest.raises(SkillBlocked,match='exceeds'):
+        await rt.controller.skills.compile('ActiveCombat',rt.facts,rt.people)
+
+
+def test_cleanup_preempts_routine_work_after_threat_clears():
+    f=facts(); f.update(hostiles=0,cleanupPawns=['Thing_Human1'])
+    assert ('RestoreWorkers',1) in priority_nodes(f,{},ColonyPolicy())
+    f['hostiles']=1
+    assert ('RestoreWorkers',1) not in priority_nodes(f,{},ColonyPolicy())

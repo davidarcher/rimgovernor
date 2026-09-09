@@ -57,7 +57,7 @@ async def test_confirmed_work_gets_bounded_window_then_pauses_for_review(tmp_pat
     rt, store = runtime(tmp_path)
     try:
         await rt.advance_execution()
-        rt.supervisor.change.assert_awaited_once_with('Normal')
+        rt.supervisor.change.assert_awaited_once_with('Normal',mode='colony',ignored_hostiles='')
         assert rt.execution_window_end == 700
         rt.game.query.return_value = {'time': {'ticksGame': 705}}
         await rt.advance_execution()
@@ -162,3 +162,28 @@ async def test_direction_during_clock_read_prevents_automatic_resume(tmp_path):
         rt.supervisor.change.assert_not_awaited()
     finally:
         store.close()
+
+
+@pytest.mark.asyncio
+async def test_blocked_emergency_prevents_time_even_with_waiting_construction(tmp_path):
+    rt,store=runtime(tmp_path)
+    try:
+        rt.current_plan.control['execution_hold']='Threat exceeds available method'
+        await rt.advance_execution()
+        rt.supervisor.change.assert_not_awaited()
+    finally: store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('state,profile',[('complete','combat'),('blocked','colony'),('pending','colony')])
+async def test_combat_clock_acknowledges_only_a_dispatched_active_defense(tmp_path,state,profile):
+    from rimbot.colony_plan import ColonyGoal
+    rt,store=runtime(tmp_path)
+    try:
+        rt.current_plan.control['combat']={'target':'Thing_Hare1','steps':['attack']}
+        rt.current_plan.progress['attack']=StepProgress(state=state)
+        rt.current_plan.colony_goals['ActiveCombat']=ColonyGoal(priority_class=0)
+        await rt.advance_execution()
+        rt.supervisor.change.assert_awaited_once_with('Normal',mode=profile,
+            ignored_hostiles='Thing_Hare1' if profile=='combat' else '')
+    finally: store.close()

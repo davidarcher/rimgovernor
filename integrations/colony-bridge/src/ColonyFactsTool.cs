@@ -89,17 +89,22 @@ namespace HomeBridge.BridgeTools
                 .OrderBy(t => t.Position.DistanceToSquared(center)).ThenBy(t => t.thingIDNumber).Take(80)
                 .Select(t => new { x = t.Position.x, z = t.Position.z }).Distinct().ToList();
             var foodStorage = map.zoneManager.AllZones.OfType<Zone_Stockpile>().Any(zone =>
-                zone.label == "RimBot food" && zone.GetStoreSettings()?.filter != null
-                && food.Any(t => zone.GetStoreSettings().filter.Allows(t))
+                zone.GetStoreSettings()?.filter != null
+                && DefDatabase<ThingDef>.AllDefsListForReading.Any(d => humanFood(d) && zone.GetStoreSettings().filter.Allows(d))
                 && map.AllCells.Count(c => map.zoneManager.ZoneAt(c) == zone && c.Roofed(map)
                     && c.GetRoom(map) != null && c.GetRoom(map).ProperRoom && !c.GetRoom(map).PsychologicallyOutdoors) >= 9);
+            var policyDefs = DefDatabase<ThingDef>.AllDefsListForReading
+                .SelectMany(d => d.costList ?? new List<ThingDefCountClass>()).Select(c => c.thingDef)
+                .Concat(DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.IsStuff || d.IsMedicine || supplies.ContainsKey(d.defName)))
+                .Where(d => d != null).Distinct().OrderBy(d => d.defName)
+                .ToDictionary(d => d.defName, d => d.label);
             var result = new Dictionary<string, object> {
                 ["success"] = true, ["tick"] = Find.TickManager.TicksGame,
                 ["colonists"] = people.Count, ["workers"] = workers.Count, ["center"] = new { x = center.x, z = center.z },
                 ["mapSize"] = new { width = map.Size.x, height = map.Size.z }, ["biome"] = map.Biome.defName,
                 ["foodNutrition"] = nutrition, ["nutritionPerDay"] = demand,
                 ["foodRunwayDays"] = demand > 0 ? (object)(nutrition / demand) : null,
-                ["resources"] = supplies, ["bedCapacity"] = beds.Sum(b => b.SleepingSlotsCount),
+                ["resources"] = supplies, ["policyResources"] = policyDefs, ["bedCapacity"] = beds.Sum(b => b.SleepingSlotsCount),
                 ["indoorSleepingCapacity"] = indoorBeds.Sum(b => b.SleepingSlotsCount),
                 ["sleepingTemperatureMin"] = temperatures.Count == 0 ? (object)null : temperatures.Min(),
                 ["sleepingTemperatureMax"] = temperatures.Count == 0 ? (object)null : temperatures.Max(),

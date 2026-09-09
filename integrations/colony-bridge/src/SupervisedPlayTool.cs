@@ -533,10 +533,10 @@ namespace HomeBridge.BridgeTools
                     && (HomePlayUntilEventTools.SafeDowned(p) || HomePlayUntilEventTools.SafeDead(p))
                     && !s.IgnoredDowned.Contains(p.thingIDNumber))
                     return PawnHit("colonist_downed", p, HomePlayUntilEventTools.SafeDead(p) ? "dead" : "downed");
-                if (PredatorHunting(p) && p.Faction != Faction.OfPlayer
+                if (ThreateningPredatorHunt(p)
                     && !s.IgnoredHostiles.Contains(p.thingIDNumber)
                     && colonists.Any(c => Distance(p, c) <= 40))
-                    return PawnHit("predator_hunt", p, "PredatorHunt within 40 cells");
+                    return PawnHit("predator_hunt", p, "PredatorHunt targeting colony property or unreadable prey within 40 cells");
                 if (HomePlayUntilEventTools.SafeIsColonist(p))
                 {
                     var after = InjurySnapshot.Capture(p);
@@ -765,6 +765,15 @@ namespace HomeBridge.BridgeTools
         }
 
         private static bool PredatorHunting(Pawn p) { try { return p.CurJob != null && p.CurJob.def != null && p.CurJob.def.defName == "PredatorHunt"; } catch { return false; } }
+        private static bool ThreateningPredatorHunt(Pawn p)
+        {
+            if (!PredatorHunting(p) || p.Faction == Faction.OfPlayer) return false;
+            Pawn prey;
+            var ours = HomeStatusTools.PreyBelongsToPlayer(p, out prey);
+            // Share the status reader's native ownership test. Re-evaluate each
+            // probe, so a predator changing targets never gets a lasting exemption.
+            return ours || prey == null;
+        }
         private static int Distance(Pawn a, Pawn b) { return Math.Max(Math.Abs(a.Position.x - b.Position.x), Math.Abs(a.Position.z - b.Position.z)); }
         private static bool Owns(State s, string owner, long epoch) { return s != null && s.Active && s.Epoch == epoch && string.Equals(s.Owner, owner ?? "agent", StringComparison.Ordinal); }
         private static void Stop(State s, string kind, string detail, bool pause,

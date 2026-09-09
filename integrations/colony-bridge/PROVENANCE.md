@@ -210,3 +210,13 @@ bed assignments and schedules. The fixture does not complete the observed pawn
 work: sleeping, hauling, the committed wall and deconstruction run through normal
 jobs. Production builds exclude this capability. The acceptance harness preserves
 native snapshots and failed trials separately from unit-test evidence.
+
+
+Deterministic control reads in `ColonyFactsTool.cs` use native nutrition, food
+eligibility, work tables, crop growth, resource definitions and construction
+costs. `ZoneCellsTool.cs` accepts a crop during growing-zone creation: the dry run
+resolves ground-sowable definitions and checks the accepted cells using the same
+pollution conditions as native `PollutionUtility.CanPlantAt`, without allocating
+a zone ID. Creation uses `SetPlantDefToGrow` and returns the observed definition.
+Status and supervised play share prey ownership for predator threat detection;
+known wildlife hunts are ignored, while unreadable prey retains a danger hold.

@@ -65,7 +65,9 @@ Paths in the table without a directory prefix are under `controller/rimbot/`.
    Dispatch rechecks current stock and player resource policies. Changed or
    unknown costs require validation. Production bills under protected-resource
    policies currently block until ingredient accounting is available.
-6. Hands records intent before writes, retains partial progress and verifies
+6. New growing zones validate crop identity and pollution compatibility before
+   registration, and configure the crop in the same native operation.
+   Hands records intent before writes, retains partial progress and verifies
    native outcomes. Routine execution yields after 12 operations. An explicit
    current player request may dispatch through the same Hands in Manual, while
    the clock stays paused; it does not dispatch unrelated autonomous work.
@@ -83,15 +85,23 @@ Goals record selected methods, attempts, step IDs and observable progress.
 Invalid templates have a bounded alternative-site search; unknown or failed
 native actions become explicit blockers. A no-progress watchdog prevents silent
 indefinite waiting. The current starter template supports up to eight colonists.
-Combat and electrical-generation methods report explicit blockers where a
-validated deterministic method has not yet been implemented.
+A bounded combat method prepares two capable colonists for one small manhunting
+animal, then uses native attacks, threat readback, treatment and owned-draft
+cleanup. Its clock acknowledges only that inspected target after orders dispatch;
+other threats and severe injury remain guarded. Blocked emergencies prevent
+routine waiting work from restarting time. Larger threats and electrical
+generation still report explicit blockers.
 
 ## Interactive commands and shared intent
 
-The chat command union supports SetResearch, BuildRoom, CreateZone,
+The chat command union supports SetResearch, BuildRoom, PlaceBuildings, CreateZone,
 SetWorkPriority, CreateBill, DraftPawn, MovePawn, CreateGoal, CancelGoal and
-ModifyResourcePolicy. The model receives semantic schemas and read-only native
-inspection/preview tools, not arbitrary native execution. Optional local
+ModifyResourcePolicy. The model receives individually named semantic tools and read-only native
+inspection/preview tools, not arbitrary native execution. Fresh native facts and
+resource-definition labels are available in Manual as well as Automate. The
+latest player message follows the evidence context; accepted goals and policies
+end interpretation so downstream routine work stays with the controller.
+Acknowledgments come from accepted structured results, not inferred completion. Optional local
 knowledge/wiki lookup, colony notebook, scout, visual review and consultations
 remain chat tools. Advice is evidence, never executable authority.
 
@@ -100,7 +110,8 @@ cannot commit orders. Player steps normally run before routine optimization;
 hard validation and resource policies still apply. A food target updates the
 same EnsureFoodSupply goal and hysteresis policy. Work overrides are retained
 by the deterministic allocator. Resource constraints include reserves and
-normal/defense-only/stopped spending.
+normal/defense-only/stopped spending. Explicit draft/movement overrides prevent
+autonomous recruitment or cleanup from taking ownership of those pawns.
 
 Room and zone commands retain an intent ID and request history. A follow-up can
 replace unissued geometry after validating its replacement. Issued geometry

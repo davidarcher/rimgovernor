@@ -36,6 +36,10 @@ namespace HeadlessRim
             Patch(harmony, typeof(UIRoot_Play), "UIRootOnGUI", nameof(SkipPrefix));
             Patch(harmony, typeof(MapInterface), "MapInterfaceOnGUI_BeforeMainTabs", nameof(SkipPrefix));
             Patch(harmony, typeof(LongEventHandler), "LongEventsOnGUI", nameof(SkipPrefix));
+            // Synchronous events wait for their loading window's first repaint.
+            // Headless mode has no repaint: acknowledge presentation only, then
+            // let the unmodified native update execute/save/finish the event.
+            Patch(harmony, typeof(LongEventHandler), "LongEventsUpdate", nameof(LongEventUpdatePrefix));
 
             // MAP MESH GENERATION (Prevents Gameplay NREs)
             Patch(harmony, typeof(Section), "RegenerateAllLayers", nameof(SkipPrefix));
@@ -73,6 +77,11 @@ namespace HeadlessRim
         }
 
         public static bool SkipPrefix() => false;
+        public static void LongEventUpdatePrefix(object ___currentEvent)
+        {
+            if (___currentEvent != null)
+                AccessTools.Field(___currentEvent.GetType(), "alreadyDisplayed")?.SetValue(___currentEvent, true);
+        }
         // With regeneration disabled neither drawing collection was allocated.
         // Preserve native cleanup if any drawing resources do exist.
         public static bool DisposeMapPrefix(Section[,] ___sections, System.Collections.Generic.List<MapDrawLayer> ___global)

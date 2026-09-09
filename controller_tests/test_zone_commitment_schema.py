@@ -143,3 +143,16 @@ async def test_unknown_native_crop_is_refused_without_substitution():
         await Hands().zone(rt, zone, SimpleNamespace(), '0', 0, 'load', 0)
     rt.native.assert_awaited_once()
     assert rt.native.await_args.args[1]['plant'] == 'UnknownToNative'
+
+
+@pytest.mark.asyncio
+async def test_invalid_crop_preflight_leaves_new_zone_uncreated():
+    from rimbot.hands import Blocked
+    zone = Zone.model_validate(dict(action(), crop='UnknownToNative'))
+    rt = SimpleNamespace(game=SimpleNamespace(query=AsyncMock(return_value={'zones': []})),
+        inspect_native=AsyncMock(return_value={'success':False, 'error':'No sowable ground plant matches UnknownToNative'}),
+        native=AsyncMock())
+    with pytest.raises(Blocked):
+        await Hands().zone(rt, zone, SimpleNamespace(), '0', 0, 'load', 0)
+    assert rt.inspect_native.await_args.args[1]['plant']=='UnknownToNative'
+    rt.native.assert_not_awaited()
