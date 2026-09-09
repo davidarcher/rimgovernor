@@ -207,7 +207,7 @@ def starter_layouts(facts):
     rooms = []
     for x, z in sorted(cells):
         footprint = points(x, z, 9, 9)
-        if not all(free(p) for p in footprint): continue
+        if not all(free(p) and cells[p].get('supportsLight') is True for p in footprint): continue
         margin = points(x, z-4, 9, 3)
         distance = (x+4-anchor['x'])**2 + (z+4-anchor['z'])**2
         rooms.append((distance + 3*sum(not free(p) for p in margin), x, z))

@@ -44,7 +44,7 @@ Paths in the table without a directory prefix are under `controller/rimbot/`.
 1. Pause and read native state. Sequential observations are not an atomic
    snapshot. `home/colony_facts` reports accessible shared-diet nutrition and fed
    consumption, viable crop cells, indoor sleeping, temperatures, cooking, safe
-   nearby wild-plant access, starter terrain and actual definition costs. Native
+   nearby wild-plant access, starter terrain/support affordances and actual definition costs. Native
    growers retain ownership of cultivated crop harvest timing. Unknown
    observations never certify recovery.
 2. Only a new human chat revision invokes `planner.py`. Mode changes and routine

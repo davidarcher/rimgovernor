@@ -140,7 +140,8 @@ namespace HomeBridge.BridgeTools
                     if (c.Fogged(map)) continue;
                     cells.Add(new { x, z, walkable = c.Walkable(map), fertility = map.fertilityGrid.FertilityAt(c),
                         occupied = c.GetEdifice(map) != null || map.thingGrid.ThingsListAtFast(c).Any(t => t is Blueprint || t is Frame),
-                        zone = map.zoneManager.ZoneAt(c) != null, roofed = c.Roofed(map) });
+                        zone = map.zoneManager.ZoneAt(c) != null, roofed = c.Roofed(map),
+                        supportsLight = c.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Light) });
                 }
                 result["definitions"] = definitions;
                 result["cells"] = cells;

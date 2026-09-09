@@ -20,7 +20,7 @@ def facts(count=3):
             'SleepingSpot':{'available':True,'costs':{}},'Campfire':{'available':True,'costs':{'WoodLog':5}},
             'Cooler':{'available':True,'costs':{'ComponentIndustrial':3}},
             'Plant_Rice':{'growDays':3,'harvestNutrition':.3,'fertilityMin':.6}},
-        cells=[dict(x=x,z=z,walkable=True,occupied=False,zone=False,fertility=1)
+        cells=[dict(x=x,z=z,walkable=True,occupied=False,zone=False,fertility=1,supportsLight=True)
                for x in range(8,53) for z in range(8,53)])
 
 
@@ -337,3 +337,14 @@ async def test_work_assignment_reconciles_after_equipping_hunter():
     second, actions=await rt.controller.skills.compile('EnsureWorkAssignments',rt.facts,rt.people)
     assert second!=first
     assert any('Hunting=1' in a['arguments']['work'] for a in actions)
+
+
+def test_layout_rejects_walkable_marsh_without_building_support():
+    state=facts()
+    for cell in state['cells']:
+        cell['supportsLight']=cell['x']<27
+    layouts=starter_layouts(state)
+    assert layouts
+    assert all(layout['room']['x']+layout['room']['width']<=27 for layout in layouts)
+    for cell in state['cells']: cell.pop('supportsLight')
+    assert starter_layouts(state)==[]

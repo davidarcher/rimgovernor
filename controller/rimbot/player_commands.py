@@ -149,7 +149,7 @@ def command_confirmation(name, result):
         label='Components' if result['resource']=='ComponentIndustrial' else result['resource']
         policy=result['policy']
         rule={'normal':'normal spending','defense_only':'defense spending only','stop':'all spending stopped, including defense'}[policy['spending']]
-        return f"{label}: {rule}. Reserve: {policy['reserve']}."
+        return f"{label}: {rule} for new controller orders. Reserve: {policy['reserve']}. Existing production bills remain active."
     if name=='CancelGoal':
         return 'Cancelled '+result['cancelled'].removeprefix('intent-').replace('-',' ')+'. Existing game orders remain in place.'
     titles={'SetResearch':'Research change','SetWorkPriority':'Work assignment change','DraftPawn':'Draft change',
