@@ -27,13 +27,16 @@ def fit_request(messages,tools,context_tokens,output_tokens,units_per_token=1.0)
     budget=int(token_budget*units_per_token)
     messages=copy.deepcopy(messages);tools=copy.deepcopy(tools)
     size=lambda:encoded_size(messages)+encoded_size(tools)
+    def public_messages():
+        return [{k:v for k,v in m.items() if k!='_preserve_content'} for m in messages]
     original=size()
-    if original<=budget:return messages,tools,{'input_budget':budget,'budget_units':original,'compacted':False}
+    if original<=budget:return public_messages(),tools,{'input_budget':budget,'budget_units':original,'compacted':False}
     # Remove old complete conversational groups. Preserve instructions, initial context,
     # and the latest assistant/tool group; never leave orphaned tool responses.
     while size()>budget:
         starts=[i for i,m in enumerate(messages) if m['role']=='assistant']
         if len(starts)<2:break
+        if any(m.get('_preserve_content') for m in messages[starts[0]:starts[1]]):break
         del messages[starts[0]:starts[1]]
     # Descriptions may be shortened, but argument types, enums and required fields remain intact.
     def schema_trim(v):
@@ -44,7 +47,7 @@ def fit_request(messages,tools,context_tokens,output_tokens,units_per_token=1.0)
     for limit in (1800,600,200):
         if size()<=budget:break
         for message in messages:
-            if message['role'] in ('system','assistant'):continue
+            if message['role'] in ('system','assistant') or message.get('_preserve_content'):continue
             content=message.get('content')
             if isinstance(content,str):
                 try:content=json.dumps(shorten(json.loads(content),limit),ensure_ascii=False,separators=(',',':'))
@@ -61,4 +64,4 @@ def fit_request(messages,tools,context_tokens,output_tokens,units_per_token=1.0)
         if message['role']=='tool' and encoded_size(message)>2048:
             message['content']=json.dumps({'omitted':True,'reason':'Tool result exceeds request budget; query a smaller area or filtered list. Do not assume missing facts.'})
     if size()>budget:raise ValueError(f'Request cannot fit safely: {size()} conservative input units, budget {budget}. Narrow the project context or tool surface; no inference request sent.')
-    return messages,tools,{'input_budget':budget,'budget_units':size(),'original_units':original,'compacted':True}
+    return public_messages(),tools,{'input_budget':budget,'budget_units':size(),'original_units':original,'compacted':True}

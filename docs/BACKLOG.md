@@ -82,7 +82,7 @@ in the checkpoint commit; do not append an implementation diary here.
 - [ ] **B11 · Event delivery and process ownership.** Compare current persisted
   history/revision guards with acknowledged durable inbox/outbox semantics.
   Verify crash/reconnect delivery without dropped or duplicated player/game events.
-  Audit PID plus process birth time against PID reuse; test lease expiry and
+  Add a save-and-restart flow for visible owned sessions so controller restarts preserve playtest progress. Audit PID plus process birth time against PID reuse; test lease expiry and
   lost-worker cleanup. Generated disposable profiles require DirectPath launches
   without process-name cleanup fallback; regenerate existing profiles to adopt this
   protection. Reuse semantics inside the existing runtime.

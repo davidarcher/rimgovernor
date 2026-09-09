@@ -7,12 +7,13 @@ from urllib.parse import urlparse
 
 from fastapi import FastAPI, Request
 from pydantic import BaseModel, ConfigDict, Field
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from .bridge_runtime import BridgeRuntime
 from .config import DATA_DIR, Settings, load_model_routing
 from .store import Store
+from .controller_settings import PolicyUpdate, update_policy
 
 
 class ForgetMemory(BaseModel):
@@ -81,6 +82,10 @@ def create_app(runtime=None):
         await request.app.state.rt.set_mode((await request.json())['mode'])
         return {'ok': True}
 
+    @app.post('/api/autopilot/settings')
+    async def autopilot_settings(body: PolicyUpdate, request: Request):
+        return await update_policy(request.app.state.rt, body)
+
     @app.post('/api/projects')
     async def project(request: Request):
         row = await request.app.state.rt.project_update(await request.json())
@@ -120,9 +125,10 @@ def create_app(runtime=None):
     @app.get('/api/camera')
     async def camera(request: Request):
         rt = request.app.state.rt
-        if not rt.camera_path:
+        frame = rt.camera_bytes
+        if frame is None:
             return JSONResponse({'detail': 'Waiting for camera'}, status_code=503)
-        return FileResponse(rt.camera_path, media_type='image/png')
+        return Response(frame, media_type='image/png')
 
     @app.get('/api/diagnostics')
     async def diagnostics(request: Request):

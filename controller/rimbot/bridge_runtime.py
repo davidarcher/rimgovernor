@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 
 from .bridge import bridge_session
+from .headless import rendered_headless_mismatch
 from .clock_control import PlayClock, HOLD_REASONS
 from .bridge_game import BridgeGame, WRITES, is_write
 from .bridge_observation import observe
@@ -20,6 +21,7 @@ from .strategic_state import StrategicState, projection
 from .model import LocalModel
 from .planner import Planner
 from .colony_controller import ColonyController
+from .controller_settings import settings_state
 from .resource_accounting import validate_allocations
 from .projects import ProjectBook, ProjectSpec
 from .receipts import verdict_line, _outcome
@@ -65,7 +67,10 @@ class BridgeRuntime:
         self.video_viewers = {}
         self.render_state = {}
         self.camera_path = None
+        self.camera_bytes = None
         self.camera_version = 0
+        self.camera_error = ''
+        self.camera_captured_at = 0
         self.clock = {}
         self.supervisor = None
         self.clock_task = None
@@ -108,6 +113,8 @@ class BridgeRuntime:
             self.execution_window_end = None
             self.wake.clear()
             self.camera_path, self.camera_version = None, 0
+            self.camera_bytes = None
+            self.camera_error, self.camera_captured_at = '', 0
             self.persist()
         return changed
 
@@ -880,7 +887,7 @@ class BridgeRuntime:
                     await bridge.core('games_start', gameId=bridge.game_id)
                 await bridge.connect()
                 if self.fresh:
-                    await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline', readiness='visual', timeoutMs=90000, ignoreModCompatibility=self.headless)
+                    await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline', readiness='visual', timeoutMs=90000, ignoreModCompatibility=self.headless or rendered_headless_mismatch(self.root))
                 await bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
                 self.game = BridgeGame(bridge)
                 await self.sync_identity()
@@ -929,9 +936,18 @@ class BridgeRuntime:
                                 image = await bridge.call('rimworld/take_screenshot', fileName='rimbot-live', includeTargets=False, suppressMessage=True)
                                 candidate = Path(image.structuredContent['path']).resolve()
                                 if candidate.is_relative_to(self.root) and candidate.is_file():
+                                    frame = candidate.read_bytes()
+                                    if not frame.startswith(b'\x89PNG\r\n\x1a\n'):
+                                        raise ValueError('Camera returned an incomplete frame')
+                                    self.camera_bytes = frame
                                     self.camera_path = candidate
                                     self.camera_version += 1
+                                    self.camera_captured_at = time.time()
+                                    self.camera_error = ''
+                                else:
+                                    raise ValueError('Camera result is unavailable in this session')
                     except Exception as error:
+                        self.camera_error = str(error)[:300]
                         self.note('camera_error', str(error))
                     try:
                         await asyncio.wait_for(self.shutdown.wait(), 2)
@@ -954,9 +970,9 @@ class BridgeRuntime:
         summary = self.batch.summary if self.batch else None
         feed = self.chat[-80:]
         recent = next((m for m in reversed(feed) if m['kind'] == 'summary'), None)
-        return {'memories': self.public_memories(), 'sessionId': self.context_token or self.colony, 'projects': self.projects.dump(), 'goals': self.plan, 'mood': 'thinking' if self.review_task and not self.review_task.done() else 'happy',
+        return {'autopilotSettings': settings_state(self.current_plan), 'chatModel': self.router.routing.roles[ModelRole.STRATEGIST].model, 'memories': self.public_memories(), 'sessionId': self.context_token or self.colony, 'projects': self.projects.dump(), 'goals': self.plan, 'mood': 'thinking' if self.review_task and not self.review_task.done() else 'happy',
             'status': {'phase': 'core', 'turn': self.counters['model_calls'],
-                       'label': self.phase+f" · {self.counters.get('planner_tools',0)} strategy calls · {self.counters['tools']} native calls · {self.counters['actions']} orders"},
+                       'label': self.phase},
             'game': {'tick': self.clock.get('ticksGame', summary.end_tick if summary else None), 'paused': self.clock.get('paused', True),
                      'stale': not self.connected, 'wallTs': time.time()},
             'lastSummary': recent, 'feed': feed, 'mode': self.mode, 'connected': self.connected,
@@ -972,5 +988,5 @@ class BridgeRuntime:
                     failure=self.current_plan.progress[s.id].failure.model_dump() if self.current_plan.progress[s.id].failure else None)
                     for s in self.current_plan.spec.steps]}, 'modelRoles': self.router.metrics,
             'clockSupervisor': self.supervisor.state if self.supervisor else {},
-            'rendering': self.render_state, 'headless': self.headless, 'cameraVersion': self.camera_version, 'counters': self.counters,
+            'rendering': self.render_state, 'headless': self.headless, 'cameraError': self.camera_error, 'cameraCapturedAt': self.camera_captured_at, 'cameraVersion': self.camera_version, 'counters': self.counters,
             'observation': summary.model_dump() if summary else None}

@@ -256,3 +256,22 @@ reset it. Save/load identity changes, rewinds and missing/dead starting colonist
 fail the episode. Reports preserve losses, the longest qualifying interval and
 maximum observation gap. This certifies sampled maintained gates over the stated
 window, not arbitrary long-term survival or difficult-biome coverage.
+
+
+### Visible dashboard acceptance
+
+Use a rendered prepared profile and the local web server for player-facing tests.
+Verify that `/api/camera` supplies complete immutable PNG responses while native
+captures advance; pause/play video must retain the last good frame. Check an actual
+local-model request and verify its resulting goal or action in shared state.
+
+On Autopilot, change a target or speed and confirm its effective persisted value.
+Reject invalid threshold ordering and stale policy versions without altering the
+plan. Keep unsaved drafts across background refreshes, including when chat changes
+settings. Verification limits are read-only. The API requires the normal local
+mutation header and current colony identity.
+
+Stopping the controller may terminate its owned disposable game through the process
+lifecycle. Preserve native saves before planned restarts; do not assume the game
+survives killing the controller process. A player-facing session intentionally left
+running needs its matching installed companion until that session is closed.

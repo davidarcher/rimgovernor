@@ -76,3 +76,16 @@ def prepare(root):
     destination.mkdir(exist_ok=True)
     (destination/'config.json').write_text(json.dumps(config,indent=2),encoding='utf8')
     return destination
+
+
+def rendered_headless_mismatch(root):
+    """Allow only the known render-only mod difference in our prepared baseline."""
+    root=Path(root)
+    try:
+        saved=ET.parse(root/'profile/Saves/RimBot-tribal8-baseline.rws').getroot()
+        active=ET.parse(root/'profile/Config/ModsConfig.xml').getroot()
+        required={n.text.casefold() for n in saved.findall('./meta/modIds/li') if n.text}
+        enabled={n.text.casefold() for n in active.findall('./activeMods/li') if n.text}
+        return bool(required) and required-enabled=={'redeyedev.headlessrim'}
+    except (OSError,ET.ParseError):
+        return False

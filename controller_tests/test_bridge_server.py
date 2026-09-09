@@ -57,3 +57,18 @@ async def test_video_viewers_are_independent_and_expire():
         await client.post('/api/video',json={'viewer':'one','playing':False})
         assert set(rt.video_viewers)=={'two'}
         assert (await client.post('/api/video',json={'viewer':'bad','playing':'yes'})).status_code==400
+
+
+@pytest.mark.asyncio
+async def test_camera_serves_immutable_bytes_and_consistent_content_length(tmp_path):
+    frame=b'\x89PNG\r\n\x1a\n'+b'original frame'
+    path=tmp_path/'frame.png';path.write_bytes(frame)
+    rt=SimpleNamespace(camera_path=path,camera_bytes=frame)
+    app=create_app(rt);app.state.rt=rt
+    path.write_bytes(b'new shorter data')
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://testserver') as client:
+        response=await client.get('/api/camera')
+        assert response.content==frame
+        assert int(response.headers['content-length'])==len(frame)
+        rt.camera_bytes=None
+        assert (await client.get('/api/camera')).status_code==503

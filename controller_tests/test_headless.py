@@ -79,3 +79,18 @@ def test_rendered_worker_uses_private_profile_without_headless_patches(tmp_path)
     assert '-batchmode' not in game['args'] and '-nographics' not in game['args']
     assert 'stopProcessName' not in game
     assert [r.text for r in ET.parse(root/'profile/Config/ModsConfig.xml').getroot().find('activeMods')]==['brrainz.harmony']
+
+
+@pytest.mark.parametrize('missing,allowed', [('redeyedev.headlessrim',True),('gameplay.mod',False)])
+def test_rendered_baseline_only_ignores_headless_metadata(tmp_path,missing,allowed):
+    from rimbot.headless import rendered_headless_mismatch
+    (tmp_path/'profile/Saves').mkdir(parents=True)
+    (tmp_path/'profile/Config').mkdir()
+    save=tmp_path/'profile/Saves/RimBot-tribal8-baseline.rws'
+    save.write_text(f'<savegame><meta><modIds><li>ludeon.rimworld</li><li>{missing}</li></modIds></meta></savegame>')
+    (tmp_path/'profile/Config/ModsConfig.xml').write_text('<ModsConfigData><activeMods><li>ludeon.rimworld</li></activeMods></ModsConfigData>')
+    original=save.read_bytes()
+    assert rendered_headless_mismatch(tmp_path) is allowed
+    assert save.read_bytes()==original
+    save.write_text('<savegame><meta><modIds><li>redeyedev.headlessrim</li><li>gameplay.mod</li></modIds></meta></savegame>')
+    assert not rendered_headless_mismatch(tmp_path)

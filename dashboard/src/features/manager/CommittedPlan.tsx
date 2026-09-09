@@ -1,5 +1,5 @@
 export type Committed = {revision:number;rationale:string;goals:string[];constraints:string[];risks:string[];
- controller?:{status?:string;criteria?:Record<string,boolean>;resource_policy?:Record<string,{spending:string;reserve:number}>};
+ controller?:{status?:string;execution_hold?:string;facts?:{foodRunwayDays?:number;resources?:Record<string,number>;indoorSleepingCapacity?:number;colonists?:number;sleepingTemperatureMin?:number};criteria?:Record<string,boolean>;resource_policy?:Record<string,{spending:string;reserve:number}>};
  colonyGoals?:Record<string,{status:string;priority_class:number;source:string;method:string;reason:string;cancelled:boolean}>;
  steps:{id:string;title:string;priority:number;action:string;completion:string;state:string;issued:number;source?:string;failure?:{detail:string}|null}[]};
 const sourceName=(source?:string)=>source==='PLAYER'?'Player request':source==='LLM_ADVISOR'?'Advisor suggestion':'Autopilot';

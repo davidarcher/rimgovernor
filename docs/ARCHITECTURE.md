@@ -129,7 +129,14 @@ native blueprints/designations are retained by cancellation.
 
 Chat can inspect structured controller facts, gates, goals, blockers, reservations,
 policies and intent history to explain what is running or why work is blocked.
-The dashboard presents the same state. Runtime revision/load guards reject stale
+The dashboard presents the same state. Its Autopilot page shows native readings,
+all foothold gates, goal provenance/blockers and effective food, wood, temperature
+and execution-speed parameters. Player setting edits go through a typed local API,
+colony identity and effective-policy version checks, and cross-field validation.
+They persist in ColonyPlan, invalidate pending direction and wake deterministic
+review without creating a human chat request. Verification/recovery limits remain
+read-only in the editor. Chat food targets and the editor use the same policy.
+Unsaved drafts survive polling; concurrent changes require an explicit reload. Runtime revision/load guards reject stale
 requests and conversational changes. Manual execution is scoped to the accepted
 current player requests and does not resume time or release an external hold.
 
@@ -216,3 +223,21 @@ Use [TESTING.md](TESTING.md) for verification and [BACKLOG.md](BACKLOG.md) for a
 unfinished work. New capabilities should extend native contracts, guarded
 execution and observed postconditions, with focused tests and explicit gameplay
 acceptance. The combined autonomous starter colony remains unproven.
+
+
+## Live interface delivery
+
+The Colony page keeps chat beside the current game snapshots. The native capture
+is copied into immutable bytes before publication, so a subsequent screenshot
+cannot truncate an in-flight HTTP response. A failed refresh retains the last good
+frame and reports the delay. Visible game windows render independently of browser
+viewer leases; headless sessions cannot supply video.
+
+Chat supplies structured evidence separately from the current player request.
+Request budgeting may shorten evidence but never the protected current request;
+internal preservation metadata is removed before inference. This prevents large
+controller history from silently discarding the player's order.
+
+A rendered prepared baseline may bypass the native mod mismatch only when the
+sole missing recorded mod is the render-only HeadlessRim module. Missing gameplay
+mods retain compatibility checks. This does not modify the saved game.

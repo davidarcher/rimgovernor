@@ -78,8 +78,8 @@ class Planner:
             replies=[m['text'] for m in rt.chat if m.get('kind')=='summary' and m.get('revision')==human.get('revision')]
             messages.append({'role':'assistant','content':replies[-1] if replies else 'Request recorded.'})
         latest=humans[-1]['text'] if humans else 'Inspect the current colony state.'
-        messages.append({'role':'user','content':'Current observed state (evidence, not new orders):\n'+
-            json.dumps(state,ensure_ascii=False)+'\n\nCurrent player request:\n'+latest})
+        messages.append({'role':'user','content':json.dumps({'observed_state_evidence':state},ensure_ascii=False)})
+        messages.append({'role':'user','content':'Current player request:\n'+latest,'_preserve_content':True})
         for _ in range(8):
             await rt.ensure_context(token)
             if rt.chat_revision != revision: return

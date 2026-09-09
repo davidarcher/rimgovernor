@@ -55,6 +55,7 @@ create them. LM Studio defaults to http://127.0.0.1:1234/v1.
 ## Current interface
 
 - **Colony:** resizable game snapshots, player chat and a short next-step summary.
+- **Autopilot:** live food/wood/shelter readings, verified gates, goals/blockers and editable deterministic targets.
 - **Projects:** long-term/current plan and native order receipts.
 - **Activity:** outcomes with tool details collapsed.
 
