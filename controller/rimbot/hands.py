@@ -135,7 +135,8 @@ class Hands:
                     targets = [{'kind': 'building', 'def_name': p.def_name, 'x': p.x, 'z': p.z,
                         'expected_facing': p.rotation,
                         'stuff': progress.issued[str(i)].get('stuff') or ''} for i,p in enumerate(placements)]
-                    row = rt.projects.upsert({'title': step.title, 'detail': step.completion_criteria, 'targets': targets})
+                    row = rt.projects.upsert({'title': step.title, 'detail': step.completion_criteria,
+                        'source_step':step.id, 'targets': targets})
                     progress.project_id, progress.state = row.id, 'waiting'
                     await rt.projects.reconcile(rt.game, only_id=row.id)
                     self.guard(rt, revision, token, direction)
@@ -143,7 +144,7 @@ class Hands:
                         progress.state = 'complete'
                 elif isinstance(action, NativeOperation) and action.tool == 'home/install':
                     installation = next(iter(progress.issued.values()))
-                    row = rt.projects.upsert({'title': step.title, 'detail': step.completion_criteria,
+                    row = rt.projects.upsert({'title': step.title, 'detail': step.completion_criteria, 'source_step':step.id,
                         'targets': [{'kind': 'installation', 'thing_id': installation['inner_id'],
                             'x': action.arguments['x'], 'z': action.arguments['z'], 'rotation': installation['rotation']}]})
                     progress.project_id, progress.state = row.id, 'waiting'

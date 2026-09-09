@@ -91,6 +91,12 @@ class CreateBill(Contract):
     target_count: int = Field(ge=1, le=10000)
 
 
+class SetBuildingTemperature(Contract):
+    kind: Literal['SetBuildingTemperature']
+    thing: str = Field(min_length=1, description='Exact observed native building ThingID; never a building group or guessed label.')
+    celsius: float = Field(ge=-273.15, le=1000, description='Explicit requested temperature setpoint in Celsius; observed room temperature is a separate outcome.')
+
+
 class DraftPawn(Contract):
     kind: Literal['DraftPawn']
     pawn: str = Field(min_length=1)
@@ -105,10 +111,10 @@ class MovePawn(Contract):
 
 
 Command = Annotated[SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | RelocateConstruction | BuildRoom |
-                    PlaceBuildings | CreateZone | SetWorkPriority | CreateBill | DraftPawn | MovePawn, Field(discriminator='kind')]
+                    PlaceBuildings | CreateZone | SetWorkPriority | CreateBill | SetBuildingTemperature | DraftPawn | MovePawn, Field(discriminator='kind')]
 COMMAND = TypeAdapter(Command)
 COMMAND_TYPES = (SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,RelocateConstruction,BuildRoom,PlaceBuildings,
-                 CreateZone,SetWorkPriority,CreateBill,DraftPawn,MovePawn)
+                 CreateZone,SetWorkPriority,CreateBill,SetBuildingTemperature,DraftPawn,MovePawn)
 COMMAND_NAMES = {kind.__name__ for kind in COMMAND_TYPES}
 
 
@@ -142,6 +148,7 @@ def semantic_tools(resources=None):
         'CreateZone':'Create a growing zone or stockpile specifically requested by the player.',
         'SetWorkPriority':'Change persistent work assignments, independently of the current pawn job. Priority 0 disables a work type even when the pawn is currently doing another job.',
         'CreateBill':'Create a production bill with a target count.',
+        'SetBuildingTemperature':'Set the temperature control of one exact observed building, such as a cooler or heater. This sets the control; it does not certify actual cooling or heating.',
         'DraftPawn':'Draft or undraft a pawn for direct combat control. This does not change work assignments.',
         'MovePawn':'Order a pawn to a specific inspected position.',
     }
@@ -209,7 +216,7 @@ def command_confirmation(name, result):
         return 'Construction relocation accepted. The validated replacement waits for exact old-order cancellation; pawn construction is tracked separately.'
     titles={'SetResearch':'Research change','SetWorkPriority':'Work assignment change','DraftPawn':'Draft change',
             'MovePawn':'Movement order','BuildRoom':'Room shell','PlaceBuildings':'Building batch',
-            'CreateZone':'Zone','CreateBill':'Production bill'}
+            'CreateZone':'Zone','CreateBill':'Production bill','SetBuildingTemperature':'Temperature setpoint'}
     return titles.get(name,name)+' accepted. Execution is tracked in the colony plan.'
 
 
@@ -310,6 +317,19 @@ async def apply_command(rt, payload, *, token, revision):
             action = native('home/bills', action='add', bench=request.bench, recipe=request.recipe,
                 repeatMode='TargetCount', targetCount=request.target_count,
                 unpauseWhenYouHave=max(0, request.target_count//2), pauseWhenSatisfied='on', watch=False)
+        elif isinstance(request, SetBuildingTemperature):
+            observed = await rt.game.query('home/list_buildings', aggregate=False, playerOnly=True)
+            matches = [building for building in observed.get('buildings', []) if building.get('thingId') == request.thing]
+            if (observed.get('success') is not True or observed.get('skipped', {}).get('byMaxDetailed')
+                    or len(matches) != 1 or matches[0].get('isBlueprint') or matches[0].get('isFrame')):
+                raise ValueError('Temperature control needs one exact observed completed player building')
+            preview = await rt.inspect_native('home/building_config',
+                {'thing':request.thing, 'temperature':request.celsius, 'dryRun':True, 'watch':False})
+            fields = [field for field in preview.get('fields', []) if field.get('field') == 'temperature']
+            if (preview.get('success') is not True or preview.get('refused') != []
+                    or len(fields) != 1 or fields[0].get('refused') is not False):
+                raise ValueError('Native building temperature control refused this setpoint')
+            action = native('home/building_config', thing=request.thing, temperature=request.celsius, watch=False)
         elif isinstance(request, DraftPawn):
             action = native('home/order', action='draft' if request.drafted else 'undraft', pawn=request.pawn, watch=False)
             purpose = 'defense'

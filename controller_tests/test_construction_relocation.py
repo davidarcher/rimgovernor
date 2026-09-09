@@ -83,3 +83,34 @@ async def test_interrupted_removal_keeps_replacement_blocked(tmp_path):
     assert len(rows) == 2
     rt.native.assert_not_awaited()
     rt.store.close()
+
+
+@pytest.mark.asyncio
+async def test_manual_dispatch_advances_only_newly_ready_accepted_dependencies(tmp_path):
+    rt, rows = await setup(tmp_path)
+    result = await relocate(rt)
+    calls=[]
+    async def advance(runtime, max_operations, only_ids):
+        calls.append((set(only_ids), max_operations))
+        for identity in only_ids:
+            runtime.current_plan.progress[identity].state='complete'
+            runtime.current_plan.progress[identity].issued['0']={'confirmed':True}
+    rt.hands.advance=AsyncMock(side_effect=advance)
+    await rt.execute_manual_requests()
+    assert calls == [({result['cancellation_step']},512), ({result['step']},511)]
+    assert rt.mode=='manual' and rt.manual_execution is None
+    rt.store.close()
+
+
+@pytest.mark.asyncio
+async def test_manual_dependency_stops_on_direction_change(tmp_path):
+    rt, rows = await setup(tmp_path)
+    result = await relocate(rt)
+    async def advance(runtime, max_operations, only_ids):
+        runtime.current_plan.progress[result['cancellation_step']].state='complete'
+        runtime.chat_revision+=1
+    rt.hands.advance=AsyncMock(side_effect=advance)
+    await rt.execute_manual_requests()
+    rt.hands.advance.assert_awaited_once()
+    assert rt.current_plan.progress[result['step']].state=='pending'
+    rt.store.close()

@@ -216,6 +216,14 @@ not waive placement refusals. Shared Hands waits for the entire cancellation to
 complete before issuing the replacement. Completed, missing or uncertain old
 placements and dependent projects require explicit inspection instead of relocation.
 The conversational intent points to the replacement while old receipts remain durable.
+Manual dispatch advances newly satisfied dependencies within the same accepted
+request and operation budget; it never dispatches unrelated work. Native construction
+projects retain their source step identity, so equal display titles cannot replace
+another action's completion targets. Legacy descriptive projects remain separate.
+
+`SetBuildingTemperature` requires one exact observed completed player building and
+a successful native temperature-control preview. It uses shared Hands and the native
+setpoint control. The accepted setpoint does not certify room temperature or power.
 
 After a player shelter shell completes, sleeping handoff verifies its exact native
 interior and roof coverage before furnishing the missing indoor sleeping capacity.

@@ -77,6 +77,7 @@ class ProjectSpec(BaseModel):
     model_config = ConfigDict(extra='forbid')
     title: str = Field(min_length=1, max_length=160)
     detail: str = Field(default='', max_length=1000)
+    source_step: str = ''
     targets: list[Target] = Field(default_factory=list, max_length=256)
 
 class Project(ProjectSpec):
@@ -105,8 +106,10 @@ class ProjectBook:
             if target.kind == 'installation' and not target.thing_id:
                 raise ValueError('Installation targets need the exact inner building ID')
         target_key = lambda targets: sorted(t.model_dump_json() for t in targets)
-        existing = next((row for row in self.rows if key(row.title) == key(spec.title) or
-            (spec.targets and target_key(row.targets) == target_key(spec.targets))), None)
+        existing = next((row for row in self.rows if (
+            row.source_step == spec.source_step if spec.source_step else
+            not row.source_step and (key(row.title) == key(spec.title) or
+                (spec.targets and target_key(row.targets) == target_key(spec.targets))))), None)
         if existing and existing.state == 'cancelled':
             raise ValueError('Player cancelled this project; do not recreate it')
         if existing:

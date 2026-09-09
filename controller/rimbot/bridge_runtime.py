@@ -935,7 +935,18 @@ class BridgeRuntime:
         try:
             # A semantic shell is bounded by the plan schema. Time never resumes
             # here; native construction/movement remains observed waiting work.
-            await self.hands.advance(self, max_operations=512, only_ids=ids)
+            remaining, budget = set(ids), 512
+            while remaining and budget > 0:
+                ready = {step.id for step in self.current_plan.ready() if step.id in remaining}
+                if not ready:
+                    break
+                before = sum(len(self.current_plan.progress[identity].issued) for identity in ready)
+                await self.hands.advance(self, max_operations=budget, only_ids=ready)
+                after = sum(len(self.current_plan.progress[identity].issued) for identity in ready)
+                budget -= max(1, after-before)
+                remaining -= ready
+                if self.manual_execution != (self.context_token,self.chat_revision,self.current_plan.revision):
+                    break
         finally:
             self.manual_execution = None
 

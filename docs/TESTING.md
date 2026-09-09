@@ -563,6 +563,16 @@ running needs its matching installed companion until that session is closed.
 
 ### Paired checkpoints and restart
 
+`scripts/construction_refinement_acceptance.py --source-root <prepared-root>
+--output <fresh-directory> --model <local-model-id>` checks policy refusal before
+removal, real-model relocation with dependent shared execution, interrupted removal,
+player preservation and paired restart. Failed trials retain their checkpoint.
+`scripts/construction_resume_acceptance.py --source-report <failed-result.json>
+--output <fresh-directory>` can finish the load checks from that immutable checkpoint
+after an infrastructure startup failure. It deliberately queues the old cancellation
+in the new load to test its context guard, then requires a fresh local-model request
+and exact native removal delta. Neither probe certifies pawn construction or cooling.
+
 `scripts/cancel_construction_acceptance.py --source-root <prepared-root> --output
 <fresh-directory>` tests the native exact-target cancellation contract in a private
 paused colony. It creates ordinary blueprint orders and a zero-work sleeping spot,
