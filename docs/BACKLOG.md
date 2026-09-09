@@ -32,8 +32,9 @@ in the checkpoint commit; do not append an implementation diary here.
   routine native actions. Add bounded
   recovery for other known transient failures beyond confirmed interrupted tending, preserve new-colonist work coverage and
   expand sleeping/farming templates beyond the eight-colonist starter. Reconcile
-  player interruptions and partial work across native restart and save rewind,
-  including unrelated commands after retained cancelled work is restored.
+  player interruptions and partial work across save rewind. Broaden paired native
+  restart acceptance beyond a cancelled room shell to mixed pending work,
+  resource reservations and interrupted non-idempotent actions.
 - [ ] **B04e · Resource policy completeness.** Add exact bill ingredient accounting
   and policy enforcement for existing production bills. Currently protected
   policies conservatively block new bills; they do not suspend existing native

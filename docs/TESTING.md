@@ -34,9 +34,16 @@ Watch its dashboard on the selected port. It issues a room through the semantic
 player command path, cancels its goal while blueprints remain, and verifies an
 unrelated research order completes without changing cancelled receipts or native
 orders. It retains `result.json` and stops its owned game/server.
+Add `--restart` to save the cancelled room and controller database as a verified
+pair, stop the owned game, and resume into a new database before the research
+command. This checks the complete plan and conversation, a new load token, the
+saved tick (allowing one loading tick), unchanged native blueprint identities,
+empty pending manual requests and no reclaimed draft ownership. Repeating the
+room intent must return its cancelled state without issuing another order.
+The dashboard briefly disconnects during this disposable restart.
 This is zero-inference command/executor acceptance; it does not test language
-interpretation, completed construction, native blueprint cancellation, or a
-controller restart. Unit tests separately cover serialized plan restoration.
+interpretation, completed construction, native blueprint cancellation, or save
+rewind. Unit tests separately cover serialized plan restoration.
 
 ## Real model probe
 
