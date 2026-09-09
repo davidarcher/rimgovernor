@@ -333,6 +333,14 @@ to distinguish a bounded live working set from the growing immutable ledger.
 
 ### Ordinary Crashlanded acceptance
 
+`scripts/shelter_handoff_acceptance.py --source-root <prepared-root> --output
+<fresh-directory> --seconds 600` permits observed starting supplies through the
+production compiler/Hands and requests a player shelter shell. Ordinary pawn
+labor must complete it, after which the deterministic controller furnishes sleeping
+places in that roofed native room without issuing an autonomous shell. The report
+retains native rooms, player progress and zero-inference counters. This is bounded
+sleeping handoff acceptance, not food survival or complete adopted-room furnishing.
+
 Prepare a fresh isolated native start, then run the production controller:
 
 ```powershell

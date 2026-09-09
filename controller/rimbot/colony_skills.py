@@ -197,6 +197,13 @@ class ColonySkills:
                             designatorId=designator,x=target['position']['x'],z=target['position']['z'],keepSelected=False)]
             return None
         if goal_id == 'EnsureInitialShelter':
+            from .shelter_handoff import completed_shelters,sleeping_handoff
+            shelters=list(completed_shelters(rt.current_plan))
+            if shelters:
+                identity,shell=shelters[0]
+                method='player-sleep-'+str(facts['colonists'])
+                if unused(method):return await sleeping_handoff(rt,facts,identity,shell)
+                return None
             layout = await self.layout(facts)
             if unused('shell') and facts.get('indoorSleepingCapacity', 0) < facts['colonists']:
                 return 'shell', [self.shell(layout)]

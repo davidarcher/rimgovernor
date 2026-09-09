@@ -176,6 +176,14 @@ a competing autonomous project. Cancelling related player work suppresses its
 autonomous replacement until an explicit goal request re-enables it. Existing
 native blueprints/designations are retained by cancellation.
 
+After a player shelter shell completes, sleeping handoff verifies its exact native
+interior and roof coverage before furnishing the missing indoor sleeping capacity.
+Each spot uses a native accepted footprint wholly inside that room; existing
+obstructions and a continuous entrance aisle are excluded. Changed/unknown rooms
+or insufficient space block for refinement instead of issuing another shell.
+Roof work keeps simulation requested. Storage, cooking and thermal methods still
+use the starter layout until their adopted-room integration is completed.
+
 Chat can inspect structured controller facts, gates, goals, blockers, reservations,
 policies and intent history to explain what is running or why work is blocked.
 The dashboard presents the same state. Its Autopilot page shows native readings,

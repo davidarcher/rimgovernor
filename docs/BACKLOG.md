@@ -24,8 +24,8 @@ in the checkpoint commit; do not append an implementation diary here.
   attribution, real player pause/speed holds, danger preemption and load changes
   on the final binary. Native execution tick boundaries are implemented; broaden
   interruption coverage to autosaves and real player input during those windows.
-- [ ] **B04c · Shared intent completion.** Adopt completed player room shells for
-  deterministic furnishing without duplicate shelter. Support safe explicit
+- [ ] **B04c · Shared intent completion.** Extend accepted player-shell sleeping handoff to
+  storage/cooking/thermal furnishing in the adopted room and broader edited-room coverage. Support safe explicit
   relocation/cancellation of issued construction through native cancellation
   skills; preserve existing orders until validated. Verify freezer expansion,
   policies and conversational refinements with a real local model.
