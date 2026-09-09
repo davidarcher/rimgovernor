@@ -2,6 +2,20 @@
 from .colony_plan import Failure
 
 
+def pawn_order_outcome(action, pawns):
+    pawn = next((p for p in pawns if p.get('thingId') == action.arguments['pawn']), None)
+    if pawn is None or pawn.get('dead') or pawn.get('downed'):
+        return Failure(code='pawn_unavailable', detail='Assigned pawn is unavailable; action not verified')
+    if action.completion == 'pawn_at_position':
+        if all(pawn.get('position', {}).get(k) == action.arguments[k] for k in ('x','z')): return 'complete'
+        if pawn.get('job') != 'Goto': return Failure(code='movement_interrupted', detail='Pawn has not reached the destination and is no longer moving there')
+    else:
+        primary = (pawn.get('equipment') or {}).get('primary') or {}
+        if primary.get('thingId') == action.arguments['target']: return 'complete'
+        if pawn.get('job') != 'Equip': return Failure(code='equip_interrupted', detail='Exact weapon is not equipped and the pawn is no longer equipping it')
+    return 'waiting'
+
+
 def rescue_outcome(arguments, pawns):
     patient = next((p for p in pawns if p.get('thingId') == arguments['target']), None)
     rescuer = next((p for p in pawns if p.get('thingId') == arguments['pawn']), None)

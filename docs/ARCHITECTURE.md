@@ -1,23 +1,27 @@
 # RimBot architecture
 
-RimBot runs a local RimWorld colony through one model strategist, deterministic
-execution, native game tools and a React dashboard. RimWorld owns simulation and
-action legality. Python owns decisions, durable intent, reconciliation and player
-control. RimBridgeServer/GABS is the sole runtime backend.
+RimBot uses deterministic systems for routine colony operation and a local LLM
+for interactive player commands and strategic advice. Both paths share durable
+ColonyPlan goals/actions, validation, resource reservations and Hands. RimWorld
+owns simulation and legality; the LLM may request actions but does not own colony
+invariants. RimBridgeServer/GABS is the sole runtime backend.
 
 ## Runtime and ownership
 
 ```mermaid
 flowchart LR
-    UI[React dashboard] <-->|local HTTP| Runtime[Python BridgeRuntime]
-    Runtime <-->|bounded reviews| Model[Local LM Studio strategist]
-    Runtime <--> Store[(SQLite)]
-    Runtime --> Hands[Deterministic Hands]
-    Hands --> Gateway[BridgeGame policy and schemas]
-    Runtime --> Gateway
-    Gateway <-->|MCP over stdio| GABS[GABS]
-    GABS <--> Native[RimBridgeServer + Colony Bridge]
-    Native <--> Game[RimWorld]
+    Player[Player chat] --> Model[Local LLM interpreter / advisor]
+    Game[RimWorld] --> Facts[Native and derived colony state]
+    Facts --> Controller[Deterministic priority tree and methods]
+    Model --> Intent[Semantic commands]
+    Intent --> Plan[Shared ColonyPlan goals and actions]
+    Controller --> Plan
+    Plan --> Validate[Legality / geometry / resource validation]
+    Validate --> Hands[Hands: durable intent and native executor]
+    Hands --> Bridge[RimBridgeServer / GABS]
+    Bridge --> Game
+    Facts --> Outcomes[Postcondition reconciliation]
+    Outcomes --> Plan
 ```
 
 | Piece | Responsibility and source |
@@ -27,7 +31,7 @@ flowchart LR
 | Native boundary | `bridge.py` uses the MCP SDK to launch GABS and discover/call installed tools. `bridge_game.py` restricts gameplay capabilities; `native_contracts.py` validates native arguments and receipts. |
 | Game integration | `integrations/colony-bridge/src` supplies colony/status, pawn, item, building, room, zone, cell, research and world reads; construction, installation, settings, bills, orders, trade and dialog actions; clock supervision and rendering demand. The separate identity assembly persists colony identity in saves. RimBridgeServer supplies general game/UI tools. |
 | Observation | `bridge_observation.py` preserves raw responses and projects the generated `bridge_models.py` DTO. `data/bridge_observation.schema.json` is its source; `scripts/generate_bridge_observation.py` checks generation drift. |
-| Strategy | `planner.py` is the sole strategic authority. `colony_plan.py` separates typed goals, constraints, dependencies and action specifications from mutable execution progress. `strategic_state.py` computes compact signals, trends and review triggers. |
+| Control | `colony_controller.py` evaluates the priority tree in `colony_policy.py` and decomposes goals with `colony_skills.py`. `player_commands.py` validates semantic chat requests; `planner.py` interprets only new human messages. `colony_plan.py` separates goals/specifications from execution progress. `resource_accounting.py` arbitrates both paths. |
 | Execution | `hands.py` compiles semantic steps, validates geometry, records intent and advances native orders. `construction_grounding.py` and `construction_preflight.py` ground definitions and preview placement. `projects.py`, `medical_outcome.py` and `trading.py` reconcile specific outcomes. |
 | Inference and advice | `model.py`, `request_budget.py` and `model_router.py` handle local streaming requests, structured-response recovery, context budgets and optional roles. `consultation.py`, `scout.py` and `visual_review.py` supply bounded advice. |
 | Knowledge and persistence | `knowledge.py` retrieves local strategy cards; `wiki.py` retrieves reference material. `memory.py` stores advisory colony notes. `review_evidence.py` retains exact review-local results. `store.py` stores state, events and bounded compressed decision checkpoints in SQLite. |
@@ -37,45 +41,80 @@ Paths in the table without a directory prefix are under `controller/rimbot/`.
 
 ## Observe, decide, execute, verify
 
-1. Read native state with start/end ticks. Sequential reads are not an atomic
-   snapshot. Unknown fields remain unknown; supply ownership, forbidden status
-   and storage are distinct from access, nutrition and safety.
-2. Project compact context and meaningful changes. Player direction, changed
-   conditions, blocked/completed work and unresolved urgent signals wake the
-   strategist. Periodic observation continues; unchanged state does not trigger
-   a fixed-interval model review.
-3. Discover installed contracts with `describe`. `native_inspections.py` exposes
-   typed reads and read-only previews for that review. `execution_contracts.py`
-   binds discovered native argument schemas into `commit_plan`/`commit_steps`;
-   contracts needed by existing steps are loaded before review. Discovery never
-   grants unrestricted game access.
-4. Commit a revision-checked plan or append ready steps. Construction uses observed
-   definitions, geometry checks and native dry runs before commitment. Dependent
-   clearance can defer site readiness to execution. Native-legal blueprints may
-   precede material arrival; preview is not a reservation or guarantee of success.
-5. Hands executes in Automate, yielding after at most 12 operations per pass.
-   It rechecks context and immediate eligibility, persists write intent before
-   dispatch, retains partial progress and reconciles fresh observations.
+1. Pause and read native state. Sequential observations are not an atomic
+   snapshot. `home/colony_facts` reports accessible shared-diet nutrition and fed
+   consumption, viable crop cells, indoor sleeping, temperatures, cooking, safe
+   nearby plant access, starter terrain and actual definition costs. Unknown
+   observations never certify recovery.
+2. Only a new human chat revision invokes `planner.py`. Mode changes and routine
+   native events do not invoke inference. Model failure is reported to the player
+   while deterministic operation can continue.
+3. The priority tree evaluates combat, critical medicine, food, shelter,
+   temperature, cooking, work coverage, power, storage, defense and wood. Food,
+   wood and temperature use separate entry/recovery thresholds. Emergencies
+   suspend lower priority routine goals. Methods, blockers, provenance and
+   progress evidence live in the existing SQLite-backed ColonyPlan.
+4. Methods compile small batches of semantic construction/zone/native actions.
+   Starter templates rank nearby legal shelter sites and disjoint fertile farm
+   patches, then use bounded native previews. Work allocation uses observed
+   capabilities/skills, job load and stable identity tie breaks; it respects the
+   game's checkbox versus manual-priority modes and explicit player overrides.
+5. Both entry paths commit through revision/context guards, geometry/native
+   preflight and shared resource accounting. Unissued slots reserve native costs;
+   issued blueprints use native deficits instead of a second reservation.
+   Dispatch rechecks current stock and player resource policies. Changed or
+   unknown costs require validation. Production bills under protected-resource
+   policies currently block until ingredient accounting is available.
+6. Hands records intent before writes, retains partial progress and verifies
+   native outcomes. Routine execution yields after 12 operations. An explicit
+   current player request may dispatch through the same Hands in Manual, while
+   the clock stays paused; it does not dispatch unrelated autonomous work.
 
-Bill commitments require an explicit mutation action; read-only bill defaults
-remain inspection-only. Architect dry runs use the read-only preview path.
-Commitment schemas require explicit `dryRun` where the native tool supports it,
-matching the gateway's preview/write distinction. Native pawn configuration requires
-an explicit pawn identity in discovery as well as execution.
+`FOOTHOLD_STABLE` requires every gate: sufficient sleeping capacity in a roofed
+indoor room, at least three stock days of food by default, viable growing cells,
+indoor food storage, usable cooking with a bill, safe sleeping temperature,
+sufficient power if electrical thermal loads exist, no critical patient, two
+armed colonists (or everyone in a smaller colony), no active threat, and verified
+work assignments. Accepted blueprints cannot satisfy these gates. Stability is
+reversible when observations change. Stock runway excludes future harvest,
+spoilage guarantees and inventories; harvest ETA is an optimistic lower bound.
 
-The model cannot issue immediate game writes. Advisers cannot commit plans,
-cancel steps or recursively delegate. Only the strategist is configured by
-default; analyst/scout, architect/VL and critic are opt-in local roles. Advice,
-wiki content and saved notes are not current game facts. Vision concerns require
-native verification. Headless mode has no screenshot advisers.
-Image consultations and visual reviews capture the current player view with a
-source hash and post-capture tick, and discard changed contexts. The tick is not
-an atomic screenshot timestamp; cached viewer images are not consultation evidence.
+Goals record selected methods, attempts, step IDs and observable progress.
+Invalid templates have a bounded alternative-site search; unknown or failed
+native actions become explicit blockers. A no-progress watchdog prevents silent
+indefinite waiting. The current starter template supports up to eight colonists.
+Combat and electrical-generation methods report explicit blockers where a
+validated deterministic method has not yet been implemented.
 
-Context budgeting retains complete tool-call groups and reserves output capacity.
-Large inspections require narrower queries or explicit pagination. A bounded
-review-local evidence store survives conversation compaction and labels recalled
-results historical; it does not cache fresh native queries or survive a new review.
+## Interactive commands and shared intent
+
+The chat command union supports SetResearch, BuildRoom, CreateZone,
+SetWorkPriority, CreateBill, DraftPawn, MovePawn, CreateGoal, CancelGoal and
+ModifyResourcePolicy. The model receives semantic schemas and read-only native
+inspection/preview tools, not arbitrary native execution. Optional local
+knowledge/wiki lookup, colony notebook, scout, visual review and consultations
+remain chat tools. Advice is evidence, never executable authority.
+
+Actions carry PLAYER, AUTOPILOT or LLM_ADVISOR provenance. Advisory provenance
+cannot commit orders. Player steps normally run before routine optimization;
+hard validation and resource policies still apply. A food target updates the
+same EnsureFoodSupply goal and hysteresis policy. Work overrides are retained
+by the deterministic allocator. Resource constraints include reserves and
+normal/defense-only/stopped spending.
+
+Room and zone commands retain an intent ID and request history. A follow-up can
+replace unissued geometry after validating its replacement. Issued geometry
+requires an explicit construction change rather than silent relocation. Player
+construction has tracked goals; related pending or blocked player work prevents
+a competing autonomous project. Cancelling related player work suppresses its
+autonomous replacement until an explicit goal request re-enables it. Existing
+native blueprints/designations are retained by cancellation.
+
+Chat can inspect structured controller facts, gates, goals, blockers, reservations,
+policies and intent history to explain what is running or why work is blocked.
+The dashboard presents the same state. Runtime revision/load guards reject stale
+requests and conversational changes. Manual execution is scoped to the accepted
+current player requests and does not resume time or release an external hold.
 
 ## Action and completion contracts
 
@@ -121,13 +160,17 @@ holds require explicit player release. Opening an AI-owned letter pauses its
 lease before reading the actual UI; closing a window does not automatically
 resume time. `notifications.py` and `dialog_control.py` retain exact native targets.
 
-Strategist reviews pause before observation and inference. Hands runs between
-reviews; automatic Normal-speed execution requires confirmed work awaiting native
-completion. An automatic window targets 600 game ticks, ending sooner when work
-finishes. Explicit model clock steps also get a bounded window; direct player clock
+Controller reviews pause before observation and optional player inference. Hands
+runs between reviews; automatic execution requires confirmed native work or a
+deterministic goal waiting for simulation. Production defaults to Normal speed. An automatic window targets 600 game ticks, ending sooner when work
+finishes. Existing explicit clock steps also get a bounded window; direct player clock
 commands retain player control. The controller polls for the boundary, so it can
 overshoot. Native danger and lease stops remain independent. Uncapped execution
 requires a native tick boundary before it can use this policy safely.
+Native letter-triggered pauses are attributed at the actual clock transition and
+can trigger a deterministic review; unrelated player pauses retain their hold.
+A pre-dispatch native autosave refusal causes a bounded re-observation, never
+a blind replay of an uncertain write.
 Letter opening requires a fresh empty window list beforehand and identified windows
 afterward; existing or unavailable windows require inspection and resolution.
 

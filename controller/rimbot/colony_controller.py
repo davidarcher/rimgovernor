@@ -1,0 +1,196 @@
+"""Deterministic priority tree using ColonyPlan, native validation and Hands."""
+from dataclasses import asdict
+from .colony_plan import ColonyGoal, CommitSteps
+from .colony_policy import ColonyPolicy, allocation, criteria, derive, priority_nodes, work_assignment
+from .colony_skills import ColonySkills, SkillBlocked
+from .config import ModelRole
+from .strategic_state import fingerprint
+
+
+class ColonyController:
+    def __init__(self, rt):
+        self.rt = rt
+        self.policy = ColonyPolicy()
+        self.skills = ColonySkills(rt)
+
+    def event(self, kind, goal_id, **evidence):
+        self.rt.note(kind, goal_id, goal_id=goal_id, **evidence)
+
+    def finish_review(self):
+        rt = self.rt
+        rt.handled_revision = rt.chat_revision
+        rt.strategic_state.decided()
+        rt.wake.clear()
+        rt.persist()
+
+    async def cycle(self):
+        rt = self.rt
+        if rt.mode != 'automate':
+            self.finish_review()
+            return
+        token, direction = rt.context_token, rt.chat_revision
+        plan = rt.current_plan
+        policy_values = dict(asdict(ColonyPolicy()), **plan.control.get('policy', {}))
+        self.policy = ColonyPolicy(**policy_values)
+        native = await rt.game.query('home/colony_facts', planning=True)
+        people = await rt.game.query('home/list_pawns', colonistsOnly=True, bio=True, work=True, health=True, equipment=True)
+        await rt.ensure_context(token)
+        if direction != rt.chat_revision: return
+        if native.get('success') is not True:
+            raise ValueError('Deterministic state unavailable: '+str(native.get('error')))
+        facts = derive(rt.batch, native, self.policy)
+        # Claim only the initially observed starter supplies. Once a cell is
+        # allowed, later player forbidding must not restart an allow loop.
+        pending_supplies = plan.control.setdefault('starting_supplies',facts.get('forbiddenSupplies',[]))
+        still_forbidden = {(p['x'],p['z']) for p in facts.get('forbiddenSupplies',[])}
+        pending_supplies = [p for p in pending_supplies if (p['x'],p['z']) in still_forbidden]
+        plan.control['starting_supplies'] = pending_supplies
+        facts['forbiddenSupplies'] = pending_supplies
+        assignments, coverage = work_assignment(people['pawns'])
+        for pawn, values in plan.control.get('work_overrides', {}).items():
+            if pawn in assignments: assignments[pawn].update(values)
+        coverage = coverage and all(any(values.get(work, 0) > 0 for values in assignments.values())
+                                    for work in ('Doctor', 'Cooking', 'Construction', 'Growing'))
+        by_id = {p['thingId']: p for p in people['pawns']}
+        facts['workCoverage'] = coverage and all(
+            all(any(w['name'] == name and (w.get('priorityStored') == priority if
+                by_id[pawn]['work'].get('manualPriorities') else (w.get('priority', 0) > 0) == (priority > 0))
+                for w in by_id[pawn]['work']['types']) for name, priority in work.items())
+            for pawn, work in assignments.items())
+        old_latches = dict(plan.control.get('latches', {}))
+        nodes = priority_nodes(facts, plan.control.setdefault('latches', {}), self.policy)
+        for name, value in plan.control['latches'].items():
+            if old_latches.get(name) != value:
+                self.event('hysteresis_changed', name, active=value)
+        gates = criteria(facts, self.policy)
+        plan.control['facts'] = {k: v for k, v in facts.items() if k not in ('cells', 'definitions')}
+        plan.control['criteria'] = gates
+        applicable = dict(nodes)
+        player_work = set()
+        for identity, goal in plan.colony_goals.items():
+            if not identity.startswith('intent-') or goal.cancelled: continue
+            states = [plan.progress[s] for s in goal.steps if s in plan.progress]
+            if states and all(p.state=='complete' for p in states):
+                goal.status = 'complete'
+            elif any(p.state=='blocked' for p in states):
+                goal.status, goal.reason = 'blocked', 'Player construction needs attention; inspect its action failure'
+                player_work.add(goal.target.get('satisfies'))
+            else:
+                player_work.add(goal.target.get('satisfies'))
+        minimum = min(applicable.values(), default=4)
+        for identity, priority in nodes:
+            goal = plan.colony_goals.get(identity)
+            if goal is None:
+                goal = plan.colony_goals[identity] = ColonyGoal(priority_class=priority,
+                    started_tick=facts['tick'], last_progress_tick=facts['tick'])
+                self.event('goal_created', identity, priority_class=priority)
+            if identity in plan.control.get('suppressed_goals',{}):
+                goal.cancelled, goal.status, goal.reason = True, 'blocked', 'Related player intent was cancelled'
+            if goal.cancelled: continue
+            if goal.status == 'complete':
+                goal.status = 'active'
+                goal.evidence['methods'] = {}
+                goal.attempts += 1
+                goal.last_progress_tick = facts['tick']
+                self.event('goal_reopened', identity)
+            goal.priority_class = min(goal.priority_class, priority)
+            progress_fields = {
+                'EnsureFoodSupply': ['foodNutrition'], 'MaintainWood': ['resources'],
+                'EnsureInitialShelter': ['bedCapacity', 'indoorSleepingCapacity'],
+                'EnsureCooking': ['cooking'], 'EnsureFoodStorage': ['foodStorage'],
+                'EnsureWorkAssignments': ['workCoverage'], 'EnsureBasicDefense': ['armed'],
+                'CriticalMedical': ['criticalPatients'], 'ActiveCombat': ['hostiles'],
+                'EnsureTemperatureSafety': ['sleepingTemperatureMin', 'sleepingTemperatureMax'],
+                'EnsureBasicPower': ['powerHeadroom'], 'AllowStartingSupplies': ['forbiddenSupplies']}
+            signature = fingerprint({'facts': {key: facts.get(key) for key in progress_fields.get(identity, [])},
+                'steps': {s: plan.progress[s].state for s in goal.steps if s in plan.progress}})
+            if signature != goal.evidence.get('progress'):
+                goal.evidence['progress'] = signature
+                goal.last_progress_tick = facts['tick']
+            # Emergency work suspends development without erasing issued orders.
+            suspended = minimum < 2 and goal.priority_class > minimum
+            if suspended and goal.status == 'active':
+                goal.status = 'suspended'
+                self.event('goal_suspended', identity)
+            elif not suspended and goal.status == 'suspended':
+                goal.status = 'active'
+                self.event('goal_resumed', identity)
+            if goal.status == 'blocked' and goal.reason.startswith('Resources:'):
+                if facts.get('resources') != goal.evidence.get('blocked_stock'):
+                    goal.status, goal.reason = 'active', ''
+                    self.event('goal_resumed', identity)
+        for identity, goal in plan.colony_goals.items():
+            if identity not in applicable and not identity.startswith('intent-') and goal.source != 'LLM_ADVISOR' and not goal.cancelled and goal.status != 'complete':
+                goal.status = 'complete'
+                self.event('goal_completed', identity, criteria=gates)
+        stable = bool(gates) and all(gates.values())
+        if stable != (plan.control.get('status') == 'FOOTHOLD_STABLE'):
+            self.event('bootstrap_stability_reached' if stable else 'bootstrap_stability_lost', 'EstablishFoothold', criteria=gates)
+        plan.control['status'] = 'FOOTHOLD_STABLE' if stable else 'ESTABLISHING_FOOTHOLD'
+        plan.control['simulation_needed'] = stable
+        rt.persist()
+        for identity, _ in nodes:
+            goal = plan.colony_goals[identity]
+            if goal.status != 'active' or goal.cancelled: continue
+            if identity in player_work:
+                goal.reason = 'Waiting for accepted player work serving this goal'
+                plan.control['simulation_needed'] = True
+                continue
+            if goal.reason == 'Waiting for accepted player work serving this goal': goal.reason = ''
+            existing = [plan.progress[s] for s in goal.steps if s in plan.progress]
+            failed = next((p.failure for p in existing if p.state == 'blocked'), None)
+            if failed:
+                self.block(goal, identity, failed.detail)
+                continue
+            if goal.steps and facts['tick'] - goal.last_progress_tick >= self.policy.blocked_after_ticks:
+                self.block(goal, identity, 'No measurable progress within one game day; inspect labor/materials/postconditions')
+                continue
+            if any(p.state in ('pending', 'executing', 'waiting') for p in existing):
+                plan.control['simulation_needed'] = True
+                continue
+            try:
+                compiled = await self.skills.compile(identity, facts, people['pawns'])
+                if compiled is None:
+                    if goal.evidence.get('methods'): plan.control['simulation_needed'] = True
+                    continue
+                method, actions = compiled
+                steps, slots = self.skills.steps(identity, method, actions, facts)
+                cost = {}
+                for costs in slots.values():
+                    for values in costs.values():
+                        for resource, count in values.items(): cost[resource] = cost.get(resource, 0) + count
+                deficits = allocation(plan, facts, cost, self.policy, survival=goal.priority_class <= 2)
+                if deficits:
+                    self.event('resource_reservation_rejected', identity, deficits=deficits)
+                    goal.evidence['blocked_stock'] = facts['resources']
+                    if 'WoodLog' in deficits:
+                        plan.control['latches']['wood'] = True
+                    raise SkillBlocked('Resources: '+str(deficits))
+                self.event('htn_method_selected', identity, method=method)
+                decision = CommitSteps(expected_revision=plan.revision,
+                    reason=f'{identity}: {method}', steps=steps).decision(plan)
+                await rt.commit_strategy(decision, actor=ModelRole.STRATEGIST,
+                    expected_token=token, expected_revision=direction)
+                goal.method = method
+                goal.steps.extend(s.id for s in steps)
+                goal.evidence.setdefault('methods', {})[method] = [s.id for s in steps]
+                plan.control.setdefault('costs', {}).update(slots)
+                goal.last_progress_tick = facts['tick']
+                self.event('skill_started', identity, method=method, steps=[s.id for s in steps])
+                # One small commitment per cycle; Hands gets the next turn.
+                rt.persist()
+                return
+            except SkillBlocked as error:
+                self.block(goal, identity, str(error))
+            except ValueError as error:
+                if rt.context_token != token or rt.chat_revision != direction: return
+                # Validation failed before dispatch. Preserve all prior effects;
+                # never silently relocate a partially designated structure.
+                goal.attempts += 1
+                self.block(goal, identity, str(error))
+        self.finish_review()
+
+    def block(self, goal, identity, reason):
+        goal.status, goal.reason = 'blocked', reason
+        self.event('goal_blocked', identity, reason=reason)
+        self.rt.persist()

@@ -11,7 +11,7 @@ from .bridge_observation import observe
 from .config import Settings, ModelRole, load_model_routing
 from .model_router import ModelRouter
 from .colony_plan import ColonyPlan, Decision, Failure, NativeOperation
-from .medical_outcome import patient_outcome, rescue_outcome
+from .medical_outcome import patient_outcome, rescue_outcome, pawn_order_outcome
 from .consultation import Consultations
 from .hands import Hands, validate_geometry
 from .native_contracts import validate_native_steps, validate_stand_down_steps
@@ -19,6 +19,8 @@ from .construction_preflight import preflight_construction
 from .strategic_state import StrategicState, projection
 from .model import LocalModel
 from .planner import Planner
+from .colony_controller import ColonyController
+from .resource_accounting import validate_allocations
 from .projects import ProjectBook, ProjectSpec
 from .receipts import verdict_line, _outcome
 
@@ -40,11 +42,14 @@ class BridgeRuntime:
         self.current_plan = ColonyPlan()
         self.strategic_state = StrategicState()
         self.hands = Hands()
+        self.manual_requests = []
+        self.manual_execution = None
         self.execution_task = None
         self.deliberating = False
         self.execution_window_end = None
         self.execution_wait_explicit = False
         self.planner = Planner(self)
+        self.controller = ColonyController(self)
         self.colony = uuid.uuid4().hex
         self.chat, self.plan = [], {'long': '', 'short': ''}
         self.projects = ProjectBook()
@@ -249,10 +254,12 @@ class BridgeRuntime:
             await self.sync_identity()
             if expected_token != self.context_token or expected_revision != self.chat_revision:
                 raise ValueError('Colony or direction changed; decision was not committed')
+            allocations = {}
             if decision.plan:
                 validate_geometry(decision.plan)
                 await validate_native_steps(decision.plan, self.game)
                 await preflight_construction(decision.plan, self.current_plan, self.game)
+                allocations = await validate_allocations(decision.plan, self.current_plan, self.game)
                 # Contract discovery can yield while the game loads another colony.
                 await self.sync_identity()
                 if expected_token != self.context_token or expected_revision != self.chat_revision:
@@ -267,6 +274,7 @@ class BridgeRuntime:
                 if not progress or progress.state != 'blocked' or not progress.failure or not progress.failure.retryable:
                     raise ValueError('Step is not safely retryable: '+step_id)
             changed = self.current_plan.commit(decision, actor=actor, tick=self.batch.summary.end_tick)
+            self.current_plan.control.setdefault('costs', {}).update(allocations)
             for step_id in decision.retry_steps:
                 progress = self.current_plan.progress[step_id]
                 progress.state, progress.failure = 'pending', None
@@ -287,6 +295,15 @@ class BridgeRuntime:
     def reconcile_plan(self):
         for step in self.current_plan.spec.steps:
             progress = self.current_plan.progress[step.id]
+            if (isinstance(step.action, NativeOperation) and step.action.completion in ('pawn_equipped', 'pawn_at_position')
+                    and progress.state == 'waiting' and self.batch):
+                if self.batch.started_at <= progress.issued.get('0', {}).get('issued_at', float('inf')): continue
+                outcome = pawn_order_outcome(step.action, self.batch.native.get('pawns', {}).get('pawns', []))
+                if outcome != 'waiting':
+                    progress.state = 'blocked' if isinstance(outcome, Failure) else 'complete'
+                    progress.failure = outcome if isinstance(outcome, Failure) else None
+                    self.signal('plan.step_'+progress.state, {'step': step.id})
+                continue
             if (isinstance(step.action, NativeOperation) and step.action.completion in ('patient_tended', 'patient_in_bed')
                     and progress.state == 'waiting' and self.batch):
                 if self.batch.started_at <= progress.issued.get('0', {}).get('issued_at', float('inf')):
@@ -401,12 +418,12 @@ class BridgeRuntime:
         self.chat.append(dict(event, ts=event['at'], revision=self.chat_revision))
         self.persist()
 
-    async def steer(self, text):
+    async def steer(self, text, *, interpret=True):
         text = text.strip()
         if not text or len(text) > 4000:
             raise ValueError('Send a message between 1 and 4000 characters')
         self.chat_revision += 1
-        event = self.note('human', text)
+        event = self.note('human' if interpret else 'control', text)
         self.chat.append(dict(event, ts=event['at'], revision=self.chat_revision))
         self.persist()
         self.wake.set()
@@ -496,7 +513,7 @@ class BridgeRuntime:
                 await self.bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
             self.mode = mode
             self.resume_after_review = mode == 'automate'
-        await self.steer('Control changed to '+mode+'. '+('Continue the colony plan.' if mode == 'automate' else 'Discuss and inspect only; do not issue game orders.'))
+        await self.steer('Control changed to '+mode+'. '+('Continue the colony plan.' if mode == 'automate' else 'Discuss and inspect only; do not issue game orders.'), interpret=False)
 
     async def control_clock(self, speed, *, mode='colony', ignored_hostiles='', ignored_downed='', expected_revision=None, expected_token=None, expected_plan_revision=None):
         async with self.lock:
@@ -631,7 +648,10 @@ class BridgeRuntime:
                 raise ValueError('New player direction arrived during preparation; no command sent')
             if expected_token is not None and expected_token != self.context_token:
                 raise ValueError('Loaded colony changed during preparation; no command sent')
-            result = await self.game.invoke(name, arguments, allow_write=self.mode == 'automate')
+            explicit = (self.manual_execution is not None and self.manual_execution ==
+                        (expected_token, expected_revision, expected_plan_revision) ==
+                        (self.context_token, self.chat_revision, self.current_plan.revision))
+            result = await self.game.invoke(name, arguments, allow_write=self.mode == 'automate' or explicit)
             if name == 'home/order' and not arguments.get('dryRun', False):
                 pawn_after = result.get('pawn') or {}
                 if pawn_after.get('drafted') is False:
@@ -724,11 +744,25 @@ class BridgeRuntime:
                 await self.projects.reconcile(self.game)
                 self.reconcile_plan()
                 self.persist()
-            await self.planner.play_bridge()
+            # Inference is requested only by a new player message. Native events
+            # and normal operation always go through the deterministic controller.
+            player_revision = max((m.get('revision', 0) for m in self.chat if m.get('kind') == 'human'), default=0)
+            if player_revision > self.current_plan.control.get('interpreted_player_revision', 0):
+                chat_token = self.context_token
+                try:
+                    await self.planner.play_bridge()
+                except Exception as error:
+                    self.reply('Chat request could not be interpreted: '+failure_text(error)+'. Autopilot can continue.')
+                if self.context_token != chat_token: return
+                self.current_plan.control['interpreted_player_revision'] = player_revision
+            await self.controller.cycle()
+            self._long_event_deadline = None
+            await self.execute_manual_requests()
             self.phase = 'Executing orders' if self.mode == 'automate' else 'Manual'
         except asyncio.CancelledError:
             raise
         except Exception as error:
+            if self.defer_long_event(error): return
             self.phase = 'Needs attention'
             self.reply('Review stopped: '+failure_text(error))
             async with self.lock:
@@ -736,19 +770,54 @@ class BridgeRuntime:
             self.handled_revision = self.chat_revision
         finally:
             self.deliberating = False
-            if self.chat_revision > self.handled_revision:
+            pending_player = max((m.get('revision', 0) for m in self.chat if m.get('kind') == 'human'), default=0)
+            if (self.chat_revision > self.handled_revision
+                    or pending_player > self.current_plan.control.get('interpreted_player_revision', 0)):
                 self.wake.set()
 
     async def advance_execution(self):
         """Issue orders while paused; only confirmed pending work starts a window."""
         try:
             await self._advance_execution()
+            self._long_event_deadline = None
         except asyncio.CancelledError:
             raise
         except Exception as error:
+            if self.defer_long_event(error): return
             self.reply('Execution stopped: '+failure_text(error))
             async with self.lock:
                 await self.halt()
+
+    async def execute_manual_requests(self):
+        """A current explicit chat order can dispatch while autopilot stays off."""
+        requests, self.manual_requests = self.manual_requests, []
+        if self.mode != 'manual': return
+        ids = {identity for identity, token, direction in requests
+               if token == self.context_token and direction == self.chat_revision}
+        if not ids: return
+        self.manual_execution = (self.context_token,self.chat_revision,self.current_plan.revision)
+        try:
+            # A semantic shell is bounded by the plan schema. Time never resumes
+            # here; native construction/movement remains observed waiting work.
+            await self.hands.advance(self, max_operations=512, only_ids=ids)
+        finally:
+            self.manual_execution = None
+
+    def defer_long_event(self, error):
+        # This exact native refusal occurs before dispatch. Re-observe through
+        # the normal review path; never replay the failed write here.
+        if 'A long event (autosave, map generation) is running or queued' not in failure_text(error):
+            self._long_event_deadline = None
+            return False
+        deadline = getattr(self, '_long_event_deadline', None)
+        if deadline is None:
+            self._long_event_deadline = time.monotonic() + 20
+        elif time.monotonic() >= deadline:
+            return False
+        self.phase = 'Waiting for native long event'
+        self.resume_after_review = self.mode == 'automate'
+        self.wake.set()
+        return True
 
     async def _advance_execution(self):
         if self.mode != 'automate' or self.deliberating or self.wake.is_set():
@@ -762,22 +831,23 @@ class BridgeRuntime:
             waiting = [p for s in self.current_plan.spec.steps
                        if (p := self.current_plan.progress[s.id]).state == 'waiting'
                        and any(v.get('confirmed') for v in p.issued.values())]
+            ongoing = self.current_plan.control.get('simulation_needed', False)
             if self.resume_after_review:
                 self.resume_after_review = False
-                if waiting and not self.supervisor.hold:
+                if (waiting or ongoing) and not self.supervisor.hold:
                     token, direction = self.context_token, self.chat_revision
                     status = await self.game.query('home/status', colonists=False, threats=False)
                     await self.sync_identity()
                     if (self.mode != 'automate' or self.context_token != token
                             or self.chat_revision != direction or self.wake.is_set()):
                         return
-                    await self.supervisor.change('Normal')
+                    await self.supervisor.change(self.controller.policy.execution_speed)
                     self.execution_window_end = status['time']['ticksGame'] + 600
                     self.execution_wait_explicit = False
                     self.note('execution_window', 'Confirmed work: target 600 game ticks before review; polling may overshoot')
             if self.execution_window_end is not None:
                 status = await self.game.query('home/status', colonists=False, threats=False)
-                if (not waiting and not self.execution_wait_explicit
+                if (not waiting and not ongoing and not self.execution_wait_explicit
                         or status['time']['ticksGame'] >= self.execution_window_end):
                     await self.supervisor.change('Paused')
                     self.execution_window_end = None
@@ -876,9 +946,12 @@ class BridgeRuntime:
                      'stale': not self.connected, 'wallTs': time.time()},
             'lastSummary': recent, 'feed': feed, 'mode': self.mode, 'connected': self.connected,
             'currentPlan': {'revision': self.current_plan.revision, 'chosen_tick': self.current_plan.chosen_tick,
+                'controller': self.current_plan.control,
+                'colonyGoals': {k: v.model_dump() for k, v in self.current_plan.colony_goals.items()},
                 'rationale': self.current_plan.rationale, 'goals': self.current_plan.spec.goals,
                 'constraints': self.current_plan.spec.constraints, 'risks': self.current_plan.spec.risks,
                 'steps': [dict(id=s.id, title=s.title, priority=s.priority, action=s.action.kind,
+                    source=s.source, goal_id=s.goal_id,
                     completion=s.completion_criteria, state=self.current_plan.progress[s.id].state,
                     issued=len(self.current_plan.progress[s.id].issued),
                     failure=self.current_plan.progress[s.id].failure.model_dump() if self.current_plan.progress[s.id].failure else None)

@@ -58,14 +58,15 @@ create them. LM Studio defaults to http://127.0.0.1:1234/v1.
 - **Activity:** outcomes with tool details collapsed.
 
 Snapshots refresh every few seconds; this is not a continuous video stream.
-One strategist reads compact state and commits a durable structured plan. Deterministic
-Hands executes validated semantic steps in Automate; optional advisers cannot write
-orders or commit goals. Unchanged observations do not cause timed model reviews.
-Receipts do not mean pawn work has finished. See [the active architecture](docs/ARCHITECTURE.md).
+The deterministic controller owns routine operation. Player chat uses a local LLM
+as command interpreter and advisor. Both paths share persistent goals, resource
+policies, validation and Hands. Explicit chat actions can dispatch in Manual while
+time stays paused; Automate also runs routine work. Receipts do not mean pawn
+labor has finished. See [the architecture](docs/ARCHITECTURE.md).
 
 ## Optional local model roles
 
-The default uses only the strategist. To configure a generic 4B analyst, copy/edit
+Interactive chat uses the `strategist` model role; autopilot needs no inference. To configure a generic 4B analyst, copy/edit
 `config/models.example.json`, then restart the controller with:
 
 ```powershell

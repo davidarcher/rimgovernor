@@ -62,7 +62,7 @@ def runtime(tmp_path, **kwargs):
     store = Store(tmp_path/'state.sqlite')
     rt = BridgeRuntime(store, tmp_path, **kwargs)
     rt.game = SimpleNamespace(query=AsyncMock(return_value={'colonyId':'test','mapId':1,'loadToken':'load'}),
-        invoke=AsyncMock(return_value={'success':True,'canPlace':True}))
+        invoke=AsyncMock(return_value={'success':True,'canPlace':True,'costList':[{'defName':'WoodLog','count':5}], 'materials':{'rows':[{'defName':'WoodLog','available':1000}]}}))
     return rt
 
 
@@ -131,49 +131,40 @@ async def test_generic_adviser_cannot_dispatch_actions_or_recurse(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_strategist_works_alone_and_plan_survives_model_restart(tmp_path):
+async def test_player_room_command_and_plan_survive_model_restart(tmp_path):
     calls=[]
     class Brain:
         async def complete(self,messages,tools,*args):
             calls.append(tools)
+            if len(calls)>1: return {'role':'assistant','content':'Room shell queued.'}, {}
             return {'role':'assistant','tool_calls':[{'id':'d','type':'function','function':{
-                'name':'commit_plan','arguments':decision(room_plan()).model_dump_json()}}]}, {'prompt_tokens':100,'completion_tokens':50}
+                'name':'command','arguments':json.dumps({'kind':'BuildRoom','intent_id':'bedroom','room':room_plan().steps[0].action.model_dump()})}}]}, {'prompt_tokens':100,'completion_tokens':50}
         async def close(self):pass
     rt=runtime(tmp_path,model_factory=lambda _:Brain())
     await rt.sync_identity();rt.batch=batch();rt.strategic_state.update(rt.batch)
     await rt.planner.play_bridge()
-    assert rt.current_plan.revision==1 and rt.plan['long']=='A stable colony'
+    assert rt.current_plan.revision==1 and rt.current_plan.spec.steps[0].source=='PLAYER'
     assert 'consult' not in [t['function']['name'] for t in calls[0]]
     assert all(t['function']['name'] not in ('native','control_clock') for t in calls[0])
     await rt.router.close();rt.store.close()
     other=runtime(tmp_path,settings=Settings(model='another-local-model'))
     await other.sync_identity()
-    assert other.current_plan.spec==room_plan() and other.current_plan.revision==1
+    assert other.current_plan.spec.steps[0].action==room_plan().steps[0].action and other.current_plan.revision==1
     assert other.mode=='manual'
     other.store.close()
 
 
 @pytest.mark.asyncio
-async def test_prose_response_recovers_without_committing_or_sending_orders(tmp_path):
-    calls=[]
+async def test_chat_question_can_finish_with_prose_without_any_orders(tmp_path):
     class Brain:
         async def complete(self,messages,tools,*args):
-            calls.append(len(messages))
-            if len(calls)==1:
-                return {'role':'assistant','content':'I built the shelter.'}, {}
-            assert rt.current_plan.revision==0
-            assert not rt.current_plan.progress
-            repair=json.loads(messages[-1]['content'])
-            assert repair['status']=='decision_not_committed'
-            assert repair['current_plan']['revision']==0
-            return {'role':'assistant','tool_calls':[{'id':'repair','type':'function','function':{
-                'name':'commit_plan','arguments':decision(room_plan()).model_dump_json()}}]}, {}
+            return {'role':'assistant','content':'Shelter is not built yet.'}, {}
         async def close(self):pass
     rt=runtime(tmp_path,model_factory=lambda _:Brain())
     await rt.sync_identity();rt.batch=batch();rt.strategic_state.update(rt.batch)
     await rt.planner.play_bridge()
-    assert len(calls)==2 and rt.current_plan.revision==1
-    assert rt.counters['actions']==0
+    assert rt.current_plan.revision==0 and rt.counters['actions']==0
+    assert rt.chat[-1]['text']=='Shelter is not built yet.'
     await rt.router.close();rt.store.close()
 
 
@@ -196,7 +187,7 @@ async def test_discovered_native_tool_is_callable_in_the_same_review(tmp_path):
                 name,payload='review_evidence',{'operation':'read','id':identity}
             else:
                 assert json.loads(messages[-1]['content'])['result']['things']==[]
-                name,payload='commit_plan',decision().model_dump()
+                return {'role':'assistant','content':'No food was observed.'},{}
             return {'role':'assistant','tool_calls':[{'id':str(count),'type':'function',
                 'function':{'name':name,'arguments':json.dumps(payload)}}]},{}
         async def close(self):pass
@@ -219,24 +210,25 @@ async def test_invented_construction_is_repaired_before_any_plan_is_saved(tmp_pa
             nonlocal turns
             turns+=1
             spec=room_plan()
+            if turns>2: return {'role':'assistant','content':'Validated room shell queued.'},{}
             if turns==1:spec.steps[0].action.door_def='Door_Wood'
             else:
                 error=json.loads(messages[-1]['content'])
                 assert error['construction']['definition']=='Door_Wood'
                 assert rt.current_plan.revision==0 and not rt.current_plan.history
             return {'role':'assistant','tool_calls':[{'id':str(turns),'type':'function',
-                'function':{'name':'commit_plan','arguments':decision(spec).model_dump_json()}}]},{}
+                'function':{'name':'command','arguments':json.dumps({'kind':'BuildRoom','intent_id':'bedroom','room':spec.steps[0].action.model_dump()})}}]},{}
         async def close(self):pass
     async def preview(name,args,**kwargs):
         assert args['dryRun'] is True and kwargs['allow_write'] is False
         if args['defName']=='Door_Wood':raise ValueError('Unknown definition')
-        return {'canPlace':True,'success':True}
+        return {'canPlace':True,'success':True,'costList':[{'defName':'WoodLog','count':5}], 'materials':{'rows':[{'defName':'WoodLog','available':1000}]}}
     rt=runtime(tmp_path,model_factory=lambda _:Brain())
     await rt.sync_identity();rt.batch=batch();rt.strategic_state.update(rt.batch)
     rt.game.invoke=AsyncMock(side_effect=preview)
     await rt.planner.play_bridge()
-    assert turns==2 and rt.current_plan.revision==1
-    assert rt.current_plan.spec==room_plan() and rt.counters['actions']==0
+    assert turns==3 and rt.current_plan.revision==1
+    assert rt.current_plan.spec.steps[0].action==room_plan().steps[0].action and rt.counters['actions']==0
     await rt.router.close();rt.store.close()
 
 

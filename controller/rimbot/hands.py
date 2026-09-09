@@ -51,11 +51,12 @@ class Blocked(Exception):
 
 
 class Hands:
-    async def advance(self, rt, max_operations=12):
+    async def advance(self, rt, max_operations=12, only_ids=None):
         """Bound each controller pass to yield to UI, not to spend model calls."""
         revision, token, direction = rt.current_plan.revision, rt.context_token, rt.chat_revision
         count = 0
         for step in list(rt.current_plan.ready()):
+            if only_ids is not None and (step.id not in only_ids or step.source != 'PLAYER'): continue
             progress = rt.current_plan.progress[step.id]
             try:
                 self.guard(rt, revision, token, direction)
@@ -109,6 +110,10 @@ class Hands:
                         receipt = await execute_trade(action, read_trade, write_trade)
                     else:
                         if isinstance(action, NativeOperation):
+                            if action.tool == 'home/bills' and action.arguments.get('action') == 'add' and any(
+                                    p.get('spending') != 'normal' or p.get('reserve',0)
+                                    for p in rt.current_plan.control.get('resource_policy',{}).values()):
+                                raise Blocked('resource_policy', 'Bill requires verified ingredient accounting under the current resource policy')
                             args = dict(action.arguments)
                             schema = await rt.game.describe(action.tool)
                             if 'dryRun' in schema.get('properties', {}):
@@ -129,7 +134,7 @@ class Hands:
                                 native = result.get('receipt', result)
                                 receipt['inner_id'] = native['thingId']
                                 receipt['rotation'] = (native.get('blueprint') or {}).get('rotation', native.get('rotation'))
-                            if action.completion in ('patient_tended', 'patient_in_bed'):
+                            if action.completion != 'native_receipt':
                                 receipt['issued_at'] = time.time()
                         else:
                             self.guard(rt, revision, token, direction)
@@ -161,13 +166,18 @@ class Hands:
                     await rt.projects.reconcile(rt.game, only_id=row.id)
                     if row.state == 'complete':
                         progress.state = 'complete'
-                elif isinstance(action, NativeOperation) and action.completion in ('patient_tended', 'patient_in_bed'):
+                elif isinstance(action, NativeOperation) and action.completion != 'native_receipt':
                     progress.state = 'waiting'
                 else:
                     progress.state = 'complete'
                 rt.note('execution', step.title+(': orders issued; awaiting construction' if placements and progress.state != 'complete' else
                     ': order issued; awaiting native completion' if progress.state == 'waiting' else ': native operation verified'))
-                if all(rt.current_plan.progress[s.id].state in ('complete', 'cancelled') for s in rt.current_plan.spec.steps):
+                goal = rt.current_plan.colony_goals.get(step.goal_id) if step.goal_id else None
+                if not getattr(rt,'manual_execution',None) and progress.state == 'complete' and (goal is None or all(
+                        rt.current_plan.progress[s].state in ('complete', 'blocked', 'cancelled')
+                        for s in goal.steps if s in rt.current_plan.progress)):
+                    rt.signal('plan.method_finished', {'goal': step.goal_id, 'step': step.id})
+                if not getattr(rt,'manual_execution',None) and all(rt.current_plan.progress[s.id].state in ('complete', 'cancelled') for s in rt.current_plan.spec.steps):
                     rt.signal('plan.completed', {'revision': revision})
                 rt.persist()
             except InterruptedError:
@@ -189,7 +199,8 @@ class Hands:
 
     @staticmethod
     def guard(rt, revision, token, direction):
-        if (rt.mode != 'automate' or rt.context_token != token or rt.current_plan.revision != revision
+        explicit = getattr(rt,'manual_execution',None) == (token,direction,revision)
+        if ((rt.mode != 'automate' and not explicit) or rt.context_token != token or rt.current_plan.revision != revision
                 or rt.chat_revision != direction or rt.chat_revision > rt.handled_revision):
             raise InterruptedError('Plan or player direction changed')
 
@@ -213,6 +224,8 @@ class Hands:
                 continue
             if preview.get('madeFromStuff') and not stuff:
                 raise Blocked('material_choice_required', 'Specify acceptable observed materials; no implicit native default material')
+            from .resource_accounting import validate_execution_costs
+            validate_execution_costs(rt.current_plan, progress, key, preview)
             occupied = {(c['x'], c['z']) for r in preview['rotations'] for c in r.get('occupiedCells', [])}
             reserved = {c for r in rt.current_plan.spec.reserved_walkways for c in r.cells()}
             if occupied & reserved:
@@ -268,6 +281,8 @@ class Hands:
         zone = next((z for z in observed['zones'] if z['label']==action.label), None)
         if zone is None or {(c['x'], c['z']) for c in zone.get('gridCells', [])} != set(cells):
             raise Blocked('zone_readback', 'Zone geometry did not match its committed intent')
+        if action.crop and zone.get('plantDef') != action.crop:
+            raise Blocked('crop_readback', 'Growing zone exists but its observed crop does not match the requested crop')
         row = rt.projects.upsert({'title': action.label, 'targets':[{'kind':'zone','zone_id':str(zone['id'])}]})
         progress.project_id = row.id
         return {'zone': action.label, 'cells': len(cells), 'crop': action.crop}

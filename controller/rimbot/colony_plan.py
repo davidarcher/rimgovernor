@@ -98,10 +98,18 @@ class NativeOperation(Contract):
         'rimworld/open_main_tab', 'rimworld/close_main_tab']
     arguments: dict
     # Honest fallback for native operations lacking a higher-level compiler.
-    completion: Literal['native_receipt', 'patient_tended', 'patient_in_bed'] = 'native_receipt'
+    completion: Literal['native_receipt', 'patient_tended', 'patient_in_bed', 'pawn_equipped', 'pawn_at_position'] = 'native_receipt'
 
     @model_validator(mode='after')
     def medical_completion(self):
+        if self.completion in ('pawn_equipped', 'pawn_at_position'):
+            required = 'equip' if self.completion == 'pawn_equipped' else 'goto'
+            if self.tool != 'home/order' or self.arguments.get('action') != required or not str(self.arguments.get('pawn', '')).startswith('Thing_'):
+                raise ValueError('Pawn postcondition requires an exact observed pawn and matching native order')
+            if required == 'equip' and not str(self.arguments.get('target', '')).startswith('Thing_'):
+                raise ValueError('Equipment postcondition requires an exact observed weapon')
+            if required == 'goto' and any(not isinstance(self.arguments.get(k), int) for k in ('x','z')):
+                raise ValueError('Movement postcondition requires destination coordinates')
         if self.completion in ('patient_tended', 'patient_in_bed'):
             required = 'tend' if self.completion == 'patient_tended' else 'rescue'
             if (self.tool != 'home/order' or self.arguments.get('action') != required
@@ -164,6 +172,9 @@ class PlanStep(Contract):
     id: str = Field(min_length=1, max_length=64, pattern=r'^[a-zA-Z0-9_-]+$')
     title: str = Field(min_length=1, max_length=160)
     priority: int = Field(default=50, ge=0, le=100)
+    goal_id: str | None = None
+    source: Literal['PLAYER', 'AUTOPILOT', 'LLM_ADVISOR'] = 'PLAYER'
+    purpose: Literal['shelter', 'defense', 'production', 'storage', 'comfort'] = 'production'
     after: list[Dependency] = Field(default_factory=list, max_length=30)
     action: Action
     completion_criteria: str = Field(min_length=1, max_length=500)
@@ -221,8 +232,17 @@ class CommitSteps(Contract):
         existing={step.id for step in current.spec.steps}
         if any(step.id in existing for step in self.steps):
             raise ValueError('Append new step IDs only; existing work is preserved. Use commit_plan to revise it.')
-        spec=PlanSpec.model_validate(dict(current.spec.model_dump(),
-            steps=[step.model_dump() for step in [*current.spec.steps,*self.steps]]))
+        retired = set()
+        if len(current.spec.steps)+len(self.steps)>72:
+            retired = {step.id for step in current.spec.steps if step.source=='AUTOPILOT'
+                       and isinstance(step.action,NativeOperation) and current.progress[step.id].state=='complete'}
+        rows = []
+        for step in [*current.spec.steps,*self.steps]:
+            if step.id in retired: continue
+            row = step.model_dump()
+            row['after'] = [d for d in row['after'] if d['step'] not in retired]
+            rows.append(row)
+        spec=PlanSpec.model_validate(dict(current.spec.model_dump(),steps=rows))
         return Decision(expected_revision=self.expected_revision,disposition='revise',
             assessment=self.reason,rationale=self.reason,reply=self.reason,plan=spec)
 
@@ -241,6 +261,21 @@ class StepProgress(Contract):
     project_id: str | None = None
 
 
+class ColonyGoal(Contract):
+    priority_class: int = Field(ge=0, le=4)
+    status: Literal['active', 'suspended', 'complete', 'blocked'] = 'active'
+    method: str = ''
+    reason: str = ''
+    started_tick: int = 0
+    last_progress_tick: int = 0
+    attempts: int = 0
+    steps: list[str] = Field(default_factory=list)
+    evidence: dict = Field(default_factory=dict)
+    source: Literal['PLAYER', 'AUTOPILOT', 'LLM_ADVISOR'] = 'AUTOPILOT'
+    target: dict = Field(default_factory=dict)
+    cancelled: bool = False
+
+
 class ColonyPlan(Contract):
     revision: int = 0
     chosen_tick: int = 0
@@ -250,6 +285,8 @@ class ColonyPlan(Contract):
     cancelled_ids: list[str] = Field(default_factory=list)
     cancelled_actions: list[str] = Field(default_factory=list)
     history: list[dict] = Field(default_factory=list)
+    colony_goals: dict[str, ColonyGoal] = Field(default_factory=dict)
+    control: dict = Field(default_factory=dict)
 
     def commit(self, decision: Decision, *, actor: ModelRole, tick: int):
         if actor != ModelRole.STRATEGIST:
@@ -266,6 +303,8 @@ class ColonyPlan(Contract):
             return False
         old = {s.id: s for s in self.spec.steps}
         for step in decision.plan.steps:
+            if step.id in self.control.get('retired_steps',{}):
+                raise ValueError('Retired action identity cannot be reused: '+step.id)
             if step.id in self.cancelled_ids or step.signature() in self.cancelled_actions:
                 raise ValueError('Player cancelled step '+step.id)
             if any(prior.id != step.id and prior.signature() == step.signature() for prior in old.values()):
@@ -275,6 +314,10 @@ class ColonyPlan(Contract):
         self.history.append(dict(revision=self.revision, chosen_tick=self.chosen_tick,
             rationale=self.rationale, spec=self.spec.model_dump()))
         self.history = self.history[-12:]
+        retained = {s.id for s in decision.plan.steps}
+        for identity, step in old.items():
+            if identity not in retained and self.progress[identity].state=='complete':
+                self.control.setdefault('retired_steps',{})[identity] = step.model_dump()
         self.spec = decision.plan
         self.revision += 1
         self.chosen_tick, self.rationale = tick, decision.rationale
@@ -295,6 +338,8 @@ class ColonyPlan(Contract):
 
     def ready(self):
         for step in sorted(self.spec.steps, key=lambda s: -s.priority):
+            if step.goal_id and (goal := self.colony_goals.get(step.goal_id)) and goal.status != 'active':
+                continue
             state = self.progress[step.id]
             if state.state not in ('pending', 'executing'):
                 continue

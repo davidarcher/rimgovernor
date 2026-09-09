@@ -163,6 +163,8 @@ namespace HomeBridge.BridgeTools
                     return Failure("Alert or transient-message reflection watcher is unavailable; refusing blind play.");
                 if (Current.Game == null || Find.TickManager == null || Find.CurrentMap == null)
                     return Failure("No playable map is loaded.");
+                try { LetterPauseHook.EnsurePatched(); }
+                catch (Exception error) { return Failure("Pause source tracking unavailable: " + error.Message); }
                 if (LongEventHandler.AnyEventNowOrWaiting)
                     return Retryable("A long event (autosave, map generation) is running or queued; nothing is "
                         + "open to dismiss. An autosave clears in about a second -- the caller should retry, "
@@ -319,7 +321,12 @@ namespace HomeBridge.BridgeTools
                     // clock without ever touching CurTimeSpeed.
                     if (tm.ForcePaused) { HandleForcePause(s); return; }
                     if (s.ForcePauseSinceMs != 0 && !ResumeAfterForcePause(s)) return;
-                    if (tm.CurTimeSpeed == TimeSpeed.Paused) { Stop(s, "external_pause", ExternalPauseDetail(), false, null); return; }
+                    if (tm.CurTimeSpeed == TimeSpeed.Paused) {
+                        var letter = LetterPauseHook.Consume();
+                        Stop(s, letter == null ? "external_pause" : "letter_pause", ExternalPauseDetail(), false,
+                            letter == null ? null : new Dictionary<string, object> { { "letterId", letter }, { "source", "LetterStack.ReceiveLetter" } });
+                        return;
+                    }
                     if (tm.CurTimeSpeed != s.RequestedSpeed) { Stop(s, "external_speed_changed", "Speed changed outside the supervisor.", true,
                         new Dictionary<string, object> { { "expectedSpeed", s.RequestedSpeed.ToString() },
                             { "actualSpeed", tm.CurTimeSpeed.ToString() } }); return; }

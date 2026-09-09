@@ -122,19 +122,30 @@ or completed production.
 
 ## Campaigns and performance
 
-For the deterministic starter baseline, run:
+For the production deterministic bootstrap, run:
 
 ```powershell
-.venv\Scripts\python.exe scripts\deterministic_foothold.py --source-root .rimbot/bridge --output .rimbot/deterministic-new --clock-probe
+$env:PYTHONPATH='controller'
+.venv\Scripts\python.exe scripts\deterministic_foothold.py --source-root .rimbot/bridge --output .rimbot/deterministic-new --seconds 1800 --speed Superfast
 ```
 
-This uses a fresh rendered profile, no inference and no save edits. Ordinary Allow,
-stockpile and sleeping-spot orders go through commitment validation and Hands.
-Nearby candidate cells are ordered by distance to the observed colony center and
-accepted only after native previews. The result uses the same narrow campaign gate.
-Sleeping spots complete immediately under normal game rules; this does not prove
-pawn construction, roofed shelter or sustained survival. The optional clock probe
-verifies paused simulation during a slow scripted review and after completed work.
+The default is a fresh isolated headless profile; add `--rendered` for a visible
+game. The current baseline is the prepared eight-tribal save. No save edits or
+inference are permitted. `--speed` selects ordinary native Normal/Fast/Superfast,
+not boosted simulation. The harness runs production BridgeRuntime, controller,
+validation and Hands, writes a manifest, incremental `progress.json` and final
+`result.json`, and exits successfully only for all FOOTHOLD_STABLE predicates.
+Results include goal/method/lifecycle evidence, model-call count and game ticks.
+A timeout, blocker or partial shelter is not a pass. Stop uses this profile's
+PID-owned GABS launch; never terminate all processes by executable name.
+
+Controller replays in `test_colony_controller.py` separately exercise deterministic
+layout variants, hysteresis, priorities, cancellation and accounting. They model
+labor explicitly and cannot substitute for native gameplay acceptance. Chat tests
+cover typed direct orders, maintained goals, policies, follow-ups, provenance,
+Manual dispatch and stale-direction rejection. Repeat native acceptance at a
+fixed committed revision and restored baseline; iterative debugging runs do not
+establish repeatability. Keep temporary binaries, saves and logs outside Git.
 
 ```powershell
 .venv\Scripts\python.exe scripts\headless_iterations.py --iterations 20 --parallel 2 --output .rimbot/campaign-new

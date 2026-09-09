@@ -16,7 +16,9 @@
 - Read [architecture](docs/ARCHITECTURE.md), the [backlog](docs/BACKLOG.md) and
   [testing runbook](docs/TESTING.md). Runtime: Python, React, GABS/RimBridgeServer
   and `integrations/colony-bridge`.
-- Keep one strategist and deterministic Hands. Advisers cannot write game orders.
+- Keep one shared goal/action system and deterministic Hands. Routine control is
+  deterministic; player chat interprets explicit semantic requests. Advisers cannot
+  write game orders or own colony invariants.
 - Preserve normal game rules. Discover native schemas and definitions; keep
   editor/cheat operations outside model execution. RimWorld owns simulation.
 - Use configured local LM Studio models with no silent paid-provider fallback.

@@ -25,6 +25,23 @@ def runtime(tmp_path, state='waiting', confirmed=True):
 
 
 @pytest.mark.asyncio
+async def test_autosave_refusal_reobserves_without_replaying_or_releasing_hold(tmp_path):
+    rt,store=runtime(tmp_path)
+    rt._advance_execution=AsyncMock(side_effect=ValueError('A long event (autosave, map generation) is running or queued'))
+    rt.supervisor.hold='external_pause'
+    try:
+        await rt.advance_execution()
+        assert rt.mode=='automate' and rt.wake.is_set()
+        assert rt.supervisor.hold=='external_pause'
+        rt.supervisor.change.assert_not_awaited()
+        assert rt._advance_execution.await_count==1
+        rt._long_event_deadline=0
+        assert not rt.defer_long_event(ValueError('A long event (autosave, map generation) is running or queued'))
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize('state,confirmed', [('pending',False),('waiting',False),('blocked',True),('complete',True)])
 async def test_no_automatic_time_for_unissued_blocked_or_finished_work(tmp_path, state, confirmed):
     rt, store = runtime(tmp_path, state, confirmed)
@@ -91,9 +108,11 @@ async def test_review_pauses_before_observation_and_never_unpauses_before_orders
         return None
     monkeypatch.setattr('rimbot.bridge_runtime.observe', observe)
     rt.planner = SimpleNamespace(play_bridge=AsyncMock())
+    rt.controller.cycle = AsyncMock()
     try:
         await rt.review()
-        rt.planner.play_bridge.assert_awaited_once()
+        rt.planner.play_bridge.assert_not_awaited()
+        rt.controller.cycle.assert_awaited_once()
         rt.supervisor.change.assert_awaited_once_with('Paused')
         assert not rt.deliberating and rt.resume_after_review
     finally:

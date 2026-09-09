@@ -170,6 +170,7 @@ def context(rt):
         'space': state.get('space'), 'power': state.get('power'), 'construction': state.get('construction'),
         'resources': {k:v for k,v in resources.items() if k != 'allowed_units_by_def'},
         'available_supply_definitions': len(resources.get('allowed_units_by_def', {})), 'warnings': state.get('warnings')},
+        'controller': {'goals': {k: v.model_dump() for k, v in plan.colony_goals.items()}, 'state': plan.control},
         'current_plan': {'revision': plan.revision, 'chosen_tick': plan.chosen_tick, 'rationale': plan.rationale,
             'goals': plan.spec.goals, 'constraints': plan.spec.constraints, 'assumptions': plan.spec.assumptions,
             'risks': plan.spec.risks, 'long_term': plan.spec.long_term, 'right_now': plan.spec.right_now,
