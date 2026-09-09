@@ -3,6 +3,21 @@ import pytest
 from rimbot.planner import facts_index,inspect_facts
 
 
+def test_controller_initial_index_omits_large_receipts_and_preserves_exact_state():
+    from rimbot.colony_plan import ColonyPlan,ColonyGoal
+    from rimbot.planner import controller_index
+    plan=ColonyPlan()
+    plan.colony_goals['room']=ColonyGoal(priority_class=2,evidence={'native':'x'*100000})
+    plan.control['player_intents']={'room':{'step':'build-room','request':{'kind':'PlaceBuildings','geometry':'y'*100000}}}
+    plan.control['resource_policy']={'Steel':{'reserve':80}}
+    before=plan.model_dump()
+    index=controller_index(plan)
+    assert len(json.dumps(index))<1000
+    assert index['player_intents']==[{'id':'room','step':'build-room','kind':'PlaceBuildings'}]
+    assert 'resource_policy' in index['state_sections']
+    assert plan.model_dump()==before
+
+
 def test_large_native_catalog_is_discoverable_without_inlining_it():
     facts={'definitions':{f'Building{i}':{'costs':{'Steel':100},'description':'x'*300} for i in range(500)},
         'resources':{'Steel':250},'cells':[{'x':1,'z':2}]}

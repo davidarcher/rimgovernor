@@ -40,6 +40,19 @@ def inspect_facts(facts, sections):
         'note':'Facts captured at the start of this chat review; refresh native observations before acting.'}
 
 
+def controller_index(plan):
+    goals=list(plan.colony_goals.items())
+    intents=list(plan.control.get('player_intents',{}).items())
+    return {'goals':[{'id':key,'status':goal.status,'cancelled':goal.cancelled,
+                     'reason':goal.reason[:240]} for key,goal in goals[:32]],
+        'omitted_goals':max(0,len(goals)-32),
+        'player_intents':[{'id':key,'step':value.get('step'),
+                           'kind':value.get('request',{}).get('kind')} for key,value in intents[-24:]],
+        'omitted_player_intents':max(0,len(intents)-24),
+        'state_sections':sorted(plan.control),
+        'note':'Index only. Use inspect_controller for exact policies, intent geometry, goal evidence and reservations; omitted entries are not absent.'}
+
+
 class Planner:
     def __init__(self, runtime):
         self.rt = runtime
@@ -100,6 +113,7 @@ class Planner:
             'Keep answers concise. If a model/tool request fails, the controller can continue without you.'},
             ]
         state=context(rt)
+        state['controller']=controller_index(rt.current_plan)
         state['colony_facts']=facts_index(native_facts)
         state.pop('player_messages',None)
         state.pop('player_directions',None)
