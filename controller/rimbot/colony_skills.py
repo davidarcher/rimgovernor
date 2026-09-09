@@ -223,11 +223,18 @@ class ColonySkills:
             layout = await self.layout(facts)
             if unused('shell') and facts.get('indoorSleepingCapacity', 0) < facts['colonists']:
                 return 'shell', [self.shell(layout)]
+            if facts['colonists']>8:
+                method='starter-sleep-'+str(facts['colonists'])
+                if not unused(method):return None
+                room=layout['room']
+                # Leave the service rows free for storage, cooking and temperature furniture.
+                reserved={(x,z) for x in range(room['x']+1,room['x']+room['width']-1)
+                          for z in range(room['z']+5,room['z']+room['height']-1)}
+                return await sleeping_handoff(rt,facts,None,self.shell(layout),reserved_cells=reserved)
             if unused('sleeping'):
                 room = layout['room']
                 placements = [{'def_name': 'SleepingSpot', 'x': room['x']+x, 'z': room['z']+z}
                               for z in (1, 3) for x in (1, 3, 5, 7)]
-                if facts['colonists'] > len(placements): raise SkillBlocked('Starter template supports at most eight colonists')
                 return 'sleeping', [{'kind': 'place_buildings', 'placements': placements[:facts['colonists']]}]
             return None
         if goal_id == 'EnsureFoodStorage':

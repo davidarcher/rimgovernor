@@ -52,6 +52,47 @@ async def test_handoff_only_adds_missing_sleeping_capacity_and_waits_for_roof():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('count',[9,12])
+async def test_larger_starter_fits_native_footprints_without_using_service_rows(count):
+    rt,room,facts=fixture(count)
+    del rt.current_plan.colony_goals['intent-home']
+    goal=rt.current_plan.colony_goals['EnsureInitialShelter']
+    goal.evidence['methods']={'shell':['completed-shell']}
+    skill=ColonySkills(rt)
+    skill.layout=AsyncMock(return_value={'room':{'x':10,'z':10,'width':9,'height':9}})
+    method,actions=await skill.compile('EnsureInitialShelter',facts,[])
+    assert method==f'starter-sleep-{count}'
+    assert len(actions[0]['placements'])==count
+    occupied=set()
+    for p in actions[0]['placements']:
+        footprint={(p['x'],p['z']),(p['x']+(p['rotation']=='east'),p['z']+(p['rotation']=='north'))}
+        assert not occupied&footprint
+        assert all(x!=14 and 11<=x<=17 and 11<=z<15 for x,z in footprint)
+        occupied|=footprint
+    assert 'adopted_shelter' not in rt.current_plan.control
+    goal.evidence['methods'][method]=['sleeping-action']
+    rt.inspect_native.reset_mock()
+    assert await skill.compile('EnsureInitialShelter',facts,[]) is None
+    rt.inspect_native.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_larger_starter_waits_for_roof_and_refuses_overcapacity_without_orders():
+    rt,room,facts=fixture(13)
+    del rt.current_plan.colony_goals['intent-home']
+    rt.current_plan.colony_goals['EnsureInitialShelter'].evidence['methods']={'shell':['completed-shell']}
+    skill=ColonySkills(rt)
+    skill.layout=AsyncMock(return_value={'room':{'x':10,'z':10,'width':9,'height':9}})
+    room['openRoofCount']=2
+    assert await skill.compile('EnsureInitialShelter',facts,[]) is None
+    rt.inspect_native.assert_not_awaited()
+    room['openRoofCount']=0
+    with pytest.raises(SkillBlocked,match='insufficient'):
+        await skill.compile('EnsureInitialShelter',facts,[])
+    assert rt.current_plan.colony_goals['EnsureInitialShelter'].evidence['sleeping_fit']['selected']==12
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize('change',[{'cellsComplete':False},{'properRoom':False},{'openRoofCount':None}])
 async def test_unknown_or_changed_player_room_blocks_duplicate_shelter(change):
     rt,room,facts=fixture();room.update(change)

@@ -42,7 +42,9 @@ in the checkpoint commit; do not append an implementation diary here.
   such as hunting targets and recovery histories, and measure ledger disk growth.
   Add bounded
   recovery for other known transient failures beyond confirmed interrupted tending, verify new-colonist work batches natively and
-  expand sleeping/farming templates beyond the eight-colonist starter. Reconcile
+  verify larger starter sleeping capacity natively and expand farming and shelter
+  capacity beyond the fixed shell. Native-footprint fitting above eight has
+  controller coverage, including reserved service rows and capacity refusal. Reconcile
   player interruptions and partial work across save rewind. Broaden paired native
   restart acceptance beyond a cancelled room shell to mixed pending work,
   resource reservations and interrupted non-idempotent actions.

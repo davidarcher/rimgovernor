@@ -16,19 +16,19 @@ async def verified_room(rt, shell):
     interior={(a,b) for a in range(x+1,x+width-1) for b in range(z+1,z+height-1)}
     census=await rt.game.query('home/list_rooms',cells=True,x=x+1,z=z+1)
     if census.get('success') is not True:
-        raise SkillBlocked('Player shelter room observations are unavailable')
+        raise SkillBlocked('Shelter room observations are unavailable')
     rooms=[room for room in census.get('rooms',[]) if room.get('cellsComplete') is True
            and {(p['x'],p['z']) for p in room.get('cells',[])}==interior]
     if len(rooms)!=1 or rooms[0].get('properRoom') is not True:
-        raise SkillBlocked('Completed player shelter no longer matches an enclosed native room; inspect its shell')
+        raise SkillBlocked('Completed shelter no longer matches an enclosed native room; inspect its shell')
     room=rooms[0]
     if type(room.get('openRoofCount')) is not int:
-        raise SkillBlocked('Player shelter roof coverage is unknown')
+        raise SkillBlocked('Shelter roof coverage is unknown')
     if room['openRoofCount']:
         rt.current_plan.control['simulation_needed']=True
         return None
     if room.get('psychologicallyOutdoors') is not False:
-        raise SkillBlocked('Player shelter does not have verified indoor conditions')
+        raise SkillBlocked('Shelter does not have verified indoor conditions')
     return room,interior
 
 
@@ -49,7 +49,7 @@ def safe_rotation(row):
     return True
 
 
-async def sleeping_handoff(rt, facts, identity, shell):
+async def sleeping_handoff(rt, facts, identity, shell, *, reserved_cells=()):
     from .colony_skills import SkillBlocked
     observed=await verified_room(rt,shell)
     if observed is None:return None
@@ -58,7 +58,7 @@ async def sleeping_handoff(rt, facts, identity, shell):
     if not required:return None
     # Keep a continuous central aisle from the requested entrance through the room.
     aisle=entrance_aisle(shell,interior)
-    reserved=set(aisle);placements=[];attempts=0;rejections=[]
+    reserved=set(aisle)|set(reserved_cells);placements=[];attempts=0;rejections=[]
     for a,b in sorted(interior,key=lambda p:(p[1],p[0])):
         if (a,b) in reserved:continue
         for rotation in ('north','east'):
@@ -79,9 +79,11 @@ async def sleeping_handoff(rt, facts, identity, shell):
     if len(placements)<required:
         rt.current_plan.colony_goals['EnsureInitialShelter'].evidence['sleeping_fit']={
             'required':required,'selected':len(placements),'previews':attempts,'rejections':rejections}
-        raise SkillBlocked('Player shelter has insufficient verified sleeping space; expand or refine this room')
-    rt.current_plan.control['adopted_shelter']={'intent':identity,'bounds':shell['bounds'],'room_id':room['id']}
-    return 'player-sleep-'+str(facts['colonists']),[{'kind':'place_buildings','placements':placements}]
+        raise SkillBlocked('Shelter has insufficient verified sleeping space; expand or refine this room')
+    if identity is not None:
+        rt.current_plan.control['adopted_shelter']={'intent':identity,'bounds':shell['bounds'],'room_id':room['id']}
+    method=('player-sleep-' if identity is not None else 'starter-sleep-')+str(facts['colonists'])
+    return method,[{'kind':'place_buildings','placements':placements}]
 
 
 def player_shelter(plan):

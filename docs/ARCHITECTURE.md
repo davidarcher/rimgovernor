@@ -89,7 +89,10 @@ guaranteed. Harvest ETA remains an optimistic lower bound.
 Goals record selected methods, attempts, step IDs and observable progress.
 Invalid templates have a bounded alternative-site search; unknown or failed
 native actions become explicit blockers. A no-progress watchdog prevents silent
-indefinite waiting. The current starter template supports up to eight colonists.
+indefinite waiting. Above eight colonists, starter sleeping uses verified room and
+native footprint fitting, preserving its entrance aisle and three service rows.
+The fixed shell can still exhaust capacity and then requires explicit expansion;
+controller fitting checks do not establish larger-colony gameplay acceptance.
 The initial faction/settlement naming prompt is a maintained bootstrap goal.
 Its semantic native action validates the exact observed generated suggestions,
 uses the native naming callbacks and verifies the names and dialog closure.
