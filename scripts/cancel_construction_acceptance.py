@@ -1,4 +1,4 @@
-"""Exact native construction cancellation; independent of semantic interpretation."""
+"""Native construction cancellation, shared execution and optional local chat acceptance."""
 import argparse
 import asyncio
 import json
@@ -11,11 +11,13 @@ from rimbot.store import Store
 from rimbot.player_commands import apply_command
 from rimbot.colony_plan import ColonyGoal, CommitSteps
 from rimbot.campaign_manifest import capture_manifest
+from rimbot.config import Settings
 
 
 async def run(args):
     root=isolated_root(args.source_root,args.output/'bridge');configuration=prepare(root)
-    store=Store(args.output/'state.sqlite');rt=BridgeRuntime(store,root,fresh=True,headless=True)
+    store=Store(args.output/'state.sqlite');rt=BridgeRuntime(store,root,fresh=True,headless=True,
+        settings=Settings(model=args.model,timeout_seconds=90) if args.chat else None)
     report={'outcome':'failed','cases':[],'scope':'Native blueprint cancellation only; no frame-refund or semantic acceptance'}
     def record(name,passed,**evidence):
         report['cases'].append(dict(name=name,passed=bool(passed),**evidence))
@@ -115,7 +117,21 @@ async def run(args):
             remaining=captured & {b['thingId'] for b in (await listed())['buildings']}
             record('lost_receipt_stops_batch',len(remaining)==len(captured)-1
                 and rt.current_plan.progress[requested['step']].state=='blocked')
-            retry=await command(kind='CancelConstruction',intent_id='cancel-room')
+            if args.chat:
+                prompt='Cancel construction of cancel-room. Remove its remaining pending blueprints and frames. Keep completed buildings and unrelated construction orders.'
+                await rt.steer(prompt)
+                revision=rt.chat_revision
+                async with asyncio.timeout(180):
+                    while rt.current_plan.control.get('interpreted_player_revision',0)<revision or rt.deliberating:
+                        await asyncio.sleep(.5)
+                candidates=[s for s in rt.current_plan.spec.steps if s.action.kind=='cancel_construction'
+                    and s.action.source_step==placed['step'] and s.id!=requested['step']]
+                report['chat']={'prompt':prompt,'model':args.model,'messages':[m for m in rt.chat if m.get('revision')==revision]}
+                record('local_chat_selected_remaining_cancellation',len(candidates)==1,
+                    messages=report['chat']['messages'])
+                retry={'step':candidates[0].id}
+            else:
+                retry=await command(kind='CancelConstruction',intent_id='cancel-room')
             retry_step=next(s for s in rt.current_plan.spec.steps if s.id==retry['step'])
             record('repeat_observes_remaining_exact_targets',{t.thing for t in retry_step.action.targets}==remaining)
             await rt.execute_manual_requests()
@@ -126,7 +142,8 @@ async def run(args):
             await rt.execute_manual_requests()
             record('completed_repeat_has_no_native_targets',repeated['targets']==0
                 and rt.current_plan.progress[repeated['step']].state=='complete')
-            record('shared_manual_paused_zero_inference',rt.mode=='manual' and rt.counters['model_calls']==0
+            record('shared_manual_paused_expected_inference',rt.mode=='manual'
+                and (rt.counters['model_calls']>0 if args.chat else rt.counters['model_calls']==0)
                 and (await rt.game.query('home/status',colonists=False,threats=False))['time']['paused'])
             report['scope']='Native blueprint and shared semantic/Hands cancellation, including a lost successful receipt; no frame-refund or local-model acceptance'
             if args.frame:
@@ -211,6 +228,11 @@ async def run(args):
                     and all(after[d]-before[d]==count for d,count in held.items()),
                     frame=frame,held=held,ground_before=before,ground_after=after,tick=tick)
                 report['scope']='Native blueprint/shared Hands cancellation, lost receipt, and ordinary partial-frame material refund; no local-model or mixed restart acceptance'
+        coverage=['Exact native blueprint cancellation']
+        if args.shared:coverage.append('shared Hands and lost-receipt recovery')
+        if args.frame:coverage.append('ordinary partial-frame material refund')
+        if args.chat:coverage.append('one actual local-model cancellation request')
+        report['scope']=', '.join(coverage)+'. No mixed restart acceptance or general model reliability claim.'
         report['outcome']='passed'
     except Exception as error:
         report['error']=str(error)
@@ -227,6 +249,9 @@ if __name__=='__main__':
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--shared',action='store_true')
     parser.add_argument('--frame',action='store_true',help='With --shared, verify ordinary partial-frame construction and material refund')
+    parser.add_argument('--chat',action='store_true',help='Use actual local-model chat for the fresh cancellation after a lost receipt')
+    parser.add_argument('--model',default='qwen3.5-4b',help='Exact local LM Studio model for --chat')
     args=parser.parse_args()
     if args.frame and not args.shared:parser.error('--frame requires --shared')
+    if args.chat and not args.shared:parser.error('--chat requires --shared')
     raise SystemExit(0 if asyncio.run(asyncio.wait_for(run(args),420)) else 1)

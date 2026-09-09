@@ -53,8 +53,9 @@ in the checkpoint commit; do not append an implementation diary here.
   then add electrical generation/connectivity,
   research, comfort and expansion methods. Threats beyond the bounded small-animal method and unavailable power methods
   report explicit blockers instead of asking a model to improvise.
-- [ ] **B04g · Native command acceptance.** Extend the isolated native chat probe to construction, room
-  refinements and cancellation of issued construction. Broaden research selection,
+- [ ] **B04g · Native command acceptance.** Extend the isolated native chat probe to construction and room
+  refinements. Issued-construction cancellation after a lost receipt has one native
+  local-model acceptance case; broaden wording and context. Broaden research selection,
   refusal and persistent goal cancel/resume coverage across projects, models and
   save/load boundaries. Measure schema-valid semantic errors, including wrong
   resources and erroneous reserve-tool selection, separately from native refusals and
@@ -76,8 +77,6 @@ in the checkpoint commit; do not append an implementation diary here.
   using bounded terrain, supplies, danger, fertility and travel evidence. Accept
   ruins/nonrectangular shelters; reject sealed rooms, blocked corridors and farm
   overlap. Validate native floor/roof/area/designator coverage before adding tools.
-  Reject furniture footprints crossing another pending blueprint even when the
-  native placement preview accepts that overlapping designation.
 - [ ] **B07 · Durable project scheduling.** Extend basic building/zone/installation
   reconciliation with maintained functional goals, resource competition and
   production consumption. Verify dependent work, player edits, save rewinds and

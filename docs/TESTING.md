@@ -412,7 +412,11 @@ tick remains unchanged. The fixture rejects footprints overlapping existing orde
 Its explicit simulation driver waits for controller review pauses; an ancient-danger
 warning can be acknowledged only after recording it and verifying no active hostile
 or hunting-predator count. Other danger stops fail the probe. This does not establish
-local-model interpretation or mixed restart acceptance. Install its companion and
+mixed restart acceptance. Add `--chat --model <local-model-id>` with `--shared`
+to send the fresh cancellation request through actual player chat after the lost
+receipt. The probe checks the resulting exact target set, native removal, preserved
+unrelated orders and paused Manual mode. This single request is not a general
+model reliability measurement. Install its companion and
 restore the previous DLL only with every game stopped.
 
 On a checkpoint-capable owned session, use Autopilot's **Save checkpoint and pause**
