@@ -11,6 +11,7 @@ import hashlib
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from rimbot.bridge_runtime import BridgeRuntime
+from rimbot.bridge import runtime_file_read
 from rimbot.campaign_manifest import capture_manifest
 from rimbot.headless import isolated_root, prepare, prepare_rendered
 from rimbot.store import Store
@@ -124,7 +125,7 @@ async def run(args):
             await asyncio.sleep(1)
         if not rt.connected: raise RuntimeError('Colony connection timed out')
         if getattr(args,'food_observer',False):
-            report['food_observer']=(await rt.bridge.call('test/food_observe')).structuredContent
+            report['food_observer']=(await runtime_file_read(rt.bridge.call,'test/food_observe')).structuredContent
         report['initial_game_tick']=rt.batch.summary.end_tick
         report['starting_colonists']=sorted(p.thing_id for p in rt.batch.summary.pawns if not p.dead)
         initial_token=rt.context_token
@@ -179,7 +180,7 @@ async def run(args):
                    'goals':{k:{'status':v.status,'reason':v.reason,'method':v.method} for k,v in rt.current_plan.colony_goals.items()}}
             report['history'].append(row)
             if getattr(args,'food_observer',False):
-                report['food_observer']=(await rt.bridge.call('test/food_observe')).structuredContent
+                report['food_observer']=(await runtime_file_read(rt.bridge.call,'test/food_observe')).structuredContent
                 (args.output/'food-observer.json').write_text(json.dumps(report['food_observer'],indent=2),encoding='utf8')
                 assert not report['food_observer']['truncated']
                 report.setdefault('food_acceptance',{'target_observations':[]})
