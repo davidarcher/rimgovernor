@@ -93,3 +93,31 @@ async def test_held_input_blocks_native_writes_and_manual_dispatch_even_after_ex
     rt.manual_requests=[('a','load-a',5)]
     await BridgeRuntime.execute_manual_requests(rt)
     assert rt.manual_requests==[] and rt.manual_execution is None
+
+@pytest.mark.asyncio
+async def test_selection_requires_owner_current_pawn_and_native_readback():
+    rt=runtime(); await request(rt,'input/take'); owner={'lease_id':rt.player_input.token}
+    rt.headless=False
+    async def detail(tool):
+        return SimpleNamespace(structuredContent={'inputSchema':{'type':'object','properties':{
+            'currentMapOnly':{'type':'boolean'},'pawnId':{'type':'string'},'append':{'type':'boolean'}}}})
+    rt.bridge=SimpleNamespace(detail=AsyncMock(side_effect=detail),call=AsyncMock(side_effect=[
+        SimpleNamespace(structuredContent={'success':True,'colonists':[{'pawnId':'pawn','spawned':True}]}),
+        SimpleNamespace(structuredContent={'success':True}),
+        SimpleNamespace(structuredContent={'success':True,'selectedCount':1,'selectedObjects':[{'id':'pawn'}]})]))
+    assert (await request(rt,'input/select',pawn_id='pawn')).status_code==400
+    assert (await request(rt,'input/select',pawn_id='pawn',**owner)).status_code==200
+    assert rt.bridge.call.await_args_list[1].args==('rimworld/select_pawn',)
+    assert rt.bridge.call.await_args_list[1].kwargs=={'pawnId':'pawn','append':False}
+    rt.bridge.call.side_effect=[SimpleNamespace(structuredContent={'success':True,'colonists':[]})]
+    assert (await request(rt,'input/select',pawn_id='gone',**owner)).status_code==400
+
+
+@pytest.mark.asyncio
+async def test_clear_selection_needs_observed_empty_selection():
+    rt=runtime(); await request(rt,'input/take'); rt.headless=False
+    rt.bridge=SimpleNamespace(detail=AsyncMock(return_value=SimpleNamespace(structuredContent={'inputSchema':{'type':'object'}})),
+        call=AsyncMock(side_effect=[SimpleNamespace(structuredContent={'success':True}),
+            SimpleNamespace(structuredContent={'success':True,'selectedCount':1,'selectedObjects':[{'id':'still-selected'}]})]))
+    assert (await request(rt,'input/select',lease_id=rt.player_input.token)).status_code==400
+    assert rt.bridge.call.await_count==2

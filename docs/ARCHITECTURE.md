@@ -568,7 +568,10 @@ required before acknowledgement. A 15-second lease renews through heartbeats.
 Expiry leaves a Manual hold, rejecting input until another explicit takeover.
 Model/controller writes and generic Automate remain blocked until owner release;
 load changes clear ownership. Browser blur, hidden tabs and unmount request release
-without resuming automation. Only explicit Resume automation enables it again.
+without resuming automation. Only explicit Resume automation enables it again. Only the owning viewer can
+select a current-map colonist through the stable-ID selector or clear selection.
+The server discovers native schemas and checks both the live roster and a separate
+selection readback. These explicit player operations remain outside model tools.
 
 Action follow opts into the discovered native `watch` argument for supported real
 writes only. Reads, dry runs and unsupported tools do not gain camera behavior.

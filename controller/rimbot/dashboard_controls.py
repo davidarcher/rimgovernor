@@ -97,6 +97,46 @@ class CameraNavigation(PlayerControl):
     action: Literal['left', 'right', 'up', 'down', 'in', 'out']
 
 
+class PawnSelection(TakeControl):
+    pawn_id: str = Field(default='', max_length=100)
+
+
+@router.post('/input/select')
+async def select_pawn(body: PawnSelection, request: Request):
+    rt = request.app.state.rt
+    async with rt.lock:
+        async def guard():
+            await check_session(rt, body.session_id)
+            require_owner(rt, body.session_id, body.viewer_id, body.lease_id)
+            if rt.headless:
+                raise ValueError('Player selection needs a rendered game')
+        await guard()
+        roster_tool, roster_args = 'rimworld/list_colonists', {'currentMapOnly': True}
+        read = 'rimworld/get_selection_semantics'
+        await camera_contract(rt, read, {})
+        if body.pawn_id:
+            await camera_contract(rt, roster_tool, roster_args)
+            await guard()
+            roster = await camera_call(rt, roster_tool, roster_args)
+            if not any(p.get('pawnId') == body.pawn_id and p.get('spawned') is True
+                       for p in roster.get('colonists', [])):
+                raise ValueError('Colonist is no longer spawned on the current map')
+        tool = 'rimworld/select_pawn' if body.pawn_id else 'rimworld/clear_selection'
+        arguments = {'pawnId': body.pawn_id, 'append': False} if body.pawn_id else {}
+        await camera_contract(rt, tool, arguments)
+        await guard()
+        rt.game.cinematic = False
+        await camera_call(rt, tool, arguments)
+        await guard()
+        after = await camera_call(rt, read, {})
+        await guard()
+        ids = [p.get('id') for p in after.get('selectedObjects', [])]
+        expected = [body.pawn_id] if body.pawn_id else []
+        if ids != expected or after.get('selectedCount') != len(expected):
+            raise ValueError('Native selection did not match; inspect the view before retrying')
+        return {'selection': after}
+
+
 async def camera_contract(rt, tool, arguments):
     detail = await runtime_file_read(rt.bridge.detail, tool)
     schema = dict(detail.structuredContent['inputSchema'], additionalProperties=False)
@@ -110,7 +150,7 @@ async def camera_call(rt, tool, arguments):
     payload = result.structuredContent
     if (getattr(result, 'isError', False) or not isinstance(payload, dict)
             or payload.get('success') is not True or payload.get('unknownArguments')):
-        raise ValueError('Camera request was not confirmed; inspect the view before retrying')
+        raise ValueError('Native player request was not confirmed; inspect the view before retrying')
     return payload
 
 

@@ -142,6 +142,9 @@ def run(args):
                 {'session_id': workers[1]['session'], 'action': 'right'})
             report['survivor_frame'] = capture(workers[1], 'survivor.png', report['frames'][1]['sha256'])
             assert clock(workers[1], 'Paused')['ticksGame'] == before[1]['ticksGame']
+        if args.player_input:
+            from player_input_acceptance import accept
+            report['player_input'] = accept(api, workers[1])
         checkpoint = api(workers[1], '/api/session/checkpoint', {'session_id': workers[1]['session']})
         report['checkpoint'] = checkpoint
         manifest = Path(checkpoint['manifest_path']).relative_to('/worker')
@@ -199,6 +202,7 @@ if __name__ == '__main__':
     for name in ('game', 'mods', 'profile', 'gabs', 'output'):
         parser.add_argument('--'+name, type=Path, required=True)
     parser.add_argument('--display', choices=['headless', 'xvfb'], default='headless')
+    parser.add_argument('--player-input', action='store_true', help='Verify B18 handoff and selection in a rendered worker')
     parser.add_argument('--resolution', default='1280x720')
     parser.add_argument('--image', default='rimbot-worker:local')
     parser.add_argument('--no-build', action='store_true')

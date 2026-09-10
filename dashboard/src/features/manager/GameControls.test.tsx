@@ -71,3 +71,16 @@ it('releases an acquisition that completes after the viewer loses focus',async()
  await waitFor(()=>expect(fetch).toHaveBeenCalledWith('/api/input/release',expect.anything()));
  expect(screen.queryByRole('button',{name:'You have control'})).toBeNull();
 });
+
+it('requires ownership before selecting a colonist in the native game',async()=>{
+ const fetch=vi.fn(async(_url: string,_options?: RequestInit)=>({ok:true,json:async()=>({lease_id:'lease-a'})}));vi.stubGlobal('fetch',fetch);
+ render(<GameControls sessionId="load-a" connected stale={false} pawns={[{thing_id:'Human1',name:'Ada'}]} onError={()=>{}}/>);
+ expect(screen.queryByRole('combobox',{name:'Select colonist in game'})).toBeNull();
+ fireEvent.click(screen.getByRole('button',{name:'Take control'}));
+ const select=await screen.findByRole('combobox',{name:'Select colonist in game'});
+ await waitFor(()=>expect(select).not.toBeDisabled());
+ fireEvent.change(select,{target:{value:'Human1'}});
+ await waitFor(()=>expect(fetch).toHaveBeenCalledWith('/api/input/select',expect.objectContaining({body:expect.stringContaining('Human1')})));
+ const call=fetch.mock.calls.find(c=>c[0]==='/api/input/select')!;
+ expect(JSON.parse(call[1]!.body as string)).toMatchObject({session_id:'load-a',lease_id:'lease-a',pawn_id:'Human1'});
+});

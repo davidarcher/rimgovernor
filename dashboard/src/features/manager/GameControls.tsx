@@ -8,6 +8,7 @@ export default function GameControls({
   headless,
   following,
   speed,
+  pawns = [],
   onError,
 }: {
   sessionId: string;
@@ -17,6 +18,7 @@ export default function GameControls({
   headless?: boolean;
   following?: boolean;
   speed?: string;
+  pawns?: { thing_id: string; name: string }[];
   onError: (error: string) => void;
 }) {
   const [busy, setBusy] = useState(false),
@@ -102,7 +104,8 @@ export default function GameControls({
       if (path === "input/release") setLease("");
       setNotice(
         path.startsWith("input/")
-          ? path === "input/take" ? "Player control acquired. Game paused." : "Player control released."
+          ? path === "input/take" ? "Player control acquired. Game paused."
+            : path === "input/select" ? "Native selection confirmed." : "Player control released."
           : path === "time"
           ? "Game control is now manual. Native state updates below."
           : path === "camera/navigate"
@@ -128,6 +131,14 @@ export default function GameControls({
           <button disabled={disabled} onClick={() => act("input/release", { resume: true })}>Resume automation</button>
         </>}
       </div>
+      {lease && <label>Select in game{" "}
+        <select aria-label="Select colonist in game" value="" disabled={disabled || headless}
+          onChange={e => { if (e.target.value) void act("input/select", { pawn_id: e.target.value }); }}>
+          <option value="">Choose a colonist</option>
+          {pawns.map(p => <option key={p.thing_id} value={p.thing_id}>{p.name}</option>)}
+        </select>
+        <button disabled={disabled || headless} onClick={() => act("input/select", { pawn_id: "" })}>Clear selection</button>
+      </label>}
       <div className="clock-controls">
         <span className="mgr-eyebrow">GAME TIME</span>
         <div className="mgr-switch" role="group" aria-label="Native game time">

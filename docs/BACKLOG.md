@@ -187,8 +187,8 @@ in the checkpoint commit; do not append an implementation diary here.
   action follow without changing clock or automation, clamps zoom to the normal
   native range and never retries uncertain writes. Still validate pan directions,
   map-edge clamping, zoom limits and concurrent native camera movement in a
-  rendered game; protocol tests do not establish gameplay acceptance. Selection,
-  context menus, pointer/key discovery and the ownership handoff below remain open.
+  rendered game; protocol tests do not establish gameplay acceptance. Context menus, pointer/key discovery and native
+  gesture ownership cleanup remain open.
 
   **Player handoff.** Add Take control and Resume automation. Taking control must
   invalidate pending autonomous work, suspend cinematic framing and acknowledge
@@ -209,6 +209,14 @@ in the checkpoint commit; do not append an implementation diary here.
   Model/controller writes and generic Automate cannot bypass the hold. Validate
   this against native pending controller work and actual browser disconnects.
   Held-button/modifier cleanup awaits the native gesture implementation.
+
+  Lease-owned colonist selection and clearing are implemented through a fixed
+  player-only API. Stable pawn IDs are checked against the current-map native
+  roster before dispatch; a separate selection readback confirms the exact result.
+  The dashboard selector does not depend on pixel coordinates. Context menus,
+  direct image clicks, drag/designation, hover, scrolling and modifiers still need
+  native contracts and frame-bound interaction; do not enable raw image input
+  based only on a recent snapshot or camera rectangle.
 
   **Frame and gesture integrity.** Map browser coordinates through the actual
   displayed image bounds, including letterboxing, resolution changes, fullscreen

@@ -394,6 +394,7 @@ export default function BridgeColony() {
               headless={s?.headless}
               following={s?.cinematic}
               speed={s?.clockSupervisor?.requestedSpeed}
+              pawns={s?.observation?.pawns}
               onError={setError}
             />
             <div className="bridge-summary">

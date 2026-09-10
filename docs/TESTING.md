@@ -896,6 +896,13 @@ PNG presence and size alone do not establish visual correctness. Use a fresh out
 for a matching headless comparison. Frame transport, input gestures and sustained
 rendering overhead require their own acceptance under B17/B18.
 
+For B18 handoff and stable-ID selection, also pass `--player-input` with
+`--display xvfb`. The survivor acquires a lease, rejects other viewers and stale
+credentials, selects a current-map colonist, confirms the selection through a
+separate native read, clears it and releases into Manual. The probe renews its
+lease like the browser and retains per-request evidence in `player-input.json`.
+These checks do not exercise raw image coordinates, drag/modifiers or WebRTC.
+
 ### Steam Linux inputs
 
 Use the signed-in Steam client's console (`steam://nav/console`) to query
