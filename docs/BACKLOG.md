@@ -99,15 +99,39 @@ in the checkpoint commit; do not append an implementation diary here.
   Rich soil improves growth speed, not yield per harvest. Keep projected production
   separate from stored food and observed growing cells; unknown season/access data
   must not certify food security or trigger destructive crop switching.
+  Extend selection to crop/site/infrastructure combinations: outdoor soil, sun-lamp
+  greenhouses over natural soil, sun-lamp hydroponics and eligible dark fungus rooms.
+  Favor controlled environments as observed resources, power reliability, seasonal
+  limits and travel/space costs justify them; do not use a fixed late-game flag.
+  Compare reuse of existing facilities with the incremental material, construction
+  labor and operating costs of new ones. Score additional productive season,
+  actually usable illuminated cells, heating/cooling, grower labor and hauling.
+  Read native lamp schedules, light footprints, basin loads and crop compatibility;
+  daylight peak demand, continuous basin power and thermal demand must fit the
+  power network, not merely a nighttime surplus. Sun lamps do not require basins;
+  corn can use greenhouse soil but cannot use hydroponics. Distinguish interrupted
+  growth in soil from crop loss in unpowered basins, including solar flares and
+  thermal failures; retain food reserves and avoid concentrating all production
+  behind one failure mode. Coordinate infrastructure prerequisites with B04f.
+  For fungus, verify native availability, suitable darkness, temperature, soil and
+  food preferences; start with existing suitable rooms before planning a facility.
+  Replace blanket indoor-farm refusal only with verified crop-specific light and
+  environment contracts. Unknown infrastructure observations must block admission.
   Acceptance: nearby versus distant rich soil, poor-soil potato selection, urgent
   rice versus adequately buffered corn, short/unknown seasons, contiguous expansion,
   fragmented terrain, preserved player zones, changed direction and lost receipts.
+  Cover greenhouse reuse versus new construction, daytime power shortfalls, lamp
+  coverage, incompatible basin crops, winter heating, outages and dark-room eligibility.
   Add deterministic fixtures, then native scenarios observing sowing, travel,
   harvest and replenished food stocks; zone receipts alone do not establish success.
   Strategy references: RimWorld Wiki [rice](https://rimworldwiki.com/wiki/Rice_plant),
   [corn](https://rimworldwiki.com/wiki/Corn_plant),
   [potatoes](https://rimworldwiki.com/wiki/Potato_plant) and
-  [plant growth](https://rimworldwiki.com/wiki/Plants#Fertility).
+  [plant growth](https://rimworldwiki.com/wiki/Plants#Fertility),
+  [sun lamps](https://rimworldwiki.com/wiki/Sun_lamp),
+  [hydroponics](https://rimworldwiki.com/wiki/Hydroponics),
+  [outage consequences](https://rimworldwiki.com/wiki/Events_Guide) and
+  [nutrifungus](https://rimworldwiki.com/wiki/Nutrifungus).
 - [ ] **B07 · Durable project scheduling.** Extend maintained functional goals,
   resource competition and production-consumption accounting through the shared
   plan and Hands; coordinate ingredient-policy coverage with B04e. Verify real
