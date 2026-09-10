@@ -877,6 +877,19 @@ receipt succeeds. Complete it only when its stated behavioral gate is met. If
 licensed inputs, installed models or platform coverage are unavailable, land only
 the independently accepted gated subchunk and keep the blocked acceptance open.
 
+## Development tooling
+
+- [ ] **DEV01 · Enforce the development standard incrementally.** Follow the
+  [development process](how-to/development-process.md). Audit existing enforcement
+  before adding checks. G01.01c owns Go formatting/vet/test/race/platform gates and
+  G01.02 owns schema drift; keep those tasks there. Add scoped strict Python checking
+  for retained tooling and changed typed boundaries, explicit TypeScript escape
+  checks and compatible C# boundary/null checks. Start with bounded clean surfaces;
+  record excluded legacy paths and expand coverage without blanket suppressions.
+  Audit dependency locking and documented configuration precedence against the
+  Twelve-Factor guidance. Accept reproducible checks that reject representative
+  typing/contract regressions and docs that distinguish enforced rules from policy.
+
 ## Completion rule
 
 For each item record the observed failure, focused fix, source revision, checks,

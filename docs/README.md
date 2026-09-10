@@ -6,6 +6,7 @@ point by what you want to do or understand.
 
 | Your question | Start here |
 | --- | --- |
+| How should agents design, implement and land changes? | [Development process](how-to/development-process.md) |
 | Can I try the development workflow without installing the game? | [Tutorial: your first Docker test](tutorials/first-docker-test.md) |
 | How do I run, test or recover something? | [How-to guides](how-to/README.md) |
 | Which module, contract or artifact do I need? | [Technical reference](reference/README.md) |

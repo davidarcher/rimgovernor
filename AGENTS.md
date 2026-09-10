@@ -13,6 +13,9 @@
 
 ## Architecture and implementation
 
+- Follow the [development process](docs/how-to/development-process.md): small verified
+  slices, strict typed contracts and explicit component ownership. Integrate features
+  through existing architecture; keep unstructured data at validated boundaries.
 - Start with the [documentation map](docs/README.md), [system overview](docs/explanation/overview.md),
   [backlog](docs/BACKLOG.md) and [test selection](docs/how-to/choose-tests.md).
   Read the linked explanation and reference for the subsystem being changed;

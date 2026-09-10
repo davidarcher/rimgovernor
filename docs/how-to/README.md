@@ -7,6 +7,7 @@ first guided exercise, use [your first Docker test](../tutorials/first-docker-te
 
 ## Set up and operate
 
+- [Develop a cohesive, typed change](development-process.md)
 - [Set up a Windows development checkout](setup.md)
 - [Launch a prepared colony](launch.md)
 - [Save and resume a session](save-and-resume.md)
