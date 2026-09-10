@@ -1,5 +1,6 @@
 """Native waste hauling through shared goals and Hands in a disposable Docker worker."""
 import asyncio
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -17,6 +18,10 @@ from rimbot.waste_management import refresh, pending_items
 async def run():
     root = Path(os.environ['RIMBOT_BRIDGE_ROOT'])
     report = {'passed': False, 'cases': [], 'scope': 'Scripted native waste hauling; no model inference'}
+    source = Path(__file__).resolve().parents[1]
+    report['source_sha256'] = {str(p.relative_to(source)): hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in [*sorted((source/'controller/rimbot').rglob('*.py')),
+                  *sorted((source/'integrations/colony-bridge/src').rglob('*.cs')), Path(__file__)]}
     def record(name, passed, **evidence):
         report['cases'].append(dict(name=name, passed=bool(passed), **evidence))
         (root/'waste-result.json').write_text(json.dumps(report, indent=2))
@@ -59,7 +64,11 @@ async def run():
                 await refresh(rt)
                 if not pending_items(rt.current_plan.control['waste']):
                     break
-                method, actions = await rt.controller.skills.compile('MaintainWaste', {}, [])
+                try:
+                    method, actions = await rt.controller.skills.compile('MaintainWaste', {}, [])
+                finally:
+                    report['planning'] = goal.model_dump(mode='json')
+                    (root/'waste-result.json').write_text(json.dumps(report, indent=2))
                 steps, _ = rt.controller.skills.steps('MaintainWaste', method, actions, {'definitions': {}})
                 await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
                     reason='Native waste containment acceptance', steps=steps).decision(rt.current_plan), actor='strategist',
@@ -87,6 +96,8 @@ async def run():
             record('exposure_reduced_without_destruction', all(next(r for r in state['items'] if r['thingId'] == target)['state'] == ('buried' if burial else 'relocated')
                 for target in targets), state=state)
             record('no_remaining_exposed_targets', pending_items(state) == [])
+            await rt.controller.cycle()
+            record('maintained_goal_clears_from_native_outcome', rt.current_plan.colony_goals['MaintainWaste'].status == 'complete')
             if burial:
                 refusal = (await bridge.call('home/manage_waste', thingId=fixture['corpse'], pawn=fixture['pawn'],
                                              bury=fixture['corpse'], dryRun=True)).structuredContent

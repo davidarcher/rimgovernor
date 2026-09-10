@@ -36,6 +36,10 @@ def committed_projects(plan):
 
 def deficit(identity, goal, facts, policy):
     """Comparable deficit fractions, not predicted utility or completion times."""
+    if identity == 'MaintainWaste':
+        from .waste_management import pending_items
+        pending = pending_items(goal.evidence.get('observation', {}))
+        return None if pending is None else int(bool(pending))
     if identity == 'EnsureFoodStorage':
         return 0 if facts.get('foodStorage') is True else 1
     if identity == 'EnsureBasicDefense':

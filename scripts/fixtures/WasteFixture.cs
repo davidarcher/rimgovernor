@@ -52,7 +52,12 @@ namespace HomeBridge.BridgeTools
                     zone.GetStoreSettings().filter.SetDisallowAll();
                     zone.GetStoreSettings().filter.SetAllow(corpse.def, true);
                     zone.GetStoreSettings().filter.SetAllow(unwanted.def, true);
+                    foreach (var special in DefDatabase<SpecialThingFilterDef>.AllDefsListForReading.Where(d => d.configurable))
+                        zone.GetStoreSettings().filter.SetAllow(special, true);
                     zone.GetStoreSettings().Priority = StoragePriority.Critical;
+                    // Native stockpile creation may expand Home; this fixture
+                    // deliberately models player-selected dirty storage outside it.
+                    foreach (var cell in zone.Cells) map.areaManager.Home[cell] = false;
                 }
                 pawn.workSettings.SetPriority(WorkTypeDefOf.Hauling, 1);
                 return (object)new { success = true, pawn = pawn.GetUniqueLoadID(), corpse = corpse.GetUniqueLoadID(),

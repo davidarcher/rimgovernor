@@ -68,23 +68,24 @@ async def compile_method(rt, goal):
         raise SkillBlocked('Native waste state unavailable; no containment or disposal claim is possible')
     people = rt.batch.native.get('pawns', {}).get('pawns', [])
     refusals = []
-    for row in sorted(items, key=lambda r: (r.get('kind') != 'corpse', r['thingId']))[:8]:
-        for pawn in sorted(people, key=lambda p: p['thingId']):
-            if pawn.get('dead') or pawn.get('downed') or pawn.get('drafted') or pawn.get('mentalState'):
-                continue
-            args = dict(arguments(rt.current_plan), thingId=row['thingId'], pawn=pawn['thingId'])
-            method = 'contain-' + fingerprint(args)[:16]
-            if goal.method_seen(method):
-                continue
-            preview = await rt.inspect_native('home/manage_waste', dict(args, dryRun=True))
-            if preview.get('success') is True and preview.get('accepted') is True:
-                goal.evidence['containment'] = preview
-                return method, [dict(native('home/manage_waste', **args), completion='waste_contained')]
-            refusals.append(preview)
-            if len(refusals) >= 8:
-                break
-        if len(refusals) >= 8:
-            break
+    items = sorted(items, key=lambda r: (r.get('kind') != 'corpse', r['thingId']))
+    people = sorted((p for p in people if not any(p.get(k) for k in ('dead', 'downed', 'drafted', 'mentalState'))),
+                    key=lambda p: p['thingId'])
+    pairs = len(items) * len(people)
+    cursor = goal.evidence.get('preview_cursor', 0)
+    for offset in range(min(8, pairs)):
+        index = (cursor + offset) % pairs
+        row, pawn = items[index // len(people)], people[index % len(people)]
+        goal.evidence['preview_cursor'] = (index + 1) % pairs
+        args = dict(arguments(rt.current_plan), thingId=row['thingId'], pawn=pawn['thingId'])
+        method = 'contain-' + fingerprint(args)[:16]
+        if goal.method_seen(method):
+            continue
+        preview = await rt.inspect_native('home/manage_waste', dict(args, dryRun=True))
+        if preview.get('success') is True and preview.get('accepted') is True:
+            goal.evidence['containment'] = preview
+            return method, [dict(native('home/manage_waste', **args), completion='waste_contained')]
+        refusals.append(preview)
     if items:
         goal.evidence['refusals'] = refusals
         raise SkillBlocked('No eligible waste haul within current native filters, destination separation, labor and player policy; no zones or possessions changed')

@@ -20,6 +20,31 @@ def test_receipts_cannot_complete_waste_work():
         NativeOperation(tool='home/order', arguments={}, completion='waste_contained')
 
 
+def test_waste_deficit_enters_shared_development_admission():
+    from rimbot.development_priorities import deficit
+    from rimbot.colony_policy import ColonyPolicy
+    goal = ColonyGoal(priority_class=3)
+    assert deficit('MaintainWaste', goal, {}, ColonyPolicy()) is None
+    goal.evidence['observation'] = {'success': True, 'items': []}
+    assert deficit('MaintainWaste', goal, {}, ColonyPolicy()) == 0
+    goal.evidence['observation']['items'] = [{'eligible': True, 'state': 'exposed'}]
+    assert deficit('MaintainWaste', goal, {}, ColonyPolicy()) == 1
+
+
+@pytest.mark.asyncio
+async def test_native_deficit_creates_maintained_goal_and_cancellation_suppresses_it():
+    from test_colony_controller import Replay
+    rt = Replay()
+    rt.facts['waste'] = {'success': True, 'items': [{'thingId': 'Thing_Corpse1', 'eligible': True, 'state': 'exposed'}]}
+    await rt.controller.cycle()
+    goal = rt.current_plan.colony_goals['MaintainWaste']
+    assert goal.priority_class == 3 and goal.source == 'AUTOPILOT'
+    goal.cancelled = True
+    await rt.controller.cycle()
+    assert rt.current_plan.colony_goals['MaintainWaste'] is goal
+    assert goal.cancelled
+
+
 @pytest.mark.parametrize('state', ['relocated', 'buried'])
 def test_exact_containment_is_verified(state):
     assert outcome(action(), {}, {'success': True, 'items': [{'thingId': 'Thing_Corpse1', 'state': state}]}, []) == 'complete'
@@ -100,6 +125,24 @@ async def test_candidate_selection_is_bounded_and_previews_only():
     with pytest.raises(SkillBlocked):
         await compile_method(rt, goal)
     assert rt.inspect_native.await_count == 8
+
+
+@pytest.mark.asyncio
+async def test_refused_target_cannot_starve_later_accessible_waste():
+    from rimbot.colony_skills import SkillBlocked
+    plan = ColonyPlan()
+    goal = ColonyGoal(priority_class=3)
+    plan.colony_goals['MaintainWaste'] = goal
+    plan.control['waste'] = {'success': True, 'items': [
+        {'thingId': identity, 'eligible': True, 'state': 'exposed'} for identity in ('Thing_A', 'Thing_B')]}
+    async def preview(_, args):
+        return {'success': True, 'accepted': args['thingId'] == 'Thing_B'}
+    rt = SimpleNamespace(current_plan=plan, batch=SimpleNamespace(native={'pawns': {'pawns': [
+        {'thingId': f'Thing_Pawn{i}'} for i in range(8)]}}), inspect_native=preview)
+    with pytest.raises(SkillBlocked):
+        await compile_method(rt, goal)
+    _, actions = await compile_method(rt, goal)
+    assert actions[0]['arguments']['thingId'] == 'Thing_B'
 
 
 @pytest.mark.asyncio
