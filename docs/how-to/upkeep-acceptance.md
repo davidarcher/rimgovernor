@@ -74,9 +74,10 @@ partial delivery, destruction before delivery and retained proof after consumpti
 Those accounting checks are distinct from the scenario's pawn-labor acceptance.
 The scenario creates a paired checkpoint and restarts the private game. It requires
 unchanged construction identities and plan receipts, retained delivery/loss proofs,
-and exact resolution of both pieces of a pending split stack in Manual. A fixture
-then moves those pieces into covered storage to test completion of the saved
-quantity obligation; it does not claim pawn hauling after restart.
+and exact resolution of both pieces of a pending split stack in Manual. The shared
+hauling method then issues ordinary pawn work for surviving exposed portions.
+Require the original saved quantity obligation to complete through native delivery;
+the initial split stacks remain fixture inputs.
 
 For stone production and a straight-wall upgrade, use
 `python scripts/wall_upgrade_acceptance.py --source-root /worker/run --output /worker/stone --seconds 600`.
@@ -86,8 +87,15 @@ refuse construction; the fixture then supplies that prerequisite for the labor
 case. No blocks, workbench or bill are supplied. Require ordinary
 stonecutting, construction of the backup enclosure, native demolition of one owned
 wall, permanent stone construction and backup removal. Observe roof/enclosure
-between stages. The case does not establish corner replacement or recovery after
-player interruption during demolition.
+between stages. A second batch is interrupted through Manual after its demolition
+receipt; require the original wall to survive further simulation and paired restart
+without replay. This does not establish recovery of the interrupted batch.
+
+For a corner with existing support and open salvage access, use
+`python scripts/corner_upgrade_acceptance.py --source-root /worker/run --output /worker/corner --seconds 900`.
+Require funded stone replacement, ordinary demolition and completed construction
+with retained roof/enclosure. No temporary walls may obstruct exterior salvage
+access. Both probes preserve unknown roof-support geometry as a blocker.
 
 For animal feed, use
 `python scripts/animal_feed_acceptance.py --source-root /worker/run --output /worker/feed --seconds 300`.

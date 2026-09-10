@@ -43,7 +43,7 @@ in the checkpoint commit; do not append an implementation diary here.
   safe hauling by loss risk and survival value; extend verified covered-storage
   hauling quantity tracking to unavailable capacity and interrupted pawn work.
   Native split/merge accounting, pre-delivery loss and saved quantity/construction
-  identities across paired restart are verified; resumed pawn delivery remains open.
+    identities across paired restart and ordinary resumed pawn delivery are verified.
   Item loss must remain distinct from successful protection.
   Restore temporary hauling overrides when the deficit clears. Extend verified
   floor-to-bed upgrades to shortages, unavailable research/materials, unsafe
@@ -62,9 +62,10 @@ in the checkpoint commit; do not append an implementation diary here.
   after native support/access checks; retain roofs, enclosure and escape routes
   throughout each replacement batch. Verify extinguished fires, completed repairs
   and remaining support rather than designations or worker assignments alone.
-  Finish native acceptance of guarded straight-wall bundles, extend backup geometry
-  to corners, and exercise material loss, player interruption and restart during a
-  pending demolition. Retire or recover interrupted batches without duplicate work.
+    Guarded corner replacement retains existing roof support and open salvage access;
+    native acceptance includes Manual interruption and restart during pending demolition.
+    Finish straight-wall acceptance and exercise material loss. Retire or recover
+    interrupted batches without duplicate work.
 
   **Phase 4 — Operate the food chain.** Extend B04a/B06b from bills and rooms to
   reachable ingredient staging, output storage, hauling and cleaning capacity.

@@ -5,7 +5,7 @@ namespace HomeBridge.BridgeTools
 {
     public sealed class WallRemovalRecord : IExposable
     {
-        public string Id, Target, Original, Left, Right, Permanent, Load, Blocker;
+        public string Id, Target, Original, Left, Right, Permanent, Material, Load, Blocker;
         public List<string> Backup = new List<string>();
         public int MapId, X, Z, Nx, Nz, CompletedTick;
         public long UiRevision;
@@ -15,6 +15,7 @@ namespace HomeBridge.BridgeTools
             Scribe_Values.Look(ref Id, "id"); Scribe_Values.Look(ref Target, "target");
             Scribe_Values.Look(ref Original, "original"); Scribe_Values.Look(ref Left, "left");
             Scribe_Values.Look(ref Right, "right"); Scribe_Values.Look(ref Permanent, "permanent");
+            Scribe_Values.Look(ref Material, "material");
             Scribe_Values.Look(ref Load, "load"); Scribe_Values.Look(ref Blocker, "blocker");
             Scribe_Values.Look(ref MapId, "mapId"); Scribe_Values.Look(ref X, "x"); Scribe_Values.Look(ref Z, "z");
             Scribe_Values.Look(ref Nx, "nx"); Scribe_Values.Look(ref Nz, "nz");

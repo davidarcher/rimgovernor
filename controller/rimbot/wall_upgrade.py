@@ -50,7 +50,8 @@ async def arguments(rt, step):
         raise ValueError('Original wall geometry changed')
     return dict(action='remove', target=target['current'], original=original['current'],
         left=guard.left, right=guard.right, backup=';'.join(r['current'] for r in backups),
-        permanent=permanent['current'] if permanent else '', x=guard.x, z=guard.z, nx=guard.nx, nz=guard.nz)
+        permanent=permanent['current'] if permanent else '', x=guard.x, z=guard.z, nx=guard.nx, nz=guard.nz,
+        **({'material': guard.material} if guard.material else {}))
 
 
 async def validate_bundle(spec, current, game):
@@ -104,6 +105,8 @@ async def validate_bundle(spec, current, game):
         if removal.source != 'AUTOPILOT' or removal.goal_id != step.goal_id or guard.permanent is not None \
                 or guard.original != action.replacement_of or guard.target != guard.original:
             raise ValueError('Replacement dependency does not own the original wall')
+        if guard.material is not None and guard.material != p.materials[0]:
+            raise ValueError('Guarded corner material differs from permanent construction')
         sites = await game.invoke('home/wall_upgrade_sites', dict(target=original['current']), allow_write=False)
         site = next((r for r in sites.get('sites', []) if all(r.get(k) == getattr(guard, k)
                      for k in ('x', 'z', 'nx', 'nz', 'left', 'right'))), None)
@@ -153,16 +156,26 @@ async def release_pending(rt, *, changed_only=False):
     plan = getattr(rt, 'current_plan', None)
     if plan is None:
         return
-    pending = [plan.progress[s.id] for s in plan.spec.steps
+    pending = [(s, plan.progress[s.id]) for s in plan.spec.steps
                if getattr(s.action, 'completion', None) == 'wall_removed'
                and plan.progress[s.id].issued and plan.progress[s.id].state != 'complete']
+    def batch_invalid(step):
+        goal = plan.colony_goals.get(step.goal_id)
+        if goal is None or goal.cancelled or goal.status != 'active':
+            return True
+        guard = step.action.wall_guard
+        if guard.permanent is not None:
+            return plan.progress[guard.permanent.step].state != 'complete'
+        successors = [s for s in plan.spec.steps if isinstance(s.action, Buildings)
+                      and s.action.replacement_of == guard.original and s.goal_id == step.goal_id]
+        return len(successors) != 1 or plan.progress[successors[0].id].state not in ('pending', 'executing', 'waiting')
     if changed_only:
-        pending = [p for p in pending if any(r.get('load_token') != rt.context_token
+        pending = [(s, p) for s, p in pending if batch_invalid(s) or any(r.get('load_token') != rt.context_token
             or r.get('player_direction') != plan.control.get('player_direction', 0) for r in p.issued.values())]
     if not pending:
         return
     signature = fingerprint(dict(context=rt.context_token, direction=plan.control.get('player_direction', 0),
-                                 receipts=[p.issued for p in pending]))
+                                 receipts=[p.issued for _, p in pending]))
     if plan.control.get('wall_release_signature') == signature:
         return
     result = await rt.game.invoke('home/upkeep_wall', dict(action='release', dryRun=False), allow_write=True)
@@ -171,11 +184,28 @@ async def release_pending(rt, *, changed_only=False):
     plan.control['wall_release_signature'] = signature
 
 
+def removal_record(plan, identity):
+    """Read the same immutable action before or after shared-plan archival."""
+    from .colony_plan import PlanStep, StepProgress
+    current = next((s for s in plan.spec.steps if s.id == identity), None)
+    if current is not None:
+        return current, plan.progress[identity]
+    retired = plan.control.get('retired_steps', {}).get(identity)
+    if retired is not None:
+        return PlanStep.model_validate(retired), plan.progress[identity]
+    archived = plan._archive_read(identity) if plan._archive_read is not None else None
+    if not archived:
+        raise ValueError('Archived wall demolition evidence is unavailable')
+    return PlanStep.model_validate(archived['step']), StepProgress.model_validate(archived['progress'])
+
+
 async def project_handoffs(plan, game):
     """Delegate only slots whose exact native demolition has been observed."""
     from types import SimpleNamespace
-    removals = [s for s in plan.spec.steps if getattr(s.action, 'wall_guard', None) is not None
-                and plan.progress[s.id].issued.get('0', {}).get('confirmed') is True]
+    identities = {s.id for s in plan.spec.steps if getattr(s.action, 'wall_guard', None) is not None
+                and plan.progress[s.id].issued.get('0', {}).get('confirmed') is True}
+    identities.update(plan.control.get('wall_handoff_removals', []))
+    removals = [removal_record(plan, identity) for identity in sorted(identities)]
     if not removals:
         plan.control.pop('wall_handoffs', None)
         return {}
@@ -193,8 +223,9 @@ async def project_handoffs(plan, game):
     if owned is None or not isinstance(ledger, list) or 'wallRemoval' in raw.get('errors', {}):
         raise ValueError('Native construction handoff evidence unavailable')
     handoffs = {}
-    for step in removals:
-        progress = plan.progress[step.id]
+    for step, progress in removals:
+        if getattr(step.action, 'wall_guard', None) is None:
+            raise ValueError('Construction handoff does not reference guarded demolition')
         receipt = progress.issued['0']
         matches = [r for r in ledger if r.get('id') == receipt.get('wall_removal_id')]
         if progress.state != 'complete' or len(matches) != 1 or matches[0].get('complete') is not True \
@@ -207,7 +238,8 @@ async def project_handoffs(plan, game):
         destination = guard.permanent
         if destination is None:
             successors = [s for s in plan.spec.steps if isinstance(s.action, Buildings)
-                and s.action.replacement_of == guard.original and any(d.step == step.id and d.when == 'complete' for d in s.after)]
+                and s.action.replacement_of == guard.original and (any(d.step == step.id and d.when == 'complete' for d in s.after)
+                    or step.id in plan.control.get('wall_handoff_removals', []))]
             if len(successors) != 1:
                 raise ValueError('Native demolition has no unique retained replacement')
             from .colony_plan import ConstructionRef
@@ -222,6 +254,8 @@ async def project_handoffs(plan, game):
             removal=step.id, signature=step.signature(), destination=destination.model_dump(), status=status,
             thing=successor['current'] if successor and successor['present'] else None)
     plan.control['wall_handoffs'] = handoffs
+    plan.control['wall_handoff_removals'] = sorted({h['removal'] for h in handoffs.values()}
+        | set(plan.control.get('wall_handoff_removals', [])))
     return handoffs
 
 
@@ -241,7 +275,7 @@ async def method(rt, facts):
     for wall in state['targets'][:8]:
         sites = await rt.game.invoke('home/wall_upgrade_sites', dict(target=wall['id']), allow_write=False)
         if sites.get('success') is not True or not sites.get('sites'):
-            failures.append(wall['id'] + ': no empty supported straight-wall backup site')
+            failures.append(wall['id'] + ': no empty supported wall backup site')
             continue
         site = sites['sites'][0]
         rows = [r for r in sites.get('materials', []) if r['defName'] in facts.get('policyResources', {})
@@ -255,7 +289,10 @@ async def method(rt, facts):
         needed = material['costs'].get(resource)
         if type(needed) is not int or needed <= 0 or set(material['costs']) != {resource}:
             raise SkillBlocked('Native wall costs need unsupported mixed-material production')
-        quantity = 4 * needed
+        backup_count = len(site['backupCells'])
+        if backup_count not in (0, 3):
+            raise SkillBlocked('Native wall backup geometry is outside the bounded contract')
+        quantity = (backup_count + 1) * needed
         if facts.get('resources', {}).get(resource, 0) < quantity:
             goal.target = dict(resource=resource, quantity=quantity)
             try:
@@ -264,7 +301,8 @@ async def method(rt, facts):
                 if str(error).startswith('No available native production recipe and workbench'):
                     if goal.method_seen('stonecutter'):
                         raise SkillBlocked('Owned stonecutter is unavailable; preserve uncertain or changed construction')
-                    return 'stonecutter', [await placement(rt, facts, 'TableStonecutter', indoors=True, goal=goal, rotations='all')]
+                    return 'stonecutter', [await placement(rt, facts, 'TableStonecutter', indoors=True, goal=goal, rotations='all',
+                        avoid={(site['x'] - site['nx'], site['z'] - site['nz'])})]
                 raise
             if result is None:
                 goal.evidence['waiting_for_stone_blocks'] = True
@@ -274,15 +312,17 @@ async def method(rt, facts):
             raise SkillBlocked('Previously admitted wall replacement needs inspection; no duplicate demolition')
         step_id = lambda i: f'{goal_id}-{goal.attempts}-{key}-{i}'[:64]
         original = reference(owned[wall['id']])
-        backups = [dict(step=step_id(0), slot=i) for i in range(3)]
+        backups = [dict(step=step_id(0), slot=i) for i in range(backup_count)]
         guard = dict(original=original, target=original, backups=backups,
                      **{k: site[k] for k in ('x', 'z', 'nx', 'nz', 'left', 'right')})
+        if not backup_count: guard['material'] = resource
         def remove(value):
             return dict(kind='native_operation', tool='home/upkeep_wall', arguments=dict(action='remove'),
                         completion='wall_removed', wall_guard=value)
-        actions = [dict(kind='place_buildings', placements=[dict(def_name='Wall', materials=[resource], **c) for c in site['backupCells']]),
-            remove(guard), dict(kind='place_buildings', replacement_of=original,
-                placements=[dict(def_name='Wall', x=site['x'], z=site['z'], materials=[resource])])]
+        actions = ([dict(kind='place_buildings', placements=[dict(def_name='Wall', materials=[resource], **c) for c in site['backupCells']])]
+                   if backup_count else [])
+        actions.extend([remove(guard), dict(kind='place_buildings', replacement_of=original,
+                placements=[dict(def_name='Wall', x=site['x'], z=site['z'], materials=[resource])])])
         for ref in backups:
             actions.append(remove(dict(guard, target=ref, permanent=dict(step=step_id(2), slot=0))))
         goal.evidence['wall_upgrade'] = dict(original=wall['id'], material=resource, reserved_blocks=quantity, site=site)

@@ -17,7 +17,7 @@ def development_nodes(facts):
     return nodes
 
 
-async def placement(rt, facts, definition, *, indoors=None, near=None, radius=22, goal=None, rotations='North'):
+async def placement(rt, facts, definition, *, indoors=None, near=None, radius=22, goal=None, rotations='North', avoid=()):
     from .shelter_handoff import safe_rotation
     definition_data = facts.get('definitions', {}).get(definition, {})
     if definition_data.get('available') is not True:
@@ -39,6 +39,7 @@ async def placement(rt, facts, definition, *, indoors=None, near=None, radius=22
     cells = {(c['x'], c['z']): c for c in facts['cells']}
     free = {p for p, c in cells.items() if c.get('walkable') is True and not c.get('occupied') and not c.get('zone')
             and (indoors is None or c.get('indoors') is indoors)}
+    free -= set(avoid)
     from .shelter_handoff import entrance_aisle
     for step in rt.current_plan.spec.steps:
         if step.action.kind == 'build_room_shell':

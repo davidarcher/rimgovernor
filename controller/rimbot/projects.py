@@ -203,6 +203,7 @@ class ProjectBook:
         if plan is not None:
             self.ground_legacy_targets(plan)
         handoffs, handoff_error = {}, None
+        prior_sources = {h['source_step'] for h in plan.control.get('wall_handoffs', {}).values()} if plan is not None else set()
         if plan is not None:
             from .wall_upgrade import project_handoffs
             try:
@@ -212,6 +213,7 @@ class ProjectBook:
                 plan.control.pop('wall_handoffs', None)
         handoff_sources = {s.action.wall_guard.target.step for s in plan.spec.steps
                            if getattr(s.action, 'wall_guard', None)} if plan is not None else set()
+        handoff_sources |= prior_sources
         # Queries are memoized for this pass, not persisted across changes in game state.
         cache = {}
         for row in self.rows:

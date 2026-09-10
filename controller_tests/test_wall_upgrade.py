@@ -11,7 +11,7 @@ from rimbot.wall_upgrade import method, validate_bundle, reconcile, release_pend
 from test_construction_ownership import scenario
 
 
-def fixture(stock=20):
+def fixture(stock=20, corner=False):
     plan, facts, _ = scenario()
     wall = dict(id='built-wall', defName='Wall', flammability=1, count=1)
     facts.update(resources={'BlocksGranite': stock}, policyResources={'BlocksGranite': {}},
@@ -21,12 +21,14 @@ def fixture(stock=20):
     plan.control['upkeep'] = {'MaintainStoneShell': dict(known=True, targets=[wall])}
     site = dict(x=10, z=20, nx=1, nz=0, left='side-left', right='side-right',
                 backupCells=[dict(x=11, z=z) for z in (19, 20, 21)])
+    if corner:
+        site.update(nz=1, backupCells=[])
     result = dict(success=True, tick=10, sites=[site], materials=[dict(defName='BlocksGranite', costs={'BlocksGranite': 5})])
     def reply(tool, args, **kwargs):
         if tool == 'home/wall_upgrade_sites':
             return deepcopy(result)
         if tool == 'home/place_building':
-            return dict(canPlace=args['x'] != 10, costList=[dict(defName='BlocksGranite', count=5)],
+            return dict(canPlace=(args['x'], args['z']) != (10, 20), costList=[dict(defName='BlocksGranite', count=5)],
                 materials={'rows': [dict(defName='BlocksGranite', available=stock)]})
         raise AssertionError(tool)
     game = SimpleNamespace(invoke=AsyncMock(side_effect=reply), query=AsyncMock(return_value=facts))
@@ -52,6 +54,25 @@ async def test_all_four_stone_walls_reserved_before_native_demolition():
     allocations = await validate_allocations(spec, rt.current_plan, rt.game, deferred_wall_steps=allowed)
     assert sum(c.get('BlocksGranite', 0) for slots in allocations.values() for c in slots.values()) == 20
     assert all(s.after[0].step == steps[i-1].id for i, s in enumerate(steps[1:], 1))
+
+
+@pytest.mark.asyncio
+async def test_corner_reserves_permanent_wall_and_keeps_salvage_approaches_open():
+    rt, facts = fixture(stock=5, corner=True)
+    spec, steps, costs = await bundle(rt, facts)
+    assert len(steps) == 2 and steps[0].action.wall_guard.backups == []
+    assert steps[0].action.wall_guard.material == 'BlocksGranite'
+    assert sum(c.get('BlocksGranite', 0) for slots in costs.values() for c in slots.values()) == 5
+    allowed = await validate_bundle(spec, rt.current_plan, rt.game)
+    assert allowed == {steps[1].id}
+    allocations = await validate_allocations(spec, rt.current_plan, rt.game, deferred_wall_steps=allowed)
+    assert sum(c.get('BlocksGranite', 0) for slots in allocations.values() for c in slots.values()) == 5
+    assert steps[1].after[0].step == steps[0].id
+    assert PlanSpec.model_validate_json(spec.model_dump_json()) == spec
+    malformed = spec.model_dump()
+    malformed['steps'][1]['action']['wall_guard']['backups'].append(dict(step='wall',slot=0))
+    with pytest.raises(ValueError, match='open corner approach'):
+        PlanSpec.model_validate(malformed)
 
 
 @pytest.mark.asyncio
@@ -168,7 +189,24 @@ async def test_manual_release_passes_real_gameplay_write_boundary():
 
 
 @pytest.mark.asyncio
-async def test_native_demolition_transfers_project_slot_until_exact_replacement_is_built():
+@pytest.mark.parametrize('invalid', ['suspended', 'blocked_replacement', 'cancelled'])
+async def test_clock_invalidates_demolition_when_its_batch_loses_admission(invalid):
+    rt, facts = fixture()
+    spec, steps, _ = await bundle(rt, facts)
+    rt.current_plan.spec = spec
+    for step in steps: rt.current_plan.progress[step.id] = StepProgress()
+    rt.current_plan.progress[steps[1].id] = StepProgress(state='waiting', issued={'0':
+        dict(confirmed=True, load_token='load', player_direction=0)})
+    if invalid == 'suspended': rt.current_plan.colony_goals['MaintainStoneShell'].status = 'suspended'
+    elif invalid == 'cancelled': rt.current_plan.colony_goals['MaintainStoneShell'].cancelled = True
+    else: rt.current_plan.progress[steps[2].id].state = 'blocked'
+    rt.game.invoke = AsyncMock(return_value=dict(success=True))
+    await release_pending(rt, changed_only=True)
+    rt.game.invoke.assert_awaited_once_with('home/upkeep_wall', dict(action='release', dryRun=False), allow_write=True)
+
+
+@pytest.mark.asyncio
+async def test_native_demolition_transfers_project_slot_until_exact_replacement_is_built(tmp_path):
     from rimbot.projects import ProjectBook
     from rimbot.wall_upgrade import project_handoffs
     from rimbot.spatial import validate_geometry, GeometryConflict
@@ -207,13 +245,30 @@ async def test_native_demolition_transfers_project_slot_until_exact_replacement_
     facts['upkeep']['construction'].append(successor)
     await book.reconcile(rt.game, plan=plan)
     assert project.state == 'complete' and project.matched_ids == ['stone-built']
+    from rimbot.plan_archive import bind_archive, prepare_archive, finish_archive
+    from rimbot.store import Store
+    removal = steps[1]
+    plan.control.setdefault('retired_steps', {})[removal.id] = removal.model_dump()
+    plan.spec.steps = [s for s in plan.spec.steps if s.id != removal.id]
+    for step in plan.spec.steps: step.after = [d for d in step.after if d.step != removal.id]
+    store = Store(tmp_path / 'handoff.sqlite')
+    bind_archive(plan, store, 'colony')
+    snapshot, records, methods, evidence = prepare_archive(plan)
+    store.archive_and_set('colony', 'plan', snapshot, records, methods, evidence)
+    finish_archive(plan, snapshot, records, methods, evidence)
+    assert removal.id not in plan.progress
+    plan.control.pop('wall_handoffs')
+    await book.reconcile(rt.game, plan=plan)
+    assert project.state == 'complete' and project.matched_ids == ['stone-built']
+    validate_geometry(plan.spec, current=plan)
     successor['present'] = False
     destination.state = 'blocked'
     await book.reconcile(rt.game, plan=plan)
     assert project.state != 'complete'
     facts['upkeep']['wallRemoval'][0]['playerOwned'] = True
     assert await project_handoffs(plan, rt.game) == {}
-    with pytest.raises(GeometryConflict): validate_geometry(spec, current=plan)
+    with pytest.raises(GeometryConflict): validate_geometry(plan.spec, current=plan)
+    store.close()
 
 
 @pytest.mark.asyncio
@@ -227,3 +282,22 @@ async def test_furniture_placement_preserves_native_stockpile_cells():
     with pytest.raises(SkillBlocked, match='No safe observed placement'):
         await placement(rt, facts, 'TableStonecutter', indoors=True, rotations='all')
     rt.inspect_native.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_stonecutter_preserves_selected_corners_interior_construction_approach(monkeypatch):
+    from rimbot.colony_skills import SkillBlocked
+    rt, facts = fixture(stock=0, corner=True)
+    facts['definitions']['TableStonecutter'] = dict(available=True, stuff='WoodLog')
+    facts['center'] = dict(x=9, z=19)
+    facts['cells'] = [dict(x=x, z=z, walkable=True, occupied=False, indoors=True)
+                      for x in (8, 9) for z in (18, 19, 20)]
+    monkeypatch.setattr('rimbot.production_policy.resource_method', AsyncMock(side_effect=SkillBlocked(
+        'No available native production recipe and workbench for BlocksGranite')))
+    def preview(tool, args):
+        return dict(canPlace=True, rotations=[dict(rotation='east', accepted=True, blockingThings=[],
+            occupiedCells=[dict(x=args['x'], z=args['z']+delta) for delta in (-1, 0, 1)])])
+    rt.inspect_native = AsyncMock(side_effect=preview)
+    key, actions = await method(rt, facts)
+    assert key == 'stonecutter'
+    assert actions[0]['placements'][0] == dict(def_name='TableStonecutter', x=8, z=19, rotation='east', materials=['WoodLog'])

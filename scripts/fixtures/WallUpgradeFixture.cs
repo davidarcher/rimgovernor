@@ -18,23 +18,25 @@ namespace HomeBridge.BridgeTools
                 return new { success = projects.All(p => p.IsFinished), projects = projects.Select(p => p.defName).ToList() };
             }, cancellationToken).ConfigureAwait(false);
         [Tool("test/stone_upgrade_setup", Description = "Prepare empty exterior backup cells, stone chunks and enabled workers beside a disposable controller-built room. No blocks, workbench, bill or demolition are created.")]
-        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken, string walls)
+        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken, string walls, bool corner = false)
             => await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 var ids = walls.Split(';');
                 foreach (var wall in map.listerBuildings.allBuildingsColonist.Where(b => ids.Contains(b.GetUniqueLoadID()) && b.def == ThingDefOf.Wall)) {
-                    foreach (var normal in GenAdj.CardinalDirections) {
-                        var side = new IntVec3(-normal.z, 0, normal.x);
+                    foreach (var normal in WallUpgradeSafety.Directions.Where(n => WallUpgradeSafety.Corner(n) == corner)) {
                         var inside = wall.Position - normal; var outside = wall.Position + normal;
-                        var cells = new[] { outside - side, outside, outside + side };
+                        var cells = WallUpgradeSafety.BackupCells(wall.Position, normal).ToList();
+                        var staging = cells.Concat(corner ? WallUpgradeSafety.CornerApproaches(wall.Position, normal) : Enumerable.Empty<IntVec3>()).ToList();
                         if (!inside.InBounds(map) || inside.Fogged(map) || inside.GetRoom(map)?.OpenRoofCount != 0
+                            || !inside.Standable(map)
                             || inside.GetRoom(map).TouchesMapEdge || !outside.InBounds(map) || outside.GetRoom(map)?.TouchesMapEdge != true
-                            || (wall.Position - side).GetEdifice(map)?.def != ThingDefOf.Wall
-                            || (wall.Position + side).GetEdifice(map)?.def != ThingDefOf.Wall
+                            || WallUpgradeSafety.LeftCell(wall.Position, normal).GetEdifice(map)?.def != ThingDefOf.Wall
+                            || WallUpgradeSafety.RightCell(wall.Position, normal).GetEdifice(map)?.def != ThingDefOf.Wall
                             || RoofSupportSafety.Blocker(wall, out _) != null
-                            || cells.Any(c => !c.InBounds(map) || c.Fogged(map) || !c.Standable(map)
+                            || staging.Any(c => !c.InBounds(map) || c.Fogged(map) || !c.Standable(map)
+                                || cells.Contains(c) && !RoofSupportSafety.GeometryKnown(map, c)
                                 || map.zoneManager.ZoneAt(c) != null || c.GetThingList(map).Any(t => t is Building || t is Blueprint || t is Frame))) continue;
-                        foreach (var cell in cells)
+                        foreach (var cell in staging)
                             foreach (var thing in cell.GetThingList(map).Where(t => t is Plant || t.def.category == ThingCategory.Item).ToList()) thing.Destroy();
                         var stone = GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Where(s => s.stuffProps.categories.Contains(StuffCategoryDefOf.Stony))
                             .OrderBy(s => s.defName).First();
@@ -58,7 +60,7 @@ namespace HomeBridge.BridgeTools
                             }
                             p.needs.rest.CurLevelPercentage = .95f; p.needs.food.CurLevelPercentage = .95f;
                         }
-                        return new { success = true, target = wall.GetUniqueLoadID(), stone = stone.defName,
+                        return new { success = true, target = wall.GetUniqueLoadID(), stone = stone.defName, corner, backupCount = cells.Count,
                             chunks = chunk.defName, initialBlocks = map.listerThings.ThingsOfDef(stone).Sum(t => t.stackCount),
                             benchMaterials = benchCosts.ToDictionary(c => c.thingDef.defName, c => c.count),
                             x = wall.Position.x, z = wall.Position.z, nx = normal.x, nz = normal.z };

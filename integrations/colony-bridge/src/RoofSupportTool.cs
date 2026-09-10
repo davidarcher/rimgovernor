@@ -10,6 +10,9 @@ namespace HomeBridge.BridgeTools
 {
     internal static class RoofSupportSafety
     {
+        internal static bool GeometryKnown(Map map, IntVec3 cell) =>
+            GenRadial.RadialCellsAround(cell, RoofCollapseUtility.RoofMaxSupportDistance, true)
+                .All(c => c.InBounds(map) && !c.Fogged(map));
         // Counterfactual version of the installed RoofCollapseUtility's connected
         // roof/radius rule. The map is never edited to preview removal.
         internal static string Blocker(Building wall, out int checkedRoofs)
@@ -20,7 +23,7 @@ namespace HomeBridge.BridgeTools
             var map = wall.Map;
             var radius = RoofCollapseUtility.RoofMaxSupportDistance;
             var affected = GenRadial.RadialCellsAround(wall.Position, radius, true).ToList();
-            if (affected.Any(c => !c.InBounds(map) || c.Fogged(map))) return "Unknown wall support geometry";
+            if (!GeometryKnown(map, wall.Position)) return "Unknown wall support geometry";
             foreach (var root in affected.Where(c => c.Roofed(map))) {
                 checkedRoofs++;
                 if (map.roofCollapseBuffer.IsMarkedToCollapse(root)) return "Roof collapse is already pending";

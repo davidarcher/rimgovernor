@@ -78,10 +78,14 @@ def validate_geometry(spec, footprints=None, *, current=None):
         old = previous.get(step.id)
         if not handoff or not old or old.action != step.action:
             return False
-        removal = previous.get(handoff.get('removal'))
-        proposed = next((s for s in spec.steps if removal and s.id == removal.id), None)
-        return bool(removal and proposed and proposed.signature() == removal.signature()
-            and current.progress[removal.id].state == 'complete'
+        from .wall_upgrade import removal_record
+        try:
+            removal, progress = removal_record(current, handoff['removal'])
+        except (ValueError, KeyError):
+            return False
+        proposed = next((s for s in spec.steps if s.id == removal.id), None)
+        return bool((proposed is None or proposed.signature() == removal.signature())
+            and progress.state == 'complete'
             and removal.signature() == handoff.get('signature'))
     rooms = [(s.id, s.action) for s in active if isinstance(s.action, RoomShell)]
     claimed = {}

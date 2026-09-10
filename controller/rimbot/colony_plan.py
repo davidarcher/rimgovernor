@@ -38,7 +38,8 @@ class ConstructionRef(Contract):
 class WallGuard(Cell):
     original: ConstructionRef
     target: ConstructionRef
-    backups: list[ConstructionRef] = Field(min_length=3, max_length=3)
+    backups: list[ConstructionRef] = Field(default_factory=list, max_length=3)
+    material: str | None = None
     permanent: ConstructionRef | None = None
     left: str = Field(min_length=1)
     right: str = Field(min_length=1)
@@ -47,9 +48,20 @@ class WallGuard(Cell):
 
     @model_validator(mode='after')
     def orientation(self):
-        if abs(self.nx) + abs(self.nz) != 1:
-            raise ValueError('Wall guard requires one cardinal exterior direction')
+        distance = abs(self.nx) + abs(self.nz)
+        if distance not in (1, 2) or len(self.backups) != (3 if distance == 1 else 0):
+            raise ValueError('Wall guard requires three straight-wall backups or an open corner approach')
+        if distance == 2 and not self.material:
+            raise ValueError('Corner replacement requires its observed stone material')
+        if len({(ref.step, ref.slot) for ref in self.backups}) != len(self.backups):
+            raise ValueError('Wall guard backup identities must be distinct')
         return self
+
+    @model_serializer(mode='wrap')
+    def serialize(self, handler):
+        value = handler(self)
+        if self.material is None: value.pop('material', None)
+        return value
 
 
 class Buildings(Contract):

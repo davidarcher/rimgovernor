@@ -42,10 +42,10 @@ no roof or building. Fog, map-edge uncertainty, pending collapse and unsupported
 cells refuse the certificate. Planned supports earn no credit. Replacement must
 also preserve enclosure and escape access and repeat safety checks at execution.
 
-`MaintainStoneShell` admits one straight-wall upgrade after urgent needs. Only
+`MaintainStoneShell` admits one wall upgrade after urgent needs. Only
 confirmed autonomous construction can supply a demolition target. A complete
-bundle reserves three stone backup walls, guarded removal of the original wall,
-one permanent stone wall, and guarded cleanup of each backup. The exterior cells
+straight-wall bundle reserves three stone backup walls, guarded removal of the
+original wall, one permanent stone wall, and guarded cleanup of each backup. The exterior cells
 must be empty, side walls unchanged and the original interior enclosed and roofed.
 Native spatial preflight preserves existing access. Installed material costs and
 shared reservations cover all four walls before demolition; runtime estimates
@@ -57,8 +57,20 @@ replacement construction reference. The old project waits for that replacement;
 verified completion satisfies the transferred slot, and replacement loss reopens
 it. Other slots retain their own native completion and ownership checks. This
 handoff releases only the retired slot's planned footprint; edits to its action
-or removal dependency invalidate the exemption. Furniture placement preserves
+or removal dependency invalidate the exemption. Completed removal references
+remain readable through the shared immutable action archive. Furniture placement preserves
 existing stockpile cells.
+
+Site selection requires the support-check radius around every temporary wall to
+be visible and within the map, so fog cannot be deferred until cleanup. Execution
+still repeats the full support check against current native roofs and buildings.
+
+Corners instead require verified existing roof support and both neighboring walls,
+with clear exterior cardinal approaches reachable by enabled haulers. Only the
+permanent stone wall is reserved. Those approaches remain open so ordinary hauling
+can remove deconstruction salvage: native diagonal access to a wall does not grant
+the same access to loose items. The enclosed interior and its construction approach
+remain available; stonecutter placement preserves that approach.
 
 `home/upkeep_wall` creates an ordinary native deconstruction designation. Completion
 comes from the actual native deconstruction job, not disappearance of a wall. The
@@ -67,7 +79,7 @@ and resource policies before completion. Jobs require active supervised simulati
 Native UI input, Manual, a load/map change or changed safety invalidates pending
 demolition. Player replacement of a designation relinquishes controller ownership.
 Cleanup requires the completed permanent wall. Missing or uncertain outcomes stay
-blocked. Corner geometry, interrupted-batch recovery and wider native acceptance
+blocked. Interrupted-batch recovery and wider native acceptance
 remain listed in the backlog.
 
 `SecureSupplies`, `MaintainEssentialRepairs`, `MaintainCleanFacilities` and

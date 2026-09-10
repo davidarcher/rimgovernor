@@ -111,8 +111,8 @@ async def run(args):
         assert len(report['owned_buildings']) == len(lineage), 'Every completed room piece needs both receipt and native lineage'
         if args.wall_upgrade:
             from wall_upgrade_fixture import verify_upgrade
-            await verify_upgrade(rt, report, args.seconds)
-            await verify_upgrade(rt, report, args.seconds, interrupt=True)
+            await verify_upgrade(rt, report, args.seconds, corner=getattr(args, 'corner', False))
+            await verify_upgrade(rt, report, args.seconds, interrupt=True, corner=getattr(args, 'corner', False))
             facts = await sample()
             lineage = facts['upkeep']['construction']
         report['support_previews'] = []
@@ -161,9 +161,8 @@ async def run(args):
             assert [(p['id'], p['count']) for p in before['portions']] == [(p['id'], p['count']) for p in after['portions']]
         pending = after_records[report['quantity_contract']['pending']]
         assert not pending['complete'] and not pending['blocker'] and all(p['resolved'] for p in pending['portions'])
-        report['saved_quantity_completion'] = (await rt.bridge.call('test/finish_saved_quantity',
-            tracking=report['quantity_contract']['pending'])).structuredContent
-        assert report['saved_quantity_completion']['success']
+        from resumed_haul_acceptance import deliver
+        await deliver(rt, report, report['quantity_contract']['pending'], args.seconds)
         print('paired restart: saved construction and quantity identities verified', flush=True)
         report['replacement'] = (await rt.bridge.call('test/replace_lineage_wall', target=wall['current'])).structuredContent
         assert report['replacement']['success']
