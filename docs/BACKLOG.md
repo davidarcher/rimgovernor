@@ -91,8 +91,7 @@ in the checkpoint commit; do not append an implementation diary here.
   and immediate entrance access now gate shell admission and dispatch; verify live
   enclosed-farm refusal, interrupted batches, large zones and custom definitions,
   and measure repeated preflight/dispatch observation latency.
-  Compare sites
-  using bounded terrain, supplies, danger, fertility and travel evidence. Accept
+  Compare sites using bounded terrain, supplies, danger, fertility and travel evidence. Accept
   ruins/nonrectangular shelters; reject sealed rooms and blocked corridors beyond
   immediate entrances. Validate native floor/roof/area/designator coverage before adding tools.
 - [ ] **B07 · Durable project scheduling.** Extend basic building/zone/installation
@@ -104,6 +103,9 @@ in the checkpoint commit; do not append an implementation diary here.
   full remaining batches, player reserves and uncertain-write costs. Verify live
   production consumption and competing project dispatch/restock/restart behavior;
   controller fixtures do not establish native scheduling acceptance.
+  Watchdog-held goals can continue after newly observed tracked completion while
+  preserving methods and receipts. Verify delayed native shell-to-furnishing work
+  and dependent-chain completion across held restart; current coverage is replay.
 - [ ] **B08 · Native forecasts.** Audit available inputs, then add nutrition,
   diet/access/inventory-aware consumption, spoilage, harvest uncertainty, animal
   feed and labor demand. Extend medical/power/mood risk projections only from

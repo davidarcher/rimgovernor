@@ -100,6 +100,11 @@ indefinite waiting. Above eight colonists, starter sleeping uses verified room a
 native footprint fitting, preserving its entrance aisle and three service rows.
 The fixed shell can still exhaust capacity and then requires explicit expansion;
 controller fitting checks do not establish larger-colony gameplay acceptance.
+Watchdog holds retain their tick, reason and completed action identities. A newly
+observed completion of tracked work can release that exact hold and continue the
+existing goal without replacing methods or receipts. Unchanged state, rewinds,
+cancelled or failed actions, different blockers and Manual retain the hold;
+emergencies still suspend lower-priority work.
 The initial faction/settlement naming prompt is a maintained bootstrap goal.
 Its semantic native action validates the exact observed generated suggestions,
 uses the native naming callbacks and verifies the names and dialog closure.

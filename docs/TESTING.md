@@ -43,6 +43,10 @@ dependency gates, uncertain writes, persisted receipts and Hands restock recover
 Admission still requires enough stock for all accepted commitments. B07 native
 acceptance must observe real production consumption and construction progress;
 the fixture suite does not establish pawn work or save-rewind recovery.
+`test_goal_watchdog_recovery.py` replays delayed tracked completion after a durable
+timeout hold, including shell-to-furnishing continuation, dependent chains and
+refusal under cancellation, Manual, rewind, failure or a different blocker. Native
+delayed labor and paired restart acceptance remain separate B07 checks.
 
 ## Native execution windows
 
