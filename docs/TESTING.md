@@ -43,6 +43,15 @@ connectivity, projected neighboring shells, clipped map edges, large-room query
 caps, unknown cells and interrupted batch persistence. The bounded exterior margin
 does not certify a route to a pawn or unrestricted map-wide connectivity.
 
+Run `scripts/spatial_site_acceptance.py --source-root <prepared-root> --output
+<fresh-directory>` with `controller` on `PYTHONPATH` for a paused isolated native
+spatial probe. It checks shell preflight, an allowed interior stockpile, and shared
+admission refusal after a real interior farm is designated. Complete censuses,
+unchanged plan/orders/native tick, zero inference and per-case timings are retained
+with the input manifest. This is admission acceptance, not ordinary construction
+or route traversal. Keep the installed DLL set fixed throughout the owned game;
+the probe never replaces DLLs and stops its isolated session on completion/failure.
+
 `test_project_resource_scheduling.py` covers resource competition in ready order,
 dependency gates, uncertain writes, persisted receipts and Hands restock recovery.
 Admission still requires enough stock for all accepted commitments. B07 native
@@ -52,6 +61,11 @@ the fixture suite does not establish pawn work or save-rewind recovery.
 timeout hold, including shell-to-furnishing continuation, dependent chains and
 refusal under cancellation, Manual, rewind, failure or a different blocker. Native
 delayed labor and paired restart acceptance remain separate B07 checks.
+
+`test_zone_project_postconditions.py` and `test_building_facing_postconditions.py`
+cover persisted exact zone and orientation expectations, native-shaped edit
+invalidation of dependent work, incomplete-read recovery and legacy records. These
+controller fixtures do not establish actual in-game zone or rotation editing.
 
 ## Native execution windows
 

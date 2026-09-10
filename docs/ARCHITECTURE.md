@@ -283,6 +283,14 @@ native pawn reachability or a forecast of arbitrary future building obstructions
 Changing the planned shells revalidates retained shells too, so expansion cannot
 silently seal the only observed local exit of an already completed tracked room.
 
+New zone project targets retain expected patches, kind and crop. Fresh complete
+native list/grid geometry must still match before the action can satisfy dependent
+work. New building targets also retain expected facing for blueprints, frames and
+completed buildings. Native edits invalidate completion; unavailable observations
+hold execution and can recover through reads without replay. Legacy targets lacking
+these expectations retain their earlier contracts. Facing currently uses native
+cardinal labels; unrecognized localized labels remain unavailable.
+
 Completed actions removed from the active specification move to a compressed,
 colony-scoped SQLite archive. Their exact specification, progress/receipts and
 cost metadata are committed atomically with the compact live snapshot before

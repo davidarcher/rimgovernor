@@ -95,6 +95,8 @@ in the checkpoint commit; do not append an implementation diary here.
   each dispatch batch using native cells and projected room shells. Verify native
   sealed pockets, altered interiors and map edges; extend beyond the three-cell
   observation margin to pawn-specific routes and other projected building types.
+  Run the prepared isolated `spatial_site_acceptance.py` probe on a stable native
+  DLL set before claiming real shell/farm admission and latency acceptance.
   Compare sites using bounded terrain, supplies, danger, fertility and travel evidence. Accept
   ruins/nonrectangular shelters; reject sealed rooms and blocked corridors beyond
   immediate entrances. Validate native floor/roof/area/designator coverage before adding tools.
@@ -110,6 +112,11 @@ in the checkpoint commit; do not append an implementation diary here.
   Watchdog-held goals can continue after newly observed tracked completion while
   preserving methods and receipts. Verify delayed native shell-to-furnishing work
   and dependent-chain completion across held restart; current coverage is replay.
+  Exact geometry/kind/crop and building-facing expectations now protect new project
+  dependencies from observed native edits. Verify live player edits and load/rewind
+  recovery; migrate legacy targets lacking expectations only with grounded evidence.
+  Extend zone contracts to stockpile filters/priority and sow/cut settings, and native
+  facing observations to invariant values across game languages.
 - [ ] **B08 · Native forecasts.** Audit available inputs, then add nutrition,
   diet/access/inventory-aware consumption, spoilage, harvest uncertainty, animal
   feed and labor demand. Extend medical/power/mood risk projections only from
