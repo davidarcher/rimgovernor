@@ -908,8 +908,54 @@ saved type names initially. The current bridge extension loads separately under
 `BridgeTools/Observations`; moving saved components there would break Verse's early
 type discovery. Place bootstrap/headless code in an early-loaded assembly and
 retain the SDK-discovered tool assembly until loader acceptance justifies changing
-it. Preserve existing assembly/type identities where saves or discovery depend on
-them; cosmetic namespace cleanup must not force an unverified save migration.
+it. These retained types are migration compatibility, not a commitment to keep
+controller bookkeeping in native saves. Remove obsolete components after their
+state ownership and migration gates pass; cosmetic renames must not force an
+unverified save migration.
+
+### State ownership: SQLite first
+
+The controller's SQLite store is the sole authority for goals, plans, action
+history, completion tracking, ownership intent and recovery decisions. RimWorld
+owns actual pawns, buildings, bills, designations and other simulation state.
+Do not maintain a second authoritative copy of controller bookkeeping in C#
+GameComponents or MapComponents. Native observations are evidence for reconciling
+SQLite records, not a competing plan/progress database. The mod does not open the
+controller database directly; the controller remains its single writer.
+
+N01.00 must classify every existing saved field, including construction/haul
+lineage, mining/drilling records, wall replacement, production limits, equipment
+claims, recovery areas and Home exclusions. For each record specify its sole
+owner, whether native game state can reconstruct it, its disconnected behavior,
+and its save/load migration. Default controller metadata to SQLite. A field may
+remain in the native save only with a concrete need, a minimal representation,
+and an acceptance case demonstrating why reconstruction or controller storage is
+insufficient. Existing placement in the identity assembly is not justification.
+
+| State | Target persistence and recovery |
+| --- | --- |
+| Controller intent, progress and ownership history | SQLite; reconcile against fresh native evidence before restoring any authority. |
+| Actual game objects and settings | Ordinary RimWorld saves; do not shadow them as authoritative controller state. |
+| Native execution guards | Prefer per-load, leased configuration installed by the controller. Define safe disconnect/load behavior per guard; never silently remove a resource limit while already-admitted pawn work can still consume resources. Retain minimal native state only where the safety contract requires it. |
+| Blueprint/frame/building and item split/merge transitions | Typed native events consumed durably into SQLite. Prefer reconstructible evidence; retain only a bounded delivery journal if missed transitions cannot be recovered safely. This journal is delivery evidence, not a second action ledger. |
+| Colony and save timeline identity | Minimal save marker sufficient to associate a loaded snapshot with controller history; a colony ID, tick count or transient load token alone cannot distinguish branched saves. Define snapshot/branch association and ordinary save/load behavior with G01.04/G01.08. |
+
+Event contracts must specify stable IDs, colony/save lineage, ordering, duplicate
+delivery, durable acknowledgement, replay and retention. Acknowledge only after
+the SQLite transaction commits. Define crash windows, disconnected operation,
+journal overflow and missing ranges; lost evidence must create an explicit hold
+or safe reconciliation, never fabricated completion or blind retry. Do not assume
+an in-memory queue or polling preserves every identity transition.
+
+Loading an older or branched game save must not apply newer SQLite progress or
+ownership claims. Paired checkpoints are the preferred exact recovery path, but
+ordinary player saves, autosaves and loads must also be detected. Reconnect in
+Manual, invalidate pending authority, match the saved timeline and reconcile or
+require an explicit recovery choice when association is ambiguous. Preserve newer
+history separately rather than overwrite it. A save without controller history
+must remain playable; automation requires fresh admission and must not reclaim
+old ownership. Native state removal must preserve these guarantees, not merely
+reduce the number of serialized fields.
 
 ### Current pressure points and intended boundaries
 
@@ -923,7 +969,7 @@ implementation. These examples identify migration seams, not a completed audit.
 | `BridgeCommon.cs` | The SDK adapter owns raw argument recovery and SDK reflection. Its journal lookup exists because the binder drops unknown keys; generated DTOs alone cannot fix that loss. Validate before information is discarded, or refuse guarded writes when raw validation is unavailable. |
 | `ObservationBatchTool.cs` and observation tools | Typed observation services return concrete section DTOs and explicit unavailable evidence. Preserve sequential section reads, before/after ticks, timings and identity checks; do not relabel the batch an atomic snapshot. |
 | Gameplay `*Tool.cs` and guard helpers | Thin SDK entry points call typed capability operations. Keep resolution, eligibility, dry-run and actual native mutation together within the correct main-thread admission boundary. |
-| `src/identity/`, clock journal, draft and policy ownership | Save-backed state, durable journal state and per-load transient claims have explicit separate owners and reset rules. Preserve saved keys, lineage and uncertainty across reload. |
+| `src/identity/`, clock journal, draft and policy ownership | Move controller bookkeeping to SQLite; justify minimal save metadata and delivery journals field by field. Keep transient authority per load and preserve recovery evidence through explicit migration. |
 | Two build scripts, profile staging and artifact checks | One native build/release manifest owns output paths, versions, dependency/input hashes and production versus fixture artifacts. |
 
 Use coherent folders for bootstrap, generated contracts, SDK/platform adapters,
@@ -987,6 +1033,8 @@ Commit accepted increments without enabling incomplete behavior by default.
   notices, pinned revisions and corresponding source in the unified distribution.
   Accept when every entry has an owner and explicit uncovered acceptance; identify
   source files excluded from compilation before deleting apparent duplicates.
+  Deliver the field-level state ownership audit above with G01.04/G01.08, including
+  removal targets, justified native exceptions and disconnected/save-branch tests.
   Dependencies: none; refresh against G01.00 and intervening gameplay fixes.
 
 - [ ] **N01.01 — Unified package without behavioral refactoring.** Owner: native
@@ -1046,18 +1094,28 @@ Commit accepted increments without enabling incomplete behavior by default.
   Linux/Xvfb frames/input, and camera restoration without simulation changes.
   Depends on 01–02 and relevant typed status/clock contracts.
 
-- [ ] **N01.06 — Save and recovery compatibility.** Owner: native state
-  implementer; coordinate with G01.04/G01.08. Audit assembly-qualified type lookup,
-  Scribe keys, component attachment, journal encoding and saved policy/lineage.
-  Retain exact types/keys where possible; any necessary migration is versioned,
-  tested on copies and documented before activation. Accept old-package save ->
-  unified load -> save -> fresh reload with stable colony/ownership identities,
-  rotated load token, invalidated transient authority, retained construction/haul
-  lineage and no duplicate orders. Test paired Python and available Go checkpoint
-  recovery and damaged/unknown state refusal. Test reverse compatibility rather
-  than assume it; rollback uses the retained old package plus pre-migration save
-  and controller checkpoint when new state is unreadable. Depends on 01 and the
-  relevant 02 contracts; complete before changing defaults.
+- [ ] **N01.06 — Consolidate persistence and verify save recovery.** Owner: native
+  state implementer with G01.04/G01.08 store/recovery owners. Implement the 00
+  field-level decisions in bounded families: first timeline association and event
+  delivery, then migrate controller records to SQLite and remove obsolete native
+  writers/components. Define precedence for conflicting legacy records; do not
+  merge contradictory progress into success. Make legacy imports versioned and
+  idempotent, retaining provenance and recovery evidence. Keep compatibility
+  readers/types only as long as supported old saves require them.
+  Accept old-package save -> unified load -> save -> fresh reload with stable
+  colony identity, rotated load token, preserved evidence and no duplicate orders.
+  Verify normal saves/autosaves, older and branched saves against newer SQLite,
+  missing databases, disconnected pawn work, player overrides, duplicate/lost
+  events, queue overflow and crashes before/after durable event acknowledgement.
+  Verify each retained native guard's safe disconnect/load behavior and require
+  fresh authority before recovery writes. Test paired Python and available Go
+  checkpoint recovery; a consumer lacking the new persistence contract remains
+  on compatible artifacts until its migration lands. Test reverse compatibility
+  rather than assume it; rollback uses the retained old package plus pre-migration
+  save and controller checkpoint when new state is unreadable. Depends on 01,
+  relevant 02 contracts and the owning consumer/store slices; complete before
+  changing defaults. Close only when every saved field has one authoritative
+  owner and each remaining native persistence exception has acceptance evidence.
 
 - [ ] **N01.07 — Deployment cutover and legacy removal.** Owner: integrator,
   coordinated with G01 launcher/release owner. Update setup/build scripts, private
