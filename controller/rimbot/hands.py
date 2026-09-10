@@ -34,13 +34,13 @@ class Hands:
                     from .construction_preflight import preflight_construction
                     async def spatial_read(name, args, **kwargs):
                         self.guard(rt, revision, token, direction)
-                        result = (await rt.inspect_native(name, args) if name=='home/place_building'
+                        result = (await rt.inspect_native(name, args) if name in ('home/place_building', 'home/placement_previews')
                                   else await rt.game.query(name, **args))
                         self.guard(rt, revision, token, direction)
                         return result
                     try:
                         await preflight_construction(rt.current_plan.spec, rt.current_plan,
-                            SimpleNamespace(invoke=spatial_read), refresh=True)
+                            SimpleNamespace(invoke=spatial_read, bridge=getattr(rt.game, 'bridge', None)), refresh=True)
                     except ValueError as error:
                         raise Blocked(getattr(error, 'code', 'spatial_preflight'), str(error),
                             evidence=getattr(error, 'evidence', {})) from error
@@ -48,9 +48,7 @@ class Hands:
                 if isinstance(action, RoomShell):
                     # Check the entire remaining shell before this pass can write any piece.
                     # Per-piece validation still runs immediately before each write.
-                    for index, placement in enumerate(placements):
-                        self.guard(rt, revision, token, direction)
-                        await self.place(rt, placement, progress, str(index), revision, token, direction, preview_only=True)
+                    await self.preflight_shell(rt, placements, progress, revision, token, direction)
                 operations = placements if placements is not None else action.targets if isinstance(action, CancelConstructionAction) else [action]
                 for index, operation in enumerate(operations):
                     self.guard(rt, revision, token, direction)
@@ -308,8 +306,30 @@ class Hands:
                 or rt.chat_revision != direction or (not reviewing and rt.chat_revision > rt.handled_revision)):
             raise InterruptedError('Plan or player direction changed')
 
-    async def place(self, rt, p, progress, key, revision, token, direction, *, preview_only=False, writer_locked=False, before_write=None):
+    async def preflight_shell(self, rt, placements, progress, revision, token, direction, *, coalesce=True):
+        """Share independent reads only until this read-only shell pass ends."""
+        from .placement_previews import PlacementPreviews
+        observed = {}
+        async def read(name, args):
+            self.guard(rt, revision, token, direction)
+            key = (name, tuple(sorted(args.items())))
+            if key not in observed:
+                observed[key] = await rt.game.query(name, **args)
+            self.guard(rt, revision, token, direction)
+            return observed[key]
+        previews = PlacementPreviews(rt.game, placements, inspect=rt.inspect_native) if coalesce else None
+        results = []
+        for index, placement in enumerate(placements):
+            self.guard(rt, revision, token, direction)
+            results.append(await self.place(rt, placement, progress, str(index), revision, token, direction,
+                preview_only=True, site_read=read if coalesce else None, previews=previews))
+            self.guard(rt, revision, token, direction)
+        return results
+
+    async def place(self, rt, p, progress, key, revision, token, direction, *, preview_only=False, writer_locked=False, before_write=None, site_read=None, previews=None):
         if writer_locked and not preview_only:raise ValueError('Locked construction preflight cannot write')
+        if not preview_only and (site_read is not None or previews is not None):
+            raise ValueError('Shared construction observations cannot authorize writes')
         found = await rt.game.query('home/list_buildings', match=p.def_name, x=p.x, z=p.z, radius=1, aggregate=False, playerOnly=True)
         if found.get('skipped', {}).get('byMaxDetailed'):
             raise Blocked('incomplete_observation', 'Construction query was truncated')
@@ -323,7 +343,8 @@ class Hands:
             args = dict(defName=p.def_name, x=p.x, z=p.z, rotation=p.rotation, dryRun=True)
             if stuff:
                 args['stuff'] = stuff
-            preview = (await rt.game.invoke('home/place_building',args,allow_write=False) if writer_locked
+            preview = (await previews.get(p, stuff) if previews is not None else
+                await rt.game.invoke('home/place_building',args,allow_write=False) if writer_locked
                 else await rt.inspect_native('home/place_building', args))
             last = preview
             if not preview.get('canPlace'):
@@ -353,12 +374,13 @@ class Hands:
                 raise Blocked('reserved_walkway', 'Building footprint crosses a reserved walkway')
             shell = owner.action if owner is not None and isinstance(owner.action, RoomShell) else None
             if shell is not None:
-                zones = await rt.game.query('home/list_zones', **ZONE_ARGUMENTS)
+                zones = (await site_read('home/list_zones', ZONE_ARGUMENTS) if site_read else
+                         await rt.game.query('home/list_zones', **ZONE_ARGUMENTS))
                 try:
                     validate_shell_zones(owner.id, shell, zones)
                     async def read(name, args):
                         self.guard(rt, revision, token, direction,reviewing=writer_locked)
-                        result = await rt.game.query(name, **args)
+                        result = await site_read(name, args) if site_read else await rt.game.query(name, **args)
                         self.guard(rt, revision, token, direction,reviewing=writer_locked)
                         return result
                     await validate_shell_access(owner.id, shell, read)

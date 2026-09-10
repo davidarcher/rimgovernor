@@ -46,6 +46,10 @@ async def run(args):
         report['startup_seconds'] = time.perf_counter()-began
         report['initial_tick'] = rt.batch.summary.end_tick
         rt.bridge.timing_callback = report['bridge_calls'].append
+        if args.shell_comparison:
+            from shell_preflight_acceptance import compare_shell_preflight
+            report['shell_comparison'] = await compare_shell_preflight(rt)
+            report['bridge_calls'].clear()
         if args.search_comparison:
             from search_preview_acceptance import compare_search_previews
             report['search_comparison'] = await compare_search_previews(rt)
@@ -159,6 +163,7 @@ if __name__ == '__main__':
     parser.add_argument('--observation-comparison', action='store_true', help='Verify paired paused native observations before the runtime sample')
     parser.add_argument('--placement-comparison', action='store_true', help='Verify bounded placement batches against individual native previews')
     parser.add_argument('--search-comparison', action='store_true', help='Verify native site search and material alternative equivalence')
+    parser.add_argument('--shell-comparison', action='store_true', help='Compare read-only Hands shell preflight with shared native reads')
     args = parser.parse_args()
     if not 10 <= args.seconds <= 1800:
         parser.error('Use 10..1800 seconds')

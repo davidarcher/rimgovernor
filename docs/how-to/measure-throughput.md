@@ -131,6 +131,11 @@ exhausted searches with explicit footprint exclusions, and material alternatives
 on the same paused native state. Two pairs reverse request order and require
 identical results, unchanged construction and unchanged ticks.
 
+Use `--shell-comparison` with `--runtime-seconds` to compare the Hands read-only
+shell preflight with individual versus shared observations. The probe selects a
+clear observed 4x4 site, reverses order between two pairs, and retains request
+counts and validation results. It requires unchanged paused ticks and construction.
+
 Construction preflight, resource allocation and site searches prefetch at most 16
 placements through `home/placement_previews` when colony identity advertises
 `placementPreviewBatchVersion: 1`. The input is a validated JSON list of
@@ -143,6 +148,12 @@ material choice order. Alternative materials use separate bounded batches. Site
 searches inspect the first candidate individually, then batch subsequent candidates
 through the runtime inspection guard, retaining the first safe site in search order.
 Room-shell material selection and final allocation use separate reviews.
+Hands shares zone and entrance reads only within its read-only whole-shell pass,
+and batches that pass's placement previews. Its final spatial preflight also
+advertises the native batch capability through the guarded inspection adapter.
+No shared observations pass into actual placement: every write retains its fresh
+existence, preview, resource, site and identity checks. Direction, plan and load
+invalidation guards run throughout the shared pass, including cache hits.
 Older companions use the
 individual path. Actual writes retain fresh native preflight and identity checks.
 Inspect the final controller events as well as the sampler totals: a valid

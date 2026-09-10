@@ -76,6 +76,8 @@ def run(args):
                 probe.append('--placement-comparison')
             if args.search_comparison:
                 probe.append('--search-comparison')
+            if args.shell_comparison:
+                probe.append('--shell-comparison')
         else:
             probe = ['python', 'scripts/throughput_acceptance.py', '--mode', mode,
                      '--repeats', str(args.repeats), '--ticks', *map(str, args.ticks)]
@@ -141,6 +143,7 @@ if __name__ == '__main__':
     parser.add_argument('--observation-comparison', action='store_true', help='Verify paired paused native observations before the runtime sample')
     parser.add_argument('--placement-comparison', action='store_true', help='Verify bounded placement batches against individual native previews')
     parser.add_argument('--search-comparison', action='store_true', help='Verify native site search and material alternative equivalence')
+    parser.add_argument('--shell-comparison', action='store_true', help='Compare read-only Hands shell preflight with shared native reads')
     parser.add_argument('--modes', nargs='+', choices=['headless', 'rendered', 'suspended', 'capture'], default=['headless'])
     parser.add_argument('--repeats', type=int, default=2)
     parser.add_argument('--ticks', type=int, nargs='+', default=[37, 600, 6000])

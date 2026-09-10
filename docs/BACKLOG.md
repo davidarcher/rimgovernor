@@ -323,9 +323,13 @@ each bounded method.
 - [ ] **Bridge request overhead.** Use the boundary timings in
   [throughput measurements](how-to/measure-throughput.md) to split remaining MCP
   session time into GABS ownership preparation, transport/decoding and native
-  scheduling. Compare shared observation inputs before relaxing serialization.
+  scheduling. Profile remaining shared observation inputs before relaxing serialization.
   Construction preflight, allocation, site searches and material alternatives
   already use bounded preview batches.
+  Hands coalesces zone/entrance reads within each read-only shell preflight;
+  actual writes retain fresh checks.
+  Measure remaining paused setup through the first simulated tick, separating
+  repeated validation, persistence and controller scheduling from bridge time.
   Native observations already support one
   request for the standard seven sections; retain identity invalidation, native
   interruption guards and durable mutation records in further optimizations.
