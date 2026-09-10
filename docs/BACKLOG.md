@@ -57,7 +57,7 @@ in the checkpoint commit; do not append an implementation diary here.
   player interruptions and partial work across save rewind. Broaden paired native
   restart acceptance beyond a cancelled room shell to mixed pending work,
   resource reservations and interrupted non-idempotent actions.
-- [ ] **B04e � Resource policy completeness.** Accept exact native ingredient job
+- [ ] **B04e · Resource policy completeness.** Accept exact native ingredient job
   admission and consumption guards, preserved player bill settings, persistent
   resource floors and lease-scoped construction commitments in game. Cover actual
   production and acquisition, material substitutions, stock changes during work,
@@ -70,6 +70,8 @@ in the checkpoint commit; do not append an implementation diary here.
   then add electrical generation/connectivity,
   research, comfort and expansion methods. Threats beyond the bounded small-animal method and unavailable power methods
   report explicit blockers instead of asking a model to improvise.
+  Resolve repeated combat rearming on an unchanged, already-observed low-health
+  colonist: require effective triage or an explicit hold without weakening injury thresholds.
 - [ ] **B04g · Native command acceptance.** Extend the isolated native chat probe to construction and room
   refinements. Issued-construction cancellation after a lost receipt has one native
   local-model acceptance case; broaden wording and context. Broaden research selection,
