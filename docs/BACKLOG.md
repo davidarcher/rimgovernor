@@ -20,16 +20,6 @@ in the checkpoint commit; do not append an implementation diary here.
   Nutrition-based harvest limits and per-colonist inventory/rot forecasts exist;
   validate actual spoilage, changing temperatures and food sharing during sustained runs. Enforce
   persistent player food targets through production capacity as well as stock.
-- [ ] **B04b · Native interruption acceptance.** Close against one integrated binary
-  set with: exact 1/37/600-tick windows at all three normal speeds; actual keyboard
-  pause/speed holds and explicit resume; exact letter attribution including
-  same-frame player precedence; actual danger preemption; load invalidation of
-  pending calls; ordinary autosave recovery on two existing seeds with issued and
-  pending controller work around the save boundary. Require unchanged deadlines,
-  no stale writes/replayed orders, native readbacks and save/load evidence.
-  Record installed observation, identity and headless DLL hashes. Remaining native
-  injury and mixed-work autosave cases must pass alongside the focused input,
-  letter/load and clock scripts in the testing runbook; compilation is insufficient.
 - [ ] **B04c · Shared intent completion.** Broaden adopted-room furnishing acceptance to
   edited rooms and hot/cold variants. Support safe explicit
   relocation/cancellation of issued construction through native cancellation
@@ -42,21 +32,6 @@ in the checkpoint commit; do not append an implementation diary here.
   save/load and real player direction changes.
   Verify freezer expansion,
   policies and conversational refinements with a real local model.
-- [ ] **B04d · Long-running goal lifecycle.** Broaden retention measurement from archived completed actions to
-  goal-method evidence and event history in sustained native campaigns.
-  Indexed recent-history reads preserve the full ledger. Synthetic lifecycle
-  audits and archived-method deduplication have controller and paired-native
-  restart coverage. Broaden sustained native coverage to remaining goal evidence
-  such as hunting targets and recovery histories, and measure ledger disk growth.
-  Add bounded
-  native acceptance for known pre-write construction-resource recovery and add
-  recovery for other known transient failures beyond confirmed interrupted tending,
-  verify work reassignment when colonists join an existing colony and
-  broaden larger-starter native acceptance to bed use and additional seeds, and
-  expand farming and shelter capacity beyond the fixed shell. Reconcile
-  player interruptions and partial work across save rewind. Broaden paired native
-  restart acceptance beyond a cancelled room shell to mixed pending work,
-  resource reservations and interrupted non-idempotent actions.
 - [ ] **B04e · Resource policy completeness.** Accept exact native ingredient job
   admission and consumption guards, preserved player bill settings, persistent
   resource floors and lease-scoped construction commitments in game. Cover actual
@@ -90,7 +65,7 @@ in the checkpoint commit; do not append an implementation diary here.
 
 ## P1 — Functional colony planning and recovery
 
-- [ ] **B06 � Spatial architecture.** Add long-term layout, functional room roles,
+- [ ] **B06 · Spatial architecture.** Add long-term layout, functional room roles,
   staged construction and reuse of ruins/nonrectangular shelters. Compare bounded
   alternatives using native terrain, supplies, danger, fertility and travel evidence.
   Extend spatial protection to observed/retired rooms, continuous corridors,
@@ -103,7 +78,7 @@ in the checkpoint commit; do not append an implementation diary here.
   custom definitions, sealed pockets, altered interiors and map edges. Measure
   repeated preflight/dispatch observation cost; controller fixtures do not establish
   native routes, construction completion or throughput.
-- [ ] **B07 � Durable project scheduling.** Extend maintained functional goals,
+- [ ] **B07 · Durable project scheduling.** Extend maintained functional goals,
   resource competition and production-consumption accounting through the shared
   plan and Hands; coordinate ingredient-policy coverage with B04e. Verify real
   consumption, competing project dispatch/restock, delayed shell-to-furnishing work
