@@ -188,3 +188,27 @@ def test_research_work_demand_ends_with_the_goal():
     assert required_resource_work(rt.current_plan) == {'Research':'Intellectual'}
     goal.cancelled = True
     assert required_resource_work(rt.current_plan) == {}
+
+
+def test_research_shares_development_capacity_until_native_work_finishes():
+    from rimbot.development_priorities import arbitrate, committed_projects
+    from rimbot.colony_policy import ColonyPolicy
+    from test_colony_controller import roster
+    rt = Runtime()
+    plan = rt.current_plan
+    goal = plan.colony_goals['EnsureResearch'] = ColonyGoal(priority_class=3,
+        evidence={'research':{'queue':['A'], 'current':None}})
+    plan.colony_goals['EnsureFoodStorage'] = ColonyGoal(priority_class=3)
+    nodes = [('EnsureResearch',3),('EnsureFoodStorage',3)]
+    facts = dict(tick=1,foodStorage=False)
+    _, admitted = arbitrate(plan, facts, roster(), nodes, ColonyPolicy(max_development_projects=1),
+                            context='load', direction=0)
+    assert len(admitted) == 1
+    goal.evidence['research']['current'] = {'defName':'A','progress':1}
+    plan.control['research'] = {'owned':'A'}
+    _, admitted = arbitrate(plan, facts, roster(), nodes, ColonyPolicy(max_development_projects=1),
+                            context='load', direction=0)
+    assert admitted == {'EnsureResearch'}
+    assert committed_projects(plan) == {'EnsureResearch'}
+    goal.status = 'complete'
+    assert committed_projects(plan) == set()

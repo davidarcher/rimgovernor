@@ -3,6 +3,7 @@
 Run inside an isolated container_worker. The disposable save adds one ordinary
 wood research bench and enables Research work; no research points are injected.
 """
+from copy import deepcopy
 import argparse
 import asyncio
 import hashlib
@@ -43,10 +44,20 @@ def fixture(root):
     for key, value in dict(def_='SimpleResearchBench', id='SimpleResearchBench999999', map='0',
                            pos=position, rot='0', faction=faction, hitPoints='200', stuff='WoodLog').items():
         ET.SubElement(bench, 'def' if key == 'def_' else key).text = value
+    food = [p for p in things if p.findtext('def') == 'Pemmican']
+    for stack in food: stack.find('forbidden').text = 'False'
+    template = food[0]
+    for index in range(24):
+        stack = deepcopy(template)
+        stack.find('id').text = 'Pemmican' + str(1000000 + index)
+        stack.find('pos').text = f'({138 + index % 6}, 0, {130 + index // 6})'
+        things.append(stack)
+    tree.find('.//storyteller/difficulty').text = 'Peaceful'
     ET.ElementTree(tree).write(path, encoding='utf-8', xml_declaration=True)
     return dict(source_sha256=hashlib.sha256(original).hexdigest(),
                 fixture_sha256=hashlib.sha256(path.read_bytes()).hexdigest(), bench=position,
-                changes=['Added one ordinary wood SimpleResearchBench', 'Normalized legacy UTF8 names'],
+                changes=['Added one ordinary wood SimpleResearchBench', 'Normalized legacy UTF8 names',
+                         'Allowed starting pemmican and added 24 matching native-size stacks', 'Selected native Peaceful preset'],
                 research_progress_modified=False, fixture_plants_cleared=len(cleared))
 
 
@@ -116,13 +127,15 @@ async def run(args):
             deadline = time.monotonic() + args.timeout
             while time.monotonic() < deadline:
                 clock.allow_resume()
-                await clock.change('Superfast', max_ticks=3000)
+                await clock.change('Superfast', max_ticks=6000)
                 while True:
                     await asyncio.sleep(.5)
                     await clock.poll()
                     if not clock.state.get('active'): break
                 snapshot = await rt.game.invoke('home/research', {'dryRun': True, 'finished': True})
-                report['samples'].append(dict(clock=clock.state, current=snapshot.get('current'), finished=snapshot['finished']))
+                people_now = await rt.game.query('home/list_pawns', colonistsOnly=True, needs=True, health=True)
+                report['samples'].append(dict(clock=clock.state, current=snapshot.get('current'), finished=snapshot['finished'],
+                    researcher=next(p for p in people_now['pawns'] if p['thingId'] == report['assigned_researcher'])))
                 save()
                 print('research', (snapshot.get('current') or {}).get('progress'), clock.state.get('stopReason'), flush=True)
                 if project in snapshot['finished']: break

@@ -15,7 +15,8 @@ unknown. Both ordinary and hidden prerequisites participate in traversal; missin
 hidden and knowledge-category projects block ordinary research. Traversal visits
 at most 128 unfinished nodes and retains at most eight queued projects and eight
 capability inspections per review. Completed prerequisites are omitted, and stable
-native definition ordering resolves ties. Repeated reviews do not switch an active
+native definition ordering resolves ties. Research uses the shared development
+admission limit; an observed owned project retains its slot until native work ends. Repeated reviews do not switch an active
 project to a newly preferred one. Obsolete requests leave the queue without clearing
 already-issued native research.
 

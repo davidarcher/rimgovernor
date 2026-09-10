@@ -31,6 +31,11 @@ def committed_projects(plan):
         unresolved = progress.state != 'complete' and bool(progress.issued)
         if progress.state in ('pending', 'executing', 'waiting') or unresolved:
             projects.add(step.goal_id or step.id)
+    research = plan.colony_goals.get('EnsureResearch')
+    current = (research.evidence.get('research', {}).get('current') or {}) if research else {}
+    if (research and not research.cancelled and research.status != 'complete' and current.get('defName')
+            and current['defName'] == plan.control.get('research', {}).get('owned')):
+        projects.add('EnsureResearch')
     return projects
 
 
@@ -40,6 +45,9 @@ def deficit(identity, goal, facts, policy):
         from .waste_management import pending_items
         pending = pending_items(goal.evidence.get('observation', {}))
         return None if pending is None else int(bool(pending))
+    if identity == 'EnsureResearch':
+        queue = goal.evidence.get('research', {}).get('queue')
+        return (1 if queue else 0) if isinstance(queue, list) else None
     if identity == 'EnsureFoodStorage':
         return 0 if facts.get('foodStorage') is True else 1
     if identity == 'EnsureBasicDefense':

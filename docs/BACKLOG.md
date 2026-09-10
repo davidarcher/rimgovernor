@@ -363,7 +363,7 @@ in the checkpoint commit; do not append an implementation diary here.
 - [ ] **B29 · Colony-wide development priorities.** Arbitrate comfort, research,
   production, defense and expansion through the existing deterministic priority tree
   and shared plans. Extend the bounded storage/defense/resource admission order to
-  comfort (B19), research (B20) and expansion (B06/B06b) as their methods become
+  comfort (B19) and expansion (B06/B06b) as their methods become
   available. Replace coarse worker-count capacity with native profession-specific
   labor, bottleneck, lead-time and risk scoring alongside shared resource commitments.
   Preserve emergency precedence, player goals and explicit deferral reasons.
