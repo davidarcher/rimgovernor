@@ -12,7 +12,7 @@ def runtime(legal=True):
     return SimpleNamespace(current_plan=ColonyPlan(), context_token='load', chat_revision=0,
         handled_revision=0, mode='automate', persist=Mock(), game=SimpleNamespace(query=AsyncMock(side_effect=query)),
         inspect_native=AsyncMock(return_value={'canPlace': legal, 'madeFromStuff': False,
-            'rotations': [{'occupiedCells': [{'x': 10, 'z': 10}]}]}),
+            'rotations': [{'rotation':'north','occupiedCells': [{'x': 10, 'z': 10}]}]}),
         native=AsyncMock(return_value={'receipt': {'outcome': 'placed'}}))
 
 

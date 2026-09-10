@@ -11,7 +11,8 @@ async def setup(tmp_path):
     async def preview(name, arguments, **kwargs):
         if name == 'home/cancel_construction':
             return {'success':True, 'applied':False}
-        return {'success':True, 'canPlace':True, 'rotations':[{'accepted':True,'blockingThings':[]}], 'costList':[{'defName':'WoodLog','count':5}],
+        return {'success':True, 'canPlace':True, 'rotations':[{'accepted':True,'blockingThings':[],
+                'rotation':arguments['rotation'],'occupiedCells':[{'x':arguments['x'],'z':arguments['z']}]}], 'costList':[{'defName':'WoodLog','count':5}],
                 'materials':{'rows':[{'defName':'WoodLog','available':1000}]}}
     rt.game.invoke = AsyncMock(side_effect=preview)
     return rt, rows
