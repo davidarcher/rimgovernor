@@ -241,21 +241,15 @@ class Hands:
                 try:
                     validate_shell_zones(owner.id, shell, zones)
                     async def read(name, args):
-                        self.guard(rt, revision, token, direction)
+                        self.guard(rt, revision, token, direction,reviewing=writer_locked)
                         result = await rt.game.query(name, **args)
-                        self.guard(rt, revision, token, direction)
+                        self.guard(rt, revision, token, direction,reviewing=writer_locked)
                         return result
                     await validate_shell_access(owner.id, shell, read)
                 except ShellSiteRefusal as error:
                     raise Blocked(error.code, str(error), evidence=error.evidence) from error
-            else:
-                zones = await rt.game.query('home/list_zones', x=p.x, z=p.z, radius=8, includeCells=True, maxCellsPerZone=10000)
-            for zone in zones['zones']:
-                cells = zone.get('gridCells')
-                if cells is None or len(cells) != zone['gridCellCount']:
-                    raise Blocked('incomplete_zone_geometry', 'Cannot prove that construction avoids existing zones')
-                if occupied & {(c['x'], c['z']) for c in cells}:
-                    raise Blocked('existing_zone', 'Building footprint overlaps an existing zone', evidence={'zone': zone['label']})
+            # Zones can legally coexist with furniture; native placement owns
+            # compatibility. Zone edits retain their separate exact-cell guards.
             self.guard(rt, revision, token, direction,reviewing=writer_locked)
             if preview_only:
                 return {'validated': True, 'stuff': stuff}

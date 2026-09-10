@@ -244,7 +244,8 @@ projects retain their source step identity, so equal display titles cannot repla
 another action's completion targets. Legacy descriptive projects remain separate.
 
 Geometry admission retains conflicts between unfinished actions and explicit reserved
-walkways. Unchanged completed actions remain history and do not reserve their old
+walkways. Native placement previews determine whether furniture can share existing
+zone cells; zone edits separately require exact existing geometry. Unchanged completed actions remain history and do not reserve their old
 cells against later player edits. New placement still requires native previews against
 the current map, including actual buildings and cancellation hazards.
 
