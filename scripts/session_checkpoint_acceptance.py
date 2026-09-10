@@ -21,6 +21,45 @@ async def ready(rt):
         await asyncio.sleep(.5)
 
 
+async def prepare_native_archive(rt,*,methods=True):
+    report={}
+    roster=await rt.game.query('home/list_pawns',colonistsOnly=True,work=True)
+    pawn=next(p for p in roster['pawns'] if any(w['name']=='Hauling' and w.get('disabled') is False
+        and w.get('priority',0)>0 for w in p['work']['types']))
+    result=await apply_command(rt,{'kind':'SetWorkPriority','pawn':pawn['thingId'],'work_type':'Hauling','priority':0},
+                               token=rt.context_token,revision=rt.chat_revision)
+    identity=result['step']
+    await rt.execute_manual_requests()
+    async with asyncio.timeout(60):
+        while rt.current_plan.progress[identity].state!='complete':await asyncio.sleep(.25)
+    async with rt.lock:
+        observed=await rt.game.query('home/list_pawns',colonistsOnly=True,work=True)
+        expected={p['thingId']:{w['name']:w['priority'] for w in p['work']['types']} for p in roster['pawns']}
+        expected[pawn['thingId']]['Hauling']=0
+        actual={p['thingId']:{w['name']:w['priority'] for w in p['work']['types']} for p in observed['pawns']}
+        assert actual==expected
+        plan=rt.current_plan
+        original=next(s.model_dump() for s in plan.spec.steps if s.id==identity)
+        progress=plan.progress[identity].model_dump()
+        if methods:
+            plan.colony_goals['EnsureWorkAssignments']=ColonyGoal(priority_class=2,source='PLAYER',
+                steps=[identity],evidence={'methods':{'native-hauling-off':[identity]}})
+        spec=plan.spec.model_dump();spec['steps']=[s for s in spec['steps'] if s['id']!=identity]
+        decision=Decision(expected_revision=plan.revision,disposition='revise',assessment='Archive completed work',
+            rationale='Archive completed work',reply='Archive completed work',plan=PlanSpec.model_validate(spec))
+    await rt.commit_strategy(decision,actor='strategist',expected_token=rt.context_token,expected_revision=rt.chat_revision)
+    rt.persist()
+    record=rt.store.retired_action(rt.colony,identity)
+    assert record['step']==original and record['progress']==progress and identity not in plan.progress
+    report['archive']={'identity':identity,'record':record,'work':expected}
+    if methods:
+        goal=plan.colony_goals['EnsureWorkAssignments']
+        assert goal.archived_methods==1 and goal.method_seen('native-hauling-off')
+        report['method_archive']=rt.store.retired_method(rt.colony,'EnsureWorkAssignments',goal.method_epoch,'native-hauling-off')
+        assert report['method_archive']=={'steps':[identity]}
+    return report
+
+
 async def main(args):
     root=isolated_root(args.source_root,args.output/'bridge')
     if args.rendered: prepare_rendered(root)
@@ -33,40 +72,7 @@ async def main(args):
         await apply_command(rt,{'kind':'CreateGoal','goal':'EnsureFoodSupply','food_days':20},
                             token=rt.context_token,revision=rt.chat_revision)
         if args.archive:
-            roster=await rt.game.query('home/list_pawns',colonistsOnly=True,work=True)
-            pawn=next(p for p in roster['pawns'] if any(w['name']=='Hauling' and w.get('disabled') is False
-                and w.get('priority',0)>0 for w in p['work']['types']))
-            result=await apply_command(rt,{'kind':'SetWorkPriority','pawn':pawn['thingId'],'work_type':'Hauling','priority':0},
-                                       token=rt.context_token,revision=rt.chat_revision)
-            identity=result['step']
-            await rt.execute_manual_requests()
-            async with asyncio.timeout(60):
-                while rt.current_plan.progress[identity].state!='complete':await asyncio.sleep(.25)
-            async with rt.lock:
-                observed=await rt.game.query('home/list_pawns',colonistsOnly=True,work=True)
-                expected={p['thingId']:{w['name']:w['priority'] for w in p['work']['types']} for p in roster['pawns']}
-                expected[pawn['thingId']]['Hauling']=0
-                actual={p['thingId']:{w['name']:w['priority'] for w in p['work']['types']} for p in observed['pawns']}
-                assert actual==expected
-                plan=rt.current_plan
-                original=next(s.model_dump() for s in plan.spec.steps if s.id==identity)
-                progress=plan.progress[identity].model_dump()
-                if args.methods:
-                    plan.colony_goals['EnsureWorkAssignments']=ColonyGoal(priority_class=2,source='PLAYER',
-                        steps=[identity],evidence={'methods':{'native-hauling-off':[identity]}})
-                spec=plan.spec.model_dump();spec['steps']=[s for s in spec['steps'] if s['id']!=identity]
-                decision=Decision(expected_revision=plan.revision,disposition='revise',assessment='Archive completed work',
-                    rationale='Archive completed work',reply='Archive completed work',plan=PlanSpec.model_validate(spec))
-            await rt.commit_strategy(decision,actor='strategist',expected_token=rt.context_token,expected_revision=rt.chat_revision)
-            rt.persist()
-            record=store.retired_action(rt.colony,identity)
-            assert record['step']==original and record['progress']==progress and identity not in plan.progress
-            report['archive']={'identity':identity,'record':record,'work':expected}
-            if args.methods:
-                goal=plan.colony_goals['EnsureWorkAssignments']
-                assert goal.archived_methods==1 and goal.method_seen('native-hauling-off')
-                report['method_archive']=store.retired_method(rt.colony,'EnsureWorkAssignments',goal.method_epoch,'native-hauling-off')
-                assert report['method_archive']=={'steps':[identity]}
+            report.update(await prepare_native_archive(rt,methods=args.methods))
         rt.reply('Checkpoint acceptance: preserve this conversation.')
         if getattr(args,'mixed',False):
             from mixed_checkpoint_fixture import prepare_mixed

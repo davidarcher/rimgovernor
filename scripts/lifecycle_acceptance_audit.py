@@ -10,6 +10,8 @@ def audit(report):
     assert report['outcome']=='LIFECYCLE_WINDOW',report['outcome']
     assert report['model_calls']==0 and report['model_attempts']==0
     assert ledger and ledger[-1]['tick']-report['initial_game_tick']>=life['days']*60000
+    if report.get('archive_fixture'):
+        assert ledger[0]['archive_hashes']['retired_actions'] and ledger[0]['archive_hashes']['retired_methods']
     for a,b in zip(ledger,ledger[1:]):
         assert b['tick']>=a['tick']
         for table,records in a.get('archive_hashes',{}).items():

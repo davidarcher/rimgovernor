@@ -617,6 +617,10 @@ Joined-pawn work acceptance compares completed deterministic assignment deltas
 with later native work-table readbacks for every joined pawn. These readbacks
 verify applied settings; actual bed use separately requires native `inBed` and
 `bedThingId` observations for every starting and joined colonist.
+Add `--archive-fixture` to start a lifecycle campaign with an ordinary completed
+work-setting action and method in the durable archive. Native work readback must
+verify the action before explicit retirement. The audit requires nonempty initial
+archive hashes and their unchanged preservation throughout the campaign.
 
 Add `--mixed` to `scripts/session_checkpoint_acceptance.py` for an issued shell
 slot, its unissued material reservations, a pending growing zone and pending work
