@@ -302,12 +302,6 @@ in the checkpoint commit; do not append an implementation diary here.
   deterministic fixtures and isolated native runs observing illumination, cleaning,
   completed floors, actual travel, generation/refueling and maintained temperatures.
 
-- [ ] **B19 · Mood and mental-break prevention.** Turn observed thoughts, needs,
-  break thresholds and mood pressure into bounded corrective goals. Rank actionable
-  causes by urgency, expected benefit, labor and resources; coordinate rest,
-  recreation, food, environment and social needs without overriding player policy.
-  Preserve uncertainty about future mood and respect traits/ideology. Verify actual
-  need recovery and safe handling of active breaks, not furniture placement alone.
 - [ ] **B22 · Population and recruitment.** Plan rescue/capture, prisoner care and
   recruitment according to explicit colony policy, available staff, beds and food.
   Distinguish potential recruits from admitted population; provision capacity before
@@ -367,7 +361,7 @@ player-direction/load guards, uncertain-write reconciliation and observable
 completion through the shared goal/action system. Use focused deterministic tests
 and isolated native scenarios, then sustained B04 campaigns. Existing reads,
 commands or forecast outputs do not establish autonomous management. Prioritize
-B19–B21 and B23 after urgent startup gaps; land bounded vertical slices rather than
+B23 after urgent startup gaps; land bounded vertical slices rather than
 requiring every system before any can be accepted.
 
 ## P2 — Coverage, inspection and evaluation scale
