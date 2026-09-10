@@ -159,9 +159,11 @@ async def run(args):
         assert candidates,'No capable native researcher'
         candidates=sorted(candidates,key=lambda p:-next((s.get('level',0) for s in p['bio']['skills'] if s['name']=='Intellectual'),0))[:2]
         for candidate in candidates:
-            await command(kind='SetWorkPriority',pawn=candidate['thingId'],work_type='Research',priority=1)
+            research_work=next(w for w in candidate['work']['types'] if w['name']=='Research')
+            if research_work.get('priority')!=1:
+                await command(kind='SetWorkPriority',pawn=candidate['thingId'],work_type='Research',priority=1)
             for work in candidate['work']['types']:
-                if work['name'] not in ('Research','Firefighter','Patient','PatientBedRest','BedRest') and not work['disabled']:
+                if work['name'] not in ('Research','Firefighter','Patient','PatientBedRest','BedRest') and not work['disabled'] and work.get('priority',0)!=0:
                     await command(kind='SetWorkPriority',pawn=candidate['thingId'],work_type=work['name'],priority=0)
         while await compile_method('EnsureWorkAssignments'):pass
         research=await rt.game.invoke('home/research',{'filter':'Biofuel','finished':True,'locked':True})
