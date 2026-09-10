@@ -73,9 +73,10 @@ audits](how-to/audit-retention.md).
 
 [Verify native trades](how-to/trade-acceptance.md).
 
-## Docker workers (B17)
+## Docker workers
 
-[Run native Docker acceptance](how-to/docker-native.md).
+[Run native Docker acceptance](how-to/docker-native.md) ·
+[Run named gameplay scenarios](how-to/native-scenarios.md).
 
 ## Docker controller checks (no game required)
 

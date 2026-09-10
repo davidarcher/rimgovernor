@@ -15,7 +15,9 @@ Windows-specific tests skip on Linux. Native acceptance is separate. Compose wor
 startup crashes. Original game inputs remain unchanged. Set
 `RIMBOT_UNITY_GC_TIME_SLICE=source` to preserve the original setting for comparisons.
 The source boot hash, prepared boot hash and effective override are retained in
-`staging.json`/`inputs.json`. Broader startup and GC-pause acceptance remains in B17.
+`staging.json`/`inputs.json`. The [named runner](native-scenarios.md) supports repeated
+original/overridden GC trials, exact paused startup, three-day endurance and sampled
+resource comparisons. These are bounded observations, not a native GC-pause profiler.
 Windows game executables cannot run in this image. Supply your licensed Linux RimWorld
 installation (including Data/Mono files), a Linux amd64 GABS executable named `gabs`, a
 complete `Mods` directory, and a prepared profile containing `Config/Prefs.xml`,

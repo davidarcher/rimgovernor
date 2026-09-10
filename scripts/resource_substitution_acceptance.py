@@ -1,4 +1,5 @@
 """Observe reserve-aware material substitution through actual ordinary construction."""
+from rimbot.native_scenario import advance_game
 import argparse
 import asyncio
 import json
@@ -60,17 +61,7 @@ async def run(args):
             assert progress.state!='blocked',progress.model_dump(mode='json')
             assert time.monotonic()<deadline,'Ordinary wall work did not complete'
             if rt.review_task and not rt.review_task.done():await rt.review_task
-            await rt.supervisor.change('Superfast',max_ticks=600)
-            async with asyncio.timeout(45):
-                while True:
-                    clock=(await runtime_file_read(rt.bridge.call,'home/supervised_play',op='status')).structuredContent
-                    if not clock['active']:break
-                    await asyncio.sleep(.15)
-            if clock['stopReason']=='letter_pause':
-                threats=await rt.game.query('home/status',colonists=False,threats=True)
-                assert threats['counts']['hostileCount']==0 and threats['counts']['huntingPredatorCount']==0
-                rt.supervisor.absorb(clock);rt.supervisor.allow_resume()
-            else:assert clock['pauseVerified'] and clock['stopReason'] in ('tick_budget','requested_pause'),clock
+            clock = await advance_game(rt, 600, report, timeout=60)
             report['latest']={'clock':clock,'progress':progress.model_dump(mode='json')}
             (args.output/'progress.json').write_text(json.dumps(report,indent=2))
         final=await rt.game.query('home/colony_facts',planning=True)
@@ -115,12 +106,7 @@ async def run(args):
                 if observed['resources'].get(resource,0)>=3:break
                 assert time.monotonic()<deadline,'Expanded target-count capacity did not produce native output'
                 if rt.review_task and not rt.review_task.done():await rt.review_task
-                await rt.supervisor.change('Superfast',max_ticks=600)
-                async with asyncio.timeout(45):
-                    while True:
-                        clock=(await runtime_file_read(rt.bridge.call,'home/supervised_play',op='status')).structuredContent
-                        if not clock['active']:break
-                        await asyncio.sleep(.15)
+                clock = await advance_game(rt, 600, report, timeout=60)
                 assert clock['pauseVerified'] and clock['stopReason'] in ('tick_budget','requested_pause'),clock
             after_bills=(await rt.game.invoke('home/bills',{'action':'list','bench':bench['thingId'],'dryRun':True}))['benches'][0]['bills']
             after_existing=next(b for b in after_bills if b['billId']==before_bill['billId'])
@@ -139,12 +125,7 @@ async def run(args):
                 report['temporary_commitment']=(await rt.bridge.call('home/production_policy',
                     **{k:rt.identity[k] for k in ('colonyId','loadToken','mapId')},
                     floors='',commitments='WoodLog='+str(held),stopped='',dryRun=False)).structuredContent
-                await rt.supervisor.change('Superfast',max_ticks=1200)
-                async with asyncio.timeout(45):
-                    while True:
-                        clock=(await runtime_file_read(rt.bridge.call,'home/supervised_play',op='status')).structuredContent
-                        if not clock['active']:break
-                        await asyncio.sleep(.15)
+                clock = await advance_game(rt, 1200, report, timeout=60)
                 assert clock['pauseVerified'] and clock['stopReason'] in ('tick_budget','requested_pause'),clock
                 after_lease=await rt.game.query('home/colony_facts',planning=True)
                 record('native_lease_commitment_stops_bill',after_lease['resources'].get(resource,0)==3

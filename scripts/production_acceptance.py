@@ -4,6 +4,7 @@ The disposable fixture enables numbered priorities and replaces one starting
 pemmican stack with rice. Native actions build a campfire and allow supplies;
 the model enables the cook and creates the bill. No instant production is used.
 """
+from rimbot.bridge import gabs_executable
 import argparse
 import asyncio
 import hashlib
@@ -122,7 +123,7 @@ async def run(args):
     report['fixture'] = fixture(root)
     start = time.monotonic()
     try:
-        async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe', prepare(root)) as bridge:
+        async with bridge_session(gabs_executable(root), prepare(root)) as bridge:
             await bridge.core('games_start', gameId=bridge.game_id)
             await bridge.connect()
             await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',

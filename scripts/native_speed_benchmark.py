@@ -1,6 +1,7 @@
 """Test-only speed benchmark. Normal controller/model safety policy is unchanged.
 Renders normally; omits dashboard captures. Does NOT claim headless performance.
 """
+from rimbot.bridge import gabs_executable
 import argparse
 import asyncio
 import json
@@ -12,7 +13,7 @@ async def main(seconds,repeats,headless=False):
     root=Path('.rimbot/bridge').resolve();rows=[]
     from rimbot.headless import prepare
     configuration=prepare(root) if headless else root/'config'
-    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',configuration) as bridge:
+    async with bridge_session(gabs_executable(root),configuration) as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
         try:
             for speed in ('Normal','Superfast','Ultrafast'):

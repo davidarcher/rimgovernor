@@ -24,6 +24,7 @@ class PlayClock:
         self.cursor = saved.get('cursor', 0)
         self.epoch = saved.get('epoch', 0)
         previous = saved.get('context')
+        self.reloaded = bool(previous and previous != context)
         if store and previous and previous != context:
             with store.transaction():
                 old = store.get('clock-inbox:'+previous, [])
@@ -139,6 +140,21 @@ class PlayClock:
                         raise
             if not self.epoch:
                 return []
+            newest = state.get('newestCursor')
+            if type(newest) is int and self.cursor > newest:
+                # A paired save can precede the controller's final journal read.
+                # Preserve the discontinuity before reading the restored journal;
+                # never send an invalid cursor or silently discard pending events.
+                if not self.reloaded or state.get('active'):
+                    self.hold = 'event_journal_error'
+                    raise ValueError('Native event cursor regressed within the current load')
+                gap = dict(kind='event_gap', detail='Restored native journal precedes the saved controller cursor.',
+                           saved_cursor=self.cursor, restored_cursor=newest)
+                self.cursor = 0
+                self.reloaded = False
+                self.record([gap])
+                return [gap]
+            self.reloaded = False
             batch = await self.call(op='events', afterCursor=self.cursor, limit=128)
             rows = [row for row in batch['events'] if row['epoch'] == self.epoch]
             if batch.get('gap'):

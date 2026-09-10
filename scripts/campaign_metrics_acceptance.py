@@ -3,6 +3,7 @@
 Requires a test build with CampaignMetricsFixture=true installed while every game
 is closed. This script never installs DLLs and always stops its owned game.
 """
+from rimbot.bridge import gabs_executable
 import argparse
 import asyncio
 import hashlib
@@ -35,7 +36,7 @@ async def run(args):
     report['thresholds']=evidence.report()['thresholds']
     (root/'thresholds.json').write_text(json.dumps(report['thresholds'],indent=2))
     try:
-        async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',prepare(root)) as bridge:
+        async with bridge_session(gabs_executable(root),prepare(root)) as bridge:
             store=Store(root/'state.sqlite');rt=FastTrial(store,root,headless=True)
             try:
                 await bridge.core('games_start',gameId=bridge.game_id)

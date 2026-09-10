@@ -1,4 +1,5 @@
 """Prepare an ordinary native Crashlanded start without save/game-state edits."""
+from rimbot.bridge import gabs_executable
 import argparse,asyncio,json,shutil
 from pathlib import Path
 from rimbot.bridge import bridge_session
@@ -6,7 +7,7 @@ from rimbot.headless import isolated_root,prepare
 async def main(args):
     root=isolated_root(args.source_root,args.output)
     config=prepare(root);report={}
-    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',config) as bridge:
+    async with bridge_session(gabs_executable(root),config) as bridge:
         try:
             await bridge.core('games_start',gameId=bridge.game_id)
             await bridge.connect()

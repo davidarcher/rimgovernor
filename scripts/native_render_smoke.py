@@ -1,6 +1,7 @@
 """Windows rendered-process test: demand expiry, live ticks, wake and TPS samples.
 Close the dashboard controller first. No models, speed boost, or saved mutations.
 """
+from rimbot.bridge import gabs_executable
 import asyncio
 import ctypes
 import json
@@ -26,7 +27,7 @@ def game_window():
 async def main():
     root=Path('.rimbot/bridge').resolve()
     evidence={'samples':[]}
-    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',root/'config') as bridge:
+    async with bridge_session(gabs_executable(root),root/'config') as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
         await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',timeoutMs=90000)
         user,window=game_window()

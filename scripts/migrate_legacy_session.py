@@ -1,4 +1,5 @@
 """One-time migration of a paused legacy server through the existing GABS transport."""
+from rimbot.bridge import gabs_executable
 import argparse
 import asyncio
 import json
@@ -117,7 +118,7 @@ async def migrate(args):
                         colony=state['sessionId'].rsplit(':',1)[0]
                         validate_saved_state(store.get('bridge:'+colony),state)
                         config=root/('config-headless' if state['headless'] else 'config')
-                        async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',config) as bridge:
+                        async with bridge_session(gabs_executable(root, config),config) as bridge:
                             status=(await bridge.core('games_status',gameId=bridge.game_id)).structuredContent
                             runtime=status.get('diagnostics',{}).get('runtime',{})
                             game_process = retain_game_process(read_game_claim(config, runtime))

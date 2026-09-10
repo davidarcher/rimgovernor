@@ -1,4 +1,5 @@
 """Ordinary native bill consumption, reserve enforcement and resource acquisition."""
+from rimbot.native_scenario import advance_game
 import argparse
 import asyncio
 import json
@@ -6,16 +7,21 @@ import time
 from pathlib import Path
 from session_checkpoint_acceptance import ready
 from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.headless import isolated_root, prepare
+from rimbot.headless import isolated_root, prepare, prepare_rendered
 from rimbot.store import Store
 from rimbot.player_commands import apply_command
 from rimbot.colony_plan import ColonyGoal, CommitSteps
 from rimbot.campaign_manifest import capture_manifest
 
 
+class MissingFixture(ValueError):
+    pass
+
+
 async def run(args):
-    root=isolated_root(args.source_root,args.output/'bridge');config=prepare(root)
-    store=Store(args.output/'state.sqlite');rt=BridgeRuntime(store,root,fresh=True,headless=True)
+    rendered=getattr(args,'rendered',False)
+    root=isolated_root(args.source_root,args.output/'bridge');config=prepare_rendered(root) if rendered else prepare(root)
+    store=Store(args.output/'state.sqlite');rt=BridgeRuntime(store,root,fresh=True,headless=not rendered)
     report={'outcome':'failed','cases':[]}
     def record(name, passed, **evidence):
         report['cases'].append(dict(name=name,passed=bool(passed),**evidence))
@@ -23,33 +29,17 @@ async def run(args):
         print(name+': '+str(bool(passed)),flush=True)
         assert passed,name
     async def command(**payload):
+        # Consume the previous bounded clock stop before capturing this new direction.
+        async with rt.lock:
+            await rt.refresh_clock_events()
         result=await apply_command(rt,payload,token=rt.context_token,revision=rt.chat_revision)
         await rt.execute_manual_requests()
         return result
     async def facts(): return await rt.game.query('home/colony_facts',planning=True)
-    async def clock_status():
-        # GABS can briefly race its runtime-state publication on Windows. Retry
-        # only this read; never replay a native write after an uncertain result.
-        for attempt in range(8):
-            try:return (await rt.bridge.call('home/supervised_play',op='status')).structuredContent
-            except Exception as error:
-                if 'failed to publish runtime state' not in str(error) or attempt==7:raise
-                await asyncio.sleep(.2)
     async def window(ticks=600):
-        if rt.review_task and not rt.review_task.done():await rt.review_task
-        await rt.supervisor.change('Superfast',max_ticks=ticks)
-        async with asyncio.timeout(40):
-            while True:
-                state=await clock_status()
-                if not state['active']:break
-                await asyncio.sleep(.1)
-        if state['stopReason']=='letter_pause':
-            letters=await rt.game.invoke('rimworld/list_letters', {})
-            danger=await rt.game.query('home/status',colonists=False,threats=True)
-            record('letter_observed',state['pauseVerified'] and danger['counts']['hostileCount']==0
-                and danger['counts']['huntingPredatorCount']==0,clock=state,letters=letters)
-            rt.supervisor.absorb(state);rt.supervisor.allow_resume()
-        else: assert state['stopReason'] in ('tick_budget','requested_pause') and state['pauseVerified'],state
+        state = await advance_game(rt, ticks, report, timeout=60)
+        async with rt.lock:
+            await rt.refresh_clock_events()
         if rt.review_task and not rt.review_task.done():await rt.review_task
         return state
     async def stock(resource):
@@ -57,25 +47,13 @@ async def run(args):
         return sum(r['total'] for r in value['things'] if r['defName']==resource)
     async def bills(bench):return await rt.game.invoke('home/bills',{'action':'list','bench':bench,'dryRun':True})
     try:
-        manifest=capture_manifest(Path(__file__).resolve().parents[1],root,config,rt.router.routing.model_dump(mode='json'))
+        manifest=capture_manifest(Path(__file__).resolve().parents[1],root,config,rt.router.routing.model_dump(mode='json'),
+            profile=root/'profile' if rendered else None)
         manifest['identity_binary_sha256']=manifest['inputs']['artifacts']['identity_dll']
         (args.output/'manifest.json').write_text(json.dumps(manifest,indent=2))
         await ready(rt)
-        observed=await facts()
-        # The production skill uses the same ordinary starting-supply permission as the foothold.
-        while observed.get('forbiddenSupplies'):
-            goal=rt.current_plan.colony_goals.setdefault('AllowStartingSupplies',ColonyGoal(priority_class=2,source='PLAYER'))
-            method,actions=await rt.controller.skills.compile('AllowStartingSupplies',observed,[])
-            steps,_=rt.controller.skills.steps('AllowStartingSupplies',method,actions,observed)
-            await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
-                reason='Allow ordinary starting supplies',steps=steps).decision(rt.current_plan),actor='strategist',
-                expected_token=rt.context_token,expected_revision=rt.chat_revision)
-            for _ in steps:
-                rt.manual_requests.extend((s.id,rt.context_token,rt.chat_revision) for s in steps if rt.current_plan.progress[s.id].state=='pending')
-                await rt.execute_manual_requests()
-            assert all(rt.current_plan.progress[s.id].state=='complete' for s in steps)
-            goal.evidence.setdefault('methods',{})[method]=[s.id for s in steps]
-            observed=await facts()
+        from native_scenario_support import allow_starting_supplies, settle_dispatch
+        observed=await allow_starting_supplies(rt)
         # A crafting spot is an ordinary zero-work player building; products still require pawn labor.
         for cell in sorted(observed['cells'],key=lambda c:(c['x']-observed['center']['x'])**2+(c['z']-observed['center']['z'])**2):
             if cell['occupied'] or not cell['walkable']:continue
@@ -134,20 +112,29 @@ async def run(args):
             record('target_'+resource,rt.current_plan.colony_goals[result['goal']].target=={'resource':resource,'quantity':quantity},sources=source)
         if args.acquisition:
             from rimbot.production_policy import resource_method
-            for resource in ('Steel','ComponentIndustrial','MedicineHerbal','WoodLog'):
-                observed=await facts();goal_id='MaintainResource-'+resource
-                goal=rt.current_plan.colony_goals[goal_id]
-                goal.target['quantity']=observed['resources'].get(resource,0)+1
-                before_native=await stock(resource)
-                method,actions=await resource_method(rt,goal_id,observed)
-                assert actions and all(a['tool']=='home/acquire_resource' for a in actions)
+            async def dispatch_acquisition(goal_id, method, actions, observed):
                 steps,_=rt.controller.skills.steps(goal_id,method,actions,observed)
                 await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
                     reason='Resource target native acquisition',steps=steps).decision(rt.current_plan),
                     actor='strategist',expected_token=rt.context_token,expected_revision=rt.chat_revision)
                 rt.manual_requests.extend((s.id,rt.context_token,rt.chat_revision) for s in steps)
                 await rt.execute_manual_requests()
-                record('issued_'+resource,all(rt.current_plan.progress[s.id].state=='complete' for s in steps),actions=actions)
+                await settle_dispatch(rt, steps)
+                record('issued_'+resource,all(rt.current_plan.progress[s.id].state=='complete' for s in steps),actions=actions,
+                       progress={s.id:rt.current_plan.progress[s.id].model_dump(mode='json') for s in steps})
+            for resource in getattr(args, 'acquisition_resources', None) or ('Steel','ComponentIndustrial','MedicineHerbal','WoodLog'):
+                observed=await facts();goal_id='MaintainResource-'+resource
+                census=await rt.game.invoke('home/resource_sources',{'resource':resource})
+                report.setdefault('acquisition_sources',{})[resource]=census
+                if not census.get('sources'):
+                    raise MissingFixture('No safely reachable native source for '+resource)
+                goal=rt.current_plan.colony_goals[goal_id]
+                goal.target['quantity']=observed['resources'].get(resource,0)+1
+                before_native=await stock(resource)
+                method,actions=await resource_method(rt,goal_id,observed)
+                assert actions and all(a['tool']=='home/acquire_resource' for a in actions)
+                await dispatch_acquisition(goal_id,method,actions,observed)
+                issued_targets={a['arguments']['thingId'] for a in actions}
                 people=(await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True,equipment=True))['pawns']
                 rt.current_plan.colony_goals.setdefault('EnsureWorkAssignments',ColonyGoal(priority_class=2,source='PLAYER'))
                 assignment=await rt.controller.skills.compile('EnsureWorkAssignments',observed,people)
@@ -161,6 +148,7 @@ async def run(args):
                         rt.manual_requests.extend((s.id,rt.context_token,rt.chat_revision) for s in work_steps
                             if rt.current_plan.progress[s.id].state=='pending')
                         await rt.execute_manual_requests()
+                    await settle_dispatch(rt, work_steps)
                     record('assigned_'+resource,all(rt.current_plan.progress[s.id].state=='complete' for s in work_steps),
                         work_types=goal.evidence.get('work_types'),actions=work_actions)
 
@@ -172,6 +160,19 @@ async def run(args):
                         'tick':observed['tick'],'pawns':await rt.game.query('home/list_pawns',colonistsOnly=True,work=True)}
                     (args.output/'progress.json').write_text(json.dumps(report,indent=2))
                     if observed['resources'].get(resource,0)>=goal.target['quantity']:break
+                    # Native yields are estimates: a consumed plant can leave a
+                    # deficit. Replan from fresh sources, never replay a target.
+                    if len(issued_targets)<8:
+                        replanned=await resource_method(rt,goal_id,observed)
+                        if not replanned:continue
+                        method,actions=replanned
+                        if actions and all(a['tool']=='home/acquire_resource' and
+                            a['arguments']['thingId'] not in issued_targets for a in actions):
+                            report.setdefault('acquisition_replans',[]).append(dict(resource=resource,
+                                tick=observed['tick'],stock=observed['resources'].get(resource,0),
+                                previous_targets=sorted(issued_targets),actions=actions))
+                            await dispatch_acquisition(goal_id,method,actions,observed)
+                            issued_targets.update(a['arguments']['thingId'] for a in actions)
                 record('native_acquired_'+resource,observed['resources'].get(resource,0)>=goal.target['quantity']
                     and await stock(resource)>before_native,before=before_native,after=await stock(resource),
                     goal=goal.model_dump(mode='json'),tick=observed['tick'])
@@ -185,7 +186,7 @@ async def run(args):
             await rt.stop();store.close()
             _,state_root=prepare_resume(checkpoint['manifest_path'])
             store=Store(state_root/'bridge.sqlite')
-            rt=BridgeRuntime(store,root,fresh=True,headless=True,resume=checkpoint['manifest_path'])
+            rt=BridgeRuntime(store,root,fresh=True,headless=not rendered,resume=checkpoint['manifest_path'])
             await ready(rt)
             record('paired_policy_preserved',rt.mode=='manual' and rt.current_plan.control.get('resource_policy')==expected_policy)
             record('paired_bill_settings_preserved',(await bills(bench))['benches'][0]['bills'][0]['config']==expected_native)
@@ -195,6 +196,8 @@ async def run(args):
                 before=before_resume,after=await stock('WoodLog'),policy=expected_policy)
         record('zero_inference',rt.counters.get('model_calls',0)==0,counters=rt.counters)
         report['outcome']='passed'
+    except MissingFixture as error:
+        report.update(outcome='missing_prerequisite',error=str(error))
     except Exception as error:
         report['error']=str(error);raise
     finally:
@@ -215,6 +218,8 @@ if __name__=='__main__':
     parser.add_argument('--source-root',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--seconds',type=int,default=300)
+    parser.add_argument('--acquisition-resources',nargs='+',choices=['Steel','ComponentIndustrial','MedicineHerbal','WoodLog'])
+    parser.add_argument('--rendered',action='store_true')
     parser.add_argument('--persistence',action='store_true',help='Require paired native save/load and Manual reserve enforcement')
     parser.add_argument('--acquisition',action='store_true',help='Require actual native mined steel/components and harvested herbal medicine')
     args=parser.parse_args()

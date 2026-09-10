@@ -56,8 +56,43 @@ class NativeClock:
             raise ValueError('Owner/epoch mismatch or no active supervisor')
         elif op == 'events':
             rows = [r for r in self.events if r['cursor'] > args['afterCursor']]
+            self.state['newestCursor'] = len(self.events)
             return SimpleNamespace(structuredContent=dict(success=True, events=rows, nextCursor=len(self.events), gap=False))
         return SimpleNamespace(structuredContent=dict(self.state))
+
+
+@pytest.mark.asyncio
+async def test_restored_journal_shorter_than_checkpoint_reports_gap_before_read(tmp_path):
+    store = Store(tmp_path/'state.sqlite')
+    try:
+        store.set('clock-source:colony:map', dict(cursor=10, epoch=4, context='colony:map:old'))
+        store.set('clock-inbox:colony:map:old', [dict(kind='letter_pause')])
+        bridge = NativeClock()
+        bridge.state.update(epoch=4, newestCursor=8)
+        clock = PlayClock(bridge, store, 'colony:map:new')
+        rows = await clock.poll()
+        assert rows == [dict(kind='event_gap', detail='Restored native journal precedes the saved controller cursor.',
+                             saved_cursor=10, restored_cursor=8)]
+        assert clock.cursor == 0
+        assert [r['kind'] for r in store.get('clock-inbox:colony:map:new')] == ['letter_pause', 'event_gap']
+        assert not any(c[1]['op'] in ('events', 'start') for c in bridge.calls)
+        await clock.poll()
+        assert bridge.calls[-1][1] == dict(op='events', afterCursor=0, limit=128)
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('active', [False, True])
+async def test_same_load_journal_regression_refuses_without_invalid_native_read(active):
+    bridge = NativeClock()
+    clock = PlayClock(bridge)
+    clock.epoch, clock.cursor = 4, 10
+    bridge.state.update(epoch=4, newestCursor=8, active=active)
+    with pytest.raises(ValueError, match='regressed'):
+        await clock.poll()
+    assert clock.hold == 'event_journal_error'
+    assert not any(c[1]['op'] in ('events', 'start') for c in bridge.calls)
 
 
 @pytest.mark.asyncio

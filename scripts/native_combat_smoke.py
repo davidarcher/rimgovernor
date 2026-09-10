@@ -52,6 +52,13 @@ async def draft_ownership_probe(rt, evidence):
         stale_refusal=stale,preserved=preserved,released=released)
 
 
+def ancient_warning_pending(clock, evidence):
+    """Recognize the one explicitly acknowledged warning in this disposable probe."""
+    return (clock.get('stopReason') in ('external_pause', 'letter_pause')
+            and 'Ancient danger' in clock.get('stopDetail', '')
+            and not evidence.get('acknowledged_ancient_warning'))
+
+
 async def tend_wounded(rt, evidence, recovery=False):
     """Use native ground tending and require an observed treated wound."""
     pawns=(await rt.game.query('home/list_pawns',colonistsOnly=True,health=True))['pawns']
@@ -72,8 +79,7 @@ async def tend_wounded(rt, evidence, recovery=False):
         if state['position']==destination:
             arrived=True;break
         clock=rt.supervisor.state
-        if (clock.get('stopReason')=='external_pause' and 'Ancient danger' in clock.get('stopDetail','')
-                and not evidence.get('acknowledged_ancient_warning')):
+        if ancient_warning_pending(clock, evidence):
             evidence['acknowledged_ancient_warning']=clock['stopDetail']
             rt.supervisor.allow_resume()
             await rt.control_clock('Superfast',mode='combat')
@@ -227,9 +233,7 @@ async def main(tend=False, root=None, recovery=False, existing_patient=False, re
                 evidence['last_animal_read']=current
                 observed=next((p for p in current['pawns'] if p['thingId']==target['thingId']),None)
                 state=rt.supervisor.state
-                if ((tend or require_interruption) and state.get('stopReason') in ('external_pause', 'letter_pause')
-                        and 'Ancient danger' in state.get('stopDetail','')
-                        and not evidence.get('acknowledged_ancient_warning')):
+                if (tend or require_interruption) and ancient_warning_pending(state, evidence):
                     # Explicit disposable-test acknowledgment; no production auto-resume.
                     evidence['acknowledged_ancient_warning']=state['stopDetail']
                     rt.supervisor.allow_resume()

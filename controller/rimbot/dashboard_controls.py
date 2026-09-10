@@ -215,7 +215,10 @@ async def camera_contract(rt, tool, arguments):
 async def camera_call(rt, tool, arguments):
     # Relative input is never retried after an uncertain native dispatch.
     try:
-        result = await rt.bridge.call(tool, **arguments)
+        if tool == 'rimworld/get_camera_state':
+            result = await runtime_file_read(rt.bridge.call, tool, **arguments)
+        else:
+            result = await rt.bridge.call(tool, **arguments)
     except BridgeError as error:
         raise ValueError(f'Native player request failed: {error.detail}') from error
     payload = result.structuredContent

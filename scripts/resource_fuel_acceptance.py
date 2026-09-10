@@ -1,4 +1,5 @@
 """Ordinary research, construction and target-count chemfuel production acceptance."""
+from rimbot.native_scenario import advance_game
 import argparse
 import asyncio
 import json
@@ -92,39 +93,7 @@ async def run(args):
     async def window(phase):
         assert time.monotonic()<deadline,'Native fuel acceptance deadline expired'
         if rt.review_task and not rt.review_task.done():await rt.review_task
-        await rt.supervisor.change('Superfast',max_ticks=600)
-        async with asyncio.timeout(45):
-            while True:
-                clock=(await runtime_file_read(rt.bridge.call,'home/supervised_play',op='status')).structuredContent
-                if not clock['active']:break
-                await asyncio.sleep(.15)
-        if clock['stopReason']=='force_paused':
-            report['dialog']={'ui':await rt.game.invoke('rimworld/get_ui_state',{}),
-                'targets':await rt.game.invoke('rimworld/get_screen_targets',{}),
-                'research':await rt.game.invoke('home/research',{'filter':'Biofuel','finished':True,'locked':True})}
-            from rimbot.session_checkpoint import create_checkpoint
-            report['dialog_checkpoint']=await create_checkpoint(rt,rt.context_token)
-            save()
-        if clock['stopReason'] in ('letter_pause','notification_batch'):
-            danger=await rt.game.query('home/status',colonists=False,threats=True)
-            record('observed_notification',clock['pauseVerified'],clock=clock,danger=danger)
-            if danger['counts']['hostileCount'] or danger['counts']['huntingPredatorCount']:
-                await settle_clock()
-                await rt.set_mode('automate')
-                until=time.monotonic()+180
-                while True:
-                    status=await rt.game.query('home/status',colonists=True,threats=True)
-                    report['danger_progress']={'status':status,'mode':rt.mode,
-                        'pawns':await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True,health=True)}
-                    save()
-                    if not status['counts']['hostileCount'] and not status['counts']['huntingPredatorCount']:break
-                    assert time.monotonic()<until,'Shared ordinary danger response did not finish within acceptance bound'
-                    await asyncio.sleep(1)
-                await rt.set_mode('manual')
-                record('ordinary_danger_resolved',True,status=status)
-            else:
-                rt.supervisor.absorb(clock);rt.supervisor.allow_resume()
-        else:assert clock['pauseVerified'] and clock['stopReason'] in ('tick_budget','requested_pause'),clock
+        clock = await advance_game(rt, 600, report, timeout=60)
         if rt.review_task and not rt.review_task.done():await rt.review_task
         async with rt.lock:
             rt.clock_events.extend(await rt.supervisor.poll())

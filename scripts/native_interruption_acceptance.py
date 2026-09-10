@@ -3,6 +3,7 @@
 Letter setup uses a separate disposable fixture DLL and the real LetterStack.
 Production observation/identity binaries are unchanged by this harness.
 """
+from rimbot.bridge import gabs_executable
 import argparse
 import asyncio
 import hashlib
@@ -40,7 +41,7 @@ async def run(args):
     save()
     store = Store(args.output / 'controller.sqlite')
     try:
-        async with bridge_session(root / 'gabs/gabs-v1.1.1-windows-amd64/gabs.exe', config) as bridge:
+        async with bridge_session(gabs_executable(root), config) as bridge:
             rt = BridgeRuntime(store, root, headless=True)
             rt.bridge, rt.game = bridge, BridgeGame(bridge)
             try:

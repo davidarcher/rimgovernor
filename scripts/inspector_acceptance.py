@@ -1,4 +1,5 @@
 """Read-only B12 contract acceptance on a separately owned baseline game."""
+from rimbot.bridge import gabs_executable
 import argparse
 import asyncio
 import json
@@ -16,7 +17,7 @@ async def run(args):
             'revision':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
             'working_tree_dirty':bool(subprocess.check_output(['git','status','--porcelain'],text=True).strip())}
     try:
-        async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',prepare(root)) as bridge:
+        async with bridge_session(gabs_executable(root),prepare(root)) as bridge:
             try:
                 await bridge.core('games_start',gameId=bridge.game_id)
                 await bridge.connect()

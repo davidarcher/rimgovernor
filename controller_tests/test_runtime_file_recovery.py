@@ -152,3 +152,18 @@ async def test_clock_launch_claim_recovery_is_read_only(op):
     else:
         with pytest.raises(BridgeError):await clock.call(op=op)
         assert session.call_tool.await_count==1
+
+
+@pytest.mark.asyncio
+async def test_camera_read_recovers_claim_race_but_pan_does_not():
+    from rimbot.dashboard_controls import camera_call
+    session = SimpleNamespace(call_tool=AsyncMock(side_effect=[result({'message':CLAIM_FAULT},True),
+        result({'running':True}), result({'success':True,'mapId':'Map_0'})]))
+    rt = SimpleNamespace(bridge=BridgeClient(session))
+    assert (await camera_call(rt,'rimworld/get_camera_state',{}))['mapId']=='Map_0'
+    assert session.call_tool.await_count==3
+    session.call_tool=AsyncMock(side_effect=[result({'message':CLAIM_FAULT},True)])
+    with pytest.raises(ValueError, match='Native player request failed'):
+        await camera_call(rt,'rimworld/move_camera',{'direction':'left'})
+    assert session.call_tool.await_count==1
+

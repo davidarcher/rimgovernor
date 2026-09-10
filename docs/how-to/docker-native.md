@@ -47,12 +47,11 @@ crashes or clean up other tasks with global Docker prune commands.
 
 ## Scope of the result
 
-The current runner's assertions cover lifecycle, not completed pawn work. Docker can run
-controller and native outcome assertions together; use or port gameplay scenarios to
-verify actual pawn work. Reusable scenario and recorder improvements are tracked under
-B17 in [BACKLOG.md](../BACKLOG.md). Throughput needs separate measurement. Startup
-failures are never retried silently. Remaining probes with hard-coded Windows paths must
-be ported before use in containers.
+This two-worker runner's assertions cover lifecycle, not completed pawn work. Use the
+[named scenario runner](native-scenarios.md) for construction, production, paired restart
+and failure recording. Its explicit repetitions, endurance and resource samples support
+bounded throughput comparisons; shared host load must be recorded. Startup failures
+are never retried silently. Native probes use the configured cross-platform GABS resolver.
 
 ## Add rendering and player-input checks
 
@@ -73,8 +72,9 @@ exact-resolution `frame.png` for each worker and a changed `survivor.png` after 
 stops and native camera pan completes, alongside normal clock/checkpoint evidence. The
 survivor must remain at its paused native tick. Inspect these frames for actual colony
 content; PNG presence and size alone do not establish visual correctness. Use a fresh
-output for a matching headless comparison. Frame transport, input gestures and sustained
-rendering overhead require their own acceptance under B17/B18.
+output for a matching headless comparison. Use named `video-input`/`rendered-input`
+scenarios for decoded transport and native gesture readbacks, and the
+[dashboard acceptance](dashboard-acceptance.md) procedure for browser input and delivery.
 
 For B18 handoff and stable-ID selection, also pass `--player-input` with `--display
 xvfb`. The survivor acquires a lease, rejects other viewers and stale credentials,

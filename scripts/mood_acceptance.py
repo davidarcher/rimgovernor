@@ -1,5 +1,6 @@
 """Local Docker mood relief: shared compilation/Hands and actual native need recovery."""
 import asyncio
+from rimbot.native_scenario import advance_game
 import argparse
 import json
 import os
@@ -34,12 +35,7 @@ async def run(scenarios):
     async def advance():
         rt.mode = 'manual'
         if rt.review_task and not rt.review_task.done(): await rt.review_task
-        await rt.supervisor.change('Superfast', max_ticks=600)
-        async with asyncio.timeout(90):
-            while True:
-                clock = (await rt.bridge.call('home/supervised_play', op='status')).structuredContent
-                if not clock['active']: break
-                await asyncio.sleep(.2)
+        clock = await advance_game(rt, 600, report, timeout=90)
         rt.supervisor.absorb(clock)
         assert clock['pauseVerified'] and clock['lastTick'] > clock['startTick'], clock
         await rt.refresh_clock_events()

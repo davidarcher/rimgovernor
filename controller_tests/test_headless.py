@@ -23,6 +23,7 @@ def test_headless_profile_leaves_interactive_configuration_unchanged(tmp_path):
     assert (root/'profile/Config/ModsConfig.xml').read_text()==mods
     args=json.loads((destination/'config.json').read_text())['games']['rimbot-trial']['args']
     assert '-batchmode' in args and '-nographics' in args
+    assert '-rimbot-pause-on-load' in args
     assert 'stopProcessName' not in json.loads((destination/'config.json').read_text())['games']['rimbot-trial']
     assert str(root/'headless-profile') in args[0]
     active=ET.parse(root/'headless-profile/Config/ModsConfig.xml').getroot().find('activeMods')
@@ -77,6 +78,7 @@ def test_rendered_worker_uses_private_profile_without_headless_patches(tmp_path)
     game=json.loads((destination/'config.json').read_text())['games']['rimbot-trial']
     assert game['args'][0]=='-savedatafolder='+str(root/'profile')
     assert '-batchmode' not in game['args'] and '-nographics' not in game['args']
+    assert '-rimbot-pause-on-load' in game['args']
     assert 'stopProcessName' not in game
     assert [r.text for r in ET.parse(root/'profile/Config/ModsConfig.xml').getroot().find('activeMods')]==['brrainz.harmony']
 

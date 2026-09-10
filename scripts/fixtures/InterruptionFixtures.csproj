@@ -9,12 +9,14 @@
     <DebugType>none</DebugType>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
     <RimWorldDir>C:/Program Files (x86)/Steam/steamapps/common/RimWorld</RimWorldDir>
+    <RimWorldManagedDir Condition="'$(RimWorldManagedDir)' == ''">$(RimWorldDir)/RimWorldWin64_Data/Managed</RimWorldManagedDir>
+    <RimBridgeSdkDir Condition="'$(RimBridgeSdkDir)' == ''">$(RimWorldDir)/Mods/RimBridgeServer/1.6/Assemblies</RimBridgeSdkDir>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="InterruptionFixture.cs" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
-    <Reference Include="RimBridgeServer.Sdk"><HintPath>$(RimWorldDir)/Mods/RimBridgeServer/1.6/Assemblies/RimBridgeServer.Sdk.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldDir)/RimWorldWin64_Data/Managed/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.CoreModule"><HintPath>$(RimWorldDir)/RimWorldWin64_Data/Managed/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="RimBridgeServer.Sdk"><HintPath>$(RimBridgeSdkDir)/RimBridgeServer.Sdk.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldManagedDir)/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(RimWorldManagedDir)/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
 </Project>

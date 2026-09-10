@@ -51,6 +51,11 @@ async def run(args):
 
     try:
         await ready(rt)
+        try:
+            await rt.bridge.detail('test/mining_fixture')
+        except Exception as error:
+            report.update(outcome='missing_prerequisite', error='Private MiningFixture assembly required: '+str(error))
+            return
         setup = await fixture()
         record('fixture_ready', setup.get('success'), fixture=setup, identity=rt.identity)
         first, second, third = setup['targets']

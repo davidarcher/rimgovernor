@@ -1,4 +1,5 @@
 """Verify native notification, inspect-tab and exact target reads used by companion instruments."""
+from rimbot.bridge import gabs_executable
 import asyncio
 import json
 import time
@@ -19,7 +20,7 @@ async def main(rendered=False):
         config['games']['rimbot-trial']['args'] = [a for a in config['games']['rimbot-trial']['args']
                                                   if a not in ('-batchmode', '-nographics')]
         config_file.write_text(json.dumps(config))
-    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe', config_dir) as bridge:
+    async with bridge_session(gabs_executable(root), config_dir) as bridge:
         await bridge.core('games_start', gameId=bridge.game_id)
         await bridge.connect()
         await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',

@@ -1,4 +1,5 @@
 """Native confirmation and final game-value acceptance using gated disposable fixtures."""
+from rimbot.bridge import gabs_executable
 import argparse
 import asyncio
 import json
@@ -25,7 +26,7 @@ async def run(args):
     report={'revision':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
             'cases':{},'outcome':'failed'}
     try:
-        async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',config_dir) as bridge:
+        async with bridge_session(gabs_executable(root),config_dir) as bridge:
             try:
                 await bridge.core('games_start',gameId=bridge.game_id)
                 await bridge.connect()

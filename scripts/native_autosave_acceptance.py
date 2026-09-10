@@ -1,4 +1,5 @@
 """Cross a real autosave boundary with ordinary simulation, then reload its save."""
+from rimbot.bridge import gabs_executable
 import argparse
 import asyncio
 import hashlib
@@ -33,7 +34,7 @@ async def run(args):
     store = Store(args.output/'controller.sqlite') if args.mixed else None
     rt = None
     try:
-        async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',config) as bridge:
+        async with bridge_session(gabs_executable(root),config) as bridge:
             try:
                 await bridge.core('games_start',gameId=bridge.game_id)
                 await bridge.connect()

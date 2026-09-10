@@ -10,14 +10,14 @@ import json
 import time
 from pathlib import Path
 
-from rimbot.bridge import BridgeError, bridge_session
+from rimbot.bridge import BridgeError, bridge_session, gabs_executable
 
 
 async def run(args):
     root = Path(args.root).resolve()
     output = root / "evidence" / time.strftime("%Y%m%d-%H%M%S")
     output.mkdir(parents=True, exist_ok=True)
-    async with bridge_session(Path(args.gabs), root / "config") as bridge:
+    async with bridge_session(Path(args.gabs) if args.gabs else gabs_executable(root), root / "config") as bridge:
         async def record(label, awaitable):
             started = time.monotonic()
             try:
@@ -109,7 +109,7 @@ async def run(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default=".rimbot/bridge")
-    parser.add_argument("--gabs", default=".rimbot/bridge/gabs/gabs-v1.1.1-windows-amd64/gabs.exe")
+    parser.add_argument("--gabs", help="Override the prepared profile's GABS executable")
     parser.add_argument("--start", action="store_true")
     parser.add_argument("--load-fixture", action="store_true")
     parser.add_argument("--placement-test", action="store_true")

@@ -1,4 +1,5 @@
 """Change ordinary stock after bill admission and verify final consumption protection."""
+from rimbot.native_scenario import advance_game
 import argparse,asyncio,hashlib,inspect,json,shutil,time,traceback
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -24,13 +25,7 @@ async def run(args):
         print(name+': '+str(bool(passed)),flush=True);assert passed,name
     async def window(ticks):
         if rt.review_task and not rt.review_task.done():await rt.review_task
-        await rt.supervisor.change('Superfast',max_ticks=ticks)
-        async with asyncio.timeout(45):
-            while True:
-                clock=(await runtime_file_read(rt.bridge.call,'home/supervised_play',op='status')).structuredContent
-                if not clock['active']:break
-                await asyncio.sleep(.1)
-        assert clock['pauseVerified'] and clock['stopReason'] in ('tick_budget','requested_pause'),clock
+        clock = await advance_game(rt, ticks, report, timeout=60)
         return clock
     async def snapshot(name):
         await rt.bridge.call('rimworld/save_game',saveName=name)

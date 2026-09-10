@@ -1,4 +1,5 @@
 """Test-only boosted Ultrafast comparison; its native ceiling is 9,000 TPS."""
+from rimbot.bridge import gabs_executable
 import asyncio
 import json
 import time
@@ -13,7 +14,7 @@ async def main():
     rows=[]
     for headless in (False,True):
         config=prepare(root) if headless else root/'config'
-        async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',config) as bridge:
+        async with bridge_session(gabs_executable(root),config) as bridge:
             async def call(name,**args):return (await bridge.call(name,**args)).structuredContent
             await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
             window=None

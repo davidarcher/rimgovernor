@@ -1,4 +1,5 @@
 """Ordinary pawn construction and exact nonrectangular shelter reuse in a private game."""
+from rimbot.native_scenario import advance_game
 import argparse
 import asyncio
 import json
@@ -44,21 +45,7 @@ async def run(args):
     async def window():
         assert time.monotonic()<deadline,'Native construction deadline expired'
         await settle()
-        await rt.supervisor.change('Superfast',max_ticks=600)
-        async with asyncio.timeout(30):
-            while True:
-                clock=(await runtime_file_read(rt.bridge.call,'home/supervised_play',op='status')).structuredContent
-                if not clock['active']:break
-                await asyncio.sleep(.2)
-        if clock['stopReason']=='letter_pause' and 'Ancient danger' in clock.get('stopDetail',''):
-            letters=await rt.game.invoke('rimworld/list_letters',{})
-            threats=await rt.game.query('home/status',colonists=False,threats=True)
-            counts=threats.get('counts',{})
-            record('ancient_danger_warning_inspected',clock['pauseVerified'] and counts.get('hostileCount')==0
-                and counts.get('huntingPredatorCount')==0,clock=clock,letters=letters,threats=threats)
-            rt.supervisor.absorb(clock);rt.supervisor.allow_resume()
-        else:
-            assert clock['stopReason'] in ('tick_budget','requested_pause') and clock['pauseVerified'],clock
+        clock = await advance_game(rt, 600, report, timeout=30)
         await settle()
         return clock
     async def compile_goal(identity):

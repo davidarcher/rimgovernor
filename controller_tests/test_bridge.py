@@ -84,3 +84,33 @@ async def test_cancelled_queued_request_never_reaches_native_session():
         with pytest.raises(asyncio.CancelledError): await task
     bridge.session.call_tool.assert_not_awaited()
 
+
+async def test_startup_waits_for_gabs_background_connector_without_superseding_it():
+    def result(**data): return CallToolResult(content=[], structuredContent=data)
+    session = AsyncMock(call_tool=AsyncMock(side_effect=[result(backgroundConnect=True, gabpConnected=False),
+        result(status='running', toolCount=0), result(status='running', toolCount=156)]))
+    bridge = BridgeClient(session)
+    await bridge.core('games_start', gameId=bridge.game_id)
+    assert (await bridge.connect()).structuredContent['toolCount']==156
+    assert [call.args[0] for call in session.call_tool.await_args_list]==['games_start','games_status','games_status']
+
+
+async def test_startup_exit_is_retained_without_relaunch_or_reconnect():
+    session = AsyncMock(call_tool=AsyncMock(side_effect=[
+        CallToolResult(content=[], structuredContent={'backgroundConnect':True}),
+        CallToolResult(content=[], structuredContent={'status':'stopped','toolCount':0})]))
+    bridge = BridgeClient(session)
+    await bridge.core('games_start', gameId=bridge.game_id)
+    with pytest.raises(RuntimeError, match='startup stopped'):
+        await bridge.connect()
+    assert session.call_tool.await_count==2
+
+
+async def test_connected_start_does_not_create_another_connection():
+    session = AsyncMock(call_tool=AsyncMock(return_value=CallToolResult(content=[],
+        structuredContent={'gabpConnected':True})))
+    bridge = BridgeClient(session)
+    started = await bridge.core('games_start', gameId=bridge.game_id)
+    assert await bridge.connect() is started
+    assert session.call_tool.await_count==1
+

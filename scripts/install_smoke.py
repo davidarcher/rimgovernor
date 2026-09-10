@@ -1,4 +1,5 @@
 """Fixture setup creates packed furniture; normal pawn labor must install it."""
+from rimbot.bridge import gabs_executable
 import asyncio
 import json
 import time
@@ -15,7 +16,7 @@ from rimbot.store import Store
 
 async def main():
     root = isolated_root('.rimbot/bridge', Path('.rimbot')/f'install-smoke-{time.time_ns()}')
-    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe', prepare(root)) as bridge:
+    async with bridge_session(gabs_executable(root), prepare(root)) as bridge:
         await bridge.core('games_start', gameId=bridge.game_id)
         await bridge.connect()
         await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline', readiness='visual', timeoutMs=90000, ignoreModCompatibility=True)

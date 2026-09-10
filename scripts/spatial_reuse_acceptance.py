@@ -1,4 +1,5 @@
 """Paired restart, retired-room protection and ordinary live edits of an accepted room."""
+from rimbot.native_scenario import advance_game
 import argparse
 import asyncio
 import json
@@ -96,12 +97,8 @@ async def run(args):
         edit=await command(dict(kind='PlaceBuildings',purpose='shelter',buildings=dict(kind='place_buildings',placements=[chosen])))
         for _ in range(30):
             if rt.current_plan.progress[edit['step']].state=='complete':break
-            await settle();await rt.supervisor.change('Superfast',max_ticks=600)
-            async with asyncio.timeout(30):
-                while True:
-                    clock=(await runtime_file_read(rt.bridge.call,'home/supervised_play',op='status')).structuredContent
-                    if not clock['active']:break
-                    await asyncio.sleep(.2)
+            await settle()
+            clock = await advance_game(rt, 600, report, timeout=60)
             assert clock['stopReason'] in ('tick_budget','requested_pause') and clock['pauseVerified'],clock
             await settle()
         record('ordinary_player_corner_edit_completed',rt.current_plan.progress[edit['step']].state=='complete',placement=chosen)

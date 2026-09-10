@@ -1,4 +1,5 @@
 """Ordinary pawn construction followed by deterministic furnishing of a player shell."""
+from rimbot.native_scenario import advance_game
 import argparse
 import asyncio
 import json
@@ -69,12 +70,7 @@ async def run(args):
                     token=rt.context_token, revision=rt.chat_revision)
                 await rt.execute_manual_requests()
             if rt.review_task and not rt.review_task.done(): await rt.review_task
-            await rt.supervisor.change('Superfast', max_ticks=600)
-            async with asyncio.timeout(60):
-                while True:
-                    clock = (await runtime_file_read(rt.bridge.call, 'home/supervised_play', op='status')).structuredContent
-                    if not clock['active']: break
-                    await asyncio.sleep(.2)
+            clock = await advance_game(rt, 600, report, timeout=60)
             assert clock['pauseVerified'] and clock['stopReason'] == 'tick_budget', clock
             async with rt.lock:
                 await rt.refresh_clock_events()

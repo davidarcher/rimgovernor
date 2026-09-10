@@ -3,6 +3,7 @@
 An operator sends the requested key to the rendered game after ready.json appears.
 No native time-setting API substitutes for the keyboard input under test.
 """
+from rimbot.bridge import gabs_executable
 import argparse
 import asyncio
 import json
@@ -29,7 +30,7 @@ async def run(args):
     save()
     store = Store(args.output / 'controller.sqlite')
     try:
-        async with bridge_session(root / 'gabs/gabs-v1.1.1-windows-amd64/gabs.exe', config) as bridge:
+        async with bridge_session(gabs_executable(root), config) as bridge:
             rt = BridgeRuntime(store, root, headless=False)
             rt.bridge, rt.game = bridge, BridgeGame(bridge)
             try:

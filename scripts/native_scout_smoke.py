@@ -1,4 +1,5 @@
 """Scout test on a disposable baseline. Run with controller/game closed."""
+from rimbot.bridge import gabs_executable
 import asyncio
 import json
 from pathlib import Path
@@ -14,7 +15,7 @@ async def main():
     root=Path('.rimbot/bridge').resolve()
     settings=Settings(model='qwen3.5-9b',max_output_tokens=2048,reasoning=False)
     routing=ModelRouting(roles={ModelRole.STRATEGIST:settings,ModelRole.ANALYST:settings})
-    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',root/'config') as bridge:
+    async with bridge_session(gabs_executable(root),root/'config') as bridge:
         await bridge.core('games_start',gameId=bridge.game_id)
         await bridge.connect()
         await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',timeoutMs=90000)

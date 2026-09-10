@@ -30,6 +30,18 @@ owned game. The display supervisor keeps X alive during controller shutdown, fai
 display death and retains logs under `run/display`; it never restarts a failed game.
 Headless remains the default.
 
+Prepared headless and rendered profiles pass `-rimbot-pause-on-load`. The colony
+identity component pauses in its native loaded-game callback, before readiness
+polling can advance the saved baseline. It does not change ticks or save content;
+ordinary game launches without the flag retain their normal load behavior. Exact-tick
+scenario assertions require the matching identity DLL in the private mod snapshot.
+
+The named scenario runner adds resource limits, explicit repeated trials, JUnit results,
+Docker resource samples and retained SQLite backups. `RIMBOT_FLIGHT_RECORDER` opts into
+a bounded native request/response/error timeline with durable pre-dispatch requests and
+runtime plan snapshots. Recording is disabled in ordinary runs. See the
+[scenario procedure](../how-to/native-scenarios.md) for coverage and retention limits.
+
 Build output, saves, logs, binaries and measurements belong outside Git. Source
 attribution stays beside integrations and in [THIRD_PARTY.md](../../THIRD_PARTY.md). Use
 [TESTING.md](../TESTING.md) for verification and [BACKLOG.md](../BACKLOG.md) for all

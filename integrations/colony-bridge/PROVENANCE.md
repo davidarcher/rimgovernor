@@ -145,7 +145,10 @@ The temporary standalone overlay is replaced by the dashboard on port 8787.
   list/sheet/preview/status as inspection rather than transaction execution.
 - `ColonyIdentity.cs` is local code: save-backed GameComponent identity plus a
   nonserialized load token. Attaches the component when bridge extension loading
-  occurs after Verse has cached component types. Only controller metadata changes.
+  occurs after Verse has cached component types. Disposable launches with
+  `-rimbot-pause-on-load` also select ordinary Paused speed in the loaded-game
+  callback, before simulation advances. Saved ticks and game contents are not edited;
+  launches without the flag retain native load behavior.
 - Python `receipts.py` copies reason/_outcome/verdict_line from upstream
   instruments/build.py; preserves explicit native placement outcomes and accepts
   the native `reason` field for guarded recovery refusal diagnostics.

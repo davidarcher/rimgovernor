@@ -1,4 +1,5 @@
 """Observe competing native construction, partial restart and dependent pawn work."""
+from rimbot.native_scenario import advance_game
 import argparse
 import asyncio
 from copy import deepcopy
@@ -16,6 +17,10 @@ from rimbot.headless import isolated_root, prepare
 from rimbot.player_commands import apply_command
 from rimbot.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
 from rimbot.store import Store
+
+
+class MissingFixture(RuntimeError):
+    pass
 
 
 async def run(args):
@@ -47,21 +52,7 @@ async def run(args):
         await rt.projects.reconcile(rt.game, plan=rt.current_plan)
         rt.reconcile_plan()
     async def window(ticks=600):
-        if rt.review_task and not rt.review_task.done(): await rt.review_task
-        await rt.supervisor.change('Superfast', max_ticks=ticks)
-        async with asyncio.timeout(60):
-            while True:
-                state = (await runtime_file_read(rt.bridge.call, 'home/supervised_play', op='status')).structuredContent
-                if not state['active']: break
-                await asyncio.sleep(.2)
-        if state['stopReason'] == 'letter_pause':
-            status = await rt.game.query('home/status', colonists=False, threats=True)
-            record('inspected_native_letter_pause', state['pauseVerified'] and status['counts']['hostileCount'] == 0
-                and status['counts']['huntingPredatorCount'] == 0, clock=state,
-                letters=await rt.game.invoke('rimworld/list_letters', {}))
-            rt.supervisor.absorb(state); rt.supervisor.allow_resume()
-        else:
-            assert state['stopReason'] in ('tick_budget', 'requested_pause') and state['pauseVerified'], state
+        state = await advance_game(rt, ticks, report, timeout=60)
         if rt.review_task and not rt.review_task.done(): await rt.review_task
         await reconcile()
         return state
@@ -86,6 +77,11 @@ async def run(args):
             progress=rt.current_plan.progress[identity].model_dump(), buildings=await buildings(), facts=await facts())
     try:
         await ready(rt); rt.execution_task = asyncio.current_task()
+        try:
+            await rt.bridge.detail('test/construction_ledger')
+        except BridgeError as error:
+            if 'not found' not in str(error).lower():raise
+            raise MissingFixture('Build the private companion with ConstructionLedgerFixture=true') from error
         allow = await rt.controller.skills.designator('Designator_Unforbid')
         forbid = await rt.controller.skills.designator('Designator_Forbid')
         initial = await facts()
@@ -208,6 +204,8 @@ async def run(args):
         await dispatch(['first', 'later', 'dependent'])
         record('completed_chain_does_not_duplicate_orders', rt.counters['actions'] == before and rt.counters['model_calls'] == 0)
         report['outcome'] = 'passed'
+    except MissingFixture as error:
+        report.update(outcome='missing_prerequisite', error=str(error))
     except Exception as error:
         report.update(error=str(error), traceback=traceback.format_exc(), plan=rt.current_plan.model_dump())
     finally:

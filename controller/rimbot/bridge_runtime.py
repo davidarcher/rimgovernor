@@ -92,6 +92,14 @@ class BridgeRuntime:
         attach(self)
 
     def persist(self):
+        from .flight_recorder import recorder
+        recording = recorder()
+        if recording:
+            recording.context = dict(identity=self.identity, plan_revision=self.current_plan.revision,
+                                     direction_revision=self.chat_revision,
+                                     tick=self.batch.summary.end_tick if self.batch else None)
+            recording.event('runtime_state', plan=self.current_plan.model_dump(mode='json'),
+                            mode=self.mode, recorder=recording.stats())
         from .plan_archive import bind_archive,prepare_archive,finish_archive
         bind_archive(self.current_plan,self.store,self.colony)
         snapshot,records,methods,evidence=prepare_archive(self.current_plan)
@@ -1019,7 +1027,10 @@ class BridgeRuntime:
             await self.refresh_clock_events()
             if expected_revision is not None and expected_revision != self.chat_revision:
                 raise ValueError('Native interruption arrived during preparation; no command sent')
-            result = await self.game.invoke(name, arguments, allow_write=self.mode == 'automate' or explicit)
+            from .flight_recorder import recording_action
+            action = next((s for s in self.current_plan.spec.steps if s.id == expected_step_id), None)
+            with recording_action(expected_step_id, action.goal_id if action else None):
+                result = await self.game.invoke(name, arguments, allow_write=self.mode == 'automate' or explicit)
             if hunting_target:
                 observed=await self.game.query('home/list_pawns',wildOnly=True,animalsOnly=True,animals=True)
                 prey=next((p for p in observed.get('pawns',[]) if p.get('thingId')==hunting_target),None)
@@ -1301,6 +1312,9 @@ class BridgeRuntime:
                 checkpoint = install_saved_game(self.resume) if self.fresh else read_checkpoint(self.resume)
             async with bridge_session(executable, configuration) as bridge:
                 self.bridge = bridge
+                bridge.recording_context = lambda: dict(identity=self.identity,
+                    plan_revision=self.current_plan.revision, direction_revision=self.chat_revision,
+                    last_observed_tick=self.batch.summary.end_tick if self.batch else None)
                 if self.fresh:
                     await bridge.core('games_start', gameId=bridge.game_id)
                 await bridge.connect()

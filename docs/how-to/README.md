@@ -20,6 +20,7 @@ first guided exercise, use [your first Docker test](../tutorials/first-docker-te
 - [Prepare native Docker inputs](docker-inputs.md)
 - [Run a manual Docker worker](docker-worker.md)
 - [Run native Docker acceptance](docker-native.md)
+- [Run and diagnose named native scenarios](native-scenarios.md)
 - [Inspect a failed Docker run](inspect-failure.md)
 
 ## Verify native scenarios

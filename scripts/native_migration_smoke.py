@@ -1,6 +1,7 @@
 """Disposable native smoke: save identity, an instant zone, draft cleanup and ticks.
 Run with the dashboard controller and RimWorld closed. Never invokes a model.
 """
+from rimbot.bridge import gabs_executable
 import asyncio
 import json
 from pathlib import Path
@@ -11,7 +12,7 @@ from rimbot.projects import ProjectBook
 async def main():
     root=Path('.rimbot/bridge').resolve()
     evidence={}
-    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',root/'config') as bridge:
+    async with bridge_session(gabs_executable(root),root/'config') as bridge:
         await bridge.core('games_start',gameId=bridge.game_id)
         await bridge.connect()
         await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',timeoutMs=90000)

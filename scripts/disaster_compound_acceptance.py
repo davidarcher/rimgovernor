@@ -76,22 +76,7 @@ async def run():
 
     async def advance(ticks=600):
         await settle()
-        await rt.supervisor.change('Superfast', max_ticks=ticks)
-        async with asyncio.timeout(180):
-            while True:
-                clock = (await rt.bridge.call('home/supervised_play', op='status')).structuredContent
-                if not clock['active']:
-                    break
-                await asyncio.sleep(.25)
-        allowed_stop = clock['stopReason'] in ('tick_budget', 'requested_pause')
-        if clock['stopReason'] == 'letter_pause':
-            status = await rt.game.query('home/status', colonists=False, threats=True)
-            people = await rt.game.query('home/list_pawns', colonistsOnly=True, health=True)
-            allowed_stop = (status['counts']['hostileCount'] == 0 and status['counts']['huntingPredatorCount'] == 0
-                            and not any(p.get('downed') or (p.get('health') or {}).get('needsTend') for p in people['pawns']))
-            report.setdefault('letter_stops', []).append(dict(clock=clock, status=status, people=people))
-        record('native_tick_window', clock['pauseVerified'] and clock['lastTick'] > clock['startTick']
-               and allowed_stop, clock=clock)
+        clock = await advance_game(rt, ticks, report, timeout=180)
         rt.supervisor.absorb(clock)
         rt.clock_events.extend(await rt.supervisor.poll())
         rt.receive_clock_events()

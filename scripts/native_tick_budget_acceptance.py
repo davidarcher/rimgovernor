@@ -1,4 +1,5 @@
 """Verify exact native execution boundaries and external clock ownership in a private game."""
+from rimbot.bridge import gabs_executable
 import argparse
 import asyncio
 import hashlib
@@ -30,7 +31,7 @@ async def run(args):
         (args.output/'result.json').write_text(json.dumps(report, indent=2), encoding='utf8')
     save()
     try:
-        async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe', config) as bridge:
+        async with bridge_session(gabs_executable(root), config) as bridge:
             async def state():
                 return (await bridge.call('home/supervised_play', op='status')).structuredContent
             async def stopped():

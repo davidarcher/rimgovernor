@@ -1,4 +1,5 @@
 """Native letter discovery and stale-ID refusal; no synthetic notifications."""
+from rimbot.bridge import gabs_executable
 import asyncio
 import json
 from pathlib import Path
@@ -9,7 +10,7 @@ from rimbot.headless import prepare
 
 async def main():
     root=Path('.rimbot/bridge').resolve()
-    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',prepare(root)) as bridge:
+    async with bridge_session(gabs_executable(root),prepare(root)) as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
         await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
         await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)

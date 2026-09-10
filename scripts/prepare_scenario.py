@@ -1,4 +1,5 @@
 """Generate an ordinary scenario-editor start with the test-only setup fixture."""
+from rimbot.bridge import gabs_executable
 import argparse
 import asyncio
 import hashlib
@@ -18,7 +19,7 @@ async def run(args):
     installation=Path(json.loads((config/'config.json').read_text())['games']['rimbot-trial']['workingDir'])
     dll=installation/'Mods/RimBotObservations/BridgeTools/Observations/RimBot.Observations.BridgeTools.dll'
     report['fixture_dll_sha256']=hashlib.sha256(dll.read_bytes()).hexdigest()
-    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',config) as bridge:
+    async with bridge_session(gabs_executable(root),config) as bridge:
         try:
             await bridge.core('games_start',gameId=bridge.game_id)
             await bridge.connect()

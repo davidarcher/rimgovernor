@@ -2,8 +2,9 @@
 
 [Documentation](../README.md)
 
-There are useful flight-recorder components, but no complete correlated failure bundle
-or general offline replay workflow yet:
+The opt-in [native scenario recorder](../how-to/native-scenarios.md) links native calls
+and runtime snapshots and supports offline inspection and fixture export. Its bounded
+coverage does not reconstruct every in-game transition. Existing evidence also includes:
 
 | Evidence | Available behavior and limits |
 | --- | --- |
@@ -18,9 +19,9 @@ For a failed Docker run, start with `result.json` and the numbered worker's
 `container.log`, then inspect native logs and retained controller evidence. A failure
 before report creation may leave only console/build output. Keep the whole output tree;
 a game crash may prevent a final paired checkpoint. Existing evidence cannot be assumed
-to reconstruct every observation or pawn transition. The correlated recorder, automatic
-failure export and reusable regression loop are unfinished B17 work in
-[BACKLOG.md](../BACKLOG.md).
+to reconstruct every observation or pawn transition. The opt-in named runner adds
+correlated calls, explicit truncation/gap reports, SQLite backups and offline fixture
+export; use its [diagnosis procedure](../how-to/native-scenarios.md#diagnose-without-the-live-game).
 
 ## Related reading
 

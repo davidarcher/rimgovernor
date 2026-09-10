@@ -1,4 +1,5 @@
 """Furnish an edited native room and verify cold/hot recovery through ordinary labor."""
+from rimbot.native_scenario import advance_game
 import argparse
 import asyncio
 import json
@@ -67,13 +68,7 @@ async def run(args):
     async def window(label):
         assert time.monotonic()<deadline,'Bounded adopted-room acceptance deadline expired'
         if rt.review_task and not rt.review_task.done():await rt.review_task
-        await rt.supervisor.change('Superfast',max_ticks=600)
-        async with asyncio.timeout(25):
-            while True:
-                clock=(await runtime_file_read(rt.bridge.call,'home/supervised_play',op='status')).structuredContent
-                if not clock['active']:break
-                await asyncio.sleep(.15)
-        assert clock['stopReason'] in ('tick_budget','requested_pause') and clock['pauseVerified'],clock
+        clock = await advance_game(rt, 600, report, timeout=25)
         await settle()
         room,buildings=await observations()
         report['samples'].append({'phase':label,'clock':clock,'room':room,'buildings':buildings})

@@ -51,7 +51,7 @@ def prepare_rendered(root):
             active.remove(item)
     mods.write(profile/'Config/ModsConfig.xml', encoding='utf8', xml_declaration=True)
     game['args'] = ['-savedatafolder='+str(profile), '-logFile', str(root/'Player.log'),
-                    '-screen-fullscreen', '0', '-screen-width', '1280', '-screen-height', '720']
+                    '-screen-fullscreen', '0', '-screen-width', '1280', '-screen-height', '720', '-rimbot-pause-on-load']
     (configuration/'config.json').write_text(json.dumps(config,indent=2),encoding='utf8')
     return configuration
 
@@ -76,7 +76,7 @@ def prepare(root):
     mods.write(profile/'Config/ModsConfig.xml',encoding='utf8',xml_declaration=True)
     baseline='RimBot-tribal8-baseline.rws'
     shutil.copy2(root/'profile/Saves'/baseline,profile/'Saves'/baseline)
-    game['args']=['-savedatafolder='+str(profile),'-logFile',str(root/'HeadlessPlayer.log'),'-batchmode','-nographics']
+    game['args']=['-savedatafolder='+str(profile),'-logFile',str(root/'HeadlessPlayer.log'),'-batchmode','-nographics','-rimbot-pause-on-load']
     destination=root/'config-headless'
     destination.mkdir(exist_ok=True)
     (destination/'config.json').write_text(json.dumps(config,indent=2),encoding='utf8')

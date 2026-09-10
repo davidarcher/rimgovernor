@@ -22,6 +22,8 @@ async def test_interrupted_migration_never_replays_ownership_save_or_stop(tmp_pa
                  game={'paused': True, 'tick': 100}, headless=False, chatModel='local')
     source = tmp_path/'source'; source.mkdir()
     root = tmp_path/'root'; root.mkdir()
+    configuration = root/'config'; configuration.mkdir()
+    (configuration/'config.json').write_text(json.dumps({'rimbot':{'gabsExecutable':'gabs/test-gabs'}}))
     database = tmp_path/'original.sqlite'
     store = Store(database); store.set('bridge:colony:0', saved); store.close()
     calls = []

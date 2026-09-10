@@ -1,4 +1,5 @@
 """Real native hands, scripted strategist commitments, no auxiliary inference."""
+from rimbot.bridge import gabs_executable
 import asyncio
 import json
 from pathlib import Path
@@ -21,7 +22,7 @@ async def main(headless=False, build=False, room=False):
     brain=Brain()
     from rimbot.headless import prepare
     configuration=prepare(root) if headless else root/'config'
-    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe', configuration) as bridge:
+    async with bridge_session(gabs_executable(root), configuration) as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
         await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',timeoutMs=90000,ignoreModCompatibility=headless)
         await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)

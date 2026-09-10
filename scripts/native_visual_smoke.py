@@ -3,6 +3,7 @@
 The fixture places ordinary blueprints, never instant buildings. No model orders.
 Camera framing belongs to this disposable test; the reviewer must leave it alone.
 """
+from rimbot.bridge import gabs_executable
 import asyncio
 import json
 import time
@@ -21,7 +22,7 @@ async def main():
     settings=Settings(model='qwen3.5-9b',reasoning=False,max_output_tokens=2048,timeout_seconds=180)
     routing=ModelRouting(roles={ModelRole.STRATEGIST:settings,ModelRole.ARCHITECT:settings})
     evidence={}
-    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',root/'config') as bridge:
+    async with bridge_session(gabs_executable(root),root/'config') as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
         await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',
             ignoreModCompatibility=True,timeoutMs=90000)

@@ -3,6 +3,7 @@
 Uses installed mods read-only. A scripted plan places native-legal fixture
 construction; no model or editor tools are involved. Every trial keeps evidence.
 """
+from rimbot.bridge import gabs_executable
 import argparse
 import asyncio
 from contextlib import contextmanager
@@ -55,12 +56,12 @@ async def main(source, output):
         (output/'result.json').write_text(json.dumps(report, indent=2), encoding='utf8')
     root = isolated_root(source, output/'worker')
     config = prepare(root)
-    executable = root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe'
+    executable = gabs_executable(root)
     report['gabs_sha256'] = hashlib.sha256(executable.read_bytes()).hexdigest()
     store = Store(output/'controller.sqlite')
     rt = None
     try:
-        async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe', config) as bridge:
+        async with bridge_session(gabs_executable(root), config) as bridge:
             calls = []
             actual_call = bridge.call
             async def traced(tool, **arguments):

@@ -57,15 +57,7 @@ async def run():
 
     async def advance():
         await settle()
-        await rt.supervisor.change('Superfast', max_ticks=600)
-        async with asyncio.timeout(60):
-            while True:
-                clock = (await rt.bridge.call('home/supervised_play', op='status')).structuredContent
-                if not clock['active']:
-                    break
-                await asyncio.sleep(.15)
-        record('native_tick_window', clock['pauseVerified'] and clock['lastTick'] > clock['startTick']
-               and clock['stopReason'] in ('tick_budget', 'requested_pause'), clock=clock)
+        clock = await advance_game(rt, 600, report, timeout=60)
         rt.supervisor.absorb(clock)
         rt.clock_events.extend(await rt.supervisor.poll())
         rt.receive_clock_events()

@@ -59,15 +59,15 @@ guarantee. Failed attempts remain part of the evidence.
 
 Existing SQLite events, action archives, diagnostics and native logs help explain
 failures. Input hashes and retained checkpoints help reproduce their context. These
-components are not yet a complete flight recorder: some observations are temporary, some
+components alone are not a complete flight recorder: some observations are temporary, some
 payloads are bounded, and the diagnostics API exposes a recent window rather than the
 whole run.
 
-The desired loop is a named scenario, an automatic failure bundle, offline inspection, a
-focused regression and another run of the same native assertion. That reusable runner
-and recorder work is tracked in [B17](../BACKLOG.md). Treat it as planned work; do not
-assume a current failure bundle contains every call or that a checkpoint can replay the
-simulation bit for bit.
+The [named native runner](../how-to/native-scenarios.md) connects scenario assertions,
+automatic failure bundles, offline inspection, focused fixtures and native reruns.
+Its opt-in bounded timeline records bridge calls and runtime persistence boundaries.
+Truncation, rotation and unmatched requests remain explicit; a checkpoint does not
+replay the simulation bit for bit or reconstruct every pawn transition.
 
 Use [choose checks](../how-to/choose-tests.md) when working on a change, [diagnostic
 reference](../reference/diagnostics.md) to see what is recorded today, and [inspect a

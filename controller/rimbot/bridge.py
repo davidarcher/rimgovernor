@@ -5,6 +5,7 @@ retains native content, error flags and operation receipts for reconciliation.
 This transport is not exposed to the model until capability policy is applied.
 """
 from contextlib import asynccontextmanager
+from copy import deepcopy
 import asyncio
 import logging
 import os
@@ -58,21 +59,50 @@ class BridgeClient:
         self.session = session
         self.game_id = game_id
         self.request_lock = asyncio.Lock()
+        self.recording_context = None
+        self.start_result = None
 
     async def core(self, name: str, **arguments) -> CallToolResult:
-        # GABS publishes ownership claims while preparing calls. Concurrent reads,
-        # clock polls and writes on one session can invalidate each other's claim.
-        # Queue requests rather than retrying an ambiguous mutation.
-        async with self.request_lock:
-            result = await self.session.call_tool(name, arguments)
-        if result.isError or (result.structuredContent or {}).get("success") is False:
-            raise BridgeError(name, result)
-        return result
+        from .flight_recorder import recorder
+        recording = recorder()
+        if recording and self.recording_context:
+            recording.context = self.recording_context()
+        context = deepcopy(recording.context) if recording else None
+        request = recording.event('native_request', context=context, tool=name, arguments=arguments) if recording else None
+        try:
+            # Serialize GABS ownership preparation without replaying uncertain writes.
+            async with self.request_lock:
+                result = await self.session.call_tool(name, arguments)
+            if recording:
+                recording.event('native_response', context=context, durable=False, request=request, tool=name, result=result.model_dump(mode='json'))
+            if result.isError or (result.structuredContent or {}).get("success") is False:
+                raise BridgeError(name, result)
+            if name == 'games_start':
+                self.start_result = result
+            return result
+        except BaseException as error:
+            if recording:
+                recording.event('native_error', context=context, request=request, tool=name, error=repr(error))
+            raise
 
     async def connect(self) -> CallToolResult:
+        started, self.start_result = self.start_result, None
+        startup = started.structuredContent or {} if started else {}
+        if startup.get('gabpConnected') is True:
+            return started
+        if startup.get('backgroundConnect') is True:
+            # GABS already owns a pending connector. A second connect can supersede
+            # its authenticated client while tools are being published.
+            async with asyncio.timeout(120):
+                while True:
+                    status = await self.core('games_status', gameId=self.game_id)
+                    state = status.structuredContent or {}
+                    if state.get('status') in ('stopped', 'stale-runtime-cleaned', 'disconnected'):
+                        raise RuntimeError('Native startup stopped before GABS published tools: '+str(state.get('status')))
+                    if state.get('status') in ('running', 'connected') and state.get('toolCount', 0) > 0:
+                        return status
+                    await asyncio.sleep(.5)
         result = await self.core("games_connect", gameId=self.game_id)
-        # Process startup and GABP readiness are separate. Only repeat discovery;
-        # never retry a load or another game mutation after an uncertain result.
         deadline = asyncio.get_running_loop().time() + 120
         while True:
             try:
@@ -96,9 +126,12 @@ class BridgeClient:
 
 @asynccontextmanager
 async def bridge_session(executable: Path, config_dir: Path, game_id="rimbot-trial"):
+    log_level = os.environ.get('RIMBOT_GABS_LOG_LEVEL', 'error')
+    if log_level not in ('debug', 'info', 'warn', 'error'):
+        raise ValueError('RIMBOT_GABS_LOG_LEVEL must be debug, info, warn or error')
     parameters = StdioServerParameters(command=str(executable.resolve()), args=[
         "server", "stdio", "--configDir", str(config_dir.resolve()),
-        "--log-level", "error"], env={key: os.environ[key] for key in (
+        "--log-level", log_level], env={key: os.environ[key] for key in (
             'DISPLAY', 'XAUTHORITY', 'XDG_RUNTIME_DIR', 'LIBGL_ALWAYS_SOFTWARE',
             'GALLIUM_DRIVER', 'LP_NUM_THREADS', 'RIMBOT_PRIVATE_DISPLAY', 'RIMBOT_VIDEO_READBACK',
             'LD_LIBRARY_PATH', 'MESA_D3D12_DEFAULT_ADAPTER_NAME') if key in os.environ})

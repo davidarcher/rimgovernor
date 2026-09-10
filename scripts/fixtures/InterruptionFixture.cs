@@ -49,14 +49,14 @@ namespace RimBot.InterruptionFixtures
 
         [Tool("test/interruption_letter", Description = "Disposable letter delivery through the real LetterStack callback; no pawn or simulation edits.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            string definition = "ThreatBig", string after = "none")
+            string definition = "ThreatBig", string after = "none", string label = "Interruption acceptance")
         {
             return await ctx.MainThread.InvokeAsync(() =>
             {
                 if (Current.Game == null || Find.CurrentMap == null) throw new InvalidOperationException("Load a disposable game first.");
-                if (after != "none" && after != "pause" && after != "speed") throw new ArgumentException("Unknown after action");
+                if (!new[] { "none", "pause", "speed", "modal", "raid" }.Contains(after)) throw new ArgumentException("Unknown after action");
                 var def = DefDatabase<LetterDef>.GetNamed(definition);
-                var letter = LetterMaker.MakeLetter("Interruption acceptance", "Disposable native attribution case.", def);
+                var letter = LetterMaker.MakeLetter(label, "Disposable native attribution case.", def);
                 var before = Find.TickManager.CurTimeSpeed;
                 Find.LetterStack.ReceiveLetter(letter, null, 0, false);
                 var delivered = Find.TickManager.CurTimeSpeed;
@@ -64,6 +64,14 @@ namespace RimBot.InterruptionFixtures
                 // Actual physical input is accepted separately by native_player_input_acceptance.py.
                 if (after == "pause") Find.TickManager.Pause();
                 if (after == "speed") Find.TickManager.CurTimeSpeed = TimeSpeed.Fast;
+                if (after == "modal") Find.WindowStack.Add(new Dialog_MessageBox("Disposable scenario modal"));
+                if (after == "raid")
+                {
+                    var incident = DefDatabase<IncidentDef>.GetNamed("RaidEnemy");
+                    var parms = StorytellerUtility.DefaultParmsNow(incident.category, Find.CurrentMap);
+                    parms.points = 100;
+                    if (!incident.Worker.TryExecute(parms)) throw new InvalidOperationException("Native raid fixture unavailable");
+                }
                 return (object)new { success = true, letterId = letter.GetUniqueLoadID(),
                     definition, after, before = before.ToString(), delivered = delivered.ToString(),
                     speed = Find.TickManager.CurTimeSpeed.ToString(),

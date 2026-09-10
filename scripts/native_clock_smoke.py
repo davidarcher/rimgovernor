@@ -1,4 +1,5 @@
 """Disposable native clock test; run with the controller and game closed."""
+from rimbot.bridge import gabs_executable
 import asyncio
 import json
 from pathlib import Path
@@ -23,7 +24,7 @@ async def until(test, timeout=8):
 async def main():
     root=Path('.rimbot/bridge').resolve()
     evidence={}
-    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe', root/'config') as bridge:
+    async with bridge_session(gabs_executable(root), root/'config') as bridge:
         await bridge.core('games_start', gameId=bridge.game_id)
         await bridge.connect()
         await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline', readiness='visual', timeoutMs=90000)

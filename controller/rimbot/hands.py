@@ -95,7 +95,7 @@ class Hands:
                         async def write_trade(args):
                             self.guard(rt, revision, token, direction)
                             result = await rt.native('home/trade', args, expected_revision=direction,
-                                expected_token=token, expected_plan_revision=revision, reconcile=False)
+                                expected_token=token, expected_plan_revision=revision, reconcile=False, expected_step_id=step.id)
                             return result['receipt']
                         receipt = await execute_trade(action, read_trade, write_trade, floors=floors, stopped=stopped)
                     else:
@@ -339,7 +339,8 @@ class Hands:
             progress.issued[key] = {'confirmed': False}
             rt.persist()
             result = await rt.native('home/place_building', dict(args, dryRun=False), expected_revision=direction,
-                expected_token=token, expected_plan_revision=revision, reconcile=False)
+                expected_token=token, expected_plan_revision=revision, reconcile=False,
+                expected_step_id=owner.id if owner else None)
             receipt = result['receipt']
             if receipt.get('outcome') not in ('placed', 'already_present'):
                 raise Blocked('placement_refused', reason(receipt), evidence=receipt)
@@ -387,8 +388,10 @@ class Hands:
             self.guard(rt, revision, token, direction)
             progress.issued[key] = {'confirmed': False}
             rt.persist()
+            owner=next((s for s in rt.current_plan.spec.steps if rt.current_plan.progress.get(s.id) is progress),None)
             result = await rt.native('home/zone_cells', dict(args, dryRun=False), expected_revision=direction,
-                expected_token=token, expected_plan_revision=revision, reconcile=False)
+                expected_token=token, expected_plan_revision=revision, reconcile=False,
+                expected_step_id=owner.id if owner else None)
             if result['receipt'].get('cellsAccepted') != len(cells):
                 raise Blocked('zone_partial', 'Zone was only partially created; inspect before revising', evidence=result['receipt'])
         observed = await rt.game.query('home/list_zones', match=action.label, includeCells=True, maxCellsPerZone=10000, filter=True)

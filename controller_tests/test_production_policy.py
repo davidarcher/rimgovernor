@@ -163,6 +163,21 @@ async def test_mining_watchdog_recovers_only_from_same_load_actual_work():
 
 
 @pytest.mark.asyncio
+async def test_recorded_zero_yield_herb_order_leaves_a_deficit_for_a_new_source():
+    # Native observation at tick 19525: estimated pending yield was zero
+    # while actual medicine stock remained twenty.
+    rt, identity, facts = target('MedicineHerbal',21)
+    facts['resources']['MedicineHerbal']=20
+    rt.game=SimpleNamespace(invoke=AsyncMock(return_value={'success':True,'sources':[
+        {'thingId':'Plant_HealrootWild17188','resource':'MedicineHerbal','x':146,'z':82,'yield':1,'designated':False},
+        {'thingId':'Plant_HealrootWild18467','resource':'MedicineHerbal','x':138,'z':163,'yield':0,'designated':True}]}))
+    _,actions=await resource_method(rt,identity,facts)
+    assert [a['arguments']['thingId'] for a in actions]==['Plant_HealrootWild17188']
+    assert rt.current_plan.colony_goals[identity].evidence['stock']==20
+    assert rt.current_plan.colony_goals[identity].evidence['deficit']==1
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize('mode, existing_target, count', [('Forever',0,0),('TargetCount',100,0),('TargetCount',50,1),('RepeatCount',0,1)])
 async def test_existing_bill_capacity_must_cover_the_maintained_target(mode, existing_target, count):
     rt, identity, facts = target()

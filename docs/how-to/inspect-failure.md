@@ -48,6 +48,6 @@ observed result, evidence paths and unresolved questions. Use a fresh output dir
 for the next run. Rebuild after source changes; `--no-build` reuses old image contents.
 Keep explicit repeated attempts rather than hiding crashes behind automatic retries.
 
-The [B17 backlog](../BACKLOG.md) tracks correlated timelines, automatic exports,
-scenario rerun commands and regression capture. Until those exist, describe gaps in the
-retained evidence instead of inferring unrecorded pawn behavior.
+The [named native runner](native-scenarios.md) supplies correlated timelines, automatic
+exports, rerun arguments and offline fixture capture. Preserve its explicit coverage
+gaps rather than inferring unrecorded pawn behavior.
