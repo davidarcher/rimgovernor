@@ -10,6 +10,9 @@ Go capability declarations. `source_revision` records the Python revision inspec
 - `state-inventory.json`: SQLite, checkpoint and recovery boundaries.
 - `fixtures/`: small sanitized comparison cases with source provenance. Synthetic
   fixture evidence does not establish a native outcome or model interpretation.
+  `state-baseline.json` retains seven representative cases;
+  `serialization-baseline.json` retains exact Python JSON bytes/signatures and
+  uncertain progress. Its self-test rejects a deliberately changed signature.
 
 Each row identifies its source, target Go package, owning G01 chunk, existing
 fixture checks and native scenario references. Empty evidence lists preserve an

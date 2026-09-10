@@ -684,6 +684,15 @@ only intentional small, sanitized regression fixtures belong in source control.
   normalization that ignores only documented nondeterministic fields, never IDs,
   action order, generations or uncertainty. Accept reproducible clean builds and
   a replay test that detects a deliberately altered action or receipt. Depends on 00.
+  - [ ] **01a:** pinned module/dependencies, attribution and a non-writing CLI;
+    compile/test MCP and SQLite dependency support with explicit connection closure.
+    Owner: integrator. Depends on the 00 inventory/baseline gate.
+  - [ ] **01b:** injected clocks/IDs and offline replay with documented normalization,
+    exact numeric/identity/order handling and deliberate action/receipt corruption
+    tests. Owner: replay agent. Depends on 01a.
+  - [ ] **01c:** retained Python/dashboard checks plus Go formatting, vet, unit/race
+    tests and Windows/Linux build CI; clean platform validation and evidence.
+    Owner: integrator. Depends on 01b.
 
 - [ ] **G01.02 — Schema generation and first native contract.** Owner: contracts
   agent; shared-file changes coordinated by integrator. Land generation tooling

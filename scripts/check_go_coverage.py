@@ -10,6 +10,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 INVENTORIES = ("domain", "interface", "state")
+FIXTURES = ("state-baseline", "serialization-baseline")
 
 
 def check(root: Path = ROOT) -> list[str]:
@@ -57,6 +58,15 @@ def check(root: Path = ROOT) -> list[str]:
                         errors.append(f"{ident}: missing {key} reference {value}")
     if len(revisions) != 1:
         errors.append("inventory comparison revisions differ")
+    for name in FIXTURES:
+        path = root / "contracts" / "fixtures" / f"{name}.json"
+        try:
+            fixture = json.loads(path.read_text(encoding="utf-8-sig"))
+        except (OSError, ValueError) as exc:
+            errors.append(f"{path.name}: {exc}")
+            continue
+        if fixture.get("source_revision") not in revisions:
+            errors.append(f"{name}: fixture comparison revision differs")
     print(f"G01 inventory: {total} rows, {len(errors)} structural errors")
     return errors
 
@@ -73,6 +83,12 @@ def main() -> int:
             result = subprocess.run([sys.executable, str(validator), "--check"], cwd=ROOT)
             if result.returncode:
                 return result.returncode
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "check_serialization_baseline.py"),
+         "--check", "--self-test"], cwd=ROOT,
+    )
+    if result.returncode:
+        return result.returncode
     return 0
 
 
