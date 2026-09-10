@@ -1088,8 +1088,11 @@ Commit accepted increments without enabling incomplete behavior by default.
   Add generation drift, serializer and invalid/missing/null/overflow/variant tests,
   including SDK adapter failure. Accept cross-language fixtures and an isolated
   native invocation with unchanged preview/refusal behavior. Packaging is not a
-  dependency: this may land in the old path and move with 01. Depends on 00 and
-  G01.02's generation foundation; contributes its native acceptance to G01.02.
+  dependency: this may land in the old path and move with 01. A bounded read-only
+  preview increment depends on 00's applicable source inventory and live preview
+  discovery/binder fixtures, plus G01.02's generation foundation. Unrelated saved
+  state and distribution closeout may remain open in 00e; this does not close 00e
+  or authorize package cutover. Contributes its native acceptance to G01.02.
 
 - [ ] **N01.03 — Typed observation families.** Owner: native observations
   implementer; coordinate with G01.03. Migrate identity/status and the batch
