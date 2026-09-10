@@ -48,8 +48,10 @@ in the checkpoint commit; do not append an implementation diary here.
   Resolve repeated combat rearming on an unchanged, already-observed low-health
   colonist: require effective triage or an explicit hold without weakening injury thresholds.
 - [ ] **B04g · Native command acceptance.** Extend the isolated native chat probe to construction and room
-  refinements. Issued-construction cancellation after a lost receipt has one native
-  local-model acceptance case; broaden wording and context. Broaden research selection,
+  refinements. Define and accept completed PLAYER-order archival when the 80-step
+  live plan fills, preserving durable receipts and player intent. Broaden wording and context for
+  issued-construction cancellation after a lost receipt, which has one native
+  local-model acceptance case. Broaden research selection,
   refusal and persistent goal cancel/resume coverage across projects, models and
   save/load boundaries. Measure schema-valid semantic errors, including wrong
   resources and erroneous reserve-tool selection, separately from native refusals and
