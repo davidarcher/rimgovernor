@@ -302,13 +302,6 @@ in the checkpoint commit; do not append an implementation diary here.
   deterministic fixtures and isolated native runs observing illumination, cleaning,
   completed floors, actual travel, generation/refueling and maintained temperatures.
 
-- [ ] **B23 · Long-term medical management.** Extend B04f/B09 treatment with disease
-  monitoring, repeat tending, recovery/bed-rest coverage, chronic conditions,
-  prosthetics and surgery workflows. Discover patient/body-part/recipe eligibility,
-  medicine and practitioner requirements; report uncertainty and preserve care
-  policies. Irreversible elective operations require applicable player direction.
-  Test competing patients, lost staff/supplies, failed operations and interrupted
-  recovery; confirm native health outcomes rather than medical orders or bill removal.
 - [ ] **B26 · Mining and material development.** Extend resource acquisition into
   bounded extraction plans, nearby deposit selection and replenishment after local
   depletion. Discover native deposits, research, extraction equipment and worker
@@ -349,8 +342,8 @@ player-direction/load guards, uncertain-write reconciliation and observable
 completion through the shared goal/action system. Use focused deterministic tests
 and isolated native scenarios, then sustained B04 campaigns. Existing reads,
 commands or forecast outputs do not establish autonomous management. Prioritize
-B23 after urgent startup gaps; land bounded vertical slices rather than
-requiring every system before any can be accepted.
+remaining capability work after urgent startup gaps, with native acceptance for
+each bounded method.
 
 ## P2 — Coverage, inspection and evaluation scale
 
@@ -360,10 +353,10 @@ requiring every system before any can be accepted.
   contextual/dropdown/reverse-designator requests only with exact current selection,
   menu identity, native eligibility and observed effects. Verify real Shift-queued
   jobs, replacement/cancellation and queue completion before exposing this fallback.
-- [ ] **Animal and patient command extensions.** Expose individual master, allowed-area
+- [ ] **Animal and prisoner command extensions.** Expose individual master, allowed-area
   and following requests, then accept normal tame/release/pen and pair-separation
-  workflows. Add surgery/body-part eligibility, prisoner capture and interaction
-  settings with actual patient/prisoner outcomes through the shared executor.
+  workflows. Extend prisoner capture and interaction
+  settings with actual prisoner outcomes through the shared executor.
 - [ ] **Personal policy and storage-range extensions.** Add typed food/drug/apparel
   policy creation, editing and assignment with native readback. Distinguish assigned
   restrictions from actual consumption/wearing. Cover stockpile quality/hit-point

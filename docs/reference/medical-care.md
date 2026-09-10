@@ -5,7 +5,9 @@
 `CriticalMedical` selects native-approved doctor/patient pairs by bleeding deadline,
 native life-threatening state and stable identity. It preserves `NoCare`, player
 work overrides and self-tend policy. Completed treatments permit a later tend in the
-same goal episode; persisted and archived method evidence prevents duplicate work.
+same goal episode. A later confirmed, completed autonomous treatment can admit a
+new step after fresh native eligibility; pending and uncertain work cannot. Prior
+actions and receipts remain retained across persistence and method archival.
 The current doctor's exact job target distinguishes treatment from tending somebody
 else. A receipt does not establish completed treatment.
 
