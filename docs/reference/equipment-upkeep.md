@@ -62,6 +62,12 @@ matching loadout evidence can reconcile success without replay. Changed load or
 player direction blocks completion. Interrupted jobs and missing observations
 cannot certify success. The shared watchdog bounds lack of progress.
 
+Ordinary `pawn_equipped` weapon orders use the same passive completion recovery.
+The pre-write record retains observation time, load and player direction even
+when the native reply is lost. A later exact weapon observation can complete a
+blocked order without sending it again. Changed context, cancelled work, unknown
+pawn health and a different equipped item cannot clear the hold.
+
 A bill receipt only confirms configuration. The maintained deficit remains until
 usable gear is observed. A completed bill that produces an unsuitable item does
 not trigger unlimited replacement bills under the same loadout prerequisite.

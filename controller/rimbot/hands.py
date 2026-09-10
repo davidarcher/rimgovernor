@@ -149,7 +149,7 @@ class Hands:
                             player_direction = rt.current_plan.control.get('player_direction', 0)
                             intent = {'confirmed': False}
                             progress.issued[key] = intent
-                            if action.completion == 'pawn_gear':
+                            if action.completion in ('pawn_gear','pawn_equipped'):
                                 progress.issued[key].update(issued_at=time.time(), load_token=token,
                                     player_direction=player_direction, issued_tick=rt.batch.summary.end_tick)
                             if action.completion == 'need_recovered':

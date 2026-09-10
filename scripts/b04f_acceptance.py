@@ -281,6 +281,37 @@ async def run(args):
                     if not next(p for p in people if p['thingId']==patient)['health']['needsTend']:break
                     await window()
                 check('combat_triage_completed',not next(p for p in people if p['thingId']==patient)['health']['needsTend'])
+            elif args.case=='equipment-observation':
+                from rimbot.native_scenario import advance_game
+                from rimbot.colony_plan import Failure
+                equipment=await setup('combat-equipment')
+                facts,people=await refresh()
+                pawn=next(p for p in people if not p.get('drafted') and not p.get('downed') and not p.get('dead'))
+                action=dict(kind='native_operation',tool='home/order',completion='pawn_equipped',
+                    arguments=dict(action='equip',pawn=pawn['thingId'],target=equipment['weapons'][0],watch=False))
+                ids=await issue('EnsureBasicDefense',('fixture-observed-equipment',[action]))
+                check('equipment_order_waits_for_native_work',bool(ids) and all(
+                    rt.current_plan.progress[i].state=='waiting' for i in ids),
+                    progress={i:rt.current_plan.progress[i].model_dump() for i in ids})
+                # Model a lost transport acknowledgement after native dispatch.
+                # The game continues the original job; recovery may only observe it.
+                for identity in ids:
+                    progress=rt.current_plan.progress[identity]
+                    progress.issued['0']['confirmed']=False
+                    progress.state='blocked'
+                    progress.failure=Failure(code='native_failure',detail='Fixture withheld equipment acknowledgement')
+                retained={i:rt.current_plan.progress[i].model_dump() for i in ids}
+                report['withheld_receipts']=retained
+                rt.supervisor.test_acceleration=True
+                for _ in range(30):
+                    await refresh()
+                    if all(rt.current_plan.progress[i].state=='complete' for i in ids):break
+                    await advance_game(rt,120,report)
+                await refresh()
+                check('equipment_observed_without_reissuing',all(rt.current_plan.progress[i].state=='complete' for i in ids),
+                    progress={i:rt.current_plan.progress[i].model_dump() for i in ids})
+                check('original_uncertain_receipts_preserved',all(
+                    rt.current_plan.progress[i].issued==retained[i]['issued'] for i in ids))
             elif args.case=='refused-preview':
                 from rimbot.native_scenario import advance_game
                 from rimbot.order_refusal import refused_preview
@@ -453,7 +484,7 @@ async def run(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root',type=Path,required=True)
-    parser.add_argument('--case',choices=['development','combat','medical','drafted-medical','refused-preview','health'],required=True)
+    parser.add_argument('--case',choices=['development','combat','medical','drafted-medical','refused-preview','equipment-observation','health'],required=True)
     parser.add_argument('--seconds',type=int,default=1800)
     parser.add_argument('--new-crashlanded',action='store_true',help='Use ordinary native Crashlanded generation and starting technology, without save edits')
     parser.add_argument('--research-project',help='Require this native project on a saved-colony continuation')

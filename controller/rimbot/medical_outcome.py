@@ -6,9 +6,10 @@ def pawn_order_outcome(action, pawns):
     pawn = next((p for p in pawns if p.get('thingId') == action.arguments['pawn']), None)
     if pawn is None or pawn.get('dead') or pawn.get('downed'):
         return Failure(code='pawn_unavailable', detail='Assigned pawn is unavailable; action not verified')
+    if action.completion in ('pawn_gear','pawn_equipped') and (
+            pawn.get('dead') is not False or pawn.get('downed') is not False):
+        return 'waiting'
     if action.completion == 'pawn_gear':
-        if pawn.get('dead') is not False or pawn.get('downed') is not False:
-            return 'waiting'
         gear = pawn.get('equipment')
         if not isinstance(gear, dict) or not isinstance(gear.get('apparel'), list):
             return 'waiting'

@@ -329,6 +329,29 @@ async def test_combat_equipment_guards_enemy_identity_separately_from_weapon(tmp
         assert rt.current_plan.progress['arm'].failure.code=='threat_changed'
     rt.store.close()
 
+
+@pytest.mark.asyncio
+async def test_equipment_lost_reply_retains_context_before_native_dispatch(tmp_path):
+    rt=runtime(tmp_path);await rt.sync_identity();rt.mode='automate';rt.batch=batch()
+    spec=PlanSpec(steps=[dict(id='arm',title='Equip',source='AUTOPILOT',goal_id='EnsureBasicDefense',
+        completion_criteria='Weapon equipped',action=dict(kind='native_operation',tool='home/order',
+        completion='pawn_equipped',arguments=dict(action='equip',pawn='Thing_Human1',target='Thing_Gun1',watch=False)))])
+    rt.current_plan.commit(decision(spec),actor=ModelRole.STRATEGIST,tick=100)
+    rt.game.describe=AsyncMock(return_value={'properties':{'dryRun':{}}})
+    rt.inspect_native=AsyncMock(return_value={'success':True})
+    async def lost_reply(*args,**kwargs):
+        receipt=rt.current_plan.progress['arm'].issued['0']
+        assert receipt['confirmed'] is False and receipt['load_token']==rt.context_token
+        assert receipt['player_direction']==0 and receipt['issued_tick']==100 and receipt['issued_at']>0
+        raise RuntimeError('Lost native response')
+    rt.native=AsyncMock(side_effect=lost_reply)
+    await rt.hands.advance(rt)
+    progress=rt.current_plan.progress['arm']
+    assert progress.state=='blocked' and progress.issued['0']['load_token']==rt.context_token
+    assert progress.issued['0']['confirmed'] is False
+    rt.native.assert_awaited_once()
+    rt.store.close()
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize('adviser,arguments', [
     ('visual_review', {'question':'Check the door'}),

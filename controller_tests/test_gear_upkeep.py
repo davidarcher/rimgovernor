@@ -58,25 +58,32 @@ def test_apparel_write_cannot_use_receipt_completion_or_omit_identity():
     assert not is_write('home/gear_upkeep', dict(dryRun=True))
 
 
-@pytest.mark.parametrize('changed', [None, 'load', 'direction', 'stale'])
-def test_uncertain_dressing_reconciles_only_with_fresh_owned_context(changed):
+@pytest.mark.parametrize('completion',['pawn_gear','pawn_equipped'])
+@pytest.mark.parametrize('changed', [None, 'load', 'direction', 'stale','missing_receipt','unknown_health','cancelled','wrong_item'])
+def test_uncertain_dressing_reconciles_only_with_fresh_owned_context(changed,completion):
     from types import SimpleNamespace
     from rimbot.bridge_runtime import BridgeRuntime
     from rimbot.colony_plan import ColonyPlan, PlanSpec, PlanStep, StepProgress
     rt = BridgeRuntime.__new__(BridgeRuntime)
     action = compile_upkeep(ColonyGoal(priority_class=3), observation())[1][0]
+    if completion=='pawn_equipped':
+        action=dict(kind='native_operation',tool='home/order',completion=completion,
+            arguments=dict(action='equip',pawn='Thing_Pawn1',target='Thing_Shirt3'))
     step = PlanStep(id='wear', title='Wear replacement', action=action, completion_criteria='Exact apparel worn')
     progress = StepProgress(state='blocked', failure=Failure(code='native_failure', detail='Lost response'),
         issued={'0': dict(confirmed=False, issued_at=10, load_token='old' if changed == 'load' else 'load',
                           player_direction=1 if changed == 'direction' else 0)})
     rt.current_plan = ColonyPlan(spec=PlanSpec(steps=[step]), progress={'wear': progress})
+    if changed=='missing_receipt':progress.issued={}
+    if changed=='cancelled':progress.state='cancelled'
     rt.context_token = 'load'
     rt.signal = lambda *args: None
     rt.batch = SimpleNamespace(started_at=9 if changed == 'stale' else 11,
-        native={'pawns': {'pawns': [dict(thingId='Thing_Pawn1', dead=False, downed=False,
-            equipment={'apparel': [dict(thingId='Thing_Shirt3')]})]}})
+        native={'pawns': {'pawns': [dict(thingId='Thing_Pawn1', dead=False, downed=None if changed=='unknown_health' else False,
+            equipment={'apparel': [dict(thingId='Other' if changed=='wrong_item' else 'Thing_Shirt3')],
+                       'primary':dict(thingId='Other' if changed=='wrong_item' else 'Thing_Shirt3')})]}})
     rt.reconcile_plan()
-    assert progress.state == ('complete' if changed is None else 'blocked')
+    assert progress.state == ('complete' if changed is None else 'cancelled' if changed=='cancelled' else 'blocked')
 
 
 @pytest.mark.asyncio

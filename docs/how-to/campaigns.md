@@ -88,6 +88,9 @@ the private companion. The former checks actual tending and player draft ownersh
 after threats clear; the latter exercises real native order and stale need-admission
 refusals and verifies subsequent controller reviews. They do not certify sustained food
 or active-combat triage.
+Use `--case equipment-observation` to withhold an equipment acknowledgement and
+verify completion of the original native pawn job from later observation, retaining
+the uncertain receipt without another equip order.
 
 ## Repeated model campaigns
 

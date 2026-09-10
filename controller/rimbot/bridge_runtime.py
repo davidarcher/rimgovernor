@@ -425,7 +425,7 @@ class BridgeRuntime:
         from .mood_control import outcome as need_outcome
         for step in self.current_plan.spec.steps:
             progress = self.current_plan.progress[step.id]
-            if (isinstance(step.action, NativeOperation) and step.action.completion == 'pawn_gear'
+            if (isinstance(step.action, NativeOperation) and step.action.completion in ('pawn_gear','pawn_equipped')
                     and progress.state in ('waiting', 'blocked') and self.batch):
                 issued = progress.issued.get('0', {})
                 if self.batch.started_at <= issued.get('issued_at', float('inf')): continue
@@ -477,7 +477,7 @@ class BridgeRuntime:
                         else 'Expected native surgical health change observed; postoperative recovery is monitored separately', step=step.id)
                     self.signal('plan.step_'+progress.state, {'step': step.id})
                 continue
-            if (isinstance(step.action, NativeOperation) and step.action.completion in ('pawn_equipped', 'pawn_at_position')
+            if (isinstance(step.action, NativeOperation) and step.action.completion == 'pawn_at_position'
                     and progress.state == 'waiting' and self.batch):
                 if self.batch.started_at <= progress.issued.get('0', {}).get('issued_at', float('inf')): continue
                 outcome = pawn_order_outcome(step.action, self.batch.native.get('pawns', {}).get('pawns', []))
