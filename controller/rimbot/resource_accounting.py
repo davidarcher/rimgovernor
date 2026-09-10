@@ -74,6 +74,38 @@ async def validate_allocations(spec, current, game):
     return slots_by_step
 
 
+def execution_reservations(plan, step_id):
+    """Budget ready work in dispatch order after native consumption changes stock.
+
+    Admission still reserves every accepted project. At dispatch, lower-priority
+    or dependency-gated work yields to ready prerequisites. Each selected project
+    retains its full unissued batch budget; uncertain writes retain their costs
+    regardless of scheduling priority until observation resolves them.
+    """
+    ready = {step.id for step in plan.ready()}
+    selected = {step_id}
+    for step in sorted(plan.spec.steps, key=lambda candidate: -candidate.priority):
+        if step.id == step_id:
+            break
+        if step.id in ready:
+            selected.add(step.id)
+    held = {}
+    for identity, slots in plan.control.get('costs', {}).items():
+        progress = plan.progress.get(identity)
+        if progress is None:
+            continue
+        for slot, costs in slots.items():
+            issued = progress.issued.get(slot)
+            if issued and issued.get('confirmed') is True:
+                continue
+            uncertain = issued is not None and issued.get('confirmed') is not True
+            if identity not in selected and not uncertain:
+                continue
+            for resource, count in costs.items():
+                held[resource] = held.get(resource, 0) + count
+    return held
+
+
 def validate_execution_costs(plan, progress, slot, preview):
     """Recheck policy and accepted reservations against the current native stock."""
     policies = plan.control.get('resource_policy', {})
@@ -86,13 +118,7 @@ def validate_execution_costs(plan, progress, slot, preview):
     costs = {r['defName']:r['count'] for r in preview['costList']}
     if expected is not None and costs != expected:
         raise ValueError('Construction costs changed; revalidate the resource reservation')
-    held = {}
-    for identity, slots in plan.control.get('costs', {}).items():
-        state = plan.progress.get(identity)
-        if state is None or state.state in ('complete','cancelled') or (state.state=='blocked' and state is not progress): continue
-        for key, values in slots.items():
-            if state.issued.get(key, {}).get('confirmed'): continue
-            for resource, count in values.items(): held[resource] = held.get(resource,0)+count
+    held = execution_reservations(plan, step.id)
     available = {r['defName']:r.get('available') for r in preview.get('materials',{}).get('rows',[])}
     for resource, count in costs.items():
         policy = policies.get(resource,{})
