@@ -135,11 +135,10 @@ in the checkpoint commit; do not append an implementation diary here.
   staged construction and reuse of ruins/nonrectangular shelters. Compare bounded
   alternatives using native terrain, supplies, danger, fertility and travel evidence.
   Extend spatial protection to observed/retired rooms, continuous corridors,
-  pawn-specific routes beyond the three-cell margin, and projected obstruction
-  from building types beyond room shells. Validate native floor/roof/area/designator
+  pawn-specific routes beyond the three-cell margin, and native custom-definition
+  acceptance of projected obstruction beyond room shells. Validate native floor/roof/area/designator
   coverage before adding tools.
-  Run `spatial_site_acceptance.py` on a stable native DLL set for shell admission,
-  enclosed-farm refusal and latency evidence. Broaden game-level acceptance to
+  Broaden the paused native shell/farm/projected-wall acceptance to
   ordinary pawn construction, live player edits, interrupted batches, large zones,
   custom definitions, sealed pockets, altered interiors and map edges. Measure
   repeated preflight/dispatch observation cost; controller fixtures do not establish

@@ -104,7 +104,7 @@ def connected_cells(start, allowed):
     return reached
 
 
-async def validate_shell_connectivity(step_id, shell, read, spec):
+async def validate_shell_connectivity(step_id, shell, read, spec, *, obstructions=()):
     """Prove local grid connectivity against observed cells and projected shells.
 
     A three-cell exterior margin bounds reads; reaching its edge does not prove
@@ -144,6 +144,7 @@ async def validate_shell_connectivity(step_id, shell, read, spec):
             observed.update({(c['x'], c['z']): c for c in result['cells']})
     allowed = {p for p, c in observed.items() if c.get('fogged', False) is False
                and c.get('walkable') is True and c.get('passable') is True}
+    allowed.difference_update(obstructions)
     interior = {(x, z) for x in range(b.x+1, b.x+b.width-1) for z in range(b.z+1, b.z+b.height-1)}
     # Unknown interior cells cannot be silently discarded as unusable rock.
     if any(observed[p].get('fogged', False) is not False or

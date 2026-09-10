@@ -50,6 +50,19 @@ def native_footprint(preview, placement):
     return points
 
 
+def projected_obstruction(preview, placement):
+    """Use the completed native definition, including custom building classes."""
+    footprint = native_footprint(preview, placement)
+    passability = preview.get('passability')
+    if passability not in {'Standable', 'PassThroughOnly', 'Impassable'}:
+        raise ValueError('Native completed-building passability is unavailable')
+    if type(preview.get('isDoor')) is not bool:
+        raise ValueError('Native door classification is unavailable')
+    # Doors remain a candidate connection; native pawn traversal still decides
+    # whether a particular pawn can open the current door.
+    return footprint if passability == 'Impassable' and not preview['isDoor'] else set()
+
+
 def validate_geometry(spec, footprints=None, *, current=None):
     """Footprints keyed by (step ID, slot) refine the conservative anchor checks."""
     footprints = footprints or {}

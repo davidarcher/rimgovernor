@@ -24,6 +24,21 @@ class Hands:
                 self.guard(rt, revision, token, direction)
                 action = step.action
                 placements = room_placements(action) if isinstance(action, RoomShell) else action.placements if isinstance(action, Buildings) else None
+                if placements and any(isinstance(s.action, Buildings) for s in rt.current_plan.spec.steps) and any(
+                        isinstance(s.action, RoomShell) for s in rt.current_plan.spec.steps):
+                    from types import SimpleNamespace
+                    from .construction_preflight import preflight_construction
+                    async def spatial_read(name, args, **kwargs):
+                        self.guard(rt, revision, token, direction)
+                        result = await rt.inspect_native(name, args)
+                        self.guard(rt, revision, token, direction)
+                        return result
+                    try:
+                        await preflight_construction(rt.current_plan.spec, rt.current_plan,
+                            SimpleNamespace(invoke=spatial_read), refresh=True)
+                    except ValueError as error:
+                        raise Blocked(getattr(error, 'code', 'spatial_preflight'), str(error),
+                            evidence=getattr(error, 'evidence', {})) from error
                 if isinstance(action, RoomShell):
                     # Check the entire remaining shell before this pass can write any piece.
                     # Per-piece validation still runs immediately before each write.

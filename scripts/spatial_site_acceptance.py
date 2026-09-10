@@ -14,6 +14,7 @@ from rimbot.construction_preflight import preflight_construction
 from rimbot.headless import isolated_root, prepare
 from rimbot.player_commands import apply_command
 from rimbot.shell_site import ShellSiteRefusal, ZONE_ARGUMENTS, cell_set
+from rimbot.spatial import room_entrance
 from rimbot.store import Store
 
 
@@ -58,6 +59,7 @@ async def run(args):
                        model_factory=lambda _: NoInference())
     report = dict(outcome='failed', cases=[], scope='Paused native shell admission and '
                   'zone-edit refusal; no pawn construction, route traversal or survival claim')
+    started_runtime = False
 
     def record(name, passed, **evidence):
         report['cases'].append(dict(name=name, passed=bool(passed), **evidence))
@@ -87,6 +89,7 @@ async def run(args):
         manifest = capture_manifest(Path(__file__).resolve().parents[1], root, configuration,
                                     rt.router.routing.model_dump(mode='json'))
         (args.output/'manifest.json').write_text(json.dumps(manifest, indent=2))
+        started_runtime = True
         await ready(rt)
         initial_status = await rt.game.query('home/status', colonists=False, threats=False)
         initial_tick = initial_status['time']['ticksGame']
@@ -108,6 +111,32 @@ async def run(args):
                rt.current_plan.model_dump(mode='json') == plan_before
                and await buildings() == buildings_before and rt.counters['actions'] == actions_before,
                shell=shell, preflight_seconds=preflight_seconds)
+
+        if args.projected:
+            timings = []
+            for _ in range(3):
+                began = time.monotonic()
+                await preflight_construction(spec, rt.current_plan, rt.game)
+                timings.append(time.monotonic()-began)
+            record('repeated_native_preflight', True, seconds=timings)
+            proposed = spec.model_copy(deep=True)
+            (x, z), (dx, dz) = room_entrance(step.action)
+            outside = (x+dx, z+dz)
+            pocket = [(outside[0]+dx, outside[1]+dz),
+                      (outside[0]+dz, outside[1]+dx), (outside[0]-dz, outside[1]-dx)]
+            proposed.steps.append(PlanStep(id='projected-pocket', title='Native projected obstruction',
+                completion_criteria='Native walls observed', source='PLAYER', action=dict(
+                    kind='place_buildings', placements=[dict(def_name='Wall', x=a, z=b,
+                        materials=['WoodLog']) for a, b in pocket])))
+            refusal = None
+            try:
+                await preflight_construction(proposed, rt.current_plan, rt.game)
+            except ShellSiteRefusal as error:
+                refusal = dict(code=error.code, detail=str(error), evidence=error.evidence)
+            record('native_projected_walls_cannot_seal_shell_entrance',
+                refusal is not None and refusal['code'] == 'disconnected_entrance', refusal=refusal)
+            record('projected_refusal_preserves_plan_and_orders',
+                rt.current_plan.model_dump(mode='json') == plan_before and await buildings() == buildings_before)
 
         # Locate a real sowable interior cell using the native zone preview.
         bounds = RoomShell.model_validate(shell).bounds
@@ -179,7 +208,8 @@ async def run(args):
         report.update(plan=rt.current_plan.model_dump(mode='json'), counters=rt.counters,
                       model_attempts=NoInference.attempts)
         try:
-            await rt.stop()
+            if started_runtime:
+                await rt.stop()
         finally:
             store.close()
             (args.output/'result.json').write_text(json.dumps(report, indent=2))
@@ -190,5 +220,6 @@ if __name__ == '__main__':
     parser.add_argument('--source-root', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True, help='Must not exist')
     parser.add_argument('--seconds', type=int, default=300, help='Whole trial timeout including startup')
+    parser.add_argument('--projected', action='store_true', help='Require native projected wall obstruction and repeated preflight timings')
     args = parser.parse_args()
     asyncio.run(asyncio.wait_for(run(args), args.seconds))

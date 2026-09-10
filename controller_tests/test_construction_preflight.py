@@ -6,7 +6,8 @@ from rimbot.construction_preflight import preflight_construction, ConstructionRe
 
 
 def footprint(args, **result):
-    return dict(result, rotations=[{'rotation': args['rotation'],
+    return dict(result, passability='Impassable' if args.get('defName') == 'Wall' else 'Standable',
+        isDoor=args.get('defName') == 'Door', rotations=[{'rotation': args['rotation'],
         'occupiedCells': [{'x': args['x'], 'z': args['z']}]}])
 
 

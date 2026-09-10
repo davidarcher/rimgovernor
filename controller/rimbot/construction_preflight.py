@@ -1,6 +1,6 @@
 """Native dry-run validation of new construction intent before commitment."""
 from .colony_plan import Buildings, RoomShell, Zone
-from .spatial import room_placements, native_footprint, validate_geometry
+from .spatial import room_placements, native_footprint, validate_geometry, projected_obstruction
 from .shell_site import validate_shell_site, validate_shell_connectivity
 
 
@@ -13,19 +13,18 @@ class ConstructionRefusal(ValueError):
             'Inspect native evidence and correct the plan; no plan change or construction was issued.')
 
 
-async def preflight_construction(spec, current, game):
+async def preflight_construction(spec, current, game, *, refresh=False):
     previous={step.id:step for step in current.spec.steps}
     def spatial_signature(plan):
         return [(s.id, s.signature()) for s in plan.steps if isinstance(s.action, (Buildings, RoomShell, Zone))]
-    def shells(plan):
-        return [(s.id, s.signature()) for s in plan.steps if isinstance(s.action, RoomShell)]
-    shells_changed = shells(spec) != shells(current.spec)
-    if (spatial_signature(spec) == spatial_signature(current.spec)
+    if (not refresh and spatial_signature(spec) == spatial_signature(current.spec)
             and spec.reserved_walkways == current.spec.reserved_walkways):
         return
     validate_geometry(spec, current=current)
     checked={}
     footprints={}
+    obstructions=set()
+    has_shells=any(isinstance(s.action, RoomShell) for s in spec.steps)
     for step in spec.steps:
         old=previous.get(step.id)
         unchanged=old is not None and old.signature()==step.signature()
@@ -67,6 +66,8 @@ async def preflight_construction(spec, current, game):
                         result.get('canPlace') is True or (step.after and not relocation and 'canPlace' in result)):
                     try:
                         footprints[(step.id, str(index))] = native_footprint(result, placement)
+                        if has_shells and isinstance(action, Buildings):
+                            obstructions.update(projected_obstruction(result, placement))
                     except ValueError as error:
                         evidence['error'] = str(error)
                         continue
@@ -78,11 +79,11 @@ async def preflight_construction(spec, current, game):
                 return await game.invoke(name, arguments, allow_write=False)
             await validate_shell_site(step.id, action, read)
     validate_geometry(spec, footprints, current=current)
-    if shells_changed:
+    if has_shells:
         async def read(name, arguments):
             return await game.invoke(name, arguments, allow_write=False)
         for step in spec.steps:
             if isinstance(step.action, RoomShell):
-                # New walls can seal an existing room that has no work left to
-                # redispatch. Validate both sides of that spatial relationship.
-                await validate_shell_connectivity(step.id, step.action, read, spec)
+                # Furniture or new walls can seal a room with no remaining work.
+                await validate_shell_connectivity(step.id, step.action, read, spec,
+                                                  obstructions=obstructions)
