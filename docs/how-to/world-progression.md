@@ -45,8 +45,9 @@ preference set to at least two. The fixture never edits maps or pawn positions.
 `--diplomacy --trip --shared` chooses a settlement using native negotiation
 eligibility and route/food limits, spends an explicit silver gift, observes
 goodwill, then verifies return storage. `--quest-trade --trip --shared` requires
-a native offer with obtainable goods and an item reward, uses shared acquisition,
-and observes native fulfillment and received cargo. It can inspect visible ore
+a native offer with obtainable goods and an item reward, uses repeated bounded
+shared acquisition batches, and observes native fulfillment, received cargo and
+reward unloading into home storage. It can inspect visible ore
 or wild herbs, move through shared pawn orders to an observed approach, and then
 use the same native acquisition guards. Offers generated at later native ticks
 retain their independently generated quantities; no requirements are edited. Unobtainable offers do not

@@ -155,22 +155,48 @@ async def run():
             if evidence.get('failure') != 'Unexpected native interruption':
                 raise
             state = evidence['windows'][-1]
-        if state['stopReason'] == 'force_paused':
+        if state['stopReason'] in ('force_paused', 'colony_naming'):
             facts = await read('home/colony_facts', planning=True)
-            assert facts.get('colonyNaming') and not report.get('bootstrap_names'), state
-            goal = rt.current_plan.colony_goals.setdefault('ConfirmColonyNames', ColonyGoal(priority_class=0, source='PLAYER'))
-            method, actions = await rt.controller.skills.compile('ConfirmColonyNames', facts, [])
-            steps, _ = rt.controller.skills.steps('ConfirmColonyNames', method, actions, facts)
-            await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
-                reason='Confirm ordinary generated colony names in disposable survival run', steps=steps).decision(rt.current_plan),
-                actor='strategist', expected_token=rt.context_token, expected_revision=rt.chat_revision)
-            rt.manual_requests.extend((s.id, rt.context_token, rt.chat_revision) for s in steps)
-            await rt.execute_manual_requests()
-            assert all(rt.current_plan.progress[s.id].state == 'complete' for s in steps)
-            goal.evidence.setdefault('methods', {})[method] = [s.id for s in steps]
-            report['bootstrap_names'] = facts['colonyNaming']
-            rt.supervisor.absorb(state)
-            rt.supervisor.allow_resume()
+            if facts.get('colonyNaming'):
+                assert not report.get('bootstrap_names'), state
+                goal = rt.current_plan.colony_goals.setdefault('ConfirmColonyNames', ColonyGoal(priority_class=0, source='PLAYER'))
+                method, actions = await rt.controller.skills.compile('ConfirmColonyNames', facts, [])
+                steps, _ = rt.controller.skills.steps('ConfirmColonyNames', method, actions, facts)
+                await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
+                    reason='Confirm ordinary generated colony names in disposable survival run', steps=steps).decision(rt.current_plan),
+                    actor='strategist', expected_token=rt.context_token, expected_revision=rt.chat_revision)
+                rt.manual_requests.extend((s.id, rt.context_token, rt.chat_revision) for s in steps)
+                await rt.execute_manual_requests()
+                assert all(rt.current_plan.progress[s.id].state == 'complete' for s in steps)
+                goal.evidence.setdefault('methods', {})[method] = [s.id for s in steps]
+                report['bootstrap_names'] = facts['colonyNaming']
+                rt.supervisor.absorb(state)
+                rt.supervisor.allow_resume()
+            else:
+                targets = await read('rimworld/get_screen_targets')
+                windows = targets.get('targets', {}).get('windows', [])
+                report.setdefault('optional_world_dialogs', []).append(targets)
+                world = await read('home/world_progression')
+                danger = await read('home/status', colonists=True, threats=True)
+                assert (settlement_trip and world['caravans'] and len(windows) == 1
+                    and windows[0].get('type') == 'RimWorld.Dialog_NodeTreeWithFactionInfo'
+                    and windows[0].get('dismissTargetId') and danger['counts']['hostileCount'] == 0
+                    and danger['counts']['huntingPredatorCount'] == 0), targets
+                from rimbot.colony_plan import PlanStep, NativeOperation
+                step = PlanStep(id=f'world-dismiss-{rt.current_plan.revision}-{windows[0]["id"]}',
+                    title='Leave the optional world interaction', source='PLAYER',
+                    action=NativeOperation(tool='rimworld/click_screen_target',
+                        arguments=dict(targetId=windows[0]['dismissTargetId'])),
+                    completion_criteria='Exact native dismissible window is closed')
+                await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
+                    reason='Continue the explicit expedition without an optional encounter', steps=[step]).decision(rt.current_plan),
+                    actor='strategist', expected_token=rt.context_token, expected_revision=rt.chat_revision)
+                rt.manual_requests.append((step.id, rt.context_token, rt.chat_revision))
+                await rt.execute_manual_requests()
+                assert rt.current_plan.progress[step.id].state == 'complete'
+                assert not (await read('rimworld/get_ui_state'))['windows']
+                rt.supervisor.absorb(state)
+                rt.supervisor.allow_resume()
         elif state['stopReason'] == 'hostile' and (settlement_trip or prepared_days or recovery):
             await defend_home()
         elif state['stopReason'] == 'notification_batch' and state.get('stopDetail', '').startswith('1 new notification(s): Mad '):
@@ -331,13 +357,15 @@ async def run():
                             size = report['facts']['mapSize']
                             vicinity = await read('home/get_cells_plus', x=max(0, min(pos['x'] - 3, size['width'] - 7)),
                                 z=max(0, min(pos['z'] - 3, size['height'] - 7)), width=7, height=7)
-                            approach = next((c for c in vicinity['cells'] if c.get('walkable') is True and not c.get('fogged')), None)
+                            approach = next((c for c in vicinity['cells'] if c.get('walkable') is True and not c.get('fogged') and not c.get('things')), None)
                             if not approach or any(row['approach']['x'] == approach['x'] and row['approach']['z'] == approach['z']
                                     for row in report.get('prospecting', [])):
                                 continue
                             preview = await read('home/order', action='goto', pawn=pawn,
                                 x=approach['x'], z=approach['z'], watch=False, dryRun=True)
                             if preview.get('success') is not True:
+                                continue
+                            if (preview.get('wouldIssue') or {}).get('targetA', {}).get('position') != dict(x=approach['x'], z=approach['z']):
                                 continue
                             await command(kind='DraftPawn', pawn=pawn, drafted=True, waits=False)
                             await command(kind='MovePawn', pawn=pawn, x=approach['x'], z=approach['z'])
@@ -363,7 +391,7 @@ async def run():
                     if obtainable and choice and objective['count'] <= 100:
                         trade_quest = candidate
                         break
-                    await window(600)
+                    await window(1200)
                 assert trade_quest, 'No bounded ordinary obtainable trade offer among the native candidates'
                 report['trade_quest'] = trade_quest
                 await command(kind='AcceptQuest', quest_id=trade_quest['id'], pawn_id=pawn,
@@ -372,39 +400,38 @@ async def run():
                     quantity=objective['count']), token=rt.context_token, revision=rt.chat_revision)
                 goal_id = 'MaintainResource-' + objective['resource']
                 goal = rt.current_plan.colony_goals[goal_id]
-                facts = await read('home/colony_facts', planning=True)
-                compiled = await rt.controller.skills.compile(goal_id, facts, roster['pawns'])
-                if compiled:
-                    method, actions = compiled
-                    assert actions and all(a.get('tool') == 'home/acquire_resource' for a in actions), 'Scenario requires ordinary obtainable requested resources'
-                    source_cells = [(a['arguments']['x'], a['arguments']['z']) for a in actions]
-                    for work in goal.evidence['work_types']:
-                        skill = next(iter(work.get('skills', [])), None)
-                        eligible = [(s['level'], p['thingId']) for p in roster['pawns'] for s in p.get('bio', {}).get('skills', [])
-                            if s['name'] == skill and not s['disabled']]
-                        assert eligible, work
-                        await command(kind='SetWorkPriority', pawn=max(eligible)[1], work_type=work['name'], priority=1, waits=False)
-                    steps, _ = rt.controller.skills.steps(goal_id, method, actions, facts)
-                    await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
-                        reason='Acquire native requested goods for the explicit trade expedition', steps=steps).decision(rt.current_plan),
-                        actor='strategist', expected_token=rt.context_token, expected_revision=rt.chat_revision)
-                    rt.manual_requests.extend((s.id, rt.context_token, rt.chat_revision) for s in steps)
-                    await rt.execute_manual_requests()
-                    assert all(rt.current_plan.progress[s.id].state == 'complete' for s in steps)
-                    goal.evidence.setdefault('methods', {})[method] = [s.id for s in steps]
-                    deadline = time.monotonic() + 600
-                    while time.monotonic() < deadline:
-                        await window(6000)
-                        stock = await read('home/colony_facts', planning=True)
-                        if stock.get('resources', {}).get(objective['resource'], 0) >= objective['count']:
-                            break
-                    assert stock.get('resources', {}).get(objective['resource'], 0) >= objective['count'], 'Requested goods were not actually produced'
-                    report['quest_acquisition'] = dict(resource=objective['resource'], required=objective['count'], observed=stock['resources'][objective['resource']])
+                source_cells = []
+                deadline = time.monotonic() + 900
+                while time.monotonic() < deadline:
+                    facts = await read('home/colony_facts', planning=True)
+                    if facts.get('resources', {}).get(objective['resource'], 0) >= objective['count']:
+                        break
+                    compiled = await rt.controller.skills.compile(goal_id, facts, roster['pawns'])
+                    if compiled:
+                        method, actions = compiled
+                        assert actions and all(a.get('tool') == 'home/acquire_resource' for a in actions), 'Scenario requires ordinary obtainable requested resources'
+                        source_cells += [(a['arguments']['x'], a['arguments']['z']) for a in actions]
+                        for work in goal.evidence['work_types']:
+                            skill = next(iter(work.get('skills', [])), None)
+                            eligible = [(s['level'], p['thingId']) for p in roster['pawns'] for s in p.get('bio', {}).get('skills', [])
+                                if s['name'] == skill and not s['disabled']]
+                            assert eligible, work
+                            await command(kind='SetWorkPriority', pawn=max(eligible)[1], work_type=work['name'], priority=1, waits=False)
+                        steps, _ = rt.controller.skills.steps(goal_id, method, actions, facts)
+                        await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
+                            reason='Acquire native requested goods for the explicit trade expedition', steps=steps).decision(rt.current_plan),
+                            actor='strategist', expected_token=rt.context_token, expected_revision=rt.chat_revision)
+                        rt.manual_requests.extend((s.id, rt.context_token, rt.chat_revision) for s in steps)
+                        await rt.execute_manual_requests()
+                        assert all(rt.current_plan.progress[s.id].state == 'complete' for s in steps)
+                        goal.evidence.setdefault('methods', {})[method] = [s.id for s in steps]
+                    await window(6000)
+                assert facts.get('resources', {}).get(objective['resource'], 0) >= objective['count'], 'Requested goods were not actually produced'
+                report['quest_acquisition'] = dict(resource=objective['resource'], required=objective['count'],
+                    observed=facts['resources'][objective['resource']])
+                if source_cells:
                     await read('home/zone_cells', op='create', zoneType='stockpile', label='Quest cargo pickup',
-                        cells=';'.join(f'{x},{z}' for x,z in source_cells), allowSplit=True, preset='everything', watch=False, dryRun=False)
-                else:
-                    report['quest_acquisition'] = dict(resource=objective['resource'], required=objective['count'],
-                        observed=facts['resources'][objective['resource']], source='Existing native stock')
+                        cells=';'.join(f'{x},{z}' for x,z in dict.fromkeys(source_cells)), allowSplit=True, preset='everything', watch=False, dryRun=False)
                 catalog = await read('home/caravan')
             def travel_food(catalog):
                 for definition in ('Pemmican', 'MealSurvivalPack', 'MealSimple'):
@@ -584,8 +611,9 @@ async def run():
                         break
                 assert report.get('short_supplied_party'), 'Native ration depletion did not reach the recovery threshold'
             return_args = dict(scope_args, action='return', caravanId=caravan_id)
+            return_resources = ['Silver'] if logistics else sorted({i['defName'] for i in report.get('quest_rewards', [])})
             report['return_order'] = (await command(kind='RouteCaravan', caravan_id=caravan_id,
-                return_home=True, storage_resources=['Silver'] if logistics else [])) if shared else await read('home/caravan', **return_args, dryRun=False)
+                return_home=True, storage_resources=return_resources)) if shared else await read('home/caravan', **return_args, dryRun=False)
             assert report['return_order']['accepted'] is True
             deadline = time.monotonic() + 600
             while time.monotonic() < deadline:
@@ -595,7 +623,7 @@ async def run():
                 if not any(c['id'] == caravan_id for c in world['caravans']):
                     home = await read('home/list_pawns', colonistsOnly=True)
                     if (any(p['thingId'] == pawn and p.get('dead') is False for p in home['pawns'])
-                            and (not logistics or all(step_complete(s) for s in report['shared_steps']))):
+                            and (not return_resources or all(step_complete(s) for s in report['shared_steps']))):
                         report['returned'] = home
                         break
             assert report.get('returned'), 'Living returning colonist not observed on home map'
@@ -682,7 +710,7 @@ async def run():
                 assert time.monotonic() < deadline, 'Survival window did not complete within its wall bound'
                 if world['ticksGame'] - start['ticksGame'] < days * 60000:
                     if prepared_days:
-                        await window(6000)
+                        await window(min(6000, days * 60000 - (world['ticksGame'] - start['ticksGame'])))
                     else:
                         await asyncio.sleep(5)
                 roster = await read('home/list_pawns', colonistsOnly=True, includeDead=True, health=True)
@@ -749,6 +777,7 @@ async def run():
             report['attention_error'] = repr(attention_error)
         if rt.connected:
             try:
+                report['failure_ui'] = await read('rimworld/get_screen_targets')
                 report['failure_world'] = await read('home/world_progression')
                 report['failure_plan'] = rt.current_plan.model_dump(mode='json')
             except Exception as inspection_error:
