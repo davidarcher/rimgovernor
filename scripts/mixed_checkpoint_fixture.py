@@ -3,7 +3,7 @@ from rimbot.colony_plan import ColonyGoal,CommitSteps
 from rimbot.player_commands import apply_command
 
 
-async def prepare_mixed(rt):
+async def prepare_mixed(rt, *, compact=False):
     facts=await rt.game.query('home/colony_facts',planning=True)
     while facts.get('forbiddenSupplies'):
         goal=rt.current_plan.colony_goals.setdefault('AllowStartingSupplies',ColonyGoal(priority_class=2,source='PLAYER'))
@@ -18,8 +18,15 @@ async def prepare_mixed(rt):
         goal.evidence.setdefault('methods',{})[method]=[s.id for s in steps]
         facts=await rt.game.query('home/colony_facts',planning=True)
     layout=await rt.controller.skills.layout(facts)
-    shell=await apply_command(rt,{'kind':'BuildRoom','intent_id':'mixed-home','purpose':'shelter',
-        'room':rt.controller.skills.shell(layout)},token=rt.context_token,revision=rt.chat_revision)
+    command={'kind':'BuildRoom','intent_id':'mixed-home','purpose':'shelter',
+        'room':rt.controller.skills.shell(layout)}
+    if compact:
+        from rimbot.colony_plan import RoomShell
+        from rimbot.hands import room_placements
+        placements=room_placements(RoomShell.model_validate(command['room']))[:2]
+        command={'kind':'PlaceBuildings','purpose':'shelter','buildings':{
+            'kind':'place_buildings','placements':[p.model_dump(mode='json') for p in placements]}}
+    shell=await apply_command(rt,command,token=rt.context_token,revision=rt.chat_revision)
     rt.manual_requests=[]
     rt.manual_execution=(rt.context_token,rt.chat_revision,rt.current_plan.revision)
     try:await rt.hands.advance(rt,max_operations=1,only_ids={shell['step']})

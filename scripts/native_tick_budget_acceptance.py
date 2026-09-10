@@ -9,6 +9,7 @@ import time
 
 from rimbot.bridge import bridge_session
 from rimbot.clock_control import PlayClock
+from rimbot.campaign_manifest import capture_manifest
 from rimbot.headless import isolated_root, prepare, prepare_rendered, rendered_headless_mismatch
 
 
@@ -23,6 +24,8 @@ async def run(args):
               'native_sha256': hashlib.sha256(dll.read_bytes()).hexdigest(),
               'baseline_sha256': hashlib.sha256((root/'profile/Saves/RimBot-tribal8-baseline.rws').read_bytes()).hexdigest(),
               'rendered': args.rendered}
+    report['manifest'] = capture_manifest(Path(__file__).resolve().parents[1], root, config,
+        {'mode': 'no inference'}, profile=root/('profile' if args.rendered else 'headless-profile'))
     def save():
         (args.output/'result.json').write_text(json.dumps(report, indent=2), encoding='utf8')
     save()

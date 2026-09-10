@@ -118,11 +118,19 @@ with every game stopped; `build_headless.ps1` accepts an optional `-DotNet` path
 The isolated profile enables the ordinary pause-on-load preference. The test
 requires long-event/clear events, an unchanged exact tick deadline, a newly
 written native save whose saved tick matches the event, and a paused reload with
-the same colony and a new load token. It records both installed DLL hashes and
+the same colony and a new load token. It records observation, identity and headless DLL hashes and
 does not edit save XML or pawn state. Other autosave intervals need an appropriate
-`--ticks` value. Restore both original installed DLLs after the test stops.
-This focused clock/save case does not certify real keyboard input or every
-controller action racing an autosave.
+`--ticks` value. Restore the original installed DLLs after all tests stop.
+Add `--mixed` to retain one issued construction placement, its unissued material
+reservations, a pending growing zone and a pending work setting through the save
+boundary and reload. `--compact-construction` uses two wall placements on scarce-stock
+seeds. Ordinary starting supply pods receive 600 ticks to land before setup.
+The probe requires unchanged controller receipts, progress, reservations and native
+action count, then rejects a stale write after reload. Run
+`scripts/mixed_autosave_audit.py --reports <first-result.json> <second-result.json>
+--output <audit.json>` to require two distinct colonies, immutable boundary evidence,
+unchanged deadlines, exact tick completion and verified process cleanup. Physical
+keyboard input is accepted separately.
 
 ## Retained cancelled action acceptance
 

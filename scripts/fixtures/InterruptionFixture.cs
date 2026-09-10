@@ -19,13 +19,30 @@ namespace RimBot.InterruptionFixtures
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Load and pause a disposable game first.");
                 var def = DefDatabase<IncidentDef>.GetNamed("WandererJoin");
-                if (!(def.Worker is IncidentWorker_WandererJoin)) throw new InvalidOperationException("Unexpected native join worker");
+                if (!(def.Worker is IncidentWorker_GiveQuest) || def.questScriptDef?.defName != "WandererJoins"
+                    || !def.questScriptDef.autoAccept)
+                    throw new InvalidOperationException("Expected the installed native auto-accepted WandererJoins quest incident");
                 var parms = StorytellerUtility.DefaultParmsNow(def.category, map);
                 var before = map.mapPawns.FreeColonistsSpawned.Select(p => p.GetUniqueLoadID()).ToArray();
+                var existingLetters = Find.LetterStack.LettersListForReading.Select(l => l.GetUniqueLoadID()).ToArray();
                 var eligible = def.Worker.CanFireNow(parms);
                 var applied = !dryRun && eligible && def.Worker.TryExecute(parms);
+                string acceptedLetter = null;
+                if (applied)
+                {
+                    var letter = Find.LetterStack.LettersListForReading.OfType<ChoiceLetter_AcceptJoiner>()
+                        .Single(l => !existingLetters.Contains(l.GetUniqueLoadID()) && l.quest?.root == def.questScriptDef);
+                    // The installed ChoiceLetter_AcceptJoiner exposes its native Accept
+                    // option first. Invoke that enabled player choice, never pawn edits.
+                    var accept = letter.Choices.First();
+                    if (accept.disabled || accept.action == null)
+                        throw new InvalidOperationException("Native join acceptance is unavailable");
+                    acceptedLetter = letter.GetUniqueLoadID();
+                    accept.action();
+                }
                 var after = map.mapPawns.FreeColonistsSpawned.Select(p => p.GetUniqueLoadID()).ToArray();
                 return (object)new { success = true, dryRun, eligible, applied, definition = def.defName,
+                    worker = def.Worker.GetType().FullName, quest = def.questScriptDef.defName, acceptedLetter,
                     before, after, joined = after.Except(before).ToArray(), tick = Find.TickManager.TicksGame };
             }, cancellationToken);
         }

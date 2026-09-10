@@ -7,6 +7,7 @@ import argparse
 import asyncio
 import hashlib
 import json
+import shutil
 import traceback
 from pathlib import Path
 
@@ -21,8 +22,12 @@ from rimbot.store import Store
 async def run(args):
     root = isolated_root(args.source_root, args.output / 'bridge')
     config = prepare(root)
+    if args.alternate_save:
+        shutil.copy2(args.alternate_save, root/'headless-profile/Saves/Interruption-alternate.rws')
     report = {'outcome': 'failed', 'cases': [], 'model_calls': 0,
         'manifest': capture_manifest(Path(__file__).resolve().parents[1], root, config, {'mode': 'no inference'})}
+    if args.alternate_save:
+        report['alternate_save_sha256'] = hashlib.sha256(args.alternate_save.read_bytes()).hexdigest()
     installed = Path(json.loads((config / 'config.json').read_text())['games']['rimbot-trial']['workingDir'])
     fixture = installed / 'Mods/RimBotObservations/BridgeTools/InterruptionFixtures/RimBot.InterruptionFixtures.BridgeTools.dll'
     report['fixture_sha256'] = hashlib.sha256(fixture.read_bytes()).hexdigest()
@@ -112,20 +117,24 @@ async def run(args):
                 assert rt.supervisor.state['active'], rt.supervisor.state
                 record('nonstopping_announcement', delivered=delivered, events=events)
                 await rt.supervisor.change('Paused')
-                await load()
-                token, direction, revision = rt.context_token, rt.chat_revision, rt.current_plan.revision
-                old_clock = rt.supervisor
-                await old_clock.change('Normal', max_ticks=1800)
-                await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',
-                    readiness='visual', timeoutMs=90000)
-                stop, events = await collect_stop()
-                assert stop['stopReason'] == 'session_changed', stop
-                await rt.sync_identity()
-                assert rt.context_token != token and rt.mode == 'manual' and rt.supervisor is not old_clock
-                await rt.supervisor.change('Paused')
-                refused = await reject_old(token, direction, revision)
-                record('load_invalidates_dispatch', old_token=token, new_token=rt.context_token,
-                       stop=stop, events=events, refusal=refused)
+                for save_name in ['RimBot-tribal8-baseline'] + (['Interruption-alternate'] if args.alternate_save else []):
+                    await load()
+                    token, direction, revision = rt.context_token, rt.chat_revision, rt.current_plan.revision
+                    old_colony = rt.identity['colonyId']
+                    old_clock = rt.supervisor
+                    await old_clock.change('Normal', max_ticks=1800)
+                    await bridge.call('rimworld/load_game_ready', saveName=save_name,
+                        readiness='visual', timeoutMs=90000)
+                    stop, events = await collect_stop()
+                    assert stop['stopReason'] == 'session_changed', stop
+                    await rt.sync_identity()
+                    assert rt.context_token != token and rt.mode == 'manual' and rt.supervisor is not old_clock
+                    if save_name == 'Interruption-alternate':
+                        assert rt.identity['colonyId'] != old_colony, 'Alternate save must be a different colony'
+                    await rt.supervisor.change('Paused')
+                    refused = await reject_old(token, direction, revision)
+                    record('load_invalidates_dispatch/' + save_name, old_token=token, new_token=rt.context_token,
+                           stop=stop, events=events, refusal=refused)
                 report['outcome'] = 'passed'
             finally:
                 await rt.router.close()
@@ -143,4 +152,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source-root', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--alternate-save', type=Path, help='Unchanged native save from a different colony for cross-colony load acceptance')
     raise SystemExit(0 if asyncio.run(run(parser.parse_args())) else 1)

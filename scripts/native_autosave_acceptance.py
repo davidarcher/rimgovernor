@@ -11,6 +11,10 @@ from rimbot.bridge import bridge_session
 from rimbot.campaign_manifest import capture_manifest
 from rimbot.clock_control import PlayClock
 from rimbot.headless import isolated_root,prepare
+from rimbot.bridge_game import BridgeGame
+from rimbot.bridge_runtime import BridgeRuntime
+from rimbot.bridge_observation import observe
+from rimbot.store import Store
 
 
 async def run(args):
@@ -26,6 +30,8 @@ async def run(args):
     saves=root/'headless-profile/Saves'
     prior={p.name for p in saves.glob('*.rws')}
     report['manifest']=capture_manifest(Path(__file__).resolve().parents[1],root,config,{'mode':'no inference'})
+    store = Store(args.output/'controller.sqlite') if args.mixed else None
+    rt = None
     try:
         async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',config) as bridge:
             try:
@@ -34,6 +40,31 @@ async def run(args):
                 await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',
                     readiness='visual',timeoutMs=90000)
                 clock=PlayClock(bridge);await clock.change('Paused')
+                if args.mixed:
+                    from mixed_checkpoint_fixture import prepare_mixed
+                    # Fresh native drop pods can still contain the ordinary starting
+                    # stock. Let them land before reserving construction resources.
+                    report['arrival_window']=await clock.change('Superfast',max_ticks=600)
+                    async with asyncio.timeout(30):
+                        while clock.state.get('active'):
+                            await asyncio.sleep(.2)
+                            await clock.poll()
+                    assert clock.state['stopReason']=='tick_budget',clock.state
+                    rt=BridgeRuntime(store,root,headless=True)
+                    rt.bridge,rt.game=bridge,BridgeGame(bridge)
+                    await rt.sync_identity()
+                    rt.batch=await observe(rt.game)
+                    report['arrival_facts']=(await bridge.call('home/colony_facts',planning=True)).structuredContent
+                    report['mixed']=await prepare_mixed(rt,compact=args.compact_construction)
+                    clock=rt.supervisor
+                    def snapshot():
+                        plan=rt.current_plan
+                        return {'steps':plan.spec.model_dump(mode='json'),
+                            'progress':{key:value.model_dump(mode='json') for key,value in plan.progress.items()},
+                            'costs':plan.control.get('costs'), 'actions':rt.counters['actions']}
+                    before=json.loads(json.dumps(snapshot()))
+                    report['mixed_before']=json.loads(json.dumps(before))
+                    report['mixed_boundaries']=[]
                 report['start']=(await bridge.call('home/status',colonists=False,threats=False)).structuredContent
                 report['identity']=(await bridge.call('home/colony_identity')).structuredContent
                 start=await clock.change('Superfast',max_ticks=args.ticks)
@@ -41,7 +72,16 @@ async def run(args):
                 deadline=time.monotonic()+args.seconds
                 while time.monotonic()<deadline:
                     await asyncio.sleep(1)
-                    report['events'].extend(await clock.poll())
+                    events=await clock.poll()
+                    report['events'].extend(events)
+                    if rt:
+                        rt.clock_events.extend(events)
+                        rt.receive_clock_events()
+                        assert snapshot()==before,'Autosave processing changed pending work or replayed an order'
+                        for event in events:
+                            if event['kind'] in ('long_event','force_pause_cleared'):
+                                report['mixed_boundaries'].append({'event':event,'clock':dict(clock.state),
+                                    'controller':json.loads(json.dumps(snapshot()))})
                     if len(report['samples'])==0 or time.monotonic()-report['samples'][-1]['monotonic']>=5:
                         status=(await bridge.call('home/status',colonists=False,threats=False)).structuredContent
                         sample={'monotonic':time.monotonic(),'tick':status['time']['ticksGame'],
@@ -79,13 +119,28 @@ async def run(args):
                 assert identity['colonyId']==report['identity']['colonyId'] and identity['loadToken']!=report['identity']['loadToken'],identity
                 assert identity['mapId']==report['identity']['mapId'],identity
                 assert hashlib.sha256((saves/selected['name']).read_bytes()).hexdigest()==selected['sha256']
+                if rt:
+                    old_token,old_revision=rt.context_token,rt.chat_revision
+                    await rt.sync_identity()
+                    assert rt.mode=='manual' and snapshot()==before
+                    try:
+                        await rt.native('home/order',{'action':'draft','pawn':'obsolete','dryRun':False},
+                            expected_token=old_token,expected_revision=old_revision)
+                    except (ValueError,InterruptedError) as error:
+                        report['stale_write_refusal']=str(error)
+                    else:raise AssertionError('Autosave reload admitted obsolete work')
+                    assert snapshot()==before
+                    report['mixed_after_load']=snapshot()
                 report.update(outcome='passed',loaded=loaded,loaded_identity=identity)
             finally:
+                if rt:await rt.router.close()
                 report['cleanup']=(await bridge.core('games_stop',gameId=bridge.game_id)).model_dump(mode='json')
     except Exception as error:
         report['error']=repr(error)
         report['traceback']=traceback.format_exc()
-    finally:save()
+    finally:
+        if store:store.close()
+        save()
     print(json.dumps({'outcome':report['outcome'],'error':report.get('error')}),flush=True)
     return report['outcome']=='passed'
 
@@ -96,5 +151,7 @@ if __name__=='__main__':
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--ticks',type=int,default=61000)
     parser.add_argument('--seconds',type=int,default=600)
+    parser.add_argument('--mixed',action='store_true',help='Retain partially issued construction, material reservations and pending zone/work across autosave and reload')
+    parser.add_argument('--compact-construction',action='store_true',help='Use two ordinary wall placements for the partial-construction fixture on scarce-stock seeds')
     args=parser.parse_args()
     raise SystemExit(0 if asyncio.run(run(args)) else 1)
