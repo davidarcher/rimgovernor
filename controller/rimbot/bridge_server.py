@@ -17,6 +17,7 @@ from .controller_settings import PolicyUpdate, update_policy
 from .dashboard_controls import router as dashboard_controls
 from .session_checkpoint import create_checkpoint, stop_for_restart, list_checkpoints, delete_checkpoint
 from .video_stream import VideoHub, router as video_routes
+from .colony_people import router as people_routes
 
 
 class CheckpointRequest(BaseModel):
@@ -57,6 +58,7 @@ def create_app(runtime=None):
     app = FastAPI(title='RimBot live colony', lifespan=lifespan)
     app.include_router(dashboard_controls)
     app.include_router(video_routes)
+    app.include_router(people_routes)
     if runtime is not None:
         app.state.video = VideoHub(runtime)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=['127.0.0.1', 'localhost', '[::1]', 'testserver'])
@@ -71,7 +73,7 @@ def create_app(runtime=None):
                 return JSONResponse({'detail': 'Use the local colony dashboard'}, status_code=403)
         response = await call_next(request)
         response.headers['Cache-Control'] = 'no-store'
-        response.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'none'"
+        response.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'none'"
         return response
 
     @app.exception_handler(ValueError)

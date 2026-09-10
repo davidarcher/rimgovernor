@@ -669,6 +669,7 @@ namespace HomeBridge.BridgeTools
                     { "drafted", isDrafted },
                     { "dead", dead },
                     { "job", SafeJob(pawn) },
+                    { "jobReport", Try<string>(() => pawn.jobs?.curDriver?.GetReport(), null) },
                     { "carriedThingId", Try<string>(() => pawn.carryTracker?.CarriedThing?.GetUniqueLoadID(), null) },
                     { "mentalState", SafeMentalState(pawn) },
                     { "nearestColonist", nearestName },

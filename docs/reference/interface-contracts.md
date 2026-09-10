@@ -43,6 +43,36 @@ select a current-map colonist through the stable-ID selector or clear selection.
 The server discovers native schemas and checks both the live roster and a separate
 selection readback. These explicit player operations remain outside model tools.
 
+## Colonist dossiers and follow view
+
+The Colony roster opens a stable-ID dossier with native biography, traits, skills,
+health, equipment, needs, thoughts and sampled job history. `jobReport` is the
+current native job driver's report; the definition name remains available as `job`.
+Thoughts retain the bridge's cached, non-recalculating read semantics and expose
+unavailable/stale situational readings. Job history contains at most eight observed
+changes while a dossier is open, not a complete event log.
+
+`GET /api/people?session_id=...` reads on demand under the runtime lock, rechecks
+colony/load/map identity after collection and shares a two-second cache. The UI
+polls about every 2.5 seconds only while visible and connected. Background failures
+retain the last readings; a session change clears selection, history and media.
+
+`GET /api/people/{pawn_id}/image?session_id=...&view=portrait|follow` validates the
+installed `home/pawn_image` contract and scopes the response to the same session and
+pawn. Portraits use native worn apparel plus the actual primary weapon's native icon
+when equipped; they refresh every 15 seconds. The optional 640×400 follow view
+renders a 16×10-cell neighborhood around the pawn about once a second. It is a
+snapshot view, not a second WebRTC stream. It does not select/order the pawn, change
+clock ownership or navigate the main camera. The native renderer temporarily uses
+an offscreen target after map draw submission, restoring all changed camera fields
+synchronously before presentation. Culling includes the pawn neighborhood only
+during that draw. Requests have a four-second native deadline and do not queue.
+
+Hidden views stop polling; failed media refreshes retain the last frame. Headless
+sessions report images unavailable. Native refusals are structured responses so a
+stale viewer cannot raise a game attention hold. The HTTP image cache is bounded to
+128 session-scoped entries; portrait/follow reuse lasts 15/1 seconds respectively.
+
 ## Action follow
 
 Action follow opts into the discovered native `watch` argument for supported real writes

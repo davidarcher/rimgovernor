@@ -19,6 +19,10 @@ redistribution rights. Pinned sources and modifications are recorded in
 RimWorld, Harmony and RimBridgeServer SDK assemblies are referenced, not bundled.
 GABS and installed game prerequisites are supplied separately.
 
+The original pawn-image integration uses RimWorld's native portraits and item icons;
+game artwork is not bundled. Offscreen timing/culling was informed by local RimMolt
+inspection, as recorded in the companion provenance file; no RimMolt source was copied.
+
 ## Headless adapter
 
 The adapter derives from IlyaChichkov/HeadlessRimPatch at

@@ -607,6 +607,9 @@ export default function BridgeColony() {
           <div hidden={view !== "people"}>
             <People
               key={s?.sessionId}
+              sessionId={s?.sessionId || ""}
+              active={view === "people"}
+              headless={s?.headless}
               observation={s?.observation}
               stale={!s?.connected || !!s?.game.stale || !!refreshError}
             />

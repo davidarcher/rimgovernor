@@ -21,6 +21,13 @@ Local changes:
 - `TradeTool.cs` exposes native definition-based export protection and accepts
   economic stock floors. Policy acceptance checks actual remaining stack counts
   and rejects protected exports in the native exchange's main-thread operation.
+- `PawnImageTool.cs` is original local presentation code. Its offscreen render
+  timing and culling design were informed by local inspection of RimMolt's
+  `ScreenshotTools`, `Game_UpdatePlay_Patch` and `CameraDriver_CurrentViewRect_Patch`;
+  no source was copied. It references RimWorld's `PortraitsCache` and native weapon
+  icons, without bundling game assets. `ListPawnsTool.cs` also exposes the current
+  job driver's display report. The dedicated pawn image probe records native
+  rendering and camera/selection invariance separately from controller fixtures.
 - `ForecastFacts.cs` is original local read-only animal-feed, crop-work and
   medical/mood input accounting. `FoodSupplyFacts.cs` records native eater policy,
   diet and access eligibility; `ColonyFactsTool.cs` exposes these inputs.

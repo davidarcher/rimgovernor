@@ -22,7 +22,7 @@ introduces the idea before linking to the exact contracts and relevant source.
 3. [Plans and Hands](explanation/plans-and-hands.md): how a player request becomes ordinary game work.
 4. [Space and resources](explanation/space-and-resources.md): why valid plans need fresh native checks.
 5. [Sessions and recovery](explanation/sessions-and-recovery.md): identity, interruptions and paired saves.
-6. [The dashboard and game view](explanation/dashboard.md): presentation, video and player control.
+6. [The dashboard and game view](explanation/dashboard.md): colonist dossiers, presentation, video and player control.
 7. [Testing and evidence](explanation/testing.md): what each kind of test establishes.
 
 ## Find an operational guide

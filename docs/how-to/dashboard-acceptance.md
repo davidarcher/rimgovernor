@@ -52,6 +52,29 @@ lifecycle. Preserve native saves before planned restarts; do not assume the game
 survives killing the controller process. A player-facing session intentionally left
 running needs its matching installed companion until that session is closed.
 
+## Verify colonist dossiers
+
+Run `scripts/pawn_images_acceptance.py --source-root <prepared-root> --output
+<fresh-directory>` with `controller` on `PYTHONPATH` and this task's companion DLLs
+fixed for the entire game lifetime. On Windows, `--game-root <private-game>` selects
+an isolated executable/mod directory. The probe never installs DLLs. It retains
+portraits, native gear/thoughts, follow images, camera/selection readbacks and cleanup
+in `result.json`. It points the main camera away from the pawn to test offscreen
+culling, verifies an unchanged paused tick during captures and checks stale-session
+refusal before a bounded interval of ordinary game time. Inspect the PNGs; protocol
+success alone cannot establish correct rendering or weapon-icon appearance.
+Add `--equip-preview` to verify ordinary pickup of a nearby unstacked ranged weapon,
+confirm the exact equipped identity, and retain its portrait icon and follow image.
+The disposable fixture must contain a capable pawn and an eligible ground weapon.
+
+In the browser, open Colony, select a colonist and start their follow view. Check
+actual worn gear, a native equipped-weapon icon, thoughts and job reports against
+the game. Verify selection survives refresh failures and tab navigation, while
+load/map changes clear it. Check no image requests while hidden, retained images
+during failures, and sensible narrow-window layout. Test modded apparel/weapons,
+multiple viewers, moving pawns, a removed pawn and simultaneous main-view video.
+Measure rendering cost separately from the snapshot refresh interval.
+
 ## Related reading
 
 [Choose tests](choose-tests.md) · [Test evidence explained](../explanation/testing.md) ·

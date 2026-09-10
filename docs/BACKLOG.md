@@ -629,6 +629,19 @@ requiring every system before any can be accepted.
   safe Ultrafast control; pair that claim with B16's separate reaction/throughput
   acceptance. Prototype feasibility and measured results decide the final media stack.
 
+- [ ] **Colonist dossier rendering coverage.** Broaden the native portrait/follow
+  probe to modded weapon icons, apparel/body types, removed pawns,
+  load/map transitions, competing viewers and simultaneous main-view video.
+  Measure simulation/rendering cost while the follow view polls; the one-second
+  snapshot interval is not a video frame-rate or latency guarantee. Paused native
+  camera/selection invariance and offscreen moving-pawn captures have a dedicated
+  probe; do not infer these broader outcomes from compilation or HTTP fixtures.
+
+- [ ] **Windows checkpoint deletion.** Close SQLite read connections before
+  deleting a saved pair. `test_explicit_deletion_preserves_other_pairs_and_native_saves`
+  currently fails with a locked `bridge.sqlite` on Windows, including on unchanged
+  main. Verify deletion preserves the other pairs and native saves.
+
 ## Completion rule
 
 For each item record the observed failure, focused fix, source revision, checks,

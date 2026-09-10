@@ -18,6 +18,13 @@ and chat. Priorities explains policy and verified gates; Work shows plans and th
 progress, with activity available as a related view. These are different views of one
 controller.
 
+Colony centers on the individual colonists. Their dossiers combine native portraits,
+worn gear, biographies, skills, health and mood with the current job report and
+sampled job changes. Thoughts come from the game's stored memories and situational
+cache; viewing a colonist does not recalculate their mind. An optional separate
+follow view shows the pawn's surroundings without navigating the main camera.
+Details and media refresh only on demand and retain their last readings on failure.
+
 ## Video and simulation are independent
 
 The game may run while video is paused, or the view may remain active while the
