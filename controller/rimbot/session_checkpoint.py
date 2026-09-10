@@ -1,4 +1,4 @@
-"""Matched native-save/SQLite checkpoints for owned game restarts."""
+"""Matched native-save/SQLite checkpoints with explicit game ownership."""
 import hashlib
 import json
 import shutil
@@ -16,7 +16,7 @@ def profile_path(root, headless):
     root = Path(root).resolve()
     config = root / ('config-headless' if headless else 'config') / 'config.json'
     game = json.loads(config.read_text())['games']['rimbot-trial']
-    if game.get('launchMode') != 'DirectPath': raise ValueError('Checkpoint requires an owned DirectPath game')
+    if game.get('launchMode') != 'DirectPath': raise ValueError('Checkpoint requires a DirectPath private profile')
     folders = [a.split('=', 1)[1] for a in game.get('args', []) if a.startswith('-savedatafolder=')]
     if len(folders) != 1: raise ValueError('Cannot identify the private native save folder')
     folder = Path(folders[0]).resolve()
@@ -26,7 +26,7 @@ def profile_path(root, headless):
 
 async def create_checkpoint(rt, session_id):
     async with rt.lock:
-        if not rt.connected or not rt.fresh: raise ValueError('Checkpoint requires a connected owned game')
+        if not rt.connected: raise ValueError('Checkpoint requires a connected game with a known private save profile')
         await rt.sync_identity()
         if session_id != rt.context_token: raise ValueError('Colony changed; refresh before saving')
         if any(e.get('kind') == 'human' and e.get('revision', 0) > rt.handled_revision for e in getattr(rt, 'chat', [])):
@@ -64,6 +64,7 @@ async def create_checkpoint(rt, session_id):
         with sqlite3.connect(destination / 'bridge.sqlite') as backup:
             rt.store.db.backup(backup)
         manifest = dict(version=1, root=str(rt.root), headless=rt.headless, save_name=name,
+            owned=rt.fresh, load_token=identity.get('loadToken', session_id.rsplit(':', 1)[-1]),
             colony_id=identity['colonyId'], map_id=identity['mapId'], tick=tick, direction_revision=direction,
             game_sha256=digest(destination/'game.rws'), database_sha256=digest(destination/'bridge.sqlite'))
         path = destination / 'checkpoint.json'
@@ -75,7 +76,7 @@ async def create_checkpoint(rt, session_id):
 async def stop_for_restart(rt, session_id, manifest_path):
     async with rt.lock:
         data = read_checkpoint(manifest_path)
-        if not rt.fresh or Path(data['root']).resolve() != rt.root:
+        if data.get('owned', True) != rt.fresh or Path(data['root']).resolve() != rt.root:
             raise ValueError('Checkpoint belongs to another owned session')
         await rt.sync_identity()
         status = await rt.game.query('home/status', colonists=False, threats=False)
@@ -85,15 +86,17 @@ async def stop_for_restart(rt, session_id, manifest_path):
             raise ValueError('Session changed since checkpoint; game was not stopped')
         rt.session_closing = True
         try:
-            await rt.bridge.core('games_stop', gameId=rt.bridge.game_id)
+            if rt.fresh:
+                await rt.bridge.core('games_stop', gameId=rt.bridge.game_id)
         except Exception:
             rt.session_closing = False
             raise
-        rt.owned_game_stopped = True
+        rt.owned_game_stopped = rt.fresh
+        rt.attached_game_detached = not rt.fresh
         rt.stopped = True
         rt.connected = False
         rt.shutdown.set()
-        return {'stopped': True}
+        return {'stopped': True, 'game_stopped': rt.fresh}
 
 
 def read_checkpoint(path):
@@ -101,6 +104,8 @@ def read_checkpoint(path):
     data = json.loads(path.read_text())
     if data.get('version') != 1 or type(data.get('headless')) is not bool:
         raise ValueError('Unsupported checkpoint format')
+    if type(data.get('owned', True)) is not bool or (data.get('owned') is False and not data.get('load_token')):
+        raise ValueError('Checkpoint ownership is unavailable')
     root = Path(data['root']).resolve()
     if path.parent.parent != root/'checkpoints' or data.get('save_name') != path.parent.name:
         raise ValueError('Checkpoint does not belong to the named bridge root')
@@ -165,6 +170,8 @@ async def delete_checkpoint(rt, session_id, manifest_path):
 def install_saved_game(path):
     path = Path(path).resolve()
     data = read_checkpoint(path)
+    if data.get('owned') is False:
+        raise ValueError('Attached checkpoints reconnect to the existing game; native reload is forbidden')
     profile = profile_path(data['root'], data['headless'])
     prefs = profile/'Config/Prefs.xml'
     if not prefs.is_file(): raise ValueError('Private profile preferences are unavailable')

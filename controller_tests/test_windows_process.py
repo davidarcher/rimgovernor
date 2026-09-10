@@ -50,3 +50,20 @@ def test_pause_and_parent_crash_resume_exact_worker(tmp_path):
             parent.close()
         target.resume();target.terminate();target.close()
         worker.wait(timeout=5)
+
+
+def test_migration_rejects_reused_game_pid_without_signalling_worker():
+    from test_legacy_migration import migration
+    worker = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])
+    original = ProcessHandle(worker.pid)
+    try:
+        claim = {'gamePid': worker.pid, 'pidStartTime': original.birth,
+                 'launchMode': 'DirectPath', 'pidRole': 'workload'}
+        verified = migration.retain_game_process(claim)
+        verified.close()
+        for change in ({'pidStartTime': original.birth+1}, {'pidStartTime': 0},
+                       {'stopProcessName': 'python.exe'}, {'launchMode': 'SteamAppId'}):
+            with pytest.raises(ValueError): migration.retain_game_process(dict(claim, **change))
+            assert original.alive()
+    finally:
+        original.terminate(); original.close(); worker.wait(timeout=5)

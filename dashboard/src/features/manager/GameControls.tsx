@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 export default function GameControls({
   sessionId,
@@ -41,7 +41,7 @@ export default function GameControls({
       document.removeEventListener("visibilitychange", focus);
     };
   }, []);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!lease) return;
     let stopped = false;
     const body = JSON.stringify({ session_id: sessionId, viewer_id: viewer, lease_id: lease });

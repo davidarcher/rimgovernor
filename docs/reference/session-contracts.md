@@ -25,7 +25,7 @@ colony/map identity and tick before connecting. Native load may advance one tick
 advancement or rewind fails closed. The controller resumes in Manual with a new load
 token; old draft ownership is not reclaimed.
 
-## Owned restart
+## Owned and attached restart
 
 `scripts/restart_session.ps1` requests a checkpoint before stopping a server. It checks
 the source, process birth time and retained process handle, validates checkpoint hashes,
@@ -33,6 +33,13 @@ stops the owned game through GABS after rechecking player direction/tick, and ve
 the restored session. New chat is rejected while closing so the player can retain and
 resend its draft. Older servers lacking checkpoint support are left running. Snapshots
 remain reusable if startup fails; later database writes do not mutate them.
+
+An attached controller can checkpoint a game whose private save profile is known
+under its configured DirectPath root. Its manifest records `owned: false` and the
+exact live load token. Stopping for restart detaches the controller without a game
+stop. Resume attaches to that same live game and requires an unchanged paused tick,
+colony, map and load. It never reloads the native save or pauses a changed game.
+An attached checkpoint cannot launch a replacement for a missing external game.
 
 Checkpoint pairs are retained until explicitly deleted. `GET /api/session/checkpoints`
 lists valid and damaged pairs; `POST /api/session/checkpoints/delete` requires the
@@ -52,8 +59,17 @@ and restart path. The replacement must retain the shared plan, settings and conv
 in Manual. Ownership transfer is one-way: an interrupted handoff can leave the old
 dashboard disconnected while the native game remains paused. Retained migration
 artifacts support an explicit guarded retry or checkpoint resume; resuming the old
-process alone does not restore its GABS connection. Attached external games remain
-unsupported.
+process alone does not restore its GABS connection. The legacy migration procedure
+remains restricted to owned games; attached controllers use their checkpoint path.
+Migration checks the persisted GABS DirectPath workload claim against the observed
+PID and retains a Windows handle with the claim's raw FILETIME birth fingerprint.
+Missing birth identity and executable-name cleanup fallbacks are refused.
+The pinned GABS v1.1.1 source (`b5f441a04fa908852fdece18a08a8876ac970a4d`)
+owns the process claims, birth checks, lease recovery and shutdown join. RimBot
+uses those existing operations rather than introducing a second game-process manager.
+Durable phase records bracket suspension, backup, takeover, native save, game stop,
+controller stop and replacement startup. A pending stop requires inspection before
+recovery, because a missing receipt cannot establish whether the game exited.
 
 ## Clock leases and interruption
 

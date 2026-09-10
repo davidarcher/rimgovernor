@@ -107,7 +107,14 @@ namespace HomeBridge.BridgeTools
         // far short of anything a person would sit through.
         private const int ForcePauseGraceMs = 20000;
         private static readonly object Gate = new object();
-        private static readonly List<Dictionary<string, object>> Ring = new List<Dictionary<string, object>>();
+        private static ClockEventJournal Journal;
+        private static void EnsureJournal()
+        {
+            if (Journal != null) return;
+            Journal = new ClockEventJournal();
+            _cursor = Journal.Newest;
+            _epoch = Math.Max(_epoch, _cursor);
+        }
         private static State _state;
         private static long _epoch;
         private static long _cursor;
@@ -165,6 +172,7 @@ namespace HomeBridge.BridgeTools
         {
             lock (Gate)
             {
+                EnsureJournal();
                 if (_state != null && _state.Active)
                     return Failure("A supervisor is already active; pause it with its owner and epoch first.");
                 if (HomePlayUntilEventTools.ShortGuardRunning)
@@ -298,9 +306,10 @@ namespace HomeBridge.BridgeTools
             lock (Gate)
             {
                 var take = Clamp(limit, 1, Capacity);
-                var oldest = Ring.Count == 0 ? _cursor + 1 : Convert.ToInt64(Ring[0]["cursor"]);
-                var gap = after > 0 && after < oldest - 1;
-                var rows = Ring.Where(x => Convert.ToInt64(x["cursor"]) > after).Take(take).ToList();
+                EnsureJournal();
+                var oldest = 1L;
+                var gap = false;
+                var rows = Journal.Read(after, take);
                 return new Dictionary<string, object> {
                     { "success", true }, { "events", rows }, { "gap", gap },
                     { "lostCount", gap ? oldest - after - 1 : 0 },
@@ -845,14 +854,26 @@ namespace HomeBridge.BridgeTools
         }
         private static void Add(string kind, string detail, State s, Dictionary<string, object> payload)
         {
-            var row = new Dictionary<string, object> { { "cursor", ++_cursor }, { "epoch", s.Epoch },
+            EnsureJournal();
+            var identity = (s.Session as Game)?.GetComponent<ColonyIdentity>();
+            var row = new Dictionary<string, object> { { "cursor", _cursor + 1 }, { "epoch", s.Epoch },
                 { "kind", kind }, { "detail", detail }, { "event", payload },
+                { "colonyId", identity?.ColonyId }, { "loadToken", identity?.LoadToken }, { "mapId", s.Map.uniqueID },
                 { "tick", Find.TickManager != null ? Find.TickManager.TicksGame : s.LastTick }, { "atMs", NowMs() } };
-            Ring.Add(row); if (Ring.Count > Capacity) Ring.RemoveAt(0);
+            try { Journal.Append(row); _cursor = Journal.Newest; }
+            catch
+            {
+                if (ReferenceEquals(Current.Game, s.Session) && Find.TickManager != null)
+                    Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
+                s.Active = false; s.StopReason = "event_journal_error";
+                throw;
+            }
         }
         private static object Snapshot(State s, bool success)
         {
+            EnsureJournal();
             return new Dictionary<string, object> { { "success", success }, { "active", s != null && s.Active },
+                { "durableEvents", true },
                 { "epoch", s != null ? s.Epoch : 0 }, { "owner", s != null ? s.Owner : null },
                 { "requestedSpeed", s != null ? s.RequestedSpeed.ToString() : null },
                 { "mode", s != null ? s.Mode : null },

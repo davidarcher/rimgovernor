@@ -33,7 +33,7 @@ first guided exercise, use [your first Docker test](../tutorials/first-docker-te
 - [Verify native player zone, bill and UI actions](player-actions.md)
 - [Verify ordinary colony establishment](crashlanded.md)
 - [Verify construction and supply recovery](construction-recovery.md)
-- [Verify mixed checkpoint recovery](checkpoint-acceptance.md)
+- [Verify checkpoint and event recovery](checkpoint-acceptance.md)
 - [Verify room refinements and cancellation](room-refinements.md)
 - [Verify resource production budgets](resource-production.md)
 - [Verify the dashboard and video](dashboard-acceptance.md)

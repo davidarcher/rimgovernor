@@ -43,8 +43,8 @@ class BridgeRuntime:
         if resume:
             from .session_checkpoint import read_checkpoint
             checkpoint = read_checkpoint(resume)
-            if Path(checkpoint['root']).resolve() != self.root or checkpoint['headless'] != headless or not fresh:
-                raise ValueError('Resume requires its matching owned root and render mode')
+            if Path(checkpoint['root']).resolve() != self.root or checkpoint['headless'] != headless or fresh != checkpoint.get('owned', True):
+                raise ValueError('Resume requires its matching profile, ownership and render mode')
         self.settings = settings or Settings()
         self.router = ModelRouter(routing or load_model_routing(self.settings), store, model_factory)
         self.consultations = Consultations(self.router)
@@ -97,7 +97,8 @@ class BridgeRuntime:
             'chat_revision': self.chat_revision, 'handled_revision': self.handled_revision,
             'draft_owners': self.draft_owners, 'current_plan': snapshot,
             'strategic_state': self.strategic_state.dump(), 'advice': self.advice},records,methods,evidence)
-        finish_archive(self.current_plan,snapshot,records,methods,evidence)
+        plan = self.current_plan
+        self.store.after_commit(lambda: finish_archive(plan,snapshot,records,methods,evidence))
 
     async def sync_identity(self):
         if self.game is None:
@@ -515,9 +516,15 @@ class BridgeRuntime:
         return self.store.event(self.colony, kind, text=text, **extra)
 
     def reply(self, text):
-        event = self.note('summary', text)
-        self.chat.append(dict(event, ts=event['at'], revision=self.chat_revision))
-        self.persist()
+        count = len(self.chat)
+        try:
+            with self.store.transaction():
+                event = self.note('summary', text)
+                self.chat.append(dict(event, ts=event['at'], revision=self.chat_revision))
+                self.persist()
+        except BaseException:
+            del self.chat[count:]
+            raise
 
     async def steer(self, text, *, interpret=True, request_id=None, session_id=None):
         if getattr(self, 'session_closing', False): raise ValueError('Session is restarting; keep your draft and send it after reconnection')
@@ -726,6 +733,10 @@ class BridgeRuntime:
             self.strategic_state = StrategicState(strategy)
             # No old write may run after an uncommitted interruption.
             self.mode, self.resume_after_review = 'manual', False
+            self.chat_revision += 1
+            self.current_plan.control['player_direction'] = control.get('player_direction', 0)+1
+            self.manual_requests.clear()
+            self.manual_execution = None
             self.wake.set()
             raise
 
@@ -1146,25 +1157,31 @@ class BridgeRuntime:
         try:
             executable = gabs_executable(self.root)
             from .headless import prepare
-            configuration = prepare(self.root) if self.headless else self.root/'config'
+            configuration = (prepare(self.root) if self.headless and self.fresh
+                             else self.root/('config-headless' if self.headless else 'config'))
             checkpoint = None
             if self.resume:
-                from .session_checkpoint import install_saved_game
-                checkpoint = install_saved_game(self.resume)
+                from .session_checkpoint import install_saved_game, read_checkpoint
+                checkpoint = install_saved_game(self.resume) if self.fresh else read_checkpoint(self.resume)
             async with bridge_session(executable, configuration) as bridge:
                 self.bridge = bridge
                 if self.fresh:
                     await bridge.core('games_start', gameId=bridge.game_id)
                 await bridge.connect()
-                if self.resume:
+                if self.resume and self.fresh:
                     await bridge.call('rimworld/load_game_ready', saveName=checkpoint['save_name'], readiness='visual', timeoutMs=90000, ignoreModCompatibility=False)
                 elif self.fresh:
                     await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline', readiness='visual', timeoutMs=90000, ignoreModCompatibility=self.headless or rendered_headless_mismatch(self.root))
-                await bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
+                if not self.resume or self.fresh:
+                    await bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
                 self.game = BridgeGame(bridge)
                 await self.sync_identity()
                 if checkpoint:
                     status = await self.game.query('home/status', colonists=False, threats=False)
+                    if not self.fresh and (self.identity['loadToken'] != checkpoint['load_token']
+                            or status.get('time', {}).get('ticksGame') != checkpoint['tick']
+                            or status.get('time', {}).get('paused') is not True):
+                        raise ValueError('Attached game changed since checkpoint; no game was loaded, paused or stopped')
                     if (self.identity['colonyId'] != checkpoint['colony_id'] or self.identity['mapId'] != checkpoint['map_id']
                             or status.get('time', {}).get('ticksGame') not in (checkpoint['tick'], checkpoint['tick'] + 1)):
                         raise ValueError(f"Resumed native colony does not match checkpoint: expected {checkpoint['colony_id']}:{checkpoint['map_id']} at {checkpoint['tick']}, observed {self.colony} at {status.get('time', {}).get('ticksGame')}; automation remains off")
@@ -1235,7 +1252,7 @@ class BridgeRuntime:
                     except TimeoutError:
                         pass
                 async with self.lock:
-                    if not getattr(self, 'owned_game_stopped', False): await self.halt()
+                    if not getattr(self, 'owned_game_stopped', False) and not getattr(self, 'attached_game_detached', False): await self.halt()
         except Exception as error:
             import logging
             logging.exception('Native bridge connection failed')

@@ -4,7 +4,7 @@ import uuid
 
 TOOL = 'home/supervised_play'
 HOLD_REASONS = frozenset({'external_pause', 'external_speed_changed', 'lease_expired',
-    'session_changed', 'unavailable', 'watcher_error', 'start_refused', 'force_paused'})
+    'session_changed', 'unavailable', 'watcher_error', 'start_refused', 'force_paused', 'event_journal_error'})
 
 
 class PlayClock:
@@ -18,9 +18,17 @@ class PlayClock:
         self.state = {}
         self.lock = asyncio.Lock()
         self.store, self.context = store, context
-        saved = store.get('clock-source:'+context, {}) if store and context else {}
+        self.source_key = 'clock-source:'+context.rsplit(':', 1)[0] if context else None
+        saved = store.get(self.source_key, {}) if store and context else {}
         self.cursor = saved.get('cursor', 0)
         self.epoch = saved.get('epoch', 0)
+        previous = saved.get('context')
+        if store and previous and previous != context:
+            with store.transaction():
+                old = store.get('clock-inbox:'+previous, [])
+                pending = store.get('clock-inbox:'+context, [])
+                store.set('clock-inbox:'+context, pending+[row for row in old if row not in pending])
+                store.set('clock-inbox:'+previous, [])
 
     def record(self, rows=(), cursor=None):
         if self.store and self.context:
@@ -29,8 +37,8 @@ class PlayClock:
                 pending = self.store.get(key, [])
                 pending.extend(rows)
                 self.store.set(key, pending)
-                self.store.set('clock-source:'+self.context,
-                    {'cursor': self.cursor if cursor is None else cursor, 'epoch': self.epoch})
+                self.store.set(self.source_key,
+                    {'cursor': self.cursor if cursor is None else cursor, 'epoch': self.epoch, 'context': self.context})
 
     async def call(self, **arguments):
         reply = await self.bridge.call(TOOL, **arguments)

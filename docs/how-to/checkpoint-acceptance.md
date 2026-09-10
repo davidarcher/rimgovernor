@@ -1,4 +1,4 @@
-# Verify mixed checkpoint recovery
+# Verify checkpoint and event recovery
 
 [Documentation](../README.md)
 
@@ -30,7 +30,23 @@ response followed by one durable delivery, paired restart, active-resume protect
 and deletion of a separate checkpoint pair. Run this in a staged local Docker
 worker with Linux GABS. `test_event_delivery.py` separately reopens SQLite after
 fetched-but-undelivered events and acknowledged chat, and injects transaction failure
-before acknowledgment. Windows migration boundaries require separate checks.
+before acknowledgment. Add `--durable-events` with the current native companion to
+exceed 128 events, kill the owned game, stage a fully written but unpublished row,
+and verify exact journal recovery through paired restart. This variant has a
+600-second wall-time bound for its native start/pause transitions and restart.
+
+Run `python scripts/attached_checkpoint_acceptance.py --root <staged-private-root>`
+inside a Linux worker to launch an external game through the GABS CLI, then verify
+controller-only restart against its real PID/birth, unchanged load/tick and chat.
+It also advances the native game and verifies stale attached resume refusal.
+Only the acceptance launcher explicitly stops that external fixture game.
+
+`test_migration_boundaries.py` executes the Windows migration orchestrator with
+faults at all ten suspension/backup/takeover/save/stop/start boundaries and native/API
+doubles. `test_windows_process.py` separately exercises actual Windows process
+suspension, parent crash, watchdog recovery and PID/birth mismatch refusal. These
+checks cover orchestration and OS ownership; native paired-save and external-game
+outcomes are established by the Docker probes above, not by the doubles.
 
 ## Related reading
 

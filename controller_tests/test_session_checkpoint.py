@@ -84,7 +84,8 @@ async def test_failed_save_never_publishes_a_restart_manifest(tmp_path,failure):
     rt=fixture(tmp_path)
     session=rt.context_token
     if failure=='stale': session='old-load'
-    elif failure=='unowned': rt.fresh=False
+    elif failure=='unowned':
+        (tmp_path/'config/config.json').write_text(json.dumps({'games':{'rimbot-trial':{'launchMode':'SteamAppId'}}}))
     elif failure=='pause': rt.game.query.return_value={'time':{'ticksGame':500,'paused':False}}
     elif failure=='drafts': rt.draft_owners={'doctor':'load'}
     elif failure=='save': rt.bridge.call.side_effect=ValueError('Native save refused')
@@ -151,4 +152,20 @@ async def test_tampered_checkpoint_is_rejected_before_resume(tmp_path,artifact):
     (manifest.parent/artifact).write_bytes(b'changed')
     with pytest.raises(ValueError,match='artifact changed'): prepare_resume(manifest)
     assert not (tmp_path/'resumed').exists()
+    rt.store.close()
+
+
+@pytest.mark.asyncio
+async def test_attached_checkpoint_detaches_without_stopping_or_reloading_game(tmp_path):
+    rt = fixture(tmp_path)
+    rt.fresh = False
+    result = await create_checkpoint(rt, rt.context_token)
+    path = result['manifest_path']
+    assert read_checkpoint(path)['owned'] is False
+    with pytest.raises(ValueError, match='reload is forbidden'):
+        install_saved_game(path)
+    stopped = await stop_for_restart(rt, rt.context_token, path)
+    assert stopped == {'stopped': True, 'game_stopped': False}
+    rt.bridge.core.assert_not_awaited()
+    assert rt.attached_game_detached and not rt.owned_game_stopped
     rt.store.close()

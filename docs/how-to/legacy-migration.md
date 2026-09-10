@@ -35,6 +35,13 @@ old server process has exited before starting a replacement on its port. Do not 
 automation or send chat through a disconnected legacy dashboard. There is no
 checkpoint-only takeover that transparently returns ownership.
 
+Inspect `phase` and `recovery` in the retained report before choosing a recovery
+command. `game_stop_pending` means the stop outcome is uncertain: inspect native
+liveness first. `game_stopped`, `controller_stopped` and `replacement_started` use
+the retained checkpoint. Earlier takeover/save phases require explicit takeover
+recovery. A missing or mismatched PID birth fingerprint requires a regenerated
+private profile; never substitute executable-name cleanup.
+
 ## Related reading
 
 [Choose tests](choose-tests.md) · [Test evidence explained](../explanation/testing.md) ·

@@ -22,6 +22,17 @@ new SQLite database and starts in Manual. Resume preserves the saved colony/map 
 allows at most one native loading tick with pause-on-load enabled. Larger changes fail
 closed. Do not edit or separate `game.rws`, `bridge.sqlite` and `checkpoint.json`.
 
+Attached controllers with a known private profile use the same commands. Their
+checkpoints reconnect to the unchanged, paused external game; they never stop or
+reload it. Keep that game running. If its load or tick changes, create a new checkpoint
+instead of attempting to rewind it through an attached checkpoint.
+
+List retained pairs with `GET /api/session/checkpoints`. To remove a pair, send
+`POST /api/session/checkpoints/delete` with `X-RimBot: 1` and JSON containing the
+current `session_id` and its exact `manifest_path`. The active resume pair, restarting
+sessions, damaged pairs and unexpected directory contents are protected. Other pairs
+and the native profile's saves remain intact; retention is explicit, without expiry.
+
 Run `python scripts/session_checkpoint_acceptance.py --source-root <prepared-root>
 --output <new-output>` for native save, process shutdown, restart and state comparison.
 Add `--rendered` for the visible profile. The probe verifies a PLAYER food goal, policy

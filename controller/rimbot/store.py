@@ -14,16 +14,33 @@ class Store:
         """Compose history, inbox acknowledgments and snapshots in one commit."""
         name = 'tx_' + uuid.uuid4().hex
         self.db.execute('SAVEPOINT ' + name)
+        callbacks = len(self._commit_callbacks)
+        self._transaction_depth += 1
         try:
             yield
+            self.db.execute('RELEASE ' + name)
         except BaseException:
-            self.db.execute('ROLLBACK TO ' + name)
-            self.db.execute('RELEASE ' + name)
+            del self._commit_callbacks[callbacks:]
+            if self.db.in_transaction:
+                self.db.execute('ROLLBACK TO ' + name)
+                self.db.execute('RELEASE ' + name)
             raise
+        finally:
+            self._transaction_depth -= 1
+        if self._transaction_depth == 0:
+            pending, self._commit_callbacks = self._commit_callbacks, []
+            for callback in pending:
+                callback()
+
+    def after_commit(self, callback):
+        if self._transaction_depth:
+            self._commit_callbacks.append(callback)
         else:
-            self.db.execute('RELEASE ' + name)
+            callback()
 
     def __init__(self, path):
+        self._transaction_depth = 0
+        self._commit_callbacks = []
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(path)
         self.db.execute('PRAGMA journal_mode=WAL')

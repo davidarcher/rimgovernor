@@ -7,7 +7,7 @@ from pathlib import Path
 from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.headless import isolated_root, prepare_rendered
 from rimbot.player_commands import apply_command
-from rimbot.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart, list_checkpoints, delete_checkpoint
+from rimbot.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart, list_checkpoints, delete_checkpoint, profile_path
 from rimbot.store import Store
 from rimbot.colony_plan import Decision,PlanSpec,CommitSteps,PlanStep,ColonyGoal
 
@@ -19,6 +19,17 @@ async def ready(rt):
         if rt.phase=='Connection failed' or time.monotonic()>deadline:
             raise RuntimeError(str(rt.chat[-1] if rt.chat else rt.phase))
         await asyncio.sleep(.5)
+
+
+async def native_event_history(rt):
+    rows = []
+    cursor = 0
+    while True:
+        batch = (await rt.bridge.call('home/supervised_play', op='events', afterCursor=cursor, limit=128)).structuredContent
+        assert not batch.get('gap'), batch
+        rows.extend(batch['events'])
+        if batch['nextCursor'] == cursor: return rows
+        cursor = batch['nextCursor']
 
 
 async def prepare_native_archive(rt,*,methods=True):
@@ -127,7 +138,36 @@ async def main(args):
         assert checkpoint['tick']>=initial if getattr(args,'mixed',False) else checkpoint['tick']>initial
         report.update(checkpoint=checkpoint,initial_tick=initial,old_token=rt.context_token,
                       plan=rt.current_plan.model_dump(),chat=rt.chat)
-        await stop_for_restart(rt,rt.context_token,checkpoint['manifest_path'])
+        if getattr(args, 'durable_events', False):
+            state = (await rt.bridge.call('home/supervised_play', op='status')).structuredContent
+            assert state.get('durableEvents') is True
+            # Ordinary start/pause transitions exceed the former 128-row ring.
+            for _ in range(66):
+                started = (await rt.bridge.call('home/supervised_play', op='start', owner='acceptance-journal',
+                    speed='Normal', leaseMs=30000, injuryStopCooldownMs=0)).structuredContent
+                if started['active']:
+                    try:
+                        await rt.bridge.call('home/supervised_play', op='pause', owner='acceptance-journal', epoch=started['epoch'])
+                    except Exception:
+                        stopped = (await rt.bridge.call('home/supervised_play', op='status')).structuredContent
+                        assert stopped['epoch'] == started['epoch'] and not stopped['active'], stopped
+                        report.setdefault('journal_guard_stops', []).append(stopped['stopReason'])
+            report['native_events'] = await native_event_history(rt)
+            assert len(report['native_events']) > 128
+            # Keep the paired state current after the ordinary fixture ticks.
+            checkpoint = await create_checkpoint(rt, rt.context_token)
+            report.update(checkpoint=checkpoint, plan=rt.current_plan.model_dump(), chat=rt.chat)
+            await rt.bridge.core('games_kill', gameId=rt.bridge.game_id)
+            rt.owned_game_stopped = True
+            rt.stopped = True
+            rt.shutdown.set()
+            # Reproduce a crash after a row flush but before publication.
+            journal = profile_path(root, not args.rendered)/'RimBotClockEvents'
+            last = sorted(journal.glob('*.xml'))[-1]
+            last.rename(journal/'acceptance.pending')
+            report['staged_publication'] = last.name
+        else:
+            await stop_for_restart(rt,rt.context_token,checkpoint['manifest_path'])
     except Exception as error:
         report.update(outcome='FAIL',error=str(error),plan=rt.current_plan.model_dump(),chat=rt.chat)
         (args.output/'report.json').write_text(json.dumps(report,indent=2))
@@ -144,6 +184,10 @@ async def main(args):
         assert resumed.current_plan.model_dump()==report['plan']
         assert resumed.chat==report['chat']
         assert not resumed.draft_owners and resumed.counters['model_calls']==0
+        if getattr(args, 'durable_events', False):
+            retained_events = await native_event_history(resumed)
+            assert retained_events[:len(report['native_events'])] == report['native_events']
+            report['durable_event_count'] = len(report['native_events'])
         if getattr(args,'mixed',False):
             if getattr(args,'uncertain_zone',False):
                 from uncertain_checkpoint_fixture import verify_uncertain_zone
@@ -204,6 +248,7 @@ if __name__=='__main__':
     parser.add_argument('--rendered',action='store_true',help='Verify the visible private profile instead of headless mode')
     parser.add_argument('--retention', action='store_true', help='Verify retained pairs, active-resume protection and exact deletion after native restart')
     parser.add_argument('--delivery', action='store_true', help='Verify native lease expiry and event recovery after a lost read response')
+    parser.add_argument('--durable-events', action='store_true', help='Exceed 128 native events, kill the owned game and verify exact journal retention after paired restart')
     parser.add_argument('--archive',action='store_true',help='Retire a completed native work assignment and verify its archive and no replay after restart')
     parser.add_argument('--methods',action='store_true',help='With --archive, also verify durable method deduplication after native paired restart')
     parser.add_argument('--mixed',action='store_true',help='Preserve partial native shell, unissued reservations, pending growing zone and work assignment without replay')
@@ -213,4 +258,4 @@ if __name__=='__main__':
     if args.methods and not args.archive:parser.error('--methods requires --archive')
     if args.rewind and not args.mixed:parser.error('--rewind requires --mixed')
     if args.uncertain_zone and (not args.mixed or args.rewind):parser.error('--uncertain-zone requires --mixed and excludes --rewind')
-    asyncio.run(asyncio.wait_for(main(args),240))
+    asyncio.run(asyncio.wait_for(main(args),600 if args.durable_events else 240))

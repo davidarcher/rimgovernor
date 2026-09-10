@@ -42,8 +42,19 @@ together in SQLite. Requests interrupted by reconnect/load remain visible with
 an explicit interruption notice; they are not automatically replayed.
 Native clock reads journal fetched events and source cursor together before
 advancing the in-memory cursor. Delivery consumes that inbox atomically with the
-runtime snapshot and history. This covers controller failure after fetch; the
-native source remains a bounded memory ring. Overflow enters Manual.
+runtime snapshot and history. In-memory archive compaction waits for the outermost
+transaction commit. Failed delivery retains its inbox, enters Manual and invalidates
+old writes. Colony-scoped source cursors and unconsumed inboxes survive load changes.
+
+The native supervisor retains immutable, consecutively numbered XML events under
+the private profile's `RimBotClockEvents` directory. Each row carries colony/map/load
+identity. A flushed temporary row is published by rename; a complete staged row is
+recovered after process restart. Partial rows, conflicting publication and sequence
+gaps fail closed. A journal-write failure pauses the current game and disarms the
+lease. Event reads page the retained files, including history beyond 128 entries.
+The journal grows with events and must remain with its profile; it is not simulation
+state and is not rolled back by loading a save. Older companions retain their
+bounded source history and enter Manual if it overflows.
 Hands remains the durable action outbox: uncertain game writes require observation,
 never transport replay.
 

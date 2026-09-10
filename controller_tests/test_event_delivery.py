@@ -77,13 +77,59 @@ async def test_crash_after_fetch_before_delivery_reopens_inbox_once(tmp_path):
 def test_nested_transaction_failure_keeps_previous_snapshot(tmp_path):
     store = Store(tmp_path/'state.sqlite')
     store.set('value', 1)
+    callbacks = []
     with pytest.raises(RuntimeError):
         with store.transaction():
             store.set('value', 2)
             store.event('colony', 'human', text='test')
+            store.after_commit(lambda: callbacks.append('published'))
             raise RuntimeError('crash before commit')
+    assert callbacks == []
+    with store.transaction():
+        with store.transaction():
+            store.after_commit(lambda: callbacks.append('published'))
+        assert callbacks == []
+    assert callbacks == ['published']
     store.close()
     store = Store(tmp_path/'state.sqlite')
     assert store.get('value') == 1
     assert store.history('colony') == []
     store.close()
+
+
+def test_load_change_preserves_unconsumed_fetched_events(tmp_path):
+    rt = runtime(tmp_path/'state.sqlite')
+    clock = PlayClock(None, rt.store, rt.context_token)
+    clock.epoch = 5
+    event = {'cursor': 9, 'epoch': 5, 'kind': 'lease_expired', 'detail': 'Prior process stopped'}
+    clock.record([event], 9)
+    rt.context_token = 'colony:1:new-load'
+    new = PlayClock(None, rt.store, rt.context_token)
+    assert new.cursor == 9 and new.epoch == 5
+    rt.receive_clock_events()
+    assert rt.chat[-1]['native_event'] == event
+    rt.receive_clock_events()
+    assert len(rt.chat) == 1
+    rt.store.close()
+
+
+def test_delivery_failure_keeps_inbox_and_invalidates_old_work(tmp_path, monkeypatch):
+    rt = runtime(tmp_path/'state.sqlite')
+    rt.mode = 'automate'
+    event = {'cursor': 1, 'epoch': 1, 'kind': 'external_pause', 'detail': 'Player paused'}
+    clock = PlayClock(None, rt.store, rt.context_token)
+    clock.epoch = 1
+    clock.record([event], 1)
+    original = rt.persist
+    def fail():
+        original()
+        raise OSError('Commit failed')
+    monkeypatch.setattr(rt, 'persist', fail)
+    with pytest.raises(OSError): rt.receive_clock_events()
+    assert rt.mode == 'manual' and rt.chat_revision > 0
+    assert rt.store.history(rt.colony) == [] and rt.chat == []
+    assert rt.store.get('clock-inbox:'+rt.context_token) == [event]
+    monkeypatch.setattr(rt, 'persist', original)
+    rt.receive_clock_events()
+    assert len(rt.store.history(rt.colony)) == 1
+    rt.store.close()

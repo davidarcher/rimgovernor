@@ -20,6 +20,36 @@ from rimbot.windows_process import ProcessHandle
 from rimbot.colony_plan import ColonyPlan
 
 
+def retain_game_process(runtime):
+    if (runtime.get('launchMode') != 'DirectPath' or runtime.get('pidRole') != 'workload'
+            or runtime.get('stopProcessName') or type(runtime.get('gamePid')) is not int
+            or type(runtime.get('pidStartTime')) is not int or runtime['pidStartTime'] <= 0):
+        raise ValueError('Native session lacks exact process birth ownership; regenerate its private profile')
+    # GABS Windows fingerprints are the same raw FILETIME used by ProcessHandle.
+    return ProcessHandle(runtime['gamePid'], runtime['pidStartTime'])
+
+
+def read_game_claim(config, runtime):
+    claim = json.loads((Path(config)/'rimbot-trial/runtime.json').read_text(encoding='utf8'))
+    if claim.get('gamePid') != runtime.get('gamePid'):
+        raise ValueError('Native process changed while inspecting ownership')
+    return claim
+
+
+def boundary(work, report, phase):
+    report['phase'] = phase
+    report['recovery'] = ('resume_checkpoint' if phase in ('game_stopped', 'controller_stopped', 'replacement_started')
+                          else 'inspect_checkpoint_and_native' if phase == 'game_stop_pending'
+                          else 'explicit_takeover_recovery' if phase in ('takeover_pending', 'taken_over', 'save_pending', 'saved')
+                          else 'original_controller')
+    temporary = work/'report.pending'
+    with temporary.open('w', encoding='utf8') as stream:
+        json.dump(report, stream, indent=2)
+        stream.flush()
+        os.fsync(stream.fileno())
+    temporary.replace(work/'report.json')
+
+
 def copy_database(source, destination):
     deadline=time.monotonic()+5
     def progress(*_):
@@ -63,6 +93,7 @@ async def migrate(args):
         if health.get('source_root')!=str(source) or health.get('backend')!='rimbridge':
             raise ValueError('Port does not belong to the requested source checkout')
         process=ProcessHandle(health['pid'])
+        game_process = None
         try:
             if not args.recover_disconnected:
                 response=await client.post('/api/control',json={'mode':'manual'},headers={'X-RimBot':'1'})
@@ -77,8 +108,10 @@ async def migrate(args):
             report={'old_pid':process.pid,'old_birth':process.birth,'old_session':state['sessionId']}
             print('Recovery artifacts: '+str(work),flush=True)
             with process.paused(work/'released'):
+                boundary(work, report, 'controller_suspended')
                 async with asyncio.timeout(60):
                     copy_database(args.database,work/'working.sqlite')
+                    boundary(work, report, 'database_copied')
                     store=Store(work/'working.sqlite')
                     try:
                         colony=state['sessionId'].rsplit(':',1)[0]
@@ -87,12 +120,13 @@ async def migrate(args):
                         async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',config) as bridge:
                             status=(await bridge.core('games_status',gameId=bridge.game_id)).structuredContent
                             runtime=status.get('diagnostics',{}).get('runtime',{})
-                            if not runtime.get('gamePid') or runtime.get('stopProcessName'):
-                                raise ValueError('Native session lacks exact process ownership')
+                            game_process = retain_game_process(read_game_claim(config, runtime))
                             # Explicit handoff only after the legacy writer is paused.
                             report.update(outcome='HANDOFF_PENDING',state=state,database=str(args.database.resolve()))
-                            (work/'report.json').write_text(json.dumps(report,indent=2))
+                            report.update(game_pid=game_process.pid, game_birth=game_process.birth)
+                            boundary(work, report, 'takeover_pending')
                             await bridge.core('games_connect',gameId=bridge.game_id,forceTakeover=True)
+                            boundary(work, report, 'taken_over')
                             rt=BridgeRuntime(store,root,fresh=True,headless=state['headless'])
                             rt.bridge=bridge;rt.game=BridgeGame(bridge)
                             try:
@@ -103,11 +137,17 @@ async def migrate(args):
                                     raise ValueError('Persisted action progress differs from the legacy controller')
                                 if rt.batch.summary.end_tick != state['game']['tick']:
                                     raise ValueError('Native tick changed since the legacy snapshot')
+                                if not game_process.alive(): raise ValueError('Native game exited during takeover')
+                                boundary(work, report, 'save_pending')
                                 checkpoint=await create_checkpoint(rt,rt.context_token)
                                 report.update(checkpoint=checkpoint,game_pid=runtime['gamePid'])
-                                (work/'report.json').write_text(json.dumps(report,indent=2))
+                                boundary(work, report, 'saved')
+                                if not game_process.alive(): raise ValueError('Native game exited before stop')
+                                boundary(work, report, 'game_stop_pending')
                                 await stop_for_restart(rt,rt.context_token,checkpoint['manifest_path'])
+                                boundary(work, report, 'game_stopped')
                                 process.terminate()
+                                boundary(work, report, 'controller_stopped')
                             finally: await rt.router.close()
                     finally: store.close()
             env=dict(os.environ,PYTHONPATH=str(source/'controller'),RIMBOT_MODEL=state['chatModel'])
@@ -116,6 +156,7 @@ async def migrate(args):
                 subprocess.Popen([sys.executable,'-m','rimbot','--resume',checkpoint['manifest_path'],'--port',str(args.port)],
                     cwd=source,env=env,stdin=subprocess.DEVNULL,stdout=out,stderr=err,
                     creationflags=subprocess.CREATE_NO_WINDOW|subprocess.CREATE_NEW_PROCESS_GROUP)
+            boundary(work, report, 'replacement_started')
             deadline=time.monotonic()+120
             while time.monotonic()<deadline:
                 await asyncio.sleep(.5)
@@ -141,7 +182,9 @@ async def migrate(args):
                       'If its native game is still paused, retry with --recover-disconnected; '
                       'if the game has stopped, use the retained checkpoint with python -m rimbot --resume.',file=sys.stderr)
             raise
-        finally: process.close()
+        finally:
+            if game_process: game_process.close()
+            process.close()
 
 
 if __name__=='__main__':

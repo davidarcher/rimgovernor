@@ -296,3 +296,9 @@ The source list and final dispatch both honor native designation eligibility.
 Special stockpile filters enumerate native configurable SpecialThingFilterDef
 definitions and call ThingFilter.SetAllow on live or detached preview filters.
 This original extension uses the native settings API and copies no game source.
+
+The native clock event journal is original RimBot code. It retains typed event
+payloads and colony/map/load identity in immutable XML rows under the private
+profile, publishes flushed rows by rename and recovers complete staged rows.
+It does not serialize or edit simulation state. Journal failures pause supervised
+play and surface an explicit failure instead of silently discarding history.

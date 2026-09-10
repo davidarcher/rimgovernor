@@ -155,18 +155,6 @@ in the checkpoint commit; do not append an implementation diary here.
   silver/stock changes, stale sessions/loads and trader departure/delivery checks.
   Test lost acceptance receipts without replay. Audit orbital trade's ordinary
   player input path separately from adjacent map trading.
-- [ ] **B11 · Event delivery and process ownership.** Chat acknowledgment deduplication,
-  atomic history/snapshots, durable fetched-clock inboxes and explicit interrupted
-  chat notices are implemented. Docker accepts lost native event reads, lease expiry,
-  paired restart and checkpoint retention/deletion. Native source history remains a
-  bounded memory ring: complete game-crash/overflow delivery and attached external
-  game checkpoints. Broaden Windows legacy-migration acceptance to interruption at
-  every ownership/save/stop boundary; automatic legacy reconnection is unavailable
-  after takeover and requires explicit recovery. Audit game-worker PID
-  plus process birth time against PID reuse; test lease expiry and
-  lost-worker cleanup. Generated disposable profiles require DirectPath launches
-  without process-name cleanup fallback; regenerate existing profiles to adopt this
-  protection. Reuse semantics inside the existing runtime.
 
 ## P2 — Coverage, inspection and evaluation scale
 

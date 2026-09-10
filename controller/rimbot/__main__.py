@@ -17,7 +17,7 @@ def main():
         from .session_checkpoint import prepare_resume
         checkpoint, state = prepare_resume(args.resume)
         os.environ.update(RIMBOT_BRIDGE_ROOT=checkpoint['root'], RIMBOT_DATA=str(state),
-            RIMBOT_BRIDGE_FRESH='1', RIMBOT_HEADLESS='1' if checkpoint['headless'] else '0',
+            RIMBOT_BRIDGE_FRESH='1' if checkpoint.get('owned', True) else '0', RIMBOT_HEADLESS='1' if checkpoint['headless'] else '0',
             RIMBOT_RESUME_CHECKPOINT=str(Path(args.resume).resolve()))
     if args.fresh_game:
         import os

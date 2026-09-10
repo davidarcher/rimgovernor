@@ -4,6 +4,29 @@ import {render,screen,fireEvent,waitFor,cleanup} from '@testing-library/react';
 import {afterEach,it,expect,vi} from 'vitest';
 import BridgeColony from './BridgeColony';
 afterEach(()=>{cleanup();vi.unstubAllGlobals();location.hash='';});
+it('reuses the request identity after a lost chat acknowledgment',async()=>{
+ const messages:any[]=[];
+ vi.stubGlobal('fetch',vi.fn(async(url:string,options:any)=>{
+  if(url==='/api/chat'){
+   messages.push(JSON.parse(options.body));
+   if(messages.length===1)throw new Error('Connection lost after acceptance');
+  }
+  return {ok:true,json:async()=>url==='/api/state'?{sessionId:'a',connected:true,mode:'manual',mood:'happy',cameraVersion:0,goals:{long:'',short:''},feed:[],status:{label:'Manual'},game:{paused:true,stale:false},counters:{tools:0,actions:0,model_calls:0}}:{events:[]}};
+ }));
+ render(<BridgeColony/>);
+ await screen.findByText('Colony connected');
+ const input=screen.getByLabelText('Message the colony manager');
+ fireEvent.change(input,{target:{value:'Keep food safe'}});
+ fireEvent.keyDown(input,{key:'Enter'});
+ await screen.findByText(/Connection lost after acceptance/);
+ expect(input).toHaveValue('Keep food safe');
+ fireEvent.keyDown(input,{key:'Enter'});
+ await waitFor(()=>expect(input).toHaveValue(''));
+ expect(messages).toHaveLength(2);
+ expect(messages[1]).toEqual(messages[0]);
+ expect(messages[0].request_id).toBeTruthy();
+ expect(messages[0].session_id).toBe('a');
+});
 it('keeps project details off the main view and sends Enter without navigating',async()=>{
  const requests:{url:string;options:any}[]=[];
  vi.stubGlobal('fetch',vi.fn(async(url:string,options:any)=>{requests.push({url,options});return {ok:true,json:async()=>url==='/api/state'?{sessionId:'a',connected:true,mode:'manual',mood:'happy',cameraVersion:0,goals:{long:'Build a lasting settlement',short:'Store the meals'},feed:[],status:{label:'Manual'},game:{paused:true,stale:false},counters:{tools:0,actions:0,model_calls:0}}:{events:[]}};}));
