@@ -169,14 +169,20 @@ in the checkpoint commit; do not append an implementation diary here.
 
 ## P2 — Coverage, inspection and evaluation scale
 
-- [ ] **B13 · Remaining player actions.** Audit supported native contextual orders,
-  gizmos, dropdowns, reverse designators and queued jobs before adding fallbacks.
-  Revalidate short-lived target/session references and selection after UI clicks.
-  Cover existing-zone edits/deletion/expansion, crops, special storage filters and
-  model-selected bill ingredient whitelists;
-  identify gaps in animals, medical/surgery/prisoner and food/drug/apparel policies.
-  Require normal native eligibility and observed effects. Packed-furniture install
-  already has exact-identity, rotated pawn-work acceptance.
+- [ ] **Contextual and queued action extensions.** The [native capability audit](reference/player-actions.md)
+  identifies live menu opening that can execute an order, option execution without
+  a menu-session token, and no explicit queued-job postcondition. Add guarded
+  contextual/dropdown/reverse-designator requests only with exact current selection,
+  menu identity, native eligibility and observed effects. Verify real Shift-queued
+  jobs, replacement/cancellation and queue completion before exposing this fallback.
+- [ ] **Animal and patient command extensions.** Expose explicit semantic requests
+  for existing eligible animal settings, then accept normal tame/release/pen/breeding
+  workflows. Add surgery/body-part eligibility, prisoner capture and interaction
+  settings with actual patient/prisoner outcomes through the shared executor.
+- [ ] **Personal policy and storage-range extensions.** Add typed food/drug/apparel
+  policy creation, editing and assignment with native readback. Distinguish assigned
+  restrictions from actual consumption/wearing. Cover stockpile quality/hit-point
+  ranges separately from the supported configurable special-filter flags.
 - [ ] **Dashboard native acceptance.** Verify Outpost time controls against a
   rendered isolated session: pause, normal/fast/superfast, danger refusal, new
   player direction and load invalidation. Verify action follow on pawn, building

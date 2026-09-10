@@ -5,7 +5,7 @@
 These contracts describe admission, scope and preservation for semantic player requests.
 For the end-to-end path, read [plans and Hands](../explanation/plans-and-hands.md).
 
-The chat command union supports SetResearch, BuildRoom, PlaceBuildings, CreateZone,
+The chat command union supports SetResearch, BuildRoom, PlaceBuildings, CreateZone, EditZone,
 SetWorkPriority, CreateBill, DraftPawn, MovePawn, CreateGoal, CancelGoal and
 ModifyResourcePolicy and SetResourceReserve. The model receives individually named
 semantic tools and read-only native inspection/preview tools, not arbitrary native
@@ -17,6 +17,11 @@ rejections are included in the acknowledgment alongside accepted requests.
 Acknowledgments come from accepted structured results, not inferred completion. Optional
 local knowledge/wiki lookup, colony notebook, scout, visual review and consultations
 remain chat tools. Advice is evidence, never executable authority.
+
+`EditZone` changes an existing observed zone through native eligibility and readback.
+`CreateBill.ingredients` optionally supplies a complete native ingredient whitelist.
+See [player action coverage](player-actions.md) for fields, special storage filters,
+UI reference guards and the native capability audit.
 
 ## Research and work assignments
 

@@ -133,16 +133,16 @@ async def run():
             await command('delete_stockpile',kind='EditZone',zone_id=zone,operation='delete')
             placed=await native('crafting_spot','home/place_building',defName='CraftingSpot',x=x,z=z,rotation='north',dryRun=False,watch=False)
             assert placed.get('success') is True
-            benches=await game.query('home/bills',action='list',dryRun=True)
+            benches=await game.invoke('home/bills',{'action':'list','dryRun':True})
             report['cases']['benches']=benches
-            recipes=await game.query('home/bills',action='recipes',bench='CraftingSpot',dryRun=True)
+            recipes=await game.invoke('home/bills',{'action':'recipes','bench':'CraftingSpot','dryRun':True})
             report['cases']['recipes']=recipes
             recipe=next(row for row in recipes['recipes'] if 'WoodLog' in row.get('filter',{}).get('allowedDefNames',[])
                         and len(row['filter']['allowedDefNames'])>1)
             report['cases']['selected_recipe']=recipe
             bill=await command('bill_whitelist',kind='CreateBill',bench='CraftingSpot',recipe=recipe['defName'],target_count=1,ingredients=['WoodLog'])
             assert bill.get('success') is True
-            report['cases']['bill_readback']=await game.query('home/bills',action='list',bench='CraftingSpot',dryRun=True)
+            report['cases']['bill_readback']=await game.invoke('home/bills',{'action':'list','bench':'CraftingSpot','dryRun':True})
             rows=[b for bench in report['cases']['bill_readback']['benches'] for b in bench.get('bills',[])]
             assert any(row.get('filter',{}).get('allowedDefNames')==['WoodLog'] for row in rows), rows
             report['passed']=True

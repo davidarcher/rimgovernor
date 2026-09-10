@@ -55,7 +55,7 @@ async def test_bill_semantic_refusal_is_not_transport_success(tmp_path):
     rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch()
     rt.inspect_native=AsyncMock(return_value={'success':True,'write':{'refused':True,'reason':'Illegal ingredient'}})
     before=deepcopy(rt.current_plan.model_dump())
-    with pytest.raises(ValueError,match='whitelist refused'):
+    with pytest.raises(ValueError,match='whitelist refused: Illegal ingredient'):
         await apply_command(rt,dict(kind='CreateBill',bench='CraftingSpot1',recipe='Make_WarMask',target_count=1,ingredients=['Steel']),
             token=rt.context_token,revision=rt.chat_revision)
     assert rt.current_plan.model_dump()==before
@@ -72,6 +72,23 @@ def test_bill_readback_rejects_replacement_at_same_index_and_changed_filter():
     observed['benches'][0]['bills'][0]['billId']='Bill1'
     observed['benches'][0]['bills'][0]['filter']['allowedDefNames']=['Steel']
     with pytest.raises(ValueError): verify_bill_whitelist(receipt,observed)
+
+
+@pytest.mark.asyncio
+async def test_bill_execution_uses_read_only_mixed_tool_invocation(tmp_path):
+    from rimbot.production_policy import policy_arguments
+    from rimbot.strategic_state import fingerprint
+    rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch();rt.mode='automate'
+    rt._production_policy_signature=fingerprint(policy_arguments(rt))
+    bill={'billId':'Bill1','index':0,'filter':{'allowedDefNames':['WoodLog']}}
+    receipt={'success':True,'applied':True,'write':{'refused':False,'after':{'bill':bill}}}
+    observed={'success':True,'benches':[{'bills':[bill]}]}
+    rt.game.invoke=AsyncMock(side_effect=[receipt,observed])
+    result=await rt.native('home/bills',{'action':'add','bench':'CraftingSpot1','only':'WoodLog','dryRun':False},reconcile=False)
+    assert result['observed_after']==observed
+    assert rt.game.invoke.await_args.args==('home/bills',{'action':'list','bench':'CraftingSpot1','dryRun':True})
+    assert all(call.args[0]!='home/bills' for call in rt.game.query.await_args_list)
+    rt.store.close()
 
 
 def test_main_tab_closure_allows_native_inspect_fallback():
@@ -98,8 +115,9 @@ def test_zone_readback_requires_actual_geometry_and_filter():
 
 def test_selection_requires_complete_native_identity():
     assert selection_identity({'success':True,'selectedCount':1,'selectedObjects':[{'id':'Pawn1'}]})==['Pawn1']
-    with pytest.raises(ValueError): selection_identity({'selectedCount':2,'selectedObjects':[{'id':'Pawn1'}]})
-    with pytest.raises(ValueError): selection_identity({'selectedCount':1,'selectedObjects':[{}]})
+    with pytest.raises(ValueError): selection_identity({'success':True,'selectedCount':2,'selectedObjects':[{'id':'Pawn1'}]})
+    with pytest.raises(ValueError): selection_identity({'success':True,'selectedCount':1,'selectedObjects':[{}]})
+    with pytest.raises(ValueError): selection_identity({'success':False,'selectedCount':0,'selectedObjects':[]})
 
 
 @pytest.mark.asyncio
@@ -114,4 +132,20 @@ async def test_changed_selection_invalidates_cached_ui_without_click(tmp_path):
     assert not rt.ui_targets
     assert all(call.args[0]!='rimworld/click_ui_target' for call in rt.game.invoke.await_args_list)
     rt.bridge.call.assert_not_awaited()
+    rt.store.close()
+
+
+@pytest.mark.asyncio
+async def test_ui_capture_selection_race_does_not_cache_targets(tmp_path):
+    rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch();rt.headless=False
+    rt.bridge=SimpleNamespace(call=AsyncMock())
+    rt.game.describe=AsyncMock(return_value={'type':'object'})
+    rt.game.invoke=AsyncMock(side_effect=[
+        {'success':True,'selectedCount':1,'selectedObjects':[{'id':'Pawn1'}]},
+        {'success':True,'surfaces':[{'elements':[{'targetId':'control','actionable':True}]}]},
+        {'success':True,'selectedCount':1,'selectedObjects':[{'id':'Pawn2'}]},
+    ])
+    with pytest.raises(ValueError,match='during UI capture'):
+        await rt.inspect_native('rimworld/get_ui_layout',{})
+    assert not rt.ui_targets
     rt.store.close()

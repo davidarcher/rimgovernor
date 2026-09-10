@@ -10,6 +10,8 @@ what each action must observe.
 | `build_room_shell`, `place_buildings` | Native building observations through ProjectBook; a shell does not certify roofing or usable shelter. |
 | `create_zone` | Validated native zone geometry/readback; storage and crop production are separate outcomes. |
 | `native_operation` | Schema-validated native receipt/readback by default. Bills, settings, designators and UI actions do not imply downstream pawn labor finished. |
+| Existing-zone edits | Fresh native geometry, crop or filter must match the requested native edit; deleted zones must be absent. |
+| Bill ingredient whitelists | Exact native bill identity and filter must match fresh readback; production remains separate. |
 | `home/install` through `native_operation` | Exact inner building identity at the intended destination/rotation. |
 | Medical native operations | Optional `patient_tended` and `patient_in_bed` wait for fresh living-patient observations. These certify current treatment/delivery state, not full healing or actor attribution. |
 | `trade` | Guarded open/stage/preview/accept with participant, content and silver-budget checks; hauling/storage remain separate. |

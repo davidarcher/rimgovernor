@@ -843,7 +843,7 @@ class BridgeRuntime:
                     from .player_action_verification import verify_zone_edit
                     verify_zone_edit(arguments, result, verification)
                 elif name == 'home/bills' and arguments.get('only'):
-                    verification = await self.game.query('home/bills', action='list', bench=arguments.get('bench'), dryRun=True)
+                    verification = await self.game.invoke('home/bills', {'action':'list', 'bench':arguments.get('bench'), 'dryRun':True})
                     from .player_action_verification import verify_bill_whitelist
                     verify_bill_whitelist(result, verification)
                 elif name in ('home/place_building', 'rimworld/apply_architect_designator'):

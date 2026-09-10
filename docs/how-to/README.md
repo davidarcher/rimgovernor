@@ -30,6 +30,7 @@ first guided exercise, use [your first Docker test](../tutorials/first-docker-te
 - [Verify retained cancelled actions](cancelled-actions.md)
 - [Verify hunting screening and dispatch](hunting.md)
 - [Verify semantic player commands](semantic-commands.md)
+- [Verify native player zone, bill and UI actions](player-actions.md)
 - [Verify ordinary colony establishment](crashlanded.md)
 - [Verify construction and supply recovery](construction-recovery.md)
 - [Verify mixed checkpoint recovery](checkpoint-acceptance.md)

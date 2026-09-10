@@ -418,7 +418,9 @@ async def apply_command(rt, payload, *, token, revision):
                 action['arguments']['only'] = ','.join(request.ingredients)
                 preview = await rt.inspect_native('home/bills', dict(action['arguments'], dryRun=True))
                 if preview.get('success') is not True or preview.get('write', {}).get('refused') is not False:
-                    raise ValueError('Native bill ingredient whitelist refused: '+str(preview.get('error') or preview.get('reason')))
+                    raise ValueError('Native bill ingredient whitelist refused: '+str(
+                        (preview.get('write') or {}).get('reason') or preview.get('error') or preview.get('reason')
+                        or 'Ingredient eligibility was not confirmed'))
         elif isinstance(request, SetBuildingTemperature):
             observed = await rt.game.query('home/list_buildings', aggregate=False, playerOnly=True)
             matches = [building for building in observed.get('buildings', []) if building.get('thingId') == request.thing]
