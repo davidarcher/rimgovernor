@@ -69,6 +69,10 @@ audits](how-to/audit-retention.md).
 
 [Measure dashboard throughput](how-to/measure-throughput.md).
 
+## Trade acceptance (B10)
+
+[Verify native trades](how-to/trade-acceptance.md).
+
 ## Docker workers (B17)
 
 [Run native Docker acceptance](how-to/docker-native.md).

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -11,141 +11,9 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    /// <summary>
-    /// home/trade — the whole trade, headless. No dialog, no scrolling, no clicking.
-    ///
-    /// ## Why this exists (M, 2026-09-01)
-    ///
-    ///     "the trading screen was a fiasco and we definitely need a custom
-    ///      bridge part for trading"
-    ///
-    /// The UI path was not merely slow, it was WRONG in a way that reported
-    /// success. `Dialog_Trade`'s per-row `&lt;` / `&lt;&lt;` / `&gt;` / `&gt;&gt;` buttons each
-    /// carry their own `targetId` and `click_ui_target` returns `success: true`
-    /// on any of them — but every one of them acts on whichever row is at the
-    /// TOP of the viewport. A session bought a warg twice while trying to buy a
-    /// parka. The workaround (scroll the wanted row to the top, then click any
-    /// button) is bounded by `maxOffsetY`, which on the live screen was 248px
-    /// of a ~25-row stock: about nine rows. Everything below the cut was
-    /// literally unbuyable, and the `Sort by` header buttons did not respond to
-    /// `click_ui_target` at all, so the list could not be reordered to bring an
-    /// item into range.
-    ///
-    /// None of that is a limitation of RimWorld. It is a limitation of driving
-    /// a scroll view through a screen-reader. RimWorld's actual trade model is
-    /// a flat list of `Tradeable` objects hanging off one static
-    /// `TradeSession`, and `Dialog_Trade` is a pure VIEW over it: its
-    /// constructor's only non-cosmetic act is `TradeSession.SetupWith(trader,
-    /// negotiator, giftsOnly)` (verified in IL, Assembly-CSharp
-    /// 1.6.9676.17735). So this tool does what the dialog does and skips the
-    /// dialog.
-    ///
-    /// ## Sign convention — verified, not assumed
-    ///
-    /// `Tradeable.CountToTransfer` is signed. **Positive = the colony gains =
-    /// the player BUYS. Negative = the player SELLS.** That is not folklore; it
-    /// is read out of three IL bodies:
-    ///
-    ///   * `Tradeable.get_PositiveCountDirection` returns `Source` (0) unless
-    ///     `TradeSession.giftMode`.
-    ///   * `Transferable.get_CountToTransferToSource` returns `+CountToTransfer`
-    ///     when the direction is `Source`, so `CountPostDealFor(Colony)` is
-    ///     `CountHeldBy(Colony) + CountToTransfer`.
-    ///   * `Tradeable.get_ActionToDo` returns `PlayerBuys` when
-    ///     `CountToTransferToDestination &lt;= 0`, i.e. when `CountToTransfer &gt; 0`.
-    ///
-    /// `GetMinimumToTransfer()` is `-CountHeldBy(Colony)` (sell everything) and
-    /// `GetMaximumToTransfer()` is `CountHeldBy(Trader)` (buy everything), so
-    /// the legal range of a line is `[-colonyCount, +traderCount]`.
-    ///
-    /// ## Selling a PAWN needs `allowPawns: true`
-    ///
-    /// `TradeUtility.AllSellableColonyPawns` feeds the sheet, so colonists,
-    /// prisoners and colony animals appear as ordinary rows with ordinary
-    /// prices. Nothing in RimWorld stops a negative count on one, and this tool
-    /// can address every row by name -- which makes "sell 3 of the thing whose
-    /// label happened to match" a way to sell a person by typo. A previous
-    /// session bought a warg twice while trying to buy a parka through the
-    /// dialog; the same class of mistake here is irreversible and it is a
-    /// colonist.
-    ///
-    /// So `set` REFUSES any row whose tradeable is a pawn when the count would
-    /// make the colony part with it, unless `allowPawns: true` is passed. The
-    /// refusal names the row and says exactly which flag lifts it.
-    ///
-    /// **The guard is on SELLING only.** Buying animals from a trader is
-    /// ordinary play -- this colony's tame warg was bought from a war merchant
-    /// -- and a guard that blocked it would be a guard nobody keeps on.
-    /// "Selling" is `CountToTransfer &lt; 0` in a trade session and
-    /// `CountToTransfer &gt; 0` in a GIFT session, because gift mode flips
-    /// `PositiveCountDirection` to `Destination`; the check follows the
-    /// direction rather than the raw sign.
-    ///
-    /// ## Three mutation hazards this tool refuses to walk into
-    ///
-    /// 1. **`Transferable.AdjustTo` calls `Log.Error` when `CanAdjustTo` fails,
-    ///    and `Log.Error` calls `TickManager.Pause()`** when
-    ///    `DebugSettings.pauseOnError` is on and the program state is Playing
-    ///    (both verified in IL). A rejected line would therefore PAUSE THE
-    ///    GAME as a side effect of a failed set. So every line is checked with
-    ///    `CanAdjustTo` first and `AdjustTo` is only ever called on a value the
-    ///    game has already accepted. A rejected line comes back as a structured
-    ///    per-line failure and changes nothing.
-    ///
-    /// 2. **`TradeDeal.TryExecute` dereferences the dialog.** Its
-    ///    cannot-afford branch is
-    ///    `Find.WindowStack.WindowOfType&lt;Dialog_Trade&gt;().FlashSilver()` with no
-    ///    null check. Headless, `WindowOfType` returns null and the call throws
-    ///    NullReferenceException across the bridge. So `accept` evaluates
-    ///    exactly the same predicate first —
-    ///    `CurrencyTradeable != null &amp;&amp; CurrencyTradeable.CountPostDealFor(Colony) &gt;= 0` —
-    ///    and returns `cannot_afford` without ever calling `TryExecute`.
-    ///
-    /// 3. **`TradeSession.SetupWith` calls `Log.Warning` when the trader is not
-    ///    willing to trade.** `Log.Warning` does not pause, but it can open the
-    ///    log window on a streaming screen if `Prefs.OpenLogOnWarnings` is set.
-    ///    So `open` refuses on `!CanTradeNow` before calling `SetupWith`.
-    ///
-    /// ## Does the negotiator have to be standing next to the trader?
-    ///
-    /// **No, and this is the honest answer rather than a convenient one.**
-    /// Nothing on the trade path checks distance: not `TradeSession.SetupWith`,
-    /// not the `TradeDeal` constructor, not `Tradeable.ResolveTrade`, not
-    /// `TradeDeal.TryExecute`. `Pawn_TraderTracker.CanTradeNow` checks dead,
-    /// spawned, `wantsToTradeWithColony`, `CanCasuallyInteractNow`, downed,
-    /// prisoner, faction and stock — no distance term. The adjacency in vanilla
-    /// comes from the INPUT path only: right-clicking a trader queues
-    /// `JobDefOf.TradeWithPawn`, the colonist walks, and the job driver opens
-    /// the dialog on arrival. Skipping the walk skips the walk; it does not
-    /// skip a rule.
-    ///
-    /// Two consequences worth knowing, both verified:
-    ///
-    ///   * The negotiator's Social skill and `TradePriceImprovement` stat still
-    ///     set the prices, so WHO negotiates matters even though WHERE they
-    ///     stand does not.
-    ///   * `Pawn_TraderTracker.GiveSoldThingToPlayer` places bought goods at the
-    ///     TRADER's cell, not the negotiator's, and adds them to the trader
-    ///     lord's `extraForbiddenThings` — so a purchase lands on the ground
-    ///     next to the caravan, forbidden, until the caravan leaves. That is
-    ///     vanilla, and it is the same either way.
-    ///
-    /// `requireAdjacent: true` restores the vanilla feel on purpose: `open`
-    /// then fails loudly with the measured distance so the caller can walk
-    /// there first. It defaults to FALSE because the game does not require it
-    /// and a tool that invents a rule is a tool that lies.
-    ///
-    /// ## What this tool does NOT do
-    ///
-    ///   * It never opens `Dialog_Trade`, and it refuses to mutate a session
-    ///     while one is open on screen, because the dialog caches its own row
-    ///     list in `cachedTradeables` at `PostOpen` and would draw a stale one.
-    ///     `action: "close_dialog"` is there for exactly the fiasco case: a
-    ///     dialog left open by a previous session.
-    ///   * It does not walk anybody anywhere. Use `move.py`.
-    ///   * `accept` does not create a caravan, launch drop pods, or handle the
-    ///     player-is-a-caravan case. Colony-side trading only.
-    /// </summary>
+    /// <summary>Guarded adjacent map trading through native TradeSession and TradeDeal.
+    /// Positive counts buy; negative counts sell. Orbital trades use the ordinary comms input path.
+    /// Exchange receipts do not certify delivery or hauling.</summary>
     public sealed class HomeTradeTools
     {
         private const string ToolName = "home/trade";
@@ -167,13 +35,20 @@ namespace HomeBridge.BridgeTools
         private static string _sessionNegotiatorName;
         private static int _sessionOpenedTick;
         private static bool _sessionOpenedByUs;
+        private static string _sessionId;
+        private static Map _sessionMap;
+        private static ColonyIdentity _sessionIdentity;
+        private static TradeDeal _sessionDeal;
+        private static ITrader _sessionTrader;
+        private static Pawn _sessionNegotiator;
+        private static bool _requireAdjacent;
 
         private static readonly FieldInfo LiveMessagesField =
             BridgeCommon.PrivateStaticField(typeof(Messages), "liveMessages");
 
         [Tool(
             ToolName,
-            Title = "Trade with a caravan or orbital trader without the dialog",
+            Title = "Trade with an adjacent map caravan",
             Description =
                 "One tool for a whole trade, driven by an 'action' parameter: list_traders, open, sheet, set, preview, "
                 + "accept, cancel, close_dialog, status. Sets up RimWorld's own TradeSession directly, so the full stock "
@@ -207,17 +82,19 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "For 'sheet': only rows with a non-zero staged count.", DefaultValue = false)] bool onlyChanged = false,
             [ToolParameter(Description = "For 'sheet': maximum rows to return. The payload always reports how many were omitted.", DefaultValue = 500)] int maxRows = 500,
             [ToolParameter(Description = "For 'sheet' and 'open': keep rows this trader REFUSES to trade (Tradeable.TraderWillTrade false). FALSE by default, because a refused row cannot be bought or sold and a caller that stages one gets the line rejected. The count dropped is always reported as omittedUntradeable, never a silent drop.", DefaultValue = false)] bool includeUntradeable = false,
-            [ToolParameter(Description = "For 'open': refuse unless the negotiator is adjacent to a map trader, the way the vanilla right-click job would leave them. The game itself does NOT require this; default false.", DefaultValue = false)] bool requireAdjacent = false,
+            [ToolParameter(Description = "For 'open': must be true. Require ordinary map-trader adjacency.", DefaultValue = true)] bool requireAdjacent = true,
             [ToolParameter(Description = "For 'accept': allow executing a deal in which nothing is staged. Normally that is refused as a caller mistake.", DefaultValue = false)] bool allowEmpty = false,
             [ToolParameter(Description = "For 'accept', 'cancel' and 'close_dialog': mirror the vanilla dialog by handing over a trader's quest (TradeUtility.ReceiveQuestFromTrader) when the trader has one.", DefaultValue = true)] bool receiveQuest = true,
             [ToolParameter(Description = "TRUE by default. For 'accept' only: select the trader, put the camera on them, then OPEN THE REAL TRADE WINDOW showing the staged rows, hold it watchSeconds, execute the deal while it is on screen, and close it. It never changes what is traded - the deal is verified against the preview before and after the window goes up, and a change refuses with restage_mismatch rather than trading something else. Pass false to accept headlessly, with no window and no camera move.", DefaultValue = true)] bool watch = true,
-            [ToolParameter(Description = "How long the REAL trade window is held on screen before the deal executes, and how long the trader stays selected after it. Clamped 1..60. The tool call blocks for this long and the bridge runs one call at a time, so an accept occupies the bridge for about this many seconds - that is the price of the trade being visible. Ignored on every action but 'accept', and when watch is false.", DefaultValue = 8)] int watchSeconds = 8)
+            [ToolParameter(Description = "How long the REAL trade window is held on screen before the deal executes, and how long the trader stays selected after it. Clamped 1..60. The tool call blocks for this long and the bridge runs one call at a time, so an accept occupies the bridge for about this many seconds - that is the price of the trade being visible. Ignored on every action but 'accept', and when watch is false.", DefaultValue = 8)] int watchSeconds = 8,
+            [ToolParameter(Description = "Exact sessionId returned by open; required for set, accept and cancel.")] string sessionId = null,
+            [ToolParameter(Description = "Exact dealSignature from preview; required for accept.")] string dealSignature = null)
         {
             return BridgeCommon.WithUnknownArguments(
                 await TradeCore(
                     ctx, cancellationToken, action, traderId, negotiator, giftMode, item, count, lines,
                     relative, allowPawns, match, onlyChanged, maxRows, includeUntradeable, requireAdjacent, allowEmpty,
-                    receiveQuest, watch, watchSeconds).ConfigureAwait(false),
+                    receiveQuest, watch, watchSeconds, sessionId, dealSignature).ConfigureAwait(false),
                 ctx, typeof(HomeTradeTools), ToolName);
         }
 
@@ -241,7 +118,7 @@ namespace HomeBridge.BridgeTools
             bool allowEmpty,
             bool receiveQuest,
             bool watch,
-            int watchSeconds)
+            int watchSeconds, string sessionId, string dealSignature)
         {
             if (ctx?.MainThread == null)
                 return Failure("No RimBridge main-thread dispatcher is available for this invocation.", "no_dispatcher", action);
@@ -254,6 +131,8 @@ namespace HomeBridge.BridgeTools
                 var args = new Args
                 {
                     Action = (action ?? string.Empty).Trim(),
+                    SessionId = sessionId,
+                    DealSignature = dealSignature,
                     TraderId = traderId,
                     Negotiator = negotiator,
                     GiftMode = giftMode,
@@ -288,6 +167,19 @@ namespace HomeBridge.BridgeTools
                 // accept is the one action a viewer should see land. Hop 1
                 // selects the trader and puts the camera on them; hop 2 executes
                 // the deal, so the goods move while they are on screen.
+                var preflight = await ctx.MainThread.InvokeAsync(() => {
+                    string why;
+                    if (!RequireSession(out why)) return Failure(why, "stale_session", "accept");
+                    if (string.IsNullOrEmpty(args.SessionId) || args.SessionId != _sessionId
+                        || string.IsNullOrEmpty(args.DealSignature) || args.DealSignature != StageSignature())
+                        return Failure("Trade session or preview changed.", "stale_deal", "accept");
+                    return null;
+                }, cancellationToken).ConfigureAwait(false);
+                if (preflight != null)
+                {
+                    Stamp(preflight, Watch.Skipped("trade preflight refused"));
+                    return preflight;
+                }
                 var session = await ctx.MainThread
                     .InvokeAsync(() => WatchTrader(ctx, watch), cancellationToken)
                     .ConfigureAwait(false);
@@ -520,6 +412,17 @@ namespace HomeBridge.BridgeTools
         private static string StageSignature()
         {
             var parts = new List<string>();
+            parts.Add("session=" + _sessionId + "|gift=" + TradeSession.giftMode);
+            if (TradeSession.deal != null)
+                foreach (var row in TradeSession.deal.AllTradeables.Where(t => t.CountToTransfer != 0))
+                {
+                    var rowKey = "row=" + TradeSession.deal.AllTradeables.IndexOf(row);
+                    parts.Add(rowKey + "|count=" + row.CountToTransfer
+                        + "|buy=" + row.GetPriceFor(TradeAction.PlayerBuys).ToString("R", CultureInfo.InvariantCulture)
+                        + "|sell=" + row.GetPriceFor(TradeAction.PlayerSells).ToString("R", CultureInfo.InvariantCulture));
+                    parts.AddRange(row.thingsColony.Select(t => rowKey + "|colony=" + t.ThingID + ":" + t.stackCount + ":" + t.Destroyed));
+                    parts.AddRange(row.thingsTrader.Select(t => rowKey + "|trader=" + t.ThingID + ":" + t.stackCount + ":" + t.Destroyed));
+                }
             foreach (var row in StagedLines())
             {
                 var d = row as Dictionary<string, object>;
@@ -540,7 +443,9 @@ namespace HomeBridge.BridgeTools
                 if (balance.TryGetValue("netSilverToColony", out n) && n != null)
                     net = n.ToString();
             }
-            return string.Join(";", parts.ToArray()) + "|net=" + net;
+            using (var hash = System.Security.Cryptography.SHA256.Create())
+                return BitConverter.ToString(hash.ComputeHash(System.Text.Encoding.UTF8.GetBytes(
+                    string.Join(";", parts.ToArray()) + "|net=" + net))).Replace("-", "");
         }
 
         /// <summary>
@@ -759,6 +664,8 @@ namespace HomeBridge.BridgeTools
 
         private sealed class Args
         {
+            public string SessionId;
+            public string DealSignature;
             public string Action;
             public string TraderId;
             public string Negotiator;
@@ -781,6 +688,10 @@ namespace HomeBridge.BridgeTools
         {
             try
             {
+                var mutation = (a.Action ?? string.Empty).ToLowerInvariant();
+                if ((mutation == "set" || mutation == "accept" || mutation == "cancel")
+                    && (string.IsNullOrEmpty(a.SessionId) || a.SessionId != _sessionId))
+                    return Failure("Trade session changed; inspect before issuing a fresh request.", "stale_session", a.Action);
                 switch ((a.Action ?? string.Empty).ToLowerInvariant())
                 {
                     case "":
@@ -948,6 +859,10 @@ namespace HomeBridge.BridgeTools
             string mapError;
             if (!TryGetMap(out map, out mapError))
                 return Failure(mapError, "no_map", "open");
+            if (Find.TickManager == null || !Find.TickManager.Paused)
+                return Failure("Pause before opening a trade.", "not_paused", "open");
+            if (!a.RequireAdjacent)
+                return Failure("Map trading requires ordinary negotiator adjacency.", "adjacency_required", "open");
 
             var dialog = OpenTradeDialog();
             if (dialog != null)
@@ -971,6 +886,9 @@ namespace HomeBridge.BridgeTools
             if (!ResolveTrader(map, a.TraderId, out trader, out traderPawn, out traderError))
                 return Failure(traderError, "trader_not_found", "open");
 
+            if (traderPawn == null)
+                return Failure("Orbital trading requires the ordinary powered comms-console job and player dialog; direct open is unavailable.", "orbital_input_required", "open");
+
             if (!SafeBool(() => trader.CanTradeNow))
             {
                 // Calling SetupWith anyway would fire Log.Warning, which can pop
@@ -988,6 +906,9 @@ namespace HomeBridge.BridgeTools
             string negotiatorError;
             if (!ResolveNegotiator(map, a.Negotiator, out chosen, out negotiatorError))
                 return Failure(negotiatorError, "no_negotiator", "open");
+            if (traderPawn.mindState.traderDismissed || !chosen.CanTradeWith(trader.Faction, trader.TraderKind).Accepted
+                || !chosen.CanReach(traderPawn, Verse.AI.PathEndMode.OnCell, Danger.Deadly))
+                return Failure("Native player trade eligibility or reachability refused this negotiator.", "cannot_trade_now", "open");
 
             int? distance = null;
             if (traderPawn != null)
@@ -1026,6 +947,13 @@ namespace HomeBridge.BridgeTools
             _sessionNegotiatorName = SafeName(chosen);
             _sessionOpenedTick = CurrentTick();
             _sessionOpenedByUs = true;
+            _sessionId = Guid.NewGuid().ToString("N");
+            _sessionMap = map;
+            _sessionIdentity = Current.Game.GetComponent<ColonyIdentity>();
+            _sessionDeal = TradeSession.deal;
+            _sessionTrader = trader;
+            _sessionNegotiator = chosen;
+            _requireAdjacent = a.RequireAdjacent;
 
             var payload = (Dictionary<string, object>)Sheet(a);
             payload["action"] = "open";
@@ -1338,8 +1266,10 @@ namespace HomeBridge.BridgeTools
             AddSessionBlock(payload);
             payload["balance"] = Balance();
             payload["staged"] = StagedLines();
+            payload["dealSignature"] = StageSignature();
             var b = Balance();
-            payload["wouldSucceed"] = TradeSession.giftMode || Convert.ToBoolean(b["colonyCanAfford"], CultureInfo.InvariantCulture);
+            payload["wouldSucceed"] = TradeSession.giftMode || (Convert.ToBoolean(b["colonyCanAfford"], CultureInfo.InvariantCulture)
+                && Convert.ToBoolean(b["traderHasEnoughSilver"], CultureInfo.InvariantCulture));
             return payload;
         }
 
@@ -1364,6 +1294,18 @@ namespace HomeBridge.BridgeTools
             SafeUpdateCurrency(deal);
 
             var staged = StagedLines();
+            if (string.IsNullOrEmpty(a.DealSignature) || a.DealSignature != StageSignature())
+                return Failure("Trade contents or prices changed since preview.", "stale_deal", "accept");
+            var colonyGoods = new HashSet<Thing>(_sessionTrader.ColonyThingsWillingToBuy(_sessionNegotiator));
+            var traderGoods = new HashSet<Thing>(((Pawn)_sessionTrader).trader.Goods);
+            foreach (var row in deal.AllTradeables.Where(t => t.CountToTransfer != 0))
+            {
+                var source = row.ActionToDo == TradeAction.PlayerBuys ? row.thingsTrader : row.thingsColony;
+                var available = row.ActionToDo == TradeAction.PlayerBuys ? traderGoods : colonyGoods;
+                if (source.Any(t => t.Destroyed || (t.stackCount > 0 && !available.Contains(t)))
+                    || !row.CanAdjustTo(row.CountToTransfer).Accepted)
+                    return Failure("Trade stock changed or is no longer eligible.", "stale_stock", "accept");
+            }
             if (staged.Count == 0 && !a.AllowEmpty)
                 return Failure(
                     "Nothing is staged, so this trade would move nothing. Set some counts first, or pass allowEmpty:true.",
@@ -1378,13 +1320,14 @@ namespace HomeBridge.BridgeTools
             {
                 var currency = SafeCurrencyTradeable(deal);
                 var affordable = currency != null && SafeInt(() => currency.CountPostDealFor(Transactor.Colony)) >= 0;
-                if (!affordable)
+                var traderAffordable = deal.DoesTraderHaveEnoughSilver();
+                if (!affordable || !traderAffordable)
                 {
                     var f = Failure(
                         currency == null
                             ? "This deal has no silver row, so TradeDeal.TryExecute would treat it as unaffordable."
-                            : "The colony cannot afford this deal.",
-                        "cannot_afford", "accept");
+                            : !affordable ? "The colony cannot afford this deal." : "The trader cannot afford this deal.",
+                        !affordable ? "cannot_afford" : "trader_cannot_afford", "accept");
                     f["balance"] = balanceBefore;
                     f["staged"] = staged;
                     f["note"] =
@@ -1465,6 +1408,9 @@ namespace HomeBridge.BridgeTools
 
         private static object Cancel(Args a)
         {
+            string why;
+            if (!RequireSession(out why))
+                return Failure(why, "stale_session", "cancel");
             var wasActive = TradeSession.Active;
             var trader = wasActive ? _sessionTraderName : null;
             var staged = wasActive ? StagedLines() : new List<object>();
@@ -1790,12 +1736,33 @@ namespace HomeBridge.BridgeTools
                 error = "TradeSession is active but its deal is null; the session is unusable. Run action:'cancel'.";
                 return false;
             }
+            if (!_sessionOpenedByUs || _sessionIdentity == null
+                || !ReferenceEquals(Current.Game?.GetComponent<ColonyIdentity>(), _sessionIdentity)
+                || !ReferenceEquals(Find.CurrentMap, _sessionMap)
+                || !ReferenceEquals(TradeSession.deal, _sessionDeal)
+                || !ReferenceEquals(TradeSession.trader, _sessionTrader)
+                || !ReferenceEquals(TradeSession.playerNegotiator, _sessionNegotiator))
+            {
+                error = "Trade session, colony, map or load changed; do not reuse staged orders.";
+                return false;
+            }
+            var pawn = _sessionTrader as Pawn;
+            if (pawn == null || !pawn.Spawned || pawn.Map != _sessionMap || !SafeBool(() => _sessionTrader.CanTradeNow)
+                || Find.TickManager == null || !Find.TickManager.Paused || pawn.mindState.traderDismissed
+                || !_sessionNegotiator.CanTradeWith(pawn.Faction, pawn.TraderKind).Accepted
+                || !NegotiatorCandidates(_sessionMap).Contains(_sessionNegotiator)
+                || (_requireAdjacent && Chebyshev(pawn.Position, _sessionNegotiator.Position) > 1))
+            {
+                error = "Trader or negotiator departed, became unavailable or moved out of adjacency.";
+                return false;
+            }
             return true;
         }
 
         private static void AddSessionBlock(Dictionary<string, object> payload)
         {
             payload["sessionActive"] = TradeSession.Active;
+            payload["sessionId"] = _sessionId;
             payload["traderId"] = _sessionTraderId;
             payload["traderName"] = TradeSession.Active ? SafeString(() => TradeSession.trader.TraderName) : null;
             payload["traderKind"] = TradeSession.Active
@@ -1832,6 +1799,12 @@ namespace HomeBridge.BridgeTools
             _sessionNegotiatorName = null;
             _sessionOpenedTick = 0;
             _sessionOpenedByUs = false;
+            _sessionId = null;
+            _sessionMap = null;
+            _sessionIdentity = null;
+            _sessionDeal = null;
+            _sessionTrader = null;
+            _sessionNegotiator = null;
             return quest;
         }
 

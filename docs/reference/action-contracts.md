@@ -17,6 +17,25 @@ what each action must observe.
 | `trade` | Guarded open/stage/preview/accept with participant, content and silver-budget checks; hauling/storage remain separate. |
 | `clock`, `stand_down` | Native clock control or verified release of selected current-load AI-owned drafts; neither certifies combat victory. |
 
+## Trades
+
+Map trades require a paused game and a reachable, eligible negotiator adjacent to
+the trader. Native sessions bind the exact deal, participants, map and colony load.
+Set/cancel/accept requests carry the session ID; acceptance also carries the preview
+signature covering exact rows, counts, stock identities and prices. Native acceptance
+rechecks stock eligibility, both silver balances and trader availability after any
+viewing delay. A lost receipt retains the shared Hands uncertain-write marker across
+restore and cannot replay. Bought map goods appear at the carrying trader/pack
+animal's native delivery location. The caravan lord prevents its own pawns from
+retrieving them; this does not forbid the colony from using them. Exchange
+completion does not certify storage.
+
+Direct orbital opening is refused. Ordinary orbital input requires the comms
+console's native menu, a powered reachable interaction cell and capable negotiator,
+then `UseCommsConsole` and the native trade dialog. Beacon stock eligibility and
+drop-pod delivery belong to that native path; adjacent map-trade checks cannot
+authorize it.
+
 ## Dependencies and retained cancellation
 
 Dependencies distinguish orders issued from work complete. Stable step identities retain

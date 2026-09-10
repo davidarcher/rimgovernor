@@ -2,8 +2,8 @@
 
 The upstream C# source files in `src` were copied from
 https://github.com/Snowstar38/rimworld-claude-harness/tree/89c2e90fedd51419a3db55a7f9865b0aef29b270/companion/src
-for the user's explicitly requested local research integration. Original namespace,
-comments and authorship context are retained. No license file was present in that
+for the user's explicitly requested local research integration. Original namespace
+and upstream authorship are retained. No license file was present in that
 checkout; this document does not grant or imply redistribution rights.
 
 The original slice compiled observations only. The sections below record the
@@ -31,6 +31,16 @@ Local changes:
   and exposes ordinary growing-zone sow/cut settings with explicit dry runs.
   `ZonesTool` preserves unavailable sow/cut reads as null. `ListBuildingsTool`
   exposes invariant native Rot4 integers alongside localized facing labels.
+- `TradeTool.cs` binds transactions to the exact native session, participants,
+  map and load; requires ordinary paused adjacency; and checks preview signatures,
+  current stock eligibility and both parties' funds before acceptance. Direct
+  orbital opening is refused in favor of the normal comms-console input path.
+  Its introductory commentary is condensed; the upstream source and authorship
+  remain attributed to the pinned research companion above.
+- `scripts/fixtures/TradeFixture.cs` is original local test-only code. It requests
+  native caravan/visitor incidents, orders ordinary trade/dismiss jobs, applies
+  the native Home-area clear designator and reads
+  actual stock. It is excluded from production builds and model execution.
 - `VideoStreamTool.cs` is original local presentation code. It captures the Unity
   framebuffer after rendering into a leased RGB24 shared-memory slot on Windows.
   It does not issue input, alter simulation speed or expose editor operations.
