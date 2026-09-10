@@ -406,7 +406,8 @@ class ColonyController:
                            and recovery.get('state') == 'blocked' else failed.detail)
                 continue
             timeout = 3000 if identity=='ActiveCombat' else 600000 if identity.startswith('Population-') else self.policy.blocked_after_ticks
-            if ((goal.steps or identity.startswith('Population-')) and facts['tick'] - goal.last_progress_tick >= timeout
+            if ((goal.steps or identity.startswith('Population-') or goal.evidence.get('waiting_for_native_cleaning')
+                    or goal.evidence.get('waiting_for_native_fire')) and facts['tick'] - goal.last_progress_tick >= timeout
                     and (identity != 'MaintainMedicalCare' or any(p.state != 'complete' for p in existing))):
                 reason = f'No measurable progress within {timeout} game ticks; inspect labor/materials/postconditions'
                 goal.evidence['watchdog'] = dict(tick=facts['tick'], reason=reason,
@@ -425,7 +426,8 @@ class ColonyController:
                     return
                 if compiled is None:
                     release_admission(plan, identity, development_admitted, 'Existing method awaiting native progress')
-                    if identity.startswith('Population-') and goal.status != 'complete':
+                    if ((identity.startswith('Population-') and goal.status != 'complete')
+                            or goal.evidence.get('waiting_for_native_cleaning') or goal.evidence.get('waiting_for_native_fire')):
                         plan.control['simulation_needed'] = True
                     existing_process = (identity=='CriticalMedical' and any(p.get('job')=='TendPatient' or
                         ((p.get('health') or {}).get('shouldSeekMedicalRest') is True and

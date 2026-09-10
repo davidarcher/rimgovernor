@@ -243,3 +243,23 @@ async def test_small_fire_waits_for_normal_native_workers_without_forced_order()
     assert await upkeep_method(rt, 'MaintainFireSafety', f, people) is None
     assert rt.current_plan.colony_goals['MaintainFireSafety'].evidence['waiting_for_native_fire']
     rt.inspect_native.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_controller_supervises_ordinary_fire_work_and_holds_when_it_stalls():
+    from test_colony_controller import Replay
+    rt = Replay()
+    rt.people[0]['health'].update(needsTend=False, bleeding=False)
+    rt.people[0]['work']['types'].append(dict(name='Firefighter', disabled=False, priority=1, priorityStored=1))
+    rt.facts['upkeep'] = facts()['upkeep'] | {'tick': rt.facts['tick'], 'fires': [dict(
+        id='Thing_Fire1', home=True, size=.2, safeWorkers=['Thing_Human0'])]}
+    await rt.controller.cycle()
+    goal = rt.current_plan.colony_goals['MaintainFireSafety']
+    assert goal.status == 'active' and not goal.steps
+    assert goal.evidence['waiting_for_native_fire'] and rt.current_plan.control['simulation_needed']
+    rt.facts['tick'] += rt.controller.policy.blocked_after_ticks + 1
+    rt.facts['upkeep']['tick'] = rt.facts['tick']
+    rt.facts['upkeep']['fires'][0]['size'] = .3
+    await rt.controller.cycle()
+    assert goal.status == 'blocked' and goal.evidence.get('watchdog')
+    assert rt.current_plan.control.get('execution_hold')
