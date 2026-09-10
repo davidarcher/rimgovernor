@@ -13,6 +13,7 @@ def fixture():
     for pawn in rt.people:
         pawn['bio'].update(incapableOfRead=True,incapableOfTags=[])
         pawn['health']={'summaryPct':1,'needsTend':False}
+        pawn['equipment']={'armed':True,'primary':{'ranged':True,'melee':False}}
     enemy=dict(thingId='Thing_Human99',hostile=True,humanlike=True,mechanoid=False,animal=False,
         nearestColonistDistance=20,equipment={'armed':True,'primary':{'melee':True,'ranged':False}})
     rt.game.query=AsyncMock(return_value={'pawns':[enemy]})
@@ -57,6 +58,54 @@ async def test_unavailable_native_preview_cannot_be_treated_as_an_obstruction():
     rt.inspect_native.side_effect=BridgeError('home/order',CallToolResult(content=[],isError=True,
         structuredContent={'message':'Bridge unavailable'}))
     with pytest.raises(BridgeError):await rt.controller.skills.compile('ActiveCombat',rt.facts,rt.people)
+
+
+@pytest.mark.asyncio
+async def test_muster_then_partial_engagement_preserves_all_cleanup_participants():
+    rt,enemy=fixture();enemy['nearestColonistDistance']=90
+    rt.batch.summary.hostile_count=1
+    async def query(name,**args):
+        if name=='home/colony_facts':return rt.facts
+        return {'pawns':rt.people if args.get('colonistsOnly') else [enemy]}
+    rt.game.query=query
+    await rt.controller.cycle()
+    muster=[s.id for s in rt.current_plan.spec.steps]
+    assert len(muster)==3
+    rt.facts['tick']+=600
+    for step in muster:rt.current_plan.progress[step].state='complete'
+    for pawn in rt.people:
+        pawn['drafted']=True;rt.draft_owners[pawn['thingId']]=rt.context_token
+    enemy['nearestColonistDistance']=20
+    rt.inspect_native.side_effect=[{'success':True},BridgeError('home/order',CallToolResult(
+        content=[],isError=True,structuredContent={'message':'Verb.CanHitTarget is false'})),{'success':True}]
+    await rt.controller.cycle()
+    combat=rt.current_plan.control['combat']
+    assert set(combat['pawns'])=={p['thingId'] for p in rt.people}
+    assert len(combat['steps'])==2
+    assert len(rt.current_plan.spec.steps)==5
+    assert all(rt.current_plan.progress[s].state=='complete' for s in muster)
+
+
+@pytest.mark.asyncio
+async def test_unarmed_defender_equips_observed_nearby_weapon_before_muster():
+    rt,enemy=fixture();enemy['nearestColonistDistance']=90
+    pawn=rt.people[0];pawn['equipment']={'armed':False,'primary':None};pawn['position']={'x':20,'z':20}
+    async def query(name,**args):
+        if name=='home/list_pawns':return {'pawns':[enemy]}
+        assert args['includeHeld'] is False and args['ownership']=='ours' and args['radius']==12
+        return {'things':[{'weapon':{'ranged':True},'positions':[{'thingId':'Thing_Gun1','spawned':True}]}]}
+    rt.game.query=query
+    method,actions=await rt.controller.skills.compile('ActiveCombat',rt.facts,rt.people)
+    assert method.startswith('equip-') and len(actions)==1
+    assert actions[0]['completion']=='pawn_equipped'
+    assert actions[0]['arguments']['target']=='Thing_Gun1'
+
+
+@pytest.mark.asyncio
+async def test_unarmed_defender_cannot_be_sent_into_nearby_melee_raider():
+    rt,_=fixture();rt.people[0]['equipment']={'armed':False,'primary':None}
+    with pytest.raises(SkillBlocked,match='equipped defenders'):
+        await rt.controller.skills.compile('ActiveCombat',rt.facts,rt.people)
 
 
 @pytest.mark.asyncio

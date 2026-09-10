@@ -304,6 +304,31 @@ async def test_autonomous_attack_rechecks_threat_before_dispatch(tmp_path):
     assert rt.current_plan.progress['repel'].failure.code=='threat_changed'
     rt.native.assert_not_awaited(); rt.store.close()
 
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('present',[True,False])
+async def test_combat_equipment_guards_enemy_identity_separately_from_weapon(tmp_path,present):
+    rt=runtime(tmp_path);await rt.sync_identity();rt.mode='automate';rt.batch=batch()
+    spec=PlanSpec(steps=[dict(id='arm',title='Prepare defender',source='AUTOPILOT',goal_id='ActiveCombat',
+        completion_criteria='Weapon equipped',action=dict(kind='native_operation',tool='home/order',
+        completion='pawn_equipped',arguments=dict(action='equip',pawn='Thing_Human1',target='Thing_Gun1',watch=False)))])
+    rt.current_plan.commit(decision(spec),actor=ModelRole.STRATEGIST,tick=100)
+    rt.current_plan.control['combat']={'target':'Raider1'}
+    rt.game.query=AsyncMock(return_value={'threats':{'hostiles':[{'thingId':'Raider1','downed':False}] if present else []},
+        'pawns':[{'thingId':'Thing_Human1','dead':False,'downed':False,'health':{'summaryPct':1}}]})
+    rt.game.describe=AsyncMock(return_value={'properties':{'dryRun':{}}})
+    rt.inspect_native=AsyncMock(return_value={'success':True})
+    rt.native=AsyncMock(return_value={'receipt':{'success':True}})
+    await rt.hands.advance(rt)
+    if present:
+        rt.native.assert_awaited_once()
+        assert rt.native.await_args.args[1]['target']=='Thing_Gun1'
+        assert rt.current_plan.progress['arm'].state=='waiting'
+    else:
+        rt.native.assert_not_awaited()
+        assert rt.current_plan.progress['arm'].failure.code=='threat_changed'
+    rt.store.close()
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize('adviser,arguments', [
     ('visual_review', {'question':'Check the door'}),

@@ -166,7 +166,32 @@ class ColonySkills:
             if tribal:
                 defenders=[p for p in defenders if isinstance((p.get('health') or {}).get('summaryPct'),(int,float))
                     and p['health']['summaryPct']>=.85 and p['health'].get('needsTend') is False]
+                defenders.sort(key=lambda p:((p.get('equipment') or {}).get('armed') is not True,
+                    -next((v.get('level',0) or 0 for v in p['bio'].get('skills',[])
+                        if v['name']==('Shooting' if ((p.get('equipment') or {}).get('primary') or {}).get('ranged') else 'Melee')),0),p['thingId']))
             if len(defenders)<count: raise SkillBlocked(f'Bounded defense requires {count} available capable healthy colonists')
+            if tribal:
+                unarmed=next((p for p in defenders[:count] if (p.get('equipment') or {}).get('armed') is not True),None)
+                if unarmed:
+                    if not distant or (unarmed.get('equipment') or {}).get('armed') is not False:
+                        raise SkillBlocked('Melee-raider defense requires three observed equipped defenders')
+                    pos=unarmed.get('position') or {}
+                    if type(pos.get('x')) is not int or type(pos.get('z')) is not int:
+                        raise SkillBlocked('Unarmed defender position is unavailable')
+                    stock=await rt.game.query('home/list_things',category='weapons',ownership='ours',includeHeld=False,
+                        x=pos['x'],z=pos['z'],radius=12,maxPositionsPerDef=8)
+                    candidates=[(row,item) for row in stock.get('things',[]) if row.get('weapon')
+                        for item in row.get('positions',[]) if item.get('spawned') is True and item.get('thingId')]
+                    candidates.sort(key=lambda pair:(pair[0]['weapon'].get('ranged') is not True,pair[1]['thingId']))
+                    for row,item in candidates[:8]:
+                        arm='equip-'+unarmed['thingId']+'-'+item['thingId']
+                        if not unused(arm):continue
+                        action=native('home/order',action='equip',pawn=unarmed['thingId'],target=item['thingId'],watch=False)
+                        try:preview=await rt.inspect_native('home/order',dict(action['arguments'],dryRun=True))
+                        except BridgeError:continue
+                        if preview.get('success') is True:
+                            return arm,[dict(action,completion='pawn_equipped')]
+                    raise SkillBlocked('No nearby native-approved weapon for the unarmed defender; danger hold retained')
             if distant:
                 return method, [native('home/order',action='draft',pawn=p['thingId'],watch=False) for p in defenders[:count]]
             actions=[native('home/order',action='attack',mode='auto' if tribal else 'melee',pawn=p['thingId'],target=target,watch=False,
@@ -185,7 +210,9 @@ class ColonySkills:
                         # An obstructed shooter keeps ordinary drafted defensive
                         # fire. Do not delay other defenders' legal attacks.
                         previews.append({'pawn':action['arguments']['pawn'],'refusal':str(error)})
-                        actions[index]=native('home/order',action='draft',pawn=action['arguments']['pawn'],watch=False)
+                        pawn=action['arguments']['pawn']
+                        actions[index]=(None if pawn in managed else
+                            native('home/order',action='draft',pawn=pawn,watch=False))
                         continue
                     previews.append(preview)
                     if preview.get('success') is not True:
@@ -194,7 +221,7 @@ class ColonySkills:
                     attacks+=1
                 goal.evidence['firing_solutions']=previews
                 if not attacks:return None
-            return method,actions
+            return method,[action for action in actions if action is not None]
         if goal_id == 'CriticalMedical':
             if facts.get('medicalKnown') is not True:
                 raise SkillBlocked('Native medical state is unavailable; treatment and stability cannot be verified')

@@ -158,7 +158,11 @@ so a batch can exceed its remaining target by one plant's yield.
 
 A bounded combat method prepares two capable colonists for one small manhunting animal
 or confirmed small predator hunting colony members. One observed melee-only humanlike
-raider requires three capable colonists with health at least 85% and no tending need.
+raider requires three capable equipped colonists with health at least 85% and no tending need.
+While the enemy is distant, an unarmed defender can fetch a native-approved ground
+weapon within 12 cells. The shared action waits for the exact equipped identity;
+held weapons and existing equipment are preserved. Missing equipment near the
+threat retains a hold. Selection prefers equipped defenders and weapon-relevant skills.
 Unknown weapons, ranged raiders and multiple enemies retain a hold. Native auto mode
 uses equipped weapons and individual firing previews. An obstructed shooter stays
 drafted while other defenders engage; unavailable previews retain the hold.

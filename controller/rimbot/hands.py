@@ -108,7 +108,8 @@ class Hands:
                                 current={p['thingId'] for p in status.get('hostiles',[]) if p.get('downed') is False}
                                 current.update(p['thingId'] for p in status.get('huntingPredators',[])
                                     if p.get('preyIsOurs') is True and p.get('predatorIsOurs') is False)
-                                target=args.get('target') or rt.current_plan.control.get('combat',{}).get('target')
+                                target=(args.get('target') if args.get('action')=='attack' else
+                                    rt.current_plan.control.get('combat',{}).get('target'))
                                 if target not in current:
                                     raise Blocked('threat_changed','The accepted threat is no longer confirmed; no combat order sent')
                             schema = await rt.game.describe(action.tool)

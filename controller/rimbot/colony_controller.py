@@ -267,8 +267,10 @@ class ColonyController:
                 await rt.commit_strategy(decision, actor=ModelRole.STRATEGIST,
                     expected_token=token, expected_revision=direction)
                 if identity=='ActiveCombat':
+                    participants=set(plan.control.get('combat',{}).get('pawns',[]))
+                    participants.update(a['arguments']['pawn'] for a in actions)
                     plan.control['combat']={'target':goal.evidence['combat_target'],
-                        'pawns':[a['arguments']['pawn'] for a in actions], 'steps':[s.id for s in steps]}
+                        'pawns':sorted(participants), 'steps':[s.id for s in steps]}
                 goal.method = method
                 goal.steps.extend(s.id for s in steps)
                 goal.evidence.setdefault('methods', {})[method] = [s.id for s in steps]
