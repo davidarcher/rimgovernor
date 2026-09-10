@@ -2,7 +2,7 @@
 from typing import Literal
 import math
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Query
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
 from jsonschema import Draft202012Validator
 from .bridge import runtime_file_read
@@ -152,6 +152,23 @@ async def camera_call(rt, tool, arguments):
             or payload.get('success') is not True or payload.get('unknownArguments')):
         raise ValueError('Native player request was not confirmed; inspect the view before retrying')
     return payload
+
+
+@router.get('/camera/state')
+async def camera_state(request: Request, session_id: str = Query(min_length=1, max_length=300)):
+    rt = request.app.state.rt
+    async with rt.lock:
+        await check_session(rt, session_id)
+        if rt.headless:
+            raise ValueError('Camera state needs a rendered game')
+        read = 'rimworld/get_camera_state'
+        await camera_contract(rt, read, {})
+        await check_session(rt, session_id)
+        state = await camera_call(rt, read, {})
+        await check_session(rt, session_id)
+        if not state.get('mapId'):
+            raise ValueError('Native camera has no current map')
+        return {'camera': state, 'following': rt.game.cinematic}
 
 
 @router.post('/camera/navigate')

@@ -121,3 +121,12 @@ async def test_clear_selection_needs_observed_empty_selection():
             SimpleNamespace(structuredContent={'success':True,'selectedCount':1,'selectedObjects':[{'id':'still-selected'}]})]))
     assert (await request(rt,'input/select',lease_id=rt.player_input.token)).status_code==400
     assert rt.bridge.call.await_count==2
+
+
+@pytest.mark.parametrize('viewer, token', [('a', 'released'), ('a', ''), ('', 'released')])
+def test_released_credentials_cannot_fall_back_to_unowned_controls(viewer, token):
+    from rimbot.player_input import check_player_control
+    rt = SimpleNamespace(player_input=None)
+    with pytest.raises(ValueError, match='expired'):
+        check_player_control(rt, 'load-a', viewer, token)
+    check_player_control(rt, 'load-a', '', '')

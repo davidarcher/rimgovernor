@@ -29,5 +29,5 @@ def require_owner(rt, session, viewer, token):
 
 
 def check_player_control(rt, session, viewer, token):
-    if getattr(rt, 'player_input', None) is not None:
+    if getattr(rt, 'player_input', None) is not None or viewer or token:
         require_owner(rt, session, viewer, token)

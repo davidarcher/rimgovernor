@@ -192,3 +192,40 @@ async def test_camera_request_does_not_accept_arbitrary_native_arguments():
     assert (await navigate(rt, deltaX=200)).status_code == 422
     assert (await navigate(rt, action='click')).status_code == 422
     rt.bridge.call.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('case', ['valid', 'stale', 'headless', 'changed'])
+async def test_camera_state_reads_native_geometry_without_writes(case):
+    rt, state = camera_runtime()
+    if case == 'headless':
+        rt.headless = True
+    if case == 'changed':
+        async def changed(*args, **kwargs):
+            rt.context_token = 'load-b'
+            return SimpleNamespace(structuredContent=state)
+        rt.bridge.call.side_effect = changed
+    app = create_app(rt); app.state.rt = rt
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver') as client:
+        response = await client.get('/api/camera/state', params={'session_id': 'old' if case == 'stale' else 'load-a'})
+    assert response.status_code == (200 if case == 'valid' else 400)
+    if case in ('stale', 'headless'):
+        rt.bridge.call.assert_not_awaited()
+    else:
+        rt.bridge.call.assert_awaited_once_with('rimworld/get_camera_state')
+    if case == 'valid':
+        assert response.json()['camera'] == state
+    assert rt.game.cinematic and rt.mode == 'automate' and rt.chat_revision == 4
+    rt.supervisor.change.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('path, body', [('camera/navigate', {'action': 'right'}), ('time', {'speed': 'Normal'})])
+async def test_delayed_released_control_never_dispatches_native_write(path, body):
+    rt, _ = camera_runtime(); rt.player_input = None
+    app = create_app(rt); app.state.rt = rt
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver', headers={'X-RimBot': '1'}) as client:
+        response = await client.post('/api/'+path, json=dict(body, session_id='load-a', viewer_id='old-owner', lease_id='released'))
+    assert response.status_code == 400
+    assert all(call.args == ('rimworld/get_camera_state',) for call in rt.bridge.call.await_args_list)
+    rt.supervisor.change.assert_not_awaited()
