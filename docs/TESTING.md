@@ -929,7 +929,18 @@ Add `--capacity` to the substitution probe to observe an existing bill covering 
 resource target, explicitly reduce that fixture bill's target, and require a new
 shared target bill plus actual additional output. The original bill settings must
 remain unchanged when capacity is added.
+Add `--lease` with `--capacity` to require an unissued native construction budget
+to stop production during supervised ticks, then actual production and exact
+ingredient consumption under ordinary Manual play after the lease ends. The
+fixture settles pending controller reviews before starting the Manual clock and
+records native time, pawn, bill and stock evidence so a pause cannot be mistaken
+for a production-policy refusal.
 Fuel acceptance uses ordinary food acquisition/cooking and two ordinary research
 benches so prerequisite research shares the colony's real labor and food budget.
 Research progress checkpoints and an optional unchanged native autosave input
 preserve real work across disposable test runs; neither supplies research points.
+Use `--checkpoint <paired-manifest>` to preserve both native research and controller
+ownership. Completed explicit fixture setup orders are archived through normal
+plan revisions; their verified receipts remain in the paired controller database.
+Force-paused research dialogs are captured with UI targets and a new paired
+checkpoint before cleanup, preserving the native prerequisite outcome for review.
