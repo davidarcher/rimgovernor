@@ -482,6 +482,14 @@ each bounded method.
   currently fails with a locked `bridge.sqlite` on Windows, including on unchanged
   main. Verify deletion preserves the other pairs and native saves.
 
+- [ ] **Reusable-game coverage.** Run `game_reuse_acceptance.py` in a native Linux
+  worker and repeat the real-model execution suite with `--reuse-game`. Headless
+  Windows acceptance covers three baseline resets, restored supplies, released
+  draft ownership, fresh controller state and revoked old clients; Linux fixtures
+  do not establish native reuse or model interpretation. Other probes/campaigns
+  retain their existing lifecycle; adopt reuse only with explicit reset contracts
+  and keep fresh-process/static-state acceptance separate.
+
 ## Completion rule
 
 For each item record the observed failure, focused fix, source revision, checks,

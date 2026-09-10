@@ -32,6 +32,7 @@ introduces the idea before linking to the exact contracts and relevant source.
 - [Set up a Windows checkout](how-to/setup.md) and [launch a prepared colony](how-to/launch.md).
 - [Choose checks](how-to/choose-tests.md), [run local checks](how-to/local-checks.md),
   or [run focused/full Docker controller checks](how-to/docker-checks.md).
+- [Reuse a headless game between execution cases](how-to/headless-probes.md#reuse-one-game-between-execution-cases).
 - [Prepare/cache Linux inputs](how-to/docker-inputs.md) and [run native Docker acceptance](how-to/docker-native.md).
 - [Verify spatial construction, access and reuse](how-to/spatial-acceptance.md).
 - [Verify environmental observations and cooking fallback](how-to/docker-native.md#verify-environmental-observation-and-cooking-fallback).

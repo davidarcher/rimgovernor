@@ -32,6 +32,14 @@ boundary preventing those observations.
 
 ## Interpretation and execution are separate questions
 
+Repeated native cases can reuse one owned game while restoring their baseline and
+creating fresh controller state. This saves engine/mod initialization but keeps
+process-wide mod state and Unity caches. The opt-in execution-suite mode verifies
+native load identity, pause, ownership cleanup and revoked prior clients before
+continuing; a failed boundary retires the worker. Fresh-process checks remain necessary
+for startup, crash recovery and static-state isolation. See
+[reusable execution cases](../how-to/headless-probes.md#reuse-one-game-between-execution-cases).
+
 A scripted semantic request can establish that admission and Hands perform the right
 native action. It does not establish that a model reliably interprets many ways a player
 might phrase that request. Conversely, a fixed-fact model benchmark can score the

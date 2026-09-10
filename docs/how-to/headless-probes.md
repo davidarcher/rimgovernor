@@ -96,6 +96,54 @@ retain failures as well as successful runs.
 
 ## Real-model execution
 
+### Reuse one game between execution cases
+
+Add `--reuse-game` to `scripts/execution_acceptance_smoke.py --case all` to run the
+supply, work and bill cases sequentially in one private headless game. Use
+`--source-root <prepared-root>` for Windows or a staged Linux worker. For example:
+
+```powershell
+$env:PYTHONPATH='controller'
+.venv\Scripts\python.exe scripts/execution_acceptance_smoke.py --case all --reuse-game --source-root .rimbot/bridge --output .rimbot/execution-reuse-01
+```
+
+Each case reloads the unchanged baseline paused at its saved tick (at most one native
+tick of advancement), requires a new load token, and creates a fresh runtime and SQLite
+database. Before reuse, the helper verifies pause, stopped clock supervision and released
+draft ownership, then revokes the previous case's client. Failures, unfinished native
+requests, unexpected load changes and changed fingerprinted inputs retire the worker;
+remaining cases are reported as not run. Only the worker's GABS-owned process is stopped.
+No model provider or interpretation behavior changes; these cases still require the
+configured local LM Studio model.
+
+Omit `--reuse-game` for a new process per case. Reuse does not reset mod static state,
+Unity caches or process-wide mod settings and is not fresh-process acceptance. Keep all
+game/mod inputs fixed, and restart after changing binaries, mod content, load order or
+preferences. The helper checks the baseline, launch configuration, mod selection,
+executable, GABS and mod file hashes before each case; it does not fingerprint every
+base-game asset. Do not use this mode for startup, crash recovery, paired-restart,
+rendering or static-state isolation tests. Other native probes and campaigns retain
+their existing process lifecycle.
+
+`worker/reuse.json` records startup, per-case ready timings, native load identities,
+baseline tick, fingerprints, cleanup and shutdown evidence. Each case has its own
+database under the worker and a `<case>.json` report at the output root. Fresh-process
+mode instead uses `worker-<case>/reuse.json`. Neither mode retries failed writes.
+
+For model-free acceptance of the reuse boundary itself, run:
+
+```powershell
+.venv\Scripts\python.exe scripts/game_reuse_acceptance.py --source-root .rimbot/bridge --output .rimbot/reuse-native-01
+```
+
+This runs three baseline loads in one process. Each case verifies a scoped native Allow
+change and owned drafting; the next case must see the original forbidden supplies, a
+new load identity, no prior controller marker/chat/queued request and a revoked old
+client. Cleanup separately verifies the pawn is undrafted. This verifies reuse and
+ordinary native mutations, not pawn labor or model interpretation. In Docker, run the
+same script as a `rimbot.container_worker` command with `--source-root /worker/run` and
+an unused output under `/worker`; the cached input staging workflow is unchanged.
+
 For targeted real-model execution, run `.venv\Scripts\python.exe
 scripts\execution_acceptance_smoke.py`, optionally with `--case supplies`, `--case work`
 or `--case bill`, plus `--model` and a fresh `--output` directory. Each case uses an
