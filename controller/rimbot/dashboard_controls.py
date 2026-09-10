@@ -157,6 +157,8 @@ async def frame_input(body: FrameInput, request: Request):
                 result = await camera_call(rt, 'home/player_input',
                     dict(arguments, action='event', owner=lease.token))
         except Exception as error:
+            import logging
+            logging.getLogger(__name__).warning('Native player input refused: %s', error)
             from .player_input import release_native
             try:
                 await release_native(rt)

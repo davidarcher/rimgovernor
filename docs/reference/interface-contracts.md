@@ -90,21 +90,42 @@ screenshot cannot truncate an in-flight HTTP response. A failed refresh retains 
 good frame and reports the delay. Visible game windows render independently of browser
 viewer leases; headless sessions cannot supply video.
 
-## WebRTC transport
+## Frame-bound transport
 
-Watch negotiates receive-only WebRTC through the protected `/api/video/offer` endpoint
-when the `video` Python extra and native `home/video_stream` are present. There are no
-input data channels or external STUN/TURN services. Up to four peers share one native
-RGB24 buffer. Windows uses a named mapping and nonblocking mutex;
+Watch uses same-origin `/api/video/frames` WebSocket delivery when the `video` Python
+extra and native `home/video_stream` are present. The connection requires the
+`rimbot-view-v1` subprotocol and current session identity. Up to four viewers share one
+native framebuffer. NVIDIA NVENC supplies independent H.264 frames to WebCodecs-capable
+browsers; unavailable hardware or decoding falls back to JPEG. Each packet carries its
+native source, frame sequence, dimensions, capture time and session. One unacknowledged
+frame per viewer bounds backpressure. Browser paint acknowledgement supplies display
+latency metrics. Windows uses a named mapping and nonblocking mutex;
 Linux uses a private `/dev/shm/RimBotVideo-<id>` mapping and nonblocking file locks.
 Readers accept only that buffer namespace and exact capacity. Native lease cleanup
 unlinks the Linux buffer; existing readers close their mappings independently.
 Unity captures the
-full framebuffer after rendering, at most 30 times per second and up to 3840×2160. This
-uses synchronous ReadPixels and software encoding; the capture ceiling is not a
-delivered-fps guarantee. Each consumer takes the latest frame instead of queuing
+full framebuffer after rendering, at most 60 times per second and up to 3840×2160.
+Private Xvfb workers capture their process-owned presented window; optional
+`RIMBOT_VIDEO_READBACK=async` or `sync` selects GPU readback or ReadPixels for comparison.
+The capture ceiling is not a delivered-fps guarantee. Private display frame pacing
+uses 60 fps without virtual-display vsync while capture is leased, then restores the
+previous settings. Each consumer takes the latest frame instead of queuing
 obsolete frames. Encoding runs off the asyncio thread; native lease renewal and buffer
 sampling run separately from reviews.
+
+## Native gesture admission
+
+`home/player_input` is explicit player infrastructure outside model capabilities.
+Only a private Linux display and its process-owned game window admit direct input.
+GABS establishes ownership; an ordered shared-memory mailbox dispatches events on the
+native main thread without another game-order owner. Frame age, source, map/load,
+camera matrices, window state and UI event revision guard gesture beginnings.
+Matching key releases and context-menu right-button releases tolerate their own view
+changes. Input is serialized, obsolete moves are coalesced, and gesture boundaries
+are retained. Native eight-second expiry independently releases held input. Cleanup
+cancels unfinished designations before releasing buttons; browser blur, hidden tabs,
+disconnect, player direction and load changes also release input. No uncertain event
+is retried.
 
 ## Viewer lifecycle
 
@@ -126,13 +147,12 @@ discard retained video from the previous colony.
 
 ## Metrics and their limits
 
-The video badge reports browser decoded fps; its tooltip gives decoder drops and average
-jitter-buffer delay when available. `/api/video/status` reports sampled and skipped
-published frames, per-viewer frames handed to the encoder, and a bounded 128-sample
-capture-to-encoder age median/p95. These are separate measurements; neither browser
-jitter delay nor encoder-input age establishes capture-to-display latency. Capture timestamps precede framebuffer readback, and status also reports
-the latest native readback duration. Missing browser metrics remain unavailable
-rather than becoming zero.
+The video badge reports browser displayed fps and GPU encoding when active.
+`/api/video/status` reports sampled/skipped frames, native renderer/readback cost,
+per-viewer encoding, and bounded 128-sample capture-to-encoder and capture-to-display
+median/p95. Selection-to-display samples span pointer dispatch through the paint of a
+frame with a changed native selection fingerprint. They establish selection feedback
+latency; they do not establish completion of pawn work. Missing samples stay unavailable.
 
 ## Chat and prepared-profile boundaries
 

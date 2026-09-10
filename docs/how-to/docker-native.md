@@ -81,24 +81,16 @@ xvfb`. The survivor acquires a lease, rejects other viewers and stale credential
 selects a current-map colonist, confirms the selection through a separate native read,
 clears it and releases into Manual. The probe renews its lease like the browser and
 retains per-request evidence in `player-input.json`. These checks do not exercise raw
-image coordinates, drag/modifiers or WebRTC.
+image coordinates, drag/modifiers or continuous video.
 
 ## Verify continuous video and native input schemas
 
-For continuous video, the worker image includes the `video` extra. Run
-`scripts/video_stream_acceptance.py --source-root /worker/run --output
-/worker/video-acceptance --seconds 20 --input-probe` as the command of a fresh
-rendered `rimbot.container_worker`. Stage this task's companion DLLs before launch;
-the output must be new. The probe resolves the configured Linux or Windows GABS,
-retains installed input schemas, receives native frames through aiortc, saves a
-decoded PNG and checks unchanged paused ticks and peer cleanup. Inspect the PNG.
-`--input-probe` checks map click and shift-drag selection against separate native
-readbacks and records right-click results; a click without a menu is not menu
-acceptance. These are direct native contracts, not browser gesture acceptance.
-The report's capture-to-encoder ages include framebuffer readback. Delivered fps
-and these ages do not measure desktop Chrome display latency, Docker ICE routing,
-input-to-display latency or simulation cost. Do not bind-mount an unbuilt controller
-over a built test image: it hides the dashboard assets needed by HTTP tests.
+The worker image includes the `video` extra. Use the production-dashboard harness,
+native fault suite and performance probe in [dashboard acceptance](dashboard-acceptance.md).
+Stage task companion DLLs before launch and use a fresh output directory. The harness
+retains installed schemas and independent native reads. Browser paint metrics, native
+input outcomes and simulation cost are separate evidence. Do not bind-mount an unbuilt
+controller over a built image: that hides the dashboard assets needed by HTTP tests.
 
 ## Verify camera and ownership boundaries
 

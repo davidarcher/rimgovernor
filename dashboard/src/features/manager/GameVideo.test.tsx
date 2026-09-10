@@ -14,6 +14,10 @@ beforeEach(() => {
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: vi.fn() } as any);
   vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ close: vi.fn() })));
   vi.stubGlobal('requestAnimationFrame', (callback: any) => { callback(0); return 1; });
+  vi.stubGlobal('MessageChannel', class {
+    port1 = { onmessage: null as null | (() => void), close() {} };
+    port2 = { postMessage: () => this.port1.onmessage?.(), close() {} };
+  });
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers(); });
 function packet(session = 'a', width = 1280, height = 720) {

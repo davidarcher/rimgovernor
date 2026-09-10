@@ -7,7 +7,7 @@ import httpx
 import pytest
 
 from rimbot.bridge_server import create_app
-from rimbot.video_stream import CAPACITY, Offer, PeerRequest, VideoHub, video_frame
+from rimbot.video_stream import CAPACITY, PeerRequest, VideoHub, video_frame
 
 
 def test_linux_shared_frames_lock_freshness_and_cleanup():
@@ -24,7 +24,7 @@ def test_linux_shared_frames_lock_freshness_and_cleanup():
         with path.open('w+b') as writer:
             writer.truncate(CAPACITY)
             writer.write(struct.pack('<Qiid', 1, 1, 1, time.time()))
-            writer.seek(32)
+            writer.seek(40)
             writer.write(b'abc')
             writer.flush()
             reader = RawFrames(str(path))
@@ -59,7 +59,8 @@ def runtime():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('hardware', [False, True])
-async def test_socket_frame_metadata_acknowledgement_and_owner_disconnect(monkeypatch, hardware):
+@pytest.mark.parametrize('replacement', [False, True])
+async def test_socket_frame_metadata_acknowledgement_and_owner_disconnect(monkeypatch, hardware, replacement):
     import json
     import struct
     from starlette.websockets import WebSocketDisconnect
@@ -90,10 +91,14 @@ async def test_socket_frame_metadata_acknowledgement_and_owner_disconnect(monkey
         async def receive_text(self):
             if len(self.packets) == 2:
                 raise WebSocketDisconnect()
-            hub.latest = (2, 16, 16, hub.latest[3] + .04, hub.latest[4], 4)
+            hub.latest = (2, 16, 16, hub.latest[3] + .01, hub.latest[4], 4)
             return json.dumps({'frame': 1, 'displayed': time.time()})
 
     socket = Socket()
+    if replacement:
+        def replace_owner():
+            rt.player_input = SimpleNamespace(viewer='a', session='session', token='new-lease')
+        socket.close.side_effect = replace_owner
     await socket_frames(socket)
     assert len(socket.packets) == 2
     for index, packet in enumerate(socket.packets):
@@ -104,7 +109,10 @@ async def test_socket_frame_metadata_acknowledgement_and_owner_disconnect(monkey
         assert metadata['encoding'] == 'jpeg'
         assert packet[4 + size:][:2] == b'\xff\xd8'
     assert not hub.peers
-    rt.set_mode.assert_awaited_once_with('manual', player_owner=('session', 'a', 'lease'))
+    if replacement:
+        rt.set_mode.assert_not_awaited()
+    else:
+        rt.set_mode.assert_awaited_once_with('manual', player_owner=('session', 'a', 'lease'))
 
 
 @pytest.mark.asyncio
@@ -122,23 +130,6 @@ async def test_socket_rejects_foreign_origin_missing_protocol_and_stale_load(ori
     socket.accept.assert_not_awaited()
 
 
-@pytest.mark.asyncio
-async def test_signaling_origin_and_session_guards():
-    pytest.importorskip('aiortc')
-    rt = runtime()
-    app = create_app(rt)
-    app.state.rt = rt
-    body = {'viewer': 'a', 'connection_id': 'test-connection', 'session_id': 'stale', 'sdp': 'm=video 9 UDP/TLS/RTP/SAVPF 96\r\na=recvonly\r\n'}
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver') as client:
-        assert (await client.post('/api/video/offer', json=body)).status_code == 403
-        assert (await client.post('/api/video/offer', json=body, headers={'X-RimBot': '1', 'Origin': 'https://other'})).status_code == 403
-        assert (await client.post('/api/video/offer', json=body, headers={'X-RimBot': '1'})).status_code == 400
-        body['session_id'] = 'session'
-        rt.headless = True
-        assert (await client.post('/api/video/offer', json=body, headers={'X-RimBot': '1'})).status_code == 400
-    rt.bridge.call.assert_not_awaited()
-
-
 def test_frame_orientation_and_stride():
     pytest.importorskip('av')
     frame = video_frame((1, 1, 2, 1, bytes([255, 0, 0, 0, 255, 0])))
@@ -146,70 +137,6 @@ def test_frame_orientation_and_stride():
     assert data[:3] == bytes([0, 255, 0])
     assert data[frame.planes[0].line_size:][:3] == bytes([255, 0, 0])
     assert frame.pts == 90000
-
-
-@pytest.mark.asyncio
-async def test_real_webrtc_multiviewer_and_identity_cleanup(monkeypatch):
-    aiortc = pytest.importorskip('aiortc')
-    rt = runtime()
-    rt.bridge.call.return_value = SimpleNamespace(structuredContent={'supported': True, 'capacity': CAPACITY, 'name': 'fake'})
-    sources = []
-
-    class Source:
-        def __init__(self, name):
-            self.sequence = 0
-            self.closed = False
-            sources.append(self)
-
-        def read(self, previous=0):
-            self.sequence += 1
-            return self.sequence, 64, 48, time.time(), bytes([40, 160, 80]) * (64 * 48)
-
-        def close(self):
-            self.closed = True
-
-    monkeypatch.setattr('rimbot.video_stream.RawFrames', Source)
-    hub = VideoHub(rt)
-    client = aiortc.RTCPeerConnection(aiortc.RTCConfiguration(iceServers=[]))
-    second = aiortc.RTCPeerConnection(aiortc.RTCConfiguration(iceServers=[]))
-    received = asyncio.get_running_loop().create_future()
-    received_second = asyncio.get_running_loop().create_future()
-
-    @client.on('track')
-    def track(track):
-        received.set_result(track)
-
-    @second.on('track')
-    def second_track(track):
-        received_second.set_result(track)
-
-    try:
-        client.addTransceiver('video', direction='recvonly')
-        await client.setLocalDescription(await client.createOffer())
-        answer = await hub.offer(Offer(connection_id='test-connection', session_id='session', viewer='a', sdp=client.localDescription.sdp))
-        await client.setRemoteDescription(aiortc.RTCSessionDescription(**answer))
-        track = await asyncio.wait_for(received, 5)
-        frames = [await asyncio.wait_for(track.recv(), 8) for _ in range(3)]
-        assert all((f.width, f.height) == (64, 48) for f in frames)
-        assert frames[2].pts > frames[0].pts
-        second.addTransceiver('video', direction='recvonly')
-        await second.setLocalDescription(await second.createOffer())
-        answer = await hub.offer(Offer(connection_id='second', session_id='session', viewer='b', sdp=second.localDescription.sdp))
-        await second.setRemoteDescription(aiortc.RTCSessionDescription(**answer))
-        other_track = await asyncio.wait_for(received_second, 5)
-        await asyncio.wait_for(other_track.recv(), 8)
-        assert len(hub.peers) == 2 and len(sources) == 1
-        await hub.disconnect(PeerRequest(connection_id='test-connection', session_id='session', viewer='a'))
-        assert list(hub.peers) == ['b']
-        assert (await asyncio.wait_for(other_track.recv(), 5)).width == 64
-        assert hub.status()['viewers'][0]['framesToEncoder'] > 0
-        rt.context_token = 'new-load'
-        await asyncio.wait_for(hub.task, 3)
-        assert not hub.peers and hub.source is None and sources[0].closed
-    finally:
-        await client.close()
-        await second.close()
-        await hub.close()
 
 
 @pytest.mark.asyncio

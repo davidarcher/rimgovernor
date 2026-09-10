@@ -6,7 +6,7 @@ This reference describes process, binary and display isolation. For commands, us
 [native Docker acceptance](../how-to/docker-native.md).
 
 The dashboard polls compact state and keeps drafts/last good data through refreshes.
-The game view uses WebRTC where supported and periodic snapshots as fallback; viewer leases drive native render demand. `integrations/headless-rim` removes presentation paths in isolated test
+The game view uses frame-bound WebSocket video and periodic snapshots as fallback; viewer leases drive native render demand. `integrations/headless-rim` removes presentation paths in isolated test
 profiles. Each campaign worker owns a separate controller, SQLite database, game
 profile, GABS runtime and logs. Windows workers share installed game/mod files
 read-only. `container_worker.py` copies licensed Linux game/mod inputs into a fresh
@@ -21,10 +21,11 @@ default. `scripts/container_checks.py` runs independent Linux controller suites 
 one pinned image ID. `scripts/container_native_acceptance.py` creates two Compose
 projects and verifies native clocks, peer survival, clean shutdown and a retained paired
 checkpoint through the normal controller API. Optional `RIMBOT_DISPLAY=xvfb` workers use
-a container-local Xvfb display and explicitly verified Mesa llvmpipe software OpenGL.
+a container-local Xvfb display and explicitly verified Mesa llvmpipe software OpenGL
+or accelerated D3D12 rendering.
 Rendered staging removes HeadlessRim from the private active mod list, sets its saved
 display preferences and retains dimensions/renderer with input evidence. The GABS
-transport explicitly inherits the display/software-renderer environment needed by its
+transport explicitly inherits the display/renderer environment needed by its
 owned game. The display supervisor keeps X alive during controller shutdown, fails on
 display death and retains logs under `run/display`; it never restarts a failed game.
 Headless remains the default.

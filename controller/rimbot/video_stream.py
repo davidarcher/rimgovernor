@@ -1,4 +1,4 @@
-"""Demand-driven native capture with frame-bound WebSocket and WebRTC delivery."""
+"""Demand-driven native capture with frame-bound WebSocket delivery."""
 import asyncio
 import ctypes
 from collections import deque
@@ -16,7 +16,7 @@ from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, ConfigDict, Field
 
 router = APIRouter(prefix='/api/video')
-CAPACITY = 32 + 3840 * 2160 * 4
+CAPACITY = 40 + 3840 * 2160 * 4
 
 
 class PeerRequest(BaseModel):
@@ -24,10 +24,6 @@ class PeerRequest(BaseModel):
     session_id: str = Field(min_length=1, max_length=300)
     viewer: str = Field(min_length=1, max_length=80)
     connection_id: str = Field(min_length=1, max_length=80)
-
-
-class Offer(PeerRequest):
-    sdp: str = Field(min_length=1, max_length=64000)
 
 
 class SocketRequest(PeerRequest):
@@ -86,8 +82,9 @@ class RawFrames:
                 return None
             duration = struct.unpack('<d', self.buffer[24:32])[0]
             self.readback_ms = duration if math.isfinite(duration) and duration > 0 else None
-            return (sequence, width, height, captured, self.buffer[32:32 + width * height * self.pixel_bytes],
-                    self.pixel_bytes, self.top_down, self.bgra)
+            selection, = struct.unpack_from('<i', self.buffer, 32)
+            return (sequence, width, height, captured, self.buffer[40:40 + width * height * self.pixel_bytes],
+                    self.pixel_bytes, self.top_down, self.bgra, selection)
         finally:
             if self.fd is not None:
                 fcntl.flock(self.fd, fcntl.LOCK_UN)
@@ -156,83 +153,6 @@ class VideoHub:
         self.heartbeat_revisions[viewer] = (revision, now + 60)
         return True
 
-    async def offer(self, body):
-        from aiortc import RTCConfiguration, RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
-        from aiortc.mediastreams import MediaStreamError
-        # No data channel or incoming media: all game input stays on the shared writer.
-        media = [line for line in body.sdp.splitlines() if line.startswith('m=')]
-        if len(media) != 1 or not media[0].startswith('m=video '):
-            raise ValueError('Offer must contain only one receive-only video track')
-        if 'a=recvonly' not in body.sdp or 'a=sendrecv' in body.sdp or 'a=sendonly' in body.sdp:
-            raise ValueError('Dashboard video must be receive-only')
-        async with self.lock:
-            if not self.valid(body.session_id):
-                raise ValueError('Video session changed or rendering is unavailable')
-            if self.source and self.session != body.session_id:
-                self.task.cancel()
-                await self.release()
-            if body.viewer not in self.peers and len(self.peers) >= 4:
-                raise ValueError('Four video viewers are already connected')
-            await self.drop(body.viewer)
-            await self.open_source(body.session_id)
-            pc = RTCPeerConnection(RTCConfiguration(iceServers=[]))
-            hub = self
-
-            class Track(VideoStreamTrack):
-                def __init__(self):
-                    super().__init__()
-                    self.sequence = 0
-                    self.delivered = 0
-                    self.skipped = 0
-                    self.ages = deque(maxlen=128)
-
-                async def recv(self):
-                    deadline = time.monotonic() + 3
-                    while self.readyState == 'live' and hub.valid(body.session_id):
-                        raw = hub.latest
-                        if raw and raw[0] != self.sequence and time.time() - raw[3] < 2:
-                            if self.sequence:
-                                self.skipped += max(0, raw[0] - self.sequence - 1)
-                            self.sequence = raw[0]
-                            frame = await asyncio.to_thread(video_frame, raw)
-                            if self.readyState != 'live' or not hub.valid(body.session_id):
-                                break
-                            self.delivered += 1
-                            self.ages.append(max(0, (time.time() - raw[3]) * 1000))
-                            return frame
-                        if time.monotonic() > deadline:
-                            break
-                        await asyncio.sleep(1 / 60)
-                    if hub.peers.get(body.viewer, (None,))[0] is pc:
-                        asyncio.create_task(hub.drop(body.viewer, pc))
-                    raise MediaStreamError
-
-            track = Track()
-            self.peers[body.viewer] = (pc, track)
-            self.peer_ids[body.viewer] = (body.session_id, body.connection_id)
-            # The lease is independently renewed by the existing dashboard heartbeat.
-            self.rt.video_viewers[body.viewer] = time.monotonic() + 8
-
-            @pc.on('connectionstatechange')
-            async def changed():
-                if pc.connectionState == 'connected' and self.peers.get(body.viewer, (None,))[0] is pc:
-                    self.rt.streaming_viewers.add(body.viewer)
-                if pc.connectionState in ('failed', 'closed'):
-                    if self.peers.get(body.viewer, (None,))[0] is pc:
-                        await self.drop(body.viewer, pc)
-
-        # Negotiation must not hold up frame sampling for already connected viewers.
-        try:
-            pc.addTrack(track)
-            await pc.setRemoteDescription(RTCSessionDescription(body.sdp, 'offer'))
-            await asyncio.wait_for(pc.setLocalDescription(await pc.createAnswer()), 5)
-            if not self.valid(body.session_id) or self.peers.get(body.viewer, (None,))[0] is not pc:
-                raise ValueError('Video session changed during negotiation')
-            return {'sdp': pc.localDescription.sdp, 'type': pc.localDescription.type}
-        except BaseException:
-            await self.drop(body.viewer, pc)
-            raise
-
     async def drop(self, viewer, expected=None):
         if expected is not None and self.peers.get(viewer, (None,))[0] is not expected:
             return
@@ -272,10 +192,13 @@ class VideoHub:
                 'nativeReadbackMs': getattr(self.source, 'readback_ms', None),
                 'native': {key: value for key, value in self.native_info.items() if key not in ('name', 'operation')},
                 'viewers': [{'state': pc.connectionState, 'framesToEncoder': track.delivered,
-                             'encoding': getattr(track, 'encoding', 'webrtc'),
+                             'encoding': getattr(track, 'encoding', 'unavailable'),
                              'skippedBeforeEncoder': track.skipped,
                              'captureToDisplayMedianMs': percentile(getattr(track, 'display_ages', []), .5),
                              'captureToDisplayP95Ms': percentile(getattr(track, 'display_ages', []), .95),
+                             'selectionToDisplayMedianMs': percentile(getattr(track, 'input_ages', []), .5),
+                             'selectionToDisplayP95Ms': percentile(getattr(track, 'input_ages', []), .95),
+                             'selectionSamples': len(getattr(track, 'input_ages', [])),
                              'captureToEncoderMedianMs': sorted(track.ages)[len(track.ages) // 2] if track.ages else None,
                              'captureToEncoderP95Ms': sorted(track.ages)[min(len(track.ages) - 1, int(len(track.ages) * .95))] if track.ages else None}
                             for pc, track in self.peers.values()]}
@@ -316,7 +239,7 @@ class VideoHub:
                         previous = raw[0]
                         self.sampled_frames += 1
                         self.latest = raw
-                await asyncio.sleep(1 / 30)
+                await asyncio.sleep(1 / 120)
         except Exception as error:
             self.last_error = str(error)[:200]
         finally:
@@ -341,16 +264,6 @@ class VideoHub:
             await asyncio.gather(self.task, return_exceptions=True)
         for viewer in list(self.peers):
             await self.drop(viewer)
-
-
-@router.post('/offer')
-async def offer(body: Offer, request: Request):
-    from fastapi.responses import JSONResponse
-    hub = request.app.state.video
-    try:
-        return await hub.offer(body)
-    except (ImportError, TimeoutError, RuntimeError, KeyError, OSError):
-        return JSONResponse({'detail': 'Continuous video unavailable; using snapshots'}, status_code=503)
 
 
 @router.post('/close')
@@ -380,7 +293,7 @@ class JpegEncoder:
             self.codec = av.CodecContext.create('mjpeg', 'w')
             self.codec.width, self.codec.height = size
             self.codec.pix_fmt = 'yuvj420p'
-            self.codec.time_base = Fraction(1, 30)
+            self.codec.time_base = Fraction(1, 90000)
             self.codec.thread_count = 1
             self.size = size
         frame = video_frame(raw).reformat(format='yuvj420p')
@@ -419,6 +332,7 @@ class SocketFrames:
         self.delivered = self.skipped = 0
         self.ages = deque(maxlen=128)
         self.display_ages = deque(maxlen=128)
+        self.input_ages = deque(maxlen=128)
         self.encoding = 'jpeg'
 
     def stop(self):
@@ -490,7 +404,7 @@ async def socket_frames(socket: WebSocket):
             peer.ages.append(max(0, (time.time() - raw[3]) * 1000))
             metadata = json.dumps({'source': hub.source_name, 'frame': raw[0], 'width': raw[1],
                 'height': raw[2], 'captured': raw[3], 'session': body.session_id,
-                'encoding': peer.encoding}, separators=(',', ':')).encode()
+                'encoding': peer.encoding, 'selection': raw[8] if len(raw) > 8 else None}, separators=(',', ':')).encode()
             # Exactly one unacknowledged frame. Slow viewers cannot grow a video queue.
             await asyncio.wait_for(socket.send_bytes(struct.pack('<I', len(metadata)) + metadata + image), 2)
             message = await asyncio.wait_for(socket.receive_text(), 3)
@@ -500,6 +414,9 @@ async def socket_frames(socket: WebSocket):
             if ack.get('frame') != raw[0]:
                 raise ValueError('Out-of-order frame acknowledgement')
             displayed = ack.get('displayed')
+            effect = ack.get('selectionEffectMs')
+            if type(effect) in (int, float) and math.isfinite(effect) and 0 <= effect <= 2000:
+                peer.input_ages.append(effect)
             if type(displayed) in (int, float) and math.isfinite(displayed) and abs(time.time() - displayed) < 2:
                 peer.display_ages.append(max(0, (displayed - raw[3]) * 1000))
             hub.rt.video_viewers[body.viewer] = time.monotonic() + 8
@@ -509,12 +426,13 @@ async def socket_frames(socket: WebSocket):
             hub.last_error = str(error)[:200]
     finally:
         owned = hub.peers.get(body.viewer, (None,))[0] is peer
+        lease = getattr(hub.rt, 'player_input', None)
         await hub.drop(body.viewer, peer)
         if not accepted:
             await peer.close()
         # A disconnected controlling view cancels held gestures into Manual.
-        lease = getattr(hub.rt, 'player_input', None)
-        if owned and lease and lease.viewer == body.viewer and lease.session == body.session_id:
+        if (owned and lease and getattr(hub.rt, 'player_input', None) is lease
+                and lease.viewer == body.viewer and lease.session == body.session_id):
             try:
                 await hub.rt.set_mode('manual', player_owner=(lease.session, lease.viewer, lease.token))
             except (ValueError, RuntimeError):

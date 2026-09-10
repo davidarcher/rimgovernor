@@ -1,4 +1,4 @@
-"""Serve the real dashboard with synthetic WebRTC frames; never start or contact a game."""
+"""Serve the real dashboard with synthetic frames; never start or contact a game."""
 import argparse
 import asyncio
 import io

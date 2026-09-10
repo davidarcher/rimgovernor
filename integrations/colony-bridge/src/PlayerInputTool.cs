@@ -40,6 +40,7 @@ namespace HomeBridge.BridgeTools
         public double Captured;
         public string Windows;
         public long UiRevision;
+        public int Selection;
         static long uiRevision;
         static bool observingUi;
 
@@ -72,7 +73,9 @@ namespace HomeBridge.BridgeTools
             if (Current.Game == null || Find.CurrentMap == null || Find.Camera == null) return null;
             return new PlayerFrame { Game = Current.Game, Map = Find.CurrentMap,
                 View = Find.Camera.worldToCameraMatrix, Projection = Find.Camera.projectionMatrix,
-                Width = Screen.width, Height = Screen.height, Captured = captured, Windows = WindowState(), UiRevision = uiRevision };
+                Width = Screen.width, Height = Screen.height, Captured = captured, Windows = WindowState(), UiRevision = uiRevision,
+                Selection = Find.Selector.SelectedObjects.Aggregate(17, (hash, item) => unchecked(hash * 31 +
+                    System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(item))) };
         }
 
         public static void Remember(string source, long sequence, PlayerFrame frame)
@@ -262,11 +265,19 @@ namespace HomeBridge.BridgeTools
                 if (order != self.lastOrder + 1) throw new InvalidOperationException("Input order is stale or has a gap");
                 self.lastOrder = order;
                 bool keyRelease = kind == "keyUp" && self.keys.Contains(self.Key(key));
-                if (source != PlayerFrame.Source || !PlayerFrame.Frames.TryGetValue(frame, out PlayerFrame viewed)
-                    || (DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds - viewed.Captured > .75
-                    || !(keyRelease ? viewed.SameScene() : viewed.Matches())
-                    || ((kind == "down" || kind == "wheel") && !viewed.CurrentUi()))
-                    throw new InvalidOperationException("Displayed frame or view changed; input was not sent");
+                // Right-down opens native context menus. Its matching release must
+                // still clear the held button after that expected window change.
+                bool contextRelease = kind == "up" && button == 2 && self.buttons.Contains(3);
+                if (source != PlayerFrame.Source || !PlayerFrame.Frames.TryGetValue(frame, out PlayerFrame viewed))
+                    throw new InvalidOperationException("Displayed frame source or sequence changed; input was not sent");
+                if ((DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds - viewed.Captured > .75)
+                    throw new InvalidOperationException("Displayed frame expired; input was not sent");
+                if (!(keyRelease || contextRelease ? viewed.SameScene() : viewed.Matches()))
+                    throw new InvalidOperationException("Displayed view changed: scene=" + viewed.SameScene()
+                        + ", camera=" + (Find.Camera != null && viewed.View == Find.Camera.worldToCameraMatrix
+                            && viewed.Projection == Find.Camera.projectionMatrix) + "; input was not sent");
+                if ((kind == "down" || kind == "wheel") && !viewed.CurrentUi())
+                    throw new InvalidOperationException("Native UI changed after the displayed frame; input was not sent");
                 self.Focus(out int ox, out int oy);
                 if (x < 0 || y < 0 || x >= viewed.Width || y >= viewed.Height) throw new ArgumentException("Pointer outside displayed frame");
                 if (kind == "move" || kind == "down" || kind == "up" || kind == "wheel")

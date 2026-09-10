@@ -5,6 +5,33 @@
 Separate native video acceptance from synthetic browser lifecycle checks and
 player-facing behavior.
 
+For direct native browser acceptance, start a private rendered Docker worker with
+`python scripts/interactive_view_acceptance.py --output /worker/acceptance` as its
+command. Publish the HTTP port on loopback and open it in the connected Chromium
+browser. The harness serves the production dashboard and records allowlisted native
+reads under `acceptance/native.jsonl`. Its `/test/load` endpoint reloads the disposable
+baseline; `/test/held` reads the private X server's actual held-key/button state.
+Run `python scripts/player_stream_acceptance.py --output /worker/acceptance/faults.json`
+inside that worker, with browser ownership released, for disconnect, lease expiry,
+competing viewers, stale camera/frame and load invalidation checks.
+
+On Windows Docker with WSL GPU support, add `--gpus all`,
+`-e NVIDIA_DRIVER_CAPABILITIES=compute,utility,video`,
+`--mount type=bind,src=/usr/lib/wsl,dst=/usr/lib/wsl,readonly`,
+`-e LD_LIBRARY_PATH=/usr/lib/wsl/lib -e MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA`,
+and worker options `--display xvfb --renderer d3d12`. Startup must report accelerated
+D3D12 OpenGL. Xvfb remains private with no host display sockets. GPU rendering and
+NVENC encoding are separate capabilities; verify the native renderer and the stream's
+`encoding` independently in `/api/video/status`.
+
+Record browser capture-to-display median/p95, selection-to-display median/p95 and
+sample counts from `/api/video/status`. Selection latency starts at pointer dispatch
+and ends when the browser paints a frame with a changed native selection fingerprint.
+It measures visible selection response, not completion of pawn work. Use native reads
+to establish selection, zone cells, job execution, camera changes and held-input cleanup.
+Compare `/test/cost` and native ticks over equal intervals with video on/off; capture
+ceilings do not promise delivered FPS or simulation throughput.
+
 Run commands from the repository root. Native probes require a disposable prepared
 profile and their stated fixture; run `--help` for the selected script. Keep outputs
 under a fresh `.rimbot/` directory, preserve failures, and never replace installed DLLs
@@ -12,19 +39,12 @@ while any RimWorld instance is running. Container inputs use private snapshots.
 
 `setup.ps1` installs the `video` extra. For an existing Python environment run `python
 -m pip install -e '.[video]'`. Build/install the observation companion only with every
-RimWorld process stopped; older companions use snapshot fallback. Run
-`scripts/video_stream_acceptance.py --source-root <prepared-root> --output
-<fresh-directory>` with `controller` on `PYTHONPATH` to receive native frames over a
-real local WebRTC connection in a disposable paused colony. It checks decoded
-dimensions, advancing frames, peer cleanup and unchanged paused native tick. Restore any
-temporarily installed companion after the owned game stops. This probe measures
-native-to-aiortc delivery, not Chrome capture-to-display latency, hardware encoding,
-input safety or simulation throughput.
+RimWorld process stopped; older companions use snapshot fallback. Private Docker
+staging copies task DLLs before launching its owned game.
 
-In Chrome, verify Live video, Pause video retaining the current frame, resume,
+In the connected Chromium browser, verify Live video, Pause video retaining the current frame, resume,
 hidden-tab cleanup, load changes, multiple viewers and snapshot fallback after a stream
-stall. Resize/fullscreen must retain the image aspect ratio. The 30–60 fps, latency and
-CPU/GPU/TPS acceptance work remains in B18.
+stall. Resize/fullscreen must retain the image aspect ratio and native input mapping.
 
 For browser lifecycle work without a game or installed-DLL changes, build the dashboard
 and run `scripts/video_browser_fixture.py --port 8791` with `controller` on
@@ -32,9 +52,8 @@ and run `scripts/video_browser_fixture.py --port 8791` with `controller` on
 stall/resume frames, change session identity and alternate landscape/ portrait
 resolution. Verify automatic reconnect, retained images, Pause video, Expand/Exit
 fullscreen and session cleanup. The fixture never contacts GABS or starts a game. Use
-`/api/video/status` to inspect bounded delivery counters; hover the video badge for
-browser decode/jitter statistics. This is browser and protocol acceptance only; retain
-native and Chrome performance work in B18.
+`/api/video/status` to inspect bounded delivery counters. Synthetic lifecycle checks
+do not establish native outcomes or performance.
 
 Use a rendered prepared profile and the local web server for player-facing tests. Verify
 that `/api/camera` supplies complete immutable PNG responses while native captures

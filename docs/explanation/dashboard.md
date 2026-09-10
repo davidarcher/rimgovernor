@@ -31,7 +31,7 @@ The game may run while video is paused, or the view may remain active while the
 simulation is paused. Viewer leases request native capture only while a viewer needs it.
 Pausing video does not issue a game-time command.
 
-When supported, the view receives WebRTC video from native capture through the Python
+When supported, the view receives frame-bound WebSocket video from native capture through the Python
 server. The stream keeps the latest frame instead of queuing old frames. Unsupported or
 stalled streaming falls back to snapshots, retaining the last good image. Headless
 sessions cannot provide game images.
@@ -48,8 +48,10 @@ control leaves a Manual hold until an explicit automation resume. Stale or compe
 viewers cannot reuse an old lease after a context change.
 
 Camera navigation and stable-ID colonist selection use discovered native contracts and
-readback. They do not imply that arbitrary clicks, dragging or modifiers are already
-supported. Those broader interaction scenarios remain in the backlog.
+readback. Private rendered Docker workers also accept native pointer, drag, wheel and
+keyboard input after Take control. Each event names the displayed frame and current
+owner. Changed views or delayed events are refused, and uncertain events are never
+replayed. Desktop windows retain the stable-ID and camera controls.
 
 Action follow is a separate presentation option for supported writes. It can show an
 issued order, but it does not track all subsequent pawn labor or certify that the work

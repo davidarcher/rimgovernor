@@ -25,7 +25,7 @@ namespace HomeBridge.BridgeTools
     public sealed class VideoStreamDriver : MonoBehaviour
     {
         // One latest RGBA32 frame, protected by a nonblocking cross-process mutex.
-        const int Capacity = 32 + 3840 * 2160 * 4;
+        const int Capacity = 40 + 3840 * 2160 * 4;
         static VideoStreamDriver instance;
         string bufferName;
         MemoryMappedFile mapping;
@@ -40,6 +40,7 @@ namespace HomeBridge.BridgeTools
         float until, next;
         long sequence;
         string error = "";
+        int? savedVsync, savedFrameRate;
         bool UsePresented => Application.platform == RuntimePlatform.LinuxPlayer
             && Environment.GetEnvironmentVariable("RIMBOT_PRIVATE_DISPLAY") == "1"
             && Environment.GetEnvironmentVariable("RIMBOT_VIDEO_READBACK") != "sync"
@@ -80,7 +81,7 @@ namespace HomeBridge.BridgeTools
             if (seconds > 0) RenderDemandDriver.Lease(seconds);
             else instance.Release();
             return new { supported = true, name = instance.bufferName, capacity = Capacity,
-                fps = 30, format = instance.UsePresented ? "bgra32-top-down" : "rgba32-bottom-up", error = instance.error,
+                fps = 60, format = instance.UsePresented ? "bgra32-top-down" : "rgba32-bottom-up", error = instance.error,
                 capture = instance.UsePresented ? "private-presented-window" : instance.UseAsync ? "async-gpu" : "read-pixels",
                 capturedFrames = instance.sequence,
                 cpuSeconds = System.Diagnostics.Process.GetCurrentProcess().TotalProcessorTime.TotalSeconds,
@@ -93,6 +94,11 @@ namespace HomeBridge.BridgeTools
 
         void Open()
         {
+            if (Environment.GetEnvironmentVariable("RIMBOT_PRIVATE_DISPLAY") == "1" && savedVsync == null)
+            {
+                savedVsync = QualitySettings.vSyncCount; savedFrameRate = Application.targetFrameRate;
+                QualitySettings.vSyncCount = 0; Application.targetFrameRate = 60;
+            }
             if (Application.platform == RuntimePlatform.LinuxPlayer)
             {
                 bufferName = "/dev/shm/RimBotVideo-" + Guid.NewGuid().ToString("N");
@@ -120,7 +126,7 @@ namespace HomeBridge.BridgeTools
                 yield return end;
                 if (Time.realtimeSinceStartup >= until) { Release(); continue; }
                 if (mapping == null || Time.realtimeSinceStartup < next) continue;
-                next = Time.realtimeSinceStartup + 1f / 30;
+                next = Time.realtimeSinceStartup + 1f / 60;
                 if (UsePresented)
                 {
                     // End-of-frame state belongs to the buffer about to be
@@ -219,6 +225,7 @@ namespace HomeBridge.BridgeTools
                 buffer.Write(12, height);
                 buffer.Write(16, captured);
                 buffer.Write(24, readbackMs);
+                buffer.Write(32, view?.Selection ?? 0);
                 // Mono's generic accessor array write visits each byte. Copy the
                 // immutable payload in one operation while retaining the mapping.
                 bool retained = false;
@@ -226,7 +233,7 @@ namespace HomeBridge.BridgeTools
                 try
                 {
                     handle.DangerousAddRef(ref retained);
-                    Marshal.Copy(pixels, 0, IntPtr.Add(handle.DangerousGetHandle(), 32), pixels.Length);
+                    Marshal.Copy(pixels, 0, IntPtr.Add(handle.DangerousGetHandle(), 40), pixels.Length);
                 }
                 finally { if (retained) handle.DangerousRelease(); }
                 PlayerFrame.Remember(bufferName, ++sequence, view);
@@ -241,6 +248,12 @@ namespace HomeBridge.BridgeTools
 
         void Release()
         {
+            if (savedVsync.HasValue)
+            {
+                QualitySettings.vSyncCount = savedVsync.Value;
+                Application.targetFrameRate = savedFrameRate.Value;
+                savedVsync = savedFrameRate = null;
+            }
             // The GPU owns an outstanding target until its callback. Do not reuse it.
             if (!pending && target != null) { target.Release(); Destroy(target); target = null; }
             if (texture != null) { Destroy(texture); texture = null; }
