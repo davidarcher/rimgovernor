@@ -373,23 +373,16 @@ each bounded method.
   pawn/entity outcomes; test unavailable DLC, mixed content, interruptions and
   multi-map transitions. Add endgame objective planning only for selected player
   goals, with prerequisites and completion evidence appropriate to installed content.
-- [ ] **B16 · Sustained throughput.** Windows two-worker clock/lifecycle isolation
-  passed; parallel inference throughput remains unmeasured. Identify boosted-speed
-  pause causes; measure useful completed tests/minute, memory, startup, inference,
-  observation and action overhead across colony ages and render/capture modes.
-  Interrupted burst TPS is not sustained episode throughput. Use the read-only
-  `scripts/dashboard_throughput.py` to retain wall TPS including pauses and exclude
-  load/rewind/disconnection intervals. Compare isolated rendered, suspended and
-  headless runs from the same checkpoint, with follow off and no competing workers.
-  Measure observation age in game ticks, danger-to-pause latency, player-stop latency,
-  verified outcomes per minute and missed safety gates at each candidate speed.
-  Keep Ultrafast test-only until its reaction envelope is accepted.
-    Profile per-operation preview, identity, native dispatch and readback cost before
-    removing redundant reads; retained-cell rectangle batching preserves the native
-    validation path, and uncertain writes still require observation before retry.
-  Consider adaptive game-tick review windows for stable colonies, preserving native
-  hazard supervision and a bounded observation age. Archive/reuse verified checkpoints
-  for long-lived scenarios while keeping fresh-start acceptance separate.
+- [ ] **B16 · Sustained throughput.** Finish the uncontended performance comparison
+  using [the throughput probes](how-to/measure-throughput.md): ordinary versus
+  bounded test acceleration, fresh and reused older checkpoints, and rendered,
+  suspended, headless and capture modes. Hold inputs/source constant, keep follow
+  off, and run without competing native workers or model benchmarks. Retain
+  completed clock cases/minute including reloads, verified pawn outcomes, memory,
+  startup and operation overhead; compare equal-duration production-loop wall TPS
+  including pauses and game-tick observation age. Repeat the counterbalanced local
+  inference measurement and retain incorrect responses. Contended correctness
+  passes and burst TPS do not establish this final performance acceptance.
 - [ ] **Colonist dossier rendering coverage.** Broaden the native portrait/follow
   probe to modded weapon icons, apparel/body types, removed pawns,
   load/map transitions, competing viewers and simultaneous main-view video.
