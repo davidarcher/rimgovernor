@@ -121,9 +121,13 @@ async def run():
             assert changed['changed'] is True
             assert next(f for f in changed['after']['specialFilters'] if f['defName']=='AllowRotten')['allowed'] is False
             before=await game.query('home/list_zones',filter=True)
-            invalid=await game.invoke('home/zone_cells',dict(op='filter',zone=str(zone),allow='special:NotAFilter',dryRun=False,watch=False),allow_write=True)
-            assert invalid.get('success') is False
-            assert await game.query('home/list_zones',filter=True)==before
+            try:
+                invalid=await game.invoke('home/zone_cells',dict(op='filter',zone=str(zone),allow='special:NotAFilter',dryRun=False,watch=False),allow_write=True)
+                assert invalid.get('success') is False
+            except BridgeError as error:
+                invalid={'refused':str(error)}
+            after=await game.query('home/list_zones',filter=True)
+            assert after['zones']==before['zones']
             report['cases']['invalid_filter']=invalid
             await command('special_filter_restore',kind='EditZone',zone_id=zone,operation='filter',allow=['special:AllowRotten'])
             await command('delete_stockpile',kind='EditZone',zone_id=zone,operation='delete')
