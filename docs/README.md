@@ -14,6 +14,7 @@ point by what you want to do or understand.
 | How do the internals fit together, and why? | [Explanation: the system overview](explanation/overview.md) |
 | What is unfinished? | [Project backlog](BACKLOG.md) |
 | How should agents sequence the Go rewrite? | [Go controller rewrite plan](BACKLOG.md#g01--go-controller-rewrite) |
+| How will the native mods merge and adopt strict C# contracts? | [Unified native mod plan](BACKLOG.md#n01--unified-rimgovernor-native-mod) |
 | Which Python surfaces must the Go rewrite cover? | [Migration inventories](../contracts/README.md) |
 | How do I check the gated Go foundation? | [Go module](../go/README.md) |
 
