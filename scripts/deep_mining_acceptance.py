@@ -5,13 +5,13 @@ import json
 import time
 from pathlib import Path
 from session_checkpoint_acceptance import ready
-from rimbot.bridge import runtime_file_read
 from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.colony_plan import ColonyGoal, CommitSteps
 from rimbot.headless import isolated_root
 from rimbot.production_policy import resource_method, sync_production_policy
 from rimbot.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
 from rimbot.store import Store
+from rimbot.native_scenario import advance_game
 
 
 async def run(args):
@@ -34,19 +34,7 @@ async def run(args):
     async def window(ticks=600):
         async with rt.lock:
             await sync_production_policy(rt)
-        await rt.supervisor.change('Superfast', max_ticks=ticks)
-        async with asyncio.timeout(90):
-            while True:
-                state = (await runtime_file_read(rt.bridge.call, 'home/supervised_play', op='status')).structuredContent
-                if not state['active']: break
-                await asyncio.sleep(.2)
-        assert state['pauseVerified'], state
-        if state['stopReason'] == 'letter_pause':
-            danger = await rt.game.query('home/status', colonists=False, threats=True)
-            assert danger['counts']['hostileCount'] == danger['counts']['huntingPredatorCount'] == 0
-            rt.supervisor.absorb(state); rt.supervisor.allow_resume()
-        else:
-            assert state['stopReason'] in ('tick_budget', 'requested_pause'), state
+        await advance_game(rt, ticks, report, timeout=90, expected_letters=())
         async with rt.lock: await rt.refresh_clock_events()
         if rt.review_task and not rt.review_task.done(): await rt.review_task
         report['latest'] = await sources()
