@@ -42,9 +42,10 @@ def latch(latches, name, value, enter, exit, *, high=False):
 def derive(batch, native, policy):
     """Combine fresh domain facts with the existing native observation contract."""
     value = dict(native)
+    from .native_forecasts import forecasts, power_forecast
+    value['forecasts'] = forecasts(native, batch.native.get('buildings', {}))
     if 'foodSupply' in native:
-        from .food_forecast import food_forecast
-        forecast = food_forecast(native['foodSupply'])
+        forecast = value['forecasts']['food']
         value['foodForecast'] = forecast
         value['rawFoodRunwayDays'] = native.get('foodRunwayDays')
         value['foodRunwayDays'] = forecast['runwayDays']
@@ -54,9 +55,9 @@ def derive(batch, native, policy):
     value['hostiles'] = batch.summary.hostile_count + batch.summary.hunting_predator_count
     value['armed'] = sum(p.armed is True and not p.downed and not p.dead for p in people)
     buildings = batch.native.get('buildings', {})
-    nets = buildings.get('powerNets')
-    value['powerHeadroom'] = None if nets is None or (buildings.get('powerSummary') or {}).get('readable') is False else (
-        min((n.get('netW', 0) for n in nets), default=0))
+    nets = power_forecast(buildings)
+    value['powerHeadroom'] = None if nets is None or any(n['net_w'] is None for n in nets) else (
+        min((n['net_w'] for n in nets), default=0))
     value['constructionDeficit'] = {r['defName']: r['stillNeeded'] for r in buildings.get('resourceDeficit', [])}
     value['powerRequired'] = any((b.get('defName') or b.get('buildDefName')) in ('Heater', 'Cooler')
                                  for b in buildings.get('buildings', []))

@@ -119,12 +119,6 @@ in the checkpoint commit; do not append an implementation diary here.
   postconditions. Migrate legacy targets lacking expectations only with grounded
   evidence. Extend zone contracts to stockpile filters/priority and sow/cut settings,
   and expose invariant native facing across game languages.
-- [ ] **B08 · Native forecasts.** Audit available inputs, then add nutrition,
-  diet/access/inventory-aware consumption, spoilage, harvest uncertainty, animal
-  feed and labor demand. Extend medical/power/mood risk projections only from
-  observed inputs. Power risk persists across unavailable observations; verify
-  native aggregate readability and live reserve recovery. Preserve unavailable
-  values; avoid fixed food-stat tables.
 - [ ] **B09 · Combat and rescue acceptance.** Controlled movement, equip, observed
   melee/ranged hits, tending and owned-draft cleanup have passed scripted tests.
   Rescue delivery tracking exists but actual carry-to-bed has not passed a live

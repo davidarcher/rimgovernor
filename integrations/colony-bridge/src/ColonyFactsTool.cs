@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools
     public sealed class ColonyFactsTools
     {
         [Tool("home/colony_facts", Title = "Deterministic colony facts",
-            Description = "Read food nutrition/consumption, viable crops, functional sleeping/cooking, nearby safe acquisition and optional starter terrain. No game orders. Food is a conservative shared-diet estimate; forecasts assume current conditions and exclude animal feed, drugs, corpses, inaccessible and forbidden food.")]
+            Description = "Read native nutrition, eater diet/policy/access, held food, rot deadlines, competing animal feed, crop labor and medical/mood inputs alongside starter colony facts. No game orders. Forecasts assume current conditions; future harvest and grazing are not stored food.")]
         public async Task<object> Facts(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Include a bounded terrain grid and native starter definitions/costs.", DefaultValue = false)] bool planning = false)
         {
@@ -108,7 +108,10 @@ namespace HomeBridge.BridgeTools
                 ["mapSize"] = new { width = map.Size.x, height = map.Size.z }, ["biome"] = map.Biome.defName,
                 ["foodNutrition"] = nutrition, ["nutritionPerDay"] = demand,
                 ["foodRunwayDays"] = demand > 0 ? (object)(nutrition / demand) : null,
-                ["foodSupply"] = FoodSupplyFacts.Read(people, food),
+                ["foodSupply"] = FoodSupplyFacts.Read(people, things.Where(t => t.def.category == ThingCategory.Item
+                    && t.def.IsNutritionGivingIngestible && !t.def.IsDrug && t.IngestibleNow
+                    && (t.Faction == null || t.Faction.IsPlayer)).ToList()),
+                ["nativeForecastInputs"] = ForecastFacts.Read(map, people, things),
                 ["pendingFoodNutrition"] = things.OfType<Plant>().Where(p => p.HarvestableNow
                     && humanFood(p.def.plant.harvestedThingDef) && !(map.zoneManager.ZoneAt(p.Position) is Zone_Growing)
                     && map.designationManager.DesignationOn(p, DesignationDefOf.HarvestPlant) != null)

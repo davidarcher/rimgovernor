@@ -66,6 +66,8 @@ class Planner:
         await rt.ensure_context(token)
         if rt.chat_revision != revision: return
         native_facts = native_facts if native_facts.get('success') is True else {}
+        from .native_forecasts import forecasts
+        native_facts['forecasts'] = forecasts(native_facts, rt.batch.native.get('buildings', {}))
         resources = set(native_facts.get('policyResources',{})) | set(native_facts.get('resources',{})) | {
             key for definition in native_facts.get('definitions',{}).values() for key in definition.get('costs',{})}
         resource_labels={key:native_facts.get('policyResources',{}).get(key,key) for key in resources}

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
+using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
@@ -18,7 +19,12 @@ namespace HomeBridge.BridgeTools
                 nutritionPerDay = p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f
             }).ToList();
             foreach (var thing in shared)
-                if (seen.Add(thing.thingIDNumber)) stocks.Add(Stock(thing, people, null));
+            {
+                var eaters = people.Where(p => p.needs?.food != null && !p.Downed && !p.InMentalState
+                    && p.WillEat(thing) && PolicyAllows(p, thing) && !thing.IsForbidden(p)
+                    && p.CanReach(thing, PathEndMode.Touch, Danger.None)).ToList();
+                if (eaters.Count > 0 && seen.Add(thing.thingIDNumber)) stocks.Add(Stock(thing, eaters, null));
+            }
             foreach (var pawn in people.Where(p => !p.Downed && !p.InMentalState))
             {
                 var carried = new List<Thing>();
@@ -29,15 +35,20 @@ namespace HomeBridge.BridgeTools
                     var def = thing.def;
                     if (!thing.Spawned && def.IsNutritionGivingIngestible && !def.IsDrug && def.ingestible != null
                         && (def.ingestible.foodType & (FoodTypeFlags.Corpse | FoodTypeFlags.Kibble)) == 0
-                        && thing.IngestibleNow && pawn.WillEat(thing) && seen.Add(thing.thingIDNumber))
+                        && thing.IngestibleNow && pawn.WillEat(thing) && PolicyAllows(pawn, thing) && seen.Add(thing.thingIDNumber))
                         stocks.Add(Stock(thing, new List<Pawn> { pawn }, pawn.GetUniqueLoadID()));
                 }
             }
             return new { readable = true, consumers, stocks,
                 assumptions = new[] {
-                    "Shared food is accessible current shared-diet stock. Held food can feed only its observed holder until hauled.",
+                    "Stock is apportioned only among observed eligible eaters by fed demand. Downed consumers need assistance; held food feeds only its holder.",
                     "Rot deadlines assume the current native ambient temperature; frozen food can thaw. Future harvest, animal feed and future access are not guaranteed.",
                     "Consumption uses native fed demand and minimum native nutrition per eater, not a definition-name table." } };
+        }
+
+        private static bool PolicyAllows(Pawn pawn, Thing food)
+        {
+            return pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn)?.filter.Allows(food) != false;
         }
 
         private static object Stock(Thing thing, List<Pawn> eaters, string holder)
@@ -46,6 +57,7 @@ namespace HomeBridge.BridgeTools
             var perishable = rot != null && rot.Active;
             return new { id = thing.GetUniqueLoadID(), defName = thing.def.defName, count = thing.stackCount,
                 holder, nutrition = thing.stackCount * eaters.Min(p => FoodUtility.NutritionForEater(p, thing)),
+                eaters = eaters.Select(p => p.GetUniqueLoadID()).ToList(),
                 perishable, rotTicks = perishable ? (int?)Math.Max(0, rot.TicksUntilRotAtCurrentTemp) : null,
                 temperature = thing.AmbientTemperature,
                 roofed = thing.Spawned ? (bool?)thing.Position.Roofed(thing.Map) : null };

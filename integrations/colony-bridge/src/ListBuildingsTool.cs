@@ -1029,11 +1029,14 @@ namespace HomeBridge.BridgeTools
                 var consumerCount = 0;
                 var generationW = 0f;
                 var consumptionW = 0f;
+                var wattsReadable = true;
                 for (var j = 0; j < traders.Count; j++)
                 {
                     var t = traders[j];
                     if (t == null) continue;
-                    var output = SafeFloat(() => t.PowerOutput) ?? 0f;
+                    var observedOutput = SafeFloat(() => t.PowerOutput);
+                    if (!observedOutput.HasValue) wattsReadable = false;
+                    var output = observedOutput ?? 0f;
                     // The DEF decides which side a thing is on. PowerOutput is 0
                     // on an idle or unpowered generator and would misfile it as
                     // a consumer, which is the very reading being fixed here.
@@ -1091,9 +1094,9 @@ namespace HomeBridge.BridgeTools
                     { "batteryCount", batteries.Count },
                     { "playerBuildingCount", playerCount },
                     { "buildingCount", members.Count },
-                    { "generationW", generationW },
-                    { "consumptionW", consumptionW },
-                    { "netW", generationW - consumptionW },
+                    { "generationW", wattsReadable ? (object)generationW : null },
+                    { "consumptionW", wattsReadable ? (object)consumptionW : null },
+                    { "netW", wattsReadable ? (object)(generationW - consumptionW) : null },
                     { "storedWd", SafeFloat(net.CurrentStoredEnergy) },
                     { "storedMaxWd", storedMax },
                     { "hasPowerSource", SafeBool(() => net.hasPowerSource) },

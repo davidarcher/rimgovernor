@@ -2,7 +2,7 @@
 from math import inf, isfinite
 
 
-def food_forecast(supply):
+def food_forecast(supply, *, consumer_ids=None):
     """Split shared nutrition by demand; never lend another pawn's inventory.
 
     Each pawn consumes its allocated stocks in earliest-expiry order. This is a
@@ -22,6 +22,9 @@ def food_forecast(supply):
         total = sum(demand.values())
         if not total:
             raise ValueError('No positive native food demand')
+        selected = set(demand) if consumer_ids is None else set(consumer_ids)
+        if not selected <= set(demand):
+            raise ValueError('Selected consumers are not observed')
         stocks, seen = [], set()
         for row in supply['stocks']:
             identity, amount, holder = row['id'], number(row['nutrition']), row['holder']
@@ -30,6 +33,11 @@ def food_forecast(supply):
             if holder is not None and holder not in demand:
                 raise ValueError('Food holder is not an observed consumer')
             seen.add(identity)
+            eaters = row.get('eaters', list(demand) if holder is None else [holder])
+            if (not isinstance(eaters, list) or not eaters or len(set(eaters)) != len(eaters)
+                    or any(eater not in demand for eater in eaters)
+                    or holder is not None and eaters != [holder]):
+                raise ValueError('Invalid food access/diet consumers')
             if row['perishable'] is True:
                 expiry = number(row['rotTicks']) / 60000
                 if expiry < 0:
@@ -38,27 +46,28 @@ def food_forecast(supply):
                 expiry = inf
             else:
                 raise ValueError('Food perishability is unavailable')
-            stocks.append((expiry, identity, amount, holder))
+            stocks.append((expiry, identity, amount, holder, eaters))
         stocks.sort()
         rows = []
         for identity, rate in demand.items():
-            if rate == 0:
+            if rate == 0 or identity not in selected:
                 continue
             elapsed = consumed = allocated = 0.
-            for expiry, _, amount, holder in stocks:
-                if holder is not None and holder != identity:
+            for expiry, _, amount, holder, eaters in stocks:
+                if identity not in eaters:
                     continue
-                share = amount if holder == identity else amount * rate / total
+                eligible_demand = sum(demand[eater] for eater in eaters)
+                share = amount if holder == identity else amount * rate / eligible_demand
                 allocated += share
                 usable = min(share, max(0., expiry - elapsed) * rate)
                 consumed += usable
                 elapsed += usable / rate
             rows.append({'id': identity, 'runwayDays': elapsed, 'usableNutrition': consumed,
                          'allocatedNutrition': allocated, 'nutritionPerDay': rate})
-        return {'readable': True, 'runwayDays': min(row['runwayDays'] for row in rows),
+        return {'readable': True, 'runwayDays': min((row['runwayDays'] for row in rows), default=None),
                 'usableNutrition': sum(row['usableNutrition'] for row in rows),
                 'atRiskNutrition': sum(row['allocatedNutrition'] - row['usableNutrition'] for row in rows),
-                'inventoryNutrition': sum(amount for _, _, amount, holder in stocks if holder is not None),
+                'inventoryNutrition': sum(amount for _, _, amount, holder, _ in stocks if holder in selected),
                 'consumers': rows, 'assumptions': supply.get('assumptions', [])}
     except (KeyError, TypeError, ValueError) as error:
         return {'readable': False, 'runwayDays': None, 'reason': str(error)}

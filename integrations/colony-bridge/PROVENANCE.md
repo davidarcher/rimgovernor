@@ -14,6 +14,12 @@ RimWorld and RimBridgeServer SDK assemblies are referenced, never bundled.
 Any subsequent source modifications must be recorded here and tested in-game.
 
 Local changes:
+- `ForecastFacts.cs` is original local read-only animal-feed, crop-work and
+  medical/mood input accounting. `FoodSupplyFacts.cs` records native eater policy,
+  diet and access eligibility; `ColonyFactsTool.cs` exposes these inputs.
+  `ListBuildingsTool.cs` preserves unavailable aggregate watts instead of zero.
+  The optional `ForecastFixture` compile flag includes only disposable test setup;
+  production builds and the model gateway exclude its tools.
 - `VideoStreamTool.cs` is original local presentation code. It captures the Unity
   framebuffer after rendering into a leased RGB24 shared-memory slot on Windows.
   It does not issue input, alter simulation speed or expose editor operations.

@@ -89,3 +89,21 @@ def test_acquisition_unknown_yield_refuses_instead_of_ordering_fixed_batch():
     with pytest.raises(ValueError, match='unavailable'):
         acquisition_targets({'nutritionPerDay': 3, 'foodNutrition': 0,
                              'acquisition': [{'id': 'berry', 'food': True, 'designated': False}]}, 7)
+
+
+def test_diet_and_access_allocate_only_to_eligible_consumers():
+    value = supply()
+    value['stocks'] = [dict(id='special-diet', nutrition=6, holder=None, perishable=False, eaters=['a']),
+                       dict(id='reachable-only-b', nutrition=2, holder=None, perishable=False, eaters=['b'])]
+    result = food_forecast(value)
+    assert result['runwayDays'] == 2
+    assert [r['usableNutrition'] for r in result['consumers']] == [6, 2]
+    value['stocks'].pop()
+    assert food_forecast(value)['runwayDays'] == 0
+
+
+@pytest.mark.parametrize('eaters', [[], ['missing'], ['a', 'a'], None, [None]])
+def test_unavailable_or_invalid_eligibility_cannot_certify_food(eaters):
+    value = supply()
+    value['stocks'][0]['eaters'] = eaters
+    assert food_forecast(value)['readable'] is False

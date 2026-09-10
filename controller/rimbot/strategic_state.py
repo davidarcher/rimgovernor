@@ -1,6 +1,7 @@
 """Deterministic signals and deliberately bounded model projections."""
 import hashlib
 import json
+from .native_forecasts import power_forecast
 
 
 def fingerprint(value):
@@ -10,12 +11,7 @@ def fingerprint(value):
 def features(batch):
     s, native = batch.summary, batch.native
     buildings = native.get('buildings', {})
-    nets = buildings.get('powerNets')
-    if (buildings.get('powerSummary') or {}).get('readable') is False:
-        nets = None
-    power = None if nets is None else [{'net_w': n.get('netW'), 'stored_wd': n.get('storedWd'),
-        'days_at_current_deficit': n['storedWd']/-n['netW'] if n.get('netW') is not None and n['netW']<0 and n.get('storedWd') is not None else None,
-        'flags': n.get('flags', [])} for n in nets]
+    power = power_forecast(buildings)
     return {'tick': s.end_tick, 'people': {'count': len(s.pawns),
         'downed': [p.thing_id for p in s.pawns if p.downed], 'dead': [p.thing_id for p in s.pawns if p.dead],
         'bleeding': [p.thing_id for p in s.pawns if p.bleeding], 'needs_tend': [p.thing_id for p in s.pawns if p.needs_tend],
@@ -25,7 +21,7 @@ def features(batch):
         'resources': {'allowed_units_by_def': {r.def_name: r.owned_unforbidden_units for r in s.supplies},
             'construction_deficit': buildings.get('resourceDeficit'),
             'food_days': None, 'expected_harvest': None,
-            'unknown': ['Edible nutrition, diet-adjusted consumption, spoilage and harvest forecasts are not exposed by the current compact native contract. Item counts are not nutrition.']},
+            'unknown': ['Item counts are not nutrition. Inspect the current colony facts forecasts for diet/access, inventory, rot, animal feed and harvest/labor bounds.']},
         'power': power, 'construction': buildings.get('attention'),
         'space': {'visible_rooms': s.visible_rooms, 'zones': s.zone_count, 'fogged_rooms_omitted': s.fogged_rooms_omitted},
         'threats': {'hostiles': s.hostile_count, 'hunting_predators': s.hunting_predator_count},
