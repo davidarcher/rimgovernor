@@ -25,6 +25,8 @@ introduces the idea before linking to the exact contracts and relevant source.
 6. [The dashboard and game view](explanation/dashboard.md): colonist dossiers, presentation, video and player control.
 7. [Testing and evidence](explanation/testing.md): what each kind of test establishes.
 
+[Needs-driven research](reference/research.md) defines queue and unlock verification.
+
 ## Find an operational guide
 
 - [Set up a Windows checkout](how-to/setup.md) and [launch a prepared colony](how-to/launch.md).

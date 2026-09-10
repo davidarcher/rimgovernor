@@ -911,6 +911,9 @@ class BridgeRuntime:
             explicit = (self.manual_execution is not None and self.manual_execution ==
                         (expected_token, expected_revision, expected_plan_revision) ==
                         (self.context_token, self.chat_revision, self.current_plan.revision))
+            if name == 'home/research' and 'expectedCurrent' in arguments and not arguments.get('dryRun', True):
+                from .research import validate_dispatch
+                await validate_dispatch(self, arguments)
             if name == 'home/bills' and not arguments.get('dryRun', True) and (self.mode == 'automate' or explicit):
                 from .production_policy import sync_production_policy
                 await sync_production_policy(self)
@@ -952,6 +955,9 @@ class BridgeRuntime:
                     current = [verification.get('current')] + list((verification.get('currentByCategory') or {}).values())
                     if not selected or not any(isinstance(p,dict) and p.get('defName') == selected for p in current):
                         raise ValueError('Research selection was not confirmed by fresh native readback')
+                    if 'expectedCurrent' in arguments:
+                        from .research import selected as research_selected
+                        research_selected(self, selected)
                 elif name == 'rimworld/open_letter':
                     verification = await self.game.invoke('rimworld/get_ui_state', {})
                     from .dialog_control import verify_letter_window

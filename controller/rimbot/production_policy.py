@@ -64,10 +64,14 @@ def ingredient_deficits(recipe, resources):
 
 
 def required_resource_work(plan):
-    return {row['name']: next(iter(row.get('skills', [])), None)
-            for key, goal in plan.colony_goals.items()
-            if key.startswith('MaintainResource-') and not goal.cancelled and goal.status != 'complete'
-            for row in goal.evidence.get('work_types', [])}
+    result = {row['name']: next(iter(row.get('skills', [])), None)
+              for key, goal in plan.colony_goals.items()
+              if key.startswith('MaintainResource-') and not goal.cancelled and goal.status != 'complete'
+              for row in goal.evidence.get('work_types', [])}
+    research = plan.colony_goals.get('EnsureResearch')
+    if research and not research.cancelled and research.status != 'complete' and research.evidence.get('research', {}).get('queue'):
+        result['Research'] = 'Intellectual'
+    return result
 
 
 async def resource_method(rt, goal_id, facts):
@@ -112,7 +116,8 @@ async def resource_method(rt, goal_id, facts):
         for recipe in recipes.get('recipes') or []:
             if not any(p.get('defName') == resource for p in recipe.get('products', [])): continue
             costs = ingredient_deficits(recipe, facts.get('resources', {}))
-            deficits.append({'bench': bench['thingId'], 'recipe': recipe['defName'], 'ingredients': costs})
+            deficits.append({'bench': bench['thingId'], 'recipe': recipe['defName'], 'ingredients': costs,
+                             'researchBlocked': recipe.get('availableNow') is False})
             if recipe.get('availableNow') is True and recipe.get('availableOnNow') is True:
                 ingredients_available=all(any(choice['deficit']==0 for choice in slot) for slot in costs)
                 candidates.append((not ingredients_available, bench['thingId'], recipe['defName'], recipe.get('workTypes', [])))

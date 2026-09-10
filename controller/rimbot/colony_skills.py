@@ -132,6 +132,9 @@ class ColonySkills:
         if goal_id == 'MaintainWaste':
             from .waste_management import compile_method
             return await compile_method(self.rt, self.rt.current_plan.colony_goals[goal_id])
+        if goal_id == 'EnsureResearch':
+            from .research import method
+            return await method(self.rt)
         if goal_id.startswith('MaintainResource-'):
             from .production_policy import resource_method
             return await resource_method(self.rt, goal_id, facts)
@@ -503,6 +506,9 @@ class ColonySkills:
             for slot, placement in enumerate(placements):
                 definition = facts.get('definitions', {}).get(placement.def_name)
                 if definition is None or definition.get('available') is not True:
+                    if definition and definition.get('available') is False:
+                        required = goal.evidence.setdefault('required_capabilities', [])
+                        if placement.def_name not in required: required.append(placement.def_name)
                     raise SkillBlocked('No available observed construction definition: '+placement.def_name)
                 costs[str(slot)] = definition['costs']
             slots[identity] = costs

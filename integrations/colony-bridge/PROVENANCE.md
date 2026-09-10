@@ -28,6 +28,10 @@ Local changes:
   icons, without bundling game assets. `ListPawnsTool.cs` also exposes the current
   job driver's display report. The dedicated pawn image probe records native
   rendering and camera/selection invariance separately from controller fixtures.
+
+- `ResearchTool.cs` adds exact ThingDef/RecipeDef prerequisite and availability
+  reads and a main-thread expected-current guard for ordinary research selection.
+  Research progress remains owned by normal native pawn work.
 - `ForecastFacts.cs` is original local read-only animal-feed, crop-work and
   medical/mood input accounting. `FoodSupplyFacts.cs` records native eater policy,
   diet and access eligibility; `ColonyFactsTool.cs` exposes these inputs.

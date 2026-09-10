@@ -193,10 +193,15 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "WRITE: make this the current research project. Takes an exact defName, an exact label (case-insensitive), or a unique substring of either; an ambiguous substring is REFUSED with the candidates listed. A finished project, or one that cannot start yet, is refused with the requirement that is missing. Omit for a read-only call.")] string set = null,
             [ToolParameter(Description = "TRUE by default. Resolve the `set` name, check every requirement and report what WOULD happen without touching the game. Pass false to actually select the project.", DefaultValue = true)] bool dryRun = true,
             [ToolParameter(Description = "TRUE by default. On a real `set`, open the Research tab a moment before the project is chosen so a viewer sees it land, then close it again. Decorative only: it never changes what is written. Pass false to write with no UI.", DefaultValue = true)] bool watch = true,
-            [ToolParameter(Description = "How long the Research tab stays open after the write, in seconds. Clamped 1..60. Ignored when watch is false or the write is a dry run.", DefaultValue = 8)] int watchSeconds = 8)
+            [ToolParameter(Description = "How long the Research tab stays open after the write, in seconds. Clamped 1..60. Ignored when watch is false or the write is a dry run.", DefaultValue = 8)] int watchSeconds = 8,
+            [ToolParameter(Description = "Exact ThingDef or RecipeDef name whose research requirements should be read. Prefix with ThingDef: or RecipeDef: to disambiguate.")] string capability = null,
+            [ToolParameter(Description = "Guard ordinary research selection against player changes. Empty string requires no current project; omitted disables the guard.")] string expectedCurrent = null,
+            [ToolParameter(Description = "Exact colony identity required with expectedCurrent.")] string colonyId = null,
+            [ToolParameter(Description = "Exact load identity required with expectedCurrent.")] string loadToken = null,
+            [ToolParameter(Description = "Exact map identity required with expectedCurrent.", DefaultValue = -1)] int mapId = -1)
         {
             return BridgeCommon.WithUnknownArguments(
-                await ResearchCore(ctx, cancellationToken, locked, finished, unlocks, filter, set, dryRun, watch, watchSeconds)
+                await ResearchCore(ctx, cancellationToken, locked, finished, unlocks, filter, set, dryRun, watch, watchSeconds, capability, expectedCurrent, colonyId, loadToken, mapId)
                     .ConfigureAwait(false),
                 ctx, typeof(HomeResearchTools), ToolName);
         }
@@ -211,7 +216,7 @@ namespace HomeBridge.BridgeTools
             string set,
             bool dryRun,
             bool watch,
-            int watchSeconds)
+            int watchSeconds, string capability, string expectedCurrent, string colonyId, string loadToken, int mapId)
         {
             if (ctx?.MainThread == null)
                 return Failure("No RimBridge main-thread dispatcher is available for this invocation.");
@@ -245,6 +250,9 @@ namespace HomeBridge.BridgeTools
                 return pass.Failure;
             }
 
+            if (!string.IsNullOrEmpty(capability))
+                pass.Payload["capability"] = await ctx.MainThread.InvokeAsync(() => Capability(capability), cancellationToken).ConfigureAwait(false);
+
             if (!pass.WriteWanted)
             {
                 pass.Payload["watch"] = Watch.Skipped(pass.SkipReason);
@@ -266,12 +274,45 @@ namespace HomeBridge.BridgeTools
                 .InvokeAsync(() =>
                 {
                     bool applied;
+                    if (expectedCurrent != null)
+                    {
+                        var identity = Current.Game?.GetComponent<ColonyIdentity>();
+                        if (manager != SafeManager() || identity == null || identity.ColonyId != colonyId
+                            || identity.LoadToken != loadToken || Find.CurrentMap?.uniqueID != mapId
+                            || Find.TickManager.CurTimeSpeed != TimeSpeed.Paused
+                            || (manager.GetProject(null)?.defName ?? "") != expectedCurrent)
+                            return Failure("Paused colony/load/map or current research changed; guarded selection refused.");
+                    }
                     payload["write"] = PlanSet(manager, all, setSpec, false, tech, out applied);
                     payload["applied"] = applied;
                     payload["watch"] = session == null ? Watch.Skipped("watch:false") : Watch.Finish(session, watchSeconds);
                     return (object)payload;
                 }, cancellationToken)
                 .ConfigureAwait(false);
+        }
+
+        private static object Capability(string name)
+        {
+            var parts = name.Split(new[] { ':' }, 2);
+            var kind = parts.Length == 2 ? parts[0] : null;
+            var id = parts.Last();
+            var thing = kind == null || kind == "ThingDef" ? DefDatabase<ThingDef>.GetNamedSilentFail(id) : null;
+            var recipe = kind == null || kind == "RecipeDef" ? DefDatabase<RecipeDef>.GetNamedSilentFail(id) : null;
+            if ((thing == null) == (recipe == null))
+                return new { known = false, reason = "Unknown or ambiguous capability; use ThingDef: or RecipeDef:." };
+            try
+            {
+                var requirements = thing != null ? (thing.researchPrerequisites ?? new List<ResearchProjectDef>())
+                    : (recipe.researchPrerequisites ?? new List<ResearchProjectDef>()).ToList();
+                if (recipe?.researchPrerequisite != null && !requirements.Contains(recipe.researchPrerequisite))
+                    requirements.Add(recipe.researchPrerequisite);
+                return new { known = true, defName = id, type = thing != null ? "ThingDef" : "RecipeDef",
+                    prerequisites = requirements.Select(r => r.defName).ToArray(),
+                    researchReady = requirements.All(r => r.IsFinished),
+                    costs = thing == null ? null : thing.costList?.ToDictionary(c => c.thingDef.defName, c => c.count),
+                    availableNow = thing != null ? requirements.All(r => r.IsFinished) : recipe.AvailableNow };
+            }
+            catch (Exception error) { return new { known = false, reason = error.GetType().Name }; }
         }
 
         /// <summary>What hop 1 hands to hop 2: the reply so far, and the handles

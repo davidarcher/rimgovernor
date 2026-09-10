@@ -220,10 +220,23 @@ class ColonyController:
             elif not suspended and goal.status == 'suspended':
                 goal.status = 'active'
                 self.event('goal_resumed', identity)
+            if goal.status == 'blocked' and goal.reason.startswith('No available observed construction definition:'):
+                required = goal.evidence.get('required_capabilities', [])
+                if required and all(facts.get('definitions', {}).get(name, {}).get('available') is True for name in required):
+                    goal.status, goal.reason = 'active', ''
+                    self.event('goal_resumed', identity, reason='Native construction research is now available')
             if goal.status == 'blocked' and goal.reason.startswith('Resources:'):
                 if facts.get('resources') != goal.evidence.get('blocked_stock'):
                     goal.status, goal.reason = 'active', ''
                     self.event('goal_resumed', identity)
+        from .research import refresh as refresh_research
+        research_nodes = await refresh_research(rt, facts, people['pawns'], nodes)
+        await rt.ensure_context(token)
+        if direction != rt.chat_revision: return
+        nodes += research_nodes
+        applicable.update(research_nodes)
+        if minimum < 2 and research_nodes and plan.colony_goals['EnsureResearch'].status == 'active':
+            plan.colony_goals['EnsureResearch'].status = 'suspended'
         for identity, goal in plan.colony_goals.items():
             if identity not in applicable and not identity.startswith('intent-') and goal.source != 'LLM_ADVISOR' and not goal.cancelled and goal.status != 'complete':
                 goal.status = 'complete'
@@ -275,7 +288,7 @@ class ColonyController:
                     release_admission(plan, identity, development_admitted, 'Existing method awaiting native progress')
                     existing_process = (identity=='CriticalMedical' and any(p.get('job')=='TendPatient' for p in people['pawns'])) or (identity=='EnsureFoodSupply' and any(f.get('growingCells',0)>0 for f in facts.get('farms',[]))) or (
                         identity in ('EnsureFoodSupply','MaintainWood') and any(p.get('designated') for p in facts.get('acquisition',[])))
-                    if goal.evidence.get('methods') or goal.archived_methods or existing_process or identity.startswith('MaintainResource-'): plan.control['simulation_needed'] = True
+                    if goal.evidence.get('methods') or goal.archived_methods or existing_process or identity.startswith('MaintainResource-') or identity=='EnsureResearch': plan.control['simulation_needed'] = True
                     continue
                 method, actions = compiled
                 steps, slots = self.skills.steps(identity, method, actions, facts)

@@ -141,6 +141,24 @@ infrastructure is not construction acceptance. These cases do not establish
 prolonged environmental survival, toxic exposure control, infrastructure repair
 or full disaster recovery; those remain in B28.
 
+## Verify research work
+
+Use a private worker with this task's compiled colony bridge and run
+`python scripts/research_acceptance.py --source-root /worker/run --output /worker/research`
+as its command. The probe adds an ordinary wood research bench to the disposable
+baseline, clears its small plant footprint and normalizes legacy UTF8 names before
+launch. It records the original/prepared save hashes. Research points and pawn
+skills remain unchanged. The highest-skilled eligible native researcher receives Research priority 1,
+with Research disabled for peers through normal pawn-settings operations.
+
+Require `research/result.json` with `passed: true` and process exit 0. Cases cover
+needs-driven queue admission, paused map/current-project guards, shared Hands
+selection, zero progress after selection, ordinary pawn completion, and an unlocked
+native building definition. Each clock window and research progress sample is
+retained. `--timeout` defaults to 1200 seconds after startup; failures preserve their
+partial report and game log. This scenario supplies an existing laboratory; it does
+not certify constructing a laboratory or sustained research across every project.
+
 ## Related reading
 
 [Choose tests](choose-tests.md) · [Test evidence explained](../explanation/testing.md) ·
