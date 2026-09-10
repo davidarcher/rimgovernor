@@ -56,6 +56,96 @@ in the checkpoint commit; do not append an implementation diary here.
   multiple construction intents; the conservative preservation guard is not a
   general natural-language authorization proof.
 
+- [ ] **B04h · Complete startup and colony upkeep.** Implement the phased plan
+  below through existing ColonyPlan goals, deterministic methods and Hands. Use
+  observed deficits, urgency and player priorities rather than a fixed day-by-day
+  script. Emergency work preempts development; independent affordable work may
+  proceed together. Keep completed capabilities under maintenance as needs change.
+  B04a owns food production, B04f emergency/power methods, B06/B06a spatial/farming
+  choices, B06b facilities, B06c defensive layouts and B07 durable scheduling;
+  this item owns their startup sequencing and the upkeep gaps between them.
+
+  **Phase 1 — Ground needs and completion contracts.** Audit installed native
+  reads/actions before extending schemas. Observe vulnerable item locations,
+  deterioration/rot, valid storage capacity and access; sleeping furniture and
+  assignments; home/allowed areas, fire, damage and roof support; animal containment,
+  diet and feed; clothing condition/thermal protection; medicine stock, patients,
+  worker availability, mood/rest/recreation and season/power evidence. Preserve
+  unknowns. Each goal needs an entry threshold, recovery threshold, bounded method,
+  ownership record, progress evidence and explicit blocker. Add stable scoring and
+  hysteresis so minor changes do not repeatedly rebuild facilities or reassign work.
+
+  **Phase 2 — Secure landing supplies and sleeping.** Reuse suitable shelter and
+  storage before building. Add covered general storage with native filters and
+  capacity for vulnerable supplies, separate from food-specific storage. Prioritize
+  safe hauling by loss risk and survival value; verify item destinations and
+  deterioration protection instead of counting stockpile creation as completion.
+  Restore temporary hauling overrides when the deficit clears. Upgrade floor
+  sleeping to affordable beds through B06b, preserving usable sleeping capacity
+  during replacement and respecting assignments and player furniture. Verify
+  actual bed use, access and safe sleeping temperatures. Introduce dining and
+  recreation after urgent survival deficits; preserve player schedules and avoid
+  unnecessary schedule rewrites when ordinary needs-driven behavior suffices.
+
+  **Phase 3 — Fire, cleaning and repair upkeep.** Maintain deliberate home-area
+  coverage for occupied facilities and protected stock without expanding cleaning
+  work across arbitrary terrain. Preserve player area edits. Match safe firefighting
+  and repair jobs to capable available workers; isolate dangerous fires and use
+  explicit retreat/hold behavior when safe intervention is unavailable. Prioritize
+  kitchen/clinic contamination and damaged essential structures over cosmetic work.
+  Stage stone-block production and wood-wall replacement through B06b/B07 only
+  after native support/access checks; retain roofs, enclosure and escape routes
+  throughout each replacement batch. Verify extinguished fires, completed repairs
+  and remaining support rather than designations or worker assignments alone.
+
+  **Phase 4 — Operate the food chain.** Extend B04a/B06b from bills and rooms to
+  reachable ingredient staging, output storage, hauling and cleaning capacity.
+  Keep dirty processing appropriately separated from clean preparation using
+  observed native effects. Reuse suitable bills and preserve ingredient restrictions.
+  Maintain meal buffers against actual demand, cook availability and spoilage;
+  do not count planned harvest as stored food. Establish and maintain refrigeration
+  when justified, including cooler placement/exhaust, power and measured storage
+  temperatures. On failure, reassess food deadlines and prioritize safe hauling,
+  repair or bounded cooking rather than assuming the freezer remains functional.
+
+  **Phase 5 — Sustain animals and medical supplies.** Detect starting animals and
+  native pen requirements; establish temporary safe containment or a suitable pen,
+  then verify actual containment, reachable feed and seasonal feed reserves.
+  Account for animal consumption separately from human food and protect sensitive
+  stores with appropriate areas/filters. Do not automatically slaughter, release,
+  breed or change bonded-animal policy to resolve a feed deficit. Maintain medical
+  reserves, audit native healroot eligibility and acquisition/production options,
+  and coordinate replenishment with B06b clinics and existing medical response.
+  Preserve patient care policies; unavailable supplies or staff remain visible.
+
+  **Phase 6 — Prepare for seasonal and workforce changes.** Derive preparation
+  urgency from native growing conditions, temperature exposure, consumption and
+  lead times. Connect B06a crop/greenhouse choices to food reserves, animal feed,
+  heating fuel and clothing acquisition/production. Respect outfits, research and
+  resource policies; verify worn protection rather than crafted-item receipts.
+  Reassess workload when colonists join, become ill or lose capabilities; protect
+  essential hauling/cleaning and backup coverage without taking over player choices.
+  Prefer upgrades that relieve observed bottlenecks; avoid speculative stockpiles
+  and research queues unrelated to admitted needs.
+
+  **Acceptance and rollout.** Land each phase with deterministic fixtures for
+  thresholds, unavailable facts, resource competition, player overrides and
+  no-progress recovery, followed by isolated native acceptance before expanding
+  scope. Include interrupted writes, partial construction, manual intervention,
+  map/load changes and paired restart without duplicate orders or lost ownership.
+  Run scenarios for scattered supplies, no safe storage, bed shortages, dirty
+  kitchens, blocked hauling, nearby fire, unsafe fire, supported wall replacement,
+  freezer outage, starting pen/pet animals, feed scarcity, medicine shortage,
+  unavailable workers and cold-season clothing/fuel deficits. Verify completed
+  hauling, sleeping, repairs, food replenishment, containment and actual equipment
+  use. Extend B04 campaigns across seeds, colony sizes and resource/season variants;
+  record stock/need trends, interruptions, blockers, labor/travel cost and recovery
+  after initial supplies run down. Keep foothold status distinct from demonstrated
+  sustained survival; do not claim support from blueprints, labels or one happy path.
+  Strategy references: wiki [Quickstart](https://rimworldwiki.com/wiki/Quickstart_Guides)
+  and [Basics](https://rimworldwiki.com/wiki/Basics). Their scenario-specific advice
+  guides requirements; installed native rules and player policy govern execution.
+
 ## P1 — Functional colony planning and recovery
 
 - [ ] **B06 · Spatial architecture.** Add long-term layout, functional room roles,
