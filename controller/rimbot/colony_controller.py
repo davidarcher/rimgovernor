@@ -130,6 +130,19 @@ class ColonyController:
             if signature != goal.evidence.get('progress'):
                 goal.evidence['progress'] = signature
                 goal.last_progress_tick = facts['tick']
+            watchdog = goal.evidence.get('watchdog')
+            if (goal.status == 'blocked' and watchdog and goal.reason == watchdog.get('reason')
+                    and facts['tick'] >= watchdog['tick']):
+                completed = {s for s in goal.steps if s in plan.progress and plan.progress[s].state == 'complete'}
+                failed = any(plan.progress[s].state in ('blocked', 'cancelled')
+                             for s in goal.steps if s in plan.progress)
+                if completed - set(watchdog['completed_steps']) and not failed:
+                    # Native labor can finish while the controller holds further
+                    # orders. Resume the existing method, preserving its receipts.
+                    goal.status, goal.reason = 'active', ''
+                    goal.last_progress_tick = facts['tick']
+                    goal.evidence.pop('watchdog', None)
+                    self.event('goal_resumed', identity, reason='Tracked work completed after watchdog hold')
             # Emergency work suspends development without erasing issued orders.
             suspended = minimum < 2 and goal.priority_class > minimum
             if suspended and goal.status == 'active':
@@ -174,7 +187,10 @@ class ColonyController:
                 continue
             timeout = 3000 if identity=='ActiveCombat' else self.policy.blocked_after_ticks
             if goal.steps and facts['tick'] - goal.last_progress_tick >= timeout:
-                self.block(goal, identity, f'No measurable progress within {timeout} game ticks; inspect labor/materials/postconditions')
+                reason = f'No measurable progress within {timeout} game ticks; inspect labor/materials/postconditions'
+                goal.evidence['watchdog'] = dict(tick=facts['tick'], reason=reason,
+                    completed_steps=[s for s in goal.steps if s in plan.progress and plan.progress[s].state == 'complete'])
+                self.block(goal, identity, reason)
                 continue
             if any(p.state in ('pending', 'executing', 'waiting') for p in existing):
                 plan.control['simulation_needed'] = True
