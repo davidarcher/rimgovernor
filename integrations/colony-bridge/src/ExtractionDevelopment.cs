@@ -37,8 +37,12 @@ namespace HomeBridge.BridgeTools
                 {
                     var power = def.GetCompProperties<CompProperties_Power>();
                     var net = PowerConnectionMaker.BestTransmitterForConnector(cell, map)?.PowerNet;
+                    // PowerOutput is nominal even when a consumer is switched off.
+                    // Retain brownout demand, but release deliberately disabled loads.
+                    var surplus = net?.powerComps.Where(p => p.PowerOn
+                        || (p.PowerOutput < 0 && FlickUtility.WantsToBeOn(p.parent))).Sum(p => p.PowerOutput) ?? 0;
                     if (power == null || power.shortCircuitInRain || net == null
-                        || net.powerComps.Sum(p => p.PowerOutput) < power.PowerConsumption) continue;
+                        || surplus < power.PowerConsumption) continue;
                     var rect = GenAdj.OccupiedRect(cell, Rot4.North, def.Size);
                     if (rect.Any(c => !c.InBounds(map) || c.Fogged(map) || c.Roofed(map)
                         || map.zoneManager.ZoneAt(c) != null || c.GetThingList(map).Any(t => t is Building || t is Blueprint || t is Frame))) continue;
@@ -48,10 +52,11 @@ namespace HomeBridge.BridgeTools
                         || !builders.Any(p => p.skills != null
                             && p.skills.GetSkill(SkillDefOf.Construction).Level >= def.constructionSkillPrerequisite
                             && p.skills.GetSkill(SkillDefOf.Artistic).Level >= def.artisticSkillPrerequisite
+                            && !cell.IsForbidden(p)
                             && p.CanReach(cell, PathEndMode.Touch, Danger.None))
                         || !GenConstruct.CanPlaceBlueprintAt(def, cell, Rot4.North, map, false).Accepted) continue;
                     result.Add(new { defName = def.defName, x = cell.x, z = cell.z, rotation = "north", eligible = true,
-                        resource = scanning ? resource : null, powerW = power.PowerConsumption,
+                        resource = scanning ? resource : null, powerW = power.PowerConsumption, sparePowerW = surplus,
                         workTypes = new[] { HomeBillsTools.WorkTypeMetadata(work), HomeBillsTools.WorkTypeMetadata(WorkTypeDefOf.Construction) } });
                     if (result.Count >= 8) return result;
                 }

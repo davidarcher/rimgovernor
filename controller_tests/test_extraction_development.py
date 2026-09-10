@@ -12,7 +12,7 @@ def fixture():
     infrastructure = dict(scannersActive=True, definitions=[dict(defName='DeepDrill', method='drill',
         available=True, costs={'Steel':100}, research=[])], sites=[site], drills=[], owned=[])
     sources = dict(infrastructure=infrastructure, storage=dict(capacity=75, stackLimit=75, deepPortion=5,
-        haulers=['worker'], candidates=[]))
+        haulers=['worker'], candidates=[], workType={'name':'Hauling'}))
     return goal, sources, site
 
 
@@ -40,6 +40,7 @@ def test_storage_precedes_shared_construction_and_only_committed_facilities_get_
     method, actions = development_method(goal, sources, facts)
     assert actions[0]['kind'] == 'place_buildings'
     assert facts['definitions']['DeepDrill']['costs'] == {'Steel':100}
+    assert {'name':'Hauling'} in goal.evidence['work_types']
     plan = ColonyPlan(colony_goals={'MaintainResource-Plasteel':goal})
     assert drilling_policy(plan) == ''
     step = PlanStep(id='drill', title='Drill', goal_id='MaintainResource-Plasteel', action=actions[0], completion_criteria='Native building')

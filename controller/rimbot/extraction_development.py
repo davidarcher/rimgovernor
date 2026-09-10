@@ -104,7 +104,7 @@ def development_method(goal, sources, facts):
         if goal.method_seen(key):
             raise SkillBlocked('Extraction facility changed or was interrupted; inspect and explicitly renew the resource goal')
         facts.setdefault('definitions', {})[definition['defName']] = definition
-        goal.evidence['work_types'] = site['workTypes']
+        goal.evidence['work_types'] = [*site['workTypes'], storage['workType']]
         goal.evidence['extraction_facility'] = site
         if method == 'drill':
             facilities = goal.evidence.setdefault('drilling_facilities', [])
