@@ -1,0 +1,1739 @@
+{
+  "version": 1,
+  "source_revision": "869f8042ce96862f49d659bc5cf170f90e740d11",
+  "scope": "Canonical request structural validation only; no generated/native consumer integration or native canPlace acceptance claimed.",
+  "expansion": {
+    "raw": "Use input.json exactly as the JSON document under test.",
+    "template": "In declaration order, replace the single literal token in input.json with text repeated count times. No trimming, JSON reserialization, escaping, Unicode normalization or newline translation. Validate the expanded document exactly.",
+    "targets": "outer_arguments validates the MCP argument object only; placements validates the parsed contents of its placements string. Production request acceptance requires both stages."
+  },
+  "legacy_evidence": "contracts/fixtures/placement-parser-baseline.json is the independently probed observation artifact when available; pending-probe records below are not observations.",
+  "cases": [
+    {
+      "id": "outer.valid",
+      "target": "outer_arguments",
+      "input": {
+        "kind": "raw",
+        "json": "{\"placements\": \"[{\\\"defName\\\":\\\"Wall\\\",\\\"x\\\":1,\\\"z\\\":2,\\\"rotation\\\":\\\"north\\\",\\\"stuff\\\":\\\"WoodLog\\\"}]\"}"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Outer placements is a JSON-encoded string; inner validation is a separate required step."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "outer.missing",
+      "target": "outer_arguments",
+      "input": {
+        "kind": "raw",
+        "json": "{}"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "placements is required."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native ToolParameter defaults missing input to null and SDK binding owns outer token/unknown behavior. No binder parity inferred; pending probe."
+      }
+    },
+    {
+      "id": "outer.null",
+      "target": "outer_arguments",
+      "input": {
+        "kind": "raw",
+        "json": "{\"placements\":null}"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "placements is non-null string."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native ToolParameter defaults missing input to null and SDK binding owns outer token/unknown behavior. No binder parity inferred; pending probe."
+      }
+    },
+    {
+      "id": "outer.array",
+      "target": "outer_arguments",
+      "input": {
+        "kind": "raw",
+        "json": "{\"placements\":[]}"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Wire argument stays a string, not an array."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native ToolParameter defaults missing input to null and SDK binding owns outer token/unknown behavior. No binder parity inferred; pending probe."
+      }
+    },
+    {
+      "id": "outer.number",
+      "target": "outer_arguments",
+      "input": {
+        "kind": "raw",
+        "json": "{\"placements\":1}"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "No coercion to string."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native ToolParameter defaults missing input to null and SDK binding owns outer token/unknown behavior. No binder parity inferred; pending probe."
+      }
+    },
+    {
+      "id": "outer.unknown",
+      "target": "outer_arguments",
+      "input": {
+        "kind": "raw",
+        "json": "{\"placements\":\"[]\",\"dryRun\":true}"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Closed outer arguments reject unknown keys."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native ToolParameter defaults missing input to null and SDK binding owns outer token/unknown behavior. No binder parity inferred; pending probe."
+      }
+    },
+    {
+      "id": "outer.case",
+      "target": "outer_arguments",
+      "input": {
+        "kind": "raw",
+        "json": "{\"Placements\":\"[]\"}"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Names are case-sensitive."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native ToolParameter defaults missing input to null and SDK binding owns outer token/unknown behavior. No binder parity inferred; pending probe."
+      }
+    },
+    {
+      "id": "outer.duplicate",
+      "target": "outer_arguments",
+      "input": {
+        "kind": "raw",
+        "json": "{\"placements\":\"[]\",\"placements\":\"[]\"}"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Duplicate decoded keys rejected."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native ToolParameter defaults missing input to null and SDK binding owns outer token/unknown behavior. No binder parity inferred; pending probe."
+      }
+    },
+    {
+      "id": "outer.escaped_duplicate",
+      "target": "outer_arguments",
+      "input": {
+        "kind": "raw",
+        "json": "{\"placements\":\"[]\",\"\\u0070lacements\":\"[]\"}"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Escape aliases are duplicate keys."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native ToolParameter defaults missing input to null and SDK binding owns outer token/unknown behavior. No binder parity inferred; pending probe."
+      }
+    },
+    {
+      "id": "outer.empty_string",
+      "target": "outer_arguments",
+      "input": {
+        "kind": "raw",
+        "json": "{\"placements\":\"\"}"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Empty is a structurally valid outer string; required inner JSON parsing rejects it."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "outer.utf16_limit",
+      "target": "outer_arguments",
+      "input": {
+        "kind": "template",
+        "json": "{\"placements\":\"{{padding}}[]\"}",
+        "replacements": [
+          {
+            "token": "{{padding}}",
+            "text": " ",
+            "count": 32766
+          }
+        ]
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Decoded outer string length is padding plus two UTF-16 units for []."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "outer.utf16_over_limit",
+      "target": "outer_arguments",
+      "input": {
+        "kind": "template",
+        "json": "{\"placements\":\"{{padding}}[]\"}",
+        "replacements": [
+          {
+            "token": "{{padding}}",
+            "text": " ",
+            "count": 32767
+          }
+        ]
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Decoded outer string length is padding plus two UTF-16 units for []."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "outer.supplementary_limit",
+      "target": "outer_arguments",
+      "input": {
+        "kind": "template",
+        "json": "{\"placements\":\"{{astral}}\"}",
+        "replacements": [
+          {
+            "token": "{{astral}}",
+            "text": "😀",
+            "count": 16384
+          }
+        ]
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "16,384 supplementary scalars occupy 32,768 UTF-16 units. Outer-only case; inner parsing would reject this text."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "outer.supplementary_over_limit",
+      "target": "outer_arguments",
+      "input": {
+        "kind": "template",
+        "json": "{\"placements\":\"{{astral}}a\"}",
+        "replacements": [
+          {
+            "token": "{{astral}}",
+            "text": "😀",
+            "count": 16384
+          }
+        ]
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "One ASCII scalar beyond 32,768 UTF-16 units."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "placements.valid",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Normal structurally valid placement; canPlace is not asserted."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "placements.empty",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "At least one candidate required."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "placements.null",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "null"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Array required."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "placements.object",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Array required even for one candidate."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "placements.null_row",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[null]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Each candidate must be an object."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "placements.count_16",
+      "target": "placements",
+      "input": {
+        "kind": "template",
+        "json": "[{{rows}}{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]",
+        "replacements": [
+          {
+            "token": "{{rows}}",
+            "text": "{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"},",
+            "count": 15
+          }
+        ]
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Upper candidate-count boundary."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "placements.count_17",
+      "target": "placements",
+      "input": {
+        "kind": "template",
+        "json": "[{{rows}}{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]",
+        "replacements": [
+          {
+            "token": "{{rows}}",
+            "text": "{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"},",
+            "count": 16
+          }
+        ]
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Upper candidate-count boundary."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.missing_defName",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "All five candidate fields are required; no generated defaults."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.null_defName",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":null,\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Required field cannot be null."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.missing_x",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "All five candidate fields are required; no generated defaults."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.null_x",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":null,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Required field cannot be null."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.missing_z",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "All five candidate fields are required; no generated defaults."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.null_z",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":null,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Required field cannot be null."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.missing_rotation",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "All five candidate fields are required; no generated defaults."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.null_rotation",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":null,\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Required field cannot be null."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.missing_stuff",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "All five candidate fields are required; no generated defaults."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.null_stuff",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":null}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Required field cannot be null."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.unknown",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\",\"dryRun\":true}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Exactly five fields; client cannot inject native write flags."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.duplicate",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\",\"x\":9}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Duplicate property rejected before DTO conversion."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.escaped_duplicate",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\",\"\\u0078\":9}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Decoded escape alias duplicates x."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "coordinate.x.min",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":-2147483648,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Signed int32 JSON integer token required; no numeric/string/bool coercion. Bounds do not assert map membership."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "coordinate.x.max",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":2147483647,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Signed int32 JSON integer token required; no numeric/string/bool coercion. Bounds do not assert map membership."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "coordinate.x.underflow",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":-2147483649,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Signed int32 JSON integer token required; no numeric/string/bool coercion. Bounds do not assert map membership."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "coordinate.x.overflow",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":2147483648,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Signed int32 JSON integer token required; no numeric/string/bool coercion. Bounds do not assert map membership."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "coordinate.x.fraction",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1.0,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Signed int32 JSON integer token required; no numeric/string/bool coercion. Bounds do not assert map membership."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "coordinate.x.exponent",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1e0,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Signed int32 JSON integer token required; no numeric/string/bool coercion. Bounds do not assert map membership."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "coordinate.x.string",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":\"1\",\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Signed int32 JSON integer token required; no numeric/string/bool coercion. Bounds do not assert map membership."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "coordinate.x.boolean",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":true,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Signed int32 JSON integer token required; no numeric/string/bool coercion. Bounds do not assert map membership."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "coordinate.x.negative_zero",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":-0,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Signed int32 JSON integer token required; no numeric/string/bool coercion. Bounds do not assert map membership."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "coordinate.z.min",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":-2147483648,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Signed int32 JSON integer token required; no numeric/string/bool coercion. Bounds do not assert map membership."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "coordinate.z.max",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2147483647,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Signed int32 JSON integer token required; no numeric/string/bool coercion. Bounds do not assert map membership."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "coordinate.z.underflow",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":-2147483649,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Signed int32 JSON integer token required; no numeric/string/bool coercion. Bounds do not assert map membership."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "coordinate.z.overflow",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2147483648,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Signed int32 JSON integer token required; no numeric/string/bool coercion. Bounds do not assert map membership."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "coordinate.z.fraction",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":1.0,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Signed int32 JSON integer token required; no numeric/string/bool coercion. Bounds do not assert map membership."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "coordinate.z.exponent",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":1e0,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Signed int32 JSON integer token required; no numeric/string/bool coercion. Bounds do not assert map membership."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "coordinate.z.string",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":\"1\",\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Signed int32 JSON integer token required; no numeric/string/bool coercion. Bounds do not assert map membership."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "coordinate.z.boolean",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":true,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Signed int32 JSON integer token required; no numeric/string/bool coercion. Bounds do not assert map membership."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "coordinate.z.negative_zero",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":-0,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Signed int32 JSON integer token required; no numeric/string/bool coercion. Bounds do not assert map membership."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.semantic_rotation",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"not-a-native-rotation\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Nonblank string passes structural validation; native candidate reports semantic rotation refusal."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.rotation_alias",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\" ALL \",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Whitespace-surrounded native alias remains unchanged for semantic parsing."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.missing_definition",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"RimGovernorMissingDefinitionForAcceptance\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Definition availability is a native semantic question."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.empty_stuff",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Empty stuff requests native default preview."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.whitespace_stuff",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\" \\t\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Stuff may be whitespace structurally; definition resolution remains native."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.nonstring_defName",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":123,\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "String field never coerces numeric token."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "string.defName.ascii_200",
+      "target": "placements",
+      "input": {
+        "kind": "template",
+        "json": "[{\"defName\":\"{{text}}\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]",
+        "replacements": [
+          {
+            "token": "{{text}}",
+            "text": "a",
+            "count": 200
+          }
+        ]
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "String bound counts UTF-16 units."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "string.defName.ascii_201",
+      "target": "placements",
+      "input": {
+        "kind": "template",
+        "json": "[{\"defName\":\"{{text}}\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]",
+        "replacements": [
+          {
+            "token": "{{text}}",
+            "text": "a",
+            "count": 201
+          }
+        ]
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "String bound counts UTF-16 units."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "string.defName.supplementary_100",
+      "target": "placements",
+      "input": {
+        "kind": "template",
+        "json": "[{\"defName\":\"{{text}}\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]",
+        "replacements": [
+          {
+            "token": "{{text}}",
+            "text": "😀",
+            "count": 100
+          }
+        ]
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Supplementary scalars count as two UTF-16 units each."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "string.defName.supplementary_101",
+      "target": "placements",
+      "input": {
+        "kind": "template",
+        "json": "[{\"defName\":\"{{text}}\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]",
+        "replacements": [
+          {
+            "token": "{{text}}",
+            "text": "😀",
+            "count": 101
+          }
+        ]
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Supplementary scalars count as two UTF-16 units each."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.nonstring_rotation",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":123,\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "String field never coerces numeric token."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "string.rotation.ascii_200",
+      "target": "placements",
+      "input": {
+        "kind": "template",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"{{text}}\",\"stuff\":\"WoodLog\"}]",
+        "replacements": [
+          {
+            "token": "{{text}}",
+            "text": "a",
+            "count": 200
+          }
+        ]
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "String bound counts UTF-16 units."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "string.rotation.ascii_201",
+      "target": "placements",
+      "input": {
+        "kind": "template",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"{{text}}\",\"stuff\":\"WoodLog\"}]",
+        "replacements": [
+          {
+            "token": "{{text}}",
+            "text": "a",
+            "count": 201
+          }
+        ]
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "String bound counts UTF-16 units."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "string.rotation.supplementary_100",
+      "target": "placements",
+      "input": {
+        "kind": "template",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"{{text}}\",\"stuff\":\"WoodLog\"}]",
+        "replacements": [
+          {
+            "token": "{{text}}",
+            "text": "😀",
+            "count": 100
+          }
+        ]
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Supplementary scalars count as two UTF-16 units each."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "string.rotation.supplementary_101",
+      "target": "placements",
+      "input": {
+        "kind": "template",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"{{text}}\",\"stuff\":\"WoodLog\"}]",
+        "replacements": [
+          {
+            "token": "{{text}}",
+            "text": "😀",
+            "count": 101
+          }
+        ]
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Supplementary scalars count as two UTF-16 units each."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "candidate.nonstring_stuff",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":123}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "String field never coerces numeric token."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "string.stuff.ascii_200",
+      "target": "placements",
+      "input": {
+        "kind": "template",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"{{text}}\"}]",
+        "replacements": [
+          {
+            "token": "{{text}}",
+            "text": "a",
+            "count": 200
+          }
+        ]
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "String bound counts UTF-16 units."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "string.stuff.ascii_201",
+      "target": "placements",
+      "input": {
+        "kind": "template",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"{{text}}\"}]",
+        "replacements": [
+          {
+            "token": "{{text}}",
+            "text": "a",
+            "count": 201
+          }
+        ]
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "String bound counts UTF-16 units."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "string.stuff.supplementary_100",
+      "target": "placements",
+      "input": {
+        "kind": "template",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"{{text}}\"}]",
+        "replacements": [
+          {
+            "token": "{{text}}",
+            "text": "😀",
+            "count": 100
+          }
+        ]
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Supplementary scalars count as two UTF-16 units each."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "string.stuff.supplementary_101",
+      "target": "placements",
+      "input": {
+        "kind": "template",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"{{text}}\"}]",
+        "replacements": [
+          {
+            "token": "{{text}}",
+            "text": "😀",
+            "count": 101
+          }
+        ]
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Supplementary scalars count as two UTF-16 units each."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "whitespace.defName.empty",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Match .NET IsNullOrWhiteSpace, not Python str.isspace; nonblank text can still fail native semantic resolution."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "whitespace.defName.ascii_space",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\" \\t\\r\\n\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Match .NET IsNullOrWhiteSpace, not Python str.isspace; nonblank text can still fail native semantic resolution."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "whitespace.defName.nel_nbsp",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\" \",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Match .NET IsNullOrWhiteSpace, not Python str.isspace; nonblank text can still fail native semantic resolution."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "whitespace.defName.unicode_separators",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"       　\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Match .NET IsNullOrWhiteSpace, not Python str.isspace; nonblank text can still fail native semantic resolution."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "whitespace.defName.python_only_control",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\\u001c\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Match .NET IsNullOrWhiteSpace, not Python str.isspace; nonblank text can still fail native semantic resolution."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "whitespace.defName.zero_width_space",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"​\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Match .NET IsNullOrWhiteSpace, not Python str.isspace; nonblank text can still fail native semantic resolution."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "whitespace.defName.bom",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"﻿\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Match .NET IsNullOrWhiteSpace, not Python str.isspace; nonblank text can still fail native semantic resolution."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "whitespace.rotation.empty",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Match .NET IsNullOrWhiteSpace, not Python str.isspace; nonblank text can still fail native semantic resolution."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "whitespace.rotation.ascii_space",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\" \\t\\r\\n\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Match .NET IsNullOrWhiteSpace, not Python str.isspace; nonblank text can still fail native semantic resolution."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "whitespace.rotation.nel_nbsp",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\" \",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Match .NET IsNullOrWhiteSpace, not Python str.isspace; nonblank text can still fail native semantic resolution."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "whitespace.rotation.unicode_separators",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"       　\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Match .NET IsNullOrWhiteSpace, not Python str.isspace; nonblank text can still fail native semantic resolution."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "whitespace.rotation.python_only_control",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"\\u001c\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Match .NET IsNullOrWhiteSpace, not Python str.isspace; nonblank text can still fail native semantic resolution."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "whitespace.rotation.zero_width_space",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"​\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Match .NET IsNullOrWhiteSpace, not Python str.isspace; nonblank text can still fail native semantic resolution."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "whitespace.rotation.bom",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"﻿\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "Match .NET IsNullOrWhiteSpace, not Python str.isspace; nonblank text can still fail native semantic resolution."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "unicode.lone_surrogate_high",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\\ud800\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Canonical strings contain Unicode scalars; lone escaped surrogates rejected to prevent replacement collisions."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Canonical policy intentionally stricter if Newtonsoft replaces or accepts this input. Actual C# observation pending in placement-parser-baseline.json."
+      }
+    },
+    {
+      "id": "unicode.lone_surrogate_low",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\\udc00\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Canonical strings contain Unicode scalars; lone escaped surrogates rejected to prevent replacement collisions."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Canonical policy intentionally stricter if Newtonsoft replaces or accepts this input. Actual C# observation pending in placement-parser-baseline.json."
+      }
+    },
+    {
+      "id": "unicode.lone_surrogate_high_then_ascii",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\\ud800a\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Canonical strings contain Unicode scalars; lone escaped surrogates rejected to prevent replacement collisions."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Canonical policy intentionally stricter if Newtonsoft replaces or accepts this input. Actual C# observation pending in placement-parser-baseline.json."
+      }
+    },
+    {
+      "id": "unicode.escaped_pair",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\\ud83d\\ude00\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "A valid escaped surrogate pair represents one supplementary scalar/two UTF-16 units."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "grammar.single_quotes",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{'defName':'Wall','x':1,'z':2,'rotation':'north','stuff':''}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Canonical grammar is one strict JSON value; nonstandard parser extensions are rejected."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Newtonsoft parser defaults may accept or transform this spelling. Actual legacy observation pending; rejection is a deliberate grammar correction if legacy accepted."
+      }
+    },
+    {
+      "id": "grammar.unquoted_keys",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{defName:\"Wall\",x:1,z:2,rotation:\"north\",stuff:\"\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Canonical grammar is one strict JSON value; nonstandard parser extensions are rejected."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Newtonsoft parser defaults may accept or transform this spelling. Actual legacy observation pending; rejection is a deliberate grammar correction if legacy accepted."
+      }
+    },
+    {
+      "id": "grammar.comment",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[/*candidate*/{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Canonical grammar is one strict JSON value; nonstandard parser extensions are rejected."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Newtonsoft parser defaults may accept or transform this spelling. Actual legacy observation pending; rejection is a deliberate grammar correction if legacy accepted."
+      }
+    },
+    {
+      "id": "grammar.trailing_comma",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"},]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Canonical grammar is one strict JSON value; nonstandard parser extensions are rejected."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Newtonsoft parser defaults may accept or transform this spelling. Actual legacy observation pending; rejection is a deliberate grammar correction if legacy accepted."
+      }
+    },
+    {
+      "id": "grammar.trailing_value",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}] []"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Canonical grammar is one strict JSON value; nonstandard parser extensions are rejected."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Newtonsoft parser defaults may accept or transform this spelling. Actual legacy observation pending; rejection is a deliberate grammar correction if legacy accepted."
+      }
+    },
+    {
+      "id": "grammar.leading_zero",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":01,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Canonical grammar is one strict JSON value; nonstandard parser extensions are rejected."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Newtonsoft parser defaults may accept or transform this spelling. Actual legacy observation pending; rejection is a deliberate grammar correction if legacy accepted."
+      }
+    },
+    {
+      "id": "grammar.hex",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":0x10,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Canonical grammar is one strict JSON value; nonstandard parser extensions are rejected."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Newtonsoft parser defaults may accept or transform this spelling. Actual legacy observation pending; rejection is a deliberate grammar correction if legacy accepted."
+      }
+    },
+    {
+      "id": "grammar.nan",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":NaN,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Canonical grammar is one strict JSON value; nonstandard parser extensions are rejected."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Newtonsoft parser defaults may accept or transform this spelling. Actual legacy observation pending; rejection is a deliberate grammar correction if legacy accepted."
+      }
+    },
+    {
+      "id": "grammar.truncated",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}"
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Truncated JSON rejected."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    },
+    {
+      "id": "grammar.empty",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": ""
+      },
+      "canonical": {
+        "accepted": false,
+        "reason": "Missing JSON value rejected."
+      },
+      "legacyObserved": {
+        "status": "pending-probe",
+        "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
+      }
+    }
+  ]
+}
