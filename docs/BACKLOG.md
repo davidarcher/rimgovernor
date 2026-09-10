@@ -319,6 +319,88 @@ in the checkpoint commit; do not append an implementation diary here.
   tactics remain open. Audit human undraft/redraft ownership ambiguity and native
   safety/path checks before adding automatic rescue, firefighting or heat escape.
 
+- [ ] **B19 · Mood and mental-break prevention.** Turn observed thoughts, needs,
+  break thresholds and mood pressure into bounded corrective goals. Rank actionable
+  causes by urgency, expected benefit, labor and resources; coordinate rest,
+  recreation, food, environment and social needs without overriding player policy.
+  Preserve uncertainty about future mood and respect traits/ideology. Verify actual
+  need recovery and safe handling of active breaks, not furniture placement alone.
+- [ ] **B20 · Research driven by colony needs.** Extend research selection with
+  native prerequisite discovery and a bounded queue tied to admitted goals and
+  observed bottlenecks. Coordinate B06b laboratory capacity, eligible researcher
+  coverage and material/power costs. Preserve player research choices and reassess
+  obsolete priorities without churn. Verify research progress/completion and the
+  resulting unlocked capability before dependent construction or production.
+- [ ] **B21 · Equipment and apparel upkeep.** Maintain suitable weapons, armor and
+  clothing using native wear, quality, protection, thermal stats, pawn capabilities
+  and existing outfits. Prefer available replacements before production/trade;
+  preserve player forced equipment and resource policies. Coordinate B04h seasonal
+  readiness and B06b workshops. Test unavailable sizes/definitions, damaged gear,
+  changed assignments and blocked equipping; verify actual worn/carried loadouts.
+- [ ] **B22 · Population and recruitment.** Plan rescue/capture, prisoner care and
+  recruitment according to explicit colony policy, available staff, beds and food.
+  Distinguish potential recruits from admitted population; provision capacity before
+  commitments where possible. Use native eligibility and interaction settings,
+  preserve individual player decisions, and expose unsupported steps. Verify actual
+  custody, care, recruitment and integration into work/equipment/housing allocation.
+- [ ] **B23 · Long-term medical management.** Extend B04f/B09 treatment with disease
+  monitoring, repeat tending, recovery/bed-rest coverage, chronic conditions,
+  prosthetics and surgery workflows. Discover patient/body-part/recipe eligibility,
+  medicine and practitioner requirements; report uncertainty and preserve care
+  policies. Irreversible elective operations require applicable player direction.
+  Test competing patients, lost staff/supplies, failed operations and interrupted
+  recovery; confirm native health outcomes rather than medical orders or bill removal.
+- [ ] **B24 · Animal husbandry.** Extend B04h starting-animal care and native animal
+  commands with managed population targets, breeding, training, milk/wool collection
+  and seasonal feed capacity. Respect bonded animals, masters and player slaughter,
+  release and breeding decisions. Observe reachable feed, actual consumption,
+  containment and handler workload. Verify births, training and collected products;
+  avoid inferring herd sustainability from a pen marker or available grass alone.
+- [ ] **B25 · Trade and economic planning.** Build on the guarded trade executor
+  with policy-driven buy/sell selection, strategic reserves, affordability and export
+  targets justified by current demand and production capacity. Audit current native
+  acceptance before adding tools. Include trader availability, negotiator access,
+  changed inventory/prices and uncertain exchanges; verify actual goods and silver.
+  Coordinate B15 expeditions and B06b production without speculative unlimited bills
+  or selling protected equipment, medicine, food or player-reserved materials.
+- [ ] **B26 · Mining and material development.** Extend resource acquisition into
+  bounded extraction plans, nearby deposit selection and replenishment after local
+  depletion. Discover native deposits, research, extraction equipment and worker
+  requirements. Preserve roof support, access and protected structures; unknown
+  excavation hazards block the affected work. Stage hauling/storage and later
+  extraction infrastructure through B06/B06b/B07 scheduling. Verify actual recovered
+  resources and safe completed geometry, including interrupted digs and depleted sites.
+- [ ] **B27 · Waste and corpse management.** Add maintained disposal/storage goals
+  for corpses, spoiled goods and unwanted items using native filters, deterioration,
+  hazards and pawn/ideology preferences. Separate dirty storage from occupied clean
+  facilities and protect graves, quest items and player-designated possessions.
+  Choose accessible disposal methods within policy and resource limits; distinguish
+  temporary relocation from completed disposal. Verify actual hauling/destruction
+  and exposure reduction without broad unreviewed item deletion or zone reassignment.
+- [ ] **B28 · Disaster-specific recovery.** Coordinate B04f emergencies, B04h upkeep
+  and B06d utilities for prolonged environmental disruption, crop loss and concurrent
+  infrastructure failures. Discover the actual event and affected capabilities;
+  revise food, fuel, shelter, work areas and repair priorities with bounded fallback
+  methods. Distinguish temporary survival measures from restored normal operation.
+  Test compound failures, inaccessible supplies, recovery after event expiry and
+  player intervention; measure native damage, stock consumption and restored service.
+- [ ] **B29 · Colony-wide development priorities.** Arbitrate comfort, research,
+  production, defense and expansion through the existing deterministic priority tree
+  and shared plans. Score observed deficits and bottlenecks against labor, resource
+  commitments, lead times and risk; preserve emergency precedence and player goals.
+  Add explicit deferred reasons, hysteresis and bounded concurrent projects to avoid
+  starvation or repeated redesign. Verify progress under competing demands and
+  changing colony capacity. Advisers may suggest priorities but cannot own invariants
+  or bypass admission; do not create a second planner/executor for development.
+
+All B19–B29 methods require native capability discovery, durable identities,
+player-direction/load guards, uncertain-write reconciliation and observable
+completion through the shared goal/action system. Use focused deterministic tests
+and isolated native scenarios, then sustained B04 campaigns. Existing reads,
+commands or forecast outputs do not establish autonomous management. Prioritize
+B19–B21 and B23 after urgent startup gaps; land bounded vertical slices rather than
+requiring every system before any can be accepted.
+
 ## P2 — Coverage, inspection and evaluation scale
 
 - [ ] **Contextual and queued action extensions.** The [native capability audit](reference/player-actions.md)
@@ -346,6 +428,30 @@ in the checkpoint commit; do not append an implementation diary here.
   exist. Audit and accept normal caravan assembly, loading, movement and quest
   progression. Extend evaluation to competing resources, emergencies, multi-day
   survival and winter readiness before claiming full-game capability.
+  Add policy-driven expedition/quest evaluation, diplomacy and return logistics:
+  eligible participants, route/time risk, travel supplies, carrying capacity,
+  home-colony staffing and return storage. Coordinate B25 trading and B22 population
+  decisions. Preserve player commitments and distinguish accepting a quest from
+  completing it. Verify native departures, travel, interactions, rewards and returns,
+  including failed/expired objectives, stranded parties and multiple active maps.
+- [ ] **B30 · DLC gameplay systems.** Maintain an installed-content capability and
+  acceptance matrix; B06b room coverage does not establish the associated gameplay.
+  Discover native definitions and prerequisites, gate methods on actual colony need
+  and player policy, and keep missing workflows explicit. Extend the shared goals
+  and Hands rather than adding a DLC-specific execution path.
+  **Ideology:** needs/precepts, role assignments, ritual eligibility and outcomes.
+  **Royalty:** title obligations, permits, psycast eligibility and bounded use.
+  **Biotech:** childcare/education and growth, gene workflows, mechanitor control,
+  mech production/repair/charging, waste/pollution, deathrest and hemogen supply.
+  **Anomaly:** entity capture/containment, study, extraction and ritual workflows,
+  with observed containment risk and recovery from failures.
+  **Odyssey:** gravship construction/support, departure/arrival prerequisites,
+  exploration and destination-specific survival through discovered native contracts.
+  Keep irreversible choices and escalation of optional threats within player
+  direction. Accept each workflow separately with native state changes and actual
+  pawn/entity outcomes; test unavailable DLC, mixed content, interruptions and
+  multi-map transitions. Add endgame objective planning only for selected player
+  goals, with prerequisites and completion evidence appropriate to installed content.
 - [ ] **B16 · Sustained throughput.** Windows two-worker clock/lifecycle isolation
   passed; parallel inference throughput remains unmeasured. Identify boosted-speed
   pause causes; measure useful completed tests/minute, memory, startup, inference,
