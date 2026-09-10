@@ -594,6 +594,7 @@ namespace HomeBridge.BridgeTools
                             || destination.GetSlotGroup(plan.Map) == null || plan.Pawn.Drafted || plan.Pawn.CurJob?.playerForced == true
                             || !plan.Pawn.CanReach(plan.Target, PathEndMode.Touch, Danger.None)
                             || !plan.Pawn.CanReach(destination, PathEndMode.OnCell, Danger.None)
+                            || !UpkeepAreaAllows(plan.Pawn, plan.Target.Position) || !UpkeepAreaAllows(plan.Pawn, destination)
                             || plan.Pawn.workSettings == null || plan.Pawn.workSettings.GetPriority(WorkTypeDefOf.Hauling) <= 0)
                             plan.Refuse("job_refused", "Safe hauling requires enabled work and reachable covered storage at dispatch.");
                     }
@@ -1219,6 +1220,12 @@ namespace HomeBridge.BridgeTools
         /// reported honestly under their own `job.def` rather than being
         /// refused as "not a bill".
         /// </summary>
+        private static bool UpkeepAreaAllows(Pawn pawn, IntVec3 cell)
+        {
+            var area = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
+            return area == null || area[cell];
+        }
+
         private static void PrepareUpkeep(Plan plan)
         {
             var t = plan.Target;
@@ -1227,7 +1234,8 @@ namespace HomeBridge.BridgeTools
                 plan.Refuse("job_refused", "Upkeep requires an exact spawned target inside the current home area.");
                 return;
             }
-            if (t.IsForbidden(plan.Pawn) || !plan.Pawn.CanReach(t, PathEndMode.Touch, Danger.None)
+            if (t.IsForbidden(plan.Pawn) || !UpkeepAreaAllows(plan.Pawn, t.Position)
+                || !plan.Pawn.CanReach(t, PathEndMode.Touch, Danger.None)
                 || plan.Pawn.Drafted || plan.Pawn.CurJob?.playerForced == true || plan.Pawn.health.HasHediffsNeedingTend())
             {
                 plan.Refuse("job_refused", "Upkeep requires safe access and an undrafted worker who needs no tending.");

@@ -394,6 +394,8 @@ class Hands:
                 args['preset'] = action.preset
             if action.allow:
                 args['allow'] = ','.join(action.allow)
+            if action.covered_empty:
+                args['requireCoveredEmpty'] = True
             if action.crop:
                 args['plant'] = action.crop
             preview = await rt.inspect_native('home/zone_cells', dict(args, dryRun=True))

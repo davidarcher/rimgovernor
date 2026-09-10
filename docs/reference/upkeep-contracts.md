@@ -17,7 +17,7 @@ unavailable read. The section tick must match the enclosing observation.
 | Home and structures | Exact occupied/protected cells with home coverage; owned building condition, material, roof and support definition. A support definition does not prove a replacement batch is safe. |
 | Fire, cleaning, repair | Exact native targets and condition. `home/order` repair/clean use the installed WorkGivers and their normal eligibility. These methods require current home coverage, safe access and enabled work. The installed firefighting WorkGiver is not directly orderable: enabled workers respond normally while the controller watches at most three home fires of size at most one. |
 | People | Current rest, recreation, mood, worn apparel condition and native comfortable temperature range. `home/list_pawns` supplies medical, work, settings and schedule reads. |
-| Animals | Current owned animal census, diet and food need. Pen eligibility and containment are explicitly unknown. Existing combined-demand food forecasts account for animal shares separately. |
+| Animals | Owned animal census, diet and food need; native rope-management eligibility, current enclosed pen and suitable pen identity. Pets have no pen-containment predicate. Reachable stored feed follows native eating eligibility and allowed-area access; it excludes drugs and does not count pasture or future harvest. Existing combined-demand food forecasts account for animal shares separately. |
 | Medicine, season, power | Medicine is identified through native item definitions. Existing forecast/status tools supply patient, crop and power inputs; no future production or season is credited as stock. |
 
 ## Maintained jobs
@@ -41,6 +41,16 @@ fires do not reset the progress watchdog. A newly oversized fire retains a hold
 even when native firefighting was already underway. Fire monitoring uses Normal
 speed and at most 60 game ticks between reviews; unavailable safe workers retain
 an emergency hold.
+
+When hauling reports no storage, the supply method can create a filtered 2×2
+stockpile in existing covered space. It preserves observed plants, items, buildings,
+zones, committed geometry and reserved walkways, previews at most eight candidates,
+and admits at most three such stockpiles. Filters allow only the observed target
+definitions. An atomic native guard rechecks roof, occupancy and zone ownership
+before creation. Exact geometry and filter readback complete the zone action;
+the supply goal still requires observed protected supplies. Missing covered space
+or repeated capacity failure remains a blocker. This method does not build a new
+storeroom or change another stockpile's filters.
 
 An `upkeep_target` action waits after the native job receipt. Hauling requires the
 same item identity and at least its original quantity in roofed valid storage;

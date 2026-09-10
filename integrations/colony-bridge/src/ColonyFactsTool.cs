@@ -212,6 +212,8 @@ namespace HomeBridge.BridgeTools
                         occupied = c.GetEdifice(map) != null || map.thingGrid.ThingsListAtFast(c).Any(t => t is Blueprint || t is Frame),
                         zone = map.zoneManager.ZoneAt(c) != null, roofed = c.Roofed(map),
                         indoors = c.GetRoom(map) != null && c.GetRoom(map).ProperRoom && !c.GetRoom(map).PsychologicallyOutdoors,
+                        storageEmpty = !c.GetThingList(map).Any(t => t is Plant || t is Building || t is Blueprint || t is Frame
+                            || t.def.category == ThingCategory.Item),
                         supportsLight = c.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Light) });
                 }
                 result["definitions"] = definitions;

@@ -214,7 +214,7 @@ async def upkeep_method(rt, goal_id, facts, people):
                 failures.append(dict(target=target['id'], pawn=pawn['thingId'], error=str(error), preview=preview))
                 continue
             if preview.get('success') is not True:
-                failures.append(dict(target=target['id'], pawn=pawn['thingId'], error=preview.get('error')))
+                failures.append(dict(target=target['id'], pawn=pawn['thingId'], error=preview.get('error'), preview=preview))
                 continue
             if action == 'haul':
                 checks = (preview.get('diagnostics') or {}).get('checks') or {}
@@ -233,4 +233,10 @@ async def upkeep_method(rt, goal_id, facts, people):
                 context=rt.context_token, direction=rt.chat_revision, preview=preview)
             return method, [dict(native('home/order', **request), completion='upkeep_target')]
     goal.evidence['upkeep_refusals'] = failures
+    storage_missing = any((f.get('preview') or {}).get('errorKind') == 'no_storage'
+        or f.get('error') == 'Native haul destination is not verified covered storage' for f in failures)
+    if action == 'haul' and candidates and storage_missing:
+        from .upkeep_storage import covered_storage
+        if storage := await covered_storage(rt, facts, rows[:8]):
+            return storage
     raise SkillBlocked('No available enabled worker and safe native ' + action + ' job; preserve player settings')

@@ -81,12 +81,23 @@ namespace HomeBridge.BridgeTools
                         defName = a.def.defName, hitPoints = a.HitPoints, maxHitPoints = a.MaxHitPoints }).ToList()
                 }).ToList()),
                 animals = read("animals", () => map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
-                    && p.Faction == Faction.OfPlayerSilentFail).Select(p => new {
+                    && p.Faction == Faction.OfPlayerSilentFail).Select(p => {
+                        var needsPen = AnimalPenUtility.NeedsToBeManagedByRope(p);
+                        var pen = needsPen ? AnimalPenUtility.GetCurrentPenOf(p, false) : null;
+                        var suitable = needsPen ? AnimalPenUtility.ClosestSuitablePen(p, false) : null;
+                        return new {
                         id = p.GetUniqueLoadID(), defName = p.def.defName, x = p.Position.x, z = p.Position.z,
                         food = p.needs?.food?.CurLevelPercentage, diet = p.RaceProps.foodType.ToString(),
-                        // Pen eligibility/containment require the native pen manager, not a fenced-room guess.
-                        contained = (bool?)null, requiresPen = (bool?)null
-                    }).ToList()),
+                        requiresPen = needsPen, contained = needsPen ? (bool?)(pen != null) : null,
+                        pen = pen?.parent.GetUniqueLoadID(), suitablePen = suitable?.parent.GetUniqueLoadID(),
+                        reachableStoredFeed = items.Where(t => t.def.IsNutritionGivingIngestible
+                            && !t.def.IsDrug && t.IngestibleNow && p.WillEat(t)
+                            && !t.IsForbidden(p) && p.CanReach(t, PathEndMode.Touch, Danger.None)
+                            && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null
+                                || p.playerSettings.AreaRestrictionInPawnCurrentMap[t.Position]))
+                            .Select(t => new { id = t.GetUniqueLoadID(), count = t.stackCount,
+                                nutrition = FoodUtility.NutritionForEater(p, t) * t.stackCount }).ToList()
+                    }; }).ToList()),
                 errors
             };
         }

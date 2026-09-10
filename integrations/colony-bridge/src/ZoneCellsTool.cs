@@ -164,13 +164,14 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "How long the menu stays open after the write, in seconds.", DefaultValue = Watch.DefaultSeconds)] int watchSeconds = Watch.DefaultSeconds,
             [ToolParameter(Description = "TRUE by default. Plan the whole operation and return it without writing anything. Pass false to actually apply it.", DefaultValue = true)] bool dryRun = true,
             [ToolParameter(Description = "For op=settings on an exact growing zone: allow sowing. Omit to preserve.")] bool? sow = null,
-            [ToolParameter(Description = "For op=settings on an exact growing zone: allow cutting. Omit to preserve.")] bool? cut = null)
+            [ToolParameter(Description = "For op=settings on an exact growing zone: allow cutting. Omit to preserve.")] bool? cut = null,
+            [ToolParameter(Description = "For stockpile creation: refuse the whole operation unless every requested cell is roofed, walkable, unzoned and empty of plants, items and construction at dispatch.", DefaultValue = false)] bool requireCoveredEmpty = false)
         {
             return BridgeCommon.WithUnknownArguments(
                 await ZoneCellsCore(
                     ctx, cancellationToken, op, zone, x, z, width, height, cells,
                     zoneType, label, priority, preset, allow, disallow, plant,
-                    allowSplit, watch, watchSeconds, dryRun, sow, cut).ConfigureAwait(false),
+                    allowSplit, watch, watchSeconds, dryRun, sow, cut, requireCoveredEmpty).ConfigureAwait(false),
                 ctx, typeof(HomeZoneCellTools), ToolName);
         }
 
@@ -194,7 +195,7 @@ namespace HomeBridge.BridgeTools
             bool allowSplit,
             bool watch,
             int watchSeconds,
-            bool dryRun, bool? sow, bool? cut)
+            bool dryRun, bool? sow, bool? cut, bool requireCoveredEmpty)
         {
             if (ctx?.MainThread == null)
                 return Failure("No RimBridge main-thread dispatcher is available for this invocation.");
@@ -228,6 +229,20 @@ namespace HomeBridge.BridgeTools
             var applied = await ctx.MainThread
                 .InvokeAsync(() =>
                 {
+                    if (requireCoveredEmpty) {
+                        if (op != "create" || zoneType != "stockpile")
+                            return new Hop2 { Reply = Failure("Covered empty cells require stockpile creation.") };
+                        List<IntVec3> requested;
+                        string cellError;
+                        if (!TryParseCells(x, z, width, height, cells, out requested, out cellError))
+                            return new Hop2 { Reply = Failure(cellError) };
+                        var map = Find.CurrentMap;
+                        if (map == null || requested.Count == 0 || requested.Any(c => !c.InBounds(map)
+                            || c.Fogged(map) || !c.Roofed(map) || !c.Walkable(map) || map.zoneManager.ZoneAt(c) != null
+                            || c.GetThingList(map).Any(t => t is Plant || t is Building || t is Blueprint || t is Frame
+                                || t.def.category == ThingCategory.Item)))
+                            return new Hop2 { Reply = Failure("Covered storage cells changed or are occupied; observe before retrying.") };
+                    }
                     var reply = Run(op, zone, x, z, width, height, cells, zoneType,
                                     label, priority, preset, allow, disallow, plant,
                                     allowSplit, dryRun, sow, cut);

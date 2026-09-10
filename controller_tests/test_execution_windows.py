@@ -73,6 +73,23 @@ async def test_confirmed_work_gets_bounded_window_then_pauses_for_review(tmp_pat
 
 
 @pytest.mark.asyncio
+async def test_native_fire_watch_uses_normal_speed_and_sixty_tick_review(tmp_path):
+    from rimbot.colony_plan import ColonyGoal
+    rt, store = runtime(tmp_path, 'complete')
+    from dataclasses import replace
+    rt.controller.policy = replace(rt.controller.policy, execution_speed='Superfast')
+    rt.current_plan.control['simulation_needed'] = True
+    rt.current_plan.colony_goals['MaintainFireSafety'] = ColonyGoal(
+        priority_class=1, status='active', evidence={'waiting_for_native_fire': True})
+    try:
+        await rt.advance_execution()
+        rt.supervisor.change.assert_awaited_once_with('Normal', mode='colony', ignored_hostiles='', max_ticks=60)
+        assert rt.execution_window_end == 160
+    finally:
+        store.close()
+
+
+@pytest.mark.asyncio
 async def test_completed_work_ends_window_early(tmp_path):
     rt, store = runtime(tmp_path)
     try:

@@ -27,8 +27,8 @@ in the checkpoint commit; do not append an implementation diary here.
   this item owns their startup sequencing and the upkeep gaps between them.
 
   **Phase 1 — Finish needs and completion contracts.** Extend the
-  [native upkeep audit](reference/upkeep-contracts.md) with pen eligibility and
-  containment, filtered storage capacity, allowed-area access, safe roof-support
+  [native upkeep audit](reference/upkeep-contracts.md) with filtered storage
+  capacity, safe roof-support
   replacement and seasonal lead-time evidence. Preserve unknowns. Extend the
   maintained supply, cleaning, repair and fire contracts to the remaining goals:
   sleeping use, facilities, food-chain operation, animals, medical reserves,
