@@ -189,3 +189,26 @@ async def test_uncertain_custody_requires_current_load_outcome_and_preserves_can
                          context_token='load', ensure_context=ensure)
     await refresh(rt, facts, people)
     assert plan.progress['capture'].state == expected
+
+
+@pytest.mark.asyncio
+async def test_recruit_equipping_preserves_forbidden_weapon_groups(monkeypatch):
+    from rimbot import population
+    pawn = {'thingId': 'Thing_Recruit', 'admitted': True}
+    worker = dict(pawn, equipment={'armed': False}, bio={'incapableOfTags': []})
+    async def guard(*args): return pawn, {}, [worker]
+    async def query(*args, **kwargs):
+        return {'things': [
+            {'oursUnforbidden': 1, 'forbidden': 1, 'positions': [{'thingId': 'Thing_Forbidden'}]},
+            {'oursUnforbidden': 1, 'forbidden': 0, 'positions': [{'thingId': 'Thing_Available'}]}]}
+    previews = []
+    async def preview(*args):
+        previews.append(args[-1]['target'])
+        return {'success': True}
+    monkeypatch.setattr(population, 'guard', guard)
+    monkeypatch.setattr(population, 'preview_order', preview)
+    plan = ColonyPlan(colony_goals={'Population-Thing_Recruit': ColonyGoal(priority_class=3)})
+    rt = SimpleNamespace(current_plan=plan, game=SimpleNamespace(query=query))
+    method, actions = await population.compile_method(rt, 'Population-Thing_Recruit', {}, [])
+    assert method == 'equip'
+    assert previews == ['Thing_Available']

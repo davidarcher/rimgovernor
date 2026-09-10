@@ -41,6 +41,9 @@ def committed_projects(plan):
 
 def deficit(identity, goal, facts, policy):
     """Comparable deficit fractions, not predicted utility or completion times."""
+    if identity.startswith('Population-'):
+        pawn = goal.evidence.get('population')
+        return int(goal.status != 'complete') if pawn and pawn.get('dead') is False else None
     if identity == 'MaintainWaste':
         from .waste_management import pending_items
         pending = pending_items(goal.evidence.get('observation', {}))

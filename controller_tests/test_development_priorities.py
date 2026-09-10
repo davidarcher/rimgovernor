@@ -160,3 +160,19 @@ async def test_controller_replay_progress_and_manual_guard():
 def test_invalid_capacity_is_rejected(limit):
     with pytest.raises(ValueError, match='Development'):
         ColonyPolicy(max_development_projects=limit)
+
+
+def test_observed_population_commitment_enters_shared_admission_and_keeps_emergency_precedence():
+    plan, facts, nodes = scenario()
+    key = 'Population-Thing_Candidate'
+    plan.colony_goals[key] = ColonyGoal(priority_class=3, source='PLAYER',
+        target={'pawn': 'Thing_Candidate', 'decision': 'recruit'})
+    nodes.append((key, 3))
+    _, selected = review(plan, facts, nodes)
+    assert key not in selected
+    plan.colony_goals[key].evidence['population'] = {'thingId': 'Thing_Candidate', 'dead': False}
+    _, selected = review(plan, facts, nodes)
+    assert selected == {key}
+    plan.colony_goals['ActiveCombat'] = ColonyGoal(priority_class=0)
+    _, selected = review(plan, facts, nodes + [('ActiveCombat', 0)])
+    assert key not in selected

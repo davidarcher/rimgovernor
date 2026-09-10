@@ -30,10 +30,11 @@ existing ordinary rescue path. Unknown prerequisites block new commitments.
 
 An issued order is not successful custody. The population goal observes actual
 prisoner status and bed occupancy; care requires observed food and tending state.
-Recruitment requires a native free-colonist read. Integration requires an owned bed,
+Recruitment requires a native free-colonist read. Integration requires an owned indoor non-prisoner bed,
 active work allocation, equipment (or native incapability of violence), and current
 care needs met. Shared work/shelter methods handle new colonists, and the population
-method can allocate an available eligible weapon without replacing existing gear.
+method can allocate an available eligible weapon without replacing existing gear. Weapon groups containing forbidden instances are
+skipped because the position samples do not expose individual forbidden state.
 Completed admission never authorizes recapturing a pawn who later leaves.
 
 Pending orders retain normal identity, direction, uncertainty and cancellation guards.

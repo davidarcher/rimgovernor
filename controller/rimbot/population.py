@@ -172,7 +172,7 @@ async def compile_method(rt, identity, facts, people):
                 raise SkillBlocked('Recruit equipment order needs observed completion; no replay')
             weapons = await rt.game.query('home/list_things', category='weapons', ownership='ours',
                 includeHeld=False, maxPositionsPerDef=12)
-            for weapon in sorted(t['thingId'] for row in weapons.get('things', []) if row.get('oursUnforbidden', 0) > 0
+            for weapon in sorted(t['thingId'] for row in weapons.get('things', []) if row.get('oursUnforbidden', 0) > 0 and row.get('forbidden', 1) == 0
                                  for t in row.get('positions', [])):
                 args = dict(action='equip', pawn=p['thingId'], target=weapon, watch=False)
                 preview = await preview_order(rt, goal, args)

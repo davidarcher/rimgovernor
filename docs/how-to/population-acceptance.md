@@ -23,7 +23,8 @@ recruitment or calls model inference.
 
 Require exit code zero, `result.json` with `passed: true` and successful cleanup,
 and every case in `run/population.json`. Inspect the retained native observations,
-goal progress and last blocker, plus `container.log` and `run/Player.log` on failure.
+goal progress and last blocker, plus `container.log` and `run/HeadlessPlayer.log`
+(`run/Player.log` with `--display xvfb`) on failure.
 The runner retains its probe copy, image ID and input hashes. Every rerun requires
 a new output directory. Use `--no-build` only with an unchanged controller image;
 new native DLLs still require a separate private mod snapshot.
@@ -32,3 +33,10 @@ This bounded fixture does not establish every faction, ideology, dietary need,
 multi-map transfer or prolonged population sustainability. Unsupported native
 steps remain explicit blockers. Ordinary pawn outcomes and local-model command
 interpretation are separate acceptance scopes.
+
+The default headless scenario uses the native `SpaceRefugee_Clothed` pawn kind,
+whose definition starts with zero recruitment resistance. It still requires ordinary
+warden recruitment and observed admission; no success probability is changed.
+Use `--candidate-kind Villager` for native resistance reduction and allow a longer
+`--seconds` budget. A decrease in resistance is evidence of warden progress, not
+completed recruitment. Both kinds must meet every final assertion to pass.

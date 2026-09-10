@@ -6,8 +6,8 @@ These contracts describe admission, scope and preservation for semantic player r
 For the end-to-end path, read [plans and Hands](../explanation/plans-and-hands.md).
 
 The chat command union supports SetResearch, BuildRoom, PlaceBuildings, CreateZone, EditZone,
-SetWorkPriority, CreateBill, DraftPawn, MovePawn, TendPawn, RescuePawn, CreateGoal, CancelGoal and
-ModifyResourcePolicy, SetResourceReserve , TradeEconomy, SetPopulationPolicy and SetPopulationDecision. The model receives individually named
+SetWorkPriority, CreateBill, DraftPawn, MovePawn, TendPawn, RescuePawn, CreateGoal, CancelGoal,
+ModifyResourcePolicy, SetResourceReserve, TradeEconomy, SetPopulationPolicy and SetPopulationDecision. The model receives individually named
 semantic tools and read-only native inspection/preview tools, not arbitrary native
 execution. Fresh native facts and resource-definition labels are available in Manual as
 well as Automate. The latest player message follows the evidence context. Consecutive

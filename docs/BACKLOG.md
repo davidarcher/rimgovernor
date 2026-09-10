@@ -302,12 +302,6 @@ in the checkpoint commit; do not append an implementation diary here.
   deterministic fixtures and isolated native runs observing illumination, cleaning,
   completed floors, actual travel, generation/refueling and maintained temperatures.
 
-- [ ] **B22 · Population and recruitment.** Plan rescue/capture, prisoner care and
-  recruitment according to explicit colony policy, available staff, beds and food.
-  Distinguish potential recruits from admitted population; provision capacity before
-  commitments where possible. Use native eligibility and interaction settings,
-  preserve individual player decisions, and expose unsupported steps. Verify actual
-  custody, care, recruitment and integration into work/equipment/housing allocation.
 - [ ] **B23 · Long-term medical management.** Extend B04f/B09 treatment with disease
   monitoring, repeat tending, recovery/bed-rest coverage, chronic conditions,
   prosthetics and surgery workflows. Discover patient/body-part/recipe eligibility,
