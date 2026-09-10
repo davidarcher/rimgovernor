@@ -166,11 +166,6 @@ in the checkpoint commit; do not append an implementation diary here.
   native lead/capture timing makes the selected action visible. Add manual-camera
   suppression and configurable/decoupled cinematic pacing before claiming a
   continuous high-speed director.
-- [ ] **B14 · Visual review quality.** Optional visual review and data scouts exist.
-  Image consultations use fresh captures with source identity and context guards.
-  Add near/wide framing, verify player camera ownership and add source-image concern overlays.
-  Validate good/bad layouts including missing doors; measure whether advice and
-  evidence recall improve decisions. Avoid fixed reviewer timers and extra writers.
 - [ ] **B15 · World progression.** World/research reads and research selection
   exist. Audit and accept normal caravan assembly, loading, movement and quest
   progression. Extend evaluation to competing resources, emergencies, multi-day
