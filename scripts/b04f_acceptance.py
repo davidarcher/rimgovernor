@@ -78,6 +78,9 @@ async def run(args):
                 elif args.case=='development' and 'has started to roam away!' in clock.get('stopDetail',''):
                     check('fixture_roaming_notice_acknowledged',True,clock=clock)
                     rt.supervisor.allow_resume()
+                elif args.case=='development' and clock.get('stopReason')=='notification_batch' and 'Quest available:' in clock.get('stopDetail',''):
+                    check('fixture_optional_quest_notice_acknowledged',True,clock=clock)
+                    rt.supervisor.allow_resume()
                 elif clock.get('stopReason') not in (None,'requested_pause'):
                     facts,_=await refresh()
                     naming=facts.get('colonyNaming')
@@ -209,12 +212,18 @@ async def run(args):
                     check('ordinary_research_completed',project in facts['development']['research']['finished'],research=facts['development']['research'])
                 goal.status='complete'
                 await issue('EnsureWorkAssignments')
-                load=await placement(rt,facts,'StandingLamp',indoors=True)
-                await finish_steps(await issue('EnsureBasicPower',('fixture-load',[load])),'ordinary_electrical_load')
+                if not any(p['defName']=='StandingLamp' for p in facts['development']['power']):
+                    load=await placement(rt,facts,'StandingLamp',indoors=True)
+                    await finish_steps(await issue('EnsureBasicPower',('fixture-load',[load])),'ordinary_electrical_load')
                 facts,_=await refresh()
-                target=facts['development']['power'][0]
-                generator=await placement(rt,facts,'WoodFiredGenerator',indoors=False,near=dict(x=target['x']+15,z=target['z']),radius=4)
-                await finish_steps(await issue('EnsureBasicPower',('fixture-generator',[generator])),'ordinary_generator')
+                target=next(p for p in facts['development']['power'] if p['defName']=='StandingLamp')
+                producer=next((p for p in facts['development']['power'] if p['defName']=='WoodFiredGenerator'),None)
+                if producer:
+                    site=dict(x=producer['x'],z=producer['z'])
+                else:
+                    generator=await placement(rt,facts,'WoodFiredGenerator',indoors=False,near=dict(x=target['x']+15,z=target['z']),radius=4)
+                    site=generator['placements'][0]
+                    await finish_steps(await issue('EnsureBasicPower',('fixture-generator',[generator])),'ordinary_generator')
                 for _ in range(30):
                     facts,_=await refresh()
                     if facts['powerRequired'] and facts['powerHeadroom']>=0:break
@@ -224,7 +233,6 @@ async def run(args):
                 facts,_=await refresh()
                 power=facts['development']['power']
                 load_row=next(p for p in power if p['id']==target['id'])
-                site=generator['placements'][0]
                 generator_row=next(p for p in power if p['defName']=='WoodFiredGenerator'
                     and p['x']==site['x'] and p['z']==site['z'])
                 conduits=[b for b in facts['development']['furniture'] if b['defName']=='PowerConduit']

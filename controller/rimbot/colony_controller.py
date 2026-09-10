@@ -220,7 +220,11 @@ class ColonyController:
                 goal.evidence['availability'] = gear_signature
             if identity in ('EnsureBasicPower', 'EnsureResearch', 'EnsureComfort', 'EnsureExpansion'):
                 observed = fingerprint({'development': facts.get('development'), 'resources': facts.get('resources'),
-                    'definitions': facts.get('definitions'), 'capacity': facts.get('indoorSleepingCapacity')})
+                    'definitions': facts.get('definitions'), 'capacity': facts.get('indoorSleepingCapacity'),
+                    'builders': [{**{k:p.get(k) for k in ('thingId','dead','downed','drafted','mentalState')},
+                        'skills':[s for s in (p.get('bio') or {}).get('skills',[]) if s['name']=='Construction'],
+                        'work':[w for w in (p.get('work') or {}).get('types',[]) if w['name']=='Construction']}
+                        for p in people['pawns']]})
                 if goal.status == 'blocked' and goal.evidence.get('development_state') != observed:
                     goal.status, goal.reason = 'active', ''
                 goal.evidence['development_state'] = observed
