@@ -228,8 +228,11 @@ in the checkpoint commit; do not append an implementation diary here.
   Complete native input alongside continuous video. Snapshot polling remains a
   fallback; a faster transport alone does not remove capture or dispatch latency.
 
-  **Native input prototype.** Discover the installed RimBridgeServer schemas for
-  map/UI clicks, drag, hover, scrolling, camera movement and modifier/key handling.
+  **Native input prototype.** Complete installed-contract discovery for general
+  key handling and frame-bound UI input. Installed map clicks/drags with modifiers,
+  hover, UI scrolling and camera schemas are retained by the native video probe.
+  Linux click and shift-drag selection have separate native selection readback;
+  the right-click fixture produced no menu and does not certify menu interaction.
   Upstream capabilities are candidates, not proof of installed support. Prefer
   native input that does not require OS focus; preserve normal vanilla/modded
   eligibility. Start with selection, context menus and camera navigation against
@@ -244,7 +247,8 @@ in the checkpoint commit; do not append an implementation diary here.
   native range and never retries uncertain writes. Still validate pan directions,
   map-edge clamping, zoom limits and concurrent native camera movement in a
   rendered game; protocol tests do not establish gameplay acceptance. Context menus, pointer/key discovery and native
-  gesture ownership cleanup remain open.
+  gesture ownership cleanup remain open. Map gesture schemas exist, but safe
+  browser frame mapping and gesture admission/cleanup are not implemented.
 
   **Player handoff.** Add Take control and Resume automation. Taking control must
   invalidate pending autonomous work, suspend cinematic framing and acknowledge
@@ -283,9 +287,13 @@ in the checkpoint commit; do not append an implementation diary here.
   Confirm effects from native state rather than treating input delivery as completion.
 
   **Continuous video.** The receive-only WebRTC prototype is implemented: native
-  RGB shared memory, latest-frame delivery, viewer leases, session cleanup and
+  Windows/Linux RGB shared memory, latest-frame delivery, viewer leases, session cleanup and
   visible snapshot fallback. Paused native-to-aiortc delivery is verified; this does
-  not establish desktop Chrome acceptance or the 30–60 fps target. Remaining work:
+  not establish desktop Chrome acceptance or the 30–60 fps target. The bounded
+  Linux llvmpipe probe delivered about 7.7 fps at 1280×720, with capture-to-encoder
+  median/p95 of 146/174 ms including framebuffer readback. This misses the target.
+  Verify Docker-to-host browser ICE connectivity; container-local aiortc delivery
+  does not establish routing through Docker's published HTTP port. Remaining work:
   evaluate asynchronous GPU readback and hardware encoding instead of synchronous
   ReadPixels/software encoding, and measure Chrome delivery and simulation cost.
   Verify capture/encode/delivery during slow controller reviews and inference

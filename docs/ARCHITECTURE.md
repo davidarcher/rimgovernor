@@ -518,8 +518,8 @@ Compose publishes only a host loopback port.
 ## Presentation, testing and extension
 
 The dashboard polls compact state and keeps drafts/last good data through refreshes.
-Interactive game images are periodic snapshots; viewer leases drive native render
-demand. `integrations/headless-rim` removes presentation paths in isolated test
+The game view uses WebRTC where supported and periodic snapshots as fallback;
+viewer leases drive native render demand. `integrations/headless-rim` removes presentation paths in isolated test
 profiles. Each campaign worker owns a separate controller, SQLite database,
 game profile, GABS runtime and logs. Windows workers share installed game/mod
 files read-only. `container_worker.py` copies licensed Linux game/mod inputs into
@@ -603,7 +603,10 @@ viewer leases; headless sessions cannot supply video.
 Watch negotiates receive-only WebRTC through the protected `/api/video/offer`
 endpoint when the `video` Python extra and native `home/video_stream` are present.
 There are no input data channels or external STUN/TURN services. Up to four peers
-share one native RGB24 buffer; a nonblocking named mutex protects whole-frame reads.
+share one native RGB24 buffer. Windows uses a named mapping and nonblocking mutex;
+Linux uses a private `/dev/shm/RimBotVideo-<id>` mapping and nonblocking file locks.
+Readers accept only that buffer namespace and exact capacity. Native lease cleanup
+unlinks the Linux buffer; existing readers close their mappings independently.
 Unity captures the full framebuffer after rendering, at most 30 times per second
 and up to 3840×2160. This uses synchronous ReadPixels and software encoding;
 the capture ceiling is not a delivered-fps guarantee. Each consumer takes the
@@ -629,7 +632,9 @@ average jitter-buffer delay when available. `/api/video/status` reports sampled
 and skipped published frames, per-viewer frames handed to the encoder, and a
 bounded 128-sample capture-to-encoder age median/p95. These are separate measurements;
 neither browser jitter delay nor encoder-input age establishes capture-to-display
-latency. Missing browser metrics remain unavailable rather than becoming zero.
+latency. Capture timestamps precede framebuffer readback, and status also reports
+the latest native readback duration. Missing browser metrics remain unavailable
+rather than becoming zero.
 
 Chat supplies structured evidence separately from the current player request.
 Request budgeting may shorten evidence but never the protected current request;

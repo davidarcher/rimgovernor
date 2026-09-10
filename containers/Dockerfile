@@ -15,7 +15,7 @@ COPY controller_tests/ controller_tests/
 COPY scripts/ scripts/
 COPY integrations/ integrations/
 COPY --from=dashboard /src/controller/rimbot/static/ controller/rimbot/static/
-RUN pip install --no-cache-dir '.[test]'
+RUN pip install --no-cache-dir '.[test,video]'
 CMD ["python", "-m", "pytest", "-q"]
 
 FROM tests AS worker

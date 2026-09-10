@@ -4,6 +4,8 @@ import ctypes
 from collections import deque
 from fractions import Fraction
 import mmap
+import math
+import os
 import re
 import struct
 import sys
@@ -29,6 +31,18 @@ class Offer(PeerRequest):
 
 class RawFrames:
     def __init__(self, name):
+        self.fd = None
+        self.readback_ms = None
+        if sys.platform == 'linux' and re.fullmatch(r'/dev/shm/RimBotVideo-[a-f0-9]{32}', name):
+            self.fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW)
+            try:
+                if os.fstat(self.fd).st_size != CAPACITY:
+                    raise ValueError('Invalid native video buffer size')
+                self.buffer = mmap.mmap(self.fd, CAPACITY, access=mmap.ACCESS_READ)
+            except BaseException:
+                os.close(self.fd)
+                raise
+            return
         if sys.platform != 'win32' or not re.fullmatch(r'Local\\RimBotVideo-[a-f0-9]{32}', name):
             raise ValueError('Unsupported native video buffer')
         from ctypes import wintypes
@@ -49,7 +63,13 @@ class RawFrames:
             raise
 
     def read(self, previous=0):
-        if self.api.WaitForSingleObject(self.gate, 0) not in (0, 0x80):
+        if self.fd is not None:
+            import fcntl
+            try:
+                fcntl.flock(self.fd, fcntl.LOCK_SH | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return None
+        elif self.api.WaitForSingleObject(self.gate, 0) not in (0, 0x80):
             return None
         try:
             sequence, width, height, captured = struct.unpack('<Qiid', self.buffer[:24])
@@ -57,13 +77,21 @@ class RawFrames:
                 return None
             if not 0 <= time.time() - captured < 2:
                 return None
+            duration = struct.unpack('<d', self.buffer[24:32])[0]
+            self.readback_ms = duration if math.isfinite(duration) and duration > 0 else None
             return sequence, width, height, captured, self.buffer[32:32 + width * height * 3]
         finally:
-            self.api.ReleaseMutex(self.gate)
+            if self.fd is not None:
+                fcntl.flock(self.fd, fcntl.LOCK_UN)
+            else:
+                self.api.ReleaseMutex(self.gate)
 
     def close(self):
         self.buffer.close()
-        self.api.CloseHandle(self.gate)
+        if self.fd is not None:
+            os.close(self.fd)
+        else:
+            self.api.CloseHandle(self.gate)
 
 
 def video_frame(raw):
@@ -223,6 +251,7 @@ class VideoHub:
         return {'active': self.source is not None, 'sampledFrames': self.sampled_frames,
                 'skippedCaptureFrames': self.skipped_frames, 'error': self.last_error,
                 'frameAgeMs': max(0, (time.time() - self.latest[3]) * 1000) if self.latest else None,
+                'nativeReadbackMs': getattr(self.source, 'readback_ms', None),
                 'viewers': [{'state': pc.connectionState, 'framesToEncoder': track.delivered,
                              'skippedBeforeEncoder': track.skipped,
                              'captureToEncoderMedianMs': sorted(track.ages)[len(track.ages) // 2] if track.ages else None,

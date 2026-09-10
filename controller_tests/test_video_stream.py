@@ -10,6 +10,48 @@ from rimbot.bridge_server import create_app
 from rimbot.video_stream import CAPACITY, Offer, PeerRequest, VideoHub, video_frame
 
 
+def test_linux_shared_frames_lock_freshness_and_cleanup():
+    import sys
+    if sys.platform != 'linux':
+        pytest.skip('Linux shared-memory protocol')
+    import fcntl
+    import struct
+    import uuid
+    from pathlib import Path
+    from rimbot.video_stream import RawFrames
+    path = Path('/dev/shm') / ('RimBotVideo-' + uuid.uuid4().hex)
+    try:
+        with path.open('w+b') as writer:
+            writer.truncate(CAPACITY)
+            writer.write(struct.pack('<Qiid', 1, 1, 1, time.time()))
+            writer.seek(32)
+            writer.write(b'abc')
+            writer.flush()
+            reader = RawFrames(str(path))
+            try:
+                fcntl.flock(writer, fcntl.LOCK_EX)
+                assert reader.read() is None
+                fcntl.flock(writer, fcntl.LOCK_UN)
+                assert reader.read()[4] == b'abc'
+                assert reader.read(1) is None
+                writer.seek(0)
+                writer.write(struct.pack('<Qiid', 2, 1, 1, time.time() - 3))
+                writer.flush()
+                assert reader.read() is None
+                path.unlink()
+            finally:
+                reader.close()
+    finally:
+        path.unlink(missing_ok=True)
+
+
+def test_shared_frames_reject_arbitrary_paths():
+    from rimbot.video_stream import RawFrames
+    for path in ('/etc/passwd', '/dev/shm/../passwd', '/dev/shm/RimBotVideo-no'):
+        with pytest.raises(ValueError):
+            RawFrames(path)
+
+
 def runtime():
     return SimpleNamespace(connected=True, headless=False, context_token='session',
                            video_viewers={}, bridge=SimpleNamespace(call=AsyncMock()))

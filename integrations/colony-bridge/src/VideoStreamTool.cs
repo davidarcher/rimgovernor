@@ -1,6 +1,8 @@
 using System;
 using System.Collections;
 using System.IO.MemoryMappedFiles;
+using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using RimBridgeServer.Sdk;
@@ -28,6 +30,9 @@ namespace HomeBridge.BridgeTools
         MemoryMappedFile mapping;
         MemoryMappedViewAccessor buffer;
         Mutex gate;
+        FileStream file;
+        [DllImport("libc", SetLastError = true)]
+        static extern int flock(int fd, int operation);
         Texture2D texture;
         float until, next;
         long sequence;
@@ -35,15 +40,20 @@ namespace HomeBridge.BridgeTools
 
         public static object Lease(int seconds)
         {
-            if (Application.isBatchMode || Application.platform != RuntimePlatform.WindowsPlayer)
-                return new { supported = false, reason = "Raw video requires a rendered Windows player" };
+            if (Application.isBatchMode || (Application.platform != RuntimePlatform.WindowsPlayer &&
+                Application.platform != RuntimePlatform.LinuxPlayer))
+                return new { supported = false, reason = "Raw video requires a rendered Windows or Linux player" };
             if (instance == null && seconds == 0) return new { supported = true, active = false };
             if (instance == null)
             {
                 instance = new GameObject("RimBotVideoStream").AddComponent<VideoStreamDriver>();
                 DontDestroyOnLoad(instance.gameObject);
             }
-            if (seconds > 0 && instance.mapping == null) instance.Open();
+            if (seconds > 0 && instance.mapping == null)
+            {
+                try { instance.Open(); }
+                catch { instance.Release(); throw; }
+            }
             instance.until = Time.realtimeSinceStartup + seconds;
             if (seconds > 0) RenderDemandDriver.Lease(seconds);
             else instance.Release();
@@ -53,10 +63,21 @@ namespace HomeBridge.BridgeTools
 
         void Open()
         {
-            bufferName = "Local\\RimBotVideo-" + Guid.NewGuid().ToString("N");
-            mapping = MemoryMappedFile.CreateNew(bufferName, Capacity);
+            if (Application.platform == RuntimePlatform.LinuxPlayer)
+            {
+                bufferName = "/dev/shm/RimBotVideo-" + Guid.NewGuid().ToString("N");
+                file = new FileStream(bufferName, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite);
+                file.SetLength(Capacity);
+                mapping = MemoryMappedFile.CreateFromFile(file, null, Capacity,
+                    MemoryMappedFileAccess.ReadWrite, HandleInheritability.None, true);
+            }
+            else
+            {
+                bufferName = "Local\\RimBotVideo-" + Guid.NewGuid().ToString("N");
+                mapping = MemoryMappedFile.CreateNew(bufferName, Capacity);
+                gate = new Mutex(false, bufferName + "-lock");
+            }
             buffer = mapping.CreateViewAccessor();
-            gate = new Mutex(false, bufferName + "-lock");
             sequence = 0;
             error = "";
         }
@@ -77,6 +98,8 @@ namespace HomeBridge.BridgeTools
 
         void Capture()
         {
+            double captured = (DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
+            var captureClock = System.Diagnostics.Stopwatch.StartNew();
             int width = Screen.width, height = Screen.height;
             if (width < 1 || height < 1 || width > 3840 || height > 2160)
                 throw new InvalidOperationException("Video supports screen sizes up to 3840 x 2160");
@@ -89,18 +112,23 @@ namespace HomeBridge.BridgeTools
             texture.ReadPixels(new Rect(0, 0, width, height), 0, 0, false);
             byte[] pixels = texture.GetRawTextureData();
             bool held;
-            try { held = gate.WaitOne(0); }
+            try { held = file != null ? flock(file.SafeFileHandle.DangerousGetHandle().ToInt32(), 2 | 4) == 0 : gate.WaitOne(0); }
             catch (AbandonedMutexException) { held = true; }
             if (!held) return;
             try
             {
                 buffer.Write(8, width);
                 buffer.Write(12, height);
-                buffer.Write(16, (DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds);
+                buffer.Write(16, captured);
+                buffer.Write(24, captureClock.Elapsed.TotalMilliseconds);
                 buffer.WriteArray(32, pixels, 0, pixels.Length);
                 buffer.Write(0, ++sequence);
             }
-            finally { gate.ReleaseMutex(); }
+            finally
+            {
+                if (file != null) flock(file.SafeFileHandle.DangerousGetHandle().ToInt32(), 8);
+                else gate.ReleaseMutex();
+            }
         }
 
         void Release()
@@ -109,6 +137,7 @@ namespace HomeBridge.BridgeTools
             buffer?.Dispose(); buffer = null;
             mapping?.Dispose(); mapping = null;
             gate?.Dispose(); gate = null;
+            if (file != null) { file.Dispose(); file = null; File.Delete(bufferName); }
         }
         void OnDestroy() { Release(); instance = null; }
     }
