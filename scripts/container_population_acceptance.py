@@ -7,6 +7,7 @@ import subprocess
 import shutil
 import uuid
 from container_checks import docker_environment
+from container_scenario import dashboard_options, require_dashboard_image
 
 
 def main():
@@ -31,6 +32,7 @@ def main():
                  stdout=log,stderr=subprocess.STDOUT,check=True,timeout=1800)
     image=call('image','inspect','--format','{{.Id}}',args.image,capture_output=True,text=True,check=True).stdout.strip()
     name='rimbot-b22-'+uuid.uuid4().hex[:10]
+    require_dashboard_image(call, image)
     mounts=[]
     for key in ('game','mods','profile','gabs'):
         mounts+=['--mount',f'type=bind,source={getattr(args,key).resolve()},target=/inputs/{key},readonly']
@@ -41,7 +43,7 @@ def main():
                 display=args.display, candidate_kind=args.candidate_kind, seconds=args.seconds)
     try:
         with (output/'container.log').open('w') as log:
-            result=call('run','--rm','--init','--name',name,
+            result=call('run','--rm','--init','--name',name,*dashboard_options(name, args.display),
                 '-e','RIMBOT_POPULATION_KIND='+args.candidate_kind, '-e','RIMBOT_POPULATION_SECONDS='+str(args.seconds),
                 '-e','RIMBOT_DISPLAY='+args.display,*mounts,image,
                 '--display',args.display,'--unity-gc-time-slice','0','--','python','/worker/probe.py',

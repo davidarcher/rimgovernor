@@ -23,6 +23,14 @@ container port 8787. Missing ports produce a null URL. Discovery errors return
 The standalone `--colonies` server exposes the directory without starting a runtime.
 Docker inspection is read-only and does not establish native game health.
 
+Scenario workers expose a separate observation-only app at `/scenario`, attached to
+the existing runtime on its event loop. `/api/state` returns retained public state
+with `observationOnly: true`; unavailable/stopped runtimes return 503. Only the current
+runtime is observed after replacement. `/api/camera?session_id=...` returns a retained
+frame and rejects changed sessions with 409. No native reads or capture demand are
+triggered. HTTP mutations return 403, and no player-control or WebSocket routes exist.
+The normal controller dashboard keeps its existing interactive contracts.
+
 ## Time, camera and player control
 
 `dashboard_controls.py` adds session-bound player time and camera endpoints. Time

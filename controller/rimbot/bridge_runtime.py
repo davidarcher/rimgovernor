@@ -88,6 +88,8 @@ class BridgeRuntime:
         self.lock = asyncio.Lock()
         self.wake = asyncio.Event()
         self.shutdown = asyncio.Event()
+        from .scenario_dashboard import attach
+        attach(self)
 
     def persist(self):
         from .plan_archive import bind_archive,prepare_archive,finish_archive
@@ -1100,6 +1102,8 @@ class BridgeRuntime:
             return result
 
     async def start(self):
+        from .scenario_dashboard import attach
+        attach(self)
         self.task = asyncio.create_task(self.run())
 
     async def stop(self):

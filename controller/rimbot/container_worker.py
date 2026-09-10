@@ -146,6 +146,9 @@ def main():
         command = command[1:]
     if not command:
         parser.error('Command cannot be empty')
+    os.environ['RIMBOT_DISPLAY'] = args.display
+    if args.command and command[1:3] != ['-m', 'rimbot']:
+        os.environ['RIMBOT_SCENARIO_DASHBOARD'] = '1'
     if display:
         raise SystemExit(run_display(root, display, command))
     os.execvp(command[0], command)

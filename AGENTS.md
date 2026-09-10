@@ -42,6 +42,10 @@
   rendered/input behavior; native pawn outcomes require scenario assertions.
   Use fresh output directories and task-specific image tags; retain reports and
   failures under `.rimbot/` and report the exact scope tested.
+- Use `scripts/container_scenario.py` for new script-based native Docker runs.
+  Specialized launchers must use its `dashboard_options` and
+  `require_dashboard_image` helpers so scenarios publish automatic loopback
+  dashboard ports. Rebuild old images; do not silently omit observation support.
 - During iteration, run affected test files and their contract neighbors. Run the
   full affected suite once before handoff; avoid repeating it on an unchanged revision.
   Use one Docker check worker by default: extra workers repeat, not shard, tests.

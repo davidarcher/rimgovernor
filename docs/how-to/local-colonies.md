@@ -31,13 +31,18 @@ the generated browser links point to this computer.
 
 Workers using `containers/compose.yaml` publish their dashboard automatically.
 Set `RIMBOT_COLONY_NAME` for a friendly name; otherwise the container name appears.
-Custom `docker run` workers must publish `127.0.0.1::8787` and run the controller's
-HTTP server to offer a dashboard. Script-only probes with no HTTP server remain
-inspection-only entries. Publishing a port alone does not create a server.
+Use the [standard scenario launcher](scenario-launcher.md) for script-based native
+tests. It publishes an automatic loopback port, and the worker enables a passive
+dashboard on the script's existing `BridgeRuntime`. The specialized population,
+husbandry, player-action and visual launchers use the same port contract.
+Ad hoc `docker run` commands must use `dashboard_options` from the standard launcher;
+direct bridge-only scripts with no `BridgeRuntime` have no controller state to serve.
 Existing containers cannot acquire a published port without recreation; leave
 active scenarios running and configure their next launch.
 
-Rendered workers offer game images; headless workers offer controller data only.
+Normal rendered workers offer game images; headless workers offer controller data only.
+Scenario dashboards show retained frames only and never request captures or take
+control. They expose no chat, video leases, time controls or other mutations.
 Running means Docker reports a live container, not that the game has finished
 loading or is making progress. Unpublished workers remain visible without a link.
 Discovery failures retain the last directory with an explicit stale-data message;

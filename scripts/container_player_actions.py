@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import uuid
 from container_checks import docker_environment
+from container_scenario import dashboard_options, require_dashboard_image
 
 
 def main():
@@ -26,6 +27,7 @@ def main():
                  stdout=log,stderr=subprocess.STDOUT,check=True,timeout=1800)
     image=call('image','inspect','--format','{{.Id}}',args.image,capture_output=True,text=True,check=True).stdout.strip()
     name='rimbot-b13-'+uuid.uuid4().hex[:10]
+    require_dashboard_image(call, image)
     mounts=[]
     for key in ('game','mods','profile','gabs'):
         mounts+=['--mount',f'type=bind,source={getattr(args,key).resolve()},target=/inputs/{key},readonly']
@@ -35,7 +37,7 @@ def main():
     report=dict(image=image,probe_sha256=hashlib.sha256(probe.read_bytes()).hexdigest(),container=name,passed=False)
     try:
         with (output/'container.log').open('w') as log:
-            result=call('run','--rm','--init','--name',name,*mounts,image,
+            result=call('run','--rm','--init','--name',name,*dashboard_options(name, 'xvfb'),*mounts,image,
                 '--display','xvfb','--unity-gc-time-slice','0','--','python','/app/scripts/player_actions_acceptance.py',
                 stdout=log,stderr=subprocess.STDOUT,timeout=600)
         report['exit_code']=result.returncode

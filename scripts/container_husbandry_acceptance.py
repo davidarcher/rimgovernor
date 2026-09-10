@@ -6,6 +6,7 @@ import subprocess
 import uuid
 
 from container_checks import docker_environment
+from container_scenario import dashboard_options, require_dashboard_image
 
 
 def run(args):
@@ -24,7 +25,8 @@ def run(args):
     image = command('image', 'inspect', '--format', '{{.Id}}', args.image,
                     capture_output=True, text=True, check=True).stdout.strip()
     name = 'rimbot-husbandry-' + uuid.uuid4().hex[:12]
-    invocation = ['run', '--rm', '--init', '--name', name]
+    require_dashboard_image(command, image)
+    invocation = ['run', '--rm', '--init', '--name', name, *dashboard_options(name)]
     for path, destination in ((args.game, 'game'), (args.mods, 'mods'),
                               (args.profile, 'profile'), (args.gabs, 'gabs')):
         invocation.extend(['--mount', f'type=bind,source={path.resolve()},target=/inputs/{destination},readonly'])

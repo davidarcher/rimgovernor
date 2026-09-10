@@ -31,6 +31,7 @@ introduces the idea before linking to the exact contracts and relevant source.
 
 - [Set up a Windows checkout](how-to/setup.md) and [launch a prepared colony](how-to/launch.md).
 - [Browse local development colonies](how-to/local-colonies.md) from one Docker directory dashboard.
+- [Launch an inspectable native scenario](how-to/scenario-launcher.md) with automatic dashboard ports.
 - [Choose checks](how-to/choose-tests.md), [run local checks](how-to/local-checks.md),
   or [run focused/full Docker controller checks](how-to/docker-checks.md).
 - [Reuse a headless game between execution cases](how-to/headless-probes.md#reuse-one-game-between-execution-cases).

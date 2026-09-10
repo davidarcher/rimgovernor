@@ -32,6 +32,7 @@ RUN pip install --no-cache-dir .
 CMD ["python", "-m", "rimbot", "--colonies", "--host", "0.0.0.0"]
 
 FROM tests AS worker
+LABEL io.rimbot.scenario-dashboard="1"
 RUN apt-get update && apt-get install -y --no-install-recommends libglib2.0-0 libglu1-mesa libgl1 libxcursor1 libxrandr2 libxinerama1 libxi6 libasound2 libgtk-3-0 libnss3 libxss1 libxtst6 xvfb x11-utils mesa-utils libgl1-mesa-dri && rm -rf /var/lib/apt/lists/*
 ENV PYTHONUNBUFFERED=1
 ENV RIMBOT_CONTAINER_SOURCE=1

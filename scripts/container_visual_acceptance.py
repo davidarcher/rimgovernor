@@ -7,6 +7,7 @@ import time
 import uuid
 
 from container_checks import docker_environment
+from container_scenario import dashboard_options, require_dashboard_image
 
 
 def run(args):
@@ -25,13 +26,14 @@ def run(args):
                         stdout=log,stderr=subprocess.STDOUT,check=True,timeout=1800)
         image=command('image','inspect','--format','{{.Id}}',args.image,capture_output=True,text=True,check=True).stdout.strip()
         report['image']=image
+        require_dashboard_image(command, image)
         mounts=[]
         for path,target,readonly in ((args.game,'/inputs/game',True),(args.mods,'/inputs/mods',True),
                                      (args.profile,'/inputs/profile',True),(args.gabs,'/inputs/gabs',True),
                                      (output,'/worker',False)):
             mounts.extend(['--mount',f'type=bind,source={path.resolve()},target={target}'+(',readonly' if readonly else '')])
         with (output/'container.log').open('w',encoding='utf8') as log:
-            result=command('run','--name',name,'--init','--add-host','host.docker.internal:host-gateway',
+            result=command('run','--name',name,'--init',*dashboard_options(name, 'xvfb'),'--add-host','host.docker.internal:host-gateway',
                 '-e','RIMBOT_ALLOW_DOCKER_HOST_MODEL=1','-e','RIMBOT_MODEL_URL=http://host.docker.internal:1234/v1',
                 '-e','RIMBOT_MODEL='+args.model,'-e','RIMBOT_DISPLAY=xvfb','-e','RIMBOT_UNITY_GC_TIME_SLICE=0',
                 *mounts,image,'--','python','scripts/native_visual_acceptance.py',

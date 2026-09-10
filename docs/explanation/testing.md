@@ -30,6 +30,11 @@ retention, with optional rendering/player-input checks. More pawn-work scenarios
 additional assertions or portable versions of existing probes. There is no Docker
 boundary preventing those observations.
 
+New script-based native runs use the [standard scenario launcher](../how-to/scenario-launcher.md).
+It supplies isolation, automatic loopback dashboard ports, retained output and owned
+cleanup. The observer shares the script's runtime and reads retained state; it has no
+game-control routes. The scenario still owns its native assertions and lifecycle.
+
 ## Interpretation and execution are separate questions
 
 Repeated native cases can reuse one owned game while restoring their baseline and
