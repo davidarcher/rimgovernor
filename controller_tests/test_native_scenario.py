@@ -153,3 +153,22 @@ async def test_foreign_owner_is_never_paused_by_cleanup():
     with pytest.raises(ScenarioInterrupted, match='ownership'):
         await advance_game(rt, 100, {})
     assert not any(c.kwargs.get('op') == 'pause' for c in rt.supervisor.call.call_args_list)
+
+
+async def test_combat_wait_requires_exact_committed_targets():
+    rt, _, _, _ = scenario()
+    rt.current_plan = SimpleNamespace(control={'combat': {'targets': ['enemy']}})
+    with pytest.raises(ValueError, match='exact committed'):
+        await advance_game(rt, 100, {}, combat_targets=['unrelated'])
+    rt.supervisor.change.assert_not_called()
+
+
+async def test_combat_wait_retains_unexpected_injury_stop():
+    rt, _, state, _ = scenario()
+    rt.current_plan = SimpleNamespace(control={'combat': {'targets': ['enemy']}})
+    state.update(stopReason='injury')
+    rt.supervisor.change.side_effect = None
+    rt.supervisor.change.return_value = dict(state, active=True, newestCursor=1)
+    with pytest.raises(ScenarioInterrupted, match='Unexpected native interruption'):
+        await advance_game(rt, 100, {}, expected_letters=(), combat_targets=['enemy'])
+    rt.supervisor.change.assert_awaited_once_with('Superfast', max_ticks=100, mode='combat', ignored_hostiles='enemy')

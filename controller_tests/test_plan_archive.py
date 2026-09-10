@@ -227,9 +227,15 @@ def test_full_unfinished_player_plan_refuses_without_dropping_work():
     assert plan.model_dump()==before
 
 
-def test_completed_player_setting_can_be_renewed_without_erasing_previous_receipt(tmp_path):
+@pytest.mark.parametrize('setting', ['work', 'draft', 'undraft', 'goto'])
+def test_completed_player_setting_can_be_renewed_without_erasing_previous_receipt(tmp_path, setting):
     from rimbot.colony_plan import PlanSpec
     old=action('old').model_copy(update={'source':'PLAYER'})
+    if setting != 'work':
+        old.action = old.action.model_copy(update={'tool': 'home/order', 'arguments': {'action': setting, 'pawn': 'Thing_Human1', 'dryRun': False}})
+        if setting == 'goto':
+            old.action = old.action.model_copy(update={'completion': 'pawn_at_position',
+                'arguments': dict(old.action.arguments, x=10, z=20)})
     new=old.model_copy(update={'id':'new'})
     plan=ColonyPlan(spec=PlanSpec(steps=[old]),progress={'old':StepProgress(state='complete',issued={'0':{'confirmed':True}})})
     store=Store(tmp_path/'renew.sqlite')
@@ -240,9 +246,15 @@ def test_completed_player_setting_can_be_renewed_without_erasing_previous_receip
     store.close()
 
 
-def test_pending_player_setting_cannot_be_duplicated():
+@pytest.mark.parametrize('setting', ['work', 'draft', 'undraft', 'goto'])
+def test_pending_player_setting_cannot_be_duplicated(setting):
     from rimbot.colony_plan import PlanSpec
     old=action('old').model_copy(update={'source':'PLAYER'})
+    if setting != 'work':
+        old.action = old.action.model_copy(update={'tool': 'home/order', 'arguments': {'action': setting, 'pawn': 'Thing_Human1', 'dryRun': False}})
+        if setting == 'goto':
+            old.action = old.action.model_copy(update={'completion': 'pawn_at_position',
+                'arguments': dict(old.action.arguments, x=10, z=20)})
     plan=ColonyPlan(spec=PlanSpec(steps=[old]),progress={'old':StepProgress(state='waiting')})
     with pytest.raises(ValueError,match='existing step ID'):
         plan.commit(CommitSteps(expected_revision=0,reason='duplicate',steps=[old.model_copy(update={'id':'new'})]).decision(plan),actor='strategist',tick=2)

@@ -18,15 +18,15 @@ def run(args):
         return subprocess.run([docker, *values], cwd=source, env=environment, **kwargs)
     name = 'rimbot-b15-' + uuid.uuid4().hex[:12]
     report = dict(passed=False, container=name, trip=args.trip, shared=args.shared, quests=args.quests, days=args.days, matrix=args.matrix,
-                  logistics=args.logistics, multimap=args.multimap, emergency=args.emergency, diplomacy=args.diplomacy, quest_trade=args.quest_trade, expired=args.expired,
+                  logistics=args.logistics, multimap=args.multimap, emergency=args.emergency, diplomacy=args.diplomacy, quest_trade=args.quest_trade, expired=args.expired, failed=args.failed,
                   prepared_days=args.prepared_days, recovery=args.recovery,
                   scope='Native caravan/quest observations and optional ordinary loaded caravan round trip')
     try:
         baseline = args.profile.resolve() / 'Saves/RimBot-tribal8-baseline.rws'
         if baseline.is_file():
             report['baseline'] = dict(path=str(baseline), sha256=hashlib.sha256(baseline.read_bytes()).hexdigest())
-        required = ['RimBot.Observations.BridgeTools.dll']
-        if args.quests or args.matrix or args.emergency or args.multimap or args.quest_trade or args.expired:
+        required = ['RimBot.Observations.BridgeTools.dll', 'RimBot.ColonyIdentity.dll', 'HeadlessRimPatch.dll']
+        if args.quests or args.matrix or args.emergency or args.multimap or args.quest_trade or args.expired or args.failed:
             required.append('RimBot.InterruptionFixtures.BridgeTools.dll')
         report['assemblies'] = {}
         for assembly in required:
@@ -67,6 +67,7 @@ def run(args):
                 '--env', 'RIMBOT_MULTIMAP=' + ('1' if args.multimap else '0'),
                 '--env', 'RIMBOT_DIPLOMACY=' + ('1' if args.diplomacy else '0'),
                 '--env', 'RIMBOT_QUEST_TRADE=' + ('1' if args.quest_trade else '0'),
+                '--env', 'RIMBOT_FAILED_QUEST=' + ('1' if args.failed else '0'),
                 '--env', 'RIMBOT_EXPIRED_QUEST=' + ('1' if args.expired else '0'),
                 '--env', 'RIMBOT_CARAVAN_TRIP=' + ('1' if args.trip else '0'), *mounts,
                 image, '--', 'python', '/worker/probe.py', stdout=log, stderr=subprocess.STDOUT,
@@ -79,6 +80,18 @@ def run(args):
     except Exception as error:
         report['error'] = repr(error)
     finally:
+        try:
+            location = output / 'world-progression/runtime-location.json'
+            retained = output / 'world-progression/native-runtime'
+            if location.is_file() and not retained.exists():
+                runtime = json.loads(location.read_text())['root']
+                if not (runtime.startswith('/tmp/rimbot-world-') and runtime.endswith('/run') and '..' not in runtime):
+                    raise ValueError('Unexpected private runtime path')
+                copied = command('cp', name + ':' + runtime, str(retained), capture_output=True, text=True, timeout=120)
+                report['runtime_recovery_ok'] = copied.returncode == 0
+                (output / 'runtime-recovery.log').write_text(copied.stdout + copied.stderr)
+        except Exception as error:
+            report['runtime_recovery_error'] = repr(error)
         try:
             cleanup = command('rm', '-f', name, capture_output=True, text=True, timeout=60)
             (output / 'cleanup.log').write_text(cleanup.stdout + cleanup.stderr)
@@ -103,6 +116,7 @@ if __name__ == '__main__':
     parser.add_argument('--logistics', action='store_true', help='Verify explicit hold and return cargo unloading into native storage')
     parser.add_argument('--diplomacy', action='store_true', help='Visit a native settlement and give explicitly requested silver through shared Hands')
     parser.add_argument('--quest-trade', action='store_true', help='Acquire ordinary requested goods, visit the quest settlement and observe native fulfillment and rewards')
+    parser.add_argument('--failed', action='store_true', help='Reject an ordinary auto-accepted join quest through its native choice and observe failure without admission')
     parser.add_argument('--expired', action='store_true', help='Wait for an ordinary short-lived unaccepted quest to expire and verify it cannot be accepted')
     parser.add_argument('--multimap', action='store_true', help='Settle a second native map and verify scope invalidation; requires private profile allowing two settlements')
     parser.add_argument('--shared', action='store_true', help='Use shared semantic commands and Hands for the trip')

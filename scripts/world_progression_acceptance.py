@@ -12,6 +12,7 @@ from rimbot.store import Store
 from rimbot.colony_plan import ColonyGoal, CommitSteps
 from rimbot.world_progression import caravan_outcome, survival_assessment
 from rimbot.player_commands import apply_command
+from rimbot.native_scenario import advance_game, ScenarioInterrupted
 from session_checkpoint_acceptance import ready
 from deterministic_foothold import NoInference
 
@@ -25,6 +26,7 @@ async def run():
     if os.name == 'posix':
         from rimbot.headless import isolated_root
         root = isolated_root(root, Path(tempfile.mkdtemp(prefix='rimbot-world-')) / 'run')
+        (output / 'runtime-location.json').write_text(json.dumps(dict(root=str(root))))
     store = Store(output / 'state.sqlite')
     NoInference.attempts = 0
     rt = BridgeRuntime(store, root, fresh=True, headless=True, model_factory=lambda _: NoInference())
@@ -36,6 +38,13 @@ async def run():
     settlement_trip = diplomacy or quest_trade
     prepared_days = os.environ.get('RIMBOT_PREPARED_DAYS') == '1'
     logistics = os.environ.get('RIMBOT_LOGISTICS') == '1' or diplomacy
+    def step_complete(identity):
+        progress = rt.current_plan.progress.get(identity)
+        if progress is not None:
+            return progress.state == 'complete'
+        archived = rt.current_plan._archive_read(identity) if rt.current_plan._archive_read else None
+        return bool(archived and archived['progress']['state'] == 'complete')
+
     async def command(*, waits=True, **payload):
         async with rt.lock:
             await rt.refresh_clock_events()
@@ -105,24 +114,31 @@ async def run():
             danger = await read('home/status', colonists=True, threats=True)
             if danger['counts']['hostileCount'] == 0:
                 break
-            async with rt.lock:
-                rt.supervisor.allow_resume()
-                await rt.supervisor.change('Superfast', mode='combat', ignored_hostiles=','.join(targets), max_ticks=600)
-            async with asyncio.timeout(45):
-                while True:
-                    async with rt.lock:
-                        state = await rt.supervisor.call(op='status')
-                    if not state['active']:
-                        break
-                    await asyncio.sleep(.1)
+            rt.supervisor.allow_resume()
+            try:
+                state = await advance_game(rt, 600, report, expected_letters=(), combat_targets=targets)
+            except ScenarioInterrupted:
+                evidence = report['simulation'][-1]
+                if evidence.get('failure') != 'Unexpected native interruption':
+                    raise
+                state = evidence['windows'][-1]
             history.append(state)
             assert state['pauseVerified'] and state['stopReason'] in ('tick_budget', 'hostiles_cleared', 'requested_pause'), state
         danger = await read('home/status', colonists=True, threats=True)
         report.setdefault('home_defense', []).append(dict(method=method, targets=targets, windows=history, outcome=danger))
         assert danger['counts']['hostileCount'] == 0, 'Shared defense did not resolve the native threat'
-        cleanup = await rt.stand_down(defenders, expected_token=rt.context_token,
-            expected_revision=rt.chat_revision, expected_plan_revision=rt.current_plan.revision)
-        assert not cleanup['failed'], cleanup
+        # These are explicit Manual orders, so cleanup is another player command,
+        # guarded by the native generation from each original defense receipt.
+        cleanup = []
+        for step, pawn in zip(steps, defenders):
+            state = await read('home/order', action='resolve', pawn=pawn, dryRun=True)
+            generation = rt.current_plan.progress[step.id].issued['0']['order_generation']
+            assert type(generation) is int and state['orderGeneration'] == generation, state
+            await command(kind='DraftPawn', pawn=pawn, drafted=False, waits=False)
+            state = await read('home/order', action='resolve', pawn=pawn, dryRun=True)
+            assert state['pawn']['drafted'] is False, state
+            cleanup.append(state)
+        report['home_defense'][-1]['draft_cleanup'] = cleanup
         rt.supervisor.allow_resume()
         report['cases']['native_home_defense_during_expedition'] = 'passed'
 
@@ -132,15 +148,13 @@ async def run():
         async with asyncio.timeout(45):
             while rt.wake.is_set() or (rt.review_task and not rt.review_task.done()) or rt.handled_revision < rt.chat_revision:
                 await asyncio.sleep(.1)
-        async with rt.lock:
-            await rt.supervisor.change('Superfast', max_ticks=ticks)
-        async with asyncio.timeout(45):
-            while True:
-                async with rt.lock:
-                    state = await rt.supervisor.call(op='status')
-                if not state['active']:
-                    break
-                await asyncio.sleep(.1)
+        try:
+            state = await advance_game(rt, ticks, report)
+        except ScenarioInterrupted:
+            evidence = report['simulation'][-1]
+            if evidence.get('failure') != 'Unexpected native interruption':
+                raise
+            state = evidence['windows'][-1]
         if state['stopReason'] == 'force_paused':
             facts = await read('home/colony_facts', planning=True)
             assert facts.get('colonyNaming') and not report.get('bootstrap_names'), state
@@ -155,14 +169,6 @@ async def run():
             assert all(rt.current_plan.progress[s.id].state == 'complete' for s in steps)
             goal.evidence.setdefault('methods', {})[method] = [s.id for s in steps]
             report['bootstrap_names'] = facts['colonyNaming']
-            rt.supervisor.absorb(state)
-            rt.supervisor.allow_resume()
-        elif state['stopReason'] == 'letter_pause' and 'Ancient danger (ThreatBig,' in state.get('stopDetail', ''):
-            danger = await read('home/status', colonists=False, threats=True)
-            letters = await read('rimworld/list_letters')
-            report.setdefault('interruptions', []).append(dict(clock=state, danger=danger, letters=letters))
-            assert state['pauseVerified'] and danger['counts']['hostileCount'] == 0 and danger['counts']['huntingPredatorCount'] == 0
-            assert len(report['interruptions']) == 1, 'Unexpected repeated Ancient danger warning'
             rt.supervisor.absorb(state)
             rt.supervisor.allow_resume()
         elif state['stopReason'] == 'hostile' and (settlement_trip or prepared_days or recovery):
@@ -222,6 +228,18 @@ async def run():
         assert report['world']['complete'] is True
         assert report['catalog']['accepted'] is True
         report['cases']['observations'] = 'passed'
+        if os.environ.get('RIMBOT_FAILED_QUEST') == '1':
+            failed = await read('test/join_incident', dryRun=False, acceptJoin=False)
+            report['failed_quest'] = failed
+            assert failed['eligible'] and failed['applied'] and not failed['joined']
+            assert failed['before'] == failed['after']
+            failed_ids = {q['id'] for q in failed['questStates'] if q['state'] == 'EndedFailed'}
+            assert failed_ids
+            observed = await read('test/join_incident', dryRun=True)
+            assert failed_ids <= {q['id'] for q in observed['questStates'] if q['state'] == 'EndedFailed'}
+            assert observed['after'] == failed['before']
+            report['failed_quest_readback'] = observed
+            report['cases']['native_declined_join_quest_failed_without_admission'] = 'passed'
         if os.environ.get('RIMBOT_EXPIRED_QUEST') == '1':
             offer = await read('test/trade_quest_offer', definition='ThreatReward_Raid_Joiner', dryRun=False)
             assert offer['eligible'] and offer['questId']
@@ -306,14 +324,16 @@ async def run():
                     if (objective['resource'] in ('Plasteel', 'MedicineHerbal')
                             and available_stock.get(objective['resource'], 0) + sum(s.get('yield', 0) for s in sources.get('sources', [])) < objective['count']):
                         ore = await read('home/list_things', match='MineablePlasteel' if objective['resource'] == 'Plasteel' else 'Plant_HealrootWild',
-                            category='all', ownership='ours', maxPositionsPerDef=40)
+                            category='all', ownership='ours', maxPositionsPerDef=1000)
                         positions = [pos for row in ore.get('things', []) for pos in row.get('positions', [])]
+                        positions = sorted(positions, key=lambda p: -sum((p['x'] - q['x']) ** 2 + (p['z'] - q['z']) ** 2 <= 45 ** 2 for q in positions))
                         for pos in positions[:3]:
                             size = report['facts']['mapSize']
                             vicinity = await read('home/get_cells_plus', x=max(0, min(pos['x'] - 3, size['width'] - 7)),
                                 z=max(0, min(pos['z'] - 3, size['height'] - 7)), width=7, height=7)
                             approach = next((c for c in vicinity['cells'] if c.get('walkable') is True and not c.get('fogged')), None)
-                            if not approach:
+                            if not approach or any(row['approach']['x'] == approach['x'] and row['approach']['z'] == approach['z']
+                                    for row in report.get('prospecting', [])):
                                 continue
                             preview = await read('home/order', action='goto', pawn=pawn,
                                 x=approach['x'], z=approach['z'], watch=False, dryRun=True)
@@ -332,7 +352,7 @@ async def run():
                             await command(kind='DraftPawn', pawn=pawn, drafted=False, waits=False)
                             sources = await read('home/resource_sources', resource=objective['resource'])
                             report.setdefault('prospecting', []).append(dict(ore=pos, approach=approach, sources=sources))
-                            if sources.get('sources'):
+                            if available_stock.get(objective['resource'], 0) + sum(s.get('yield', 0) for s in sources.get('sources', [])) >= objective['count']:
                                 break
                     choice = next((c for c in candidate['rewardChoices']
                         if any(r.get('items') for r in c['rewards'])), None)
@@ -575,13 +595,13 @@ async def run():
                 if not any(c['id'] == caravan_id for c in world['caravans']):
                     home = await read('home/list_pawns', colonistsOnly=True)
                     if (any(p['thingId'] == pawn and p.get('dead') is False for p in home['pawns'])
-                            and (not logistics or all(rt.current_plan.progress[s].state == 'complete' for s in report['shared_steps']))):
+                            and (not logistics or all(step_complete(s) for s in report['shared_steps']))):
                         report['returned'] = home
                         break
             assert report.get('returned'), 'Living returning colonist not observed on home map'
             if shared:
                 report['plan'] = rt.current_plan.model_dump(mode='json')
-                assert all(rt.current_plan.progress[s].state == 'complete' for s in report['shared_steps'])
+                assert all(step_complete(s) for s in report['shared_steps'])
             report['cases']['caravan_round_trip'] = 'passed'
             if recovery:
                 report['cases']['native_short_supplied_party_return'] = 'passed'

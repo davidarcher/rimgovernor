@@ -3,6 +3,7 @@ using HarmonyLib;
 using Verse;
 using Verse.Sound;
 using RimWorld;
+using RimWorld.Planet;
 using UnityEngine;
 
 namespace HeadlessRim
@@ -36,6 +37,8 @@ namespace HeadlessRim
             Patch(harmony, typeof(UIRoot_Play), "UIRootOnGUI", nameof(SkipPrefix));
             Patch(harmony, typeof(MapInterface), "MapInterfaceOnGUI_BeforeMainTabs", nameof(SkipPrefix));
             Patch(harmony, typeof(LongEventHandler), "LongEventsOnGUI", nameof(SkipPrefix));
+            // World feature labels initialize GUI text; they never advance world simulation.
+            Patch(harmony, typeof(WorldFeatures), "UpdateFeatures", nameof(SkipPrefix));
             // Synchronous events wait for their loading window's first repaint.
             // Headless mode has no repaint: acknowledge presentation only, then
             // let the unmodified native update execute/save/finish the event.

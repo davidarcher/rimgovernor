@@ -6,14 +6,23 @@ class ScenarioInterrupted(AssertionError):
     """The scenario stopped with retained native evidence."""
 
 
-async def advance_game(rt, ticks, report, *, timeout=120, expected_letters=(('Ancient danger', 'ThreatBig'),)):
+async def advance_game(rt, ticks, report, *, timeout=120, expected_letters=(('Ancient danger', 'ThreatBig'),), combat_targets=()):
     """Advance exactly ticks, acknowledging only inspected fixture warnings.
 
     Pass expected_letters=() for interruption acceptance. This operation never
-    dismisses letters, clears player holds, or retries game orders.
+    dismisses letters, clears player holds, or retries game orders. Combat windows
+    accept only the exact targets already committed by the shared defense plan;
+    unexpected injury and new-threat stops still raise with retained evidence.
     """
     if type(ticks) is not int or not 1 <= ticks <= 1800000:
         raise ValueError('ticks must be 1..1800000')
+    clock_arguments = {}
+    if combat_targets:
+        committed = rt.current_plan.control.get('combat', {}).get('targets', [])
+        if (not all(isinstance(target, str) and target for target in combat_targets)
+                or len(set(combat_targets)) != len(combat_targets) or set(combat_targets) != set(committed)):
+            raise ValueError('Combat waits require the exact committed defense targets')
+        clock_arguments = dict(mode='combat', ignored_hostiles=','.join(combat_targets))
     evidence = {'ticks': ticks, 'windows': [], 'interruptions': []}
     report.setdefault('simulation', []).append(evidence)
 
@@ -39,7 +48,7 @@ async def advance_game(rt, ticks, report, *, timeout=120, expected_letters=(('An
             while remaining:
                 require(await identity_now() == identity,
                         'Native identity changed')
-                started = await supervisor.change('Superfast', max_ticks=remaining)
+                started = await supervisor.change('Superfast', max_ticks=remaining, **clock_arguments)
                 require(previous_tick is None or started['startTick'] == previous_tick,
                         'Native ticks changed between windows')
                 cursor = started['newestCursor']

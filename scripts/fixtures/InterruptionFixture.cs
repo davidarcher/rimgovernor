@@ -94,7 +94,7 @@ namespace RimBot.InterruptionFixtures
         }
 
         [Tool("test/join_incident", Description = "Disposable scenario setup: require and execute the ordinary native WandererJoin incident; no direct pawn generation or edits.")]
-        public async Task<object> Join(IRimBridgeContext ctx, CancellationToken cancellationToken, bool dryRun = true)
+        public async Task<object> Join(IRimBridgeContext ctx, CancellationToken cancellationToken, bool dryRun = true, bool acceptJoin = true)
         {
             return await ctx.MainThread.InvokeAsync(() =>
             {
@@ -109,22 +109,21 @@ namespace RimBot.InterruptionFixtures
                 var existingLetters = Find.LetterStack.LettersListForReading.Select(l => l.GetUniqueLoadID()).ToArray();
                 var eligible = def.Worker.CanFireNow(parms);
                 var applied = !dryRun && eligible && def.Worker.TryExecute(parms);
-                string acceptedLetter = null;
+                string selectedLetter = null;
                 if (applied)
                 {
                     var letter = Find.LetterStack.LettersListForReading.OfType<ChoiceLetter_AcceptJoiner>()
                         .Single(l => !existingLetters.Contains(l.GetUniqueLoadID()) && l.quest?.root == def.questScriptDef);
-                    // The installed ChoiceLetter_AcceptJoiner exposes its native Accept
-                    // option first. Invoke that enabled player choice, never pawn edits.
-                    var accept = letter.Choices.First();
-                    if (accept.disabled || accept.action == null)
-                        throw new InvalidOperationException("Native join acceptance is unavailable");
-                    acceptedLetter = letter.GetUniqueLoadID();
-                    accept.action();
+                    // Installed native choices are Accept then Reject; each owns its quest outcome.
+                    var choice = letter.Choices.ElementAt(acceptJoin ? 0 : 1);
+                    if (choice.disabled || choice.action == null)
+                        throw new InvalidOperationException("Native join choice is unavailable");
+                    selectedLetter = letter.GetUniqueLoadID();
+                    choice.action();
                 }
                 var after = map.mapPawns.FreeColonistsSpawned.Select(p => p.GetUniqueLoadID()).ToArray();
                 return (object)new { success = true, dryRun, eligible, applied, definition = def.defName,
-                    worker = def.Worker.GetType().FullName, quest = def.questScriptDef.defName, acceptedLetter,
+                    worker = def.Worker.GetType().FullName, quest = def.questScriptDef.defName, acceptJoin, selectedLetter,
                     questStates = Find.QuestManager.QuestsListForReading.Where(q => q.root == def.questScriptDef)
                         .Select(q => new { id = q.GetUniqueLoadID(), state = q.State.ToString(),
                             acceptedTick = q.acceptanceTick, hidden = q.hidden }).ToArray(),

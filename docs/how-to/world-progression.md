@@ -7,7 +7,9 @@
 Use a task-specific `--image` and a new `--output` directory. It builds and pins
 one worker image, retains the exact probe hash, native calls and failures, and
 removes only its own container. `result.json` requires both native success and
-cleanup. No model inference is exercised. Linux workers keep mutable GABS claims
+cleanup. Stage both newly built observation and colony-identity assemblies in
+the same private mod snapshot; the runner records each hash. No model inference
+is exercised. Linux workers keep mutable GABS claims
 and the game profile on their private Linux filesystem; after stopping the owned
 game, the probe retains that complete runtime under `native-runtime`.
 
@@ -78,3 +80,8 @@ before departure. The runner records the input save hash for either mode.
 `--recovery --trip --shared` holds a normally formed party until native ration
 consumption reaches the expedition recovery threshold, then requires an explicit
 return with living crew. It never deletes food or edits pawn needs.
+
+`--failed` rejects the native choice on an automatically accepted WandererJoins
+quest and independently reads its failed state with no colony admission. Hidden
+fixture evidence stays outside the gameplay census. The headless adapter skips
+world-feature text labels; world simulation and caravan pathing remain native.

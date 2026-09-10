@@ -128,3 +128,30 @@ async def test_unavailable_doctor_gets_new_action_preserving_old_receipt(stale):
         assert plan.spec.steps[1].action.arguments['pawn']=='Thing_Alternate'
         assert plan.progress[plan.spec.steps[1].id].state=='pending'
         assert plan.spec.steps[0].signature() not in plan.cancelled_actions
+
+
+@pytest.mark.parametrize('body_size,reason,fallback', [(.2, 'Verb.CanHitTarget is false', True),
+    (1.5, 'Verb.CanHitTarget is false', False), (.2, 'Player order changed', False)])
+async def test_small_animal_defense_retains_native_defensive_fire_after_range_refusal(body_size, reason, fallback):
+    from mcp.types import CallToolResult
+    from rimbot.bridge import BridgeError
+    rt = Replay(2)
+    rt.draft_owners = {}
+    for pawn in rt.people:
+        pawn['bio'].update(incapableOfRead=True, incapableOfTags=[])
+        pawn['equipment'] = {'primary': {'ranged': True}}
+    rt.current_plan.colony_goals['ActiveCombat'] = ColonyGoal(priority_class=0)
+    rt.game.query = AsyncMock(return_value={'pawns': [dict(thingId='animal', hostile=True, animal=True,
+        mentalState='Manhunter', animals={'bodySize': body_size}, nearestColonistDistance=35)]})
+    async def preview(tool, args):
+        if args.get('mode') == 'ranged':
+            raise BridgeError(tool, CallToolResult(content=[], isError=True, structuredContent={'message': reason}))
+        return {'success': True}
+    rt.inspect_native = AsyncMock(side_effect=preview)
+    if fallback:
+        _, actions = await rt.controller.skills.compile('ActiveCombat', rt.facts, rt.people)
+        assert len(actions) == 2 and all(a['arguments']['action'] == 'draft' for a in actions)
+    else:
+        with pytest.raises(BridgeError):
+            await rt.controller.skills.compile('ActiveCombat', rt.facts, rt.people)
+        assert rt.inspect_native.await_count == 1

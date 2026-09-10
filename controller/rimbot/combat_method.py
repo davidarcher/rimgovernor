@@ -64,7 +64,17 @@ async def squad_defense(rt, goal, people):
         args = dict(action='attack',mode='ranged' if ranged else 'melee',pawn=pawn['thingId'],target=target['thingId'],watch=False,
                     requireStandingTarget=True)
         if target.get('humanlike') is True:args['requireHostile']=True
-        preview = await rt.inspect_native('home/order', dict(args,dryRun=True))
+        from .bridge import BridgeError
+        try:
+            preview = await rt.inspect_native('home/order', dict(args,dryRun=True))
+        except BridgeError as error:
+            small_animal = target.get('animal') is True and 0 < (target.get('animals') or {}).get('bodySize', 0) <= .5
+            if not (ranged and small_animal and 'Verb.CanHitTarget is false' in str(error)):
+                raise
+            # Keep the ranged role: ordinary drafted defensive fire engages an approaching
+            # small attacker when a native shot becomes legal, as in single-raider defense.
+            args = dict(action='draft', pawn=pawn['thingId'], watch=False)
+            preview = await rt.inspect_native('home/order', dict(args,dryRun=True))
         if preview.get('success') is not True:
             raise SkillBlocked('Native squad attack is not currently legal; danger hold retained')
         actions.append(native('home/order',**args))

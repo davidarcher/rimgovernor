@@ -354,7 +354,8 @@ class Decision(Contract):
 
 def repeatable_player_setting(step):
     return (step.source == 'PLAYER' and isinstance(step.action, NativeOperation)
-            and step.action.tool in ('home/husbandry_config', 'home/production_policy', 'home/research', 'home/pawn_config', 'home/building_config'))
+            and (step.action.tool in ('home/husbandry_config', 'home/production_policy', 'home/research', 'home/pawn_config', 'home/building_config')
+                 or step.action.tool == 'home/order' and step.action.arguments.get('action') in ('draft', 'undraft', 'goto')))
 
 
 class CommitSteps(Contract):
