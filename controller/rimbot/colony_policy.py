@@ -194,9 +194,14 @@ def work_assignment(pawns, required_work=None, overrides=None, minimum_skills=No
             if value['level'] < (minimum_skills or {}).get(work, 0):
                 continue
             score = value['level'] + {'Minor': 2, 'Major': 4}.get(value.get('passion'), 0) - 3 * load[pawn['thingId']]
-            candidates.append((load[pawn['thingId']], -score, pawn['thingId']))
+            candidates.append((load[pawn['thingId']], -score, pawn['thingId'], -value['level']))
         if candidates:
-            owner = min(candidates, key=lambda row: (row[1],row[0],row[2]))[2] if work == 'Research' else min(candidates)[2]
+            if work == 'Construction':
+                # Native building skill prerequisites cannot be met by spreading
+                # work to a less skilled idle pawn.
+                owner = min(candidates,key=lambda row:(row[3],row[1],row[0],row[2]))[2]
+            else:
+                owner = min(candidates, key=lambda row: (row[1],row[0],row[2]))[2] if work == 'Research' else min(candidates)[2]
             owners[work] = owner
             load[owner] += 1
     hunters = {owners['Hunting']} if 'Hunting' in owners else set()

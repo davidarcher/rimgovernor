@@ -16,19 +16,29 @@ def development_nodes(facts):
     nodes = []
     if not comfortable:
         nodes.append(('EnsureComfort', 4))
-    research = data['research']
-    if research['current'] or research['available'] or not any(b['defName'] == 'SimpleResearchBench' for b in furniture):
-        nodes.append(('EnsureResearch', 4))
     if facts.get('indoorSleepingCapacity', 0) <= count:
         nodes.append(('EnsureExpansion', 4))
     return nodes
 
 
-async def placement(rt, facts, definition, *, indoors=None, near=None, radius=22):
+async def placement(rt, facts, definition, *, indoors=None, near=None, radius=22, goal=None):
     from .shelter_handoff import safe_rotation
     definition_data = facts.get('definitions', {}).get(definition, {})
     if definition_data.get('available') is not True:
+        if goal is not None and definition_data.get('available') is False:
+            required = goal.evidence.setdefault('required_capabilities', [])
+            if definition not in required:required.append(definition)
         raise SkillBlocked('Native construction prerequisite unavailable: '+definition)
+    minimum = definition_data.get('constructionSkill', 0)
+    if minimum:
+        people = (await rt.game.query('home/list_pawns', colonistsOnly=True, bio=True, work=True))['pawns']
+        capable = [p for p in people if not any(p.get(k) for k in ('dead','downed','drafted','mentalState'))
+                   and any(s.get('name')=='Construction' and (s.get('level') or 0)>=minimum
+                           and s.get('disabled') is not True for s in (p.get('bio') or {}).get('skills',[]))
+                   and any(w.get('name')=='Construction' and w.get('disabled') is False and (w.get('priority') or 0)>0
+                           for w in (p.get('work') or {}).get('types',[]))]
+        if not capable:
+            raise SkillBlocked(f'Native construction requires an available assigned level {minimum} builder: {definition}')
     center = near or facts['center']
     cells = {(c['x'], c['z']): c for c in facts['cells']}
     free = {p for p, c in cells.items() if c.get('walkable') is True and not c.get('occupied')
@@ -99,19 +109,23 @@ async def power_method(rt, facts):
             end = previous[end]
         placements = []
         existing = {(b['x'],b['z']) for b in data['furniture'] if b['defName'] == 'PowerConduit'}
+        # Existing generators transmit through their native occupied footprint.
+        # Start the new conduit beside that footprint, not inside the producer.
+        existing.update((cell['x'],cell['z']) for p in producers for cell in p.get('occupiedCells',[]))
         for x,z in path:
             if (x,z) in existing:
                 continue
             preview = await rt.inspect_native('home/place_building',dict(defName='PowerConduit',x=x,z=z,dryRun=True))
             if preview.get('canPlace') is not True:
-                raise SkillBlocked('Native electrical-route placement refused; existing orders preserved')
+                raise SkillBlocked(f'Native electrical-route placement refused at {x},{z}: {preview.get("rotations")}')
             placements.append(dict(def_name='PowerConduit',x=x,z=z))
             if len(placements) == 8:
                 break
         if placements:
             return 'connect-'+fingerprint(placements)[:12], [{'kind':'place_buildings','placements':placements}]
         return None
-    action = await placement(rt,facts,'WoodFiredGenerator',near=target,radius=6)
+    action = await placement(rt,facts,'WoodFiredGenerator',near=target,radius=6,
+                             goal=rt.current_plan.colony_goals.get('EnsureBasicPower'))
     return 'generate-'+fingerprint(action)[:12], [action]
 
 
@@ -124,37 +138,6 @@ async def development_method(skills, goal_id, facts, people):
     if not data:
         raise SkillBlocked('Native development facts unavailable')
     furniture = data['furniture']
-    if goal_id == 'EnsureResearch':
-        research = data['research']
-        if not any(b['defName'] == 'SimpleResearchBench' for b in furniture):
-            action = await placement(rt, facts, 'SimpleResearchBench', indoors=True)
-            return 'research-bench-'+fingerprint(action)[:8], [action]
-        if research['current']:
-            goal.evidence['research'] = research
-            return None
-        candidates = sorted(research['available'], key=lambda p:(p['cost'],p['defName']))
-        if not candidates:
-            raise SkillBlocked('No native available research project; prerequisites required')
-        requested = goal.target.get('project')
-        prerequisites = facts.get('definitions',{}).get('WoodFiredGenerator',{}).get('researchPrerequisites',[])
-        preferred = [p for p in candidates if p['defName'] == requested or not requested and p['defName'] in prerequisites]
-        if requested in research['finished']:
-            return None
-        if requested and not preferred:
-            projects = {p['defName']:p for p in research.get('projects', [])}
-            ancestors, pending = set(), [requested]
-            while pending:
-                name = pending.pop()
-                if name in ancestors or name in research['finished']:
-                    continue
-                ancestors.add(name)
-                pending.extend(projects.get(name, {}).get('prerequisites', []))
-            preferred = [p for p in candidates if p['defName'] in ancestors]
-            if not preferred:
-                raise SkillBlocked('Requested native research prerequisites unavailable: '+requested)
-        selected = (preferred or candidates)[0]['defName']
-        goal.evidence['research'] = research
-        return 'research-'+selected, [native('home/research', set=selected)]
     if goal_id == 'EnsureExpansion':
         from .capacity_growth import grow_shelter
         return await grow_shelter(skills, dict(facts,colonists=facts['colonists']+1), goal_id=goal_id)
@@ -165,6 +148,6 @@ async def development_method(skills, goal_id, facts, people):
                 (b['indoors'] or name=='HorseshoesPin') for b in furniture)), None)
         if not definition:
             return None
-        action = await placement(rt, facts, definition, indoors=definition!='HorseshoesPin')
+        action = await placement(rt, facts, definition, indoors=definition!='HorseshoesPin', goal=goal)
         return 'comfort-'+fingerprint(action)[:12], [action]
     raise SkillBlocked('Unknown development method')

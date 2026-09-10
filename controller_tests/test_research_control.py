@@ -2,7 +2,7 @@ from copy import deepcopy
 from types import SimpleNamespace
 import pytest
 from rimbot.colony_plan import ColonyPlan, ColonyGoal
-from rimbot.research import prerequisite_queue, refresh, method, selected, eligible_researchers
+from rimbot.research import prerequisite_queue, refresh, method, selected, eligible_researchers, validate_dispatch
 
 
 def project(name, deps=()):
@@ -53,6 +53,48 @@ def inputs():
     return (dict(tick=1, definitions={'FueledStove': {'available': False}}),
             [dict(thingId='pawn', work={'applies': True, 'types': [dict(name='Research', disabled=False, priority=1)]})],
             [('EnsureCooking', 2)])
+
+
+@pytest.mark.asyncio
+async def test_explicit_project_uses_shared_prerequisites_and_dispatch_ownership():
+    rt=Runtime();facts,people,_=inputs()
+    rt.current_plan.colony_goals={'EnsureResearch':ColonyGoal(priority_class=3,target={'project':'B'})}
+    await refresh(rt,facts,people,[])
+    _,actions=await method(rt)
+    assert actions[0]['arguments']['set']=='A'
+    await validate_dispatch(rt,actions[0]['arguments'])
+    rt.current_plan.colony_goals['EnsureResearch'].target['project']='Other'
+    with pytest.raises(ValueError):await validate_dispatch(rt,actions[0]['arguments'])
+
+
+@pytest.mark.asyncio
+async def test_missing_basic_laboratory_uses_shared_native_construction(monkeypatch):
+    rt=Runtime();facts,people,nodes=inputs()
+    facts['definitions']['SimpleResearchBench']={'available':True}
+    rt.snapshot['researchBenches']['benches']=[]
+    await refresh(rt,facts,people,nodes)
+    goal=rt.current_plan.colony_goals['EnsureResearch']
+    assert goal.status=='active' and goal.evidence['research']['build_laboratory']=='SimpleResearchBench'
+    from unittest.mock import AsyncMock
+    placement=AsyncMock(return_value={'kind':'place_buildings','placements':[{'def_name':'SimpleResearchBench','x':1,'z':2}]})
+    monkeypatch.setattr('rimbot.development.placement',placement)
+    _,actions=await method(rt,facts)
+    assert actions[0]['kind']=='place_buildings'
+    placement.assert_awaited_once_with(rt,facts,'SimpleResearchBench',indoors=True,goal=goal)
+
+
+@pytest.mark.asyncio
+async def test_controller_retains_research_returned_by_native_preparation(monkeypatch):
+    from test_colony_controller import Replay
+    rt=Replay()
+    async def prepared(runtime,*args):
+        runtime.current_plan.colony_goals['EnsureResearch']=ColonyGoal(priority_class=3)
+        return [('EnsureResearch',3)]
+    monkeypatch.setattr('rimbot.research.refresh',prepared)
+    from unittest.mock import AsyncMock
+    monkeypatch.setattr('rimbot.research.method',AsyncMock(return_value=None))
+    await rt.controller.cycle()
+    assert rt.current_plan.colony_goals['EnsureResearch'].status!='complete'
 
 
 @pytest.mark.asyncio

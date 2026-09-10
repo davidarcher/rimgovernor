@@ -98,7 +98,8 @@ async def refresh(rt, facts, people, nodes):
     if goal.cancelled:
         return []
     state = plan.control.setdefault('research', {})
-    if not requested and goal.status == 'complete' and not state.get('needs'):
+    explicit_project = goal.target.get('project')
+    if not requested and not explicit_project and goal.status == 'complete' and not state.get('needs'):
         return []
     # Retain previous requirements long enough to observe the unlocked capability.
     prior = state.get('needs', [])
@@ -111,7 +112,7 @@ async def refresh(rt, facts, people, nodes):
         if snapshot.get('success') is not True or not isinstance(snapshot.get('finished'), list):
             raise ValueError('Native research state unavailable')
         projects = {p['defName']: p for p in snapshot.get('available', []) + snapshot.get('locked', [])}
-        targets = []
+        targets = [explicit_project] if explicit_project else []
         for owner, capability in checks:
             value = await rt.game.invoke('home/research', {'capability': capability, 'dryRun': True, 'watch': False})
             value = value.get('capability') or {}
@@ -163,6 +164,17 @@ async def refresh(rt, facts, people, nodes):
             'facilities': project.get('requiredResearchFacilities'),
             'native_reasons': project.get('lockReasons', [])}
         if not usable_laboratories(project, benches):
+            existing = benches.get('benches')
+            if (isinstance(existing, list) and not existing
+                    and project.get('requiredResearchBuilding') in (None, 'SimpleResearchBench')
+                    and project.get('requiredResearchFacilities') == []
+                    and facts.get('definitions', {}).get('SimpleResearchBench', {}).get('available') is True):
+                evidence['build_laboratory'] = 'SimpleResearchBench'
+                goal.status, goal.reason = 'active', ''
+                await rt.ensure_context(token)
+                if rt.chat_revision != direction:
+                    raise InterruptedError('Player direction changed during laboratory preparation')
+                return [('EnsureResearch', 3)]
             raise ValueError('Laboratory capacity unavailable: provide an eligible powered bench or a bench that needs no power')
         if not eligible_researchers(people, plan.control.get('work_overrides', {})):
             raise ValueError('No eligible assigned researcher; player work priorities are preserved')
@@ -182,13 +194,19 @@ async def refresh(rt, facts, people, nodes):
     return [('EnsureResearch', 3)]
 
 
-async def method(rt):
+async def method(rt, facts=None):
     from .colony_skills import native, SkillBlocked
     plan = rt.current_plan
     goal = plan.colony_goals['EnsureResearch']
     evidence = goal.evidence.get('research', {})
     if evidence.get('blocker'):
         raise SkillBlocked(evidence['blocker'])
+    if evidence.get('build_laboratory'):
+        from .development import placement
+        if facts is None:
+            facts = await rt.game.query('home/colony_facts', planning=True)
+        action = await placement(rt, facts, evidence['build_laboratory'], indoors=True, goal=goal)
+        return 'research-bench-' + fingerprint(action)[:12], [action]
     project = evidence.get('next')
     if not project:
         return None
@@ -196,7 +214,8 @@ async def method(rt):
     if goal.method_seen(name):
         raise SkillBlocked('Research selection already attempted; inspect its retained outcome')
     plan.control['research']['prepared'] = dict(project=project, token=rt.context_token,
-        direction=plan.control.get('player_direction', 0), needs=evidence.get('needs', []))
+        direction=plan.control.get('player_direction', 0), needs=evidence.get('needs', []),
+        explicit_project=goal.target.get('project'))
     return name, [native('home/research', set=project, expectedCurrent='', watch=False,
         **{key: rt.identity[key] for key in ('colonyId', 'loadToken', 'mapId')})]
 
@@ -218,7 +237,8 @@ async def validate_dispatch(rt, arguments):
             or prepared.get('direction') != plan.control.get('player_direction', 0)):
         raise ValueError('Research preparation invalidated; no selection sent')
     owners = [plan.colony_goals.get(owner) for owner, _ in prepared.get('needs', [])]
-    if not owners or not any(owner and not owner.cancelled and owner.status != 'complete' for owner in owners):
+    explicit = prepared.get('explicit_project') and prepared['explicit_project'] == goal.target.get('project')
+    if not explicit and (not owners or not any(owner and not owner.cancelled and owner.status != 'complete' for owner in owners)):
         raise ValueError('Research bottleneck is obsolete; no selection sent')
     snapshot = await rt.game.invoke('home/research', {'dryRun': True, 'watch': False})
     if snapshot.get('success') is not True or snapshot.get('current') is not None:

@@ -10,6 +10,34 @@ from rimbot.medical_replacement import replace_doctor
 from rimbot.colony_policy import derive, work_assignment
 
 
+@pytest.mark.asyncio
+async def test_native_building_skill_requirement_blocks_before_placement():
+    from rimbot.development import placement
+    from rimbot.colony_skills import SkillBlocked
+    rt=Replay();rt.facts['definitions']['Heater']={'available':True,'constructionSkill':5}
+    rt.game.query=AsyncMock(return_value={'pawns':rt.people})
+    for p in rt.people:
+        for s in p['bio']['skills']:
+            if s['name']=='Construction':s['level']=4
+    with pytest.raises(SkillBlocked,match='level 5 builder'):
+        await placement(rt,rt.facts,'Heater')
+
+
+def test_construction_preserves_the_highest_native_skill_under_load():
+    rt=Replay()
+    for i,p in enumerate(rt.people):
+        for s in p['bio']['skills']:
+            s['level']=8 if i==0 else 1
+        p['work']['manualPriorities']=False
+    assignments,_=work_assignment(rt.people)
+    assert assignments[rt.people[0]['thingId']]['Construction']==1
+    for i,p in enumerate(rt.people):
+        for s in p['bio']['skills']:
+            if s['name']=='Construction':s.update(level=5 if i==0 else 4,passion='None' if i==0 else 'Major')
+    assignments,_=work_assignment(rt.people)
+    assert assignments[rt.people[0]['thingId']]['Construction']==1
+
+
 def test_downed_permanent_manhunter_does_not_keep_active_combat_open():
     rt=Replay()
     rt.batch.summary.hostile_count=2
@@ -68,29 +96,10 @@ async def test_power_route_uses_native_previews_and_existing_conduit():
     assert len(actions[0]['placements'])==8
     assert all(p['def_name']=='PowerConduit' for p in actions[0]['placements'])
     assert not any((p['x'],p['z'])==(40,30) for p in actions[0]['placements'])
-
-
-@pytest.mark.asyncio
-async def test_existing_research_is_preserved_and_receipt_is_not_completion():
-    rt=Replay()
-    rt.current_plan.colony_goals['EnsureResearch']=ColonyGoal(priority_class=4)
-    rt.facts['development']={'furniture':[{'defName':'SimpleResearchBench'}],
-        'research':{'current':'Electricity','progress':20,'available':[],'finished':[]}}
-    before=deepcopy(rt.facts)
-    assert await development_method(rt.controller.skills,'EnsureResearch',rt.facts,rt.people) is None
-    assert rt.facts==before
-
-
-@pytest.mark.asyncio
-async def test_requested_research_selects_available_ancestor_before_unrelated_project():
-    rt=Replay()
-    rt.current_plan.colony_goals['EnsureResearch']=ColonyGoal(priority_class=4,target={'project':'Requested'})
-    rt.facts['development']={'furniture':[{'defName':'SimpleResearchBench'}], 'research':{
-        'current':None,'finished':[], 'available':[{'defName':'Unrelated','cost':1},{'defName':'Foundation','cost':100}],
-        'projects':[{'defName':'Requested','prerequisites':['Intermediate']},
-                    {'defName':'Intermediate','prerequisites':['Foundation']}]}}
-    _,actions=await development_method(rt.controller.skills,'EnsureResearch',rt.facts,rt.people)
-    assert actions[0]['arguments']['set']=='Foundation'
+    rt.facts['development']['furniture']=[]
+    rt.facts['development']['power'][1]['occupiedCells']=[{'x':x,'z':30} for x in (39,40,41)]
+    _,actions=await power_method(rt,rt.facts)
+    assert all(p['x']<39 for p in actions[0]['placements'])
 
 
 @pytest.mark.asyncio

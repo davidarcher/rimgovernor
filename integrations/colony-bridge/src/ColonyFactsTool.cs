@@ -142,7 +142,7 @@ namespace HomeBridge.BridgeTools
             };
             if (planning) {
                 var definitions = new Dictionary<string, object>();
-                foreach (var name in new[] { "Wall", "Door", "Bed", "SleepingSpot", "Campfire", "ButcherSpot", "FueledStove", "Heater", "PassiveCooler", "Cooler", "WoodFiredGenerator", "PowerConduit", "Sandbags", "Barricade", "Plant_Rice", "SimpleResearchBench", "Table1x2c", "DiningChair", "HorseshoesPin" }) {
+                foreach (var name in new[] { "Wall", "Door", "Bed", "SleepingSpot", "Campfire", "ButcherSpot", "FueledStove", "Heater", "StandingLamp", "PassiveCooler", "Cooler", "WoodFiredGenerator", "PowerConduit", "Sandbags", "Barricade", "Plant_Rice", "SimpleResearchBench", "Table1x2c", "DiningChair", "HorseshoesPin" }) {
                     var def = DefDatabase<ThingDef>.GetNamedSilentFail(name);
                     if (def == null) continue;
                     var wood = DefDatabase<ThingDef>.GetNamedSilentFail("WoodLog");
@@ -151,6 +151,7 @@ namespace HomeBridge.BridgeTools
                     definitions[name] = new { defName = name, stuff = stuff?.defName,
                         available = def.researchPrerequisites == null || def.researchPrerequisites.All(r => r.IsFinished),
                         researchPrerequisites = (def.researchPrerequisites ?? new List<ResearchProjectDef>()).Select(r => r.defName).ToArray(),
+                        constructionSkill = def.constructionSkillPrerequisite,
                         width = def.size.x, height = def.size.z,
                         costs = def.CostListAdjusted(stuff, false).ToDictionary(c => c.thingDef.defName, c => c.count),
                         growDays = def.plant?.growDays, fertilityMin = def.plant?.fertilityMin,

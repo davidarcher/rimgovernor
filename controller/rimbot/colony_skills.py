@@ -134,7 +134,7 @@ class ColonySkills:
             return await compile_method(self.rt, self.rt.current_plan.colony_goals[goal_id])
         if goal_id == 'EnsureResearch':
             from .research import method
-            return await method(self.rt)
+            return await method(self.rt, facts)
         if goal_id == 'MaintainEquipment':
             from .gear_upkeep import compile_method
             return await compile_method(self.rt, facts)

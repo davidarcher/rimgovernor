@@ -75,6 +75,9 @@ async def run(args):
                 # warning fixture. Combat and patient injury guards are not suppressed.
                 if 'Ancient danger' in clock.get('stopDetail',''):
                     rt.supervisor.allow_resume()
+                elif args.case=='development' and 'has started to roam away!' in clock.get('stopDetail',''):
+                    check('fixture_roaming_notice_acknowledged',True,clock=clock)
+                    rt.supervisor.allow_resume()
                 elif clock.get('stopReason') not in (None,'requested_pause'):
                     facts,_=await refresh()
                     naming=facts.get('colonyNaming')
@@ -104,6 +107,12 @@ async def run(args):
             facts,people=await refresh()
             goal=rt.current_plan.colony_goals.setdefault(identity,ColonyGoal(priority_class=0 if identity=='ActiveCombat' else 2))
             goal.status='active'
+            if identity=='EnsureResearch' and selected is None:
+                from rimbot.research import refresh as prepare_research
+                await prepare_research(rt,facts,people,[])
+                await issue('EnsureWorkAssignments')
+                facts,people=await refresh()
+                await prepare_research(rt,facts,people,[])
             compiled=selected or await rt.controller.skills.compile(identity,facts,people)
             if compiled is None:return []
             method,actions=compiled
@@ -137,6 +146,9 @@ async def run(args):
                 await window(max_ticks=120 if equipment else None)
                 assert all(rt.current_plan.progress[i].state!='blocked' for i in ids), phase
             check(phase,True,steps={i:rt.current_plan.progress[i].model_dump() for i in ids})
+            if args.case=='development':
+                report['native_checkpoint']=(await bridge.call('rimworld/save_game',saveName='B04f-continuation')).structuredContent
+                save()
         try:
             await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
             if args.new_crashlanded:
@@ -182,7 +194,6 @@ async def run(args):
                 projects=['Electricity','ComplexFurniture']
                 if args.research_project:projects.append(args.research_project)
                 if args.new_crashlanded:
-                    await finish_steps(await issue('EnsureResearch'),'native_research_bench')
                     facts,_=await refresh()
                     projects.append(min(facts['development']['research']['available'],key=lambda p:(p['cost'],p['defName']))['defName'])
                 for project in projects:
@@ -198,7 +209,7 @@ async def run(args):
                     check('ordinary_research_completed',project in facts['development']['research']['finished'],research=facts['development']['research'])
                 goal.status='complete'
                 await issue('EnsureWorkAssignments')
-                load=await placement(rt,facts,'Heater',indoors=True)
+                load=await placement(rt,facts,'StandingLamp',indoors=True)
                 await finish_steps(await issue('EnsureBasicPower',('fixture-load',[load])),'ordinary_electrical_load')
                 facts,_=await refresh()
                 target=facts['development']['power'][0]

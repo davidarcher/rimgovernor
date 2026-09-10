@@ -15,6 +15,8 @@ namespace HomeBridge.BridgeTools
                 power = power.Select(c => new { id = c.parent.GetUniqueLoadID(), defName = c.parent.def.defName,
                     x = c.parent.Position.x, z = c.parent.Position.z, outputW = c.PowerOutput,
                     baseW = -c.Props.PowerConsumption, powered = c.PowerOn,
+                    occupiedCells = GenAdj.OccupiedRect(c.parent.Position,c.parent.Rotation,c.parent.def.size)
+                        .Select(cell => new { x=cell.x,z=cell.z }).ToArray(),
                     net = c.PowerNet == null ? (int?)null : c.PowerNet.GetHashCode() }).ToArray(),
                 furniture = buildings.Select(b => new { id = b.GetUniqueLoadID(), defName = b.def.defName,
                     x = b.Position.x, z = b.Position.z,

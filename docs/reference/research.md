@@ -5,7 +5,7 @@
 `EnsureResearch` shares ColonyPlan, priority arbitration and Hands. It is admitted
 only when a current construction method records an unavailable native definition,
 an accepted building step needs that definition, or a maintained production target
-finds a research-locked recipe. It does not select projects merely because the
+finds a research-locked recipe, or its goal explicitly requests a project. It does not select projects merely because the
 research slot is empty. Advisory goals cannot create research orders.
 
 `home/research` supplies the installed prerequisite graph. Its optional `capability`
@@ -32,8 +32,10 @@ player overrides and disabled-work checks. A usable laboratory must be powered (
 need no power), match the project's native required bench, and have every required
 facility active on that same bench. Missing capacity, staff, techprints or other
 native conditions produce a blocker with the laboratory requirements. Laboratory
-construction and power provision remain the facilities/utility methods' responsibility;
-research does not allocate arbitrary map positions or consume their material budgets.
+construction and power provision use the shared development methods. When no bench
+exists and the project accepts a simple laboratory, research stages ordinary indoor
+bench construction through native placement and material admission. Advanced bench,
+facility and power requirements retain explicit blockers until their methods provide them.
 Dependent construction still uses normal native material and placement preflight;
 production still uses native recipe availability and persistent resource budgets.
 

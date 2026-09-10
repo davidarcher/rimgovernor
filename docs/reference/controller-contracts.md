@@ -222,13 +222,16 @@ between a preview/read and dispatch cannot admit another combat order.
 
 Development methods use native completed furniture, electrical topology, research
 availability/prerequisites and observed placement cells. They build generators and
-bounded conduit batches, retain an existing research selection, resolve requested
-research prerequisites, fit indoor beds/dining furniture and outdoor recreation, and
+bounded conduit batches, provide basic laboratories through the shared research
+controller, fit indoor beds/dining furniture and outdoor recreation, and
 extend shelter capacity through the shared room-shell method. Native previews and
 shared material admission govern every construction action. Only completed buildings,
 powered connected loads, observed research progress/completion and indoor capacity
 establish outcomes; blueprint receipts do not. Changed native prerequisites can release
 a development blocker without discarding existing projects or player selections.
+Development placement requires an available assigned builder meeting the native
+construction skill requirement. Construction assignment selects the strongest
+available skill before balancing other work; player overrides remain authoritative.
 Research assignment weighs native Intellectual skill and, in checkbox mode, removes
 routine hauling/cleaning from the selected researcher so those earlier jobs cannot
 starve research indefinitely. Explicit work overrides retain authority.
