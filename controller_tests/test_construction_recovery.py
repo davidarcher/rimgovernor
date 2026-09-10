@@ -17,12 +17,13 @@ def fixture():
         progress={'build':StepProgress()},control={'costs':{'build':{str(i):{'WoodLog':5} for i in range(3)}}})
     stock={'wood':15}
     async def query(name,**args):
+        if name=='home/spatial_access':return dict(success=True,accepted=True,pawnCount=1)
         if name=='home/status':return {'time':{'ticksGame':200,'paused':True},'threats':{'hostileCount':0,'huntingPredatorCount':0}}
         if name=='home/list_buildings':return {'buildings':[]}
         if name=='home/list_zones':return {'zones':[]}
         raise AssertionError(name)
     async def preview(name,args):
-        return {'canPlace':True,'madeFromStuff':True,'costList':[{'defName':'WoodLog','count':5}],
+        return {'canPlace':True,'madeFromStuff':True,'passability':'Impassable','isDoor':False,'costList':[{'defName':'WoodLog','count':5}],
             'materials':{'rows':[{'defName':'WoodLog','available':stock['wood']}]},
             'rotations':[{'rotation':args['rotation'],'occupiedCells':[{'x':args['x'],'z':args['z']}]}]}
     async def native(*args,**kwargs):

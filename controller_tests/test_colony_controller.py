@@ -44,7 +44,7 @@ class Replay:
         self.wake=asyncio.Event()
         self.events=[]
         self.controller=ColonyController(self)
-        self.game=SimpleNamespace(query=self.query)
+        self.game=SimpleNamespace(query=self.query,invoke=self.invoke)
         self.strategic_state=SimpleNamespace(decided=lambda:None)
         self.batch=SimpleNamespace(summary=SimpleNamespace(pawns=[SimpleNamespace(thing_id=p['thingId'],dead=False,
             downed=False,bleeding=False,needs_tend=False,armed=i<2) for i,p in enumerate(self.people)],
@@ -59,6 +59,9 @@ class Replay:
     async def inspect_native(self,name,args):
         if name=='home/place_building': return {'canPlace':True}
         raise AssertionError(name)
+    async def invoke(self,name,args,**kwargs):
+        from test_construction_preflight import native_reply
+        return native_reply(name,args,canPlace=True)
     async def commit_strategy(self,decision,**args):
         assert args['expected_token']==self.context_token and args['expected_revision']==self.chat_revision
         self.current_plan.commit(decision,actor=args['actor'],tick=self.facts['tick'])

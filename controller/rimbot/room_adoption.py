@@ -3,14 +3,14 @@ from .colony_plan import ColonyGoal,RoomBounds
 
 
 async def adopt(rt, request, *, token, revision):
-    from .shelter_handoff import verified_room
+    from .shelter_handoff import verified_room,requested_shell
     from .colony_skills import SkillBlocked
     plan=rt.current_plan
     identity='intent-'+request.intent_id
     prior=plan.colony_goals.get(identity)
     if prior and prior.evidence.get('request',{}).get('kind')!='AdoptRoom':
         raise ValueError('Use a new room-adoption intent ID; existing construction history must remain intact')
-    shell={'bounds':request.bounds.model_dump(),'entrance':request.entrance}
+    shell=requested_shell(request.model_dump())
     try:
         observed=await verified_room(rt,shell,request_simulation=False)
     except SkillBlocked as error:
@@ -27,6 +27,7 @@ async def adopt(rt, request, *, token, revision):
     goal.target={'satisfies':'EnsureInitialShelter','intent_id':request.intent_id}
     goal.evidence['request']=request.model_dump()
     goal.evidence['adoption']={'room_id':room['id'],'cells':len(interior),
+        'native_role':room.get('role'),'native_role_label':room.get('roleLabel'),
         **{key:rt.identity[key] for key in ('colonyId','mapId','loadToken')}}
     plan.control['preferred_shelter']=identity
     plan.control.setdefault('suppressed_goals',{}).pop('EnsureInitialShelter',None)
@@ -36,13 +37,15 @@ async def adopt(rt, request, *, token, revision):
 async def verify_entrance(rt,shell):
     bounds=RoomBounds.model_validate(shell['bounds'])
     # Verify a real entrance on the requested perimeter side, not a guessed aisle.
-    buildings=await rt.game.query('home/list_buildings',aggregate=False,playerOnly=True,
+    buildings=await rt.game.query('home/list_buildings',aggregate=False,playerOnly=False,
         x=bounds.x+bounds.width//2,z=bounds.z+bounds.height//2,
         radius=max(bounds.width,bounds.height))
     if buildings.get('success') is not True or buildings.get('skipped',{}).get('byMaxDetailed'):
         raise ValueError('Room entrance observations are incomplete')
     entrance=(bounds.x+bounds.width//2, bounds.z if shell['entrance']=='south' else bounds.z+bounds.height-1) if shell['entrance'] in ('north','south') else (
         bounds.x if shell['entrance']=='west' else bounds.x+bounds.width-1,bounds.z+bounds.height//2)
+    if shell.get('entrance_cell'):
+        entrance=(shell['entrance_cell']['x'],shell['entrance_cell']['z'])
     doorway=await rt.game.query('home/list_rooms',x=entrance[0],z=entrance[1],includeOutdoors=True)
     doors={door.get('doorDef') for door in doorway.get('rooms',[]) if door.get('isDoorway') is True and door.get('doorDef')}
     # The native doorway classification, rather than a name fragment, establishes

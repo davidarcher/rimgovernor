@@ -339,8 +339,9 @@ namespace HomeBridge.BridgeTools
                     } },
                 { "position", BridgeCommon.Pos(center) },
                 { "size", SizeBlock(entDef) },
-                { "passability", thingDef == null ? null : thingDef.passability.ToString() },
-                { "isDoor", thingDef == null ? (bool?)null : typeof(Building_Door).IsAssignableFrom(thingDef.thingClass) },
+                { "passability", thingDef != null ? thingDef.passability.ToString()
+                    : entDef is TerrainDef terrainDef ? terrainDef.passability.ToString() : null },
+                { "isDoor", thingDef != null && typeof(Building_Door).IsAssignableFrom(thingDef.thingClass) },
                 // rotatable is a ThingDef flag; a TerrainDef has no such concept,
                 // so it is null rather than a fabricated false.
                 { "rotatable", thingDef == null ? (bool?)null : SafeRotatable(thingDef) },

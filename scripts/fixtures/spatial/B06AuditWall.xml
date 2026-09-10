@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+  <!-- Private acceptance fixture: inherits normal wall costs and construction. -->
+  <ThingDef ParentName="Wall">
+    <defName>B06AuditWall</defName>
+    <label>spatial acceptance wall</label>
+    <description>A normal wall with a distinct definition for spatial acceptance.</description>
+  </ThingDef>
+</Defs>

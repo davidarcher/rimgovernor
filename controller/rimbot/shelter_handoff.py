@@ -2,7 +2,8 @@
 
 
 def requested_shell(request):
-    return ({'bounds':request['bounds'],'entrance':request['entrance']}
+    return ({key:request[key] for key in ('bounds','entrance','interior_cells','entrance_cell')
+             if request.get(key) is not None}
             if request.get('kind')=='AdoptRoom' else request['room'])
 
 
@@ -24,7 +25,10 @@ async def verified_room(rt, shell, *, request_simulation=True):
     bounds=shell['bounds'];x,z=bounds['x'],bounds['z']
     width,height=bounds['width'],bounds['height']
     interior={(a,b) for a in range(x+1,x+width-1) for b in range(z+1,z+height-1)}
-    census=await rt.game.query('home/list_rooms',cells=True,x=x+1,z=z+1)
+    if shell.get('interior_cells'):
+        interior={(p['x'],p['z']) for p in shell['interior_cells']}
+    seed=min(interior)
+    census=await rt.game.query('home/list_rooms',cells=True,x=seed[0],z=seed[1])
     if census.get('success') is not True:
         raise SkillBlocked('Shelter room observations are unavailable')
     rooms=[room for room in census.get('rooms',[]) if room.get('cellsComplete') is True
@@ -43,6 +47,9 @@ async def verified_room(rt, shell, *, request_simulation=True):
 
 
 def entrance_aisle(shell,interior):
+    if shell.get('entrance_cell'):
+        from .room_geometry import irregular_aisle
+        return irregular_aisle(shell,interior)
     bounds=shell['bounds']
     if shell['entrance'] in ('north','south'):
         return {(a,b) for a,b in interior if a==bounds['x']+bounds['width']//2}

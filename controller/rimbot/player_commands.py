@@ -77,6 +77,28 @@ class AdoptRoom(Contract):
     intent_id: str = Field(pattern=r'^[a-zA-Z0-9_-]{1,40}$')
     bounds: RoomBounds
     entrance: Literal['north','east','south','west']
+    interior_cells: list[Cell] | None = Field(default=None, min_length=1, max_length=3844,
+        description='Exact complete observed native interior for a nonrectangular room; omit for the rectangular interior.')
+    entrance_cell: Cell | None = Field(default=None,
+        description='Exact observed completed boundary door; required with nonrectangular interior cells.')
+
+    @model_validator(mode='after')
+    def geometry(self):
+        if (self.interior_cells is None) != (self.entrance_cell is None):
+            raise ValueError('Nonrectangular adoption requires both exact interior cells and an entrance cell')
+        if self.interior_cells is not None:
+            from .shell_site import connected_cells
+            points={(p.x,p.z) for p in self.interior_cells}
+            if len(points)!=len(self.interior_cells):raise ValueError('Duplicate adopted room cell')
+            b=self.bounds
+            if any(not (b.x<x<b.x+b.width-1 and b.z<z<b.z+b.height-1) for x,z in points):
+                raise ValueError('Adopted interior cells must lie inside the inspected bounds')
+            x,z=self.entrance_cell.x,self.entrance_cell.z
+            dx,dz={'north':(0,1),'south':(0,-1),'east':(1,0),'west':(-1,0)}[self.entrance]
+            inside=(x-dx,z-dz)
+            if (x,z) in points or (x+dx,z+dz) in points or connected_cells(inside,points)!=points:
+                raise ValueError('Adopted geometry needs a connected interior and a boundary entrance facing outside')
+        return self
 
 
 class CreateZone(Contract):
@@ -191,7 +213,7 @@ def semantic_tools(resources=None):
         'CancelConstruction':'REMOVE existing pending blueprints and partly built frames for a tracked player intent. Use ONLY when the player explicitly requests removing those game orders. NEVER use when told to keep blueprints, frames or existing orders; use CancelGoal instead. Completed buildings remain.',
         'BuildRoom':'Request a room shell with walls and an entrance using inspected geometry.',
         'RelocateConstruction':'Explicitly move a tracked unfinished construction intent. Validates the replacement before removing exact old pending orders. Requires explicit permission to remove old orders; completed buildings cannot be relocated this way. Use inspected replacement geometry.',
-        'AdoptRoom':'Use one existing enclosed, fully roofed native room as the preferred colony shelter. Supply inspected perimeter bounds and entrance side. Adds no building orders; future deterministic furnishing uses fresh room geometry. Existing construction orders are preserved.',
+        'AdoptRoom':'Use one existing enclosed, fully roofed native room as the preferred colony shelter. Supply inspected bounds and entrance side; for a nonrectangular room also supply its exact complete interior_cells and completed entrance_cell. Adds no building orders; furnishing rechecks the exact native room and preserves a continuous aisle.',
         'PlaceBuildings':'Place a semantic batch of furniture or buildings using observed definitions and positions.',
         'CreateZone':'Create a growing zone or stockpile specifically requested by the player.',
         'EditZone':'Explicitly edit an existing observed zone: expand, remove cells, delete, change crop or storage filter. Deletion removes the zone designation; it does not destroy stored items. Use exact native filter definitions from inspection.',

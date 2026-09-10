@@ -46,21 +46,50 @@ class ColonySkills:
         if not candidates:
             self.rt.note('template_unavailable', 'No starter layout satisfies observed terrain and crop capacity',
                          definitions=facts.get('definitions'), cells=facts.get('cells'), colonists=facts.get('colonists'))
-        for layout in candidates[:self.rt.controller.policy.max_method_attempts]:
-            shell = self.shell(layout)
-            accepted = True
-            for p in room_placements(RoomShell.model_validate(shell)):
-                preview = await self.rt.inspect_native('home/place_building', dict(defName=p.def_name,
-                    x=p.x, z=p.z, rotation=p.rotation, stuff='WoodLog', dryRun=True))
-                if preview.get('canPlace') is not True:
-                    accepted = False
-                    break
-            if accepted:
-                control['layout'] = layout
-                self.rt.note('template_selected', 'Starter layout fits observed terrain and native shell previews', layout=layout)
-                self.rt.persist()
-                return layout
-            self.rt.note('fallback_selected', 'Starter shell refused; checking next ranked site', preview=preview)
+        from .construction_preflight import preflight_construction
+        token,direction=self.rt.context_token,self.rt.chat_revision
+        plan=self.rt.current_plan;comparisons=[];accepted=[]
+        for index,layout in enumerate(candidates[:self.rt.controller.policy.max_method_attempts]):
+            identity='layout-preview-'+str(index)
+            if any(s.id==identity for s in plan.spec.steps):raise SkillBlocked('Layout preview identity is already in use')
+            candidate=PlanStep(id=identity,title='Candidate shelter',action=self.shell(layout),
+                completion_criteria='Native shelter complete')
+            spec=plan.spec.model_copy(deep=True);spec.steps.append(candidate)
+            try:
+                evidence=await preflight_construction(spec,plan,self.rt.game)
+            except ValueError as error:
+                comparisons.append(dict(bounds=layout['room'],accepted=False,reason=str(error),
+                    evidence=getattr(error,'evidence',{})))
+                continue
+            await self.rt.ensure_context(token)
+            if self.rt.chat_revision!=direction or self.rt.current_plan is not plan:
+                raise InterruptedError('Player direction changed during layout comparison')
+            costs=evidence['costs'].get(identity,{})
+            shortage=sum(max(0,amount-evidence['stock'].get(resource,0)) for resource,amount in costs.items())
+            from .spatial import room_entrance
+            (x,z),(dx,dz)=room_entrance(candidate.action)
+            approaches={(x-dx,z-dz),(x+dx,z+dz)}
+            routes=[target['projectedSteps'] for pawn in evidence['access'].get('pawns',[])
+                for target in pawn.get('targets',[]) if target.get('nativeReachable') is True
+                and (target.get('x'),target.get('z')) in approaches
+                and type(target.get('projectedSteps')) is int]
+            travel=min(routes) if routes else None
+            comparison=dict(bounds=layout['room'],accepted=True,costs=costs,available=evidence['stock'],
+                shortage=shortage,travel_steps=travel,farm_cells=sum(p['width']*p['height'] for p in farm_patches(layout)),
+                access_ms=evidence['access'].get('elapsedMilliseconds'))
+            comparisons.append(comparison)
+            accepted.append(((shortage,travel if travel is not None else float('inf'),index),layout,comparison))
+        await self.rt.ensure_context(token)
+        if self.rt.chat_revision!=direction or self.rt.current_plan is not plan:
+            raise InterruptedError('Player direction changed during layout comparison')
+        control['layout_comparison']=comparisons
+        if accepted:
+            _,layout,evidence=min(accepted,key=lambda row:row[0])
+            control['layout']=layout
+            self.rt.note('template_selected','Shelter selected from bounded native site, supply and route comparisons',
+                layout=layout,evidence=evidence)
+            self.rt.persist()
+            return layout
         raise SkillBlocked('No legal starter template in bounded nearby search')
 
     @staticmethod

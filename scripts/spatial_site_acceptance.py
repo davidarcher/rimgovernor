@@ -203,6 +203,8 @@ async def run(args):
         report['outcome'] = 'passed'
     except Exception as error:
         report['error'] = f'{type(error).__name__}: {error}'
+        report['error_evidence'] = getattr(error, 'evidence', None)
+        print(json.dumps(report['error_evidence']), flush=True)
         raise
     finally:
         report.update(plan=rt.current_plan.model_dump(mode='json'), counters=rt.counters,

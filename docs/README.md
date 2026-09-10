@@ -31,6 +31,7 @@ introduces the idea before linking to the exact contracts and relevant source.
 - [Choose checks](how-to/choose-tests.md), [run local checks](how-to/local-checks.md),
   or [run Docker controller checks](how-to/docker-checks.md).
 - [Prepare Linux inputs](how-to/docker-inputs.md) and [run native Docker acceptance](how-to/docker-native.md).
+- [Verify spatial construction, access and reuse](how-to/spatial-acceptance.md).
 - [Evaluate visual review and evidence recall](how-to/visual-reviews.md).
 - [Verify zone, bill and UI player actions](how-to/player-actions.md) against their [coverage contracts](reference/player-actions.md).
 - [Save and resume](how-to/save-and-resume.md) or [inspect a failed run](how-to/inspect-failure.md).

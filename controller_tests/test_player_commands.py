@@ -6,7 +6,7 @@ from rimbot.colony_plan import ColonyPlan, CommitSteps, PlanStep, StepProgress
 from rimbot.resource_accounting import validate_allocations
 from rimbot.resource_accounting import validate_execution_costs
 from test_strategic_architecture import runtime, batch, room_plan
-from test_construction_preflight import footprint
+from test_construction_preflight import footprint, native_reply
 
 
 @pytest.mark.asyncio
@@ -258,7 +258,7 @@ async def test_room_followup_replaces_only_unissued_intent_and_preserves_history
 @pytest.mark.asyncio
 async def test_shared_arbitration_rejects_player_and_autopilot_double_spend(tmp_path):
     rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch()
-    rt.game.invoke=AsyncMock(side_effect=lambda name,args,**kw: footprint(args,canPlace=True,costList=[{'defName':'WoodLog','count':60}],
+    rt.game.invoke=AsyncMock(side_effect=lambda name,args,**kw: native_reply(name,args,canPlace=True,costList=[{'defName':'WoodLog','count':60}],
         materials={'rows':[{'defName':'WoodLog','available':100}]}))
     first=PlanStep(id='auto',title='Auto',source='AUTOPILOT',action={'kind':'place_buildings',
         'placements':[{'def_name':'Bed','x':1,'z':1,'materials':['WoodLog']}]},completion_criteria='Bed exists')

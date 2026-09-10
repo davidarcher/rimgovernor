@@ -29,6 +29,22 @@ The distinction helps interpret tests. A fixture can prove that the doorway algo
 rejects a blocked cell. Only native gameplay can establish that a pawn actually
 traversed a route and completed the intended work under those conditions.
 
+The native access audit extends this check to each mobile pawn's current safe
+map component, including its allowed area and door-opening eligibility. Projected
+walls cannot cut off previously reachable space, even when the room's original
+construction actions have been archived. The projection uses completed native
+definitions, so an unfamiliar wall is still an obstruction. It does not predict
+future danger or certify that a pawn will perform the work.
+
+## Development uses observed room functions
+
+Shelter, food services and later capacity share the same maintained goals. A
+phase advances when native indoor sleeping capacity and service gates verify its
+function; issuing construction cannot advance it. Growth can reopen shelter work.
+Future phases reserve no land. A player can adopt an inspected existing room,
+including an irregular shelter, and furnish it while preserving connected access.
+Repairs use normal construction before the room can count as habitable.
+
 ## Reservations prevent competing promises
 
 At admission, material accounting considers accepted commitments together. At dispatch,

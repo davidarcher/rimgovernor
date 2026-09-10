@@ -24,6 +24,7 @@ first guided exercise, use [your first Docker test](../tutorials/first-docker-te
 
 ## Verify native scenarios
 
+- [Verify spatial construction, access and reuse](spatial-acceptance.md)
 - [Verify native forecasts](forecast-acceptance.md)
 - [Run focused headless probes](headless-probes.md)
 - [Verify native clocks and interruptions](native-clock.md)

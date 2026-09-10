@@ -84,6 +84,8 @@ class ColonyController:
             if old_latches.get(name) != value:
                 self.event('hysteresis_changed', name, active=value)
         gates = criteria(facts, self.policy)
+        from .spatial_program import stage_layout
+        nodes = stage_layout(plan, facts, gates, nodes)
         plan.control['facts'] = {k: v for k, v in facts.items() if k not in ('cells', 'definitions')}
         plan.control['criteria'] = gates
         applicable = dict(nodes)

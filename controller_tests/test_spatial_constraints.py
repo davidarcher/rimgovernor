@@ -75,6 +75,7 @@ async def test_new_zone_rechecks_retained_building_footprint_without_requiring_p
         completion_criteria='Exists', action=dict(kind='create_zone', zone_type='growing',
         crop='Plant_Rice', label='Field', patches=[dict(x=20, z=21, width=1, height=1)]))])).steps
     async def preview(name, args, **kw):
+        if name=='home/spatial_access':return dict(success=True,accepted=True,pawnCount=1)
         result = footprint(args, canPlace=False)
         result['rotations'][0]['occupiedCells'].append(dict(x=20, z=21))
         return result

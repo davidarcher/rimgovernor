@@ -41,9 +41,13 @@ Local changes:
   native caravan/visitor incidents, orders ordinary trade/dismiss jobs, applies
   the native Home-area clear designator and reads
   actual stock. It is excluded from production builds and model execution.
-- `PlaceBuildingTool.cs` reports the completed ThingDef's passability and native
+- `PlaceBuildingTool.cs` reports completed building/terrain passability and native
   door class for projected spatial validation, including custom definitions.
   The metadata read does not place or complete construction.
+- `SpatialAccessTool.cs` is original read-only local code. It compares current
+  and projected four-neighbor access using native walkability, danger, pawn areas
+  and door eligibility, and separately calls native pawn reachability for targets
+  and any required footprint egress. It never changes the path grid or simulation.
 - `VideoStreamTool.cs` is original local presentation code. It captures the Unity
   framebuffer after rendering into a leased RGB24 shared-memory slot on Windows.
   It does not issue input, alter simulation speed or expose editor operations.

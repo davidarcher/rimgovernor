@@ -1,6 +1,6 @@
 """Native dry-run validation of new construction intent before commitment."""
 from .colony_plan import Buildings, RoomShell, Zone
-from .spatial import room_placements, native_footprint, validate_geometry, projected_obstruction
+from .spatial import room_placements, native_footprint, validate_geometry, projected_obstruction, room_entrance
 from .shell_site import validate_shell_site, validate_shell_connectivity
 
 
@@ -24,8 +24,14 @@ async def preflight_construction(spec, current, game, *, refresh=False):
     checked={}
     footprints={}
     obstructions=set()
-    has_shells=any(isinstance(s.action, RoomShell) for s in spec.steps)
-    for step in spec.steps:
+    costs={}
+    stock={}
+    # Cancelled intent cannot project unbuilt walls. Surviving native objects
+    # remain part of the observed map used by the access audit.
+    active=[s for s in spec.steps if not (s.id in previous and previous[s.id].signature()==s.signature()
+        and current.progress.get(s.id) and current.progress[s.id].state=='cancelled')]
+    has_shells=any(isinstance(s.action, RoomShell) for s in active)
+    for step in active:
         old=previous.get(step.id)
         unchanged=old is not None and old.signature()==step.signature()
         action=step.action
@@ -66,11 +72,18 @@ async def preflight_construction(spec, current, game, *, refresh=False):
                         result.get('canPlace') is True or (step.after and not relocation and 'canPlace' in result)):
                     try:
                         footprints[(step.id, str(index))] = native_footprint(result, placement)
-                        if has_shells and isinstance(action, Buildings):
-                            obstructions.update(projected_obstruction(result, placement))
+                        obstructions.update(projected_obstruction(result, placement))
                     except ValueError as error:
                         evidence['error'] = str(error)
                         continue
+                    if isinstance(result.get('costList'),list):
+                        for row in result['costList']:
+                            budget=costs.setdefault(step.id,{})
+                            budget[row['defName']]=budget.get(row['defName'],0)+row['count']
+                    for row in (result.get('materials') or {}).get('rows',[]):
+                        available=row.get('available')
+                        if type(available) in (int,float):
+                            stock[row['defName']]=min(stock.get(row['defName'],available),available)
                     accepted=True;break
             if not accepted:
                 raise ConstructionRefusal(step,placement,evidence)
@@ -82,8 +95,26 @@ async def preflight_construction(spec, current, game, *, refresh=False):
     if has_shells:
         async def read(name, arguments):
             return await game.invoke(name, arguments, allow_write=False)
-        for step in spec.steps:
+        for step in active:
             if isinstance(step.action, RoomShell):
                 # Furniture or new walls can seal a room with no remaining work.
                 await validate_shell_connectivity(step.id, step.action, read, spec,
                                                   obstructions=obstructions)
+    if footprints:
+        from .shell_site import ShellSiteRefusal
+        targets=set()
+        for step in active:
+            if isinstance(step.action,RoomShell):
+                (x,z),(dx,dz)=room_entrance(step.action)
+                targets.update(((x-dx,z-dz),(x+dx,z+dz)))
+        encode=lambda cells:';'.join(f'{x},{z}' for x,z in sorted(cells))
+        result=await game.invoke('home/spatial_access',dict(blockedCells=encode(obstructions),
+            targetCells=encode(targets)),allow_write=False)
+        if (result.get('success') is not True or type(result.get('accepted')) is not bool
+                or type(result.get('pawnCount')) is not int or result['pawnCount']<1):
+            raise ShellSiteRefusal('spatial-access','incomplete_pawn_access',
+                'Current native pawn-specific access is unavailable',native=result)
+        if result['accepted'] is not True:
+            raise ShellSiteRefusal('spatial-access','projected_pawn_access',
+                'Construction would remove currently accessible space or has no safe native route',native=result)
+        return dict(costs=costs,stock=stock,access=result)

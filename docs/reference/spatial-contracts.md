@@ -40,6 +40,49 @@ of arbitrary future building obstructions. Changing the planned shells revalidat
 retained shells too, so expansion cannot silently seal the only observed local exit of
 an already completed tracked room.
 
+Furniture changes revalidate tracked shells using exact native footprints and
+completed-definition passability. Impassable non-door buildings are projected as
+obstructions; unknown classification refuses admission. Before the first real
+write of each construction batch, Hands refreshes the shared spatial checks after
+ordinary placement and resource checks. Cancelled unbuilt intent releases its
+projected geometry; surviving objects remain part of native map observations.
+
+## Native pawn access
+
+`home/spatial_access` compares each mobile colonist's current safe, unfogged,
+allowed-area four-neighbor component with projected building/terrain obstruction.
+Every previously reachable cell outside the footprint must remain reachable,
+including observed rooms whose old actions have been retired. Native door opening
+eligibility and exact-target native reachability remain separate checks. A pawn
+standing on a proposed footprint needs a currently native-reachable exit; this
+read does not move it. The audit is bounded to 262144 map cells, 32 mobile colonists,
+16384 projected cells and 128 targets. Unsupported or unreadable evidence blocks
+admission. Future danger, door locking and actual pawn labor remain simulation
+outcomes.
+
+## Site selection and development
+
+Site selection compares up to the configured method-attempt limit using native
+terrain/fertility, placement, danger, current stock and projected travel to each
+candidate entrance. Comparisons retain refusal evidence without reserving
+unselected sites.
+
+The persisted spatial program describes habitable shelter, food services and
+maintained capacity using existing functional goals and fresh native gates.
+Population growth reopens shelter capacity. Routine storage development waits
+for observed indoor sleeping capacity; urgent cooking, food acquisition, medical
+care and temperature control retain their priorities. Future phases own no cells
+or game orders.
+
+Adoption can describe a connected nonrectangular interior of at most 3844 unique
+cells inside the inspected bounds, with an exact boundary entrance and direction.
+Both `interior_cells` and `entrance_cell` must be supplied together. Native room
+geometry, roof and completed doorway must match. The observed role and load/map
+identity are retained. Furnishing keeps a connected entrance aisle and every
+narrow connector. Native neutral structures can be reused without claiming them;
+missing shell pieces need ordinary explicit construction and roof completion
+before adoption. A load requires fresh adoption; an altered interior invalidates it.
+
 ## Zone and facing postconditions
 
 New zone project targets retain expected patches, kind, crop and native settings.

@@ -12,6 +12,8 @@ def footprint(args, **result):
 
 
 def native_reply(name, args, **result):
+    if name == 'home/spatial_access':
+        return dict(success=True,accepted=True,pawnCount=1)
     if name == 'home/list_zones':
         return dict(success=True, zoneCount=0, zoneCountOnMap=0,
             zones=[], totals={'gridSweepFailed': False})
@@ -36,9 +38,9 @@ async def test_entire_shell_is_previewed_before_commit_and_shortage_is_not_rejec
         materials={'canBuildNow':False})))
     current=ColonyPlan()
     await preflight_construction(plan(),current,game)
-    assert game.invoke.await_count==16 and current.revision==0
+    assert game.invoke.await_count==17 and current.revision==0
     for call in game.invoke.await_args_list:
-        assert call.args[0] in ('home/place_building','home/list_zones','home/get_cells_plus')
+        assert call.args[0] in ('home/place_building','home/list_zones','home/get_cells_plus','home/spatial_access')
         if call.args[0]=='home/place_building': assert call.args[1]['dryRun'] is True
         assert call.kwargs=={'allow_write':False}
 
@@ -72,7 +74,7 @@ async def test_material_alternative_and_dependent_clearance():
     async def preview(name,args,**kwargs):return native_reply(name,args, canPlace=args.get('stuff')=='BlocksGranite')
     game=SimpleNamespace(invoke=AsyncMock(side_effect=preview))
     await preflight_construction(spec,ColonyPlan(),game)
-    assert game.invoke.await_count==28
+    assert game.invoke.await_count==29
     # A real dependency can clear the footprint before construction executes.
     data=spec.model_dump()
     data['steps'].insert(0,dict(id='clear',title='Clear',completion_criteria='Cleared',

@@ -68,11 +68,11 @@ def validate_geometry(spec, footprints=None, *, current=None):
     footprints = footprints or {}
     reserved = {c for r in spec.reserved_walkways for c in r.cells()}
     previous = {step.id: step for step in current.spec.steps} if current else {}
-    def completed(step):
+    def inactive(step):
         old = previous.get(step.id)
         progress = current.progress.get(step.id) if current else None
-        return bool(old and progress and progress.state == 'complete' and old.action == step.action)
-    active = [step for step in spec.steps if not completed(step)]
+        return bool(old and progress and progress.state in ('complete','cancelled') and old.action == step.action)
+    active = [step for step in spec.steps if not inactive(step)]
     rooms = [(s.id, s.action) for s in active if isinstance(s.action, RoomShell)]
     claimed = {}
     for step in active:

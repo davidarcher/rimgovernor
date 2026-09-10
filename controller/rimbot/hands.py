@@ -24,13 +24,16 @@ class Hands:
                 self.guard(rt, revision, token, direction)
                 action = step.action
                 placements = room_placements(action) if isinstance(action, RoomShell) else action.placements if isinstance(action, Buildings) else None
-                if placements and any(isinstance(s.action, Buildings) for s in rt.current_plan.spec.steps) and any(
-                        isinstance(s.action, RoomShell) for s in rt.current_plan.spec.steps):
+                spatial_checked=False
+                async def before_placement_write():
+                    nonlocal spatial_checked
+                    if spatial_checked:return
                     from types import SimpleNamespace
                     from .construction_preflight import preflight_construction
                     async def spatial_read(name, args, **kwargs):
                         self.guard(rt, revision, token, direction)
-                        result = await rt.inspect_native(name, args)
+                        result = (await rt.inspect_native(name, args) if name=='home/place_building'
+                                  else await rt.game.query(name, **args))
                         self.guard(rt, revision, token, direction)
                         return result
                     try:
@@ -39,6 +42,7 @@ class Hands:
                     except ValueError as error:
                         raise Blocked(getattr(error, 'code', 'spatial_preflight'), str(error),
                             evidence=getattr(error, 'evidence', {})) from error
+                    spatial_checked=True
                 if isinstance(action, RoomShell):
                     # Check the entire remaining shell before this pass can write any piece.
                     # Per-piece validation still runs immediately before each write.
@@ -68,7 +72,8 @@ class Hands:
                         return
                     progress.state = 'executing'
                     if placements is not None:
-                        receipt = await self.place(rt, operation, progress, key, revision, token, direction)
+                        receipt = await self.place(rt, operation, progress, key, revision, token, direction,
+                                                   before_write=before_placement_write)
                     elif isinstance(action, CancelConstructionAction):
                         from .construction_cancellation import execute_target
                         receipt = await execute_target(self, rt, action, operation, progress, key, revision, token, direction)
@@ -224,7 +229,7 @@ class Hands:
                 or rt.chat_revision != direction or (not reviewing and rt.chat_revision > rt.handled_revision)):
             raise InterruptedError('Plan or player direction changed')
 
-    async def place(self, rt, p, progress, key, revision, token, direction, *, preview_only=False, writer_locked=False):
+    async def place(self, rt, p, progress, key, revision, token, direction, *, preview_only=False, writer_locked=False, before_write=None):
         if writer_locked and not preview_only:raise ValueError('Locked construction preflight cannot write')
         found = await rt.game.query('home/list_buildings', match=p.def_name, x=p.x, z=p.z, radius=1, aggregate=False, playerOnly=True)
         if found.get('skipped', {}).get('byMaxDetailed'):
@@ -285,6 +290,9 @@ class Hands:
             self.guard(rt, revision, token, direction,reviewing=writer_locked)
             if preview_only:
                 return {'validated': True, 'stuff': stuff}
+            if before_write is not None:
+                await before_write()
+                self.guard(rt, revision, token, direction)
             progress.issued[key] = {'confirmed': False}
             rt.persist()
             result = await rt.native('home/place_building', dict(args, dryRun=False), expected_revision=direction,

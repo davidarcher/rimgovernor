@@ -9,9 +9,10 @@ async def setup(tmp_path):
     rt, rows = await fixture(tmp_path)
     rows[1].update(thingId='Blueprint_Wall2', buildDefName='Wall', isBlueprint=True)
     async def preview(name, arguments, **kwargs):
+        if name=='home/spatial_access':return dict(success=True,accepted=True,pawnCount=1)
         if name == 'home/cancel_construction':
             return {'success':True, 'applied':False}
-        return {'success':True, 'canPlace':True, 'rotations':[{'accepted':True,'blockingThings':[],
+        return {'success':True, 'canPlace':True, 'passability':'Impassable','isDoor':False,'rotations':[{'accepted':True,'blockingThings':[],
                 'rotation':arguments['rotation'],'occupiedCells':[{'x':arguments['x'],'z':arguments['z']}]}], 'costList':[{'defName':'WoodLog','count':5}],
                 'materials':{'rows':[{'defName':'WoodLog','available':1000}]}}
     rt.game.invoke = AsyncMock(side_effect=preview)
