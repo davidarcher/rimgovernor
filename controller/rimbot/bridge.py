@@ -7,6 +7,7 @@ This transport is not exposed to the model until capability policy is applied.
 from contextlib import asynccontextmanager
 import asyncio
 import logging
+import os
 from datetime import timedelta
 from pathlib import Path
 
@@ -75,7 +76,9 @@ class BridgeClient:
 async def bridge_session(executable: Path, config_dir: Path, game_id="rimbot-trial"):
     parameters = StdioServerParameters(command=str(executable.resolve()), args=[
         "server", "stdio", "--configDir", str(config_dir.resolve()),
-        "--log-level", "error"])
+        "--log-level", "error"], env={key: os.environ[key] for key in (
+            'DISPLAY', 'XAUTHORITY', 'XDG_RUNTIME_DIR', 'LIBGL_ALWAYS_SOFTWARE',
+            'GALLIUM_DRIVER', 'LP_NUM_THREADS') if key in os.environ})
     async with stdio_client(parameters) as (reader, writer):
         async with ClientSession(reader, writer, read_timeout_seconds=timedelta(seconds=120)) as session:
             await session.initialize()

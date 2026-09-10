@@ -7,6 +7,9 @@ services:
     init: true
     stop_grace_period: 60s
     environment:
+      RIMBOT_DISPLAY: ${RIMBOT_DISPLAY:-headless}
+      RIMBOT_DISPLAY_RESOLUTION: ${RIMBOT_DISPLAY_RESOLUTION:-1280x720}
+      RIMBOT_DISPLAY_RENDERER: ${RIMBOT_DISPLAY_RENDERER:-llvmpipe}
       RIMBOT_UNITY_GC_TIME_SLICE: ${RIMBOT_UNITY_GC_TIME_SLICE:-0}
       RIMBOT_ALLOW_DOCKER_HOST_MODEL: "1"
       RIMBOT_MODEL_URL: http://host.docker.internal:1234/v1

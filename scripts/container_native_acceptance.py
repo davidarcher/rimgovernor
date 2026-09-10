@@ -5,6 +5,7 @@ import json
 import hashlib
 from pathlib import Path
 import subprocess
+import struct
 import time
 import urllib.error
 import urllib.request
@@ -36,7 +37,8 @@ def run(args):
         root.mkdir()
         env = dict(environment, RIMBOT_LINUX_GAME=str(args.game.resolve()),
                    RIMBOT_WORKER_MODS=str(args.mods.resolve()), RIMBOT_WORKER_PROFILE=str(args.profile.resolve()),
-                   RIMBOT_LINUX_GABS=str(args.gabs.resolve()), RIMBOT_WORKER_OUTPUT=str(root), RIMBOT_WORKER_PORT='0')
+                   RIMBOT_LINUX_GABS=str(args.gabs.resolve()), RIMBOT_WORKER_OUTPUT=str(root), RIMBOT_WORKER_PORT='0',
+                   RIMBOT_DISPLAY=args.display, RIMBOT_DISPLAY_RESOLUTION=args.resolution)
         workers.append(dict(root=root, project=f'{prefix}-{index}', env=env))
     def compose(worker, *command, **kwargs):
         return subprocess.run([docker, 'compose', '-f', str(source/'containers/compose.yaml'),
@@ -56,6 +58,10 @@ def run(args):
         deadline = time.monotonic()+args.startup_timeout
         last = None
         while time.monotonic() < deadline:
+            running = compose(worker, 'ps', '--status', 'running', '-q', 'worker',
+                              capture_output=True, text=True, check=True, timeout=15).stdout.strip()
+            if not running:
+                raise RuntimeError('Worker exited during startup; inspect container.log')
             try:
                 last = api(worker, '/api/state')
                 if last.get('connected'):
@@ -67,6 +73,29 @@ def run(args):
                 pass
             time.sleep(1)
         raise TimeoutError('Native startup timed out: '+json.dumps(last))
+    def capture(worker, name, previous=None):
+        deadline = time.monotonic()+60
+        while time.monotonic() < deadline:
+            api(worker, '/api/video', {'viewer': 'container-acceptance', 'playing': True})
+            try:
+                with urllib.request.urlopen(worker['url']+'/api/camera', timeout=10) as response:
+                    frame = response.read()
+                assert frame.startswith(b'\x89PNG\r\n\x1a\n'), 'Expected PNG frame'
+                dimensions = struct.unpack('>II', frame[16:24])
+                assert dimensions == tuple(map(int, args.resolution.split('x'))), dimensions
+                assert len(frame) > 10000, 'Empty rendered frame'
+                digest = hashlib.sha256(frame).hexdigest()
+                if digest == previous:
+                    time.sleep(1)
+                    continue
+                (worker['root']/name).write_bytes(frame)
+                return dict(dimensions=dimensions, bytes=len(frame), sha256=digest)
+            except urllib.error.HTTPError as error:
+                if error.code != 503:
+                    raise
+            time.sleep(1)
+        raise TimeoutError('No native rendered frame')
+
     def clock(worker, speed):
         return api(worker, '/api/time', {'session_id': worker['session'], 'speed': speed})['game']
     def stopped_state(worker):
@@ -79,13 +108,15 @@ def run(args):
         result['clean'] = (not state['Running'] and not state['OOMKilled'] and not state['Error']
                            and state['ExitCode'] in (0, 143) and result['controller_shutdown_complete'])
         return result
-    report = dict(image=image, passed=False, scope='Native Linux discovery, independent clocks, peer survival and retained checkpoint; no pawn-work or sustained throughput acceptance.')
+    report = dict(image=image, display=args.display, resolution=args.resolution, passed=False, scope='Native Linux discovery, independent clocks, peer survival and retained checkpoint; no pawn-work or sustained throughput acceptance.')
     began = time.monotonic()
     try:
         with ThreadPoolExecutor(max_workers=2) as pool:
             report['initial_states'] = list(pool.map(start, workers))
         before = [clock(worker, 'Paused') for worker in workers]
         report['before'] = before
+        if args.display == 'xvfb':
+            report['frames'] = [capture(worker, 'frame.png') for worker in workers]
         clock(workers[0], 'Normal')
         deadline = time.monotonic()+30
         while time.monotonic() < deadline:
@@ -106,6 +137,11 @@ def run(args):
         assert peer['ticksGame'] == before[1]['ticksGame'], peer
         report['peer_after_stop'] = peer
         report['peer_survival'] = True
+        if args.display == 'xvfb':
+            report['survivor_camera'] = api(workers[1], '/api/camera/navigate',
+                {'session_id': workers[1]['session'], 'action': 'right'})
+            report['survivor_frame'] = capture(workers[1], 'survivor.png', report['frames'][1]['sha256'])
+            assert clock(workers[1], 'Paused')['ticksGame'] == before[1]['ticksGame']
         checkpoint = api(workers[1], '/api/session/checkpoint', {'session_id': workers[1]['session']})
         report['checkpoint'] = checkpoint
         manifest = Path(checkpoint['manifest_path']).relative_to('/worker')
@@ -162,6 +198,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('game', 'mods', 'profile', 'gabs', 'output'):
         parser.add_argument('--'+name, type=Path, required=True)
+    parser.add_argument('--display', choices=['headless', 'xvfb'], default='headless')
+    parser.add_argument('--resolution', default='1280x720')
     parser.add_argument('--image', default='rimbot-worker:local')
     parser.add_argument('--no-build', action='store_true')
     parser.add_argument('--startup-timeout', type=int, default=240)

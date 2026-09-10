@@ -192,15 +192,13 @@ in the checkpoint commit; do not append an implementation diary here.
   pawn outcomes and mixed task builds. Bounded clock/shutdown/checkpoint acceptance
   does not establish sustained gameplay, inference throughput or cloud acceptance.
 
-  **Virtual display for rendered container tests.** Add an optional per-worker
-  virtual display (for example Xvfb with a compatible software renderer) so Linux
-  containers can exercise scenarios that require rendering: screenshots/video,
-  camera pan/zoom, selection, menus/dialogs and placement gestures. Configure display
-  resolution and renderer explicitly; retain frames and display/game logs with test
-  artifacts. Verify real rendered frames and native outcomes, including B18 input
-  acceptance, with two simultaneous workers using independent displays and profiles.
-  Check startup, shutdown and peer survival without taking host desktop focus;
-  measure rendering overhead against existing headless workers.
+  **Rendered container acceptance.** Optional per-worker Xvfb/llvmpipe support
+  provides explicit resolution, private rendered profiles and retained display/game
+  logs. The two-worker runner captures native PNGs and verifies clocks, shutdown,
+  peer survival and checkpoint retention. Broaden acceptance to screenshots/video,
+  camera pan/zoom, selection, menus/dialogs and placement gestures, including B18
+  input outcomes. Measure sustained rendering overhead against headless workers.
+  Protocol and bounded lifecycle checks do not certify those native interactions.
 
 - [ ] **B18 · Interactive game view and low-latency streaming.** Keep the React
   dashboard and replace the watch-only game panel with explicit player control.

@@ -718,7 +718,25 @@ slow Windows bind mounts. `run/staging.json` measures the input-copy time.
 
 These are lifecycle checks; actual pawn outcomes and throughput need their own
 native acceptance. Startup failures are never retried silently. Remaining probes with hard-coded Windows paths must be ported
-before use in containers. Rendering/video is outside the headless worker scope.
+before use in containers. Headless remains the default. For rendered tests set `RIMBOT_DISPLAY=xvfb`,
+`RIMBOT_DISPLAY_RESOLUTION=1280x720` (640x480 through 3840x2160) and
+`RIMBOT_DISPLAY_RENDERER=llvmpipe`. Each container owns Xvfb `:99` in its own
+namespace with TCP disabled; no host display socket or desktop focus is used.
+The worker verifies software OpenGL before launching the controller, sets private
+resolution/fullscreen preferences with UI scale 1, removes the
+HeadlessRim active package in its private profile and uses Unity OpenGL rendering.
+The rendered profile does not require the HeadlessRim DLL. Game logs remain in
+`run/Player.log`; `run/display` retains Xvfb, display capability and renderer logs,
+plus exit status. Startup/display failures fail the worker without retries.
+The display stays alive through controller cleanup and stops with its container.
+
+Add `--display xvfb --resolution 1280x720` to the native acceptance command to
+retain exact-resolution `frame.png` for each worker and a changed `survivor.png`
+after its peer stops and native camera pan completes, alongside normal
+clock/checkpoint evidence. The survivor must remain at its paused native tick. Inspect these frames for actual colony content;
+PNG presence and size alone do not establish visual correctness. Use a fresh output
+for a matching headless comparison. Frame transport, input gestures and sustained
+rendering overhead require their own acceptance under B17/B18.
 
 ### Steam Linux inputs
 

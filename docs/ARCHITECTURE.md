@@ -437,7 +437,14 @@ Windows profiles retain their existing default.
 `scripts/container_checks.py` runs independent Linux controller suites against one
 pinned image ID. `scripts/container_native_acceptance.py` creates two Compose
 projects and verifies native clocks, peer survival, clean shutdown and a retained
-paired checkpoint through the normal controller API.
+paired checkpoint through the normal controller API. Optional `RIMBOT_DISPLAY=xvfb`
+workers use a container-local Xvfb display and explicitly verified Mesa llvmpipe
+software OpenGL. Rendered staging removes HeadlessRim from the private active mod
+list, sets its saved display preferences and retains dimensions/renderer with input
+evidence. The GABS transport explicitly inherits the display/software-renderer
+environment needed by its owned game. The display supervisor
+keeps X alive during controller shutdown, fails on display death and retains logs
+under `run/display`; it never restarts a failed game. Headless remains the default.
 
 Build output, saves, logs, binaries and measurements belong outside Git. Source
 attribution stays beside integrations and in [THIRD_PARTY.md](../THIRD_PARTY.md).

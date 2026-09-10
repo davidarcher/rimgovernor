@@ -113,3 +113,31 @@ def test_gc_mitigation_changes_only_private_boot_config(tmp_path):
     with pytest.raises(ValueError, match='existing Unity'):
         stage(*sources, tmp_path/'refused', unity_gc_time_slice=0)
     assert not (tmp_path/'refused').exists()
+
+
+def test_rendered_worker_preserves_sources_and_uses_private_display(tmp_path):
+    from rimbot.virtual_display import DisplaySettings
+    sources = inputs(tmp_path)
+    (sources[1]/'RimBotHeadless/Assemblies/HeadlessRimPatch.dll').unlink()
+    original = (sources[2]/'Config/ModsConfig.xml').read_bytes()
+    root = stage(*sources, tmp_path/'rendered', display=DisplaySettings.parse('1600x900'))
+    args = json.loads((root/'config/config.json').read_text())['games']['rimbot-trial']['args']
+    assert '-nographics' not in args and '-batchmode' not in args
+    assert args[args.index('-screen-width')+1] == '1600'
+    assert args[args.index('-screen-height')+1] == '900'
+    assert '-force-glcore' in args
+    import xml.etree.ElementTree as ET
+    prefs = ET.parse(root/'profile/Config/Prefs.xml').getroot()
+    assert prefs.findtext('screenWidth') == '1600'
+    assert prefs.findtext('screenHeight') == '900'
+    assert prefs.findtext('uiScale') == '1'
+    assert not (root/'config-headless').exists()
+    assert (sources[2]/'Config/ModsConfig.xml').read_bytes() == original
+    assert json.loads((root/'staging.json').read_text())['display']['renderer'] == 'llvmpipe'
+
+
+@pytest.mark.parametrize('resolution', ['0x720', '1280x0', '3841x2160', '640x2161', '1280;echo x', '-1x720'])
+def test_display_rejects_invalid_dimensions(resolution):
+    from rimbot.virtual_display import DisplaySettings
+    with pytest.raises(ValueError):
+        DisplaySettings.parse(resolution)
