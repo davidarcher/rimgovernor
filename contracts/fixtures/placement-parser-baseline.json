@@ -1,0 +1,1103 @@
+{
+  "version": 1,
+  "source_revision": "869f8042ce96862f49d659bc5cf170f90e740d11",
+  "scope": "Observed pinned Newtonsoft parsing and verbatim native structural validation in a standalone net472 console on Windows .NET Framework. No actual SDK invocation, native main-thread preview, Mono execution, game mutation or schema acceptance is claimed.",
+  "runtime": {
+    "clr": "4.0.30319.42000",
+    "framework": ".NET Framework 4.8.9345.0",
+    "target": "net472",
+    "build_sdk": "8.0.424"
+  },
+  "assembly": {
+    "name": "Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed",
+    "file_version": "13.0.4.30916",
+    "product_version": "13.0.4+4e13299d4b0ec96bd4df9954ef646bd2d1b5bf2a",
+    "sha256": "f0c07af0e84d4dd4da4bd7823ba4535bc0481b3bf623ed40b659b68147a6bb75",
+    "nuget_package": "Newtonsoft.Json",
+    "nuget_version": "13.0.4",
+    "nuget_asset": "lib/net45/Newtonsoft.Json.dll",
+    "nuget_asset_sha256": "f0c07af0e84d4dd4da4bd7823ba4535bc0481b3bf623ed40b659b68147a6bb75"
+  },
+  "source_settings": {
+    "parser": "JArray.Parse(placements, new JsonLoadSettings { DuplicatePropertyNameHandling = DuplicatePropertyNameHandling.Error })",
+    "date_parse_handling": "default",
+    "float_parse_handling": "default",
+    "input_length": "string.Length: UTF-16 code units; maximum 32768",
+    "field_length": "string.Length: UTF-16 code units; maximum 200",
+    "nonempty": "string.IsNullOrWhiteSpace for defName and rotation",
+    "coordinates": "JTokenType.Integer and int.TryParse(row[key].ToString(), out _)"
+  },
+  "provenance": {
+    "native_source": "integrations/colony-bridge/src/PlacementPreviewsTool.cs",
+    "native_source_sha256": "b7befed5e398a5c7c52080f84b600aca5577fb25a020afd5190f3c5564940641",
+    "probe_source": "contracts/tests/parser/PlacementParserProbe.cs",
+    "probe_source_sha256": "3947b27b0f06fb7b4fc77ad2a8e9e8eaaa9a92692b86df3ee1385a51be1b9817",
+    "artifact_root": "C:\\Users\\darch\\code\\davidarcher\\RimBot\\.worktrees\\go-02a-native-probe\\.rimgovernor\\placement-parser-01",
+    "raw_results_sha256": "26210758d3dc41bd221b55bf1d26c087efa80134dc89b5057079087f4494bef0"
+  },
+  "binder_evidence": {
+    "status": "decompiled-source-inspection-only",
+    "assembly": "RimBridgeServer.dll",
+    "assembly_sha256": "bdd0ad19036a3554eff4abeb2a5f35e4d13c0e8a4559985bdc13340589f913e0",
+    "methods": [
+      "RimBridgeServer.AnnotatedExtensionCapabilityProvider.BindArguments",
+      "RimBridgeServer.AnnotatedExtensionCapabilityProvider.ConvertArgument",
+      "RimBridgeServer.ReflectedCapabilityBinding.NormalizeInvocationArguments"
+    ],
+    "observations": [
+      "BindArguments iterates declared method parameters, not supplied keys; extra keys are not rejected in that method.",
+      "Normalized argument dictionaries use StringComparer.Ordinal; missing arguments use parameter defaults, including placements=null.",
+      "ConvertArgument accepts null for reference types and may coerce other scalar types with invariant Convert.ChangeType.",
+      "BridgeCommon.WithUnknownArguments reports ignored keys after execution; PlacementPreviewsTool parser failures return before that wrapper.",
+      "Actual SDK outer missing/null/unknown/coercion replies remain unmeasured."
+    ],
+    "decompiled_artifacts": [
+      {
+        "path": "AnnotatedExtensionCapabilityProvider.cs",
+        "sha256": "dd51a421c7891571e38083346558aba81b18492530e8d75d8cd049f9f85ca081"
+      },
+      {
+        "path": "ReflectedCapabilityBinding.cs",
+        "sha256": "69830fa86a1449fcd049e1a59e32d43fc03c98da96796d15320917d3fd306918"
+      },
+      {
+        "path": "LegacyToolExecution.cs",
+        "sha256": "d4dcb4abe4cbd31c387b1e24c2817b2cecc88575db5b744d5c4719b28d94efa0"
+      }
+    ]
+  },
+  "canonical_decisions_required": [
+    "Strict RFC JSON rejects legacy-accepted comments, single quotes, unquoted keys, trailing commas, hex/octal/leading-zero integers and non-RFC outer whitespace.",
+    "Unicode scalar validation rejects lone surrogate escapes that legacy Newtonsoft replaces with U+FFFD.",
+    "Keep UTF-16 code-unit bounds explicit; counting Unicode scalars or UTF-8 bytes changes limits.",
+    "Preserve .NET whitespace behavior deliberately; BOM and zero-width-space are not IsNullOrWhiteSpace.",
+    "Missing/null/extra outer argument policy must be validated through the real SDK binder in native acceptance."
+  ],
+  "reproduction": {
+    "project": "contracts/tests/parser/PlacementParserProbe.csproj",
+    "instructions": [
+      "From repository root run dotnet build contracts/tests/parser/PlacementParserProbe.csproj -c Release -p:BaseOutputPath=<absolute ignored output>/bin/ -p:BaseIntermediateOutputPath=<absolute ignored output>/obj/.",
+      "On Windows run <output>/bin/Release/net472/PlacementParserProbe.exe contracts/fixtures/placement-parser-baseline.json and retain stdout in ignored output.",
+      "Require loaded assembly_sha256 to equal the pinned net45 hash before comparing all case id and observed fields.",
+      "Runtime patch version and exception wording may vary; retain differences rather than treating a different host as the measured runtime."
+    ]
+  },
+  "commands_observed": [
+    {
+      "command": "dotnet build probe.csproj --ignore-failed-sources -v minimal (local net472 reference assemblies)",
+      "exit_code": 0
+    },
+    {
+      "command": "probe.exe cases.json",
+      "exit_code": 0
+    },
+    {
+      "command": "ilspycmd -t <type> RimBridgeServer.dll",
+      "exit_code": 0
+    },
+    {
+      "command": "dotnet restore compare.csproj --packages <isolated directory> (Newtonsoft.Json 13.0.4)",
+      "exit_code": 0
+    },
+    {
+      "command": "Initial rerun loaded a different net20 DLL via nested package-cache resolution; rejected on bigint mismatch. Final isolated public NuGet project requires loaded assembly hash.",
+      "exit_code": null
+    },
+    {
+      "command": "Pinned public NuGet net472 project build and 51-case fixture replay; loaded assembly SHA256 checked",
+      "exit_code": 0
+    }
+  ],
+  "cases": [
+    {
+      "id": "valid",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 69,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "missing-placements",
+      "input": null,
+      "observed": {
+        "input_utf16_units": null,
+        "parse_accepted": false,
+        "parse_error_type": "System.ArgumentNullException",
+        "parse_error": "Value cannot be null.\r\nParameter name: s",
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Missing or oversized placements"
+        }
+      }
+    },
+    {
+      "id": "comment-before",
+      "input": {
+        "kind": "raw",
+        "json": "/*before*/[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 79,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "comment-inside",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",/*inside*/\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 79,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "comment-after",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]/*after*/"
+      },
+      "observed": {
+        "input_utf16_units": 78,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "trailing-comma-object",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\",}]"
+      },
+      "observed": {
+        "input_utf16_units": 70,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "trailing-comma-array",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"},]"
+      },
+      "observed": {
+        "input_utf16_units": 70,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "single-quotes",
+      "input": {
+        "kind": "raw",
+        "json": "[{'defName':'Wall','x':1,'z':2,'rotation':'north','stuff':'WoodLog'}]"
+      },
+      "observed": {
+        "input_utf16_units": 69,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "unquoted-property",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",x:1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 67,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "trailing-object",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]{}"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": false,
+        "parse_error_type": "Newtonsoft.Json.JsonReaderException",
+        "parse_error": "Additional text encountered after finished reading JSON content: {. Path '', line 1, position 69.",
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Additional text encountered after finished reading JSON content: {. Path '', line 1, position 69."
+        }
+      }
+    },
+    {
+      "id": "trailing-array",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}][]"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": false,
+        "parse_error_type": "Newtonsoft.Json.JsonReaderException",
+        "parse_error": "Additional text encountered after finished reading JSON content: [. Path '', line 1, position 69.",
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Additional text encountered after finished reading JSON content: [. Path '', line 1, position 69."
+        }
+      }
+    },
+    {
+      "id": "trailing-null",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]null"
+      },
+      "observed": {
+        "input_utf16_units": 73,
+        "parse_accepted": false,
+        "parse_error_type": "Newtonsoft.Json.JsonReaderException",
+        "parse_error": "Additional text encountered after finished reading JSON content: n. Path '', line 1, position 69.",
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Additional text encountered after finished reading JSON content: n. Path '', line 1, position 69."
+        }
+      }
+    },
+    {
+      "id": "trailing-text",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]garbage"
+      },
+      "observed": {
+        "input_utf16_units": 76,
+        "parse_accepted": false,
+        "parse_error_type": "Newtonsoft.Json.JsonReaderException",
+        "parse_error": "Additional text encountered after finished reading JSON content: g. Path '', line 1, position 69.",
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Additional text encountered after finished reading JSON content: g. Path '', line 1, position 69."
+        }
+      }
+    },
+    {
+      "id": "duplicate-key",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"x\":2,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 75,
+        "parse_accepted": false,
+        "parse_error_type": "Newtonsoft.Json.JsonReaderException",
+        "parse_error": "Property with the name 'x' already exists in the current JSON object. Path '[0].x', line 1, position 29.",
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Property with the name 'x' already exists in the current JSON object. Path '[0].x', line 1, position 29."
+        }
+      }
+    },
+    {
+      "id": "duplicate-escaped-key",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"\\u0078\":2,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 80,
+        "parse_accepted": false,
+        "parse_error_type": "Newtonsoft.Json.JsonReaderException",
+        "parse_error": "Property with the name 'x' already exists in the current JSON object. Path '[0].x', line 1, position 34.",
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Property with the name 'x' already exists in the current JSON object. Path '[0].x', line 1, position 34."
+        }
+      }
+    },
+    {
+      "id": "NaN",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":NaN,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": true,
+        "x_token_type": "Float",
+        "x_display": "NaN",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Coordinates must be 32-bit integers"
+        }
+      }
+    },
+    {
+      "id": "Infinity",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":Infinity,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 76,
+        "parse_accepted": true,
+        "x_token_type": "Float",
+        "x_display": "\u00e2\u02c6\u017e",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Coordinates must be 32-bit integers"
+        }
+      }
+    },
+    {
+      "id": "negative-Infinity",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":-Infinity,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 77,
+        "parse_accepted": true,
+        "x_token_type": "Float",
+        "x_display": "-\u00e2\u02c6\u017e",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Coordinates must be 32-bit integers"
+        }
+      }
+    },
+    {
+      "id": "decimal-integer",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1.0,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": true,
+        "x_token_type": "Float",
+        "x_display": "1",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Coordinates must be 32-bit integers"
+        }
+      }
+    },
+    {
+      "id": "exponent-integer",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1e0,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": true,
+        "x_token_type": "Float",
+        "x_display": "1",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Coordinates must be 32-bit integers"
+        }
+      }
+    },
+    {
+      "id": "leading-zero",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":01,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 70,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "hex-number",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":0x10,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 72,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "16",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "octal-number",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":010,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "8",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "bigint",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":9223372036854775808,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 87,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "9223372036854775808",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Coordinates must be 32-bit integers"
+        }
+      }
+    },
+    {
+      "id": "int32-max",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":2147483647,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 78,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "2147483647",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "int32-overflow",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":2147483648,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 78,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "2147483648",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Coordinates must be 32-bit integers"
+        }
+      }
+    },
+    {
+      "id": "int32-min",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":-2147483648,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 79,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "-2147483648",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "int32-underflow",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":-2147483649,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 79,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "-2147483649",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Coordinates must be 32-bit integers"
+        }
+      }
+    },
+    {
+      "id": "lone-high-surrogate",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\\ud800\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 1,
+        "def_name_utf16_hex": "FFFD",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "lone-low-surrogate",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\\udc00\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 1,
+        "def_name_utf16_hex": "FFFD",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "paired-surrogate",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\\ud83d\\ude00\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 77,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 2,
+        "def_name_utf16_hex": "D83D DE00",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "100-astral-scalars",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 1265,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 200,
+        "def_name_utf16_hex": "D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "101-astral-scalars",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\\ud83d\\ude00\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 1277,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 202,
+        "def_name_utf16_hex": "D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00 D83D DE00",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Invalid definition, rotation or material"
+        }
+      }
+    },
+    {
+      "id": "200-ascii",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 265,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 200,
+        "def_name_utf16_hex": "0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "201-ascii",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 266,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 201,
+        "def_name_utf16_hex": "0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061 0061",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Invalid definition, rotation or material"
+        }
+      }
+    },
+    {
+      "id": "NBSP-only",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\\u00a0\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 1,
+        "def_name_utf16_hex": "00A0",
+        "def_name_is_whitespace": true,
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Invalid definition, rotation or material"
+        }
+      }
+    },
+    {
+      "id": "NEL-only",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\\u0085\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 1,
+        "def_name_utf16_hex": "0085",
+        "def_name_is_whitespace": true,
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Invalid definition, rotation or material"
+        }
+      }
+    },
+    {
+      "id": "OGHAM-only",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\\u1680\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 1,
+        "def_name_utf16_hex": "1680",
+        "def_name_is_whitespace": true,
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Invalid definition, rotation or material"
+        }
+      }
+    },
+    {
+      "id": "EM-SPACE-only",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\\u2003\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 1,
+        "def_name_utf16_hex": "2003",
+        "def_name_is_whitespace": true,
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Invalid definition, rotation or material"
+        }
+      }
+    },
+    {
+      "id": "LINE-SEPARATOR-only",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\\u2028\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 1,
+        "def_name_utf16_hex": "2028",
+        "def_name_is_whitespace": true,
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Invalid definition, rotation or material"
+        }
+      }
+    },
+    {
+      "id": "NARROW-NBSP-only",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\\u202f\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 1,
+        "def_name_utf16_hex": "202F",
+        "def_name_is_whitespace": true,
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Invalid definition, rotation or material"
+        }
+      }
+    },
+    {
+      "id": "IDEOGRAPHIC-SPACE-only",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\\u3000\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 1,
+        "def_name_utf16_hex": "3000",
+        "def_name_is_whitespace": true,
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Invalid definition, rotation or material"
+        }
+      }
+    },
+    {
+      "id": "BOM-only",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\\ufeff\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 1,
+        "def_name_utf16_hex": "FEFF",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "ZERO-WIDTH-SPACE-only",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"\\u200b\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 1,
+        "def_name_utf16_hex": "200B",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "outer-NBSP",
+      "input": {
+        "kind": "raw",
+        "json": "\u00a0[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]\u00a0"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "outer-NEL",
+      "input": {
+        "kind": "raw",
+        "json": "\u0085[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]\u0085"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "outer-EM-SPACE",
+      "input": {
+        "kind": "raw",
+        "json": "\u2003[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]\u2003"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "outer-BOM",
+      "input": {
+        "kind": "raw",
+        "json": "\ufeff[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]\ufeff"
+      },
+      "observed": {
+        "input_utf16_units": 71,
+        "parse_accepted": false,
+        "parse_error_type": "Newtonsoft.Json.JsonReaderException",
+        "parse_error": "Unexpected character encountered while parsing value: \u00ef\u00bb\u00bf. Path '', line 0, position 0.",
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Unexpected character encountered while parsing value: \u00ef\u00bb\u00bf. Path '', line 0, position 0."
+        }
+      }
+    },
+    {
+      "id": "utf16-input-32768",
+      "input": {
+        "kind": "template",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]{PAD}",
+        "replacements": [
+          {
+            "token": "{PAD}",
+            "text": " ",
+            "count": 32699
+          }
+        ]
+      },
+      "observed": {
+        "input_utf16_units": 32768,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": true
+        }
+      }
+    },
+    {
+      "id": "utf16-input-32769",
+      "input": {
+        "kind": "template",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]{PAD}",
+        "replacements": [
+          {
+            "token": "{PAD}",
+            "text": " ",
+            "count": 32700
+          }
+        ]
+      },
+      "observed": {
+        "input_utf16_units": 32769,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Missing or oversized placements"
+        }
+      }
+    },
+    {
+      "id": "utf16-input-astral-over-limit",
+      "input": {
+        "kind": "template",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"WoodLog\"}]/*{ASTRAL}*/",
+        "replacements": [
+          {
+            "token": "{ASTRAL}",
+            "text": "\ud83d\ude00",
+            "count": 16400
+          }
+        ]
+      },
+      "observed": {
+        "input_utf16_units": 32873,
+        "parse_accepted": true,
+        "x_token_type": "Integer",
+        "x_display": "1",
+        "def_name_utf16_units": 4,
+        "def_name_utf16_hex": "0057 0061 006C 006C",
+        "def_name_is_whitespace": false,
+        "native_structural_validation": {
+          "success": false,
+          "error": "Invalid placement batch: Missing or oversized placements"
+        }
+      }
+    }
+  ]
+}
