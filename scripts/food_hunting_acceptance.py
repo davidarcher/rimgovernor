@@ -120,6 +120,14 @@ async def run(args):
             pauseWhenSatisfied='on',unpauseWhenYouHave=target//2,ingredientSearchRadius=40,watch=False)],current)
         await issue('FoodPreservationAcceptance','priority',[native('home/bills',action='move',
             bench=bench['id'].removeprefix('Thing_'),index=len(bench['bills']),to=0,watch=False)],await facts())
+        from rimbot.food_forecast import acquisition_targets
+        plants,budget=acquisition_targets(current,7)
+        report['preservation']['ingredient_acquisition']=budget
+        if plants:
+            harvest=await rt.controller.skills.designator('Designator_PlantsHarvest')
+            await issue('FoodPreservationAcceptance','ingredients',[native(
+                'rimworld/apply_architect_designator',designatorId=harvest,x=p['x'],z=p['z'],
+                keepSelected=False) for p in plants],await facts())
         previous=sum(s['count'] for s in current['foodSupply']['stocks'] if s['defName']==product['defName'])
         deadline=time.monotonic()+args.seconds
         while time.monotonic()<deadline:
@@ -129,7 +137,8 @@ async def run(args):
             outputs=[p for p in observer['production'] if p['recipe']==recipe['recipe']]
             quantity=sum(s['count'] for s in current['foodSupply']['stocks'] if s['defName']==product['defName'])
             report['preservation']['samples'].append(dict(tick=current['tick'],quantity=quantity,
-                outputs=outputs,stocks=current['foodSupply']['stocks'],cooking=current['cooking']))
+                outputs=outputs,stocks=current['foodSupply']['stocks'],cooking=current['cooking'],
+                bills=await rt.game.query('home/bills',bench=bench['id'].removeprefix('Thing_'))))
             save()
             if outputs and quantity>previous:
                 report['cases'].append(dict(name='Native preservation output entered accessible stock',
