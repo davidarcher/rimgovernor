@@ -34,6 +34,9 @@ in the checkpoint commit; do not append an implementation diary here.
   an issued order and successful triage under combat. Recovery receipts enforce
   unchanged player direction; native external pawn-order ownership still needs
   coverage beyond tracked overrides and controller direction changes.
+  Single-patient interrupted tending has native Docker acceptance through actual
+  completed treatment and draft cleanup. This does not establish competing-patient
+  triage, changed player direction in the game or low-health combat rearming.
 - [ ] **B04g · Native command acceptance.** Extend the isolated native chat probe to construction and room
   refinements. Define and accept completed PLAYER-order archival when the 80-step
   live plan fills, preserving durable receipts and player intent. Broaden wording and context for
