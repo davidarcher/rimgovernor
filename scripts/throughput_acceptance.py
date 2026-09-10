@@ -6,6 +6,7 @@ import json
 import hashlib
 import os
 import resource
+import re
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -24,7 +25,12 @@ async def run(args):
         pause = ET.SubElement(prefs.getroot(), 'pauseOnLoad')
     pause.text = 'True'
     prefs.write(prefs_path, encoding='utf8', xml_declaration=True)
-    baseline_tick = int(ET.parse(root/'profile/Saves/RimBot-tribal8-baseline.rws').getroot().findtext('.//tickManager/ticksGame'))
+    # Native saves can contain .NET field tags rejected by Python's XML parser.
+    saved = (root/'profile/Saves/RimBot-tribal8-baseline.rws').read_text(encoding='utf-8-sig')
+    tick_field = re.search(r'<tickManager>\s*<ticksGame>(\d+)</ticksGame>', saved)
+    if tick_field is None:
+        raise ValueError('Native checkpoint has no tickManager/ticksGame metadata')
+    baseline_tick = int(tick_field[1])
     config = root/'config'
     # prepare() owns the configuration path and preserves the worker's private game.
     if os.environ.get('RIMBOT_HEADLESS') == '1':

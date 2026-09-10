@@ -76,7 +76,10 @@ async def run(args):
                 '--output', str(root/'dashboard-throughput'), stdout=log, stderr=asyncio.subprocess.STDOUT)
             async with asyncio.timeout(args.seconds+30):
                 assert await sampler.wait() == 0, 'Read-only sampler failed; inspect dashboard-sampler.log'
-        report['dashboard'] = json.loads((root/'dashboard-throughput/result.json').read_text())['summary']
+        sampled = json.loads((root/'dashboard-throughput/result.json').read_text())
+        report['dashboard'] = sampled['summary']
+        assert report['dashboard']['valid_seconds'] >= args.seconds*.8, 'Insufficient connected sampling time'
+        assert not any(row.get('error') for row in sampled['samples']), 'Dashboard read failed'
         report['final_tick'] = rt.batch.summary.end_tick
         report['controller_status'] = rt.current_plan.control.get('status')
         report['criteria'] = rt.current_plan.control.get('criteria')
