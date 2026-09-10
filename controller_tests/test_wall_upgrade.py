@@ -212,7 +212,7 @@ async def test_stonecutter_uses_verified_rotation_that_fits_existing_shelter():
     from rimbot.colony_plan import ColonyPlan
     f = dict(definitions={'TableStonecutter': dict(available=True, stuff='WoodLog')}, center=dict(x=10, z=10),
              cells=[dict(x=10, z=z, walkable=True, occupied=False, indoors=True) for z in range(10, 13)])
-    rt = SimpleNamespace(current_plan=ColonyPlan(), inspect_native=AsyncMock(return_value=dict(canPlace=True,
+    rt = SimpleNamespace(current_plan=ColonyPlan(), game=SimpleNamespace(), inspect_native=AsyncMock(return_value=dict(canPlace=True,
         rotations=[dict(rotation='north', accepted=True, blockingThings=[], occupiedCells=[dict(x=x, z=10) for x in range(10, 13)]),
                    dict(rotation='east', accepted=True, blockingThings=[], occupiedCells=[dict(x=10, z=z) for z in range(10, 13)])])))
     result = await placement(rt, f, 'TableStonecutter', indoors=True, rotations='all')
@@ -328,7 +328,7 @@ async def test_furniture_placement_preserves_native_stockpile_cells():
     from rimbot.colony_skills import SkillBlocked
     facts = dict(definitions={'TableStonecutter': dict(available=True)}, center=dict(x=10, z=10),
         cells=[dict(x=10, z=10, walkable=True, occupied=False, indoors=True, zone='stockpile')])
-    rt = SimpleNamespace(current_plan=ColonyPlan(), inspect_native=AsyncMock())
+    rt = SimpleNamespace(current_plan=ColonyPlan(), game=SimpleNamespace(), inspect_native=AsyncMock())
     with pytest.raises(SkillBlocked, match='No safe observed placement'):
         await placement(rt, facts, 'TableStonecutter', indoors=True, rotations='all')
     rt.inspect_native.assert_not_awaited()

@@ -58,12 +58,13 @@ async def validate_allocations(spec, current, game, *, deferred_wall_steps=froze
             continue
         if isinstance(action, RoomShell) and len(action.materials or []) > 1:
             chosen = None
+            shell_placements = room_placements(action)
+            shell_previews = PlacementPreviews(game, shell_placements)
             for material in action.materials:
                 candidate_costs, candidate_stock = {}, {}
                 valid = True
-                for placement in room_placements(action):
-                    preview = await game.invoke('home/place_building', dict(defName=placement.def_name,
-                        x=placement.x, z=placement.z, rotation=placement.rotation, stuff=material, dryRun=True), allow_write=False)
+                for placement in shell_placements:
+                    preview = await shell_previews.get(placement, material)
                     values = preview.get('materials')
                     if preview.get('canPlace') is not True or values is None or values.get('unreadable') or 'costList' not in preview:
                         valid = False; break

@@ -16,7 +16,7 @@ async def test_bounded_prefetch_preserves_order_and_material_fallback():
         if tool == 'home/placement_previews':
             candidates = json.loads(args['placements'])
             assert len(candidates) <= 16
-            return dict(success=True, version=1, results=[dict(success=True, canPlace=p['x'] != 0, x=p['x']) for p in candidates])
+            return dict(success=True, version=1, results=[dict(success=True, canPlace=p['x'] != 0 or p['stuff'] == 'Steel', x=p['x']) for p in candidates])
         assert args['dryRun'] is True and args['stuff'] == 'Steel'
         return dict(success=True, canPlace=True, x=args['x'])
     game = SimpleNamespace(bridge=SimpleNamespace(placement_preview_batch_version=1), invoke=AsyncMock(side_effect=invoke))
@@ -27,7 +27,7 @@ async def test_bounded_prefetch_preserves_order_and_material_fallback():
     for row in rows[1:]:
         assert (await cache.get(row, 'WoodLog'))['x'] == row.x
     assert [c.args[0] for c in game.invoke.await_args_list] == [
-        'home/placement_previews', 'home/place_building', 'home/placement_previews']
+        'home/placement_previews', 'home/placement_previews', 'home/placement_previews']
 
 
 async def test_no_cross_review_cache_and_old_companion_fallback():

@@ -2,6 +2,7 @@
 from collections import deque
 from .strategic_state import fingerprint
 from .colony_skills import SkillBlocked, native
+from .placement_previews import PlacementPreviews, PreviewCandidate
 
 
 def development_nodes(facts):
@@ -50,11 +51,19 @@ async def placement(rt, facts, definition, *, indoors=None, near=None, radius=22
             free -= entrance_aisle(shell, interior)
     candidates = sorted((p for p in free if max(abs(p[0]-center['x']), abs(p[1]-center['z'])) <= radius),
                         key=lambda p: ((p[0]-center['x'])**2+(p[1]-center['z'])**2, p))
-    for x, z in candidates[:64]:
+    candidates = candidates[:64]
+    material = definition_data.get('stuff')
+    pending = [PreviewCandidate(definition, x, z, rotations, [material] if material else [])
+               for x, z in candidates[1:]]
+    previews = PlacementPreviews(rt.game, pending, inspect=rt.inspect_native)
+    for index, (x, z) in enumerate(candidates):
         args = dict(defName=definition, x=x, z=z, rotation=rotations, dryRun=True)
         if definition_data.get('stuff'):
             args['stuff'] = definition_data['stuff']
-        preview = await rt.inspect_native('home/place_building', args)
+        # Keep the common first-candidate success to one small request. Only
+        # prefetch after a rejection, through the runtime's inspection guard.
+        preview = (await rt.inspect_native('home/place_building', args) if index == 0
+                   else await previews.get(pending[index-1], material))
         rows = [r for r in preview.get('rotations', []) if safe_rotation(r)]
         if preview.get('canPlace') is not True or (rotations != 'all' and len(rows) != 1):
             continue

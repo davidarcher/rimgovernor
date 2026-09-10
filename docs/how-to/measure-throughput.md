@@ -126,7 +126,12 @@ complete placement verdicts, costs and footprints, including invalid candidates;
 it rejects malformed/oversized requests and checks unchanged construction and
 paused ticks. Native batch timing separates main-thread queue and execution time.
 
-Construction preflight and resource allocation prefetch at most 16 first-choice
+Use `--search-comparison` with `--runtime-seconds` to compare selected sites,
+exhausted searches with explicit footprint exclusions, and material alternatives
+on the same paused native state. Two pairs reverse request order and require
+identical results, unchanged construction and unchanged ticks.
+
+Construction preflight, resource allocation and site searches prefetch at most 16
 placements through `home/placement_previews` when colony identity advertises
 `placementPreviewBatchVersion: 1`. The input is a validated JSON list of
 definition, coordinates, rotation and material;
@@ -134,7 +139,11 @@ extra fields, non-integer coordinates and more than 16 candidates are refused.
 The ordinary preview evaluator runs on one native main-thread turn. Candidates
 do not project each other's buildings or
 reserve materials. Results are retained only within the current review, preserving
-material choice order and individual fallback previews. Older companions use the
+material choice order. Alternative materials use separate bounded batches. Site
+searches inspect the first candidate individually, then batch subsequent candidates
+through the runtime inspection guard, retaining the first safe site in search order.
+Room-shell material selection and final allocation use separate reviews.
+Older companions use the
 individual path. Actual writes retain fresh native preflight and identity checks.
 Inspect the final controller events as well as the sampler totals: a valid
 measurement can include a controller stopped by a native order refusal. Such a
