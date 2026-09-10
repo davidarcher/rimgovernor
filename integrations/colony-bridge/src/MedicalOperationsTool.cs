@@ -50,6 +50,12 @@ namespace HomeBridge.BridgeTools
                             && !p.Drafted && !p.InMentalState && !p.WorkTypeIsDisabled(WorkTypeDefOf.Doctor)
                             && def.PawnSatisfiesSkillRequirements(p)).Select(p => p.GetUniqueLoadID()).ToArray();
                         var missing = def.PotentiallyMissingIngredients(null, map).Select(d => d.defName).ToArray();
+                        var requiresMedicine = def.ingredients.Any(i => i.filter.AllowedThingDefs.Any(d => d.IsMedicine));
+                        var medicine = map.listerThings.ThingsInGroup(ThingRequestGroup.Medicine)
+                            .Where(t => !t.IsForbidden(pawn) && !t.Position.Fogged(map) && pawn.playerSettings != null
+                                && pawn.playerSettings.medCare.AllowsMedicine(t.def)
+                                && def.ingredients.Any(i => i.filter.Allows(t)))
+                            .GroupBy(t => t.def.defName).Select(g => new { definition = g.Key, count = g.Sum(t => t.stackCount) }).ToArray();
                         var confirmation = def.Worker.GetConfirmation(pawn).ToString();
                         var supports = (def.addsHediff != null || def.removesHediff != null)
                             && def.changesHediffLevel == null && string.IsNullOrEmpty(confirmation)
@@ -62,6 +68,8 @@ namespace HomeBridge.BridgeTools
                             ["part"] = index, ["partLabel"] = bodyPart?.Label, ["supported"] = supports,
                             ["addsHediff"] = def.addsHediff?.defName, ["removesHediff"] = def.removesHediff?.defName,
                             ["practitioners"] = doctors, ["missingIngredients"] = missing, ["confirmation"] = confirmation,
+                            ["requiresMedicine"] = requiresMedicine, ["medicinePermittedByCare"] = medicine,
+                            ["hasPermittedMedicine"] = !requiresMedicine || medicine.Length > 0,
                             ["ingredients"] = def.ingredients.Select(i => new { count = i.GetBaseCount(),
                                 definitions = i.filter.AllowedThingDefs.Select(d => d.defName).ToArray() }).ToArray(),
                             ["skills"] = def.skillRequirements?.Select(s => new { skill = s.skill.defName, level = s.minLevel }).ToArray(),
@@ -77,6 +85,7 @@ namespace HomeBridge.BridgeTools
                     else if (!(bool)selection["supported"]) error = "Recipe needs an unsupported confirmation or health postcondition";
                     else if (((string[])selection["practitioners"]).Length == 0) error = "No available practitioner satisfies native skills";
                     else if (((string[])selection["missingIngredients"]).Length != 0) error = "Required native ingredients are unavailable";
+                    else if (!(bool)selection["hasPermittedMedicine"]) error = "No observed medicine is permitted by the patient care policy and recipe";
                     else if (pawn.playerSettings == null || pawn.playerSettings.medCare <= MedicalCareCategory.NoMeds)
                         error = "Patient medical care policy does not permit surgery medicine";
                     else if (pawn.BillStack.Bills.Any()) error = "Existing patient bills require player review before adding an operation";

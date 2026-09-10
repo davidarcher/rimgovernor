@@ -120,3 +120,59 @@ async def test_doctor_replacement_keeps_receipts_and_honors_player_ownership(cha
     else:
         assert len(plan.spec.steps) == 1
         assert plan.progress['tend'].state == 'blocked'
+
+def surgical_runtime():
+    from unittest.mock import Mock
+    from rimbot.colony_plan import ColonyPlan, PlanStep, StepProgress
+    plan = ColonyPlan()
+    plan.spec.steps.append(PlanStep(id='surgery', title='Install leg', action=action(),
+        completion_criteria='Native peg leg observed'))
+    plan.progress['surgery'] = StepProgress(state='waiting', issued={'0': dict(
+        confirmed=True, bill_id='Bill_1', issued_at=10, issued_tick=100, player_direction=0)})
+    return SimpleNamespace(current_plan=plan, identity=dict(colonyId='colony', loadToken='load', mapId=1),
+        batch=SimpleNamespace(started_at=11, summary=SimpleNamespace(end_tick=101),
+            native={'pawns': {'pawns': [patient()]}}),
+        controller=SimpleNamespace(policy=SimpleNamespace(blocked_after_ticks=60000)), note=Mock(), signal=Mock())
+
+
+@pytest.mark.parametrize('change', ['none', 'cancelled', 'direction', 'load', 'map', 'colony',
+    'unknown_receipt', 'future_tick', 'expired', 'autopilot'])
+def test_anesthesia_clock_permission_is_bounded_and_player_scoped(change):
+    from rimbot.surgery import recovery_patients
+    rt = surgical_runtime()
+    progress = rt.current_plan.progress['surgery']
+    if change == 'cancelled': progress.state = 'cancelled'
+    if change == 'direction': rt.current_plan.control['player_direction'] = 1
+    if change in ('load', 'map', 'colony'): rt.identity[{'load':'loadToken','map':'mapId','colony':'colonyId'}[change]] = 'other'
+    if change == 'unknown_receipt': progress.issued['0']['confirmed'] = False
+    if change == 'future_tick': rt.batch.summary.end_tick = 99
+    if change == 'expired': rt.batch.summary.end_tick = 60100
+    if change == 'autopilot': rt.current_plan.spec.steps[0].source = 'AUTOPILOT'
+    assert recovery_patients(rt) == ('Thing_Patient' if change == 'none' else '')
+
+
+def test_surgery_timeout_observes_late_native_success_without_reissuing():
+    from rimbot.bridge_runtime import BridgeRuntime
+    rt = surgical_runtime()
+    rt.batch.summary.end_tick = 60100
+    receipt = deepcopy(rt.current_plan.progress['surgery'].issued)
+    BridgeRuntime.reconcile_plan(rt)
+    progress = rt.current_plan.progress['surgery']
+    assert progress.state == 'blocked' and progress.failure.code == 'surgery_no_progress'
+    rt.batch.native['pawns']['pawns'][0]['health']['hediffs'] = [dict(id='Hediff_2', defName='PegLeg', partIndex=7)]
+    BridgeRuntime.reconcile_plan(rt)
+    assert progress.state == 'complete' and progress.failure is None
+    assert progress.issued == receipt
+
+
+def test_surgical_outcome_requires_fresh_batch_and_same_native_context():
+    from rimbot.bridge_runtime import BridgeRuntime
+    rt = surgical_runtime()
+    rt.batch.native['pawns']['pawns'][0]['health']['hediffs'] = [dict(id='Hediff_2', defName='PegLeg', partIndex=7)]
+    rt.batch.started_at = 10
+    BridgeRuntime.reconcile_plan(rt)
+    assert rt.current_plan.progress['surgery'].state == 'waiting'
+    rt.batch.started_at = 11
+    rt.identity['loadToken'] = 'reloaded'
+    BridgeRuntime.reconcile_plan(rt)
+    assert rt.current_plan.progress['surgery'].failure.code == 'surgery_context_changed'

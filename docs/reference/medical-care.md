@@ -49,3 +49,11 @@ changes and postoperative recovery are separate outcomes.
 
 The native setup used by [medical acceptance](../how-to/medical-care-acceptance.md)
 is excluded from production builds and from the model execution surface.
+
+The supervised clock accepts short-lived surgical recovery IDs only from confirmed,
+current-direction patient operations in the current colony/load/map. Native sweeps
+permit downing only while the identified patient is alive, anesthetized, in a bed,
+not bleeding, not dangerously ill and above half health. Injury and death guards
+remain active. The allowance expires at the configured work window; it is not a
+general exemption for downed patients. Changed context invalidates surgical
+completion tracking, and stalled operations expose a bounded no-progress failure.
