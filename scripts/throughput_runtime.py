@@ -13,6 +13,7 @@ import uvicorn
 from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.bridge_server import create_app
 from rimbot.store import Store
+from rimbot.flight_recorder import recorder
 from deterministic_foothold import NoInference
 
 
@@ -113,6 +114,7 @@ async def run(args):
             raise
         finally:
             report['total_seconds'] = time.perf_counter()-began
+            report['flight_recorder'] = recorder().stats() if recorder() else None
             (root/'runtime-throughput.json').write_text(json.dumps(report, indent=2), encoding='utf8')
             store.close()
 

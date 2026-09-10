@@ -17,6 +17,7 @@ from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.bridge_game import BridgeGame
 from rimbot.native_scenario import advance_game
 from rimbot.store import Store
+from rimbot.flight_recorder import recorder
 from rimbot.supply_batches import supply_rectangles
 from deterministic_foothold import NoInference
 
@@ -364,6 +365,7 @@ async def run(args):
         raise
     finally:
         report['total_seconds'] = time.perf_counter()-started
+        report['flight_recorder'] = recorder().stats() if recorder() else None
         report['child_peak_rss_kib'] = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
         report['throughput'] = []
         for accelerated in (False, True):

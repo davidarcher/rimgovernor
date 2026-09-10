@@ -58,6 +58,9 @@ Workers run sequentially through the existing content-addressed input cache.
 Each publishes an automatic loopback [scenario dashboard](scenario-launcher.md)
 and retains its URL in `dashboard.json`. Old images without dashboard support fail
 before launch. The observer uses cached data and never advances the game.
+Durable native recording defaults on, matching the standard scenario runner;
+reports include recording time and counts. Use `--recording off` only for an
+explicit overhead comparison, and keep the setting equal between speed/mode trials.
 The worker image caches native system dependencies separately from source, so
 editing a probe does not reinstall graphics libraries.
 `--no-input-cache` measures direct-bind staging; `--no-build` requires an unchanged

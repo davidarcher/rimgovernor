@@ -30,7 +30,7 @@ def run(args):
                     capture_output=True, text=True, check=True).stdout.strip()
     require_dashboard_image(command, image)
     cache = None if args.no_input_cache else prepare_cache(args.game, args.mods, args.gabs/'gabs', image, output)
-    report = dict(passed=False, image=image, workers=[], input_cache=cache, start_type='fresh_baseline')
+    report = dict(passed=False, image=image, workers=[], input_cache=cache, start_type='fresh_baseline', recording=args.recording)
     profile = args.profile.resolve()
     if args.checkpoint:
         profile = output/'profile'
@@ -56,6 +56,8 @@ def run(args):
         report['workers'].append(worker)
         display = 'headless' if mode == 'headless' else 'xvfb'
         invocation = ['run', '-d', '--init', '--name', name, *dashboard_options('B16 throughput '+mode, display)]
+        if args.recording == 'on':
+            invocation.extend(['-e', 'RIMBOT_FLIGHT_RECORDER=/worker/timeline.jsonl'])
         if cache:
             invocation.extend(['--mount', f"type=volume,source={cache['volume']},target=/cached-inputs,readonly",
                                '-e', 'RIMBOT_INPUT_CACHE_ROOT=/cached-inputs/snapshot',
@@ -122,6 +124,7 @@ if __name__ == '__main__':
     parser.add_argument('--image', default='rimbot-worker:b16')
     parser.add_argument('--no-build', action='store_true')
     parser.add_argument('--no-input-cache', action='store_true')
+    parser.add_argument('--recording', choices=['on', 'off'], default='on', help='Match standard native scenarios; disable only for explicit recording-overhead comparisons')
     parser.add_argument('--fixture', action='store_true', help='Require the private ThroughputFixture build and measure scheduled safety events')
     parser.add_argument('--checkpoint', type=Path, help='Copy an unchanged older native checkpoint into each private profile; skips fresh starting-supply assertions')
     parser.add_argument('--runtime-seconds', type=int, default=0, help='Instead measure the production headless loop with the read-only dashboard sampler')
