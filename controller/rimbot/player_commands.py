@@ -35,6 +35,12 @@ class SetPopulationDecision(Contract):
     pawn: str = Field(pattern=r'^Thing_[A-Za-z0-9_]+$')
     decision: Literal['rescue', 'capture', 'recruit', 'ignore']
 
+class RequestSurgery(Contract):
+    kind: Literal['RequestSurgery']
+    patient: str = Field(pattern=r'^Thing_.+')
+    recipe: str = Field(min_length=1, description='Exact native recipe explicitly requested by the player; inspect home/medical_operations first.')
+    part: int = Field(ge=-1, description='Exact inspected body part index; -1 for whole-body treatment.')
+
 
 class MaintainHerd(Contract):
     kind: Literal['MaintainHerd']
@@ -244,10 +250,10 @@ class RescuePawn(Contract):
     patient: str = Field(min_length=1, description='Exact observed downed living colonist to carry to a native eligible bed.')
 
 
-Command = Annotated[MaintainHerd | SetPopulationPolicy | SetPopulationDecision | TradeEconomy | SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | RelocateConstruction | AdoptRoom | BuildRoom |
+Command = Annotated[RequestSurgery | MaintainHerd | SetPopulationPolicy | SetPopulationDecision | TradeEconomy | SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | RelocateConstruction | AdoptRoom | BuildRoom |
                     PlaceBuildings | CreateZone | EditZone | SetWorkPriority | CreateBill | SetBuildingTemperature | DraftPawn | MovePawn | TendPawn | RescuePawn, Field(discriminator='kind')]
 COMMAND = TypeAdapter(Command)
-COMMAND_TYPES = (MaintainHerd,SetPopulationPolicy,SetPopulationDecision,TradeEconomy,SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,RelocateConstruction,AdoptRoom,BuildRoom,PlaceBuildings,
+COMMAND_TYPES = (RequestSurgery,MaintainHerd,SetPopulationPolicy,SetPopulationDecision,TradeEconomy,SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,RelocateConstruction,AdoptRoom,BuildRoom,PlaceBuildings,
                  CreateZone,EditZone,SetWorkPriority,CreateBill,SetBuildingTemperature,DraftPawn,MovePawn,TendPawn,RescuePawn)
 COMMAND_NAMES = {kind.__name__ for kind in COMMAND_TYPES}
 
@@ -275,6 +281,7 @@ def semantic_tools(resources=None):
         'SetPopulationDecision':'Explicit per-pawn rescue, hostile capture, prisoner recruitment, or withdrawal of future population orders. Requires an existing population capacity policy. Preserves other individuals and does not release existing prisoners. Native custody, care, recruitment and integration are observed separately.',
         'MaintainHerd':'Maintain player animal population, training and seasonal stored feed targets. Uses native normal breeding and handler work. Never infer culling permission from a population target. Animal settings changed by the player require explicit renewal.',
         'SetResearch':'Select a research project requested by the player.',
+        'RequestSurgery':'Queue one exact native operation explicitly requested by the player. Requires inspected patient/body-part/recipe eligibility. Never infer elective surgery from a general request to care for the colony.',
         'CreateGoal':'Set a persistent colony target. MaintainResource with resource and quantity means keep acquiring or producing that stock, for example maintain 50 steel. The deterministic controller chooses downstream actions.',
         'ModifyResourcePolicy':'Change a resource spending restriction while preserving its existing reserve.',
         'SetResourceReserve':'Protect an explicitly requested numeric stock floor from spending, preserving the spending restriction. This does not acquire stock. Use CreateGoal/MaintainResource to replenish or maintain a stock target. Do not use for spending-only instructions.',
@@ -563,6 +570,15 @@ async def apply_command(rt, payload, *, token, revision):
             pawn = resolve_colonist(request.negotiator, roster.get('pawns', []))
             action = TradeAction(trader_id=request.trader_id, negotiator=pawn['thingId'],
                 policy=request.policy, max_silver_spend=request.max_silver_spend).model_dump()
+        elif isinstance(request, RequestSurgery):
+            preview = await rt.inspect_native('home/medical_operations', dict(patient=request.patient,
+                recipe=request.recipe, part=request.part, dryRun=True))
+            from .surgery import effect_from_preview
+            effect = effect_from_preview(preview)
+            action = dict(native('home/medical_operations', patient=request.patient, recipe=request.recipe,
+                part=request.part, expectedHealth=preview['healthSignature'], expectedCare=preview['medicalCare'],
+                **{k:preview[k] for k in ('colonyId', 'loadToken', 'mapId')}),
+                completion='surgery_health', medical_effect=effect)
         elif isinstance(request, SetResearch):
             try:
                 preview=await rt.inspect_native('home/research',{'set':request.project,'dryRun':True,'watch':False})

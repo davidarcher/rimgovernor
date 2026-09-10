@@ -12,7 +12,7 @@ READS = OBSERVATION_TOOLS | frozenset({'home/husbandry_facts', 'home/waste_state
     'rimworld/get_ui_layout', 'rimworld/list_main_tabs', 'rimworld/list_inspect_tabs',
     'rimworld/list_messages', 'rimworld/list_alerts', 'rimworld/get_map_target_info',
 })
-WRITES = frozenset({'home/husbandry_config', 'home/relieve_need', 'home/manage_waste', 'home/gear_upkeep', 'home/population', 'home/acquire_resource', 'home/production_policy', 'home/cancel_construction', 'home/confirm_colony_names', 'home/zone_cells', 'home/place_building', 'home/pawn_config',
+WRITES = frozenset({'home/husbandry_config', 'home/relieve_need', 'home/medical_operations', 'home/manage_waste', 'home/gear_upkeep', 'home/population', 'home/acquire_resource', 'home/production_policy', 'home/cancel_construction', 'home/confirm_colony_names', 'home/zone_cells', 'home/place_building', 'home/pawn_config',
     'home/building_config', 'home/bills', 'home/order', 'home/trade', 'home/research', 'home/dialog_text', 'home/install',
     'rimworld/set_time_speed', 'rimworld/apply_architect_designator',
     'rimworld/open_letter', 'rimworld/dismiss_letter', 'rimworld/click_screen_target',

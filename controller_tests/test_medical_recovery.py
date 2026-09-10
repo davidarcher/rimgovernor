@@ -14,10 +14,10 @@ def fixture():
         action=dict(kind='native_operation', tool='home/order', completion='patient_tended',
                     arguments={'action':'tend','pawn':'Thing_Doctor','target':'Thing_Patient'}))]),
         colony_goals={'CriticalMedical': ColonyGoal(priority_class=1, status='blocked', steps=['tend'])},
-        progress={'tend': StepProgress(state='blocked', issued={'0':dict(confirmed=True,load_token='load',issued_tick=100,player_direction=0)},
+        progress={'tend': StepProgress(state='blocked', issued={'0':dict(confirmed=True,load_token='load',issued_tick=100,player_direction=0,order_generation=0,patient_order_generation=0)},
             failure=Failure(code='tending_interrupted',detail='Interrupted',retryable=True))})
-    people = [dict(thingId='Thing_Patient',dead=False,health={'needsTend':True}),
-        dict(thingId='Thing_Doctor',dead=False,downed=False,drafted=False,job='Wait',
+    people = [dict(thingId='Thing_Patient',dead=False,orderGeneration=0,health={'needsTend':True}),
+        dict(thingId='Thing_Doctor',dead=False,downed=False,drafted=False,orderGeneration=0,job='Wait',jobTargetA='Thing_Patient',
              work={'types':[dict(name='Doctor',disabled=False)]})]
     return plan, people
 

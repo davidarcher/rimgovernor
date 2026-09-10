@@ -672,6 +672,9 @@ namespace HomeBridge.BridgeTools
                     { "jobReport", Try<string>(() => pawn.jobs?.curDriver?.GetReport(), null) },
                     { "jobLoadId", pawn.CurJob?.loadID ?? -1 },
                     { "jobPlayerForced", pawn.CurJob?.playerForced ?? false },
+
+                    { "orderGeneration", OrderedWorkHistory.Read(pawn) },
+                    { "jobTargetA", Try<string>(() => pawn.CurJob?.targetA.Thing?.GetUniqueLoadID(), null) },
                     { "carriedThingId", Try<string>(() => pawn.carryTracker?.CarriedThing?.GetUniqueLoadID(), null) },
                     { "mentalState", SafeMentalState(pawn) },
                     { "nearestColonist", nearestName },
@@ -1316,6 +1319,9 @@ namespace HomeBridge.BridgeTools
 
             var block = new Dictionary<string, object>();
             var dead = SafeDead(pawn);
+            block["careObservationVersion"] = 1;
+            block["surgeryBills"] = Try<object>(() => pawn.BillStack.Bills.Select(b => new {
+                id = b.GetUniqueLoadID(), recipe = b.recipe.defName, suspended = b.suspended }).ToArray(), null);
 
             block["downed"] = SafeDowned(pawn);
             block["dead"] = dead;
@@ -1350,7 +1356,9 @@ namespace HomeBridge.BridgeTools
             }
             block["hoursUntilDeathFromBloodLoss"] = hoursToBleedOut;
 
-            block["needsTend"] = Try<bool>(() => tracker.HasHediffsNeedingTend(false), false);
+            block["needsTend"] = Try<bool?>(() => tracker.HasHediffsNeedingTend(false), null);
+            block["shouldSeekMedicalRest"] = Try<bool?>(() => HealthAIUtility.ShouldSeekMedicalRest(pawn), null);
+            block["shouldSeekMedicalRestUrgent"] = Try<bool?>(() => HealthAIUtility.ShouldSeekMedicalRestUrgent(pawn), null);
             // PLAYBOOK sharp edge: self-tend is OFF by default for everyone
             // including new joiners, and in a colony of one that is fatal --
             // nobody else can doctor them. Null means the pawn has no
@@ -1424,6 +1432,17 @@ namespace HomeBridge.BridgeTools
                         tendable++;
 
                     var row = new Dictionary<string, object>();
+                    row["id"] = Try<string>(() => h.GetUniqueLoadID(), null);
+                    row["partIndex"] = Try<int?>(() => h.Part == null ? (int?)null : pawn.RaceProps.body.AllParts.IndexOf(h.Part), null);
+                    var immunizable = h.TryGetComp<HediffComp_Immunizable>();
+                    row["immunizable"] = immunizable != null;
+                    row["immunity"] = immunizable == null ? null : (object)Try<float?>(() => immunizable.Immunity, null);
+                    row["fullyImmune"] = immunizable == null ? null : (object)Try<bool?>(() => immunizable.FullyImmune, null);
+                    var duration = h.TryGetComp<HediffComp_TendDuration>();
+                    row["tendExpiresInTicks"] = duration == null || duration.TProps.TendIsPermanent ? null
+                        : (object)Math.Max(0, duration.tendTicksLeft);
+                    row["nextTendInTicks"] = duration == null || duration.TProps.TendIsPermanent ? null
+                        : (object)Math.Max(0, duration.tendTicksLeft - duration.TProps.TendTicksOverlap);
                     // `label` is RimWorld's OWN full label -- "Heatstroke
                     // (extreme)", "Cut (moderate)". It is the exact string
                     // health.py used to scrape off the screen with a regex, and

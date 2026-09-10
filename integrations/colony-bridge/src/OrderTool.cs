@@ -269,7 +269,7 @@ namespace HomeBridge.BridgeTools
 
             if (!watch)
             {
-                Apply(plan);
+                using (OrderedWorkHistory.Owned()) Apply(plan);
                 return new FirstHop { Reply = Reply(plan, Watch.Skipped("watch:false"), true) };
             }
 
@@ -294,7 +294,7 @@ namespace HomeBridge.BridgeTools
                 return Reply(plan, Watch.Finish(session, watchSeconds), false);
             }
 
-            Apply(plan);
+            using (OrderedWorkHistory.Owned()) Apply(plan);
 
             if (plan.Pawn != null)
             {
@@ -2226,6 +2226,8 @@ namespace HomeBridge.BridgeTools
                 { "success", plan.Error == null },
                 { "tool", ToolName },
                 { "action", plan.Request.Action },
+                { "orderGeneration", OrderedWorkHistory.Read(plan.Pawn) },
+                { "targetOrderGeneration", OrderedWorkHistory.Read(plan.TargetPawn) },
                 { "dryRun", plan.Request.DryRun },
                 { "applied", applied && plan.Applied },
                 { "pawn", PawnBlock(plan) },

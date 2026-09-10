@@ -20,6 +20,7 @@ conceptual introduction, start with [the system overview](../explanation/overvie
 - [Player command contracts](command-contracts.md)
 - [Player action coverage and native capability audit](player-actions.md)
 - [Action completion contracts](action-contracts.md)
+- [Medical care and surgery contracts](medical-care.md)
 - [Spatial contracts](spatial-contracts.md)
 - [Recovery and uncertain-write contracts](recovery-contracts.md)
 

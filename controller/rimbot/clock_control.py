@@ -81,7 +81,7 @@ class PlayClock:
                 raise ValueError('Dialog preparation requires a verified pause; no dialog opened')
             return state
 
-    async def change(self, speed, *, mode='colony', ignored_hostiles='', ignored_downed='', max_ticks=None):
+    async def change(self, speed, *, mode='colony', ignored_hostiles='', ignored_downed='', max_ticks=None, surgical_recovery=''):
         if speed not in ('Paused', 'Normal', 'Fast', 'Superfast'):
             raise ValueError('Choose Paused, Normal, Fast or Superfast')
         if mode not in ('colony', 'combat'):
@@ -116,7 +116,8 @@ class PlayClock:
             result = await self.call(op='start', owner=self.owner, leaseMs=15000,
                 speed=speed, mode=mode, hostileWithin=40,
                 ignoredHostileIds=ignored_hostiles, ignoredDownedColonistIds=ignored_downed,
-                injuryStopCooldownMs=0, **({'maxTicks': max_ticks} if max_ticks is not None else {}))
+                injuryStopCooldownMs=0, **({'maxTicks': max_ticks} if max_ticks is not None else {}),
+                **({'surgicalRecoveryIds': surgical_recovery} if surgical_recovery else {}))
             self.epoch = result['epoch']
             self.record()
             self.absorb(result)

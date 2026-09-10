@@ -25,7 +25,7 @@ def test_medical_failure_is_not_completion(pawns,code):
 
 def test_native_health_controls_completion():
     patient={'thingId':'Thing_Patient','dead':False,'health':{'needsTend':True}}
-    rows=[patient,{'thingId':'Thing_Doctor','job':'TendPatient'}]
+    rows=[patient,{'thingId':'Thing_Doctor','job':'TendPatient','jobTargetA':'Thing_Patient'}]
     assert patient_outcome(ARGS,rows)=='waiting'
     patient['health']['needsTend']=False
     assert patient_outcome(ARGS,rows)=='complete'

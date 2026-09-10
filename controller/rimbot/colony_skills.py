@@ -153,6 +153,10 @@ class ColonySkills:
         if goal_id.startswith('MaintainHerd-'):
             from .husbandry import husbandry_method
             return await husbandry_method(self.rt, goal_id)
+
+        if goal_id == 'MaintainMedicalCare':
+            from .medical_management import manage_care
+            return await manage_care(self.rt, facts, people)
         if goal_id.startswith('MaintainResource-'):
             from .production_policy import resource_method
             return await resource_method(self.rt, goal_id, facts)
@@ -278,6 +282,14 @@ class ColonySkills:
             refusals = []
             for patient, doctor in treatment_pairs(people, facts['criticalPatients'], rt.current_plan.control):
                 method = 'tend-'+patient
+                completed = goal.archived_methods + sum(
+                    step.action.kind == 'native_operation'
+                    and step.action.completion == 'patient_tended'
+                    and step.action.arguments.get('target') == patient
+                    and rt.current_plan.progress[step.id].state == 'complete'
+                    for step in rt.current_plan.spec.steps if step.goal_id == goal_id)
+                if completed:
+                    method += '-'+str(completed)
                 if unused(method):
                     args = dict(action='tend', pawn=doctor, target=patient, dryRun=True)
                     preview = await rt.inspect_native('home/order', args)
@@ -289,7 +301,8 @@ class ColonySkills:
                     if len(refusals) >= 8:
                         break
             goal.evidence['triage'] = {'refusals': refusals}
-            if any(not goal.method_seen('tend-'+p) for p in facts['criticalPatients']):
+            if any((p.get('health') or {}).get('needsTend') is True
+                   for p in people if p['thingId'] in facts['criticalPatients']):
                 raise SkillBlocked('No available native-approved doctor/patient pair; medical hold retained')
             return None
         if goal_id == 'AllowStartingSupplies':

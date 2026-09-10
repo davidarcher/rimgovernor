@@ -3,7 +3,7 @@ from copy import deepcopy
 from .bridge_game import READS, WRITES
 from .consultation import structured_tool
 
-DESCRIBABLE=READS | frozenset({'home/place_building','home/install','home/zone_cells','home/research'})
+DESCRIBABLE=READS | frozenset({'home/medical_operations','home/place_building','home/install','home/zone_cells','home/research'})
 
 
 class NativeInspections:

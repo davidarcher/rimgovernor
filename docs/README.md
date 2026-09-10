@@ -37,6 +37,8 @@ introduces the idea before linking to the exact contracts and relevant source.
 - [Verify environmental observations and cooking fallback](how-to/docker-native.md#verify-environmental-observation-and-cooking-fallback).
 - [Evaluate visual review and evidence recall](how-to/visual-reviews.md).
 - [Verify mood relief](how-to/mood-relief.md) against its [native recovery contracts](reference/mood-control.md).
+
+- [Verify medical care](how-to/medical-care-acceptance.md) against its [health and surgery contracts](reference/medical-care.md).
 - [Verify zone, bill and UI player actions](how-to/player-actions.md) against their [coverage contracts](reference/player-actions.md).
 - [Verify waste hauling and burial](how-to/waste-management.md) against their [containment contracts](reference/waste-management.md).
 - [Population commitments](reference/population-contracts.md) distinguish candidates, native custody and admitted colonists.

@@ -61,8 +61,8 @@ def patient_outcome(arguments, pawns):
     if health['needsTend'] is False:
         return 'complete'
     if doctor is None or doctor.get('dead') or doctor.get('downed'):
-        return Failure(code='doctor_unavailable', detail='Patient still needs tending and the assigned doctor is unavailable.')
-    if doctor.get('job') != 'TendPatient':
+        return Failure(code='doctor_unavailable', detail='Patient still needs tending and the assigned doctor is unavailable.', retryable=True)
+    if doctor.get('job') != 'TendPatient' or doctor.get('jobTargetA') != arguments['target']:
         return Failure(code='tending_interrupted', detail='Patient still needs tending, but the assigned doctor is no longer tending.',
             retryable=True, evidence={'doctor_job': doctor.get('job')})
     return 'waiting'

@@ -372,7 +372,7 @@ class BridgeRuntime:
             step = next((s for s in plan.spec.steps if s.id == step_id), None)
             if step is None: return None
             revision = plan.revision
-            people = await self.game.query('home/list_pawns', colonistsOnly=True, health=True, work=True)
+            people = await self.game.query('home/list_pawns', colonistsOnly=True, health=True, work=True, bio=True, includeDead=True)
             status = await self.game.query('home/status', colonists=False, threats=False)
             await self.sync_identity()
             if (self.current_plan is not plan or plan.revision != revision or self.mode != 'automate'
@@ -383,6 +383,14 @@ class BridgeRuntime:
             before = plan.progress[step_id].model_dump()
             message = recover_treatment(plan, step, people['pawns'], token=expected_token, tick=tick,
                                         owners=self.draft_owners, limit=limit)
+            if plan.progress[step_id].state == 'blocked':
+                from .medical_replacement import replace_doctor
+                replacement = await replace_doctor(self, step, people['pawns'], tick=tick,
+                    token=expected_token, direction=expected_revision, revision=revision, limit=limit)
+                if replacement:
+                    self.note('doctor_replacement', replacement, step=step_id)
+                    self.persist()
+                    return replacement
             if message:
                 goal = plan.colony_goals[step.goal_id]
                 changed = before != plan.progress[step_id].model_dump()
@@ -430,6 +438,28 @@ class BridgeRuntime:
                 if outcome != 'waiting':
                     progress.state = 'blocked' if isinstance(outcome, Failure) else 'complete'
                     progress.failure = outcome if isinstance(outcome, Failure) else None
+                    self.signal('plan.step_'+progress.state, {'step': step.id})
+                continue
+            if (isinstance(step.action, NativeOperation) and step.action.completion == 'surgery_health'
+                    and progress.state in ('waiting', 'blocked') and self.batch
+                    and progress.issued.get('0', {}).get('confirmed') is True):
+                receipt = progress.issued.get('0', {})
+                if self.batch.started_at <= receipt.get('issued_at', float('inf')):
+                    continue
+                from .surgery import surgery_outcome
+                if any(step.action.arguments[k] != self.identity.get(k) for k in ('colonyId', 'loadToken', 'mapId')):
+                    outcome = Failure(code='surgery_context_changed', detail='Surgical colony, map or load changed; inspect existing native work')
+                else:
+                    outcome = surgery_outcome(step.action, receipt, self.batch.native.get('pawns', {}).get('pawns', []))
+                    if (outcome == 'waiting' and type(receipt.get('issued_tick')) is int
+                            and self.batch.summary.end_tick - receipt['issued_tick'] >= self.controller.policy.blocked_after_ticks):
+                        outcome = Failure(code='surgery_no_progress', detail='Surgery has no verified health outcome within the configured work window; inspect practitioner, medicine, bed access and patient jobs')
+                if outcome != 'waiting' and (not isinstance(outcome, Failure)
+                        or progress.failure is None or progress.failure != outcome):
+                    progress.state = 'blocked' if isinstance(outcome, Failure) else 'complete'
+                    progress.failure = outcome if isinstance(outcome, Failure) else None
+                    self.note('surgery_outcome', outcome.detail if isinstance(outcome, Failure)
+                        else 'Expected native surgical health change observed; postoperative recovery is monitored separately', step=step.id)
                     self.signal('plan.step_'+progress.state, {'step': step.id})
                 continue
             if (isinstance(step.action, NativeOperation) and step.action.completion in ('pawn_equipped', 'pawn_at_position')
@@ -857,6 +887,14 @@ class BridgeRuntime:
                 raise ValueError('New player direction arrived; no command sent')
             if expected_plan_revision is not None and expected_plan_revision != self.current_plan.revision:
                 raise InterruptedError('Committed plan changed; no order sent')
+            if name == 'home/medical_operations' and is_write(name, arguments):
+                step = next((s for s in self.current_plan.spec.steps if s.id == expected_step_id), None)
+                intent = next((i for i in self.current_plan.control.get('player_intents', {}).values()
+                    if i.get('step') == expected_step_id and i.get('request', {}).get('kind') == 'RequestSurgery'), None)
+                if (step is None or step.source != 'PLAYER' or intent is None
+                        or step.action.kind != 'native_operation' or step.action.arguments != arguments
+                        or expected_token is None or expected_revision is None or expected_plan_revision is None):
+                    raise ValueError('Surgery requires a current explicit player command through Hands')
             if is_write(name, arguments) and name not in ('rimworld/click_ui_target', 'rimworld/scroll_ui_target'):
                 self.ui_targets.clear()
             if name == 'rimworld/close_main_tab' and not arguments.get('mainTabId'):
@@ -948,7 +986,7 @@ class BridgeRuntime:
             if name == 'home/research' and 'expectedCurrent' in arguments and not arguments.get('dryRun', True):
                 from .research import validate_dispatch
                 await validate_dispatch(self, arguments)
-            if name in ('home/bills', 'home/gear_upkeep') and not arguments.get('dryRun', True) and (self.mode == 'automate' or explicit):
+            if name in ('home/bills', 'home/gear_upkeep', 'home/medical_operations') and not arguments.get('dryRun', True) and (self.mode == 'automate' or explicit):
                 from .production_policy import sync_production_policy
                 await sync_production_policy(self)
             if name == 'home/bills' and expected_step_id:
@@ -1214,9 +1252,12 @@ class BridgeRuntime:
                             self.persist()
                             return
                     ticks=600 if waiting or engaged else 3000
+                    from .surgery import recovery_patients
+                    surgical_recovery = recovery_patients(self)
                     clock = await self.supervisor.change('Normal' if engaged else self.controller.policy.execution_speed,
                         mode='combat' if engaged else 'colony',
-                        ignored_hostiles=combat['target'] if engaged else '', max_ticks=ticks)
+                        ignored_hostiles=combat['target'] if engaged else '', max_ticks=ticks,
+                        **({'surgical_recovery':surgical_recovery} if surgical_recovery else {}))
                     self.execution_window_end = clock['tickDeadline'] if clock.get('active') else None
                     self.execution_wait_explicit = False
                     self.note('execution_window', f'Native work: at most {ticks} game ticks before review', clock=clock)

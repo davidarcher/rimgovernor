@@ -3,7 +3,7 @@ import hashlib
 import json
 from copy import deepcopy
 from typing import Annotated, Literal
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator, model_serializer
 from .config import ModelRole
 
 
@@ -112,17 +112,39 @@ class CancelConstructionAction(Contract):
 
 class NativeOperation(Contract):
     kind: Literal['native_operation'] = 'native_operation'
-    tool: Literal['home/husbandry_config', 'home/relieve_need', 'home/manage_waste', 'home/gear_upkeep', 'home/population', 'home/acquire_resource', 'home/production_policy', 'home/confirm_colony_names', 'home/pawn_config', 'home/building_config', 'home/bills', 'home/order',
+    tool: Literal['home/husbandry_config', 'home/relieve_need', 'home/medical_operations', 'home/manage_waste', 'home/gear_upkeep', 'home/population', 'home/acquire_resource', 'home/production_policy', 'home/confirm_colony_names', 'home/pawn_config', 'home/building_config', 'home/bills', 'home/order',
         'home/zone_cells', 'home/trade', 'home/research', 'rimworld/apply_architect_designator',
         'rimworld/open_letter', 'rimworld/dismiss_letter', 'rimworld/click_screen_target',
         'home/install', 'home/dialog_text', 'rimworld/click_ui_target', 'rimworld/scroll_ui_target',
         'rimworld/open_main_tab', 'rimworld/close_main_tab']
     arguments: dict
     # Honest fallback for native operations lacking a higher-level compiler.
-    completion: Literal['need_recovered', 'waste_contained', 'pawn_gear', 'native_receipt', 'patient_tended', 'patient_in_bed', 'pawn_equipped', 'pawn_at_position'] = 'native_receipt'
+    completion: Literal['need_recovered', 'pawn_gear', 'waste_contained', 'native_receipt', 'patient_tended', 'patient_in_bed', 'pawn_equipped', 'pawn_at_position', 'surgery_health'] = 'native_receipt'
+    medical_effect: dict | None = None
+
+    @model_serializer(mode='wrap')
+    def retain_existing_operation_shape(self, handler):
+        data = handler(self)
+        if self.medical_effect is None:
+            data.pop('medical_effect', None)
+        return data
 
     @model_validator(mode='after')
     def medical_completion(self):
+        if self.tool == 'home/medical_operations' or self.completion == 'surgery_health' or self.medical_effect is not None:
+            if (self.tool != 'home/medical_operations' or self.completion != 'surgery_health'
+                    or not self.medical_effect or not self.arguments.get('recipe')
+                    or not str(self.arguments.get('patient', '')).startswith('Thing_')
+                    or 'expectedHealth' not in self.arguments or not self.arguments.get('expectedCare')
+                    or not self.arguments.get('colonyId') or not self.arguments.get('loadToken')
+                    or type(self.arguments.get('mapId')) is not int):
+                raise ValueError('Surgery requires a discovered patient, recipe, health effect and care policy')
+            if (set(self.medical_effect) != {'recipe', 'part', 'addsHediff', 'removesHediff'}
+                    or self.medical_effect['recipe'] != self.arguments['recipe']
+                    or type(self.medical_effect['part']) is not int
+                    or self.medical_effect['part'] != self.arguments.get('part')
+                    or not (self.medical_effect['addsHediff'] or self.medical_effect['removesHediff'])):
+                raise ValueError('Surgical effect must match the exact requested recipe and body part')
         if self.tool == 'home/manage_waste' or self.completion == 'waste_contained':
             if (self.tool != 'home/manage_waste' or self.completion != 'waste_contained'
                     or any(not str(self.arguments.get(k, '')).startswith('Thing_') for k in ('thingId', 'pawn'))):

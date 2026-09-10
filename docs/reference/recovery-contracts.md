@@ -18,7 +18,7 @@ scope, save rewinds, competing treatment, incapable doctors and player overrides
 an explicit hold. Goal recovery evidence and reasons are shared with chat and the
 Autopilot panel. Medical priorities include native tending needs even without bleeding.
 
-New treatment methods rank observed bleeding deadlines, then downed patients and
+New treatment methods rank observed bleeding deadlines, native life-threatening state, then downed patients and
 stable pawn identities. Capable doctors are ranked by Medicine skill and must pass
 native tending previews; at most eight refused pairs are inspected per method.
 Existing tending retains its job and supervised simulation time. Player-disabled
@@ -26,6 +26,12 @@ doctors and externally drafted pawns are excluded. Confirmed treatment receipts
 retain the player-direction generation: interrupted treatment after changed or
 unknown direction stays held, while completed/resumed treatment can be observed
 without another order.
+
+Confirmed unavailable providers may be replaced by a newly validated action while
+retaining the original step and receipts. Native ordered-job generations on both
+doctor and patient must remain unchanged. Unknown generations and external player
+orders retain a hold. See [long-term medical care](medical-care.md) for repeat
+tending, recovery monitoring and separately directed surgery.
 
 ## Construction recovery
 

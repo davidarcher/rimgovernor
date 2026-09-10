@@ -130,6 +130,10 @@ class Hands:
                                 preview = await rt.inspect_native(action.tool, dict(args, dryRun=True))
                                 if preview.get('success') is False or (action.tool == 'home/manage_waste' and preview.get('accepted') is not True):
                                     raise Blocked('native_refused', reason(preview), evidence=preview)
+                                if action.completion == 'surgery_health':
+                                    from .surgery import effect_from_preview
+                                    if step.source != 'PLAYER' or effect_from_preview(preview) != action.medical_effect:
+                                        raise Blocked('surgery_direction_required', 'Surgery requires an unchanged explicitly directed patient operation')
                                 args['dryRun'] = False
                             self.guard(rt, revision, token, direction)
                             player_direction = rt.current_plan.control.get('player_direction', 0)
@@ -164,6 +168,10 @@ class Hands:
                                 goal = rt.current_plan.colony_goals[step.goal_id]
                                 goal.evidence['settings'][args['animal']] = outcome['after']
                                 receipt['animal_settings'] = outcome
+                            if action.completion == 'surgery_health':
+                                receipt['bill_id'] = result.get('receipt', result).get('billId')
+                                if not receipt['bill_id']:
+                                    raise Blocked('surgery_uncertain', 'Operation bill identity was not confirmed; observe before retrying', evidence=result)
                             if action.tool == 'home/install':
                                 native = result.get('receipt', result)
                                 receipt['inner_id'] = native['thingId']
@@ -173,6 +181,9 @@ class Hands:
                                 receipt['load_token'] = token
                                 receipt['issued_tick'] = rt.batch.summary.end_tick
                                 receipt['player_direction'] = player_direction
+                                outcome = result.get('receipt', result)
+                                receipt['order_generation'] = outcome.get('orderGeneration')
+                                receipt['patient_order_generation'] = outcome.get('targetOrderGeneration')
                         else:
                             self.guard(rt, revision, token, direction)
                             progress.issued[key] = {'confirmed': False}

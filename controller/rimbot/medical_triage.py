@@ -7,7 +7,7 @@ def treatment_pairs(people, patients, control):
         health = pawn.get('health') or {}
         hours = health.get('hoursUntilDeathFromBloodLoss')
         deadline = hours if type(hours) in (int, float) and isfinite(hours) and hours >= 0 else float('inf')
-        return deadline, not pawn.get('downed'), pawn['thingId']
+        return deadline, health.get('anyLifeThreatening') is not True, not pawn.get('downed'), pawn['thingId']
 
     doctors = []
     for pawn in people:
@@ -26,7 +26,8 @@ def treatment_pairs(people, patients, control):
             continue
         doctors.append((-skill, identity, pawn))
     ordered = sorted((p for p in people if p['thingId'] in patients
-                      and p.get('dead') is False and (p.get('health') or {}).get('needsTend') is True), key=urgency)
+                      and p.get('dead') is False and (p.get('health') or {}).get('needsTend') is True
+                      and (p.get('health') or {}).get('medicalCare') != 'NoCare'), key=urgency)
     for patient in ordered:
         for _, identity, doctor in sorted(doctors, key=lambda row: row[:2]):
             if identity == patient['thingId'] and (doctor.get('health') or {}).get('selfTend') is not True:

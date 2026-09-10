@@ -41,14 +41,15 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "After a colonist_injury stop, that colonist non-severe injuries do not stop the clock again for this many real milliseconds, across restarts. Clamped 0..1800000; 0 disables.", DefaultValue = 180000)] int injuryStopCooldownMs = 180000,
             [ToolParameter(Description = "For events, return rows strictly after this cursor.", DefaultValue = 0L)] long afterCursor = 0L,
             [ToolParameter(Description = "For events, maximum rows, clamped to 1..128.", DefaultValue = 64)] int limit = 64,
-            [ToolParameter(Description = "Start only: pause after exactly this many ordinary game ticks, independently of controller polling and heartbeat renewal. 0 leaves tick duration unbounded; otherwise 1..1800000.", DefaultValue = 0)] int maxTicks = 0)
+            [ToolParameter(Description = "Start only: pause after exactly this many ordinary game ticks, independently of controller polling and heartbeat renewal. 0 leaves tick duration unbounded; otherwise 1..1800000.", DefaultValue = 0)] int maxTicks = 0,
+            [ToolParameter(Description = "Tracked surgical patient IDs. Only permits downing while alive, anesthetized, in bed, not bleeding or dangerously ill, and above half health. Rechecked every safety sweep; no injury or death guard is disabled.", DefaultValue = "")] string surgicalRecoveryIds = "")
         {
             return BridgeCommon.WithUnknownArguments(
                 await SupervisedPlayCore(ctx, cancellationToken, op, owner, epoch,
                     leaseMs, speed, mode, healthDropFraction, minHealthFraction,
                     ignoredAlertLabels, hostileWithin, ignoredHostileIds, ignoredDownedColonistIds,
                     ignoredInjuredColonistIds, injuryStopCooldownMs,
-                    afterCursor, limit, maxTicks).ConfigureAwait(false),
+                    afterCursor, limit, maxTicks, surgicalRecoveryIds).ConfigureAwait(false),
                 ctx, typeof(HomeSupervisedPlayTools), ToolName);
         }
 
@@ -58,7 +59,7 @@ namespace HomeBridge.BridgeTools
             string mode, float healthDropFraction, float minHealthFraction,
             string ignoredAlertLabels, float hostileWithin, string ignoredHostileIds,
             string ignoredDownedColonistIds, string ignoredInjuredColonistIds,
-            int injuryStopCooldownMs, long afterCursor, int limit, int maxTicks)
+            int injuryStopCooldownMs, long afterCursor, int limit, int maxTicks, string surgicalRecoveryIds)
         {
             if (ctx == null || ctx.MainThread == null)
                 return Fail("No main-thread dispatcher is available.");
@@ -86,7 +87,7 @@ namespace HomeBridge.BridgeTools
                 return await ctx.MainThread.InvokeAsync(() => Supervisor.Start(owner, requested,
                     leaseMs, mode, healthDropFraction, minHealthFraction, hostileWithin,
                     ignoredHostileIds, ignoredDownedColonistIds,
-                    ignoredInjuredColonistIds, injuryStopCooldownMs, maxTicks),
+                    ignoredInjuredColonistIds, injuryStopCooldownMs, maxTicks, surgicalRecoveryIds),
                     cancellationToken).ConfigureAwait(false);
             }
             if (action == "pause")
@@ -168,7 +169,7 @@ namespace HomeBridge.BridgeTools
         internal static object Start(string owner, TimeSpeed speed, int leaseMs,
             string mode, float healthDropFraction, float minHealthFraction, float hostileWithin,
             string ignoredHostiles, string ignoredDowned, string ignoredInjured,
-            int injuryStopCooldownMs, int maxTicks)
+            int injuryStopCooldownMs, int maxTicks, string surgicalRecoveryIds = "")
         {
             lock (Gate)
             {
@@ -206,6 +207,7 @@ namespace HomeBridge.BridgeTools
                     LastTick = Find.TickManager.TicksGame,
                     IgnoredHostiles = PawnIds(ignoredHostiles),
                     IgnoredDowned = PawnIds(ignoredDowned),
+                    SurgicalRecovery = PawnIds(surgicalRecoveryIds),
                     IgnoredInjured = PawnIds(ignoredInjured),
                     InjuryStopCooldownMs = Clamp(injuryStopCooldownMs, 0, 1800000)
                 };
@@ -585,7 +587,8 @@ namespace HomeBridge.BridgeTools
                     return PawnHit("hostile", p, why);
                 if (HomePlayUntilEventTools.SafeIsColonist(p)
                     && (HomePlayUntilEventTools.SafeDowned(p) || HomePlayUntilEventTools.SafeDead(p))
-                    && !s.IgnoredDowned.Contains(p.thingIDNumber))
+                    && !s.IgnoredDowned.Contains(p.thingIDNumber)
+                    && !SafeSurgicalRecovery(s, p))
                     return PawnHit("colonist_downed", p, HomePlayUntilEventTools.SafeDead(p) ? "dead" : "downed");
                 if (ThreateningPredatorHunt(p)
                     && !s.IgnoredHostiles.Contains(p.thingIDNumber)
@@ -770,6 +773,17 @@ namespace HomeBridge.BridgeTools
         }
 
         private static string Num(float value) { return value.ToString("0.00", CultureInfo.InvariantCulture); }
+
+        private static bool SafeSurgicalRecovery(State state, Pawn pawn)
+        {
+            if (!state.SurgicalRecovery.Contains(pawn.thingIDNumber)) return false;
+            try {
+                return !pawn.Dead && pawn.InBed() && pawn.health.summaryHealth.SummaryHealthPercent > 0.5f
+                    && pawn.health.hediffSet.BleedRateTotal == 0f
+                    && pawn.health.hediffSet.HasHediff(HediffDefOf.Anesthetic)
+                    && !pawn.health.hediffSet.hediffs.Any(h => h.IsCurrentlyLifeThreatening);
+            } catch { return false; }
+        }
 
         private static Hit PawnHit(string kind, Pawn pawn, string reason)
         {
@@ -957,7 +971,7 @@ namespace HomeBridge.BridgeTools
             public readonly List<Dictionary<string, object>> BaselineAlerts = new List<Dictionary<string, object>>();
             // null until the first probe of this epoch has counted.
             public int? ConsciousHostiles; public bool HostilesCleared;
-            public HashSet<int> IgnoredHostiles; public HashSet<int> IgnoredDowned;
+            public HashSet<int> IgnoredHostiles; public HashSet<int> IgnoredDowned; public HashSet<int> SurgicalRecovery;
             public HashSet<int> IgnoredInjured; public int InjuryStopCooldownMs;
             public readonly List<Dictionary<string, object>> SuppressedInjuries = new List<Dictionary<string, object>>();
         }

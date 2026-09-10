@@ -32,6 +32,10 @@ def recover_treatment(plan, step, pawns, *, token, tick, owners, limit):
         return 'Treatment recovery requires unchanged player direction since the confirmed order.'
     if len(progress.recovery_history) >= limit:
         return f'Treatment recovery limit reached ({limit}); inspect the patient and doctor.'
+    for key, identity in (('order_generation', action.arguments['pawn']), ('patient_order_generation', action.arguments['target'])):
+        person = next((p for p in pawns if p.get('thingId') == identity), {})
+        if type(receipt.get(key)) is not int or person.get('orderGeneration') != receipt[key]:
+            return 'Native player order changed or its history is unknown; treatment recovery requires player review.'
     doctor_id = action.arguments['pawn']
     doctor = next(p for p in pawns if p.get('thingId') == doctor_id)
     if (doctor_id in plan.control.get('player_draft_overrides', {})

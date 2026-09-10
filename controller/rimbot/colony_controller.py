@@ -60,6 +60,9 @@ class ColonyController:
         from .mood_control import assess, priority_nodes as mood_nodes
         facts['mood'] = assess(people.get('pawns', []) if people.get('success') is not False else [],
             facts['forecasts']['people'], plan.control.get('facts', {}).get('mood', {}))
+
+        from .medical_management import care_state
+        facts['longTermMedical'] = care_state(people['pawns'], plan.control.get('facts', {}).get('longTermMedical'))
         managed=set(plan.control.get('combat',{}).get('pawns',[]))
         managed.update(s.action.arguments.get('pawn') for s in plan.spec.steps
             if s.source=='AUTOPILOT' and s.action.kind=='native_operation'
@@ -149,7 +152,7 @@ class ColonyController:
                     if rt.context_token!=token or rt.chat_revision!=direction or rt.mode!='automate':return
                 if (step.source == 'AUTOPILOT' and step.goal_id == 'CriticalMedical'
                         and progress.state == 'blocked' and progress.failure
-                        and progress.failure.code == 'tending_interrupted' and progress.failure.retryable):
+                        and progress.failure.code in ('tending_interrupted', 'doctor_unavailable') and progress.failure.retryable):
                     await rt.recover_medical(step.id, expected_token=token, expected_revision=direction,
                                              limit=self.policy.max_method_attempts)
                     if rt.context_token != token or rt.chat_revision != direction or rt.mode != 'automate': return
@@ -235,6 +238,7 @@ class ColonyController:
                 'EnsureWorkAssignments': ['workCoverage'], 'EnsureBasicDefense': ['armed'],
                 'MaintainEquipment': [],
                 'CriticalMedical': ['criticalPatients'], 'ActiveCombat': ['hostiles'],
+                'MaintainMedicalCare': ['longTermMedical'],
                 'EnsureTemperatureSafety': ['sleepingTemperatureMin', 'sleepingTemperatureMax'],
                 'EnsureBasicPower': ['powerHeadroom'], 'AllowStartingSupplies': ['forbiddenSupplies']}
             progress_facts = {key: facts.get(key) for key in progress_fields.get(identity,
@@ -345,9 +349,11 @@ class ColonyController:
                     release_admission(plan, identity, development_admitted, 'Existing method awaiting native progress')
                     if identity.startswith('Population-') and goal.status != 'complete':
                         plan.control['simulation_needed'] = True
-                    existing_process = (identity=='CriticalMedical' and any(p.get('job')=='TendPatient' for p in people['pawns'])) or (identity=='EnsureFoodSupply' and any(f.get('growingCells',0)>0 for f in facts.get('farms',[]))) or (
+                    existing_process = (identity=='CriticalMedical' and any(p.get('job')=='TendPatient' or
+                        ((p.get('health') or {}).get('shouldSeekMedicalRest') is True and
+                         (p.get('health') or {}).get('inBed') is True) for p in people['pawns'])) or (identity=='EnsureFoodSupply' and any(f.get('growingCells',0)>0 for f in facts.get('farms',[]))) or (
                         identity in ('EnsureFoodSupply','MaintainWood') and any(p.get('designated') for p in facts.get('acquisition',[])))
-                    if goal.evidence.get('methods') or goal.archived_methods or existing_process or identity.startswith(('MaintainResource-', 'MaintainHerd-')) or identity=='EnsureResearch': plan.control['simulation_needed'] = True
+                    if goal.evidence.get('methods') or goal.archived_methods or existing_process or identity.startswith(('MaintainResource-', 'MaintainHerd-')) or identity in ('EnsureResearch', 'MaintainMedicalCare'): plan.control['simulation_needed'] = True
                     continue
                 method, actions = compiled
                 steps, slots = self.skills.steps(identity, method, actions, facts)

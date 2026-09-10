@@ -124,6 +124,9 @@ def priority_nodes(facts, latches, policy):
     if wood: nodes.append(('MaintainWood', 3))
     from .gear_upkeep import needs_upkeep
     if needs_upkeep(facts.get('gearUpkeep')): nodes.append(('MaintainEquipment', 3))
+    medical = facts.get('longTermMedical', {})
+    if medical.get('patients') or medical.get('unknown'):
+        nodes.append(('MaintainMedicalCare', 2))
     return nodes
 
 
