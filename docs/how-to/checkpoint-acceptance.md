@@ -25,6 +25,13 @@ blueprint identities to disappear, discards an explicitly delivered obsolete que
 request, and rejects an old-load native write without changing the observed building set
 or leaving Manual.
 
+Add `--delivery --retention` to verify native lease expiry, a dropped event-read
+response followed by one durable delivery, paired restart, active-resume protection
+and deletion of a separate checkpoint pair. Run this in a staged local Docker
+worker with Linux GABS. `test_event_delivery.py` separately reopens SQLite after
+fetched-but-undelivered events and acknowledged chat, and injects transaction failure
+before acknowledgment. Windows migration boundaries require separate checks.
+
 ## Related reading
 
 [Choose tests](choose-tests.md) · [Test evidence explained](../explanation/testing.md) ·

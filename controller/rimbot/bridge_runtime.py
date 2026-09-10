@@ -2,6 +2,7 @@
 import asyncio
 import time
 import uuid
+from copy import deepcopy
 from pathlib import Path
 
 from .bridge import bridge_session, gabs_executable
@@ -110,7 +111,7 @@ class BridgeRuntime:
             self.ui_targets.clear()
             saved = self.store.get('bridge:'+key, {})
             self.colony, self.identity, self.context_token = key, identity, token
-            self.supervisor = PlayClock(self.bridge) if self.bridge else None
+            self.supervisor = PlayClock(self.bridge, self.store, token) if self.bridge else None
             self.clock_events.clear()
             self.chat = saved.get('chat', [])
             self.plan = saved.get('plan', {'long': '', 'short': ''})
@@ -122,6 +123,17 @@ class BridgeRuntime:
             self.draft_owners = {k: v for k, v in saved.get('draft_owners', {}).items() if v == token}
             self.chat_revision = saved.get('chat_revision', 0)+1
             self.handled_revision = self.chat_revision
+            interrupted = [row for row in self.chat if row.get('kind') == 'human'
+                and row.get('revision', 0) > saved.get('handled_revision', 0)
+                and row.get('delivery') != 'interrupted']
+            for row in interrupted:
+                row['delivery'] = 'interrupted'
+            if interrupted:
+                self.chat.append({'kind': 'summary', 'text':
+                    'The connection or colony changed before these requests finished. '
+                    'Review their observed outcomes and send a new request to continue.',
+                    'interrupted_event_ids': [row['id'] for row in interrupted],
+                    'revision': self.chat_revision, 'ts': time.time()})
             self.mode, self.resume_after_review = 'manual', False
             self.execution_window_end = None
             self.wake.clear()
@@ -507,17 +519,40 @@ class BridgeRuntime:
         self.chat.append(dict(event, ts=event['at'], revision=self.chat_revision))
         self.persist()
 
-    async def steer(self, text, *, interpret=True):
+    async def steer(self, text, *, interpret=True, request_id=None, session_id=None):
         if getattr(self, 'session_closing', False): raise ValueError('Session is restarting; keep your draft and send it after reconnection')
         text = text.strip()
         if not text or len(text) > 4000:
             raise ValueError('Send a message between 1 and 4000 characters')
-        self.chat_revision += 1
-        self.current_plan.control['player_direction']=self.current_plan.control.get('player_direction',0)+1
-        event = self.note('human' if interpret else 'control', text)
-        self.chat.append(dict(event, ts=event['at'], revision=self.chat_revision))
-        self.persist()
+        if session_id is not None and session_id != self.context_token:
+            raise ValueError('Colony changed; review your draft before sending it again')
+        if request_id is not None and (not isinstance(request_id, str) or not 1 <= len(request_id) <= 128):
+            raise ValueError('Invalid chat request identity')
+        key = 'chat-request:'+self.colony+':'+request_id if request_id else None
+        prior = self.store.get(key) if key else None
+        if prior:
+            if prior['text'] != text or prior['interpret'] != interpret:
+                raise ValueError('Chat request identity was already used for different content')
+            return prior['receipt']
+        revision, direction = self.chat_revision, dict(self.current_plan.control)
+        count = len(self.chat)
+        try:
+            with self.store.transaction():
+                self.chat_revision += 1
+                self.current_plan.control['player_direction']=self.current_plan.control.get('player_direction',0)+1
+                event = self.note('human' if interpret else 'control', text)
+                self.chat.append(dict(event, ts=event['at'], revision=self.chat_revision))
+                self.persist()
+                receipt = {'accepted': True, 'event_id': event['id'], 'revision': self.chat_revision}
+                if key:
+                    self.store.set(key, {'text': text, 'interpret': interpret, 'receipt': receipt})
+        except BaseException:
+            self.chat_revision = revision
+            self.current_plan.control = direction
+            del self.chat[count:]
+            raise
         self.wake.set()
+        return receipt
 
     def usage(self, usage):
         self.counters['model_calls'] += 1
@@ -674,7 +709,35 @@ class BridgeRuntime:
                 pass
 
     def receive_clock_events(self):
+        fields = ('chat_revision', 'mode', 'phase', 'resume_after_review',
+                  'execution_window_end', 'execution_wait_explicit')
+        prior = {name: getattr(self, name) for name in fields}
+        chat, buffered = list(self.chat), list(self.clock_events)
+        control = dict(self.current_plan.control)
+        strategy = deepcopy(self.strategic_state.dump())
+        try:
+            with self.store.transaction():
+                self._receive_clock_events()
+        except BaseException:
+            for name, value in prior.items():
+                setattr(self, name, value)
+            self.chat, self.clock_events = chat, buffered
+            self.current_plan.control = control
+            self.strategic_state = StrategicState(strategy)
+            # No old write may run after an uncommitted interruption.
+            self.mode, self.resume_after_review = 'manual', False
+            self.wake.set()
+            raise
+
+    def _receive_clock_events(self):
         events, self.clock_events = self.clock_events, []
+        inbox = 'clock-inbox:'+self.context_token if self.context_token else None
+        if inbox:
+            # Durable rows are authoritative; the watcher queue also contains
+            # transient transport errors and supports unjournaled test clocks.
+            pending = self.store.get(inbox, [])
+            events = pending + [row for row in events if row not in pending]
+            self.store.set(inbox, [])
         for event in events:
             kind = event['kind']
             if kind in ('started', 'heartbeat', 'paused', 'requested_pause', 'speed_changed'):
@@ -688,7 +751,7 @@ class BridgeRuntime:
             if kind == 'tick_budget':
                 self.execution_window_end = None
                 self.execution_wait_explicit = False
-            if kind in HOLD_REASONS or kind == 'clock_error':
+            if kind in HOLD_REASONS or kind in ('clock_error', 'event_gap'):
                 self.current_plan.control['player_direction'] = self.current_plan.control.get('player_direction', 0) + 1
                 self.mode = 'manual'
                 self.phase = 'Clock held'

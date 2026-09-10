@@ -7,7 +7,7 @@ from pathlib import Path
 from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.headless import isolated_root, prepare_rendered
 from rimbot.player_commands import apply_command
-from rimbot.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
+from rimbot.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart, list_checkpoints, delete_checkpoint
 from rimbot.store import Store
 from rimbot.colony_plan import Decision,PlanSpec,CommitSteps,PlanStep,ColonyGoal
 
@@ -73,6 +73,42 @@ async def main(args):
             report['manifest']=capture_manifest(Path(__file__).resolve().parents[1],root,
                 root/('config' if args.rendered else 'config-headless'),{'mode':'no inference'})
         initial=rt.batch.summary.end_tick
+        if getattr(args, 'delivery', False):
+            rt.clock_task.cancel()
+            await asyncio.gather(rt.clock_task, return_exceptions=True)
+            clock = rt.supervisor
+            started = (await rt.bridge.call('home/supervised_play', op='start', owner=clock.owner,
+                speed='Normal', leaseMs=1000, injuryStopCooldownMs=0)).structuredContent
+            clock.epoch = started['epoch']
+            clock.record()
+            await asyncio.sleep(2)
+            expired = (await rt.bridge.call('home/supervised_play', op='status')).structuredContent
+            assert expired['stopReason'] == 'lease_expired' and not expired['active'], expired
+            original = rt.bridge.call
+            dropped = False
+            async def lose_events(name, **arguments):
+                nonlocal dropped
+                result = await original(name, **arguments)
+                if name == 'home/supervised_play' and arguments.get('op') == 'events' and not dropped:
+                    dropped = True
+                    raise TimeoutError('Acceptance dropped an event read response')
+                return result
+            rt.bridge.call = lose_events
+            try:
+                await clock.poll()
+            except TimeoutError:
+                pass
+            else:
+                raise AssertionError('Event response was not dropped')
+            rt.bridge.call = original
+            rows = await clock.poll()
+            assert any(row['kind'] == 'lease_expired' for row in rows), rows
+            rt.receive_clock_events()
+            delivered = len(rt.store.history(rt.colony, limit=10000))
+            assert await clock.poll() == []
+            rt.receive_clock_events()
+            assert len(rt.store.history(rt.colony, limit=10000)) == delivered
+            report['delivery'] = {'expired': expired, 'recovered_events': rows, 'dropped_read': dropped}
         await apply_command(rt,{'kind':'CreateGoal','goal':'EnsureFoodSupply','food_days':20},
                             token=rt.context_token,revision=rt.chat_revision)
         if args.archive:
@@ -137,6 +173,20 @@ async def main(args):
                 assert goal.method_seen('native-hauling-off') and not goal.method_seen('never-issued')
                 assert store.retired_method(resumed.colony,'EnsureWorkAssignments',goal.method_epoch,'native-hauling-off')==report['method_archive']
         report.update(resumed_tick=resumed.batch.summary.end_tick,new_token=resumed.context_token)
+        if getattr(args, 'retention', False):
+            retained = list_checkpoints(root)
+            assert any(row['manifest_path'] == checkpoint['manifest_path'] and row['valid'] for row in retained)
+            try:
+                await delete_checkpoint(resumed, resumed.context_token, checkpoint['manifest_path'])
+            except ValueError as error:
+                assert 'active resume' in str(error)
+            else:
+                raise AssertionError('Active checkpoint was deleted')
+            disposable = await create_checkpoint(resumed, resumed.context_token)
+            await delete_checkpoint(resumed, resumed.context_token, disposable['manifest_path'])
+            assert not Path(disposable['manifest_path']).exists()
+            assert list_checkpoints(root) == retained
+            report['retention'] = {'retained': retained, 'deleted': disposable}
         if getattr(args,'rewind',False):
             from mixed_checkpoint_fixture import verify_rewind
             report['rewind']=await verify_rewind(resumed,report['mixed'])
@@ -152,6 +202,8 @@ if __name__=='__main__':
     parser.add_argument('--source-root',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--rendered',action='store_true',help='Verify the visible private profile instead of headless mode')
+    parser.add_argument('--retention', action='store_true', help='Verify retained pairs, active-resume protection and exact deletion after native restart')
+    parser.add_argument('--delivery', action='store_true', help='Verify native lease expiry and event recovery after a lost read response')
     parser.add_argument('--archive',action='store_true',help='Retire a completed native work assignment and verify its archive and no replay after restart')
     parser.add_argument('--methods',action='store_true',help='With --archive, also verify durable method deduplication after native paired restart')
     parser.add_argument('--mixed',action='store_true',help='Preserve partial native shell, unissued reservations, pending growing zone and work assignment without replay')

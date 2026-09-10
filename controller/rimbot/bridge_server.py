@@ -15,7 +15,7 @@ from .config import DATA_DIR, Settings, load_model_routing
 from .store import Store
 from .controller_settings import PolicyUpdate, update_policy
 from .dashboard_controls import router as dashboard_controls
-from .session_checkpoint import create_checkpoint, stop_for_restart
+from .session_checkpoint import create_checkpoint, stop_for_restart, list_checkpoints, delete_checkpoint
 from .video_stream import VideoHub, router as video_routes
 
 
@@ -102,8 +102,9 @@ def create_app(runtime=None):
 
     @app.post('/api/chat', status_code=202)
     async def chat(request: Request):
-        await request.app.state.rt.steer((await request.json())['text'])
-        return {'accepted': True}
+        body = await request.json()
+        return await request.app.state.rt.steer(body['text'], request_id=body.get('request_id'),
+                                               session_id=body.get('session_id'))
 
     @app.post('/api/control')
     async def control(request: Request):
@@ -121,6 +122,14 @@ def create_app(runtime=None):
     @app.post('/api/session/stop')
     async def stop_checkpoint(body: CheckpointStop, request: Request):
         return await stop_for_restart(request.app.state.rt, body.session_id, body.manifest_path)
+
+    @app.get('/api/session/checkpoints')
+    async def retained_checkpoints(request: Request):
+        return {'checkpoints': list_checkpoints(request.app.state.rt.root)}
+
+    @app.post('/api/session/checkpoints/delete')
+    async def remove_checkpoint(body: CheckpointStop, request: Request):
+        return await delete_checkpoint(request.app.state.rt, body.session_id, body.manifest_path)
 
     @app.post('/api/projects')
     async def project(request: Request):

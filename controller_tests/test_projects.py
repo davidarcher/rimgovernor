@@ -48,7 +48,9 @@ async def test_saved_identity_restores_memory_but_fresh_game_does_not(tmp_path):
     rt=runtime();await rt.sync_identity();await rt.steer('Build a clinic')
     rt.projects.upsert({'title':'Clinic'});rt.plan={'long':'Healthy colony','short':'Clinic'};rt.persist()
     restarted=runtime();await restarted.sync_identity()
-    assert restarted.chat[-1]['text']=='Build a clinic'
+    assert restarted.chat[-2]['text']=='Build a clinic'
+    assert restarted.chat[-2]['delivery']=='interrupted'
+    assert restarted.chat[-1]['interrupted_event_ids']==[restarted.chat[-2]['id']]
     assert restarted.projects.rows[0].title=='Clinic'
     assert restarted.mode=='manual'
     old=restarted.context_token

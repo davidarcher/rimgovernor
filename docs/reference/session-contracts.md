@@ -34,6 +34,12 @@ the restored session. New chat is rejected while closing so the player can retai
 resend its draft. Older servers lacking checkpoint support are left running. Snapshots
 remain reusable if startup fails; later database writes do not mutate them.
 
+Checkpoint pairs are retained until explicitly deleted. `GET /api/session/checkpoints`
+lists valid and damaged pairs; `POST /api/session/checkpoints/delete` requires the
+current session and exact manifest path. Deletion refuses the active resume pair,
+closing sessions, changed hashes and unexpected files. It unpublishes the manifest
+before removing its two artifacts, preserving native profile saves and other pairs.
+
 ## Legacy takeover
 
 On Windows, `scripts/migrate_legacy_session.py` upgrades an owned legacy server without

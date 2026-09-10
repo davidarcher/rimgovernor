@@ -3,10 +3,26 @@ import json
 import sqlite3
 import time
 import gzip
+from contextlib import contextmanager
+import uuid
 from pathlib import Path
 
 
 class Store:
+    @contextmanager
+    def transaction(self):
+        """Compose history, inbox acknowledgments and snapshots in one commit."""
+        name = 'tx_' + uuid.uuid4().hex
+        self.db.execute('SAVEPOINT ' + name)
+        try:
+            yield
+        except BaseException:
+            self.db.execute('ROLLBACK TO ' + name)
+            self.db.execute('RELEASE ' + name)
+            raise
+        else:
+            self.db.execute('RELEASE ' + name)
+
     def __init__(self, path):
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(path)
@@ -32,7 +48,7 @@ class Store:
         return json.loads(row[0]) if row else default
 
     def set(self, key, value):
-        with self.db:
+        with self.transaction():
             self.db.execute('INSERT OR REPLACE INTO state VALUES (?,?)', (key, json.dumps(value)))
 
     def retired_action(self, colony, identity):
@@ -58,7 +74,7 @@ class Store:
 
     def archive_and_set(self, colony, key, value, records, methods=(), evidence=()):
         """Archive immutable outcomes and publish their compact snapshot atomically."""
-        with self.db:
+        with self.transaction():
             for identity, record in records.items():
                 prior=self.retired_action(colony,identity)
                 if prior is not None and prior!=record:
@@ -86,7 +102,7 @@ class Store:
 
     def event(self, colony, kind, **data):
         at = time.time()
-        with self.db:
+        with self.transaction():
             cur = self.db.execute('INSERT INTO events(at,colony,kind,data) VALUES (?,?,?,?)', (at, colony, kind, json.dumps(data)))
         return dict(id=cur.lastrowid, at=at, kind=kind, **data)
 
@@ -100,7 +116,7 @@ class Store:
 
     def decision(self,colony,role,payload):
         packed=gzip.compress(json.dumps(payload,ensure_ascii=False).encode('utf-8'))
-        with self.db:
+        with self.transaction():
             row=self.db.execute('INSERT INTO decisions(at,colony,role,payload) VALUES (?,?,?,?)',(time.time(),colony,role,packed))
             identity=row.lastrowid
             # Bound disk use across sessions as well as the current colony.
@@ -108,7 +124,7 @@ class Store:
         return identity
 
     def finish_decision(self,identity,result):
-        with self.db:
+        with self.transaction():
             self.db.execute('UPDATE decisions SET result=? WHERE id=?',(gzip.compress(json.dumps(result,ensure_ascii=False).encode('utf-8')),identity))
 
     def read_decision(self,identity):

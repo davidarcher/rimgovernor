@@ -236,12 +236,17 @@ export default function BridgeColony() {
       setModeBusy(false);
     }
   }
+  const pendingChat = useRef<{ text: string; session: string | undefined; id: string } | null>(null);
   async function send() {
     if (!text.trim() || sending) return;
     const submitted = text;
+    if (!pendingChat.current || pendingChat.current.text !== submitted || pendingChat.current.session !== s?.sessionId)
+      pendingChat.current = { text: submitted, session: s?.sessionId, id: crypto.randomUUID() };
+    const request = pendingChat.current;
     setSending(true);
     try {
-      await post("chat", { text: submitted });
+      await post("chat", { text: submitted, request_id: request.id, session_id: request.session });
+      if (pendingChat.current === request) pendingChat.current = null;
       setText((draft) => (draft === submitted ? "" : draft));
       input.current?.focus();
     } catch (e) {

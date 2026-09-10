@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from rimbot.store import Store
 from rimbot.session_checkpoint import create_checkpoint, read_checkpoint, prepare_resume, install_saved_game, stop_for_restart
+from rimbot.session_checkpoint import list_checkpoints, delete_checkpoint
 
 
 def fixture(tmp_path):
@@ -27,6 +28,36 @@ def fixture(tmp_path):
         return {'success':True}
     rt.bridge=SimpleNamespace(call=AsyncMock(side_effect=save),core=AsyncMock(),game_id='rimbot-trial')
     return rt
+
+
+@pytest.mark.asyncio
+async def test_explicit_deletion_preserves_other_pairs_and_native_saves(tmp_path):
+    rt = fixture(tmp_path)
+    first = Path((await create_checkpoint(rt, rt.context_token))['manifest_path'])
+    second = Path((await create_checkpoint(rt, rt.context_token))['manifest_path'])
+    assert len(list_checkpoints(tmp_path)) == 2
+    native = tmp_path/'profile/Saves'/(first.parent.name+'.rws')
+    assert (await delete_checkpoint(rt, rt.context_token, first))['deleted']
+    assert native.is_file() and not first.parent.exists()
+    assert len(list_checkpoints(tmp_path)) == 1
+    assert read_checkpoint(second)['tick'] == 500
+    rt.store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('change', ['session', 'resume', 'closing', 'extra', 'tampered'])
+async def test_checkpoint_delete_refusals_preserve_pair(tmp_path, change):
+    rt = fixture(tmp_path)
+    path = Path((await create_checkpoint(rt, rt.context_token))['manifest_path'])
+    token = rt.context_token
+    if change == 'session': token = 'old'
+    elif change == 'resume': rt.resume = path
+    elif change == 'closing': rt.session_closing = True
+    elif change == 'extra': (path.parent/'unexpected').write_text('preserve')
+    elif change == 'tampered': (path.parent/'game.rws').write_text('changed')
+    with pytest.raises(ValueError): await delete_checkpoint(rt, token, path)
+    assert path.exists() and (path.parent/'bridge.sqlite').is_file()
+    rt.store.close()
 
 
 @pytest.mark.asyncio

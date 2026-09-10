@@ -119,6 +119,49 @@ def prepare_resume(path):
     return data, state
 
 
+def list_checkpoints(root):
+    """Retain all pairs until explicitly deleted; corrupt pairs remain visible."""
+    root = Path(root).resolve()
+    rows = []
+    for path in sorted((root/'checkpoints').glob('*/checkpoint.json')):
+        row = {'manifest_path': str(path), 'save_name': path.parent.name, 'valid': False}
+        try:
+            data = read_checkpoint(path)
+            if Path(data['root']).resolve() != root:
+                raise ValueError('Checkpoint belongs to another session')
+            row.update(valid=True, tick=data['tick'], colony_id=data['colony_id'], map_id=data['map_id'])
+        except (ValueError, OSError, KeyError) as error:
+            row['error'] = str(error)
+        rows.append(row)
+    return rows
+
+
+async def delete_checkpoint(rt, session_id, manifest_path):
+    """Delete only a verified pair in this session; preserve native profile saves."""
+    async with rt.lock:
+        if session_id != rt.context_token:
+            raise ValueError('Colony changed; refresh before deleting a checkpoint')
+        if getattr(rt, 'session_closing', False):
+            raise ValueError('Session is restarting; checkpoint retained')
+        path = Path(manifest_path).resolve()
+        data = read_checkpoint(path)
+        if Path(data['root']).resolve() != rt.root:
+            raise ValueError('Checkpoint belongs to another session')
+        if getattr(rt, 'resume', None) and Path(rt.resume).resolve() == path:
+            raise ValueError('The active resume checkpoint must be retained')
+        expected = {'checkpoint.json', 'game.rws', 'bridge.sqlite'}
+        if {p.name for p in path.parent.iterdir()} != expected or any(
+                p.is_symlink() or not p.is_file() for p in path.parent.iterdir()):
+            raise ValueError('Checkpoint contains unexpected files; nothing deleted')
+        # Unpublish first. An interrupted deletion cannot leave a resumable
+        # manifest pointing at a partially removed pair.
+        path.unlink()
+        for name in ('game.rws', 'bridge.sqlite'):
+            (path.parent/name).unlink()
+        path.parent.rmdir()
+        return {'deleted': True, 'save_name': data['save_name']}
+
+
 def install_saved_game(path):
     path = Path(path).resolve()
     data = read_checkpoint(path)

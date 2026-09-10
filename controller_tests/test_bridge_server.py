@@ -7,7 +7,7 @@ from rimbot.bridge_game import BridgeGame
 
 @pytest.mark.asyncio
 async def test_only_native_routes_and_local_mutations():
-    rt=SimpleNamespace(steer=AsyncMock(),set_mode=AsyncMock())
+    rt=SimpleNamespace(steer=AsyncMock(return_value={'accepted': True, 'event_id': 1, 'revision': 1}),set_mode=AsyncMock())
     app=create_app(rt)
     app.state.rt=rt
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://testserver') as client:
@@ -16,7 +16,7 @@ async def test_only_native_routes_and_local_mutations():
         assert (await client.post('/api/chat',json={'text':'hello'})).status_code==403
         assert (await client.post('/api/chat',json={'text':'hello'},headers={'X-RimBot':'1','Origin':'http://external.example'})).status_code==403
         assert (await client.post('/api/chat',json={'text':'hello'},headers={'X-RimBot':'1'})).status_code==202
-        rt.steer.assert_awaited_once_with('hello')
+        rt.steer.assert_awaited_once_with('hello', request_id=None, session_id=None)
 
 @pytest.mark.asyncio
 async def test_manual_and_invalid_actions_never_reach_game():

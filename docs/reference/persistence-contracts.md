@@ -33,6 +33,20 @@ Recent event reads use colony/sequence indexes, including a partial index for
 non-diagnostic history. Index migration preserves every event and its identity; it does
 not bound ledger disk growth or discard method deduplication evidence.
 
+## Event delivery
+
+Chat request IDs deduplicate lost HTTP acknowledgments within a colony. The
+dashboard retains the ID for an unchanged failed submission and sends its load
+identity. History, player direction, runtime snapshot and acknowledgment commit
+together in SQLite. Requests interrupted by reconnect/load remain visible with
+an explicit interruption notice; they are not automatically replayed.
+Native clock reads journal fetched events and source cursor together before
+advancing the in-memory cursor. Delivery consumes that inbox atomically with the
+runtime snapshot and history. This covers controller failure after fetch; the
+native source remains a bounded memory ring. Overflow enters Manual.
+Hands remains the durable action outbox: uncertain game writes require observation,
+never transport replay.
+
 ## Related reading
 
 Read [sessions and recovery](../explanation/sessions-and-recovery.md) and [audit

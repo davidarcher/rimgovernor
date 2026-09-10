@@ -8,7 +8,7 @@ HOLD_REASONS = frozenset({'external_pause', 'external_speed_changed', 'lease_exp
 
 
 class PlayClock:
-    def __init__(self, bridge):
+    def __init__(self, bridge, store=None, context=None):
         self.bridge = bridge
         self.owner = 'rimbot-' + uuid.uuid4().hex
         self.epoch = 0
@@ -17,6 +17,20 @@ class PlayClock:
         self.acknowledged_stop = None
         self.state = {}
         self.lock = asyncio.Lock()
+        self.store, self.context = store, context
+        saved = store.get('clock-source:'+context, {}) if store and context else {}
+        self.cursor = saved.get('cursor', 0)
+        self.epoch = saved.get('epoch', 0)
+
+    def record(self, rows=(), cursor=None):
+        if self.store and self.context:
+            with self.store.transaction():
+                key = 'clock-inbox:'+self.context
+                pending = self.store.get(key, [])
+                pending.extend(rows)
+                self.store.set(key, pending)
+                self.store.set('clock-source:'+self.context,
+                    {'cursor': self.cursor if cursor is None else cursor, 'epoch': self.epoch})
 
     async def call(self, **arguments):
         reply = await self.bridge.call(TOOL, **arguments)
@@ -92,6 +106,7 @@ class PlayClock:
                 ignoredHostileIds=ignored_hostiles, ignoredDownedColonistIds=ignored_downed,
                 injuryStopCooldownMs=0, **({'maxTicks': max_ticks} if max_ticks is not None else {}))
             self.epoch = result['epoch']
+            self.record()
             self.absorb(result)
             return result
 
@@ -112,8 +127,9 @@ class PlayClock:
             if not self.epoch:
                 return []
             batch = await self.call(op='events', afterCursor=self.cursor, limit=128)
-            self.cursor = batch['nextCursor']
             rows = [row for row in batch['events'] if row['epoch'] == self.epoch]
             if batch.get('gap'):
                 rows.insert(0, {'kind': 'event_gap', 'detail': 'Native event history overflowed; inspect current colony state.'})
+            self.record(rows, batch['nextCursor'])
+            self.cursor = batch['nextCursor']
             return rows

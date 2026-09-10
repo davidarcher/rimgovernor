@@ -59,11 +59,17 @@ async def test_obsolete_allow_refuses_uncertain_stock_and_changed_authority(chan
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('kind',['external_pause','external_speed_changed'])
-async def test_buffered_native_player_clock_input_invalidates_no_write_reconciliation(kind):
+async def test_buffered_native_player_clock_input_invalidates_no_write_reconciliation(kind, tmp_path):
+    from rimbot.store import Store
+    from rimbot.strategic_state import StrategicState
     rt=await blocked_supply()
     rt.clock_events=[];rt.chat=[];rt.wake=asyncio.Event()
     rt.note=Mock(return_value={'id':1,'text':'Player clock input'})
-    rt.strategic_state=SimpleNamespace(signal=Mock())
+    rt.strategic_state=StrategicState()
+    rt.store=Store(tmp_path/'events.sqlite')
+    rt.phase='Ready';rt.resume_after_review=False
+    rt.execution_window_end=None;rt.execution_wait_explicit=False
+    rt._receive_clock_events=lambda:BridgeRuntime._receive_clock_events(rt)
     rt.supervisor=SimpleNamespace(acknowledged_stop=None,poll=AsyncMock(return_value=[
         {'kind':kind,'epoch':1,'detail':'Player clock input','tick':200}]))
     rt.receive_clock_events=lambda:BridgeRuntime.receive_clock_events(rt)
@@ -73,3 +79,4 @@ async def test_buffered_native_player_clock_input_invalidates_no_write_reconcili
     assert rt.mode=='manual' and rt.current_plan.control['player_direction']==1
     assert rt.current_plan.progress['allow'].state=='blocked'
     assert rt.native.await_count==0
+    rt.store.close()
