@@ -76,6 +76,19 @@ namespace HomeBridge.BridgeTools
     /// </summary>
     public sealed class HomeBillsTools
     {
+        internal static object[] ProductionWorkTypes(RecipeDef recipe, Thing bench)
+        {
+            return DefDatabase<WorkGiverDef>.AllDefsListForReading
+                .Where(d => d.workType != null && d.Worker is WorkGiver_DoBill worker
+                    && worker.ThingIsUsableBillGiver(bench)
+                    && (recipe.requiredGiverWorkType == null || recipe.requiredGiverWorkType == d.workType))
+                .Select(d => d.workType).Distinct().Select(WorkTypeMetadata).ToArray();
+        }
+
+        internal static object WorkTypeMetadata(WorkTypeDef type) => new {
+            name = type.defName, skills = (type.relevantSkills ?? new List<SkillDef>()).Select(s => s.defName).ToArray()
+        };
+
         private const string ToolName = "home/bills";
 
         /// <summary>Candidates listed when a name is ambiguous.</summary>
@@ -479,6 +492,7 @@ namespace HomeBridge.BridgeTools
                 { "products", Products(bill.recipe) },
                 { "label", BillCommon.Label(bill) },
                 { "recipe", BridgeCommon.SafeString(() => bill.recipe == null ? null : bill.recipe.defName) },
+                { "workTypes", ProductionWorkTypes(bill.recipe, bench) },
                 { "recipeLabel", BridgeCommon.SafeString(() => bill.recipe == null ? null : bill.recipe.label) },
                 { "billClass", BridgeCommon.SafeString(() => bill.GetType().Name) },
                 { "repeatInfo", BillCommon.RepeatInfo(production) },
@@ -542,6 +556,7 @@ namespace HomeBridge.BridgeTools
                     { "availableOnNow", availableOnNow },
                     { "workAmount", BridgeCommon.TryN(() => recipe.WorkAmountTotal(null)) },
                     { "workSkill", BridgeCommon.SafeString(() => recipe.workSkill == null ? null : recipe.workSkill.defName) },
+                    { "workTypes", ProductionWorkTypes(recipe, bench) },
                     { "minSkill", MinSkill(recipe) },
                     { "products", Products(recipe) },
                     { "ingredients", ingredients },

@@ -193,6 +193,9 @@ Each preserves the other field and validates the resource against native facts.
 Policy changes queue a shared Hands action for native production enforcement;
 clock admission refreshes the current budgets before simulation. Persistent
 `MaintainResource` goals use exact native output definitions and stock targets.
+Native source and bill facts supply their actual work types and relevant skills.
+Active resource goals extend deterministic work coverage with these jobs; incapable
+pawns remain excluded and explicit player work overrides retain ownership.
 They acquire nearby reachable mineables or mature wild plants with identity-guarded
 ordinary designators, or discover native bench recipes and create target-count
 bills. Existing bills count as continuing capacity only when their repeat mode

@@ -28,12 +28,20 @@ async def run(args):
         await rt.execute_manual_requests()
         return result
     async def facts(): return await rt.game.query('home/colony_facts',planning=True)
+    async def clock_status():
+        # GABS can briefly race its runtime-state publication on Windows. Retry
+        # only this read; never replay a native write after an uncertain result.
+        for attempt in range(8):
+            try:return (await rt.bridge.call('home/supervised_play',op='status')).structuredContent
+            except Exception as error:
+                if 'failed to publish runtime state' not in str(error) or attempt==7:raise
+                await asyncio.sleep(.2)
     async def window(ticks=600):
         if rt.review_task and not rt.review_task.done():await rt.review_task
         await rt.supervisor.change('Superfast',max_ticks=ticks)
         async with asyncio.timeout(40):
             while True:
-                state=(await rt.bridge.call('home/supervised_play',op='status')).structuredContent
+                state=await clock_status()
                 if not state['active']:break
                 await asyncio.sleep(.1)
         if state['stopReason']=='letter_pause':
@@ -94,6 +102,7 @@ async def run(args):
         output=recipe['products'][0]['defName'];before=await stock('WoodLog');products=await stock(output)
         assert before >= needed*2,(before,needed)
         await command(kind='CreateBill',bench=bench,recipe=recipe['defName'],target_count=products+10)
+        await rt.game.invoke('home/bills',{'action':'set','bench':bench,'index':0,'only':'WoodLog','dryRun':False,'watch':False},allow_write=True)
         initial_bill=(await bills(bench))['benches'][0]['bills'][0]
         record('exact_native_recipe_quantity',needed>0 and initial_bill.get('billId'),recipe=recipe,bill=initial_bill)
         await command(kind='ModifyResourcePolicy',resource='WoodLog',spending='stop')
@@ -141,10 +150,29 @@ async def run(args):
                 rt.manual_requests.extend((s.id,rt.context_token,rt.chat_revision) for s in steps)
                 await rt.execute_manual_requests()
                 record('issued_'+resource,all(rt.current_plan.progress[s.id].state=='complete' for s in steps),actions=actions)
+                people=(await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True,equipment=True))['pawns']
+                rt.current_plan.colony_goals.setdefault('EnsureWorkAssignments',ColonyGoal(priority_class=2,source='PLAYER'))
+                assignment=await rt.controller.skills.compile('EnsureWorkAssignments',observed,people)
+                if assignment:
+                    work_method,work_actions=assignment
+                    work_steps,_=rt.controller.skills.steps('EnsureWorkAssignments',work_method,work_actions,observed)
+                    await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
+                        reason='Assign native target work',steps=work_steps).decision(rt.current_plan),
+                        actor='strategist',expected_token=rt.context_token,expected_revision=rt.chat_revision)
+                    for _ in work_steps:
+                        rt.manual_requests.extend((s.id,rt.context_token,rt.chat_revision) for s in work_steps
+                            if rt.current_plan.progress[s.id].state=='pending')
+                        await rt.execute_manual_requests()
+                    record('assigned_'+resource,all(rt.current_plan.progress[s.id].state=='complete' for s in work_steps),
+                        work_types=goal.evidence.get('work_types'),actions=work_actions)
+
                 until=time.monotonic()+args.seconds
                 while time.monotonic()<until:
                     await window(600)
                     observed=await facts()
+                    report['acquisition_progress']={'resource':resource,'stock':observed['resources'],
+                        'tick':observed['tick'],'pawns':await rt.game.query('home/list_pawns',colonistsOnly=True,work=True)}
+                    (args.output/'progress.json').write_text(json.dumps(report,indent=2))
                     if observed['resources'].get(resource,0)>=goal.target['quantity']:break
                 record('native_acquired_'+resource,observed['resources'].get(resource,0)>=goal.target['quantity']
                     and await stock(resource)>before_native,before=before_native,after=await stock(resource),

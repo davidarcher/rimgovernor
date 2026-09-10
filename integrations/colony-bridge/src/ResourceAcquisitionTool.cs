@@ -35,7 +35,9 @@ namespace HomeBridge.BridgeTools
                     return new { success = false, error = "Unknown resource or no map" };
                 var rows = map.listerThings.AllThings.Where(t => Product(t)?.defName == resource && Eligible(t, map))
                     .OrderBy(t => t.thingIDNumber).Take(40).Select(t => new { thingId = t.ThingID,
-                        resource, x = t.Position.x, z = t.Position.z, designated = Designated(t),
+                        resource, workTypes = new[] { HomeBillsTools.WorkTypeMetadata(
+                            t is Mineable ? WorkTypeDefOf.Mining : t.def.plant.IsTree ? WorkTypeDefOf.PlantCutting : WorkTypeDefOf.Growing) },
+                        x = t.Position.x, z = t.Position.z, designated = Designated(t),
                         method = t is Mineable ? "mine" : t.def.plant.IsTree ? "cut" : "harvest",
                         yield = t is Plant plant ? plant.YieldNow() : t.def.building.mineableYield }).ToList();
                 return new { success = true, resource, sources = rows, tick = Find.TickManager.TicksGame };

@@ -135,10 +135,11 @@ def allocation(plan, facts, proposed, policy, *, survival=False):
             if amount + reserved.get(resource, 0) + reserves.get(resource, 0) > stock.get(resource, 0)}
 
 
-def work_assignment(pawns):
+def work_assignment(pawns, required_work=None):
     """Greedy coverage with stable tie breaks and a load penalty for specialists."""
     skill_for = {'Hunting': 'Shooting', 'Doctor': 'Medicine', 'Cooking': 'Cooking', 'Construction': 'Construction',
                  'Growing': 'Plants', 'PlantCutting': 'Plants'}
+    skill_for.update(required_work or {})
     available = [p for p in pawns if not p.get('dead') and not p.get('downed') and not p.get('drafted')
                  and (p.get('work') or {}).get('applies') is True]
     result = {p['thingId']: {} for p in available}
@@ -152,7 +153,7 @@ def work_assignment(pawns):
             if work not in types or types[work].get('disabled') is not False:
                 continue
             skills = {s['name']: s for s in (pawn.get('bio') or {}).get('skills', [])}
-            value = skills.get(skill, {})
+            value = skills.get(skill, {}) if skill else {'level': 0}
             if value.get('level') is None or value.get('disabled'):
                 continue
             score = value['level'] + {'Minor': 2, 'Major': 4}.get(value.get('passion'), 0) - 3 * load[pawn['thingId']]
@@ -194,7 +195,7 @@ def work_assignment(pawns):
                 result[identity][work] = 0
         # Checkbox mode has no ranking. Limit specialist jobs instead of pretending
         # that stored 1..4 priorities change the game's effective order.
-    return result, all(work in owners for work in ('Doctor', 'Cooking', 'Construction', 'Growing'))
+    return result, all(work in owners for work in {'Doctor', 'Cooking', 'Construction', 'Growing', *(required_work or {})})
 
 
 def farm_patches(layout):

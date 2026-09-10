@@ -63,6 +63,13 @@ def ingredient_deficits(recipe, resources):
     return result
 
 
+def required_resource_work(plan):
+    return {row['name']: next(iter(row.get('skills', [])), None)
+            for key, goal in plan.colony_goals.items()
+            if key.startswith('MaintainResource-') and not goal.cancelled and goal.status != 'complete'
+            for row in goal.evidence.get('work_types', [])}
+
+
 async def resource_method(rt, goal_id, facts):
     from .colony_skills import SkillBlocked, native
     goal = rt.current_plan.colony_goals[goal_id]
@@ -82,6 +89,9 @@ async def resource_method(rt, goal_id, facts):
         if needed <= 0 or len(selected) == 8: break
         if source.get('designated') or source.get('yield', 0) <= 0: continue
         selected.append(source); needed -= source['yield']
+    if selected or pending:
+        goal.evidence['work_types'] = [w for source in sources.get('sources', [])
+            if source in selected or source.get('designated') for w in source.get('workTypes', [])]
     if selected:
         return 'acquire-' + fingerprint([s['thingId'] for s in selected])[:12], [native('home/acquire_resource',
             **{k: rt.identity[k] for k in ('colonyId', 'loadToken', 'mapId')},
@@ -95,6 +105,7 @@ async def resource_method(rt, goal_id, facts):
             covers = config.get('repeatMode') == 'Forever' or (config.get('repeatMode') == 'TargetCount' and config.get('targetCount', 0) >= target)
             if (covers and not bill.get('suspended') and not bill.get('finished')
                     and any(p.get('defName') == resource for p in bill.get('products', []))):
+                goal.evidence['work_types'] = bill.get('workTypes', [])
                 goal.evidence['existing_bill'] = {'bench': bench['thingId'], 'bill': bill.get('billId')}
                 return None
         recipes = await rt.game.invoke('home/bills', {'action': 'recipes', 'bench': bench['thingId'], 'dryRun': True})
@@ -103,10 +114,11 @@ async def resource_method(rt, goal_id, facts):
             costs = ingredient_deficits(recipe, facts.get('resources', {}))
             deficits.append({'bench': bench['thingId'], 'recipe': recipe['defName'], 'ingredients': costs})
             if recipe.get('availableNow') is True and recipe.get('availableOnNow') is True:
-                candidates.append((bench['thingId'], recipe['defName']))
+                candidates.append((bench['thingId'], recipe['defName'], recipe.get('workTypes', [])))
     goal.evidence['production_deficits'] = deficits
     if not candidates: raise SkillBlocked('No available native production recipe and workbench for ' + resource)
-    bench, recipe = sorted(candidates)[0]
+    bench, recipe, work_types = sorted(candidates, key=lambda c: (c[0], c[1]))[0]
+    goal.evidence['work_types'] = work_types
     method = 'resource-' + fingerprint({'resource':resource,'target':target,'bench':bench,'recipe':recipe})[:12]
     if goal.method_seen(method):
         raise SkillBlocked('Previously issued production bill no longer covers this target; explicitly renew the resource goal to replace it')

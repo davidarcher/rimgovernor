@@ -849,3 +849,8 @@ for the named resource targets. Install both the current observation and identit
 assemblies plus the current headless companion before launching; restore originals
 only after every game closes. This focused probe does not certify unavailable
 industrial recipes, every material alternative or sustained production.
+
+With `--acquisition`, the resource policy probe also requires pawn-produced steel,
+components and herbal medicine from observed normal mining/harvest sources. It
+compiles native target work types through the shared work allocator and records
+assignment receipts plus actual stock increases; designation receipts alone fail.

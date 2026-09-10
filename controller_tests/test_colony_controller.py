@@ -369,3 +369,24 @@ def test_fragmented_soil_uses_small_disjoint_patches_and_never_blocks_shelter():
     for cell in state['cells']:cell['fertility']=.1
     layouts=starter_layouts(state)
     assert layouts and all(layout['farms']==[] and layout['farm'] is None for layout in layouts)
+
+
+@pytest.mark.asyncio
+async def test_native_resource_work_enables_capable_workers_and_preserves_player_override():
+    rt=Replay()
+    for pawn in rt.people:
+        pawn['work']['types'].append(dict(name='Mining',disabled=False,priority=0,priorityStored=0))
+        pawn['bio']['skills'].append(dict(name='Mining',level=8,disabled=False))
+    goal=ColonyGoal(priority_class=3, target={'resource':'Steel','quantity':100})
+    goal.evidence['work_types']=[{'name':'Mining','skills':['Mining']}]
+    rt.current_plan.colony_goals['MaintainResource-Steel']=goal
+    rt.current_plan.colony_goals['EnsureWorkAssignments']=ColonyGoal(priority_class=2)
+    compiled=await rt.controller.skills.compile('EnsureWorkAssignments',rt.facts,rt.people)
+    assert any('Mining=1' in a['arguments']['work'] for a in compiled[1])
+    rt.current_plan.control['work_overrides']={p['thingId']:{'Mining':0} for p in rt.people}
+    from rimbot.colony_skills import SkillBlocked
+    with pytest.raises(SkillBlocked,match='player work overrides'):
+        await rt.controller.skills.compile('EnsureWorkAssignments',rt.facts,rt.people)
+    goal.cancelled=True
+    compiled=await rt.controller.skills.compile('EnsureWorkAssignments',rt.facts,rt.people)
+    assert all('Mining=1' not in a['arguments']['work'] for a in compiled[1])

@@ -1,4 +1,5 @@
 """Deterministic priority tree using ColonyPlan, native validation and Hands."""
+from .production_policy import required_resource_work
 from dataclasses import asdict
 from .colony_plan import ColonyGoal, CommitSteps
 from .colony_policy import ColonyPolicy, allocation, criteria, derive, priority_nodes, work_assignment
@@ -53,11 +54,11 @@ class ColonyController:
         pending_supplies = [p for p in pending_supplies if (p['x'],p['z']) in still_forbidden]
         plan.control['starting_supplies'] = pending_supplies
         facts['forbiddenSupplies'] = pending_supplies
-        assignments, coverage = work_assignment(people['pawns'])
+        assignments, coverage = work_assignment(people['pawns'], required_resource_work(plan))
         for pawn, values in plan.control.get('work_overrides', {}).items():
             if pawn in assignments: assignments[pawn].update(values)
         coverage = coverage and all(any(values.get(work, 0) > 0 for values in assignments.values())
-                                    for work in ('Doctor', 'Cooking', 'Construction', 'Growing'))
+                                    for work in {'Doctor', 'Cooking', 'Construction', 'Growing', *required_resource_work(plan)})
         by_id = {p['thingId']: p for p in people['pawns']}
         facts['workCoverage'] = coverage and all(
             all(any(w['name'] == name and (w.get('priorityStored') == priority if
