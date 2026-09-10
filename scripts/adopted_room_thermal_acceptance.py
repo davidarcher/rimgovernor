@@ -32,11 +32,22 @@ async def run(args):
         report['cases'].append(dict(name=name,passed=bool(passed),**evidence))
         print(name+': '+str(bool(passed)),flush=True)
         assert passed,name
+    async def settle():
+        rt.clock_events.extend(await rt.supervisor.poll())
+        rt.receive_clock_events()
+        async with asyncio.timeout(60):
+            while rt.wake.is_set() or rt.deliberating or (rt.review_task and not rt.review_task.done()):
+                await asyncio.sleep(.1)
     async def command(**payload):
+        await settle()
         result=await apply_command(rt,payload,token=rt.context_token,revision=rt.chat_revision)
         await rt.execute_manual_requests()
+        if payload['kind']=='PlaceBuildings':
+            progress=rt.current_plan.progress[result['step']]
+            assert len(progress.issued)==len(payload['buildings']['placements']),progress.model_dump()
         return result
     async def chat(prompt):
+        await settle()
         await rt.steer(prompt);revision=rt.chat_revision
         async with asyncio.timeout(180):
             while rt.current_plan.control.get('interpreted_player_revision',0)<revision or rt.deliberating:
@@ -62,13 +73,14 @@ async def run(args):
                 if not clock['active']:break
                 await asyncio.sleep(.15)
         assert clock['stopReason'] in ('tick_budget','requested_pause') and clock['pauseVerified'],clock
-        if rt.review_task and not rt.review_task.done():await rt.review_task
+        await settle()
         room,buildings=await observations()
         report['samples'].append({'phase':label,'clock':clock,'room':room,'buildings':buildings})
         (args.output/'progress.json').write_text(json.dumps(report,indent=2))
         print(json.dumps({'phase':label,'tick':clock.get('lastTick'),'temperature':room.get('temperature') if room else None}),flush=True)
         return room,buildings
     async def commit_actions(identity,actions):
+        await settle()
         steps=[PlanStep(id=identity+'-'+str(index),title=identity,source='PLAYER',action=action,
             completion_criteria='Native fixture action completed') for index,action in enumerate(actions)]
         await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
@@ -78,6 +90,7 @@ async def run(args):
         await rt.execute_manual_requests()
         return steps
     async def compile_goal(identity):
+        await settle()
         facts=await rt.game.query('home/colony_facts',planning=True)
         people=(await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True,health=True))['pawns']
         goal=rt.current_plan.colony_goals.setdefault(identity,ColonyGoal(priority_class=2,source='PLAYER'))

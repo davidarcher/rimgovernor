@@ -20,7 +20,8 @@ SIZE=8
 
 async def run(args):
     source=json.loads(args.resume_report.read_text()) if args.resume_report else None
-    checkpoint=source['powered_checkpoint']['manifest_path'] if source else None
+    checkpoint=(source.get('expansion_ready_checkpoint') or source.get('original_checkpoint')
+                or source.get('supplied_checkpoint') or source['powered_checkpoint'])['manifest_path'] if source else None
     if checkpoint:
         data,state=prepare_resume(checkpoint)
         args.output.mkdir(parents=True,exist_ok=False)
@@ -37,11 +38,22 @@ async def run(args):
         report['cases'].append(dict(name=name,passed=bool(passed),**evidence))
         print(name+': '+str(bool(passed)),flush=True)
         assert passed,name
+    async def settle():
+        rt.clock_events.extend(await rt.supervisor.poll())
+        rt.receive_clock_events()
+        async with asyncio.timeout(60):
+            while rt.wake.is_set() or rt.deliberating or (rt.review_task and not rt.review_task.done()):
+                await asyncio.sleep(.1)
     async def command(**payload):
+        await settle()
         result=await apply_command(rt,payload,token=rt.context_token,revision=rt.chat_revision)
         await rt.execute_manual_requests()
+        if payload['kind']=='PlaceBuildings':
+            progress=rt.current_plan.progress[result['step']]
+            assert len(progress.issued)==len(payload['buildings']['placements']),progress.model_dump()
         return result
     async def chat(prompt):
+        await settle()
         previous=rt.chat[-1]['id'] if rt.chat else 0
         await rt.steer(prompt);revision=rt.chat_revision
         async with asyncio.timeout(180):
@@ -77,12 +89,13 @@ async def run(args):
             rt.supervisor.absorb(clock);rt.supervisor.allow_resume()
         else:
             assert clock['stopReason'] in ('tick_budget','requested_pause') and clock['pauseVerified'],clock
-        if rt.review_task and not rt.review_task.done():await rt.review_task
+        await settle()
         observed=await buildings()
         sample={'phase':label,'tick':clock.get('lastTick'),'clock':clock,'buildings':observed}
         if protected:
             original=await room(protected)
             sample['protected_room']=original
+            report['latest_observation']=sample
             assert original and original['openRoofCount']==0 and original['temperature']<=0,'Original freezer lost usable cold storage during expansion'
         report['samples'].append(sample)
         (args.output/'progress.json').write_text(json.dumps(report,indent=2))
@@ -164,26 +177,71 @@ async def run(args):
             else:raise AssertionError('Ordinary first freezer construction/power did not complete')
         record('first_room_completed_powered',cooler['thermalSides']['readable'] and cooler['power']['powered'],room=native_room,cooler=cooler)
         report['powered_checkpoint']=await create_checkpoint(rt,rt.context_token)
-        await chat('Set the temperature of the exact cooler '+cooler['thingId']+' to minus 10 Celsius. Change no other buildings.')
-        await command(kind='CreateZone',intent_id='original-freezer-stock',zone={'kind':'create_zone','zone_type':'stockpile',
-            'label':'Original freezer','patches':[dict(x=x+1,z=z+1,width=SIZE-2,height=SIZE-2)],'preset':'food','priority':'Important'})
-        for _ in range(60):
-            await window('cool_original');native_room=await room(first)
-            report['samples'][-1]['room']=native_room
-            if native_room and native_room['temperature']<=0 and native_room['stockpileCellsInRoom']==(SIZE-2)**2:break
-        else:raise AssertionError('Original powered freezer did not reach freezing')
-        record('original_usable_cold_storage',native_room['temperature']<=0 and native_room['stockpileCellsInRoom']==(SIZE-2)**2,room=native_room)
-        protected=first
-        report['original_checkpoint']=await create_checkpoint(rt,rt.context_token)
-        # Replenishment is ordinary tree designation/pawn labor, before expansion
-        # reserves are imposed. No supplies or pawn skills are edited.
-        facts=await rt.game.query('home/colony_facts',planning=True)
-        if facts.get('resources',{}).get('WoodLog',0)<200:
-            await compile_setup('MaintainWood')
-            for _ in range(60):
-                await window('replenish_wood')
+        async def replenish(minimum):
+            for _ in range(100):
                 facts=await rt.game.query('home/colony_facts',planning=True)
-                if facts.get('resources',{}).get('WoodLog',0)>=200:break
+                report['latest_resource_stock']=facts.get('resources',{})
+                if facts.get('resources',{}).get('WoodLog',0)>=minimum:return
+                sources=(await runtime_file_read(rt.bridge.call,'home/resource_sources',resource='WoodLog')).structuredContent
+                report['latest_resource_sources']=sources
+                assert sources.get('success') is True,sources
+                pending=sum(row['yield'] for row in sources['sources'] if row['designated'])
+                needed=minimum-facts.get('resources',{}).get('WoodLog',0)-pending
+                for row in sources['sources']:
+                    if needed<=0:break
+                    if row['designated']:continue
+                    arguments=dict(rt.identity,thingId=row['thingId'],resource='WoodLog',x=row['x'],z=row['z'])
+                    arguments={key:arguments[key] for key in ('colonyId','loadToken','mapId','thingId','resource','x','z')}
+                    preview=(await rt.bridge.call('home/acquire_resource',**arguments,dryRun=True)).structuredContent
+                    report.setdefault('ordinary_resource_previews',[]).append({'source':row,'preview':preview})
+                    assert preview.get('success') is True,preview
+                    receipt=(await rt.bridge.call('home/acquire_resource',**arguments,dryRun=False)).structuredContent
+                    assert receipt.get('success') is True and receipt.get('designated') is True,receipt
+                    report.setdefault('ordinary_resource_designations',[]).append({'source':row,'preview':preview,'receipt':receipt})
+                    needed-=row['yield']
+                assert pending or needed<=0 or report.get('ordinary_resource_designations'),'No reachable native wood sources'
+                await window('replenish_wood')
+            raise AssertionError('Ordinary tree labor did not replenish construction wood')
+        def insulation(bounds):
+            bx,bz=bounds['x'],bounds['z']
+            positions={(a,b) for a in (bx-1,bx+SIZE) for b in range(bz,bz+SIZE+1)}
+            positions|={(a,bz+SIZE) for a in range(bx,bx+SIZE)}
+            if bounds==second:positions={p for p in positions if p[0]!=bx-1}
+            positions.remove((bx+SIZE//2,bz+SIZE))
+            positions.add((bx+SIZE//2,bz+SIZE+1))
+            return {'kind':'place_buildings','placements':[
+                dict(def_name='Door' if (a,b)==(bx+SIZE//2,bz+SIZE+1) else 'Wall',
+                     x=a,z=b,materials=['WoodLog']) for a,b in sorted(positions)]}
+        if source and source.get('original_checkpoint'):
+            native_room=await room(first)
+            record('original_usable_cold_storage',native_room and native_room['temperature']<=0
+                and native_room['openRoofCount']==0 and native_room['stockpileCellsInRoom']==(SIZE-2)**2,room=native_room)
+            report['original_checkpoint']=source['original_checkpoint']
+        else:
+            await replenish(300)
+            await settle()
+            report['supplied_checkpoint']=await create_checkpoint(rt,rt.context_token)
+            insulated=await command(kind='PlaceBuildings',purpose='storage',buildings=insulation(first))
+            for _ in range(100):
+                observed=await window('insulate_original')
+                if rt.current_plan.progress[insulated['step']].state=='complete' and not any(
+                        b.get('isBlueprint') or b.get('isFrame') for b in observed['buildings']):break
+            else:raise AssertionError('Ordinary freezer insulation did not finish')
+            await chat('Set the temperature of the exact cooler '+cooler['thingId']+' to minus 10 Celsius. Change no other buildings.')
+            await command(kind='CreateZone',intent_id='original-freezer-stock',zone={'kind':'create_zone','zone_type':'stockpile',
+                'label':'Original freezer','patches':[dict(x=x+1,z=z+1,width=SIZE-2,height=SIZE-2)],'preset':'food','priority':'Important'})
+            for _ in range(60):
+                await window('cool_original');native_room=await room(first)
+                report['samples'][-1]['room']=native_room
+                if native_room and native_room['temperature']<=0 and native_room['stockpileCellsInRoom']==(SIZE-2)**2:break
+            else:raise AssertionError('Original powered freezer did not reach freezing')
+            record('original_usable_cold_storage',native_room['temperature']<=0 and native_room['stockpileCellsInRoom']==(SIZE-2)**2,room=native_room)
+            protected=first
+            report['original_checkpoint']=await create_checkpoint(rt,rt.context_token)
+        protected=first
+        await replenish(330)
+        await settle()
+        report['expansion_ready_checkpoint']=await create_checkpoint(rt,rt.context_token)
         await chat('Reserve 80 steel for later. Keep normal component spending. Make no construction changes yet.')
         record('local_model_refines_resource_policy',rt.current_plan.control.get('resource_policy',{}).get('Steel',{}).get('reserve')==80,
             policies=rt.current_plan.control.get('resource_policy'))
@@ -191,8 +249,17 @@ async def run(args):
         await chat('Expand our freezer capacity by building this second separate cold-storage room beside the existing working freezer. '
             'Keep the original room and its orders. Use PlaceBuildings with purpose storage and this exact inspected specification: '+json.dumps(shell(second))+'.')
         expansions=[s for s in rt.current_plan.spec.steps if s.id not in before_ids and s.action.kind=='place_buildings']
-        record('local_model_selects_expansion_geometry',len(expansions)==1 and expansions[0].action.model_dump()==
-            Buildings.model_validate(shell(second)).model_dump())
+        expected=Buildings.model_validate(shell(second)).model_dump()['placements']
+        actual=expansions[0].action.model_dump()['placements'] if len(expansions)==1 else []
+        target={(p['x'],p['z']):p for p in expected}
+        selected={(p['x'],p['z']):p for p in actual}
+        geometry_matches=len(actual)==len(selected)==len(expected) and selected.keys()==target.keys() and all(
+            all(selected[pos][key]==row[key] for key in ('def_name','rotation'))
+            and ((not row['materials'] and not selected[pos]['materials']) or
+                 bool(selected[pos]['materials']) and set(selected[pos]['materials'])<=set(row['materials']))
+            for pos,row in target.items())
+        record('local_model_selects_expansion_geometry',geometry_matches,expected=expected,actual=actual)
+        await command(kind='PlaceBuildings',purpose='storage',buildings=insulation(second))
         for _ in range(100):
             observed=await window('build_expansion')
             expanded_cooler=next((b for b in observed['buildings'] if b['defName']=='Cooler' and b['position']=={'x':second['x']+SIZE//2,'z':z}),None)

@@ -625,12 +625,12 @@ native write without changing the observed building set or leaving Manual.
 
 `scripts/freezer_expansion_acceptance.py --source-root <prepared-root>
 --output <fresh-directory> --model <local-model-id>` builds two separate powered
-cold-storage rooms through ordinary pawn labor. Actual local-model requests set
+cold-storage rooms with ordinary harvested materials, insulation and pawn labor. Actual local-model requests set
 cooler temperatures, reserve steel and expand storage while preserving the first
 freezer. Completion requires both roofed rooms below freezing with their native
 stockpile cells, including three stable native windows after expansion.
 Use `--resume-report <result.json>` instead of `--source-root` to resume an
-immutable powered-room checkpoint after an infrastructure failure.
+immutable powered, supplied or working-freezer checkpoint after an infrastructure failure.
 `scripts/adopted_room_thermal_acceptance.py --freezer-report <passed-result.json>
 --output <fresh-directory> --variant hot|cold` then adopts an edited room, preserves
 existing furniture, fills native sleeping capacity and verifies ordinary fueled
