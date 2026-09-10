@@ -21,11 +21,14 @@ in the checkpoint commit; do not append an implementation diary here.
   Nutrition-based harvest limits and per-colonist inventory/rot forecasts exist;
   validate actual spoilage, changing temperatures and food sharing during sustained runs. Enforce
   persistent player food targets through production capacity as well as stock.
-- [ ] **B04f · Deterministic emergency/development methods.** Extend small-animal
-  defense to larger encounters and extend medical recovery to unavailable doctors,
+- [ ] **B04f · Deterministic emergency/development methods.** Extend bounded
+  small-animal and single-melee-raider defense to larger encounters and extend
+  medical recovery to unavailable doctors,
   multiple competing patients and player interruption ownership beyond tracked overrides,
   then add electrical generation/connectivity,
-  research, comfort and expansion methods. Threats beyond the bounded small-animal method and unavailable power methods
+  research, comfort and expansion methods. Require danger-aware native routes before
+  automatic rescue, firefighting or heat escape. Threats beyond the bounded defense
+  methods and unavailable power methods
   report explicit blockers instead of asking a model to improvise.
   Native acceptance remains for the low-health combat hold at compilation,
   dispatch and clock admission, including health-read races and unchanged injury
@@ -298,12 +301,6 @@ in the checkpoint commit; do not append an implementation diary here.
   fuel/batteries, day/night load changes and hot-weather freezer failure. Add
   deterministic fixtures and isolated native runs observing illumination, cleaning,
   completed floors, actual travel, generation/refueling and maintained temperatures.
-- [ ] **B09 · Combat and rescue acceptance.** Finish exact ordinary hostile raid
-  outcome and controller-selected stand-down acceptance on the integrated source.
-  Movement, equip, melee/ranged damage, injury interruption, treatment, local-model
-  rescue selection, actual carry-to-bed and external draft-claim loss have native
-  Docker evidence. Native path eligibility permits dangerous routes; automatic
-  rescue, firefighting and heat escape require separate safe-route contracts.
 
 - [ ] **B19 · Mood and mental-break prevention.** Turn observed thoughts, needs,
   break thresholds and mood pressure into bounded corrective goals. Rank actionable
