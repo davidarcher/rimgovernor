@@ -29,7 +29,7 @@ namespace HomeBridge.BridgeTools
                     && a.ActiveCells.All(c => c.Roofed(map) && !c.Fogged(map))).Select(a => new { id = a.ID, label = a.Label, cells = a.TrueCount }).ToList(),
                 restrictions = map.mapPawns.FreeColonistsSpawned.Select(p => new { pawn = p.GetUniqueLoadID(),
                     area = p.playerSettings?.AreaRestrictionInPawnCurrentMap?.ID,
-                    leased = Current.Game.GetComponent<RecoveryAreas>().Claims.Any(c => c.Pawn == p) }).ToList(),
+                    leased = Current.Game.GetComponent<RecoveryAreas>().Claims.Any(c => c.Pawn == p && c.Assigned?.Map == map) }).ToList(),
                 buildings = map.listerBuildings.allBuildingsColonist.Where(b => !b.Position.Fogged(map))
                     .OrderBy(b => b.thingIDNumber).Select(b => new {
                         thingId = b.GetUniqueLoadID(), defName = b.def.defName, position = BridgeCommon.Pos(b.Position),
@@ -68,7 +68,7 @@ namespace HomeBridge.BridgeTools
                     return Refuse("Roofed refuge inaccessible");
                 var leases = Current.Game.GetComponent<RecoveryAreas>();
                 if (leases.Overrides.Contains(person)) return Refuse("Player owns this pawn's work-area choice");
-                var claim = leases.Claims.FirstOrDefault(c => c.Pawn == person);
+                var claim = leases.Claims.FirstOrDefault(c => c.Pawn == person && c.Assigned?.Map == map);
                 if (claim != null && prior != claim.Assigned) return Refuse("Player replaced recovery restriction");
                 if (!dryRun && prior != area)
                 {

@@ -288,20 +288,6 @@ in the checkpoint commit; do not append an implementation diary here.
   excavation hazards block the affected work. Stage hauling/storage and later
   extraction infrastructure through B06/B06b/B07 scheduling. Verify actual recovered
   resources and safe completed geometry, including interrupted digs and depleted sites.
-- [ ] **B28 · Disaster-specific recovery.** Coordinate B04f emergencies, B04h upkeep
-  and B06d utilities for prolonged environmental disruption, crop loss and concurrent
-  infrastructure failures. Discover the actual event and affected capabilities;
-  revise food, fuel, shelter, work areas and repair priorities with bounded fallback
-  methods. Distinguish temporary survival measures from restored normal operation.
-  Test compound failures, inaccessible supplies, recovery after event expiry and
-  player intervention; measure native damage, stock consumption and restored service.
-  Event observation and shared-plan service phases are implemented, with bounded
-  powerless-cooking and nonheating-stove fallbacks. Remaining methods include
-  exposure-safe work areas, fuel replenishment, electrical and structural repairs,
-  and production recovery under prolonged disruption. Native acceptance must cover
-  damage and restored services, inaccessible supplies, compound crop/infrastructure
-  loss and player intervention; a condition expiring or a fallback building completing
-  does not close this item.
 - [ ] **B29 · Colony-wide development priorities.** Arbitrate comfort, research,
   production, defense and expansion through the existing deterministic priority tree
   and shared plans. Extend the bounded storage/defense/resource admission order to

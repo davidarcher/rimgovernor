@@ -20,7 +20,8 @@ namespace HomeBridge.BridgeTools
         {
             var state = Current.Game?.GetComponent<RecoveryAreas>();
             if (state?.Claims == null) return;
-            foreach (var claim in state.Claims.Where(c => c.Pawn?.playerSettings == __instance).ToList())
+            foreach (var claim in state.Claims.Where(c => c.Pawn?.playerSettings == __instance
+                && c.Pawn.Map == c.Assigned?.Map).ToList())
             {
                 state.Overrides.Add(claim.Pawn);
                 state.Claims.Remove(claim);

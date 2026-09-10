@@ -44,7 +44,9 @@ namespace HomeBridge.BridgeTools
             foreach (var claim in Claims.ToList())
             {
                 var pawn = claim.Pawn;
-                if (pawn?.playerSettings == null || pawn.Map == null) { Claims.Remove(claim); continue; }
+                if (pawn?.playerSettings == null || claim.Assigned == null) { Claims.Remove(claim); continue; }
+                // Keep the old map's lease until return; never write its area into a different map.
+                if (pawn.Map != claim.Assigned.Map) continue;
                 var current = pawn.playerSettings.AreaRestrictionInPawnCurrentMap;
                 if (current != claim.Assigned) { Overrides.Add(pawn); Claims.Remove(claim); continue; }
                 var conditions = new List<GameCondition>();
