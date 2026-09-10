@@ -23,7 +23,10 @@ a fresh native read from the survivor. It then saves a paired native and control
 checkpoint. Both projects are removed afterward; output trees, logs, input hashes,
 checkpoint and result manifest remain. Failures are retained. Add `--image <tag>
 --no-build` to use an existing image, or `--startup-timeout 480` for slow Windows bind
-mounts. `run/staging.json` measures the input-copy time.
+mounts. Game/mod/GABS inputs use a verified content-addressed Docker volume by default;
+see [input caching](docker-inputs.md#reuse-docker-input-snapshots). `cache.json` measures
+cache preparation and `run/staging.json` measures each private input copy. Pass
+`--no-input-cache` for a direct-bind comparison. Profiles and saves remain private.
 
 Replace the angle-bracket placeholders with existing absolute paths, quoting paths with
 spaces. `--gabs` is a directory containing `gabs`, not the executable path. Unlike

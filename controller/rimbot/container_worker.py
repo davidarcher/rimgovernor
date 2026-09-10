@@ -13,7 +13,7 @@ from .headless import prepare, prepare_rendered
 from .virtual_display import DisplaySettings, run_display
 
 
-def stage(game, mods, profile, gabs, root, game_root=None, unity_gc_time_slice=None, display=None):
+def stage(game, mods, profile, gabs, root, game_root=None, unity_gc_time_slice=None, display=None, cache_key=None):
     game, mods, profile, gabs, root = [Path(p).resolve() for p in (game, mods, profile, gabs, root)]
     if unity_gc_time_slice not in (None, 0):
         raise ValueError('Unity GC time slice supports only source (None) or zero')
@@ -99,6 +99,7 @@ def stage(game, mods, profile, gabs, root, game_root=None, unity_gc_time_slice=N
     (root/'staging.json').write_text(json.dumps({'elapsed_seconds': elapsed,
         'game_source': str(game), 'mods_source': str(mods), 'profile_source': str(profile),
         'gabs_source': str(gabs), 'private_game': str(private_game),
+        'input_cache_key': cache_key,
         'display': display.manifest() if display else None,
         'unity_gc_time_slice': unity_gc_time_slice,
         'source_boot_sha256': hashlib.sha256(original_boot).hexdigest() if original_boot is not None else None}, indent=2), encoding='utf8')
@@ -127,8 +128,17 @@ def main():
     if args.display not in ('headless', 'xvfb') or args.renderer != 'llvmpipe':
         parser.error('Unsupported display or renderer')
     display = DisplaySettings.parse(args.resolution) if args.display == 'xvfb' else None
+    cache_root = os.environ.get('RIMBOT_INPUT_CACHE_ROOT')
+    cache_key = os.environ.get('RIMBOT_INPUT_CACHE_KEY')
+    if bool(cache_root) != bool(cache_key):
+        parser.error('Input cache requires both RIMBOT_INPUT_CACHE_ROOT and RIMBOT_INPUT_CACHE_KEY')
+    if cache_root:
+        from .container_input_cache import read_manifest
+        # The host helper verifies all payload bytes before mounting this snapshot read-only.
+        read_manifest(cache_root, cache_key)
+        args.game, args.mods, args.gabs = [Path(cache_root)/p for p in ('game', 'mods', 'gabs/gabs')]
     root = stage(args.game, args.mods, args.profile, args.gabs, args.root, args.game_root,
-                 0 if args.unity_gc_time_slice == '0' else None, display)
+                 0 if args.unity_gc_time_slice == '0' else None, display, cache_key)
     os.environ.update(RIMBOT_BRIDGE_ROOT=str(root), RIMBOT_DATA=str(root/'data'),
                       RIMBOT_HEADLESS='0' if display else '1', RIMBOT_BRIDGE_FRESH='1')
     command = args.command or ['python', '-m', 'rimbot', '--host', '0.0.0.0']

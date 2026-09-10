@@ -39,5 +39,12 @@ Unqualified Python module names in the table are under
 
 ## Related reading
 
+Docker native staging uses [container_worker.py](../../controller/rimbot/container_worker.py)
+for private copies and [container_input_cache.py](../../controller/rimbot/container_input_cache.py)
+for verified, immutable input snapshots. The host
+[cache helper](../../scripts/container_input_cache.py) hashes sources and prepares local
+Docker volumes; [native acceptance](../../scripts/container_native_acceptance.py) mounts
+them read-only. See [input caching](../how-to/docker-inputs.md#reuse-docker-input-snapshots).
+
 Start with [the system overview](../explanation/overview.md) for the relationships
 between these components.

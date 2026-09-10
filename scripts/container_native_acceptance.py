@@ -13,6 +13,7 @@ import uuid
 
 from container_checks import docker_environment
 from container_camera_acceptance import accept_camera
+from container_input_cache import prepare_cache, compose_override
 
 
 def run(args):
@@ -32,7 +33,8 @@ def run(args):
     image = docker_run('image', 'inspect', '--format', '{{.Id}}', args.image,
                        capture_output=True, text=True, check=True).stdout.strip()
     override = output/'image.yaml'
-    override.write_text('services:\n  worker:\n    image: '+image+'\n', encoding='utf8')
+    cache = None if args.no_input_cache else prepare_cache(args.game, args.mods, args.gabs/'gabs', image, output)
+    override.write_text(json.dumps(compose_override(image, cache), indent=2), encoding='utf8')
     prefix = 'rimbot-native-'+uuid.uuid4().hex[:10]
     workers = []
     for index in range(2):
@@ -120,7 +122,7 @@ def run(args):
         result['clean'] = (not state['Running'] and not state['OOMKilled'] and not state['Error']
                            and state['ExitCode'] in (0, 143) and result['controller_shutdown_complete'])
         return result
-    report = dict(image=image, display=args.display, resolution=args.resolution, passed=False, scope='Native Linux discovery, independent clocks, peer survival and retained checkpoint; no pawn-work or sustained throughput acceptance.')
+    report = dict(image=image, input_cache=cache, display=args.display, resolution=args.resolution, passed=False, scope='Native Linux discovery, independent clocks, peer survival and retained checkpoint; no pawn-work or sustained throughput acceptance.')
     began = time.monotonic()
     try:
         with ThreadPoolExecutor(max_workers=2) as pool:
@@ -231,5 +233,6 @@ if __name__ == '__main__':
     parser.add_argument('--resolution', default='1280x720')
     parser.add_argument('--image', default='rimbot-worker:local')
     parser.add_argument('--no-build', action='store_true')
+    parser.add_argument('--no-input-cache', action='store_true', help='Copy inputs directly from bind mounts for an uncached comparison')
     parser.add_argument('--startup-timeout', type=int, default=240)
     raise SystemExit(0 if run(parser.parse_args()) else 1)

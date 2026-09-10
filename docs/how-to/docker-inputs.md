@@ -62,6 +62,43 @@ Use a Linux GABS release matching the tested bridge version, verify the upstream
 asset SHA-256, and retain its LICENSE/provenance alongside the executable. Do not
 install these task builds into the shared Windows game.
 
+## Reuse Docker input snapshots
+
+The native acceptance runner automatically caches the game, mods and GABS in a local
+Docker volume named `rimbot-inputs-v1-<sha256>`. It hashes all source file contents on
+the host, excluding the game's `Mods` directory in favor of the explicit mod input.
+Changed files, additions and removals select a different volume even when sizes and
+timestamps are unchanged. Symlinks are dereferenced; directory cycles are refused.
+Keep source inputs stable while hashing and uploading.
+
+On a miss, the helper uploads a plain-file archive and verifies every file before
+atomically publishing the snapshot. Concurrent publishers serialize with a Linux lock.
+Hits verify cached contents inside Docker and do not recopy inputs across Windows bind
+mounts. Corrupt snapshots fail visibly; incomplete uploads are retained and never used.
+Workers mount the snapshot read-only, then make private container-local copies. Saves,
+preferences, mod selection, GABS claims and the Unity GC override remain per-worker.
+Licensed files stay in local volumes, outside images and Git.
+
+Use `--no-input-cache` with `container_native_acceptance.py` for a direct-bind comparison.
+The runner retains `cache.json` (key, hit/miss, host hash time and total preparation
+time), `cache-manifest.json` and helper logs. Each worker's `run/staging.json` records
+its cache key and private-copy duration. Compare cache preparation plus worker startup
+when measuring end-to-end savings; a first upload is additional setup work.
+
+For manual Compose runs, prepare a snapshot with the same built worker image:
+
+```powershell
+python scripts/container_input_cache.py --game <linux-game> --mods <private-mods> --gabs <linux-gabs-directory> --image rimbot-worker:my-task --output .rimbot/cache-01
+docker compose -f containers/compose.yaml -f .rimbot/cache-01/cache-compose.json up --no-build
+```
+
+Set the normal Compose input/output environment variables first. The profile still
+comes from its bind mount; game/mod/GABS binds are superseded by the cached input paths.
+Rerun preparation after editing any input; do not reuse an old generated override for
+new source files. Cache volumes survive `compose down`. When no worker uses an obsolete
+snapshot, remove only its exact volume name from `cache.json` with `docker volume rm
+<volume-name>`. No automatic pruning or cache eviction runs.
+
 ## Related reading
 
 [Choose tests](choose-tests.md) · [Test evidence explained](../explanation/testing.md) ·
