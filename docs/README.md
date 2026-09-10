@@ -13,6 +13,7 @@ point by what you want to do or understand.
 | How do the internals fit together, and why? | [Explanation: the system overview](explanation/overview.md) |
 | What is unfinished? | [Project backlog](BACKLOG.md) |
 | How should agents sequence the Go rewrite? | [Go controller rewrite plan](BACKLOG.md#g01--go-controller-rewrite) |
+| Which Python surfaces must the Go rewrite cover? | [Migration inventories](../contracts/README.md) |
 
 ## Explore the internals
 

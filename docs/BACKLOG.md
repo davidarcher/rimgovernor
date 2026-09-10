@@ -657,6 +657,23 @@ only intentional small, sanitized regression fixtures belong in source control.
     contracts/state-inventory.json and contracts/fixtures/.
   - [ ] **00d:** integrator coverage validation, provenance and uncontended baseline
     availability; depends on 00a–00c. Native timing remains pending until measured.
+    - [ ] **00d.1:** reconcile production Docker helpers and canonical Go ownership;
+      inventory argument-dependent native read/write boundaries (domain agent).
+    - [ ] **00d.2:** inventory platform discovery variables and tooling cache CLI
+      options with source checks (interface agent; independent of 00d.1).
+    - [ ] **00d.3:** retain exact Python serialization/signature comparison cases
+      and uncertain issued-action evidence (state agent; independent of 00d.1–2).
+    - [ ] **00d.4:** integrator final coverage review and baseline availability
+      record; depends on 00d.1–3. Uncontended native timing is still required before
+      performance comparison. Do not stop another task's native scenario.
+
+  Compatibility work retained for 04b: explicitly close checkpoint SQLite backup
+  connections on Windows; the Python transaction context does not close them.
+  Extend the initial synthetic fixtures to native captures, complete paired
+  checkpoints, nonzero archive epochs and the boundary/overflow decoding matrix
+  with the corresponding Go consumer chunks. Inventory checks establish source
+  coverage, not Go or native behavioral parity.
+
 - [ ] **G01.01 — Go build and replay foundation.** Owner: integration agent.
   Add the module, minimal non-writing command, injected clocks/IDs and offline
   replay runner. Pin a supported Go release, MCP SDK, SQLite driver and generators
