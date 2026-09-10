@@ -609,9 +609,11 @@ blueprint issuance does not certify subsequent pawn construction.
 allow command. It requires a known pre-write refusal, fresh native absence counts,
 same-action completion and retained recovery history with zero Hands writes.
 Buffered player pause/speed interruption guards are covered by controller tests.
-Use `--obstruction` to test a separately grounded Steel wall blueprint temporarily
-blocking the planned Wood wall. The fixture cancels only that exact conflicting
-blueprint, then requires fresh previews and same-action recovery.
+Use `--material-identity` to verify that ordinary replacement of a separately
+grounded Steel wall blueprint produces distinct Wood blueprint identities and
+correct native material readbacks. Different materials must not return a false
+`already_present` receipt. Native replacement is allowed; this is not a placement
+refusal or construction-completion test.
 
 Add `--recovery-fixture` to a lifecycle campaign to retain the native resource
 recovery history through subsequent ordinary simulation. Measurements include
@@ -633,6 +635,12 @@ Add `--archive-fixture` to start a lifecycle campaign with an ordinary completed
 work-setting action and method in the durable archive. Native work readback must
 verify the action before explicit retirement. The audit requires nonempty initial
 archive hashes and their unchanged preservation throughout the campaign.
+`scripts/hunting_archive_acceptance.py --source-root <ordinary-prepared-root>
+--output <fresh-directory>` uses screened wildlife and shared Hands to verify an
+actual Hunt designation. Explicit retirement must preserve the exact action,
+method and target/signature in three nonempty archive tables through at least
+6,000 native ticks. This verifies designation evidence retention, not killed prey
+or completed pawn labor.
 
 Add `--mixed` to `scripts/session_checkpoint_acceptance.py` for an issued shell
 slot, its unissued material reservations, a pending growing zone and pending work

@@ -13,7 +13,7 @@ from rimbot.headless import isolated_root,prepare
 from rimbot.store import Store
 
 
-async def exercise_recovery(rt,report=None,*,obstruction=False):
+async def exercise_recovery(rt,report=None,*,obstruction=False,material_identity=False):
     if report is None:report={}
     previous_task=rt.execution_task
     try:
@@ -72,6 +72,15 @@ async def exercise_recovery(rt,report=None,*,obstruction=False):
         try:await rt.hands.advance(rt)
         finally:rt.mode='manual'
         p=rt.current_plan.progress[steps[0].id]
+        if material_identity:
+            assert obstruction and len(p.issued)==2 and all(r.get('outcome')=='placed' for r in p.issued.values()),p.model_dump()
+            buildings=await rt.game.query('home/list_buildings',aggregate=False,playerOnly=True)
+            targets=[b for b in buildings['buildings'] if any(b['position']['x']==c['x'] and b['position']['z']==c['z'] for c in placements)]
+            assert len(targets)==2 and all(b.get('stuff')=='WoodLog' for b in targets),targets
+            assert obstruction_target['thingId'] not in {b['thingId'] for b in targets}
+            report.update(outcome='passed',issued=p.model_dump(),native_targets=targets,
+                scope='Native material identity and ordinary blueprint replacement; no placement-recovery claim')
+            return report
         assert p.state=='blocked' and p.failure.code==('construction_unavailable' if obstruction else 'construction_resources') and not p.issued,p.model_dump()
         report['blocked']=p.model_dump()
         async def recover():
@@ -117,7 +126,7 @@ async def run(args):
     try:
         report['manifest']=capture_manifest(Path(__file__).resolve().parents[1],root,config,{'mode':'no inference'})
         await ready(rt)
-        await exercise_recovery(rt,report,obstruction=args.obstruction)
+        await exercise_recovery(rt,report,obstruction=args.obstruction or args.material_identity,material_identity=args.material_identity)
     except Exception as error:report.update(error=repr(error),traceback=traceback.format_exc())
     finally:
         rt.execution_task=None
@@ -131,4 +140,5 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source-root',type=Path,required=True);parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--obstruction',action='store_true',help='Recover a known prewrite placement refusal after ordinary cancellation of an exact conflicting Steel wall blueprint')
+    parser.add_argument('--material-identity',action='store_true',help='Verify ordinary Steel blueprint replacement produces distinct Wood blueprints')
     raise SystemExit(0 if asyncio.run(run(parser.parse_args())) else 1)
