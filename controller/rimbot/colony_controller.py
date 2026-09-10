@@ -518,6 +518,8 @@ class ColonyController:
                 # Validation failed before dispatch. Preserve all prior effects;
                 # never silently relocate a partially designated structure.
                 goal.attempts += 1
+                if getattr(error, 'evidence', None):
+                    goal.evidence['validation_refusal'] = error.evidence
                 self.block(goal, identity, str(error))
                 release_admission(plan, identity, development_admitted, str(error))
         self.finish_review()

@@ -339,9 +339,10 @@ class ColonySkills:
             if facts.get('foodRunwayDays', 0) < rt.controller.policy.food_target_days and facts.get('armed', 0):
                 butcher = facts.get('butchering', [])
                 if not butcher and unused('butcher-spot'):
+                    from .development import placement
                     layout = await self.layout(facts)
-                    return 'butcher-spot', [{'kind':'place_buildings','placements':[{'def_name':'ButcherSpot',
-                        'x':layout['room']['x']+1,'z':layout['room']['z']+6}]}]
+                    return 'butcher-spot', [await placement(rt, facts, 'ButcherSpot', indoors=False,
+                        near={'x': layout['room']['x'], 'z': layout['room']['z']}, goal=goal)]
                 if butcher and unused('butcher-bill') and not any(b.get('recipe')=='ButcherCorpseFlesh'
                         and b.get('suspended') is False for b in butcher[0].get('bills', [])):
                     return 'butcher-bill', [native('home/bills',action='add',bench=butcher[0]['id'],recipe='ButcherCorpseFlesh',

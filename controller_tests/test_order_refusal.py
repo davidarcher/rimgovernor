@@ -4,6 +4,7 @@ import pytest
 from mcp.types import CallToolResult
 from rimbot.bridge import BridgeError
 from rimbot.order_refusal import refused_preview
+from rimbot.order_refusal import prerequisites
 from test_colony_controller import Replay
 
 
@@ -11,6 +12,17 @@ def refusal(**changes):
     payload = dict(success=False, applied=False, dryRun=True, errorKind='job_refused', error='Target is on fire')
     payload.update(changes)
     return BridgeError('home/order', CallToolResult(content=[], structuredContent=payload, isError=True))
+
+
+def test_rot_and_temperature_drift_do_not_reopen_refused_preview():
+    rt = Replay()
+    state = {'known': True, 'targets': [{'id': 'stock', 'rotTicks': 100, 'temperature': 22, 'burning': True}]}
+    control = {'upkeep': {'SecureSupplies': state}}
+    before = prerequisites(rt.facts, rt.people, control)
+    state['targets'][0].update(rotTicks=90, temperature=23)
+    assert prerequisites(rt.facts, rt.people, control) == before
+    state['targets'][0]['burning'] = False
+    assert prerequisites(rt.facts, rt.people, control) != before
 
 
 @pytest.mark.parametrize('change', [dict(dryRun=False), dict(applied=True), dict(applied=None),

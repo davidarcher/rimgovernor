@@ -57,10 +57,10 @@ def run(args):
             command = command[1:]
         if not command:
             raise ValueError('Provide a scenario command after --')
+        launched = True  # A lost launch reply must still preserve possible worker evidence.
         call('run', '-d', '--init', '--name', name, *dashboard_options(args.name or name, args.display),
              *mounts, image, '--display', args.display, '--unity-gc-time-slice', '0', '--', *command,
              capture_output=True, text=True, check=True, timeout=120)
-        launched = True
         address = call('port', name, '8787/tcp', capture_output=True, text=True, check=True).stdout.strip()
         report['dashboard_url'] = 'http://'+address+'/scenario'
         (output/'dashboard.json').write_text(json.dumps(report, indent=2), encoding='utf8')
