@@ -52,5 +52,5 @@ first guided exercise, use [your first Docker test](../tutorials/first-docker-te
 ## Measure and audit
 
 - [Run campaigns and measure performance](campaigns.md)
-- [Measure dashboard throughput](measure-throughput.md)
+- [Measure simulation and test throughput](measure-throughput.md)
 - [Audit retained plan and event evidence](audit-retention.md)

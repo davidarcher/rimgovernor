@@ -36,9 +36,13 @@ def run(args):
         (profile/'Saves').mkdir()
         for filename in ('Prefs.xml', 'ModsConfig.xml'):
             shutil.copy2(args.profile/'Config'/filename, profile/'Config'/filename)
-        shutil.copy2(args.checkpoint, profile/'Saves/RimBot-tribal8-baseline.rws')
+        checkpoint_hash = hashlib.sha256(args.checkpoint.read_bytes()).hexdigest()
+        copied = profile/'Saves/RimBot-tribal8-baseline.rws'
+        shutil.copy2(args.checkpoint, copied)
+        if any(hashlib.sha256(p.read_bytes()).hexdigest() != checkpoint_hash for p in (copied, args.checkpoint)):
+            raise ValueError('Checkpoint changed during snapshot preparation')
         report.update(start_type='saved_checkpoint', checkpoint=str(args.checkpoint.resolve()),
-                      checkpoint_sha256=hashlib.sha256(args.checkpoint.read_bytes()).hexdigest())
+                      checkpoint_sha256=checkpoint_hash)
     for mode in args.modes:
         root = output/mode
         root.mkdir()
@@ -55,22 +59,30 @@ def run(args):
                                '-e', 'RIMBOT_INPUT_CACHE_KEY='+cache['key']])
         for path, destination in ((args.game, 'game'), (args.mods, 'mods'), (profile, 'profile'), (args.gabs, 'gabs')):
             invocation.extend(['--mount', f'type=bind,source={path.resolve()},target=/inputs/{destination},readonly'])
+        if args.runtime_seconds:
+            probe = ['python', 'scripts/throughput_runtime.py', '--seconds', str(args.runtime_seconds)]
+            if args.runtime_accelerated:
+                probe.append('--accelerated')
+        else:
+            probe = ['python', 'scripts/throughput_acceptance.py', '--mode', mode,
+                     '--repeats', str(args.repeats), '--ticks', *map(str, args.ticks)]
+            if args.fixture:
+                probe.append('--fixture')
+            if args.checkpoint:
+                probe.append('--saved-checkpoint')
         invocation.extend(['--mount', f'type=bind,source={root},target=/worker', image,
                            '--unity-gc-time-slice', '0', '--display', 'headless' if mode == 'headless' else 'xvfb',
-                           '--', 'python', 'scripts/throughput_acceptance.py', '--mode', mode,
-                           '--repeats', str(args.repeats), '--ticks', *map(str, args.ticks)])
-        if args.fixture:
-            invocation.append('--fixture')
-        if args.checkpoint:
-            invocation.append('--saved-checkpoint')
+                           '--', *probe])
         worker['command'] = invocation
         started = time.perf_counter()
         try:
             with (root/'container.log').open('w', encoding='utf8') as stream:
                 result = command(*invocation, stdout=stream, stderr=subprocess.STDOUT, timeout=args.timeout)
             worker['exit_code'] = result.returncode
-            evidence = root/'run/throughput-result.json'
-            worker['passed'] = result.returncode == 0 and evidence.is_file() and json.loads(evidence.read_text()).get('passed') is True
+            evidence = root/('run/runtime-throughput.json' if args.runtime_seconds else 'run/throughput-result.json')
+            worker['scope'] = 'Production-loop measurement, not survival acceptance' if args.runtime_seconds else 'Native bounded outcomes and clock acceptance'
+            worker['passed'] = result.returncode == 0 and evidence.is_file() and json.loads(evidence.read_text()).get(
+                'measured' if args.runtime_seconds else 'passed') is True
         except Exception as error:
             worker['error'] = repr(error)
         finally:
@@ -99,7 +111,9 @@ if __name__ == '__main__':
     parser.add_argument('--no-input-cache', action='store_true')
     parser.add_argument('--fixture', action='store_true', help='Require the private ThroughputFixture build and measure scheduled safety events')
     parser.add_argument('--checkpoint', type=Path, help='Copy an unchanged older native checkpoint into each private profile; skips fresh starting-supply assertions')
-    parser.add_argument('--modes', nargs='+', choices=['headless', 'rendered', 'suspended'], default=['headless'])
+    parser.add_argument('--runtime-seconds', type=int, default=0, help='Instead measure the production headless loop with the read-only dashboard sampler')
+    parser.add_argument('--runtime-accelerated', action='store_true', help='Enable bounded test acceleration in the production-loop measurement')
+    parser.add_argument('--modes', nargs='+', choices=['headless', 'rendered', 'suspended', 'capture'], default=['headless'])
     parser.add_argument('--repeats', type=int, default=2)
     parser.add_argument('--ticks', type=int, nargs='+', default=[37, 600, 6000])
     parser.add_argument('--timeout', type=int, default=1800)
@@ -108,4 +122,8 @@ if __name__ == '__main__':
         parser.error('Use 1..100 repeats and 1..1800000 ticks')
     if len(args.modes) != len(set(args.modes)):
         parser.error('Each render mode must appear once')
+    if args.runtime_seconds and (not 10 <= args.runtime_seconds <= 1800 or args.modes != ['headless']):
+        parser.error('Runtime measurement needs 10..1800 seconds and headless mode')
+    if args.runtime_accelerated and not args.runtime_seconds:
+        parser.error('--runtime-accelerated requires --runtime-seconds')
     raise SystemExit(0 if run(args) else 1)

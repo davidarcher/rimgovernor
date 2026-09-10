@@ -899,6 +899,7 @@ namespace HomeBridge.BridgeTools
             }
             s.PendingKind = null; s.PendingDetail = null; s.PendingPayload = null;
             RestoreBoost(s);
+            s.StopAtMs = NowMs();
             s.Active = false; s.StopReason = kind; s.StopDetail = detail; Add(kind, detail, s, payload);
         }
         private static void RestoreBoost(State s)
@@ -943,6 +944,7 @@ namespace HomeBridge.BridgeTools
                 { "boostOwned", s != null && s.BoostOwned },
                 { "maxProbeTickGap", s != null ? s.MaxProbeTickGap : 0 },
                 { "probeCount", s != null ? s.ProbeCount : 0 },
+                { "stopAtMs", s != null ? (object)s.StopAtMs : null },
                 { "probeTickLimit", s != null && s.TestAcceleration ? (object)AcceleratedProbeTicks : null },
                 { "startTick", s != null ? (object)s.StartTick : null },
                 { "tickDeadline", s != null ? (object)s.TickDeadline : null },
@@ -1006,6 +1008,7 @@ namespace HomeBridge.BridgeTools
             public int StartTick; public long? TickDeadline;
             public bool TestAcceleration; public bool PriorBoost; public bool BoostOwned;
             public int LastProbeTick; public int MaxProbeTickGap; public int ProbeCount;
+            public long? StopAtMs;
             public bool? PauseVerified; public bool PauseFailureReported;
             public string StopReason; public string StopDetail;
             public string PendingKind; public string PendingDetail;

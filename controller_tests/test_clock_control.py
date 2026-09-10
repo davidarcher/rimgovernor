@@ -34,6 +34,16 @@ async def test_production_clock_does_not_request_boost():
 
 
 @pytest.mark.asyncio
+async def test_acceleration_preserves_tracked_surgical_recovery_profile():
+    bridge = NativeClock()
+    bridge.state['nativeTestAcceleration'] = True
+    await PlayClock(bridge, test_acceleration=True).change('Superfast', max_ticks=600,
+                                                        surgical_recovery='Thing_Human1')
+    start = next(args for _, args in bridge.calls if args.get('op') == 'start')
+    assert start['surgicalRecoveryIds'] == 'Thing_Human1' and start['testAcceleration']
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize('operation', ['status', 'events'])
 async def test_clock_reads_recover_published_launch_claim(operation):
     from rimbot.bridge import BridgeClient, BridgeError

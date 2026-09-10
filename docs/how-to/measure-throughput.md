@@ -41,8 +41,9 @@ Build a private companion with `-p:ThroughputFixture=true` using the
 The fixture schedules native clock changes and an existing wild animal's Manhunter
 transition at known ticks. The probe approaches wildlife through ordinary pawn
 movement. Missing wildlife or a blocked route fails the prerequisite. Only the
-known Ancient danger warning may be acknowledged during that approach, after
-fresh threat reads; the report retains those interruptions.
+known Ancient danger warning may be acknowledged during that approach or lease
+expiry setup, after fresh threat reads; the report retains those interruptions.
+The lease test drafts colonists through native orders to isolate lease expiry.
 
 ```powershell
 python scripts/container_throughput.py --game <linux-game> --mods <private-mods> --profile <profile> --gabs <gabs-directory> --image rimbot-worker:my-throughput --output .rimbot/throughput-new --fixture --modes headless rendered suspended
@@ -62,13 +63,24 @@ Rendered workers use private Xvfb/llvmpipe. Suspended workers use a renewable
 test-only lease to exercise camera and map-mesh suspension on Linux, where the
 Windows visibility APIs are unavailable. The fixture is absent from production
 builds. Mode readbacks must confirm actual suspension/rendering. Action watch is
-off; these probes do not enable streaming or frame capture.
+off. Add `capture` to `--modes` to measure rendered screenshot requests at most
+once per second during active windows; PNGs and their hashes are retained.
 
 Use `--checkpoint <native-save.rws>` to copy an unchanged older save into every
 worker. Its hash and `saved_checkpoint` label distinguish reuse from fresh starts;
 starting-supply assertions are skipped for reused saves. Keep the same checkpoint,
 inputs and source for comparisons. Movement still needs a healthy pawn and an
 eligible nearby destination.
+Private profiles enable pause-on-load. Every reload must start paused at the
+same saved tick (allowing the single native load tick), or the comparison fails.
+
+Use `--runtime-seconds 120 --modes headless` to profile the production deterministic
+controller instead of the bounded probe. Add `--runtime-accelerated` for its
+test-only accelerated counterpart. This runs the read-only dashboard sampler
+against the private controller, retaining wall TPS including pauses, controller
+status, events and per-operation identity, preview, dispatch and read timings.
+It asserts zero inference attempts; it measures the loop without claiming colony
+survival. Use fresh output directories for both runs.
 
 Measure performance without competing workers. Resource snapshots expose
 contention; correctness passes under contention do not establish isolated

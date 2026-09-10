@@ -37,6 +37,7 @@ introduces the idea before linking to the exact contracts and relevant source.
   or [run focused/full Docker controller checks](how-to/docker-checks.md).
 - [Reuse a headless game between execution cases](how-to/headless-probes.md#reuse-one-game-between-execution-cases).
 - [Advance native scenario time and handle expected warnings](how-to/headless-probes.md#advance-a-native-scenario).
+- [Measure simulation, controller and local inference throughput](how-to/measure-throughput.md).
 - [Prepare/cache Linux inputs](how-to/docker-inputs.md) and [run native Docker acceptance](how-to/docker-native.md).
 - [Verify spatial construction, access and reuse](how-to/spatial-acceptance.md).
 - [Verify environmental observations and cooking fallback](how-to/docker-native.md#verify-environmental-observation-and-cooking-fallback).

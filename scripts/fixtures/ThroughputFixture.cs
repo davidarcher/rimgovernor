@@ -15,6 +15,7 @@ namespace HomeBridge.BridgeTools
         private static Game session;
         private static int deadline;
         private static int? onset;
+        private static long? onsetAtMs;
         private static Pawn animal;
         private static string operation;
         private static bool applied;
@@ -59,9 +60,9 @@ namespace HomeBridge.BridgeTools
                         patched = true;
                     }
                     session = Current.Game; operation = op;
-                    deadline = Find.TickManager.TicksGame + afterTicks; onset = null; applied = false;
+                    deadline = Find.TickManager.TicksGame + afterTicks; onset = null; onsetAtMs = null; applied = false;
                 }
-                return (object)new { success = true, eventKind = operation, deadline, onsetTick = onset, applied,
+                return (object)new { success = true, eventKind = operation, deadline, onsetTick = onset, onsetAtMs, applied,
                     animal = animal?.GetUniqueLoadID(), tick = Find.TickManager.TicksGame };
             }, cancellationToken);
         }
@@ -70,6 +71,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!ReferenceEquals(Current.Game, session) || onset.HasValue || Find.TickManager.TicksGame < deadline) return;
             onset = Find.TickManager.TicksGame;
+            onsetAtMs = (DateTime.UtcNow.Ticks - 621355968000000000L) / TimeSpan.TicksPerMillisecond;
             if (operation == "hostile")
                 applied = animal.mindState.mentalStateHandler.TryStartMentalState(MentalStateDefOf.Manhunter);
             else

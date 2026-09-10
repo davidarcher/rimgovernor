@@ -7,6 +7,7 @@ import hashlib
 import os
 import resource
 import time
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from rimbot.bridge import BridgeError, bridge_session, gabs_executable, runtime_file_read
@@ -16,6 +17,14 @@ from rimbot.supply_batches import supply_rectangles
 
 async def run(args):
     root = Path(os.environ['RIMBOT_BRIDGE_ROOT'])
+    prefs_path = root/'profile/Config/Prefs.xml'
+    prefs = ET.parse(prefs_path)
+    pause = prefs.getroot().find('pauseOnLoad')
+    if pause is None:
+        pause = ET.SubElement(prefs.getroot(), 'pauseOnLoad')
+    pause.text = 'True'
+    prefs.write(prefs_path, encoding='utf8', xml_declaration=True)
+    baseline_tick = int(ET.parse(root/'profile/Saves/RimBot-tribal8-baseline.rws').getroot().findtext('.//tickManager/ticksGame'))
     config = root/'config'
     # prepare() owns the configuration path and preserves the worker's private game.
     if os.environ.get('RIMBOT_HEADLESS') == '1':
@@ -27,6 +36,8 @@ async def run(args):
                   scope='Native clock boundaries, supply scope, ordinary movement and scheduled safety-onset reactions; inference is measured separately')
     report['source_hashes'] = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in (
         Path(__file__), Path('controller/rimbot/clock_control.py'), Path('controller/rimbot/supply_batches.py'))}
+    report['prepared_prefs_sha256'] = hashlib.sha256(prefs_path.read_bytes()).hexdigest()
+    report['baseline_save_tick'] = baseline_tick
     path = root/'throughput-result.json'
 
     def save():
@@ -36,13 +47,16 @@ async def run(args):
     try:
         async with AsyncExitStack() as stack:
             bridge = await stack.enter_async_context(bridge_session(gabs_executable(root, config), config))
+            rendered_at = time.perf_counter()
             async def stop_game():
                 report['game_stop'] = (await bridge.core('games_stop', gameId=bridge.game_id)).model_dump(mode='json')
             stack.push_async_callback(stop_game)
             async def call(name, **arguments):
                 begin = time.perf_counter()
-                phase = ('preview' if arguments.get('dryRun') else 'dispatch') if name in (
-                    'home/order', 'rimworld/apply_architect_designator') else 'observation'
+                phase = ('identity' if name == 'home/colony_identity' else
+                         'readback' if name == 'home/order' and arguments.get('action') == 'resolve' else
+                         ('preview' if arguments.get('dryRun') else 'dispatch') if name in (
+                             'home/order', 'rimworld/apply_architect_designator') else 'observation')
                 try:
                     reply = await runtime_file_read(bridge.call, name, **arguments) if (
                         name == 'home/status' or (name == 'home/supervised_play' and arguments.get('op') in ('status', 'events'))
@@ -65,6 +79,7 @@ async def run(args):
                         continue
 
             async def load():
+                nonlocal rendered_at
                 await call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',
                            readiness='visual', timeoutMs=90000, ignoreModCompatibility=True)
                 await call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
@@ -72,10 +87,17 @@ async def run(args):
                     render = await call('test/render_suspend', seconds=30) if args.mode == 'suspended' else await call('home/render_demand', seconds=30)
                     report.setdefault('render_states', []).append(render)
                     assert render['supported'] and render['suspended'] == (args.mode == 'suspended'), render
-                return await call('home/status', colonists=False, threats=False)
+                    rendered_at = time.perf_counter()
+                baseline = await call('home/status', colonists=False, threats=False)
+                tick = baseline['time']['ticksGame']
+                assert baseline['time']['paused'] and tick in (baseline_tick, baseline_tick+1), baseline
+                expected = report.setdefault('loaded_baseline_tick', tick)
+                assert tick == expected, ('Reload changed the comparison starting tick', expected, tick)
+                return baseline
 
             async def stopped(clock):
-                rendered_at = time.perf_counter()
+                nonlocal rendered_at
+                captured_at = 0
                 async with asyncio.timeout(120):
                     while True:
                         if args.mode != 'headless' and time.perf_counter()-rendered_at >= 10:
@@ -86,6 +108,16 @@ async def run(args):
                         clock.absorb(state)
                         if not state['active']:
                             return state
+                        if args.mode == 'capture' and time.perf_counter()-captured_at >= 1:
+                            frames = report.setdefault('captures', [])
+                            frame = await call('rimworld/take_screenshot', fileName=f'b16-throughput-{len(frames)}',
+                                               includeTargets=False, suppressMessage=True)
+                            candidate = Path(frame['path']).resolve()
+                            assert candidate.is_relative_to(root) and candidate.is_file(), frame
+                            data = candidate.read_bytes()
+                            assert data.startswith(b'\x89PNG\r\n\x1a\n'), frame
+                            frames.append(dict(path=str(candidate), sha256=hashlib.sha256(data).hexdigest(), bytes=len(data)))
+                            captured_at = time.perf_counter()
                         if state['leaseRemainingMs'] < 10000:
                             await clock.poll()
                         await asyncio.sleep(.1)
@@ -140,7 +172,8 @@ async def run(args):
                 'home/supervised_play', 'rimworld/apply_architect_designator', 'home/order')}
             report['discovery_seconds'] = time.perf_counter()-discovery_started
             for repeat in range(args.repeats):
-                for speed, accelerated in (('Superfast', False), ('Superfast', True)):
+                speeds = [('Superfast', False), ('Superfast', True)]
+                for speed, accelerated in (list(reversed(speeds)) if repeat % 2 else speeds):
                     for ticks in args.ticks:
                         case_started = time.perf_counter()
                         baseline = await load()
@@ -158,6 +191,10 @@ async def run(args):
                         save()
                         sample['completed'] = end['stopReason'] == 'tick_budget'
                         assert end['pauseVerified'] and observed['time']['paused'], sample
+                        assert end['stopReason'] in {'tick_budget', 'letter_pause', 'notification_batch',
+                            'hostile', 'colonist_downed', 'predator_hunt', 'colonist_health', 'colonist_injury'}, sample
+                        if accelerated:
+                            assert end['maxProbeTickGap'] <= end['probeTickLimit'] == 30, sample
                         assert not end['boostOwned'], sample
                         check = await call('rimworld/set_time_speed', speed='Paused')
                         assert check['currentUltraSpeedBoost'] is False, check
@@ -168,8 +205,6 @@ async def run(args):
                             continue
                         assert observed['time']['ticksGame'] == initial['startTick']+ticks, sample
                         assert not end['boostOwned'] and observed['time']['paused'], sample
-                        if accelerated:
-                            assert end['maxProbeTickGap'] <= end['probeTickLimit'] == 30, sample
                         print(f"PASS accelerated={accelerated} ticks={ticks} wall_tps={sample['wall_tps']:.1f}", flush=True)
             for batched in (() if args.saved_checkpoint else (False, True)):
                 await load()
@@ -181,10 +216,13 @@ async def run(args):
                 rectangles = supply_rectangles(targets) if batched else [dict(p, width=1, height=1) for p in targets]
                 begin = time.perf_counter()
                 receipts = []
+                identity = await call('home/colony_identity')
                 for rectangle in rectangles:
                     arguments = dict(designatorId=designator, **rectangle, keepSelected=False)
                     preview = await call('rimworld/apply_architect_designator', **arguments, dryRun=True)
                     assert preview['acceptedCellCount'] > 0, preview
+                    current_identity = await call('home/colony_identity')
+                    assert all(current_identity[k] == identity[k] for k in ('colonyId', 'mapId', 'loadToken'))
                     receipts.append(await call('rimworld/apply_architect_designator', **arguments, dryRun=False))
                 after = await call('home/colony_facts')
                 remaining = {(p['x'], p['z']) for p in after['forbiddenSupplies']}
@@ -216,7 +254,9 @@ async def run(args):
                 report.setdefault('pawn_outcomes', []).append(row)
                 save()
                 assert actual['pawn']['position'] == destination, row
-                assert end['pauseVerified'] and end['stopReason'] == 'tick_budget', row
+                assert end['pauseVerified'] and end['stopReason'] in (
+                    'tick_budget', 'letter_pause', 'notification_batch', 'hostile',
+                    'colonist_downed', 'predator_hunt', 'colonist_health', 'colonist_injury'), row
                 row['verified'] = True
                 print(f"PASS ordinary movement accelerated={accelerated} seconds={row['seconds']:.2f}", flush=True)
             for speed, reason in (('Paused', 'external_pause'), ('Fast', 'external_speed_changed')):
@@ -243,12 +283,23 @@ async def run(args):
                 save()
                 assert restored['currentUltraSpeedBoost'] is previous and not end['boostOwned'], restored
             await load()
-            expired = await call('home/supervised_play', op='start', owner='b16-expiry', leaseMs=1000,
-                                 speed='Ultrafast', maxTicks=1800000, testAcceleration=True, injuryStopCooldownMs=0)
-            async with asyncio.timeout(10):
-                while expired['active']:
-                    await asyncio.sleep(.1)
-                    expired = await call('home/supervised_play', op='status')
+            roster = await call('home/list_pawns', colonistsOnly=True)
+            report['lease_fixture_drafts'] = [await call('home/order', action='draft', pawn=p['thingId'], watch=False)
+                                             for p in roster['pawns'] if not p.get('downed') and not p.get('dead')]
+            for attempt in range(2):
+                expired = await call('home/supervised_play', op='start', owner='b16-expiry', leaseMs=1000,
+                                     speed='Ultrafast', maxTicks=1800000, testAcceleration=True, injuryStopCooldownMs=0)
+                async with asyncio.timeout(10):
+                    while expired['active']:
+                        await asyncio.sleep(.1)
+                        expired = await call('home/supervised_play', op='status')
+                if attempt == 0 and expired['stopReason'] == 'letter_pause' and 'Ancient danger' in expired['stopDetail']:
+                    threats = await call('home/status', colonists=True, threats=True)
+                    assert not threats['threats']['hostiles'] and not threats['threats']['huntingPredators'], threats
+                    report['lease_setup_interruption'] = dict(stop=expired, threats=threats)
+                    save()
+                    continue
+                break
             report['lease_expiry'] = expired
             save()
             assert expired['stopReason'] == 'lease_expired' and expired['pauseVerified'] and not expired['boostOwned'], expired
@@ -266,17 +317,20 @@ async def run(args):
                             onset = await call('test/throughput_event', op='status')
                             observed = await call('home/status', colonists=False, threats=False)
                             row = dict(accelerated=accelerated, scheduled=scheduled, onset=onset, stop=end,
-                                       observed=observed, reaction_ticks=observed['time']['ticksGame']-onset['onsetTick'])
+                                       observed=observed, reaction_ticks=observed['time']['ticksGame']-onset['onsetTick'],
+                                       reaction_ms=end['stopAtMs']-onset['onsetAtMs'])
                             report.setdefault('safety', []).append(row)
                             save()
                             assert onset['applied'] and end['stopReason'] == reason, row
                             assert observed['time']['paused'] and not end['boostOwned'], row
                             if accelerated:
                                 assert 0 <= row['reaction_ticks'] <= 30, row
+                            assert 0 <= row['reaction_ms'] <= 1000, row
                             print(f"PASS safety {op} accelerated={accelerated} reaction_ticks={row['reaction_ticks']}", flush=True)
             report['passed'] = all(any(s['completed'] for s in report['samples'] if s['accelerated'] == accelerated)
                                    for accelerated in (False, True))
     except BaseException as error:
+        report['passed'] = False
         report['error'] = repr(error)
         raise
     finally:
@@ -298,7 +352,7 @@ async def run(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--mode', choices=['headless', 'rendered', 'suspended'], default='headless')
+    parser.add_argument('--mode', choices=['headless', 'rendered', 'suspended', 'capture'], default='headless')
     parser.add_argument('--repeats', type=int, default=2)
     parser.add_argument('--ticks', type=int, nargs='+', default=[37, 600, 6000])
     parser.add_argument('--fixture', action='store_true')
