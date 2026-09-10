@@ -27,7 +27,10 @@ async def run_raid(rt,evidence):
             enemy=resolved.get('target')
             assert enemy and enemy.get('thingId')==target,resolved
         return enemy,pawns
-    initial,_=await target_state();evidence['enemy_before']=initial
+    initial,roster=await target_state();evidence['enemy_before']=initial
+    colonist_ids={p['thingId'] for p in roster if p.get('isColonist') is True}
+    assert colonist_ids,'No observed colonists in the raid fixture'
+    evidence['colonists_before']=[p for p in roster if p['thingId'] in colonist_ids]
     print('Ordinary hostile raid:',target,(initial.get('equipment') or {}).get('primaryLabel'),flush=True)
     evidence['raid_windows']=[];deadline=asyncio.get_running_loop().time()+600
     fought=False;cleared=False
@@ -36,8 +39,9 @@ async def run_raid(rt,evidence):
         assert rt.mode=='automate',('External direction retained',rt.mode,rt.supervisor.state)
         rt.batch=await observe(rt.game);rt.reconcile_plan()
         enemy,people=await target_state()
-        assert all(p.get('dead') is False and p.get('downed') is False
-            for p in people if p.get('isColonist') is True),'Defender incapacitated; bounded defense failed'
+        current={p['thingId']:p for p in people}
+        assert all(p in current and current[p].get('dead') is False and current[p].get('downed') is False
+            for p in colonist_ids),'Colonist missing or incapacitated; bounded defense failed'
         if enemy and (enemy.get('dead') is True or enemy.get('downed') is True):
             cleared=True;evidence['enemy_after']=enemy
         await rt.controller.cycle()
@@ -81,6 +85,7 @@ async def run_raid(rt,evidence):
     assert cleared and fought,'No ordinary autonomous raid victory observed'
     assert evidence.get('strategy_stand_down') and not rt.draft_owners,'No strategy-selected owned cleanup'
     assert rt.counters['model_calls']==0,'Routine defense unexpectedly invoked inference'
+    evidence['colonists_after']=[current[p] for p in sorted(colonist_ids)]
     print('PASS: native hostile defeat, deterministic combat and strategy-selected stand-down',flush=True)
 
 
