@@ -3,6 +3,7 @@ import time
 from .colony_plan import Buildings, RoomShell, Zone, NativeOperation, ClockAction, StandDown, Placement, Failure, TradeAction, CancelConstructionAction
 from .receipts import reason
 from .spatial import room_placements, GeometryConflict, validate_geometry, native_footprint
+from .shell_site import ShellSiteRefusal, ZONE_ARGUMENTS, validate_shell_zones, validate_shell_access
 
 
 class Blocked(Exception):
@@ -222,7 +223,21 @@ class Hands:
             reserved = {c for r in rt.current_plan.spec.reserved_walkways for c in r.cells()}
             if occupied & reserved:
                 raise Blocked('reserved_walkway', 'Building footprint crosses a reserved walkway')
-            zones = await rt.game.query('home/list_zones', x=p.x, z=p.z, radius=8, includeCells=True, maxCellsPerZone=10000)
+            shell = owner.action if owner is not None and isinstance(owner.action, RoomShell) else None
+            if shell is not None:
+                zones = await rt.game.query('home/list_zones', **ZONE_ARGUMENTS)
+                try:
+                    validate_shell_zones(owner.id, shell, zones)
+                    async def read(name, args):
+                        self.guard(rt, revision, token, direction)
+                        result = await rt.game.query(name, **args)
+                        self.guard(rt, revision, token, direction)
+                        return result
+                    await validate_shell_access(owner.id, shell, read)
+                except ShellSiteRefusal as error:
+                    raise Blocked(error.code, str(error), evidence=error.evidence) from error
+            else:
+                zones = await rt.game.query('home/list_zones', x=p.x, z=p.z, radius=8, includeCells=True, maxCellsPerZone=10000)
             for zone in zones['zones']:
                 cells = zone.get('gridCells')
                 if cells is None or len(cells) != zone['gridCellCount']:

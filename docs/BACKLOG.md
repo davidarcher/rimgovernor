@@ -87,7 +87,10 @@ in the checkpoint commit; do not append an implementation diary here.
   clearance and native footprint conflicts are validated at admission, with current
   placement footprint checks in Hands. Verify these under native construction and
   player edits; extend protection to observed/retired rooms and continuous corridors,
-  and reject shells enclosing existing native farms without perimeter overlap.
+  including projected access as blueprints become buildings. Native zone census
+  and immediate entrance access now gate shell admission and dispatch; verify live
+  enclosed-farm refusal, interrupted batches, large zones and custom definitions,
+  and measure repeated preflight/dispatch observation latency.
   Compare sites
   using bounded terrain, supplies, danger, fertility and travel evidence. Accept
   ruins/nonrectangular shelters; reject sealed rooms and blocked corridors beyond

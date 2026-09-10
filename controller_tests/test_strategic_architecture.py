@@ -12,7 +12,7 @@ from rimbot.hands import room_placements, validate_geometry
 from rimbot.model_router import ModelRouter
 from rimbot.strategic_state import StrategicState, features, context
 from rimbot.store import Store
-from test_construction_preflight import footprint
+from test_construction_preflight import footprint, native_reply
 
 
 def batch():
@@ -63,7 +63,7 @@ def runtime(tmp_path, **kwargs):
     store = Store(tmp_path/'state.sqlite')
     rt = BridgeRuntime(store, tmp_path, **kwargs)
     rt.game = SimpleNamespace(query=AsyncMock(return_value={'colonyId':'test','mapId':1,'loadToken':'load'}),
-        invoke=AsyncMock(side_effect=lambda name,args,**kw: footprint(args,success=True,canPlace=True,costList=[{'defName':'WoodLog','count':5}], materials={'rows':[{'defName':'WoodLog','available':1000}]}) if name=='home/place_building' else {'success':True}))
+        invoke=AsyncMock(side_effect=lambda name,args,**kw: native_reply(name,args,success=True,canPlace=True,costList=[{'defName':'WoodLog','count':5}], materials={'rows':[{'defName':'WoodLog','available':1000}]})))
     return rt
 
 
@@ -221,6 +221,7 @@ async def test_invented_construction_is_repaired_before_any_plan_is_saved(tmp_pa
                 'function':{'name':'BuildRoom','arguments':json.dumps({'intent_id':'bedroom','room':spec.steps[0].action.model_dump()})}}]},{}
         async def close(self):pass
     async def preview(name,args,**kwargs):
+        if name != 'home/place_building': return native_reply(name,args)
         assert args['dryRun'] is True and kwargs['allow_write'] is False
         if args['defName']=='Door_Wood':raise ValueError('Unknown definition')
         return footprint(args,canPlace=True,success=True,costList=[{'defName':'WoodLog','count':5}], materials={'rows':[{'defName':'WoodLog','available':1000}]})

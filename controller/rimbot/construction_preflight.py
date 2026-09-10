@@ -1,6 +1,7 @@
 """Native dry-run validation of new construction intent before commitment."""
 from .colony_plan import Buildings, RoomShell, Zone
 from .spatial import room_placements, native_footprint, validate_geometry
+from .shell_site import validate_shell_site
 
 
 class ConstructionRefusal(ValueError):
@@ -59,4 +60,8 @@ async def preflight_construction(spec, current, game):
                     accepted=True;break
             if not accepted:
                 raise ConstructionRefusal(step,placement,evidence)
+        if isinstance(action, RoomShell) and not unchanged:
+            async def read(name, arguments):
+                return await game.invoke(name, arguments, allow_write=False)
+            await validate_shell_site(step.id, action, read)
     validate_geometry(spec, footprints)

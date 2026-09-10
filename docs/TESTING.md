@@ -31,6 +31,13 @@ footprint conflicts, unknown geometry, and refusal before dispatch. These use
 native-shaped fixtures; B06 still requires ordinary pawn construction, live
 player edits and observed access acceptance.
 
+`test_shell_site.py` exercises complete native zone census validation, enclosed
+farm refusal, allowed indoor stockpiles, immediate doorway access in all rotations,
+unknown/truncated geometry and direction changes. A serialized partial-dispatch
+fixture adds a farm between batches and verifies no further shell orders while
+retaining the first receipt. Real zone edits and pawn route behavior remain B06
+gameplay acceptance; fixtures are not game observations.
+
 `test_project_resource_scheduling.py` covers resource competition in ready order,
 dependency gates, uncertain writes, persisted receipts and Hands restock recovery.
 Admission still requires enough stock for all accepted commitments. B07 native

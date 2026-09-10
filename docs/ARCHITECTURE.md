@@ -258,6 +258,15 @@ Hands rechecks the current placement's footprint before writing. These constrain
 protect accepted planned space; they do not establish native reachability, arbitrary
 room connectivity, future expansion rights or access throughout pawn construction.
 
+New room shells also inspect the complete native zone census, rejecting enclosed
+farms even when their cells do not touch the perimeter. Indoor stockpiles remain
+allowed; perimeter overlap, unknown zone kinds and incomplete or conflicting zone
+geometry block construction. Exact three-cell native reads require walkable,
+passable, unfogged approaches immediately inside and outside the doorway. Hands
+refreshes these checks for every unissued shell placement, preserving existing
+receipts on refusal. These reads do not predict future blueprint obstruction or
+prove a route to colonists, and native input is not atomic with Python validation.
+
 Completed actions removed from the active specification move to a compressed,
 colony-scoped SQLite archive. Their exact specification, progress/receipts and
 cost metadata are committed atomically with the compact live snapshot before
