@@ -339,13 +339,6 @@ in the checkpoint commit; do not append an implementation diary here.
   release and breeding decisions. Observe reachable feed, actual consumption,
   containment and handler workload. Verify births, training and collected products;
   avoid inferring herd sustainability from a pen marker or available grass alone.
-- [ ] **B25 · Trade and economic planning.** Build on the guarded trade executor
-  with policy-driven buy/sell selection, strategic reserves, affordability and export
-  targets justified by current demand and production capacity. Audit current native
-  acceptance before adding tools. Include trader availability, negotiator access,
-  changed inventory/prices and uncertain exchanges; verify actual goods and silver.
-  Coordinate B15 expeditions and B06b production without speculative unlimited bills
-  or selling protected equipment, medicine, food or player-reserved materials.
 - [ ] **B26 · Mining and material development.** Extend resource acquisition into
   bounded extraction plans, nearby deposit selection and replenishment after local
   depletion. Discover native deposits, research, extraction equipment and worker
@@ -418,7 +411,7 @@ requiring every system before any can be accepted.
   survival and winter readiness before claiming full-game capability.
   Add policy-driven expedition/quest evaluation, diplomacy and return logistics:
   eligible participants, route/time risk, travel supplies, carrying capacity,
-  home-colony staffing and return storage. Coordinate B25 trading and B22 population
+  home-colony staffing and return storage. Coordinate [economic trading](reference/command-contracts.md#economic-selection) and B22 population
   decisions. Preserve player commitments and distinguish accepting a quest from
   completing it. Verify native departures, travel, interactions, rewards and returns,
   including failed/expired objectives, stranded parties and multiple active maps.

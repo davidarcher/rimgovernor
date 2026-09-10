@@ -81,9 +81,55 @@ async def run():
                         connected.add(cell)
                         frontier.append(cell)
             assert connected <= available
-            stock_cells = sorted(connected)
+            wood_sources = [t for t in setup['ground'] if t['defName'] == 'WoodLog' and t['count'] > 0]
+            assert wood_sources, 'Fixture has no ordinary wood supply for export hauling'
+            wood = wood_sources[0]
+            stock_cells = sorted(connected - {(wood['x'], wood['z'])})
             zone_args['cells'] = ';'.join(f'{x},{z}' for x,z in stock_cells)
             record('ordinary_stockpile', result=await game.invoke('home/zone_cells', dict(zone_args, dryRun=False), allow_write=True))
+            # Make real surplus trade-eligible through ordinary hauling, without
+            # replacing the food/medicine/equipment export protections.
+            designators = await game.invoke('rimworld/list_architect_designators', {'categoryId': 'Orders'})
+            allow = next(d['id'] for d in designators['designators'] if d['className'] == 'RimWorld.Designator_Unforbid')
+            record('allow_export_supply', result=await game.invoke('rimworld/apply_architect_designator',
+                {'designatorId': allow, 'x': wood['x'], 'z': wood['z'], 'dryRun': False, 'keepSelected': False}, allow_write=True))
+            roster = await game.query('home/list_pawns', colonistsOnly=True, work=True)
+            for worker in roster['pawns']:
+                if not any(w['name'] == 'Hauling' and w.get('disabled') is False for w in worker['work']['types']):
+                    continue
+                haul = dict(action='haul', pawn=worker['thingId'], target=wood['id'], watch=False)
+                preview_haul = await game.invoke('home/order', dict(haul, dryRun=True))
+                if preview_haul.get('success') is True:
+                    break
+            else:
+                raise AssertionError('No native hauling job can deliver export supply')
+            before_haul = await call('test/trade_fixture')
+            def stored_wood(state):
+                return sum(t['count'] for t in state['ground'] if t['defName'] == 'WoodLog'
+                           and (t['x'], t['z']) in set(stock_cells))
+            record('ordinary_export_haul', receipt=await game.invoke('home/order', dict(haul, dryRun=False), allow_write=True))
+            for _ in range(60):
+                await window()
+                after_haul = await call('test/trade_fixture')
+                if stored_wood(after_haul) - stored_wood(before_haul) >= wood['count']:
+                    break
+            else:
+                raise AssertionError('Export supply never reached native storage')
+            assert total(after_haul, 'ground', 'WoodLog') == total(before_haul, 'ground', 'WoodLog')
+            record('export_supply_delivered', before=before_haul, after=after_haul,
+                   stored_before=stored_wood(before_haul), stored_after=stored_wood(after_haul))
+            previous_wood = {t['id']: t for t in before_haul['ground'] if t['defName'] == 'WoodLog'}
+            delivered = [t for t in after_haul['ground'] if t['defName'] == 'WoodLog'
+                and (t['x'], t['z']) in set(stock_cells)
+                and (t['id'] not in previous_wood or t['count'] > previous_wood[t['id']]['count']
+                     or (t['x'], t['z']) != (previous_wood[t['id']]['x'], previous_wood[t['id']]['z']))]
+            assert delivered, 'No exact native delivery stacks observed'
+            for stack in delivered:
+                if stack['forbidden']:
+                    record('allow_merged_export_delivery', stack=stack,
+                        result=await game.invoke('rimworld/apply_architect_designator',
+                            {'designatorId': allow, 'x': stack['x'], 'z': stack['z'],
+                             'dryRun': False, 'keepSelected': False}, allow_write=True))
             record('initial_discovery', discovery=await trade(action='list_traders'))
             record('ordinary_caravan_incident', incident=await call('test/trade_fixture', action='incident'))
             discovery = await trade(action='list_traders')
@@ -119,13 +165,19 @@ async def run():
             await trade(action='cancel', sessionId=session, receiveQuest=False)
             opened = await trade(action='open', traderId=trader_id, negotiator=pawn_id, requireAdjacent=True)
             session = opened['sessionId']
-            # Sell ordinary available goods, then use earned silver for a real purchase.
-            sold = next(row for row in opened['rows'] if row['colonyCount'] > 0 and row['traderWillTrade']
-                        and not row['isCurrency'] and not row['isPawn'] and row['sellPrice'] > 0
-                        and sum(r['defName'] == row['defName'] for r in opened['rows']) == 1)
+            full_sheet = await trade(action='sheet', includeUntradeable=True)
+            record('native_export_demand', sheet=full_sheet)
+            seed = next(row for row in sorted(opened['rows'], key=lambda r: r['defName'] != 'Steel')
+                if row['traderCount'] >= 3 and row['traderWillTrade'] and row.get('protectedExport') is False
+                and not row['isCurrency'] and not row['isPawn'] and row['sellPrice'] > 0
+                and 0 < row['buyPrice'] * 3 <= opened['balance']['colonySilverNow']
+                and sum(r['defName'] == row['defName'] for r in opened['rows']) == 1)
             await trade(action='cancel', sessionId=session, receiveQuest=False)
 
             async def exchange(item, count, lose_receipt=False):
+                sheet = await trade(action='open', traderId=trader_id, negotiator=pawn_id, requireAdjacent=True)
+                row = next(r for r in sheet['rows'] if r['defName'] == item)
+                await trade(action='cancel', sessionId=sheet['sessionId'], receiveQuest=False)
                 before = await snapshot()
                 writes = []
                 accepted = None
@@ -140,7 +192,11 @@ async def run():
                             raise RuntimeError('Injected lost acceptance receipt after native execution')
                     return result
                 action = TradeAction(trader_id=trader_id, negotiator=pawn_id,
-                                     lines=[{'item': item, 'count': count}], max_silver_spend=1000)
+                    policy={'silver_reserve': 0, 'targets': [{'item': item,
+                        'stock': row['colonyCount'] + count,
+                        'max_buy': max(0, count), 'max_sell': max(0, -count),
+                        'max_buy_price': row['buyPrice'], 'min_sell_price': row['sellPrice']}]},
+                    max_silver_spend=1000)
                 try:
                     result = await execute_trade(action, read, write)
                 except RuntimeError:
@@ -161,10 +217,60 @@ async def run():
                 if count > 0:
                     assert delivery and all(row['spawned'] and not row['forbidden'] and row['traderProtected'] for row in delivery)
                 record('lost_receipt_exchange' if lose_receipt else 'exchange', item=item, count=count,
-                       before=before, after=after, native=accepted, result=result, writes=writes, delivery=delivery)
+                       before=before, after=after, native=accepted, result=result, writes=writes, delivery=delivery,
+                       policy=action.model_dump())
                 return after, writes[-1], delivery
 
-            await exchange(sold['defName'], -min(10, sold['colonyCount']))
+            # Acquire the fixture commodity through an actual affordable purchase.
+            # Its native delivery, not anticipated production, supplies the later export.
+            _, _, seed_delivery = await exchange(seed['defName'], 3)
+            seed_cells = sorted({(r['x'], r['z']) for r in seed_delivery} - set(stock_cells))
+            seed_zone_args = None
+            if seed_cells:
+                seed_zone_args = dict(op='create', zoneType='stockpile', label='Delivered trade surplus',
+                    cells=';'.join(f'{x},{z}' for x,z in seed_cells))
+                record('ordinary_delivery_stockpile', result=await game.invoke('home/zone_cells',
+                    dict(seed_zone_args, dryRun=False), allow_write=True))
+            opened = await trade(action='open', traderId=trader_id, negotiator=pawn_id, requireAdjacent=True)
+            sold = next(row for row in opened['rows'] if row['defName'] == seed['defName']
+                        and row['colonyCount'] >= 3 and row['traderWillTrade'])
+            await trade(action='cancel', sessionId=opened['sessionId'], receiveQuest=False)
+
+            async def policy_no_exchange(target, *, floors=None):
+                before = await snapshot()
+                writes = []
+                async def read(args): return await trade(**args)
+                async def write(args):
+                    writes.append(args)
+                    return await trade(**args)
+                action = TradeAction(trader_id=trader_id, negotiator=pawn_id,
+                    policy={'silver_reserve': 0, 'targets': [target]}, max_silver_spend=1000)
+                result = await execute_trade(action, read, write, floors=floors)
+                assert result['moved'] == [] and all(w['action'] != 'accept' for w in writes)
+                assert await snapshot() == before
+                record('economic_policy_refusal', policy=action.model_dump(), result=result, writes=writes)
+
+            protected = next(row for row in opened['rows'] if row['colonyCount'] > 0
+                and row.get('protectedExport') is True and row['traderWillTrade']
+                and not row['isPawn'] and not row['isCurrency']
+                and sum(r['defName'] == row['defName'] for r in opened['rows']) == 1)
+            await policy_no_exchange({'item': protected['defName'], 'stock': 0, 'max_sell': 100})
+            await policy_no_exchange({'item': sold['defName'], 'stock': 0, 'max_sell': 100},
+                                    floors={sold['defName']: sold['colonyCount']})
+            for row, floor, expected_error in [(sold, sold['colonyCount'], 'reserve'), (protected, 0, 'protected')]:
+                opened_policy = await trade(action='open', traderId=trader_id, negotiator=pawn_id, requireAdjacent=True)
+                await trade(action='set', sessionId=opened_policy['sessionId'], item=row['defName'], count=-1)
+                preview_policy = await trade(action='preview')
+                before_policy = await snapshot()
+                record('atomic_economic_refusal', refusal=await refused(expected=[expected_error], action='accept',
+                    sessionId=opened_policy['sessionId'], dealSignature=preview_policy['dealSignature'],
+                    economicFloors=f"Silver=0;{row['defName']}={floor}"))
+                assert await snapshot() == before_policy
+                await trade(action='cancel', sessionId=opened_policy['sessionId'], receiveQuest=False)
+
+            await policy_no_exchange({'item': 'WoodLog', 'stock': 0, 'max_sell': 100})
+            await exchange(sold['defName'], -2)
+
             opened = await trade(action='open', traderId=trader_id, negotiator=pawn_id, requireAdjacent=True)
             session = opened['sessionId']
             purchase_rows = sorted(opened['rows'], key=lambda row: (row['defName'] != 'Steel', row['defName'] != 'WoodLog'))
@@ -186,6 +292,8 @@ async def run():
             preview = await trade(action='preview')
             before = await snapshot()
             await game.invoke('home/zone_cells', dict(op='delete', zone=zone_args['label'], dryRun=False), allow_write=True)
+            if seed_zone_args:
+                await game.invoke('home/zone_cells', dict(op='delete', zone=seed_zone_args['label'], dryRun=False), allow_write=True)
             home = await call('test/trade_fixture', action='clear_trade_home', traderId=trader_id, pawnId=pawn_id)
             record('ordinary_stock_eligibility_edit', home=home)
             assert home['silverStillEligible'] is False
@@ -193,6 +301,8 @@ async def run():
                 action='accept', sessionId=session, dealSignature=preview['dealSignature']))
             assert await snapshot() == before
             await game.invoke('home/zone_cells', dict(zone_args, dryRun=False), allow_write=True)
+            if seed_zone_args:
+                await game.invoke('home/zone_cells', dict(seed_zone_args, dryRun=False), allow_write=True)
             record('ordinary_dismiss_job', job=await call('test/trade_fixture', action='dismiss_job', traderId=trader_id, pawnId=pawn_id))
             for _ in range(100):
                 await window()

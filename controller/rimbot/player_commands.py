@@ -5,6 +5,15 @@ from .colony_plan import Contract, ColonyGoal, CommitSteps, Decision, PlanSpec, 
 from .colony_skills import native
 from .config import ModelRole
 from .strategic_state import fingerprint
+from .colony_plan import TradeAction, TradePolicy
+
+
+class TradeEconomy(Contract):
+    kind: Literal['TradeEconomy']
+    trader_id: str = Field(min_length=1)
+    negotiator: str = Field(min_length=1)
+    policy: TradePolicy
+    max_silver_spend: int = Field(ge=0)
 
 class ResearchRefused(ValueError):
     """Native research admission failed; preserve its factual explanation."""
@@ -199,10 +208,10 @@ class RescuePawn(Contract):
     patient: str = Field(min_length=1, description='Exact observed downed living colonist to carry to a native eligible bed.')
 
 
-Command = Annotated[SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | RelocateConstruction | AdoptRoom | BuildRoom |
+Command = Annotated[TradeEconomy | SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | RelocateConstruction | AdoptRoom | BuildRoom |
                     PlaceBuildings | CreateZone | EditZone | SetWorkPriority | CreateBill | SetBuildingTemperature | DraftPawn | MovePawn | TendPawn | RescuePawn, Field(discriminator='kind')]
 COMMAND = TypeAdapter(Command)
-COMMAND_TYPES = (SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,RelocateConstruction,AdoptRoom,BuildRoom,PlaceBuildings,
+COMMAND_TYPES = (TradeEconomy,SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,RelocateConstruction,AdoptRoom,BuildRoom,PlaceBuildings,
                  CreateZone,EditZone,SetWorkPriority,CreateBill,SetBuildingTemperature,DraftPawn,MovePawn,TendPawn,RescuePawn)
 COMMAND_NAMES = {kind.__name__ for kind in COMMAND_TYPES}
 
@@ -225,6 +234,7 @@ def resolve_resource(value, resources):
 def semantic_tools(resources=None):
     from .consultation import structured_tool
     descriptions = {
+        'TradeEconomy':'Request one bounded exchange with an observed adjacent map trader and negotiator. Use explicit player stock targets, buy/sell quantity limits and price limits. Targets are evaluated in priority order against fresh inventory; shared reserves and commitments remain protected. Never invent export demand, sell equipment/food/medicine, promise future production, or accept a quest. Use MaintainResource separately for player-requested replenishment.',
         'SetResearch':'Select a research project requested by the player.',
         'CreateGoal':'Set a persistent colony target. MaintainResource with resource and quantity means keep acquiring or producing that stock, for example maintain 50 steel. The deterministic controller chooses downstream actions.',
         'ModifyResourcePolicy':'Change a resource spending restriction while preserving its existing reserve.',
@@ -445,7 +455,16 @@ async def apply_command(rt, payload, *, token, revision):
         result = {'cancelled': request.goal, 'existing_native_orders': 'Retained; cancellation stops new controller orders and does not erase already issued game orders'}
     else:
         purpose = getattr(request, 'purpose', 'production')
-        if isinstance(request, SetResearch):
+        if isinstance(request, TradeEconomy):
+            discovery = await rt.inspect_native('home/trade', {'action': 'list_traders'})
+            traders = [t for t in discovery.get('traders', []) if t.get('id') == request.trader_id]
+            if len(traders) != 1 or traders[0].get('canTradeNow') is not True:
+                raise ValueError('Selected native trader is unavailable')
+            roster = await rt.game.query('home/list_pawns', colonistsOnly=True)
+            pawn = resolve_colonist(request.negotiator, roster.get('pawns', []))
+            action = TradeAction(trader_id=request.trader_id, negotiator=pawn['thingId'],
+                policy=request.policy, max_silver_spend=request.max_silver_spend).model_dump()
+        elif isinstance(request, SetResearch):
             try:
                 preview=await rt.inspect_native('home/research',{'set':request.project,'dryRun':True,'watch':False})
             except ValueError as error:

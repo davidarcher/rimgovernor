@@ -18,6 +18,9 @@ Local changes:
   discovers hauling WorkGivers and retains their jobs, using the same native
   scanner eligibility pattern documented in the attributed `OrderTool.cs`.
   `WasteFixture.cs` is optional disposable setup, excluded from production builds.
+- `TradeTool.cs` exposes native definition-based export protection and accepts
+  economic stock floors. Policy acceptance checks actual remaining stack counts
+  and rejects protected exports in the native exchange's main-thread operation.
 - `ForecastFacts.cs` is original local read-only animal-feed, crop-work and
   medical/mood input accounting. `FoodSupplyFacts.cs` records native eater policy,
   diet and access eligibility; `ColonyFactsTool.cs` exposes these inputs.

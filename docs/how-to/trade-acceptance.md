@@ -14,8 +14,9 @@ docker compose -f containers/compose.yaml -p rimbot-trade build worker
 docker compose -f containers/compose.yaml -p rimbot-trade run --rm worker -- python /app/scripts/trade_acceptance.py
 ```
 
-The probe waits for normal supply-pod landing, designates a native stockpile and
-requests an ordinary bulk-goods caravan incident and small tribal visitor incidents for
+The probe waits for normal supply-pod landing, designates a native stockpile,
+allows one observed wood stack and verifies a pawn hauls it into storage without
+changing total wood. It requests an ordinary bulk-goods caravan incident and small tribal visitor incidents for
 the lower trader-budget case. The negotiator must reach the
 trader through `TradeWithPawn`. It compares real ground and caravan inventory counts
 for sales and purchases, including exact silver changes at an unchanged tick.
@@ -25,7 +26,17 @@ injected lost acceptance reply, ordinary dismissal and departure. Reports remain
 `run/trade-result.json`, with intermediate evidence and staged binary hashes beside
 them. Failed fixtures remain failed; selecting another fresh run does not erase them.
 
-`test_trading.py` separately verifies controller budgets, missing/nonfinite evidence
+An affordable policy purchase supplies the fixture's marketable commodity; its
+actual delivery supplies the later surplus sale. Stored wood is also checked as
+an unavailable-demand case rather than assumed to be marketable.
+The sale and lost-reply purchase use the economic selector with explicit stock,
+quantity and price targets. The probe verifies protected-item and reserve-based
+selection refusals, then stages prohibited sales directly to verify the atomic
+native reserve/protected-export guards. Every refusal must leave actual goods
+and silver unchanged. Successful exchanges compare both sides at an unchanged
+tick; the purchase remains present after the trader departs.
+
+`test_trading.py` and `test_trade_policy.py` separately verify controller budgets, missing/nonfinite evidence
 and persisted uncertain-write refusal after plan restoration. These fixture tests
 do not establish native delivery. Orbital input is audited against the installed
 `Building_CommsConsole` menu and `UseCommsConsole` job; direct `home/trade` opening

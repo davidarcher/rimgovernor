@@ -79,6 +79,12 @@ class Hands:
                                 retryable=True, evidence=receipt)
                     elif isinstance(action, TradeAction):
                         from .trading import execute_trade
+                        floors, stopped = {}, []
+                        if action.policy is not None:
+                            from .trade_policy import economic_reserves
+                            buildings = await rt.inspect_native('home/list_buildings', {'aggregate': False, 'playerOnly': True})
+                            self.guard(rt, revision, token, direction)
+                            floors, stopped = economic_reserves(rt.current_plan, buildings, action.policy)
                         progress.issued[key] = {'confirmed': False}
                         rt.persist()
                         async def read_trade(args):
@@ -91,7 +97,7 @@ class Hands:
                             result = await rt.native('home/trade', args, expected_revision=direction,
                                 expected_token=token, expected_plan_revision=revision, reconcile=False)
                             return result['receipt']
-                        receipt = await execute_trade(action, read_trade, write_trade)
+                        receipt = await execute_trade(action, read_trade, write_trade, floors=floors, stopped=stopped)
                     else:
                         if isinstance(action, NativeOperation):
                             args = dict(action.arguments)

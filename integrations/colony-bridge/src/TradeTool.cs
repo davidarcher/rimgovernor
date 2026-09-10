@@ -88,13 +88,14 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "TRUE by default. For 'accept' only: select the trader, put the camera on them, then OPEN THE REAL TRADE WINDOW showing the staged rows, hold it watchSeconds, execute the deal while it is on screen, and close it. It never changes what is traded - the deal is verified against the preview before and after the window goes up, and a change refuses with restage_mismatch rather than trading something else. Pass false to accept headlessly, with no window and no camera move.", DefaultValue = true)] bool watch = true,
             [ToolParameter(Description = "How long the REAL trade window is held on screen before the deal executes, and how long the trader stays selected after it. Clamped 1..60. The tool call blocks for this long and the bridge runs one call at a time, so an accept occupies the bridge for about this many seconds - that is the price of the trade being visible. Ignored on every action but 'accept', and when watch is false.", DefaultValue = 8)] int watchSeconds = 8,
             [ToolParameter(Description = "Exact sessionId returned by open; required for set, accept and cancel.")] string sessionId = null,
-            [ToolParameter(Description = "Exact dealSignature from preview; required for accept.")] string dealSignature = null)
+            [ToolParameter(Description = "Exact dealSignature from preview; required for accept.")] string dealSignature = null,
+            [ToolParameter(Description = "For policy accept: semicolon-separated exact Def=nonnegative stock floors, including Silver. Atomically protects post-deal stock and prohibits exporting weapons, apparel, medicine, food and pawns.")] string economicFloors = null)
         {
             return BridgeCommon.WithUnknownArguments(
                 await TradeCore(
                     ctx, cancellationToken, action, traderId, negotiator, giftMode, item, count, lines,
                     relative, allowPawns, match, onlyChanged, maxRows, includeUntradeable, requireAdjacent, allowEmpty,
-                    receiveQuest, watch, watchSeconds, sessionId, dealSignature).ConfigureAwait(false),
+                    receiveQuest, watch, watchSeconds, sessionId, dealSignature, economicFloors).ConfigureAwait(false),
                 ctx, typeof(HomeTradeTools), ToolName);
         }
 
@@ -118,7 +119,7 @@ namespace HomeBridge.BridgeTools
             bool allowEmpty,
             bool receiveQuest,
             bool watch,
-            int watchSeconds, string sessionId, string dealSignature)
+            int watchSeconds, string sessionId, string dealSignature, string economicFloors)
         {
             if (ctx?.MainThread == null)
                 return Failure("No RimBridge main-thread dispatcher is available for this invocation.", "no_dispatcher", action);
@@ -133,6 +134,7 @@ namespace HomeBridge.BridgeTools
                     Action = (action ?? string.Empty).Trim(),
                     SessionId = sessionId,
                     DealSignature = dealSignature,
+                    EconomicFloors = economicFloors,
                     TraderId = traderId,
                     Negotiator = negotiator,
                     GiftMode = giftMode,
@@ -666,6 +668,7 @@ namespace HomeBridge.BridgeTools
         {
             public string SessionId;
             public string DealSignature;
+            public string EconomicFloors;
             public string Action;
             public string TraderId;
             public string Negotiator;
@@ -1069,6 +1072,8 @@ namespace HomeBridge.BridgeTools
             // colonist row by reading the sheet is one typo from selling a
             // person.
             row["isPawn"] = IsPawnRow(t);
+            row["protectedExport"] = def == null || def.IsWeapon || def.IsApparel
+                || def.IsMedicine || def.IsNutritionGivingIngestible || IsPawnRow(t);
             row["pawnDescription"] = PawnRowDescription(t);
             row["countToTransfer"] = SafeInt(() => t.CountToTransfer);
             row["actionToDo"] = SafeString(() => t.ActionToDo.ToString());
@@ -1296,6 +1301,32 @@ namespace HomeBridge.BridgeTools
             var staged = StagedLines();
             if (string.IsNullOrEmpty(a.DealSignature) || a.DealSignature != StageSignature())
                 return Failure("Trade contents or prices changed since preview.", "stale_deal", "accept");
+            if (a.EconomicFloors != null)
+            {
+                var floors = new Dictionary<string, int>(StringComparer.Ordinal);
+                foreach (var entry in a.EconomicFloors.Split(';'))
+                {
+                    var parts = entry.Split('=');
+                    int floor;
+                    if (parts.Length != 2 || string.IsNullOrEmpty(parts[0]) || floors.ContainsKey(parts[0])
+                        || !int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out floor))
+                        return Failure("Economic reserve policy is malformed.", "economic_policy", "accept");
+                    floors.Add(parts[0], floor);
+                }
+                if (!floors.ContainsKey("Silver") || TradeSession.giftMode)
+                    return Failure("Economic policy requires a silver reserve and an ordinary trade.", "economic_policy", "accept");
+                foreach (var row in deal.AllTradeables.Where(t => t.CountToTransfer < 0 || t.IsCurrency))
+                {
+                    var def = SafeDef(row);
+                    int floor;
+                    if (def == null || !floors.TryGetValue(def.defName, out floor)
+                        || row.thingsColony.Where(t => !t.Destroyed).Sum(t => t.stackCount) + row.CountToTransfer < floor)
+                        return Failure("Economic stock reserve would be violated.", "economic_reserve", "accept");
+                    if (!row.IsCurrency && (def.IsWeapon || def.IsApparel || def.IsMedicine
+                        || def.IsNutritionGivingIngestible || IsPawnRow(row)))
+                        return Failure("Economic export is protected.", "economic_protected", "accept");
+                }
+            }
             var colonyGoods = new HashSet<Thing>(_sessionTrader.ColonyThingsWillingToBuy(_sessionNegotiator));
             var traderGoods = new HashSet<Thing>(((Pawn)_sessionTrader).trader.Goods);
             foreach (var row in deal.AllTradeables.Where(t => t.CountToTransfer != 0))

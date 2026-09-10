@@ -31,6 +31,15 @@ animal's native delivery location. The caravan lord prevents its own pawns from
 retrieving them; this does not forbid the colony from using them. Exchange
 completion does not certify storage.
 
+Policy trades select bounded purchases and surplus sales from the fresh native
+sheet. `economicFloors` on native acceptance contains exact `Def=count` entries
+separated by semicolons, including Silver. Acceptance checks remaining actual
+stack counts in the same main-thread operation as the exchange and refuses
+protected exports. Unknown or truncated inventory prevents selection. A policy
+with no eligible affordable lines cancels its own session without an exchange;
+the retained policy evidence explains each target. Neither cancellation nor
+acceptance takes a trader quest. See [economic command fields](command-contracts.md).
+
 Direct orbital opening is refused. Ordinary orbital input requires the comms
 console's native menu, a powered reachable interaction cell and capable negotiator,
 then `UseCommsConsole` and the native trade dialog. Beacon stock eligibility and

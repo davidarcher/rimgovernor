@@ -7,7 +7,7 @@ For the end-to-end path, read [plans and Hands](../explanation/plans-and-hands.m
 
 The chat command union supports SetResearch, BuildRoom, PlaceBuildings, CreateZone, EditZone,
 SetWorkPriority, CreateBill, DraftPawn, MovePawn, TendPawn, RescuePawn, CreateGoal, CancelGoal and
-ModifyResourcePolicy and SetResourceReserve. The model receives individually named
+ModifyResourcePolicy, SetResourceReserve and TradeEconomy. The model receives individually named
 semantic tools and read-only native inspection/preview tools, not arbitrary native
 execution. Fresh native facts and resource-definition labels are available in Manual as
 well as Automate. The latest player message follows the evidence context. Consecutive
@@ -22,6 +22,32 @@ remain chat tools. Advice is evidence, never executable authority.
 `CreateBill.ingredients` optionally supplies a complete native ingredient whitelist.
 See [player action coverage](player-actions.md) for fields, special storage filters,
 UI reference guards and the native capability audit.
+
+## Economic selection
+
+`TradeEconomy` queues one policy-driven exchange through the shared plan and Hands.
+It names an observed available map trader and eligible negotiator. Its ordered
+targets contain exact native item definitions, desired retained stock, maximum
+buy/sell quantities and maximum buy/minimum sell unit prices, plus a net spending
+limit and silver reserve. The first target has purchase priority. Unavailable or
+ambiguous items remain explicit blockers in the action's policy evidence.
+The negotiator must reach the trader normally before execution; inaccessible,
+departed, orbital or nonadjacent traders cannot bypass native eligibility.
+
+Selection uses fresh eligible stock and current trader demand/prices. Exports are
+bounded by existing surplus and the trader's current silver. Pending construction
+costs, native construction deficits, resource spending restrictions, maintained
+stock goals and player reserves protect stock before an export is selected.
+Equipment, medicine, food and pawns are excluded using native definitions. Buying
+does not borrow against expected export income. Native acceptance atomically
+enforces post-deal reserves and protected exports. Changed inventory or policy
+eligibility requires inspection rather than replaying an uncertain exchange.
+
+For replenishment, use a separately requested `MaintainResource` goal through the
+existing production system. Export limits do not create bills or assume unobserved
+production capacity. Expedition supplies use the same resource reserves and stock
+goals; trading never accepts quests or starts expeditions. Final storage and
+orbital/expedition interactions retain their separate completion contracts.
 
 ## Research and work assignments
 

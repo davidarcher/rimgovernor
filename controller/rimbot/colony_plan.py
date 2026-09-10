@@ -157,15 +157,39 @@ class TradeLine(Contract):
         return self
 
 
+class TradeTarget(Contract):
+    item: str = Field(min_length=1, max_length=160)
+    stock: int = Field(ge=0, le=100000)
+    max_buy: int = Field(default=0, ge=0, le=100000)
+    max_sell: int = Field(default=0, ge=0, le=100000)
+    max_buy_price: float = Field(default=0, ge=0, allow_inf_nan=False)
+    min_sell_price: float = Field(default=0, ge=0, allow_inf_nan=False)
+
+
+class TradePolicy(Contract):
+    targets: list[TradeTarget] = Field(min_length=1, max_length=30)
+    silver_reserve: int = Field(ge=0)
+
+    @model_validator(mode='after')
+    def unique_targets(self):
+        names = [t.item.casefold() for t in self.targets]
+        if len(set(names)) != len(names) or any(n.startswith('#') for n in names):
+            raise ValueError('Use unique native definitions for economic targets')
+        return self
+
+
 class TradeAction(Contract):
     kind: Literal['trade'] = 'trade'
     trader_id: str = Field(min_length=1)
     negotiator: str = Field(min_length=1)
-    lines: list[TradeLine] = Field(min_length=1,max_length=30)
+    lines: list[TradeLine] = Field(default_factory=list,max_length=30)
+    policy: TradePolicy | None = None
     max_silver_spend: int = Field(ge=0,description='Maximum net silver the colony may pay for this deal.')
 
     @model_validator(mode='after')
     def unique_lines(self):
+        if bool(self.lines) == (self.policy is not None):
+            raise ValueError('Provide either exact lines or an economic policy')
         if len({line.item.casefold() for line in self.lines}) != len(self.lines):
             raise ValueError('Combine duplicate trade lines')
         return self
