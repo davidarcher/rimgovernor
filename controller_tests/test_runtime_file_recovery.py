@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
@@ -45,6 +46,53 @@ async def test_observation_retries_publish_fault_with_bounded_backoff(no_retry_d
     assert await game.query('home/list_zones') == {'zones': []}
     assert session.call_tool.await_count == 3
     assert [call.args[0] for call in no_retry_delay.await_args_list] == [0.05, 0.1]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('op',['status','events','start','heartbeat','pause'])
+async def test_native_claim_race_retries_only_clock_reads(op):
+    from rimbot.clock_control import PlayClock
+    session=SimpleNamespace(call_tool=AsyncMock(side_effect=[
+        result({'message':CLAIM_FAULT},True),result({'running':True}),result({'success':True})]))
+    clock=PlayClock(BridgeClient(session))
+    if op in ('status','events'):
+        assert await clock.call(op=op)=={'success':True}
+        assert session.call_tool.await_count==3
+    else:
+        with pytest.raises(BridgeError):await clock.call(op=op)
+        assert session.call_tool.await_count==1
+
+
+@pytest.mark.asyncio
+async def test_claim_race_observation_stops_after_three_attempts():
+    fault=result({'message':CLAIM_FAULT},True)
+    game,session=game_with([fault,result({}),fault,result({}),fault],'home/list_zones',{})
+    with pytest.raises(BridgeError):await game.query('home/list_zones')
+    assert session.call_tool.await_count==5
+
+
+@pytest.mark.asyncio
+async def test_one_client_cannot_race_its_own_native_ownership_claim():
+    entered=asyncio.Event();release=asyncio.Event();calls=[]
+    async def call(name,arguments):
+        calls.append(name)
+        if name=='first':
+            entered.set()
+            await release.wait()
+        return result({'success':True})
+    client=BridgeClient(SimpleNamespace(call_tool=call))
+    first=asyncio.create_task(client.core('first'))
+    await entered.wait()
+    second_started=asyncio.Event()
+    async def second_call():
+        second_started.set()
+        return await client.core('second')
+    second=asyncio.create_task(second_call())
+    await second_started.wait()
+    assert calls==['first'] and not second.done()
+    release.set()
+    await asyncio.gather(first,second)
+    assert calls==['first','second']
 
 
 @pytest.mark.asyncio

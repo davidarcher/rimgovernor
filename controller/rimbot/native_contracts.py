@@ -6,6 +6,10 @@ from .colony_plan import NativeOperation, StandDown
 BILL_WRITE_ACTIONS = ('add', 'set', 'delete', 'move')
 
 
+class NativeNotDispatched(ValueError):
+    """The requested action did not reach the native invocation boundary."""
+
+
 def validate_stand_down_steps(spec, current, owners, token, pawns):
     """New cleanup intent needs an owned target or an explicit future draft."""
     old = {step.id: step for step in current.spec.steps}

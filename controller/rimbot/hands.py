@@ -5,6 +5,7 @@ from .receipts import reason
 from .spatial import room_placements, GeometryConflict, validate_geometry, native_footprint
 from .shell_site import ShellSiteRefusal, ZONE_ARGUMENTS, validate_shell_zones, validate_shell_access
 from .projects import zone_settings
+from .native_contracts import NativeNotDispatched
 
 
 class Blocked(Exception):
@@ -18,6 +19,7 @@ class Hands:
         revision, token, direction = rt.current_plan.revision, rt.context_token, rt.chat_revision
         count = 0
         for step in list(rt.current_plan.ready()):
+            intent = None
             if only_ids is not None and (step.id not in only_ids or step.source != 'PLAYER'): continue
             progress = rt.current_plan.progress[step.id]
             try:
@@ -138,7 +140,8 @@ class Hands:
                                 args['dryRun'] = False
                             self.guard(rt, revision, token, direction)
                             player_direction = rt.current_plan.control.get('player_direction', 0)
-                            progress.issued[key] = {'confirmed': False}
+                            intent = {'confirmed': False}
+                            progress.issued[key] = intent
                             if action.completion == 'pawn_gear':
                                 progress.issued[key].update(issued_at=time.time(), load_token=token,
                                     player_direction=player_direction, issued_tick=rt.batch.summary.end_tick)
@@ -191,7 +194,8 @@ class Hands:
                                 receipt['patient_order_generation'] = outcome.get('targetOrderGeneration')
                         else:
                             self.guard(rt, revision, token, direction)
-                            progress.issued[key] = {'confirmed': False}
+                            intent = {'confirmed': False}
+                            progress.issued[key] = intent
                             rt.persist()
                             receipt = await rt.control_clock(action.speed, mode=action.mode,
                                 ignored_hostiles=action.ignored_hostiles, ignored_downed=action.ignored_downed,
@@ -235,6 +239,12 @@ class Hands:
                 if not getattr(rt,'manual_execution',None) and all(rt.current_plan.progress[s.id].state in ('complete', 'cancelled') for s in rt.current_plan.spec.steps):
                     rt.signal('plan.completed', {'revision': revision})
                 rt.persist()
+            except NativeNotDispatched:
+                if intent is not None and progress.issued.get(key) is intent:
+                    progress.issued.pop(key)
+                    progress.state = 'pending'
+                    rt.persist()
+                return
             except InterruptedError:
                 return
             except Exception as error:

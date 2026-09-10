@@ -17,7 +17,7 @@ from .medical_outcome import patient_outcome, rescue_outcome, pawn_order_outcome
 from .medical_recovery import recover_treatment
 from .consultation import Consultations
 from .hands import Hands, validate_geometry
-from .native_contracts import validate_native_steps, validate_stand_down_steps
+from .native_contracts import validate_native_steps, validate_stand_down_steps, NativeNotDispatched
 from .construction_preflight import preflight_construction
 from .strategic_state import StrategicState, projection
 from .model import LocalModel
@@ -900,16 +900,16 @@ class BridgeRuntime:
         async with self.lock:
             await self.refresh_clock_events()
             if getattr(self, 'player_input', None) is not None and is_write(name, arguments):
-                raise ValueError('Player control is held; no model or controller order was sent')
+                raise NativeNotDispatched('Player control is held; no model or controller order was sent')
             if expected_revision is not None and expected_revision != self.chat_revision:
-                raise ValueError('New player direction arrived; this call was not executed')
+                raise NativeNotDispatched('New player direction arrived; this call was not executed')
             await self.sync_identity()
             if expected_token is not None and expected_token != self.context_token:
-                raise ValueError('Loaded colony changed; no command sent')
+                raise NativeNotDispatched('Loaded colony changed; no command sent')
             if expected_revision is not None and expected_revision != self.chat_revision:
-                raise ValueError('New player direction arrived; no command sent')
+                raise NativeNotDispatched('New player direction arrived; no command sent')
             if expected_plan_revision is not None and expected_plan_revision != self.current_plan.revision:
-                raise InterruptedError('Committed plan changed; no order sent')
+                raise NativeNotDispatched('Committed plan changed; no order sent')
             if name == 'home/medical_operations' and is_write(name, arguments):
                 step = next((s for s in self.current_plan.spec.steps if s.id == expected_step_id), None)
                 intent = next((i for i in self.current_plan.control.get('player_intents', {}).values()
@@ -975,9 +975,9 @@ class BridgeRuntime:
                 dismissed_window = dismissal_target(arguments.get('targetId'),
                     await self.game.invoke('rimworld/get_screen_targets', {}))
             if expected_revision is not None and expected_revision != self.chat_revision:
-                raise ValueError('New player direction arrived during preparation; no command sent')
+                raise NativeNotDispatched('New player direction arrived during preparation; no command sent')
             if expected_token is not None and expected_token != self.context_token:
-                raise ValueError('Loaded colony changed during preparation; no command sent')
+                raise NativeNotDispatched('Loaded colony changed during preparation; no command sent')
             if name == 'home/husbandry_config' and not arguments.get('dryRun', False):
                 from .husbandry import validate_dispatch
                 validate_dispatch(self.current_plan, expected_step_id, arguments)
@@ -1026,7 +1026,7 @@ class BridgeRuntime:
                         raise ValueError('Gear, outfit, available replacement or pawn assignment changed; no production bill sent')
             await self.refresh_clock_events()
             if expected_revision is not None and expected_revision != self.chat_revision:
-                raise ValueError('Native interruption arrived during preparation; no command sent')
+                raise NativeNotDispatched('Native interruption arrived during preparation; no command sent')
             from .flight_recorder import recording_action
             action = next((s for s in self.current_plan.spec.steps if s.id == expected_step_id), None)
             with recording_action(expected_step_id, action.goal_id if action else None):

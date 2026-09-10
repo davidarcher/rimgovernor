@@ -6,7 +6,7 @@ import subprocess
 
 import pytest
 
-from rimbot.campaign_manifest import capture_manifest, tracked_source
+from rimbot.campaign_manifest import capture_manifest, tracked_source, snapshot_source
 from rimbot.config import ModelRouting, ModelRole, Settings
 
 
@@ -50,6 +50,19 @@ def test_isolated_paths_do_not_change_content_identity(tmp_path):
     assert before['locations'] != after['locations']
     assert before['inputs']['source']['tracked_dirty'] is False
     assert before['inputs']['inference'] == routing
+
+
+def test_packaged_source_tracks_bytes_without_claiming_git_revision(tmp_path):
+    for name in ('controller', 'scripts', 'integrations', 'third_party'):
+        write(tmp_path/name/'example.py', 'original')
+    write(tmp_path/'pyproject.toml','[project]')
+    write(tmp_path/'THIRD_PARTY.md','attribution')
+    before=snapshot_source(tmp_path)
+    assert before['revision'] is None and before['tracked_dirty'] is None
+    write(tmp_path/'controller/__pycache__/example.pyc','cache')
+    assert snapshot_source(tmp_path)==before
+    write(tmp_path/'controller/example.py','changed')
+    assert snapshot_source(tmp_path)['content_sha256']!=before['content_sha256']
 
 
 @pytest.mark.parametrize('changed', ['source', 'baseline_save', 'observations_dll', 'identity_dll', 'gabs',

@@ -52,7 +52,23 @@ def tracked_source(source):
                 tracked_files=len(rows), untracked_code=untracked, content_sha256=_digest(rows+additional))
 
 
-def capture_manifest(source, worker_root, configuration, routing, *, profile=None):
+def snapshot_source(source):
+    """Fingerprint an explicit packaged source tree without claiming Git identity."""
+    source = Path(source).resolve()
+    roots = ['controller', 'scripts', 'integrations', 'third_party']
+    paths = [source/'pyproject.toml', source/'THIRD_PARTY.md']
+    for name in roots:
+        root = source/name
+        if not root.is_dir():
+            raise ValueError('Packaged source directory is missing: '+name)
+        paths.extend(p for p in root.rglob('*') if p.is_file()
+                     and not {'__pycache__', 'obj', 'bin', '.pytest_cache'} & set(p.relative_to(root).parts))
+    rows = [[p.relative_to(source).as_posix(), file_hash(p)] for p in sorted(paths)]
+    return dict(revision=None, tracked_dirty=None, snapshot_files=len(rows),
+                content_sha256=_digest(rows), scope='Packaged source bytes; Git metadata unavailable')
+
+
+def capture_manifest(source, worker_root, configuration, routing, *, profile=None, source_snapshot=False):
     """Hash actual prepared inputs before startup; missing inputs fail closed.
 
     Locations are evidence only, excluded from comparison so isolated worker
@@ -96,7 +112,7 @@ def capture_manifest(source, worker_root, configuration, routing, *, profile=Non
     }
     if '-nographics' in game.get('args',[]):
         paths['headless_dll']=game_root/'Mods/RimBotHeadless/Assemblies/HeadlessRimPatch.dll'
-    inputs = dict(version=3, source=tracked_source(source), inference=routing,
+    inputs = dict(version=3, source=snapshot_source(source) if source_snapshot else tracked_source(source), inference=routing,
                   observations_package=package, observations_assembly=assembly,
                   artifacts={key: file_hash(path) for key, path in paths.items()})
     return dict(fingerprint=_digest(inputs), inputs=inputs,

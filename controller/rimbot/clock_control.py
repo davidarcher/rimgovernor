@@ -5,7 +5,8 @@ from .bridge import runtime_file_read
 
 TOOL = 'home/supervised_play'
 HOLD_REASONS = frozenset({'external_pause', 'external_speed_changed', 'lease_expired',
-    'session_changed', 'unavailable', 'watcher_error', 'start_refused', 'force_paused', 'event_journal_error'})
+    'session_changed', 'unavailable', 'watcher_error', 'start_refused', 'force_paused',
+    'event_journal_error', 'hunting_route_unsafe'})
 
 
 class PlayClock:

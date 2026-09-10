@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock
 import pytest
 from rimbot.colony_plan import ColonyGoal,PlanSpec,PlanStep,StepProgress
 from rimbot.hunting import HuntingRefused
+from rimbot.native_contracts import NativeNotDispatched
 from test_hunting_screen import pawn
 from test_strategic_architecture import runtime
 
@@ -70,6 +71,33 @@ async def test_known_prewrite_refusal_clears_uncertain_marker_and_blocks_retry(t
     progress=rt.current_plan.progress[step.id]
     assert progress.state=='blocked' and progress.failure.code=='hunting_precondition'
     assert not progress.issued and not progress.failure.retryable
+    await rt.hands.advance(rt)
+    rt.native.assert_awaited_once()
+    rt.store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('known',[True,False])
+async def test_direction_change_preserves_only_genuinely_uncertain_writes(tmp_path,known):
+    rt=runtime(tmp_path);await rt.sync_identity()
+    configured,step=hunt_runtime(tmp_path/'plan')
+    rt.current_plan=configured.current_plan;configured.store.close()
+    rt.mode='automate';rt.handled_revision=rt.chat_revision
+    rt.game.describe=AsyncMock(return_value={'properties':{}})
+    async def interrupted(*args,**kwargs):
+        rt.chat_revision+=1
+        raise NativeNotDispatched('No requested action sent') if known else ValueError('Native receipt lost')
+    rt.native=AsyncMock(side_effect=interrupted)
+    await rt.hands.advance(rt)
+    progress=rt.current_plan.progress[step.id]
+    if known:
+        assert progress.state=='pending' and not progress.issued
+    else:
+        assert progress.issued=={'0':{'confirmed':False}}
+        rt.handled_revision=rt.chat_revision
+        await rt.hands.advance(rt)
+        assert progress.failure.code=='uncertain_write'
+    rt.mode='manual';rt.handled_revision=rt.chat_revision
     await rt.hands.advance(rt)
     rt.native.assert_awaited_once()
     rt.store.close()

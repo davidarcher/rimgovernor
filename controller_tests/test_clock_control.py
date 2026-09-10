@@ -141,6 +141,18 @@ async def test_external_pause_latches_until_explicit_player_resume():
 
 
 @pytest.mark.asyncio
+async def test_unsafe_hunting_route_requires_explicit_resume():
+    bridge = NativeClock(); clock = PlayClock(bridge)
+    await clock.change('Normal')
+    bridge.state.update(active=False, stopReason='hunting_route_unsafe', paused=True)
+    await clock.poll()
+    with pytest.raises(ValueError, match='player must enable'):
+        await clock.change('Fast')
+    assert clock.hold == 'hunting_route_unsafe'
+    assert len([c for c in bridge.calls if c[1].get('op') == 'start']) == 1
+
+
+@pytest.mark.asyncio
 async def test_heartbeat_racing_native_danger_delivers_event_once():
     bridge = NativeClock(); clock = PlayClock(bridge)
     await clock.change('Normal')
