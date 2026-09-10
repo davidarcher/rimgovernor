@@ -54,7 +54,7 @@ class ColonyController:
         pending_supplies = [p for p in pending_supplies if (p['x'],p['z']) in still_forbidden]
         plan.control['starting_supplies'] = pending_supplies
         facts['forbiddenSupplies'] = pending_supplies
-        assignments, coverage = work_assignment(people['pawns'], required_resource_work(plan))
+        assignments, coverage = work_assignment(people['pawns'], required_resource_work(plan), plan.control.get('work_overrides', {}))
         for pawn, values in plan.control.get('work_overrides', {}).items():
             if pawn in assignments: assignments[pawn].update(values)
         coverage = coverage and all(any(values.get(work, 0) > 0 for values in assignments.values())

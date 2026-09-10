@@ -390,3 +390,16 @@ async def test_native_resource_work_enables_capable_workers_and_preserves_player
     goal.cancelled=True
     compiled=await rt.controller.skills.compile('EnsureWorkAssignments',rt.facts,rt.people)
     assert all('Mining=1' not in a['arguments']['work'] for a in compiled[1])
+
+
+def test_resource_work_selects_another_owner_when_player_disables_one_worker():
+    people=roster()
+    for pawn in people:
+        pawn['work']['manualPriorities']=False
+        pawn['work']['types'].append(dict(name='Mining',disabled=False,priority=0,priorityStored=0))
+        pawn['bio']['skills'].append(dict(name='Mining',level=10,disabled=False))
+    first,_=work_assignment(people,{'Mining':'Mining'})
+    owner=next(p for p,work in first.items() if work.get('Mining')==1)
+    changed,covered=work_assignment(people,{'Mining':'Mining'},{owner:{'Mining':0}})
+    assert covered and changed[owner]['Mining']==0
+    assert any(work.get('Mining')==1 for p,work in changed.items() if p!=owner)

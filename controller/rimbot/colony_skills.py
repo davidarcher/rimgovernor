@@ -144,7 +144,7 @@ class ColonySkills:
                     x=p['x'], z=p['z'], keepSelected=False) for p in facts['forbiddenSupplies'][:8]]
             return None
         if goal_id == 'EnsureWorkAssignments':
-            assignments, covered = work_assignment(people, required_resource_work(rt.current_plan))
+            assignments, covered = work_assignment(people, required_resource_work(rt.current_plan), rt.current_plan.control.get('work_overrides', {}))
             for pawn, values in rt.current_plan.control.get('work_overrides', {}).items():
                 if pawn in assignments: assignments[pawn].update(values)
             covered = covered and all(any(values.get(work, 0) > 0 for values in assignments.values())

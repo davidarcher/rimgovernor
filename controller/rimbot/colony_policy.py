@@ -135,7 +135,7 @@ def allocation(plan, facts, proposed, policy, *, survival=False):
             if amount + reserved.get(resource, 0) + reserves.get(resource, 0) > stock.get(resource, 0)}
 
 
-def work_assignment(pawns, required_work=None):
+def work_assignment(pawns, required_work=None, overrides=None):
     """Greedy coverage with stable tie breaks and a load penalty for specialists."""
     skill_for = {'Hunting': 'Shooting', 'Doctor': 'Medicine', 'Cooking': 'Cooking', 'Construction': 'Construction',
                  'Growing': 'Plants', 'PlantCutting': 'Plants'}
@@ -148,6 +148,7 @@ def work_assignment(pawns, required_work=None):
     for work, skill in skill_for.items():
         candidates = []
         for pawn in available:
+            if (overrides or {}).get(pawn['thingId'], {}).get(work) == 0: continue
             if work == 'Hunting' and ((pawn.get('equipment') or {}).get('primary') or {}).get('ranged') is not True: continue
             types = {w['name']: w for w in pawn['work'].get('types', [])}
             if work not in types or types[work].get('disabled') is not False:
