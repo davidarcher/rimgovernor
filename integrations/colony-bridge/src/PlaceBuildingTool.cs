@@ -661,7 +661,7 @@ namespace HomeBridge.BridgeTools
                         }
                         catch { }
 
-                        if (t.Position == center && SameRotation(t, rot) &&
+                        if (t.Position == center && SameRotation(t, rot) && t.Stuff == stuffDef &&
                             (t.def == entDef || t.def.entityDefToBuild == entDef))
                             identical = true;
 
