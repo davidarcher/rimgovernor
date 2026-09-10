@@ -12,7 +12,7 @@ READS = OBSERVATION_TOOLS | frozenset({'home/recovery_state', 'home/husbandry_fa
     'rimworld/get_ui_layout', 'rimworld/list_main_tabs', 'rimworld/list_inspect_tabs',
     'rimworld/list_messages', 'rimworld/list_alerts', 'rimworld/get_map_target_info',
 })
-WRITES = frozenset({'home/recovery_area', 'home/recover_service', 'home/husbandry_config', 'home/relieve_need', 'home/medical_operations', 'home/manage_waste', 'home/gear_upkeep', 'home/population', 'home/acquire_resource', 'home/production_policy', 'home/cancel_construction', 'home/confirm_colony_names', 'home/zone_cells', 'home/place_building', 'home/pawn_config',
+WRITES = frozenset({'home/recovery_area', 'home/recover_service', 'home/husbandry_config', 'home/relieve_need', 'home/medical_operations', 'home/caravan', 'home/accept_quest', 'home/manage_waste', 'home/gear_upkeep', 'home/population', 'home/acquire_resource', 'home/production_policy', 'home/cancel_construction', 'home/confirm_colony_names', 'home/zone_cells', 'home/place_building', 'home/pawn_config',
     'home/building_config', 'home/bills', 'home/order', 'home/trade', 'home/research', 'home/dialog_text', 'home/install',
     'rimworld/set_time_speed', 'rimworld/apply_architect_designator',
     'rimworld/open_letter', 'rimworld/dismiss_letter', 'rimworld/click_screen_target',
@@ -23,6 +23,8 @@ WRITES = frozenset({'home/recovery_area', 'home/recover_service', 'home/husbandr
 def is_write(tool, arguments):
     if tool == 'home/population':
         return arguments.get('interaction') is not None and arguments.get('dryRun') is not True
+    if tool == 'home/caravan' and arguments.get('action', 'catalog') == 'catalog':
+        return False
     if tool == 'home/research':
         return bool(arguments.get('set')) and arguments.get('dryRun') is not True
     if (tool.startswith('home/') or tool == 'rimworld/apply_architect_designator') and arguments.get('dryRun') is True:
@@ -85,6 +87,8 @@ class BridgeGame(ObservationGateway):
             raise ValueError('Native structured receipt is missing')
         if payload.get('unknownArguments'):
             raise ValueError('Native tool reported ignored arguments')
+        if tool in ('home/accept_quest', 'home/caravan') and payload.get('accepted') is not True:
+            raise ValueError(payload.get('reason') or 'Native quest acceptance was refused')
         if (tool == 'home/install' or (tool in ('home/manage_waste', 'home/recover_service', 'home/recovery_area') and arguments.get('dryRun') is False)) and payload.get('accepted') is not True:
             raise ValueError(payload.get('reason') or 'Native installation was not accepted')
         if tool == 'home/research' and arguments.get('set'):

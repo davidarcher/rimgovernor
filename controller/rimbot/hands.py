@@ -192,6 +192,8 @@ class Hands:
                                 outcome = result.get('receipt', result)
                                 receipt['order_generation'] = outcome.get('orderGeneration')
                                 receipt['patient_order_generation'] = outcome.get('targetOrderGeneration')
+                                if action.tool == 'home/caravan':
+                                    receipt['issued_tick'] = result.get('receipt', result).get('observation', {}).get('ticksGame', receipt['issued_tick'])
                         else:
                             self.guard(rt, revision, token, direction)
                             intent = {'confirmed': False}

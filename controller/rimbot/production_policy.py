@@ -1,5 +1,6 @@
 """Persistent player budgets projected onto native bill job admission."""
 from .strategic_state import fingerprint
+from .world_progression import caravan_cargo_held
 
 
 def production_budgets(plan):
@@ -9,9 +10,10 @@ def production_budgets(plan):
         if policy.get('spending', 'normal') != 'normal': stopped.append(resource)
     for identity, slots in plan.control.get('costs', {}).items():
         progress = plan.progress.get(identity)
-        if progress is None or progress.state in ('complete', 'cancelled', 'blocked'): continue
+        cargo_held = caravan_cargo_held(plan, identity)
+        if progress is None or (progress.state in ('complete', 'cancelled', 'blocked') and not cargo_held): continue
         for slot, costs in slots.items():
-            if progress.issued.get(slot, {}).get('confirmed'): continue
+            if progress.issued.get(slot, {}).get('confirmed') and not cargo_held: continue
             for resource, count in costs.items(): floors[resource] = floors.get(resource, 0) + count
     return {k: v for k, v in floors.items() if v}, sorted(stopped)
 

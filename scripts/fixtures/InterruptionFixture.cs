@@ -11,6 +11,40 @@ namespace RimBot.InterruptionFixtures
     // Separate test assembly; never part of production or the gameplay capability allowlist.
     public sealed class InterruptionFixture
     {
+        [Tool("test/world_incident", Description = "Disposable ordinary ColdSnap or MadAnimal incident at native storyteller settings. No direct condition, temperature, pawn or health edits.")]
+        public async Task<object> WorldIncident(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            string definition, bool dryRun = true)
+        {
+            return await ctx.MainThread.InvokeAsync(() =>
+            {
+                if (definition != "ColdSnap" && definition != "MadAnimal") throw new ArgumentException("Unsupported fixture incident");
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Load and pause a disposable colony first");
+                var def = DefDatabase<IncidentDef>.GetNamed(definition);
+                var parms = StorytellerUtility.DefaultParmsNow(def.category, map);
+                var eligible = def.Worker.CanFireNow(parms);
+                var applied = !dryRun && eligible && def.Worker.TryExecute(parms);
+                return (object)new { success = true, definition, dryRun, eligible, applied,
+                    tick = Find.TickManager.TicksGame, temperature = map.mapTemperature.OutdoorTemp };
+            }, cancellationToken);
+        }
+
+        [Tool("test/trade_quest_offer", Description = "Disposable ordinary TradeRequest quest generation at native storyteller points; never awards completion or edits quest states.")]
+        public async Task<object> TradeQuest(IRimBridgeContext ctx, CancellationToken cancellationToken, bool dryRun = true)
+        {
+            return await ctx.MainThread.InvokeAsync(() =>
+            {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Load and pause a disposable colony first");
+                var def = DefDatabase<QuestScriptDef>.GetNamed("TradeRequest");
+                var points = StorytellerUtility.DefaultThreatPointsNow(map);
+                var eligible = def.CanRun(points, map);
+                var quest = !dryRun && eligible ? QuestUtility.GenerateQuestAndMakeAvailable(def, points) : null;
+                return (object)new { success = true, dryRun, eligible, points,
+                    questId = quest?.GetUniqueLoadID(), state = quest?.State.ToString() };
+            }, cancellationToken);
+        }
+
         [Tool("test/join_incident", Description = "Disposable scenario setup: require and execute the ordinary native WandererJoin incident; no direct pawn generation or edits.")]
         public async Task<object> Join(IRimBridgeContext ctx, CancellationToken cancellationToken, bool dryRun = true)
         {
@@ -43,6 +77,9 @@ namespace RimBot.InterruptionFixtures
                 var after = map.mapPawns.FreeColonistsSpawned.Select(p => p.GetUniqueLoadID()).ToArray();
                 return (object)new { success = true, dryRun, eligible, applied, definition = def.defName,
                     worker = def.Worker.GetType().FullName, quest = def.questScriptDef.defName, acceptedLetter,
+                    questStates = Find.QuestManager.QuestsListForReading.Where(q => q.root == def.questScriptDef)
+                        .Select(q => new { id = q.GetUniqueLoadID(), state = q.State.ToString(),
+                            acceptedTick = q.acceptanceTick, hidden = q.hidden }).ToArray(),
                     before, after, joined = after.Except(before).ToArray(), tick = Find.TickManager.TicksGame };
             }, cancellationToken);
         }

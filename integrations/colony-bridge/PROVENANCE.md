@@ -104,6 +104,14 @@ Local changes:
   observed wild predators. `ListPawnsTool.cs` exposes that evidence and
   `SupervisedPlayTool.cs` pauses active hunting when a fresh route fails screening.
   No hunting designation, pawn job or path is changed by these reads.
+- `WorldProgressionTool.cs`, `CaravanTool.cs` and `QuestTool.cs` are original
+  local code against installed RimWorld 1.6 APIs. World reads report native
+  caravan membership, cargo, assembly jobs and quest states. Caravan formation
+  uses the ordinary dialog transferables, eligibility and forming lord; travel
+  uses the native path follower. Quest acceptance uses native eligibility and
+  reward choice callbacks. No instant caravan creation, inventory transfer,
+  teleportation, quest completion or quest signal injection is exposed.
+  Game implementation inspected during development remains outside Git.
 - `VideoStreamTool.cs` is original local presentation code. It captures the Unity
   framebuffer after rendering into a leased RGB24 shared-memory slot on Windows.
   It does not issue input, alter simulation speed or expose editor operations.

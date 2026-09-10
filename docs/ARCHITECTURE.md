@@ -38,3 +38,7 @@ The sections below are entry points for existing architecture links.
 ## Live interface delivery
 
 [The dashboard and game view](explanation/dashboard.md).
+
+## World progression
+
+[World progression](explanation/world-progression.md).

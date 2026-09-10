@@ -1027,6 +1027,20 @@ class BridgeRuntime:
             await self.refresh_clock_events()
             if expected_revision is not None and expected_revision != self.chat_revision:
                 raise NativeNotDispatched('Native interruption arrived during preparation; no command sent')
+            if name == 'home/caravan' and is_write(name, arguments):
+                step = next((s for s in self.current_plan.spec.steps if s.id == expected_step_id), None)
+                if step is None or step.action.tool != name:
+                    raise ValueError('Caravan writes require a shared committed action')
+                if arguments.get('action') == 'form':
+                    from .resource_accounting import validate_execution_costs
+                    preview = await self.game.invoke(name, dict(arguments, dryRun=True))
+                    validate_execution_costs(self.current_plan, self.current_plan.progress[step.id], '0', preview)
+                else:
+                    world = await self.game.query('home/world_progression')
+                    caravan = next((c for c in world.get('caravans', []) if c.get('id') == arguments['caravanId']), None)
+                    if (world.get('complete') is not True or caravan is None or
+                            {p['thingId'] for p in caravan['pawns']} != set(step.action.caravan_target.pawn_ids)):
+                        raise ValueError('Caravan membership changed before route dispatch')
             from .flight_recorder import recording_action
             action = next((s for s in self.current_plan.spec.steps if s.id == expected_step_id), None)
             with recording_action(expected_step_id, action.goal_id if action else None):
@@ -1068,6 +1082,22 @@ class BridgeRuntime:
                     if 'expectedCurrent' in arguments:
                         from .research import selected as research_selected
                         research_selected(self, selected)
+                elif name == 'home/accept_quest':
+                    verification = await self.game.query('home/world_progression')
+                    quests = [q for q in verification.get('quests', []) if q.get('id') == arguments['questId']]
+                    if (verification.get('complete') is not True or len(quests) != 1
+                            or quests[0].get('acceptedTick', -1) < 0
+                            or any(verification.get(key) != arguments[key] for key in ('colonyId', 'loadToken', 'mapId'))):
+                        raise ValueError('Quest acceptance was not confirmed by fresh scoped native readback')
+                elif name == 'home/caravan':
+                    verification = await self.game.query('home/world_progression')
+                    if verification.get('complete') is not True or any(
+                            verification.get(key) != arguments[key] for key in ('colonyId', 'loadToken', 'mapId')):
+                        raise ValueError('Caravan write readback scope changed; inspect before retrying')
+                    if arguments['action'] == 'form' and not any(
+                            {p['thingId'] for p in row['pawns']} == set(step.action.caravan_target.pawn_ids)
+                            for row in verification.get('assemblies', [])):
+                        raise ValueError('Native assembly was not observed; inspect before retrying')
                 elif name == 'rimworld/open_letter':
                     verification = await self.game.invoke('rimworld/get_ui_state', {})
                     from .dialog_control import verify_letter_window
@@ -1147,6 +1177,8 @@ class BridgeRuntime:
                 await refresh_waste(self)
                 from .service_recovery import refresh as refresh_services
                 await refresh_services(self)
+                from .world_progression import reconcile_world
+                await reconcile_world(self)
                 self.reconcile_plan()
                 self.persist()
             # Inference is requested only by a new player message. Native events
@@ -1383,6 +1415,8 @@ class BridgeRuntime:
                                 await refresh_waste(self)
                                 from .service_recovery import refresh as refresh_services
                                 await refresh_services(self)
+                                from .world_progression import reconcile_world
+                                await reconcile_world(self)
                                 self.reconcile_plan()
                                 if self.strategic_state.pending and self.mode == 'automate':
                                     self.wake.set()

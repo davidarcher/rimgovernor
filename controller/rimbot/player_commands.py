@@ -66,6 +66,38 @@ class MaintainHerd(Contract):
         return self
 
 
+class AcceptQuest(Contract):
+    kind: Literal['AcceptQuest']
+    quest_id: str = Field(min_length=1, description='Exact visible native quest ID requested by the player')
+    pawn_id: str = Field(min_length=1, description='Exact observed eligible colonist ID')
+    reward_choice: int = Field(default=-1, ge=-1, description='Exact observed reward index; -1 only when there are no reward choices')
+
+
+class CaravanCargo(Contract):
+    group_id: str = Field(min_length=1)
+    count: int = Field(gt=0)
+
+
+class FormCaravan(Contract):
+    kind: Literal['FormCaravan']
+    pawn_ids: list[str] = Field(min_length=1, max_length=16)
+    cargo: list[CaravanCargo] = Field(min_length=1, max_length=32)
+    destination: int = Field(ge=0)
+
+
+class RouteCaravan(Contract):
+    kind: Literal['RouteCaravan']
+    caravan_id: str = Field(min_length=1)
+    destination: int | None = Field(default=None, ge=0)
+    return_home: bool = False
+
+    @model_validator(mode='after')
+    def one_destination(self):
+        if self.return_home == (self.destination is not None):
+            raise ValueError('Choose one destination or return_home')
+        return self
+
+
 class CreateGoal(Contract):
     kind: Literal['CreateGoal']
     goal: Literal['EnsureFoodSupply', 'EnsureInitialShelter', 'EnsureFoodStorage', 'EnsureCooking',
@@ -253,10 +285,10 @@ class RescuePawn(Contract):
     patient: str = Field(min_length=1, description='Exact observed downed living colonist to carry to a native eligible bed.')
 
 
-Command = Annotated[RequestSurgery | MaintainHerd | SetPopulationPolicy | SetPopulationDecision | TradeEconomy | SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | RelocateConstruction | AdoptRoom | BuildRoom |
+Command = Annotated[RequestSurgery | FormCaravan | RouteCaravan | AcceptQuest | MaintainHerd | SetPopulationPolicy | SetPopulationDecision | TradeEconomy | SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | RelocateConstruction | AdoptRoom | BuildRoom |
                     PlaceBuildings | CreateZone | EditZone | SetWorkPriority | CreateBill | SetBuildingTemperature | DraftPawn | MovePawn | TendPawn | RescuePawn, Field(discriminator='kind')]
 COMMAND = TypeAdapter(Command)
-COMMAND_TYPES = (RequestSurgery,MaintainHerd,SetPopulationPolicy,SetPopulationDecision,TradeEconomy,SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,RelocateConstruction,AdoptRoom,BuildRoom,PlaceBuildings,
+COMMAND_TYPES = (RequestSurgery,FormCaravan,RouteCaravan,AcceptQuest,MaintainHerd,SetPopulationPolicy,SetPopulationDecision,TradeEconomy,SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,RelocateConstruction,AdoptRoom,BuildRoom,PlaceBuildings,
                  CreateZone,EditZone,SetWorkPriority,CreateBill,SetBuildingTemperature,DraftPawn,MovePawn,TendPawn,RescuePawn)
 COMMAND_NAMES = {kind.__name__ for kind in COMMAND_TYPES}
 
@@ -283,6 +315,9 @@ def semantic_tools(resources=None):
         'SetPopulationPolicy':'Set explicitly requested maximum population and minimum food reserve days. Does not authorize capturing or recruiting any individual; use SetPopulationDecision for exact observed pawns.',
         'SetPopulationDecision':'Explicit per-pawn rescue, hostile capture, prisoner recruitment, or withdrawal of future population orders. Requires an existing population capacity policy. Preserves other individuals and does not release existing prisoners. Native custody, care, recruitment and integration are observed separately.',
         'MaintainHerd':'Maintain player animal population, training and seasonal stored feed targets. Uses native normal breeding and handler work. Never infer culling permission from a population target. Animal settings changed by the player require explicit renewal.',
+        'FormCaravan':'Form an explicitly requested expedition using observed pawn IDs, native caravan cargo group IDs and destination tile. Reserves cargo and waits for actual loaded departure.',
+        'RouteCaravan':'Route an explicitly requested existing player caravan to an observed tile or return it to the current home map. Native arrival is observed separately from route acceptance.',
+        'AcceptQuest':'Accept a quest explicitly requested by the player using its observed ID, eligible colonist and chosen reward. Acceptance does not complete the quest.',
         'SetResearch':'Select a research project requested by the player.',
         'RequestSurgery':'Queue one exact native operation explicitly requested by the player. Requires inspected patient/body-part/recipe eligibility. Never infer elective surgery from a general request to care for the colony.',
         'CreateGoal':'Set a persistent colony target. MaintainResource with resource and quantity means keep acquiring or producing that stock, for example maintain 50 steel. The deterministic controller chooses downstream actions.',
@@ -368,7 +403,8 @@ def command_confirmation(name, result):
         return 'Construction relocation accepted. The validated replacement waits for exact old-order cancellation; pawn construction is tracked separately.'
     if name=='AdoptRoom':
         return 'Existing roofed room selected as the colony shelter. Native furnishings and temperature remain separately verified.'
-    titles={'SetResearch':'Research change','SetWorkPriority':'Work assignment change','DraftPawn':'Draft change',
+    titles={'FormCaravan':'Caravan assembly','RouteCaravan':'Caravan route','AcceptQuest':'Quest acceptance',
+            'SetResearch':'Research change','SetWorkPriority':'Work assignment change','DraftPawn':'Draft change',
             'MovePawn':'Movement order','BuildRoom':'Room shell','PlaceBuildings':'Building batch',
             'CreateZone':'Zone','EditZone':'Zone edit','CreateBill':'Production bill','SetBuildingTemperature':'Temperature setpoint'}
     return titles.get(name,name)+' accepted. Execution is tracked in the colony plan.'
@@ -583,6 +619,50 @@ async def apply_command(rt, payload, *, token, revision):
                 part=request.part, expectedHealth=preview['healthSignature'], expectedCare=preview['medicalCare'],
                 **{k:preview[k] for k in ('colonyId', 'loadToken', 'mapId')}),
                 completion='surgery_health', medical_effect=effect)
+        elif isinstance(request, (FormCaravan, RouteCaravan)):
+            scope = await rt.game.query('home/colony_identity')
+            arguments = {key: scope[key] for key in ('colonyId', 'loadToken', 'mapId')}
+            if isinstance(request, FormCaravan):
+                if len(set(request.pawn_ids)) != len(request.pawn_ids) or len({c.group_id for c in request.cargo}) != len(request.cargo):
+                    raise ValueError('Select unique caravan members and cargo groups')
+                if any(getattr(s.action, 'caravan_target', None) is not None
+                       and rt.current_plan.progress[s.id].state in ('pending', 'executing', 'waiting')
+                       and set(s.action.caravan_target.pawn_ids) & set(request.pawn_ids)
+                       for s in rt.current_plan.spec.steps):
+                    raise ValueError('A selected pawn already belongs to unfinished expedition work')
+                arguments.update(action='form', pawnIds=','.join(request.pawn_ids),
+                    cargoIds=','.join(c.group_id for c in request.cargo), counts=','.join(str(c.count) for c in request.cargo),
+                    destination=request.destination)
+                target = dict(pawn_ids=request.pawn_ids, destination=request.destination)
+                completion = 'caravan_departed'
+            else:
+                world = await rt.game.query('home/world_progression')
+                caravan = next((c for c in world.get('caravans', []) if c.get('id') == request.caravan_id), None)
+                if world.get('complete') is not True or caravan is None:
+                    raise ValueError('Current complete caravan observation is required')
+                arguments.update(action='return' if request.return_home else 'move', caravanId=request.caravan_id)
+                destination = request.destination
+                if request.return_home:
+                    destination = (await rt.game.query('home/world'))['tile']
+                else:
+                    arguments['destination'] = destination
+                target = dict(pawn_ids=[p['thingId'] for p in caravan['pawns']], destination=destination, caravan_id=request.caravan_id)
+                completion = 'caravan_returned' if request.return_home else 'caravan_arrived'
+            preview = await rt.inspect_native('home/caravan', dict(arguments, dryRun=True))
+            if preview.get('accepted') is not True:
+                raise ValueError(preview.get('reason') or 'Native caravan request refused')
+            if isinstance(request, FormCaravan):
+                target['cargo'] = {r['defName']: r['count'] for r in preview['costList']}
+            action = native('home/caravan', **arguments)
+            action.update(completion=completion, caravan_target=target)
+        elif isinstance(request, AcceptQuest):
+            scope = await rt.game.query('home/colony_identity')
+            arguments = {key: scope[key] for key in ('colonyId', 'loadToken', 'mapId')}
+            arguments.update(questId=request.quest_id, pawnId=request.pawn_id, rewardChoice=request.reward_choice)
+            preview = await rt.inspect_native('home/accept_quest', dict(arguments, dryRun=True))
+            if preview.get('accepted') is not True:
+                raise ValueError(preview.get('reason') or 'Quest acceptance is unavailable')
+            action = native('home/accept_quest', **arguments)
         elif isinstance(request, SetResearch):
             try:
                 preview=await rt.inspect_native('home/research',{'set':request.project,'dryRun':True,'watch':False})

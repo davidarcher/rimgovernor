@@ -1,6 +1,7 @@
 """Shared commitment-time reservations for player and autopilot construction."""
 from .colony_plan import Buildings, RoomShell, NativeOperation
 from .hands import room_placements
+from .world_progression import caravan_cargo_held
 
 
 class ResourceShortage(ValueError):
@@ -17,11 +18,15 @@ async def validate_allocations(spec, current, game):
     held = {}
     retained = {s.id for s in spec.steps}
     for identity, slots in current.control.get('costs', {}).items():
-        if identity not in retained: continue
+        if identity not in retained:
+            if caravan_cargo_held(current, identity):
+                raise ValueError('Retain the caravan action until its issued cargo is observed departing')
+            continue
         progress = current.progress.get(identity)
-        if progress is None or progress.state in ('complete', 'cancelled', 'blocked'): continue
+        cargo_held = caravan_cargo_held(current, identity)
+        if progress is None or (progress.state in ('complete', 'cancelled', 'blocked') and not cargo_held): continue
         for slot, costs in slots.items():
-            if progress.issued.get(slot, {}).get('confirmed'): continue
+            if progress.issued.get(slot, {}).get('confirmed') and not cargo_held: continue
             for resource, count in costs.items(): held[resource] = held.get(resource, 0) + count
     policy = current.control.get('resource_policy', {})
     for step in spec.steps:
@@ -29,6 +34,24 @@ async def validate_allocations(spec, current, game):
         if step.source == 'LLM_ADVISOR':
             raise ValueError('Advisory recommendations cannot commit game orders')
         action = step.action
+        if isinstance(action, NativeOperation) and action.tool == 'home/caravan' and action.arguments.get('action') == 'form':
+            preview = await game.invoke(action.tool, dict(action.arguments, dryRun=True), allow_write=False)
+            if preview.get('accepted') is not True or 'costList' not in preview or 'rows' not in preview.get('materials', {}):
+                raise ValueError('Native caravan manifest costs are unavailable')
+            costs = {r['defName']: r['count'] for r in preview['costList']}
+            if costs != action.caravan_target.cargo:
+                raise ValueError('Caravan cargo manifest changed; inspect before admission')
+            available = {r['defName']: r['available'] for r in preview['materials']['rows']}
+            for resource, count in costs.items():
+                rules = policy.get(resource, {})
+                if rules.get('spending') in ('stop', 'defense_only'):
+                    raise ValueError('Player resource policy prevents expedition spending: ' + resource)
+                if available.get(resource) is None:
+                    raise ValueError('Caravan resource stock is unavailable: ' + resource)
+                spendable[resource] = min(spendable.get(resource, available[resource]), available[resource])
+                requested[resource] = requested.get(resource, 0) + count
+            slots_by_step[step.id] = {'0': costs}
+            continue
         if isinstance(action, RoomShell) and len(action.materials or []) > 1:
             chosen = None
             for material in action.materials:
@@ -136,12 +159,13 @@ def execution_reservations(plan, step_id):
         progress = plan.progress.get(identity)
         if progress is None:
             continue
+        cargo_held = caravan_cargo_held(plan, identity)
         for slot, costs in slots.items():
             issued = progress.issued.get(slot)
-            if issued and issued.get('confirmed') is True:
+            if issued and issued.get('confirmed') is True and not cargo_held:
                 continue
             uncertain = issued is not None and issued.get('confirmed') is not True
-            if identity not in selected and not uncertain:
+            if identity not in selected and not uncertain and not cargo_held:
                 continue
             for resource, count in costs.items():
                 held[resource] = held.get(resource, 0) + count

@@ -20,7 +20,7 @@ OBSERVATION_TOOLS = frozenset({
     'home/colony_facts',
     'home/colony_identity', 'home/status', 'home/list_pawns', 'home/list_things',
     'home/list_buildings', 'home/list_rooms', 'home/list_zones',
-    'home/world',
+    'home/world', 'home/world_progression',
     'home/get_cells_plus',
     'home/spatial_access',
 })

@@ -113,24 +113,43 @@ class CancelConstructionAction(Contract):
         return self
 
 
+class CaravanTarget(Contract):
+    pawn_ids: list[str] = Field(min_length=1)
+    destination: int = Field(ge=0)
+    caravan_id: str | None = None
+    cargo: dict[str, int] = Field(default_factory=dict)
+
+    @model_validator(mode='after')
+    def valid_manifest(self):
+        if len(set(self.pawn_ids)) != len(self.pawn_ids) or any(not p.startswith('Thing_') for p in self.pawn_ids):
+            raise ValueError('Caravan members require unique native pawn IDs')
+        if any(type(count) is not int or count <= 0 for count in self.cargo.values()):
+            raise ValueError('Caravan cargo counts must be positive integers')
+        return self
+
+
 class NativeOperation(Contract):
     kind: Literal['native_operation'] = 'native_operation'
-    tool: Literal['home/recovery_area', 'home/recover_service', 'home/husbandry_config', 'home/relieve_need', 'home/medical_operations', 'home/manage_waste', 'home/gear_upkeep', 'home/population', 'home/acquire_resource', 'home/production_policy', 'home/confirm_colony_names', 'home/pawn_config', 'home/building_config', 'home/bills', 'home/order',
+    tool: Literal['home/recovery_area', 'home/recover_service', 'home/husbandry_config', 'home/relieve_need', 'home/medical_operations', 'home/caravan', 'home/accept_quest', 'home/manage_waste', 'home/gear_upkeep', 'home/population', 'home/acquire_resource', 'home/production_policy', 'home/confirm_colony_names', 'home/pawn_config', 'home/building_config', 'home/bills', 'home/order',
         'home/zone_cells', 'home/trade', 'home/research', 'rimworld/apply_architect_designator',
         'rimworld/open_letter', 'rimworld/dismiss_letter', 'rimworld/click_screen_target',
         'home/install', 'home/dialog_text', 'rimworld/click_ui_target', 'rimworld/scroll_ui_target',
         'rimworld/open_main_tab', 'rimworld/close_main_tab']
     arguments: dict
     # Honest fallback for native operations lacking a higher-level compiler.
-    completion: Literal['service_recovered', 'need_recovered', 'pawn_gear', 'waste_contained', 'native_receipt', 'patient_tended', 'patient_in_bed', 'pawn_equipped', 'pawn_at_position', 'surgery_health'] = 'native_receipt'
+    completion: Literal['service_recovered', 'need_recovered', 'pawn_gear', 'waste_contained', 'native_receipt', 'patient_tended', 'patient_in_bed', 'pawn_equipped', 'pawn_at_position',
+                        'surgery_health', 'caravan_departed', 'caravan_arrived', 'caravan_returned'] = 'native_receipt'
     medical_effect: dict | None = None
+    caravan_target: CaravanTarget | None = None
 
     @model_serializer(mode='wrap')
-    def retain_existing_operation_shape(self, handler):
-        data = handler(self)
+    def serialize(self, handler):
+        value = handler(self)
+        if self.caravan_target is None:
+            value.pop('caravan_target', None)  # Preserve existing native-action fingerprints.
         if self.medical_effect is None:
-            data.pop('medical_effect', None)
-        return data
+            value.pop('medical_effect', None)
+        return value
 
     @model_validator(mode='after')
     def medical_completion(self):
@@ -168,6 +187,19 @@ class NativeOperation(Contract):
                 raise ValueError('Need recovery requires an exact pawn and native need relief action')
         if self.tool == 'home/relieve_need' and self.completion != 'need_recovered':
             raise ValueError('Need relief requires observed need recovery, not an order receipt')
+        if self.tool == 'home/caravan':
+            expected = {'form': 'caravan_departed', 'move': 'caravan_arrived', 'return': 'caravan_returned'}
+            if self.completion != expected.get(self.arguments.get('action')) or self.caravan_target is None:
+                raise ValueError('Caravan orders require a matching observed outcome target')
+            if self.arguments['action'] == 'form':
+                if set(self.arguments.get('pawnIds', '').split(',')) != set(self.caravan_target.pawn_ids):
+                    raise ValueError('Caravan manifest does not match selected pawn identities')
+            elif self.arguments.get('caravanId') != self.caravan_target.caravan_id or not self.caravan_target.caravan_id:
+                raise ValueError('Caravan route requires the exact observed caravan identity')
+            if self.arguments['action'] != 'return' and self.arguments.get('destination') != self.caravan_target.destination:
+                raise ValueError('Caravan outcome destination must match the native order')
+        elif self.caravan_target is not None or self.completion.startswith('caravan_'):
+            raise ValueError('Caravan outcome targets require a caravan operation')
         if self.completion in ('pawn_equipped', 'pawn_at_position'):
             required = 'equip' if self.completion == 'pawn_equipped' else 'goto'
             if self.tool != 'home/order' or self.arguments.get('action') != required or not str(self.arguments.get('pawn', '')).startswith('Thing_'):

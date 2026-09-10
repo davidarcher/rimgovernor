@@ -106,3 +106,7 @@ inputs](how-to/docker-inputs.md#obtain-linux-files-through-steam).
 ## Resource production budgets
 
 [Verify resource production budgets](how-to/resource-production.md).
+
+## World progression
+
+[Verify world progression](how-to/world-progression.md).
