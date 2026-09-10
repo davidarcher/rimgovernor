@@ -175,7 +175,7 @@ in the checkpoint commit; do not append an implementation diary here.
 
 - [ ] **B18 · Interactive game view and low-latency streaming.** Keep the React
   dashboard and replace the watch-only game panel with explicit player control.
-  Deliver native input first, then continuous video. Snapshot polling remains a
+  Complete native input alongside continuous video. Snapshot polling remains a
   fallback; a faster transport alone does not remove capture or dispatch latency.
 
   **Native input prototype.** Discover the installed RimBridgeServer schemas for
@@ -219,6 +219,13 @@ in the checkpoint commit; do not append an implementation diary here.
   degraded mode and disable unsafe interaction when video is stalled. Separate
   streaming demand from simulation speed; acceptance/headless runs must incur no
   capture, encoding or cinematic delay when streaming is off.
+
+  Connection-scoped cleanup, ordered heartbeats, bounded reconnect, retained-frame
+  fallback and delivery diagnostics are implemented. Synthetic in-app browser
+  checks cover pause/resume, stalled-track recovery, source resolution changes and
+  fullscreen; protocol tests cover concurrent viewers and slow lease renewal.
+  Repeat these against native capture in desktop Chrome, including hidden tabs and
+  actual colony/load changes. Synthetic delivery does not establish game performance.
 
   **Acceptance.** Use an isolated rendered colony to verify click selection,
   right-click menus, scroll/zoom, camera pan, drag selection/designation and

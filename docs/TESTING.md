@@ -460,6 +460,16 @@ hidden-tab cleanup, load changes, multiple viewers and snapshot fallback after a
 stream stall. Resize/fullscreen must retain the image aspect ratio. The 30–60 fps,
 latency and CPU/GPU/TPS acceptance work remains in B18.
 
+For browser lifecycle work without a game or installed-DLL changes, build the
+dashboard and run `scripts/video_browser_fixture.py --port 8791` with `controller`
+on `PYTHONPATH`, then open `http://127.0.0.1:8791/fixture`. Its explicit synthetic
+controls stall/resume frames, change session identity and alternate landscape/
+portrait resolution. Verify automatic reconnect, retained images, Pause video,
+Expand/Exit fullscreen and session cleanup. The fixture never contacts GABS or
+starts a game. Use `/api/video/status` to inspect bounded delivery counters;
+hover the video badge for browser decode/jitter statistics. This is browser and
+protocol acceptance only; retain native and Chrome performance work in B18.
+
 Use a rendered prepared profile and the local web server for player-facing tests.
 Verify that `/api/camera` supplies complete immutable PNG responses while native
 captures advance; pause/play video must retain the last good frame. Check an actual

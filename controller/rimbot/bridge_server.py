@@ -140,6 +140,8 @@ def create_app(runtime=None):
             raise ValueError('Provide viewer ID and playing flag')
         rt = request.app.state.rt
         now = time.monotonic()
+        if not request.app.state.video.accept_heartbeat(viewer, body.get('revision')):
+            return {'playing': rt.video_viewers.get(viewer, 0) > now, 'ignored': True}
         rt.video_viewers = {key:until for key,until in rt.video_viewers.items() if until > now}
         if body['playing']:
             if viewer not in rt.video_viewers and len(rt.video_viewers) >= 32:

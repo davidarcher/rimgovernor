@@ -75,10 +75,17 @@ export default function BridgeColony() {
     [events, setEvents] = useState<Message[]>([]),
     [camera, setCamera] = useState("");
   const [videoPlaying, setVideoPlaying] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    const changed = () => setExpanded(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", changed);
+    return () => document.removeEventListener("fullscreenchange", changed);
+  }, []);
   const [gameUpdates, setGameUpdates] = useState(false);
   const [refreshError, setRefreshError] = useState(""),
     [imageError, setImageError] = useState(false);
   const viewer = useRef(crypto.randomUUID());
+  const videoRevision = useRef(0);
   useEffect(() => {
     const heartbeat = () =>
       fetch("/api/video", {
@@ -86,6 +93,7 @@ export default function BridgeColony() {
         headers: { "X-RimBot": "1", "Content-Type": "application/json" },
         body: JSON.stringify({
           viewer: viewer.current,
+          revision: ++videoRevision.current,
           playing: videoPlaying && view === "colony" && !document.hidden,
         }),
         keepalive: true,
@@ -99,7 +107,7 @@ export default function BridgeColony() {
       fetch("/api/video", {
         method: "POST",
         headers: { "X-RimBot": "1", "Content-Type": "application/json" },
-        body: JSON.stringify({ viewer: viewer.current, playing: false }),
+        body: JSON.stringify({ viewer: viewer.current, playing: false, revision: ++videoRevision.current }),
         keepalive: true,
       }).catch(() => {});
     };
@@ -349,12 +357,13 @@ export default function BridgeColony() {
                 </button>
                 <button
                   onClick={() =>
-                    surface.current
-                      ?.requestFullscreen()
-                      .catch((e) => setError(String(e)))
+                    (document.fullscreenElement
+                      ? document.exitFullscreen()
+                      : surface.current?.requestFullscreen())
+                      ?.catch((e) => setError(String(e)))
                   }
                 >
-                  Expand
+                  {expanded ? "Exit fullscreen" : "Expand"}
                 </button>
               </div>
             </div>

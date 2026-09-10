@@ -433,6 +433,20 @@ do not request PNG snapshots. Unsupported or stalled streams display the snapsho
 fallback, retaining the last good image. Streaming does not change simulation
 speed, control ownership or cinematic preferences.
 
+Connection IDs scope explicit peer closure, and ordered viewer heartbeat revisions
+prevent a delayed pause from overriding newer playback. Negotiation runs outside
+the frame-sampling lock. The browser reconnects with bounded backoff after a stall
+or transport failure and retains a recent presented-frame sample, even when the
+closed track has already gone black. Hidden/paused views cancel retries. Session
+changes discard retained video from the previous colony.
+
+The video badge reports browser decoded fps; its tooltip gives decoder drops and
+average jitter-buffer delay when available. `/api/video/status` reports sampled
+and skipped published frames, per-viewer frames handed to the encoder, and a
+bounded 128-sample capture-to-encoder age median/p95. These are separate measurements;
+neither browser jitter delay nor encoder-input age establishes capture-to-display
+latency. Missing browser metrics remain unavailable rather than becoming zero.
+
 Chat supplies structured evidence separately from the current player request.
 Request budgeting may shorten evidence but never the protected current request;
 internal preservation metadata is removed before inference. This prevents large

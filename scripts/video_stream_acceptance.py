@@ -41,7 +41,7 @@ async def run(args):
                 hub = VideoHub(rt)
                 client.addTransceiver('video', direction='recvonly')
                 await client.setLocalDescription(await client.createOffer())
-                answer = await hub.offer(Offer(session_id='acceptance', viewer='probe', sdp=client.localDescription.sdp))
+                answer = await hub.offer(Offer(connection_id='test-connection', session_id='acceptance', viewer='probe', sdp=client.localDescription.sdp))
                 await client.setRemoteDescription(RTCSessionDescription(**answer))
                 track = await asyncio.wait_for(received, 10)
                 started = time.monotonic()

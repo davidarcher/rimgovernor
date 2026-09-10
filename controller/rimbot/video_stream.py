@@ -1,6 +1,7 @@
 """Demand-driven native RGB capture and receive-only dashboard WebRTC."""
 import asyncio
 import ctypes
+from collections import deque
 from fractions import Fraction
 import mmap
 import re
@@ -15,10 +16,14 @@ router = APIRouter(prefix='/api/video')
 CAPACITY = 32 + 3840 * 2160 * 3
 
 
-class Offer(BaseModel):
+class PeerRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
     session_id: str = Field(min_length=1, max_length=300)
     viewer: str = Field(min_length=1, max_length=80)
+    connection_id: str = Field(min_length=1, max_length=80)
+
+
+class Offer(PeerRequest):
     sdp: str = Field(min_length=1, max_length=64000)
 
 
@@ -43,12 +48,12 @@ class RawFrames:
             self.api.CloseHandle(self.gate)
             raise
 
-    def read(self):
+    def read(self, previous=0):
         if self.api.WaitForSingleObject(self.gate, 0) not in (0, 0x80):
             return None
         try:
             sequence, width, height, captured = struct.unpack('<Qiid', self.buffer[:24])
-            if not sequence or not (0 < width <= 3840 and 0 < height <= 2160):
+            if not sequence or sequence == previous or not (0 < width <= 3840 and 0 < height <= 2160):
                 return None
             if not 0 <= time.time() - captured < 2:
                 return None
@@ -84,6 +89,11 @@ class VideoHub:
         self.latest = None
         self.task = None
         self.session = None
+        self.peer_ids = {}
+        self.heartbeat_revisions = {}
+        self.last_error = ''
+        self.sampled_frames = 0
+        self.skipped_frames = 0
         if not hasattr(rt, 'streaming_viewers'):
             rt.streaming_viewers = set()
 
@@ -91,6 +101,21 @@ class VideoHub:
         return (self.rt.connected and not self.rt.headless
                 and not getattr(self.rt, 'session_closing', False)
                 and session == self.rt.context_token)
+
+    def accept_heartbeat(self, viewer, revision):
+        if revision is None:
+            return viewer not in self.heartbeat_revisions
+        if type(revision) is not int or not 0 <= revision <= 9007199254740991:
+            raise ValueError('Video heartbeat revision must be a nonnegative integer')
+        now = time.monotonic()
+        self.heartbeat_revisions = {key: value for key, value in self.heartbeat_revisions.items() if value[1] > now}
+        previous = self.heartbeat_revisions.get(viewer)
+        if previous and revision <= previous[0]:
+            return False
+        if not previous and len(self.heartbeat_revisions) >= 128:
+            raise ValueError('Too many recent video viewers')
+        self.heartbeat_revisions[viewer] = (revision, now + 60)
+        return True
 
     async def offer(self, body):
         from aiortc import RTCConfiguration, RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
@@ -117,7 +142,9 @@ class VideoHub:
                     raise ValueError('Native continuous video is unavailable')
                 self.source = RawFrames(info['name'])
                 self.session = body.session_id
-                self.task = asyncio.create_task(self.run())
+                self.last_error = ''
+                self.sampled_frames = self.skipped_frames = 0
+                self.task = asyncio.create_task(self.run(self.source, self.session, info['name']))
             pc = RTCPeerConnection(RTCConfiguration(iceServers=[]))
             hub = self
 
@@ -125,23 +152,34 @@ class VideoHub:
                 def __init__(self):
                     super().__init__()
                     self.sequence = 0
+                    self.delivered = 0
+                    self.skipped = 0
+                    self.ages = deque(maxlen=128)
 
                 async def recv(self):
                     deadline = time.monotonic() + 3
                     while self.readyState == 'live' and hub.valid(body.session_id):
                         raw = hub.latest
                         if raw and raw[0] != self.sequence and time.time() - raw[3] < 2:
+                            if self.sequence:
+                                self.skipped += max(0, raw[0] - self.sequence - 1)
                             self.sequence = raw[0]
-                            return await asyncio.to_thread(video_frame, raw)
+                            frame = await asyncio.to_thread(video_frame, raw)
+                            if self.readyState != 'live' or not hub.valid(body.session_id):
+                                break
+                            self.delivered += 1
+                            self.ages.append(max(0, (time.time() - raw[3]) * 1000))
+                            return frame
                         if time.monotonic() > deadline:
                             break
                         await asyncio.sleep(1 / 60)
                     if hub.peers.get(body.viewer, (None,))[0] is pc:
-                        asyncio.create_task(hub.drop(body.viewer))
+                        asyncio.create_task(hub.drop(body.viewer, pc))
                     raise MediaStreamError
 
             track = Track()
             self.peers[body.viewer] = (pc, track)
+            self.peer_ids[body.viewer] = (body.session_id, body.connection_id)
             # The lease is independently renewed by the existing dashboard heartbeat.
             self.rt.video_viewers[body.viewer] = time.monotonic() + 8
 
@@ -151,35 +189,56 @@ class VideoHub:
                     self.rt.streaming_viewers.add(body.viewer)
                 if pc.connectionState in ('failed', 'closed'):
                     if self.peers.get(body.viewer, (None,))[0] is pc:
-                        await self.drop(body.viewer)
+                        await self.drop(body.viewer, pc)
 
-            try:
-                pc.addTrack(track)
-                await pc.setRemoteDescription(RTCSessionDescription(body.sdp, 'offer'))
-                await asyncio.wait_for(pc.setLocalDescription(await pc.createAnswer()), 5)
-                if not self.valid(body.session_id):
-                    raise ValueError('Video session changed during negotiation')
-                return {'sdp': pc.localDescription.sdp, 'type': pc.localDescription.type}
-            except BaseException:
-                await self.drop(body.viewer)
-                raise
+        # Negotiation must not hold up frame sampling for already connected viewers.
+        try:
+            pc.addTrack(track)
+            await pc.setRemoteDescription(RTCSessionDescription(body.sdp, 'offer'))
+            await asyncio.wait_for(pc.setLocalDescription(await pc.createAnswer()), 5)
+            if not self.valid(body.session_id) or self.peers.get(body.viewer, (None,))[0] is not pc:
+                raise ValueError('Video session changed during negotiation')
+            return {'sdp': pc.localDescription.sdp, 'type': pc.localDescription.type}
+        except BaseException:
+            await self.drop(body.viewer, pc)
+            raise
 
-    async def drop(self, viewer):
+    async def drop(self, viewer, expected=None):
+        if expected is not None and self.peers.get(viewer, (None,))[0] is not expected:
+            return
         entry = self.peers.pop(viewer, None)
         if entry:
+            self.peer_ids.pop(viewer, None)
             self.rt.streaming_viewers.discard(viewer)
             pc, track = entry
             track.stop()
             await pc.close()
 
-    async def run(self):
-        source = self.source
+    async def disconnect(self, body):
+        async with self.lock:
+            if self.peer_ids.get(body.viewer) == (body.session_id, body.connection_id):
+                await self.drop(body.viewer)
+
+    def status(self):
+        return {'active': self.source is not None, 'sampledFrames': self.sampled_frames,
+                'skippedCaptureFrames': self.skipped_frames, 'error': self.last_error,
+                'frameAgeMs': max(0, (time.time() - self.latest[3]) * 1000) if self.latest else None,
+                'viewers': [{'state': pc.connectionState, 'framesToEncoder': track.delivered,
+                             'skippedBeforeEncoder': track.skipped,
+                             'captureToEncoderMedianMs': sorted(track.ages)[len(track.ages) // 2] if track.ages else None,
+                             'captureToEncoderP95Ms': sorted(track.ages)[min(len(track.ages) - 1, int(len(track.ages) * .95))] if track.ages else None}
+                            for pc, track in self.peers.values()]}
+
+    async def run(self, source, session, name):
+        previous = 0
         async def renew():
             while True:
                 await asyncio.sleep(3)
                 result = await asyncio.wait_for(self.rt.bridge.call('home/video_stream', seconds=8), 4)
                 if (result.structuredContent or {}).get('error'):
                     raise ValueError('Native capture stopped')
+                if (result.structuredContent or {}).get('name') != name:
+                    raise ValueError('Native capture lease changed')
 
         renewal = asyncio.create_task(renew())
         try:
@@ -188,16 +247,26 @@ class VideoHub:
                     for viewer in list(self.peers):
                         if self.rt.video_viewers.get(viewer, 0) <= time.monotonic():
                             await self.drop(viewer)
-                    if not self.source or not self.valid(self.session) or not self.peers or renewal.done():
+                    if self.source is not source:
+                        return
+                    if not self.valid(session) or not self.peers or renewal.done():
+                        if renewal.done() and not renewal.cancelled():
+                            error = renewal.exception()
+                            if error:
+                                self.last_error = str(error)[:200]
                         await self.release()
                         return
                     # One latest frame, independent of slow native lease renewal or reviews.
-                    raw = self.source.read()
+                    raw = source.read(previous)
                     if raw:
+                        if previous:
+                            self.skipped_frames += max(0, raw[0] - previous - 1)
+                        previous = raw[0]
+                        self.sampled_frames += 1
                         self.latest = raw
                 await asyncio.sleep(1 / 30)
-        except Exception:
-            pass  # Browser detects a stalled stream and displays the snapshot fallback.
+        except Exception as error:
+            self.last_error = str(error)[:200]
         finally:
             renewal.cancel()
             await asyncio.gather(renewal, return_exceptions=True)
@@ -230,3 +299,14 @@ async def offer(body: Offer, request: Request):
         return await hub.offer(body)
     except (ImportError, TimeoutError, RuntimeError, KeyError, OSError):
         return JSONResponse({'detail': 'Continuous video unavailable; using snapshots'}, status_code=503)
+
+
+@router.post('/close')
+async def close_peer(body: PeerRequest, request: Request):
+    await request.app.state.video.disconnect(body)
+    return {'closed': True}
+
+
+@router.get('/status')
+async def video_status(request: Request):
+    return request.app.state.video.status()
