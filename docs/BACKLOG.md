@@ -132,6 +132,35 @@ in the checkpoint commit; do not append an implementation diary here.
   [hydroponics](https://rimworldwiki.com/wiki/Hydroponics),
   [outage consequences](https://rimworldwiki.com/wiki/Events_Guide) and
   [nutrifungus](https://rimworldwiki.com/wiki/Nutrifungus).
+- [ ] **B06b · Deterministic production and service facilities.** Add maintained
+  functional methods for workshops, breweries, drug labs, clinics, dining rooms
+  and recreation spaces. Coordinate with B04f development, B06 spatial planning
+  and B07 scheduling; extend the shared goal/action system and deterministic Hands.
+  Trigger projects from observed unmet demand and player priorities, reuse existing
+  rooms/equipment first, and support compatible shared rooms instead of requiring
+  a separate building for every role. Rank bounded sites using access, hauling,
+  available space, native placement constraints and construction/operating costs.
+  Extend resource-target production beyond existing benches: discover native
+  recipes, research and facility prerequisites, then stage missing shells,
+  equipment, power/fuel, ingredient storage, bills and capable worker coverage.
+  Include multi-stage brewing and intermediate products without duplicate bills
+  or unbounded stockpiles. Preserve player bill settings, resource reserves and
+  drug policies; production targets do not authorize changing consumption policy.
+  Define role-specific observed requirements: clinic bed designation, medicine
+  access, doctor coverage and cleanliness; dining seating/table access near food;
+  usable recreation appropriate to observed needs; production bench interaction
+  cells, lighting, temperature and reachable inputs/output storage. Discover native
+  definitions and room evidence instead of hardcoding assumed room bonuses.
+  Admit dependency chains only with known prerequisites and shared resource
+  budgets; expose missing research, power, materials or staffing as blockers.
+  Preserve existing plants, rooms, routes and player furniture; invalidate pending
+  work after player direction, map/load changes or edited facility geometry.
+  Acceptance: reuse versus new build, constrained placement, competing projects,
+  missing prerequisites, interrupted construction, edited bills and restart without
+  duplicate orders. Start with dining/recreation and one bill-based workshop,
+  then clinic and multi-stage production. Native scenarios must observe completed
+  facilities and actual eating, recreation, treatment or manufactured output;
+  blueprint acceptance, room labels and bill receipts alone do not prove function.
 - [ ] **B07 · Durable project scheduling.** Extend maintained functional goals,
   resource competition and production-consumption accounting through the shared
   plan and Hands; coordinate ingredient-policy coverage with B04e. Verify real
