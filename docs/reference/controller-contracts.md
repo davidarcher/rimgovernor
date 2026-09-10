@@ -28,6 +28,10 @@ separate entry/recovery thresholds. Emergencies suspend lower priority routine g
 Methods, blockers, provenance and progress evidence live in the existing SQLite-backed
 ColonyPlan.
 
+[Mood relief](mood-control.md) adds per-pawn corrective goals from native thresholds,
+thought pressure and needs. Active breaks hold routine execution; eligible relief
+uses ordinary native need jobs and completes only from observed need recovery.
+
 ### Development admission
 
 Priority-class 3 goals for food storage, basic equipment defense, wood and maintained

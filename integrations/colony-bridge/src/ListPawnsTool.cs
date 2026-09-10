@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -670,6 +670,8 @@ namespace HomeBridge.BridgeTools
                     { "dead", dead },
                     { "job", SafeJob(pawn) },
                     { "jobReport", Try<string>(() => pawn.jobs?.curDriver?.GetReport(), null) },
+                    { "jobLoadId", pawn.CurJob?.loadID ?? -1 },
+                    { "jobPlayerForced", pawn.CurJob?.playerForced ?? false },
                     { "carriedThingId", Try<string>(() => pawn.carryTracker?.CarriedThing?.GetUniqueLoadID(), null) },
                     { "mentalState", SafeMentalState(pawn) },
                     { "nearestColonist", nearestName },

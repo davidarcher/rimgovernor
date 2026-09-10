@@ -35,7 +35,7 @@ class ColonyController:
         policy_values = dict(asdict(ColonyPolicy()), **plan.control.get('policy', {}))
         self.policy = ColonyPolicy(**policy_values)
         native = await rt.game.query('home/colony_facts', planning=True)
-        people = await rt.game.query('home/list_pawns', colonistsOnly=True, bio=True, work=True, health=True, equipment=True)
+        people = await rt.game.query('home/list_pawns', colonistsOnly=True, bio=True, work=True, health=True, equipment=True, needs=True, thoughts=True, schedule=True)
         await rt.ensure_context(token)
         if direction != rt.chat_revision: return
         if native.get('success') is not True:
@@ -51,6 +51,9 @@ class ColonyController:
         waste_goal = plan.colony_goals.get('MaintainWaste')
         if waste_goal and not waste_goal.target.get('unwanted') and not waste_goal.target.get('bury') and native.get('waste'):
             plan.control['waste'] = native['waste']
+        from .mood_control import assess
+        facts['mood'] = assess(people.get('pawns', []) if people.get('success') is not False else [],
+            facts['forecasts']['people'], plan.control.get('facts', {}).get('mood', {}))
         managed=set(plan.control.get('combat',{}).get('pawns',[]))
         managed.update(s.action.arguments.get('pawn') for s in plan.spec.steps
             if s.source=='AUTOPILOT' and s.action.kind=='native_operation'
@@ -90,6 +93,8 @@ class ColonyController:
                     resource_nodes.append((identity, 3))
         old_latches = dict(plan.control.get('latches', {}))
         nodes = priority_nodes(facts, plan.control.setdefault('latches', {}), self.policy) + resource_nodes
+        nodes += [('EnsureMood-'+p, state['priority']) for p, state in facts['mood'].items() if state['active']]
+        nodes.sort(key=lambda node: node[1])
         waste = plan.colony_goals.get('MaintainWaste')
         if waste and not waste.cancelled:
             from .waste_management import pending_items
@@ -191,7 +196,15 @@ class ColonyController:
                 goal.attempts += 1
                 goal.last_progress_tick = facts['tick']
                 self.event('goal_reopened', identity)
-            if identity in ('MaintainWood', 'EnsureFoodStorage') and goal.source == 'AUTOPILOT':
+            if identity.startswith('EnsureMood-'):
+                from .strategic_state import fingerprint as mood_fingerprint
+                state = facts['mood'][identity.removeprefix('EnsureMood-')]
+                observed = mood_fingerprint({k: state.get(k) for k in
+                    ('known', 'mentalState', 'causes', 'missing', 'schedule', 'playerForced', 'drafted', 'downed')})
+                if goal.status == 'blocked' and goal.evidence.get('mood_observation') != observed:
+                    goal.status, goal.reason = 'active', ''
+                goal.evidence['mood_observation'] = observed
+            if identity.startswith('EnsureMood-') or (identity in ('MaintainWood', 'EnsureFoodStorage') and goal.source == 'AUTOPILOT'):
                 goal.priority_class = priority
             else:
                 goal.priority_class = min(goal.priority_class, priority)
@@ -205,7 +218,16 @@ class ColonyController:
                 'CriticalMedical': ['criticalPatients'], 'ActiveCombat': ['hostiles'],
                 'EnsureTemperatureSafety': ['sleepingTemperatureMin', 'sleepingTemperatureMax'],
                 'EnsureBasicPower': ['powerHeadroom'], 'AllowStartingSupplies': ['forbiddenSupplies']}
-            signature = fingerprint({'facts': {key: facts.get(key) for key in progress_fields.get(identity, ['resources'] if identity.startswith('MaintainResource-') else [])},
+            progress_facts = {key: facts.get(key) for key in progress_fields.get(identity,
+                ['resources'] if identity.startswith('MaintainResource-') else [])}
+            if identity.startswith('EnsureMood-'):
+                best = goal.evidence.setdefault('need_high_water', {})
+                for cause in facts['mood'][identity.removeprefix('EnsureMood-')]['causes']:
+                    level = cause['level']
+                    if level is not None and level > best.get(cause['need'], -1) + .01:
+                        best[cause['need']] = level
+                progress_facts = dict(best)
+            signature = fingerprint({'facts': progress_facts,
                 'steps': {s: plan.progress[s].state for s in goal.steps if s in plan.progress}})
             if signature != goal.evidence.get('progress'):
                 goal.evidence['progress'] = signature

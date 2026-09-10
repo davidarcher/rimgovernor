@@ -36,6 +36,7 @@ introduces the idea before linking to the exact contracts and relevant source.
 - [Verify spatial construction, access and reuse](how-to/spatial-acceptance.md).
 - [Verify environmental observations and cooking fallback](how-to/docker-native.md#verify-environmental-observation-and-cooking-fallback).
 - [Evaluate visual review and evidence recall](how-to/visual-reviews.md).
+- [Verify mood relief](how-to/mood-relief.md) against its [native recovery contracts](reference/mood-control.md).
 - [Verify zone, bill and UI player actions](how-to/player-actions.md) against their [coverage contracts](reference/player-actions.md).
 - [Verify waste hauling and burial](how-to/waste-management.md) against their [containment contracts](reference/waste-management.md).
 - [Save and resume](how-to/save-and-resume.md) or [inspect a failed run](how-to/inspect-failure.md).

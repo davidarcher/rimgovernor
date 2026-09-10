@@ -399,6 +399,7 @@ class BridgeRuntime:
             return message
 
     def reconcile_plan(self):
+        from .mood_control import outcome as need_outcome
         for step in self.current_plan.spec.steps:
             progress = self.current_plan.progress[step.id]
             if (isinstance(step.action, NativeOperation) and step.action.completion == 'pawn_gear'
@@ -417,6 +418,19 @@ class BridgeRuntime:
                 elif progress.state == 'waiting' and isinstance(outcome, Failure):
                     progress.state, progress.failure = 'blocked', outcome
                     self.signal('plan.step_blocked', {'step': step.id})
+                continue
+            if (isinstance(step.action, NativeOperation) and step.action.completion == 'need_recovered'
+                    and progress.state in ('waiting', 'blocked') and self.batch):
+                receipt = progress.issued.get('0', {})
+                if (receipt.get('load_token') != self.context_token
+                        or receipt.get('player_direction') != self.current_plan.control.get('player_direction', 0)
+                        or self.batch.started_at <= receipt.get('issued_at', float('inf'))):
+                    continue
+                outcome = need_outcome(step.action, self.batch.native.get('pawns', {}).get('pawns', []))
+                if outcome != 'waiting':
+                    progress.state = 'blocked' if isinstance(outcome, Failure) else 'complete'
+                    progress.failure = outcome if isinstance(outcome, Failure) else None
+                    self.signal('plan.step_'+progress.state, {'step': step.id})
                 continue
             if (isinstance(step.action, NativeOperation) and step.action.completion in ('pawn_equipped', 'pawn_at_position')
                     and progress.state == 'waiting' and self.batch):
