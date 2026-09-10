@@ -180,11 +180,14 @@ in the checkpoint commit; do not append an implementation diary here.
   Consider adaptive game-tick review windows for stable colonies, preserving native
   hazard supervision and a bounded observation age. Archive/reuse verified checkpoints
   for long-lived scenarios while keeping fresh-start acceptance separate.
-- [ ] **B17 · Linux/container workers.** Parameterize game/GABS paths, explicitly
-  configure inference networking beyond current loopback validation, mount licensed
-  game/mod inputs and separate writable profiles, and persist artifacts externally.
-  Verify discovery, independent clocks, shutdown and peer survival before comparing
-  cost/throughput with Windows. No Linux/cloud acceptance is established.
+- [ ] **B17 � Linux/container acceptance.** Build and run the container targets on
+  Docker with licensed Linux game files, Linux GABS and a complete matching mod
+  snapshot. Verify native discovery, independent clocks, shutdown, peer survival
+  and retained saves/artifacts across two Compose projects. Audit Linux native
+  integration compatibility and port remaining Windows-specific acceptance scripts
+  to the shared GABS resolver. Measure startup/copy cost, disk/RAM and useful test
+  throughput against Windows. The staging regression tests do not establish Docker
+  image, native Linux, inference networking or cloud acceptance.
 
 - [ ] **B18 · Interactive game view and low-latency streaming.** Keep the React
   dashboard and replace the watch-only game panel with explicit player control.

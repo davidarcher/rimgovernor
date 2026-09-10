@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from urllib.parse import urlparse
 from pydantic import BaseModel, Field, field_validator, ConfigDict
@@ -20,8 +21,11 @@ class Settings(BaseModel):
     @classmethod
     def local_url(cls, value):
         p = urlparse(value)
-        if p.scheme != 'http' or p.hostname not in ('localhost', '127.0.0.1', '::1') or p.username or p.query or p.fragment:
-            raise ValueError('Use an HTTP loopback address for the local game/model server.')
+        hosts = {'localhost', '127.0.0.1', '::1'}
+        if os.environ.get('RIMBOT_ALLOW_DOCKER_HOST_MODEL') == '1':
+            hosts.add('host.docker.internal')
+        if p.scheme != 'http' or p.hostname not in hosts or p.username is not None or p.password is not None or p.query or p.fragment:
+            raise ValueError('Use HTTP loopback or explicitly enable the Docker host for local inference.')
         return value.rstrip('/')
 
 

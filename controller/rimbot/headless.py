@@ -21,11 +21,16 @@ def isolated_root(source, destination):
     config=json.loads((source/'config/config.json').read_text(encoding='utf8'))
     game=config['games']['rimbot-trial']
     _require_owned_launch(game)
+    from .bridge import gabs_executable
+    binary = gabs_executable(source)
+    relative = binary.relative_to(source) if binary.is_relative_to(source) else Path('gabs')/binary.name
+    config.setdefault('rimbot', {})['gabsExecutable'] = relative.as_posix()
+    (destination/relative).parent.mkdir(parents=True)
+    shutil.copy2(binary, destination/relative)
     (destination/'config').mkdir(parents=True)
     (destination/'config/config.json').write_text(json.dumps(config,indent=2),encoding='utf8')
     for relative in ('profile/Config/Prefs.xml','profile/Config/ModsConfig.xml',
-                     'profile/Saves/RimBot-tribal8-baseline.rws',
-                     'gabs/gabs-v1.1.1-windows-amd64/gabs.exe'):
+                     'profile/Saves/RimBot-tribal8-baseline.rws'):
         target=destination/relative;target.parent.mkdir(parents=True,exist_ok=True)
         shutil.copy2(source/relative,target)
     return destination

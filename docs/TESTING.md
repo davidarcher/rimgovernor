@@ -625,3 +625,81 @@ control. Wall TPS includes pauses. Paused time is a sampled approximation, and
 stop-reason counts count samples rather than distinct incidents. It excludes
 intervals across disconnects, rewinds and session changes. A paused colony yields
 zero TPS; peak speed and safety require separate isolated gameplay acceptance.
+
+## Docker workers (B17)
+
+The Docker targets are available for acceptance; native Linux execution is not
+accepted yet. Docker Engine/Desktop with Linux containers and Compose is required.
+Windows game executables cannot run in this image. Supply your licensed Linux
+RimWorld installation (including Data/Mono files), a Linux amd64 GABS executable
+named `gabs`, a complete `Mods` directory, and a prepared profile containing
+`Config/Prefs.xml`, `Config/ModsConfig.xml` and
+`Saves/RimBot-tribal8-baseline.rws`. The save is copied unchanged.
+
+The mod directory must contain Core/DLC content where required by the game,
+Harmony, RimBridgeServer, RimBotObservations (including its identity assembly and
+BridgeTools) and RimBotHeadless. Resolve workshop links into this snapshot and
+match the active package IDs in ModsConfig.xml. Build task DLLs into a private
+staging directory using the native projects' path properties; do not use `-Install`
+on a shared running Windows installation. Finish staging all inputs before launch.
+Images contain controller/dashboard code only; licensed game files are mounted
+at runtime and never included in the build context.
+
+Run controller checks without game inputs (two `docker run` commands can execute
+simultaneously, with their own writable layers):
+
+```powershell
+docker build -f containers/Dockerfile --target tests -t rimbot-checks .
+docker run --rm rimbot-checks
+docker run --rm rimbot-checks python -m pytest -q controller_tests/test_container_worker.py
+```
+
+For a native worker, set absolute input paths and create a fresh output directory:
+
+```powershell
+$env:RIMBOT_LINUX_GAME = 'D:/RimBotInputs/linux-game'
+$env:RIMBOT_WORKER_MODS = 'D:/RimBotInputs/mods-build-a'
+$env:RIMBOT_WORKER_PROFILE = 'D:/RimBotInputs/profile'
+$env:RIMBOT_LINUX_GABS = 'D:/RimBotInputs/linux-gabs'
+$env:RIMBOT_WORKER_OUTPUT = 'D:/RimBotRuns/a'
+$env:RIMBOT_WORKER_PORT = '8788'
+New-Item -ItemType Directory $env:RIMBOT_WORKER_OUTPUT
+docker compose -f containers/compose.yaml -p rimbot-a up --build -d
+```
+
+In a second terminal/worktree set the same input variables, select that task's mod
+snapshot, and use a fresh output directory, port `8789` and project `rimbot-b`.
+Do not use `--scale`: each worker needs its own output mount and host port. Images
+are built per Compose project, so worktree changes do not replace a peer's image.
+The dashboard is at `http://127.0.0.1:8788` (or the selected port).
+
+LM Studio must accept connections from Docker on port 1234 with the configured
+local model loaded. Compose explicitly permits `host.docker.internal`; it does
+not enable arbitrary remote model URLs. Host firewall/server configuration may
+be needed. Verify a real local model response before measuring inference.
+Docker's [host networking documentation](https://docs.docker.com/compose/how-tos/networking/)
+and [loopback port publishing](https://docs.docker.com/engine/network/port-publishing/)
+describe these mappings.
+
+Each startup copies game/mod binaries and the prepared profile to `/worker/run`.
+This costs disk space per worker but prevents later input DLL replacements from
+changing a running worker. `run/inputs.json` records staged hashes; profiles,
+GABS configuration/claims, logs, controller SQLite and checkpoints stay under the
+output mount. An existing `run` directory is refused, including after an incomplete
+startup. Preserve it as evidence and select a fresh output for another run.
+`docker compose ... down` stops only that project; it does not delete bind-mounted
+artifacts. Do not use Docker restart as a checkpoint restore procedure.
+
+To run the native two-game lifecycle smoke inside a fresh worker container:
+
+```powershell
+docker compose -f containers/compose.yaml -p rimbot-smoke run --rm worker -- python scripts/parallel_headless_smoke.py --source-root /worker/run --output /worker/smoke
+```
+
+This probe checks discovery/loading, independent clocks and peer survival inside
+one namespace. Also run two separate Compose projects, advance one colony while
+the other is paused, stop the first project and verify the second still answers
+native reads with its expected tick. Retain both output trees and Compose logs.
+These are lifecycle checks; actual pawn outcomes and throughput need their own
+native acceptance. Remaining probes with hard-coded Windows paths must be ported
+before use in containers. Rendering/video is outside the headless worker scope.

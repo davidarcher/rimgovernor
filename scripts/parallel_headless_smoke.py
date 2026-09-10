@@ -4,17 +4,17 @@ from contextlib import AsyncExitStack
 import json
 from pathlib import Path
 import time
-from rimbot.bridge import bridge_session
+from rimbot.bridge import bridge_session, gabs_executable
 from rimbot.headless import isolated_root, prepare
 
 
-async def main(output):
+async def main(output, source_root):
     output.mkdir(parents=True,exist_ok=False)
-    roots=[isolated_root('.rimbot/bridge',output/str(i)) for i in range(2)]
+    roots=[isolated_root(source_root,output/str(i)) for i in range(2)]
     began=time.monotonic()
     async with AsyncExitStack() as stack:
         clients=[await stack.enter_async_context(bridge_session(
-            root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',prepare(root))) for root in roots]
+            gabs_executable(root),prepare(root))) for root in roots]
         async def start(client):
             await client.core('games_start',gameId=client.game_id)
             await client.connect()
@@ -42,4 +42,6 @@ if __name__=='__main__':
     import argparse
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output',type=Path,required=True)
-    asyncio.run(main(parser.parse_args().output))
+    parser.add_argument('--source-root', type=Path, default=Path('.rimbot/bridge'))
+    args = parser.parse_args()
+    asyncio.run(main(args.output, args.source_root))

@@ -413,7 +413,10 @@ simulation; map trade requires adjacency. Native watch presentation is off unles
 the player enables action follow for the current load. Native game
 eligibility remains authoritative. The server binds to loopback and guards
 dashboard mutations with same-origin/header checks. Model configuration accepts
-local HTTP loopback endpoints only, with no paid-provider fallback.
+HTTP loopback endpoints by default. `RIMBOT_ALLOW_DOCKER_HOST_MODEL=1` also permits
+`host.docker.internal` for the explicitly configured host LM Studio URL, with no
+paid-provider fallback. Container servers bind inside their network namespace;
+Compose publishes only a host loopback port.
 
 ## Presentation, testing and extension
 
@@ -421,7 +424,13 @@ The dashboard polls compact state and keeps drafts/last good data through refres
 Interactive game images are periodic snapshots; viewer leases drive native render
 demand. `integrations/headless-rim` removes presentation paths in isolated test
 profiles. Each campaign worker owns a separate controller, SQLite database,
-game profile, GABS runtime and logs; installed game/mod files are shared read-only.
+game profile, GABS runtime and logs. Windows workers share installed game/mod
+files read-only. `container_worker.py` copies licensed Linux game/mod inputs into
+a fresh worker directory before starting any game process. Each container owns
+its DLL snapshot and records binary/profile hashes in `inputs.json`; no installed
+DLL swap is involved. Inputs must remain stable during staging. Configuration
+may set `rimbot.gabsExecutable` relative to the worker root (or absolute); legacy
+Windows profiles retain their existing default.
 
 Build output, saves, logs, binaries and measurements belong outside Git. Source
 attribution stays beside integrations and in [THIRD_PARTY.md](../THIRD_PARTY.md).

@@ -1,0 +1,22 @@
+# Build context is an allowlist: never send licensed inputs or worktrees to Docker.
+**
+!pyproject.toml
+!controller/
+!controller/**
+!controller_tests/
+!controller_tests/**
+!scripts/
+!scripts/**
+!integrations/
+!integrations/**
+!dashboard/
+!dashboard/**
+!containers/
+!containers/**
+**/__pycache__/**
+**/node_modules/**
+**/bin/**
+**/obj/**
+**/*.dll
+**/*.exe
+controller/rimbot/static/**

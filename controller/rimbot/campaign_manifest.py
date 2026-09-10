@@ -1,4 +1,5 @@
 """Content provenance for fixed-source, fixed-inference campaign comparisons."""
+from .bridge import gabs_executable
 import hashlib
 import json
 from pathlib import Path
@@ -67,7 +68,7 @@ def capture_manifest(source, worker_root, configuration, routing, *, profile=Non
         'baseline_save': profile/'Saves/RimBot-tribal8-baseline.rws',
         'profile_preferences': profile/'Config/Prefs.xml',
         'profile_mods': profile/'Config/ModsConfig.xml',
-        'gabs': root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',
+        'gabs': gabs_executable(root, configuration),
         'observations_dll': candidates[0],
     }
     if '-nographics' in game.get('args',[]):

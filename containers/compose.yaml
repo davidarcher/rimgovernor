@@ -1,0 +1,46 @@
+services:
+  worker:
+    build:
+      context: ..
+      dockerfile: containers/Dockerfile
+      target: worker
+    init: true
+    stop_grace_period: 60s
+    environment:
+      RIMBOT_ALLOW_DOCKER_HOST_MODEL: "1"
+      RIMBOT_MODEL_URL: http://host.docker.internal:1234/v1
+      RIMBOT_MODEL: ${RIMBOT_MODEL:-qwen3.5-4b}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - type: bind
+        source: ${RIMBOT_LINUX_GAME:?Set RIMBOT_LINUX_GAME}
+        target: /inputs/game
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${RIMBOT_WORKER_MODS:?Set RIMBOT_WORKER_MODS}
+        target: /inputs/mods
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${RIMBOT_WORKER_PROFILE:?Set RIMBOT_WORKER_PROFILE}
+        target: /inputs/profile
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${RIMBOT_LINUX_GABS:?Set RIMBOT_LINUX_GABS}
+        target: /inputs/gabs
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${RIMBOT_WORKER_OUTPUT:?Set a fresh RIMBOT_WORKER_OUTPUT}
+        target: /worker
+        bind:
+          create_host_path: false
+    ports:
+      - "127.0.0.1:${RIMBOT_WORKER_PORT:-8788}:8787"

@@ -4,7 +4,7 @@ import time
 import uuid
 from pathlib import Path
 
-from .bridge import bridge_session
+from .bridge import bridge_session, gabs_executable
 from .headless import rendered_headless_mismatch
 from .clock_control import PlayClock, HOLD_REASONS
 from .bridge_game import BridgeGame, WRITES, is_write
@@ -965,8 +965,8 @@ class BridgeRuntime:
                                                              'work_remaining': bool(waiting)})
 
     async def run(self):
-        executable = self.root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe'
         try:
+            executable = gabs_executable(self.root)
             from .headless import prepare
             configuration = prepare(self.root) if self.headless else self.root/'config'
             checkpoint = None

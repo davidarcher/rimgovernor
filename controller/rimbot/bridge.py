@@ -81,3 +81,14 @@ async def bridge_session(executable: Path, config_dir: Path, game_id="rimbot-tri
             await session.initialize()
             yield BridgeClient(session, game_id)
 
+
+
+def gabs_executable(root, configuration=None):
+    """Resolve an explicit worker binary, retaining the legacy Windows default."""
+    import json
+    root = Path(root).resolve()
+    directory = Path(configuration) if configuration is not None else root/'config'
+    config = json.loads((directory/'config.json').read_text(encoding='utf8'))
+    configured = config.get('rimbot', {}).get('gabsExecutable')
+    path = Path(configured) if configured else Path('gabs/gabs-v1.1.1-windows-amd64/gabs.exe')
+    return path if path.is_absolute() else root/path

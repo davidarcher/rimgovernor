@@ -42,8 +42,8 @@ def create_app(runtime=None):
             fresh=os.environ.get('RIMBOT_BRIDGE_FRESH') == '1',
             resume=os.environ.get('RIMBOT_RESUME_CHECKPOINT'),
             headless=os.environ.get('RIMBOT_HEADLESS') == '1',
-            settings=Settings(model=os.environ.get('RIMBOT_MODEL', 'qwen3.5-9b')),
-            routing=load_model_routing(Settings(model=os.environ.get('RIMBOT_MODEL', 'qwen3.5-9b')), os.environ.get('RIMBOT_MODELS_CONFIG')))
+            settings=Settings(model=os.environ.get('RIMBOT_MODEL', 'qwen3.5-9b'), model_url=os.environ.get('RIMBOT_MODEL_URL', 'http://127.0.0.1:1234/v1')),
+            routing=load_model_routing(Settings(model=os.environ.get('RIMBOT_MODEL', 'qwen3.5-9b'), model_url=os.environ.get('RIMBOT_MODEL_URL', 'http://127.0.0.1:1234/v1')), os.environ.get('RIMBOT_MODELS_CONFIG')))
         app.state.rt = rt
         app.state.video = VideoHub(rt)
         await rt.start()
