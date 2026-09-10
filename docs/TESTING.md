@@ -890,3 +890,16 @@ With `--acquisition`, the resource policy probe also requires pawn-produced stee
 components and herbal medicine from observed normal mining/harvest sources. It
 compiles native target work types through the shared work allocator and records
 assignment receipts plus actual stock increases; designation receipts alone fail.
+
+`scripts/resource_substitution_acceptance.py --checkpoint <paired-manifest>
+--output <new-directory>` requires a native checkpoint with observed wood and steel.
+It reserves all available wood, requests a wall with WoodLog/Steel alternatives,
+and requires an ordinarily completed native Steel wall, actual steel consumption
+and the preserved wood floor. The checkpoint remains immutable.
+
+`scripts/resource_fuel_acceptance.py --source-root <ordinary-industrial-start>
+--output <new-directory>` requires normal construction of a research bench,
+ordinary BiofuelRefining research, an ordinarily built generator and refinery,
+then actual chemfuel from the shared resource target bill. Missing prerequisites
+must be reported before the new infrastructure and reconsidered afterward.
+The wall-clock limit is an acceptance bound, not a simulation or research shortcut.

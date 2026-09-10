@@ -25,6 +25,10 @@ async def run(args):
         report['cases'].append(dict(name=name,passed=bool(passed),**evidence));save()
         print(name+': '+str(bool(passed)),flush=True);assert passed,name
     async def command(**payload):
+        async with rt.lock:
+            rt.clock_events.extend(await rt.supervisor.poll())
+            rt.receive_clock_events()
+        if rt.review_task and not rt.review_task.done():await rt.review_task
         value=await apply_command(rt,payload,token=rt.context_token,revision=rt.chat_revision)
         for _ in range(128):
             if not rt.manual_requests:break
@@ -38,6 +42,7 @@ async def run(args):
         selected=selected or await rt.controller.skills.compile(identity,observed,people)
         if not selected:return False
         method,actions=selected
+        if not actions:return False
         steps,_=rt.controller.skills.steps(identity,method,actions,observed)
         await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
             reason='Native resource acceptance: '+identity,steps=steps).decision(rt.current_plan),
@@ -65,6 +70,10 @@ async def run(args):
             rt.supervisor.absorb(clock);rt.supervisor.allow_resume()
         else:assert clock['pauseVerified'] and clock['stopReason'] in ('tick_budget','requested_pause'),clock
         if rt.review_task and not rt.review_task.done():await rt.review_task
+        async with rt.lock:
+            rt.clock_events.extend(await rt.supervisor.poll())
+            rt.receive_clock_events()
+        if rt.review_task and not rt.review_task.done():await rt.review_task
         report['latest']={'phase':phase,'clock':clock,'facts':await facts(),
             'research':await rt.game.invoke('home/research',{'filter':'Biofuel','finished':True,'locked':True})}
         save()
@@ -80,7 +89,7 @@ async def run(args):
         cells=sorted(observed['cells'],key=lambda c:(c['x']-origin[0])**2+(c['z']-origin[1])**2)
         for cell in cells:
             if cell['occupied'] or not cell['walkable']:continue
-            arguments={'defName':definition,'x':cell['x'],'z':cell['z'],'dryRun':True}
+            arguments={'defName':definition,'x':cell['x'],'z':cell['z'],'rotation':'north','dryRun':True}
             if materials:arguments['stuff']=materials[0]
             result=await rt.game.invoke('home/place_building',arguments)
             if result.get('canPlace'):
@@ -134,7 +143,7 @@ async def run(args):
         record('zero_inference',rt.counters.get('model_calls',0)==0,counters=rt.counters)
         report['outcome']='passed'
     except Exception as error:
-        report['error']=repr(error);raise
+        report['error']=repr(error);report['error_evidence']=getattr(error,'evidence',None);raise
     finally:
         report['plan']=rt.current_plan.model_dump(mode='json')
         try:
