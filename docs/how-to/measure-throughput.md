@@ -112,6 +112,13 @@ bounds set by observation cadence. Pawn work requires changed position/carry dur
 the same work job. Neither work nor new buildings are attributed to controller orders.
 Load changes or observed rewinds invalidate the timing. Select a long enough sample
 to reach native progress before making setup-performance claims.
+For focused scheduling acceptance through the standard scenario launcher, run
+`python scripts/throughput_runtime.py --seconds 180 --accelerated --pause-race`.
+This first advances 60 ticks with the shared scenario helper, then delays a retained
+active-status reply until the native tick boundary has stopped the same lease. The
+real pause refusal must reconcile without another pause attempt or tick advancement.
+The following production sample requires observed pawn work and no stopped review or
+execution. It is a targeted boundary scenario, not an unchanged-baseline benchmark.
 Add `--profile-controller` to retain `controller.pstats` and completed wall timings
 for persistence, review, identity, native dispatch and Hands. Timings overlap;
 Python function timings include synchronous I/O and profiler overhead. Compare

@@ -7,6 +7,41 @@ from rimbot.store import Store
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('changed', [None, 'owner', 'epoch', 'session', 'running', 'unverified', 'external'])
+async def test_pause_observes_exact_completed_tick_window_without_retry(changed):
+    from rimbot.bridge import BridgeError
+    bridge = NativeClock()
+    clock = PlayClock(bridge)
+    await clock.change('Superfast', max_ticks=600)
+    original = bridge.call
+    failure = BridgeError('games_call_tool', SimpleNamespace(structuredContent={
+        'error': 'Owner/epoch mismatch or no active supervisor.'}, content=[]))
+    async def race(name, **args):
+        if args.get('op') == 'pause':
+            bridge.calls.append((name, args))
+            bridge.state.update(active=False, paused=True, pauseVerified=True,
+                                sessionChanged=False, stopReason='tick_budget')
+            if changed == 'owner': bridge.state['owner'] = 'another'
+            if changed == 'epoch': bridge.state['epoch'] += 1
+            if changed == 'session': bridge.state['sessionChanged'] = True
+            if changed == 'running': bridge.state['active'] = True
+            if changed == 'unverified': bridge.state['pauseVerified'] = False
+            if changed == 'external': bridge.state['stopReason'] = 'external_pause'
+            raise failure
+        return await original(name, **args)
+    bridge.call = race
+    if changed:
+        with pytest.raises(BridgeError):
+            await clock.change('Paused')
+    else:
+        result = await clock.change('Paused')
+        assert result['pauseReconciled'] and result['stopReason'] == 'tick_budget'
+        assert clock.state['pauseVerified']
+    assert sum(args.get('op') == 'pause' for _, args in bridge.calls) == 1
+    assert not any(name == 'rimworld/set_time_speed' for name, _ in bridge.calls)
+
+
+@pytest.mark.asyncio
 async def test_acceleration_is_explicit_bounded_and_capability_checked():
     bridge = NativeClock()
     clock = PlayClock(bridge, test_acceleration=True)

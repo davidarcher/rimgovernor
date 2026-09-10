@@ -1,5 +1,8 @@
 from copy import deepcopy
 from types import SimpleNamespace
+from pathlib import Path
+import asyncio
+import pytest
 
 from scripts.startup_milestones import StartupMilestones
 
@@ -53,3 +56,26 @@ def test_unchanged_or_different_job_does_not_prove_work():
     rt.batch.native['pawns']['pawns'][0].update(job='Wander', position={'x': 3, 'z': 1})
     measurement.sample(rt)
     assert 'first_observed_pawn_work' not in measurement.rows
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('fails', [False, True])
+async def test_pause_probe_reserves_work_without_stopping_scheduler(monkeypatch, fails):
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1]/'scripts'))
+    from scripts import throughput_runtime
+    rt = SimpleNamespace(review_task=None, execution_task=None,
+                         scheduler_task=object(), work_changed=asyncio.Event())
+    scheduler = rt.scheduler_task
+    async def probe(runtime, report):
+        assert runtime.execution_task is asyncio.current_task()
+        assert runtime.scheduler_task is scheduler
+        if fails:
+            raise ValueError('Native prerequisite failed')
+    monkeypatch.setattr(throughput_runtime, '_verify_pause_race', probe)
+    if fails:
+        with pytest.raises(ValueError, match='Native prerequisite failed'):
+            await throughput_runtime.verify_pause_race(rt, {})
+    else:
+        await throughput_runtime.verify_pause_race(rt, {})
+    assert rt.execution_task is None and rt.work_changed.is_set()
+    assert rt.scheduler_task is scheduler

@@ -1,7 +1,7 @@
 """Native, renewable game-clock supervision; no model turn or thinking budget."""
 import asyncio
 import uuid
-from .bridge import runtime_file_read
+from .bridge import BridgeError, runtime_file_read
 
 TOOL = 'home/supervised_play'
 HOLD_REASONS = frozenset({'external_pause', 'external_speed_changed', 'lease_expired',
@@ -108,7 +108,23 @@ class PlayClock:
                 raise ValueError('Installed native clock lacks supervised test acceleration')
             if speed == 'Paused':
                 if state.get('active'):
-                    result = await self.call(op='pause', owner=self.owner, epoch=state['epoch'])
+                    try:
+                        result = await self.call(op='pause', owner=self.owner, epoch=state['epoch'])
+                    except BridgeError as error:
+                        # The native tick callback may finish this exact window
+                        # between status and pause. Observe; never replay the write.
+                        if 'Owner/epoch mismatch or no active supervisor' not in error.detail:
+                            raise
+                        latest = await self.call(op='status')
+                        if not (latest.get('owner') == self.owner and latest.get('epoch') == state['epoch']
+                                and latest.get('active') is False and latest.get('paused') is True
+                                and latest.get('pauseVerified') is True and latest.get('sessionChanged') is False
+                                and latest.get('stopReason') == 'tick_budget'):
+                            raise
+                        status = (await self.bridge.call('home/status', colonists=False, threats=False)).structuredContent
+                        if status.get('time', {}).get('paused') is not True:
+                            raise
+                        result = dict(latest, pauseReconciled=True)
                 else:
                     await self.bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
                     status = (await self.bridge.call('home/status', colonists=False, threats=False)).structuredContent

@@ -87,7 +87,11 @@ targets 600 game ticks, ending sooner when work finishes. Existing explicit cloc
 also get a bounded window; direct player clock commands retain player control. The
 native supervisor pauses at the tick boundary through the game's single-tick callback;
 controller polling does not extend the window. Heartbeats renew only the wall-clock
-lease. Native danger and lease stops remain independent. Automatic execution refuses
+lease. Native danger and lease stops remain independent. A pause refusal can be
+reconciled only when a fresh read
+confirms the same owner/epoch already ended at its tick budget, the session is unchanged
+and the native clock is verifiably paused. The pause is never replayed. Other ownership,
+session or stop reasons retain the refusal. Automatic execution refuses
 companion versions without native tick-boundary support. Native letter-triggered pauses
 are attributed at the actual clock transition and can trigger a deterministic review;
 unrelated player pauses retain their hold. A pre-dispatch native autosave refusal causes

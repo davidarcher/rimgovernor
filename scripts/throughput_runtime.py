@@ -18,6 +18,68 @@ from rimbot.bridge_observation import observe
 from deterministic_foothold import NoInference
 
 
+async def verify_pause_race(rt, report):
+    # Reserve the existing execution slot while the probe drives native time.
+    # Keep scheduler lifecycle and the independent lease watcher intact.
+    assert not any(task is not None and not task.done()
+                   for task in (rt.review_task, rt.execution_task)), 'Controller work already active'
+    rt.execution_task = asyncio.current_task()
+    try:
+        await _verify_pause_race(rt, report)
+    finally:
+        rt.execution_task = None
+        rt.work_changed.set()
+
+
+async def _verify_pause_race(rt, report):
+    """Delay a real active-status readback until its native window has stopped."""
+    from rimbot.native_scenario import advance_game
+    clock = rt.supervisor
+    original = clock.call
+    started = None
+    async def capture(**arguments):
+        nonlocal started
+        value = await original(**arguments)
+        if arguments.get('op') == 'start':
+            started = dict(value)
+        return value
+    evidence = report['pause_race'] = dict(passed=False,
+        scope='Delayed native status readback; actual native pause refusal and unchanged stopped tick')
+    try:
+        clock.call = capture
+        await advance_game(rt, 60, evidence, expected_letters=())
+    finally:
+        clock.call = original
+    assert started and started['active'], 'No actual active window captured'
+    before = await original(op='status')
+    assert before['stopReason'] == 'tick_budget' and before['epoch'] == started['epoch']
+    owner_task = asyncio.current_task()
+    delivered, pauses = False, 0
+    async def delayed(**arguments):
+        nonlocal delivered, pauses
+        if asyncio.current_task() is owner_task:
+            if arguments.get('op') == 'status' and not delivered:
+                delivered = True
+                return started
+            if arguments.get('op') == 'pause':
+                pauses += 1
+        return await original(**arguments)
+    try:
+        clock.call = delayed
+        async with rt.lock:
+            result = await clock.change('Paused')
+    finally:
+        clock.call = original
+    after = await original(op='status')
+    evidence.update(before=before, after=after, result=result, pause_attempts=pauses)
+    assert pauses == 1 and result.get('pauseReconciled') is True
+    assert after['lastTick'] == before['lastTick'] and after['paused'] and after['pauseVerified']
+    assert after['owner'] == before['owner'] and after['epoch'] == before['epoch']
+    evidence['passed'] = True
+    rt.batch = await observe(rt.game)
+    report['initial_tick'] = rt.batch.summary.end_tick
+
+
 async def run(args):
     root = Path(os.environ['RIMBOT_BRIDGE_ROOT'])
     prefs_path = root/'profile/Config/Prefs.xml'
@@ -48,6 +110,8 @@ async def run(args):
                 await asyncio.sleep(.25)
         report['startup_seconds'] = time.perf_counter()-began
         report['initial_tick'] = rt.batch.summary.end_tick
+        if getattr(args, 'pause_race', False):
+            await verify_pause_race(rt, report)
         rt.bridge.timing_callback = report['bridge_calls'].append
         if args.shell_comparison:
             from shell_preflight_acceptance import compare_shell_preflight
@@ -138,6 +202,11 @@ async def run(args):
         report['events'] = store.history(rt.colony, limit=10000, include_diagnostics=True)
         report['model_attempts'] = NoInference.attempts
         assert report['model_attempts'] == 0, 'Deterministic throughput must not attempt inference'
+        if getattr(args, 'pause_race', False):
+            milestones.sample(rt)
+            assert milestones.valid and 'first_observed_pawn_work' in milestones.rows, 'No observed native pawn work'
+            assert not any(str(e.get('text', '')).startswith(('Review stopped:', 'Execution stopped:'))
+                           for e in report['events']), 'Controller stopped; inspect retained events'
         report['measured'] = True
     except BaseException as error:
         report['measured'] = False
@@ -180,6 +249,7 @@ async def run(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--accelerated', action='store_true')
+    parser.add_argument('--pause-race', action='store_true', help='Verify delayed-status/native tick-stop pause reconciliation before sampling')
     parser.add_argument('--profile-controller', action='store_true', help='Retain Python CPU and nested controller wall timings')
     parser.add_argument('--seconds', type=int, default=120)
     parser.add_argument('--unbatched-observations', action='store_true', help='Compare the legacy seven-call observation path')
