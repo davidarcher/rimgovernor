@@ -125,3 +125,20 @@ async def resource_method(rt, goal_id, facts):
     return method, [native('home/bills', action='add', bench=bench, recipe=recipe,
         repeatMode='TargetCount', targetCount=target, unpauseWhenYouHave=max(0, target-1),
         pauseWhenSatisfied='on', watch=False)]
+
+
+async def refresh_resource_prerequisite(rt, goal_id, facts):
+    """Reconsider native availability without writing or replacing player-altered bills."""
+    from .colony_skills import SkillBlocked
+    goal=rt.current_plan.colony_goals[goal_id]
+    if goal.cancelled or goal.status != 'blocked' or not goal.reason.startswith((
+            'No available native production recipe', 'Resource stock is unavailable',
+            'Native resource sources unavailable')):
+        return False
+    try:
+        await resource_method(rt, goal_id, facts)
+    except SkillBlocked as error:
+        goal.reason=str(error)
+        return False
+    goal.status, goal.reason='active', ''
+    return True

@@ -137,3 +137,26 @@ async def test_explicit_material_substitution_selects_an_affordable_permitted_na
     allocations = await validate_allocations(spec, plan, SimpleNamespace(invoke=invoke))
     assert spec.steps[0].action.placements[-1].materials == ['Steel']
     assert allocations['furniture'][str(len(spec.steps[0].action.placements)-1)] == {'Steel':10}
+
+
+@pytest.mark.asyncio
+async def test_resource_prerequisite_recovery_observes_new_bench_without_writing():
+    from rimbot.production_policy import refresh_resource_prerequisite
+    rt, identity, facts=target('Chemfuel')
+    goal=rt.current_plan.colony_goals[identity]
+    goal.status='blocked';goal.reason='No available native production recipe and workbench for Chemfuel'
+    available=False
+    async def invoke(name,args):
+        if name=='home/resource_sources':return {'success':True,'sources':[]}
+        assert args['dryRun'] is True
+        if args['action']=='list':return {'benches':[{'thingId':'Refinery','bills':[]}] if available else []}
+        assert args['action']=='recipes'
+        return {'recipes':[{'defName':'MakeFuel','products':[{'defName':'Chemfuel','count':35}],
+            'ingredients':[], 'availableNow':True,'availableOnNow':True,'workTypes':[{'name':'Crafting','skills':[]}]}]}
+    rt.game=SimpleNamespace(invoke=invoke)
+    assert not await refresh_resource_prerequisite(rt,identity,facts)
+    available=True
+    assert await refresh_resource_prerequisite(rt,identity,facts)
+    assert goal.status=='active' and goal.reason==''
+    goal.status='blocked';goal.reason='Previously issued production bill no longer covers this target; explicitly renew the resource goal to replace it'
+    assert not await refresh_resource_prerequisite(rt,identity,facts)
