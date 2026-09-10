@@ -27,6 +27,12 @@ cross-inventory structure and the source-specific drift checks. See the
 [rewrite sequence](../docs/BACKLOG.md#g01--go-controller-rewrite) for dependencies
 and the [test selection guide](../docs/developers/testing/choose-tests.md) for acceptance scope.
 
+## Generated contracts
+
+The [schema generation contract](schema-generation.md) defines canonical inputs,
+strict boundary rules and the versioned output manifest. G01.02 sequences generated
+models, native adapter wiring and actual SDK acceptance as separate gates.
+
 ## Timing baseline
 
 The [Python baseline](python-baseline.json) records a bounded uncontended headless

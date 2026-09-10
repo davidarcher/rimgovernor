@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:rimgovernor:placement-previews-request:1",
+  "title": "PlacementPreviewArguments",
+  "description": "Arguments for home/placement_previews. Decode placements with PlacementBatch after validating this envelope.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "placements"
+  ],
+  "properties": {
+    "placements": {
+      "type": "string",
+      "x-maxUTF16Length": 32768
+    }
+  },
+  "$defs": {
+    "PlacementCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "defName",
+        "x",
+        "z",
+        "rotation",
+        "stuff"
+      ],
+      "properties": {
+        "defName": {
+          "type": "string",
+          "x-maxUTF16Length": 200,
+          "x-nonBlankDotNet": true
+        },
+        "x": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647,
+          "x-integerToken": true
+        },
+        "z": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647,
+          "x-integerToken": true
+        },
+        "rotation": {
+          "type": "string",
+          "x-maxUTF16Length": 200,
+          "x-nonBlankDotNet": true
+        },
+        "stuff": {
+          "type": "string",
+          "x-maxUTF16Length": 200
+        }
+      }
+    },
+    "PlacementBatch": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PlacementCandidate"
+      },
+      "minItems": 1,
+      "maxItems": 16
+    }
+  }
+}

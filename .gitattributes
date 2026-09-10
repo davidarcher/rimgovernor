@@ -2,3 +2,5 @@
 go/go.mod text eol=lf
 go/go.sum text eol=lf
 go/.go-version text eol=lf
+contracts/schemas/*.json text eol=lf
+contracts/generation.json text eol=lf

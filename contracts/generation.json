@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "contracts": [
+    {
+      "schema": "contracts/schemas/placement-previews-request.v1.schema.json",
+      "go_package": "placementpreview",
+      "go_output": "go/internal/wire/placementpreview/request.gen.go"
+    }
+  ]
+}
