@@ -47,7 +47,10 @@ def controller_index(plan):
                      'reason':goal.reason[:240]} for key,goal in goals[:32]],
         'omitted_goals':max(0,len(goals)-32),
         'player_intents':[{'id':key,'step':value.get('step'),
-                           'kind':value.get('request',{}).get('kind')} for key,value in intents[-24:]],
+                           'kind':value.get('request',{}).get('kind'),
+                           'state':plan.progress[value['step']].state if value.get('step') in plan.progress else None,
+                           'issued_operations':len(plan.progress[value['step']].issued) if value.get('step') in plan.progress else None}
+                          for key,value in intents[-24:]],
         'omitted_player_intents':max(0,len(intents)-24),
         'state_sections':sorted(plan.control),
         'note':'Index only. Use inspect_controller for exact policies, intent geometry, goal evidence and reservations; omitted entries are not absent.'}
@@ -105,6 +108,8 @@ class Planner:
             'Do not invent optional numeric targets or reserves, or copy a number from an unrelated earlier request. '
             'Use the same intent_id for conversational refinements of a room/zone. '
             'Inspect player_intents and prior messages to resolve "same size" and "north side instead". '
+            'An unissued room or zone (zero issued_operations) can be refined with the same BuildRoom or CreateZone intent_id; '
+            'there are no native orders to remove. Inspect exact progress if it is unavailable. '
             'Already issued construction cannot be silently relocated. State the blocker or ask a focused question when required facts are missing. '
             'Prefer SetResearch, SetWorkPriority, CreateBill, DraftPawn and MovePawn to raw tool mechanics. '
             'A pawn job is its current activity, not its work assignments. Use SetWorkPriority for explicit work changes '

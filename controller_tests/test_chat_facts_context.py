@@ -13,9 +13,21 @@ def test_controller_initial_index_omits_large_receipts_and_preserves_exact_state
     before=plan.model_dump()
     index=controller_index(plan)
     assert len(json.dumps(index))<1000
-    assert index['player_intents']==[{'id':'room','step':'build-room','kind':'PlaceBuildings'}]
+    assert index['player_intents']==[{'id':'room','step':'build-room','kind':'PlaceBuildings',
+                                     'state':None,'issued_operations':None}]
     assert 'resource_policy' in index['state_sections']
     assert plan.model_dump()==before
+
+
+def test_intent_index_distinguishes_unissued_refinement_from_native_construction():
+    from rimbot.colony_plan import ColonyPlan,StepProgress
+    from rimbot.planner import controller_index
+    plan=ColonyPlan(progress={'room':StepProgress()})
+    plan.control['player_intents']={'bedroom':{'step':'room','request':{'kind':'BuildRoom'}}}
+    assert controller_index(plan)['player_intents'][0]['issued_operations']==0
+    plan.progress['room']=StepProgress(state='waiting',issued={'0':{'confirmed':True,'receipt':'large'*10000}})
+    row=controller_index(plan)['player_intents'][0]
+    assert row['state']=='waiting' and row['issued_operations']==1 and 'receipt' not in json.dumps(row)
 
 
 def test_large_native_catalog_is_discoverable_without_inlining_it():

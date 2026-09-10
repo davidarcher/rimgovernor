@@ -68,7 +68,8 @@ async def run(args):
         for project in locked:
             before=await rt.game.invoke('home/research',{})
             actions=rt.counters['actions']
-            reply=await chat('Research '+project['label']+' next. If it cannot be selected, explain why and leave current research unchanged.')
+            reply=await chat('Set research to '+project['defName']+' ('+project['label']+
+                '). Submit that selection for native validation; if rejected, keep the existing selection and report the native reason.')
             after=await rt.game.invoke('home/research',{})
             record({'command':boundary+'_refusal_'+project['defName'],'reply':reply,
                 'passed':bool(reply) and before.get('current')==after.get('current') and actions==rt.counters['actions']
@@ -98,7 +99,8 @@ async def run(args):
         goal=rt.current_plan.colony_goals.get('EnsureFoodSupply')
         record({'command':'goal','reply':reply,'passed':bool(goal and goal.source=='PLAYER'
                                 and goal.target.get('food_days')==20)})
-        reply=await chat("Stop spending components unless they're needed for defense.")
+        reply=await chat("Stop spending ordinary components unless they're needed for defense. Leave advanced components unchanged."
+                         if args.explicit_resources else "Stop spending components unless they're needed for defense.")
         policy=rt.current_plan.control.get('resource_policy',{}).get('ComponentIndustrial',{})
         record({'command':'policy','reply':reply,'observed':dict(policy),
             'passed':rt.current_plan.control.get('resource_policy')=={
@@ -286,6 +288,7 @@ if __name__=='__main__':
     parser.add_argument('--restart',action='store_true',help='Verify paired native restart, preserved plan/chat/policies and subsequent goal cancel/resume')
     parser.add_argument('--archive',action='store_true',help='Execute 81 explicit policy orders, retain exact PLAYER receipts and accept subsequent chat')
     parser.add_argument('--matrix',action='store_true',help='Two native research selections/refusals and a resource goal across paired restart')
+    parser.add_argument('--explicit-resources',action='store_true',help='Disambiguate ordinary versus advanced components in the initial policy request')
     args=parser.parse_args()
     if args.restart and args.port: parser.error('--restart uses the headless controller lifecycle; omit --port')
     raise SystemExit(0 if asyncio.run(run(args)) else 1)

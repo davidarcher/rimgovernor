@@ -92,7 +92,7 @@ async def run(args):
             try:
                 bounds=shell['bounds']
                 existing_intents=set(rt.current_plan.control.get('player_intents',{}))
-                await chat('Plan a wooden 4 by 4 room called chat-bedroom at x '+str(bounds['x'])+
+                await chat('Build a wooden 4 by 4 room called chat-bedroom at x '+str(bounds['x'])+
                     ', z '+str(bounds['z'])+', with a south entrance. Use ordinary walls and a door. Its purpose is shelter.')
                 intents=rt.current_plan.control.get('player_intents',{})
                 created=set(intents)-existing_intents
