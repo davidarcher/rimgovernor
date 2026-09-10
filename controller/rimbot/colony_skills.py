@@ -8,6 +8,7 @@ from .strategic_state import fingerprint
 from .hunting import screen_prey
 from .food_forecast import acquisition_targets
 from .bridge import BridgeError
+from .supply_batches import supply_rectangles
 
 
 class SkillBlocked(ValueError):
@@ -226,7 +227,7 @@ class ColonySkills:
             if unused(method):
                 designator = await self.designator('Designator_Unforbid')
                 return method, [native('rimworld/apply_architect_designator', designatorId=designator,
-                    x=p['x'], z=p['z'], keepSelected=False) for p in facts['forbiddenSupplies'][:8]]
+                    **rectangle, keepSelected=False) for rectangle in supply_rectangles(facts['forbiddenSupplies'][:8])]
             return None
         if goal_id == 'EnsureWorkAssignments':
             from .husbandry import required_handler_skill

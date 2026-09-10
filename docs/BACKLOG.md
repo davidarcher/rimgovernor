@@ -384,11 +384,9 @@ each bounded method.
   Measure observation age in game ticks, danger-to-pause latency, player-stop latency,
   verified outcomes per minute and missed safety gates at each candidate speed.
   Keep Ultrafast test-only until its reaction envelope is accepted.
-  Batch only the retained starting-supply targets through discovered native contracts:
-  the current method emits up to eight cell-wise Unforbid operations with repeated
-  validation. Whole-map unforbid would broaden scope to unrelated player restrictions.
-  Profile per-operation preview, identity, native dispatch and readback cost before
-  removing redundant reads; uncertain writes still require observation before retry.
+    Profile per-operation preview, identity, native dispatch and readback cost before
+    removing redundant reads; retained-cell rectangle batching preserves the native
+    validation path, and uncertain writes still require observation before retry.
   Consider adaptive game-tick review windows for stable colonies, preserving native
   hazard supervision and a bounded observation age. Archive/reuse verified checkpoints
   for long-lived scenarios while keeping fresh-start acceptance separate.

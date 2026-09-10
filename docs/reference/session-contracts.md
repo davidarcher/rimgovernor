@@ -105,6 +105,14 @@ hold; a confirmed different claim retires the obligation without undrafting.
 
 ## Gameplay and network boundary
 
+Disposable acceptance can construct `PlayClock(test_acceleration=True)`. It
+requires native acceleration capability and a positive tick budget, mapping the
+execution window to native Ultrafast with boost. The epoch restores the previous
+boost on stop, including journal failure and load change. Accelerated hazard
+probes are at most 30 game ticks apart; external clock and lease checks run each
+native tick and frame. Native forced slowdown remains enabled. Neither persisted
+player policy nor model tools opt into this test mode.
+
 The gameplay gateway disallows cheat placement, instant gear dropping, boosted
 simulation; map trade requires adjacency. Native watch presentation is off unless the
 player enables action follow for the current load. Native game eligibility remains

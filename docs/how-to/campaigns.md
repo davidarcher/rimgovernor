@@ -19,8 +19,10 @@ $env:PYTHONPATH='controller'
 
 The default is a fresh isolated headless profile; add `--rendered` for a visible game.
 The current baseline is the prepared eight-tribal save. No save edits or inference are
-permitted. `--speed` selects ordinary native Normal/Fast/Superfast, not boosted
-simulation. The harness runs production BridgeRuntime, controller, validation and Hands,
+permitted. `--speed` selects ordinary native Normal/Fast/Superfast. The optional
+`--accelerated` test flag enables bounded supervised Ultrafast boost; see
+[throughput measurement](measure-throughput.md). The harness runs production
+BridgeRuntime, controller, validation and Hands,
 writes a manifest, incremental `progress.json` and final `result.json`, and exits
 successfully only for all FOOTHOLD_STABLE predicates. Results include
 goal/method/lifecycle evidence, attempted and completed model-call counts and game

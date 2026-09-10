@@ -39,6 +39,22 @@ async def test_obsolete_allow_recovers_from_native_absence_without_replaying_any
     assert not await recover_starting_supplies(rt,'allow',token='load',direction=0)
     assert len(p.recovery_history)==1
 
+
+@pytest.mark.asyncio
+async def test_batched_allow_recovery_observes_the_far_corner_before_completing():
+    rt=await blocked_supply()
+    step=rt.current_plan.spec.steps[0]
+    step.action.arguments.update(width=4,height=2)
+    rt.current_plan.progress['allow'].failure.evidence['signature']=step.signature()
+    async def query(name,**args):
+        if name=='home/status':return {'time':{'ticksGame':200,'paused':True}}
+        # A remaining forbidden stack at the far corner must prevent completion.
+        assert args['radius']>=4
+        return {'success':True,'forbiddenTotal':1,'foggedTotal':0}
+    rt.game.query=AsyncMock(side_effect=query)
+    assert not await recover_starting_supplies(rt,'allow',token='load',direction=0)
+    assert rt.current_plan.progress['allow'].state=='blocked' and rt.native.await_count==0
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize('change',['remaining','unknown','fogged','manual','new_load','player','late_player','changed_target','cancelled'])
 async def test_obsolete_allow_refuses_uncertain_stock_and_changed_authority(change):

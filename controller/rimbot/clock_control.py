@@ -10,8 +10,9 @@ HOLD_REASONS = frozenset({'external_pause', 'external_speed_changed', 'lease_exp
 
 
 class PlayClock:
-    def __init__(self, bridge, store=None, context=None):
+    def __init__(self, bridge, store=None, context=None, *, test_acceleration=False):
         self.bridge = bridge
+        self.test_acceleration = test_acceleration
         self.owner = 'rimbot-' + uuid.uuid4().hex
         self.epoch = 0
         self.cursor = 0
@@ -90,6 +91,8 @@ class PlayClock:
             raise ValueError('Choose colony or combat clock monitoring')
         if max_ticks is not None and (type(max_ticks) is not int or not 1 <= max_ticks <= 1800000):
             raise ValueError('Native execution budget must be 1..1800000 game ticks')
+        if self.test_acceleration and speed != 'Paused' and max_ticks is None:
+            raise ValueError('Test acceleration requires a native tick budget')
         async with self.lock:
             state = await self.call(op='status')
             self.absorb(state)
@@ -99,6 +102,8 @@ class PlayClock:
                 raise ValueError('Another controller owns the native clock; waiting for its lease to expire')
             if speed != 'Paused' and max_ticks is not None and state.get('nativeTickBoundary') is not True:
                 raise ValueError('Installed native clock lacks tick boundaries; update the observation companion before automatic execution')
+            if self.test_acceleration and speed != 'Paused' and state.get('nativeTestAcceleration') is not True:
+                raise ValueError('Installed native clock lacks supervised test acceleration')
             if speed == 'Paused':
                 if state.get('active'):
                     result = await self.call(op='pause', owner=self.owner, epoch=state['epoch'])
@@ -116,10 +121,11 @@ class PlayClock:
             if not self.epoch:
                 self.cursor = state.get('newestCursor', 0)
             result = await self.call(op='start', owner=self.owner, leaseMs=15000,
-                speed=speed, mode=mode, hostileWithin=40,
+                speed='Ultrafast' if self.test_acceleration else speed, mode=mode, hostileWithin=40,
                 ignoredHostileIds=ignored_hostiles, ignoredDownedColonistIds=ignored_downed,
                 injuryStopCooldownMs=0, **({'maxTicks': max_ticks} if max_ticks is not None else {}),
-                **({'surgicalRecoveryIds': surgical_recovery} if surgical_recovery else {}))
+                **({'surgicalRecoveryIds': surgical_recovery} if surgical_recovery else {}),
+                **({'testAcceleration': True} if self.test_acceleration else {}))
             self.epoch = result['epoch']
             self.record()
             self.absorb(result)

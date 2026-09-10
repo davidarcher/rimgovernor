@@ -126,6 +126,8 @@ async def run(args):
         if not rt.connected: raise RuntimeError('Colony connection timed out')
         if getattr(args,'food_observer',False):
             report['food_observer']=(await runtime_file_read(rt.bridge.call,'test/food_observe')).structuredContent
+        rt.supervisor.test_acceleration = getattr(args, 'accelerated', False)
+        report['test_acceleration'] = rt.supervisor.test_acceleration
         report['initial_game_tick']=rt.batch.summary.end_tick
         report['starting_colonists']=sorted(p.thing_id for p in rt.batch.summary.pawns if not p.dead)
         initial_token=rt.context_token
@@ -286,4 +288,5 @@ if __name__=='__main__':
     parser.add_argument('--recovery-fixture',action='store_true',help='Before the campaign, use ordinary stock forbidding to record a verified prewrite construction recovery in the same persistent ledger')
     parser.add_argument('--join-count',type=int,choices=range(4),default=0,help='After tick 50000 request up to three ordinary test-only WandererJoin incidents; requires native CanFireNow and the separate incident fixture')
     parser.add_argument('--speed',choices=['Normal','Fast','Superfast'],default='Fast')
+    parser.add_argument('--accelerated',action='store_true',help='Disposable test: bounded supervised native Ultrafast boost; requires updated companion')
     raise SystemExit(0 if asyncio.run(run(parser.parse_args())) else 1)

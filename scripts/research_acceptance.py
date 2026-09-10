@@ -153,7 +153,7 @@ async def run(args):
                 await rt.game.invoke('home/research', {'set': project, 'expectedCurrent': '', 'dryRun': False, 'watch': False, **{k: rt.identity[k] for k in ('colonyId','loadToken','mapId')}}, allow_write=True)
             except (ValueError, BridgeError) as error: refused = 'guarded selection refused' in str(error)
             check('native_current_guard', refused)
-            clock = ResearchClock(bridge)
+            clock = ResearchClock(bridge, test_acceleration=getattr(args, 'accelerated', False))
             deadline = time.monotonic() + args.timeout
             while time.monotonic() < deadline:
                 clock.allow_resume()
@@ -186,6 +186,7 @@ async def run(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--accelerated', action='store_true', help='Use bounded supervised native Ultrafast boost')
     parser.add_argument('--source-root', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--timeout', type=int, default=1200)

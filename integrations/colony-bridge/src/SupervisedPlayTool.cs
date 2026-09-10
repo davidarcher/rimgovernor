@@ -42,14 +42,15 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "For events, return rows strictly after this cursor.", DefaultValue = 0L)] long afterCursor = 0L,
             [ToolParameter(Description = "For events, maximum rows, clamped to 1..128.", DefaultValue = 64)] int limit = 64,
             [ToolParameter(Description = "Start only: pause after exactly this many ordinary game ticks, independently of controller polling and heartbeat renewal. 0 leaves tick duration unbounded; otherwise 1..1800000.", DefaultValue = 0)] int maxTicks = 0,
-            [ToolParameter(Description = "Tracked surgical patient IDs. Only permits downing while alive, anesthetized, in bed, not bleeding or dangerously ill, and above half health. Rechecked every safety sweep; no injury or death guard is disabled.", DefaultValue = "")] string surgicalRecoveryIds = "")
+            [ToolParameter(Description = "Tracked surgical patient IDs. Only permits downing while alive, anesthetized, in bed, not bleeding or dangerously ill, and above half health. Rechecked every safety sweep; no injury or death guard is disabled.", DefaultValue = "")] string surgicalRecoveryIds = "",
+            [ToolParameter(Description = "Disposable acceptance only: enable native boost for a bounded Ultrafast epoch, with safety probes at most 30 game ticks apart. Restores the prior boost on stop; does not suppress native forced slowdown.", DefaultValue = false)] bool testAcceleration = false)
         {
             return BridgeCommon.WithUnknownArguments(
                 await SupervisedPlayCore(ctx, cancellationToken, op, owner, epoch,
                     leaseMs, speed, mode, healthDropFraction, minHealthFraction,
                     ignoredAlertLabels, hostileWithin, ignoredHostileIds, ignoredDownedColonistIds,
                     ignoredInjuredColonistIds, injuryStopCooldownMs,
-                    afterCursor, limit, maxTicks, surgicalRecoveryIds).ConfigureAwait(false),
+                    afterCursor, limit, maxTicks, surgicalRecoveryIds, testAcceleration).ConfigureAwait(false),
                 ctx, typeof(HomeSupervisedPlayTools), ToolName);
         }
 
@@ -59,7 +60,7 @@ namespace HomeBridge.BridgeTools
             string mode, float healthDropFraction, float minHealthFraction,
             string ignoredAlertLabels, float hostileWithin, string ignoredHostileIds,
             string ignoredDownedColonistIds, string ignoredInjuredColonistIds,
-            int injuryStopCooldownMs, long afterCursor, int limit, int maxTicks, string surgicalRecoveryIds)
+            int injuryStopCooldownMs, long afterCursor, int limit, int maxTicks, string surgicalRecoveryIds, bool testAcceleration)
         {
             if (ctx == null || ctx.MainThread == null)
                 return Fail("No main-thread dispatcher is available.");
@@ -84,10 +85,12 @@ namespace HomeBridge.BridgeTools
                 if (!Enum.TryParse(speed ?? string.Empty, true, out requested)
                     || requested == TimeSpeed.Paused)
                     return Fail("Unknown play speed; use Normal, Fast, Superfast or Ultrafast.");
+                if (testAcceleration && (requested != TimeSpeed.Ultrafast || maxTicks == 0))
+                    return Fail("Test acceleration requires Ultrafast and a positive native tick budget.");
                 return await ctx.MainThread.InvokeAsync(() => Supervisor.Start(owner, requested,
                     leaseMs, mode, healthDropFraction, minHealthFraction, hostileWithin,
                     ignoredHostileIds, ignoredDownedColonistIds,
-                    ignoredInjuredColonistIds, injuryStopCooldownMs, maxTicks, surgicalRecoveryIds),
+                    ignoredInjuredColonistIds, injuryStopCooldownMs, maxTicks, surgicalRecoveryIds, testAcceleration),
                     cancellationToken).ConfigureAwait(false);
             }
             if (action == "pause")
@@ -103,6 +106,8 @@ namespace HomeBridge.BridgeTools
     internal static class Supervisor
     {
         private const int Capacity = 128;
+        private const int AcceleratedProbeTicks = 30;
+        private static readonly FieldInfo BoostField = typeof(TickManager).GetField("UltraSpeedBoost", BindingFlags.Static | BindingFlags.NonPublic);
         // Wall-clock grace for a force pause with no window behind it.
         // An autosave takes about a second; 20 s is generous and still
         // far short of anything a person would sit through.
@@ -169,7 +174,7 @@ namespace HomeBridge.BridgeTools
         internal static object Start(string owner, TimeSpeed speed, int leaseMs,
             string mode, float healthDropFraction, float minHealthFraction, float hostileWithin,
             string ignoredHostiles, string ignoredDowned, string ignoredInjured,
-            int injuryStopCooldownMs, int maxTicks, string surgicalRecoveryIds = "")
+            int injuryStopCooldownMs, int maxTicks, string surgicalRecoveryIds = "", bool testAcceleration = false)
         {
             lock (Gate)
             {
@@ -182,6 +187,8 @@ namespace HomeBridge.BridgeTools
                     return Failure("Alert or transient-message reflection watcher is unavailable; refusing blind play.");
                 if (Current.Game == null || Find.TickManager == null || Find.CurrentMap == null)
                     return Failure("No playable map is loaded.");
+                if (testAcceleration && (BoostField == null || BoostField.FieldType != typeof(bool)))
+                    return Failure("Native boost support is unavailable.");
                 try { LetterPauseHook.EnsurePatched(); }
                 catch (Exception error) { return Failure("Pause source tracking unavailable: " + error.Message); }
                 if (LongEventHandler.AnyEventNowOrWaiting)
@@ -205,6 +212,8 @@ namespace HomeBridge.BridgeTools
                     StartTick = Find.TickManager.TicksGame,
                     TickDeadline = maxTicks == 0 ? (long?)null : (long)Find.TickManager.TicksGame + maxTicks,
                     LastTick = Find.TickManager.TicksGame,
+                    LastProbeTick = Find.TickManager.TicksGame, LastProbeMs = NowMs(),
+                    TestAcceleration = testAcceleration,
                     IgnoredHostiles = PawnIds(ignoredHostiles),
                     IgnoredDowned = PawnIds(ignoredDowned),
                     SurgicalRecovery = PawnIds(surgicalRecoveryIds),
@@ -243,6 +252,12 @@ namespace HomeBridge.BridgeTools
                     Stop(s, hit.Kind, hit.Detail, true, hit.Payload);
                     return Snapshot(s, s.PauseVerified == true);
                 }
+                if (testAcceleration)
+                {
+                    s.PriorBoost = (bool)BoostField.GetValue(null);
+                    s.BoostOwned = true;
+                    BoostField.SetValue(null, true);
+                }
                 Find.TickManager.CurTimeSpeed = speed;
                 if (Find.TickManager.CurTimeSpeed != speed)
                 {
@@ -273,6 +288,8 @@ namespace HomeBridge.BridgeTools
                 if (!Owns(s, owner, epoch)) return Failure("Owner/epoch mismatch or no active supervisor.");
                 // Update expectation and game speed in the same main-thread
                 // critical section, so our own change cannot look external.
+                if (s.TestAcceleration && speed != TimeSpeed.Ultrafast)
+                    return Failure("Pause the accelerated epoch before changing its speed.");
                 var old = s.RequestedSpeed;
                 s.RequestedSpeed = speed;
                 Find.TickManager.CurTimeSpeed = speed;
@@ -329,6 +346,10 @@ namespace HomeBridge.BridgeTools
             {
                 var s = _state;
                 if (s == null || !s.Active || !s.TickDeadline.HasValue) return;
+                // The frame can contain many accelerated ticks. Check ownership,
+                // lease and tick-bounded hazards before admitting another tick.
+                if (s.TestAcceleration) OnUpdate();
+                if (!s.Active) return;
                 if (!ReferenceEquals(Current.Game, s.Session) || !ReferenceEquals(Find.CurrentMap, s.Map))
                 { Stop(s, "session_changed", "Loaded game changed.", false, null); return; }
                 var tm = Find.TickManager;
@@ -359,6 +380,7 @@ namespace HomeBridge.BridgeTools
                     if (!ReferenceEquals(Current.Game, s.Session) || !ReferenceEquals(Find.CurrentMap, s.Map)) { Stop(s, "session_changed", "Loaded game changed.", false, null); return; }
                     var tm = Find.TickManager;
                     if (tm == null) { Stop(s, "unavailable", "Tick manager disappeared.", false, null); return; }
+                    if (tm.TicksGame < s.LastTick) { Stop(s, "session_changed", "Game clock rewound.", true, null); return; }
                     s.LastTick = tm.TicksGame;
                     if (s.PendingKind != null)
                     {
@@ -380,7 +402,11 @@ namespace HomeBridge.BridgeTools
                         new Dictionary<string, object> { { "expectedSpeed", s.RequestedSpeed.ToString() },
                             { "actualSpeed", tm.CurTimeSpeed.ToString() } }); return; }
                     if (NowMs() >= s.LeaseExpiresMs) { Stop(s, "lease_expired", "Heartbeat lease expired.", true, null); return; }
-                    if (NowMs() - s.LastProbeMs < 100) return;
+                    if (NowMs() - s.LastProbeMs < 100
+                        && (!s.TestAcceleration || tm.TicksGame - s.LastProbeTick < AcceleratedProbeTicks)) return;
+                    s.MaxProbeTickGap = Math.Max(s.MaxProbeTickGap, tm.TicksGame - s.LastProbeTick);
+                    s.LastProbeTick = tm.TicksGame;
+                    s.ProbeCount++;
                     s.LastProbeMs = NowMs();
                     var hit = Probe(s);
                     if (hit != null) Stop(s, hit.Kind, hit.Detail, true, hit.Payload);
@@ -872,7 +898,14 @@ namespace HomeBridge.BridgeTools
                 return;
             }
             s.PendingKind = null; s.PendingDetail = null; s.PendingPayload = null;
+            RestoreBoost(s);
             s.Active = false; s.StopReason = kind; s.StopDetail = detail; Add(kind, detail, s, payload);
+        }
+        private static void RestoreBoost(State s)
+        {
+            if (!s.BoostOwned) return;
+            BoostField.SetValue(null, s.PriorBoost);
+            s.BoostOwned = false;
         }
         private static void Add(string kind, string detail, State s, Dictionary<string, object> payload)
         {
@@ -887,6 +920,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (ReferenceEquals(Current.Game, s.Session) && Find.TickManager != null)
                     Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
+                RestoreBoost(s);
                 s.Active = false; s.StopReason = "event_journal_error";
                 throw;
             }
@@ -904,6 +938,12 @@ namespace HomeBridge.BridgeTools
                 { "minHealthFraction", s != null ? s.MinHealthFraction : 0 },
                 { "lastTick", s != null ? s.LastTick : 0 },
                 { "nativeTickBoundary", true },
+                { "nativeTestAcceleration", BoostField != null && BoostField.FieldType == typeof(bool) },
+                { "testAcceleration", s != null && s.TestAcceleration },
+                { "boostOwned", s != null && s.BoostOwned },
+                { "maxProbeTickGap", s != null ? s.MaxProbeTickGap : 0 },
+                { "probeCount", s != null ? s.ProbeCount : 0 },
+                { "probeTickLimit", s != null && s.TestAcceleration ? (object)AcceleratedProbeTicks : null },
                 { "startTick", s != null ? (object)s.StartTick : null },
                 { "tickDeadline", s != null ? (object)s.TickDeadline : null },
                 { "injuryStopCooldownMs", s != null ? s.InjuryStopCooldownMs : 0 },
@@ -964,6 +1004,8 @@ namespace HomeBridge.BridgeTools
             public string Mode; public float HostileWithin; public float HealthDropFraction; public float MinHealthFraction;
             public long LeaseExpiresMs; public long LastProbeMs; public int LastTick; public bool PausedAtStop;
             public int StartTick; public long? TickDeadline;
+            public bool TestAcceleration; public bool PriorBoost; public bool BoostOwned;
+            public int LastProbeTick; public int MaxProbeTickGap; public int ProbeCount;
             public bool? PauseVerified; public bool PauseFailureReported;
             public string StopReason; public string StopDetail;
             public string PendingKind; public string PendingDetail;

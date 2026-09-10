@@ -27,6 +27,9 @@ namespace HomeBridge.BridgeTools
         static RenderDemandDriver instance;
         static float until;
         public static bool Suspended;
+#if THROUGHPUT_FIXTURE
+        public static float TestSuspendUntil;
+#endif
         readonly HashSet<Camera> disabled = new HashSet<Camera>();
         float nextCheck;
         bool windowVisible = true;
@@ -69,6 +72,11 @@ namespace HomeBridge.BridgeTools
             }
             catch { windowVisible = true; }
             Suspended = !windowVisible && Time.realtimeSinceStartup >= until;
+#if THROUGHPUT_FIXTURE
+            // Private Linux acceptance exercises the same camera suspension path
+            // without depending on Windows window-visibility APIs.
+            Suspended |= Time.realtimeSinceStartup < TestSuspendUntil;
+#endif
             if (Suspended)
             {
                 foreach (var camera in Camera.allCameras)

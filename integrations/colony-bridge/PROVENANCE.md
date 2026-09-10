@@ -428,6 +428,7 @@ slaughter eligibility, enclosed pen lookup and pawn reachability APIs. It preser
 normal simulation rules and copies no game implementation. The existing attributed
 PawnSettingsRead supplies animal training and product observations. HusbandryFixture
 is a separately enabled test-only prerequisite builder, absent from production DLLs.
+
 Upkeep observations and guarded storage operations are original RimBot code using
 native thing, slot-group, bed, pen and allowed-area APIs. Repair and cleaning use
 installed WorkGivers through the existing order pipeline; firefighting retains
@@ -435,3 +436,11 @@ ordinary native work because its WorkGiver is not directly orderable. The option
 UpkeepFixture build creates disposable scenario inputs and is excluded from
 production. Licensed assembly inspection output remains in ignored test artifacts;
 no decompiled game implementation is distributed with these extensions.
+
+Supervised acceptance acceleration uses the native `TickManager.UltraSpeedBoost`
+field already exposed by RimBridgeServer, with epoch-owned restoration. It does
+not replace ticking, suppress forced slowdown or alter pawn statistics. The
+original tick guard bounds hazard probes in game ticks. `ThroughputFixture` is
+excluded from production builds; it schedules ordinary clock setters and native
+mental-state transitions, and leases the existing rendering suspension path for
+private Linux comparisons. No game implementation is copied.

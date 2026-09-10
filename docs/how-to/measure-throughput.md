@@ -1,4 +1,4 @@
-# Measure dashboard throughput
+# Measure simulation and test throughput
 
 [Documentation](../README.md)
 
@@ -26,6 +26,67 @@ control. Wall TPS includes pauses. Paused time is a sampled approximation, and
 stop-reason counts count samples rather than distinct incidents. It excludes intervals
 across disconnects, rewinds and session changes. A paused colony yields zero TPS; peak
 speed and safety require separate isolated gameplay acceptance.
+
+## Accelerated disposable acceptance
+
+`deterministic_foothold.py --accelerated` and `research_acceptance.py --accelerated`
+opt into supervised native Ultrafast boost. Every execution window requires a
+native tick budget. Hazard probes run at most 30 game ticks apart, lease and
+external-clock checks run inside accelerated frame batches, and stopping restores
+the previous boost flag. Native forced slowdown, injury thresholds, pawn work and
+automatic letter pauses remain in effect. Production does not enable this option.
+
+Build a private companion with `-p:ThroughputFixture=true` using the
+[Linux build properties](docker-inputs.md), then stage it into a new mod snapshot.
+The fixture schedules native clock changes and an existing wild animal's Manhunter
+transition at known ticks. The probe approaches wildlife through ordinary pawn
+movement. Missing wildlife or a blocked route fails the prerequisite. Only the
+known Ancient danger warning may be acknowledged during that approach, after
+fresh threat reads; the report retains those interruptions.
+
+```powershell
+python scripts/container_throughput.py --game <linux-game> --mods <private-mods> --profile <profile> --gabs <gabs-directory> --image rimbot-worker:my-throughput --output .rimbot/throughput-new --fixture --modes headless rendered suspended
+```
+
+Workers run sequentially through the existing content-addressed input cache.
+`--no-input-cache` measures direct-bind staging; `--no-build` requires an unchanged
+image. Use a fresh output each time. Reports retain image/input/source hashes,
+other containers, memory samples, startup/discovery/call timings, exact clock
+readbacks, interrupted windows, supply scope and actual movement outcomes.
+Window wall TPS includes clock-call overhead. Completed cases/minute includes
+per-case loads; whole-run outcome throughput includes startup and other assertions.
+Interrupted windows are never counted as completed tick-budget cases or silently
+resumed to fill a target.
+
+Rendered workers use private Xvfb/llvmpipe. Suspended workers use a renewable
+test-only lease to exercise camera and map-mesh suspension on Linux, where the
+Windows visibility APIs are unavailable. The fixture is absent from production
+builds. Mode readbacks must confirm actual suspension/rendering. Action watch is
+off; these probes do not enable streaming or frame capture.
+
+Use `--checkpoint <native-save.rws>` to copy an unchanged older save into every
+worker. Its hash and `saved_checkpoint` label distinguish reuse from fresh starts;
+starting-supply assertions are skipped for reused saves. Keep the same checkpoint,
+inputs and source for comparisons. Movement still needs a healthy pawn and an
+eligible nearby destination.
+
+Measure performance without competing workers. Resource snapshots expose
+contention; correctness passes under contention do not establish isolated
+throughput. Retain failed prerequisites and infrastructure errors alongside passes.
+Bounded movement and scheduled hazards do not establish sustained colony survival
+or arbitrary high-speed safety. Existing 600/3000-tick review windows remain;
+larger adaptive windows need separate observation-age acceptance.
+
+## Local inference throughput
+
+`scripts/inference_throughput.py --output <new-directory>` compares one and two
+concurrent local requests against the same scored semantic cases. It defaults to
+Qwen 3.5 4B; select an installed model with `--model`. In a local Docker image, set
+`RIMBOT_ALLOW_DOCKER_HOST_MODEL=1` and pass
+`--model-url http://host.docker.internal:1234/v1`. Reports retain settings, fixture
+hashes, responses, failures, token counts and correct requests/minute. No game
+orders are sent. Hold model weights, context/offload settings and competing
+inference constant; a small timing sample is not a reliability guarantee.
 
 ## Related reading
 

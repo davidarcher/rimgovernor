@@ -7,6 +7,33 @@ from rimbot.store import Store
 
 
 @pytest.mark.asyncio
+async def test_acceleration_is_explicit_bounded_and_capability_checked():
+    bridge = NativeClock()
+    clock = PlayClock(bridge, test_acceleration=True)
+    with pytest.raises(ValueError, match='requires a native tick budget'):
+        await clock.change('Superfast')
+    assert not bridge.calls
+    with pytest.raises(ValueError, match='lacks supervised test acceleration'):
+        await clock.change('Superfast', max_ticks=600)
+    assert not any(args.get('op') == 'start' for _, args in bridge.calls)
+    bridge.state['nativeTestAcceleration'] = True
+    await clock.change('Superfast', max_ticks=600)
+    start = next(args for _, args in bridge.calls if args.get('op') == 'start')
+    assert start['speed'] == 'Ultrafast' and start['testAcceleration'] is True
+    assert start['maxTicks'] == 600 and start['injuryStopCooldownMs'] == 0
+    await clock.change('Paused')
+    assert not bridge.state['active']
+
+
+@pytest.mark.asyncio
+async def test_production_clock_does_not_request_boost():
+    bridge = NativeClock()
+    await PlayClock(bridge).change('Superfast', max_ticks=600)
+    start = next(args for _, args in bridge.calls if args.get('op') == 'start')
+    assert start['speed'] == 'Superfast' and 'testAcceleration' not in start
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize('operation', ['status', 'events'])
 async def test_clock_reads_recover_published_launch_claim(operation):
     from rimbot.bridge import BridgeClient, BridgeError

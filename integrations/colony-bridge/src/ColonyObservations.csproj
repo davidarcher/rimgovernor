@@ -7,12 +7,14 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <DefineConstants Condition="'$(ThroughputFixture)' == 'true'">$(DefineConstants);THROUGHPUT_FIXTURE</DefineConstants>
     <DebugType>none</DebugType>
     <RimWorldManagedDir Condition="'$(RimWorldManagedDir)' == ''">C:/Program Files (x86)/Steam/steamapps/common/RimWorld/RimWorldWin64_Data/Managed</RimWorldManagedDir>
     <HarmonyAssembly Condition="'$(HarmonyAssembly)' == ''">C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/Current/Assemblies/0Harmony.dll</HarmonyAssembly>
     <RimBridgeSdkDir Condition="'$(RimBridgeSdkDir)' == ''">C:/Program Files (x86)/Steam/steamapps/common/RimWorld/Mods/RimBridgeServer/1.6/Assemblies</RimBridgeSdkDir>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../../scripts/fixtures/ThroughputFixture.cs" Condition="'$(ThroughputFixture)' == 'true'" />
     <Compile Include="../../../scripts/fixtures/WasteFixture.cs" Condition="'$(WasteFixture)' == 'true'" />
     <Compile Include="../../../scripts/fixtures/DisasterFixture.cs" Condition="'$(DisasterFixture)' == 'true'" />
     <Compile Include="../../../scripts/fixtures/GearFixture.cs" Condition="'$(GearFixture)' == 'true'" />

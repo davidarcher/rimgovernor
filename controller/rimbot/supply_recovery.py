@@ -1,4 +1,5 @@
 """Observe obsolete starter-stock allow requests without replaying a write."""
+from math import ceil, hypot
 
 
 async def recover_starting_supplies(rt, step_id, *, token, direction):
@@ -24,7 +25,8 @@ async def recover_starting_supplies(rt, step_id, *, token, direction):
         args=step.action.arguments
         # Aggregate the surrounding cells as a conservative superset. A truncated
         # position list cannot turn remaining forbidden stock into a false absence.
-        observed=await rt.game.query('home/list_things',x=args['x'],z=args['z'],radius=1,
+        radius=max(1,ceil(hypot(args.get('width',1)-1,args.get('height',1)-1)))
+        observed=await rt.game.query('home/list_things',x=args['x'],z=args['z'],radius=radius,
             includeHeld=False,ownership='all',excludeChunks=False)
         if (observed.get('success') is not True or type(observed.get('forbiddenTotal')) is not int
                 or observed['forbiddenTotal']!=0 or type(observed.get('foggedTotal')) is not int
