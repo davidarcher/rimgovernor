@@ -14,7 +14,7 @@ from rimbot.store import Store
 from rimbot.colony_plan import ColonyGoal, CommitSteps, Decision, PlanSpec, NativeOperation
 from rimbot.player_commands import apply_command
 from rimbot.production_policy import resource_method, refresh_resource_prerequisite
-from rimbot.colony_skills import SkillBlocked
+from rimbot.colony_skills import SkillBlocked, native
 from rimbot.campaign_manifest import capture_manifest
 from rimbot.session_checkpoint import prepare_resume
 
@@ -206,6 +206,21 @@ async def run(args):
         selected=await resource_method(rt,identity,await facts());assert selected
         await compile_method(identity,selected)
         while await compile_method('EnsureWorkAssignments'):pass
+        roster=(await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True,health=True))['pawns']
+        report['production_start']={'pawns':roster,'bills':await rt.game.invoke('home/bills',{'action':'list','dryRun':True}),
+            'facts':await facts()}
+        from rimbot.session_checkpoint import create_checkpoint
+        report['production_start_checkpoint']=await create_checkpoint(rt,rt.context_token)
+        save()
+        crafters=[p for p in roster if not any(p.get(k) for k in ('dead','downed','drafted','mentalState'))
+            and any(w['name']=='Crafting' and not w['disabled'] and w.get('priority',0)>0 for w in p['work']['types'])]
+        crafters.sort(key=lambda p:-next((s.get('level',0) for s in p['bio']['skills'] if s['name']=='Crafting'),0))
+        for crafter in crafters:
+            arguments={'action':'work','pawn':crafter['thingId'],'target':refinery['thingId'],'watch':False}
+            preview=await rt.game.invoke('home/order',dict(arguments,dryRun=True))
+            if preview.get('success') and preview.get('wouldIssue'):
+                await compile_method('intent-fuel-prioritize',('prioritize-native-fuel',[native('home/order',**arguments)]))
+                report['prioritized_work']=preview;save();break
         before=(await facts()).get('resources',{}).get('Chemfuel',0)
         while (await facts()).get('resources',{}).get('Chemfuel',0)<35:await window('produce-chemfuel')
         after=(await facts())['resources']['Chemfuel']
