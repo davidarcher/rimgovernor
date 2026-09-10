@@ -16,6 +16,7 @@ async def run(args):
     data,state=prepare_resume(checkpoint)
     args.output.mkdir(parents=True,exist_ok=False)
     store=Store(state/'bridge.sqlite')
+    expected_plan=store.get('bridge:'+data['colony_id']+':'+str(data['map_id']))['current_plan']
     rt=BridgeRuntime(store,Path(data['root']),fresh=True,headless=True,resume=checkpoint,
         settings=Settings(model=args.model,timeout_seconds=90))
     report={'outcome':'failed','source_report':str(args.source_report.resolve()),'checkpoint':checkpoint,'cases':[]}
@@ -45,7 +46,7 @@ async def run(args):
         remaining={t.thing for t in cancelled.action.targets}&before
         record('paired_load_keeps_partial_cancellation_and_unrelated_orders',rt.mode=='manual'
             and cancelled.action.loadToken!=rt.identity['loadToken'] and len(remaining)==1
-            and rt.counters['actions']==0 and plan.model_dump()==source['plan'],remaining=sorted(remaining),tick=rt.batch.summary.end_tick)
+            and rt.counters['actions']==0 and plan.model_dump()==expected_plan,remaining=sorted(remaining),tick=rt.batch.summary.end_tick)
         await chat('Explain which construction is still pending. This is an inspection request only; issue no game orders.')
         record('inspection_changes_direction_without_native_orders',await listed()==before and rt.counters['actions']==0)
         # Deliberately queue the saved old action in the fresh context to exercise

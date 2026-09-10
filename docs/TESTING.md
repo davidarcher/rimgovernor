@@ -606,6 +606,21 @@ the paired restart. The probe requires later blueprint identities to disappear,
 discards an explicitly delivered obsolete queued request, and rejects an old-load
 native write without changing the observed building set or leaving Manual.
 
+`scripts/freezer_expansion_acceptance.py --source-root <prepared-root>
+--output <fresh-directory> --model <local-model-id>` builds two separate powered
+cold-storage rooms through ordinary pawn labor. Actual local-model requests set
+cooler temperatures, reserve steel and expand storage while preserving the first
+freezer. Completion requires both roofed rooms below freezing with their native
+stockpile cells, including three stable native windows after expansion.
+Use `--resume-report <result.json>` instead of `--source-root` to resume an
+immutable powered-room checkpoint after an infrastructure failure.
+`scripts/adopted_room_thermal_acceptance.py --freezer-report <passed-result.json>
+--output <fresh-directory> --variant hot|cold` then adopts an edited room, preserves
+existing furniture, fills native sleeping capacity and verifies ordinary fueled
+thermal furniture and temperature recovery. Each variant resumes the immutable
+checkpoint independently. These probes require the named local model to be loaded;
+retain failed reports and distinguish powered construction from actual cooling.
+
 `scripts/cancel_construction_acceptance.py --source-root <prepared-root> --output
 <fresh-directory>` tests the native exact-target cancellation contract in a private
 paused colony. It creates ordinary blueprint orders and a zero-work sleeping spot,
