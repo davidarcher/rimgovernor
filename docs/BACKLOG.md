@@ -691,7 +691,7 @@ only intentional small, sanitized regression fixtures belong in source control.
   - [ ] **01b:** injected clocks/IDs and offline replay with documented normalization,
     exact numeric/identity/order handling and deliberate action/receipt corruption
     tests. Owner: replay agent. Depends on 01a.
-    - [ ] **01b.1:** bounded raw-evidence JSON comparison and injected clock/ID
+    - [x] **01b.1:** bounded raw-evidence JSON comparison and injected clock/ID
       sources; no runtime adapters. Owner: replay agent.
     - [ ] **01b.2:** read-only file replay command, errors and file-based tests.
       Owner: CLI agent; final validation depends on 01b.1.
