@@ -25,7 +25,7 @@ async def run(args):
         shutil.copy2(args.source_save,root/'profile/Saves/RimBot-tribal8-baseline.rws')
     config=prepare(root)
     store=Store(args.output/'state.sqlite');rt=BridgeRuntime(store,root,fresh=True,headless=True)
-    report={'outcome':'failed','cases':[]};deadline=time.monotonic()+args.seconds
+    report={'outcome':'failed','cases':[]};fixture_steps=set();food_support_ready=False;deadline=time.monotonic()+args.seconds
     def save(): (args.output/'result.json').write_text(json.dumps(report,indent=2))
     def record(name,passed,**evidence):
         report['cases'].append(dict(name=name,passed=bool(passed),**evidence));save()
@@ -59,7 +59,8 @@ async def run(args):
             rt.manual_requests.extend((s.id,rt.context_token,rt.chat_revision) for s in steps
                 if rt.current_plan.progress[s.id].state=='pending')
             await rt.execute_manual_requests()
-        assert all(rt.current_plan.progress[s.id].state in ('complete','waiting') for s in steps)
+        assert all(rt.current_plan.progress[s.id].state in ('pending','complete','waiting') for s in steps)
+        fixture_steps.update(s.id for s in steps)
         goal.evidence.setdefault('methods',{})[method]=[s.id for s in steps]
         return True
     async def window(phase):
@@ -82,11 +83,15 @@ async def run(args):
             rt.clock_events.extend(await rt.supervisor.poll())
             rt.receive_clock_events()
         if rt.review_task and not rt.review_task.done():await rt.review_task
+        await rt.projects.reconcile(rt.game);rt.reconcile_plan()
+        rt.manual_requests.extend((identity,rt.context_token,rt.chat_revision) for identity in fixture_steps
+            if rt.current_plan.progress[identity].state=='pending')
+        await rt.execute_manual_requests()
         report['latest']={'phase':phase,'clock':clock,'facts':await facts(),
             'research':await rt.game.invoke('home/research',{'filter':'Biofuel','finished':True,'locked':True})}
         save()
-        if report['latest']['facts'].get('foodRunwayDays',0)<3:
-            for identity in ('EnsureBasicDefense','EnsureFoodSupply','EnsureCooking'):
+        if food_support_ready:
+            for identity in ('EnsureBasicDefense','EnsureFoodSupply','EnsureCooking','MaintainResource-WoodLog'):
                 for _ in range(4):
                     if not await compile_method(identity):break
     async def wait_build(definition, minimum_count=1):
@@ -119,7 +124,12 @@ async def run(args):
         await ready(rt)
         while await compile_method('AllowStartingSupplies'):pass
         while await compile_method('EnsureWorkAssignments'):pass
-        for identity in ('EnsureBasicDefense','EnsureFoodSupply','EnsureCooking'):
+        observed=await facts();initial_center=observed['center'];initial_origin=(initial_center['x'],initial_center['z'])
+        await place('ButcherSpot',initial_origin)
+        await place('Campfire',(initial_origin[0]+4,initial_origin[1]))
+        await command(kind='CreateGoal',goal='MaintainResource',resource='WoodLog',quantity=350)
+        food_support_ready=True
+        for identity in ('EnsureBasicDefense','EnsureFoodSupply','EnsureCooking','MaintainResource-WoodLog'):
             for _ in range(4):
                 if not await compile_method(identity):break
         result=await command(kind='CreateGoal',goal='MaintainResource',resource='Chemfuel',quantity=35)

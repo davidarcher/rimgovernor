@@ -2,6 +2,8 @@
 import argparse
 import asyncio
 import json
+import inspect
+import hashlib
 import time
 from pathlib import Path
 from session_checkpoint_acceptance import ready
@@ -20,7 +22,8 @@ async def run(args):
     data,state=prepare_resume(args.checkpoint);root=Path(data['root'])
     args.output.mkdir(parents=True,exist_ok=False)
     store=Store(state/'bridge.sqlite');rt=BridgeRuntime(store,root,fresh=True,headless=True,resume=args.checkpoint)
-    report={'outcome':'failed','checkpoint':str(args.checkpoint),'checkpoint_data':data,'cases':[]}
+    report={'outcome':'failed','checkpoint':str(args.checkpoint),'checkpoint_data':data,'cases':[],
+        'harness_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
     def record(name,passed,**evidence):
         report['cases'].append(dict(name=name,passed=bool(passed),**evidence))
         print(name+': '+str(bool(passed)),flush=True);assert passed,name
@@ -31,7 +34,7 @@ async def run(args):
         result=await apply_command(rt,payload,token=rt.context_token,revision=rt.chat_revision)
         await rt.execute_manual_requests();return result
     try:
-        (args.output/'manifest.json').write_text(json.dumps(capture_manifest(Path(__file__).resolve().parents[1],
+        (args.output/'manifest.json').write_text(json.dumps(capture_manifest(Path(inspect.getfile(BridgeRuntime)).resolve().parents[2],
             root,root/'config-headless',rt.router.routing.model_dump(mode='json')),indent=2))
         await ready(rt)
         facts=await rt.game.query('home/colony_facts',planning=True)
@@ -125,6 +128,45 @@ async def run(args):
                 and all(after_existing['config'][key]==before_bill['config'][key] for key in (
                     'repeatMode','targetCount','ingredientSearchRadius','pauseWhenSatisfied','unpauseWhenYouHave')),
                 stock=observed['resources'],bills=after_bills)
+
+            if args.lease:
+                await command(kind='CreateGoal',goal='MaintainResource',resource=resource,quantity=4)
+                selected=await resource_method(rt,goal_id,await rt.game.query('home/colony_facts',planning=True))
+                assert selected
+                await issue(goal_id,*selected)
+                before_lease=await rt.game.query('home/colony_facts',planning=True)
+                held=before_lease['resources']['WoodLog']
+                report['temporary_commitment']=(await rt.bridge.call('home/production_policy',
+                    **{k:rt.identity[k] for k in ('colonyId','loadToken','mapId')},
+                    floors='',commitments='WoodLog='+str(held),stopped='',dryRun=False)).structuredContent
+                await rt.supervisor.change('Superfast',max_ticks=1200)
+                async with asyncio.timeout(45):
+                    while True:
+                        clock=(await runtime_file_read(rt.bridge.call,'home/supervised_play',op='status')).structuredContent
+                        if not clock['active']:break
+                        await asyncio.sleep(.15)
+                assert clock['pauseVerified'] and clock['stopReason'] in ('tick_budget','requested_pause'),clock
+                after_lease=await rt.game.query('home/colony_facts',planning=True)
+                record('native_lease_commitment_stops_bill',after_lease['resources'].get(resource,0)==3
+                    and after_lease['resources']['WoodLog']==held,commitment=report['temporary_commitment'],clock=clock)
+                async with rt.lock:
+                    rt.clock_events.extend(await rt.supervisor.poll());rt.receive_clock_events()
+                if rt.review_task and not rt.review_task.done():await rt.review_task
+                assert rt.mode=='manual'
+                report['manual_clock_start']=(await rt.bridge.call('rimworld/set_time_speed',speed='Superfast')).model_dump(mode='json')
+                try:
+                    deadline=time.monotonic()+args.seconds
+                    while True:
+                        observed=await rt.game.query('home/colony_facts',planning=True)
+                        if observed['resources'].get(resource,0)>=4:break
+                        assert time.monotonic()<deadline,'Ordinary Manual play remained constrained by expired lease commitments'
+                        await asyncio.sleep(.15)
+                finally:
+                    await rt.bridge.call('rimworld/set_time_speed',speed='Paused')
+                manual_clock=(await runtime_file_read(rt.bridge.call,'home/supervised_play',op='status')).structuredContent
+                record('native_manual_play_releases_lease_budget',observed['resources'].get(resource,0)>=4
+                    and observed['resources']['WoodLog']<held and not manual_clock['active'],
+                    before=after_lease['resources'],after=observed['resources'],clock=manual_clock)
         record('zero_inference',rt.counters['model_calls']==0,counters=rt.counters)
         report['outcome']='passed'
     except Exception as error:
@@ -144,6 +186,9 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--checkpoint',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
+    parser.add_argument('--lease',action='store_true',help='With --capacity, require lease-only budget enforcement and actual ordinary Manual production afterward')
     parser.add_argument('--capacity',action='store_true',help='Verify existing-bill coverage and actual output after increasing native bill capacity')
     parser.add_argument('--seconds',type=int,default=300)
-    args=parser.parse_args();asyncio.run(asyncio.wait_for(run(args),args.seconds*2+180))
+    args=parser.parse_args()
+    if args.lease and not args.capacity:parser.error('--lease requires --capacity')
+    asyncio.run(asyncio.wait_for(run(args),args.seconds*3+180))
