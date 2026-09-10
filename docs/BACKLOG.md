@@ -320,6 +320,20 @@ each bounded method.
 
 ## P2 — Coverage, inspection and evaluation scale
 
+- [ ] **Controller execution scheduling.** Measure the two-second runtime polling
+  delay and evaluate waking promptly when review or execution finishes. Preserve
+  bounded Hands passes, idle backoff, UI responsiveness, clock supervision and
+  player/direction/load/plan invalidation. Verify no busy loop, concurrent writers
+  or delayed interruption handling, then compare native setup progress.
+
+- [ ] **Paused setup through the first simulation tick.** Use the
+  [controller profiler](how-to/measure-throughput.md) to measure the complete path
+  from enabling automation to the first supervised tick. Separate repeated
+  validation, persistence, controller scheduling and bridge time; optimize the
+  measured costs without weakening fresh write checks. Acceptance must actually
+  reach a supervised execution window; a sample that ends while issuing paused
+  setup orders does not close this item.
+
 - [ ] **Bridge request overhead.** Use the boundary timings in
   [throughput measurements](how-to/measure-throughput.md) to split remaining MCP
   session time into GABS ownership preparation, transport/decoding and native
@@ -328,14 +342,26 @@ each bounded method.
   already use bounded preview batches.
   Hands coalesces zone/entrance reads within each read-only shell preflight;
   actual writes retain fresh checks.
-  Measure remaining paused setup through the first simulated tick with the
-  controller profiler. Throughput workers use durable Linux volume state to avoid
-  host-bind commit overhead; assess other native launchers before extending this
-  storage/export contract. Separate repeated validation and controller scheduling
-  from bridge time.
   Native observations already support one
   request for the standard seven sections; retain identity invalidation, native
   interruption guards and durable mutation records in further optimizations.
+
+- [ ] **Linux-volume storage for other native test launchers.** Audit remaining
+  launchers for synchronous writes through host bind mounts. Extend the throughput
+  launcher's private-volume contract where measurements justify it: unchanged
+  SQLite/recorder durability, export only after stopping the worker, database
+  integrity checks, retained failure evidence and recovery volumes/containers,
+  and verified cleanup after success. Preserve live scenario dashboards and an
+  explicit bind-storage comparison option. Throughput workers already use this
+  contract; verify each additional launcher's normal, failed and interrupted runs.
+
+- [ ] **End-to-end native throughput acceptance.** Compare unprofiled runs with
+  fixed images, inputs, speed/recording settings and uncontended Docker resources.
+  Measure time to first simulated tick, completed pawn work and completed scenarios,
+  including startup, setup, pauses and evidence export. Verify native outcomes and
+  interruption behavior alongside timing. Faster previews, more dispatched orders
+  or profiled component timings alone do not establish simulation TPS or scenario
+  completion gains; retain failed trials and report the exact accepted scope.
 
 - [ ] **Broader scenario observer coverage.** Measure retained-frame rendering and
   observation overhead during sustained campaigns. Bridge-only probes without a
