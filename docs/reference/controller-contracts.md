@@ -258,6 +258,12 @@ Wild-plant acquisition limits new orders by the remaining per-colonist nutrition
 and already designated native harvest yield. Pending yield limits duplicate acquisition
 but never counts as stored food or clears food risk. Individual plants are indivisible,
 so a batch can exceed its remaining target by one plant's yield.
+Food and wood methods use `home/acquire_resource` with the observed plant identity,
+output resource, location and colony/load/map. Native eligibility is checked again
+before designation. A fresh regrowth observation can renew a confirmed completed
+designation under the same maintained goal; its prior action and receipt remain in
+history. Pending, uncertain and cancelled acquisition orders prevent renewal at
+their location. A new designation still does not certify harvesting or stored food.
 
 ## Bounded combat response
 

@@ -287,17 +287,26 @@ class ColonySkills:
                 except ValueError as error:
                     raise SkillBlocked('Food acquisition accounting: '+str(error)) from error
                 goal.evidence['acquisition_budget'] = budget
-            method = 'acquire-'+fingerprint([p['id'] for p in targets[:8]])[:8]
+            # A plant can regrow at the same location. Each fresh observation is
+            # a new method, but uncertain or cancelled writes remain protected.
+            protected = {(s.action.arguments.get('x'), s.action.arguments.get('z'))
+                         for s in rt.current_plan.spec.steps
+                         if s.goal_id == goal_id and s.action.kind == 'native_operation'
+                         and s.action.tool in ('home/acquire_resource', 'rimworld/apply_architect_designator')
+                         and (rt.current_plan.progress[s.id].state != 'complete'
+                              or rt.current_plan.progress[s.id].issued.get('0', {}).get('confirmed') is not True)}
+            targets = [p for p in targets if (p['x'], p['z']) not in protected]
+            method = 'acquire-'+fingerprint({'plants':[p['id'] for p in targets[:8]], 'tick':facts['tick']})[:12]
             outstanding = sum(p.get('yield', 0) for p in facts.get('acquisition', []) if p[resource] and p['designated'])
             needed = max(0, rt.controller.policy.wood_target-facts.get('resources', {}).get('WoodLog', 0)-outstanding)
             if targets and unused(method) and (food or needed > 0):
-                designator = await self.designator('Designator_PlantsHarvest' if food else 'Designator_PlantsCut')
                 selected = []
                 amount = 0
                 for plant in targets:
                     if len(selected) >= 8 or (not food and amount >= needed): break
-                    selected.append(native('rimworld/apply_architect_designator', designatorId=designator,
-                        x=plant['x'], z=plant['z'], keepSelected=False))
+                    selected.append(native('home/acquire_resource',
+                        **{k:rt.identity[k] for k in ('colonyId','loadToken','mapId')},
+                        thingId=plant['id'], resource=plant['resource'], x=plant['x'], z=plant['z']))
                     amount += plant.get('yield', 0)
                 if selected: return method, selected
             if not food:

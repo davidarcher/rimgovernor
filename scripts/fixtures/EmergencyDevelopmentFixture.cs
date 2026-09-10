@@ -24,7 +24,24 @@ namespace HomeBridge.BridgeTools
                 var actor = people.FirstOrDefault(p => p.GetUniqueLoadID() == pawn);
                 var center = people[0].Position;
                 var weapons = new System.Collections.Generic.List<string>();
-                if (op == "combat-equipment") {
+                if (op == "harvest-plant" || op == "harvest-regrowth") {
+                    Plant plant;
+                    if (op == "harvest-plant") {
+                        var cell = GenRadial.RadialCellsAround(center,8,true).First(c => c.InBounds(map)
+                            && c.Standable(map) && !c.Fogged(map) && c.DistanceTo(center)>3
+                            && map.fertilityGrid.FertilityAt(c) >= .7f
+                            && !c.GetThingList(map).Any(t => t is Plant || t is Building)
+                            && map.zoneManager.ZoneAt(c) == null);
+                        plant = (Plant)GenSpawn.Spawn(ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("Plant_Berry")),cell,map);
+                    } else {
+                        plant = map.listerThings.AllThings.OfType<Plant>().Single(p => p.GetUniqueLoadID() == pawn);
+                        if (map.designationManager.DesignationOn(plant) != null || plant.HarvestableNow)
+                            throw new InvalidOperationException("First native harvest must finish before fixture regrowth");
+                    }
+                    plant.Growth = 1f;
+                    return new { success=true, op, plant=plant.GetUniqueLoadID(), setupOnly=true,
+                        growthInjected=true, completedWorkInjected=false };
+                } else if (op == "combat-equipment") {
                     for (var i=0;i<4;i++) {
                         var weapon = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("MeleeWeapon_Club"),ThingDefOf.WoodLog);
                         if (!GenPlace.TryPlaceThing(weapon,center,map,ThingPlaceMode.Near)) throw new InvalidOperationException("Weapon setup refused");

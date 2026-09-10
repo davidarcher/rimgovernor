@@ -171,7 +171,7 @@ async def run(args):
                 await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
             await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
             await rt.sync_identity();rt.mode='automate'
-            await setup('stocks')
+            if args.case != 'recurring-harvest': await setup('stocks')
             facts,people=await refresh()
             check('native_order_history_available',all(type(p.get('orderGeneration')) is int for p in people))
             if args.case=='development':
@@ -281,6 +281,37 @@ async def run(args):
                     if not next(p for p in people if p['thingId']==patient)['health']['needsTend']:break
                     await window()
                 check('combat_triage_completed',not next(p for p in people if p['thingId']==patient)['health']['needsTend'])
+            elif args.case=='recurring-harvest':
+                from rimbot.native_scenario import advance_game
+                await issue('EnsureWorkAssignments')
+                target=(await setup('harvest-plant'))['plant']
+                await bridge.call('test/food_observe')
+                rt.supervisor.test_acceleration=True
+                rt.current_plan.colony_goals['EnsureFoodSupply']=ColonyGoal(priority_class=2,source='PLAYER',target={'food_days':7})
+                completed=[]
+                for harvest in range(2):
+                    if harvest: await setup('harvest-regrowth',target)
+                    facts,people=await refresh()
+                    plant=next(p for p in facts['acquisition'] if p['id']==target)
+                    compiled=await rt.controller.skills.compile('EnsureFoodSupply',dict(facts,acquisition=[plant]),people)
+                    check('exact_plant_method_'+str(harvest),compiled and compiled[1][0]['tool']=='home/acquire_resource')
+                    ids=await issue('EnsureFoodSupply',compiled)
+                    check('native_designation_'+str(harvest),bool(ids) and all(rt.current_plan.progress[i].state=='complete' for i in ids))
+                    receipts={i:rt.current_plan.progress[i].model_dump() for i in ids}
+                    products=[]
+                    for _ in range(40):
+                        await advance_game(rt,600,report)
+                        facts,_=await refresh()
+                        observed=(await bridge.call('test/food_observe')).structuredContent
+                        products=[p for p in observed['production'] if p.get('x')==plant['x']
+                            and p.get('z')==plant['z'] and p.get('plant')=='Plant_Berry' and p.get('count',0)>0]
+                        if len(products)>harvest:break
+                    check('ordinary_harvest_finished_'+str(harvest),len(products)>harvest,plant=target,products=products)
+                    completed.append(receipts)
+                first=next(iter(completed[0]))
+                archived=store.retired_action(rt.colony,first)
+                check('prior_harvest_receipt_preserved',archived and archived['progress']==completed[0][first],archive=archived)
+                report['harvest_receipts']=completed
             elif args.case=='medical-rest':
                 from rimbot.native_scenario import advance_game,ScenarioInterrupted
                 from rimbot.colony_policy import priority_nodes
@@ -519,7 +550,7 @@ async def run(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root',type=Path,required=True)
-    parser.add_argument('--case',choices=['development','combat','medical','drafted-medical','refused-preview','equipment-observation','medical-rest','health'],required=True)
+    parser.add_argument('--case',choices=['development','combat','medical','drafted-medical','refused-preview','equipment-observation','medical-rest','recurring-harvest','health'],required=True)
     parser.add_argument('--seconds',type=int,default=1800)
     parser.add_argument('--new-crashlanded',action='store_true',help='Use ordinary native Crashlanded generation and starting technology, without save edits')
     parser.add_argument('--research-project',help='Require this native project on a saved-colony continuation')

@@ -424,8 +424,18 @@ def repeatable_player_setting(step):
                  or step.action.tool == 'home/order' and step.action.arguments.get('action') in ('draft', 'undraft', 'goto')))
 
 
+def repeatable_acquisition(step):
+    return (step.goal_id in ('EnsureFoodSupply', 'MaintainWood')
+        and isinstance(step.action, NativeOperation) and step.action.tool == 'home/acquire_resource'
+        and step.action.completion == 'native_receipt'
+        and str(step.action.arguments.get('thingId', '')).startswith('Thing_')
+        and all(isinstance(step.action.arguments.get(k), str) and step.action.arguments[k]
+                for k in ('colonyId', 'loadToken', 'resource'))
+        and all(type(step.action.arguments.get(k)) is int for k in ('mapId', 'x', 'z')))
+
+
 def repeatable_completed_operation(step):
-    return repeatable_player_setting(step) or (step.source == 'AUTOPILOT' and step.goal_id
+    return repeatable_player_setting(step) or repeatable_acquisition(step) or (step.source == 'AUTOPILOT' and step.goal_id
         and isinstance(step.action, NativeOperation) and step.action.completion == 'upkeep_target')
 
 
@@ -440,7 +450,9 @@ class CommitSteps(Contract):
             raise ValueError('Append new step IDs only; existing work is preserved. Use commit_plan to revise it.')
         renewed = {step.signature() for step in self.steps if repeatable_completed_operation(step)}
         retired = {step.id for step in current.spec.steps if repeatable_completed_operation(step)
-                   and step.signature() in renewed and current.progress[step.id].state == 'complete'}
+                   and step.signature() in renewed and current.progress[step.id].state == 'complete'
+                   and (not repeatable_acquisition(step)
+                        or current.progress[step.id].issued.get('0', {}).get('confirmed') is True)}
         pinned = set(current.control.get('combat', {}).get('steps', []))
         # Player rooms/zones still support maintained goals and native edit
         # reconciliation. Their completion is not permission to forget them.
@@ -451,7 +463,7 @@ class CommitSteps(Contract):
             retired |= {step.id for step in current.spec.steps if step.id not in pinned
                        and current.progress[step.id].state == 'complete'
                        and (step.source == 'PLAYER' or isinstance(step.action, NativeOperation))}
-        retired -= pinned
+        retired -= pinned - {step.id for step in current.spec.steps if repeatable_acquisition(step)}
         rows = []
         for step in [*current.spec.steps,*self.steps]:
             if step.id in retired: continue
@@ -558,6 +570,8 @@ class ColonyPlan(Contract):
                            and self.progress[prior.id].issued.get('0', {}).get('confirmed') is True)))
                    and not (repeatable_completed_operation(step) and repeatable_completed_operation(prior)
                        and self.progress[prior.id].state == 'complete'
+                       and (not repeatable_acquisition(prior)
+                            or self.progress[prior.id].issued.get('0', {}).get('confirmed') is True)
                        and prior.id not in {s.id for s in decision.plan.steps}) for prior in old.values()):
                 raise ValueError('Reuse the existing step ID for identical intent')
             if step.id in old and step.signature() != old[step.id].signature():

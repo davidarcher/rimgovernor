@@ -173,7 +173,7 @@ namespace HomeBridge.BridgeTools
                 if (map == null || identity == null || identity.ColonyId != colonyId || identity.LoadToken != loadToken
                     || map.uniqueID != mapId || Find.TickManager.CurTimeSpeed != TimeSpeed.Paused || DebugSettings.godMode)
                     return new { success = false, error = "Paused normal-game colony/load/map required" };
-                var thing = map.listerThings.AllThings.FirstOrDefault(t => t.ThingID == thingId);
+                var thing = map.listerThings.AllThings.FirstOrDefault(t => t.ThingID == thingId || t.GetUniqueLoadID() == thingId);
                 if (thing == null || thing.Position.x != x || thing.Position.z != z || Product(thing)?.defName != resource || !Eligible(thing, map))
                     return new { success = false, error = "Resource source changed or is unsafe/unavailable" };
                 if (Designated(thing)) return new { success = true, dryRun, designated = true, thingId, resource };

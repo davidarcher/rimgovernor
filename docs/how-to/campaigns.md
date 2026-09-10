@@ -94,6 +94,11 @@ the uncertain receipt without another equip order.
 Use `--case medical-rest` to verify ordinary caregiver feeding during bounded native
 monitoring of an eligible downed patient, unchanged recovery criteria, and immediate
 interruption when a new injury invalidates that patient's eligibility.
+Use `--case recurring-harvest` to verify two ordinary harvests of the same berry
+plant and preservation of the first receipt. The setup explicitly supplies mature
+growth between harvests; production is observed through `FoodObservationFixture`.
+This isolates recurring work and does not certify natural growth rates or sustained
+food replacement.
 
 ## Repeated model campaigns
 
