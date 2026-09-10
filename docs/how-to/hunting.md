@@ -51,6 +51,12 @@ check in an untouched save with existing cooking and work setup. Native bill
 diagnostics retain ingredient shortfalls; normal bounded wild-plant harvesting
 can supply ingredients. This mode does not claim hunting acceptance.
 
+`--soil-crop` allows normal starting supplies, assigns work, and selects potatoes
+for sixteen observed free cells at 70% fertility using the shared crop selector
+and native food/climate facts. It requires actual sowing in that exact zone.
+Use a normal prepared start with sufficient food runway and an open growing
+season; a mismatched starting condition is a failure, not a simulated pass.
+
 ## Related reading
 
 [Choose tests](choose-tests.md) · [Test evidence explained](../explanation/testing.md) ·

@@ -40,6 +40,10 @@ window. The requested goal and policy target must remain intact throughout.
 `food-observer.json` retains actual native harvest/recipe products and ingestion;
 `food-acceptance.json` records the separate food assertions. Projected yields do
 not satisfy them. A resumed save remains targeted checkpoint acceptance.
+For crop-focused acceptance, `--disable-hunting` issues ordinary persistent player
+work settings and verifies native hunting priorities are zero. This isolates crop
+replenishment and does not certify mixed hunting/crop autonomy. Unsafe native hunt
+routes still pause and hand control back to the player in the separate mixed run.
 
 Controller replays in `test_colony_controller.py` separately exercise deterministic
 layout variants, hysteresis, priorities, cancellation and accounting. They model labor

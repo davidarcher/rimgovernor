@@ -120,6 +120,24 @@ async def run(args):
             from construction_recovery_acceptance import exercise_recovery
             report['recovery_fixture']=await exercise_recovery(rt)
         rt.current_plan.control.setdefault('policy', {})['execution_speed'] = args.speed
+        if getattr(args,'disable_hunting',False):
+            from rimbot.player_commands import apply_command
+            if rt.review_task and not rt.review_task.done():await rt.review_task
+            rt.execution_task=asyncio.current_task()
+            try:
+                people=(await rt.game.query('home/list_pawns',colonistsOnly=True,work=True))['pawns']
+                report['crop_scope']={'hunting':'Disabled through explicit persistent player work settings',
+                    'scope':'Crop-focused acceptance; native hunting and unsafe-route pauses are separate cases'}
+                for pawn in people:
+                    if not any(w['name']=='Hunting' and w.get('disabled') is False for w in pawn['work']['types']):continue
+                    await apply_command(rt,dict(kind='SetWorkPriority',pawn=pawn['thingId'],
+                        work_type='Hunting',priority=0),token=rt.context_token,revision=rt.chat_revision)
+                    await rt.execute_manual_requests()
+                checked=(await rt.game.query('home/list_pawns',colonistsOnly=True,work=True))['pawns']
+                assert all(not w.get('priority') for p in checked for w in p['work']['types'] if w['name']=='Hunting')
+                report['crop_scope']['work_readback']=checked
+            finally:
+                rt.execution_task=None
         if getattr(args,'food_target_days',None) is not None:
             from rimbot.player_commands import apply_command
             report['food_target']=await apply_command(rt,dict(kind='CreateGoal',goal='EnsureFoodSupply',
@@ -240,6 +258,7 @@ if __name__=='__main__':
     parser.add_argument('--source-snapshot',action='store_true',help='Fingerprint packaged source bytes when running in a Docker image without Git metadata')
     parser.add_argument('--food-target-days',type=float,help='Explicit persistent player food target, validated through CreateGoal')
     parser.add_argument('--food-observer',action='store_true',help='Record actual native crop and recipe products through the optional read-only FoodObservationFixture')
+    parser.add_argument('--disable-hunting',action='store_true',help='Use ordinary persistent player work settings to isolate crop-focused acceptance; does not certify mixed hunting/crop autonomy')
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--seconds',type=int,default=1800)
     parser.add_argument('--stability-days',type=stability_days,default=2,help='Consecutive observed stable game days after bootstrap; 0 checks establishment only (default: 2)')

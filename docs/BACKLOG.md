@@ -17,8 +17,7 @@ in the checkpoint commit; do not append an implementation diary here.
   bounded window do not establish arbitrary long-term colony survival.
 - [ ] **B04a · Complete deterministic food control.** Validate sustained crop
   replenishment and persistent player food targets through actual stock and pawn
-  labor, including competing animal demand. Complete season/soil-specific crop
-  labor acceptance.
+  labor, including competing animal demand.
   Keep planned yield separate from stored nutrition and preserve unknown access,
   diet and rot observations.
 - [ ] **B04h · Complete startup and colony upkeep.** Implement the phased plan

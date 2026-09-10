@@ -169,6 +169,58 @@ async def run(args):
         save()
         if rt.review_task and not rt.review_task.done():await rt.review_task
 
+    async def setup(names):
+        for identity in names:
+            report['setup']=identity;save()
+            rt.current_plan.colony_goals.setdefault(identity,ColonyGoal(priority_class=2,source='PLAYER'))
+            for _ in range(12):
+                observed=await facts();people=await roster()
+                if identity=='AllowStartingSupplies' and not observed.get('forbiddenSupplies'):break
+                observed['armed']=sum(p.get('equipment',{}).get('armed') is True for p in people)
+                if identity=='EnsureBasicDefense' and observed['armed']>=2:break
+                compiled=await rt.controller.skills.compile(identity,observed,people)
+                if compiled is None or not compiled[1]:break
+                steps=await issue(identity,*compiled,observed)
+                for _ in range(20):
+                    if all(rt.current_plan.progress[s.id].state=='complete' for s in steps):break
+                    rt.manual_requests.extend((s.id,rt.context_token,rt.chat_revision) for s in steps
+                        if rt.current_plan.progress[s.id].state=='pending')
+                    await rt.execute_manual_requests()
+                    await window()
+                assert all(rt.current_plan.progress[s.id].state=='complete' for s in steps),{
+                    s.id:rt.current_plan.progress[s.id].model_dump() for s in steps}
+
+    async def observe_soil_crop():
+        from rimbot.food_capacity import choose_crop
+        from rimbot.native_forecasts import forecasts
+        await setup(('AllowStartingSupplies','EnsureWorkAssignments'))
+        current=await facts()
+        cells=[c for c in current['cells'] if c['walkable'] and not c['occupied']
+            and not c['zone'] and not c['roofed'] and .69<c['fertility']<.71]
+        cells.sort(key=lambda c:(c['x']-current['center']['x'])**2+(c['z']-current['center']['z'])**2)
+        assert len(cells)>=16,'No observed free poor-soil plot'
+        cells=cells[:16]
+        inputs=dict(current,cells=cells,foodRunwayDays=forecasts(current,{})['food']['runwayDays'])
+        crop=choose_crop(inputs)
+        report['soil_crop']={'cells':cells,'food_runway':inputs['foodRunwayDays'],
+            'climate':current['foodClimate'],'definitions':current['definitions'],'crop':crop,'samples':[]}
+        assert crop=='Plant_Potato',report['soil_crop']
+        await apply_command(rt,dict(kind='CreateZone',intent_id='soil-crop',zone=dict(
+            kind='create_zone',zone_type='growing',label='Native soil crop acceptance',crop=crop,
+            patches=[dict(x=c['x'],z=c['z'],width=1,height=1) for c in cells])),
+            token=rt.context_token,revision=rt.chat_revision)
+        await rt.execute_manual_requests()
+        deadline=time.monotonic()+args.seconds
+        while time.monotonic()<deadline:
+            await window()
+            current=await facts()
+            farms=[f for f in current['farms'] if f['label']=='Native soil crop acceptance']
+            report['soil_crop']['samples'].append(dict(tick=current['tick'],farms=farms));save()
+            if farms and all(f['crop']==crop for f in farms) and sum(f['growingCells'] for f in farms)>=4:
+                report['cases'].append(dict(name='Native soil-selected potato sowing',farms=farms,tick=current['tick']))
+                return
+        raise AssertionError('No actual sowing in the soil-selected crop zone')
+
     try:
         report['manifest']=capture_manifest(Path(__file__).resolve().parents[1],root,config,
             {'model':'no inference'},source_snapshot=args.source_snapshot)
@@ -177,7 +229,10 @@ async def run(args):
         rt.execution_task=asyncio.current_task()
         if args.spoilage or args.preservation or args.preservation_only:
             report['observer']=(await rt.bridge.call('test/food_observe')).structuredContent
-        if args.preservation_only:
+        if args.soil_crop:
+            await observe_soil_crop()
+            report.update(outcome='passed',scope='Native soil/climate crop selection and actual sowing; harvest is a separate sustained case')
+        elif args.preservation_only:
             assert args.checkpoint,'Preservation-only acceptance requires an unchanged native checkpoint'
             await observe_preservation()
             report.update(outcome='passed',scope='Native preservation output from ordinary acquired ingredients; hunting is a separate case')
@@ -187,25 +242,7 @@ async def run(args):
             report.update(outcome='passed',scope='Native temperature response and rot of unchanged autosaved food')
         else:
             token=rt.context_token
-            for identity in ('AllowStartingSupplies','EnsureWorkAssignments','EnsureBasicDefense','EnsureWorkAssignments'):
-                report['setup']=identity;save()
-                rt.current_plan.colony_goals.setdefault(identity,ColonyGoal(priority_class=2,source='PLAYER'))
-                for _ in range(12):
-                    observed=await facts();people=await roster()
-                    if identity=='AllowStartingSupplies' and not observed.get('forbiddenSupplies'):break
-                    observed['armed']=sum(p.get('equipment',{}).get('armed') is True for p in people)
-                    if identity=='EnsureBasicDefense' and observed['armed']>=2:break
-                    compiled=await rt.controller.skills.compile(identity,observed,people)
-                    if compiled is None or not compiled[1]:break
-                    steps=await issue(identity,*compiled,observed)
-                    for _ in range(20):
-                        if all(rt.current_plan.progress[s.id].state=='complete' for s in steps):break
-                        rt.manual_requests.extend((s.id,rt.context_token,rt.chat_revision) for s in steps
-                            if rt.current_plan.progress[s.id].state=='pending')
-                        await rt.execute_manual_requests()
-                        await window()
-                    assert all(rt.current_plan.progress[s.id].state=='complete' for s in steps),{
-                        s.id:rt.current_plan.progress[s.id].model_dump() for s in steps}
+            await setup(('AllowStartingSupplies','EnsureWorkAssignments','EnsureBasicDefense','EnsureWorkAssignments'))
 
             observed=await facts()
             report['workers']=[dict(id=p['thingId'],equipment=p.get('equipment'),
@@ -284,6 +321,7 @@ if __name__=='__main__':
     parser.add_argument('--spoilage',action='store_true',help='With FoodObservationFixture, forbid one ordinarily butchered stack and observe actual rot, temperature variation and shared-stock ingestion')
     parser.add_argument('--preservation',action='store_true',help='With FoodObservationFixture, prioritize an ordinary long-lived food bill and require actual pawn output entering accessible stock')
     parser.add_argument('--preservation-only',action='store_true',help='Exercise preservation and ordinary ingredient acquisition in an unchanged checkpoint with existing cooking/work setup; skips hunting')
+    parser.add_argument('--soil-crop',action='store_true',help='Require native poor-soil potato selection and actual sowing after normal supply/work setup; skips hunting')
     parser.add_argument('--observe-food-id',help='Observe an existing perishable stack in an unmodified checkpoint; skips hunting and shared-ingestion assertions')
     parser.add_argument('--vary-temperature',action='store_true',help='Queue ordinary deconstruction of the observed campfire to measure food temperature response')
     parser.add_argument('--seconds',type=int,default=900)
