@@ -77,7 +77,8 @@ or game orders.
 Adoption can describe a connected nonrectangular interior of at most 3844 unique
 cells inside the inspected bounds, with an exact boundary entrance and direction.
 Both `interior_cells` and `entrance_cell` must be supplied together. Native room
-geometry, roof and completed doorway must match. The observed role and load/map
+geometry, roof and completed doorway must match, with a verified safe native pawn
+route to both doorway approaches. The observed role and load/map
 identity are retained. Furnishing keeps a connected entrance aisle and every
 narrow connector. Native neutral structures can be reused without claiming them;
 missing shell pieces need ordinary explicit construction and roof completion

@@ -12,6 +12,7 @@ async def fixture(tmp_path):
     room={'id':3,'properRoom':True,'psychologicallyOutdoors':False,'openRoofCount':0,'cellsComplete':True,
           'cells':[{'x':x,'z':z} for x in range(11,18) for z in range(11,18)]}
     async def query(name,**args):
+        if name=='home/spatial_access':return dict(success=True,accepted=True,pawnCount=1)
         if name=='home/list_rooms':
             return {'success':True,'rooms':[{'isDoorway':True,'doorDef':'Door'}] if args.get('includeOutdoors') else [room]}
         if name=='home/list_buildings':
@@ -71,4 +72,20 @@ async def test_adopted_room_requires_fresh_adoption_after_load(tmp_path):
     with pytest.raises(SkillBlocked,match='another load'):
         await sleeping_handoff(rt,{'colonists':3,'indoorSleepingCapacity':0},identity,shell)
     rt.game.query.assert_not_awaited()
+    rt.store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('access',[dict(success=False),dict(success=True,accepted=False,pawnCount=1),
+    dict(success=True,accepted=True,pawnCount=0)])
+async def test_adoption_cannot_claim_an_unreachable_or_unverified_room(tmp_path,access):
+    rt,_=await fixture(tmp_path);original=rt.game.query.side_effect
+    async def query(name,**args):
+        if name=='home/spatial_access':
+            assert args==dict(blockedCells='',targetCells='14,11;14,9')
+            return access
+        return await original(name,**args)
+    rt.game.query.side_effect=query;before=deepcopy(rt.current_plan.model_dump())
+    with pytest.raises(ValueError,match='safe native pawn route'):await adopt(rt)
+    assert rt.current_plan.model_dump()==before
     rt.store.close()

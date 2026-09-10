@@ -131,18 +131,6 @@ in the checkpoint commit; do not append an implementation diary here.
 
 ## P1 — Functional colony planning and recovery
 
-- [ ] **B06 · Spatial architecture.** Add long-term layout, functional room roles,
-  staged construction and reuse of ruins/nonrectangular shelters. Compare bounded
-  alternatives using native terrain, supplies, danger, fertility and travel evidence.
-  Extend spatial protection to observed/retired rooms, continuous corridors,
-  pawn-specific routes beyond the three-cell margin, and native custom-definition
-  acceptance of projected obstruction beyond room shells. Validate native floor/roof/area/designator
-  coverage before adding tools.
-  Broaden the paused native shell/farm/projected-wall acceptance to
-  ordinary pawn construction, live player edits, interrupted batches, large zones,
-  custom definitions, sealed pockets, altered interiors and map edges. Measure
-  repeated preflight/dispatch observation cost; controller fixtures do not establish
-  native routes, construction completion or throughput.
 - [ ] **B06a · Deterministic crop and farm plot selection.** Coordinate with B04a
   food control and B08 forecasts. Replace distance-first rice patch packing with
   bounded, explainable crop/site scoring shared by starter and expansion methods.

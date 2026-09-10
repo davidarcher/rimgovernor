@@ -53,6 +53,13 @@ async def verify_entrance(rt,shell):
     if doorway.get('success') is not True or not any(b.get('defName') in doors and (b.get('position',{}).get('x'),b.get('position',{}).get('z'))==entrance
                and b.get('isBlueprint') is False and b.get('isFrame') is False for b in buildings.get('buildings',[])):
         raise ValueError('The requested central entrance is not an observed completed native boundary door')
+    dx,dz={'north':(0,1),'south':(0,-1),'east':(1,0),'west':(-1,0)}[shell['entrance']]
+    x,z=entrance
+    access=await rt.game.query('home/spatial_access',blockedCells='',
+        targetCells=f'{x-dx},{z-dz};{x+dx},{z+dz}')
+    if (access.get('success') is not True or access.get('accepted') is not True
+            or type(access.get('pawnCount')) is not int or access['pawnCount']<1):
+        raise ValueError('The existing room entrance has no verified safe native pawn route')
 
 
 def validate_adoption_context(rt, goal):

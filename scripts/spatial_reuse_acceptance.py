@@ -8,6 +8,7 @@ from deterministic_foothold import NoInference
 from session_checkpoint_acceptance import ready
 from rimbot.bridge import runtime_file_read
 from rimbot.bridge_runtime import BridgeRuntime
+from rimbot.campaign_manifest import capture_manifest
 from rimbot.colony_plan import Decision,PlanSpec
 from rimbot.colony_skills import SkillBlocked
 from rimbot.player_commands import apply_command
@@ -42,6 +43,8 @@ async def run(args):
         await rt.execute_manual_requests()
         return result
     try:
+        report['manifest']=capture_manifest(Path(__file__).resolve().parents[1],rt.root,rt.root/'config-headless',
+            rt.router.routing.model_dump(mode='json'))
         await ready(rt);await settle()
         identity,goal,shell=player_shelter(rt.current_plan)
         stale=False
