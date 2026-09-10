@@ -7,6 +7,7 @@ from .colony_policy import starter_layouts, work_assignment, farm_patches
 from .strategic_state import fingerprint
 from .hunting import screen_prey
 from .food_forecast import acquisition_targets
+from .bridge import BridgeError
 
 
 class SkillBlocked(ValueError):
@@ -177,9 +178,7 @@ class ColonySkills:
                 for action in actions:
                     try:
                         preview=await rt.inspect_native('home/order',dict(action['arguments'],dryRun=True))
-                    except Exception as error:
-                        from .bridge import BridgeError
-                        if not isinstance(error,BridgeError):raise
+                    except BridgeError as error:
                         goal.evidence['firing_solution_refusal']=str(error)
                         return None
                     previews.append(preview)

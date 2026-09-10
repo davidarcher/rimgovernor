@@ -19,9 +19,16 @@ async def run_raid(rt,evidence):
     assert setup['added'][0]['hostile'] is True,setup
     async def target_state():
         pawns=(await rt.game.query('home/list_pawns',includeDead=True,health=True,equipment=True,animals=True))['pawns']
-        return next((p for p in pawns if p['thingId']==target),None),pawns
+        enemy=next((p for p in pawns if p['thingId']==target),None)
+        if enemy is None:
+            # The spawned-pawn census excludes bodies. Resolve follows the exact
+            # corpse's InnerPawn identity; absence alone never certifies defeat.
+            resolved=await rt.inspect_native('home/order',dict(action='resolve',target=target,dryRun=True))
+            enemy=resolved.get('target')
+            assert enemy and enemy.get('thingId')==target,resolved
+        return enemy,pawns
     initial,_=await target_state();evidence['enemy_before']=initial
-    print('Ordinary hostile raid:',target,initial.get('equipment'),flush=True)
+    print('Ordinary hostile raid:',target,(initial.get('equipment') or {}).get('primaryLabel'),flush=True)
     evidence['raid_windows']=[];deadline=asyncio.get_running_loop().time()+600
     fought=False;cleared=False
     while asyncio.get_running_loop().time()<deadline:
@@ -37,6 +44,7 @@ async def run_raid(rt,evidence):
         goal=rt.current_plan.colony_goals.get('ActiveCombat')
         evidence['raid_windows'].append(dict(tick=rt.batch.summary.end_tick,enemy=enemy,
             goal=goal.model_dump() if goal else None,control=rt.current_plan.control.get('combat')))
+        print('Raid review:',rt.batch.summary.end_tick,'defeated:',cleared,'goal:',goal.status if goal else None,flush=True)
         if goal and goal.status=='blocked':raise AssertionError(goal.reason)
         rt.resume_after_review=not cleared
         for _ in range(16):
