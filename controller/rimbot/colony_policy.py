@@ -140,7 +140,7 @@ def work_assignment(pawns, required_work=None, overrides=None):
     skill_for = {'Hunting': 'Shooting', 'Doctor': 'Medicine', 'Cooking': 'Cooking', 'Construction': 'Construction',
                  'Growing': 'Plants', 'PlantCutting': 'Plants'}
     skill_for.update(required_work or {})
-    available = [p for p in pawns if not p.get('dead') and not p.get('downed') and not p.get('drafted')
+    available = [p for p in pawns if not p.get('dead') and not p.get('downed') and not p.get('drafted') and not p.get('mentalState')
                  and (p.get('work') or {}).get('applies') is True]
     result = {p['thingId']: {} for p in available}
     load = {p['thingId']: 0 for p in available}
