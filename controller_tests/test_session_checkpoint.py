@@ -1,10 +1,12 @@
 import asyncio
 import json
+import sqlite3
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 import pytest
 from rimgovernor.store import Store
+from rimgovernor import session_checkpoint
 from rimgovernor.session_checkpoint import create_checkpoint, read_checkpoint, prepare_resume, install_saved_game, stop_for_restart
 from rimgovernor.session_checkpoint import list_checkpoints, delete_checkpoint
 
@@ -28,6 +30,40 @@ def fixture(tmp_path):
         return {'success':True}
     rt.bridge=SimpleNamespace(call=AsyncMock(side_effect=save),core=AsyncMock(),game_id='rimgovernor-trial')
     return rt
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('backup_fails', [False, True])
+async def test_checkpoint_closes_backup_connection(tmp_path, monkeypatch, backup_fails):
+    rt = fixture(tmp_path)
+    store = rt.store
+    connect = sqlite3.connect
+    connections = []
+
+    def retain_connection(*args, **kwargs):
+        connection = connect(*args, **kwargs)
+        connections.append(connection)  # Keep handles alive so GC cannot hide a leak.
+        return connection
+
+    monkeypatch.setattr(session_checkpoint.sqlite3, 'connect', retain_connection)
+    if backup_fails:
+        rt.store = SimpleNamespace(db=SimpleNamespace(
+            backup=Mock(side_effect=sqlite3.OperationalError('backup failed'))))
+    try:
+        if backup_fails:
+            with pytest.raises(sqlite3.OperationalError, match='backup failed'):
+                await create_checkpoint(rt, rt.context_token)
+            assert list_checkpoints(tmp_path) == []
+        else:
+            result = await create_checkpoint(rt, rt.context_token)
+            assert (await delete_checkpoint(rt, rt.context_token, result['manifest_path']))['deleted']
+        assert len(connections) == 1
+        with pytest.raises(sqlite3.ProgrammingError, match='closed'):
+            connections[0].execute('SELECT 1')
+    finally:
+        for connection in connections:
+            connection.close()
+        store.close()
 
 
 @pytest.mark.asyncio

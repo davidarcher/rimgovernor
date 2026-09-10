@@ -5,6 +5,7 @@ import shutil
 import sqlite3
 import uuid
 import xml.etree.ElementTree as ET
+from contextlib import closing
 from pathlib import Path
 
 
@@ -61,8 +62,9 @@ async def create_checkpoint(rt, session_id):
         destination.mkdir(parents=True, exist_ok=False)
         shutil.copy2(native, destination / 'game.rws')
         rt.persist()
-        with sqlite3.connect(destination / 'bridge.sqlite') as backup:
-            rt.store.db.backup(backup)
+        with closing(sqlite3.connect(destination / 'bridge.sqlite')) as backup:
+            with backup:
+                rt.store.db.backup(backup)
         manifest = dict(version=1, root=str(rt.root), headless=rt.headless, save_name=name,
             owned=rt.fresh, load_token=identity.get('loadToken', session_id.rsplit(':', 1)[-1]),
             colony_id=identity['colonyId'], map_id=identity['mapId'], tick=tick, direction_revision=direction,
