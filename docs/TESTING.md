@@ -604,6 +604,11 @@ resource failure, refusal while stock remains forbidden, same-action recovery af
 native availability returns, and exactly two observed native blueprint identities.
 The probe runs shared Hands and preserves the recovery history with no inference;
 blueprint issuance does not certify subsequent pawn construction.
+`scripts/supply_recovery_acceptance.py --source-root <prepared-root> --output
+<fresh-directory>` makes a starter-stock allow preview obsolete through an ordinary
+allow command. It requires a known pre-write refusal, fresh native absence counts,
+same-action completion and retained recovery history with zero Hands writes.
+Buffered player pause/speed interruption guards are covered by controller tests.
 Use `--obstruction` to test a separately grounded Steel wall blueprint temporarily
 blocking the planned Wood wall. The fixture cancels only that exact conflicting
 blueprint, then requires fresh previews and same-action recovery.

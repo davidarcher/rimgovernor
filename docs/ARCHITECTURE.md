@@ -401,6 +401,12 @@ without impersonating a new player instruction. Fresh preview transactions still
 guard the current review revision, plan, mode and load. Their read-only previews
 reuse the held writer lock and do not require the review to be marked finished.
 
+A refused autonomous starter-stock allow preview can complete through observation
+when fresh native counts prove no forbidden or fogged stock remains around its
+target. This reconciliation performs no write and retains the refusal and native
+readback in recovery history. Identity and buffered clock events are refreshed
+before the final mode, player-direction, plan and action guards.
+
 The observed GABS runtime-state publication fault permits two bounded retries for
 approved reads and explicit previews. Mutations and mixed-operation defaults do
 not use these retries. Model inspection reports retain native scope notes, and

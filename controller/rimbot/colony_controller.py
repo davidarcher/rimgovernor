@@ -90,6 +90,10 @@ class ColonyController:
         if not facts.get('hostiles'):
             for step in plan.spec.steps:
                 progress = plan.progress[step.id]
+                if progress.state=='blocked' and progress.failure and progress.failure.code=='starting_supplies_unavailable':
+                    from .supply_recovery import recover_starting_supplies
+                    await recover_starting_supplies(rt,step.id,token=token,direction=direction)
+                    if rt.context_token!=token or rt.chat_revision!=direction or rt.mode!='automate':return
                 if (progress.state=='blocked' and progress.failure
                         and progress.failure.code in ('construction_resources','construction_unavailable')):
                     from .construction_recovery import recover_construction

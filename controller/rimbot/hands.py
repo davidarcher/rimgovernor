@@ -180,6 +180,15 @@ class Hands:
                 else:
                     payload = getattr(getattr(error, 'result', None), 'structuredContent', None) or {}
                     failure = Failure(code='native_failure', detail=str(error)[:1000], evidence=payload)
+                    if (step.source=='AUTOPILOT' and step.goal_id=='AllowStartingSupplies'
+                            and isinstance(action,NativeOperation) and action.tool=='rimworld/apply_architect_designator'
+                            and payload.get('dryRun') is True and payload.get('acceptedCellCount')==0
+                            and payload.get('appliedCellCount')==0
+                            and payload.get('designator',{}).get('className')=='RimWorld.Designator_Unforbid'):
+                        failure=Failure(code='starting_supplies_unavailable',detail='Starter stock allow preview no longer applies.',
+                            retryable=True,evidence={'native':payload,'load_token':token,'signature':step.signature(),
+                                'player_direction':rt.current_plan.control.get('player_direction',0),
+                                'tick':rt.batch.summary.end_tick})
                 progress.state, progress.failure = 'blocked', failure
                 rt.note('execution_blocked', step.title+': '+failure.detail, failure=failure.model_dump())
                 rt.persist()
