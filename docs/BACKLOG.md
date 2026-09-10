@@ -647,6 +647,16 @@ only intentional small, sanitized regression fixtures belong in source control.
   entry points and each capability has a named test/acceptance owner. Do not infer
   completeness from file counts. Dependencies: none.
 
+  Dependency-ready inventory subchunks (all compare against the current Python
+  revision; integrator combines them before accepting 00):
+  - [ ] **00a:** production modules, semantic commands, completion kinds and
+    domain/native capability ownership; contracts/domain-inventory.json.
+  - [ ] **00b:** HTTP/events, configuration, launchers and optional media surfaces;
+    contracts/interface-inventory.json.
+  - [ ] **00c:** persistence/recovery surfaces and sanitized comparison fixtures;
+    contracts/state-inventory.json and contracts/fixtures/.
+  - [ ] **00d:** integrator coverage validation, provenance and uncontended baseline
+    availability; depends on 00a–00c. Native timing remains pending until measured.
 - [ ] **G01.01 — Go build and replay foundation.** Owner: integration agent.
   Add the module, minimal non-writing command, injected clocks/IDs and offline
   replay runner. Pin a supported Go release, MCP SDK, SQLite driver and generators
