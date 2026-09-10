@@ -131,6 +131,22 @@ areas, breeding or removal settings. Adequate global stock with insufficient ani
 access or rot runway produces an explicit staging blocker rather than more bills.
 Production receipts do not prove either access or ingestion.
 
+`EnsureComfort` maintains dining and recreation after startup survival work.
+Its deficit remains visible during emergencies; admission waits rather than
+claiming the facilities complete. Sleeping upgrades belong to `MaintainSleeping`.
+Dining uses native eating surfaces with adjacent sittable furniture, an enclosed
+roofed room and safe colonist access. Seat placement is restricted to the observed
+surface's adjacent cells. Recreation reuses native joy buildings with safe access
+and current power where required. Existing inaccessible furniture remains a blocker
+instead of causing duplicate construction or player-area changes.
+
+One table, seat and recreation object may be admitted through shared construction.
+Recovery requires access for eligible colonists plus observed dining and recreation
+use. The use evidence belongs to the current load and exact furniture identity;
+access loss or removal reopens the deficit. Ordinary needs-driven behavior and the
+existing timetable select use. No schedule rewrite or forced need job is introduced.
+The shared watchdog bounds waiting for use, independently of research progress.
+
 An `upkeep_target` action waits after the native job receipt. Hauling requires the
 same item identity and at least its original quantity in roofed valid storage;
 repair requires full observed target health; cleaning requires target absence

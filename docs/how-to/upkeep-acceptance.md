@@ -71,6 +71,15 @@ animal's food need through eating. The reserve includes native competing eaters;
 the test preserves animal removal settings. This case does not establish protected
 delivery inside pens, ingredient replenishment or sustained seasonal feeding.
 
+For dining and recreation, use
+`python scripts/comfort_acceptance.py --source-root /worker/run --output /worker/comfort --seconds 600`.
+The disposable fixture supplies a warm roofed room, wood and enabled builders.
+The shared method must construct a table, an adjacent dining chair and a recreation
+object. Declared hunger and recreation deficits then exercise ordinary native use;
+construction receipts alone cannot clear the maintained goal. The test compares
+the saved timetables before and after use. It does not certify every colonist's
+future recreation choices or sustained satisfaction under changing conditions.
+
 Require process exit zero and `result.json.outcome == "passed"`. The report retains
 the source/input manifest, installed order schema, fixture setup, observations,
 receipts, postconditions and plan. Keep container and native logs alongside it.

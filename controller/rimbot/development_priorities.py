@@ -41,6 +41,9 @@ def committed_projects(plan):
 
 def deficit(identity, goal, facts, policy):
     """Comparable deficit fractions, not predicted utility or completion times."""
+    if identity == 'EnsureComfort':
+        rows = facts.get('comfortUpkeep')
+        return None if rows is None else len(rows)/2
     if identity.startswith('Population-'):
         pawn = goal.evidence.get('population')
         return int(goal.status != 'complete') if pawn and pawn.get('dead') is False else None
@@ -119,6 +122,8 @@ def arbitrate(plan, facts, people, nodes, policy, *, context, direction):
             reason = 'Adviser suggestions cannot admit autonomous work'
         elif emergency:
             reason = 'Emergency precedence'
+        elif identity == 'EnsureComfort' and any(p < 3 for _, p in nodes):
+            reason = 'Startup survival work takes precedence'
         elif goal.status != 'active':
             reason = goal.reason or 'Goal is '+goal.status
         elif identity in committed:

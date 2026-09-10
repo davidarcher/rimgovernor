@@ -25,6 +25,7 @@ namespace HomeBridge.BridgeTools
             foreach (var item in items.Where(t => t.IsInValidStorage())) occupied.Add(item.Position);
             return new {
                 version = 1, tick = Find.TickManager.TicksGame,
+                comfort = read("comfort", () => ComfortFacts.Read(map)),
                 items = read("items", () => items.OrderBy(t => t.thingIDNumber).Select(t => {
                     var rot = t.TryGetComp<CompRottable>();
                     return new { id = t.GetUniqueLoadID(), defName = t.def.defName, count = t.stackCount,

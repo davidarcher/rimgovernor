@@ -44,9 +44,9 @@ in the checkpoint commit; do not append an implementation diary here.
   Restore temporary hauling overrides when the deficit clears. Extend verified
   floor-to-bed upgrades to shortages, unavailable research/materials, unsafe
   temperatures, interrupted construction and changed player assignments across
-  load/restart scenarios. Introduce dining and
-  recreation after urgent survival deficits; preserve player schedules and avoid
-  unnecessary schedule rewrites when ordinary needs-driven behavior suffices.
+  load/restart scenarios. Extend verified dining/recreation startup to changed
+  access, removed furniture, unavailable sites/materials and paired restart.
+  Preserve player schedules and ordinary needs-driven use.
 
   **Phase 3 — Fire, cleaning and repair upkeep.** Maintain deliberate home-area
   coverage for occupied facilities and protected stock without expanding cleaning
@@ -74,6 +74,8 @@ in the checkpoint commit; do not append an implementation diary here.
   unavailable handlers and larger starting herds. Extend verified native feed
   production and consumption to protected staging inside pens, unavailable benches
   and ingredients, mixed herds, recurring depletion and seasonal feed reserves.
+  Retire owned reserve production when its animal demand is removed without
+  altering player-owned bills.
   Account for animal consumption separately from human food and protect sensitive
   stores with appropriate areas/filters. Do not automatically slaughter, release,
   breed or change bonded-animal policy to resolve a feed deficit. Extend verified

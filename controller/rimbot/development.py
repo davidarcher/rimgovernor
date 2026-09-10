@@ -8,13 +8,9 @@ def development_nodes(facts):
     data = facts.get('development')
     if not isinstance(data, dict):
         return []
-    furniture = data['furniture']
     count = facts['colonists']
-    comfortable = sum(b['slots'] for b in furniture if b['defName'] == 'Bed' and b['indoors']) >= count
-    comfortable &= all(any(b['defName'] == name and (b['indoors'] or name == 'HorseshoesPin')
-                           for b in furniture) for name in ('Table1x2c', 'DiningChair', 'HorseshoesPin'))
     nodes = []
-    if not comfortable:
+    if facts.get('comfortUpkeep') is None or facts['comfortUpkeep']:
         nodes.append(('EnsureComfort', 4))
     if facts.get('indoorSleepingCapacity', 0) <= count:
         nodes.append(('EnsureExpansion', 4))
@@ -131,23 +127,15 @@ async def power_method(rt, facts):
 
 async def development_method(skills, goal_id, facts, people):
     rt = skills.rt
-    goal = rt.current_plan.colony_goals[goal_id]
     if goal_id == 'EnsureBasicPower':
         return await power_method(rt, facts)
     data = facts.get('development')
     if not data:
         raise SkillBlocked('Native development facts unavailable')
-    furniture = data['furniture']
     if goal_id == 'EnsureExpansion':
         from .capacity_growth import grow_shelter
         return await grow_shelter(skills, dict(facts,colonists=facts['colonists']+1), goal_id=goal_id)
     if goal_id == 'EnsureComfort':
-        beds = sum(b['slots'] for b in furniture if b['defName']=='Bed' and b['indoors'])
-        definition = 'Bed' if beds < facts['colonists'] else next((name for name in
-            ('Table1x2c','DiningChair','HorseshoesPin') if not any(b['defName']==name and
-                (b['indoors'] or name=='HorseshoesPin') for b in furniture)), None)
-        if not definition:
-            return None
-        action = await placement(rt, facts, definition, indoors=definition!='HorseshoesPin', goal=goal)
-        return 'comfort-'+fingerprint(action)[:12], [action]
+        from .comfort_upkeep import comfort_method
+        return await comfort_method(rt, facts)
     raise SkillBlocked('Unknown development method')

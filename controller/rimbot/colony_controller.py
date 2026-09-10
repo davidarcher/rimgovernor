@@ -49,6 +49,8 @@ class ColonyController:
             raise ValueError('Deterministic state unavailable: '+str(native.get('error')))
         facts = derive(rt.batch, native, self.policy)
         facts['upkeep_context'] = token
+        from .comfort_upkeep import comfort_evidence
+        facts['comfortUpkeep'] = comfort_evidence(facts, plan.control)
         if 'MaintainWaste' not in plan.colony_goals and native.get('waste'):
             from .waste_management import pending_items
             if pending_items(native['waste']):
@@ -298,7 +300,7 @@ class ColonyController:
                 'MaintainMedicalCare': ['longTermMedical'],
                 'EnsureTemperatureSafety': ['sleepingTemperatureMin', 'sleepingTemperatureMax'],
                 'EnsureBasicPower': ['powerHeadroom'], 'AllowStartingSupplies': ['forbiddenSupplies'],
-                'EnsureResearch': ['development'], 'EnsureComfort': ['development'],
+                'EnsureResearch': ['development'], 'EnsureComfort': ['comfortUpkeep'],
                 'EnsureExpansion': ['indoorSleepingCapacity']}
             progress_facts = {key: facts.get(key) for key in progress_fields.get(identity,
                 ['resources'] if identity.startswith('MaintainResource-') else [])}
@@ -413,7 +415,8 @@ class ColonyController:
             if ((goal.steps or identity.startswith('Population-') or goal.evidence.get('waiting_for_native_cleaning')
                     or goal.evidence.get('waiting_for_native_fire') or goal.evidence.get('waiting_for_native_sleep')
                     or goal.evidence.get('waiting_for_storage_roof') or goal.evidence.get('waiting_for_medical_stock')
-                    or goal.evidence.get('waiting_for_native_pen') or goal.evidence.get('waiting_for_animal_feed')) and facts['tick'] - goal.last_progress_tick >= timeout
+                    or goal.evidence.get('waiting_for_native_pen') or goal.evidence.get('waiting_for_animal_feed')
+                    or goal.evidence.get('waiting_for_native_comfort')) and facts['tick'] - goal.last_progress_tick >= timeout
                     and (identity != 'MaintainMedicalCare' or any(p.state != 'complete' for p in existing))):
                 reason = f'No measurable progress within {timeout} game ticks; inspect labor/materials/postconditions'
                 goal.evidence['watchdog'] = dict(tick=facts['tick'], reason=reason,
@@ -436,7 +439,7 @@ class ColonyController:
                             or goal.evidence.get('waiting_for_native_cleaning') or goal.evidence.get('waiting_for_native_fire')
                             or goal.evidence.get('waiting_for_native_sleep') or goal.evidence.get('waiting_for_storage_roof')
                             or goal.evidence.get('waiting_for_medical_stock') or goal.evidence.get('waiting_for_native_pen')
-                            or goal.evidence.get('waiting_for_animal_feed')):
+                            or goal.evidence.get('waiting_for_animal_feed') or goal.evidence.get('waiting_for_native_comfort')):
                         plan.control['simulation_needed'] = True
                     existing_process = (identity=='CriticalMedical' and any(p.get('job')=='TendPatient' or
                         ((p.get('health') or {}).get('shouldSeekMedicalRest') is True and

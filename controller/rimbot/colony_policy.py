@@ -153,9 +153,10 @@ def priority_nodes(facts, latches, policy):
     medical = facts.get('longTermMedical', {})
     if medical.get('patients') or medical.get('unknown'):
         nodes.append(('MaintainMedicalCare', 2))
-    if gates['shelter'] and gates['food'] and gates['medical'] and not facts.get('hostiles'):
-        from .development import development_nodes
-        nodes.extend(development_nodes(facts))
+    from .development import development_nodes
+    for identity, priority in development_nodes(facts):
+        if identity == 'EnsureComfort' or (gates['shelter'] and gates['food'] and gates['medical'] and not facts.get('hostiles')):
+            nodes.append((identity, priority))
     return nodes
 
 
