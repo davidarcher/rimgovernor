@@ -142,6 +142,18 @@ async def test_downed_raider_selects_owned_stand_down():
 
 
 @pytest.mark.asyncio
+async def test_observed_ranged_opponent_requires_ranged_defenders_and_native_guards():
+    rt,enemy=fixture()
+    enemy['equipment']['primary']={'ranged':True,'melee':False}
+    _,actions=await rt.controller.skills.compile('ActiveCombat',rt.facts,rt.people)
+    assert actions and all(a['arguments']['mode']=='ranged' and a['arguments']['requireHostile']
+                           and a['arguments']['requireStandingTarget'] for a in actions)
+    for pawn in rt.people:pawn['equipment']['primary']={'ranged':False,'melee':True}
+    with pytest.raises(SkillBlocked,match='ranged defenders'):
+        await rt.controller.skills.compile('ActiveCombat',rt.facts,rt.people)
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize('change', ['ranged','unknown_gear','many','incapable','injured'])
 async def test_unsupported_raids_retain_hold(change):
     rt,enemy=fixture()

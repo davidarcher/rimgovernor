@@ -27,6 +27,12 @@ async def squad_defense(rt, goal, people):
                 raise SkillBlocked('Animal threat is outside the observed squad-defense bound')
         elif enemy.get('humanlike') is not True or not isinstance(enemy.get('equipment'),dict):
             raise SkillBlocked('Opponent capabilities are unavailable or outside squad defense')
+        else:
+            gear=enemy['equipment'];weapon=gear.get('primary') or {}
+            if gear.get('armed') not in (True,False) or (gear.get('armed') is True
+                    and (weapon.get('ranged') is not True and weapon.get('melee') is not True
+                         or weapon.get('ranged') is True and weapon.get('melee') is True)):
+                raise SkillBlocked('Opponent weapon capabilities are unknown or inconsistent')
     managed = rt.current_plan.control.get('combat', {}).get('pawns', [])
     defenders = [p for p in people if p.get('dead') is False and p.get('downed') is False
         and not p.get('mentalState') and p['thingId'] not in rt.current_plan.control.get('player_draft_overrides', {})
@@ -55,7 +61,9 @@ async def squad_defense(rt, goal, people):
         enemy_ranged = ((target.get('equipment') or {}).get('primary') or {}).get('ranged') is True
         if enemy_ranged and not ranged:
             raise SkillBlocked('Armed ranged opponents require ranged defenders; danger hold retained')
-        args = dict(action='attack',mode='ranged' if ranged else 'melee',pawn=pawn['thingId'],target=target['thingId'],watch=False)
+        args = dict(action='attack',mode='ranged' if ranged else 'melee',pawn=pawn['thingId'],target=target['thingId'],watch=False,
+                    requireStandingTarget=True)
+        if target.get('humanlike') is True:args['requireHostile']=True
         preview = await rt.inspect_native('home/order', dict(args,dryRun=True))
         if preview.get('success') is not True:
             raise SkillBlocked('Native squad attack is not currently legal; danger hold retained')

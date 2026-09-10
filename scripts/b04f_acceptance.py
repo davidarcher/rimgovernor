@@ -84,14 +84,18 @@ async def run(args):
                     elif combat and not (await refresh())[0].get('hostiles'):
                         pass
                     elif clock.get('stopReason')=='force_paused':
-                        targets=await rt.game.query('rimworld/get_screen_targets')
+                        report['native_checkpoint']=(await bridge.call('rimworld/save_game',saveName='B04f-continuation')).structuredContent
+                        targets=await rt.game.invoke('rimworld/get_screen_targets',{})
                         report['paused_ui']=targets;save()
                         research=rt.current_plan.colony_goals.get('EnsureResearch')
                         completed=research and research.target.get('project') in facts.get('development',{}).get('research',{}).get('finished',[])
                         windows=targets.get('targets',{}).get('windows',[])
                         assert completed and len(windows)==1 and windows[0].get('type')=='Verse.Dialog_NodeTree' and windows[0].get('dismissTargetId'),targets
+                        # The fixture explicitly acknowledges its completed research;
+                        # ordinary automation must retain the external modal hold.
+                        await rt.set_mode('automate')
                         await rt.native('rimworld/click_screen_target',{'targetId':windows[0]['dismissTargetId']},reconcile=False)
-                        check('native_research_dialog_closed',not (await rt.game.query('rimworld/get_ui_state')).get('windows'),ui=targets)
+                        check('native_research_dialog_closed',not (await rt.game.invoke('rimworld/get_ui_state',{})).get('windows'),ui=targets)
                         rt.supervisor.allow_resume()
                     else:
                         raise AssertionError('Native guard stopped fixture: '+str(clock))
@@ -329,6 +333,7 @@ async def run(args):
                     check('native_clock_admission_rechecks_health',not state.get('active'),clock=state)
                 check('native_clock_admission_no_ticks',(await refresh())[0]['tick']==tick)
             report['passed']=True
+            report['native_checkpoint']=(await bridge.call('rimworld/save_game',saveName='B04f-continuation')).structuredContent
         except BaseException as error:
             report['error']=repr(error)
             raise

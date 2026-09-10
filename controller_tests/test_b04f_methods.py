@@ -13,7 +13,7 @@ from rimbot.colony_policy import derive, work_assignment
 def test_downed_permanent_manhunter_does_not_keep_active_combat_open():
     rt=Replay()
     rt.batch.summary.hostile_count=2
-    rt.batch.native['status_after']={'threats':{'hostiles':[{'downed':True},{'downed':False}]}}
+    rt.batch.native['status_after']={'threats':{'hostiles':[{'thingId':'Hare1','downed':True},{'thingId':'Hare2','downed':False}]}}
     assert derive(rt.batch,rt.facts,rt.controller.policy)['hostiles']==1
     rt.batch.native['status_after']['threats']['hostiles'][0]['downed']=False
     assert derive(rt.batch,rt.facts,rt.controller.policy)['hostiles']==2
