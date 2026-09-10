@@ -19,12 +19,14 @@ def protected_cells(plan):
     return cells
 
 
-def growth_fields(plan,facts):
+def growth_fields(plan,facts,target_days=7):
+    from .food_capacity import field_target
     rice=facts.get('definitions',{}).get('Plant_Rice',{})
     nutrition,days=rice.get('harvestNutrition'),rice.get('growDays')
     if not nutrition or not days:return []
     existing=sum(f.get('usableCells',0) for f in facts.get('farms',[]) if f.get('edible'))
-    target=max(facts['colonists']*10,ceil(facts.get('nutritionPerDay',0)*days*2.5/nutrition))
+    target=field_target(facts,target_days)
+    if target is None:return []
     needed=max(0,target-existing)
     blocked=protected_cells(plan)
     cells={(c['x'],c['z']):c for c in facts.get('cells',[]) if c.get('walkable') is True

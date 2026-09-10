@@ -85,7 +85,12 @@ class Replay:
                     if b.def_name=='SleepingSpot': self.facts['bedCapacity']+=1
                     if b.def_name=='Campfire': self.facts['cooking']=[dict(id='Thing_Campfire1',usable=True,recipes=['CookMealSimple'],bills=[])]
             elif action.kind=='create_zone':
-                if action.zone_type=='growing': self.facts['farms']=[dict(edible=True,usableCells=100,growingCells=100)]
+                if action.zone_type=='growing':
+                    cells=sum(p.width*p.height for p in action.patches)
+                    self.facts['farms'].append(dict(edible=True,usableCells=cells,growingCells=cells))
+                    for cell in self.facts['cells']:
+                        if any((cell['x'],cell['z']) in patch.cells() for patch in action.patches):
+                            cell['zone']=True
                 else: self.facts['foodStorage']=True
             elif action.kind=='native_operation':
                 if action.tool=='home/pawn_config':

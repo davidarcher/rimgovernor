@@ -84,6 +84,7 @@ def derive(batch, native, policy):
 
 
 def criteria(facts, policy):
+    from .food_capacity import growing_cells
     count = max(facts.get('colonists', 0), facts.get('populationHousingTarget', 0))
     low, high = facts.get('sleepingTemperatureMin'), facts.get('sleepingTemperatureMax')
     food = facts.get('populationFoodRunwayDays', facts.get('foodRunwayDays'))
@@ -91,8 +92,7 @@ def criteria(facts, policy):
         'sleeping': count > 0 and facts.get('bedCapacity', 0) >= count,
         'shelter': count > 0 and facts.get('indoorSleepingCapacity', 0) >= count,
         'food': food is not None and food >= policy.foothold_food_days,
-        'production': count > 0 and sum(f.get('growingCells', 0) for f in facts.get('farms', [])
-                                       if f.get('edible') is True) >= count * 10,
+        'production': count > 0 and growing_cells(facts) >= count * 10,
         'storage': facts.get('foodStorage') is True,
         'cooking': any(b.get('usable') is True and any(not bill.get('suspended', True)
                        and bill.get('recipe') in b.get('recipes', []) for bill in b.get('bills', []))
@@ -111,6 +111,7 @@ def criteria(facts, policy):
 
 
 def priority_nodes(facts, latches, policy):
+    from .food_capacity import field_target, growing_cells
     gates = criteria(facts, policy)
     food_risk = latch(latches, 'food', facts.get('foodRunwayDays'), policy.food_min_days, policy.food_target_days)
     cold = latch(latches, 'cold', facts.get('sleepingTemperatureMin') if facts.get('sleepingTemperatureMin') is not None else facts.get('outdoorTemperature'),
@@ -125,7 +126,10 @@ def priority_nodes(facts, latches, policy):
     if not facts.get('hostiles') and facts.get('cleanupPawns'): nodes.append(('RestoreWorkers', 1))
     if facts.get('forbiddenSupplies'): nodes.append(('AllowStartingSupplies', 2))
     if not gates['work']: nodes.append(('EnsureWorkAssignments', 2))
-    if food_risk or not gates['food'] or not gates['production']: nodes.append(('EnsureFoodSupply', 2))
+    capacity = field_target(facts, policy.food_target_days)
+    if (food_risk or not gates['food'] or not gates['production']
+            or capacity is None or growing_cells(facts) < capacity):
+        nodes.append(('EnsureFoodSupply', 2))
     if not gates['shelter'] or not gates['sleeping']: nodes.append(('EnsureInitialShelter', 2))
     if cold or hot or not gates['temperature']: nodes.append(('EnsureTemperatureSafety', 2))
     if not gates['cooking']: nodes.append(('EnsureCooking', 2))

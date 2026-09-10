@@ -283,9 +283,16 @@ class ColonySkills:
                 if patches:
                     return 'rice', [{'kind': 'create_zone', 'zone_type': 'growing', 'label': 'RimBot rice',
                                      'crop': 'Plant_Rice', 'patches': patches}]
-            if not unused('rice') and facts.get('indoorSleepingCapacity',0)>=facts['colonists']:
+            if (not unused('rice') or any(f.get('edible') and f.get('usableCells',0)>0
+                    for f in facts.get('farms',[]))) and facts.get('indoorSleepingCapacity',0)>=facts['colonists']:
                 from .capacity_growth import growth_fields
-                patches=growth_fields(rt.current_plan,facts)
+                from .food_capacity import field_target, growing_cells
+                goal.evidence['production_budget'] = {
+                    'target_days': rt.controller.policy.food_target_days,
+                    'required_cells': field_target(facts,rt.controller.policy.food_target_days),
+                    'observed_growing_cells': growing_cells(facts),
+                    'scope': 'Planned harvest capacity; future food is not stored nutrition'}
+                patches=growth_fields(rt.current_plan,facts,rt.controller.policy.food_target_days)
                 method='rice-expand-'+fingerprint(patches)[:8]
                 if patches and unused(method):
                     return method,[{'kind':'create_zone','zone_type':'growing','label':'RimBot '+method,
