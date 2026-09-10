@@ -27,8 +27,10 @@ in the checkpoint commit; do not append an implementation diary here.
   this item owns their startup sequencing and the upkeep gaps between them.
 
   **Phase 1 — Finish needs and completion contracts.** Extend the
-  [native upkeep audit](reference/upkeep-contracts.md) with safe roof-support
-  replacement and seasonal lead-time evidence. Preserve unknowns. Extend the
+  [native upkeep audit](reference/upkeep-contracts.md) with safe enclosure/escape
+  replacement and seasonal lead-time evidence. Roof-support previews and saved
+  construction lineage are available; destructive replacement is not admitted.
+  Preserve unknowns. Extend the
   maintained supply, cleaning, repair and fire contracts to the remaining goals:
   facilities, food-chain operation, animals,
   clothing and workforce changes. Each needs entry/recovery thresholds, a bounded
@@ -39,7 +41,8 @@ in the checkpoint commit; do not append an implementation diary here.
   storage before building. Extend covered general storage to obstructed interiors
   and changed native capacity without disturbing player filters. Prioritize
   safe hauling by loss risk and survival value; extend verified covered-storage
-  hauling to split/merged stacks, unavailable capacity and interrupted deliveries.
+  hauling quantity tracking to unavailable capacity, interruptions and paired
+  restart. Native split/merge accounting and pre-delivery loss are verified.
   Item loss must remain distinct from successful protection.
   Restore temporary hauling overrides when the deficit clears. Extend verified
   floor-to-bed upgrades to shortages, unavailable research/materials, unsafe

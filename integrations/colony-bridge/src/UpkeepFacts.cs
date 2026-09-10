@@ -26,6 +26,8 @@ namespace HomeBridge.BridgeTools
             return new {
                 version = 1, tick = Find.TickManager.TicksGame,
                 comfort = read("comfort", () => ComfortFacts.Read(map)),
+                construction = read("construction", () => ConstructionLineage.Read(map)),
+                hauling = read("hauling", () => HaulTracking.Read(map)),
                 items = read("items", () => items.OrderBy(t => t.thingIDNumber).Select(t => {
                     var rot = t.TryGetComp<CompRottable>();
                     return new { id = t.GetUniqueLoadID(), defName = t.def.defName, count = t.stackCount,

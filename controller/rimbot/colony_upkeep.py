@@ -89,7 +89,7 @@ def evidence(facts):
                 animal_feed=facts.get('animalFeed') if current else None)
 
 
-def upkeep_nodes(facts, control, goals=None):
+def upkeep_nodes(facts, control, goals=None, *, plan=None):
     from .sleeping_upkeep import sleeping_evidence
     facts['sleepingUpkeep'] = sleeping_evidence(facts, control)
     from .medical_reserves import reserve_evidence
@@ -109,6 +109,10 @@ def upkeep_nodes(facts, control, goals=None):
         active = state.get('active', False)
         if known:
             active = len(rows) > (contract.recover if active else contract.enter)
+        if plan is not None and any(s.goal_id == contract.goal
+                and plan.progress[s.id].issued and plan.progress[s.id].state not in ('complete', 'cancelled')
+                for s in plan.spec.steps):
+            active = True
         state.update(active=active, known=known, count=len(rows) if known else None,
                      entry=contract.enter, recovery=contract.recover,
                      observed_tick=facts.get('tick'), targets=rows)
@@ -154,6 +158,31 @@ def reconcile_upkeep(rt, facts):
         if facts.get('tick', -1) < receipt.get('issued_tick', 0):
             continue
         action = step.action.arguments['action']
+        tracking = receipt.get('haul_tracking_id')
+        if action == 'haul' and tracking:
+            ledger = raw.get('hauling')
+            if not isinstance(ledger, list) or 'hauling' in (raw.get('errors') or {}):
+                continue
+            matches = [r for r in ledger if r.get('id') == tracking]
+            if len(matches) != 1:
+                continue
+            tracked = matches[0]
+            goal = rt.current_plan.colony_goals.get(step.goal_id)
+            original = (goal.evidence.get('upkeep_orders', {}).get(step.id) or {}) if goal else {}
+            count = finite(original.get('count'))
+            if (tracked.get('source') != step.action.arguments['target']
+                    or tracked.get('pawn') != step.action.arguments['pawn']
+                    or tracked.get('accepted') is not True or count is None
+                    or finite(tracked.get('originalCount')) is None or tracked['originalCount'] < count
+                    or tracked.get('blocker')):
+                progress.state = 'blocked'
+                progress.failure = Failure(code='upkeep_delivery_unverified',
+                    detail='Native quantity tracking cannot verify delivery: ' + str(tracked.get('blocker') or 'receipt mismatch'))
+            elif tracked.get('complete') is True and finite(tracked.get('completedTick')) is not None \
+                    and receipt.get('issued_tick', 0) <= tracked['completedTick'] <= facts['tick']:
+                progress.state = 'complete'
+                receipt['postcondition'] = dict(tick=facts['tick'], hauling=tracked)
+            continue
         section = {'haul': 'items', 'repair': 'structures', 'clean': 'filth', 'firefight': 'fires'}[action]
         rows = raw.get(section)
         if not isinstance(rows, list) or section in (raw.get('errors') or {}):

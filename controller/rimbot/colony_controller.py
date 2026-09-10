@@ -128,7 +128,7 @@ class ColonyController:
         await rt.ensure_context(token)
         if direction != rt.chat_revision or rt.mode != 'automate': return
         nodes = priority_nodes(facts, plan.control.setdefault('latches', {}), self.policy) + resource_nodes + population_nodes + herd_nodes
-        nodes += mood_nodes(facts['mood']) + upkeep_nodes(facts, plan.control, plan.colony_goals)
+        nodes += mood_nodes(facts['mood']) + upkeep_nodes(facts, plan.control, plan.colony_goals, plan=plan)
         for identity in UPKEEP_GOALS:
             goal = plan.colony_goals.get(identity)
             if goal and not goal.cancelled and any(plan.progress[s].state in ('waiting', 'blocked', 'executing')

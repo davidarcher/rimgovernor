@@ -47,7 +47,7 @@ async def run(args):
         report['manifest'] = capture_manifest(Path(__file__).resolve().parents[1], root, config, {'model': 'no inference'})
         await ready(rt)
         rt.execution_task = asyncio.current_task()
-        report['setup'] = (await rt.bridge.call('test/storeroom_setup')).structuredContent
+        report['setup'] = (await rt.bridge.call('test/storeroom_setup', constructionFailure=True)).structuredContent
         assert report['setup']['success'], report['setup']
         goal = rt.current_plan.colony_goals['SecureSupplies'] = ColonyGoal(priority_class=3)
         for expected in ('build_room_shell', 'create_zone', 'native_operation'):
@@ -94,8 +94,45 @@ async def run(args):
                 report['filtered_capacity'] = capacity
             print(expected + ': native completion observed', flush=True)
         facts = await sample()
-        target = next(r for r in facts['upkeep']['items'] if r['id'] == report['setup']['medicine'])
-        assert target['roofed'] and target['inStorage'] and target['count'] == 5, target
+        lineage = facts['upkeep']['construction']
+        for step in rt.current_plan.spec.steps:
+            if step.action.kind != 'build_room_shell':
+                continue
+            for receipt in rt.current_plan.progress[step.id].issued.values():
+                origin = receipt.get('placed_thing_id')
+                assert receipt.get('confirmed') and receipt.get('outcome') == 'placed' and origin
+                row = next(r for r in lineage if r['origin'] == origin)
+                assert row['stage'] == 'built' and row['present'] and row['blocker'] is None, row
+                assert row['current'] != row['origin'], 'Blueprint receipt cannot be the finished wall identity'
+        report['construction_lineage'] = lineage
+        assert sum(r['failures'] for r in lineage) >= 1, 'Declared native construction fumble was not exercised'
+        from rimbot.construction_ownership import owned_buildings
+        report['owned_buildings'] = owned_buildings(rt.current_plan, facts)
+        assert len(report['owned_buildings']) == len(lineage), 'Every completed room piece needs both receipt and native lineage'
+        report['support_previews'] = []
+        wall = None
+        for candidate in [r for r in lineage if r['definition'] == 'Wall' and r['present']][:20]:
+            preview = await rt.game.invoke('home/roof_support', dict(target=candidate['current']))
+            report['support_previews'].append(preview)
+            if preview['supportWithoutTarget'] is True and preview['checkedRoofs'] > 0:
+                wall, report['support'] = candidate, preview
+                break
+        assert wall is not None, 'No fully observed supported wall is available for the positive safety case'
+        delivery = report['actions'][-1]['progress']['issued']['0']['postcondition']['hauling']
+        assert delivery['complete'] and delivery['originalCount'] == 5 and delivery['requiredCount'] >= 5
+        assert delivery['source'] == report['setup']['medicine'] and not delivery['blocker']
+        report['quantity_contract'] = (await rt.bridge.call('test/haul_quantity_contract')).structuredContent
+        assert report['quantity_contract']['success'], report['quantity_contract']
+        report['replacement'] = (await rt.bridge.call('test/replace_lineage_wall', target=wall['current'])).structuredContent
+        assert report['replacement']['success']
+        after = (await rt.game.query('home/colony_facts', planning=True))['upkeep']['construction']
+        assert next(r for r in after if r['origin'] == wall['origin'])['present'] is False
+        assert not any(r['current'] == report['replacement']['replacement'] for r in after)
+        report['sole_holder'] = (await rt.bridge.call('test/isolated_roof_holder')).structuredContent
+        assert report['sole_holder']['success'] and report['sole_holder']['nativeSupported']
+        report['unsupported_removal'] = await rt.game.invoke('home/roof_support', dict(target=report['sole_holder']['wall']))
+        assert report['unsupported_removal']['supportWithoutTarget'] is False
+        assert report['unsupported_removal']['blocker'] == 'Removing this wall would leave unsupported roof'
         assert rt.counters['model_calls'] == 0
         report['outcome'] = 'passed'
     except Exception as error:

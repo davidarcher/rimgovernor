@@ -81,6 +81,46 @@ def test_missing_haul_target_is_not_success():
     assert rt.current_plan.progress['upkeep'].failure.code == 'upkeep_target_missing'
 
 
+def tracked_runtime(**changes):
+    rt, f = runtime(), facts()
+    rt.current_plan.progress['upkeep'].issued['0']['haul_tracking_id'] = 'haul-1'
+    f['upkeep']['hauling'] = [dict(id='haul-1', source='Thing_Medicine1', pawn='Thing_Human1',
+        originalCount=10, requiredCount=17, accepted=True, complete=False, blocker=None,
+        completedTick=0) | changes]
+    return rt, f
+
+
+def test_merged_or_carried_stack_waits_for_quantity_proof_and_keeps_goal_open():
+    rt, f = tracked_runtime()
+    reconcile_upkeep(rt, f)
+    assert rt.current_plan.progress['upkeep'].state == 'waiting'
+    assert ('SecureSupplies', 3) in upkeep_nodes(f, rt.current_plan.control, plan=rt.current_plan)
+    f['upkeep']['hauling'][0].update(complete=True, completedTick=9)
+    reconcile_upkeep(rt, f)
+    assert rt.current_plan.progress['upkeep'].state == 'complete'
+    assert ('SecureSupplies', 3) not in upkeep_nodes(f, rt.current_plan.control, plan=rt.current_plan)
+
+
+@pytest.mark.parametrize('change', [dict(blocker='Stock destroyed'), dict(source='another'),
+    dict(pawn='another'), dict(originalCount=9), dict(accepted=False)])
+def test_quantity_loss_or_mismatched_tracking_never_certifies_delivery(change):
+    rt, f = tracked_runtime(complete=True, completedTick=9, **change)
+    reconcile_upkeep(rt, f)
+    assert rt.current_plan.progress['upkeep'].failure.code == 'upkeep_delivery_unverified'
+    assert ('SecureSupplies', 3) in upkeep_nodes(f, rt.current_plan.control, plan=rt.current_plan)
+
+
+@pytest.mark.parametrize('change', ['missing', 'failed', 'duplicate', 'future'])
+def test_unknown_quantity_evidence_waits(change):
+    rt, f = tracked_runtime(complete=True, completedTick=9)
+    if change == 'missing': f['upkeep'].pop('hauling')
+    elif change == 'failed': f['upkeep']['errors']['hauling'] = 'Unavailable'
+    elif change == 'duplicate': f['upkeep']['hauling'] *= 2
+    else: f['upkeep']['hauling'][0]['completedTick'] = 11
+    reconcile_upkeep(rt, f)
+    assert rt.current_plan.progress['upkeep'].state == 'waiting'
+
+
 @pytest.mark.parametrize('change', ['load', 'direction'])
 def test_changed_ownership_blocks_existing_order(change):
     rt, f = runtime(), facts()

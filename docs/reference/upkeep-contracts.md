@@ -14,13 +14,33 @@ unavailable read. The section tick must match the enclosing observation.
 | Supplies | Per-item identity, location, quantity, condition, deterioration stat, roof, valid storage, rot deadline and forbidden status. `home/order` hauling previews native storage access. `requireSafeStorage` rechecks enabled hauling, safe reach and covered storage during dispatch. |
 | Storage | Existing slot cells, roof, occupancy and item-specific native filtered capacity. Native hauling separately decides worker access and delivery; cell count alone is not usable capacity. |
 | Sleeping | Bed definition, slots, owners, current users, pawn-specific access, roof and temperature. Capacity does not establish actual use or suitable worn protection. |
-| Home and structures | Exact occupied/protected cells with home coverage; owned building condition, material, roof and support definition. A support definition does not prove a replacement batch is safe. |
+| Home and structures | Exact occupied/protected cells with home coverage; building condition, material, roof and native construction lineage. `home/roof_support` checks existing roof connectivity with one exact wall excluded. This does not prove enclosure, escape routes or replacement admission. |
 | Fire, cleaning, repair | Exact native targets and condition. `home/order` repair/clean use the installed WorkGivers and their normal eligibility. These methods require current home coverage, safe access and enabled work. The installed firefighting WorkGiver is not directly orderable: enabled workers respond normally while the controller watches at most three home fires of size at most one. |
 | People | Current rest, recreation, mood, worn apparel condition and native comfortable temperature range. `home/list_pawns` supplies medical, work, settings and schedule reads. |
 | Animals | Owned animal census, diet and food need; native rope-management eligibility, current enclosed pen and suitable pen identity. Pets have no pen-containment predicate. Reachable stored feed follows native eating eligibility and allowed-area access; it excludes drugs and does not count pasture or future harvest. Existing combined-demand food forecasts account for animal shares separately. |
 | Medicine, season, power | Medicine is identified through native item definitions. Existing forecast/status tools supply patient, crop and power inputs; no future production or season is credited as stock. |
 
 ## Maintained jobs
+
+Native construction lineage follows bridge-created blueprints into frames and
+finished buildings, including the game's failed-construction blueprint recovery.
+Blueprint material comes from its native intended-material field. A finished
+identity is captured during the native frame completion call; coordinate matching
+alone cannot transfer ownership. Records persist with the game and report missing
+or ambiguous identities explicitly. Missing identities after load are not rebound
+by coordinates. The bounded ledger retains at most 4,096 origins.
+
+`construction_ownership.owned_buildings` additionally requires a completed,
+confirmed autonomous plan placement with matching definition, material, rotation
+and location. Reused player blueprints, player goals, cancelled goals and uncertain
+receipts confer no autonomous ownership. Lineage is evidence, not authorization to
+deconstruct a structure or an assurance that removing it is safe.
+
+The roof-support preview checks connected existing roof cells within the installed
+native support radius while excluding the specified wall as a holder. It changes
+no roof or building. Fog, map-edge uncertainty, pending collapse and unsupported
+cells refuse the certificate. Planned supports earn no credit. Replacement must
+also preserve enclosure and escape access and repeat safety checks at execution.
 
 `SecureSupplies`, `MaintainEssentialRepairs`, `MaintainCleanFacilities` and
 `MaintainFireSafety` retain their goal identities across recovery and recurrence.
@@ -51,6 +71,21 @@ holds remain authoritative.
 Supplies require both roofing and valid storage. The native base deterioration rate
 identifies vulnerable items even when their current rate becomes zero under a roof.
 Current deterioration and rot deadlines remain separate observations.
+
+Guarded hauling returns a native quantity-tracking ID. The saved `hauling` section
+follows the entire source stack through native splits and merges. Mixing other
+stock into a tracked stack expands the protection obligation to the whole mixture;
+it never arbitrarily attributes surviving units to the original source. Held or
+partially delivered pieces do not satisfy delivery. Native destruction before
+protection and quantity changes outside verified transfers remain explicit failures.
+The first tick at which every tracked piece is spawned in covered valid storage
+records completed delivery, preserving that proof through later consumption.
+Controller completion requires the exact receipt ID, source, worker, original
+quantity and current load/direction. Unresolved issued work keeps the supply goal
+open even when the source ID disappears from the loose-item census. Records use
+saved string identities, never coordinate rebinding, with bounds of 512 orders and
+128 pieces per order. Missing identities and exhausted tracking capacity cannot
+prove delivery. Older receipts retain the stricter same-item quantity check.
 
 `storageCapacity` reports each observed item's currently unreserved covered slot
 capacity using native storage acceptance, stacking and cell limits. Reservations,

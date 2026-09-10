@@ -93,6 +93,7 @@ namespace HomeBridge.BridgeTools
     /// </summary>
     public sealed class HomePlaceBuildingTools
     {
+        public HomePlaceBuildingTools() { ConstructionLineage.Install(); }
         private const string ToolName = "home/place_building";
         private static readonly string[] RotationNames = { "north", "east", "south", "west" };
 
@@ -521,6 +522,7 @@ namespace HomeBridge.BridgeTools
                     return payload;
                 }
 
+                payload["constructionOrigin"] = ConstructionLineage.Register(blueprint, entDef);
                 payload["placed"] = new Dictionary<string, object>
                 {
                     { "thingId", blueprint.GetUniqueLoadID() },

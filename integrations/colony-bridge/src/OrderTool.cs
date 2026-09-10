@@ -364,6 +364,7 @@ namespace HomeBridge.BridgeTools
         /// method in this file that writes.</summary>
         private sealed class Plan
         {
+            internal string HaulTrackingId;
             internal Request Request;
             internal Map Map;
 
@@ -1705,6 +1706,13 @@ namespace HomeBridge.BridgeTools
                 // giver's own tagToGive, then records the priority-work cell so
                 // the pawn keeps working that spot. A plain order uses JobTag.Misc.
                 OrderedWorkHistory.Read(plan.Pawn);
+                if (plan.Request.Action == "haul" && plan.Request.RequireSafeStorage) {
+                    plan.HaulTrackingId = HaulTracking.Begin(plan.Target, plan.Pawn);
+                    if (plan.HaulTrackingId == null) {
+                        plan.Refuse("job_refused", "Native quantity tracking is unavailable; guarded hauling was not issued.");
+                        return;
+                    }
+                }
                 plan.Issued = plan.Scanner != null
                     ? jobs.TryTakeOrderedJobPrioritizedWork(job, plan.Scanner, BridgeCommon.Try(() => plan.Target.Position, IntVec3.Invalid))
                     : jobs.TryTakeOrderedJob(job, JobTag.Misc);
@@ -1713,6 +1721,7 @@ namespace HomeBridge.BridgeTools
             {
                 plan.Refuse("job_refused",
                     "Pawn_JobTracker.TryTakeOrderedJob threw " + ex.GetType().Name + " on a " + DefNameOf(plan.JobDef) + " job.");
+                HaulTracking.Accept(plan.HaulTrackingId, false);
                 return;
             }
 
@@ -1756,6 +1765,7 @@ namespace HomeBridge.BridgeTools
                     "The order did not stick. " + (plan.VerifiedReason ?? "Pawn.CurJob did not match the job that was issued.")
                     + " TryTakeOrderedJob returned " + (plan.Issued ? "true" : "false") + ".");
             }
+            HaulTracking.Accept(plan.HaulTrackingId, plan.Verified);
         }
 
         private static bool SameTarget(LocalTargetInfo a, LocalTargetInfo b)
@@ -2309,6 +2319,7 @@ namespace HomeBridge.BridgeTools
                 { "tool", ToolName },
                 { "action", plan.Request.Action },
                 { "orderGeneration", OrderedWorkHistory.Read(plan.Pawn) },
+                { "haulTrackingId", plan.HaulTrackingId },
                 { "targetOrderGeneration", OrderedWorkHistory.Read(plan.TargetPawn) },
                 { "dryRun", plan.Request.DryRun },
                 { "applied", applied && plan.Applied },

@@ -62,6 +62,17 @@ and marker, and native observations must place the muffalo inside the suitable p
 The pet and release/slaughter settings remain unchanged. Simulation uses the
 bounded native scenario supervisor; this case does not certify stored feed reserves.
 
+The storeroom scenario also injects one native construction fumble and requires
+continuous blueprint/frame/finished-building lineage for every room piece. It
+joins those identities to confirmed autonomous receipts, checks alternate roof
+support, and verifies that an identical independently replaced wall inherits no
+ownership. A sole-holder fixture must fail the read-only removal-support check.
+These checks do not perform a wall upgrade or certify enclosure during replacement.
+Ordinary medicine hauling requires the native quantity ledger's protected-delivery
+tick. A separate disposable-stack fixture exercises native split/merge operations,
+partial delivery, destruction before delivery and retained proof after consumption.
+Those accounting checks are distinct from the scenario's pawn-labor acceptance.
+
 For animal feed, use
 `python scripts/animal_feed_acceptance.py --source-root /worker/run --output /worker/feed --seconds 300`.
 The fixture supplies a hungry pet, a butcher spot, ingredients outside the pet's

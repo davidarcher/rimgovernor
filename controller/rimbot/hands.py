@@ -184,6 +184,7 @@ class Hands:
                                     raise Blocked('surgery_uncertain', 'Operation bill identity was not confirmed; observe before retrying', evidence=result)
                             if action.tool == 'home/order':
                                 receipt['order_generation'] = result.get('receipt', result).get('orderGeneration')
+                                receipt['haul_tracking_id'] = result.get('receipt', result).get('haulTrackingId')
                             if action.tool == 'home/install':
                                 native = result.get('receipt', result)
                                 receipt['inner_id'] = native['thingId']

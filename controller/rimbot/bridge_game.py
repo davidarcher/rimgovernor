@@ -4,7 +4,7 @@ from .bridge import runtime_file_read
 from .bridge_observation import OBSERVATION_TOOLS, ObservationGateway
 from .native_contracts import validate_arguments
 
-READS = OBSERVATION_TOOLS | frozenset({'home/recovery_state', 'home/husbandry_facts', 'home/waste_state', 'home/population', 'home/resource_sources',
+READS = OBSERVATION_TOOLS | frozenset({'home/roof_support', 'home/recovery_state', 'home/husbandry_facts', 'home/waste_state', 'home/population', 'home/resource_sources',
     'rimworld/get_cells_info', 'rimworld/get_cell_info',
     'rimworld/list_architect_categories', 'rimworld/list_architect_designators',
     'rimworld/list_selected_gizmos', 'rimworld/get_selection_semantics',
