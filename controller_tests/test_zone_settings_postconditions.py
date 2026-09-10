@@ -74,3 +74,22 @@ def test_ambiguous_legacy_zone_owner_cannot_invent_expectations():
     rt.current_plan.progress['next'].project_id = rt.projects.rows[0].id
     rt.projects.ground_legacy_targets(rt.current_plan)
     assert target.zone_patches == []
+
+
+@pytest.mark.parametrize('existing', [False, True])
+async def test_unavailable_stockpile_preview_refuses_before_any_write(existing):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    from rimbot.colony_plan import Zone, StepProgress
+    from rimbot.hands import Hands
+
+    action = Zone(zone_type='stockpile', label='Supplies',
+                  patches=[dict(x=10, z=10, width=1, height=1)])
+    zone = dict(id=7, label='Supplies', type='Zone_Stockpile',
+                gridCells=[dict(x=10, z=10)])
+    rt = SimpleNamespace(game=SimpleNamespace(query=AsyncMock(
+        return_value={'zones': [zone] if existing else []})),
+        inspect_native=AsyncMock(return_value={'cellsAccepted': 1}), native=AsyncMock())
+    with pytest.raises(ValueError, match='Exact native stockpile settings unavailable'):
+        await Hands().zone(rt, action, StepProgress(), '0', 0, 'load', 0)
+    rt.native.assert_not_awaited()

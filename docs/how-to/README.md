@@ -35,6 +35,7 @@ first guided exercise, use [your first Docker test](../tutorials/first-docker-te
 - [Verify construction and supply recovery](construction-recovery.md)
 - [Verify checkpoint and event recovery](checkpoint-acceptance.md)
 - [Verify room refinements and cancellation](room-refinements.md)
+- [Verify durable project scheduling](project-scheduling.md)
 - [Verify resource production budgets](resource-production.md)
 - [Verify the dashboard and video](dashboard-acceptance.md)
 - [Verify visual review evidence](visual-reviews.md)

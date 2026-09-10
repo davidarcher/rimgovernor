@@ -175,17 +175,6 @@ in the checkpoint commit; do not append an implementation diary here.
   explicit pending matrix entries until each has native acceptance. Native scenarios must observe completed
   facilities and actual eating, recreation, treatment or manufactured output;
   blueprint acceptance, room labels and bill receipts alone do not prove function.
-- [ ] **B07 · Durable project scheduling.** Extend maintained functional goals,
-  resource competition and production-consumption accounting through the shared
-  plan and Hands; coordinate ingredient-policy coverage with B04e. Verify real
-  consumption, competing project dispatch/restock, delayed shell-to-furnishing work
-  and dependent chains across held restart. Cover player edits, save rewinds and
-  interrupted/resumed work without losing identities, reservations or receipts and
-  without duplicate orders; controller replay is not native scheduling acceptance.
-  Broaden native edit/load/rewind acceptance for exact zone and building-facing
-  postconditions. Migrate legacy targets lacking expectations only with grounded
-  evidence. Extend zone contracts to stockpile filters/priority and sow/cut settings,
-  and expose invariant native facing across game languages.
 - [ ] **B06c · Defensive layouts and killbox strategy.** Add deterministic methods
   for layered perimeter defense, controlled approaches, chokepoints and killboxes,
   coordinated with B06 spatial planning, B04f emergency response and B09 combat.
