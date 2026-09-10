@@ -38,3 +38,17 @@ with isolated licensed inputs and identical game, model, storage and rendering
 settings. Retain source/image/input hashes and raw reports under `.rimgovernor/`.
 Record numeric regression budgets before examining Go results. No performance or
 production cutover acceptance is implied by inventory validation.
+
+## Native compatibility baseline
+
+[N01](../docs/BACKLOG.md#n01--unified-rimgovernor-native-mod) shares these
+inventories with G01. [Native reply examples](fixtures/native-replies-baseline.json)
+retain three actual legacy Linux SDK request/reply pairs: identity, a single
+placement preview and a spatial-access refusal. Each includes source line/file
+hashes and the measured input hashes from the Python baseline. SDK text strings
+and structured results are preserved, including nulls and operation metadata.
+The refusal illustrates why transport success is not native operation success.
+
+These are historical comparison fixtures, not fresh discovery, save/reload
+acceptance or completed pawn work. The recorded source revision and artifact root
+identify the original run; current-source and unified-package parity remain open.
