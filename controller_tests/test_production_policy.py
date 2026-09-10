@@ -88,6 +88,24 @@ async def test_missing_recipe_and_workbench_is_explicit_not_fake_production():
     assert rt.current_plan.colony_goals[identity].evidence['deficit'] == 100
 
 
+@pytest.mark.asyncio
+async def test_resource_recipe_prefers_available_ingredients_before_native_name_order():
+    rt, identity, facts = target('Chemfuel',35)
+    facts['resources']={'WoodLog':495}
+    recipes=[{'defName':name,'products':[{'defName':'Chemfuel','count':35}],
+        'availableNow':True,'availableOnNow':True,
+        'ingredients':[{'costOptions':[{'defName':ingredient,'needed':70}]}]}
+        for name,ingredient in [('Make_ChemfuelFromOrganics','RawRice'),('Make_ChemfuelFromWood','WoodLog')]]
+    async def invoke(name,args):
+        if name=='home/resource_sources':return {'success':True,'sources':[]}
+        if args['action']=='list':return {'benches':[{'thingId':'Refinery','bills':[]}]}
+        return {'recipes':recipes}
+    rt.game=SimpleNamespace(invoke=invoke)
+    _,actions=await resource_method(rt,identity,facts)
+    assert actions[0]['arguments']['recipe']=='Make_ChemfuelFromWood'
+    assert rt.current_plan.colony_goals[identity].evidence['production_deficits'][0]['ingredients'][0][0]['deficit']==70
+
+
 def test_native_ingredient_alternatives_remain_separate_and_unknown_costs_refuse():
     recipe={'ingredients':[{'costOptions':[{'defName':'Steel','needed':5},{'defName':'Silver','needed':50}]}]}
     assert ingredient_deficits(recipe, {'Steel':3,'Silver':25}) == [[

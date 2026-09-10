@@ -114,10 +114,11 @@ async def resource_method(rt, goal_id, facts):
             costs = ingredient_deficits(recipe, facts.get('resources', {}))
             deficits.append({'bench': bench['thingId'], 'recipe': recipe['defName'], 'ingredients': costs})
             if recipe.get('availableNow') is True and recipe.get('availableOnNow') is True:
-                candidates.append((bench['thingId'], recipe['defName'], recipe.get('workTypes', [])))
+                ingredients_available=all(any(choice['deficit']==0 for choice in slot) for slot in costs)
+                candidates.append((not ingredients_available, bench['thingId'], recipe['defName'], recipe.get('workTypes', [])))
     goal.evidence['production_deficits'] = deficits
     if not candidates: raise SkillBlocked('No available native production recipe and workbench for ' + resource)
-    bench, recipe, work_types = sorted(candidates, key=lambda c: (c[0], c[1]))[0]
+    _, bench, recipe, work_types = sorted(candidates, key=lambda c: c[:3])[0]
     goal.evidence['work_types'] = work_types
     method = 'resource-' + fingerprint({'resource':resource,'target':target,'bench':bench,'recipe':recipe})[:12]
     if goal.method_seen(method):
