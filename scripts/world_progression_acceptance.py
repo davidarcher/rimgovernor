@@ -44,9 +44,15 @@ async def run():
                 await asyncio.sleep(.1)
         result = await apply_command(rt, payload, token=rt.context_token, revision=rt.chat_revision)
         await rt.execute_manual_requests()
-        progress = rt.current_plan.progress[result['step']]
-        assert progress.state == ('waiting' if waits else 'complete'), progress.model_dump()
-        report.setdefault('shared_steps', []).append(result['step'])
+        step_id = result.get('step') or result.get('existing_step')
+        assert step_id, result
+        if result.get('archived'):
+            assert not waits and result['state'] == 'complete', result
+        else:
+            progress = rt.current_plan.progress[step_id]
+            assert progress.state == ('waiting' if waits else 'complete'), progress.model_dump()
+            if step_id not in report.setdefault('shared_steps', []):
+                report['shared_steps'].append(step_id)
         return dict(accepted=True, observation=await read('home/world_progression'))
     async def read(name, **args):
         async with rt.lock:
@@ -65,6 +71,61 @@ async def run():
             stream.write(json.dumps(dict(tool=name, arguments=args, result=result)) + '\n')
         (output / (name.replace('/', '-') + '.json')).write_text(json.dumps(result, indent=2))
         return result
+    async def defend_home():
+        from rimbot.bridge_observation import observe
+        from rimbot.colony_policy import derive
+        async with rt.lock:
+            await rt.refresh_clock_events()
+        async with asyncio.timeout(45):
+            while rt.wake.is_set() or (rt.review_task and not rt.review_task.done()) or rt.handled_revision < rt.chat_revision:
+                await asyncio.sleep(.1)
+        async with rt.lock:
+            rt.batch = await observe(rt.game)
+            facts = derive(rt.batch, await rt.game.query('home/colony_facts', planning=True), rt.controller.policy)
+            people = (await rt.game.query('home/list_pawns', colonistsOnly=True, bio=True, work=True, health=True, equipment=True))['pawns']
+        goal = rt.current_plan.colony_goals.setdefault('ActiveCombat', ColonyGoal(priority_class=0, source='PLAYER'))
+        compiled = await rt.controller.skills.compile('ActiveCombat', facts, people)
+        assert compiled, 'Shared defense method unavailable; preserve the hostile hold'
+        method, actions = compiled
+        steps, costs = rt.controller.skills.steps('ActiveCombat', method, actions, facts)
+        await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
+            reason='Defend the home crew during the explicit expedition', steps=steps).decision(rt.current_plan),
+            actor='strategist', expected_token=rt.context_token, expected_revision=rt.chat_revision)
+        goal.steps.extend(s.id for s in steps)
+        goal.evidence.setdefault('methods', {})[method] = [s.id for s in steps]
+        rt.current_plan.control.setdefault('costs', {}).update(costs)
+        targets = goal.evidence['combat_targets']
+        defenders = [a['arguments']['pawn'] for a in actions]
+        rt.current_plan.control['combat'] = dict(target=targets[0], targets=targets, pawns=defenders, steps=[s.id for s in steps])
+        rt.manual_requests.extend((s.id, rt.context_token, rt.chat_revision) for s in steps)
+        await rt.execute_manual_requests()
+        assert all(rt.current_plan.progress[s.id].state in ('waiting', 'complete') for s in steps)
+        history = []
+        for _ in range(40):
+            danger = await read('home/status', colonists=True, threats=True)
+            if danger['counts']['hostileCount'] == 0:
+                break
+            async with rt.lock:
+                rt.supervisor.allow_resume()
+                await rt.supervisor.change('Superfast', mode='combat', ignored_hostiles=','.join(targets), max_ticks=600)
+            async with asyncio.timeout(45):
+                while True:
+                    async with rt.lock:
+                        state = await rt.supervisor.call(op='status')
+                    if not state['active']:
+                        break
+                    await asyncio.sleep(.1)
+            history.append(state)
+            assert state['pauseVerified'] and state['stopReason'] in ('tick_budget', 'hostiles_cleared', 'requested_pause'), state
+        danger = await read('home/status', colonists=True, threats=True)
+        report.setdefault('home_defense', []).append(dict(method=method, targets=targets, windows=history, outcome=danger))
+        assert danger['counts']['hostileCount'] == 0, 'Shared defense did not resolve the native threat'
+        cleanup = await rt.stand_down(defenders, expected_token=rt.context_token,
+            expected_revision=rt.chat_revision, expected_plan_revision=rt.current_plan.revision)
+        assert not cleanup['failed'], cleanup
+        rt.supervisor.allow_resume()
+        report['cases']['native_home_defense_during_expedition'] = 'passed'
+
     async def window(ticks=600):
         async with rt.lock:
             await rt.refresh_clock_events()
@@ -104,6 +165,8 @@ async def run():
             assert len(report['interruptions']) == 1, 'Unexpected repeated Ancient danger warning'
             rt.supervisor.absorb(state)
             rt.supervisor.allow_resume()
+        elif state['stopReason'] == 'hostile' and (settlement_trip or prepared_days or recovery):
+            await defend_home()
         elif state['stopReason'] == 'notification_batch' and state.get('stopDetail', '').startswith('1 new notification(s): Mad '):
             danger = await read('home/status', colonists=True, threats=True)
             hostiles = danger['threats']['hostiles']
@@ -246,7 +309,9 @@ async def run():
                             category='all', ownership='ours', maxPositionsPerDef=40)
                         positions = [pos for row in ore.get('things', []) for pos in row.get('positions', [])]
                         for pos in positions[:3]:
-                            vicinity = await read('home/get_cells_plus', x=pos['x'] - 3, z=pos['z'] - 3, width=7, height=7)
+                            size = report['facts']['mapSize']
+                            vicinity = await read('home/get_cells_plus', x=max(0, min(pos['x'] - 3, size['width'] - 7)),
+                                z=max(0, min(pos['z'] - 3, size['height'] - 7)), width=7, height=7)
                             approach = next((c for c in vicinity['cells'] if c.get('walkable') is True and not c.get('fogged')), None)
                             if not approach:
                                 continue

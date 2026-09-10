@@ -20,7 +20,10 @@ warning can be acknowledged after confirming no active hostile or hunting
 predator. A single mad-animal notification can receive explicit scenario review
 when every native hostile is beyond the configured proximity radius and no
 predator is hunting colony members. Native proximity and injury stops remain
-active. Other interruptions fail with retained native evidence.
+active. Settlement and prepared-colony cases can invoke the existing shared
+ActiveCombat method after a hostile proximity stop. They require native threat
+resolution and managed draft cleanup before continuing; new threats, injury
+stops and unavailable defense methods still fail with retained evidence.
 
 `--quests` requires the separately built interruption fixture and checks an
 ordinary WandererJoin quest's terminal state plus the actual joined colonist.

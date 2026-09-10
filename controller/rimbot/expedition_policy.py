@@ -110,6 +110,9 @@ def evaluate_expedition(policy, preview, facts, world, *, action, crew=(), cargo
     required = None if days is None else days * (1 if action == 'return' else 2) + policy.travel_food_margin_days
     if required is None or not number(food) or food < required:
         (warnings if action == 'return' else blocked).append('Travel food does not cover the route and reserve margin')
+    rot = route.get('foodRotDays')
+    if number(rot) and required is not None and rot < required:
+        warnings.append('Some travel food may rot before the route and reserve margin; quantity is not a post-rot supply guarantee')
     if not number(temperature) or not policy.minimum_destination_temperature <= temperature <= policy.maximum_destination_temperature:
         (warnings if action == 'return' else blocked).append('Destination temperature is outside the player limits or unknown')
     if route.get('hostile') is True:

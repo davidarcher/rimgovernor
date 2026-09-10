@@ -21,6 +21,9 @@ the acceptance action does not claim the quest objective is complete.
 
 Expedition policy checks native travel estimates, food margins, seasonal destination
 temperature, diplomatic relations, concurrent parties and remaining home staff.
+Native first-rot estimates produce a separate warning: food quantity alone does
+not guarantee supplies after spoilage, and the first expiring stack does not mean
+every carried food item expires then.
 It deducts departing food from the home forecast. Explicit returns can retain food
 and temperature warnings so a stranded party can attempt recovery. Unreachable
 routes still refuse. EvaluateWorld reports resource deficits and recovery needs

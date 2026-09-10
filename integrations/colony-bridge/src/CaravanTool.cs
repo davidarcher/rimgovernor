@@ -92,7 +92,7 @@ namespace HomeBridge.BridgeTools
                     arrival = new CaravanArrivalAction_VisitSettlement(settlement);
                 }
                 if (dryRun) return new { success = true, accepted = true, dryRun, destination = target.tileId,
-                    route = RouteFacts(caravan.Tile, target, caravan.TicksPerMove, caravan.DaysWorthOfFood.days, caravan),
+                    route = RouteFacts(caravan.Tile, target, caravan.TicksPerMove, caravan.DaysWorthOfFood.days, caravan.DaysWorthOfFood.tillRot, caravan),
                     returnStorage = StorageCandidates(map, caravan.PawnsListForReading.SelectMany(p => p.inventory.innerContainer)) };
                 bool started = caravan.pather.StartPath(target, arrival);
                 return new { success = true, accepted = started, dryRun, destination = target.tileId,
@@ -171,13 +171,13 @@ namespace HomeBridge.BridgeTools
                 costList = selected, carriedCargo = carried, materials = new { rows = available },
                 homePawns = map.mapPawns.FreeColonistsSpawned.Where(p => !pawns.Contains(p)).Select(p => p.GetUniqueLoadID()).ToArray(),
                 homeDoctors = map.mapPawns.FreeColonistsSpawned.Count(p => !pawns.Contains(p) && !p.Downed && !p.WorkTypeIsDisabled(WorkTypeDefOf.Doctor)),
-                route = RouteFacts(map.Tile, tile, CaravanTicksPerMoveUtility.GetTicksPerMove(new CaravanTicksPerMoveUtility.CaravanInfo(dialog)), food.days, null),
+                route = RouteFacts(map.Tile, tile, CaravanTicksPerMoveUtility.GetTicksPerMove(new CaravanTicksPerMoveUtility.CaravanInfo(dialog)), food.days, food.tillRot, null),
                 returnStorage = StorageCandidates(map, dialog.transferables.Where(g => !(g.AnyThing is Pawn) && g.CountToTransfer > 0).Select(g => g.AnyThing)) };
             bool accepted = (bool)Call(dialog, "TryFormAndSendCaravan");
             return new { success = true, accepted, dryRun, observation = WorldProgressionTools.ReadNow() };
         }
 
-        private static object RouteFacts(PlanetTile from, PlanetTile to, int ticksPerMove, float foodDays, Caravan caravan)
+        private static object RouteFacts(PlanetTile from, PlanetTile to, int ticksPerMove, float foodDays, float foodRotDays, Caravan caravan)
         {
             using (var path = from.Layer.Pather.FindPath(from, to, caravan))
             {
@@ -186,7 +186,7 @@ namespace HomeBridge.BridgeTools
                     ? CaravanVisitUtility.TradeCommand(caravan, settlement.Faction, settlement.TraderKind) : null;
                 return new { reachable = path.Found,
                     estimatedTicks = path.Found ? (int?)CaravanArrivalTimeEstimator.EstimatedTicksToArrive(from, to, path, 0f, ticksPerMove, Find.TickManager.TicksAbs) : null,
-                    foodDays, destination = to.tileId,
+                    foodDays, foodRotDays, destination = to.tileId,
                     temperature = GenTemperature.GetTemperatureFromSeasonAtTile(Find.TickManager.TicksAbs, to),
                     settlementId = settlement?.GetUniqueLoadID(), factionId = settlement?.Faction?.GetUniqueLoadID(),
                     hostile = settlement?.Faction?.HostileTo(Faction.OfPlayer) ?? false,

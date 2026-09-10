@@ -117,3 +117,11 @@ async def test_departure_preserves_population_food_and_assigned_care(cargo, rema
             await guard_population_commitments(rt, ['away'], {'Pemmican': cargo}, facts)
     else:
         await guard_population_commitments(rt, ['away'], {'Pemmican': cargo}, facts)
+
+
+def test_native_first_rot_estimate_is_visible_without_claiming_all_food_expires():
+    preview, facts, world = evidence()
+    preview['route']['foodRotDays'] = .1
+    result = evaluate_expedition(ExpeditionPolicy(), preview, facts, world, action='form', crew=['away'])
+    assert result['eligible']
+    assert any('post-rot supply guarantee' in warning for warning in result['warnings'])
