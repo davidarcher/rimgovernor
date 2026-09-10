@@ -681,6 +681,13 @@ thermal furniture and temperature recovery. Each variant resumes the immutable
 checkpoint independently, verifies exact native food filters and storage priority, and
 records both freezers across three loaded native windows before editing. These probes require the named local model to be loaded;
 retain failed reports and distinguish powered construction from actual cooling.
+For an integrated controller source check, run
+`scripts/adopted_room_resume_acceptance.py --thermal-report <passed-hot-or-cold-result>
+--output <fresh-directory>`. It reloads the completed paired checkpoint, verifies
+native room and fueled furniture state, refreshes adoption with the local model,
+performs one legal furniture edit through current spatial admission and Hands,
+and verifies that invalid adoption geometry preserves the current plan.
+
 
 `scripts/cancel_construction_acceptance.py --source-root <prepared-root> --output
 <fresh-directory>` tests the native exact-target cancellation contract in a private

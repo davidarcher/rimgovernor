@@ -20,18 +20,6 @@ in the checkpoint commit; do not append an implementation diary here.
   Nutrition-based harvest limits and per-colonist inventory/rot forecasts exist;
   validate actual spoilage, changing temperatures and food sharing during sustained runs. Enforce
   persistent player food targets through production capacity as well as stock.
-- [ ] **B04c · Shared intent completion.** Broaden adopted-room furnishing acceptance to
-  edited rooms and hot/cold variants. Support safe explicit
-  relocation/cancellation of issued construction through native cancellation
-  skills; preserve existing orders until validated. Relocation admission and ordered
-  cancellation/replacement have controller coverage; native and local-model acceptance
-  remain required. Exact-target blueprint cancellation
-  has semantic-command/shared Hands acceptance, including a lost successful receipt.
-  A partly built wooden bed also has native material-refund acceptance.
-  Broaden interrupted cancellation across native
-  save/load and real player direction changes.
-  Verify freezer expansion,
-  policies and conversational refinements with a real local model.
 - [ ] **B04e · Resource policy completeness.** Accept exact native ingredient job
   admission and consumption guards, preserved player bill settings, persistent
   resource floors and lease-scoped construction commitments in game. Cover actual
