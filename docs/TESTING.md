@@ -125,6 +125,18 @@ deliver controller evidence and reject the old attack revision. Target injury
 alone cannot pass this variant. The disposable test may acknowledge one observed
 Ancient danger warning; production does not automatically acknowledge it.
 The isolated game is stopped in cleanup and the report records termination.
+The combat probe also accepts `--staged-root /worker/run` after `container_worker`
+has staged a fresh private Linux game. It discovers GABS from that root's config.
+Mount the task source and its Git metadata read-only with Linux `GIT_DIR`,
+`GIT_COMMON_DIR` and `GIT_WORK_TREE` paths for source provenance. Do not combine
+the staged-root option with source/output or patient-save. A native injury-stop
+probe does not establish autonomous tactics or low-health rearming acceptance.
+
+`test_medical_triage.py`, `test_medical_recovery.py` and
+`test_execution_windows.py` cover patient urgency, native preview fallback,
+non-preemption of existing tending, direction-bound recovery and repeated
+low-health combat clock refusal. These are controller fixtures; actual medical
+outcomes and external pawn-order interruption remain native acceptance work.
 
 Run `scripts/native_tick_budget_acceptance.py --source-root <prepared-root>
 --output <new-directory>` with `controller` on `PYTHONPATH`. Each speed/budget

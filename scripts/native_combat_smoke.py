@@ -8,7 +8,7 @@ import argparse
 import json
 import shutil
 from pathlib import Path
-from rimbot.bridge import bridge_session, BridgeError
+from rimbot.bridge import bridge_session, BridgeError, gabs_executable
 from rimbot.bridge_game import BridgeGame
 from rimbot.bridge_observation import observe
 from rimbot.bridge_runtime import BridgeRuntime
@@ -130,7 +130,7 @@ async def main(tend=False, root=None, recovery=False, existing_patient=False, re
     root=Path(root or '.rimbot/bridge').resolve();evidence={}
     configuration=prepare(root)
     evidence['manifest']=capture_manifest(Path(__file__).resolve().parents[1],root,configuration,{'mode':'no inference'})
-    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',configuration) as bridge:
+    async with bridge_session(gabs_executable(root),configuration) as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
         await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
         await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
@@ -234,11 +234,14 @@ if __name__=='__main__':
     parser.add_argument('--recovery',action='store_true',help='Interrupt confirmed tending and verify bounded recovery plus actual treatment')
     parser.add_argument('--require-interruption',action='store_true',help='Require an actual health stop and stale attack refusal')
     parser.add_argument('--source-root',type=Path,help='Prepared baseline to copy into a fresh isolated output')
+    parser.add_argument('--staged-root',type=Path,help='Fresh private container_worker root; the probe owns its game lifecycle')
     parser.add_argument('--output',type=Path,help='New isolated worker root; required with --source-root')
     parser.add_argument('--patient-save',type=Path,help='Copy an ordinary native save containing a wounded patient into the isolated fixture, without modifying its contents')
     args=parser.parse_args()
+    if args.staged_root and (args.source_root or args.output or args.patient_save):
+        parser.error('--staged-root cannot be combined with source/output or patient-save')
     if bool(args.source_root)!=bool(args.output): parser.error('--source-root and --output are required together')
     if args.patient_save and not args.output: parser.error('--patient-save requires a fresh --output and --source-root')
-    root=isolated_root(args.source_root,args.output) if args.source_root else None
+    root=isolated_root(args.source_root,args.output) if args.source_root else args.staged_root
     if args.patient_save: shutil.copy2(args.patient_save,root/'profile/Saves/RimBot-tribal8-baseline.rws')
     asyncio.run(main(args.tend or args.recovery,root,args.recovery,bool(args.patient_save),args.require_interruption))

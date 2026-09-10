@@ -146,6 +146,10 @@ cleanup. Its clock acknowledges only that inspected target after orders dispatch
 other threats and severe injury remain guarded. Blocked emergencies prevent
 routine waiting work from restarting time. Larger threats and electrical
 generation still report explicit blockers.
+Combat compilation, dispatch and clock admission inspect colonist health. Unknown
+health or a colonist at the native half-health limit produces an explicit hold;
+an unchanged injury cannot repeatedly rearm the combat clock. The native injury
+thresholds and zero injury cooldown remain unchanged.
 
 ## Interactive commands and shared intent
 
@@ -390,6 +394,14 @@ The existing method-attempt limit bounds replacements. Unknown/legacy receipt sc
 save rewinds, competing treatment, incapable doctors and player overrides retain an
 explicit hold. Goal recovery evidence and reasons are shared with chat and the
 Autopilot panel. Medical priorities include native tending needs even without bleeding.
+New treatment methods rank observed bleeding deadlines, then downed patients and
+stable pawn identities. Capable doctors are ranked by Medicine skill and must pass
+native tending previews; at most eight refused pairs are inspected per method.
+Existing tending retains its job and supervised simulation time. Player-disabled
+doctors and externally drafted pawns are excluded. Confirmed treatment receipts
+retain the player-direction generation: interrupted treatment after changed or
+unknown direction stays held, while completed/resumed treatment can be observed
+without another order.
 
 An autonomous construction action can recover from a known pre-write material
 shortage or placement refusal on the same action identity. Unknown cost/stock observations, native

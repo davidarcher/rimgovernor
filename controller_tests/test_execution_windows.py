@@ -187,10 +187,33 @@ async def test_combat_clock_acknowledges_only_a_dispatched_active_defense(tmp_pa
         rt.current_plan.control['combat']={'target':'Thing_Hare1','steps':['attack']}
         rt.current_plan.progress['attack']=StepProgress(state=state)
         rt.current_plan.colony_goals['ActiveCombat']=ColonyGoal(priority_class=0)
+        rt.game.query.return_value = {'time': {'ticksGame': 100}, 'pawns': [
+            {'thingId': 'colonist', 'dead': False, 'downed': False, 'health': {'summaryPct': 1}}]}
         await rt.advance_execution()
         rt.supervisor.change.assert_awaited_once_with('Normal',mode=profile,
             ignored_hostiles='Thing_Hare1' if profile=='combat' else '',max_ticks=600)
     finally: store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('health', [0.4, 0.5, None, float('nan')])
+async def test_combat_rearm_holds_existing_injury_without_starting_clock(tmp_path, health):
+    from rimbot.colony_plan import ColonyGoal
+    rt, store = runtime(tmp_path)
+    try:
+        rt.current_plan.control['combat'] = {'target': 'Thing_Hare1', 'steps': ['attack']}
+        rt.current_plan.progress['attack'] = StepProgress(state='complete')
+        rt.current_plan.colony_goals['ActiveCombat'] = ColonyGoal(priority_class=0)
+        rt.game.query.return_value = {'time': {'ticksGame': 100}, 'pawns': [
+            {'thingId': 'colonist', 'dead': False, 'downed': False, 'health': {'summaryPct': health}}]}
+        await rt.advance_execution()
+        assert rt.current_plan.control['execution_hold']
+        assert rt.current_plan.colony_goals['ActiveCombat'].status == 'blocked'
+        rt.resume_after_review = True
+        await rt.advance_execution()
+        rt.supervisor.change.assert_not_awaited()
+    finally:
+        store.close()
 
 
 @pytest.mark.asyncio

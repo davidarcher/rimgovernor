@@ -88,6 +88,11 @@ class Hands:
                                 from .production_policy import policy_arguments
                                 args = policy_arguments(rt)
                             if step.source=='AUTOPILOT' and step.goal_id=='ActiveCombat':
+                                from .combat_health import combat_health_hold
+                                health = await rt.game.query('home/list_pawns', colonistsOnly=True, health=True)
+                                hold = combat_health_hold(health)
+                                if hold:
+                                    raise Blocked('combat_health_hold', hold)
                                 status=(await rt.game.query('home/status',colonists=False,threats=True)).get('threats',{})
                                 current={p['thingId'] for p in status.get('hostiles',[]) if p.get('downed') is False}
                                 current.update(p['thingId'] for p in status.get('huntingPredators',[])
@@ -102,6 +107,7 @@ class Hands:
                                     raise Blocked('native_refused', reason(preview), evidence=preview)
                                 args['dryRun'] = False
                             self.guard(rt, revision, token, direction)
+                            player_direction = rt.current_plan.control.get('player_direction', 0)
                             progress.issued[key] = {'confirmed': False}
                             rt.persist()
                             result = await rt.native(action.tool, args, expected_revision=direction, expected_token=token,
@@ -118,6 +124,7 @@ class Hands:
                                 receipt['issued_at'] = time.time()
                                 receipt['load_token'] = token
                                 receipt['issued_tick'] = rt.batch.summary.end_tick
+                                receipt['player_direction'] = player_direction
                         else:
                             self.guard(rt, revision, token, direction)
                             progress.issued[key] = {'confirmed': False}

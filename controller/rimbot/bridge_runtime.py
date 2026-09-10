@@ -1009,6 +1009,21 @@ class BridgeRuntime:
                     engaged = bool(fighting and fighting.status=='active' and not fighting.cancelled
                         and combat.get('steps') and all(s in self.current_plan.progress
                             and self.current_plan.progress[s].state=='complete' for s in combat['steps']))
+                    if engaged:
+                        from .combat_health import combat_health_hold
+                        people = await self.game.query('home/list_pawns', colonistsOnly=True, health=True)
+                        await self.sync_identity()
+                        await self.refresh_clock_events()
+                        if (self.mode != 'automate' or self.context_token != token
+                                or self.chat_revision != direction or self.wake.is_set()):
+                            return
+                        hold = combat_health_hold(people)
+                        if hold:
+                            self.current_plan.control['execution_hold'] = hold
+                            fighting.status, fighting.reason = 'blocked', hold
+                            self.note('combat_health_hold', hold)
+                            self.persist()
+                            return
                     ticks=600 if waiting or engaged else 3000
                     clock = await self.supervisor.change('Normal' if engaged else self.controller.policy.execution_speed,
                         mode='combat' if engaged else 'colony',

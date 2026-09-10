@@ -295,7 +295,8 @@ async def test_autonomous_attack_rechecks_threat_before_dispatch(tmp_path):
         completion_criteria='Threat cleared',action=dict(kind='native_operation',tool='home/order',
         arguments=dict(action='attack',mode='melee',pawn='Pawn1',target='Fox1',watch=False)))])
     rt.current_plan.commit(decision(spec),actor=ModelRole.STRATEGIST,tick=100)
-    rt.game.query=AsyncMock(return_value={'threats':{'hostiles':[],'huntingPredators':[]}})
+    rt.game.query=AsyncMock(return_value={'threats':{'hostiles':[],'huntingPredators':[]},
+        'pawns':[{'thingId':'Pawn1','dead':False,'downed':False,'health':{'summaryPct':1}}]})
     rt.native=AsyncMock()
     await rt.hands.advance(rt)
     assert rt.current_plan.progress['repel'].failure.code=='threat_changed'

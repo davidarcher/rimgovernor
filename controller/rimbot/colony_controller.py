@@ -235,7 +235,7 @@ class ColonyController:
             try:
                 compiled = await self.skills.compile(identity, facts, people['pawns'])
                 if compiled is None:
-                    existing_process = (identity=='EnsureFoodSupply' and any(f.get('growingCells',0)>0 for f in facts.get('farms',[]))) or (
+                    existing_process = (identity=='CriticalMedical' and any(p.get('job')=='TendPatient' for p in people['pawns'])) or (identity=='EnsureFoodSupply' and any(f.get('growingCells',0)>0 for f in facts.get('farms',[]))) or (
                         identity in ('EnsureFoodSupply','MaintainWood') and any(p.get('designated') for p in facts.get('acquisition',[])))
                     if goal.evidence.get('methods') or goal.archived_methods or existing_process or identity.startswith('MaintainResource-'): plan.control['simulation_needed'] = True
                     continue

@@ -27,6 +27,9 @@ def recover_treatment(plan, step, pawns, *, token, tick, owners, limit):
         return 'Existing treatment is progressing; no replacement order was sent.'
     if outcome.code != 'tending_interrupted':
         return outcome.detail
+    if (type(receipt.get('player_direction')) is not int
+            or receipt['player_direction'] != plan.control.get('player_direction', 0)):
+        return 'Treatment recovery requires unchanged player direction since the confirmed order.'
     if len(progress.recovery_history) >= limit:
         return f'Treatment recovery limit reached ({limit}); inspect the patient and doctor.'
     doctor_id = action.arguments['pawn']

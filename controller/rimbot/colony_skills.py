@@ -94,6 +94,10 @@ class ColonySkills:
                 return 'release', [{'kind':'stand_down','pawn_ids':facts['cleanupPawns']}]
             return None
         if goal_id == 'ActiveCombat':
+            from .combat_health import combat_health_hold
+            hold = combat_health_hold({'pawns': people})
+            if hold:
+                raise SkillBlocked(hold)
             status=rt.batch.native.get('status_after',{}).get('threats',{})
             predators={p['thingId'] for p in status.get('huntingPredators',[]) if p.get('preyIsOurs') is True
                 and p.get('predatorIsOurs') is False}
@@ -127,14 +131,25 @@ class ColonySkills:
         if goal_id == 'CriticalMedical':
             if facts.get('medicalKnown') is not True:
                 raise SkillBlocked('Native medical state is unavailable; treatment and stability cannot be verified')
-            assignments, _ = work_assignment(people)
-            doctors = sorted(p for p, w in assignments.items() if w.get('Doctor') == 1)
-            if not doctors: raise SkillBlocked('No available doctor')
-            for patient in facts['criticalPatients']:
+            from .medical_triage import treatment_pairs
+            if any(p.get('job') == 'TendPatient' for p in people):
+                return None
+            refusals = []
+            for patient, doctor in treatment_pairs(people, facts['criticalPatients'], rt.current_plan.control):
                 method = 'tend-'+patient
                 if unused(method):
-                    return method, [dict(native('home/order', action='tend', pawn=doctors[0], target=patient),
-                                         completion='patient_tended')]
+                    args = dict(action='tend', pawn=doctor, target=patient, dryRun=True)
+                    preview = await rt.inspect_native('home/order', args)
+                    if preview.get('success') is True:
+                        goal.evidence['triage'] = {'patient': patient, 'doctor': doctor, 'refusals': refusals}
+                        return method, [dict(native('home/order', action='tend', pawn=doctor, target=patient),
+                                             completion='patient_tended')]
+                    refusals.append({'patient': patient, 'doctor': doctor, 'preview': preview})
+                    if len(refusals) >= 8:
+                        break
+            goal.evidence['triage'] = {'refusals': refusals}
+            if any(not goal.method_seen('tend-'+p) for p in facts['criticalPatients']):
+                raise SkillBlocked('No available native-approved doctor/patient pair; medical hold retained')
             return None
         if goal_id == 'AllowStartingSupplies':
             method = 'allow-'+fingerprint(facts['forbiddenSupplies'][:8])[:8]

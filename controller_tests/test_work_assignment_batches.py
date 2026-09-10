@@ -36,6 +36,9 @@ async def test_mental_state_worker_is_unavailable_for_allocation_and_treatment()
     assert doctor not in assignments and covered
     rt.current_plan.colony_goals['CriticalMedical']=ColonyGoal(priority_class=1)
     rt.facts.update(medicalKnown=True,criticalPatients=['Thing_Patient'])
+    rt.people.append({'thingId':'Thing_Patient','dead':False,'downed':True,'health':{'needsTend':True}})
+    from unittest.mock import AsyncMock
+    rt.inspect_native = AsyncMock(return_value={'success':True})
     _,actions=await rt.controller.skills.compile('CriticalMedical',rt.facts,rt.people)
     assert actions[0]['arguments']['pawn']!=doctor
     pawn['mentalState']=None

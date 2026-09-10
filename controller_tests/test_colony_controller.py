@@ -25,7 +25,7 @@ def facts(count=3):
 
 
 def roster(count=3):
-    return [dict(thingId=f'Thing_Human{i}',dead=False,downed=False,drafted=False,
+    return [dict(thingId=f'Thing_Human{i}',dead=False,downed=False,drafted=False,health={'summaryPct':1},
         bio={'skills':[{'name':s,'level':(i*3+j)%12,'passion':'Minor','disabled':False}
                        for j,s in enumerate(('Medicine','Cooking','Construction','Plants','Shooting'))]},
         work={'applies':True,'manualPriorities':True,'types':[dict(name=w,disabled=False,priority=0,priorityStored=0)

@@ -26,8 +26,14 @@ in the checkpoint commit; do not append an implementation diary here.
   then add electrical generation/connectivity,
   research, comfort and expansion methods. Threats beyond the bounded small-animal method and unavailable power methods
   report explicit blockers instead of asking a model to improvise.
-  Resolve repeated combat rearming on an unchanged, already-observed low-health
-  colonist: require effective triage or an explicit hold without weakening injury thresholds.
+  Native acceptance remains for the low-health combat hold at compilation,
+  dispatch and clock admission, including health-read races and unchanged injury
+  across repeated reviews. Native injury thresholds remain unchanged.
+  Medical selection ranks bleeding deadlines and previews alternate doctors;
+  verify actual competing-patient outcomes, unavailable-doctor replacement after
+  an issued order and successful triage under combat. Recovery receipts enforce
+  unchanged player direction; native external pawn-order ownership still needs
+  coverage beyond tracked overrides and controller direction changes.
 - [ ] **B04g · Native command acceptance.** Extend the isolated native chat probe to construction and room
   refinements. Define and accept completed PLAYER-order archival when the 80-step
   live plan fills, preserving durable receipts and player intent. Broaden wording and context for

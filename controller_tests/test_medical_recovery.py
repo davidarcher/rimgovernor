@@ -14,7 +14,7 @@ def fixture():
         action=dict(kind='native_operation', tool='home/order', completion='patient_tended',
                     arguments={'action':'tend','pawn':'Thing_Doctor','target':'Thing_Patient'}))]),
         colony_goals={'CriticalMedical': ColonyGoal(priority_class=1, status='blocked', steps=['tend'])},
-        progress={'tend': StepProgress(state='blocked', issued={'0':dict(confirmed=True,load_token='load',issued_tick=100)},
+        progress={'tend': StepProgress(state='blocked', issued={'0':dict(confirmed=True,load_token='load',issued_tick=100,player_direction=0)},
             failure=Failure(code='tending_interrupted',detail='Interrupted',retryable=True))})
     people = [dict(thingId='Thing_Patient',dead=False,health={'needsTend':True}),
         dict(thingId='Thing_Doctor',dead=False,downed=False,drafted=False,job='Wait',
@@ -58,7 +58,7 @@ def test_observed_recovery_does_not_reissue(mode,expected):
 
 @pytest.mark.parametrize('condition', ['foreign_load','rewind','unconfirmed','unknown_health','dead','doctor_downed',
     'player_draft','player_work','foreign_draft','other_treatment','cancelled','player_action','nonretryable',
-    'unknown_tick','unknown_job'])
+    'unknown_tick','unknown_job','player_direction','legacy_direction'])
 def test_unsafe_or_player_owned_work_never_reissues(condition):
     plan, people = fixture()
     receipt = plan.progress['tend'].issued['0']
@@ -77,6 +77,8 @@ def test_unsafe_or_player_owned_work_never_reissues(condition):
     elif condition == 'nonretryable': plan.progress['tend'].failure.retryable = False
     elif condition == 'unknown_tick': receipt['issued_tick'] = None
     elif condition == 'unknown_job': people[1]['job'] = None
+    elif condition == 'player_direction': plan.control['player_direction'] = 1
+    elif condition == 'legacy_direction': receipt.pop('player_direction')
     recover(plan,people)
     assert plan.progress['tend'].state == 'blocked'
     assert not plan.progress['tend'].recovery_history
