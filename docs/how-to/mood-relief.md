@@ -16,7 +16,7 @@ worker image, then run this PowerShell command with a unique container name/tag:
 
 ```powershell
 docker build -f containers/Dockerfile --target worker -t rimbot-worker:mood .
-docker run --rm --init --name rimbot-mood-test `
+docker run --rm --init --memory 4g --cpus 2 --name rimbot-mood-test `
   --mount "type=bind,source=$env:RIMBOT_LINUX_GAME,target=/inputs/game,readonly" `
   --mount "type=bind,source=$env:RIMBOT_WORKER_MODS,target=/inputs/mods,readonly" `
   --mount "type=bind,source=$env:RIMBOT_WORKER_PROFILE,target=/inputs/profile,readonly" `
@@ -31,10 +31,16 @@ native tick windows, full pawn readbacks and per-case results. Input hashes and
 game/controller logs remain beside it. Failed runs retain partial cases; use fresh
 output directories after changes.
 
+Append `--scenarios joy forced schedule mental stale_job stale_schedule` to select
+cases. A passing selected run certifies only the listed cases. Keep earlier failed
+reports when repeating or splitting the matrix; resource limits bound this worker
+without stopping unrelated containers.
+
 Positive cases require actual rest, food and recreation recovery to at least 0.5,
 unchanged timetable hours and ordinary non-player-forced jobs. Negative cases
-require native refusal of player-forced work, Work-time recreation and an active
-mental break without replacing the pawn's job. The probe uses shared goal method
+require native refusal of player-forced work, Work-time recreation, an active
+mental break and stale job/schedule identities without replacing the pawn's job.
+The probe uses shared goal method
 compilation, plan commitment, Hands and native outcome reconciliation. It performs
 no model inference. These bounded cases do not establish arbitrary long-term mood
 stability or a guaranteed remedy for every thought, relationship or ideology need.

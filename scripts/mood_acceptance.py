@@ -1,10 +1,12 @@
 """Local Docker mood relief: shared compilation/Hands and actual native need recovery."""
 import asyncio
+import argparse
 import json
 import os
 import traceback
 from pathlib import Path
 from rimbot.bridge_runtime import BridgeRuntime
+from rimbot.bridge import BridgeError
 from rimbot.bridge_observation import observe
 from rimbot.colony_plan import ColonyGoal, CommitSteps
 from rimbot.mood_control import assess
@@ -13,11 +15,15 @@ from deterministic_foothold import NoInference
 from session_checkpoint_acceptance import ready
 
 
-async def run():
+SCENARIOS = ('joy', 'rest', 'food', 'forced', 'schedule', 'mental', 'stale_job', 'stale_schedule')
+
+
+async def run(scenarios):
     root = Path(os.environ['RIMBOT_BRIDGE_ROOT'])
     store = Store(root/'mood.sqlite')
     rt = BridgeRuntime(store, root, fresh=True, headless=True, model_factory=lambda _: NoInference())
-    report = {'passed':False, 'cases':[], 'scope':'Test-only deficit setup; ordinary native need recovery through shared Hands. No model inference.'}
+    report = {'passed':False, 'cases':[], 'requested_scenarios':scenarios,
+        'scope':'Selected scenarios only. Test-only deficit setup; ordinary native need recovery through shared Hands. No model inference.'}
 
     def save():
         (root/'mood-result.json').write_text(json.dumps(report, indent=2))
@@ -36,13 +42,14 @@ async def run():
                 await asyncio.sleep(.2)
         rt.supervisor.absorb(clock)
         assert clock['pauseVerified'] and clock['lastTick'] > clock['startTick'], clock
+        await rt.refresh_clock_events()
         return clock
 
     try:
         await ready(rt)
         report['identity'] = rt.identity
         report['schema'] = await rt.game.describe('home/relieve_need')
-        for scenario in ('rest', 'food', 'joy', 'forced', 'schedule', 'mental'):
+        for scenario in scenarios:
             case = {'scenario':scenario, 'passed':False, 'samples':[]}
             report['cases'].append(case)
             rt.mode = 'manual'
@@ -50,11 +57,24 @@ async def run():
             rows = await people()
             p = next(p for p in rows if p['thingId'] == case['setup']['pawn'])
             case['before'] = p
-            if scenario in ('forced','schedule','mental'):
+            if scenario in ('forced','schedule','mental','stale_job','stale_schedule'):
                 args = dict(pawn=p['thingId'], need='joy', expectedJob=p['jobLoadId'],
-                            expectedSchedule=p['schedule']['current'], dryRun=True)
-                case['refusal'] = (await rt.bridge.call('home/relieve_need', **args)).structuredContent
+                            expectedSchedule=p['schedule']['current'], dryRun=False)
+                if scenario == 'stale_job': args['expectedJob'] = -999
+                if scenario == 'stale_schedule': args['expectedSchedule'] = 'stale'
+                if scenario == 'mental': assert p['mentalState'], 'Fixture did not establish an active break'
+                expected = {'forced':'Current job changed or player work is protected',
+                    'stale_job':'Current job changed or player work is protected',
+                    'schedule':'Native need priority or player timetable prevents recovery now',
+                    'stale_schedule':'Player timetable changed',
+                    'mental':'Pawn unavailable, drafted or in an active mental break'}[scenario]
+                try:
+                    case['refusal'] = (await rt.bridge.call('home/relieve_need', **args)).structuredContent
+                except BridgeError as error:
+                    assert expected in str(error), str(error)
+                    case['refusal'] = dict(success=False, error=str(error), transport='native tool refusal')
                 assert case['refusal']['success'] is False, case
+                assert expected in str(case['refusal'].get('error')), case['refusal']
                 case['after'] = next(p for p in await people() if p['thingId'] == case['setup']['pawn'])
                 assert case['after']['jobLoadId'] == p['jobLoadId'], case
                 case['passed'] = True
@@ -90,7 +110,7 @@ async def run():
                 rt.reconcile_plan()
                 if progress.state == 'complete': break
                 assert progress.state == 'waiting', progress.model_dump()
-            assert progress.state == 'complete', case
+            assert progress.state == 'complete', dict(scenario=scenario, needs=row['needs'], progress=progress.model_dump())
             assert row['needs'][scenario] >= .5, row
             assert row['schedule']['hours'] == p['schedule']['hours'], row
             case.update(passed=True, completed=progress.model_dump())
@@ -111,4 +131,6 @@ async def run():
 
 
 if __name__ == '__main__':
-    raise SystemExit(0 if asyncio.run(run()) else 1)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--scenarios', choices=SCENARIOS, nargs='+', default=list(SCENARIOS))
+    raise SystemExit(0 if asyncio.run(run(parser.parse_args().scenarios)) else 1)

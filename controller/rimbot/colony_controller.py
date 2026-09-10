@@ -51,7 +51,7 @@ class ColonyController:
         waste_goal = plan.colony_goals.get('MaintainWaste')
         if waste_goal and not waste_goal.target.get('unwanted') and not waste_goal.target.get('bury') and native.get('waste'):
             plan.control['waste'] = native['waste']
-        from .mood_control import assess
+        from .mood_control import assess, priority_nodes as mood_nodes
         facts['mood'] = assess(people.get('pawns', []) if people.get('success') is not False else [],
             facts['forecasts']['people'], plan.control.get('facts', {}).get('mood', {}))
         managed=set(plan.control.get('combat',{}).get('pawns',[]))
@@ -93,7 +93,7 @@ class ColonyController:
                     resource_nodes.append((identity, 3))
         old_latches = dict(plan.control.get('latches', {}))
         nodes = priority_nodes(facts, plan.control.setdefault('latches', {}), self.policy) + resource_nodes
-        nodes += [('EnsureMood-'+p, state['priority']) for p, state in facts['mood'].items() if state['active']]
+        nodes += mood_nodes(facts['mood'])
         nodes.sort(key=lambda node: node[1])
         waste = plan.colony_goals.get('MaintainWaste')
         if waste and not waste.cancelled:
@@ -193,6 +193,8 @@ class ColonyController:
             if goal.status == 'complete':
                 goal.status = 'active'
                 goal.reopen_methods()
+                if identity.startswith('EnsureMood-'):
+                    goal.evidence.pop('need_high_water', None)
                 goal.attempts += 1
                 goal.last_progress_tick = facts['tick']
                 self.event('goal_reopened', identity)
@@ -201,9 +203,12 @@ class ColonyController:
                 state = facts['mood'][identity.removeprefix('EnsureMood-')]
                 observed = mood_fingerprint({k: state.get(k) for k in
                     ('known', 'mentalState', 'causes', 'missing', 'schedule', 'playerForced', 'drafted', 'downed')})
-                if goal.status == 'blocked' and goal.evidence.get('mood_observation') != observed:
+                review_window = facts['tick'] // 2500
+                if goal.status == 'blocked' and (goal.evidence.get('mood_observation') != observed
+                        or goal.evidence.get('mood_review_window') != review_window):
                     goal.status, goal.reason = 'active', ''
                 goal.evidence['mood_observation'] = observed
+                goal.evidence['mood_review_window'] = review_window
             if identity.startswith('EnsureMood-') or (identity in ('MaintainWood', 'EnsureFoodStorage') and goal.source == 'AUTOPILOT'):
                 goal.priority_class = priority
             else:

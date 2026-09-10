@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 import pytest
 from rimbot.colony_plan import ColonyGoal, NativeOperation, Failure
 from rimbot.colony_skills import SkillBlocked
-from rimbot.mood_control import assess, method, outcome
+from rimbot.mood_control import assess, method, outcome, priority_nodes
 
 
 def pawn(**changes):
@@ -51,6 +51,15 @@ def test_downward_native_thought_pressure_admits_prevention_without_a_prediction
     state = assess([p], [{'id':p['thingId'], 'moodTarget':.2}], {})[p['thingId']]
     assert state['active'] and state['pressure'] == pytest.approx(-.3)
     assert all(c['expectedMoodBenefit'] is None for c in state['causes'])
+
+
+def test_greatest_native_mood_deficit_is_served_first_with_stable_identity_ties():
+    people = [pawn() for _ in range(3)]
+    for p, name, mood in zip(people, ['Thing_Human3', 'Thing_Human2', 'Thing_Human1'], [.3, .1, .1]):
+        p['thingId'] = name
+        p['needs']['mood'] = mood
+    assert [p for p, _ in priority_nodes(assess(people, [], {}))] == [
+        'EnsureMood-Thing_Human1', 'EnsureMood-Thing_Human2', 'EnsureMood-Thing_Human3']
 
 
 def action():
@@ -147,3 +156,23 @@ async def test_active_break_suspends_routine_goals_without_orders_and_recovers_b
     await rt.controller.cycle()
     assert goal.status == 'complete'
     assert 'execution_hold' not in rt.current_plan.control
+
+
+@pytest.mark.asyncio
+async def test_unchanged_blocker_rechecks_only_on_bounded_native_tick_window():
+    from test_colony_controller import Replay
+    rt = Replay()
+    p = rt.people[0]
+    p['needs'] = pawn()['needs']
+    rt.controller.skills.compile = AsyncMock(side_effect=SkillBlocked('Fixture has no eligible resource'))
+    identity = 'EnsureMood-'+p['thingId']
+    def calls():
+        return sum(call.args[0] == identity for call in rt.controller.skills.compile.await_args_list)
+    await rt.controller.cycle()
+    assert calls() == 1
+    await rt.controller.cycle()
+    assert calls() == 1
+    rt.facts['tick'] += 2500
+    await rt.controller.cycle()
+    assert calls() == 2
+    assert not rt.current_plan.spec.steps

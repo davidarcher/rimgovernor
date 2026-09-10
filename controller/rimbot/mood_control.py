@@ -46,6 +46,13 @@ def assess(people, forecasts, previous):
     return result
 
 
+def priority_nodes(states):
+    ranked = sorted(((pawn, state) for pawn, state in states.items() if state['active']),
+        key=lambda item: (item[1]['priority'],
+            item[1]['mood']-item[1]['threshold'] if item[1]['known'] else -1, item[0]))
+    return [('EnsureMood-'+pawn, state['priority']) for pawn, state in ranked]
+
+
 async def method(rt, identity, facts, people):
     from .colony_skills import SkillBlocked, native
     pawn_id = identity.removeprefix('EnsureMood-')

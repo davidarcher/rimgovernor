@@ -37,7 +37,11 @@ the persisted load and player-direction identities. A lost receipt can be resolv
 by observed recovery without replaying the order or fabricating a receipt. Active
 breaks and player orders interrupt recovery. Missing reads remain unverified, and
 the shared no-progress watchdog bounds issued work. Each need method is attempted
-once per goal activation; changed conditions can reopen admission blockers.
+once per goal activation; changed conditions can reopen admission blockers. Unchanged
+blockers are rechecked at most once per 2,500-tick observation window, allowing new
+facilities or freed reservations to become eligible. The progress watchdog uses
+per-pawn need high-water marks so unrelated observations or falling needs cannot
+keep stalled work alive.
 
 An active mental break creates an emergency hold and suspends routine development.
 The controller does not force recovery, draft the pawn, arrest it or accelerate time
