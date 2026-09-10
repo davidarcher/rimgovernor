@@ -649,7 +649,7 @@ only intentional small, sanitized regression fixtures belong in source control.
 
   Dependency-ready inventory subchunks (all compare against the current Python
   revision; integrator combines them before accepting 00):
-  - [ ] **00a:** production modules, semantic commands, completion kinds and
+  - [x] **00a:** production modules, semantic commands, completion kinds and
     domain/native capability ownership; contracts/domain-inventory.json.
   - [x] **00b:** HTTP/events, configuration, launchers and optional media surfaces;
     contracts/interface-inventory.json.
