@@ -41,8 +41,11 @@ Build a private companion with `-p:ThroughputFixture=true` using the
 The fixture schedules native clock changes and an existing wild animal's Manhunter
 transition at known ticks. The probe approaches wildlife through ordinary pawn
 movement. Missing wildlife or a blocked route fails the prerequisite. Only the
-known Ancient danger warning may be acknowledged during that approach or lease
-expiry setup, after fresh threat reads; the report retains those interruptions.
+known Ancient danger warning may be acknowledged during pawn setup/movement or
+lease expiry setup, after fresh threat reads; the report retains those interruptions.
+Pawn scenarios use the shared `advance_game` helper with its native identity,
+letter-attribution and colonist-safety checks. Direct clock trials observe their
+first interruption without filling the remaining budget.
 The lease test drafts colonists through native orders to isolate lease expiry.
 
 ```powershell
@@ -50,6 +53,8 @@ python scripts/container_throughput.py --game <linux-game> --mods <private-mods>
 ```
 
 Workers run sequentially through the existing content-addressed input cache.
+The worker image caches native system dependencies separately from source, so
+editing a probe does not reinstall graphics libraries.
 `--no-input-cache` measures direct-bind staging; `--no-build` requires an unchanged
 image. Use a fresh output each time. Reports retain image/input/source hashes,
 other containers, memory samples, startup/discovery/call timings, exact clock

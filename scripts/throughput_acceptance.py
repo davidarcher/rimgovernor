@@ -13,7 +13,12 @@ from pathlib import Path
 
 from rimbot.bridge import BridgeError, bridge_session, gabs_executable, runtime_file_read
 from rimbot.clock_control import PlayClock
+from rimbot.bridge_runtime import BridgeRuntime
+from rimbot.bridge_game import BridgeGame
+from rimbot.native_scenario import advance_game
+from rimbot.store import Store
 from rimbot.supply_batches import supply_rectangles
+from deterministic_foothold import NoInference
 
 
 async def run(args):
@@ -53,6 +58,11 @@ async def run(args):
     try:
         async with AsyncExitStack() as stack:
             bridge = await stack.enter_async_context(bridge_session(gabs_executable(root, config), config))
+            fixture_store = Store(root/'fixture.sqlite')
+            stack.callback(fixture_store.close)
+            fixture_runtime = BridgeRuntime(fixture_store, root, model_factory=lambda _: NoInference())
+            fixture_runtime.bridge = bridge
+            fixture_runtime.game = BridgeGame(bridge)
             rendered_at = time.perf_counter()
             async def stop_game():
                 report['game_stop'] = (await bridge.core('games_stop', gameId=bridge.game_id)).model_dump(mode='json')
@@ -66,6 +76,7 @@ async def run(args):
                 try:
                     reply = await runtime_file_read(bridge.call, name, **arguments) if (
                         name == 'home/status' or (name == 'home/supervised_play' and arguments.get('op') in ('status', 'events'))
+                        or (name == 'test/throughput_event' and arguments.get('op') == 'status')
                     ) else await bridge.call(name, **arguments)
                     return reply.structuredContent
                 finally:
@@ -101,14 +112,25 @@ async def run(args):
                 assert tick == expected, ('Reload changed the comparison starting tick', expected, tick)
                 return baseline
 
-            async def stopped(clock):
+            async def maintain_render():
                 nonlocal rendered_at
+                if args.mode != 'headless' and time.perf_counter()-rendered_at >= 10:
+                    await call('test/render_suspend', seconds=30) if args.mode == 'suspended' else await call('home/render_demand', seconds=30)
+                    rendered_at = time.perf_counter()
+
+            async def advance_fixture(ticks, accelerated, evidence):
+                await maintain_render()
+                await fixture_runtime.sync_identity()
+                fixture_runtime.supervisor.test_acceleration = accelerated
+                return await advance_game(fixture_runtime, ticks, evidence)
+
+            # Clock acceptance deliberately observes each stop without resuming;
+            # ordinary pawn setup uses the shared scenario waiter above.
+            async def stopped(clock):
                 captured_at = 0
                 async with asyncio.timeout(120):
                     while True:
-                        if args.mode != 'headless' and time.perf_counter()-rendered_at >= 10:
-                            await call('test/render_suspend', seconds=30) if args.mode == 'suspended' else await call('home/render_demand', seconds=30)
-                            rendered_at = time.perf_counter()
+                        await maintain_render()
                         state = await call('home/supervised_play', op='status')
                         sample_memory()
                         clock.absorb(state)
@@ -152,20 +174,12 @@ async def run(args):
                 receipt = await call('home/order', **move, dryRun=False)
                 setup = dict(receipt=receipt, windows=[])
                 report.setdefault('hazard_setup', []).append(setup)
-                clock = PlayClock(bridge, test_acceleration=True)
                 for _ in range(12):
-                    await clock.change('Superfast', max_ticks=600)
-                    end = await stopped(clock)
+                    end = await advance_fixture(600, True, setup)
                     current = await call('home/order', action='resolve', pawn=pawn['thingId'], dryRun=True)
                     setup['windows'].append(dict(stop=end, pawn=current))
                     save()
-                    if end['stopReason'] == 'letter_pause' and 'Ancient danger' in end['stopDetail']:
-                        status = await call('home/status', colonists=True, threats=True)
-                        assert not status['threats']['hostiles'] and not status['threats']['huntingPredators'], status
-                        setup.setdefault('acknowledged_warnings', []).append(status)
-                        clock.allow_resume()
-                    else:
-                        assert end['stopReason'] == 'tick_budget', end
+                    assert end['stopReason'] == 'tick_budget', end
                     if current['pawn']['position'] == receipt['job']['targetA']['position']:
                         return
                 raise AssertionError('Native animal approach did not complete')
@@ -241,7 +255,7 @@ async def run(args):
                 assert not (selected & remaining) and unselected <= remaining, row
                 print(f"PASS supplies batched={batched} calls={len(receipts)} seconds={row['seconds']:.2f}", flush=True)
             for accelerated in (False, True):
-                await load()
+                baseline = await load()
                 people = await call('home/list_pawns', colonistsOnly=True)
                 pawn = next(p for p in people['pawns'] if not p.get('downed') and not p.get('dead'))
                 position = pawn['position']
@@ -251,18 +265,15 @@ async def run(args):
                 assert preview['success'], preview
                 receipt = await call('home/order', **arguments, dryRun=False)
                 destination = receipt['job']['targetA']['position']
-                clock = PlayClock(bridge, test_acceleration=accelerated)
-                initial = await clock.change('Superfast', max_ticks=600)
-                end = await stopped(clock)
+                setup = {}
+                end = await advance_fixture(600, accelerated, setup)
                 actual = await call('home/order', action='resolve', pawn=pawn['thingId'], dryRun=True)
-                row = dict(accelerated=accelerated, receipt=receipt, stop=end, observed=actual,
-                           seconds=time.perf_counter()-begin, observation_age_ticks=end['lastTick']-initial['startTick'])
+                row = dict(accelerated=accelerated, receipt=receipt, stop=end, observed=actual, simulation=setup,
+                           seconds=time.perf_counter()-begin, observation_age_ticks=end['lastTick']-baseline['time']['ticksGame'])
                 report.setdefault('pawn_outcomes', []).append(row)
                 save()
                 assert actual['pawn']['position'] == destination, row
-                assert end['pauseVerified'] and end['stopReason'] in (
-                    'tick_budget', 'letter_pause', 'notification_batch', 'hostile',
-                    'colonist_downed', 'predator_hunt', 'colonist_health', 'colonist_injury'), row
+                assert end['pauseVerified'] and end['stopReason'] == 'tick_budget', row
                 row['verified'] = True
                 print(f"PASS ordinary movement accelerated={accelerated} seconds={row['seconds']:.2f}", flush=True)
             for speed, reason in (('Paused', 'external_pause'), ('Fast', 'external_speed_changed')):
