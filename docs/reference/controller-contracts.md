@@ -198,6 +198,9 @@ opponents require ranged defenders. Native previews decide attack legality. The 
 acknowledges only the exact inspected opponents after dispatch; new threats and severe
 injury retain their guards. Medical triage can run alongside defense. Blocked emergencies
 prevent routine waiting work from restarting time; unsupported encounters remain explicit holds.
+Automatic rescue, firefighting and heat-escape orders require a danger-aware native
+route method; they remain outside these bounded emergency methods. Explicit player
+rescue continues through its separate directed action and native outcome checks.
 
 One observed melee-only humanlike
 raider requires three capable equipped colonists with health at least 85% and no tending need.

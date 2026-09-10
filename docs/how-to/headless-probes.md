@@ -72,6 +72,12 @@ Use `--new-crashlanded` for ordinary native three-colonist generation and starti
 technology; the case must complete a newly selected available research project.
 For an unchanged native autosave continuation, pass `--research-project <defName>`
 to retain that completion requirement. Keep the original save and its input hash.
+The case saves `B04f-continuation` after completed construction and reuses an
+observed lamp/generator on continuation. It checks their exact shared power network,
+positive generator output and completed conduits. Pawn construction skills remain
+unchanged; native skill prerequisites can block an unsuitable electrical fixture.
+The test explicitly acknowledges optional quest offers and animal-roaming notices
+without accepting quests or changing the production interruption policy.
 The test-only fixture supplies starting resources, clubs for ordinary equip jobs, opponents, wounds, unavailable-doctor
 mental state and native external orders. It never supplies finished buildings, research
 or treatment. The cases require actual expanded indoor capacity, completed research,

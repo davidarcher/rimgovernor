@@ -64,7 +64,7 @@ def test_checkbox_researcher_can_work_before_endless_cleaning_and_respects_overr
 def test_native_player_order_history_prevents_even_completed_external_job_recovery():
     plan, people = fixture()
     people[1]['orderGeneration'] = 1
-    assert 'native ordered job' in recover(plan, people)
+    assert 'Native player order' in recover(plan, people)
     assert plan.progress['tend'].state == 'blocked'
     assert plan.progress['tend'].issued
 
