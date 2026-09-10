@@ -263,3 +263,18 @@ async def test_controller_supervises_ordinary_fire_work_and_holds_when_it_stalls
     await rt.controller.cycle()
     assert goal.status == 'blocked' and goal.evidence.get('watchdog')
     assert rt.current_plan.control.get('execution_hold')
+def test_retry_inputs_ignore_simulation_noise_but_preserve_eligibility_changes():
+    from copy import deepcopy
+    from rimbot.colony_upkeep import retry_signature
+    state = dict(known=True, targets=[dict(id='Thing_Item1', rotTicks=1000, temperature=20, count=50)])
+    people = [dict(thingId='Thing_Human1', position=dict(x=1, z=1), health=dict(needsTend=False, bleeding=False))]
+    baseline = retry_signature(state, people, {}, {})
+    state['targets'][0].update(rotTicks=999, temperature=20.1, count=49)
+    people[0]['position']['x'] = 2
+    assert retry_signature(state, people, {}, {}) == baseline
+    changed = deepcopy(people)
+    changed[0]['health']['needsTend'] = True
+    assert retry_signature(state, changed, {}, {}) != baseline
+    state['targets'][0]['forbidden'] = True
+    assert retry_signature(state, people, {}, {}) != baseline
+

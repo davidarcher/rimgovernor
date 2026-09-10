@@ -93,6 +93,10 @@ async def sleeping_method(rt, facts):
             continue
         definition = facts.get('definitions', {}).get('Bed', {})
         if definition.get('available') is not True:
+            if definition.get('available') is False:
+                required = goal.evidence.setdefault('required_capabilities', [])
+                if 'Bed' not in required:
+                    required.append('Bed')
             refusals.append(dict(pawn=row['id'], reason='Native Bed definition or required research is unavailable'))
             continue
         protected = {c for rect in rt.current_plan.spec.reserved_walkways for c in rect.cells()}
@@ -130,4 +134,4 @@ async def sleeping_method(rt, facts):
                     materials=[definition['stuff']] if definition.get('stuff') else [])])]
         refusals.append(dict(pawn=row['id'], reason='No safe bed footprint with native access in the bounded candidate set'))
     raise SkillBlocked('No safe bed upgrade preserving current assignments and sleeping capacity: '
-                       + '; '.join(sorted({r['reason'] for r in refusals})) )
+                       + '; '.join(sorted({r['reason'] for r in refusals})))

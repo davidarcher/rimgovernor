@@ -42,6 +42,12 @@ even when native firefighting was already underway. Fire monitoring uses Normal
 speed and at most 60 game ticks between reviews; unavailable safe workers retain
 an emergency hold.
 
+Blocked upkeep reconsiders changed target eligibility, worker availability, research
+and player overrides immediately. Position, rot-timer and temperature drift alone
+do not reopen a failed method. A 2,500-tick review window catches changed capacity
+or routes without retrying every observation; outstanding receipts and watchdog
+holds remain authoritative.
+
 When hauling reports no storage, the supply method can create a filtered 2×2
 stockpile in existing covered space. It preserves observed plants, items, buildings,
 zones, committed geometry and reserved walkways, previews at most eight candidates,
@@ -55,6 +61,7 @@ storeroom or change another stockpile's filters.
 `MaintainSleeping` reuses vacant eligible beds before building one affordable bed
 beside a controller-created floor spot. Ordinary construction uses shared resource
 admission, exact native placement/access previews and observed cell temperatures.
+Unavailable bed research enters the existing admitted-capability research system.
 The spot remains available throughout construction and after reassignment. An
 upgrade requires its exact confirmed native placement identity; matching coordinates
 alone cannot establish ownership. Player assignments and legacy receipts without

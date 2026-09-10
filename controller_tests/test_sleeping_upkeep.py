@@ -119,3 +119,4 @@ async def test_missing_bed_research_is_an_explicit_blocker_without_placement():
         await sleeping_method(rt, f)
     rt.inspect_native.assert_not_awaited()
     assert rt.current_plan.colony_goals['MaintainSleeping'].evidence['sleeping_blockers']
+    assert rt.current_plan.colony_goals['MaintainSleeping'].evidence['required_capabilities'] == ['Bed']

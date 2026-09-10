@@ -28,6 +28,19 @@ CONTRACTS = (
 GOALS = {c.goal for c in CONTRACTS}
 
 
+def retry_signature(state, people, facts, control):
+    """Eligibility changes reopen immediately; continuous simulation noise does not."""
+    targets = [{k: row.get(k) for k in ('id', 'kind', 'previousBed', 'roofed', 'inStorage',
+        'forbidden', 'burning', 'home', 'cleanable', 'safeWorkers')} | {
+            'available': sorted(b['id'] for b in row.get('available', []))}
+        for row in state['targets'] or []]
+    workers = [{k: p.get(k) for k in ('thingId', 'dead', 'downed', 'drafted', 'mentalState', 'work')}
+        | {'care': {k: (p.get('health') or {}).get(k) for k in ('needsTend', 'bleeding')}} for p in people]
+    return fingerprint(dict(targets=targets, workers=workers, known=state['known'], unsafe=state.get('unsafe'),
+        definitions={k: v.get('available') for k, v in facts.get('definitions', {}).items()},
+        overrides=control.get('work_overrides', {}), direction=control.get('player_direction')))
+
+
 def evidence(facts):
     """Reject partial/failed sections; empty successful censuses can prove recovery."""
     raw = facts.get('upkeep') or {}

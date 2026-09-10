@@ -7,7 +7,7 @@ from .colony_skills import ColonySkills, SkillBlocked
 from .config import ModelRole
 from .strategic_state import fingerprint
 from .development_priorities import arbitrate, release_admission
-from .colony_upkeep import GOALS as UPKEEP_GOALS, upkeep_nodes, reconcile_upkeep, progress_metric
+from .colony_upkeep import GOALS as UPKEEP_GOALS, upkeep_nodes, reconcile_upkeep, progress_metric, retry_signature
 
 
 class ColonyController:
@@ -275,11 +275,14 @@ class ColonyController:
             if identity in UPKEEP_GOALS:
                 goal.priority_class = priority
                 state = plan.control['upkeep'][identity]
-                signature = fingerprint({'targets': state['targets'], 'known': state['known'],
-                    'workers': people['pawns'], 'overrides': plan.control.get('work_overrides', {})})
-                if goal.status == 'blocked' and goal.evidence.get('upkeep_inputs') != signature and not goal.evidence.get('watchdog'):
+                signature = retry_signature(state, people['pawns'], facts, plan.control)
+                retry_window = facts['tick'] // 2500
+                if goal.status == 'blocked' and not goal.evidence.get('watchdog') and (
+                        goal.evidence.get('upkeep_inputs') != signature
+                        or goal.evidence.get('upkeep_retry_window') != retry_window):
                     goal.status, goal.reason = 'active', ''
                 goal.evidence['upkeep_inputs'] = signature
+                goal.evidence['upkeep_retry_window'] = retry_window
                 goal.evidence['completion_contract'] = state
                 if state.get('unsafe'):
                     goal.status, goal.reason = 'blocked', 'Fire exceeds bounded safe intervention; retain emergency hold'
