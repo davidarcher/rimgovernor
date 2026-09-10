@@ -91,6 +91,15 @@ def create_app(runtime=None):
     async def health():
         return {'service': 'rimbot', 'backend': 'rimbridge', 'pid': os.getpid(), 'source_root': str(Path(__file__).resolve().parents[2])}
 
+    @app.get('/api/visual-reviews/{review_id}/source')
+    async def visual_source(review_id: str, request: Request):
+        from .visual_source import read_source
+        rt = request.app.state.rt
+        advice = rt.advice.get(review_id, {})
+        if not advice.get('source'):
+            return JSONResponse({'detail': 'Visual review unavailable'}, status_code=404)
+        return Response(read_source(rt.root, advice['source']), media_type='image/png')
+
     @app.post('/api/chat', status_code=202)
     async def chat(request: Request):
         await request.app.state.rt.steer((await request.json())['text'])

@@ -35,6 +35,7 @@ first guided exercise, use [your first Docker test](../tutorials/first-docker-te
 - [Verify room refinements and cancellation](room-refinements.md)
 - [Verify resource production budgets](resource-production.md)
 - [Verify the dashboard and video](dashboard-acceptance.md)
+- [Verify visual review evidence](visual-reviews.md)
 
 ## Measure and audit
 

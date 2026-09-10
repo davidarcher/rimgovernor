@@ -6,6 +6,21 @@ from pydantic import ValidationError
 from rimbot.visual_review import review, Region
 from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.store import Store
+import io
+from PIL import Image
+
+
+def png():
+    stream=io.BytesIO()
+    Image.new("RGB", (320, 240), "green").save(stream, format="PNG")
+    return stream.getvalue()
+
+
+def bridge_for(path):
+    async def call(name, **kwargs):
+        value = {"mapId":1,"mapPosition":{"x":10,"z":20},"rootSize":12} if name == "rimworld/get_camera_state" else {"path":str(path)}
+        return SimpleNamespace(structuredContent=value)
+    return SimpleNamespace(call=AsyncMock(side_effect=call))
 
 
 def response():
@@ -42,8 +57,8 @@ async def test_no_report_or_extra_calls_rejected():
 async def test_fresh_capture_and_stale_discard(tmp_path,stale):
     rt=BridgeRuntime(Store(tmp_path/'state.sqlite'),tmp_path)
     rt.context_token='load';rt.sync_identity=AsyncMock(return_value=False)
-    path=tmp_path/'native.png';path.write_bytes(b'\x89PNG\r\n\x1a\n'+b'test')
-    rt.bridge=SimpleNamespace(call=AsyncMock(return_value=SimpleNamespace(structuredContent={'path':str(path)})))
+    path=tmp_path/'native.png';path.write_bytes(png())
+    rt.bridge=bridge_for(path)
     rt.game=SimpleNamespace(query=AsyncMock(return_value={'time':{'ticksGame':4}}))
     async def complete(*args):
         if stale:rt.chat_revision+=1
@@ -57,7 +72,26 @@ async def test_fresh_capture_and_stale_discard(tmp_path,stale):
         result=await rt.visual_review('Check',expected_token='load',expected_revision=0)
         assert result['source']['tick']==4 and len(result['source']['image_sha256'])==64
         assert result['id'] in rt.advice
-    assert [c.args[0] for c in rt.bridge.call.call_args_list]==['home/render_demand','rimworld/take_screenshot']
+    assert [c.args[0] for c in rt.bridge.call.call_args_list]==['home/render_demand','rimworld/get_camera_state','rimworld/take_screenshot','rimworld/get_camera_state']
+    rt.store.close()
+
+
+@pytest.mark.asyncio
+async def test_camera_change_during_inference_keeps_original_source_without_restoration(tmp_path):
+    rt=BridgeRuntime(Store(tmp_path/'camera.sqlite'),tmp_path)
+    rt.context_token='load';rt.sync_identity=AsyncMock(return_value=False)
+    path=tmp_path/'native.png';path.write_bytes(png());rt.bridge=bridge_for(path)
+    rt.game=SimpleNamespace(query=AsyncMock(return_value={'time':{'ticksGame':4}}))
+    player_camera={'x':10,'z':20}
+    async def complete(*args):
+        player_camera['x']=99
+        return response(),{}
+    rt.router=SimpleNamespace(enabled=lambda _:True,complete=AsyncMock(side_effect=complete))
+    result=await rt.visual_review('Check',expected_token='load',expected_revision=0)
+    assert result['source']['camera']['mapPosition']=={'x':10,'z':20}
+    assert player_camera['x']==99
+    assert [c.args[0] for c in rt.bridge.call.call_args_list]==[
+        'home/render_demand','rimworld/get_camera_state','rimworld/take_screenshot','rimworld/get_camera_state']
     rt.store.close()
 
 
@@ -79,8 +113,8 @@ async def test_image_consultation_captures_fresh_source_preserving_advice_schema
     rt=BridgeRuntime(Store(tmp_path/'consult.sqlite'),tmp_path)
     rt.context_token='load';rt.sync_identity=AsyncMock(return_value=False)
     old=tmp_path/'old.png';old.write_bytes(b'old cached image');rt.camera_path=old
-    fresh=tmp_path/'fresh.png';data=b'\x89PNG\r\n\x1a\n'+b'fresh';fresh.write_bytes(data)
-    rt.bridge=SimpleNamespace(call=AsyncMock(return_value=SimpleNamespace(structuredContent={'path':str(fresh)})))
+    fresh=tmp_path/'fresh.png';data=png();fresh.write_bytes(data)
+    rt.bridge=bridge_for(fresh)
     rt.game=SimpleNamespace(query=AsyncMock(return_value={'time':{'ticksGame':14}}))
     advice={'answer':'Inspect the entrance.','confidence':'low','recommendations':['Read the door state.']}
     router=SimpleNamespace(complete=AsyncMock(return_value=({'tool_calls':[{'function':{'name':'report','arguments':json.dumps(advice)}}]},{})))
@@ -93,7 +127,7 @@ async def test_image_consultation_captures_fresh_source_preserving_advice_schema
     assert result['image_source']['tick']==14
     assert result['report']['recommendations']==['Read the door state.']
     assert result['requires_native_verification']
-    assert [c.args[0] for c in rt.bridge.call.call_args_list]==['home/render_demand','rimworld/take_screenshot']
+    assert [c.args[0] for c in rt.bridge.call.call_args_list]==['home/render_demand','rimworld/get_camera_state','rimworld/take_screenshot','rimworld/get_camera_state']
     rt.store.close()
 
 
@@ -102,8 +136,8 @@ async def test_image_consultation_captures_fresh_source_preserving_advice_schema
 async def test_image_consultation_rejects_unusable_or_stale_context(tmp_path,reason):
     rt=BridgeRuntime(Store(tmp_path/'reject.sqlite'),tmp_path,headless=reason=='headless')
     rt.context_token='load';rt.sync_identity=AsyncMock(return_value=False)
-    path=tmp_path/'cached.png';path.write_bytes(b'\x89PNG\r\n\x1a\n'+b'test');rt.camera_path=path
-    rt.bridge=SimpleNamespace(call=AsyncMock(return_value=SimpleNamespace(structuredContent={'path':str(path)})))
+    path=tmp_path/'cached.png';path.write_bytes(png());rt.camera_path=path
+    rt.bridge=bridge_for(path)
     async def status(*args,**kwargs):
         if reason=='changed_capture':rt.context_token='other-load'
         return {'time':{'ticksGame':15}}

@@ -199,6 +199,9 @@ class Planner:
                     elif name == 'visual_review':
                         result = await rt.visual_review(**args, expected_token=token, expected_revision=revision)
                     else: raise ValueError('Unknown tool')
+                    if name in ('visual_review', 'consult', 'scout'):
+                        identity = evidence.add(name, args, result)
+                        if identity: result = dict(result, review_evidence_id=identity)
                 except asyncio.CancelledError:
                     raise
                 except Exception as error:

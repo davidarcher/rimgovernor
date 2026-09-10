@@ -54,3 +54,15 @@ controls are in [dashboard_controls.py](../../controller/rimbot/dashboard_contro
 See [interface contracts](../reference/interface-contracts.md) for lease, capture and
 transport details, or [dashboard acceptance](../how-to/dashboard-acceptance.md) for
 verification procedures.
+
+## Visual second opinions
+
+An optional reviewer can examine the player viewport and a detail crop from the same
+image without taking control of the camera. Its concerns are shown on the retained
+source image in the activity journal, so a later camera pan does not move a concern
+onto unrelated scenery. These are historical visual suggestions. Even a confident
+reviewer can miss a blueprint door; native facts still determine whether work is
+needed. Exact report recall preserves what was observed, not its correctness.
+
+See [source and framing contracts](../reference/interface-contracts.md#visual-review-sources)
+and [visual evaluation](../how-to/visual-reviews.md) for the bounded comparison.

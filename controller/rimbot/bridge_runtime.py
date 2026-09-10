@@ -194,26 +194,31 @@ class BridgeRuntime:
 
     async def _capture_visual_source(self):
         """Capture under the runtime lock; callers recheck context after native awaits."""
-        import base64
-        import hashlib
+        from .visual_source import image_url, retain_source
         if self.headless:
             raise ValueError('Visual review needs rendered mode; no image exists in headless mode')
         # Capture the player's current view without moving their camera.
         await self.bridge.call('home/render_demand', seconds=15)
         await asyncio.sleep(.3)
+        before = (await self.bridge.call('rimworld/get_camera_state')).structuredContent
+        keys = ('mapId', 'mapPosition', 'rootSize')
+        if not isinstance(before, dict) or any(before.get(key) is None for key in keys):
+            raise ValueError('Native camera provenance is unavailable')
         capture = await self.bridge.call('rimworld/take_screenshot',
             fileName='rimbot-review-'+uuid.uuid4().hex, includeTargets=False, suppressMessage=True)
         data = Path(capture.structuredContent['path']).read_bytes()
-        if not data.startswith(b'\x89PNG\r\n\x1a\n') or len(data) > 12*1024*1024:
-            raise ValueError('Expected a bounded native PNG screenshot')
+        after = (await self.bridge.call('rimworld/get_camera_state')).structuredContent
+        if not isinstance(after, dict) or any(before[key] != after.get(key) for key in keys):
+            raise ValueError('Player camera changed during capture; request a fresh review')
         status = await self.game.query('home/status', colonists=False, threats=False)
         source = {'load_token':self.context_token, 'tick':status['time']['ticksGame'],
-            'image_sha256':hashlib.sha256(data).hexdigest(), 'view':'current player camera',
+            **retain_source(self.root, data), 'view':'current player camera', 'camera':before,
             'captured_at':time.time(), 'tick_note':'Read after screenshot; not an atomic state snapshot'}
-        return 'data:image/png;base64,'+base64.b64encode(data).decode(), source
+        return image_url(data), source
 
-    async def visual_review(self, question, *, expected_token, expected_revision):
+    async def visual_review(self, question, focus=None, *, expected_token, expected_revision):
         from .visual_review import review
+        from .visual_source import detail_frame, read_source
         if self.headless:
             raise ValueError('Visual review needs rendered mode; no image exists in headless mode')
         if not self.router.enabled(ModelRole.ARCHITECT):
@@ -225,8 +230,10 @@ class BridgeRuntime:
         async with self.lock:
             await check()
             image, source = await self._capture_visual_source()
+            detail, bounds = detail_frame(read_source(self.root, source), focus)
+            source['detail_bounds'] = bounds
             await check()
-        result=await review(self.router,question,image,source,self.model_progress)
+        result=await review(self.router,question,image,source,self.model_progress,detail)
         async with self.lock:
             await check()
             self.advice[result['id']]=result
@@ -1155,6 +1162,9 @@ class BridgeRuntime:
             'game': {'tick': self.clock.get('ticksGame', summary.end_tick if summary else None), 'paused': self.clock.get('paused', True),
                      'stale': not self.connected, 'wallTs': time.time()},
             'lastSummary': recent, 'feed': feed, 'mode': self.mode, 'connected': self.connected,
+            'visualReviews': [dict(id=a['id'], question=a['question'], source=a['source'], report=a['report'],
+                historical=True, current_load=a.get('load_token') == self.context_token)
+                for a in reversed(list(self.advice.values())) if a.get('source')][:8],
             'currentPlan': {'revision': self.current_plan.revision, 'chosen_tick': self.current_plan.chosen_tick,
                 'controller': self.current_plan.control,
                 'colonyGoals': {k: v.model_dump() for k, v in self.current_plan.colony_goals.items()},

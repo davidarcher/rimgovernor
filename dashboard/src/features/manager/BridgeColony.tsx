@@ -16,8 +16,10 @@ import { readable, humanize } from "./labels";
 import GameControls from "./GameControls";
 import Throughput from "./Throughput";
 import GameVideo from "./GameVideo";
+import VisualReviews, { type VisualReview } from "./VisualReviews";
 type Message = { id: number; kind: string; text: string; at: number };
 type State = {
+  visualReviews?: VisualReview[];
   cinematic?: boolean;
   clockSupervisor?: { requestedSpeed?: string; stopReason?: string };
   autopilotSettings?: AutopilotSettings;
@@ -659,6 +661,7 @@ export default function BridgeColony() {
           <section className="mgr-card bridge-detail">
             <p className="mgr-eyebrow">FIELD JOURNAL</p>
             <h2>Recent activity</h2>
+            <VisualReviews reviews={s?.visualReviews || []} />
             {journal.length === 0 && (
               <p className="empty-state">
                 Updates will appear here as the colony operates.

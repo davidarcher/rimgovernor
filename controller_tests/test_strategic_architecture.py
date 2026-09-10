@@ -301,3 +301,37 @@ async def test_autonomous_attack_rechecks_threat_before_dispatch(tmp_path):
     await rt.hands.advance(rt)
     assert rt.current_plan.progress['repel'].failure.code=='threat_changed'
     rt.native.assert_not_awaited(); rt.store.close()
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('adviser,arguments', [
+    ('visual_review', {'question':'Check the door'}),
+    ('scout', {'question':'Check access','sections':['construction']}),
+    ('consult', {'role':'architect','question':'Check access','sections':['construction']}),
+])
+async def test_adviser_results_are_recalled_exactly_without_orders(tmp_path,adviser,arguments):
+    count=0
+    original={'id':'advice','report':{'answer':'Verify the door natively'},'requires_native_verification':True}
+    class Brain:
+        async def complete(self,messages,tools,*args):
+            nonlocal count
+            count+=1
+            if count==1:
+                name,payload=adviser,arguments
+            elif count==2:
+                returned=json.loads(messages[-1]['content'])
+                assert returned['report']==original['report']
+                name,payload='review_evidence',{'operation':'read','id':returned['review_evidence_id']}
+            else:
+                recalled=json.loads(messages[-1]['content'])
+                assert recalled['result']==original and recalled['historical']
+                return {'role':'assistant','content':'Native verification is needed.'},{}
+            return {'role':'assistant','tool_calls':[{'id':str(count),'type':'function',
+                'function':{'name':name,'arguments':json.dumps(payload)}}]},{}
+        async def close(self):pass
+    rt=runtime(tmp_path,model_factory=lambda _:Brain())
+    rt.router.routing.roles.update({ModelRole.ARCHITECT:Settings(),ModelRole.ANALYST:Settings()})
+    setattr(rt,adviser,AsyncMock(return_value=deepcopy(original)))
+    await rt.sync_identity();rt.batch=batch();rt.strategic_state.update(rt.batch)
+    await rt.planner.play_bridge()
+    assert count==3 and rt.counters['actions']==0 and rt.current_plan.revision==0
+    await rt.router.close();rt.store.close()

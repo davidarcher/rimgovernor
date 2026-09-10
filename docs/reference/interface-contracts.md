@@ -115,6 +115,28 @@ A rendered prepared baseline may bypass the native mod mismatch only when the so
 missing recorded mod is the render-only HeadlessRim module. Missing gameplay mods retain
 compatibility checks. This does not modify the saved game.
 
+## Visual review sources
+
+Optional visual reviews capture the current player viewport and a detail crop
+from those same pixels. A normalized `focus` selects the crop; the default is the
+central half. The full frame supplies wider context within that viewport only.
+Neither review nor image consultation pans, zooms, selects or restores the camera.
+Changed camera identity/position/zoom during capture rejects the image; player
+camera movement after capture leaves a historical source, not a live overlay.
+Load and player-direction guards still discard stale inference. There is no
+periodic reviewer. Source PNGs are retained by SHA-256 under the private runtime's
+`visual-sources`; reports contain camera provenance, dimensions and exact crop
+bounds. Concern rectangles always use full-source normalized coordinates.
+The activity journal displays numbered concerns on that exact historical image,
+with confidence and native facts to verify. Missing sources never fall back to
+the live camera. Paired checkpoint restore does not copy image archives; unavailable
+images remain explicitly unavailable. Visual, scout and consultation reports join
+native results in the bounded review-local evidence index for exact recall after
+conversation compaction. Recall is historical evidence, not renewed native truth.
+Paired framing is not an accuracy guarantee. The configured local reviewer can
+miss a visible blueprint door and overstate confidence; only native verification
+can resolve such a concern. Reports never authorize construction or corrective orders.
+
 ## Related reading
 
 Read [the dashboard and game view](../explanation/dashboard.md) before using this as a
