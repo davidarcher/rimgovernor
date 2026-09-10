@@ -597,9 +597,17 @@ class BridgeRuntime:
                 if state.get('pawn', {}).get('thingId') != pawn:
                     raise ValueError('Pawn identity was not confirmed')
                 if state['pawn'].get('drafted') is not False:
+                    if 'draftOwner' not in state['pawn']:
+                        raise ValueError('Native draft ownership is unavailable; cleanup requires inspection')
+                    if state['pawn']['draftOwner'] != self.context_token:
+                        del self.draft_owners[pawn]
+                        result['not_owned'].append(pawn)
+                        self.persist()
+                        continue
                     if guard:
                         await guard()
-                    await self.game.invoke('home/order', {'action': 'undraft', 'pawn': pawn, 'dryRun': False}, allow_write=True)
+                    await self.game.invoke('home/order', {'action': 'undraft', 'pawn': pawn,
+                        'releaseOwner': self.context_token, 'dryRun': False}, allow_write=True)
                     state = await self.game.invoke('home/order', args, allow_write=False)
                     if guard:
                         await guard()
@@ -854,6 +862,7 @@ class BridgeRuntime:
             if name == 'home/order' and self.mode == 'automate' and not arguments.get('dryRun', False):
                 # Resolve before writing; persist intent even if the write loses its receipt.
                 if arguments.get('action') in ('draft', 'goto', 'attack', 'tend'):
+                    arguments = dict(arguments, draftOwner=self.context_token)
                     before = await self.game.invoke('home/order', {'action': 'resolve', 'pawn': arguments.get('pawn'), 'dryRun': True}, allow_write=True)
                     pawn = before.get('pawn') or {}
                     if pawn.get('drafted') is False and pawn.get('thingId'):

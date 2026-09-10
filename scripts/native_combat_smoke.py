@@ -16,7 +16,39 @@ from rimbot.headless import prepare, isolated_root
 from rimbot.store import Store
 from rimbot.colony_plan import Decision, PlanSpec, ColonyGoal
 from rimbot.config import ModelRole
-from rimbot.campaign_manifest import capture_manifest
+from rimbot.campaign_manifest import capture_manifest, file_hash
+
+
+async def draft_ownership_probe(rt, evidence):
+    pawns=(await rt.game.query('home/list_pawns',colonistsOnly=True))['pawns']
+    pawn=next(p['thingId'] for p in pawns if not p.get('drafted')
+        and not p.get('dead') and not p.get('downed') and not p.get('mentalState'))
+    args=dict(pawn=pawn,watch=False,dryRun=False)
+    await rt.native('home/order',dict(args,action='draft'))
+    owned=await rt.game.invoke('home/order',dict(action='resolve',pawn=pawn,dryRun=True))
+    assert owned['pawn']['draftOwner']==rt.context_token
+    # The ordinary setter path represents intervening external player draft changes.
+    await rt.game.invoke('home/order',dict(args,action='undraft'),allow_write=True)
+    await rt.game.invoke('home/order',dict(args,action='draft'),allow_write=True)
+    redrafted=await rt.game.invoke('home/order',dict(action='resolve',pawn=pawn,dryRun=True))
+    assert redrafted['pawn']['drafted'] and redrafted['pawn']['draftOwner'] is None
+    cleanup=await rt.release_drafts([pawn])
+    assert cleanup=={'released':[],'not_owned':[pawn],'failed':{}}
+    stale=None
+    try:
+        stale=await rt.game.invoke('home/order',dict(args,action='undraft',releaseOwner=rt.context_token),allow_write=True)
+        assert stale.get('success') is False
+    except BridgeError as error:
+        stale=str(error)
+        assert 'ownership' in stale.lower()
+    preserved=await rt.game.invoke('home/order',dict(action='resolve',pawn=pawn,dryRun=True))
+    assert preserved['pawn']['drafted'] is True
+    await rt.game.invoke('home/order',dict(args,action='undraft'),allow_write=True)
+    await rt.native('home/order',dict(args,action='draft'))
+    released=await rt.release_drafts([pawn])
+    assert released=={'released':[pawn],'not_owned':[],'failed':{}}
+    evidence['draft_ownership']=dict(owned=owned,redrafted=redrafted,cleanup=cleanup,
+        stale_refusal=stale,preserved=preserved,released=released)
 
 
 async def tend_wounded(rt, evidence, recovery=False):
@@ -129,8 +161,15 @@ async def main(tend=False, root=None, recovery=False, existing_patient=False, re
     isolated = root is not None
     root=Path(root or '.rimbot/bridge').resolve();evidence={}
     configuration=prepare(root)
-    evidence['manifest']=capture_manifest(Path(__file__).resolve().parents[1],root,configuration,{'mode':'no inference'})
-    async with bridge_session(gabs_executable(root),configuration) as bridge:
+    source=Path(__file__).resolve().parents[1]
+    if (root/'inputs.json').is_file():
+        evidence['manifest']={'worker_inputs':json.loads((root/'inputs.json').read_text()),
+            'source_files':{str(p.relative_to(source)):file_hash(p)
+                for directory in ('controller','scripts') for p in sorted((source/directory).rglob('*.py'))},
+            'scope':'Staged Docker inputs and executed Python source; no inference.'}
+    else:
+        evidence['manifest']=capture_manifest(source,root,configuration,{'mode':'no inference'})
+    async with bridge_session(gabs_executable(root, configuration),configuration) as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
         await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
         await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
@@ -138,6 +177,7 @@ async def main(tend=False, root=None, recovery=False, existing_patient=False, re
         rt.bridge=bridge;rt.game=BridgeGame(bridge)
         await rt.sync_identity();rt.batch=await observe(rt.game);rt.mode='automate'
         try:
+            await draft_ownership_probe(rt,evidence)
             if existing_patient:
                 await tend_wounded(rt,evidence,recovery)
                 return
@@ -234,14 +274,14 @@ if __name__=='__main__':
     parser.add_argument('--recovery',action='store_true',help='Interrupt confirmed tending and verify bounded recovery plus actual treatment')
     parser.add_argument('--require-interruption',action='store_true',help='Require an actual health stop and stale attack refusal')
     parser.add_argument('--source-root',type=Path,help='Prepared baseline to copy into a fresh isolated output')
-    parser.add_argument('--staged-root',type=Path,help='Fresh private container_worker root; the probe owns its game lifecycle')
+    parser.add_argument('--prepared-root','--staged-root',type=Path,help='Already isolated, freshly staged container worker root')
     parser.add_argument('--output',type=Path,help='New isolated worker root; required with --source-root')
     parser.add_argument('--patient-save',type=Path,help='Copy an ordinary native save containing a wounded patient into the isolated fixture, without modifying its contents')
     args=parser.parse_args()
-    if args.staged_root and (args.source_root or args.output or args.patient_save):
-        parser.error('--staged-root cannot be combined with source/output or patient-save')
     if bool(args.source_root)!=bool(args.output): parser.error('--source-root and --output are required together')
+    if args.prepared_root and (args.source_root or args.output or args.patient_save):
+        parser.error('--prepared-root cannot be combined with copied fixture arguments')
     if args.patient_save and not args.output: parser.error('--patient-save requires a fresh --output and --source-root')
-    root=isolated_root(args.source_root,args.output) if args.source_root else args.staged_root
+    root=args.prepared_root or (isolated_root(args.source_root,args.output) if args.source_root else None)
     if args.patient_save: shutil.copy2(args.patient_save,root/'profile/Saves/RimBot-tribal8-baseline.rws')
     asyncio.run(main(args.tend or args.recovery,root,args.recovery,bool(args.patient_save),args.require_interruption))

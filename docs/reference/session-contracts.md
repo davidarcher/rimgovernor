@@ -97,8 +97,11 @@ or unavailable windows require inspection and resolution.
 
 Draft ownership is written before orders and scoped to the load. Manual, review failure
 and shutdown attempt pause and verified cleanup; unresolved cleanup remains durable.
-Pre-existing player drafts are not claimed. A human undraft/redraft between observations
-is still ambiguous.
+Pre-existing player drafts are not claimed. Native draft claims are acquired only
+on an actual controller draft transition. Every later draft setter clears the claim,
+including external undraft/redraft between observations. Cleanup rechecks ownership
+atomically at the native write. Missing ownership metadata retains an inspection
+hold; a confirmed different claim retires the obligation without undrafting.
 
 ## Gameplay and network boundary
 

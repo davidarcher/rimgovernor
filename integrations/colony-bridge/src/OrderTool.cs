@@ -165,14 +165,16 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Destination cell z, for goto. See x.", DefaultValue = int.MinValue)] int z = int.MinValue,
             [ToolParameter(Description = "attack only: auto | melee | ranged. auto melees when the pawn is unarmed or holds a melee weapon and shoots when it holds a ranged one, which is what vanilla's own float menu picks. melee and ranged force it.", DefaultValue = "auto")] string mode = "auto",
             [ToolParameter(Description = "Manage the draft state automatically. attack, goto and tend need a drafted pawn, so true drafts one that is not; haul and work are undrafted work orders unless the WorkGiver allows drafted work, so true undrafts. rescue and equip need no draft change at all. false refuses instead, so the caller can see the draft state was wrong.", DefaultValue = true)] bool draft = true,
-            [ToolParameter(Description = "Permit a real ground-tend order to leave an auto-drafted doctor under caller-managed cleanup. False by default: raw calls otherwise have no reliable way to restore the doctor after the job completes. combat.py passes true because its ledger records and restores that obligation. Dry runs do not require this flag.", DefaultValue = false)] bool allowPersistentDraft = false,
+            [ToolParameter(Description = "Opaque controller claim for a newly auto-drafted pawn; never claims an existing draft.")] string draftOwner = null,
+            [ToolParameter(Description = "Undraft only if this native draft claim still matches; intervening draft changes refuse atomically.")] string releaseOwner = null,
+            [ToolParameter(Description = "Permit a real ground-tend order to leave an auto-drafted doctor under caller-managed cleanup. False by default: raw calls otherwise have no reliable way to restore the doctor after the job completes. Dry runs do not require this flag.", DefaultValue = false)] bool allowPersistentDraft = false,
             [ToolParameter(Description = "Resolve everything, run every refusal check and report the job that WOULD be issued, without touching the game. Defaults to FALSE - this tool's job is to make orders land.", DefaultValue = false)] bool dryRun = false,
             [ToolParameter(Description = "Refuse a target that is not hostile to the player faction. Defaults to FALSE, because vanilla imposes no such rule and imposing it is what got a colonist killed.", DefaultValue = false)] bool requireHostile = false,
             [ToolParameter(Description = "Show the order on screen: select the target and jump the camera to it, then after a short lead select the pawn so the inspect pane shows the new job. Decorative only and never opens a float menu. A dry run and a refusal show nothing.", DefaultValue = true)] bool watch = true,
             [ToolParameter(Description = "How long the watch selection stays before it is put back, 1..60.", DefaultValue = Watch.DefaultSeconds)] int watchSeconds = Watch.DefaultSeconds)
         {
             return BridgeCommon.WithUnknownArguments(
-                await OrderCore(ctx, cancellationToken, action, pawn, target, x, z, mode, draft, allowPersistentDraft, dryRun, requireHostile, watch, watchSeconds)
+                await OrderCore(ctx, cancellationToken, action, pawn, target, x, z, mode, draft, draftOwner, releaseOwner, allowPersistentDraft, dryRun, requireHostile, watch, watchSeconds)
                     .ConfigureAwait(false),
                 ctx, typeof(HomeOrderTools), ToolName);
         }
@@ -187,6 +189,8 @@ namespace HomeBridge.BridgeTools
             int z,
             string mode,
             bool draft,
+            string draftOwner,
+            string releaseOwner,
             bool allowPersistentDraft,
             bool dryRun,
             bool requireHostile,
@@ -205,6 +209,8 @@ namespace HomeBridge.BridgeTools
                 Z = z,
                 Mode = Normalise(mode),
                 Draft = draft,
+                DraftOwner = draftOwner,
+                ReleaseOwner = releaseOwner,
                 AllowPersistentDraft = allowPersistentDraft,
                 DryRun = dryRun,
                 RequireHostile = requireHostile
@@ -334,6 +340,8 @@ namespace HomeBridge.BridgeTools
             internal int Z;
             internal string Mode;
             internal bool Draft;
+            internal string DraftOwner;
+            internal string ReleaseOwner;
             internal bool AllowPersistentDraft;
             internal bool DryRun;
             internal bool RequireHostile;
@@ -538,6 +546,13 @@ namespace HomeBridge.BridgeTools
                 && request.Action != "undraft")
             {
                 plan.Refuse("pawn_downed", NameOf(plan.Pawn) + " is downed and cannot act.");
+                return plan;
+            }
+
+            if (request.ReleaseOwner != null &&
+                (request.Action != "undraft" || DraftOwnership.Owner(plan.Pawn) != request.ReleaseOwner))
+            {
+                plan.Refuse("draft_ownership_changed", "Native draft ownership changed; pawn was not touched.");
                 return plan;
             }
 
@@ -1451,6 +1466,15 @@ namespace HomeBridge.BridgeTools
             if (plan.Error != null || plan.Pawn == null)
                 return;
 
+            DraftOwnership.Ensure();
+            if (plan.Request.ReleaseOwner != null &&
+                (plan.Request.Action != "undraft" ||
+                 DraftOwnership.Owner(plan.Pawn) != plan.Request.ReleaseOwner))
+            {
+                plan.Refuse("draft_ownership_changed", "Native draft ownership changed; pawn was not touched.");
+                return;
+            }
+
             if (plan.NeedsDraft || plan.NeedsUndraft)
             {
                 var wanted = plan.NeedsDraft;
@@ -1480,6 +1504,7 @@ namespace HomeBridge.BridgeTools
                     return;
                 }
                 if (wanted) plan.AutoDrafted = true; else plan.AutoUndrafted = true;
+                if (wanted) DraftOwnership.Acquire(plan.Pawn, plan.Request.DraftOwner);
                 plan.Applied = true;
             }
 
@@ -2205,6 +2230,7 @@ namespace HomeBridge.BridgeTools
                 { "spawned", BridgeCommon.Try(() => pawn.Spawned, false) },
                 { "faction", BridgeCommon.SafeString(() => pawn.Faction == null ? null : pawn.Faction.Name) },
                 { "drafted", BridgeCommon.Try(() => pawn.Drafted, false) },
+                { "draftOwner", DraftOwnership.Owner(pawn) },
                 { "autoDrafted", plan.AutoDrafted },
                 { "autoUndrafted", plan.AutoUndrafted },
                 { "downed", BridgeCommon.Try(() => pawn.Downed, false) },

@@ -34,6 +34,14 @@ each script's `--help` and fixture requirements before running it:
 
 ## Treatment recovery
 
+Inside a fresh Docker worker, run `python scripts/native_combat_smoke.py
+--prepared-root /worker/run --require-interruption --tend` through the worker's
+command override. Select task source with `PYTHONPATH=/app/controller` when
+mounting source over an image. The report records staged inputs and Python hashes,
+native draft claim loss across external undraft/redraft, real wounds, injury
+preemption, stale-order refusal and completed tending. The external setter probe
+does not simulate mouse input. Use fresh outputs and private task-built mod inputs.
+
 For confirmed treatment interruption and recovery, use a fresh isolated worker:
 
 ```powershell
