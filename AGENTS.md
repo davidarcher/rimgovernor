@@ -31,6 +31,10 @@
 
 ## Validation
 
+- Native scenario tick waits use `rimbot.native_scenario.advance_game` instead of
+  bespoke start/poll/resume loops. Its default acknowledges inspected Ancient danger
+  fixture warnings and preserves the remaining tick budget. Interruption acceptance
+  passes `expected_letters=()`; unexpected stops remain failures with evidence.
 - Start with the [test selection guide](docs/how-to/choose-tests.md).
   [Docker controller checks](docs/how-to/docker-checks.md)
   need no game files or model server; the separate native Docker runner needs

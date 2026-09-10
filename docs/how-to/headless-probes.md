@@ -32,6 +32,35 @@ each script's `--help` and fixture requirements before running it:
 | Native domains and UI | `native_trade_smoke.py`, `native_research_smoke.py`, `native_world_smoke.py`, `native_letters_smoke.py`, `dialog_smoke.py`, `dialog_text_smoke.py`, `companion_inspection_smoke.py` |
 | Models and rendering | `execution_schema_smoke.py`, `native_scout_smoke.py`, `native_visual_smoke.py`, `native_render_smoke.py` |
 
+## Advance a native scenario
+
+Use the shared test operation for new bounded simulation waits:
+
+```python
+from rimbot.native_scenario import advance_game
+
+clock = await advance_game(rt, 600, report, timeout=120)
+```
+
+It owns the runtime writer lock while the independent clock watcher renews the
+lease. Ancient danger (`ThreatBig`, English fixture label) is the default approved
+warning. The operation requires the exact letter ID from the native pause event,
+complete current safety observations, no active hostiles/hunting predators,
+no dead, downed or bleeding colonists and no modal window. It records acknowledgment and
+continues only the unspent tick budget. It does not dismiss notifications or release
+player holds. Localized fixtures can supply their exact `(label, letterDef)` pairs
+through `expected_letters`; unknown labels fail closed.
+
+Pass `expected_letters=()` when testing interruptions; the stop raises
+`ScenarioInterrupted` with the native evidence. Reports accumulate windows,
+interruptions and failures under `simulation`; persist the report in the scenario's
+existing failure/finally path. Timeouts attempt to pause only the owned game.
+Do not call this operation while already holding `rt.lock`.
+
+Husbandry, freezer expansion and construction cancellation use this path. Older
+specialized probes retain their own clock behavior pending migration; production
+automation uses its existing deterministic review policy.
+
 ## Treatment recovery
 
 Inside a fresh Docker worker, run `python scripts/native_combat_smoke.py

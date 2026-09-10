@@ -1,4 +1,5 @@
 """Build and expand powered cold storage using ordinary labor and explicit chat."""
+from rimbot.native_scenario import advance_game
 import argparse
 import asyncio
 import json
@@ -75,20 +76,7 @@ async def run(args):
     async def window(label):
         assert time.monotonic()<deadline,'Bounded construction/temperature deadline expired'
         if rt.review_task and not rt.review_task.done():await rt.review_task
-        await rt.supervisor.change('Superfast',max_ticks=600)
-        async with asyncio.timeout(25):
-            while True:
-                clock=(await runtime_file_read(rt.bridge.call,'home/supervised_play',op='status')).structuredContent
-                if not clock['active']:break
-                await asyncio.sleep(.15)
-        if clock['stopReason']=='letter_pause' and 'Ancient danger' in clock.get('stopDetail',''):
-            status=await rt.game.query('home/status',colonists=False,threats=True)
-            counts=status.get('counts',{})
-            record('observed_warning_without_active_threat',counts.get('hostileCount')==0
-                and counts.get('huntingPredatorCount')==0,clock=clock,status=status)
-            rt.supervisor.absorb(clock);rt.supervisor.allow_resume()
-        else:
-            assert clock['stopReason'] in ('tick_budget','requested_pause') and clock['pauseVerified'],clock
+        clock = await advance_game(rt, 600, report, timeout=25)
         await settle()
         observed=await buildings()
         sample={'phase':label,'tick':clock.get('lastTick'),'clock':clock,'buildings':observed}

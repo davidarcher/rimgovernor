@@ -1,11 +1,12 @@
 """Native husbandry outcomes in a disposable local Docker fixture; no inference."""
+from rimbot.native_scenario import advance_game
 import asyncio
 import json
 import os
 from pathlib import Path
 
 from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge import BridgeError, runtime_file_read
+from rimbot.bridge import BridgeError
 from rimbot.colony_plan import CommitSteps
 from rimbot.config import ModelRole
 from rimbot.husbandry import refresh_husbandry, husbandry_method
@@ -53,20 +54,7 @@ async def run():
 
     async def window(ticks):
         if rt.review_task and not rt.review_task.done(): await rt.review_task
-        await rt.supervisor.change('Superfast', max_ticks=ticks)
-        async with asyncio.timeout(120):
-            while True:
-                clock = (await runtime_file_read(rt.bridge.call, 'home/supervised_play', op='status')).structuredContent
-                if not clock['active']: break
-                await asyncio.sleep(.2)
-        if clock['stopReason'] == 'letter_pause' and 'Ancient danger' in clock.get('stopDetail', ''):
-            threats = (await rt.game.query('home/status', colonists=False, threats=True)).get('threats', {})
-            letters = await rt.game.invoke('rimworld/list_letters', {})
-            report.setdefault('interruptions', []).append(dict(clock=clock, threats=threats, letters=letters))
-            assert threats.get('hostiles') == [] and threats.get('huntingPredators') == [], threats
-        else:
-            assert clock['stopReason'] in ('tick_budget', 'requested_pause'), clock
-        assert clock['pauseVerified'], clock
+        clock = await advance_game(rt, ticks, report)
         rt.supervisor.absorb(clock)
         rt.clock_events.extend(await rt.supervisor.poll())
         rt.receive_clock_events()

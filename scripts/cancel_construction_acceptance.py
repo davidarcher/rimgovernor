@@ -1,4 +1,5 @@
 """Native construction cancellation, shared execution and optional local chat acceptance."""
+from rimbot.native_scenario import advance_game
 import argparse
 import asyncio
 import json
@@ -178,25 +179,7 @@ async def run(args):
                     # Normal supervised simulation with an exact native boundary;
                     # no save edits, instant construction or synthetic deliveries.
                     if rt.review_task and not rt.review_task.done():await rt.review_task
-                    await rt.supervisor.change('Superfast',max_ticks=100)
-                    async with asyncio.timeout(20):
-                        while True:
-                            state=(await rt.bridge.call('home/supervised_play',op='status')).structuredContent
-                            if not state['active']:break
-                            await asyncio.sleep(.1)
-                    if state['stopReason']=='letter_pause' and 'Ancient danger' in state.get('stopDetail',''):
-                        warning=await rt.game.query('rimworld/list_letters')
-                        threats=await rt.game.query('home/status',colonists=False,threats=True)
-                        counts=threats.get('counts',{})
-                        record('ancient_danger_warning_observed_before_explicit_test_resume',
-                            state['pauseVerified'] and counts.get('hostileCount')==0
-                            and counts.get('huntingPredatorCount')==0,clock=state,letters=warning,threats=threats)
-                        # This is explicit fixture control after observing the
-                        # warning, never an automatic runtime danger override.
-                        rt.supervisor.absorb(state)
-                        rt.supervisor.allow_resume()
-                    else:
-                        assert state['stopReason'] in ('tick_budget','requested_pause') and state['pauseVerified'],state
+                    state = await advance_game(rt, 100, report, timeout=20)
                     if rt.review_task and not rt.review_task.done():await rt.review_task
                     observed=await listed()
                     current=next((b for b in observed['buildings'] if b['position']['x']==cell['x']

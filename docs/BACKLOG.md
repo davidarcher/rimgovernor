@@ -410,6 +410,11 @@ each bounded method.
     Accept when one documented command lists/selects scenarios and runs at least
     construction completion, resource production and paired-restart recovery in
     fresh containers, with structured per-scenario results and JUnit output.
+    Migrate remaining bespoke simulation waits to `native_scenario.advance_game`;
+    husbandry, freezer expansion and construction cancellation already share it.
+    Verify its Ancient danger acknowledgment and remaining-tick continuation in
+    a native fixture, including real threat, modal, player-stop and load refusals.
+    Controller fixtures alone do not establish native warning recovery.
   - [ ] **Pawn-outcome and scenario matrix.** Assert fresh native results tied to
     colony/map/load, action and target identities: blueprint-to-building completion,
     actual harvest/haul/craft stock changes and consumption, treatment completion,
