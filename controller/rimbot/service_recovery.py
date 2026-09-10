@@ -12,7 +12,7 @@ def pending(state):
             continue
         if row.get('broken') is True:
             work.append((row, 'breakdown'))
-        if row.get('hitPoints', 0) < row.get('maxHitPoints', 0):
+        if row.get('usesHitPoints') is not False and row.get('hitPoints', 0) < row.get('maxHitPoints', 0):
             work.append((row, 'repair'))
         if row.get('fuel') is not None and row['fuel'] < (row.get('fuelTarget') or 0) * .25:
             work.append((row, 'refuel'))

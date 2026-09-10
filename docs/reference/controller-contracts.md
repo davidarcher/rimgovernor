@@ -92,7 +92,9 @@ not by an arbitrary stove or a campfire elsewhere on the map.
 An existing unfueled campfire is not duplicated. `RecoverDisasterServices` selects
 bounded refueling, structural repair and breakdown-repair jobs through native
 WorkGivers. `home/recovery_state` observes exact building health, fuel, breakdown
-and electrical state. `home/recover_service` preserves work permissions, allowed
+and electrical state. Native definitions that do not use hit points, including
+sleeping and butcher spots, do not require structural repair; unknown definitions
+retain damage risk. `home/recover_service` preserves work permissions, allowed
 areas, forbidden supplies, reservations and player-forced jobs. Hands previews
 again at dispatch; `service_recovered` requires fresh target health, breakdown or
 fuel evidence. Missing targets and interrupted labor never count as completion.

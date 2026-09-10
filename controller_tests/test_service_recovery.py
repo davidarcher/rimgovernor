@@ -34,6 +34,32 @@ def test_receipt_and_partial_repair_cannot_complete_missing_or_interrupted_work(
     assert outcome(action(), {}, state(row), []) == 'complete'
 
 
+def test_native_objects_without_hit_points_do_not_need_impossible_repairs():
+    row=building(usesHitPoints=False)
+    row['hitPoints']=-1
+    assert pending(state(row))==[]
+    row.update(broken=True,fuel=0,fuelTarget=10)
+    assert {method for _,method in pending(state(row))}=={'breakdown','refuel'}
+
+
+@pytest.mark.parametrize('uses',[True,None])
+def test_unknown_or_real_hit_points_retain_damage(uses):
+    assert pending(state(building(usesHitPoints=uses)))[0][1]=='repair'
+
+
+def test_native_no_hit_points_observation_can_clear_legacy_damage_tracking():
+    value=stable()
+    value['environment']['conditions']=[{'defName':'PsychicSoothe'}]
+    row=building()
+    row['hitPoints']=-1
+    value['recovery']=state(row)
+    control={}
+    assert reconcile(control,value,ColonyPolicy(),context='load',direction=0)['deficits']==['infrastructure']
+    row['usesHitPoints']=False
+    value['environment']['conditions']=[]
+    assert reconcile(control,value,ColonyPolicy(),context='load',direction=0)['phase']=='restored'
+
+
 def test_refuel_requires_increase_and_power_requires_actual_service():
     row = building(powerOn=False)
     row.update(hitPoints=100, fuel=0, fuelTarget=50)

@@ -45,7 +45,8 @@ def reconcile(control, facts, policy, *, context, direction):
         tracked = set((previous or {}).get('damaged_buildings', []))
         tracked.update(row['thingId'] for row, method in work or [] if method != 'refuel')
         observed = {row['thingId'] for row in state.get('buildings', [])
-                    if row.get('hitPoints') == row.get('maxHitPoints') and row.get('broken') is False}
+                    if (row.get('usesHitPoints') is False or row.get('hitPoints') == row.get('maxHitPoints'))
+                    and row.get('broken') is False}
         gates['infrastructure'] = work == [] and tracked <= observed
     else:
         tracked = set((previous or {}).get('damaged_buildings', []))

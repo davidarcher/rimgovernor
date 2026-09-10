@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
                 buildings = map.listerBuildings.allBuildingsColonist.Where(b => !b.Position.Fogged(map))
                     .OrderBy(b => b.thingIDNumber).Select(b => new {
                         thingId = b.GetUniqueLoadID(), defName = b.def.defName, position = BridgeCommon.Pos(b.Position),
-                        hitPoints = b.HitPoints, maxHitPoints = b.MaxHitPoints,
+                        hitPoints = b.HitPoints, maxHitPoints = b.MaxHitPoints, usesHitPoints = b.def.useHitPoints,
                         broken = b.TryGetComp<CompBreakdownable>()?.BrokenDown ?? false,
                         fuel = b.TryGetComp<CompRefuelable>()?.Fuel,
                         fuelTarget = b.TryGetComp<CompRefuelable>()?.TargetFuelLevel,
