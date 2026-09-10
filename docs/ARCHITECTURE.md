@@ -573,8 +573,11 @@ pan/zoom action set. Each request validates the live native contract under the
 runtime writer lock, rechecks loaded-session identity before dispatch and reads
 camera state back. Zoom stays within the reported normal range; extended zoom
 is refused. Navigation turns off action follow and preserves clock/automation
-settings. Native writes are sent once; an uncertain result requires inspecting
-the view. These controls do not hold keys. The optional player-control lease gates
+settings. A session-bound camera-state read uses the same runtime lock and
+native contract discovery without issuing navigation or changing control. Explicit
+viewer/token credentials must name a live owner even after release; delayed owned
+requests cannot fall through to the unowned controls. Native writes are sent once;
+an uncertain result requires inspecting the view. These controls do not hold keys. The optional player-control lease gates
 camera/time requests to one viewer. Handoff enters Manual and invalidates pending
 orders before awaiting pause and owned-draft cleanup; native paused readback is
 required before acknowledgement. A 15-second lease renews through heartbeats.

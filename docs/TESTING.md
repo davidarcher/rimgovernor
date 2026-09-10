@@ -1037,6 +1037,25 @@ and these ages do not measure desktop Chrome display latency, Docker ICE routing
 input-to-display latency or simulation cost. Do not bind-mount an unbuilt controller
 over a built test image: it hides the dashboard assets needed by HTTP tests.
 
+Add `--camera-acceptance` with `--display xvfb` to exercise the current player
+camera API in the first worker while its peer stays paused. The probe reads fresh
+native geometry through `/api/camera/state?session_id=...`, checks four pan
+directions, reaches both discovered zoom bounds and verifies clamping on another
+request. Video heartbeats keep rendering active during navigation; owner heartbeats
+continue during capture waits and stop for the explicit expiry test. The probe
+retains initial, minimum/maximum zoom and takeover PNGs. It verifies
+exclusive ownership, wrong/stale/released credentials, non-owner time controls,
+actual lease expiry and takeover, and an unchanged native paused tick after the
+pan sequence, each zoom boundary and takeover. Captures must advance the
+controller camera version; a changed image hash alone does not establish freshness.
+Rejected requests must leave native camera geometry unchanged.
+Every native write is sent once; failures retain partial `camera_controls` evidence
+and stop the probe. A GABS ownership-claim failure on a read is an infrastructure
+failure; partial checks do not establish complete camera acceptance. The probe
+requires a baseline whose initial camera is far enough
+from map edges for ten-cell moves. It does not certify edge clamping, browser
+lifecycle events, pending pawn work, selection or pointer/drag gestures.
+
 ### Existing diagnostic recording
 
 There are useful flight-recorder components, but no complete correlated failure

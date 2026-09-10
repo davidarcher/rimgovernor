@@ -12,9 +12,12 @@ import urllib.request
 import uuid
 
 from container_checks import docker_environment
+from container_camera_acceptance import accept_camera
 
 
 def run(args):
+    if args.camera_acceptance and args.display != 'xvfb':
+        raise ValueError('--camera-acceptance requires --display xvfb')
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     source = Path(__file__).resolve().parents[1]
@@ -73,10 +76,18 @@ def run(args):
                 pass
             time.sleep(1)
         raise TimeoutError('Native startup timed out: '+json.dumps(last))
-    def capture(worker, name, previous=None):
+    def capture(worker, name, previous=None, keepalive=None):
+        baseline_version = api(worker, '/api/state')['cameraVersion']
         deadline = time.monotonic()+60
         while time.monotonic() < deadline:
+            if keepalive:
+                keepalive()
             api(worker, '/api/video', {'viewer': 'container-acceptance', 'playing': True})
+            state = api(worker, '/api/state')
+            assert state['sessionId'] == worker['session'], 'Colony changed during capture'
+            if state['cameraVersion'] <= baseline_version:
+                time.sleep(1)
+                continue
             try:
                 with urllib.request.urlopen(worker['url']+'/api/camera', timeout=10) as response:
                     frame = response.read()
@@ -89,7 +100,8 @@ def run(args):
                     time.sleep(1)
                     continue
                 (worker['root']/name).write_bytes(frame)
-                return dict(dimensions=dimensions, bytes=len(frame), sha256=digest)
+                return dict(dimensions=dimensions, bytes=len(frame), sha256=digest,
+                            after_camera_version=baseline_version, observed_camera_version=state['cameraVersion'])
             except urllib.error.HTTPError as error:
                 if error.code != 503:
                     raise
@@ -117,6 +129,11 @@ def run(args):
         report['before'] = before
         if args.display == 'xvfb':
             report['frames'] = [capture(worker, 'frame.png') for worker in workers]
+        if args.camera_acceptance:
+            report['camera_controls'] = {}
+            accept_camera(lambda endpoint, body=None: api(workers[0], endpoint, body),
+                          lambda name, previous=None, keepalive=None: capture(workers[0], name, previous, keepalive),
+                          workers[0]['session'], before[0]['ticksGame'], report['camera_controls'])
         clock(workers[0], 'Normal')
         deadline = time.monotonic()+30
         while time.monotonic() < deadline:
@@ -154,6 +171,8 @@ def run(args):
         report['passed'] = True
     except Exception as error:
         report['error'] = repr(error)
+        if isinstance(error, urllib.error.HTTPError):
+            report['http_error_detail'] = error.read().decode('utf8', errors='replace')
     finally:
         report['cleanup'] = []
         for worker in workers:
@@ -193,7 +212,12 @@ def run(args):
                 report['passed'] = False
         report['elapsed_seconds'] = round(time.monotonic()-began, 3)
         (output/'result.json').write_text(json.dumps(report, indent=2), encoding='utf8')
-    print(json.dumps({key: value for key, value in report.items() if key != 'initial_states'}, indent=2))
+    summary = {key: value for key, value in report.items() if key not in ('initial_states', 'camera_controls')}
+    if 'camera_controls' in report:
+        controls = report['camera_controls']
+        summary['camera_controls'] = dict(passed=controls['passed'],
+            operations=len(controls['operations']), refusals=len(controls['refusals']))
+    print(json.dumps(summary, indent=2))
     return report['passed']
 
 
@@ -201,6 +225,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('game', 'mods', 'profile', 'gabs', 'output'):
         parser.add_argument('--'+name, type=Path, required=True)
+    parser.add_argument('--camera-acceptance', action='store_true', help='Verify native camera controls and viewer lease guards')
     parser.add_argument('--display', choices=['headless', 'xvfb'], default='headless')
     parser.add_argument('--player-input', action='store_true', help='Verify B18 handoff and selection in a rendered worker')
     parser.add_argument('--resolution', default='1280x720')

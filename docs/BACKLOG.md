@@ -161,6 +161,9 @@ in the checkpoint commit; do not append an implementation diary here.
   longer colonies and GC pressure; measure its pause/throughput effects. Investigate
   the underlying early Mono `GC_mark_from` SIGSEGV with the original setting.
   Retain failed trials and never hide native crashes with automatic retries.
+  Investigate GABS reads occasionally failing because a launch claim was published
+  during operation preparation; retain the HTTP/native error and separate this
+  ownership race from game crashes and failed input outcomes.
   Measure sustained native test throughput, memory and disk use against Windows.
   Port remaining native acceptance scripts with hard-coded Windows paths to the
   shared GABS resolver. Verify exact paused-load ticks before fixed-baseline
@@ -218,9 +221,14 @@ in the checkpoint commit; do not append an implementation diary here.
   **Rendered container acceptance.** Optional per-worker Xvfb/llvmpipe support
   provides explicit resolution, private rendered profiles and retained display/game
   logs. The two-worker runner captures native PNGs and verifies clocks, shutdown,
-  peer survival and checkpoint retention. Broaden acceptance to screenshots/video,
-  camera pan/zoom, selection, menus/dialogs and placement gestures, including B18
-  input outcomes. Measure sustained rendering overhead against headless workers.
+  peer survival and checkpoint retention. Optional camera acceptance covers native
+  pan directions, discovered zoom bounds, viewer exclusivity, release/expiry,
+  takeover and stale-token refusal with paused tick readbacks. Complete repeatable
+  end-to-end acceptance with periodic owner heartbeats and fresh zoom-limit frames
+  after resolving the GABS read-claim race; partial geometry/lease evidence does not
+  certify the full rendered sequence under load. Broaden acceptance
+  to video, camera edge clamping, pointer selection, menus/dialogs and placement gestures,
+  including B18 input outcomes. Measure sustained rendering overhead against headless workers.
   Protocol and bounded lifecycle checks do not certify those native interactions.
 
 - [ ] **B18 · Interactive game view and low-latency streaming.** Keep the React
@@ -244,11 +252,11 @@ in the checkpoint commit; do not append an implementation diary here.
   each live schema, serializes through the runtime lock, checks load identity
   before dispatch and reads native camera state afterward. Navigation disables
   action follow without changing clock or automation, clamps zoom to the normal
-  native range and never retries uncertain writes. Still validate pan directions,
-  map-edge clamping, zoom limits and concurrent native camera movement in a
-  rendered game; protocol tests do not establish gameplay acceptance. Context menus, pointer/key discovery and native
-  gesture ownership cleanup remain open. Map gesture schemas exist, but safe
-  browser frame mapping and gesture admission/cleanup are not implemented.
+  native range and never retries uncertain writes. The rendered container probe
+  covers pan directions and native zoom limits. Still validate map-edge clamping
+  and concurrent native camera movement. Context menus, pointer/key discovery
+  and native gesture ownership cleanup remain open. Map gesture schemas exist,
+  but safe browser frame mapping and gesture admission/cleanup are not implemented.
 
   **Player handoff.** Add Take control and Resume automation. Taking control must
   invalidate pending autonomous work, suspend cinematic framing and acknowledge
@@ -266,6 +274,8 @@ in the checkpoint commit; do not append an implementation diary here.
   Heartbeats renew the 15-second lease; blur, hidden tabs and unmount request
   release without resuming. Expiry retains a Manual hold and rejects stale input;
   another viewer can take over, but automation requires explicit owner release.
+  Released credentials remain invalid when no viewer owns control; delayed requests
+  cannot fall through to the unowned controls.
   Model/controller writes and generic Automate cannot bypass the hold. Validate
   this against native pending controller work and actual browser disconnects.
   Held-button/modifier cleanup awaits the native gesture implementation.
