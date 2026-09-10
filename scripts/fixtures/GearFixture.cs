@@ -61,6 +61,11 @@ namespace HomeBridge.BridgeTools
                     }
                     return new { success = true, pawn = subject.GetUniqueLoadID(), bench = bench.GetUniqueLoadID(), cloth = cloth.GetUniqueLoadID() };
                 }
+                if (mode == "production_research") {
+                    var project = DefDatabase<ResearchProjectDef>.GetNamed("ComplexClothing");
+                    Find.ResearchManager.FinishProject(project, false);
+                    return new { success = project.IsFinished, research = project.defName };
+                }
                 if (mode == "incompatible") {
                     var def = DefDatabase<ThingDef>.AllDefs.First(d => d.IsApparel &&
                         !d.apparel.developmentalStageFilter.Has(subject.DevelopmentalStage));

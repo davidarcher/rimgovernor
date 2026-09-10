@@ -308,12 +308,6 @@ in the checkpoint commit; do not append an implementation diary here.
   recreation, food, environment and social needs without overriding player policy.
   Preserve uncertainty about future mood and respect traits/ideology. Verify actual
   need recovery and safe handling of active breaks, not furniture placement alone.
-- [ ] **B21 · Equipment and apparel upkeep.** Maintain suitable weapons, armor and
-  clothing using native wear, quality, protection, thermal stats, pawn capabilities
-  and existing outfits. Prefer available replacements before production/trade;
-  preserve player forced equipment and resource policies. Coordinate B04h seasonal
-  readiness and B06b workshops. Test unavailable sizes/definitions, damaged gear,
-  changed assignments and blocked equipping; verify actual worn/carried loadouts.
 - [ ] **B22 · Population and recruitment.** Plan rescue/capture, prisoner care and
   recruitment according to explicit colony policy, available staff, beds and food.
   Distinguish potential recruits from admitted population; provision capacity before

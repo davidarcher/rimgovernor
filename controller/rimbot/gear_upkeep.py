@@ -47,6 +47,8 @@ async def compile_method(rt, facts):
     listing = await rt.game.invoke('home/bills', dict(action='list', dryRun=True)) if needs else {}
     if needs and listing.get('success') is not True:
         raise SkillBlocked('Native workshop observation unavailable')
+    goal.evidence['production_benches'] = listing
+    recipe_cache = goal.evidence['production_recipes'] = {}
     for pawn, need in sorted(needs, key=lambda row: (row[0]['pawn'], row[1]['defName'])):
         method = 'produce-' + fingerprint(dict(pawn=pawn['pawn'], loadout=pawn['loadout'], need=need))[:16]
         if goal.method_seen(method):
@@ -55,7 +57,9 @@ async def compile_method(rt, facts):
             if any(b.get('active') is True and any(p.get('defName') == need['defName']
                     for p in b.get('products', [])) for b in bench.get('bills', [])):
                 return None  # Preserve existing player production and its filters.
-            recipes = await rt.game.invoke('home/bills', dict(action='recipes', bench=bench['thingId'], dryRun=True))
+            if bench['thingId'] not in recipe_cache:
+                recipe_cache[bench['thingId']] = await rt.game.invoke('home/bills', dict(action='recipes', bench=bench['thingId'], dryRun=True))
+            recipes = recipe_cache[bench['thingId']]
             for recipe in sorted(recipes.get('recipes') or [], key=lambda r: r['defName']):
                 if not any(p.get('defName') == need['defName'] for p in recipe.get('products', [])):
                     continue

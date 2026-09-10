@@ -170,11 +170,11 @@ namespace HomeBridge.BridgeTools
             return needs;
         }
 
-        [Tool("home/gear_upkeep", Title = "Inspect or maintain apparel",
-            Description = "Inspect native worn gear and seasonal apparel replacements. Execution requires exact pawn, item and loadout signature; issues ordinary Wear work, preserves outfits and forced/locked gear. A receipt is not completed dressing.")]
+        [Tool("home/gear_upkeep", Title = "Inspect or maintain gear",
+            Description = "Inspect worn apparel, primary weapons and eligible replacements. Execution requires exact pawn, item and loadout signature; issues ordinary Wear or Equip work, preserves outfits, forced/locked apparel and player weapon assignments. A receipt is not a completed loadout.")]
         public async Task<object> Upkeep(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Exact current-map pawn Thing ID; omit for inspection of all colonists.")] string pawn = null,
-            [ToolParameter(Description = "Exact observed replacement apparel Thing ID.")] string target = null,
+            [ToolParameter(Description = "Exact observed replacement apparel or weapon Thing ID.")] string target = null,
             [ToolParameter(Description = "Loadout signature from inspection, required with target.")] string expectedLoadout = null,
             [ToolParameter(Description = "Inspect only.", DefaultValue = true)] bool dryRun = true)
         {

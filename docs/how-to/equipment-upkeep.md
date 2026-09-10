@@ -17,13 +17,15 @@ Run a fresh `rimbot.container_worker` with the task worker image and command:
 The worker needs private game, mods, profile and GABS mounts as described in the
 native Docker guide. The output must not exist. `--seconds` defaults to 180 for
 each dressing/equipping wait; production receives four times that wall-time budget.
+Use `--production-only` to select just the missing-stock procurement/crafting/wearing
+case when the loadout matrix has already been accepted on the same implementation.
 
 Require process exit 0 and `acceptance/result.json` with `outcome: passed`.
 The scenario retains native initial/final gear, negative admission results, shared
 Hands progress, weapon replacement evidence and optional production/material
 consumption evidence. Keep worker logs, private inputs' hashes and failed runs.
 
-The fixture prepares damaged garments, weapons and a workshop in a disposable
-colony. Subsequent dressing, equipping and crafting use ordinary pawn work.
+The fixture prepares damaged garments, weapons, clothing research and a workshop
+in a disposable colony. Subsequent dressing, equipping and crafting use ordinary pawn work.
 These assertions establish bounded scripted outcomes, not model interpretation,
 arbitrary mod compatibility, optimal combat loadouts or long-term seasonal survival.
