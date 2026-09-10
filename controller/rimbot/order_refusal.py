@@ -4,9 +4,12 @@ from .strategic_state import fingerprint
 
 
 def refused_preview(error):
-    if not isinstance(error, BridgeError) or error.tool != 'home/order':
+    if not isinstance(error, BridgeError):
         return None
     payload = error.result.structuredContent or {}
+    if not (error.tool == 'home/order' and payload.get('tool', 'home/order') == 'home/order'
+            or error.tool == 'games_call_tool' and payload.get('tool') == 'home/order'):
+        return None
     if (payload.get('dryRun') is True and payload.get('applied') is False
             and payload.get('success') is False
             and payload.get('errorKind') in ('job_refused', 'work_disabled', 'no_storage',

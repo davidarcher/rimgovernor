@@ -9,9 +9,9 @@ from test_colony_controller import Replay
 
 
 def refusal(**changes):
-    payload = dict(success=False, applied=False, dryRun=True, errorKind='job_refused', error='Target is on fire')
+    payload = dict(tool='home/order', success=False, applied=False, dryRun=True, errorKind='job_refused', error='Target is on fire')
     payload.update(changes)
-    return BridgeError('home/order', CallToolResult(content=[], structuredContent=payload, isError=True))
+    return BridgeError('games_call_tool', CallToolResult(content=[], structuredContent=payload, isError=True))
 
 
 def test_rot_and_temperature_drift_do_not_reopen_refused_preview():
@@ -26,7 +26,8 @@ def test_rot_and_temperature_drift_do_not_reopen_refused_preview():
 
 
 @pytest.mark.parametrize('change', [dict(dryRun=False), dict(applied=True), dict(applied=None),
-    dict(errorKind='job_unverified'), dict(errorKind='unexpected'), dict(success=None)])
+    dict(errorKind='job_unverified'), dict(errorKind='unexpected'), dict(success=None),
+    dict(tool='other/tool'), dict(tool=None)])
 def test_only_confirmed_refused_previews_are_reconsidered(change):
     assert refused_preview(refusal(**change)) is None
 

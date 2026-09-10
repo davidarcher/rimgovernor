@@ -281,6 +281,44 @@ async def run(args):
                     if not next(p for p in people if p['thingId']==patient)['health']['needsTend']:break
                     await window()
                 check('combat_triage_completed',not next(p for p in people if p['thingId']==patient)['health']['needsTend'])
+            elif args.case=='refused-preview':
+                from rimbot.native_scenario import advance_game
+                from rimbot.order_refusal import refused_preview
+                await setup('combat-equipment')
+                ids = await issue('EnsureBasicDefense')
+                rt.supervisor.test_acceleration = True
+                for _ in range(30):
+                    facts, people = await refresh()
+                    armed = [p for p in people if (p.get('equipment') or {}).get('primary')]
+                    if armed: break
+                    await advance_game(rt, 600, report)
+                check('ordinary_weapon_equipped', bool(armed))
+                pawn = armed[0]
+                weapon = pawn['equipment']['primary']['thingId']
+                original_compile = rt.controller.skills.compile
+                attempted = []
+                async def refused_method(identity, facts, people):
+                    if not attempted:
+                        attempted.append(identity)
+                        try:
+                            await rt.inspect_native('home/order', dict(action='equip',
+                                pawn=pawn['thingId'], target=weapon, dryRun=True, watch=False))
+                        except BridgeError as error:
+                            check('held_weapon_preview_refused_before_write', refused_preview(error) is not None,
+                                  native=error.result.structuredContent)
+                            raise
+                        raise AssertionError('Held weapon unexpectedly passed pickup preview')
+                    return await original_compile(identity, facts, people)
+                rt.controller.skills.compile = refused_method
+                try:
+                    await rt.controller.cycle()
+                    check('refusal_keeps_automation_alive', rt.mode == 'automate' and bool(attempted))
+                    blocked = rt.current_plan.colony_goals[attempted[0]]
+                    check('refusal_retained_on_goal', bool(blocked.evidence.get('order_preview_refusal')))
+                    await rt.controller.cycle()
+                    check('subsequent_review_completes', rt.mode == 'automate')
+                finally:
+                    rt.controller.skills.compile = original_compile
             elif args.case=='drafted-medical':
                 from rimbot.native_scenario import advance_game
                 # One player-owned draft stays protected throughout recovery.
@@ -398,7 +436,7 @@ async def run(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root',type=Path,required=True)
-    parser.add_argument('--case',choices=['development','combat','medical','drafted-medical','health'],required=True)
+    parser.add_argument('--case',choices=['development','combat','medical','drafted-medical','refused-preview','health'],required=True)
     parser.add_argument('--seconds',type=int,default=1800)
     parser.add_argument('--new-crashlanded',action='store_true',help='Use ordinary native Crashlanded generation and starting technology, without save edits')
     parser.add_argument('--research-project',help='Require this native project on a saved-colony continuation')
