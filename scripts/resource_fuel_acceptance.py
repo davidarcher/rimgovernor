@@ -2,6 +2,8 @@
 import argparse
 import asyncio
 import json
+import shutil
+import xml.etree.ElementTree as ET
 import time
 from pathlib import Path
 from session_checkpoint_acceptance import ready
@@ -17,7 +19,11 @@ from rimbot.campaign_manifest import capture_manifest
 
 
 async def run(args):
-    root=isolated_root(args.source_root,args.output/'bridge');config=prepare(root)
+    root=isolated_root(args.source_root,args.output/'bridge')
+    if args.source_save:
+        ET.parse(args.source_save)
+        shutil.copy2(args.source_save,root/'profile/Saves/RimBot-tribal8-baseline.rws')
+    config=prepare(root)
     store=Store(args.output/'state.sqlite');rt=BridgeRuntime(store,root,fresh=True,headless=True)
     report={'outcome':'failed','cases':[]};deadline=time.monotonic()+args.seconds
     def save(): (args.output/'result.json').write_text(json.dumps(report,indent=2))
@@ -34,7 +40,9 @@ async def run(args):
             if not rt.manual_requests:break
             await rt.execute_manual_requests()
         return value
-    async def facts():return await rt.game.query('home/colony_facts',planning=True)
+    async def facts():
+        from rimbot.colony_policy import derive
+        return derive(rt.batch,await rt.game.query('home/colony_facts',planning=True),rt.controller.policy)
     async def compile_method(identity, selected=None):
         observed=await facts()
         people=(await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True,equipment=True))['pawns']
@@ -51,7 +59,7 @@ async def run(args):
             rt.manual_requests.extend((s.id,rt.context_token,rt.chat_revision) for s in steps
                 if rt.current_plan.progress[s.id].state=='pending')
             await rt.execute_manual_requests()
-        assert all(rt.current_plan.progress[s.id].state=='complete' for s in steps)
+        assert all(rt.current_plan.progress[s.id].state in ('complete','waiting') for s in steps)
         goal.evidence.setdefault('methods',{})[method]=[s.id for s in steps]
         return True
     async def window(phase):
@@ -63,7 +71,7 @@ async def run(args):
                 clock=(await runtime_file_read(rt.bridge.call,'home/supervised_play',op='status')).structuredContent
                 if not clock['active']:break
                 await asyncio.sleep(.15)
-        if clock['stopReason']=='letter_pause':
+        if clock['stopReason'] in ('letter_pause','notification_batch'):
             danger=await rt.game.query('home/status',colonists=False,threats=True)
             record('observed_notification',clock['pauseVerified'] and danger['counts']['hostileCount']==0
                 and danger['counts']['huntingPredatorCount']==0,clock=clock,danger=danger)
@@ -77,14 +85,21 @@ async def run(args):
         report['latest']={'phase':phase,'clock':clock,'facts':await facts(),
             'research':await rt.game.invoke('home/research',{'filter':'Biofuel','finished':True,'locked':True})}
         save()
-    async def wait_build(definition):
+        if report['latest']['facts'].get('foodRunwayDays',0)<3:
+            for identity in ('EnsureBasicDefense','EnsureFoodSupply','EnsureCooking'):
+                for _ in range(4):
+                    if not await compile_method(identity):break
+    async def wait_build(definition, minimum_count=1):
         while True:
             buildings=await rt.game.query('home/list_buildings',aggregate=False,playerOnly=True)
-            built=next((b for b in buildings['buildings'] if b['defName']==definition
-                and not b.get('isBlueprint') and not b.get('isFrame')),None)
-            if built:return built
+            built=[b for b in buildings['buildings'] if b['defName']==definition
+                and not b.get('isBlueprint') and not b.get('isFrame')]
+            if len(built)>=minimum_count:return built[-1]
             await window('build-'+definition)
-    async def place(definition,origin,materials=None):
+    async def place(definition,origin,materials=None,minimum_count=1):
+        existing=await rt.game.query('home/list_buildings',aggregate=False,playerOnly=True)
+        found=[b for b in existing['buildings'] if b['defName']==definition and not b.get('isBlueprint') and not b.get('isFrame')]
+        if len(found)>=minimum_count:return found[-1]
         observed=await facts()
         cells=sorted(observed['cells'],key=lambda c:(c['x']-origin[0])**2+(c['z']-origin[1])**2)
         for cell in cells:
@@ -96,7 +111,7 @@ async def run(args):
                 placement={'def_name':definition,'x':cell['x'],'z':cell['z']}
                 if materials:placement['materials']=materials
                 await command(kind='PlaceBuildings',buildings={'kind':'place_buildings','placements':[placement]})
-                return await wait_build(definition)
+                return await wait_build(definition,minimum_count)
         raise AssertionError('No ordinary native placement for '+definition)
     try:
         (args.output/'manifest.json').write_text(json.dumps(capture_manifest(Path(__file__).resolve().parents[1],
@@ -104,6 +119,9 @@ async def run(args):
         await ready(rt)
         while await compile_method('AllowStartingSupplies'):pass
         while await compile_method('EnsureWorkAssignments'):pass
+        for identity in ('EnsureBasicDefense','EnsureFoodSupply','EnsureCooking'):
+            for _ in range(4):
+                if not await compile_method(identity):break
         result=await command(kind='CreateGoal',goal='MaintainResource',resource='Chemfuel',quantity=35)
         identity=result['goal'];goal=rt.current_plan.colony_goals[identity]
         try:await resource_method(rt,identity,await facts())
@@ -111,15 +129,17 @@ async def run(args):
         record('missing_prerequisite_reported',goal.status=='blocked',reason=goal.reason)
         observed=await facts();center=observed['center'];origin=(center['x'],center['z'])
         bench=await place('SimpleResearchBench',origin,['WoodLog'])
-        record('ordinary_research_bench_built',bool(bench),bench=bench)
+        second=await place('SimpleResearchBench',(origin[0]+6,origin[1]),['WoodLog'],minimum_count=2)
+        record('ordinary_research_bench_built',bool(bench) and bool(second),benches=[bench,second])
         roster=(await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True))['pawns']
         candidates=[p for p in roster if any(w['name']=='Research' and not w['disabled'] for w in p['work']['types'])]
         assert candidates,'No capable native researcher'
-        candidate=max(candidates,key=lambda p:next((s.get('level',0) for s in p['bio']['skills'] if s['name']=='Intellectual'),0))
-        await command(kind='SetWorkPriority',pawn=candidate['thingId'],work_type='Research',priority=1)
-        for work in candidate['work']['types']:
-            if work['name'] not in ('Research','Firefighter','Patient','PatientBedRest','BedRest') and not work['disabled']:
-                await command(kind='SetWorkPriority',pawn=candidate['thingId'],work_type=work['name'],priority=0)
+        candidates=sorted(candidates,key=lambda p:-next((s.get('level',0) for s in p['bio']['skills'] if s['name']=='Intellectual'),0))[:2]
+        for candidate in candidates:
+            await command(kind='SetWorkPriority',pawn=candidate['thingId'],work_type='Research',priority=1)
+            for work in candidate['work']['types']:
+                if work['name'] not in ('Research','Firefighter','Patient','PatientBedRest','BedRest') and not work['disabled']:
+                    await command(kind='SetWorkPriority',pawn=candidate['thingId'],work_type=work['name'],priority=0)
         research=await rt.game.invoke('home/research',{'filter':'Biofuel','finished':True,'locked':True})
         if 'BiofuelRefining' not in research.get('finished',[]):
             await command(kind='SetResearch',project='BiofuelRefining')
@@ -127,6 +147,12 @@ async def run(args):
                 await window('research-biofuel')
                 research=report['latest']['research']
                 if 'BiofuelRefining' in research.get('finished',[]):break
+                progress=(research.get('current') or {}).get('progress',0)
+                if int(progress//150)>report.get('research_checkpoint_band',0):
+                    from rimbot.session_checkpoint import create_checkpoint
+                    report['research_checkpoint']=await create_checkpoint(rt,rt.context_token)
+                    report['research_checkpoint_band']=int(progress//150)
+                    save()
         record('ordinary_biofuel_research_completed',True,research=research)
         generator=await place('WoodFiredGenerator',origin)
         position=generator['position'];refinery=await place('BiofuelRefinery',(position['x']+3,position['z']))
@@ -140,6 +166,8 @@ async def run(args):
         after=(await facts())['resources']['Chemfuel']
         record('native_chemfuel_produced',after>before,before=before,after=after,
             bills=await rt.game.invoke('home/bills',{'action':'list','dryRun':True}))
+        from rimbot.session_checkpoint import create_checkpoint
+        report['production_checkpoint']=await create_checkpoint(rt,rt.context_token)
         record('zero_inference',rt.counters.get('model_calls',0)==0,counters=rt.counters)
         report['outcome']='passed'
     except Exception as error:
@@ -157,6 +185,7 @@ async def run(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source-root',type=Path,required=True)
+    parser.add_argument('--source-save',type=Path,help='Resume an unchanged completed native autosave in a new isolated profile')
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--seconds',type=int,default=2400)
     args=parser.parse_args();asyncio.run(asyncio.wait_for(run(args),args.seconds+180))

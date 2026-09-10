@@ -11,6 +11,9 @@ from rimbot.store import Store
 from rimbot.player_commands import apply_command
 from rimbot.session_checkpoint import prepare_resume
 from rimbot.campaign_manifest import capture_manifest
+from rimbot.colony_plan import ColonyGoal, CommitSteps
+from rimbot.production_policy import resource_method
+from rimbot.colony_skills import native
 
 
 async def run(args):
@@ -74,6 +77,54 @@ async def run(args):
         record('ordinary_substituted_wall_completed',bool(wall) and final['resources']['Steel']<steel and final['resources']['WoodLog']>=wood,
             before={'WoodLog':wood,'Steel':steel},after=final['resources'],progress=progress.model_dump(mode='json'),
             wall=wall,buildings=buildings)
+
+        if args.capacity:
+            resource='MeleeWeapon_Club'
+            created=await command(kind='CreateGoal',goal='MaintainResource',resource=resource,quantity=3)
+            goal_id=created['goal']
+            observed=await rt.game.query('home/colony_facts',planning=True)
+            record('existing_adequate_bill_covers_target',await resource_method(rt,goal_id,observed) is None)
+            listing=await rt.game.invoke('home/bills',{'action':'list','dryRun':True})
+            bench=next(b for b in listing['benches'] if any(any(p.get('defName')==resource for p in bill.get('products',[])) for bill in b['bills']))
+            existing=next(b for b in bench['bills'] if any(p.get('defName')==resource for p in b.get('products',[])))
+            async def issue(identity,method,actions):
+                rt.current_plan.colony_goals.setdefault(identity,ColonyGoal(priority_class=3,source='PLAYER'))
+                observed=await rt.game.query('home/colony_facts',planning=True)
+                steps,_=rt.controller.skills.steps(identity,method,actions,observed)
+                await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
+                    reason='Explicit native bill-capacity acceptance',steps=steps).decision(rt.current_plan),
+                    actor='strategist',expected_token=rt.context_token,expected_revision=rt.chat_revision)
+                for _ in steps:
+                    rt.manual_requests.extend((s.id,rt.context_token,rt.chat_revision) for s in steps if rt.current_plan.progress[s.id].state=='pending')
+                    await rt.execute_manual_requests()
+                assert all(rt.current_plan.progress[s.id].state=='complete' for s in steps)
+            await issue('intent-capacity-fixture','lower-test-bill-target',[native('home/bills',action='set',
+                bench=bench['thingId'],index=existing['index'],repeatMode='TargetCount',targetCount=2,
+                unpauseWhenYouHave=1,pauseWhenSatisfied='on',watch=False)])
+            before_bill=(await rt.game.invoke('home/bills',{'action':'list','bench':bench['thingId'],'dryRun':True}))['benches'][0]['bills'][0]
+            selected=await resource_method(rt,goal_id,await rt.game.query('home/colony_facts',planning=True))
+            record('inadequate_bill_requires_new_capacity',bool(selected),selected=selected,existing=before_bill)
+            await issue(goal_id,*selected)
+            await command(kind='SetResourceReserve',resource='WoodLog',reserve=0)
+            deadline=time.monotonic()+args.seconds
+            while True:
+                observed=await rt.game.query('home/colony_facts',planning=True)
+                if observed['resources'].get(resource,0)>=3:break
+                assert time.monotonic()<deadline,'Expanded target-count capacity did not produce native output'
+                if rt.review_task and not rt.review_task.done():await rt.review_task
+                await rt.supervisor.change('Superfast',max_ticks=600)
+                async with asyncio.timeout(45):
+                    while True:
+                        clock=(await runtime_file_read(rt.bridge.call,'home/supervised_play',op='status')).structuredContent
+                        if not clock['active']:break
+                        await asyncio.sleep(.15)
+                assert clock['pauseVerified'] and clock['stopReason'] in ('tick_budget','requested_pause'),clock
+            after_bills=(await rt.game.invoke('home/bills',{'action':'list','bench':bench['thingId'],'dryRun':True}))['benches'][0]['bills']
+            after_existing=next(b for b in after_bills if b['billId']==before_bill['billId'])
+            record('native_expanded_capacity_produced',observed['resources'][resource]>=3
+                and all(after_existing['config'][key]==before_bill['config'][key] for key in (
+                    'repeatMode','targetCount','ingredientSearchRadius','pauseWhenSatisfied','unpauseWhenYouHave')),
+                stock=observed['resources'],bills=after_bills)
         record('zero_inference',rt.counters['model_calls']==0,counters=rt.counters)
         report['outcome']='passed'
     except Exception as error:
@@ -93,5 +144,6 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--checkpoint',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
+    parser.add_argument('--capacity',action='store_true',help='Verify existing-bill coverage and actual output after increasing native bill capacity')
     parser.add_argument('--seconds',type=int,default=300)
-    args=parser.parse_args();asyncio.run(asyncio.wait_for(run(args),args.seconds+180))
+    args=parser.parse_args();asyncio.run(asyncio.wait_for(run(args),args.seconds*2+180))

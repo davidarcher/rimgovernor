@@ -903,3 +903,12 @@ ordinary BiofuelRefining research, an ordinarily built generator and refinery,
 then actual chemfuel from the shared resource target bill. Missing prerequisites
 must be reported before the new infrastructure and reconsidered afterward.
 The wall-clock limit is an acceptance bound, not a simulation or research shortcut.
+
+Add `--capacity` to the substitution probe to observe an existing bill covering a
+resource target, explicitly reduce that fixture bill's target, and require a new
+shared target bill plus actual additional output. The original bill settings must
+remain unchanged when capacity is added.
+Fuel acceptance uses ordinary food acquisition/cooking and two ordinary research
+benches so prerequisite research shares the colony's real labor and food budget.
+Research progress checkpoints and an optional unchanged native autosave input
+preserve real work across disposable test runs; neither supplies research points.
