@@ -24,6 +24,18 @@ class SetResearch(Contract):
     project: str = Field(min_length=1)
 
 
+class SetPopulationPolicy(Contract):
+    kind: Literal['SetPopulationPolicy']
+    maximum: int = Field(ge=1, le=100)
+    food_days: float = Field(ge=1, le=120)
+
+
+class SetPopulationDecision(Contract):
+    kind: Literal['SetPopulationDecision']
+    pawn: str = Field(pattern=r'^Thing_[A-Za-z0-9_]+$')
+    decision: Literal['rescue', 'capture', 'recruit', 'ignore']
+
+
 class CreateGoal(Contract):
     kind: Literal['CreateGoal']
     goal: Literal['EnsureFoodSupply', 'EnsureInitialShelter', 'EnsureFoodStorage', 'EnsureCooking',
@@ -208,10 +220,10 @@ class RescuePawn(Contract):
     patient: str = Field(min_length=1, description='Exact observed downed living colonist to carry to a native eligible bed.')
 
 
-Command = Annotated[TradeEconomy | SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | RelocateConstruction | AdoptRoom | BuildRoom |
+Command = Annotated[SetPopulationPolicy | SetPopulationDecision | TradeEconomy | SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | RelocateConstruction | AdoptRoom | BuildRoom |
                     PlaceBuildings | CreateZone | EditZone | SetWorkPriority | CreateBill | SetBuildingTemperature | DraftPawn | MovePawn | TendPawn | RescuePawn, Field(discriminator='kind')]
 COMMAND = TypeAdapter(Command)
-COMMAND_TYPES = (TradeEconomy,SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,RelocateConstruction,AdoptRoom,BuildRoom,PlaceBuildings,
+COMMAND_TYPES = (SetPopulationPolicy,SetPopulationDecision,TradeEconomy,SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,RelocateConstruction,AdoptRoom,BuildRoom,PlaceBuildings,
                  CreateZone,EditZone,SetWorkPriority,CreateBill,SetBuildingTemperature,DraftPawn,MovePawn,TendPawn,RescuePawn)
 COMMAND_NAMES = {kind.__name__ for kind in COMMAND_TYPES}
 
@@ -235,6 +247,8 @@ def semantic_tools(resources=None):
     from .consultation import structured_tool
     descriptions = {
         'TradeEconomy':'Request one bounded exchange with an observed adjacent map trader and negotiator. Use explicit player stock targets, buy/sell quantity limits and price limits. Targets are evaluated in priority order against fresh inventory; shared reserves and commitments remain protected. Never invent export demand, sell equipment/food/medicine, promise future production, or accept a quest. Use MaintainResource separately for player-requested replenishment.',
+        'SetPopulationPolicy':'Set explicitly requested maximum population and minimum food reserve days. Does not authorize capturing or recruiting any individual; use SetPopulationDecision for exact observed pawns.',
+        'SetPopulationDecision':'Explicit per-pawn rescue, hostile capture, prisoner recruitment, or withdrawal of future population orders. Requires an existing population capacity policy. Preserves other individuals and does not release existing prisoners. Native custody, care, recruitment and integration are observed separately.',
         'SetResearch':'Select a research project requested by the player.',
         'CreateGoal':'Set a persistent colony target. MaintainResource with resource and quantity means keep acquiring or producing that stock, for example maintain 50 steel. The deterministic controller chooses downstream actions.',
         'ModifyResourcePolicy':'Change a resource spending restriction while preserving its existing reserve.',
@@ -330,7 +344,39 @@ async def apply_command(rt, payload, *, token, revision):
     await rt.ensure_context(token)
     if rt.chat_revision != revision: raise ValueError('Player direction changed; request discarded')
     plan = rt.current_plan
-    if isinstance(request, CreateGoal):
+    if isinstance(request, SetPopulationPolicy):
+        plan.control['population_policy'] = request.model_dump(exclude={'kind'})
+        result = dict(plan.control['population_policy'])
+    elif isinstance(request, SetPopulationDecision):
+        from .population import observe, goal_id
+        identity = goal_id(request.pawn)
+        if request.decision == 'ignore':
+            goal = plan.colony_goals.get(identity)
+            if goal:
+                goal.cancelled, goal.status, goal.reason = True, 'blocked', 'Player withdrew population direction'
+                for step in goal.steps:
+                    if plan.progress[step].state == 'pending': plan.cancel(step)
+        else:
+            if not plan.control.get('population_policy'):
+                raise ValueError('Set an explicit population maximum and food reserve first')
+            snapshot = await observe(rt)
+            p = next((p for p in snapshot['people'] if p['thingId'] == request.pawn), None)
+            if p is None or p.get('dead') is not False or p.get('admitted') is True:
+                raise ValueError('Use an observed living candidate who is not already admitted')
+            await rt.ensure_context(token)
+            if revision != rt.chat_revision: raise ValueError('Player direction changed; population decision discarded')
+            prior = plan.colony_goals.get(identity)
+            if prior and any(plan.progress[s].issued and plan.progress[s].state != 'complete' for s in prior.steps):
+                raise ValueError('Observe prior uncertain population orders before replacing the decision')
+            if prior:
+                for step in prior.steps:
+                    if plan.progress[step].state == 'pending': plan.cancel(step)
+            plan.colony_goals[identity] = ColonyGoal(source='PLAYER', priority_class=3,
+                attempts=prior.attempts + 1 if prior else 0,
+                target={'pawn': request.pawn, 'decision': request.decision, 'interaction': p.get('interaction')},
+                started_tick=snapshot['tick'], last_progress_tick=snapshot['tick'])
+        result = {'goal': identity, 'decision': request.decision, 'execution': 'Population goal recorded; native outcomes remain unverified'}
+    elif isinstance(request, CreateGoal):
         goal_id = request.goal
         if request.goal == 'MaintainWaste':
             state = await rt.game.query('home/waste_state', unwanted=','.join(request.unwanted), bury=','.join(request.bury))

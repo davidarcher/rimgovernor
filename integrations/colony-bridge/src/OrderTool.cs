@@ -113,7 +113,7 @@ namespace HomeBridge.BridgeTools
         /// documented. Used for validation and for the refusal text.</summary>
         private static readonly string[] Actions =
         {
-            "resolve", "draft", "undraft", "attack", "goto", "equip", "rescue", "tend", "haul", "work"
+            "resolve", "draft", "undraft", "attack", "goto", "equip", "rescue", "capture", "tend", "haul", "work"
         };
 
         /// <summary>Attack modes.</summary>
@@ -128,7 +128,7 @@ namespace HomeBridge.BridgeTools
             Title = "Order a colonist directly, as a job",
             Description =
                 "Issues a vanilla pawn order as a JOB, bypassing the right-click float menu entirely. "
-                + "action = resolve | draft | undraft | attack | goto | equip | rescue | tend | haul | work. "
+                + "action = resolve | draft | undraft | attack | goto | equip | rescue | capture | tend | haul | work. "
                 + "The pawn and the target each accept four id forms - the full Thing_Human123, the ThingID Human123, the bare "
                 + "number 123, or a name/label case-insensitively - so an explicit id can never be 'ambiguous'. Hostility is "
                 + "NEVER a precondition: a drafted pawn may attack any spawned pawn, downed or not, hostile or not, exactly as "
@@ -158,7 +158,7 @@ namespace HomeBridge.BridgeTools
         public async Task<object> Order(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
-            [ToolParameter(Description = "resolve | draft | undraft | attack | goto | equip | rescue | tend | haul | work. resolve reads and mutates nothing and is the safe way to learn a thing's id forms. haul is 'prioritize hauling X'; work is 'prioritize doing bills at X' - both go through the same WorkGiver path the float menu uses, so the job is the giver's own.", DefaultValue = "resolve")] string action = "resolve",
+            [ToolParameter(Description = "resolve | draft | undraft | attack | goto | equip | rescue | capture | tend | haul | work. resolve reads and mutates nothing and is the safe way to learn a thing's id forms. haul is 'prioritize hauling X'; work is 'prioritize doing bills at X' - both go through the same WorkGiver path the float menu uses, so the job is the giver's own.", DefaultValue = "resolve")] string action = "resolve",
             [ToolParameter(Description = "The colonist to order. Any of: the full thingId (Thing_Human123), the ThingID (Human123), the bare number (123), or a name/nickname case-insensitively. Required for every action except a resolve that names only a target.")] string pawn = null,
             [ToolParameter(Description = "What to act on, for attack / rescue / tend / equip, and optional under resolve. Any spawned pawn or thing on the current map, in any of the same four id forms plus its label, plus the DefName@x,z form home/bills and home/building_config take (TableMachining@62,141) so a bench addressed by bills.py is addressable here. Hostility is never required.")] string target = null,
             [ToolParameter(Description = "Destination cell x, for goto. Also a fallback locator for equip - the weapon lying on that cell - when target is not given.", DefaultValue = int.MinValue)] int x = int.MinValue,
@@ -568,6 +568,7 @@ namespace HomeBridge.BridgeTools
                 case "goto": PrepareGoto(plan); break;
                 case "equip": PrepareEquip(plan); break;
                 case "rescue": PrepareRescue(plan); break;
+                case "capture": PrepareCapture(plan); break;
                 case "tend": PrepareTend(plan); break;
                 case "haul": PrepareHaul(plan); break;
                 case "work": PrepareWork(plan); break;
@@ -849,6 +850,34 @@ namespace HomeBridge.BridgeTools
         }
 
         // ----------------------------------------------------------- rescue
+
+        private static void PrepareCapture(Plan plan)
+        {
+            var target = plan.TargetPawn;
+            if (target == null || target.Dead || !target.Spawned || !target.CanBeCaptured()
+                || !HealthAIUtility.CanRescueNow(plan.Pawn, target, true)
+                || !plan.Pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))
+            {
+                plan.Refuse("capture_ineligible", "Native capture eligibility or worker manipulation refused.");
+                return;
+            }
+            // Neutral-faction capture needs a separate explicit diplomatic policy.
+            if (!target.HostileTo(Faction.OfPlayerSilentFail))
+            {
+                plan.Refuse("capture_policy", "Capture of non-hostile pawns is unsupported; preserve faction relations.");
+                return;
+            }
+            var bed = RestUtility.FindBedFor(target, plan.Pawn, false, false, GuestStatus.Prisoner);
+            if (bed == null || !plan.Pawn.CanReserveAndReach(target, PathEndMode.Touch, Danger.Deadly))
+            {
+                plan.Refuse("capture_no_bed_or_path", "No available native prisoner bed or reservable path.");
+                return;
+            }
+            plan.JobDef = JobDefOf.Capture;
+            plan.TargetA = target;
+            plan.TargetB = bed;
+            plan.Count = 1;
+        }
 
         private static void PrepareRescue(Plan plan)
         {

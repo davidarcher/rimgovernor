@@ -1,5 +1,5 @@
 """Domain methods compile into the existing plan actions; only Hands writes."""
-from .production_policy import required_resource_work
+from .colony_policy import required_colony_work
 from math import ceil
 from .colony_plan import PlanStep, RoomShell, Dependency
 from .hands import room_placements
@@ -141,6 +141,15 @@ class ColonySkills:
         if goal_id.startswith('EnsureMood-'):
             from .mood_control import method
             return await method(self.rt, goal_id, facts, people)
+        if goal_id == 'EnsureInitialShelter' and facts.get('populationHousingTarget'):
+            facts = dict(facts, colonists=max(facts['colonists'], facts['populationHousingTarget']))
+        if goal_id == 'EnsureFoodSupply' and facts.get('populationNutritionPerDay'):
+            facts = dict(facts, nutritionPerDay=facts['populationNutritionPerDay'],
+                         foodRunwayDays=facts['populationFoodRunwayDays'],
+                         colonists=max(facts['colonists'], facts.get('populationHousingTarget', 0)))
+        if goal_id.startswith('Population-'):
+            from .population import compile_method
+            return await compile_method(self.rt, goal_id, facts, people)
         if goal_id.startswith('MaintainResource-'):
             from .production_policy import resource_method
             return await resource_method(self.rt, goal_id, facts)
@@ -288,11 +297,11 @@ class ColonySkills:
                     x=p['x'], z=p['z'], keepSelected=False) for p in facts['forbiddenSupplies'][:8]]
             return None
         if goal_id == 'EnsureWorkAssignments':
-            assignments, covered = work_assignment(people, required_resource_work(rt.current_plan), rt.current_plan.control.get('work_overrides', {}))
+            assignments, covered = work_assignment(people, required_colony_work(rt.current_plan), rt.current_plan.control.get('work_overrides', {}))
             for pawn, values in rt.current_plan.control.get('work_overrides', {}).items():
                 if pawn in assignments: assignments[pawn].update(values)
             covered = covered and all(any(values.get(work, 0) > 0 for values in assignments.values())
-                for work in {'Doctor', 'Cooking', 'Construction', 'Growing', *required_resource_work(rt.current_plan)})
+                for work in {'Doctor', 'Cooking', 'Construction', 'Growing', *required_colony_work(rt.current_plan)})
             if not covered: raise SkillBlocked('Required colony or resource work lacks an available capable pawn or is disabled by player work overrides')
             actions = []
             for pawn, values in assignments.items():

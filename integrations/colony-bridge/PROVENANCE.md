@@ -38,6 +38,14 @@ Local changes:
   `scripts/fixtures/GearFixture.cs` is optional disposable setup, excluded from
   default builds and the model gateway. Game assemblies and decompiled inspection
   artifacts are not distributed with this source.
+- `PopulationTool.cs` is original local observation and guarded prisoner-setting code.
+  `OrderTool.cs` adds capture through installed RimWorld 1.6
+  `FloatMenuOptionProvider_CapturePawn`, `HealthAIUtility.CanRescueNow` and
+  `RestUtility.FindBedFor` contracts. Prisoner settings follow
+  `ITab_Pawn_Visitor` eligibility and `Pawn_GuestTracker.SetExclusiveInteraction`.
+  No native game source or assemblies are bundled. `PopulationFixture` is optional
+  disposable starting-state setup, excluded from production/model access; actual
+  custody, care and recruitment remain normal native pawn work.
 - `ForecastFacts.cs` is original local read-only animal-feed, crop-work and
   medical/mood input accounting. `FoodSupplyFacts.cs` records native eater policy,
   diet and access eligibility; `ColonyFactsTool.cs` exposes these inputs.

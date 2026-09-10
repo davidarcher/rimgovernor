@@ -15,6 +15,7 @@ conceptual introduction, start with [the system overview](../explanation/overvie
 - [Controller and colony contracts](controller-contracts.md)
 - [Native forecast contracts](forecast-contracts.md)
 - [Mood relief contracts](mood-control.md)
+- [Population commitments and native custody](population-contracts.md)
 - [Player command contracts](command-contracts.md)
 - [Player action coverage and native capability audit](player-actions.md)
 - [Action completion contracts](action-contracts.md)

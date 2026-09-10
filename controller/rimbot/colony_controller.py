@@ -1,8 +1,8 @@
 """Deterministic priority tree using ColonyPlan, native validation and Hands."""
-from .production_policy import required_resource_work, refresh_resource_prerequisite
+from .production_policy import refresh_resource_prerequisite
 from dataclasses import asdict
 from .colony_plan import ColonyGoal, CommitSteps
-from .colony_policy import ColonyPolicy, allocation, criteria, derive, priority_nodes, work_assignment
+from .colony_policy import required_colony_work, ColonyPolicy, allocation, criteria, derive, priority_nodes, work_assignment
 from .colony_skills import ColonySkills, SkillBlocked
 from .config import ModelRole
 from .strategic_state import fingerprint
@@ -33,6 +33,12 @@ class ColonyController:
         token, direction = rt.context_token, rt.chat_revision
         plan = rt.current_plan
         policy_values = dict(asdict(ColonyPolicy()), **plan.control.get('policy', {}))
+        if any(key.startswith('Population-') and not goal.cancelled and goal.status != 'complete'
+               for key, goal in plan.colony_goals.items()):
+            population_days = plan.control.get('population_policy', {}).get('food_days', 0)
+            policy_values['food_target_days'] = max(policy_values['food_target_days'], population_days)
+            policy_values['food_min_days'] = min(policy_values['food_target_days'] - .1,
+                max(policy_values['food_min_days'], population_days * .9))
         self.policy = ColonyPolicy(**policy_values)
         native = await rt.game.query('home/colony_facts', planning=True)
         people = await rt.game.query('home/list_pawns', colonistsOnly=True, bio=True, work=True, health=True, equipment=True, needs=True, thoughts=True, schedule=True)
@@ -68,11 +74,11 @@ class ColonyController:
         pending_supplies = [p for p in pending_supplies if (p['x'],p['z']) in still_forbidden]
         plan.control['starting_supplies'] = pending_supplies
         facts['forbiddenSupplies'] = pending_supplies
-        assignments, coverage = work_assignment(people['pawns'], required_resource_work(plan), plan.control.get('work_overrides', {}))
+        assignments, coverage = work_assignment(people['pawns'], required_colony_work(plan), plan.control.get('work_overrides', {}))
         for pawn, values in plan.control.get('work_overrides', {}).items():
             if pawn in assignments: assignments[pawn].update(values)
         coverage = coverage and all(any(values.get(work, 0) > 0 for values in assignments.values())
-                                    for work in {'Doctor', 'Cooking', 'Construction', 'Growing', *required_resource_work(plan)})
+                                    for work in {'Doctor', 'Cooking', 'Construction', 'Growing', *required_colony_work(plan)})
         by_id = {p['thingId']: p for p in people['pawns']}
         facts['workCoverage'] = coverage and all(
             all(any(w['name'] == name and (w.get('priorityStored') == priority if
@@ -92,7 +98,11 @@ class ColonyController:
                 if stock is None or stock < goal.target['quantity']:
                     resource_nodes.append((identity, 3))
         old_latches = dict(plan.control.get('latches', {}))
-        nodes = priority_nodes(facts, plan.control.setdefault('latches', {}), self.policy) + resource_nodes
+        from .population import refresh as refresh_population
+        population_nodes = await refresh_population(rt, facts, people['pawns'])
+        await rt.ensure_context(token)
+        if direction != rt.chat_revision or rt.mode != 'automate': return
+        nodes = priority_nodes(facts, plan.control.setdefault('latches', {}), self.policy) + resource_nodes + population_nodes
         nodes += mood_nodes(facts['mood'])
         nodes.sort(key=lambda node: node[1])
         waste = plan.colony_goals.get('MaintainWaste')
@@ -307,7 +317,7 @@ class ColonyController:
                            if identity == 'CriticalMedical' and failed.code == 'tending_interrupted'
                            and recovery.get('state') == 'blocked' else failed.detail)
                 continue
-            timeout = 3000 if identity=='ActiveCombat' else self.policy.blocked_after_ticks
+            timeout = 3000 if identity=='ActiveCombat' else 600000 if identity.startswith('Population-') else self.policy.blocked_after_ticks
             if goal.steps and facts['tick'] - goal.last_progress_tick >= timeout:
                 reason = f'No measurable progress within {timeout} game ticks; inspect labor/materials/postconditions'
                 goal.evidence['watchdog'] = dict(tick=facts['tick'], reason=reason,
@@ -324,6 +334,8 @@ class ColonyController:
                 compiled = await self.skills.compile(identity, facts, people['pawns'])
                 if compiled is None:
                     release_admission(plan, identity, development_admitted, 'Existing method awaiting native progress')
+                    if identity.startswith('Population-') and goal.status != 'complete':
+                        plan.control['simulation_needed'] = True
                     existing_process = (identity=='CriticalMedical' and any(p.get('job')=='TendPatient' for p in people['pawns'])) or (identity=='EnsureFoodSupply' and any(f.get('growingCells',0)>0 for f in facts.get('farms',[]))) or (
                         identity in ('EnsureFoodSupply','MaintainWood') and any(p.get('designated') for p in facts.get('acquisition',[])))
                     if goal.evidence.get('methods') or goal.archived_methods or existing_process or identity.startswith('MaintainResource-') or identity=='EnsureResearch': plan.control['simulation_needed'] = True

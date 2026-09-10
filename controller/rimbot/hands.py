@@ -101,6 +101,13 @@ class Hands:
                     else:
                         if isinstance(action, NativeOperation):
                             args = dict(action.arguments)
+                            if step.goal_id and step.goal_id.startswith('Population-'):
+                                from .population import guard, SkillBlocked
+                                try:
+                                    await guard(rt, step.goal_id)
+                                except SkillBlocked as error:
+                                    raise Blocked('population_admission', str(error)) from error
+                                self.guard(rt, revision, token, direction)
                             if action.tool == 'home/production_policy':
                                 from .production_policy import policy_arguments
                                 args = policy_arguments(rt)

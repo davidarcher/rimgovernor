@@ -76,9 +76,9 @@ def derive(batch, native, policy):
 
 
 def criteria(facts, policy):
-    count = facts.get('colonists', 0)
+    count = max(facts.get('colonists', 0), facts.get('populationHousingTarget', 0))
     low, high = facts.get('sleepingTemperatureMin'), facts.get('sleepingTemperatureMax')
-    food = facts.get('foodRunwayDays')
+    food = facts.get('populationFoodRunwayDays', facts.get('foodRunwayDays'))
     return {
         'sleeping': count > 0 and facts.get('bedCapacity', 0) >= count,
         'shelter': count > 0 and facts.get('indoorSleepingCapacity', 0) >= count,
@@ -144,6 +144,15 @@ def allocation(plan, facts, proposed, policy, *, survival=False):
     return {resource: max(0, amount + reserved.get(resource, 0) + reserves.get(resource, 0)
                              - stock.get(resource, 0)) for resource, amount in proposed.items()
             if amount + reserved.get(resource, 0) + reserves.get(resource, 0) > stock.get(resource, 0)}
+
+
+def required_colony_work(plan):
+    from .production_policy import required_resource_work
+    work = dict(required_resource_work(plan))
+    if any(key.startswith('Population-') and not goal.cancelled and goal.status != 'complete'
+           for key, goal in plan.colony_goals.items()):
+        work['Warden'] = 'Social'
+    return work
 
 
 def work_assignment(pawns, required_work=None, overrides=None):
