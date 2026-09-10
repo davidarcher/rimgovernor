@@ -125,7 +125,7 @@ namespace HomeBridge.BridgeTools
 
     public sealed class ProductionPolicyTools
     {
-        public ProductionPolicyTools() { ProductionPolicyGuard.EnsurePatched(); }
+        public ProductionPolicyTools() { ProductionPolicyGuard.EnsurePatched(); DrillingGuard.Install(); }
         [Tool("home/production_policy", Title = "Enforce production resource budgets",
             Description = "Set map-scoped resource floors and stopped inputs for ordinary bill ingredient selection. Exact native selected counts are checked before a new bill job is admitted. Existing production jobs are interrupted when budgets change; bill settings and unfinished work remain. Policies persist with the native save. Paused exact colony/load/map required; dry run by default.")]
         public async Task<object> Policy(IRimBridgeContext ctx, CancellationToken cancellationToken,
@@ -135,6 +135,7 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Complete comma separated DefName=quantity persistent player reserve floors. Empty clears.")] string floors = "",
             [ToolParameter(Description = "Transient unissued construction commitments, DefName=quantity CSV. Applied only during a supervised clock lease; not saved in native game.")] string commitments = "",
             [ToolParameter(Description = "Complete comma separated stopped input DefNames. Includes defense-only inputs because routine production has no defensive ownership.")] string stopped = "",
+            [ToolParameter(Description = "Committed new drilling facilities: Def/x/z/resource/stockTarget CSV. Native stock gates work only during supervision; existing player drills cannot be adopted. Empty suspends retained owned facilities during supervision.")] string drills = "",
             [ToolParameter(Description = "Preview only", DefaultValue = true)] bool dryRun = true)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -143,6 +144,9 @@ namespace HomeBridge.BridgeTools
                     || map.uniqueID != mapId || Find.TickManager.CurTimeSpeed != TimeSpeed.Paused)
                     return new { success = false, error = "Paused colony/load/map identity required" };
                 var parsed = new Dictionary<string, int>(); var held = new Dictionary<string, int>(); var stops = new List<string>();
+                List<DrillingRecord> drilling;
+                try { drilling = DrillingGuard.Parse(map, drills); }
+                catch (ArgumentException error) { return new { success = false, error = error.Message }; }
                 foreach (var part in (floors ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
                 {
                     var row = part.Split('=');
@@ -174,6 +178,7 @@ namespace HomeBridge.BridgeTools
                 var changed = current.Count != parsed.Count || current.Any(p => !parsed.TryGetValue(p.Key, out var n) || n != p.Value)
                     || !currentStops.SequenceEqual(stops.OrderBy(p => p));
                 var interrupted = new List<string>();
+                if (!dryRun) DrillingGuard.Apply(map, drilling);
                 if (!dryRun && (changed || heldChanged))
                 {
                     foreach (var key in state.Floors.Keys.Where(k => k.StartsWith(prefix)).ToList()) state.Floors.Remove(key);
@@ -185,7 +190,7 @@ namespace HomeBridge.BridgeTools
                     if (changed || Supervisor.IsActive) foreach (var pawn in map.mapPawns.FreeColonistsSpawned.Where(p => p.CurJob?.bill != null).ToList())
                     { interrupted.Add(pawn.ThingID); pawn.jobs.EndCurrentJob(JobCondition.InterruptForced); }
                 }
-                return new { success = true, dryRun, changed, floors = parsed, commitments = held, stopped = stops, interrupted,
+                return new { success = true, dryRun, changed, floors = parsed, commitments = held, stopped = stops, drills, interrupted,
                     tick = Find.TickManager.TicksGame, mapId, loadToken };
             }, cancellationToken).ConfigureAwait(false);
         }

@@ -99,6 +99,7 @@ class Planner:
             'Use CreateGoal for persistent targets such as 20 days of food, ModifyResourcePolicy for spending constraints, '
             'and SetResourceReserve only for an explicitly requested numeric reserve. These policy commands preserve the other setting. '
             'Maintaining or replenishing a resource quantity uses CreateGoal with MaintainResource, resource and quantity; '
+            'Set deep_extraction only for an explicit request to develop deep drilling that accepts its native infestation risk. '
             'a spending reserve protects existing stock and does not replenish it. '
             'If both settings are explicitly requested, return both policy calls in the same response. '
             'Use CancelGoal to stop future controller work while retaining existing game orders. '

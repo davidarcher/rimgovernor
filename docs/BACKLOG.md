@@ -281,14 +281,12 @@ in the checkpoint commit; do not append an implementation diary here.
   deterministic fixtures and isolated native runs observing illumination, cleaning,
   completed floors, actual travel, generation/refueling and maintained temperatures.
 
-- [ ] **B26 · Mining and material development.** Complete player-approved deep
-  extraction facility planning through B06/B06b/B07, including discovered research,
-  power, worker, storage and infestation-risk prerequisites. Infrastructure discovery
-  does not establish an executable or accepted drilling workflow. Keep unsupported
-  roofed excavations blocked until a support-preserving method has native acceptance.
-  Complete native acceptance of surface resource recovery, depleted-site replacement,
-  actual hauling and paired restart with pending digs; designation receipts and
-  compilation cannot establish these outcomes.
+- [ ] **B26 · Mining and material development.** Complete native acceptance of
+  player-approved deep extraction development through shared storage, construction
+  and supervised stock limits. Verify actual building completion, drilling output,
+  depleted-site replacement and hauling with researched equipment, native power and
+  qualified workers. Receipts and compilation cannot establish those outcomes.
+  Unsupported roofed excavations remain blocked.
 - [ ] **B29 · Colony-wide development priorities.** Arbitrate comfort, research,
   production, defense and expansion through the existing deterministic priority tree
   and shared plans. Extend the bounded storage/defense/resource admission order to

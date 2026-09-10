@@ -1,4 +1,4 @@
-# Verify native surface mining
+# Verify native material extraction
 
 [Documentation](../README.md) · [Contracts](../reference/mining-contracts.md)
 
@@ -22,5 +22,22 @@ paired restart with a pending dig. Inspect `result.json`
 and `progress.json`, native logs and the worker's input hashes. Every assertion must
 pass; setup errors and timeouts are failures, and failed output directories are retained.
 
-This scripted scenario does not exercise local-model interpretation, deep drilling or
-general tunnel support. The [backlog](../BACKLOG.md) records remaining acceptance.
+Run deep development in a separate fresh worker/output directory:
+
+```text
+python scripts/deep_mining_acceptance.py --source-root /worker/run --output /worker/probe --seconds 900
+```
+
+Its disposable baseline has researched equipment, a fueled native generator and
+scanner, ordinary construction supplies, an existing qualified builder and miner, and two known
+deep deposits. Before the goal begins, the fixture sets the nearest selected seam to
+one unit and the other to two native portions. These are scenario inputs. Construction,
+drilling speed, mining yield, recovered stock and hauling are native pawn outcomes.
+The scenario stages storage and two drills through shared Hands, checks depletion
+replacement, verifies a satisfied stock target stops further work while ore remains,
+and observes the output in storage. `result.json` retains native power, pawn and
+extraction observations throughout. Initial grid settling is bounded; setup failures
+cannot count as accepted facilities.
+
+These scripted scenarios do not exercise local-model interpretation or general
+tunnel support. Unsupported roofed excavation remains refused.

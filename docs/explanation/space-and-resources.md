@@ -63,6 +63,14 @@ A resource goal may designate mining or harvest work, or configure an ordinary
 production bill. Existing bills count as continuing capacity only when their settings
 cover the requested target. Player edits remain authoritative.
 
+Material development follows the same distinction. Safe surface deposits lead to
+bounded mining and exact-resource storage. Explicitly approved deep extraction stages
+researched equipment at observed powered sites through shared construction commitments.
+Completed drills remain subject to native stock limits, worker eligibility and the
+game's infestation rules. A depleted seam leads to a fresh site observation; a cancelled
+or removed facility requires renewed player direction. See the
+[extraction contracts](../reference/mining-contracts.md).
+
 These plans do not create resources. Actual output, material consumption and remaining
 stock need native readback. This is why production acceptance tests wait for pawn work
 rather than declaring success when a bill is accepted.

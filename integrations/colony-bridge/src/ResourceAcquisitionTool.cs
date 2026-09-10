@@ -53,16 +53,21 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        private static object ExtractionInfrastructure(Map map, string resource)
+        private static object ExtractionInfrastructure(Map map, string resource, bool development)
         {
             var definitions = DefDatabase<ThingDef>.AllDefs.Where(d => d.CompDefFor<CompDeepDrill>() != null
                 || d.CompDefFor<CompDeepScanner>() != null).OrderBy(d => d.defName).Select(d => new {
                     defName = d.defName, method = d.CompDefFor<CompDeepDrill>() != null ? "drill" : "scan",
+                    constructionSkill = d.constructionSkillPrerequisite, artisticSkill = d.artisticSkillPrerequisite,
                     research = (d.researchPrerequisites ?? new List<ResearchProjectDef>()).Select(r => new { defName = r.defName, finished = r.IsFinished }).ToList(),
                     available = d.researchPrerequisites == null || d.researchPrerequisites.All(r => r.IsFinished),
                     costs = d.MadeFromStuff ? null : d.CostListAdjusted(null, false).ToDictionary(c => c.thingDef.defName, c => c.count)
                 }).ToList();
             var scannersActive = map.deepResourceGrid.AnyActiveDeepScannersOnMap();
+            var scanners = map.listerBuildings.allBuildingsColonist.Where(b => b.GetComp<CompDeepScanner>() != null)
+                .Select(b => new { thingId = b.ThingID, defName = b.def.defName, x = b.Position.x, z = b.Position.z,
+                    available = b.GetComp<CompDeepScanner>().CanUseNow.Accepted,
+                    forbidden = b.IsForbidden(Faction.OfPlayer), powered = b.GetComp<CompPowerTrader>()?.PowerOn == true }).ToList();
             var deposits = scannersActive ? map.AllCells.Where(c => !c.Fogged(map)
                 && map.deepResourceGrid.ThingDefAt(c)?.defName == resource && map.deepResourceGrid.CountAt(c) > 0)
                 .Take(40).Select(c => new { x = c.x, z = c.z, remaining = map.deepResourceGrid.CountAt(c) }).ToList() : null;
@@ -71,8 +76,14 @@ namespace HomeBridge.BridgeTools
                     resource = DeepDrillUtility.GetNextResource(b.Position, map)?.defName,
                     available = b.GetComp<CompDeepDrill>().CanDrillNow(), forbidden = b.IsForbidden(Faction.OfPlayer),
                     progress = b.GetComp<CompDeepDrill>().ProgressToNextPortionPercent }).ToList();
-            return new { definitions, scannersActive, deposits, drills,
-                blocker = "Deep extraction requires a player-approved powered facility and assessed infestation risk; surface acquisition cannot authorize it" };
+            return new { definitions, scannersActive, scanners, deposits, drills,
+                sites = development ? ExtractionDevelopment.Sites(map, resource) : new List<object>(),
+                owned = MiningGuard.State().Drills.Where(r => r.MapId == map.uniqueID && r.Resource == resource)
+                    .Select(r => new { defName = r.Definition, thingId = r.ThingId, pendingId = r.PendingId, x = r.X, z = r.Z, recovered = r.Recovered,
+                        missing = !new IntVec3(r.X, 0, r.Z).GetThingList(map).Any(t =>
+                            (r.ThingId != null && t.ThingID == r.ThingId) || (r.PendingId != null && t.ThingID == r.PendingId)),
+                        depleted = DeepDrillUtility.GetNextResource(new IntVec3(r.X, 0, r.Z), map)?.defName != resource }).ToList(),
+                risk = "Native drill infestations remain enabled; deep development requires explicit player acceptance" };
         }
 
         private static object Storage(Map map, string resource)
@@ -98,13 +109,16 @@ namespace HomeBridge.BridgeTools
                     && !c.GetThingList(map).Any(t => t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item))
                 .Take(8).ToList();
             return new { capacity, stored, stackLimit = def.stackLimit, haulers = haulers.Select(p => p.ThingID).ToList(),
+                deepPortion = (int)Math.Ceiling(def.deepCountPerPortion * map.mapPawns.FreeColonistsSpawned
+                    .Where(p => ExtractionDevelopment.Worker(p, WorkTypeDefOf.Mining)).Select(p => p.GetStatValue(StatDefOf.MiningYield)).DefaultIfEmpty(1f).Max()),
                 candidates = candidates.Select(c => new { x = c.x, z = c.z }).ToList(),
                 workType = HomeBillsTools.WorkTypeMetadata(WorkTypeDefOf.Hauling) };
         }
         [Tool("home/resource_sources", Title = "Reachable native resource sources",
             Description = "Up to 40 visible nearby safely reachable native mining or mature wild-plant sources for an exact output resource. Normal yields are estimates; pawn work must produce actual stock. Existing growing zones are excluded.")]
         public async Task<object> Sources(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Exact native output ThingDef")] string resource)
+            [ToolParameter(Description = "Exact native output ThingDef")] string resource,
+            [ToolParameter(Description = "Include bounded native extraction facility sites; research, power, worker and access prerequisites are required.")] bool development = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -115,6 +129,7 @@ namespace HomeBridge.BridgeTools
                 float Distance(Thing t) => map.mapPawns.FreeColonistsSpawned.Min(p => p.Position.DistanceTo(t.Position));
                 var rows = eligible.OrderByDescending(t => Designated(t)).ThenBy(Distance)
                     .ThenBy(t => t.thingIDNumber).Take(40).Select(t => new { thingId = t.ThingID,
+                        sourceId = MiningGuard.State().Records.FirstOrDefault(r => r.MapId == map.uniqueID && r.ThingId == t.ThingID)?.SourceId ?? t.ThingID,
                         resource, workTypes = new[] { HomeBillsTools.WorkTypeMetadata(
                             t is Mineable ? WorkTypeDefOf.Mining : WorkTypeDefOf.PlantCutting) },
                         distance = Distance(t), safety = t is Mineable ? "open_surface" : "native_eligible",
@@ -125,11 +140,11 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, resource, sources = rows, tick = Find.TickManager.TicksGame,
                     colonyId = identity?.ColonyId, loadToken = identity?.LoadToken, mapId = map.uniqueID,
                     eligibleCount = eligible.Count, truncated = eligible.Count > 40,
-                    infrastructure = ExtractionInfrastructure(map, resource),
+                    infrastructure = ExtractionInfrastructure(map, resource, development),
                     storage = Storage(map, resource),
                     pendingYield = eligible.Where(Designated).Sum(t => t is Plant p ? p.YieldNow() : t.def.building.mineableYield),
                     extractions = MiningGuard.State().Records.Where(r => r.MapId == map.uniqueID && r.Resource == resource)
-                        .Select(r => new { thingId = r.ThingId, x = r.X, z = r.Z, started = r.Started,
+                        .Select(r => new { thingId = r.ThingId, sourceId = r.SourceId ?? r.ThingId, x = r.X, z = r.Z, started = r.Started,
                             finished = r.Finished, recovered = r.Recovered, blocker = r.Blocker, cancelled = r.Cancelled }).ToList(),
                     blocked = deposits.OfType<Mineable>().Where(t => !Eligible(t, map)).Take(40)
                         .Select(t => new { thingId = t.ThingID, x = t.Position.x, z = t.Position.z,
@@ -171,7 +186,7 @@ namespace HomeBridge.BridgeTools
                         {
                             if (records.Count >= 256) records.RemoveAll(r => r.Finished >= 0);
                             if (records.Count >= 256) return new { success = false, error = "Mining ownership capacity requires inspection" };
-                            records.Add(new MiningRecord { ThingId = thingId, Resource = resource, MapId = mapId,
+                            records.Add(new MiningRecord { ThingId = thingId, SourceId = thingId, Definition = thing.def.defName, Resource = resource, MapId = mapId,
                                 X = x, Z = z, Started = Find.TickManager.TicksGame });
                         }
                     }

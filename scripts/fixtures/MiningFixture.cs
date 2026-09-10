@@ -25,8 +25,8 @@ namespace HomeBridge.BridgeTools
                 }
                 if (action == "hauling" || action == "mining") {
                     var selectedWork = action == "hauling" ? WorkTypeDefOf.Hauling : WorkTypeDefOf.Mining;
-                    foreach (var worker in map.mapPawns.FreeColonistsSpawned)
-                        foreach (var work in DefDatabase<WorkTypeDef>.AllDefs)
+                    foreach (var worker in map.mapPawns.FreeColonistsSpawned.ToList())
+                        foreach (var work in DefDatabase<WorkTypeDef>.AllDefs.ToList())
                             if (!worker.WorkTypeIsDisabled(work)) worker.workSettings.SetPriority(work, work == selectedWork ? 1 : 0);
                     return new { success = true };
                 }

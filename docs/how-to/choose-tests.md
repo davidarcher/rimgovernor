@@ -11,6 +11,7 @@
 | Native Linux startup, isolation, clock, shutdown and checkpoint retention | [Automated native Docker acceptance](docker-native.md) | Docker Compose and staged licensed Linux game/mod/profile/GABS inputs; no model inference is exercised. |
 | Rendered native container snapshots | Native Docker runner with `--display xvfb` | Same native inputs; private Xvfb/llvmpipe, no host desktop focus. Inspect retained frames. |
 | Completed pawn work, recovery or gameplay invariants | Focused native probes below and [headless testing](headless-probes.md) | Disposable prepared colony, matching native DLLs and probe-specific prerequisites; read assertions and `--help`. Some probes still require Windows. |
+| Surface/deep extraction, storage and mining save identity | [Material extraction acceptance](mining-acceptance.md), `test_production_policy.py`, `test_extraction_development.py` | Private Linux worker and test-only mining fixtures; verifies actual pawn output separately from controller fixtures. |
 | Actual language interpretation or sustained colony behavior | [Real model probe](semantic-commands.md#live-planner-probe), [campaigns and performance](campaigns.md) | Configured local LM Studio when inference is involved; bounded lifecycle checks do not establish these outcomes. |
 
 For agents: inspect the affected tests and choose the smallest relevant check, then run

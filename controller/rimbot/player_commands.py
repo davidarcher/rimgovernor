@@ -79,9 +79,12 @@ class CreateGoal(Contract):
 
     resource: str | None = Field(default=None, description='Exact native resource definition or label, required for MaintainResource.')
     quantity: int | None = Field(default=None, ge=1, le=100000, description='Maintained stock target, required for MaintainResource.')
+    deep_extraction: bool = Field(default=False, description='MaintainResource only. True only when the player explicitly requests deep drilling and accepts its native infestation risk. Allows staged researched facilities at observed powered sites.')
 
     @model_validator(mode='after')
     def valid_target(self):
+        if self.deep_extraction and self.goal != 'MaintainResource':
+            raise ValueError('Deep extraction applies only to MaintainResource')
         if self.unwanted and (self.goal != 'MaintainWaste' or any(not v.startswith('Thing_') or ',' in v for v in self.unwanted)):
             raise ValueError('Only MaintainWaste accepts exact unwanted Thing IDs')
         if self.bury and (self.goal != 'MaintainWaste' or any(not v.startswith('Thing_') or ',' in v for v in self.bury)):
@@ -469,6 +472,7 @@ async def apply_command(rt, payload, *, token, revision):
                 if step_id in plan.progress and plan.progress[step_id].state == 'blocked': plan.cancel(step_id)
         goal = plan.colony_goals.setdefault(goal_id, ColonyGoal(priority_class=2))
         if request.goal == 'MaintainResource': goal.target = {'resource': request.resource, 'quantity': request.quantity}
+        if request.deep_extraction: goal.target['deep_extraction'] = True
         if request.goal == 'MaintainWaste':
             goal.target = {'unwanted': sorted(set(request.unwanted)), 'bury': sorted(set(request.bury))}
             goal.priority_class = 3

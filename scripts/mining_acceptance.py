@@ -152,18 +152,21 @@ async def run(args):
         store = Store(state_root / 'bridge.sqlite')
         rt = BridgeRuntime(store, root, fresh=True, headless=True, resume=checkpoint['manifest_path'])
         await ready(rt)
+        restored = (await sources())['extractions']
         record('paired_pending_mining_restored', rt.mode == 'manual' and rt.identity['loadToken'] != old_identity['loadToken']
-            and (await sources())['extractions'] == retained, before=retained, after=(await sources())['extractions'])
+            and [{k:v for k,v in e.items() if k != 'thingId'} for e in restored]
+            == [{k:v for k,v in e.items() if k != 'thingId'} for e in retained], before=retained, after=restored)
         await fixture(action='mining')
+        report['restored_sources'] = await sources()
         deadline = time.monotonic() + args.seconds
         while time.monotonic() < deadline:
             await window(600)
             observed = await sources()
-            pending = next(e for e in observed['extractions'] if e['thingId'] == third['thingId'])
+            pending = next(e for e in observed['extractions'] if e['sourceId'] == third['thingId'])
             report['latest'] = observed
             report['pawns'] = await rt.game.query('home/list_pawns', colonistsOnly=True, work=True)
             (args.output / 'progress.json').write_text(json.dumps(report, indent=2))
-            if pending['finished'] >= 0: break
+            if pending['finished'] >= 0 or pending['cancelled']: break
         record('resumed_native_output', pending['finished'] >= 0 and pending['recovered'] > 0, extraction=pending)
         record('zero_inference', rt.counters.get('model_calls', 0) == 0)
         report['passed'] = True

@@ -21,6 +21,10 @@ unsafe. Unowned mining follows ordinary player rules. The guard preserves normal
 damage, labor, skill and yield calculations. Records distinguish designation from the
 native destruction tick and actual output increase. Output is not a certificate of
 hauling, continued stock availability or arbitrary mine safety.
+Because RimWorld recreates compressed rocks with new ThingIDs on load, a pending
+record rebinds only to the exact map, cell, definition and health verified while
+writing that save. A stable source identity preserves interruption history across
+this rebind; an arbitrary replacement rock cannot inherit the old authorization.
 
 Interrupted sources cannot silently return in a differently composed batch. Explicitly
 renewing the resource goal reopens its methods; Hands still checks current native
@@ -39,5 +43,26 @@ haul eligibility remains authoritative; storage capacity is not completed haulin
 
 The census also reports installed scanner/drill definitions, costs, research, existing
 drill readiness and visible deep deposits when the native scanner overlay is available.
-These observations do not authorize deep drilling or certify its infestation risk.
-Deep facility planning and acceptance remain tracked in [the backlog](../BACKLOG.md).
+`CreateGoal(MaintainResource, deep_extraction=true)` requires explicit player direction
+accepting native drilling infestation risk. After surface sources are exhausted, the
+goal stages exact-resource storage and then researched scanner/drill facilities using
+ordinary construction preflight, resource commitments and Hands. Candidate footprints
+must be visible, empty and unroofed, with safe worker access and a native connection
+to a grid whose observed surplus covers the equipment. Missing research, power,
+labor or deposits blocks development with its evidence; it does not grant research,
+generate power, reveal undiscovered deposits or suppress infestations.
+
+Only committed new drill placements enter the supervised extraction policy. Existing
+player drills cannot be adopted. Before each native work interval, owned drills check
+the exact resource, retained building identity, forbidden state and current stock
+target. Depleted seams cannot fall through to stone-chunk production. The final native
+portion may overshoot the target; work speed and yield remain native. Output counters
+measure actual spawned stock increases and never certify hauling. Fresh observations
+choose another eligible deposit after depletion without moving an existing building.
+
+Ownership and recovered output persist with the native save. Stock targets are
+re-admitted from the paired controller state before supervised simulation and are not
+restored as native authority. Cancelled goals suspend owned drilling during supervision;
+ordinary player-controlled simulation remains under normal game rules. Drill progress
+refreshes the shared watchdog without crediting stock. Surface and deep acceptance
+must verify pawn outcomes separately from receipts and compilation.

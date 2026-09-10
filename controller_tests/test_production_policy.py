@@ -71,6 +71,8 @@ async def test_mining_selects_nearest_safe_source_and_replenishes_from_fresh_dep
     goal = rt.current_plan.colony_goals[identity]
     goal.evidence['methods'] = {method: ['issued-step']}
     goal.target['quantity'] = 25
+    rows[-1]['sourceId'] = rows[-1]['thingId']
+    rows[-1]['thingId'] = 'reloaded-compressed-rock'
     with pytest.raises(SkillBlocked, match='interrupted'):
         await resource_method(rt, identity, facts)
     goal.target['quantity'] = 1
