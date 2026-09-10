@@ -26,6 +26,9 @@ def test_only_exact_incapacitated_threat_census_allows_medical_cleanup():
         'counts': {'hostileCount': 1, 'huntingPredatorCount': 0},
         'threats': {'hostiles': [{'thingId': 'raider', 'downed': True}]}}
     assert threats_cleared(status)
+    status['threats']['hostiles'].append({'thingId': 'unlisted', 'downed': False})
+    assert not threats_cleared(status)
+    status['threats']['hostiles'].pop()
     status['counts']['hostileCount'] = 2
     assert not threats_cleared(status)
     status['counts']['hostileCount'] = None

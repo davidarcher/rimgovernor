@@ -10,7 +10,10 @@ def threats_cleared(status):
         count = status.get('counts', {}).get(key)
         if type(count) is not int or count < 0:
             return False
-        downed = {p['thingId'] for p in status.get('threats', {}).get(census, [])
+        rows = status.get('threats', {}).get(census, [])
+        if not isinstance(rows, list) or any(not p.get('thingId') or p.get('downed') is not True for p in rows):
+            return False
+        downed = {p['thingId'] for p in rows
                   if p.get('thingId') and p.get('downed') is True}
         if count > len(downed):
             return False
