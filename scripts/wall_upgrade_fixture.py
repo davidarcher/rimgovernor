@@ -7,12 +7,13 @@ from rimbot.colony_upkeep import upkeep_nodes, reconcile_upkeep
 from rimbot.wall_upgrade import method
 
 
-async def verify_upgrade(rt, report, seconds, *, interrupt=False, corner=False):
+async def verify_upgrade(rt, report, seconds, *, interrupt=False, corner=False, material_loss=False):
     facts = await rt.game.query('home/colony_facts', planning=True)
     wooden = {r['id'] for r in facts['upkeep']['structures'] if r['defName'] == 'Wall' and r['flammability'] > 0}
+    wooden -= {r.get('wall_target') for p in rt.current_plan.progress.values() for r in p.issued.values()}
     walls = [r['current'] for r in facts['upkeep']['construction'] if r['definition'] == 'Wall' and r['present'] and r['current'] in wooden]
     setup = (await rt.bridge.call('test/stone_upgrade_setup', walls=';'.join(walls), corner=corner)).structuredContent
-    result = report['wall_upgrade_interruption' if interrupt else 'wall_upgrade'] = dict(setup=setup, methods=[], enclosure=[], samples=[])
+    result = report['wall_upgrade_material_loss' if material_loss else 'wall_upgrade_interruption' if interrupt else 'wall_upgrade'] = dict(setup=setup, methods=[], enclosure=[], samples=[])
     async def advance_safely(ticks=300):
         from rimbot.native_scenario import advance_game
         from rimbot.production_policy import sync_production_policy
@@ -23,7 +24,7 @@ async def verify_upgrade(rt, report, seconds, *, interrupt=False, corner=False):
         rt.batch = await observe(rt.game)
         await rt.projects.reconcile(rt.game, plan=rt.current_plan)
         rt.reconcile_plan()
-    assert setup['success'] and (interrupt or setup['initialBlocks'] == 0), setup
+    assert setup['success'] and (interrupt or material_loss or setup['initialBlocks'] == 0), setup
     goal_id = 'MaintainStoneShell'
     goal = rt.current_plan.colony_goals.setdefault(goal_id, ColonyGoal(priority_class=4))
     deadline = time.monotonic() + seconds
@@ -70,19 +71,34 @@ async def verify_upgrade(rt, report, seconds, *, interrupt=False, corner=False):
             rt.handled_revision, rt.mode = rt.chat_revision, 'automate'
             await rt.hands.advance(rt)
             rt.mode = 'manual'
-            if interrupt and removal_step and rt.current_plan.progress[removal_step.id].issued:
+            if (interrupt or material_loss) and removal_step and rt.current_plan.progress[removal_step.id].issued:
                 receipt = rt.current_plan.progress[removal_step.id].issued['0']
                 assert receipt['confirmed'] and receipt['wall_removal_id']
-                await rt.halt()
+                if material_loss:
+                    loss = (await rt.bridge.call('test/wall_material_loss', material=setup['stone'])).structuredContent
+                    assert loss['success'] and loss['before'] > 0 and loss['after'] == 0, loss
+                    result['loss'] = loss
+                    depleted = await rt.game.query('home/colony_facts', planning=True)
+                    reconcile_upkeep(rt, depleted)
+                    stopped = next(r for r in depleted['upkeep']['wallRemoval'] if r['id'] == receipt['wall_removal_id'])
+                    assert stopped['blocker'].startswith('Materials no longer cover'), stopped
+                    assert rt.current_plan.progress[removal_step.id].state == 'blocked'
+                else:
+                    await rt.halt()
                 await advance_safely(1800)
                 facts = await rt.game.query('home/colony_facts', planning=True)
                 reconcile_upkeep(rt, facts)
                 row = next(r for r in facts['upkeep']['wallRemoval'] if r['id'] == receipt['wall_removal_id'])
                 assert not row['complete'] and row['blocker'] == 'Automation stopped; pending demolition invalidated', row
                 assert any(r['id'] == setup['target'] for r in facts['upkeep']['structures'])
-                assert rt.current_plan.progress[removal_step.id].state == 'blocked'
+                assert row['retired'] and row['targetPresent'] and not row['designated'], row
+                assert rt.current_plan.progress[removal_step.id].state == 'cancelled'
+                assert rt.current_plan.progress[permanent_step.id].state == 'cancelled'
                 assert not rt.current_plan.progress[permanent_step.id].issued
                 count = len(facts['upkeep']['wallRemoval'])
+                if material_loss:
+                    result['restored'] = (await rt.bridge.call('test/wall_material_loss', material=setup['stone'], restore=loss['before'])).structuredContent
+                    assert result['restored']['success'] and result['restored']['after'] >= loss['before']
                 rt.handled_revision, rt.mode = rt.chat_revision, 'automate'
                 await rt.hands.advance(rt)
                 rt.mode = 'manual'
@@ -91,7 +107,7 @@ async def verify_upgrade(rt, report, seconds, *, interrupt=False, corner=False):
                 assert any(r['id'] == setup['target'] for r in after['upkeep']['structures'])
                 result.update(outcome='passed', held_original=setup['target'], removal=row,
                     progress=[rt.current_plan.progress[s.id].model_dump() for s in steps])
-                print('stone upgrade: Manual invalidation preserved original wall and prevented replay', flush=True)
+                print('stone upgrade: ' + ('material loss' if material_loss else 'Manual') + ' retired pending demolition and unissued replacement without replay', flush=True)
                 return
             await advance_safely()
             facts = await rt.game.query('home/colony_facts', planning=True)

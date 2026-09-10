@@ -22,6 +22,17 @@ unavailable read. The section tick must match the enclosing observation.
 
 ## Maintained jobs
 
+`MaintainHomeCoverage` joins native construction lineage and confirmed stockpile
+IDs to bounded facility geometry. A building may include adjacent fully roofed
+rooms of at most 128 cells; the complete target is limited to 256 visible cells.
+Stockpiles require their unchanged committed footprint. Missing geometry remains
+unknown. Existing omissions when observation starts and subsequent player Home
+removals are saved as exclusions, including Clear and Invert operations.
+`home/upkeep_home` derives cells again and requires the same geometry hash and
+area revision before adding Home. It does not paint arbitrary terrain or change
+pawn allowed areas. Actual native Home cells establish completion; player
+exclusions retain a visible blocker. Uncertain writes cannot be replayed.
+
 Native construction lineage follows bridge-created blueprints into frames and
 finished buildings, including the game's failed-construction blueprint recovery.
 Blueprint material comes from its native intended-material field. A finished
@@ -79,8 +90,13 @@ and resource policies before completion. Jobs require active supervised simulati
 Native UI input, Manual, a load/map change or changed safety invalidates pending
 demolition. Player replacement of a designation relinquishes controller ownership.
 Cleanup requires the completed permanent wall. Missing or uncertain outcomes stay
-blocked. Interrupted-batch recovery and wider native acceptance
-remain listed in the backlog.
+blocked. Stopping automation removes only controller-owned pending demolition
+designations. Native evidence must confirm retirement, the surviving exact target
+and the absent designation before the shared plan cancels unissued descendants.
+Issued construction remains under observation. Retained cancellation history prevents
+duplicate replacement; existing backup walls remain intact. Blocked demolition is
+retired before further supervised simulation. Interrupted recovery beyond this safe
+retirement and wider native acceptance remain listed in the backlog.
 
 `SecureSupplies`, `MaintainEssentialRepairs`, `MaintainCleanFacilities` and
 `MaintainFireSafety` retain their goal identities across recovery and recurrence.
@@ -92,7 +108,9 @@ retains an emergency hold.
 
 Methods inspect at most eight targets and eight enabled, available workers in a
 review. Stable target and pawn IDs break ties. Medicine and rot deadlines rank
-hauling; relative damage ranks repairs; kitchen, hospital and laboratory filth
+hauling; native medical beds, temperature controls and generators lead repairs,
+followed by roof holders, beds and worktables. Relative damage ranks each category
+before cosmetic repairs. Kitchen, hospital and laboratory filth
 ranks before other home cleaning. Methods preserve forbidden items, player work
 overrides, schedules, drafts, existing player-forced jobs, storage filters and home
 areas. Native cleaning eligibility determines whether fresh filth can be worked;

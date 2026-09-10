@@ -166,13 +166,25 @@ namespace HomeBridge.BridgeTools
             return (State()?.Records ?? new List<WallRemovalRecord>()).Where(r => r.MapId == map.uniqueID).Select(r => {
                 if (!r.Complete && !r.PlayerOwned && r.Blocker == null) r.Blocker = Check(r);
                 return new { id = r.Id, target = r.Target, complete = r.Complete, completedTick = r.CompletedTick,
-                    blocker = r.Blocker, playerOwned = r.PlayerOwned };
+                    blocker = r.Blocker, playerOwned = r.PlayerOwned, retired = r.Retired,
+                    targetPresent = Wall(map, r.Target) != null,
+                    designated = Wall(map, r.Target) is Building target
+                        && map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct) != null };
             }).ToList();
         }
         internal static object Release(bool dryRun)
         {
             var records = (State()?.Records ?? new List<WallRemovalRecord>()).Where(r => !r.Complete && !r.PlayerOwned).ToList();
-            if (!dryRun) foreach (var r in records) r.Blocker = "Automation stopped; pending demolition invalidated";
+            if (!dryRun) foreach (var r in records) {
+                r.Blocker = "Automation stopped; pending demolition invalidated";
+                var map = Find.CurrentMap;
+                var target = map?.uniqueID == r.MapId ? Wall(map, r.Target) : null;
+                if (target == null) continue;
+                // Keep the guard on an already-running job until it observes cancellation.
+                var designation = map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct);
+                if (designation != null) map.designationManager.RemoveDesignation(designation);
+                r.Retired = map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct) == null;
+            }
             return new { success = true, accepted = true, dryRun, released = records.Count };
         }
         internal static object Remove(string target, string original, string left, string right, string backup,

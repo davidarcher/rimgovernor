@@ -89,13 +89,31 @@ stonecutting, construction of the backup enclosure, native demolition of one own
 wall, permanent stone construction and backup removal. Observe roof/enclosure
 between stages. A second batch is interrupted through Manual after its demolition
 receipt; require the original wall to survive further simulation and paired restart
-without replay. This does not establish recovery of the interrupted batch.
+without replay. Native retirement must remove the owned designation and cancel
+unissued dependent work. Completed backup walls remain intact. The fixture supplies
+three workbenches' worth of raw materials to allow ordinary construction fumbles;
+it does not prove replenishment after arbitrary material loss.
 
 For a corner with existing support and open salvage access, use
 `python scripts/corner_upgrade_acceptance.py --source-root /worker/run --output /worker/corner --seconds 900`.
 Require funded stone replacement, ordinary demolition and completed construction
 with retained roof/enclosure. No temporary walls may obstruct exterior salvage
 access. Both probes preserve unknown roof-support geometry as a blocker.
+
+For material-loss retirement, use
+`python scripts/wall_material_acceptance.py --source-root /worker/run --output /worker/wall-loss --seconds 900`.
+After ordinary corner replacement, a second batch loses its
+stone stock before demolition. Require the native material guard to stop work,
+verified retirement with the original wall intact, and no replay after fixture
+stock is restored. Retained records must survive paired restart.
+
+For deliberate Home coverage, use
+`python scripts/home_coverage_acceptance.py --source-root /worker/run --output /worker/home --seconds 300`.
+After ordinary storeroom construction, the fixture removes Home from its bounded
+native scope. Shared Hands must restore the actual cells without changing Home
+outside that scope. A subsequent player-style cell removal must remain excluded
+across paired restart. Native Clear and Invert checks exercise bulk edit tracking.
+These are area-setting outcomes, separate from actual cleaning or repair labor.
 
 For animal feed, use
 `python scripts/animal_feed_acceptance.py --source-root /worker/run --output /worker/feed --seconds 300`.

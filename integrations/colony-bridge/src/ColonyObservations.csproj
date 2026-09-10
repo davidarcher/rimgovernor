@@ -25,6 +25,7 @@
     <Compile Include="../../../scripts/fixtures/DeepMiningFixture.cs" Condition="'$(MiningFixture)' == 'true'" />
     <Compile Include="../../../scripts/fixtures/FoodObservationFixture.cs" Condition="'$(FoodObservationFixture)' == 'true'" />
     <Compile Include="../../../scripts/fixtures/UpkeepFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
+    <Compile Include="../../../scripts/fixtures/HomeCoverageFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
     <Compile Include="../../../scripts/fixtures/SleepingFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
     <Compile Include="../../../scripts/fixtures/StoreroomFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
     <Compile Include="../../../scripts/fixtures/WallUpgradeFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />

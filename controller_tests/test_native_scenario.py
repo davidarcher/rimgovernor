@@ -50,7 +50,7 @@ async def test_default_warning_resumes_only_remaining_ticks_and_records_evidence
     assert result['lastTick'] == 200
     assert report['simulation'][0]['completed']
     assert report['simulation'][0]['interruptions'][0]['acknowledgedLetterId'] == 'Letter1'
-    rt.receive_clock_events.assert_called_once()
+    assert rt.receive_clock_events.call_count == 2
 
 
 @pytest.mark.parametrize('mutation', [
@@ -115,6 +115,23 @@ async def test_exact_budget_requires_no_warning_handling():
     assert (await advance_game(rt, 100, {}))['lastTick'] == 200
     assert calls == [100]
     rt.note.assert_not_called()
+    rt.supervisor.poll.assert_awaited_once()
+    rt.receive_clock_events.assert_called_once()
+
+
+async def test_budget_event_reaches_runtime_before_next_decision_revision():
+    rt, _, state, _ = scenario()
+    state.update(stopReason='tick_budget', lastTick=200)
+    rt.chat_revision = 1
+    event = dict(kind='tick_budget')
+    rt.supervisor.poll.return_value = [event]
+    def receive():
+        assert rt.clock_events == [event]
+        rt.chat_revision += 1
+        rt.clock_events.clear()
+    rt.receive_clock_events.side_effect = receive
+    await advance_game(rt, 100, {})
+    assert rt.chat_revision == 2 and rt.clock_events == []
 
 
 @pytest.mark.parametrize('fault', ['gap', 'missing', 'wrong_source'])

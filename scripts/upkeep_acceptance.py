@@ -31,7 +31,7 @@ async def run(args):
         report['installed_order_schema'] = await rt.game.describe('home/order')
         for goal_id, field in [('SecureSupplies', 'medicine'), ('MaintainEssentialRepairs', 'wall'), ('MaintainCleanFacilities', 'filth'), ('MaintainFireSafety', 'fire')]:
             setup = (await rt.bridge.call('test/upkeep_setup', fireSize=.1 if field == 'fire' else 0,
-                storageMissing=goal_id == 'SecureSupplies')).structuredContent
+                storageMissing=goal_id == 'SecureSupplies', repairCompetition=goal_id == 'MaintainEssentialRepairs')).structuredContent
             assert setup['success'], setup
             report['setups'].append(setup)
             facts = await rt.game.query('home/colony_facts', planning=True)
@@ -42,10 +42,18 @@ async def run(args):
             upkeep_nodes(facts, rt.current_plan.control)
             state = rt.current_plan.control['upkeep'][goal_id]
             # Isolate the declared fixture target, retaining unmodified native facts.
-            state['targets'] = [r for r in state['targets'] if r['id'] == setup[field]]
+            state['targets'] = [r for r in state['targets'] if r['id'] in (setup[field], setup.get('cosmetic'))]
+            if goal_id == 'MaintainEssentialRepairs':
+                assert len(state['targets']) == 2 and state['targets'][0]['id'] == setup['wall']
+                essential, cosmetic = state['targets']
+                assert essential['repairPriority'] < cosmetic['repairPriority']
+                assert essential['hitPoints'] / essential['maxHitPoints'] > cosmetic['hitPoints'] / cosmetic['maxHitPoints']
+                report['repair_priority'] = state['targets']
             assert state['targets'], dict(goal=goal_id, state=state)
             goal = rt.current_plan.colony_goals[goal_id] = ColonyGoal(priority_class=3)
             compiled = await upkeep_method(rt, goal_id, facts, roster['pawns'])
+            if goal_id == 'MaintainEssentialRepairs':
+                assert compiled[1][0]['arguments']['target'] == setup['wall'], compiled
             if goal_id == 'SecureSupplies':
                 assert compiled and compiled[1][0]['kind'] == 'create_zone', compiled
                 method, actions = compiled
@@ -68,6 +76,9 @@ async def run(args):
                     refusal = error.result.structuredContent
                 assert refusal and refusal.get('success') is False, refusal
                 report['storage_creation']['occupied_cell_refusal'] = refusal
+                from home_coverage_acceptance import verify as verify_home
+                await verify_home(rt, report)
+                assert report['home_coverage']['target'].startswith('stockpile:')
                 facts = await rt.game.query('home/colony_facts', planning=True)
                 report['samples'].append(facts)
                 upkeep_nodes(facts, rt.current_plan.control)

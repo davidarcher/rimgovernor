@@ -52,20 +52,23 @@ in the checkpoint commit; do not append an implementation diary here.
   access, removed furniture, unavailable sites/materials and paired restart.
   Preserve player schedules and ordinary needs-driven use.
 
-  **Phase 3 — Fire, cleaning and repair upkeep.** Maintain deliberate home-area
-  coverage for occupied facilities and protected stock without expanding cleaning
-  work across arbitrary terrain. Preserve player area edits. Match safe firefighting
+    **Phase 3 — Fire, cleaning and repair upkeep.** Deliberate Home coverage for owned
+    facilities and stockpiles preserves player exclusions, rejects stale area revisions
+    and survives paired restart. Extend acceptance to changed facility geometry and
+    sustained maintenance. Match safe firefighting
   and repair jobs to capable available workers; isolate dangerous fires and use
   explicit retreat/hold behavior when safe intervention is unavailable. Prioritize
-  kitchen/clinic contamination and damaged essential structures over cosmetic work.
+    kitchen/clinic contamination; native repair priority favors essential structures
+    over cosmetic work. Extend recovery across workforce and facility changes.
   Stage stone-block production and wood-wall replacement through B06b/B07 only
   after native support/access checks; retain roofs, enclosure and escape routes
   throughout each replacement batch. Verify extinguished fires, completed repairs
   and remaining support rather than designations or worker assignments alone.
-    Guarded corner replacement retains existing roof support and open salvage access;
-    native acceptance includes Manual interruption and restart during pending demolition.
-    Finish straight-wall acceptance and exercise material loss. Retire or recover
-    interrupted batches without duplicate work.
+    Guarded straight and corner replacement retain roof support and salvage access.
+    Native acceptance covers ordinary construction, Manual interruption, material-loss
+    retirement and paired restart without duplicate demolition. Extend replacement to
+    changed geometry and broader enclosure/escape scenarios; add explicit recovery or
+    reauthorization of retired batches and sustained resource-loss campaigns.
 
   **Phase 4 — Operate the food chain.** Extend B04a/B06b from bills and rooms to
   reachable ingredient staging, output storage, hauling and cleaning capacity.

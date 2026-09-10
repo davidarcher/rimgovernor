@@ -56,6 +56,13 @@ def test_roofed_supplies_outside_valid_storage_remain_a_deficit():
     assert evidence(f)['vulnerable'] == []
 
 
+def test_native_essential_repair_categories_precede_cosmetic_damage():
+    f = facts()
+    f['upkeep']['structures'] = [dict(id=name, home=True, hitPoints=hp, maxHitPoints=100, repairPriority=rank)
+        for name, hp, rank in [('decoration', 1, 2), ('roof-holder', 50, 1), ('clinic', 90, 0), ('bench', 20, 1)]]
+    assert [r['id'] for r in evidence(f)['damaged']] == ['clinic', 'bench', 'roof-holder', 'decoration']
+
+
 def test_forbidden_items_and_non_home_filth_are_preserved():
     f = facts()
     r = item(); r['forbidden'] = True

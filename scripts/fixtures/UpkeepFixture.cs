@@ -16,7 +16,8 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Optional disposable fire size; zero omits fire.", DefaultValue = 0f)] float fireSize = 0f,
             [ToolParameter(Description = "Include a pen animal, pet and stored feed.", DefaultValue = false)] bool animals = false,
             [ToolParameter(Description = "Leave covered space unzoned for the storage method.", DefaultValue = false)] bool storageMissing = false,
-            [ToolParameter(Description = "Exclude fixture targets from workers' allowed area.", DefaultValue = false)] bool restrictWorkers = false)
+            [ToolParameter(Description = "Exclude fixture targets from workers' allowed area.", DefaultValue = false)] bool restrictWorkers = false,
+            [ToolParameter(Description = "Include a more damaged cosmetic repair target.", DefaultValue = false)] bool repairCompetition = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 try {
@@ -32,6 +33,13 @@ namespace HomeBridge.BridgeTools
                 wall.SetFaction(Faction.OfPlayerSilentFail);
                 GenSpawn.Spawn(wall, origin + new IntVec3(3, 0, 3), map);
                 wall.TakeDamage(new DamageInfo(DamageDefOf.Blunt, wall.MaxHitPoints / 2f));
+                Thing cosmetic = null;
+                if (repairCompetition) {
+                    cosmetic = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("DiningChair"), ThingDefOf.WoodLog);
+                    cosmetic.SetFaction(Faction.OfPlayerSilentFail);
+                    GenSpawn.Spawn(cosmetic, origin + new IntVec3(1, 0, 3), map);
+                    cosmetic.HitPoints = System.Math.Max(1, cosmetic.MaxHitPoints / 10);
+                }
                 var storage = origin + new IntVec3(4, 0, 3);
                 if (!storageMissing) {
                     var zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
@@ -100,6 +108,7 @@ namespace HomeBridge.BridgeTools
                     foreach (var cell in new[] { medicine.Position, wall.Position, dirt.Position, storage }) area[cell] = false;
                 }
                 return new { success = true, medicine = medicine.GetUniqueLoadID(), wall = wall.GetUniqueLoadID(),
+                    cosmetic = cosmetic?.GetUniqueLoadID(),
                     filth = dirt.GetUniqueLoadID(), fire = fire?.GetUniqueLoadID(), storage = new { x = storage.x, z = storage.z },
                     penAnimal = penAnimal?.GetUniqueLoadID(), looseAnimal = looseAnimal?.GetUniqueLoadID(),
                     pet = pet?.GetUniqueLoadID(), pen = penMarker?.GetUniqueLoadID(),

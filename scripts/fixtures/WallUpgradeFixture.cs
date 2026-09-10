@@ -10,6 +10,26 @@ namespace HomeBridge.BridgeTools
 {
     public sealed class WallUpgradeFixture
     {
+        [Tool("test/wall_material_loss", Description = "Remove or restore declared stone stock in a disposable wall scenario. Tests demolition safety under material loss; not production acceptance.")]
+        public async Task<object> Materials(IRimBridgeContext ctx, CancellationToken cancellationToken, string material, int restore = 0)
+            => await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap; var def = DefDatabase<ThingDef>.GetNamed(material);
+                if (def.stuffProps?.categories?.Contains(StuffCategoryDefOf.Stony) != true || restore < 0 || restore > 1000)
+                    return new { success = false, error = "Expected bounded stone material input" };
+                var stock = map.listerThings.ThingsOfDef(def).ToList();
+                var count = stock.Sum(t => t.stackCount);
+                if (restore == 0) foreach (var thing in stock) thing.Destroy();
+                else {
+                    var pawn = map.mapPawns.FreeColonistsSpawned.First();
+                    for (int remaining = restore; remaining > 0;) {
+                        var thing = ThingMaker.MakeThing(def); thing.stackCount = Math.Min(remaining, def.stackLimit);
+                        remaining -= thing.stackCount;
+                        GenPlace.TryPlaceThing(thing, pawn.Position, map, ThingPlaceMode.Near);
+                        thing.SetForbidden(false, false);
+                    }
+                }
+                return new { success = true, before = count, after = map.listerThings.ThingsOfDef(def).Sum(t => t.stackCount) };
+            }, cancellationToken).ConfigureAwait(false);
         [Tool("test/stonecutting_prerequisite", Description = "Supply the native stonecutter research prerequisite after the missing-research refusal has been observed. Fixture input, not research labor acceptance.")]
         public async Task<object> Research(IRimBridgeContext ctx, CancellationToken cancellationToken)
             => await ctx.MainThread.InvokeAsync<object>(() => {
@@ -50,7 +70,7 @@ namespace HomeBridge.BridgeTools
                         }
                         var benchCosts = DefDatabase<ThingDef>.GetNamed("TableStonecutter").CostListAdjusted(ThingDefOf.WoodLog);
                         foreach (var cost in benchCosts) {
-                            var raw = ThingMaker.MakeThing(cost.thingDef); raw.stackCount = cost.count;
+                            var raw = ThingMaker.MakeThing(cost.thingDef); raw.stackCount = cost.count * 3;
                             GenPlace.TryPlaceThing(raw, drop, map, ThingPlaceMode.Near); raw.SetForbidden(false, false);
                         }
                         foreach (var p in map.mapPawns.FreeColonistsSpawned) {
@@ -62,7 +82,7 @@ namespace HomeBridge.BridgeTools
                         }
                         return new { success = true, target = wall.GetUniqueLoadID(), stone = stone.defName, corner, backupCount = cells.Count,
                             chunks = chunk.defName, initialBlocks = map.listerThings.ThingsOfDef(stone).Sum(t => t.stackCount),
-                            benchMaterials = benchCosts.ToDictionary(c => c.thingDef.defName, c => c.count),
+                            benchMaterials = benchCosts.ToDictionary(c => c.thingDef.defName, c => c.count * 3),
                             x = wall.Position.x, z = wall.Position.z, nx = normal.x, nz = normal.z };
                     }
                 }

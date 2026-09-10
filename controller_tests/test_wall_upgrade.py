@@ -132,6 +132,40 @@ async def test_roundtrip_keeps_reference_bundle_and_load_change_blocks_removal()
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('change', ['none', 'player', 'missing', 'designated', 'uncertain', 'issued_successor'])
+async def test_retirement_requires_native_cancellation_and_preserves_issued_work(change):
+    rt, facts = fixture()
+    spec, steps, _ = await bundle(rt, facts)
+    rt.current_plan.spec = spec
+    for step in steps: rt.current_plan.progress[step.id] = StepProgress()
+    rt.current_plan.progress[steps[0].id].state = 'complete'
+    progress = rt.current_plan.progress[steps[1].id]
+    progress.state = 'blocked'
+    progress.issued['0'] = dict(confirmed=change != 'uncertain', load_token='old', player_direction=0,
+        wall_removal_id='removal', wall_target='built-wall')
+    row = dict(id='removal', target='built-wall', complete=False, blocker='Automation stopped', retired=True,
+        playerOwned=change == 'player', targetPresent=change != 'missing', designated=change == 'designated')
+    facts['upkeep']['wallRemoval'] = [row]
+    if change == 'issued_successor':
+        rt.current_plan.progress[steps[2].id].issued['0'] = dict(confirmed=False)
+    reconcile(rt, facts)
+    retired = change in ('none', 'issued_successor')
+    assert (progress.state == 'cancelled') == retired
+    assert rt.current_plan.progress[steps[0].id].state == 'complete'
+    assert rt.current_plan.progress['wall'].state == 'complete'
+    successor = rt.current_plan.progress[steps[2].id]
+    assert (successor.state == 'cancelled') == (change == 'none')
+    if retired:
+        assert progress.issued['0']['retirement'] == row
+        assert all(rt.current_plan.progress[s.id].state == 'cancelled' for s in steps[3:])
+        revision = rt.current_plan.revision
+        reconcile(rt, facts)
+        assert rt.current_plan.revision == revision
+        restored = type(rt.current_plan).model_validate_json(rt.current_plan.model_dump_json())
+        assert steps[1].id in restored.cancelled_ids
+
+
+@pytest.mark.asyncio
 async def test_changed_direction_releases_pending_and_uncertain_demolition_before_clock():
     rt, facts = fixture()
     spec, steps, _ = await bundle(rt, facts)
@@ -155,6 +189,21 @@ async def test_changed_direction_releases_pending_and_uncertain_demolition_befor
     rt.game.invoke.return_value = dict(success=False)
     with pytest.raises(ValueError, match='could not be invalidated'):
         await release_pending(rt)
+
+
+@pytest.mark.asyncio
+async def test_retired_targets_do_not_starve_independent_wall_batches():
+    from rimbot.strategic_state import fingerprint
+    rt, facts = fixture()
+    state = rt.current_plan.control['upkeep']['MaintainStoneShell']
+    retired = [dict(id='retired-' + str(i), count=1) for i in range(9)]
+    state['targets'] = retired + state['targets']
+    rt.current_plan.colony_goals['MaintainStoneShell'].evidence['methods'] = {
+        'wall-' + fingerprint(row['id'])[:12]: ['retired-step'] for row in retired}
+    key, actions = await method(rt, facts)
+    assert key == 'wall-' + fingerprint('built-wall')[:12]
+    assert len(actions) == 6
+    rt.game.invoke.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -189,7 +238,7 @@ async def test_manual_release_passes_real_gameplay_write_boundary():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('invalid', ['suspended', 'blocked_replacement', 'cancelled'])
+@pytest.mark.parametrize('invalid', ['suspended', 'blocked_replacement', 'cancelled', 'blocked_removal'])
 async def test_clock_invalidates_demolition_when_its_batch_loses_admission(invalid):
     rt, facts = fixture()
     spec, steps, _ = await bundle(rt, facts)
@@ -199,6 +248,7 @@ async def test_clock_invalidates_demolition_when_its_batch_loses_admission(inval
         dict(confirmed=True, load_token='load', player_direction=0)})
     if invalid == 'suspended': rt.current_plan.colony_goals['MaintainStoneShell'].status = 'suspended'
     elif invalid == 'cancelled': rt.current_plan.colony_goals['MaintainStoneShell'].cancelled = True
+    elif invalid == 'blocked_removal': rt.current_plan.progress[steps[1].id].state = 'blocked'
     else: rt.current_plan.progress[steps[2].id].state = 'blocked'
     rt.game.invoke = AsyncMock(return_value=dict(success=True))
     await release_pending(rt, changed_only=True)
@@ -301,3 +351,36 @@ async def test_stonecutter_preserves_selected_corners_interior_construction_appr
     key, actions = await method(rt, facts)
     assert key == 'stonecutter'
     assert actions[0]['placements'][0] == dict(def_name='TableStonecutter', x=8, z=19, rotation='east', materials=['WoodLog'])
+
+
+@pytest.mark.asyncio
+async def test_stonecutter_falls_back_outdoors_without_using_wall_work_area(monkeypatch):
+    from rimbot.colony_skills import SkillBlocked
+    rt, facts = fixture(stock=0)
+    facts['definitions']['TableStonecutter'] = dict(available=True, stuff='WoodLog')
+    facts['center'] = dict(x=11, z=20)
+    facts['cells'] = [dict(x=x, z=z, walkable=True, occupied=False, indoors=False)
+                      for x in (11, 12) for z in (19, 20, 21)]
+    monkeypatch.setattr('rimbot.production_policy.resource_method', AsyncMock(side_effect=SkillBlocked(
+        'No available native production recipe and workbench for BlocksGranite')))
+    rt.inspect_native = AsyncMock(side_effect=lambda tool, args: dict(canPlace=True,
+        rotations=[dict(rotation='east', accepted=True, blockingThings=[],
+            occupiedCells=[dict(x=args['x'], z=args['z']+delta) for delta in (-1, 0, 1)])]))
+    key, actions = await method(rt, facts)
+    assert key == 'stonecutter'
+    assert actions[0]['placements'][0] == dict(def_name='TableStonecutter', x=12, z=20, rotation='east', materials=['WoodLog'])
+
+
+@pytest.mark.asyncio
+async def test_retired_wall_does_not_start_resource_production_again(monkeypatch):
+    from rimbot.colony_skills import SkillBlocked
+    from rimbot.strategic_state import fingerprint
+    rt, facts = fixture(stock=0)
+    goal = rt.current_plan.colony_goals['MaintainStoneShell']
+    goal.evidence['methods'] = {'wall-' + fingerprint('built-wall')[:12]: ['retired-removal']}
+    production = AsyncMock()
+    monkeypatch.setattr('rimbot.production_policy.resource_method', production)
+    with pytest.raises(SkillBlocked, match='previously admitted replacement'):
+        await method(rt, facts)
+    production.assert_not_awaited()
+    rt.game.invoke.assert_not_awaited()

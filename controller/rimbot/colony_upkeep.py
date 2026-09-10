@@ -21,6 +21,7 @@ class UpkeepContract:
 CONTRACTS = (
     UpkeepContract('MaintainFireSafety', 'fires', 1),
     UpkeepContract('SecureSupplies', 'vulnerable', 3),
+    UpkeepContract('MaintainHomeCoverage', 'home_coverage', 3),
     UpkeepContract('MaintainEssentialRepairs', 'damaged', 3),
     UpkeepContract('MaintainCleanFacilities', 'filth', 3),
     UpkeepContract('MaintainSleeping', 'sleeping', 3),
@@ -72,7 +73,7 @@ def evidence(facts):
             and isinstance(r.get('id'), str) for r in structures):
         damaged = sorted((r for r in structures if r['home'] and r['maxHitPoints'] > 0
                           and r['hitPoints'] < r['maxHitPoints']),
-                         key=lambda r: (r['hitPoints'] / r['maxHitPoints'], r['id']))
+                         key=lambda r: (r.get('repairPriority', 2), r['hitPoints'] / r['maxHitPoints'], r['id']))
     if fires is not None:
         if any(type(r.get('home')) is not bool or not isinstance(r.get('id'), str) for r in fires):
             fires = None
@@ -84,6 +85,7 @@ def evidence(facts):
         else:
             filth = sorted((r for r in filth if r['home']), key=lambda r: (r.get('room') not in ('Kitchen', 'Hospital', 'Laboratory'), r['id']))
     return dict(vulnerable=vulnerable, damaged=damaged, fires=fires, filth=filth,
+                home_coverage=facts.get('homeUpkeep') if current else None,
                 sleeping=facts.get('sleepingUpkeep') if current else None,
                 medicine=facts.get('medicalReserve') if current else None,
                 containment=facts.get('animalContainment') if current else None,
@@ -102,6 +104,8 @@ def upkeep_nodes(facts, control, goals=None, *, plan=None):
     facts['animalFeed'] = feed_evidence(facts, control, goals)
     from .wall_upgrade import evidence as stone_evidence
     facts['stoneUpkeep'] = stone_evidence(facts, plan)
+    from .home_coverage import targets as home_targets
+    facts['homeUpkeep'] = home_targets(plan, facts)
     observed = evidence(facts)
     states = control.setdefault('upkeep', {})
     nodes = []
@@ -131,7 +135,7 @@ def upkeep_nodes(facts, control, goals=None, *, plan=None):
 def progress_metric(goal_id, rows):
     if rows is None:
         return None
-    if goal_id in ('MaintainSleeping', 'MaintainAnimalContainment', 'MaintainStoneShell'):
+    if goal_id in ('MaintainSleeping', 'MaintainAnimalContainment', 'MaintainStoneShell', 'MaintainHomeCoverage'):
         return len(rows)
     field = {'SecureSupplies': 'count', 'MaintainMedicalReserves': 'count', 'MaintainAnimalFeed': 'count', 'MaintainCleanFacilities': 'thickness', 'MaintainFireSafety': 'size'}.get(goal_id)
     values = ([r.get('maxHitPoints', 0) - r.get('hitPoints', 0) for r in rows]
@@ -232,6 +236,9 @@ async def upkeep_method(rt, goal_id, facts, people):
     if goal_id == 'MaintainStoneShell':
         from .wall_upgrade import method as stone_method
         return await stone_method(rt, facts)
+    if goal_id == 'MaintainHomeCoverage':
+        from .home_coverage import method as home_method
+        return await home_method(rt, facts)
 
     goal = rt.current_plan.colony_goals[goal_id]
     goal.evidence.pop('waiting_for_storage_roof', None)

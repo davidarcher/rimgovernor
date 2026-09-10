@@ -68,6 +68,11 @@ async def advance_game(rt, ticks, report, *, timeout=120, expected_letters=(('An
                 previous_tick = state['lastTick']
                 if state.get('stopReason') == 'tick_budget':
                     require(remaining == 0, 'Native tick budget ended early')
+                    # Deliver this window's event before a caller captures a new
+                    # decision revision. Deferred delivery would stale that decision.
+                    rt.clock_events.extend(await supervisor.poll())
+                    rt.receive_clock_events()
+                    require(not supervisor.hold, 'External clock hold')
                     evidence['completed'] = True
                     return state
 

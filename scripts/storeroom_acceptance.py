@@ -36,9 +36,8 @@ async def run(args):
     async def advance():
         status = await rt.game.query('home/status', colonists=False, threats=True)
         assert status['threats'].get('hostileCount') == 0 and status['threats'].get('huntingPredatorCount') == 0
-        await rt.bridge.call('rimworld/set_time_speed', speed='Superfast', ultraSpeedBoost=False)
-        await asyncio.sleep(1)
-        await rt.bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
+        from rimbot.native_scenario import advance_game
+        await advance_game(rt, 400, report)
         rt.batch = await observe(rt.game)
         await rt.projects.reconcile(rt.game, plan=rt.current_plan)
         rt.reconcile_plan()
@@ -109,10 +108,16 @@ async def run(args):
         from rimbot.construction_ownership import owned_buildings
         report['owned_buildings'] = owned_buildings(rt.current_plan, facts)
         assert len(report['owned_buildings']) == len(lineage), 'Every completed room piece needs both receipt and native lineage'
+        if getattr(args, 'home_coverage', False):
+            from home_coverage_acceptance import verify as verify_home
+            await verify_home(rt, report)
         if args.wall_upgrade:
             from wall_upgrade_fixture import verify_upgrade
             await verify_upgrade(rt, report, args.seconds, corner=getattr(args, 'corner', False))
-            await verify_upgrade(rt, report, args.seconds, interrupt=True, corner=getattr(args, 'corner', False))
+            if getattr(args, 'material_loss', False):
+                await verify_upgrade(rt, report, args.seconds, material_loss=True, corner=getattr(args, 'corner', False))
+            else:
+                await verify_upgrade(rt, report, args.seconds, interrupt=True, corner=getattr(args, 'corner', False))
             facts = await sample()
             lineage = facts['upkeep']['construction']
         report['support_previews'] = []
@@ -146,8 +151,10 @@ async def run(args):
         assert rt.current_plan.model_dump() == before_plan, 'Paired restart changed completed plan or receipts'
         after_restart = await rt.game.query('home/colony_facts', planning=True)
         report['after_restart'] = after_restart
+        if getattr(args, 'home_coverage', False):
+            await verify_home(rt, report, after_restart=True)
         if args.wall_upgrade:
-            held = report['wall_upgrade_interruption']['held_original']
+            held = report['wall_upgrade_material_loss' if getattr(args, 'material_loss', False) else 'wall_upgrade_interruption']['held_original']
             assert any(r['id'] == held for r in after_restart['upkeep']['structures'])
             assert after_restart['upkeep']['wallRemoval'] == report['before_restart']['upkeep']['wallRemoval']
         assert after_restart['upkeep']['construction'] == report['before_restart']['upkeep']['construction']
@@ -178,6 +185,10 @@ async def run(args):
         report['outcome'] = 'passed'
     except Exception as error:
         report.update(error=str(error), traceback=traceback.format_exc())
+        try:
+            report['native_attention'] = (await rt.bridge.core('games_get_attention', gameId=rt.bridge.game_id)).structuredContent
+        except Exception as attention_error:
+            report['attention_error'] = str(attention_error)
     finally:
         report['plan'] = rt.current_plan.model_dump()
         rt.mode, rt.execution_task = 'manual', None

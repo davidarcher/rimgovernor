@@ -29,6 +29,7 @@ namespace HomeBridge.BridgeTools
                 construction = read("construction", () => ConstructionLineage.Read(map)),
                 hauling = read("hauling", () => HaulTracking.Read(map)),
                 wallRemoval = read("wallRemoval", () => WallUpgradeSafety.Read(map)),
+                homeCoverage = read("homeCoverage", () => HomeCoverage.Read(map)),
                 items = read("items", () => items.OrderBy(t => t.thingIDNumber).Select(t => {
                     var rot = t.TryGetComp<CompRottable>();
                     return new { id = t.GetUniqueLoadID(), defName = t.def.defName, count = t.stackCount,
@@ -76,6 +77,9 @@ namespace HomeBridge.BridgeTools
                     hitPoints = b.HitPoints, maxHitPoints = b.MaxHitPoints, burning = b.IsBurning(),
                     home = b.OccupiedRect().All(c => map.areaManager.Home[c]),
                     holdsRoof = b.def.holdsRoof, stuff = b.Stuff?.defName,
+                    repairPriority = b.TryGetComp<CompTempControl>() != null || b.TryGetComp<CompPowerPlant>() != null
+                        || b is Building_Bed medicalBed && medicalBed.Medical ? 0
+                        : b.def.holdsRoof || b is Building_WorkTable || b is Building_Bed ? 1 : 2,
                     flammability = b.GetStatValue(StatDefOf.Flammability),
                     roofed = b.OccupiedRect().All(c => c.Roofed(map))
                 }).ToList()),

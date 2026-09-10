@@ -138,11 +138,16 @@ def reconcile(rt, facts):
             continue
         progress = rt.current_plan.progress[step.id]
         receipt = progress.issued.get('0', {})
-        if progress.state != 'waiting' or not receipt.get('confirmed'):
+        if progress.state not in ('waiting', 'blocked') or not receipt.get('confirmed'):
             continue
         changed = receipt.get('load_token') != rt.context_token or receipt.get('player_direction') != rt.current_plan.control.get('player_direction', 0)
         matches = [r for r in rows if r.get('id') == receipt.get('wall_removal_id')]
         row = matches[0] if len(matches) == 1 else None
+        if row and row.get('retired') is True and row.get('targetPresent') is True \
+                and row.get('designated') is False and row.get('complete') is False \
+                and row.get('playerOwned') is False and row.get('target') == receipt.get('wall_target'):
+            retire_batch(rt.current_plan, step, row)
+            continue
         if changed or row and (row.get('blocker') or row.get('playerOwned') or row.get('target') != receipt.get('wall_target')):
             progress.state = 'blocked'
             progress.failure = Failure(code='wall_removal_invalidated', detail='Wall demolition ownership or safety changed; inspection required')
@@ -150,6 +155,25 @@ def reconcile(rt, facts):
                 and receipt.get('issued_tick', 0) <= row['completedTick'] <= facts['tick']:
             progress.state = 'complete'
             receipt['postcondition'] = row
+
+
+def retire_batch(plan, removal, evidence):
+    """Native cancellation retires history, never unobserved construction writes."""
+    descendants = {removal.id}
+    for _ in plan.spec.steps:
+        added = {s.id for s in plan.spec.steps if s.goal_id == removal.goal_id
+                 and any(d.step in descendants for d in s.after)} - descendants
+        if not added:
+            break
+        descendants.update(added)
+    for step in plan.spec.steps:
+        progress = plan.progress[step.id]
+        if step.id not in descendants or progress.state in ('complete', 'cancelled'):
+            continue
+        if step.id != removal.id and progress.issued:
+            continue
+        plan.cancel(step.id)
+    plan.progress[removal.id].issued['0']['retirement'] = evidence
 
 
 async def release_pending(rt, *, changed_only=False):
@@ -160,6 +184,8 @@ async def release_pending(rt, *, changed_only=False):
                if getattr(s.action, 'completion', None) == 'wall_removed'
                and plan.progress[s.id].issued and plan.progress[s.id].state != 'complete']
     def batch_invalid(step):
+        if plan.progress[step.id].state == 'blocked':
+            return True
         goal = plan.colony_goals.get(step.goal_id)
         if goal is None or goal.cancelled or goal.status != 'active':
             return True
@@ -272,7 +298,17 @@ async def method(rt, facts):
         raise SkillBlocked('Owned wall condition is unavailable')
     owned = owned_buildings(plan, facts)
     failures = []
-    for wall in state['targets'][:8]:
+    candidates = []
+    for wall in state['targets']:
+        key = 'wall-' + fingerprint(wall['id'])[:12]
+        if goal.method_seen(key):
+            if len(failures) < 8:
+                failures.append(wall['id'] + ': previously admitted replacement is preserved; no duplicate demolition')
+            continue
+        candidates.append((wall, key))
+        if len(candidates) == 8:
+            break
+    for wall, key in candidates:
         sites = await rt.game.invoke('home/wall_upgrade_sites', dict(target=wall['id']), allow_write=False)
         if sites.get('success') is not True or not sites.get('sites'):
             failures.append(wall['id'] + ': no empty supported wall backup site')
@@ -301,15 +337,23 @@ async def method(rt, facts):
                 if str(error).startswith('No available native production recipe and workbench'):
                     if goal.method_seen('stonecutter'):
                         raise SkillBlocked('Owned stonecutter is unavailable; preserve uncertain or changed construction')
-                    return 'stonecutter', [await placement(rt, facts, 'TableStonecutter', indoors=True, goal=goal, rotations='all',
-                        avoid={(site['x'] - site['nx'], site['z'] - site['nz'])})]
+                    avoid = {(site['x'] - site['nx'], site['z'] - site['nz']), (site['x'], site['z'])}
+                    avoid.update((c['x'], c['z']) for c in site['backupCells'])
+                    if site['nx'] and site['nz']:
+                        avoid.update(((site['x'] + site['nx'], site['z']), (site['x'], site['z'] + site['nz'])))
+                    try:
+                        bench = await placement(rt, facts, 'TableStonecutter', indoors=True, goal=goal,
+                                                rotations='all', avoid=avoid)
+                    except SkillBlocked as placement_error:
+                        if not str(placement_error).startswith('No safe observed placement'):
+                            raise
+                        bench = await placement(rt, facts, 'TableStonecutter', indoors=False, goal=goal,
+                                                rotations='all', avoid=avoid)
+                    return 'stonecutter', [bench]
                 raise
             if result is None:
                 goal.evidence['waiting_for_stone_blocks'] = True
             return result
-        key = 'wall-' + fingerprint(wall['id'])[:12]
-        if goal.method_seen(key):
-            raise SkillBlocked('Previously admitted wall replacement needs inspection; no duplicate demolition')
         step_id = lambda i: f'{goal_id}-{goal.attempts}-{key}-{i}'[:64]
         original = reference(owned[wall['id']])
         backups = [dict(step=step_id(0), slot=i) for i in range(backup_count)]

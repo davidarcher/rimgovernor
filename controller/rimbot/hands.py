@@ -103,6 +103,10 @@ class Hands:
                     else:
                         if isinstance(action, NativeOperation):
                             args = dict(action.arguments)
+                            if action.tool == 'home/upkeep_home':
+                                from .home_coverage import guard as home_guard
+                                await home_guard(rt, step)
+                                self.guard(rt, revision, token, direction)
                             if action.tool == 'home/upkeep_wall':
                                 from .wall_upgrade import arguments as wall_arguments
                                 args = await wall_arguments(rt, step)
@@ -135,7 +139,7 @@ class Hands:
                             schema = await rt.game.describe(action.tool)
                             if 'dryRun' in schema.get('properties', {}):
                                 preview = await rt.inspect_native(action.tool, dict(args, dryRun=True))
-                                if preview.get('success') is False or (action.tool in ('home/upkeep_wall', 'home/manage_waste', 'home/recover_service', 'home/recovery_area') and preview.get('accepted') is not True):
+                                if preview.get('success') is False or (action.tool in ('home/upkeep_home', 'home/upkeep_wall', 'home/manage_waste', 'home/recover_service', 'home/recovery_area') and preview.get('accepted') is not True):
                                     raise Blocked('native_refused', reason(preview), evidence=preview)
                                 if action.completion == 'surgery_health':
                                     from .surgery import effect_from_preview
@@ -159,6 +163,9 @@ class Hands:
                             rt.persist()
                             result = await rt.native(action.tool, args, expected_revision=direction, expected_token=token,
                                 expected_plan_revision=revision, reconcile=False, expected_step_id=step.id)
+                            if action.tool == 'home/upkeep_home' and (result.get('receipt', result).get('accepted') is not True
+                                    or result.get('receipt', result).get('covered') is not True):
+                                raise Blocked('home_coverage_unverified', 'Native Home coverage was not observed.', evidence=result)
                             if step.goal_id and step.goal_id.startswith('Population-'):
                                 outcome = result.get('receipt', result)
                                 if outcome.get('success') is not True or (action.tool == 'home/order'
@@ -439,4 +446,4 @@ class Hands:
             'zone_patches': [patch.model_dump() for patch in action.patches],
             'zone_type': action.zone_type, 'crop': action.crop or None, 'zone_settings': expected_settings}]})
         progress.project_id = row.id
-        return {'zone': action.label, 'cells': len(cells), 'crop': action.crop}
+        return {'zone': action.label, 'zone_id': str(zone['id']), 'cells': len(cells), 'crop': action.crop}

@@ -178,7 +178,7 @@ class CaravanTarget(Contract):
 
 class NativeOperation(Contract):
     kind: Literal['native_operation'] = 'native_operation'
-    tool: Literal['home/upkeep_wall', 'home/upkeep_bed', 'home/recovery_area', 'home/recover_service', 'home/husbandry_config', 'home/relieve_need', 'home/medical_operations', 'home/caravan_gift', 'home/fulfill_quest', 'home/caravan', 'home/accept_quest', 'home/manage_waste', 'home/gear_upkeep', 'home/population', 'home/acquire_resource', 'home/production_policy', 'home/confirm_colony_names', 'home/pawn_config', 'home/building_config', 'home/bills', 'home/order',
+    tool: Literal['home/upkeep_home', 'home/upkeep_wall', 'home/upkeep_bed', 'home/recovery_area', 'home/recover_service', 'home/husbandry_config', 'home/relieve_need', 'home/medical_operations', 'home/caravan_gift', 'home/fulfill_quest', 'home/caravan', 'home/accept_quest', 'home/manage_waste', 'home/gear_upkeep', 'home/population', 'home/acquire_resource', 'home/production_policy', 'home/confirm_colony_names', 'home/pawn_config', 'home/building_config', 'home/bills', 'home/order',
         'home/zone_cells', 'home/trade', 'home/research', 'rimworld/apply_architect_designator',
         'rimworld/open_letter', 'rimworld/dismiss_letter', 'rimworld/click_screen_target',
         'home/install', 'home/dialog_text', 'rimworld/click_ui_target', 'rimworld/scroll_ui_target',
@@ -204,6 +204,12 @@ class NativeOperation(Contract):
 
     @model_validator(mode='after')
     def wall_completion(self):
+        if self.tool == 'home/upkeep_home' and (self.completion != 'native_receipt'
+                or set(self.arguments) != {'target', 'shape', 'revision'}
+                or not isinstance(self.arguments.get('target'), str)
+                or not isinstance(self.arguments.get('shape'), str)
+                or type(self.arguments.get('revision')) is not int):
+            raise ValueError('Home coverage requires exact native target, shape and revision')
         if self.tool == 'home/upkeep_wall' or self.completion == 'wall_removed' or self.wall_guard is not None:
             if self.tool != 'home/upkeep_wall' or self.completion != 'wall_removed' or self.wall_guard is None \
                     or self.arguments != {'action': 'remove'}:
