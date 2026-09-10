@@ -470,7 +470,14 @@ runtime writer lock, rechecks loaded-session identity before dispatch and reads
 camera state back. Zoom stays within the reported normal range; extended zoom
 is refused. Navigation turns off action follow and preserves clock/automation
 settings. Native writes are sent once; an uncertain result requires inspecting
-the view. These controls neither hold keys nor claim exclusive input ownership.
+the view. These controls do not hold keys. The optional player-control lease gates
+camera/time requests to one viewer. Handoff enters Manual and invalidates pending
+orders before awaiting pause and owned-draft cleanup; native paused readback is
+required before acknowledgement. A 15-second lease renews through heartbeats.
+Expiry leaves a Manual hold, rejecting input until another explicit takeover.
+Model/controller writes and generic Automate remain blocked until owner release;
+load changes clear ownership. Browser blur, hidden tabs and unmount request release
+without resuming automation. Only explicit Resume automation enables it again.
 
 Action follow opts into the discovered native `watch` argument for supported real
 writes only. Reads, dry runs and unsupported tools do not gain camera behavior.

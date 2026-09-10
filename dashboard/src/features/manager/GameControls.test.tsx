@@ -46,3 +46,28 @@ it('disables camera navigation in headless games',()=>{
  expect(screen.getByRole('button',{name:'Pan camera left'})).toBeDisabled();
  expect(screen.getByRole('button',{name:'Zoom camera out'})).toBeDisabled();
 });
+
+it('acquires player control and releases without resuming on blur',async()=>{
+ const fetch=vi.fn(async(_url: string,_options?: RequestInit)=>({ok:true,json:async()=>({lease_id:'lease-a'})}));vi.stubGlobal('fetch',fetch);
+ render(<GameControls sessionId="load-a" connected stale={false} onError={()=>{}}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Take control'}));
+ await screen.findByRole('button',{name:'You have control'});
+ fireEvent(window,new Event('blur'));
+ await waitFor(()=>expect(fetch).toHaveBeenCalledWith('/api/input/release',expect.objectContaining({keepalive:true})));
+ const call=fetch.mock.calls.find(c=>c[0]==='/api/input/release')!;
+ expect(JSON.parse(call[1]!.body as string)).toMatchObject({session_id:'load-a',lease_id:'lease-a'});
+ expect(JSON.parse(call[1]!.body as string).resume).toBeUndefined();
+});
+
+it('releases an acquisition that completes after the viewer loses focus',async()=>{
+ let finish!: (value: unknown)=>void;
+ const fetch=vi.fn((url: string)=>url==='/api/input/take'
+   ? new Promise(resolve=>{finish=resolve;})
+   : Promise.resolve({ok:true,json:async()=>({})}));vi.stubGlobal('fetch',fetch);
+ render(<GameControls sessionId="load-a" connected stale={false} onError={()=>{}}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Take control'}));
+ fireEvent(window,new Event('blur'));
+ finish({ok:true,json:async()=>({lease_id:'late'})});
+ await waitFor(()=>expect(fetch).toHaveBeenCalledWith('/api/input/release',expect.anything()));
+ expect(screen.queryByRole('button',{name:'You have control'})).toBeNull();
+});

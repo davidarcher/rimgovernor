@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function GameControls({
   sessionId,
@@ -22,6 +22,53 @@ export default function GameControls({
   const [busy, setBusy] = useState(false),
     [notice, setNotice] = useState("");
   const pending = useRef(false);
+  const [viewer] = useState(() => crypto.randomUUID());
+  const [lease, setLease] = useState("");
+  const accepting = useRef(true);
+  useEffect(() => {
+    accepting.current = !document.hidden;
+    const focus = () => { accepting.current = !document.hidden; };
+    const blur = () => { accepting.current = false; };
+    window.addEventListener("focus", focus);
+    window.addEventListener("blur", blur);
+    document.addEventListener("visibilitychange", focus);
+    return () => {
+      accepting.current = false;
+      window.removeEventListener("focus", focus);
+      window.removeEventListener("blur", blur);
+      document.removeEventListener("visibilitychange", focus);
+    };
+  }, []);
+  useEffect(() => {
+    if (!lease) return;
+    let stopped = false;
+    const body = JSON.stringify({ session_id: sessionId, viewer_id: viewer, lease_id: lease });
+    const send = (path: string) => fetch("/api/input/" + path, {
+      method: "POST", keepalive: true,
+      headers: { "Content-Type": "application/json", "X-RimBot": "1" }, body,
+    });
+    const release = () => {
+      if (stopped) return;
+      stopped = true;
+      setLease("");
+      void send("release").catch(() => {});
+    };
+    const timer = window.setInterval(() => {
+      if (stopped) return;
+      void send("heartbeat").then(r => {
+        if (!r.ok && !stopped) release();
+      }).catch(() => { if (!stopped) release(); });
+    }, 4000);
+    const visibility = () => { if (document.hidden) release(); };
+    window.addEventListener("blur", release);
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("blur", release);
+      document.removeEventListener("visibilitychange", visibility);
+      release();
+    };
+  }, [lease, sessionId, viewer]);
   async function act(path: string, body: object) {
     if (pending.current) return;
     pending.current = true;
@@ -32,7 +79,8 @@ export default function GameControls({
       const r = await fetch("/api/" + path, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-RimBot": "1" },
-        body: JSON.stringify({ session_id: sessionId, ...body }),
+        body: JSON.stringify({ session_id: sessionId,
+          ...(lease || path.startsWith("input/") ? { viewer_id: viewer, lease_id: lease } : {}), ...body }),
       });
       const data = await r.json();
       if (!r.ok)
@@ -41,8 +89,21 @@ export default function GameControls({
             ? data.detail
             : "Control unavailable. Refresh and retry.",
         );
+      if (path === "input/take") {
+        if (!accepting.current) {
+          void fetch("/api/input/release", { method: "POST", keepalive: true,
+            headers: { "Content-Type": "application/json", "X-RimBot": "1" },
+            body: JSON.stringify({ session_id: sessionId, viewer_id: viewer, lease_id: data.lease_id }),
+          }).catch(() => {});
+          return;
+        }
+        setLease(data.lease_id);
+      }
+      if (path === "input/release") setLease("");
       setNotice(
-        path === "time"
+        path.startsWith("input/")
+          ? path === "input/take" ? "Player control acquired. Game paused." : "Player control released."
+          : path === "time"
           ? "Game control is now manual. Native state updates below."
           : path === "camera/navigate"
             ? "Camera state read back. Action follow is off."
@@ -58,6 +119,15 @@ export default function GameControls({
   const disabled = !connected || stale || busy;
   return (
     <div className="game-controls">
+      <div className="mgr-switch" role="group" aria-label="Player control">
+        <button disabled={disabled || !!lease} onClick={() => act("input/take", {})}>
+          {lease ? "You have control" : "Take control"}
+        </button>
+        {lease && <>
+          <button disabled={disabled} onClick={() => act("input/release", { resume: false })}>Release control</button>
+          <button disabled={disabled} onClick={() => act("input/release", { resume: true })}>Resume automation</button>
+        </>}
+      </div>
       <div className="clock-controls">
         <span className="mgr-eyebrow">GAME TIME</span>
         <div className="mgr-switch" role="group" aria-label="Native game time">
@@ -113,6 +183,7 @@ export default function GameControls({
         ))}
       </div>
       <p className="control-help">
+        Taking control pauses the game. Leaving this view releases control without resuming automation.{" "}
         Time buttons switch to Manual. Native danger stops still apply.{" "}
         {headless
           ? "Action follow requires a rendered game."

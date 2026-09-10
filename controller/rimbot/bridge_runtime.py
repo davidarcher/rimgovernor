@@ -106,6 +106,7 @@ class BridgeRuntime:
         token = key+':'+identity['loadToken']
         changed = token != self.context_token
         if changed:
+            self.player_input = None
             self.ui_targets.clear()
             saved = self.store.get('bridge:'+key, {})
             self.colony, self.identity, self.context_token = key, identity, token
@@ -567,13 +568,21 @@ class BridgeRuntime:
             self.note('blocker', 'Could not pause the game: '+failure_text(error))
         await self.release_drafts()
 
-    async def set_mode(self, mode):
+    async def set_mode(self, mode, *, player_owner=None):
         if mode not in ('manual', 'automate'):
             raise ValueError('Choose Manual or Automate')
         async with self.lock:
             if not self.connected:
                 raise ValueError('Wait for the bridge to connect')
             await self.sync_identity()
+            if player_owner is not None:
+                from .player_input import require_owner
+                require_owner(self, *player_owner)
+                direction = self.chat_revision
+                if player_owner[0] != self.context_token:
+                    raise ValueError('Loaded colony changed; player control was not released')
+            elif mode == 'automate' and getattr(self, 'player_input', None) is not None:
+                raise ValueError('Release player control before resuming automation')
             if mode == 'manual':
                 await self.halt()
             if self.supervisor:
@@ -582,7 +591,14 @@ class BridgeRuntime:
                 self.supervisor.allow_resume()
             else:
                 await self.bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
+            if player_owner is not None:
+                await self.sync_identity()
+                require_owner(self, *player_owner)
+                if player_owner[0] != self.context_token or direction != self.chat_revision:
+                    raise ValueError('Player direction changed during release; automation remains off')
             self.mode = mode
+            if player_owner is not None:
+                self.player_input = None
             self.resume_after_review = mode == 'automate'
         await self.steer('Control changed to '+mode+'. '+('Continue the colony plan.' if mode == 'automate' else 'Discuss and inspect only; do not issue game orders.'), interpret=False)
 
@@ -664,6 +680,8 @@ class BridgeRuntime:
                 raise ValueError('Use normal game speeds')
             return await self.control_clock(arguments.get('speed'), expected_revision=expected_revision, expected_token=expected_token, expected_plan_revision=expected_plan_revision)
         async with self.lock:
+            if getattr(self, 'player_input', None) is not None and is_write(name, arguments):
+                raise ValueError('Player control is held; no model or controller order was sent')
             if expected_revision is not None and expected_revision != self.chat_revision:
                 raise ValueError('New player direction arrived; this call was not executed')
             await self.sync_identity()
@@ -892,7 +910,7 @@ class BridgeRuntime:
     async def execute_manual_requests(self):
         """A current explicit chat order can dispatch while autopilot stays off."""
         requests, self.manual_requests = self.manual_requests, []
-        if self.mode != 'manual': return
+        if self.mode != 'manual' or getattr(self, 'player_input', None) is not None: return
         ids = {identity for identity, token, direction in requests
                if token == self.context_token and direction == self.chat_revision}
         if not ids: return

@@ -7,6 +7,8 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool
 from jsonschema import Draft202012Validator
 from .bridge import runtime_file_read
 from .native_contracts import validate_arguments
+from .player_input import InputLease, require_owner, check_player_control
+import time
 
 router = APIRouter(prefix='/api')
 
@@ -14,6 +16,73 @@ router = APIRouter(prefix='/api')
 class PlayerControl(BaseModel):
     model_config = ConfigDict(extra='forbid')
     session_id: str = Field(min_length=1, max_length=300)
+    viewer_id: str = Field(default='', max_length=100)
+    lease_id: str = Field(default='', max_length=100)
+
+
+class TakeControl(PlayerControl):
+    viewer_id: str = Field(min_length=1, max_length=100)
+
+
+class ReleaseControl(TakeControl):
+    resume: StrictBool = False
+
+
+@router.post('/input/take')
+async def take_control(body: TakeControl, request: Request):
+    rt = request.app.state.rt
+    async with rt.lock:
+        await check_session(rt, body.session_id)
+        old = getattr(rt, 'player_input', None)
+        if old and old.live() and old.viewer != body.viewer_id:
+            raise ValueError('Another viewer has player control')
+        if not rt.supervisor:
+            raise ValueError('Native clock supervision is unavailable')
+        lease = InputLease.create(body.session_id, body.viewer_id)
+        rt.player_input = lease
+        rt.mode, rt.resume_after_review = 'manual', False
+        rt.execution_window_end, rt.execution_wait_explicit = None, False
+        rt.chat_revision += 1
+        direction = rt.chat_revision
+        rt.manual_requests.clear()
+        rt.manual_execution = None
+        rt.game.cinematic = False
+        rt.phase = 'Manual'
+        rt.persist()
+        async def guard():
+            await check_session(rt, body.session_id)
+            if rt.chat_revision != direction:
+                raise InterruptedError('New player direction arrived during handoff')
+        await rt.supervisor.change('Paused')
+        await guard()
+        released = await rt.release_drafts(guard=guard)
+        if released.get('failed'):
+            raise ValueError('Owned drafts could not be released; player control was not acknowledged')
+        await guard()
+        rt.clock = (await rt.game.query('home/status', colonists=False, threats=False))['time']
+        await guard()
+        if rt.clock.get('paused') is not True:
+            raise ValueError('Native pause was not confirmed; player control was not acknowledged')
+        lease.ready, lease.deadline = True, time.monotonic() + 15
+        return {'lease_id': lease.token, 'mode': 'manual'}
+
+
+@router.post('/input/heartbeat')
+async def input_heartbeat(body: TakeControl, request: Request):
+    rt = request.app.state.rt
+    async with rt.lock:
+        await check_session(rt, body.session_id)
+        lease = require_owner(rt, body.session_id, body.viewer_id, body.lease_id)
+        lease.deadline = time.monotonic() + 15
+        return {'active': True}
+
+
+@router.post('/input/release')
+async def release_control(body: ReleaseControl, request: Request):
+    rt = request.app.state.rt
+    await rt.set_mode('automate' if body.resume else 'manual',
+                      player_owner=(body.session_id, body.viewer_id, body.lease_id))
+    return {'mode': rt.mode}
 
 
 class TimeControl(PlayerControl):
@@ -73,6 +142,7 @@ async def camera_navigate(body: CameraNavigation, request: Request):
             tool, arguments = 'rimworld/move_camera', {'deltaX': dx, 'deltaZ': dz}
         await camera_contract(rt, tool, arguments)
         await check_session(rt, body.session_id)
+        check_player_control(rt, body.session_id, body.viewer_id, body.lease_id)
         rt.game.cinematic = False
         await camera_call(rt, tool, arguments)
         await check_session(rt, body.session_id)
@@ -98,6 +168,7 @@ async def player_time(body: TimeControl, request: Request):
     rt = request.app.state.rt
     async with rt.lock:
         await check_session(rt, body.session_id)
+        check_player_control(rt, body.session_id, body.viewer_id, body.lease_id)
         if not rt.supervisor:
             raise ValueError('Native clock supervision is unavailable')
         if body.speed != 'Paused' and (
@@ -121,6 +192,7 @@ async def player_time(body: TimeControl, request: Request):
         await check_session(rt, body.session_id)
         if rt.chat_revision != direction:
             raise ValueError('New player direction arrived; time remains paused')
+        check_player_control(rt, body.session_id, body.viewer_id, body.lease_id)
         rt.supervisor.allow_resume()
         result = await rt.supervisor.change(body.speed)
         rt.clock = (await rt.game.query('home/status', colonists=False, threats=False))['time']
@@ -134,6 +206,9 @@ async def camera_follow(body: CameraControl, request: Request):
     rt = request.app.state.rt
     async with rt.lock:
         await check_session(rt, body.session_id)
+        check_player_control(rt, body.session_id, body.viewer_id, body.lease_id)
+        if body.following and getattr(rt, 'player_input', None) is not None:
+            raise ValueError('Release player control before enabling action follow')
         if rt.headless and body.following:
             raise ValueError('Action follow needs a rendered game')
         rt.game.cinematic = body.following

@@ -235,6 +235,16 @@ in the checkpoint commit; do not append an implementation diary here.
   for native player camera input so remote gestures and cinematic framing do not
   fight it. Keep input loopback-only with equivalent origin/session protection.
 
+  Take control, Release control and Resume automation now use a single-viewer,
+  load-scoped lease. Handoff invalidates pending execution, disables action follow,
+  releases owned drafts and acknowledges only after a native paused readback.
+  Heartbeats renew the 15-second lease; blur, hidden tabs and unmount request
+  release without resuming. Expiry retains a Manual hold and rejects stale input;
+  another viewer can take over, but automation requires explicit owner release.
+  Model/controller writes and generic Automate cannot bypass the hold. Validate
+  this against native pending controller work and actual browser disconnects.
+  Held-button/modifier cleanup awaits the native gesture implementation.
+
   **Frame and gesture integrity.** Map browser coordinates through the actual
   displayed image bounds, including letterboxing, resolution changes, fullscreen
   and browser scaling. Bind requests to frame/view identity and reject stale frames
