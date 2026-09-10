@@ -8,8 +8,15 @@ def main():
     parser.add_argument('--port',type=int,default=8787)
     parser.add_argument('--fresh-game', action='store_true', help='Launch the isolated bridge fixture')
     parser.add_argument('--reload',action='store_true',help='Reload controller code during development')
+    parser.add_argument('--colonies', action='store_true', help='Serve only the local colony directory; do not start a game or controller')
     parser.add_argument('--resume', help='Resume a verified native-save/controller checkpoint in Manual')
     args = parser.parse_args()
+    if args.colonies:
+        if args.fresh_game or args.resume:
+            parser.error('--colonies cannot be combined with --fresh-game or --resume')
+        uvicorn.run('rimbot.local_colonies:create_directory_app', factory=True,
+                    host=args.host, port=args.port, reload=args.reload)
+        return
     if args.resume:
         if args.fresh_game or args.reload: parser.error('--resume cannot be combined with --fresh-game or --reload')
         import os

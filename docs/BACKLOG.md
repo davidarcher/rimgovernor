@@ -312,6 +312,12 @@ each bounded method.
 
 ## P2 — Coverage, inspection and evaluation scale
 
+- [ ] **Scenario dashboard availability.** The local colony directory discovers
+  running workers, but script-only probes often have neither an HTTP server nor a
+  published port. Add optional observation dashboards to the shared long-running
+  scenario runner, with automatic loopback ports and no competing runtime/game
+  ownership. Verify inspecting a scenario preserves its assertions and control.
+
 - [ ] **Contextual and queued action extensions.** The [native capability audit](reference/player-actions.md)
   identifies live menu opening that can execute an order, option execution without
   a menu-session token, and no explicit queued-job postcondition. Add guarded

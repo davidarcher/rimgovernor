@@ -18,6 +18,10 @@ and chat. Priorities explains policy and verified gates; Work shows plans and th
 progress, with activity available as a related view. These are different views of one
 controller.
 
+A separate [local colony directory](../how-to/local-colonies.md) discovers running
+Docker workers and opens their dashboards in separate tabs. It owns no controller
+or game session. Each colony keeps its own origin, drafts and control leases.
+
 Colony centers on the individual colonists. Their dossiers combine native portraits,
 worn gear, biographies, skills, health and mood with the current job report and
 sampled job changes. Thoughts come from the game's stored memories and situational

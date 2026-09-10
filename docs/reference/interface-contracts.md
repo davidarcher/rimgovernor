@@ -13,6 +13,16 @@ people and field notes. Raw IDs, receipts and tool details stay behind closed di
 disclosures. Mounted views preserve drafts across navigation, and background refreshes
 preserve the last good data.
 
+## Local colony discovery
+
+`GET /api/colonies` lists running local Docker workers identified by the
+`io.rimbot.colony=1` label or the `rimbot.container_worker` entrypoint. It returns
+container ID, name, display mode, start time and a loopback URL for published
+container port 8787. Missing ports produce a null URL. Discovery errors return
+`colonies: null` and an error; an empty array means successful discovery of no workers.
+The standalone `--colonies` server exposes the directory without starting a runtime.
+Docker inspection is read-only and does not establish native game health.
+
 ## Time, camera and player control
 
 `dashboard_controls.py` adds session-bound player time and camera endpoints. Time

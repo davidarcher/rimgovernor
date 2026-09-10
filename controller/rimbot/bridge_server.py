@@ -18,6 +18,7 @@ from .dashboard_controls import router as dashboard_controls
 from .session_checkpoint import create_checkpoint, stop_for_restart, list_checkpoints, delete_checkpoint
 from .video_stream import VideoHub, router as video_routes
 from .colony_people import router as people_routes
+from .local_colonies import router as colony_routes
 
 
 class CheckpointRequest(BaseModel):
@@ -59,6 +60,7 @@ def create_app(runtime=None):
     app.include_router(dashboard_controls)
     app.include_router(video_routes)
     app.include_router(people_routes)
+    app.include_router(colony_routes)
     if runtime is not None:
         app.state.video = VideoHub(runtime)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=['127.0.0.1', 'localhost', '[::1]', 'testserver'])

@@ -14,6 +14,7 @@ import "./Outpost.css";
 import FieldGuide, { Muffalo } from "./FieldGuide";
 import { readable, humanize } from "./labels";
 import GameControls from "./GameControls";
+import LocalColonies from "./LocalColonies";
 import Throughput from "./Throughput";
 import VisualReviews, { type VisualReview } from "./VisualReviews";
 import GameVideo, { type PlayerOwner } from "./GameVideo";
@@ -58,6 +59,7 @@ type State = {
   observation?: PeopleObservation | null;
 };
 export default function BridgeColony() {
+  const [coloniesOpen, setColoniesOpen] = useState(false);
   const [playerOwner, setPlayerOwner] = useState<PlayerOwner | null>(null);
   const [s, setState] = useState<State | null>(null),
     [error, setError] = useState(""),
@@ -291,6 +293,9 @@ export default function BridgeColony() {
           </div>
         </a>
         <div className="mgr-inline station-status">
+          <details className="colony-menu" onToggle={event => setColoniesOpen(event.currentTarget.open)}>
+            <summary>Local colonies</summary>{coloniesOpen && <LocalColonies/>}
+          </details>
           <span className="mgr-connection">
             {s?.connected ? "Colony connected" : "Connecting…"}
           </span>

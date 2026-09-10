@@ -1,5 +1,8 @@
 services:
   worker:
+    labels:
+      io.rimbot.colony: "1"
+      io.rimbot.colony.name: ${RIMBOT_COLONY_NAME:-}
     build:
       context: ..
       dockerfile: containers/Dockerfile
