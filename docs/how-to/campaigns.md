@@ -59,6 +59,24 @@ stale-direction rejection. Repeat native acceptance at a fixed committed revisio
 restored baseline; iterative debugging runs do not establish repeatability. Keep
 temporary binaries, saves and logs outside Git.
 
+## Broader deterministic campaigns
+
+For broader deterministic starts, build a private companion with
+`ScenarioStartFixture=true` and `FoodObservationFixture=true`, then run this command
+through the [standard scenario launcher](scenario-launcher.md):
+
+```text
+python scripts/foothold_campaign.py --source-root /worker/run --output /worker/trial --seed b04-temperate-01 --biome TemperateForest --count 8 --seconds 7200 --stability-days 3
+```
+
+This generates an ordinary LostTribe start, retains the preparation manifest and
+unchanged save, then uses supervised acceleration, batched native observations and
+placement previews. The seven-day food target and observed crop replenishment are
+required alongside sustained gates. Vary the explicit seed/biome and extend the
+stability window for seasonal trials. Each run has a fresh output and private Linux
+state volume; a timeout, native hold or failed food assertion remains a failure.
+Rough is the default difficulty. Peaceful runs must be labelled separately.
+
 ## Repeated model campaigns
 
 ```powershell

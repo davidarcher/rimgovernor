@@ -11,6 +11,13 @@ actions and receipts remain retained across persistence and method archival.
 The current doctor's exact job target distinguishes treatment from tending somebody
 else. A receipt does not establish completed treatment.
 
+If triage has no eligible pair after combat clears, `CriticalMedical` can release
+current-load controller-owned drafts through Hands before selecting treatment on
+a fresh read. Player drafts and work overrides remain protected. Each release
+rechecks paused native threat counts and exact incapacitated identities; an active
+or unknown threat retains the squad. Existing tending is never interrupted for
+cleanup. Changed patient/worker evidence can reopen an unavailable-pair hold.
+
 `MaintainMedicalCare` retains native visible condition identities, severity, immunity,
 retend timing, care policy and medical-rest state. It enables ordinary Patient and
 PatientBedRest work when available and not disabled by a player override. Native jobs choose

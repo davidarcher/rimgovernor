@@ -281,6 +281,38 @@ async def run(args):
                     if not next(p for p in people if p['thingId']==patient)['health']['needsTend']:break
                     await window()
                 check('combat_triage_completed',not next(p for p in people if p['thingId']==patient)['health']['needsTend'])
+            elif args.case=='drafted-medical':
+                from rimbot.native_scenario import advance_game
+                # One player-owned draft stays protected throughout recovery.
+                protected = people[-1]['thingId']
+                await bridge.call('home/order', action='draft', pawn=protected, dryRun=False, watch=False)
+                rt.current_plan.control.setdefault('player_draft_overrides', {})[protected] = True
+                owned = [p['thingId'] for p in people[:-1]]
+                for pawn in owned:
+                    await rt.native('home/order', dict(action='draft', pawn=pawn, dryRun=False, watch=False))
+                patient = owned[0]
+                await setup('wound', patient)
+                facts, people = await refresh()
+                check('all_doctors_initially_drafted', all(p['drafted'] for p in people))
+                check('combat_cleared_before_release', facts['hostiles'] == 0)
+                ids = await issue('CriticalMedical')
+                check('medical_uses_owned_stand_down', len(ids) == 1 and
+                    next(s for s in rt.current_plan.spec.steps if s.id == ids[0]).action.kind == 'stand_down')
+                facts, people = await refresh()
+                check('player_draft_preserved', next(p for p in people if p['thingId'] == protected)['drafted'])
+                check('owned_workers_released', all(not p['drafted'] for p in people if p['thingId'] in owned))
+                ids = await issue('CriticalMedical')
+                check('treatment_dispatched_after_fresh_read', bool(ids) and all(
+                    next(s for s in rt.current_plan.spec.steps if s.id == i).action.completion == 'patient_tended' for i in ids))
+                rt.supervisor.test_acceleration = True
+                for _ in range(30):
+                    facts, people = await refresh()
+                    if not next(p for p in people if p['thingId'] == patient)['health']['needsTend']:
+                        break
+                    await advance_game(rt, 600, report)
+                facts, people = await refresh()
+                check('native_treatment_completed', not next(p for p in people if p['thingId'] == patient)['health']['needsTend'])
+                check('player_still_drafted_after_treatment', next(p for p in people if p['thingId'] == protected)['drafted'])
             elif args.case=='medical':
                 patients=[p['thingId'] for p in people[:2]]
                 for patient in patients:
@@ -366,7 +398,7 @@ async def run(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root',type=Path,required=True)
-    parser.add_argument('--case',choices=['development','combat','medical','health'],required=True)
+    parser.add_argument('--case',choices=['development','combat','medical','drafted-medical','health'],required=True)
     parser.add_argument('--seconds',type=int,default=1800)
     parser.add_argument('--new-crashlanded',action='store_true',help='Use ordinary native Crashlanded generation and starting technology, without save edits')
     parser.add_argument('--research-project',help='Require this native project on a saved-colony continuation')

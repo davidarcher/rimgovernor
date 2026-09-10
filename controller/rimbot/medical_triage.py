@@ -2,6 +2,21 @@
 from math import isfinite
 
 
+def threats_cleared(status):
+    if (status.get('blocks', {}).get('threats') is not True
+            or status.get('time', {}).get('paused') is not True):
+        return False
+    for key, census in (('hostileCount', 'hostiles'), ('huntingPredatorCount', 'huntingPredators')):
+        count = status.get('counts', {}).get(key)
+        if type(count) is not int or count < 0:
+            return False
+        downed = {p['thingId'] for p in status.get('threats', {}).get(census, [])
+                  if p.get('thingId') and p.get('downed') is True}
+        if count > len(downed):
+            return False
+    return True
+
+
 def treatment_pairs(people, patients, control):
     def urgency(pawn):
         health = pawn.get('health') or {}

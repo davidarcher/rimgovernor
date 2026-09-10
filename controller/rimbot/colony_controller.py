@@ -4,6 +4,8 @@ from dataclasses import asdict
 from .colony_plan import ColonyGoal, CommitSteps
 from .colony_policy import required_colony_work, ColonyPolicy, allocation, criteria, derive, priority_nodes, work_assignment
 from .colony_skills import ColonySkills, SkillBlocked
+from .bridge import BridgeError
+from .order_refusal import refused_preview, prerequisites as order_prerequisites
 from .config import ModelRole
 from .strategic_state import fingerprint
 from .development_priorities import arbitrate, release_admission
@@ -274,6 +276,19 @@ class ColonyController:
                 goal.priority_class = priority
             else:
                 goal.priority_class = min(goal.priority_class, priority)
+            refusal = goal.evidence.get('order_preview_refusal')
+            if identity == 'CriticalMedical':
+                medical_inputs = order_prerequisites(facts, people['pawns'], plan.control)
+                if (goal.status == 'blocked'
+                        and goal.reason == 'No available native-approved doctor/patient pair; medical hold retained'
+                        and goal.evidence.get('medical_inputs') != medical_inputs):
+                    goal.status, goal.reason = 'active', ''
+                goal.evidence['medical_inputs'] = medical_inputs
+            if refusal and goal.status == 'blocked' and goal.reason == refusal['reason']:
+                if (refusal['inputs'] != order_prerequisites(facts, people['pawns'], plan.control)
+                        or facts['tick'] // 2500 > refusal['tick'] // 2500):
+                    goal.status, goal.reason = 'active', ''
+                    goal.evidence.pop('order_preview_refusal')
             if identity in UPKEEP_GOALS:
                 goal.priority_class = priority
                 state = plan.control['upkeep'][identity]
@@ -482,6 +497,17 @@ class ColonyController:
                 # One small commitment per cycle; Hands gets the next turn.
                 rt.persist()
                 return
+            except BridgeError as error:
+                payload = refused_preview(error)
+                if payload is None:
+                    raise
+                if rt.context_token != token or rt.chat_revision != direction or rt.mode != 'automate':
+                    return
+                reason = str(error)
+                goal.evidence['order_preview_refusal'] = dict(reason=reason, native=payload,
+                    tick=facts['tick'], inputs=order_prerequisites(facts, people['pawns'], plan.control))
+                self.block(goal, identity, reason)
+                release_admission(plan, identity, development_admitted, reason)
             except SkillBlocked as error:
                 if rt.context_token != token or rt.chat_revision != direction or rt.mode != 'automate':
                     return

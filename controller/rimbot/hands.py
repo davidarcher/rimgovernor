@@ -73,7 +73,8 @@ class Hands:
                         progress.issued[key] = {'confirmed': False}
                         rt.persist()
                         receipt = await rt.stand_down(action.pawn_ids, expected_revision=direction,
-                            expected_token=token, expected_plan_revision=revision)
+                            expected_token=token, expected_plan_revision=revision,
+                            **({'require_clear_threats': True} if step.goal_id == 'CriticalMedical' else {}))
                         if receipt['failed']:
                             raise Blocked('stand_down_incomplete', 'Some AI-owned drafts could not be released.',
                                 retryable=True, evidence=receipt)

@@ -4,6 +4,7 @@ import pytest
 
 from rimbot.colony_plan import ColonyGoal, PlanStep, StepProgress, ColonyPlan, CommitSteps
 from rimbot.medical_triage import treatment_pairs
+from rimbot.medical_triage import threats_cleared
 from rimbot.colony_skills import SkillBlocked
 from test_colony_controller import Replay
 
@@ -18,6 +19,17 @@ def fixture():
     rt.people[1]['health'].update(needsTend=True, hoursUntilDeathFromBloodLoss=2)
     rt.facts.update(medicalKnown=True, criticalPatients=['Thing_Human0', 'Thing_Human1'])
     return rt
+
+
+def test_only_exact_incapacitated_threat_census_allows_medical_cleanup():
+    status = {'blocks': {'threats': True}, 'time': {'paused': True},
+        'counts': {'hostileCount': 1, 'huntingPredatorCount': 0},
+        'threats': {'hostiles': [{'thingId': 'raider', 'downed': True}]}}
+    assert threats_cleared(status)
+    status['counts']['hostileCount'] = 2
+    assert not threats_cleared(status)
+    status['counts']['hostileCount'] = None
+    assert not threats_cleared(status)
 
 
 def test_urgent_patient_first_and_doctors_respect_player_and_self_tend():
@@ -56,6 +68,36 @@ async def test_no_eligible_doctor_retains_explicit_hold():
     rt = fixture()
     for p in rt.people:
         p['downed'] = True
+    with pytest.raises(SkillBlocked, match='No available'):
+        await rt.controller.skills.compile('CriticalMedical', rt.facts, rt.people)
+
+
+@pytest.mark.asyncio
+async def test_owned_combat_drafts_release_before_fresh_treatment_selection():
+    rt = fixture()
+    rt.facts['hostiles'] = 0
+    rt.draft_owners = {p['thingId']: rt.context_token for p in rt.people}
+    for p in rt.people:
+        p['drafted'] = True
+    rt.current_plan.control['player_draft_overrides'] = {'Thing_Human3': True}
+    rt.inspect_native = AsyncMock(return_value={'success': True})
+    method, actions = await rt.controller.skills.compile('CriticalMedical', rt.facts, rt.people)
+    assert actions == [{'kind': 'stand_down', 'pawn_ids': ['Thing_Human0', 'Thing_Human1', 'Thing_Human2']}]
+    rt.inspect_native.assert_not_awaited()
+    for p in rt.people[:3]:
+        p['drafted'] = False
+    _, actions = await rt.controller.skills.compile('CriticalMedical', rt.facts, rt.people)
+    assert actions[0]['completion'] == 'patient_tended'
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('hostiles,owner', [(1, 'current'), (None, 'current'), (0, 'old')])
+async def test_medical_cleanup_preserves_combat_and_foreign_ownership(hostiles, owner):
+    rt = fixture()
+    rt.facts['hostiles'] = hostiles
+    rt.draft_owners = {p['thingId']: rt.context_token if owner == 'current' else 'old-load' for p in rt.people}
+    for p in rt.people:
+        p['drafted'] = True
     with pytest.raises(SkillBlocked, match='No available'):
         await rt.controller.skills.compile('CriticalMedical', rt.facts, rt.people)
 

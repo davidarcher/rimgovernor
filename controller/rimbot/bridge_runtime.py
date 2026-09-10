@@ -708,10 +708,16 @@ class BridgeRuntime:
                 self.note('blocker', 'Could not release AI-drafted pawn '+pawn+': '+failure_text(error))
         return result
 
-    async def stand_down(self, pawn_ids, *, expected_token, expected_revision, expected_plan_revision):
+    async def stand_down(self, pawn_ids, *, expected_token, expected_revision, expected_plan_revision, require_clear_threats=False):
         async with self.lock:
             async def guard():
                 await self.sync_identity()
+                if require_clear_threats:
+                    from .medical_triage import threats_cleared
+                    status = await self.game.query('home/status', colonists=False, threats=True)
+                    await self.refresh_clock_events()
+                    if not threats_cleared(status):
+                        raise InterruptedError('Medical stand-down requires fresh cleared threats')
                 if (self.mode != 'automate' or self.context_token != expected_token
                         or self.chat_revision != expected_revision
                         or self.current_plan.revision != expected_plan_revision):

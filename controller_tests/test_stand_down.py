@@ -13,6 +13,22 @@ def runtime(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_medical_release_rechecks_threats_before_touching_owned_draft(tmp_path):
+    rt = runtime(tmp_path)
+    rt.draft_owners = {'AI': 'load'}
+    rt.refresh_clock_events = AsyncMock()
+    rt.game = SimpleNamespace(query=AsyncMock(return_value={
+        'blocks': {'threats': True}, 'time': {'paused': True},
+        'counts': {'hostileCount': 1, 'huntingPredatorCount': 0}}), invoke=AsyncMock())
+    with pytest.raises(InterruptedError, match='cleared threats'):
+        await rt.stand_down(['AI'], expected_token='load', expected_revision=0,
+                           expected_plan_revision=0, require_clear_threats=True)
+    rt.game.invoke.assert_not_awaited()
+    assert rt.draft_owners == {'AI': 'load'}
+    rt.store.close()
+
+
+@pytest.mark.asyncio
 async def test_selected_cleanup_leaves_automation_and_player_drafts_alone(tmp_path):
     rt=runtime(tmp_path);rt.draft_owners={'AI':'load','Other':'load','Stale':'old'}
     drafted={'AI':True}

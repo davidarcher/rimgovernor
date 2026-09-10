@@ -209,7 +209,14 @@ class ColonySkills:
                     method += '-'+str(completed)
                 if unused(method):
                     args = dict(action='tend', pawn=doctor, target=patient, dryRun=True)
-                    preview = await rt.inspect_native('home/order', args)
+                    from .bridge import BridgeError
+                    from .order_refusal import refused_preview
+                    try:
+                        preview = await rt.inspect_native('home/order', args)
+                    except BridgeError as error:
+                        preview = refused_preview(error)
+                        if preview is None:
+                            raise
                     if preview.get('success') is True:
                         goal.evidence['triage'] = {'patient': patient, 'doctor': doctor, 'refusals': refusals}
                         return method, [dict(native('home/order', action='tend', pawn=doctor, target=patient),
@@ -218,6 +225,16 @@ class ColonySkills:
                     if len(refusals) >= 8:
                         break
             goal.evidence['triage'] = {'refusals': refusals}
+            # Release combat ownership before selecting a doctor on the next read.
+            # An active or unknown threat must not lose its defenders to cleanup.
+            if facts.get('hostiles') == 0:
+                owned = [p['thingId'] for p in people if p.get('drafted') is True
+                    and getattr(rt, 'draft_owners', {}).get(p['thingId']) == rt.context_token
+                    and p['thingId'] not in rt.current_plan.control.get('player_draft_overrides', {})
+                    and p.get('job') != 'TendPatient']
+                method = 'release-medical-'+fingerprint(sorted(owned))[:12]
+                if owned and unused(method):
+                    return method, [{'kind': 'stand_down', 'pawn_ids': sorted(owned)}]
             if any((p.get('health') or {}).get('needsTend') is True
                    for p in people if p['thingId'] in facts['criticalPatients']):
                 raise SkillBlocked('No available native-approved doctor/patient pair; medical hold retained')

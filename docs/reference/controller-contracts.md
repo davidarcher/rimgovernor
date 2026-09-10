@@ -197,6 +197,12 @@ Native events or player direction arriving during method selection retain a pend
 review; neither a refusal nor a no-op acknowledges newer evidence from an old read.
 Invalid templates have a bounded alternative-site search; unknown or failed native actions
 become explicit blockers. A no-progress watchdog prevents silent indefinite waiting.
+Structured `home/order` refusals from unapplied dry-run previews block the affected
+goal while subsequent reviews continue. Changed worker jobs, cargo, health, work
+settings, equipment, stock or upkeep evidence permit a fresh selection; a
+2,500-tick window also rechecks routes. Unknown failures and dispatched writes
+retain their existing reconciliation requirements. This never retries an uncertain
+write or relaxes native interruption guards.
 Above eight colonists, starter sleeping uses verified room and native footprint fitting,
 preserving its entrance aisle and three service rows. The starter uses its available
 sleeping capacity before proposing another nearby shell on observed free ground with

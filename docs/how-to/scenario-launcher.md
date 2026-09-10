@@ -8,6 +8,13 @@ loopback dashboard port and removes only its own container when the command exit
 or times out. It preserves logs, the URL in `dashboard.json` and exit/cleanup evidence
 in `result.json`. Command success does not replace the scenario's native assertions.
 
+The launcher reuses the content-addressed native input cache and keeps writable
+state on a private Linux volume. It exports evidence only after stopping the worker
+and checks every exported `.sqlite`/`.db` database. Successful runs release their
+volume; failed runs retain it, and failed exports retain the container as well.
+Host-side runtime files appear after export; use the dashboard during execution.
+`--worker-storage bind` and `--no-input-cache` provide explicit comparison modes.
+
 From the checkout root, with [prepared Linux inputs](docker-inputs.md):
 
 ```powershell
