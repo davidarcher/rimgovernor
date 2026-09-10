@@ -23,6 +23,25 @@ It also generates an ordinary native TradeRequest offer, selects an observed
 reward through AcceptQuest and verifies native acceptance. This does not certify
 delivery of that trade quest's requested goods.
 Hidden fixture quest evidence stays outside the gameplay observation surface.
+
+`--logistics --trip --shared` additionally loads silver, issues an explicit hold,
+and waits for returned silver to leave the pawn inventory and enter native storage.
+`--multimap` extends that trip by settling a second native home and checking old-map
+order refusal. Supply a private profile with the ordinary maximum-settlements
+preference set to at least two. The fixture never edits maps or pawn positions.
+
+`--diplomacy --trip --shared` chooses a settlement using native negotiation
+eligibility and route/food limits, spends an explicit silver gift, observes
+goodwill, then verifies return storage. `--quest-trade --trip --shared` requires
+a native offer with obtainable goods and an item reward, uses shared acquisition,
+and observes native fulfillment and received cargo. Unobtainable offers do not
+authorize generated goods or changed quest requirements. These longer trips keep
+home food gathering in the existing shared goal and Hands.
+
+`--expired` waits for the ordinary short-lived ThreatReward_Raid_Joiner offer to
+expire without acceptance, then verifies native acceptance refusal and terminal
+outcome evaluation. No quest deadlines or ticks are edited.
+
 `--days N` runs the deterministic controller with baseline living-roster and
 cold-weather readiness samples every five seconds, retaining native ticks and
 scope. A 30-minute wall bound fails stalled runs; safety stops remain active.

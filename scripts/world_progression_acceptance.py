@@ -23,7 +23,10 @@ async def run():
     rt = BridgeRuntime(store, root, fresh=True, headless=True, model_factory=lambda _: NoInference())
     report = {'passed': False, 'scope': 'Native world-progression audit', 'cases': {}}
     shared = os.environ.get('RIMBOT_SHARED_WORLD') == '1'
-    logistics = os.environ.get('RIMBOT_LOGISTICS') == '1'
+    diplomacy = os.environ.get('RIMBOT_DIPLOMACY') == '1'
+    quest_trade = os.environ.get('RIMBOT_QUEST_TRADE') == '1'
+    settlement_trip = diplomacy or quest_trade
+    logistics = os.environ.get('RIMBOT_LOGISTICS') == '1' or diplomacy
     async def command(*, waits=True, **payload):
         async with rt.lock:
             await rt.refresh_clock_events()
@@ -104,6 +107,29 @@ async def run():
             async with rt.lock:
                 await reconcile_world(rt)
                 rt.persist()
+        if settlement_trip:
+            async with rt.lock:
+                await rt.refresh_clock_events()
+            async with asyncio.timeout(45):
+                while rt.wake.is_set() or (rt.review_task and not rt.review_task.done()) or rt.handled_revision < rt.chat_revision:
+                    await asyncio.sleep(.1)
+            facts = await read('home/colony_facts', planning=True)
+            from rimbot.food_forecast import acquisition_targets
+            targets, _ = acquisition_targets(facts, rt.controller.policy.food_target_days)
+            if targets:
+                goal = rt.current_plan.colony_goals.setdefault('EnsureFoodSupply', ColonyGoal(priority_class=1, source='PLAYER'))
+                compiled = await rt.controller.skills.compile('EnsureFoodSupply', facts, [])
+                if compiled:
+                    method, actions = compiled
+                    assert method.startswith('acquire-'), 'Expected bounded ordinary food gathering'
+                    steps, _ = rt.controller.skills.steps('EnsureFoodSupply', method, actions, facts)
+                    await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
+                        reason='Maintain actual home food during the explicit expedition', steps=steps).decision(rt.current_plan),
+                        actor='strategist', expected_token=rt.context_token, expected_revision=rt.chat_revision)
+                    rt.manual_requests.extend((s.id, rt.context_token, rt.chat_revision) for s in steps)
+                    await rt.execute_manual_requests()
+                    assert all(rt.current_plan.progress[s.id].state == 'complete' for s in steps)
+                    goal.evidence.setdefault('methods', {})[method] = [s.id for s in steps]
         return state
     try:
         await ready(rt)
@@ -114,6 +140,28 @@ async def run():
         assert report['world']['complete'] is True
         assert report['catalog']['accepted'] is True
         report['cases']['observations'] = 'passed'
+        if os.environ.get('RIMBOT_EXPIRED_QUEST') == '1':
+            offer = await read('test/trade_quest_offer', definition='ThreatReward_Raid_Joiner', dryRun=False)
+            assert offer['eligible'] and offer['questId']
+            initial = await read('home/world_progression')
+            quest = next(q for q in initial['quests'] if q['id'] == offer['questId'])
+            assert quest['state'] == 'NotYetAccepted' and 0 < quest['expiresInTicks'] <= 30000
+            deadline = time.monotonic() + 300
+            while time.monotonic() < deadline:
+                await window(6000)
+                observed = await read('home/world_progression')
+                terminal = next(q for q in observed['quests'] if q['id'] == offer['questId'])
+                if terminal['state'] == 'EndedOfferExpired':
+                    break
+            assert terminal['state'] == 'EndedOfferExpired' and terminal['canAccept'] is False
+            scope_args = {k: initial[k] for k in ('colonyId', 'loadToken', 'mapId')}
+            refused = await read('home/accept_quest', **scope_args, questId=quest['id'], pawnId=quest['eligiblePawns'][0], dryRun=True)
+            assert refused['accepted'] is False
+            from rimbot.world_progression import quest_outcome
+            assert quest_outcome(observed, quest['id'], scope=scope_args, issued_tick=initial['ticksGame']) == 'blocked'
+            report['expired_quest'] = terminal
+            report['expired_refusal'] = refused
+            report['cases']['native_offer_expired_without_acceptance_or_replay'] = 'passed'
         if os.environ.get('RIMBOT_CARAVAN_TRIP') == '1':
             observed = report['facts']
             supply_cells = observed.get('forbiddenSupplies', [])
@@ -140,11 +188,77 @@ async def run():
             catalog = await read('home/caravan')
             roster = await read('home/list_pawns', colonistsOnly=True, bio=True)
             pawn = roster['pawns'][0]['thingId']
+            if settlement_trip:
+                negotiators = [(s['level'], p['thingId']) for p in roster['pawns']
+                    for s in p.get('bio', {}).get('skills', []) if s['name'] == 'Social' and not s['disabled']]
+                assert negotiators, 'No native capable negotiator'
+                pawn = max(negotiators)[1]
+            trade_quest = None
+            if quest_trade:
+                assert shared
+                await window(6000)
+                report['offer_evaluation'] = []
+                for attempt in range(16):
+                    offer = await read('test/trade_quest_offer', dryRun=False)
+                    if not offer.get('eligible') or not offer.get('questId'):
+                        break
+                    world = await read('home/world_progression')
+                    candidate = next(q for q in world['quests'] if q['id'] == offer['questId'])
+                    objective = candidate['tradeRequests'][0]
+                    sources = await read('home/resource_sources', resource=objective['resource'])
+                    choice = next((c for c in candidate['rewardChoices']
+                        if any(r.get('items') for r in c['rewards'])), None)
+                    obtainable = sum(s.get('yield', 0) for s in sources.get('sources', [])) >= objective['count']
+                    report['offer_evaluation'].append(dict(quest=candidate['id'], objective=objective,
+                        obtainable=obtainable, item_reward=choice is not None))
+                    if obtainable and choice and objective['count'] <= 100:
+                        trade_quest = candidate
+                        break
+                assert trade_quest, 'No bounded ordinary obtainable trade offer among the native candidates'
+                report['trade_quest'] = trade_quest
+                await command(kind='AcceptQuest', quest_id=trade_quest['id'], pawn_id=pawn,
+                    reward_choice=choice['index'], waits=False)
+                await apply_command(rt, dict(kind='CreateGoal', goal='MaintainResource', resource=objective['resource'],
+                    quantity=objective['count']), token=rt.context_token, revision=rt.chat_revision)
+                goal_id = 'MaintainResource-' + objective['resource']
+                goal = rt.current_plan.colony_goals[goal_id]
+                facts = await read('home/colony_facts', planning=True)
+                method, actions = await rt.controller.skills.compile(goal_id, facts, roster['pawns'])
+                assert actions and all(a.get('tool') == 'home/acquire_resource' for a in actions), 'Scenario requires ordinary obtainable requested resources'
+                source_cells = [(a['arguments']['x'], a['arguments']['z']) for a in actions]
+                for work in goal.evidence['work_types']:
+                    skill = next(iter(work.get('skills', [])), None)
+                    eligible = [(s['level'], p['thingId']) for p in roster['pawns'] for s in p.get('bio', {}).get('skills', [])
+                        if s['name'] == skill and not s['disabled']]
+                    assert eligible, work
+                    await command(kind='SetWorkPriority', pawn=max(eligible)[1], work_type=work['name'], priority=1, waits=False)
+                steps, _ = rt.controller.skills.steps(goal_id, method, actions, facts)
+                await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
+                    reason='Acquire native requested goods for the explicit trade expedition', steps=steps).decision(rt.current_plan),
+                    actor='strategist', expected_token=rt.context_token, expected_revision=rt.chat_revision)
+                rt.manual_requests.extend((s.id, rt.context_token, rt.chat_revision) for s in steps)
+                await rt.execute_manual_requests()
+                assert all(rt.current_plan.progress[s.id].state == 'complete' for s in steps)
+                goal.evidence.setdefault('methods', {})[method] = [s.id for s in steps]
+                deadline = time.monotonic() + 600
+                while time.monotonic() < deadline:
+                    await window(6000)
+                    stock = await read('home/colony_facts', planning=True)
+                    if stock.get('resources', {}).get(objective['resource'], 0) >= objective['count']:
+                        break
+                assert stock.get('resources', {}).get(objective['resource'], 0) >= objective['count'], 'Requested goods were not actually produced'
+                report['quest_acquisition'] = dict(resource=objective['resource'], required=objective['count'], observed=stock['resources'][objective['resource']])
+                await read('home/zone_cells', op='create', zoneType='stockpile', label='Quest cargo pickup',
+                    cells=';'.join(f'{x},{z}' for x,z in source_cells), allowSplit=True, preset='everything', watch=False, dryRun=False)
+                catalog = await read('home/caravan')
             food = next(g for g in catalog['groups'] if g['defName'] == 'Pemmican')
-            manifest = [dict(group_id=food['id'], count=60)]
+            manifest = [dict(group_id=food['id'], count=250 if diplomacy else 200 if quest_trade else 60)]
+            if quest_trade:
+                goods = next(g for g in catalog['groups'] if g['defName'] == objective['resource'])
+                manifest.append(dict(group_id=goods['id'], count=objective['count']))
             if logistics:
                 silver = next(g for g in catalog['groups'] if g['defName'] == 'Silver')
-                manifest.append(dict(group_id=silver['id'], count=20))
+                manifest.append(dict(group_id=silver['id'], count=120 if diplomacy else 20))
             report['formation'] = None
             scope = await read('home/colony_identity')
             scope_args = {key: scope[key] for key in ('colonyId', 'loadToken', 'mapId')}
@@ -208,15 +322,35 @@ async def run():
                 report['hold'] = await command(kind='HoldCaravan', caravan_id=caravan_id, waits=False)
                 assert not next(c for c in report['hold']['observation']['caravans'] if c['id'] == caravan_id)['moving']
             next_tile = next(t for t in catalog['neighbors'] if t != tile)
-            move_args = dict(scope_args, action='move', caravanId=caravan_id, destination=next_tile)
+            if settlement_trip:
+                settlements = (await read('home/world', settlementRadius=100))['settlements']
+                if quest_trade:
+                    settlement = next(s for s in settlements if s['tile'] == objective['tile'])
+                else:
+                    settlement = None
+                    report['diplomatic_destinations'] = []
+                    for candidate in settlements:
+                        if candidate['isPlayer'] or candidate['relation'] == 'Hostile':
+                            continue
+                        potential = await read('home/caravan', **scope_args, action='visit', caravanId=caravan_id,
+                            destination=candidate['tile'], dryRun=True)
+                        report['diplomatic_destinations'].append(dict(settlement=candidate, preview=potential))
+                        route = potential.get('route', {})
+                        if (potential.get('accepted') and route.get('canTrade') is True
+                                and route['estimatedTicks'] <= 180000 and route['foodDays'] >= route['estimatedTicks'] / 30000 + .5):
+                            settlement = candidate
+                            break
+                    assert settlement, 'No observed settlement meeting native negotiation and trip limits'
+                next_tile = settlement['tile']
+            move_args = dict(scope_args, action='visit' if settlement_trip else 'move', caravanId=caravan_id, destination=next_tile)
             preview = await read('home/caravan', **move_args, dryRun=True)
             assert preview.get('accepted') is True, preview
             report['movement_order'] = (await command(kind='RouteCaravan', caravan_id=caravan_id,
-                destination=next_tile)) if shared else await read('home/caravan', **move_args, dryRun=False)
+                destination=next_tile, visit_settlement=settlement_trip)) if shared else await read('home/caravan', **move_args, dryRun=False)
             assert report['movement_order']['accepted'] is True
             deadline = time.monotonic() + 600
             while time.monotonic() < deadline:
-                await window()
+                await window(6000 if settlement_trip else 600)
                 world = await read('home/world_progression')
                 report['samples'].append(world)
                 (output / 'progress.json').write_text(json.dumps(report, indent=2))
@@ -227,13 +361,33 @@ async def run():
                     report['moved'] = world
                     break
             assert report.get('moved'), 'World tile movement was not observed'
+            if quest_trade:
+                from rimbot.world_progression import inventory_totals
+                before = next(c for c in world['caravans'] if c['id'] == caravan_id)
+                baseline_items = inventory_totals([i for p in before['pawns'] for i in p['inventory']])
+                report['fulfillment'] = await command(kind='FulfillQuest', quest_id=trade_quest['id'], caravan_id=caravan_id)
+                await window(600)
+                after = await read('home/world_progression')
+                assert next(q for q in after['quests'] if q['id'] == trade_quest['id'])['state'] == 'EndedSuccess'
+                party = next(c for c in after['caravans'] if c['id'] == caravan_id)
+                actual_items = inventory_totals([i for p in party['pawns'] for i in p['inventory']])
+                rewards = [i for r in choice['rewards'] for i in (r.get('items') or [])]
+                assert rewards and all(actual_items.get(i['defName'], 0) >= baseline_items.get(i['defName'], 0) + i['count'] for i in rewards)
+                report['quest_rewards'] = rewards
+                report['cases']['native_trade_quest_fulfilled_and_rewards_received'] = 'passed'
+            if diplomacy:
+                report['gift'] = await command(kind='GiftToSettlement', caravan_id=caravan_id,
+                    faction_id=preview['route']['factionId'], silver=80, waits=False)
+                after_faction = next(f for f in report['gift']['observation']['factions'] if f['id'] == preview['route']['factionId'])
+                assert after_faction['goodwill'] > preview['route']['goodwill'], 'Native goodwill did not improve'
+                report['cases']['native_settlement_visit_and_diplomacy'] = 'passed'
             return_args = dict(scope_args, action='return', caravanId=caravan_id)
             report['return_order'] = (await command(kind='RouteCaravan', caravan_id=caravan_id,
                 return_home=True, storage_resources=['Silver'] if logistics else [])) if shared else await read('home/caravan', **return_args, dryRun=False)
             assert report['return_order']['accepted'] is True
             deadline = time.monotonic() + 600
             while time.monotonic() < deadline:
-                await window()
+                await window(6000 if settlement_trip else 600)
                 world = await read('home/world_progression')
                 report['samples'].append(world)
                 if not any(c['id'] == caravan_id for c in world['caravans']):

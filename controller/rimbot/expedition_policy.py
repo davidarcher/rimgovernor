@@ -111,6 +111,9 @@ def evaluate_expedition(policy, preview, facts, world, *, action, crew=(), cargo
 
 
 def evaluate_world(policy, world, facts):
+    if (world.get('success') is not True or world.get('complete') is not True
+            or (world.get('operation') or {}).get('ResultWasTruncated') is True):
+        return dict(readable=False, caravans=[], quests=[], reason='Complete native world evidence is required')
     parties = []
     for caravan in world.get('caravans', []):
         routes = [r for r in caravan.get('homeRoutes', []) if r.get('reachable') is True and number(r.get('estimatedTicks'))]
@@ -133,7 +136,7 @@ def evaluate_world(policy, world, facts):
             recommendation='Terminal objective; do not replay' if terminal else
                 'Production or acquisition required; no future output credited' if any(deficits.values()) else
                 'Explicit player choice required; acceptance is separate from completion'))
-    return dict(caravans=parties, quests=quests, policy=policy.model_dump(),
+    return dict(readable=True, caravans=parties, quests=quests, policy=policy.model_dump(),
                 scope='Read-only evaluation; no automatic quest acceptance, diplomatic escalation or expedition orders')
 
 

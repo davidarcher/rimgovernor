@@ -182,12 +182,16 @@ namespace HomeBridge.BridgeTools
             using (var path = from.Layer.Pather.FindPath(from, to, caravan))
             {
                 var settlement = Find.WorldObjects.Settlements.SingleOrDefault(s => s.Tile == to);
+                var trade = caravan != null && settlement?.Faction != null && !settlement.Faction.IsPlayer
+                    ? CaravanVisitUtility.TradeCommand(caravan, settlement.Faction, settlement.TraderKind) : null;
                 return new { reachable = path.Found,
                     estimatedTicks = path.Found ? (int?)CaravanArrivalTimeEstimator.EstimatedTicksToArrive(from, to, path, 0f, ticksPerMove, Find.TickManager.TicksAbs) : null,
                     foodDays, destination = to.tileId,
                     temperature = GenTemperature.GetTemperatureFromSeasonAtTile(Find.TickManager.TicksAbs, to),
                     settlementId = settlement?.GetUniqueLoadID(), factionId = settlement?.Faction?.GetUniqueLoadID(),
                     hostile = settlement?.Faction?.HostileTo(Faction.OfPlayer) ?? false,
+                    canTrade = trade == null ? (bool?)null : settlement.CanTradeNow && !trade.Disabled,
+                    tradeReason = trade?.disabledReason,
                     goodwill = settlement?.Faction == null || settlement.Faction.IsPlayer ? (int?)null : settlement.Faction.PlayerGoodwill };
             }
         }

@@ -18,11 +18,14 @@ def run(args):
         return subprocess.run([docker, *values], cwd=source, env=environment, **kwargs)
     name = 'rimbot-b15-' + uuid.uuid4().hex[:12]
     report = dict(passed=False, container=name, trip=args.trip, shared=args.shared, quests=args.quests, days=args.days, matrix=args.matrix,
-                  logistics=args.logistics, multimap=args.multimap, emergency=args.emergency,
+                  logistics=args.logistics, multimap=args.multimap, emergency=args.emergency, diplomacy=args.diplomacy, quest_trade=args.quest_trade, expired=args.expired,
                   scope='Native caravan/quest observations and optional ordinary loaded caravan round trip')
     try:
+        baseline = args.profile.resolve() / 'Saves/RimBot-tribal8-baseline.rws'
+        if baseline.is_file():
+            report['baseline'] = dict(path=str(baseline), sha256=hashlib.sha256(baseline.read_bytes()).hexdigest())
         required = ['RimBot.Observations.BridgeTools.dll']
-        if args.quests or args.matrix or args.emergency or args.multimap:
+        if args.quests or args.matrix or args.emergency or args.multimap or args.quest_trade or args.expired:
             required.append('RimBot.InterruptionFixtures.BridgeTools.dll')
         report['assemblies'] = {}
         for assembly in required:
@@ -59,6 +62,9 @@ def run(args):
                 '--env', 'RIMBOT_EMERGENCY_PROBE=' + ('1' if args.emergency else '0'),
                 '--env', 'RIMBOT_LOGISTICS=' + ('1' if args.logistics else '0'),
                 '--env', 'RIMBOT_MULTIMAP=' + ('1' if args.multimap else '0'),
+                '--env', 'RIMBOT_DIPLOMACY=' + ('1' if args.diplomacy else '0'),
+                '--env', 'RIMBOT_QUEST_TRADE=' + ('1' if args.quest_trade else '0'),
+                '--env', 'RIMBOT_EXPIRED_QUEST=' + ('1' if args.expired else '0'),
                 '--env', 'RIMBOT_CARAVAN_TRIP=' + ('1' if args.trip else '0'), *mounts,
                 image, '--', 'python', '/worker/probe.py', stdout=log, stderr=subprocess.STDOUT,
                 timeout=args.timeout)
@@ -91,6 +97,9 @@ if __name__ == '__main__':
     parser.add_argument('--no-build', action='store_true')
     parser.add_argument('--trip', action='store_true')
     parser.add_argument('--logistics', action='store_true', help='Verify explicit hold and return cargo unloading into native storage')
+    parser.add_argument('--diplomacy', action='store_true', help='Visit a native settlement and give explicitly requested silver through shared Hands')
+    parser.add_argument('--quest-trade', action='store_true', help='Acquire ordinary requested goods, visit the quest settlement and observe native fulfillment and rewards')
+    parser.add_argument('--expired', action='store_true', help='Wait for an ordinary short-lived unaccepted quest to expire and verify it cannot be accepted')
     parser.add_argument('--multimap', action='store_true', help='Settle a second native map and verify scope invalidation; requires private profile allowing two settlements')
     parser.add_argument('--shared', action='store_true', help='Use shared semantic commands and Hands for the trip')
     parser.add_argument('--quests', action='store_true', help='Require ordinary join-quest outcome using the separate incident fixture')
@@ -101,4 +110,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if args.matrix and not (args.trip and args.shared):
         parser.error('--matrix requires --trip --shared')
+    if (args.logistics or args.multimap or args.diplomacy or args.quest_trade) and not (args.trip and args.shared):
+        parser.error('Logistics, diplomacy, trade quests and multiple maps require --trip --shared')
     raise SystemExit(0 if run(args) else 1)

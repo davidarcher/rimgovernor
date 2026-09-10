@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using RimBridgeServer.Sdk;
 using RimWorld;
 using RimWorld.Planet;
+using RimWorld.QuestGen;
 using System.Collections.Generic;
 using Verse;
 
@@ -71,16 +72,21 @@ namespace RimBot.InterruptionFixtures
             }, cancellationToken);
         }
 
-        [Tool("test/trade_quest_offer", Description = "Disposable ordinary TradeRequest quest generation at native storyteller points; never awards completion or edits quest states.")]
-        public async Task<object> TradeQuest(IRimBridgeContext ctx, CancellationToken cancellationToken, bool dryRun = true)
+        [Tool("test/trade_quest_offer", Description = "Disposable ordinary TradeRequest or ThreatReward_Raid_Joiner offer at native storyteller points; never awards completion or edits quest states or expiration.")]
+        public async Task<object> TradeQuest(IRimBridgeContext ctx, CancellationToken cancellationToken, bool dryRun = true,
+            string definition = "TradeRequest")
         {
             return await ctx.MainThread.InvokeAsync(() =>
             {
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Load and pause a disposable colony first");
-                var def = DefDatabase<QuestScriptDef>.GetNamed("TradeRequest");
+                if (definition != "TradeRequest" && definition != "ThreatReward_Raid_Joiner") throw new ArgumentException("Unsupported quest fixture");
+                var def = DefDatabase<QuestScriptDef>.GetNamed(definition);
                 var points = StorytellerUtility.DefaultThreatPointsNow(map);
-                var eligible = def.CanRun(points, map);
+                var slate = new Slate();
+                slate.Set("points", points);
+                // CanRun caches by tick; repeated paused probes must also check the live native root.
+                var eligible = def.CanRun(points, map) && def.root.TestRun(slate);
                 var quest = !dryRun && eligible ? QuestUtility.GenerateQuestAndMakeAvailable(def, points) : null;
                 return (object)new { success = true, dryRun, eligible, points,
                     questId = quest?.GetUniqueLoadID(), state = quest?.State.ToString() };

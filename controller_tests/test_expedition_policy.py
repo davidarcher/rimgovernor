@@ -67,7 +67,7 @@ def test_unknown_census_and_concurrent_parties_refuse_departure():
 
 
 def test_evaluation_keeps_failed_objectives_terminal_and_identifies_stranded_parties():
-    world = dict(caravans=[dict(id='c', pawns=[], foodDays=0, homeRoutes=[])],
+    world = dict(success=True, complete=True, caravans=[dict(id='c', pawns=[], foodDays=0, homeRoutes=[])],
                  quests=[dict(id='q', state='EndedFailed', tradeRequests=[dict(resource='Steel', count=20)])])
     result = evaluate_world(ExpeditionPolicy(), world, {'resources': {'Steel': 5}})
     assert result['caravans'][0]['recovery_required']
@@ -78,3 +78,7 @@ def test_evaluation_keeps_failed_objectives_terminal_and_identifies_stranded_par
 def test_policy_cannot_reverse_temperature_limits():
     with pytest.raises(ValueError):
         ExpeditionPolicy(minimum_destination_temperature=40, maximum_destination_temperature=0)
+
+
+def test_incomplete_world_does_not_produce_actionable_recommendations():
+    assert evaluate_world(ExpeditionPolicy(), {'success': False}, {})['readable'] is False
