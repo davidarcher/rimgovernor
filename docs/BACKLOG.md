@@ -132,9 +132,14 @@ in the checkpoint commit; do not append an implementation diary here.
   [hydroponics](https://rimworldwiki.com/wiki/Hydroponics),
   [outage consequences](https://rimworldwiki.com/wiki/Events_Guide) and
   [nutrifungus](https://rimworldwiki.com/wiki/Nutrifungus).
-- [ ] **B06b · Deterministic production and service facilities.** Add maintained
-  functional methods for workshops, breweries, drug labs, clinics, dining rooms
-  and recreation spaces. Coordinate with B04f development, B06 spatial planning
+- [ ] **B06b · Deterministic room and facility planning.** Cover every role in the
+  RimWorld Wiki [room-role catalog](https://rimworldwiki.com/wiki/Rooms#List_of_roles):
+  Room (generic), Bedroom, Prison cell, Dining room, Rec room, Hospital, Laboratory,
+  Workshop, Storeroom, Barracks, Prison barracks, Kitchen, Tomb, Barn, Throne room,
+  Temple, Nursery, Playroom, Classroom, Deathrest chamber, Containment cell and
+  Ceremonial chamber. Retain functional variants such as breweries, drug labs,
+  research labs, clinics, freezers and B06a greenhouses even when they share a
+  native role or have no dedicated role label. Coordinate with B04f development, B06 spatial planning
   and B07 scheduling; extend the shared goal/action system and deterministic Hands.
   Trigger projects from observed unmet demand and player priorities, reuse existing
   rooms/equipment first, and support compatible shared rooms instead of requiring
@@ -151,6 +156,14 @@ in the checkpoint commit; do not append an implementation diary here.
   usable recreation appropriate to observed needs; production bench interaction
   cells, lighting, temperature and reachable inputs/output storage. Discover native
   definitions and room evidence instead of hardcoding assumed room bonuses.
+  Maintain a per-role implementation/acceptance matrix with native prerequisites,
+  furnishings, assignments, capacity, applicable stats and observed-use predicates.
+  Gate specialized rooms on installed content and actual colony demand, including
+  prisoners, animals, children, titles, ideology, deathrest and containment needs;
+  catalog coverage is not an instruction to construct every room in every colony.
+  Discover native role scoring and compatibility rules: the displayed role alone
+  does not establish all supported uses. Respect bed ownership/designations,
+  forbidden furniture combinations and purpose-specific roof/indoor requirements.
   Admit dependency chains only with known prerequisites and shared resource
   budgets; expose missing research, power, materials or staffing as blockers.
   Preserve existing plants, rooms, routes and player furniture; invalidate pending
@@ -158,7 +171,8 @@ in the checkpoint commit; do not append an implementation diary here.
   Acceptance: reuse versus new build, constrained placement, competing projects,
   missing prerequisites, interrupted construction, edited bills and restart without
   duplicate orders. Start with dining/recreation and one bill-based workshop,
-  then clinic and multi-stage production. Native scenarios must observe completed
+  then clinic and multi-stage production; retain the remaining catalog roles as
+  explicit pending matrix entries until each has native acceptance. Native scenarios must observe completed
   facilities and actual eating, recreation, treatment or manufactured output;
   blueprint acceptance, room labels and bill receipts alone do not prove function.
 - [ ] **B07 · Durable project scheduling.** Extend maintained functional goals,
