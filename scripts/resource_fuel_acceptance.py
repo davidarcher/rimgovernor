@@ -16,15 +16,21 @@ from rimbot.player_commands import apply_command
 from rimbot.production_policy import resource_method, refresh_resource_prerequisite
 from rimbot.colony_skills import SkillBlocked
 from rimbot.campaign_manifest import capture_manifest
+from rimbot.session_checkpoint import prepare_resume
 
 
 async def run(args):
-    root=isolated_root(args.source_root,args.output/'bridge')
-    if args.source_save:
-        ET.parse(args.source_save)
-        shutil.copy2(args.source_save,root/'profile/Saves/RimBot-tribal8-baseline.rws')
-    config=prepare(root)
-    store=Store(args.output/'state.sqlite');rt=BridgeRuntime(store,root,fresh=True,headless=True)
+    if args.checkpoint:
+        data,state=prepare_resume(args.checkpoint);root=Path(data['root'])
+        args.output.mkdir(parents=True,exist_ok=False)
+        config=root/'config-headless';store=Store(state/'bridge.sqlite')
+    else:
+        root=isolated_root(args.source_root,args.output/'bridge')
+        if args.source_save:
+            ET.parse(args.source_save)
+            shutil.copy2(args.source_save,root/'profile/Saves/RimBot-tribal8-baseline.rws')
+        config=prepare(root);store=Store(args.output/'state.sqlite')
+    rt=BridgeRuntime(store,root,fresh=True,headless=True,resume=args.checkpoint)
     report={'outcome':'failed','cases':[]};fixture_steps=set();food_support_ready=False;deadline=time.monotonic()+args.seconds
     def save(): (args.output/'result.json').write_text(json.dumps(report,indent=2))
     def record(name,passed,**evidence):
@@ -72,6 +78,13 @@ async def run(args):
                 clock=(await runtime_file_read(rt.bridge.call,'home/supervised_play',op='status')).structuredContent
                 if not clock['active']:break
                 await asyncio.sleep(.15)
+        if clock['stopReason']=='force_paused':
+            report['dialog']={'ui':await rt.game.invoke('rimworld/get_ui_state',{}),
+                'targets':await rt.game.invoke('rimworld/get_screen_targets',{}),
+                'research':await rt.game.invoke('home/research',{'filter':'Biofuel','finished':True,'locked':True})}
+            from rimbot.session_checkpoint import create_checkpoint
+            report['dialog_checkpoint']=await create_checkpoint(rt,rt.context_token)
+            save()
         if clock['stopReason'] in ('letter_pause','notification_batch'):
             danger=await rt.game.query('home/status',colonists=False,threats=True)
             record('observed_notification',clock['pauseVerified'] and danger['counts']['hostileCount']==0
@@ -150,6 +163,7 @@ async def run(args):
             for work in candidate['work']['types']:
                 if work['name'] not in ('Research','Firefighter','Patient','PatientBedRest','BedRest') and not work['disabled']:
                     await command(kind='SetWorkPriority',pawn=candidate['thingId'],work_type=work['name'],priority=0)
+        while await compile_method('EnsureWorkAssignments'):pass
         research=await rt.game.invoke('home/research',{'filter':'Biofuel','finished':True,'locked':True})
         if 'BiofuelRefining' not in research.get('finished',[]):
             await command(kind='SetResearch',project='BiofuelRefining')
@@ -196,6 +210,7 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source-root',type=Path,required=True)
     parser.add_argument('--source-save',type=Path,help='Resume an unchanged completed native autosave in a new isolated profile')
+    parser.add_argument('--checkpoint',type=Path,help='Resume the immutable paired native/controller research checkpoint')
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--seconds',type=int,default=2400)
     args=parser.parse_args();asyncio.run(asyncio.wait_for(run(args),args.seconds+180))

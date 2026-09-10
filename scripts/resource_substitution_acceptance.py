@@ -151,15 +151,23 @@ async def run(args):
                     and after_lease['resources']['WoodLog']==held,commitment=report['temporary_commitment'],clock=clock)
                 async with rt.lock:
                     rt.clock_events.extend(await rt.supervisor.poll());rt.receive_clock_events()
-                if rt.review_task and not rt.review_task.done():await rt.review_task
+                async with asyncio.timeout(30):
+                    while rt.wake.is_set() or (rt.review_task and not rt.review_task.done()):
+                        await asyncio.sleep(.1)
                 assert rt.mode=='manual'
                 report['manual_clock_start']=(await rt.bridge.call('rimworld/set_time_speed',speed='Superfast')).model_dump(mode='json')
                 try:
                     deadline=time.monotonic()+args.seconds
                     while True:
                         observed=await rt.game.query('home/colony_facts',planning=True)
+                        report['manual_observation']={'facts':observed,
+                            'status':await rt.game.query('home/status',colonists=True,threats=True),
+                            'clock':(await runtime_file_read(rt.bridge.call,'home/supervised_play',op='status')).structuredContent,
+                            'pawns':await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True),
+                            'bills':await rt.game.invoke('home/bills',{'action':'list','dryRun':True})}
+                        (args.output/'progress.json').write_text(json.dumps(report,indent=2))
                         if observed['resources'].get(resource,0)>=4:break
-                        assert time.monotonic()<deadline,'Ordinary Manual play remained constrained by expired lease commitments'
+                        assert time.monotonic()<deadline,'Ordinary Manual play produced no fourth club; inspect clock, pawn and bill evidence'
                         await asyncio.sleep(.15)
                 finally:
                     await rt.bridge.call('rimworld/set_time_speed',speed='Paused')
