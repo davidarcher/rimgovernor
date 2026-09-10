@@ -4,7 +4,7 @@ from .bridge import runtime_file_read
 from .bridge_observation import OBSERVATION_TOOLS, ObservationGateway
 from .native_contracts import validate_arguments
 
-READS = OBSERVATION_TOOLS | frozenset({'home/resource_sources',
+READS = OBSERVATION_TOOLS | frozenset({'home/waste_state', 'home/resource_sources',
     'rimworld/get_cells_info', 'rimworld/get_cell_info',
     'rimworld/list_architect_categories', 'rimworld/list_architect_designators',
     'rimworld/list_selected_gizmos', 'rimworld/get_selection_semantics',
@@ -12,7 +12,7 @@ READS = OBSERVATION_TOOLS | frozenset({'home/resource_sources',
     'rimworld/get_ui_layout', 'rimworld/list_main_tabs', 'rimworld/list_inspect_tabs',
     'rimworld/list_messages', 'rimworld/list_alerts', 'rimworld/get_map_target_info',
 })
-WRITES = frozenset({'home/acquire_resource', 'home/production_policy', 'home/cancel_construction', 'home/confirm_colony_names', 'home/zone_cells', 'home/place_building', 'home/pawn_config',
+WRITES = frozenset({'home/manage_waste', 'home/acquire_resource', 'home/production_policy', 'home/cancel_construction', 'home/confirm_colony_names', 'home/zone_cells', 'home/place_building', 'home/pawn_config',
     'home/building_config', 'home/bills', 'home/order', 'home/trade', 'home/research', 'home/dialog_text', 'home/install',
     'rimworld/set_time_speed', 'rimworld/apply_architect_designator',
     'rimworld/open_letter', 'rimworld/dismiss_letter', 'rimworld/click_screen_target',
@@ -82,7 +82,7 @@ class BridgeGame(ObservationGateway):
             raise ValueError('Native structured receipt is missing')
         if payload.get('unknownArguments'):
             raise ValueError('Native tool reported ignored arguments')
-        if tool == 'home/install' and payload.get('accepted') is not True:
+        if (tool == 'home/install' or (tool == 'home/manage_waste' and arguments.get('dryRun') is False)) and payload.get('accepted') is not True:
             raise ValueError(payload.get('reason') or 'Native installation was not accepted')
         if tool == 'home/research' and arguments.get('set'):
             write = payload.get('write') or {}

@@ -18,15 +18,23 @@ class SetResearch(Contract):
 class CreateGoal(Contract):
     kind: Literal['CreateGoal']
     goal: Literal['EnsureFoodSupply', 'EnsureInitialShelter', 'EnsureFoodStorage', 'EnsureCooking',
-                  'EnsureTemperatureSafety', 'EnsureBasicPower', 'EnsureBasicDefense', 'MaintainWood', 'MaintainResource']
+                  'EnsureTemperatureSafety', 'EnsureBasicPower', 'EnsureBasicDefense', 'MaintainWood', 'MaintainResource', 'MaintainWaste']
     food_days: float | None = Field(default=None, ge=1, le=120,
         description='Food stock runway target in days, valid only for EnsureFoodSupply. Food storage is a separate stockpile goal.')
+    unwanted: list[str] = Field(default_factory=list, max_length=64,
+        description='MaintainWaste only: exact observed item IDs explicitly unwanted by the player. Omit for rotten anonymous animal corpses and spoiled goods. Does not authorize deletion, zone changes or handling protected possessions.')
+    bury: list[str] = Field(default_factory=list, max_length=64,
+        description='MaintainWaste only: exact corpse IDs the player explicitly wants buried. Allows named or colony corpses only through native burial; does not authorize relocation, exhumation or destruction.')
 
     resource: str | None = Field(default=None, description='Exact native resource definition or label, required for MaintainResource.')
     quantity: int | None = Field(default=None, ge=1, le=100000, description='Maintained stock target, required for MaintainResource.')
 
     @model_validator(mode='after')
     def valid_target(self):
+        if self.unwanted and (self.goal != 'MaintainWaste' or any(not v.startswith('Thing_') or ',' in v for v in self.unwanted)):
+            raise ValueError('Only MaintainWaste accepts exact unwanted Thing IDs')
+        if self.bury and (self.goal != 'MaintainWaste' or any(not v.startswith('Thing_') or ',' in v for v in self.bury)):
+            raise ValueError('Only MaintainWaste accepts exact burial Thing IDs')
         if self.food_days is not None and self.goal!='EnsureFoodSupply':
             raise ValueError('food_days applies only to EnsureFoodSupply, not storage or another goal')
         if (self.goal == 'MaintainResource') != (self.resource is not None and self.quantity is not None):
@@ -314,6 +322,26 @@ async def apply_command(rt, payload, *, token, revision):
     plan = rt.current_plan
     if isinstance(request, CreateGoal):
         goal_id = request.goal
+        if request.goal == 'MaintainWaste':
+            state = await rt.game.query('home/waste_state', unwanted=','.join(request.unwanted), bury=','.join(request.bury))
+            eligible = {r['thingId'] for r in state.get('items', []) if r.get('eligible') is True}
+            corpses = {r['thingId'] for r in state.get('items', []) if r.get('kind') == 'corpse' and (r.get('eligible') is True or r.get('state') == 'buried')}
+            if state.get('success') is not True or set(request.unwanted) - eligible or set(request.bury) - corpses:
+                raise ValueError('Waste discovery failed or unwanted items are missing/protected; no policy changed')
+            await rt.ensure_context(token)
+            if rt.chat_revision != revision:
+                raise ValueError('Player direction changed; waste policy not updated')
+            prior = plan.colony_goals.get(goal_id)
+            if prior and any(plan.progress[s].state in ('pending', 'executing', 'waiting') for s in prior.steps if s in plan.progress):
+                raise ValueError('Observe or cancel retained waste work before replacing its policy')
+            if prior:
+                for step_id in prior.steps:
+                    if step_id in plan.progress and plan.progress[step_id].state == 'blocked':
+                        plan.cancel(step_id)
+                prior.reopen_methods()
+                prior.attempts += 1
+                prior.evidence.pop('watchdog', None)
+            plan.control['waste'] = state
         if request.goal == 'MaintainResource':
             observed = await rt.game.query('home/colony_facts', planning=True)
             request.resource = resolve_resource(request.resource, observed.get('policyResources', {}))
@@ -328,6 +356,9 @@ async def apply_command(rt, payload, *, token, revision):
                 if step_id in plan.progress and plan.progress[step_id].state == 'blocked': plan.cancel(step_id)
         goal = plan.colony_goals.setdefault(goal_id, ColonyGoal(priority_class=2))
         if request.goal == 'MaintainResource': goal.target = {'resource': request.resource, 'quantity': request.quantity}
+        if request.goal == 'MaintainWaste':
+            goal.target = {'unwanted': sorted(set(request.unwanted)), 'bury': sorted(set(request.bury))}
+            goal.priority_class = 3
         plan.control.setdefault('suppressed_goals',{}).pop(request.goal,None)
         goal.source, goal.cancelled, goal.status = 'PLAYER', False, 'active'
         goal.reason = ''

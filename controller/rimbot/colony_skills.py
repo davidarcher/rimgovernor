@@ -106,6 +106,9 @@ class ColonySkills:
         return rows[0]['id']
 
     async def compile(self, goal_id, facts, people):
+        if goal_id == 'MaintainWaste':
+            from .waste_management import compile_method
+            return await compile_method(self.rt, self.rt.current_plan.colony_goals[goal_id])
         if goal_id.startswith('MaintainResource-'):
             from .production_policy import resource_method
             return await resource_method(self.rt, goal_id, facts)

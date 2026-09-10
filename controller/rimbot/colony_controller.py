@@ -41,6 +41,16 @@ class ColonyController:
         if native.get('success') is not True:
             raise ValueError('Deterministic state unavailable: '+str(native.get('error')))
         facts = derive(rt.batch, native, self.policy)
+        if 'MaintainWaste' not in plan.colony_goals and native.get('waste'):
+            from .waste_management import pending_items
+            if pending_items(native['waste']):
+                plan.colony_goals['MaintainWaste'] = ColonyGoal(priority_class=3,
+                    started_tick=facts['tick'], last_progress_tick=facts['tick'])
+                plan.control['waste'] = native['waste']
+                self.event('goal_created', 'MaintainWaste', priority_class=3)
+        waste_goal = plan.colony_goals.get('MaintainWaste')
+        if waste_goal and not waste_goal.target.get('unwanted') and not waste_goal.target.get('bury') and native.get('waste'):
+            plan.control['waste'] = native['waste']
         managed=set(plan.control.get('combat',{}).get('pawns',[]))
         managed.update(s.action.arguments.get('pawn') for s in plan.spec.steps
             if s.source=='AUTOPILOT' and s.action.kind=='native_operation'
@@ -80,6 +90,18 @@ class ColonyController:
                     resource_nodes.append((identity, 3))
         old_latches = dict(plan.control.get('latches', {}))
         nodes = priority_nodes(facts, plan.control.setdefault('latches', {}), self.policy) + resource_nodes
+        waste = plan.colony_goals.get('MaintainWaste')
+        if waste and not waste.cancelled:
+            from .waste_management import pending_items
+            pending = pending_items(plan.control.get('waste', {}))
+            waste.evidence['observation'] = plan.control.get('waste', {})
+            unresolved = any(plan.progress[s].state not in ('complete', 'cancelled') for s in waste.steps if s in plan.progress)
+            if pending is None or pending or unresolved:
+                nodes.append(('MaintainWaste', 3))
+            if (waste.status == 'blocked' and not waste.evidence.get('watchdog')
+                    and not any(plan.progress[s].state == 'blocked' for s in waste.steps if s in plan.progress)):
+                waste.status, waste.reason = 'active', ''
+            facts['waste'] = plan.control.get('waste', {}).get('items')
         for name, value in plan.control['latches'].items():
             if old_latches.get(name) != value:
                 self.event('hysteresis_changed', name, active=value)
@@ -158,6 +180,7 @@ class ColonyController:
                 self.event('goal_reopened', identity)
             goal.priority_class = min(goal.priority_class, priority)
             progress_fields = {
+                'MaintainWaste': ['waste'],
                 'EnsureFoodSupply': ['foodNutrition'], 'MaintainWood': ['resources'],
                 'EnsureInitialShelter': ['bedCapacity', 'indoorSleepingCapacity'],
                 'EnsureCooking': ['cooking'], 'EnsureFoodStorage': ['foodStorage'],

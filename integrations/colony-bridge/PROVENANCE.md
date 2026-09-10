@@ -14,6 +14,10 @@ RimWorld and RimBridgeServer SDK assemblies are referenced, never bundled.
 Any subsequent source modifications must be recorded here and tested in-game.
 
 Local changes:
+- `WasteTools.cs` is original local waste census and guarded hauling code. It
+  discovers hauling WorkGivers and retains their jobs, using the same native
+  scanner eligibility pattern documented in the attributed `OrderTool.cs`.
+  `WasteFixture.cs` is optional disposable setup, excluded from production builds.
 - `ForecastFacts.cs` is original local read-only animal-feed, crop-work and
   medical/mood input accounting. `FoodSupplyFacts.cs` records native eater policy,
   diet and access eligibility; `ColonyFactsTool.cs` exposes these inputs.

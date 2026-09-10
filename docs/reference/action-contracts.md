@@ -14,6 +14,7 @@ what each action must observe.
 | Bill ingredient whitelists | Exact native bill identity and filter must match fresh readback; production remains separate. |
 | `home/install` through `native_operation` | Exact inner building identity at the intended destination/rotation. |
 | Medical native operations | Optional `patient_tended` and `patient_in_bed` wait for fresh living-patient observations. These certify current treatment/delivery state, not full healing or actor attribution. |
+| Waste native operations | Required `waste_contained` verifies the exact item in separated storage or a grave on a later native tick. Relocation does not mean destruction; explicit burial requires the body inside a grave. |
 | `trade` | Guarded open/stage/preview/accept with participant, content and silver-budget checks; hauling/storage remain separate. |
 | `clock`, `stand_down` | Native clock control or verified release of selected current-load AI-owned drafts; neither certifies combat victory. |
 

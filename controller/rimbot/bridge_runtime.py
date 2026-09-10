@@ -1025,6 +1025,8 @@ class BridgeRuntime:
                 self.batch = await observe(self.game)
                 self.update_strategy_state()
                 await self.projects.reconcile(self.game, plan=self.current_plan)
+                from .waste_management import refresh as refresh_waste
+                await refresh_waste(self)
                 self.reconcile_plan()
                 self.persist()
             # Inference is requested only by a new player message. Native events
@@ -1240,6 +1242,8 @@ class BridgeRuntime:
                                 self.batch = await observe(self.game)
                                 self.update_strategy_state()
                                 await self.projects.reconcile(self.game, plan=self.current_plan)
+                                from .waste_management import refresh as refresh_waste
+                                await refresh_waste(self)
                                 self.reconcile_plan()
                                 if self.strategic_state.pending and self.mode == 'automate':
                                     self.wake.set()

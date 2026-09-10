@@ -124,6 +124,7 @@ namespace HomeBridge.BridgeTools
                 ["farms"] = farms, ["cooking"] = cooking, ["acquisition"] = acquisition,
                 ["butchering"] = butchering,
                 ["foodStorage"] = foodStorage,
+                ["waste"] = HomeWasteTools.Census("", ""),
                 ["forbiddenSupplies"] = allowedSupplies,
                 ["notes"] = new[] { "Raw runway is shared-diet accessible stock divided by fed consumption. foodSupply separately observes holder-owned inventory and native rot deadlines for the controller's per-colonist forecast; neither guarantees future temperature or access.",
                     "Harvest ETA is an optimistic lower bound; it cannot clear food risk. Growing cells exclude temperature/fertility failures but do not forecast seasons." }

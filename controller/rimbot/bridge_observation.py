@@ -13,6 +13,7 @@ from .bridge import BridgeClient, runtime_file_read
 from .bridge_models import BridgeObservation
 
 OBSERVATION_TOOLS = frozenset({
+    'home/waste_state',
     'home/colony_facts',
     'home/colony_identity', 'home/status', 'home/list_pawns', 'home/list_things',
     'home/list_buildings', 'home/list_rooms', 'home/list_zones',

@@ -115,7 +115,7 @@ class Hands:
                             schema = await rt.game.describe(action.tool)
                             if 'dryRun' in schema.get('properties', {}):
                                 preview = await rt.inspect_native(action.tool, dict(args, dryRun=True))
-                                if preview.get('success') is False:
+                                if preview.get('success') is False or (action.tool == 'home/manage_waste' and preview.get('accepted') is not True):
                                     raise Blocked('native_refused', reason(preview), evidence=preview)
                                 args['dryRun'] = False
                             self.guard(rt, revision, token, direction)
@@ -128,6 +128,8 @@ class Hands:
                                 raise Blocked('medical_order_unverified', 'Native state did not confirm the medical job.', evidence=result)
                             receipt = {'native_outcome': result.get('receipt', result).get('outcome', 'receipt'),
                                 'meaning': 'Native command observed; this does not certify completion of pawn labor'}
+                            if action.tool == 'home/manage_waste':
+                                receipt['waste_receipt'] = result.get('receipt', result)
                             if action.tool == 'home/install':
                                 native = result.get('receipt', result)
                                 receipt['inner_id'] = native['thingId']
