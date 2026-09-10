@@ -153,3 +153,54 @@ async def test_cancelled_herd_stops_linked_feed_goal_without_native_reads():
     plan = ColonyPlan(colony_goals={'MaintainHerd-Cow': parent, 'MaintainResource-herd-Cow-Hay': child})
     assert await refresh_husbandry(SimpleNamespace(current_plan=plan), {}) == []
     assert child.cancelled
+
+
+@pytest.mark.asyncio
+async def test_explicit_herd_renewal_uses_new_attempt_and_retires_prior_feed_work():
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    from rimbot.colony_plan import ColonyGoal, ColonyPlan
+    from rimbot.player_commands import apply_command
+    parent = ColonyGoal(priority_class=3, attempts=2)
+    child = ColonyGoal(priority_class=3, evidence={'herd_owner': 'MaintainHerd-Cow'})
+    plan = ColonyPlan(colony_goals={'MaintainHerd-Cow': parent, 'MaintainResource-herd-Cow-Hay': child})
+    observed = dict(success=True, colonyId='colony', mapId=1, animals=[dict(id='cow', race='Cow', training=[])])
+    rt = SimpleNamespace(current_plan=plan, chat_revision=5, ensure_context=AsyncMock(),
+        game=SimpleNamespace(invoke=AsyncMock(return_value=observed)),
+        note=lambda *args, **kwargs: None, persist=lambda: None)
+    await apply_command(rt, dict(kind='MaintainHerd', race='Cow', minimum=1, maximum=2, feed_days=10), token='load', revision=5)
+    assert plan.colony_goals['MaintainHerd-Cow'].attempts == 3
+    assert child.cancelled
+
+
+@pytest.mark.asyncio
+async def test_cancel_command_immediately_cancels_herd_feed_steps():
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    from rimbot.colony_plan import ColonyGoal, ColonyPlan, PlanSpec, PlanStep, StepProgress
+    from rimbot.player_commands import apply_command
+    step = PlanStep(id='feed-step', title='Acquire feed', completion_criteria='Stored feed observed',
+        action=dict(kind='native_operation', tool='home/acquire_resource', arguments={'dryRun': False}))
+    parent = ColonyGoal(priority_class=3)
+    child = ColonyGoal(priority_class=3, steps=[step.id], evidence={'herd_owner': 'MaintainHerd-Cow'})
+    plan = ColonyPlan(spec=PlanSpec(steps=[step]), progress={step.id: StepProgress()},
+        colony_goals={'MaintainHerd-Cow': parent, 'MaintainResource-herd-Cow-Hay': child})
+    rt = SimpleNamespace(current_plan=plan, chat_revision=5, ensure_context=AsyncMock(),
+                         note=lambda *args, **kwargs: None, persist=lambda: None)
+    await apply_command(rt, dict(kind='CancelGoal', goal='MaintainHerd-Cow'), token='load', revision=5)
+    assert parent.cancelled and child.cancelled and plan.progress[step.id].state == 'cancelled'
+
+
+@pytest.mark.asyncio
+async def test_map_change_holds_herd_and_its_feed_work():
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    from rimbot.colony_plan import ColonyGoal, ColonyPlan
+    from rimbot.husbandry import refresh_husbandry
+    parent = ColonyGoal(priority_class=3, evidence={'scope': {'colonyId': 'A', 'mapId': 1}})
+    child = ColonyGoal(priority_class=3, evidence={'herd_owner': 'MaintainHerd-Cow'})
+    plan = ColonyPlan(colony_goals={'MaintainHerd-Cow': parent, 'MaintainResource-herd-Cow-Hay': child})
+    rt = SimpleNamespace(current_plan=plan, chat_revision=5, context_token='A:load:2', ensure_context=AsyncMock(),
+        game=SimpleNamespace(invoke=AsyncMock(return_value={'success': True, 'colonyId': 'A', 'mapId': 2, 'animals': []})))
+    assert await refresh_husbandry(rt, {}) == [('MaintainHerd-Cow', 3)]
+    assert not parent.evidence['husbandry']['readable'] and child.cancelled

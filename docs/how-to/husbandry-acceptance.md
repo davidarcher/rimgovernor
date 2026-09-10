@@ -20,14 +20,17 @@ named container. Use `--no-build` only with an unchanged task image. The run tim
 defaults to 1,200 seconds, independently of the image build. No model server, host
 port or display is required.
 
-The fixture seeds an enclosure, feed, a handler, full product comps, a near-term
+The fixture retains one handler, despawns other colonists, and seeds a roofed
+enclosure, bed, food, full initial handler needs, full product comps, a near-term
 pregnancy and one remaining training step. None of those initial conditions count
 as completed outcomes. The probe submits the training setting through a player herd
 goal and Hands, then advances bounded ordinary native tick windows. It requires a
 newborn with maternal identity, a subsequent pregnancy, learned training, milk and
 wool stock increases alongside spent product comps, and increased animal food level
 with consumed feed. It separately verifies suitable enclosure membership, pregnancy
-protection and rejection of stale animal settings.
+protection and rejection of stale animal settings. It then verifies an authorized
+surplus cull through the exact animal's corpse while retaining the breeding adults,
+and requires an insufficient seasonal reserve to create a shared feed resource goal.
 
 Require exit zero and both `result.json` and `run/husbandry-result.json` with
 `passed: true`, including successful owned-container cleanup. The native report

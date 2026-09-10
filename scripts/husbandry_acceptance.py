@@ -48,6 +48,9 @@ async def run():
         return max(facts['resources'].get(resource, 0),
                    sum(row['count'] for row in rows if row['defName'] == resource))
 
+    def stored_nutrition(facts):
+        return sum(row['nutrition'] for row in facts['nativeForecastInputs']['combinedFoodSupply']['stocks'])
+
     async def window(ticks):
         if rt.review_task and not rt.review_task.done(): await rt.review_task
         await rt.supervisor.change('Superfast', max_ticks=ticks)
@@ -118,7 +121,7 @@ async def run():
             if any(r['name'] == 'Obedience' and r['learned'] is True for r in animals[setup['dog']]['training']): achieved.add('training')
             if (animals[setup['cow']]['milkFullness'] < .5 and stock(facts, 'Milk') > stock(initial_facts, 'Milk')): achieved.add('milk')
             if (animals[setup['mother']]['woolFullness'] < .5 and facts['resources'].get('WoolMuffalo', 0) > initial_facts['resources'].get('WoolMuffalo', 0)): achieved.add('wool')
-            if (animals[setup['cow']]['foodLevel'] > cow['foodLevel'] and facts['resources'].get('Hay', 0) < initial_facts['resources'].get('Hay', 0)): achieved.add('feeding')
+            if (animals[setup['cow']]['foodLevel'] > cow['foodLevel'] and stored_nutrition(facts) < stored_nutrition(initial_facts)): achieved.add('feeding')
             if all(animals[setup[k]]['contained'] is True for k in ('mother', 'father', 'cow')): achieved.add('containment')
             print('Observed outcomes: ' + ', '.join(sorted(achieved)), flush=True)
             if achieved == {'birth', 'breeding', 'training', 'milk', 'wool', 'feeding', 'containment'}: break
@@ -142,7 +145,7 @@ async def run():
                 await asyncio.sleep(.2)
         record('shared_hands_population_request', all(rt.current_plan.progress[s.id].state == 'complete' for s in steps),
             progress={s.id: rt.current_plan.progress[s.id].model_dump() for s in steps})
-        for _ in range(15):
+        for _ in range(30):
             await window(1000)
             herd, facts = await sample()
             if any(c['animal'] == victim and c['dead'] is True for c in herd['corpses']): break

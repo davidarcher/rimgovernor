@@ -418,7 +418,10 @@ async def apply_command(rt, payload, *, token, revision):
         if prior:
             for step in prior.steps:
                 if step in plan.progress and plan.progress[step].state != 'complete': plan.cancel(step)
-        goal = ColonyGoal(priority_class=3, source='PLAYER', target=request.model_dump(exclude={'kind'}))
+            from .husbandry import cancel_feed_work
+            cancel_feed_work(plan, identity)
+        goal = ColonyGoal(priority_class=3, source='PLAYER', attempts=prior.attempts + 1 if prior else 0,
+                          target=request.model_dump(exclude={'kind'}))
         goal.evidence['scope'] = {k: observed[k] for k in ('colonyId', 'mapId')}
         plan.colony_goals[identity] = goal
         plan.control.setdefault('suppressed_goals', {}).pop(identity, None)
@@ -545,6 +548,9 @@ async def apply_command(rt, payload, *, token, revision):
             plan.control.setdefault('suppressed_goals',{})[goal.target['satisfies']] = request.goal
         for step in goal.steps:
             if step in plan.progress and plan.progress[step].state != 'complete': plan.cancel(step)
+        if request.goal.startswith('MaintainHerd-'):
+            from .husbandry import cancel_feed_work
+            cancel_feed_work(plan, request.goal)
         result = {'cancelled': request.goal, 'existing_native_orders': 'Retained; cancellation stops new controller orders and does not erase already issued game orders'}
     else:
         purpose = getattr(request, 'purpose', 'production')

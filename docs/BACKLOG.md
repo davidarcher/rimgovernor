@@ -309,12 +309,6 @@ in the checkpoint commit; do not append an implementation diary here.
   policies. Irreversible elective operations require applicable player direction.
   Test competing patients, lost staff/supplies, failed operations and interrupted
   recovery; confirm native health outcomes rather than medical orders or bill removal.
-- [ ] **B24 · Animal husbandry.** Extend B04h starting-animal care and native animal
-  commands with managed population targets, breeding, training, milk/wool collection
-  and seasonal feed capacity. Respect bonded animals, masters and player slaughter,
-  release and breeding decisions. Observe reachable feed, actual consumption,
-  containment and handler workload. Verify births, training and collected products;
-  avoid inferring herd sustainability from a pen marker or available grass alone.
 - [ ] **B26 · Mining and material development.** Extend resource acquisition into
   bounded extraction plans, nearby deposit selection and replenishment after local
   depletion. Discover native deposits, research, extraction equipment and worker
@@ -366,8 +360,8 @@ requiring every system before any can be accepted.
   contextual/dropdown/reverse-designator requests only with exact current selection,
   menu identity, native eligibility and observed effects. Verify real Shift-queued
   jobs, replacement/cancellation and queue completion before exposing this fallback.
-- [ ] **Animal and patient command extensions.** Expose explicit semantic requests
-  for existing eligible animal settings, then accept normal tame/release/pen/breeding
+- [ ] **Animal and patient command extensions.** Expose individual master, allowed-area
+  and following requests, then accept normal tame/release/pen and pair-separation
   workflows. Add surgery/body-part eligibility, prisoner capture and interaction
   settings with actual patient/prisoner outcomes through the shared executor.
 - [ ] **Personal policy and storage-range extensions.** Add typed food/drug/apparel

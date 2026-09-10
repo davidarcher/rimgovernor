@@ -101,6 +101,14 @@ def required_handler_skill(plan):
     return {'Handling': max(levels)} if levels and all(type(n) is int for n in levels) else {}
 
 
+def cancel_feed_work(plan, owner):
+    for child in plan.colony_goals.values():
+        if child.evidence.get('herd_owner') != owner: continue
+        child.cancelled, child.status, child.reason = True, 'blocked', 'Cancelled with herd target'
+        for step in child.steps:
+            if step in plan.progress and plan.progress[step].state != 'complete': plan.cancel(step)
+
+
 async def refresh_husbandry(rt, native):
     for key, child in rt.current_plan.colony_goals.items():
         owner = child.evidence.get('herd_owner')
@@ -125,6 +133,7 @@ async def refresh_husbandry(rt, native):
     for identity, goal in goals:
         scope = {k: observed.get(k) for k in ('colonyId', 'mapId')}
         if goal.evidence.get('scope') != scope:
+            cancel_feed_work(rt.current_plan, identity)
             goal.evidence['husbandry'] = {'readable': False, 'blockers': ['Herd belongs to another colony/map']}
             nodes.append((identity, 3))
             continue
@@ -186,6 +195,10 @@ def update_feed_goal(plan, identity, goal, native, feed):
         target.cancelled = True
         return
     target.target = {'resource': resource, 'quantity': count}
+    if target.cancelled:
+        target.status, target.reason = 'active', ''
+        target.attempts += 1
+        target.reopen_methods()
     target.cancelled = False
     goal.evidence['feed_goal'] = key
     assessment['feed_capacity'] = {'resource': resource, 'required_stock': count,

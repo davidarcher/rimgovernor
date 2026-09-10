@@ -20,6 +20,8 @@ namespace HomeBridge.BridgeTools
                 if (created) throw new InvalidOperationException("Fixture already created");
                 var map = Find.CurrentMap;
                 var handler = map.mapPawns.FreeColonistsSpawned.First(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Handling));
+                var removed = map.mapPawns.FreeColonistsSpawned.Where(p => p != handler).ToArray();
+                foreach (var other in removed) { other.jobs.StopAll(); other.DeSpawn(); }
                 var origin = GenRadial.RadialCellsAround(handler.Position, 35, true).First(c =>
                     CellRect.FromLimits(c, c + new IntVec3(10, 0, 10)).Cells.All(p => p.InBounds(map)
                         && !p.Fogged(map) && p.Standable(map) && p.GetEdifice(map) == null
@@ -36,7 +38,21 @@ namespace HomeBridge.BridgeTools
                     d.comps != null && d.comps.Any(c => c is CompProperties_AnimalPenMarker));
                 spawn(marker.defName, 2, 2);
                 foreach (var cell in CellRect.FromLimits(origin + new IntVec3(1, 0, 1), origin + new IntVec3(9, 0, 9)).Cells)
+                {
                     cell.GetPlant(map)?.Destroy();
+                    map.roofGrid.SetRoof(cell, RoofDefOf.RoofConstructed);
+                }
+                var bed = (Building_Bed)spawn("Bed", 2, 5);
+                handler.ownership.ClaimBedIfNonMedical(bed);
+                for (var z = 2; z < 7; z++)
+                {
+                    var meal = ThingMaker.MakeThing(ThingDef.Named("MealSimple")); meal.stackCount = meal.def.stackLimit;
+                    GenSpawn.Spawn(meal, origin + new IntVec3(7, 0, z), map); meal.SetForbidden(false, false);
+                }
+                handler.needs.food.CurLevelPercentage = 1;
+                handler.needs.rest.CurLevelPercentage = 1;
+                handler.needs.mood.CurLevelPercentage = 1;
+                handler.needs.joy.CurLevelPercentage = 1;
                 Func<string, Gender, int, Pawn> animal = (kind, gender, z) => {
                     var p = PawnGenerator.GeneratePawn(new PawnGenerationRequest(PawnKindDef.Named(kind), Faction.OfPlayer,
                         fixedGender: gender, fixedBiologicalAge: 4));
@@ -69,7 +85,8 @@ namespace HomeBridge.BridgeTools
                 created = true;
                 return new { success = true, mother = mother.GetUniqueLoadID(), father = father.GetUniqueLoadID(),
                     cow = cow.GetUniqueLoadID(), dog = dog.GetUniqueLoadID(), handler = handler.GetUniqueLoadID(),
-                    setup = "Fixture enclosure, food, mature full-producing animals, near-term pregnancy and one remaining training step. No completed outcome credited to setup." };
+                    removedColonists = removed.Select(p => p.GetUniqueLoadID()).ToArray(),
+                    setup = "Single-handler fixture: other colonists despawned; roofed enclosure, bed, food and full initial handler needs. Mature full-producing animals, near-term pregnancy and one remaining training step. No completed outcome credited to setup; subsequent needs and work use normal rules." };
             }, cancellationToken);
         }
     }

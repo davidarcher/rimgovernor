@@ -51,7 +51,7 @@ bill read. Recipe ingredient rules and production resource policies still apply.
 
 | Domain | Existing native support | Remaining extension |
 | --- | --- | --- |
-| Animals | Allowed area, trained master, following, recursive training requests and slaughter designation with native eligibility; animal/training reads. | Explicit semantic chat commands for these settings; tame/release/sterilize/pen and breeding workflows with ordinary animal outcomes. |
+| Animals | Allowed area, trained master, following, recursive training requests and slaughter designation with native eligibility; animal/training reads. Maintained population, breeder reserve, training and feed targets use [husbandry contracts](husbandry-contracts.md). | Individual master/area/following chat commands; tame/release/sterilize/pen and explicit pair-separation workflows. |
 | Medical | Care category, self-tend, medical beds, native tend/rescue orders and patient outcome predicates. | Surgery bills, operation-body-part eligibility and completed operations. |
 | Prisoners | Eligible prisoner-bed configuration and pawn/health inspection. | Capture, prisoner interaction/recruitment settings and observed prisoner outcomes. |
 | Food/drug/apparel policies | Bill ingredient filters and stockpile filters; native pawn settings inspection. | Typed policy creation/edit/assignment and readback, including restriction versus actual consumption/wearing. |

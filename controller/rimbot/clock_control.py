@@ -42,7 +42,7 @@ class PlayClock:
                     {'cursor': self.cursor if cursor is None else cursor, 'epoch': self.epoch, 'context': self.context})
 
     async def call(self, **arguments):
-        if arguments.get('op') in ('status','events'):
+        if arguments.get('op') in ('status', 'events'):
             reply = await runtime_file_read(self.bridge.call, TOOL, **arguments)
         else:
             reply = await self.bridge.call(TOOL, **arguments)
