@@ -21,6 +21,18 @@ namespace HomeBridge.BridgeTools
             return await ctx.MainThread.InvokeAsync<object>(() => Read(planning), cancellationToken).ConfigureAwait(false);
         }
 
+        private static int GrowingDaysRemaining(Map map)
+        {
+            for (var days = 0; days < GenDate.DaysPerYear; days++)
+            {
+                var temperature = GenTemperature.GetTemperatureFromSeasonAtTile(
+                    GenTicks.TicksAbs + days * GenDate.TicksPerDay, map.Tile);
+                if (temperature < Plant.DefaultMinOptimalGrowthTemperature
+                    || temperature > Plant.DefaultMaxOptimalGrowthTemperature) return days;
+            }
+            return GenDate.DaysPerYear;
+        }
+
         private static object Read(bool planning)
         {
             var map = Find.CurrentMap;
@@ -75,7 +87,14 @@ namespace HomeBridge.BridgeTools
                     usable = !b.IsBurning() && (b.TryGetComp<CompPowerTrader>() == null || b.TryGetComp<CompPowerTrader>().PowerOn)
                         && (b.TryGetComp<CompRefuelable>() == null || b.TryGetComp<CompRefuelable>().HasFuel),
                     recipes = b.def.AllRecipes.Where(r => r.products.Any(p => humanFood(p.thingDef))).Select(r => r.defName).ToList(),
-                    bills = b.BillStack.Bills.Select(bill => new { recipe = bill.recipe.defName, suspended = bill.suspended }).ToList() }).ToList();
+                    production = b.def.AllRecipes.Where(r => r.products.Any(p => humanFood(p.thingDef))).Select(r => new {
+                        recipe = r.defName, available = r.AvailableNow,
+                        products = r.products.Select(p => new { defName = p.thingDef.defName, count = p.count,
+                            edible = humanFood(p.thingDef), nutrition = p.thingDef.GetStatValueAbstract(StatDefOf.Nutrition),
+                            rotDays = p.thingDef.GetCompProperties<CompProperties_Rottable>()?.daysToRotStart }).ToList() }).ToList(),
+                    bills = b.BillStack.Bills.Select(bill => new { recipe = bill.recipe.defName, suspended = bill.suspended,
+                        repeatMode = (bill as Bill_Production)?.repeatMode?.defName,
+                        targetCount = (bill as Bill_Production)?.targetCount }).ToList() }).ToList();
             var butchering = things.OfType<Building_WorkTable>().Where(b => b.Faction != null && b.Faction.IsPlayer
                 && reachable(b) && b.def.AllRecipes.Any(r => r.defName == "ButcherCorpseFlesh"))
                 .Select(b => new { id = b.ThingID,
@@ -134,18 +153,29 @@ namespace HomeBridge.BridgeTools
                         ticksLeft = c.Permanent ? (int?)null : c.TicksLeft
                     }).ToList()
                 },
+                ["foodClimate"] = new {
+                    growingDaysRemaining = GrowingDaysRemaining(map),
+                    sowingNow = new[] { "Plant_Rice", "Plant_Potato", "Plant_Corn" }
+                        .Select(DefDatabase<ThingDef>.GetNamedSilentFail).Any(d => d != null && PlantUtility.GrowthSeasonNow(map, d)),
+                    growingDays = GenTemperature.TwelfthsInAverageTemperatureRange(map.Tile,
+                        Plant.DefaultMinOptimalGrowthTemperature, Plant.DefaultMaxOptimalGrowthTemperature).Count * GenDate.DaysPerTwelfth },
                 ["farms"] = farms, ["cooking"] = cooking, ["acquisition"] = acquisition,
                 ["butchering"] = butchering, ["development"] = DevelopmentFacts.Read(map),
+                ["foodCorpses"] = things.OfType<Corpse>().Where(c => c.InnerPawn?.RaceProps.Animal == true
+                    && humanFood(c.InnerPawn.RaceProps.meatDef)).Select(c => new {
+                        id = c.GetUniqueLoadID(), prey = c.InnerPawn.GetUniqueLoadID(),
+                        meatDef = c.InnerPawn.RaceProps.meatDef.defName,
+                        fresh = c.GetRotStage() == RotStage.Fresh, reachable = reachable(c) }).ToList(),
                 ["foodStorage"] = foodStorage,
                 ["waste"] = HomeWasteTools.Census("", ""),
                 ["recovery"] = HomeRecoveryTools.Census(),
                 ["forbiddenSupplies"] = allowedSupplies,
                 ["notes"] = new[] { "Raw runway is shared-diet accessible stock divided by fed consumption. foodSupply separately observes holder-owned inventory and native rot deadlines for the controller's per-colonist forecast; neither guarantees future temperature or access.",
-                    "Harvest ETA is an optimistic lower bound; it cannot clear food risk. Growing cells exclude temperature/fertility failures but do not forecast seasons." }
+                    "Harvest ETA is an optimistic lower bound; it cannot clear food risk. foodClimate samples native seasonal temperature daily; weather and future harvest are not guaranteed." }
             };
             if (planning) {
                 var definitions = new Dictionary<string, object>();
-                foreach (var name in new[] { "Wall", "Door", "Bed", "SleepingSpot", "Campfire", "ButcherSpot", "FueledStove", "Heater", "StandingLamp", "PassiveCooler", "Cooler", "WoodFiredGenerator", "PowerConduit", "Sandbags", "Barricade", "Plant_Rice", "SimpleResearchBench", "Table1x2c", "DiningChair", "HorseshoesPin" }) {
+                foreach (var name in new[] { "Wall", "Door", "Bed", "SleepingSpot", "Campfire", "ButcherSpot", "FueledStove", "Heater", "PassiveCooler", "Cooler", "WoodFiredGenerator", "PowerConduit", "Sandbags", "Barricade", "StandingLamp", "SimpleResearchBench", "Table1x2c", "DiningChair", "HorseshoesPin", "Plant_Rice", "Plant_Potato", "Plant_Corn" }) {
                     var def = DefDatabase<ThingDef>.GetNamedSilentFail(name);
                     if (def == null) continue;
                     var wood = DefDatabase<ThingDef>.GetNamedSilentFail("WoodLog");
@@ -158,6 +188,9 @@ namespace HomeBridge.BridgeTools
                         width = def.size.x, height = def.size.z,
                         costs = def.CostListAdjusted(stuff, false).ToDictionary(c => c.thingDef.defName, c => c.count),
                         growDays = def.plant?.growDays, fertilityMin = def.plant?.fertilityMin,
+                        fertilitySensitivity = def.plant?.fertilitySensitivity,
+                        edibleCrop = def.plant != null && humanFood(def.plant.harvestedThingDef),
+                        sowingNow = def.plant == null ? (bool?)null : PlantUtility.GrowthSeasonNow(map, def),
                         harvestNutrition = def.plant?.harvestedThingDef == null ? (float?)null :
                             def.plant.harvestYield * def.plant.harvestedThingDef.GetStatValueAbstract(StatDefOf.Nutrition) };
                 }

@@ -596,6 +596,13 @@ namespace HomeBridge.BridgeTools
                     return PawnHit("predator_hunt", p, "PredatorHunt targeting colony property or unreadable prey within 40 cells");
                 if (HomePlayUntilEventTools.SafeIsColonist(p))
                 {
+                    if (p.CurJobDef == JobDefOf.Hunt)
+                    {
+                        var prey = p.CurJob.targetA.Thing as Pawn;
+                        if (prey != null && !prey.Dead && !HuntingSafety.RouteSafe(p, prey))
+                            return PawnHit("hunting_route_unsafe", p,
+                                "Prey has an unsafe death effect, or the hunter's route is unavailable or near a predator");
+                    }
                     var after = InjurySnapshot.Capture(p);
                     InjurySnapshot before;
                     if (!s.Injuries.TryGetValue(p.thingIDNumber, out before))

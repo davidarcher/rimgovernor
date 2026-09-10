@@ -251,6 +251,13 @@ class ColonySkills:
             if facts.get('recovery', {}).get('roofHazard'):
                 raise SkillBlocked('Roof-sensitive disruption: preserve reachable stock and sheltered work; outdoor acquisition and field expansion are deferred')
             food = goal_id == 'EnsureFoodSupply'
+            from .food_capacity import choose_crop
+            crop=choose_crop(facts) if food else None
+            if food:
+                facts=dict(facts,foodCrop=crop)
+                goal.evidence['food_method']={'crop':crop,'biome':facts.get('biome'),
+                    'climate':facts.get('foodClimate'),
+                    'fallback':'Safe wild harvest and hunting when outdoor cropping is unavailable'}
             resource = 'food' if food else 'tree'
             targets = [p for p in facts.get('acquisition', []) if p[resource] and not p['designated']]
             if food:
@@ -275,15 +282,26 @@ class ColonySkills:
             if not food:
                 if not targets and outstanding == 0: raise SkillBlocked('No safe mature trees in acquisition radius')
                 return None
-            if unused('rice') and sum(f.get('usableCells',0) for f in facts.get('farms',[]) if f.get('edible')) < facts['colonists']*10:
+            from .food_preservation import preservation_bill
+            preservation=preservation_bill(facts,rt.controller.policy.food_target_days)
+            if preservation:
+                method='preserve-'+fingerprint(preservation)[:8]
+                goal.evidence['preservation']=preservation
+                if unused(method):
+                    return method,[native('home/bills',action='add',bench=preservation['bench'].removeprefix('Thing_'),
+                        recipe=preservation['recipe'],repeatMode='TargetCount',targetCount=preservation['targetCount'],
+                        pauseWhenSatisfied='on',unpauseWhenYouHave=max(1,preservation['targetCount']//2),
+                        ingredientSearchRadius=40,watch=False)]
+            initial_method='rice' if crop=='Plant_Rice' else 'crop-'+str(crop)
+            if crop and unused(initial_method) and sum(f.get('usableCells',0) for f in facts.get('farms',[]) if f.get('edible')) < facts['colonists']*10:
                 layout = await self.layout(facts)
                 patches=farm_patches(layout)
                 goal.evidence['field_capacity']={'selected_cells':sum(p['width']*p['height'] for p in patches),
                     'minimum_growing_cells':facts['colonists']*10}
                 if patches:
-                    return 'rice', [{'kind': 'create_zone', 'zone_type': 'growing', 'label': 'RimBot rice',
-                                     'crop': 'Plant_Rice', 'patches': patches}]
-            if (not unused('rice') or any(f.get('edible') and f.get('usableCells',0)>0
+                    return initial_method, [{'kind': 'create_zone', 'zone_type': 'growing', 'label': 'RimBot food',
+                                     'crop': crop, 'patches': patches}]
+            if crop and (not unused(initial_method) or any(f.get('edible') and f.get('usableCells',0)>0
                     for f in facts.get('farms',[]))) and facts.get('indoorSleepingCapacity',0)>=facts['colonists']:
                 from .capacity_growth import growth_fields
                 from .food_capacity import field_target, growing_cells
@@ -293,11 +311,11 @@ class ColonySkills:
                     'observed_growing_cells': growing_cells(facts),
                     'scope': 'Planned harvest capacity; future food is not stored nutrition'}
                 patches=growth_fields(rt.current_plan,facts,rt.controller.policy.food_target_days)
-                method='rice-expand-'+fingerprint(patches)[:8]
+                method=initial_method+'-expand-'+fingerprint(patches)[:8]
                 if patches and unused(method):
                     return method,[{'kind':'create_zone','zone_type':'growing','label':'RimBot '+method,
-                        'crop':'Plant_Rice','patches':patches}]
-            if facts.get('foodRunwayDays', 0) < rt.controller.policy.food_min_days and facts.get('armed', 0):
+                        'crop':crop,'patches':patches}]
+            if facts.get('foodRunwayDays', 0) < rt.controller.policy.food_target_days and facts.get('armed', 0):
                 butcher = facts.get('butchering', [])
                 if not butcher and unused('butcher-spot'):
                     layout = await self.layout(facts)
@@ -364,7 +382,7 @@ class ColonySkills:
                     actions=await furniture_handoff(rt,selection)
                     return ('storage',actions) if actions else None
                 layout = await self.layout(facts)
-                return 'storage', [{'kind': 'create_zone', 'zone_type': 'stockpile', 'label': 'RimBot food',
+                return 'storage', [{'kind': 'create_zone', 'zone_type': 'stockpile', 'label': 'RimBot food storage',
                     'patches': [layout['storage']], 'preset': 'food', 'priority': 'Important'}]
             return None
         if goal_id == 'EnsureCooking':

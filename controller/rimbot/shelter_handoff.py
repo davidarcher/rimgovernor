@@ -159,10 +159,10 @@ async def furniture_handoff(rt, selection, definition=None):
             if not footprint<=interior or footprint&reserved:continue
             attempts+=1
             preview=await rt.inspect_native('home/zone_cells',{'op':'create','zoneType':'stockpile',
-                'label':'RimBot food','cells':';'.join(f'{x},{z}' for x,z in sorted(footprint)),
+                'label':'RimBot food storage','cells':';'.join(f'{x},{z}' for x,z in sorted(footprint)),
                 'preset':'food','priority':'Important','dryRun':True})
             if preview.get('cellsAccepted')!=9 or len(preview.get('cells',[]))!=9:continue
             if any(c.get('takenFrom') for c in preview['cells']):continue
-            return [{'kind':'create_zone','zone_type':'stockpile','label':'RimBot food',
+            return [{'kind':'create_zone','zone_type':'stockpile','label':'RimBot food storage',
                      'patches':[{'x':a,'z':b,'width':3,'height':3}],'preset':'food','priority':'Important'}]
     raise SkillBlocked('No verified space for '+(definition or 'food storage')+' in the player shelter; refine or expand it')

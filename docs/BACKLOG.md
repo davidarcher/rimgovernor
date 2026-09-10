@@ -21,8 +21,10 @@ in the checkpoint commit; do not append an implementation diary here.
   Nutrition-based harvest limits and per-colonist inventory/rot forecasts exist;
   validate actual spoilage, changing temperatures and food sharing during sustained runs.
   Validate persistent player food targets through actual replenishment as well as
-  stock; rice field sizing follows the target, but requires native sustained acceptance
-  and crop-specific capacity beyond the rice budget.
+    stock. Mixed-crop field budgets, native route screening and supervised hunting
+    holds, season/soil crop selection and preservation bills are implemented;
+    native sustained replenishment, hunting/butchering, route degradation,
+    spoilage/temperature/sharing and seasonal acceptance remain required.
 - [ ] **B04h · Complete startup and colony upkeep.** Implement the phased plan
   below through existing ColonyPlan goals, deterministic methods and Hands. Use
   observed deficits, urgency and player priorities rather than a fixed day-by-day

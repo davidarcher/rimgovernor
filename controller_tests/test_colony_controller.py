@@ -87,7 +87,7 @@ class Replay:
             elif action.kind=='create_zone':
                 if action.zone_type=='growing':
                     cells=sum(p.width*p.height for p in action.patches)
-                    self.facts['farms'].append(dict(edible=True,usableCells=cells,growingCells=cells))
+                    self.facts['farms'].append(dict(edible=True,crop=action.crop,usableCells=cells,growingCells=cells))
                     for cell in self.facts['cells']:
                         if any((cell['x'],cell['z']) in patch.cells() for patch in action.patches):
                             cell['zone']=True

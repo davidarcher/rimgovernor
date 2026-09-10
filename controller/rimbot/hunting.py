@@ -38,6 +38,10 @@ def screen_prey(pawns,anchor,*,predator_radius=25,max_distance=50):
         if unknown or nearby:
             rejected.append({'prey':pawn['thingId'],'reason':'Predator observations unavailable' if unknown else 'Nearby predator',
                              'predators':sorted(nearby)})
+        elif ((pawn.get('huntingSafety') or {}).get('readable') is not True
+              or not (pawn.get('huntingSafety') or {}).get('hunters')):
+            rejected.append({'prey':pawn['thingId'],'reason':'No verified native hunter route',
+                             'predators':[]})
         else: candidates.append(pawn)
     # Body size ranks candidates; it never credits food that has not been acquired.
     candidates.sort(key=lambda p:(-((p.get('animals') or {}).get('bodySize') or 0)/

@@ -7,6 +7,7 @@ from test_colony_controller import Replay
 
 def pawn(identity,x=0,z=0,**fields):
     return dict(thingId=identity,position={'x':x,'z':z},hostile=False,predator=False,
+                huntingSafety={'readable':True,'hunters':['hunter']},
                 manhunterOnDamageChance=0,dead=False,downed=False,
                 animals={'designations':{'hunt':False},'bodySize':1},**fields)
 
@@ -39,6 +40,14 @@ def test_rejects_unsafe_unknown_and_already_designated_prey():
 def test_ranking_is_stable_and_out_of_range_prey_is_excluded():
     a=pawn('a',1);b=pawn('b',1);far=pawn('far',51)
     assert screen_prey([b,far,a],{'x':0,'z':0})[0]==[a,b]
+
+
+@pytest.mark.parametrize('safety',[None,{}, {'readable':False,'hunters':['hunter']},
+                                  {'readable':True,'hunters':[]}])
+def test_unavailable_or_unreachable_native_route_blocks_hunting(safety):
+    prey=pawn('prey');prey['huntingSafety']=safety
+    choices,evidence=screen_prey([prey],{'x':0,'z':0})
+    assert not choices and evidence['rejected'][0]['reason']=='No verified native hunter route'
 
 
 @pytest.mark.asyncio

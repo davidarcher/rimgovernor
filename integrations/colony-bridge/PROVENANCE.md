@@ -87,6 +87,18 @@ Local changes:
   and projected four-neighbor access using native walkability, danger, pawn areas
   and door eligibility, and separately calls native pawn reachability for targets
   and any required footprint egress. It never changes the path grid or simulation.
+- `ColonyFactsTool.cs` exposes native crop fertility response, current sowing season,
+  remaining seasonal temperature window, fresh animal corpse identities and native
+  cooking recipe products, shelf life and bill targets. These are observations;
+  future crop, weather and preservation outcomes require ordinary pawn validation.
+- `OrderTool.cs` verifies immediate Equip completion by exact primary-weapon
+  identity, in addition to its existing current-job check. A different weapon
+  cannot satisfy the receipt.
+- `HuntingSafety.cs` is original local code. It reads available hunters and native
+  `PathFinder.FindPathNow` routes with `Danger.None`, screening path cells against
+  observed wild predators. `ListPawnsTool.cs` exposes that evidence and
+  `SupervisedPlayTool.cs` pauses active hunting when a fresh route fails screening.
+  No hunting designation, pawn job or path is changed by these reads.
 - `VideoStreamTool.cs` is original local presentation code. It captures the Unity
   framebuffer after rendering into a leased RGB24 shared-memory slot on Windows.
   It does not issue input, alter simulation speed or expose editor operations.

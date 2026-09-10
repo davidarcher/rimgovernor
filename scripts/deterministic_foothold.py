@@ -97,7 +97,8 @@ async def run(args):
     start = time.monotonic()
     try:
         manifest = capture_manifest(Path(__file__).resolve().parents[1], root, config,
-            rt.router.routing.model_dump(mode='json'), profile=root/('profile' if args.rendered else 'headless-profile'))
+            rt.router.routing.model_dump(mode='json'), profile=root/('profile' if args.rendered else 'headless-profile'),
+            source_snapshot=getattr(args,'source_snapshot',False))
         (args.output/'manifest.json').write_text(json.dumps(manifest,indent=2),encoding='utf8')
         await rt.start()
         deadline = time.monotonic()+120
@@ -130,6 +131,8 @@ async def run(args):
                    'mode':rt.mode,'phase':rt.phase,'steps':len(rt.current_plan.spec.steps),
                    'colonists':facts.get('colonists'),'indoor_sleeping':facts.get('indoorSleepingCapacity'),
                    'usable_farm_cells':sum(f.get('usableCells',0) for f in facts.get('farms',[]) if f.get('edible')),
+                   'food':{k:facts.get(k) for k in ('foodSupply','foodForecast','foodNutrition',
+                       'nutritionPerDay','foodRunwayDays','foodClimate','foodCrop','foodCorpses','farms','cooking')},
                    'stability':asdict(window),
                    'goals':{k:{'status':v.status,'reason':v.reason,'method':v.method} for k,v in rt.current_plan.colony_goals.items()}}
             report['history'].append(row)
@@ -181,7 +184,9 @@ async def run(args):
         except Exception as error:
             report['cleanup_error'] = str(error)
         finally:
-            await rt.stop()
+            if hasattr(rt,'task'):
+                try: await rt.stop()
+                except Exception as error: report['runtime_cleanup_error']=str(error)
         # Runtime stops its own GABS/game only through the PID-owned launch profile.
         report['stability']=asdict(window)
         if window.first_stable_tick is not None:
@@ -207,6 +212,7 @@ async def run(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source-root',type=Path,required=True)
+    parser.add_argument('--source-snapshot',action='store_true',help='Fingerprint packaged source bytes when running in a Docker image without Git metadata')
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--seconds',type=int,default=1800)
     parser.add_argument('--stability-days',type=stability_days,default=2,help='Consecutive observed stable game days after bootstrap; 0 checks establishment only (default: 2)')

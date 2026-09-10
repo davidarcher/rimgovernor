@@ -724,6 +724,7 @@ namespace HomeBridge.BridgeTools
                 // animal" the same missing key, which is the equipment bug.
                 if (wantAnimals)
                 {
+                    if (isAnimal) row["huntingSafety"] = HuntingSafety.Read(pawn);
                     var beast = PawnSettingsRead.AnimalBlock(pawn);
                     row["animals"] = beast;
                     if (AsBool(beast, "applies"))

@@ -10,7 +10,7 @@ def fixture():
     plan=ColonyPlan(colony_goals={'EnsureInitialShelter':ColonyGoal(priority_class=2)},
         control={'layout':{'room':{'x':5,'z':5,'width':9,'height':9}}})
     facts={'colonists':16,'indoorSleepingCapacity':12,'nutritionPerDay':25,'center':{'x':15,'z':15},
-        'farms':[{'edible':True,'usableCells':100}],
+        'farms':[{'edible':True,'crop':'Plant_Rice','usableCells':100}],
         'definitions':{'Plant_Rice':{'harvestNutrition':.3,'growDays':3,'fertilityMin':.7}},
         'cells':[{'x':x,'z':z,'walkable':True,'supportsLight':True,'fertility':1,'occupied':False,'zone':False}
             for x in range(40) for z in range(40)]}

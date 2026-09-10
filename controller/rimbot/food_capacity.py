@@ -2,8 +2,30 @@
 from math import ceil, isfinite
 
 
-def field_target(facts, target_days=7):
-    rice = facts.get('definitions', {}).get('Plant_Rice', {})
+def choose_crop(facts):
+    """Rank native crop output on the observed free soil within its climate budget."""
+    climate=facts.get('foodClimate',{})
+    if climate.get('sowingNow') is False:return None
+    choices=[]
+    for name in ('Plant_Rice','Plant_Potato','Plant_Corn'):
+        definition=facts.get('definitions',{}).get(name,{})
+        if any(definition.get(k) is False for k in ('sowingNow','available','edibleCrop')):continue
+        days,yield_=definition.get('growDays'),definition.get('harvestNutrition')
+        if not days or not yield_:continue
+        season=climate.get('growingDaysRemaining',climate.get('growingDays'))
+        if season is not None and days*2.5>season:continue
+        fertility=[c.get('fertility',0) for c in facts.get('cells',[]) if c.get('walkable') is True
+                   and not c.get('occupied') and not c.get('zone') and not c.get('roofed')
+                   and c.get('fertility',0)>=definition.get('fertilityMin',1)]
+        if not fertility:continue
+        average=sum(fertility)/len(fertility)
+        factor=max(0,1+(average-1)*definition.get('fertilitySensitivity',1))
+        choices.append((-yield_*factor/days,days,name))
+    return min(choices)[2] if choices else None
+
+
+def field_target(facts, target_days=7, crop=None):
+    rice = facts.get('definitions', {}).get(crop or facts.get('foodCrop') or 'Plant_Rice', {})
     values = (facts.get('nutritionPerDay'), rice.get('growDays'),
               rice.get('harvestNutrition'), target_days)
     if any(isinstance(v, bool) or not isinstance(v, (int, float))
@@ -19,3 +41,18 @@ def field_target(facts, target_days=7):
 def growing_cells(facts):
     return sum(f.get('growingCells', 0) for f in facts.get('farms', [])
                if f.get('edible') is True)
+
+
+def field_coverage(facts,target_days=7,*,cells='growingCells'):
+    """Sum fractions of the target supported by each observed crop's own yield."""
+    coverage=0.
+    for farm in facts.get('farms',[]):
+        if farm.get('edible') is not True:continue
+        crop=farm.get('crop')
+        if not crop:return None
+        required=field_target(facts,target_days,crop)
+        if required is None:return None
+        count=farm.get(cells)
+        if type(count) not in (float,int) or not isfinite(count) or count<0:return None
+        coverage+=count/required
+    return coverage

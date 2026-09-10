@@ -47,6 +47,8 @@ def derive(batch, native, policy):
     value = dict(native)
     from .native_forecasts import forecasts, power_forecast
     value['forecasts'] = forecasts(native, batch.native.get('buildings', {}))
+    from .food_capacity import choose_crop
+    value['foodCrop'] = choose_crop(value)
     if 'foodSupply' in native:
         forecast = value['forecasts']['food']
         value['foodForecast'] = forecast
@@ -111,7 +113,7 @@ def criteria(facts, policy):
 
 
 def priority_nodes(facts, latches, policy):
-    from .food_capacity import field_target, growing_cells
+    from .food_capacity import field_target, field_coverage
     gates = criteria(facts, policy)
     food_risk = latch(latches, 'food', facts.get('foodRunwayDays'), policy.food_min_days, policy.food_target_days)
     cold = latch(latches, 'cold', facts.get('sleepingTemperatureMin') if facts.get('sleepingTemperatureMin') is not None else facts.get('outdoorTemperature'),
@@ -127,8 +129,9 @@ def priority_nodes(facts, latches, policy):
     if facts.get('forbiddenSupplies'): nodes.append(('AllowStartingSupplies', 2))
     if not gates['work']: nodes.append(('EnsureWorkAssignments', 2))
     capacity = field_target(facts, policy.food_target_days)
+    coverage = field_coverage(facts,policy.food_target_days)
     if (food_risk or not gates['food'] or not gates['production']
-            or capacity is None or growing_cells(facts) < capacity):
+            or capacity is None or coverage is None or coverage < 1-1e-9):
         nodes.append(('EnsureFoodSupply', 2))
     if not gates['shelter'] or not gates['sleeping']: nodes.append(('EnsureInitialShelter', 2))
     if cold or hot or not gates['temperature']: nodes.append(('EnsureTemperatureSafety', 2))
@@ -254,7 +257,7 @@ def farm_patches(layout):
 
 def starter_layouts(facts):
     """Rank shelter sites, then fit several nearby fertile field patches."""
-    rice = facts.get('definitions', {}).get('Plant_Rice', {})
+    rice = facts.get('definitions', {}).get(facts.get('foodCrop') or 'Plant_Rice', {})
     yield_, grow_days = rice.get('harvestNutrition'), rice.get('growDays')
     cells = {(c['x'], c['z']): c for c in facts.get('cells', [])}
     anchor = facts['center']
@@ -281,7 +284,7 @@ def starter_layouts(facts):
             for a,b in farmland:
                 patch=points(a,b,size,size)
                 if patch & (reserved|chosen):continue
-                if not all(free(p) and cells[p].get('fertility',0)>=rice.get('fertilityMin',1) for p in patch):continue
+                if not all(free(p) and not cells[p].get('roofed') and cells[p].get('fertility',0)>=rice.get('fertilityMin',1) for p in patch):continue
                 patches.append({'x':a,'z':b,'width':size,'height':size})
                 chosen|=patch
                 if len(chosen)>=target or len(patches)>=32:break

@@ -20,17 +20,19 @@ def protected_cells(plan):
 
 
 def growth_fields(plan,facts,target_days=7):
-    from .food_capacity import field_target
-    rice=facts.get('definitions',{}).get('Plant_Rice',{})
+    from .food_capacity import field_target,field_coverage
+    rice=facts.get('definitions',{}).get(facts.get('foodCrop') or 'Plant_Rice',{})
     nutrition,days=rice.get('harvestNutrition'),rice.get('growDays')
     if not nutrition or not days:return []
-    existing=sum(f.get('usableCells',0) for f in facts.get('farms',[]) if f.get('edible'))
     target=field_target(facts,target_days)
     if target is None:return []
-    needed=max(0,target-existing)
+    coverage=field_coverage(facts,target_days,cells='usableCells')
+    if coverage is None:return []
+    needed=max(0,ceil(target*(1-coverage)-1e-9))
     blocked=protected_cells(plan)
     cells={(c['x'],c['z']):c for c in facts.get('cells',[]) if c.get('walkable') is True
-        and not c.get('occupied') and not c.get('zone') and c.get('fertility',0)>=rice.get('fertilityMin',1)}
+        and not c.get('occupied') and not c.get('zone') and not c.get('roofed')
+        and c.get('fertility',0)>=rice.get('fertilityMin',1)}
     center=facts['center'];ordered=sorted(cells,key=lambda p:((p[0]-center['x'])**2+(p[1]-center['z'])**2,p))
     patches=[];selected=set()
     for size in (4,3,2,1):

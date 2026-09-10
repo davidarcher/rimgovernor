@@ -1660,9 +1660,16 @@ namespace HomeBridge.BridgeTools
             // The read-back. TryTakeOrderedJob returning true is the game
             // saying it accepted the job, not that it is running it: a mental
             // state or a higher-priority job giver can replace it in the same
-            // frame. CurJob is what is actually true.
+            // frame. Equipping a weapon at the pawn's feet can also complete
+            // immediately; exact equipped identity verifies that outcome.
             var current = BridgeCommon.Try<Job>(() => plan.Pawn.CurJob, null);
-            if (current == null)
+            if (plan.JobDef == JobDefOf.Equip && plan.TargetA.HasThing
+                && ReferenceEquals(plan.Pawn.equipment?.Primary, plan.TargetA.Thing))
+            {
+                plan.Verified = true;
+                plan.VerifiedReason = "The exact ordered weapon is already equipped.";
+            }
+            else if (current == null)
             {
                 plan.VerifiedReason = "Pawn.CurJob is null after the issue: the game took no job at all.";
             }
