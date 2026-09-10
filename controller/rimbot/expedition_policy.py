@@ -65,11 +65,37 @@ def home_food_after(facts, crew, cargo):
     return food_forecast(supply).get('runwayDays')
 
 
+async def guard_population_commitments(rt, crew, cargo, facts):
+    """Keep B22 care and provision commitments available at the departing home."""
+    commitments = {g.target['pawn'] for key, g in rt.current_plan.colony_goals.items()
+        if key.startswith('Population-') and not g.cancelled and g.status != 'complete'}
+    if not commitments:
+        return
+    crew = set(crew)
+    if crew & commitments:
+        raise ValueError('Complete the selected pawn population commitment before departure')
+    from .population import capacity, observe
+    snapshot = await observe(rt)
+    people = (await rt.game.query('home/list_pawns', colonistsOnly=True, work=True))['pawns']
+    policy = rt.current_plan.control.get('population_policy', {})
+    if not policy:
+        raise ValueError('Committed population capacity policy is unavailable')
+    capacity(policy, facts, snapshot, commitments, people)
+    runway = home_food_after(facts, crew, cargo)
+    consumers = [p for p in facts.get('foodSupply', {}).get('consumers', []) if p['id'] not in crew]
+    demand = sum(p['nutritionPerDay'] for p in consumers)
+    if runway is None or not number(demand) or demand <= 0:
+        raise ValueError('Remaining home food capacity is unknown')
+    remaining = dict(facts, nutritionPerDay=demand, foodNutrition=runway * demand)
+    snapshot = dict(snapshot, people=[p for p in snapshot['people'] if p['thingId'] not in crew])
+    capacity(policy, remaining, snapshot, commitments, [p for p in people if p['thingId'] not in crew])
+
+
 def evaluate_expedition(policy, preview, facts, world, *, action, crew=(), cargo=None):
     """An explicit return can recover a short-supplied party; risk stays visible."""
     blocked, warnings = [], []
     route = preview.get('route', {})
-    if world.get('success') is not True or world.get('complete') is not True or world.get('operation', {}).get('ResultWasTruncated'):
+    if world.get('success') is not True or world.get('complete') is not True or (world.get('operation') or {}).get('ResultWasTruncated'):
         blocked.append('Complete world census is required')
     if action == 'stop':
         return dict(eligible=not blocked, blockers=blocked, warnings=warnings)
@@ -116,7 +142,7 @@ def evaluate_world(policy, world, facts):
         return dict(readable=False, caravans=[], quests=[], reason='Complete native world evidence is required')
     parties = []
     for caravan in world.get('caravans', []):
-        routes = [r for r in caravan.get('homeRoutes', []) if r.get('reachable') is True and number(r.get('estimatedTicks'))]
+        routes = [r for r in caravan.get('homeRoutes', []) if r.get('reachable') is True and number(r.get('estimatedTicks')) and r['estimatedTicks'] >= 0]
         home = min(routes, key=lambda r: r['estimatedTicks'], default=None)
         food = caravan.get('foodDays')
         health = bool(caravan.get('pawns')) and all(p.get('dead') is False and p.get('downed') is False for p in caravan.get('pawns', []))
@@ -128,12 +154,24 @@ def evaluate_world(policy, world, facts):
     resources = facts.get('resources', {})
     for quest in world.get('quests', []):
         requirements = quest.get('tradeRequests', [])
-        deficits = {r['resource']: max(0, r['count'] - resources.get(r['resource'], 0))
-                    for r in requirements if r.get('resource') and number(r.get('count'))}
+        needed = {}
+        for row in requirements:
+            if row.get('resource') and number(row.get('count')) and row['count'] > 0:
+                needed[row['resource']] = needed.get(row['resource'], 0) + row['count']
+        deficits = {resource: max(0, count - resources.get(resource, 0)) for resource, count in needed.items()}
         terminal = quest.get('state', '').startswith('Ended')
+        from .world_progression import inventory_totals
+        carried = []
+        for caravan in world.get('caravans', []):
+            inventory = inventory_totals([i for p in caravan.get('pawns', []) for i in (p.get('inventory') or [])])
+            if (needed and all(r.get('resource') and number(r.get('count')) and r['count'] > 0 for r in requirements)
+                    and all(inventory.get(resource, 0) >= count for resource, count in needed.items())):
+                carried.append(caravan['id'])
         quests.append(dict(id=quest['id'], state=quest.get('state'), native_eligible=quest.get('canAccept') is True,
-            resource_deficits=deficits, objectives=requirements, rewards=quest.get('rewardChoices', []),
+            resource_deficits=deficits, resource_scope='Current home stock; carried cargo is listed separately',
+            carried_candidates=carried, objectives=requirements, rewards=quest.get('rewardChoices', []),
             recommendation='Terminal objective; do not replay' if terminal else
+                'Cargo observed in listed parties; validate native quality, freshness and settlement eligibility' if carried else
                 'Production or acquisition required; no future output credited' if any(deficits.values()) else
                 'Explicit player choice required; acceptance is separate from completion'))
     return dict(readable=True, caravans=parties, quests=quests, policy=policy.model_dump(),

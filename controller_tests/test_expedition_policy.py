@@ -1,4 +1,6 @@
 from copy import deepcopy
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -82,3 +84,36 @@ def test_policy_cannot_reverse_temperature_limits():
 
 def test_incomplete_world_does_not_produce_actionable_recommendations():
     assert evaluate_world(ExpeditionPolicy(), {'success': False}, {})['readable'] is False
+
+
+def test_quest_evaluation_lists_carried_goods_without_crediting_them_to_home():
+    world = dict(success=True, complete=True, caravans=[dict(id='party', foodDays=1, homeRoutes=[],
+        pawns=[dict(dead=False, downed=False, inventory=[dict(defName='Steel', count=20)])])],
+        quests=[dict(id='q', state='Ongoing', tradeRequests=[dict(resource='Steel', count=20)])])
+    quest = evaluate_world(ExpeditionPolicy(), world, {'resources': {}})['quests'][0]
+    assert quest['resource_deficits'] == {'Steel': 20}
+    assert quest['carried_candidates'] == ['party']
+    assert 'validate native quality' in quest['recommendation']
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('cargo,remaining_warden,blocked', [(20, True, False), (80, True, True), (20, False, True)])
+async def test_departure_preserves_population_food_and_assigned_care(cargo, remaining_warden, blocked):
+    from rimbot.expedition_policy import guard_population_commitments
+    _, facts, _ = evidence()
+    facts.update(bedCapacity=3, nutritionPerDay=2, foodNutrition=10)
+    snapshot = dict(success=True, people=[dict(thingId=p, admitted=True, dead=False, nutritionPerDay=1)
+        for p in ('home', 'away')] + [dict(thingId='candidate', admitted=False, guest=True, dead=False, nutritionPerDay=1)])
+    people = [dict(thingId=p, dead=False, downed=False, work={'types': [
+        dict(name='Doctor', disabled=False, priority=1),
+        dict(name='Warden', disabled=False, priority=1 if p == 'away' or remaining_warden else 0)]}) for p in ('home', 'away')]
+    async def query(name, **kwargs):
+        return snapshot if name == 'home/population' else dict(pawns=people)
+    goal = SimpleNamespace(target={'pawn': 'candidate'}, cancelled=False, status='active')
+    rt = SimpleNamespace(game=SimpleNamespace(query=AsyncMock(side_effect=query)), current_plan=SimpleNamespace(
+        colony_goals={'Population-candidate': goal}, control={'population_policy': {'maximum': 3, 'food_days': 2}}))
+    if blocked:
+        with pytest.raises(ValueError):
+            await guard_population_commitments(rt, ['away'], {'Pemmican': cargo}, facts)
+    else:
+        await guard_population_commitments(rt, ['away'], {'Pemmican': cargo}, facts)

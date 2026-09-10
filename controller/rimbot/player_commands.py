@@ -725,6 +725,9 @@ async def apply_command(rt, payload, *, token, revision):
                 action=arguments['action'], crew=target['pawn_ids'], cargo=target.get('cargo'))
             if not evaluation['eligible']:
                 raise ValueError('Expedition policy: ' + '; '.join(evaluation['blockers']))
+            if isinstance(request, FormCaravan):
+                from .expedition_policy import guard_population_commitments
+                await guard_population_commitments(rt, target['pawn_ids'], target['cargo'], facts)
             action = native('home/caravan', **arguments)
             action.update(completion=completion, caravan_target=target)
         elif isinstance(request, GiftToSettlement):

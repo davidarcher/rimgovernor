@@ -19,6 +19,7 @@ def run(args):
     name = 'rimbot-b15-' + uuid.uuid4().hex[:12]
     report = dict(passed=False, container=name, trip=args.trip, shared=args.shared, quests=args.quests, days=args.days, matrix=args.matrix,
                   logistics=args.logistics, multimap=args.multimap, emergency=args.emergency, diplomacy=args.diplomacy, quest_trade=args.quest_trade, expired=args.expired,
+                  prepared_days=args.prepared_days,
                   scope='Native caravan/quest observations and optional ordinary loaded caravan round trip')
     try:
         baseline = args.profile.resolve() / 'Saves/RimBot-tribal8-baseline.rws'
@@ -58,6 +59,7 @@ def run(args):
                 '--env', 'RIMBOT_SHARED_WORLD=' + ('1' if args.shared else '0'),
                 '--env', 'RIMBOT_QUEST_PROBE=' + ('1' if args.quests else '0'),
                 '--env', 'RIMBOT_SURVIVAL_DAYS=' + str(args.days),
+                '--env', 'RIMBOT_PREPARED_DAYS=' + ('1' if args.prepared_days else '0'),
                 '--env', 'RIMBOT_WORLD_MATRIX=' + ('1' if args.matrix else '0'),
                 '--env', 'RIMBOT_EMERGENCY_PROBE=' + ('1' if args.emergency else '0'),
                 '--env', 'RIMBOT_LOGISTICS=' + ('1' if args.logistics else '0'),
@@ -104,6 +106,7 @@ if __name__ == '__main__':
     parser.add_argument('--shared', action='store_true', help='Use shared semantic commands and Hands for the trip')
     parser.add_argument('--quests', action='store_true', help='Require ordinary join-quest outcome using the separate incident fixture')
     parser.add_argument('--days', type=int, choices=range(0, 61), default=0, help='Additional ordinary survival days with living roster checks')
+    parser.add_argument('--prepared-days', action='store_true', help='Evaluate existing native colony work plus shared food gathering; does not exercise full autonomous establishment')
     parser.add_argument('--timeout', type=int, default=2400)
     parser.add_argument('--matrix', action='store_true', help='Native reserve competition, cold-readiness refusal and emergency clock refusal')
     parser.add_argument('--emergency', action='store_true', help='Native incident and conservative 250-cell danger-stop profile only')

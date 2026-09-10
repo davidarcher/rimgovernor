@@ -25,6 +25,9 @@ It deducts departing food from the home forecast. Explicit returns can retain fo
 and temperature warnings so a stranded party can attempt recovery. Unreachable
 routes still refuse. EvaluateWorld reports resource deficits and recovery needs
 without issuing orders. SetExpeditionPolicy changes only the specified limits.
+Active population commitments also retain B22's food, doctor and warden capacity
+checks after removing the proposed crew and cargo. A pawn still awaiting admission
+or integration cannot depart under an unfinished population commitment.
 
 HoldCaravan stops the exact observed party. RouteCaravan can visit a nonhostile
 settlement or return to the current home. Optional return storage resources require

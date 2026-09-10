@@ -1052,6 +1052,10 @@ class BridgeRuntime:
                     action=arguments['action'], crew=step.action.caravan_target.pawn_ids, cargo=step.action.caravan_target.cargo)
                 if not assessment['eligible']:
                     raise ValueError('Expedition policy changed: ' + '; '.join(assessment['blockers']))
+                if arguments['action'] == 'form':
+                    from .expedition_policy import guard_population_commitments
+                    await guard_population_commitments(self, step.action.caravan_target.pawn_ids,
+                        step.action.caravan_target.cargo, facts)
             if name == 'home/caravan_gift' and is_write(name, arguments):
                 from .expedition_policy import validate_gift
                 if not any(s.id == expected_step_id and getattr(s.action, 'tool', None) == name for s in self.current_plan.spec.steps):

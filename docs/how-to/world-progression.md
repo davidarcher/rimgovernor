@@ -57,3 +57,9 @@ incident workers; they never edit temperatures, pawn health or quest success.
 The matrix verifies conservative evaluation and emergency stopping, not combat
 victory or winter survival. Broader sustained foothold coverage remains in B04.
 
+
+Use --prepared-days with --days to evaluate an existing normally played colony's
+work and shared food gathering. This narrower mode does not certify autonomous
+establishment. Settlement trips can prepare simple meals through native cooking
+bills when the colony has a usable station and cook; production must be observed
+before departure. The runner records the input save hash for either mode.
