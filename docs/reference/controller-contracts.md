@@ -76,11 +76,14 @@ storage, usable cooking with a bill, safe sleeping temperature, sufficient power
 electrical thermal loads exist, no critical patient, two armed colonists (or everyone in
 a smaller colony), no active threat, and verified work assignments. Accepted blueprints
 cannot satisfy these gates. Stability is reversible when observations change. The food
-forecast apportions shared nutrition by native demand and credits held food only to its
+forecast apportions shared nutrition by native demand among eaters permitted by diet,
+policy and safe access, reserving animal shares and crediting held food only to its
 observed holder. Earliest-expiry allocation uses native rot deadlines at the current
 temperature; the lowest per-colonist runway drives the food gate. Invalid supply
 observations remain unknown. Future harvest, changing temperatures, job selection and
 food sharing are not guaranteed. Harvest ETA remains an optimistic lower bound.
+See [forecast contracts](forecast-contracts.md) for animal feed, crop/construction
+labor, medical, mood and power projections and their input limits.
 
 ## Progress, capacity and bootstrap dialogs
 

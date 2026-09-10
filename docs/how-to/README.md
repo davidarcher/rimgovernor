@@ -24,6 +24,7 @@ first guided exercise, use [your first Docker test](../tutorials/first-docker-te
 
 ## Verify native scenarios
 
+- [Verify native forecasts](forecast-acceptance.md)
 - [Run focused headless probes](headless-probes.md)
 - [Verify native clocks and interruptions](native-clock.md)
 - [Verify retained cancelled actions](cancelled-actions.md)

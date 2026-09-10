@@ -13,6 +13,7 @@ conceptual introduction, start with [the system overview](../explanation/overvie
 ## Decision and execution contracts
 
 - [Controller and colony contracts](controller-contracts.md)
+- [Native forecast contracts](forecast-contracts.md)
 - [Player command contracts](command-contracts.md)
 - [Action completion contracts](action-contracts.md)
 - [Spatial contracts](spatial-contracts.md)
