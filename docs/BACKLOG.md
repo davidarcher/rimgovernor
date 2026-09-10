@@ -699,6 +699,32 @@ only intentional small, sanitized regression fixtures belong in source control.
   replies. Accept round trips across C#/Go/Python and an isolated native invocation
   showing unchanged effects and errors. Expand contracts incrementally with their
   consumer chunks rather than generating the entire API speculatively. Depends on 01.
+  - [ ] **02a:** pinned repository-owned Go generator and a documented, closed
+    schema subset; required/null/unknown and integer-token/UTF-16 validation,
+    deterministic output manifest and drift checks. Owner: integrator with generator
+    agents. Exercise the placement request as the first concrete input; native
+    consumer changes and complete reply decoding remain gated by 02b–d.
+    - [ ] **02a.1:** canonical request schema, generator input/validation model and
+      Go output with positive/negative generation checks. Owner: generator agent;
+      integrator owns canonical schema, manifest and CI integration.
+    - [ ] **02a.2:** C# and transitional Python outputs from the same schema/model,
+      with cross-language boundary fixtures. Owners: C# and Python generator agents;
+      depends on the 02a.1 generator API. Unsupported schema features fail explicitly.
+    - [ ] **02a.3:** generation drift CI, reproducibility and full affected checks.
+      Owner: integrator; depends on 02a.1–2.
+  - [ ] **02b:** batch/refusal and complete candidate/nested preview reply schemas,
+    generated models and retained SDK fixture decoding. Owner: contracts agent;
+    depends on 02a. Preserve unknown versus null, ordinary placement refusals,
+    material unreadability and optional cooler/vent facts; no partial reply DTO
+    substitutes for complete boundary acceptance.
+  - [ ] **02c:** generated native request validation and typed preview construction,
+    real SDK serialization and Python/Go consumer decoding. Owner: native N01.02
+    implementer coordinated with G01; depends on 02b and shared native prerequisites.
+    Probe legacy parser/binder behavior before deliberate grammar corrections.
+  - [ ] **02d:** isolated valid/refused/invalid SDK calls, paused identity/tick and
+    building invariance, cross-language parity and refreshed inventory evidence.
+    Owner: acceptance agent; depends on 02c. No effects or pawn-work claims from
+    serialization alone; 03/04 remain gated until all of 02 passes.
 
 - [ ] **G01.03 — Read-only transport and observation.** Owner: bridge agent.
   Port `bridge.py`, `bridge_game.py`, `bridge_observation.py` and relevant native
