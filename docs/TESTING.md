@@ -24,14 +24,20 @@ powershell -ExecutionPolicy Bypass -File scripts\build_observation_bridge.ps1 -I
 Never replace installed DLLs while any RimWorld instance is running. Native build
 success is not gameplay acceptance. Preserve source provenance beside copied code.
 
-## Native execution windows
-
 Shared spatial controller checks are in `test_spatial_constraints.py`,
 `test_plan_geometry.py` and `test_construction_preflight.py`. They cover entrances
 in all rotations, indoor farm refusal, retained-building and same-batch native
 footprint conflicts, unknown geometry, and refusal before dispatch. These use
 native-shaped fixtures; B06 still requires ordinary pawn construction, live
 player edits and observed access acceptance.
+
+`test_project_resource_scheduling.py` covers resource competition in ready order,
+dependency gates, uncertain writes, persisted receipts and Hands restock recovery.
+Admission still requires enough stock for all accepted commitments. B07 native
+acceptance must observe real production consumption and construction progress;
+the fixture suite does not establish pawn work or save-rewind recovery.
+
+## Native execution windows
 
 Run `scripts/native_tick_budget_acceptance.py --source-root <prepared-root>
 --output <new-directory>` with `controller` on `PYTHONPATH`. Each speed/budget

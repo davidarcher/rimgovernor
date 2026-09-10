@@ -66,6 +66,10 @@ Paths in the table without a directory prefix are under `controller/rimbot/`.
 5. Both entry paths commit through revision/context guards, geometry/native
    preflight and shared resource accounting. Unissued slots reserve native costs;
    issued blueprints use native deficits instead of a second reservation.
+   Admission reserves all accepted projects. Dispatch budgets in stable ready
+   priority order, allowing affordable earlier work to proceed after stock is
+   consumed. Later and dependency-gated projects yield; the selected remaining
+   batch, earlier ready work, player reserves and uncertain writes stay protected.
    Dispatch rechecks current stock and player resource policies. Changed or
    unknown costs require validation. Production bills under protected-resource
    policies currently block until ingredient accounting is available.

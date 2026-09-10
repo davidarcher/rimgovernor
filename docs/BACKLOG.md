@@ -97,6 +97,10 @@ in the checkpoint commit; do not append an implementation diary here.
   production consumption. Verify dependent work, player edits, save rewinds and
   interrupted/resumed work retain identity without duplicates. Existing plan
   dependencies, cancellation, revision guards and event triggers are implemented.
+  Execution budgets follow deterministic ready order when stock changes, retaining
+  full remaining batches, player reserves and uncertain-write costs. Verify live
+  production consumption and competing project dispatch/restock/restart behavior;
+  controller fixtures do not establish native scheduling acceptance.
 - [ ] **B08 · Native forecasts.** Audit available inputs, then add nutrition,
   diet/access/inventory-aware consumption, spoilage, harvest uncertainty, animal
   feed and labor demand. Extend medical/power/mood risk projections only from
