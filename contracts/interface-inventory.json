@@ -4712,6 +4712,86 @@
       ],
       "status": "pending-go",
       "notes": "WebSocket acknowledgments bind displayed frame and viewer; preserve bounded latency metrics, connection/revision ordering, close/reconnect behavior. No simulation-speed ownership. Go parity and acceptance have not run."
+    },
+    {
+      "id": "interface:env-discovery:LOCALAPPDATA",
+      "category": "configuration-environment",
+      "source": {
+        "path": "controller/rimgovernor/local_colonies.py",
+        "line": 22
+      },
+      "go_package": "go/internal/server",
+      "owner_chunk": "G01.09a",
+      "fixtures": [
+        "controller_tests/test_local_colonies.py"
+      ],
+      "native_scenarios": [],
+      "status": "pending-go",
+      "notes": "Windows Docker executable discovery fallback after PATH lookup; reads LOCALAPPDATA and checks Programs/DockerDesktop/resources/bin/docker.exe. Preserve fallback ordering and explicit unavailable errors. Go discovery parity pending; no native game access required."
+    },
+    {
+      "id": "interface:env-discovery:ProgramFiles",
+      "category": "configuration-environment",
+      "source": {
+        "path": "controller/rimgovernor/local_colonies.py",
+        "line": 23
+      },
+      "go_package": "go/internal/server",
+      "owner_chunk": "G01.09a",
+      "fixtures": [
+        "controller_tests/test_local_colonies.py"
+      ],
+      "native_scenarios": [],
+      "status": "pending-go",
+      "notes": "Windows Docker executable discovery fallback after PATH lookup; reads ProgramFiles and checks Docker/Docker/resources/bin/docker.exe. Preserve fallback ordering and explicit unavailable errors. Go discovery parity pending; no native game access required."
+    },
+    {
+      "id": "interface:cli:container_input_cache:operation",
+      "category": "configuration-cli-tooling",
+      "source": {
+        "path": "controller/rimgovernor/container_input_cache.py",
+        "line": 145
+      },
+      "go_package": "go/internal/testkit",
+      "owner_chunk": "G01.11",
+      "fixtures": [
+        "controller_tests/test_container_input_cache.py"
+      ],
+      "native_scenarios": [],
+      "status": "tooling-only-adapter-pending",
+      "notes": "Tooling-only cache verify/populate CLI; declaration: parser.add_argument('operation', choices=['verify', 'populate']). May remain Python tooling. This does not classify the whole module as tooling-only: production container_worker imports read_manifest, which requires Go packaging parity. Adapter and Go acceptance pending."
+    },
+    {
+      "id": "interface:cli:container_input_cache:--cache",
+      "category": "configuration-cli-tooling",
+      "source": {
+        "path": "controller/rimgovernor/container_input_cache.py",
+        "line": 146
+      },
+      "go_package": "go/internal/testkit",
+      "owner_chunk": "G01.11",
+      "fixtures": [
+        "controller_tests/test_container_input_cache.py"
+      ],
+      "native_scenarios": [],
+      "status": "tooling-only-adapter-pending",
+      "notes": "Tooling-only cache verify/populate CLI; declaration: parser.add_argument('--cache', default='/cache'). May remain Python tooling. This does not classify the whole module as tooling-only: production container_worker imports read_manifest, which requires Go packaging parity. Adapter and Go acceptance pending."
+    },
+    {
+      "id": "interface:cli:container_input_cache:--key",
+      "category": "configuration-cli-tooling",
+      "source": {
+        "path": "controller/rimgovernor/container_input_cache.py",
+        "line": 147
+      },
+      "go_package": "go/internal/testkit",
+      "owner_chunk": "G01.11",
+      "fixtures": [
+        "controller_tests/test_container_input_cache.py"
+      ],
+      "native_scenarios": [],
+      "status": "tooling-only-adapter-pending",
+      "notes": "Tooling-only cache verify/populate CLI; declaration: parser.add_argument('--key', required=True). May remain Python tooling. This does not classify the whole module as tooling-only: production container_worker imports read_manifest, which requires Go packaging parity. Adapter and Go acceptance pending."
     }
   ]
 }

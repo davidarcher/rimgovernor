@@ -659,7 +659,7 @@ only intentional small, sanitized regression fixtures belong in source control.
     availability; depends on 00a–00c. Native timing remains pending until measured.
     - [x] **00d.1:** reconcile production Docker helpers and canonical Go ownership;
       inventory argument-dependent native read/write boundaries (domain agent).
-    - [ ] **00d.2:** inventory platform discovery variables and tooling cache CLI
+    - [x] **00d.2:** inventory platform discovery variables and tooling cache CLI
       options with source checks (interface agent; independent of 00d.1).
     - [ ] **00d.3:** retain exact Python serialization/signature comparison cases
       and uncertain issued-action evidence (state agent; independent of 00d.1–2).

@@ -7,6 +7,10 @@ import re
 
 
 ROOT = Path(__file__).resolve().parents[1]
+GO_PACKAGES = {'go/cmd/rimgovernor'} | {
+    'go/internal/' + name for name in ('wire', 'domain', 'bridge', 'store', 'policy',
+                                      'hands', 'runtime', 'model', 'server',
+                                      'presentation', 'testkit')}
 
 
 def expected_ids():
@@ -36,11 +40,19 @@ def expected_ids():
                 for node in cls.body:
                     if isinstance(node, ast.AnnAssign):
                         expected.add(f'interface:config:{cls.name}.{node.target.id}')
-    for module in ('__main__', 'container_worker'):
+    for module in ('__main__', 'container_worker', 'container_input_cache'):
         tree = ast.parse((ROOT / f'controller/rimgovernor/{module}.py').read_text(encoding='utf8'))
         for node in ast.walk(tree):
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == 'add_argument':
                 expected.add(f'interface:cli:{module}:{ast.literal_eval(node.args[0])}')
+    tree = ast.parse((ROOT / 'controller/rimgovernor/local_colonies.py').read_text(encoding='utf8'))
+    discovery = next(node for node in tree.body
+                     if isinstance(node, ast.FunctionDef) and node.name == 'docker_executable')
+    for node in ast.walk(discovery):
+        if isinstance(node, ast.For) and isinstance(node.target, ast.Tuple):
+            if [part.id for part in node.target.elts] == ['base', 'suffix']:
+                for base, _ in ast.literal_eval(node.iter):
+                    expected.add('interface:env-discovery:' + base)
     files = list((ROOT / 'controller/rimgovernor').glob('*.py')) + [
         ROOT / 'containers/compose.yaml', ROOT / 'containers/colonies.compose.yaml']
     for path in files:
@@ -62,6 +74,10 @@ def main():
         ids.add(row['id'])
         for key in ('category', 'go_package', 'owner_chunk', 'status', 'notes'):
             assert row[key], f'{row["id"]}: missing {key}'
+        assert row['go_package'] in GO_PACKAGES, f'Unapproved package: {row["go_package"]}'
+        if row['id'].startswith('interface:cli:container_input_cache:'):
+            assert row['category'] == 'configuration-cli-tooling'
+            assert row['status'] == 'tooling-only-adapter-pending'
         source = ROOT / row['source']['path']
         assert source.is_file(), source
         if 'line' in row['source']:
@@ -73,7 +89,8 @@ def main():
     expected = expected_ids()
     assert not expected - ids, f'Uninventoried source surfaces: {sorted(expected - ids)}'
     source_categories = {'http-route', 'websocket-route', 'configuration-field',
-                         'configuration-environment', 'configuration-cli'}
+                         'configuration-environment', 'configuration-cli',
+                         'configuration-cli-tooling'}
     checked = {row['id'] for row in data['items'] if row['category'] in source_categories
                and not row['id'].startswith(('interface:env-pass-through:', 'interface:cli:launch.ps1:'))}
     assert not checked - expected, f'Stale source surfaces: {sorted(checked - expected)}'
