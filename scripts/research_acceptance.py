@@ -11,7 +11,7 @@ import json
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from rimbot.bridge import bridge_session, gabs_executable, BridgeError
+from rimbot.bridge import bridge_session, gabs_executable, BridgeError, runtime_file_read
 from rimbot.bridge_game import BridgeGame
 from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.bridge_observation import observe
@@ -21,6 +21,36 @@ from rimbot.headless import prepare
 from rimbot.research import refresh, method
 from rimbot.store import Store
 from rimbot.config import ModelRole
+
+
+class ResearchClock(PlayClock):
+    async def call(self, **arguments):
+        if arguments.get('op') in ('status', 'events'):
+            reply = await runtime_file_read(self.bridge.call, 'home/supervised_play', **arguments)
+            result = reply.structuredContent
+            if not isinstance(result, dict) or result.get('success') is not True:
+                raise ValueError('Native clock read was not confirmed')
+            return result
+        return await super().call(**arguments)
+
+
+async def poll_research_clock(clock, report):
+    try:
+        await clock.poll()
+    except BridgeError as error:
+        if not all(part in error.detail.casefold() for part in (
+                'failed to claim runtime ownership', 'a launch claim for',
+                'was published while preparing this operation', 're-check games_status and retry')):
+            raise
+        await clock.bridge.core('games_status', gameId=clock.bridge.game_id)
+        latest = await clock.call(op='status')
+        # Observe before scheduling another heartbeat. Never replay start,
+        # selection or game orders after a transport failure.
+        if (not latest.get('active') or latest.get('owner') != clock.owner
+                or latest.get('epoch') != clock.epoch or latest.get('leaseRemainingMs', 0) <= 0):
+            raise
+        report.setdefault('clock_claim_refusals', []).append(dict(error=str(error), observed=latest))
+        clock.absorb(latest)
 
 
 def fixture(root):
@@ -123,14 +153,14 @@ async def run(args):
                 await rt.game.invoke('home/research', {'set': project, 'expectedCurrent': '', 'dryRun': False, 'watch': False, **{k: rt.identity[k] for k in ('colonyId','loadToken','mapId')}}, allow_write=True)
             except (ValueError, BridgeError) as error: refused = 'guarded selection refused' in str(error)
             check('native_current_guard', refused)
-            clock = PlayClock(bridge)
+            clock = ResearchClock(bridge)
             deadline = time.monotonic() + args.timeout
             while time.monotonic() < deadline:
                 clock.allow_resume()
-                await clock.change('Superfast', max_ticks=6000)
+                await clock.change('Superfast', max_ticks=12000)
                 while True:
-                    await asyncio.sleep(.5)
-                    await clock.poll()
+                    await asyncio.sleep(2)
+                    await poll_research_clock(clock, report)
                     if not clock.state.get('active'): break
                 snapshot = await rt.game.invoke('home/research', {'dryRun': True, 'finished': True})
                 people_now = await rt.game.query('home/list_pawns', colonistsOnly=True, needs=True, health=True)
