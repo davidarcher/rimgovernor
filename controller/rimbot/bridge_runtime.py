@@ -158,11 +158,21 @@ class BridgeRuntime:
             if name == 'rimworld/get_ui_layout':
                 if self.headless:
                     raise ValueError('UI layout needs a rendered game; use native state tools in no-graphics tests')
+                self.ui_targets.clear()
                 await self.bridge.call('home/render_demand', seconds=15)
+                from .player_action_verification import selection_identity
+                selection_before = selection_identity(await self.game.invoke('rimworld/get_selection_semantics', {}))
             result = await self.game.invoke(name, arguments, allow_write=False)
             if name == 'rimworld/get_ui_layout':
+                from .player_action_verification import selection_identity
+                selection = selection_identity(await self.game.invoke('rimworld/get_selection_semantics', {}))
+                if selection_before != selection:
+                    raise ValueError('Native selection changed during UI capture; inspect again')
                 self.ui_targets = {e['targetId']: dict(e, load_token=self.context_token)
                     for s in result.get('surfaces', []) for e in s.get('elements', []) if e.get('targetId')}
+                for target in self.ui_targets.values():
+                    target['selection_identity'] = selection
+                    target['direction_revision'] = self.chat_revision
             return result
 
     async def consult(self, role, question, sections, include_image=False, *, expected_token=None, expected_revision=None):
@@ -721,6 +731,8 @@ class BridgeRuntime:
                 raise ValueError('New player direction arrived; no command sent')
             if expected_plan_revision is not None and expected_plan_revision != self.current_plan.revision:
                 raise InterruptedError('Committed plan changed; no order sent')
+            if is_write(name, arguments) and name not in ('rimworld/click_ui_target', 'rimworld/scroll_ui_target'):
+                self.ui_targets.clear()
             if name == 'rimworld/close_main_tab' and not arguments.get('mainTabId'):
                 raise ValueError('Specify the inspected mainTabId to close')
             if name == 'rimworld/open_letter':
@@ -743,6 +755,14 @@ class BridgeRuntime:
                     raise ValueError('Select an observed scroll_view target')
                 if self.headless:
                     raise ValueError('UI control needs a rendered game')
+                from .player_action_verification import selection_identity
+                if target.get('direction_revision') != self.chat_revision:
+                    self.ui_targets.clear()
+                    raise ValueError('Player direction changed; inspect the UI again')
+                current_selection = selection_identity(await self.game.invoke('rimworld/get_selection_semantics', {}))
+                if target.get('selection_identity') != current_selection:
+                    self.ui_targets.clear()
+                    raise ValueError('Native selection changed; inspect the UI again')
                 await self.bridge.call('home/render_demand', seconds=15)
                 # A failed or uncertain click must not be replayed from this capture.
                 self.ui_targets.clear()
@@ -819,7 +839,13 @@ class BridgeRuntime:
                 self.counters['actions'] += int(placed)
                 self.note('action' if placed else 'receipt', verdict_line(result) if name == 'home/place_building' else name, detail='Native receipt; completion comes from game state')
                 if name == 'home/zone_cells':
-                    verification = await self.game.query('home/list_zones')
+                    verification = await self.game.query('home/list_zones', includeCells=True, maxCellsPerZone=100000, filter=True)
+                    from .player_action_verification import verify_zone_edit
+                    verify_zone_edit(arguments, result, verification)
+                elif name == 'home/bills' and arguments.get('only'):
+                    verification = await self.game.query('home/bills', action='list', bench=arguments.get('bench'), dryRun=True)
+                    from .player_action_verification import verify_bill_whitelist
+                    verify_bill_whitelist(result, verification)
                 elif name in ('home/place_building', 'rimworld/apply_architect_designator'):
                     verification = await self.game.invoke('rimworld/get_cell_info', {'x': arguments['x'], 'z': arguments['z']})
                 elif name == 'home/trade':
@@ -841,8 +867,14 @@ class BridgeRuntime:
                     verification = await self.game.invoke('rimworld/get_ui_state', {})
                     if verification.get('success') is not True:
                         raise ValueError('UI state readback is unavailable')
-                    if name == 'rimworld/close_main_tab' and verification.get('mainTabOpen') is not False:
-                        raise ValueError('Main tab closure was not confirmed')
+                    if name in ('rimworld/click_ui_target', 'rimworld/scroll_ui_target'):
+                        from .player_action_verification import selection_identity
+                        selection = await self.game.invoke('rimworld/get_selection_semantics', {})
+                        selection_identity(selection)
+                        verification = dict(verification, selection=selection)
+                    if name == 'rimworld/close_main_tab':
+                        from .player_action_verification import verify_main_tab_closed
+                        verify_main_tab_closed(arguments, verification)
                     if name == 'rimworld/open_main_tab':
                         opened = result.get('after', {}).get('openMainTabId')
                         if not opened or verification.get('openMainTabId') != opened:

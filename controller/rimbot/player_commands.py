@@ -1,7 +1,7 @@
 """Player semantic requests join the same durable goals and action executor."""
 from typing import Annotated, Literal
 from pydantic import Field, TypeAdapter, model_validator
-from .colony_plan import Contract, ColonyGoal, CommitSteps, Decision, PlanSpec, PlanStep, RoomShell, RoomBounds, Buildings, Zone
+from .colony_plan import Contract, ColonyGoal, CommitSteps, Decision, PlanSpec, PlanStep, RoomShell, RoomBounds, Buildings, Zone, Cell
 from .colony_skills import native
 from .config import ModelRole
 from .strategic_state import fingerprint
@@ -91,6 +91,31 @@ class PlaceBuildings(Contract):
     purpose: Literal['shelter','defense','production','storage','comfort'] = 'production'
 
 
+class EditZone(Contract):
+    kind: Literal['EditZone']
+    zone_id: int = Field(ge=0, description='Exact existing zone ID from current native inspection.')
+    operation: Literal['add', 'remove', 'delete', 'crop', 'filter']
+    cells: list[Cell] = Field(default_factory=list, max_length=1024)
+    crop: str | None = None
+    preset: Literal['everything', 'nothing', 'food', 'perishables', 'nonperishables', 'outdoorSafe'] | None = None
+    allow: list[str] = Field(default_factory=list, max_length=64)
+    disallow: list[str] = Field(default_factory=list, max_length=64)
+    priority: Literal['Low', 'Normal', 'Preferred', 'Important', 'Critical'] | None = None
+
+    @model_validator(mode='after')
+    def operation_fields(self):
+        if bool(self.cells) != (self.operation in ('add', 'remove')):
+            raise ValueError('Only add/remove require explicit inspected cells')
+        if bool(self.crop) != (self.operation == 'crop'):
+            raise ValueError('Only crop requires a sowable native crop definition')
+        filters = self.preset is not None or self.allow or self.disallow or self.priority is not None
+        if bool(filters) != (self.operation == 'filter'):
+            raise ValueError('Only filter requires storage settings')
+        if any(not value.strip() or any(c in value for c in ',;\n\r') for value in self.allow+self.disallow):
+            raise ValueError('Each filter entry must be one observed native definition name')
+        return self
+
+
 class SetWorkPriority(Contract):
     kind: Literal['SetWorkPriority']
     pawn: str = Field(min_length=1, description='Observed colonist ID or an exact, unambiguous colonist name.')
@@ -103,6 +128,14 @@ class CreateBill(Contract):
     bench: str = Field(min_length=1)
     recipe: str = Field(min_length=1)
     target_count: int = Field(ge=1, le=10000)
+    ingredients: list[str] | None = Field(default=None, min_length=1, max_length=64,
+        description='Optional complete ingredient whitelist of observed native ThingDef names. Omit to preserve recipe defaults.')
+
+    @model_validator(mode='after')
+    def exact_ingredients(self):
+        if self.ingredients is not None and any(not value.strip() or any(c in value for c in ',;\n\r') for value in self.ingredients):
+            raise ValueError('Each ingredient must be one native definition name')
+        return self
 
 
 class SetBuildingTemperature(Contract):
@@ -125,10 +158,10 @@ class MovePawn(Contract):
 
 
 Command = Annotated[SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | RelocateConstruction | AdoptRoom | BuildRoom |
-                    PlaceBuildings | CreateZone | SetWorkPriority | CreateBill | SetBuildingTemperature | DraftPawn | MovePawn, Field(discriminator='kind')]
+                    PlaceBuildings | CreateZone | EditZone | SetWorkPriority | CreateBill | SetBuildingTemperature | DraftPawn | MovePawn, Field(discriminator='kind')]
 COMMAND = TypeAdapter(Command)
 COMMAND_TYPES = (SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,RelocateConstruction,AdoptRoom,BuildRoom,PlaceBuildings,
-                 CreateZone,SetWorkPriority,CreateBill,SetBuildingTemperature,DraftPawn,MovePawn)
+                 CreateZone,EditZone,SetWorkPriority,CreateBill,SetBuildingTemperature,DraftPawn,MovePawn)
 COMMAND_NAMES = {kind.__name__ for kind in COMMAND_TYPES}
 
 
@@ -161,8 +194,9 @@ def semantic_tools(resources=None):
         'AdoptRoom':'Use one existing enclosed, fully roofed native room as the preferred colony shelter. Supply inspected perimeter bounds and entrance side. Adds no building orders; future deterministic furnishing uses fresh room geometry. Existing construction orders are preserved.',
         'PlaceBuildings':'Place a semantic batch of furniture or buildings using observed definitions and positions.',
         'CreateZone':'Create a growing zone or stockpile specifically requested by the player.',
+        'EditZone':'Explicitly edit an existing observed zone: expand, remove cells, delete, change crop or storage filter. Deletion removes the zone designation; it does not destroy stored items. Use exact native filter definitions from inspection.',
         'SetWorkPriority':'Change persistent work assignments, independently of the current pawn job. Priority 0 disables a work type even when the pawn is currently doing another job.',
-        'CreateBill':'Create a production bill with a target count.',
+        'CreateBill':'Create a production bill with a target count and, when requested, a complete ingredient whitelist using observed native recipe definitions.',
         'SetBuildingTemperature':'Set the temperature control of one exact observed building, such as a cooler or heater. This sets the control; it does not certify actual cooling or heating.',
         'DraftPawn':'Draft or undraft a pawn for direct combat control. This does not change work assignments.',
         'MovePawn':'Order a pawn to a specific inspected position.',
@@ -233,7 +267,7 @@ def command_confirmation(name, result):
         return 'Existing roofed room selected as the colony shelter. Native furnishings and temperature remain separately verified.'
     titles={'SetResearch':'Research change','SetWorkPriority':'Work assignment change','DraftPawn':'Draft change',
             'MovePawn':'Movement order','BuildRoom':'Room shell','PlaceBuildings':'Building batch',
-            'CreateZone':'Zone','CreateBill':'Production bill','SetBuildingTemperature':'Temperature setpoint'}
+            'CreateZone':'Zone','EditZone':'Zone edit','CreateBill':'Production bill','SetBuildingTemperature':'Temperature setpoint'}
     return titles.get(name,name)+' accepted. Execution is tracked in the colony plan.'
 
 
@@ -356,6 +390,18 @@ async def apply_command(rt, payload, *, token, revision):
         elif isinstance(request, BuildRoom): action = request.room.model_dump()
         elif isinstance(request, PlaceBuildings): action = request.buildings.model_dump()
         elif isinstance(request, CreateZone): action = request.zone.model_dump()
+        elif isinstance(request, EditZone):
+            arguments = dict(op=request.operation, zone=str(request.zone_id), watch=False)
+            if request.cells:
+                arguments['cells'] = ';'.join(f'{cell.x},{cell.z}' for cell in request.cells)
+            for field, native_field in (('crop','plant'),('preset','preset'),('priority','priority')):
+                if (value := getattr(request, field)) is not None: arguments[native_field] = value
+            for field in ('allow', 'disallow'):
+                if value := getattr(request, field): arguments[field] = ','.join(value)
+            preview = await rt.inspect_native('home/zone_cells', dict(arguments, dryRun=True))
+            if preview.get('success') is not True or any(cell.get('accepted') is not True for cell in preview.get('cells', [])):
+                raise ValueError('Native zone edit refused: '+str(preview.get('error') or preview.get('reason') or preview.get('cells')))
+            action = native('home/zone_cells', **arguments)
         elif isinstance(request, SetWorkPriority):
             roster = await rt.game.query('home/list_pawns',colonistsOnly=True,work=True)
             pawn = resolve_colonist(request.pawn,roster.get('pawns',[]))
@@ -368,6 +414,11 @@ async def apply_command(rt, payload, *, token, revision):
             action = native('home/bills', action='add', bench=request.bench, recipe=request.recipe,
                 repeatMode='TargetCount', targetCount=request.target_count,
                 unpauseWhenYouHave=max(0, request.target_count//2), pauseWhenSatisfied='on', watch=False)
+            if request.ingredients is not None:
+                action['arguments']['only'] = ','.join(request.ingredients)
+                preview = await rt.inspect_native('home/bills', dict(action['arguments'], dryRun=True))
+                if preview.get('success') is not True or preview.get('write', {}).get('refused') is not False:
+                    raise ValueError('Native bill ingredient whitelist refused: '+str(preview.get('error') or preview.get('reason')))
         elif isinstance(request, SetBuildingTemperature):
             observed = await rt.game.query('home/list_buildings', aggregate=False, playerOnly=True)
             matches = [building for building in observed.get('buildings', []) if building.get('thingId') == request.thing]

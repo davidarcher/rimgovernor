@@ -292,3 +292,7 @@ Wild plant and mature tree acquisition uses the native harvest and harvest-wood
 designators. Both generate HarvestPlant work consumed by WorkGiver_PlantsCut;
 source metadata therefore requests PlantCutting, while mining requests Mining.
 The source list and final dispatch both honor native designation eligibility.
+
+Special stockpile filters enumerate native configurable SpecialThingFilterDef
+definitions and call ThingFilter.SetAllow on live or detached preview filters.
+This original extension uses the native settings API and copies no game source.

@@ -156,7 +156,7 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "For op=create: the label for the new zone. Null = the game's own auto-generated name.")] string label = null,
             [ToolParameter(Description = "Storage priority for a stockpile (Low, Normal, Preferred, Important, Critical). Applies to op=create, op=filter and, when given, to op=add on an existing stockpile.")] string priority = null,
             [ToolParameter(Description = "For op=filter and op=create: a prebuilt filter to start from. One of everything, nothing, food, perishables, nonperishables, outdoorSafe. The reply's presetDefinition says exactly what each covers.")] string preset = null,
-            [ToolParameter(Description = "For op=filter and op=create: extra ThingCategoryDef or ThingDef names to allow, comma-separated, applied after the preset. defName or label, case-insensitive. A name that matches nothing refuses the whole call.")] string allow = null,
+            [ToolParameter(Description = "For op=filter and op=create: extra ThingCategoryDef or ThingDef names to allow, comma-separated, applied after the preset. Use special:DEFNAME for a configurable SpecialThingFilterDef discovered in the filter summary. Unknown or nonconfigurable names refuse the whole call.")] string allow = null,
             [ToolParameter(Description = "For op=filter and op=create: ThingCategoryDef or ThingDef names to disallow, comma-separated, applied last. Same matching and the same refusal.")] string disallow = null,
             [ToolParameter(Description = "For op=crop or op=create with zoneType=growing: the plant to grow, as a ThingDef defName (Plant_Potato) or label (potato plant), case-insensitive. A name that matches no sowable plant refuses and lists what the zone will take.")] string plant = null,
             [ToolParameter(Description = "After op=add, call Zone.CheckContiguous() when the zone has become non-contiguous. CheckContiguous DELETES the cells it cannot reach, so this is off by default: the tool reports contiguous:false and leaves the zone alone.", DefaultValue = false)] bool allowSplit = false,
@@ -536,6 +536,7 @@ namespace HomeBridge.BridgeTools
             var priorityBefore = CurrentPriority(stockpile);
             var before = StockpileFilter.Summary(settings.filter, priorityBefore, universe);
             var allowedBefore = StockpileFilter.AllowedSet(settings.filter);
+            var specialBefore = StockpileFilter.SpecialSignature(settings.filter);
 
             var changes = new List<object>();
             string applyError = null;
@@ -582,6 +583,7 @@ namespace HomeBridge.BridgeTools
             }
 
             var changed = !allowedBefore.SetEquals(allowedAfter)
+                          || specialBefore != StockpileFilter.SpecialSignature(dryRun ? scratch : settings.filter)
                           || (request.Priority.HasValue && request.Priority.Value != priorityBefore);
             if (!changed)
                 changes.Add("Nothing changed: the stockpile already had exactly this filter and priority.");
@@ -2297,10 +2299,11 @@ namespace HomeBridge.BridgeTools
         /// the reason a call is refused before anything is written.</summary>
         internal sealed class Resolved
         {
+            internal readonly List<SpecialThingFilterDef> Specials = new List<SpecialThingFilterDef>();
             internal readonly List<ThingCategoryDef> Categories = new List<ThingCategoryDef>();
             internal readonly List<ThingDef> Defs = new List<ThingDef>();
             internal readonly List<string> Unresolved = new List<string>();
-            internal bool Any { get { return Categories.Count > 0 || Defs.Count > 0; } }
+            internal bool Any { get { return Categories.Count > 0 || Defs.Count > 0 || Specials.Count > 0; } }
         }
 
         /// <summary>
@@ -2320,6 +2323,15 @@ namespace HomeBridge.BridgeTools
                 var name = raw.Trim();
                 if (name.Length == 0)
                     continue;
+
+                if (name.StartsWith("special:", StringComparison.Ordinal))
+                {
+                    var special = DefDatabase<SpecialThingFilterDef>.AllDefsListForReading
+                        .SingleOrDefault(d => d.defName == name.Substring(8) && d.configurable);
+                    if (special == null) result.Unresolved.Add(name);
+                    else result.Specials.Add(special);
+                    continue;
+                }
 
                 var category = FindCategory(name, true);
                 if (category != null) { result.Categories.Add(category); continue; }
@@ -2438,6 +2450,22 @@ namespace HomeBridge.BridgeTools
                 if (changes != null)
                     changes.Add("Disallow " + Label(def) + ".");
             }
+            foreach (var special in allow.Specials)
+            {
+                filter.SetAllow(special, true);
+                changes?.Add("Allow special filter " + special.defName + ".");
+            }
+            foreach (var special in disallow.Specials)
+            {
+                filter.SetAllow(special, false);
+                changes?.Add("Disallow special filter " + special.defName + ".");
+            }
+        }
+
+        internal static string SpecialSignature(ThingFilter filter)
+        {
+            return string.Join(";", DefDatabase<SpecialThingFilterDef>.AllDefsListForReading
+                .Where(d => d.configurable).Select(d => d.defName + "=" + filter.Allows(d)));
         }
 
         /// <summary>The allowed defs as a set, for a before/after comparison that
@@ -2484,6 +2512,11 @@ namespace HomeBridge.BridgeTools
                 return summary;
 
             var allowed = AllowedSet(filter);
+            summary["specialFilters"] = DefDatabase<SpecialThingFilterDef>.AllDefsListForReading
+                .Where(d => d.configurable).Select(d => new Dictionary<string, object> {
+                    { "defName", d.defName }, { "label", d.label },
+                    { "argument", "special:" + d.defName }, { "allowed", filter.Allows(d) }
+                }).ToList();
             var inUniverse = universe.Where(allowed.Contains).ToList();
             summary["allowedDefCount"] = BridgeCommon.Try(() => filter.AllowedDefCount, inUniverse.Count);
 
