@@ -148,9 +148,12 @@ namespace HomeBridge.BridgeTools
             var available = dialog.transferables.Where(g => !(g.AnyThing is Pawn))
                 .GroupBy(g => g.ThingDef.defName).Select(g => new { defName = g.Key,
                     available = g.Sum(row => row.MaxCount) }).ToArray();
+            var carried = pawns.SelectMany(p => p.inventory.innerContainer)
+                .GroupBy(t => t.def.defName).Select(g => new { defName = g.Key,
+                    count = g.Sum(t => t.stackCount) }).ToArray();
             if (dryRun) return new { success = true, accepted = true, dryRun,
                 massUsage = dialog.MassUsage, massCapacity = dialog.MassCapacity,
-                costList = selected, materials = new { rows = available } };
+                costList = selected, carriedCargo = carried, materials = new { rows = available } };
             bool accepted = (bool)Call(dialog, "TryFormAndSendCaravan");
             return new { success = true, accepted, dryRun, observation = WorldProgressionTools.ReadNow() };
         }

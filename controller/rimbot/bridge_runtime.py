@@ -1035,6 +1035,9 @@ class BridgeRuntime:
                     from .resource_accounting import validate_execution_costs
                     preview = await self.game.invoke(name, dict(arguments, dryRun=True))
                     validate_execution_costs(self.current_plan, self.current_plan.progress[step.id], '0', preview)
+                    carried = {r['defName']: r['count'] for r in preview['carriedCargo']}
+                    if carried != step.action.caravan_target.carried_cargo:
+                        raise ValueError('Crew inventory changed before formation; revalidate the manifest')
                 else:
                     world = await self.game.query('home/world_progression')
                     caravan = next((c for c in world.get('caravans', []) if c.get('id') == arguments['caravanId']), None)

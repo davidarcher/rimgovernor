@@ -20,6 +20,8 @@ what each action must observe.
 
 | `RequestSurgery` | `surgery_health` verifies the expected native condition change on the exact patient/body part. Bill removal does not certify success; postoperative recovery remains separate. See [medical care](medical-care.md). |
 | `trade` | Guarded open/stage/preview/accept with participant, content and silver-budget checks; hauling/storage remain separate. |
+| Caravan formation and travel | Exact living crew with observed loaded departure, destination arrival or home-map return; assembly and route receipts alone do not complete travel. |
+| Quest acceptance | Fresh scoped acceptance tick; native quest success remains a separate observed state. |
 | `clock`, `stand_down` | Native clock control or verified release of selected current-load AI-owned drafts; neither certifies combat victory. |
 
 ## Trades

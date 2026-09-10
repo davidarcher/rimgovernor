@@ -1,5 +1,7 @@
 # Verify world progression
 
+[Documentation](../README.md)
+
 `scripts/container_world_progression_acceptance.py` accepts the same `--game`,
 `--mods`, `--profile` and `--gabs` Linux input directories as the lifecycle runner.
 Use a task-specific `--image` and a new `--output` directory. It builds and pins
@@ -21,15 +23,17 @@ It also generates an ordinary native TradeRequest offer, selects an observed
 reward through AcceptQuest and verifies native acceptance. This does not certify
 delivery of that trade quest's requested goods.
 Hidden fixture quest evidence stays outside the gameplay observation surface.
-`--days N` adds ordinary simulation with baseline living-roster checks at most
-6,000 ticks apart and cold-weather readiness samples. Warm-weather survival
+`--days N` runs the deterministic controller with baseline living-roster and
+cold-weather readiness samples every five seconds, retaining native ticks and
+scope. A 30-minute wall bound fails stalled runs; safety stops remain active.
+Warm-weather survival
 does not establish winter acceptance. Cold exposure, stored food and usable
 indoor sleeping must all be observed before the winter-readiness predicate passes.
 
 `--matrix --trip --shared` additionally requires native cargo reserve and competing
 manifest refusals before dispatch, an ordinary ColdSnap with freezing exposure
-and a negative readiness result for the bare baseline, and an ordinary MadAnimal
-incident that blocks clock advancement. These incident fixtures call normal
+and a negative readiness result for the bare baseline, and an ordinary
+AnimalInsanitySingle incident that blocks clock advancement. These fixtures call normal
 incident workers; they never edit temperatures, pawn health or quest success.
 The matrix verifies conservative evaluation and emergency stopping, not combat
 victory or winter survival. Broader sustained foothold coverage remains in B04.

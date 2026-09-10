@@ -11,13 +11,13 @@ namespace RimBot.InterruptionFixtures
     // Separate test assembly; never part of production or the gameplay capability allowlist.
     public sealed class InterruptionFixture
     {
-        [Tool("test/world_incident", Description = "Disposable ordinary ColdSnap or MadAnimal incident at native storyteller settings. No direct condition, temperature, pawn or health edits.")]
+        [Tool("test/world_incident", Description = "Disposable ordinary ColdSnap or AnimalInsanitySingle incident at native storyteller settings. No direct condition, temperature, pawn or health edits.")]
         public async Task<object> WorldIncident(IRimBridgeContext ctx, CancellationToken cancellationToken,
             string definition, bool dryRun = true)
         {
             return await ctx.MainThread.InvokeAsync(() =>
             {
-                if (definition != "ColdSnap" && definition != "MadAnimal") throw new ArgumentException("Unsupported fixture incident");
+                if (definition != "ColdSnap" && definition != "AnimalInsanitySingle") throw new ArgumentException("Unsupported fixture incident");
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Load and pause a disposable colony first");
                 var def = DefDatabase<IncidentDef>.GetNamed(definition);

@@ -57,6 +57,10 @@ Local changes:
   code. It observes native ingestion, stack splits, harvests and recipe products and retains food references
   for rot readback after destruction. It does not spawn, age or move food, alter
   temperatures, change pawn behavior or advance time. Default builds exclude it.
+- `scripts/fixtures/InterruptionFixture.cs` adds ordinary TradeRequest offers,
+  ColdSnap and AnimalInsanitySingle incident callbacks and native join-quest state
+  reads for disposable evaluation. These test-only tools never directly set quest
+  completion, temperature, pawn health or inventory and remain outside model execution.
 - `ForecastFacts.cs` is original local read-only animal-feed, crop-work and
   medical/mood input accounting. `FoodSupplyFacts.cs` records native eater policy,
   diet and access eligibility; `ColonyFactsTool.cs` exposes these inputs.

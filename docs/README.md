@@ -50,6 +50,7 @@ introduces the idea before linking to the exact contracts and relevant source.
 - [Verify population outcomes in Docker](how-to/population-acceptance.md).
 - [Verify animal husbandry](how-to/husbandry-acceptance.md) against its [management contracts](reference/husbandry-contracts.md).
 - [Verify material extraction](how-to/mining-acceptance.md) against its [extraction contracts](reference/mining-contracts.md).
+- [Verify caravans, quests and survival evaluations](how-to/world-progression.md) and [understand world outcomes](explanation/world-progression.md).
 - [Save and resume](how-to/save-and-resume.md) or [inspect a failed run](how-to/inspect-failure.md).
 - [Verify policy trades](how-to/trade-acceptance.md) against actual goods and silver.
 - [Verify equipment upkeep](how-to/equipment-upkeep.md) and its [native contracts](reference/equipment-upkeep.md).

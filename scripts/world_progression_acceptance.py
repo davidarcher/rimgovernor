@@ -11,6 +11,7 @@ from rimbot.colony_plan import ColonyGoal, CommitSteps
 from rimbot.world_progression import caravan_outcome, survival_assessment
 from rimbot.player_commands import apply_command
 from session_checkpoint_acceptance import ready
+from deterministic_foothold import NoInference
 
 
 async def run():
@@ -18,8 +19,9 @@ async def run():
     output = root.parent / 'world-progression'
     output.mkdir(exist_ok=False)
     store = Store(output / 'state.sqlite')
-    rt = BridgeRuntime(store, root, fresh=True, headless=True)
-    report = {'passed': False, 'scope': 'Native world-progression audit'}
+    NoInference.attempts = 0
+    rt = BridgeRuntime(store, root, fresh=True, headless=True, model_factory=lambda _: NoInference())
+    report = {'passed': False, 'scope': 'Native world-progression audit', 'cases': {}}
     shared = os.environ.get('RIMBOT_SHARED_WORLD') == '1'
     async def command(*, waits=True, **payload):
         async with rt.lock:
@@ -100,6 +102,7 @@ async def run():
         report['initial_readiness'] = survival_assessment(report['facts'])
         assert report['world']['complete'] is True
         assert report['catalog']['accepted'] is True
+        report['cases']['observations'] = 'passed'
         if os.environ.get('RIMBOT_CARAVAN_TRIP') == '1':
             observed = report['facts']
             supply_cells = observed.get('forbiddenSupplies', [])
@@ -160,6 +163,7 @@ async def run():
                             raise AssertionError('Competing manifests overcommitted native cargo')
                         assert not (await read('home/world_progression'))['assemblies']
                         await rt.cancel_plan_step(pending['step'])
+                        report['cases']['resource_competition'] = 'passed'
                     report['formation'] = (await command(kind='FormCaravan', pawn_ids=[pawn],
                         cargo=[dict(group_id=food['id'], count=60)], destination=tile)) if shared else (
                         await read('home/caravan', **arguments, dryRun=False))
@@ -222,6 +226,7 @@ async def run():
             if shared:
                 report['plan'] = rt.current_plan.model_dump(mode='json')
                 assert all(rt.current_plan.progress[s].state == 'complete' for s in report['shared_steps'])
+            report['cases']['caravan_round_trip'] = 'passed'
         if os.environ.get('RIMBOT_QUEST_PROBE') == '1':
             preview = await read('test/join_incident', dryRun=True)
             assert preview['eligible'], 'Ordinary join incident is ineligible in this scenario'
@@ -241,17 +246,20 @@ async def run():
                 reward_choice=quest['rewardChoices'][0]['index'] if quest['rewardChoices'] else -1)
             accepted = next(q for q in report['quest_acceptance']['observation']['quests'] if q['id'] == quest['id'])
             assert accepted['state'] == 'Ongoing' and accepted['acceptedTick'] >= 0
+            report['cases']['native_quest_progression'] = 'passed'
         days = int(os.environ.get('RIMBOT_SURVIVAL_DAYS', '0'))
         if days:
             baseline = await read('home/list_pawns', colonistsOnly=True)
             expected = {p['thingId'] for p in baseline['pawns']}
             start = await read('home/world_progression')
             report['survival'] = dict(start_tick=start['ticksGame'], required_days=days, samples=[])
+            await rt.set_mode('automate')
+            deadline = time.monotonic() + 1800
             while True:
                 world = await read('home/world_progression')
-                if world['ticksGame'] - start['ticksGame'] >= days * 60000:
-                    break
-                await window(min(6000, start['ticksGame'] + days * 60000 - world['ticksGame']))
+                assert time.monotonic() < deadline, 'Survival window did not complete within its wall bound'
+                if world['ticksGame'] - start['ticksGame'] < days * 60000:
+                    await asyncio.sleep(5)
                 roster = await read('home/list_pawns', colonistsOnly=True, includeDead=True, health=True)
                 world = await read('home/world_progression')
                 assert all(world[k] == start[k] for k in ('colonyId', 'loadToken', 'mapId'))
@@ -259,10 +267,16 @@ async def run():
                 assert expected <= living, 'A baseline colonist is dead or absent'
                 facts = await read('home/colony_facts', planning=True)
                 sample = dict(tick=world['ticksGame'], living=sorted(living), readiness=survival_assessment(facts))
+                assert sample['tick'] >= (report['survival']['samples'][-1]['tick']
+                    if report['survival']['samples'] else start['ticksGame']), 'Native time rewound'
                 report['survival']['samples'].append(sample)
                 (output / 'progress.json').write_text(json.dumps(report, indent=2))
+                if world['ticksGame'] - start['ticksGame'] >= days * 60000:
+                    break
             report['survival']['end_tick'] = world['ticksGame']
             report['survival']['passed'] = True
+            report['cases']['multi_day_survival'] = 'passed'
+            await rt.set_mode('manual')
         if os.environ.get('RIMBOT_WORLD_MATRIX') == '1':
             preview = await read('test/world_incident', definition='ColdSnap', dryRun=True)
             assert preview['eligible'], 'Native cold snap is unavailable in this scenario'
@@ -278,10 +292,11 @@ async def run():
                 assert facts['tick'] - cold_start < 60000, 'No native freezing exposure within a day'
                 await window(6000)
             assert readiness['winter_readiness_observed'] is False, 'Bare baseline must not certify winter readiness'
-            preview = await read('test/world_incident', definition='MadAnimal', dryRun=True)
+            report['cases']['cold_readiness_refusal'] = 'passed'
+            preview = await read('test/world_incident', definition='AnimalInsanitySingle', dryRun=True)
             assert preview['eligible'], 'Native mad-animal incident is unavailable'
             before = await read('home/world_progression')
-            report['emergency'] = await read('test/world_incident', definition='MadAnimal', dryRun=False)
+            report['emergency'] = await read('test/world_incident', definition='AnimalInsanitySingle', dryRun=False)
             assert report['emergency']['applied']
             async with rt.lock:
                 try:
@@ -293,6 +308,10 @@ async def run():
             report['emergency_clock'] = clock
             after = await read('home/world_progression')
             assert after['ticksGame'] == before['ticksGame'], 'Unresolved emergency advanced simulation'
+            report['cases']['emergency_stop'] = 'passed'
+        report['model_calls'] = rt.counters['model_calls']
+        report['model_attempts'] = NoInference.attempts
+        assert report['model_calls'] == 0 and report['model_attempts'] == 0
         report['passed'] = True
     except Exception as error:
         report['error'] = repr(error)

@@ -20,6 +20,16 @@ def run(args):
     report = dict(passed=False, container=name, trip=args.trip, shared=args.shared, quests=args.quests, days=args.days, matrix=args.matrix,
                   scope='Native caravan/quest observations and optional ordinary loaded caravan round trip')
     try:
+        required = ['RimBot.Observations.BridgeTools.dll']
+        if args.quests or args.matrix:
+            required.append('RimBot.InterruptionFixtures.BridgeTools.dll')
+        report['assemblies'] = {}
+        for assembly in required:
+            matches = list(args.mods.resolve().rglob(assembly))
+            if len(matches) != 1:
+                raise ValueError(f'Require exactly one {assembly}; found {len(matches)} in the private mod snapshot')
+            report['assemblies'][assembly] = dict(path=str(matches[0]),
+                sha256=hashlib.sha256(matches[0].read_bytes()).hexdigest())
         if not args.no_build:
             with (output / 'build.log').open('w') as log:
                 command('build', '-f', 'containers/Dockerfile', '--target', 'worker', '-t', args.image, '.',

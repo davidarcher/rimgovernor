@@ -150,6 +150,8 @@ class Hands:
                                     player_direction=player_direction)
                             if step.goal_id and step.goal_id.startswith('Population-'):
                                 progress.issued[key].update(load_token=token, issued_at=time.time())
+                            if action.tool == 'home/caravan':
+                                progress.issued[key]['issued_tick'] = rt.batch.summary.end_tick
                             rt.persist()
                             result = await rt.native(action.tool, args, expected_revision=direction, expected_token=token,
                                 expected_plan_revision=revision, reconcile=False, expected_step_id=step.id)

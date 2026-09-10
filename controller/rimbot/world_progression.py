@@ -39,9 +39,11 @@ async def reconcile_world(rt):
                 for pawn in caravan['pawns']:
                     for item in pawn.get('inventory') or []:
                         cargo[item['defName']] = cargo.get(item['defName'], 0) + item['count']
-                if all(cargo.get(resource, 0) >= count for resource, count in target.cargo.items()):
+                if all(cargo.get(resource, 0) >= count + target.carried_cargo.get(resource, 0)
+                       for resource, count in target.cargo.items()):
                     receipt['cargo_departed'] = True
                     receipt['observed_cargo'] = cargo
+                    receipt['confirmed'] = True
                     complete = True
             elif step.action.completion == 'caravan_arrived':
                 complete = outcome['state'] == 'arrived'

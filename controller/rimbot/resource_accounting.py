@@ -41,6 +41,9 @@ async def validate_allocations(spec, current, game):
             costs = {r['defName']: r['count'] for r in preview['costList']}
             if costs != action.caravan_target.cargo:
                 raise ValueError('Caravan cargo manifest changed; inspect before admission')
+            if not isinstance(preview.get('carriedCargo'), list) or {
+                    r['defName']: r['count'] for r in preview['carriedCargo']} != action.caravan_target.carried_cargo:
+                raise ValueError('Crew inventory must match the observed formation baseline')
             available = {r['defName']: r['available'] for r in preview['materials']['rows']}
             for resource, count in costs.items():
                 rules = policy.get(resource, {})

@@ -172,6 +172,27 @@ async def test_loaded_departure_completes_shared_action_without_replaying_write(
 
 
 @pytest.mark.asyncio
+async def test_uncertain_departure_releases_observed_cargo_without_reviving_blocked_work():
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+    from rimbot.world_progression import reconcile_world
+    from rimbot.resource_accounting import execution_reservations
+    plan = caravan_plan()
+    progress = plan.progress['trip']
+    progress.state = 'blocked'
+    progress.issued['0']['confirmed'] = False
+    value = observation()
+    value['caravans'][0]['pawns'][0].update(thingId='Thing_pawn1',
+        inventory=[{'defName': 'Pemmican', 'count': 60}])
+    rt = SimpleNamespace(current_plan=plan, game=SimpleNamespace(query=AsyncMock(return_value=value)), signal=Mock())
+    assert execution_reservations(plan, 'other') == {'Pemmican': 60}
+    await reconcile_world(rt)
+    assert progress.state == 'blocked'
+    assert execution_reservations(plan, 'other') == {}
+    rt.signal.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_cargo_reserve_policy_rejects_admission():
     from rimbot.colony_plan import ColonyPlan
     from rimbot.resource_accounting import validate_allocations
@@ -180,6 +201,7 @@ async def test_cargo_reserve_policy_rejects_admission():
     current = ColonyPlan()
     current.control['resource_policy'] = {'Pemmican': {'reserve': 50}}
     game = SimpleNamespace(invoke=AsyncMock(return_value={'accepted': True,
+        'carriedCargo': [],
         'costList': [{'defName': 'Pemmican', 'count': 60}],
         'materials': {'rows': [{'defName': 'Pemmican', 'available': 100}]}}))
     with pytest.raises(ValueError, match='reservation'):
@@ -200,3 +222,22 @@ def test_player_route_change_invalidates_arrival_expectation():
     value = observation()
     value['caravans'][0]['destination'] = 30
     assert outcome(value) == 'invalidated'
+
+
+@pytest.mark.asyncio
+async def test_preexisting_crew_food_does_not_count_as_newly_loaded_cargo():
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+    from rimbot.world_progression import reconcile_world
+    plan = caravan_plan()
+    plan.spec.steps[0].action.caravan_target.carried_cargo = {'Pemmican': 20}
+    value = observation()
+    pawn = value['caravans'][0]['pawns'][0]
+    pawn.update(thingId='Thing_pawn1', inventory=[{'defName': 'Pemmican', 'count': 60}])
+    rt = SimpleNamespace(current_plan=plan, game=SimpleNamespace(query=AsyncMock(return_value=value)), signal=Mock())
+    await reconcile_world(rt)
+    assert plan.progress['trip'].state == 'waiting'
+    assert not plan.progress['trip'].issued['0'].get('cargo_departed')
+    pawn['inventory'][0]['count'] = 80
+    await reconcile_world(rt)
+    assert plan.progress['trip'].state == 'complete'

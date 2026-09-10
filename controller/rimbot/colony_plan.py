@@ -118,12 +118,13 @@ class CaravanTarget(Contract):
     destination: int = Field(ge=0)
     caravan_id: str | None = None
     cargo: dict[str, int] = Field(default_factory=dict)
+    carried_cargo: dict[str, int] = Field(default_factory=dict)
 
     @model_validator(mode='after')
     def valid_manifest(self):
         if len(set(self.pawn_ids)) != len(self.pawn_ids) or any(not p.startswith('Thing_') for p in self.pawn_ids):
             raise ValueError('Caravan members require unique native pawn IDs')
-        if any(type(count) is not int or count <= 0 for count in self.cargo.values()):
+        if any(type(count) is not int or count <= 0 for count in [*self.cargo.values(), *self.carried_cargo.values()]):
             raise ValueError('Caravan cargo counts must be positive integers')
         return self
 

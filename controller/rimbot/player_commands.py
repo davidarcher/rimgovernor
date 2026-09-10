@@ -653,6 +653,7 @@ async def apply_command(rt, payload, *, token, revision):
                 raise ValueError(preview.get('reason') or 'Native caravan request refused')
             if isinstance(request, FormCaravan):
                 target['cargo'] = {r['defName']: r['count'] for r in preview['costList']}
+                target['carried_cargo'] = {r['defName']: r['count'] for r in preview['carriedCargo']}
             action = native('home/caravan', **arguments)
             action.update(completion=completion, caravan_target=target)
         elif isinstance(request, AcceptQuest):

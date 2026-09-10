@@ -35,6 +35,7 @@ first guided exercise, use [your first Docker test](../tutorials/first-docker-te
 - [Verify hunting screening and dispatch](hunting.md)
 - [Verify native trades](trade-acceptance.md)
 - [Verify population custody, care and recruitment](population-acceptance.md)
+- [Verify world progression](world-progression.md)
 - [Verify semantic player commands](semantic-commands.md)
 - [Verify native player zone, bill and UI actions](player-actions.md)
 - [Verify ordinary colony establishment](crashlanded.md)
