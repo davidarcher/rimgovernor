@@ -294,11 +294,6 @@ in the checkpoint commit; do not append an implementation diary here.
   hostile encounters and strategy-selected stand-down. Raid victory and autonomous
   tactics remain open. Audit human undraft/redraft ownership ambiguity and native
   safety/path checks before adding automatic rescue, firefighting or heat escape.
-- [ ] **B10 · Trade acceptance.** The deterministic transaction and native module
-  exist. Complete real buy/sell exchanges with both sides' affordability, exact
-  silver/stock changes, stale sessions/loads and trader departure/delivery checks.
-  Test lost acceptance receipts without replay. Audit orbital trade's ordinary
-  player input path separately from adjacent map trading.
 
 ## P2 — Coverage, inspection and evaluation scale
 
