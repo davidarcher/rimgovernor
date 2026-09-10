@@ -145,7 +145,7 @@ def priority_nodes(facts, latches, policy):
     if cold or hot or not gates['temperature']: nodes.append(('EnsureTemperatureSafety', 2))
     if not gates['cooking']: nodes.append(('EnsureCooking', 2))
     if not gates['power']: nodes.append(('EnsureBasicPower', 2))
-    if not gates['storage']: nodes.append(('EnsureFoodStorage', 3))
+    if not gates['storage']: nodes.append(('EnsureFoodStorage', 2))
     if not gates['defense']: nodes.append(('EnsureBasicDefense', 3))
     if wood: nodes.append(('MaintainWood', 3))
     from .gear_upkeep import needs_upkeep
@@ -190,10 +190,11 @@ def required_colony_work(plan):
 
 def work_assignment(pawns, required_work=None, overrides=None, minimum_skills=None):
     """Greedy coverage with stable tie breaks and a load penalty for specialists."""
-    # Native job order lets continuous cooking/hunting starve sowing. Allocate
-    # the three food roles before sharing intermittent medical/construction work.
-    skill_for = {'Growing': 'Plants', 'Cooking': 'Cooking', 'Hunting': 'Shooting',
-                 'Doctor': 'Medicine', 'Construction': 'Construction', 'PlantCutting': 'Plants'}
+    # Preserve native construction skill prerequisites first, then give food
+    # specialists other available workers so building cannot starve sowing.
+    skill_for = {'Construction': 'Construction', 'Growing': 'Plants',
+                 'Cooking': 'Cooking', 'Hunting': 'Shooting',
+                 'Doctor': 'Medicine', 'PlantCutting': 'Plants'}
     skill_for.update(required_work or {})
     available = [p for p in pawns if not p.get('dead') and not p.get('downed') and not p.get('drafted') and not p.get('mentalState')
                  and (p.get('work') or {}).get('applies') is True]
@@ -229,6 +230,7 @@ def work_assignment(pawns, required_work=None, overrides=None, minimum_skills=No
     hunters = {owners['Hunting']} if 'Hunting' in owners else set()
     second_hunters = [p for p in available if p['thingId'] not in hunters
         and p['thingId'] not in (owners.get('Growing'),owners.get('Cooking'))
+        and (overrides or {}).get(p['thingId'],{}).get('Hunting') != 0
         and ((p.get('equipment') or {}).get('primary') or {}).get('ranged') is True
         and any(w['name']=='Hunting' and w.get('disabled') is False for w in p['work']['types'])]
     if second_hunters:
@@ -236,7 +238,8 @@ def work_assignment(pawns, required_work=None, overrides=None, minimum_skills=No
     growers = {owners['Growing']} if 'Growing' in owners else set()
     spare_growers = []
     for pawn in available:
-        if load[pawn['thingId']]: continue
+        if (load[pawn['thingId']] or pawn['thingId'] in hunters
+                or (overrides or {}).get(pawn['thingId'],{}).get('Growing') == 0): continue
         capable = any(w['name']=='Growing' and w.get('disabled') is False for w in pawn['work']['types'])
         skill = next((s for s in (pawn.get('bio') or {}).get('skills',[]) if s['name']=='Plants'),{})
         if capable and skill.get('level') is not None and not skill.get('disabled'):

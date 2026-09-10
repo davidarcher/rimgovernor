@@ -123,6 +123,12 @@ async def furniture_handoff(rt, selection, definition=None):
     if goal.status!='complete':
         rt.current_plan.control['simulation_needed']=True
         return None
+    return await furnish_room(rt,shell,definition)
+
+
+async def furnish_room(rt,shell,definition=None):
+    """Fit services to current native room and building geometry."""
+    from .colony_skills import SkillBlocked
     observed=await verified_room(rt,shell)
     if observed is None:return None
     room,interior=observed
@@ -165,4 +171,17 @@ async def furniture_handoff(rt, selection, definition=None):
             if any(c.get('takenFrom') for c in preview['cells']):continue
             return [{'kind':'create_zone','zone_type':'stockpile','label':'RimBot food storage',
                      'patches':[{'x':a,'z':b,'width':3,'height':3}],'preset':'food','priority':'Important'}]
-    raise SkillBlocked('No verified space for '+(definition or 'food storage')+' in the player shelter; refine or expand it')
+    if definition is None:
+        # Service furniture may divide the available floor into smaller patches.
+        selected=[]
+        for a,b in sorted(interior-reserved,key=lambda p:(-p[1],p[0]))[:128-attempts]:
+            preview=await rt.inspect_native('home/zone_cells',{'op':'create','zoneType':'stockpile',
+                'label':'RimBot food storage','cells':f'{a},{b}',
+                'preset':'food','priority':'Important','dryRun':True})
+            if preview.get('cellsAccepted')!=1 or len(preview.get('cells',[]))!=1:continue
+            if preview['cells'][0].get('takenFrom'):continue
+            selected.append({'x':a,'z':b,'width':1,'height':1})
+            if len(selected)==9:
+                return [{'kind':'create_zone','zone_type':'stockpile','label':'RimBot food storage',
+                         'patches':selected,'preset':'food','priority':'Important'}]
+    raise SkillBlocked('No verified space for '+(definition or 'food storage')+' in the shelter; refine or expand it')

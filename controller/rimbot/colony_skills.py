@@ -403,9 +403,12 @@ class ColonySkills:
                 if selection:=player_shelter(rt.current_plan):
                     actions=await furniture_handoff(rt,selection)
                     return ('storage',actions) if actions else None
+                if facts.get('indoorSleepingCapacity',0)<facts['colonists']:
+                    return None
                 layout = await self.layout(facts)
-                return 'storage', [{'kind': 'create_zone', 'zone_type': 'stockpile', 'label': 'RimBot food storage',
-                    'patches': [layout['storage']], 'preset': 'food', 'priority': 'Important'}]
+                from .shelter_handoff import furnish_room
+                actions=await furnish_room(rt,self.shell(layout))
+                return ('storage',actions) if actions else None
             return None
         if goal_id == 'EnsureCooking':
             benches = facts.get('cooking', [])

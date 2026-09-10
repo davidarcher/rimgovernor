@@ -131,6 +131,29 @@ def services():
 
 
 @pytest.mark.asyncio
+async def test_starter_storage_fits_around_service_furniture_with_fragmented_floor():
+    rt,room,facts,buildings=services()
+    del rt.current_plan.colony_goals['intent-home']
+    rt.current_plan.colony_goals['EnsureFoodStorage']=ColonyGoal(priority_class=3)
+    for x in (12,16):
+        buildings.append({'defName':'Campfire','position':{'x':x,'z':16}})
+    async def preview(name,args):
+        assert name=='home/zone_cells'
+        cells=[dict(takenFrom=None) for _ in args['cells'].split(';')]
+        return {'cellsAccepted':len(cells),'cells':cells}
+    rt.inspect_native=AsyncMock(side_effect=preview)
+    skill=ColonySkills(rt)
+    skill.layout=AsyncMock(return_value={'room':{'x':10,'z':10,'width':9,'height':9}})
+    method,actions=await skill.compile('EnsureFoodStorage',facts,[])
+    assert method=='storage'
+    patches=actions[0]['patches']
+    cells={(x,z) for p in patches for x in range(p['x'],p['x']+p['width'])
+           for z in range(p['z'],p['z']+p['height'])}
+    assert len(cells)==9 and not cells&{(12,16),(16,16)}
+    assert all(x!=14 and z>=15 for x,z in cells)
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize('goal,expected',[('EnsureCooking','Campfire'),('EnsureTemperatureSafety','PassiveCooler'),('EnsureFoodStorage',None)])
 async def test_service_furniture_uses_player_room_without_starter_layout(goal,expected):
     rt,room,facts,buildings=services()

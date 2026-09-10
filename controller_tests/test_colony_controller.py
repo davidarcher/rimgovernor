@@ -56,10 +56,20 @@ class Replay:
     async def query(self,name,**args):
         if name=='home/colony_facts': return deepcopy(self.facts)
         if name=='home/list_pawns': return {'pawns':deepcopy(self.people)}
+        if name=='home/list_rooms':
+            bounds=self.current_plan.control['layout']['room']
+            return {'success':True,'rooms':[dict(id=1,properRoom=True,psychologicallyOutdoors=False,
+                openRoofCount=0 if self.facts.get('roofed') else 49,cellsComplete=True,
+                cells=[dict(x=x,z=z) for x in range(bounds['x']+1,bounds['x']+bounds['width']-1)
+                       for z in range(bounds['z']+1,bounds['z']+bounds['height']-1)])]}
+        if name=='home/list_buildings':return {'success':True,'buildings':[]}
         raise AssertionError(name)
     async def inspect_native(self,name,args):
         if name=='home/place_building': return {'canPlace':True}
         if name=='home/order': return {'success':True}
+        if name=='home/zone_cells':
+            cells=[dict(takenFrom=None) for _ in args['cells'].split(';')]
+            return {'cellsAccepted':len(cells),'cells':cells}
         raise AssertionError(name)
     async def invoke(self,name,args,**kwargs):
         from test_construction_preflight import native_reply
@@ -232,6 +242,31 @@ def test_work_assignment_respects_disabled_work_and_is_stable():
 
 
 @pytest.mark.asyncio
+async def test_startup_storage_does_not_wait_for_optional_equipment_slots():
+    from rimbot.colony_plan import PlanStep,NativeOperation,Failure
+    rt=Replay(8)
+    rt.current_plan.control['policy']={'max_development_projects':1}
+    rt.current_plan.control['layout']=starter_layouts(rt.facts)[0]
+    rt.facts.update(roofed=True,bedCapacity=8,indoorSleepingCapacity=8,
+                    sleepingTemperatureMin=22,sleepingTemperatureMax=22)
+    step=PlanStep(id='interrupted-gear',title='Gear',goal_id='MaintainEquipment',source='AUTOPILOT',
+        action=NativeOperation(tool='home/pawn_config',arguments={'pawn':rt.people[0]['thingId'],'work':'Hunting=1'},completion='native_receipt'),
+        completion_criteria='Observed equipment')
+    rt.current_plan.spec.steps.append(step)
+    rt.current_plan.progress[step.id]=StepProgress(state='blocked',issued={'0':{'confirmed':True}},
+        failure=Failure(code='interrupted',detail='Retained issued work'))
+    rt.current_plan.colony_goals['MaintainEquipment']=ColonyGoal(priority_class=3,steps=[step.id],status='blocked')
+    for _ in range(20):
+        await rt.controller.cycle()
+        if any(s.goal_id=='EnsureFoodStorage' for s in rt.current_plan.spec.steps):break
+        rt.labor()
+    goal=rt.current_plan.colony_goals['EnsureFoodStorage']
+    assert goal.priority_class==2
+    assert any(s.goal_id=='EnsureFoodStorage' and s.action.kind=='create_zone' for s in rt.current_plan.spec.steps), goal.model_dump()
+    assert rt.current_plan.progress[step.id].issued
+
+
+@pytest.mark.asyncio
 async def test_player_field_is_existing_work_and_cancellation_suppresses_recreation():
     rt=Replay()
     await apply_command(rt,{'kind':'CreateZone','intent_id':'food-expansion','zone':{
@@ -298,6 +333,32 @@ def test_spare_capable_pawn_supplies_second_grower_without_displacing_specialist
     assert sum(w.get('Hunting')==1 for w in assigned.values())==2
     for work in ('Cooking','Construction','Doctor'):
         assert sum(w.get(work)==1 for w in assigned.values())==1
+
+
+@pytest.mark.parametrize('manual',[False,True])
+def test_eight_colonists_keep_crop_labor_separate_from_best_builder(manual):
+    people=roster(8)
+    for i,pawn in enumerate(people):
+        pawn['work']['manualPriorities']=manual
+        pawn['equipment']={'primary':{'ranged':True}}
+        for skill in pawn['bio']['skills']:
+            skill['level']=20 if i==0 else 6
+    assigned,covered=work_assignment(people)
+    builder=people[0]['thingId']
+    growers={p for p,w in assigned.items() if w.get('Growing')==1}
+    assert covered and assigned[builder]['Construction']==1
+    assert len(growers)==2 and builder not in growers
+    assert all(assigned[p]['Hunting']!=1 and assigned[p]['Cooking']!=1 for p in growers)
+    assert assigned==work_assignment(list(reversed(people)))[0]
+
+
+def test_additional_food_workers_preserve_disabled_player_work():
+    people=roster(8)
+    for pawn in people:pawn['equipment']={'primary':{'ranged':True}}
+    disabled={p['thingId']:{'Hunting':0,'Growing':0} for p in people[2:]}
+    assigned,covered=work_assignment(people,overrides=disabled)
+    assert covered
+    assert all(assigned[p]['Growing']!=1 and assigned[p]['Hunting']!=1 for p in disabled)
 
 
 @pytest.mark.parametrize('manual',[False,True])

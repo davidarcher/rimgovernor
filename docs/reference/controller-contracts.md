@@ -34,7 +34,15 @@ uses ordinary native need jobs and completes only from observed need recovery.
 
 ### Development admission
 
-Priority-class 3 goals for food storage, basic equipment defense, wood and maintained
+Required food storage runs at startup survival priority, alongside cooking and
+shelter. It waits for verified indoor sleeping capacity before fitting the starter
+room, but does not wait for optional development slots held by interrupted gear.
+Placement uses current native room/building geometry and zone previews, preserving
+the entrance aisle and existing zones. Nine valid cells may form several patches
+when service furniture prevents a complete rectangle. Native readback still
+establishes the storage gate.
+
+Priority-class 3 goals for basic equipment defense, wood and maintained
 player resource targets share a deterministic admission order. Scores combine a
 0–100 observed deficit fraction, a 100-point player-target preference, one point per
 2,500 waiting game ticks and a 20-point selection hysteresis bonus. Stable goal IDs
@@ -61,10 +69,14 @@ research or expansion methods, or establish their native gameplay acceptance.
 
 ## Method compilation and work allocation
 
-Work allocation separates growing, cooking and hunting before sharing intermittent
-medical and construction roles. Extra hunters exclude the primary grower and cook
+Work allocation reserves the highest-skilled native builder first, then separates
+growing, cooking and hunting among other available workers before sharing
+intermittent medical roles. Extra hunters exclude the primary grower and cook
 so native job order does not prevent sowing in small colonies. Capability reads,
 native checkbox/manual-priority mode and explicit player work overrides still apply.
+Additional growers exclude assigned hunters and player-disabled Growing work.
+Small or capability-limited workforces may still require shared roles; assignments
+alone do not establish completed sowing or food replacement.
 
 ### Environmental disruption
 

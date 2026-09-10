@@ -105,5 +105,6 @@ async def test_crop_and_storage_goals_do_not_claim_the_same_zone_label():
     for name in ('EnsureFoodSupply','EnsureFoodStorage'):
         rt.current_plan.colony_goals[name]=ColonyGoal(priority_class=2)
     _,farms=await rt.controller.skills.compile('EnsureFoodSupply',rt.facts,rt.people)
+    rt.facts.update(roofed=True,indoorSleepingCapacity=8)
     _,stores=await rt.controller.skills.compile('EnsureFoodStorage',rt.facts,rt.people)
     assert {a['label'] for a in farms}.isdisjoint(a['label'] for a in stores)
