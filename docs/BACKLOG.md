@@ -19,6 +19,8 @@ in the checkpoint commit; do not append an implementation diary here.
   initial rations run out; extend verified furniture-aware startup storage to
   changed geometry and sustained recovery; and reconcile interrupted
   equipment/hauling and upkeep watchdogs from native outcomes.
+  Extend bounded stable-patient feeding acceptance to withdrawal recovery and
+  concurrent food production in sustained campaigns.
   Mixed hunting coverage must resolve unsafe-route holds without bypassing the
   native guard. Crop-only Peaceful trials are separate from Rough survival acceptance.
   Provide safe triage while hostiles remain when all doctors are controller-drafted;

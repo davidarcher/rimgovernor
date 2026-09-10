@@ -43,14 +43,15 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "For events, maximum rows, clamped to 1..128.", DefaultValue = 64)] int limit = 64,
             [ToolParameter(Description = "Start only: pause after exactly this many ordinary game ticks, independently of controller polling and heartbeat renewal. 0 leaves tick duration unbounded; otherwise 1..1800000.", DefaultValue = 0)] int maxTicks = 0,
             [ToolParameter(Description = "Tracked surgical patient IDs. Only permits downing while alive, anesthetized, in bed, not bleeding or dangerously ill, and above half health. Rechecked every safety sweep; no injury or death guard is disabled.", DefaultValue = "")] string surgicalRecoveryIds = "",
-            [ToolParameter(Description = "Disposable acceptance only: enable native boost for a bounded Ultrafast epoch, with safety probes at most 30 game ticks apart. Restores the prior boost on stop; does not suppress native forced slowdown.", DefaultValue = false)] bool testAcceleration = false)
+            [ToolParameter(Description = "Disposable acceptance only: enable native boost for a bounded Ultrafast epoch, with safety probes at most 30 game ticks apart. Restores the prior boost on stop; does not suppress native forced slowdown.", DefaultValue = false)] bool testAcceleration = false,
+            [ToolParameter(Description = "Observed stable resting patient IDs, requiring maxTicks 1..600. Native sweeps require alive, downed, in bed, above half health, no bleeding, tending need, anesthesia or life-threatening condition. Injury and death still stop play.", DefaultValue = "")] string medicalRestIds = "")
         {
             return BridgeCommon.WithUnknownArguments(
                 await SupervisedPlayCore(ctx, cancellationToken, op, owner, epoch,
                     leaseMs, speed, mode, healthDropFraction, minHealthFraction,
                     ignoredAlertLabels, hostileWithin, ignoredHostileIds, ignoredDownedColonistIds,
                     ignoredInjuredColonistIds, injuryStopCooldownMs,
-                    afterCursor, limit, maxTicks, surgicalRecoveryIds, testAcceleration).ConfigureAwait(false),
+                    afterCursor, limit, maxTicks, surgicalRecoveryIds, testAcceleration, medicalRestIds).ConfigureAwait(false),
                 ctx, typeof(HomeSupervisedPlayTools), ToolName);
         }
 
@@ -60,7 +61,7 @@ namespace HomeBridge.BridgeTools
             string mode, float healthDropFraction, float minHealthFraction,
             string ignoredAlertLabels, float hostileWithin, string ignoredHostileIds,
             string ignoredDownedColonistIds, string ignoredInjuredColonistIds,
-            int injuryStopCooldownMs, long afterCursor, int limit, int maxTicks, string surgicalRecoveryIds, bool testAcceleration)
+            int injuryStopCooldownMs, long afterCursor, int limit, int maxTicks, string surgicalRecoveryIds, bool testAcceleration, string medicalRestIds)
         {
             if (ctx == null || ctx.MainThread == null)
                 return Fail("No main-thread dispatcher is available.");
@@ -80,6 +81,8 @@ namespace HomeBridge.BridgeTools
             {
                 if (maxTicks < 0 || maxTicks > 1800000)
                     return Fail("maxTicks must be between 0 and 1800000.");
+                if (!string.IsNullOrWhiteSpace(medicalRestIds) && (maxTicks < 1 || maxTicks > 600))
+                    return Fail("Medical rest monitoring requires maxTicks between 1 and 600.");
                 Supervisor.EnsurePatched();
                 TimeSpeed requested;
                 if (!Enum.TryParse(speed ?? string.Empty, true, out requested)
@@ -90,7 +93,7 @@ namespace HomeBridge.BridgeTools
                 return await ctx.MainThread.InvokeAsync(() => Supervisor.Start(owner, requested,
                     leaseMs, mode, healthDropFraction, minHealthFraction, hostileWithin,
                     ignoredHostileIds, ignoredDownedColonistIds,
-                    ignoredInjuredColonistIds, injuryStopCooldownMs, maxTicks, surgicalRecoveryIds, testAcceleration),
+                    ignoredInjuredColonistIds, injuryStopCooldownMs, maxTicks, surgicalRecoveryIds, testAcceleration, medicalRestIds),
                     cancellationToken).ConfigureAwait(false);
             }
             if (action == "pause")
@@ -174,7 +177,7 @@ namespace HomeBridge.BridgeTools
         internal static object Start(string owner, TimeSpeed speed, int leaseMs,
             string mode, float healthDropFraction, float minHealthFraction, float hostileWithin,
             string ignoredHostiles, string ignoredDowned, string ignoredInjured,
-            int injuryStopCooldownMs, int maxTicks, string surgicalRecoveryIds = "", bool testAcceleration = false)
+            int injuryStopCooldownMs, int maxTicks, string surgicalRecoveryIds = "", bool testAcceleration = false, string medicalRestIds = "")
         {
             lock (Gate)
             {
@@ -217,6 +220,7 @@ namespace HomeBridge.BridgeTools
                     IgnoredHostiles = PawnIds(ignoredHostiles),
                     IgnoredDowned = PawnIds(ignoredDowned),
                     SurgicalRecovery = PawnIds(surgicalRecoveryIds),
+                    MedicalRest = PawnIds(medicalRestIds),
                     IgnoredInjured = PawnIds(ignoredInjured),
                     InjuryStopCooldownMs = Clamp(injuryStopCooldownMs, 0, 1800000)
                 };
@@ -601,6 +605,13 @@ namespace HomeBridge.BridgeTools
                 if (s.AlertKeys.Add(a.Key)) Add("alert_new", a.Value, s, AlertRow(a));
             var pawns = HomePlayUntilEventTools.SpawnedPawns(Find.CurrentMap);
             var colonists = pawns.Where(HomePlayUntilEventTools.SafeIsColonist).ToList();
+            foreach (var identity in s.MedicalRest)
+            {
+                var patient = colonists.FirstOrDefault(p => p.thingIDNumber == identity);
+                if (patient == null || !MedicalRestSafety.Eligible(patient))
+                    return new Hit("medical_rest_changed", "Resting patient requires a fresh medical review",
+                        new Dictionary<string, object> { { "pawnId", identity } });
+            }
             CheckHostilesCleared(s, pawns);
             foreach (var p in pawns)
             {
@@ -614,7 +625,8 @@ namespace HomeBridge.BridgeTools
                 if (HomePlayUntilEventTools.SafeIsColonist(p)
                     && (HomePlayUntilEventTools.SafeDowned(p) || HomePlayUntilEventTools.SafeDead(p))
                     && !s.IgnoredDowned.Contains(p.thingIDNumber)
-                    && !SafeSurgicalRecovery(s, p))
+                    && !SafeSurgicalRecovery(s, p)
+                    && !(s.MedicalRest.Contains(p.thingIDNumber) && MedicalRestSafety.Eligible(p)))
                     return PawnHit("colonist_downed", p, HomePlayUntilEventTools.SafeDead(p) ? "dead" : "downed");
                 if (ThreateningPredatorHunt(p)
                     && !s.IgnoredHostiles.Contains(p.thingIDNumber)
@@ -1023,7 +1035,7 @@ namespace HomeBridge.BridgeTools
             public readonly List<Dictionary<string, object>> BaselineAlerts = new List<Dictionary<string, object>>();
             // null until the first probe of this epoch has counted.
             public int? ConsciousHostiles; public bool HostilesCleared;
-            public HashSet<int> IgnoredHostiles; public HashSet<int> IgnoredDowned; public HashSet<int> SurgicalRecovery;
+            public HashSet<int> IgnoredHostiles; public HashSet<int> IgnoredDowned; public HashSet<int> SurgicalRecovery; public HashSet<int> MedicalRest;
             public HashSet<int> IgnoredInjured; public int InjuryStopCooldownMs;
             public readonly List<Dictionary<string, object>> SuppressedInjuries = new List<Dictionary<string, object>>();
         }

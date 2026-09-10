@@ -1358,6 +1358,7 @@ namespace HomeBridge.BridgeTools
             block["hoursUntilDeathFromBloodLoss"] = hoursToBleedOut;
 
             block["needsTend"] = Try<bool?>(() => tracker.HasHediffsNeedingTend(false), null);
+            block["stableRestEligible"] = MedicalRestSafety.Eligible(pawn);
             block["shouldSeekMedicalRest"] = Try<bool?>(() => HealthAIUtility.ShouldSeekMedicalRest(pawn), null);
             block["shouldSeekMedicalRestUrgent"] = Try<bool?>(() => HealthAIUtility.ShouldSeekMedicalRestUrgent(pawn), null);
             // PLAYBOOK sharp edge: self-tend is OFF by default for everyone

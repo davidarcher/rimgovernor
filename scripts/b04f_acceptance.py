@@ -40,7 +40,7 @@ async def run(args):
             rt.reconcile_plan()
             rt.handled_revision=rt.chat_revision;rt.wake.clear()
             facts=derive(rt.batch,await rt.game.query('home/colony_facts',planning=True),rt.controller.policy)
-            people=(await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True,health=True,equipment=True))['pawns']
+            people=(await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True,health=True,equipment=True,needs=True))['pawns']
             report['latest']={'tick':facts['tick'],'threats':rt.batch.native.get('status_after',{}).get('threats'),
                 'development':facts.get('development'), 'people':[
                     {k:p.get(k) for k in ('thingId','job','jobTarget','drafted','downed','mentalState','position','health')}
@@ -281,6 +281,41 @@ async def run(args):
                     if not next(p for p in people if p['thingId']==patient)['health']['needsTend']:break
                     await window()
                 check('combat_triage_completed',not next(p for p in people if p['thingId']==patient)['health']['needsTend'])
+            elif args.case=='medical-rest':
+                from rimbot.native_scenario import advance_game,ScenarioInterrupted
+                from rimbot.colony_policy import priority_nodes
+                await issue('EnsureWorkAssignments')
+                patient=people[0]['thingId']
+                await setup('resting-patient',patient)
+                facts,people=await refresh()
+                subject=next(p for p in people if p['thingId']==patient)
+                check('native_stable_rest_observed',subject['downed'] and subject['health'].get('stableRestEligible') is True,
+                    patient=subject)
+                check('rest_shares_survival_priority',('CriticalMedical',2) in priority_nodes(facts,{},rt.controller.policy))
+                rt.current_plan.control['facts']=facts
+                rt.current_plan.colony_goals['MaintainMedicalCare']=ColonyGoal(priority_class=2)
+                untracked=await rt.supervisor.change('Superfast',max_ticks=120)
+                check('ordinary_downed_guard_remains_active',not untracked['active'] and untracked['stopReason']=='colonist_downed',clock=untracked)
+                rt.supervisor.test_acceleration=True
+                initial_food=subject['needs']['food']
+                for _ in range(30):
+                    await advance_game(rt,600,report,medical_rest=True)
+                    facts,people=await refresh()
+                    rt.current_plan.control['facts']=facts
+                    subject=next(p for p in people if p['thingId']==patient)
+                    if subject['needs']['food']>initial_food+.3:break
+                check('ordinary_caregiver_fed_resting_patient',subject['needs']['food']>initial_food+.3,
+                    before=initial_food,patient=subject)
+                check('feeding_does_not_claim_patient_recovered',subject['downed'] is True and patient in facts['criticalPatients'])
+                await setup('resting-injury',patient)
+                # Retain the preceding certificate to exercise the native recheck.
+                try:
+                    await advance_game(rt,120,report,medical_rest=True,expected_letters=())
+                except ScenarioInterrupted:
+                    stopped=report['simulation'][-1]['interruptions'][-1]['clock']
+                    check('new_injury_invalidates_rest_certificate',stopped['stopReason'] in ('colonist_downed','colonist_injury','medical_rest_changed'),clock=stopped)
+                else:
+                    raise AssertionError('New tending/bleeding need did not stop medical-rest monitoring')
             elif args.case=='equipment-observation':
                 from rimbot.native_scenario import advance_game
                 from rimbot.colony_plan import Failure
@@ -484,7 +519,7 @@ async def run(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root',type=Path,required=True)
-    parser.add_argument('--case',choices=['development','combat','medical','drafted-medical','refused-preview','equipment-observation','health'],required=True)
+    parser.add_argument('--case',choices=['development','combat','medical','drafted-medical','refused-preview','equipment-observation','medical-rest','health'],required=True)
     parser.add_argument('--seconds',type=int,default=1800)
     parser.add_argument('--new-crashlanded',action='store_true',help='Use ordinary native Crashlanded generation and starting technology, without save edits')
     parser.add_argument('--research-project',help='Require this native project on a saved-colony continuation')

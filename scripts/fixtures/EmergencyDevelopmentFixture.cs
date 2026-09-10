@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools
     {
         [Tool("test/b04f_setup", Description = "Disposable B04f initial conditions: stocks, two manhunters, wound, mental state or native player-order equivalent. No completed-work injection.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "stocks, combat-equipment, development-settings (Peaceful), opponents, wound, low-health, unavailable-doctor, external-order")] string op,
+            [ToolParameter(Description = "stocks, combat-equipment, development-settings (Peaceful), opponents, wound, low-health, resting-patient, resting-injury, unavailable-doctor, external-order")] string op,
             [ToolParameter(Description = "Exact colonist identity for pawn cases.", DefaultValue = "")] string pawn = "")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -51,7 +51,20 @@ namespace HomeBridge.BridgeTools
                 } else {
                     if (actor == null) throw new ArgumentException("Exact observed colonist required");
                     OrderedWorkHistory.Read(actor);
-                    if (op == "external-order") {
+                    if (op == "resting-patient") {
+                        var cell = GenRadial.RadialCellsAround(center, 8, true).First(c => c.InBounds(map)
+                            && c.Standable(map) && !c.Fogged(map) && c.GetEdifice(map) == null
+                            && map.thingGrid.ThingsListAt(c).Count == 0);
+                        var bed = (Building_Bed)ThingMaker.MakeThing(ThingDef.Named("SleepingSpot"));
+                        bed.SetFaction(Faction.OfPlayer); GenSpawn.Spawn(bed, cell, map); bed.Medical = true;
+                        actor.drafter.Drafted = false;
+                        actor.health.AddHediff(HediffDef.Named("CatatonicBreakdown"));
+                        actor.Position = bed.Position;
+                        actor.jobs.StartJob(JobMaker.MakeJob(JobDefOf.LayDown, bed), JobCondition.InterruptForced);
+                        actor.needs.food.CurLevelPercentage = .15f;
+                    } else if (op == "resting-injury") {
+                        actor.TakeDamage(new DamageInfo(DamageDefOf.Cut, 4, 100));
+                    } else if (op == "external-order") {
                         actor.jobs.TryTakeOrderedJob(JobMaker.MakeJob(JobDefOf.Goto,actor.Position),JobTag.Misc);
                     } else if (op == "unavailable-doctor") {
                         if (!actor.mindState.mentalStateHandler.TryStartMentalState(DefDatabase<MentalStateDef>.GetNamed("Wander_Sad"),forceWake:true))

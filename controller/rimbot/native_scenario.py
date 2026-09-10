@@ -6,7 +6,7 @@ class ScenarioInterrupted(AssertionError):
     """The scenario stopped with retained native evidence."""
 
 
-async def advance_game(rt, ticks, report, *, timeout=120, expected_letters=(('Ancient danger', 'ThreatBig'),), combat_targets=()):
+async def advance_game(rt, ticks, report, *, timeout=120, expected_letters=(('Ancient danger', 'ThreatBig'),), combat_targets=(), medical_rest=False):
     """Advance exactly ticks, acknowledging only inspected fixture warnings.
 
     Pass expected_letters=() for interruption acceptance. This operation never
@@ -17,6 +17,12 @@ async def advance_game(rt, ticks, report, *, timeout=120, expected_letters=(('An
     if type(ticks) is not int or not 1 <= ticks <= 1800000:
         raise ValueError('ticks must be 1..1800000')
     clock_arguments = {}
+    if medical_rest:
+        from .medical_management import resting_patients
+        patients=resting_patients(rt)
+        if not patients or ticks>600 or combat_targets:
+            raise ValueError('Medical rest waits require observed resting patients and at most 600 ticks outside combat')
+        clock_arguments['medical_rest']=patients
     if combat_targets:
         committed = rt.current_plan.control.get('combat', {}).get('targets', [])
         if (not all(isinstance(target, str) and target for target in combat_targets)
@@ -103,11 +109,23 @@ async def advance_game(rt, ticks, report, *, timeout=120, expected_letters=(('An
                 require(status.get('ui', {}).get('modalOpen') is False
                         and status.get('time', {}).get('paused') is True, 'Modal or unverified pause')
                 counts = status.get('counts', {})
-                require(all(counts.get(k) == 0 for k in ('hostileCount', 'huntingPredatorCount', 'downedCount')),
-                        'Active threat or downed colonist')
+                require(all(counts.get(k) == 0 for k in ('hostileCount', 'huntingPredatorCount')),
+                        'Active threat')
                 pawns = status.get('colonists')
+                resting = set()
+                if medical_rest:
+                    detailed = await rt.game.query('home/list_pawns', colonistsOnly=True, health=True)
+                    resting = {p.get('thingId') for p in detailed.get('pawns', [])
+                               if p.get('dead') is False and p.get('downed') is True
+                               and p.get('drafted') is False
+                               and (p.get('health') or {}).get('stableRestEligible') is True}
+                    require(resting == set(patients.split(',')), 'Resting patient safety changed')
+                    detail['restingPatients'] = sorted(resting)
                 require(isinstance(pawns, list) and bool(pawns)
-                        and all(all(p.get(k) is False for k in ('dead', 'downed', 'bleeding')) for p in pawns),
+                        and all(p.get('dead') is False and p.get('bleeding') is False
+                                and (p.get('downed') is False or
+                                     (p.get('downed') is True and p.get('thingId') in resting)) for p in pawns)
+                        and counts.get('downedCount') == len(resting),
                         'Colonist safety unverified')
                 require(await identity_now() == identity, 'Native identity changed')
                 fresh = await supervisor.call(op='status')

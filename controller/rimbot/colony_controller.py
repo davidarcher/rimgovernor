@@ -272,7 +272,7 @@ class ColonyController:
                     goal.status, goal.reason = 'active', ''
                 goal.evidence['mood_observation'] = observed
                 goal.evidence['mood_review_window'] = review_window
-            if identity.startswith('EnsureMood-') or (identity in ('MaintainWood', 'EnsureFoodStorage') and goal.source == 'AUTOPILOT'):
+            if identity.startswith('EnsureMood-') or (identity in ('MaintainWood', 'EnsureFoodStorage','CriticalMedical') and goal.source == 'AUTOPILOT'):
                 goal.priority_class = priority
             else:
                 goal.priority_class = min(goal.priority_class, priority)

@@ -84,13 +84,15 @@ class PlayClock:
                 raise ValueError('Dialog preparation requires a verified pause; no dialog opened')
             return state
 
-    async def change(self, speed, *, mode='colony', ignored_hostiles='', ignored_downed='', max_ticks=None, surgical_recovery=''):
+    async def change(self, speed, *, mode='colony', ignored_hostiles='', ignored_downed='', max_ticks=None, surgical_recovery='', medical_rest=''):
         if speed not in ('Paused', 'Normal', 'Fast', 'Superfast'):
             raise ValueError('Choose Paused, Normal, Fast or Superfast')
         if mode not in ('colony', 'combat'):
             raise ValueError('Choose colony or combat clock monitoring')
         if max_ticks is not None and (type(max_ticks) is not int or not 1 <= max_ticks <= 1800000):
             raise ValueError('Native execution budget must be 1..1800000 game ticks')
+        if medical_rest and (type(max_ticks) is not int or not 1<=max_ticks<=600):
+            raise ValueError('Medical rest monitoring requires 1..600 game ticks')
         if self.test_acceleration and speed != 'Paused' and max_ticks is None:
             raise ValueError('Test acceleration requires a native tick budget')
         async with self.lock:
@@ -125,6 +127,7 @@ class PlayClock:
                 ignoredHostileIds=ignored_hostiles, ignoredDownedColonistIds=ignored_downed,
                 injuryStopCooldownMs=0, **({'maxTicks': max_ticks} if max_ticks is not None else {}),
                 **({'surgicalRecoveryIds': surgical_recovery} if surgical_recovery else {}),
+                **({'medicalRestIds': medical_rest} if medical_rest else {}),
                 **({'testAcceleration': True} if self.test_acceleration else {}))
             self.epoch = result['epoch']
             self.record()

@@ -53,6 +53,42 @@ async def test_default_warning_resumes_only_remaining_ticks_and_records_evidence
     assert rt.receive_clock_events.call_count == 2
 
 
+@pytest.mark.parametrize('change', ['none', 'injured', 'other_downed', 'missing', 'unknown'])
+async def test_medical_rest_warning_requires_fresh_exact_patient_safety(monkeypatch, change):
+    rt, status, _, calls = scenario()
+    monkeypatch.setattr('rimbot.medical_management.resting_patients', lambda _: 'Patient1')
+    status['colonists'][0].update(thingId='Patient1', downed=True)
+    status['counts']['downedCount'] = 1
+    patient = dict(thingId='Patient1', dead=False, downed=True, drafted=False,
+                   health=dict(stableRestEligible=True))
+    if change == 'injured': patient['health']['stableRestEligible'] = False
+    if change == 'unknown': patient['health'].clear()
+    if change == 'other_downed':
+        status['colonists'].append(dict(thingId='Other', dead=False, downed=True, bleeding=False))
+        status['counts']['downedCount'] = 2
+    original_query = rt.game.query.side_effect
+    original_change = rt.supervisor.change.side_effect
+
+    async def query(name, **kw):
+        if name == 'home/list_pawns':
+            return dict(pawns=[] if change == 'missing' else [patient])
+        return await original_query(name, **kw)
+
+    async def clock(speed, *, medical_rest, max_ticks):
+        assert medical_rest == 'Patient1'
+        return await original_change(speed, max_ticks=max_ticks)
+
+    rt.game.query.side_effect = query
+    rt.supervisor.change.side_effect = clock
+    if change == 'none':
+        await advance_game(rt, 100, {}, medical_rest=True)
+        assert calls == [100, 60]
+    else:
+        with pytest.raises(ScenarioInterrupted):
+            await advance_game(rt, 100, {}, medical_rest=True)
+        assert calls == [100]
+
+
 @pytest.mark.parametrize('mutation', [
     lambda s: s.update(skipped=[{'field': 'threats'}]),
     lambda s: s['blocks'].update(threats=False),

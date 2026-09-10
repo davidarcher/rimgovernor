@@ -91,6 +91,9 @@ or active-combat triage.
 Use `--case equipment-observation` to withhold an equipment acknowledgement and
 verify completion of the original native pawn job from later observation, retaining
 the uncertain receipt without another equip order.
+Use `--case medical-rest` to verify ordinary caregiver feeding during bounded native
+monitoring of an eligible downed patient, unchanged recovery criteria, and immediate
+interruption when a new injury invalidates that patient's eligibility.
 
 ## Repeated model campaigns
 

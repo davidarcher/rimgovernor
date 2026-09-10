@@ -28,6 +28,18 @@ def care_state(people, previous=None):
     return dict(patients=patients, unknown=sorted(set(unknown)))
 
 
+def resting_patients(rt):
+    """Request bounded native monitoring only for this review's resting patients."""
+    goal=rt.current_plan.colony_goals.get('MaintainMedicalCare')
+    facts=rt.current_plan.control.get('facts',{})
+    if (not goal or goal.cancelled or goal.status not in ('active','complete') or not rt.batch
+            or facts.get('tick')!=rt.batch.summary.end_tick):return ''
+    observed={p['thingId'] for p in rt.batch.native.get('pawns',{}).get('pawns',[])
+        if p.get('thingId') and p.get('dead') is False and p.get('downed') is True
+        and p.get('drafted') is False and (p.get('health') or {}).get('stableRestEligible') is True}
+    return ','.join(sorted(observed & set(facts.get('restingPatients',[]))))
+
+
 async def manage_care(rt, facts, people):
     from .colony_skills import SkillBlocked, native
     state = facts['longTermMedical']

@@ -1365,14 +1365,17 @@ class BridgeRuntime:
                             return
                     from .surgery import recovery_patients
                     surgical_recovery = recovery_patients(self)
+                    from .medical_management import resting_patients
+                    medical_rest = resting_patients(self) if not engaged else ''
                     fire = self.current_plan.colony_goals.get('MaintainFireSafety')
                     fire_watch = bool(fire and fire.status == 'active' and not fire.cancelled
                                       and fire.evidence.get('waiting_for_native_fire'))
-                    ticks=60 if fire_watch else 600 if waiting or engaged else 3000
+                    ticks=60 if fire_watch else 600 if waiting or engaged or medical_rest else 3000
                     clock = await self.supervisor.change('Normal' if engaged or fire_watch else self.controller.policy.execution_speed,
                         mode='combat' if engaged else 'colony',
                         ignored_hostiles=','.join(combat.get('targets',[combat['target']])) if engaged else '', max_ticks=ticks,
-                        **({'surgical_recovery':surgical_recovery} if surgical_recovery else {}))
+                        **({'surgical_recovery':surgical_recovery} if surgical_recovery else {}),
+                        **({'medical_rest':medical_rest} if medical_rest else {}))
                     self.execution_window_end = clock['tickDeadline'] if clock.get('active') else None
                     self.execution_wait_explicit = False
                     self.note('execution_window', f'Native work: at most {ticks} game ticks before review', clock=clock)

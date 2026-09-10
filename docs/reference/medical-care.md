@@ -67,3 +67,12 @@ not bleeding, not dangerously ill and above half health. Injury and death guards
 remain active. The allowance expires at the configured work window; it is not a
 general exemption for downed patients. Changed context invalidates surgical
 completion tracking, and stalled operations expose a bounded no-progress failure.
+
+Stable downed patients may share survival priority while ordinary caregivers work.
+Native `stableRestEligible` requires a living, undrafted colonist in bed, above half
+health, without bleeding, a current tending need, a mental state, anesthesia or a
+life-threatening condition. The controller requests monitoring only from current
+health observations and an active medical-care goal. Native `medicalRestIds` windows
+are limited to 600 ticks and recheck each patient; changed eligibility stops the
+window for another review. Injury and death guards remain active. This permits
+feeding and rest without certifying recovery or satisfying the medical stability gate.

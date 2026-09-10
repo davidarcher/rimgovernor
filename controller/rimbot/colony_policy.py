@@ -65,6 +65,9 @@ def derive(batch, native, policy):
     people = batch.summary.pawns
     value['medicalKnown'] = all(p.bleeding is not None and getattr(p,'needs_tend',None) is not None for p in people if not p.dead)
     value['criticalPatients'] = [p.thing_id for p in people if not p.dead and (p.downed or p.bleeding or p.needs_tend)]
+    value['restingPatients'] = sorted(p['thingId'] for p in batch.native.get('pawns',{}).get('pawns',[])
+        if p.get('thingId') in value['criticalPatients'] and p.get('dead') is False
+        and p.get('downed') is True and (p.get('health') or {}).get('stableRestEligible') is True)
     threats=batch.native.get('status_after',{}).get('threats',{})
     incapacitated={p['thingId'] for p in threats.get('hostiles',[])
         if p.get('thingId') and p.get('downed') is True}
@@ -132,7 +135,10 @@ def priority_nodes(facts, latches, policy):
     nodes = []
     if facts.get('colonyNaming'): nodes.append(('ConfirmColonyNames',0))
     if facts.get('hostiles', 0): nodes.append(('ActiveCombat', 0))
-    if not gates['medical']: nodes.append(('CriticalMedical', 1))
+    if not gates['medical']:
+        resting = (facts.get('medicalKnown') is True and bool(facts.get('criticalPatients'))
+            and set(facts['criticalPatients']) <= set(facts.get('restingPatients',[])))
+        nodes.append(('CriticalMedical', 2 if resting else 1))
     if not facts.get('hostiles') and facts.get('cleanupPawns'): nodes.append(('RestoreWorkers', 1))
     if facts.get('forbiddenSupplies'): nodes.append(('AllowStartingSupplies', 2))
     if not gates['work']: nodes.append(('EnsureWorkAssignments', 2))
