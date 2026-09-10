@@ -162,10 +162,14 @@ async def run(args):
             from rimbot.player_commands import apply_command
             report['food_target']=await apply_command(rt,dict(kind='CreateGoal',goal='EnsureFoodSupply',
                 food_days=args.food_target_days),token=rt.context_token,revision=rt.chat_revision)
+        from startup_milestones import StartupMilestones
+        milestones = StartupMilestones(rt)
         await rt.set_mode('automate')
         deadline = time.monotonic()+args.seconds
         while time.monotonic()<deadline:
             await asyncio.sleep(5)
+            milestones.sample(rt)
+            report['startup_milestones'] = milestones.report()
             control = rt.current_plan.control
             facts=control.get('facts',{})
             losses=store.db.execute("SELECT COUNT(*) FROM events WHERE colony=? AND kind='bootstrap_stability_lost'",(rt.colony,)).fetchone()[0]

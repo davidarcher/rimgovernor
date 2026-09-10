@@ -371,11 +371,16 @@ each bounded method.
 
 ## P2 — Coverage, inspection and evaluation scale
 
-- [ ] **Controller execution scheduling.** Measure the two-second runtime polling
-  delay and evaluate waking promptly when review or execution finishes. Preserve
-  bounded Hands passes, idle backoff, UI responsiveness, clock supervision and
-  player/direction/load/plan invalidation. Verify no busy loop, concurrent writers
-  or delayed interruption handling, then compare native setup progress.
+- [ ] **Native event delivery and scheduling throughput.** Python work scheduling
+  wakes on direction, review completion and budget-limited Hands completion,
+  independently of dashboard refreshes. Compare fixed-input setup-to-pawn-work
+  timings under uncontended native execution. Reuse RimBridgeServer's existing
+  GABP event transport for native notifications: pinned GABS currently consumes
+  attention subscriptions internally without forwarding general events to MCP,
+  and the companion's clock events are durable journal reads. Add forwarding and
+  clock publication through that transport, retaining journal cursors for reconnect,
+  gaps and duplicate delivery. Keep lease renewal, fresh write guards, idle backoff
+  and direction/load/plan invalidation; bridge operation completion is not pawn work.
 
 - [ ] **Paused setup through the first simulation tick.** Use the
   [controller profiler](how-to/measure-throughput.md) to measure the complete path

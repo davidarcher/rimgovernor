@@ -35,6 +35,17 @@ def failure_text(error):
     return str(error)
 
 
+class NotifyingEvent(asyncio.Event):
+    """Retain the review flag while also waking the work scheduler."""
+    def __init__(self, changed):
+        super().__init__()
+        self.changed = changed
+
+    def set(self):
+        super().set()
+        self.changed.set()
+
+
 class BridgeRuntime:
     def __init__(self, store, root, *, fresh=False, settings=None, model_factory=LocalModel, routing=None, headless=False, resume=None):
         self.headless = headless
@@ -86,8 +97,11 @@ class BridgeRuntime:
         self.clock_events = []
         self.counters = {'planner_tools': 0, 'tools': 0, 'actions': 0, 'model_calls': 0, 'input_tokens': 0, 'output_tokens': 0}
         self.lock = asyncio.Lock()
-        self.wake = asyncio.Event()
-        self.shutdown = asyncio.Event()
+        self.work_changed = asyncio.Event()
+        self.wake = NotifyingEvent(self.work_changed)
+        self.shutdown = NotifyingEvent(self.work_changed)
+        self.scheduler_task = None
+        self.work_retry_at = 0
         from .scenario_dashboard import attach
         attach(self)
 
@@ -826,10 +840,13 @@ class BridgeRuntime:
                     failed_supervisor = None
                     if supervisor is self.supervisor:
                         self.clock_events.extend(rows)
+                        if rows:
+                            self.work_changed.set()
                 except Exception as error:
                     if supervisor is self.supervisor and failed_supervisor is not supervisor:
                         failed_supervisor = supervisor
                         self.clock_events.append({'kind': 'clock_error', 'detail': failure_text(error)})
+                        self.work_changed.set()
             try:
                 await asyncio.wait_for(self.shutdown.wait(), 3)
             except TimeoutError:
@@ -1200,6 +1217,9 @@ class BridgeRuntime:
     async def stop(self):
         self.stopped = True
         self.shutdown.set()
+        if self.scheduler_task:
+            self.scheduler_task.cancel()
+            await asyncio.gather(self.scheduler_task, return_exceptions=True)
         if self.review_task:
             self.review_task.cancel()
             await asyncio.gather(self.review_task, return_exceptions=True)
@@ -1265,8 +1285,9 @@ class BridgeRuntime:
     async def advance_execution(self):
         """Issue orders while paused; only confirmed pending work starts a window."""
         try:
-            await self._advance_execution()
+            more = await self._advance_execution()
             self._long_event_deadline = None
+            return more
         except asyncio.CancelledError:
             raise
         except Exception as error:
@@ -1313,6 +1334,7 @@ class BridgeRuntime:
         elif time.monotonic() >= deadline:
             return False
         self.phase = 'Waiting for native long event'
+        self.work_retry_at = time.monotonic() + 2
         self.resume_after_review = self.mode == 'automate'
         self.wake.set()
         return True
@@ -1320,7 +1342,7 @@ class BridgeRuntime:
     async def _advance_execution(self):
         if self.mode != 'automate' or self.deliberating or self.wake.is_set():
             return
-        await self.hands.advance(self)
+        more = await self.hands.advance(self)
         async with self.lock:
             await self.sync_identity()
             if (self.mode != 'automate' or self.deliberating or self.wake.is_set()
@@ -1387,6 +1409,54 @@ class BridgeRuntime:
                     self.execution_window_end = None
                     self.signal('execution.window_finished', {'tick': status['time']['ticksGame'],
                                                              'work_remaining': bool(waiting)})
+        return more
+
+    async def schedule_work(self):
+        """React to direction and task completion independently of dashboard reads."""
+        next_execution = 0
+
+        def finished(task, review):
+            nonlocal next_execution
+            # Only an explicitly budget-limited Hands pass requests an immediate
+            # continuation. Idle/blocked work retains the ordinary retry backoff.
+            more = not task.cancelled() and task.exception() is None and task.result() is True
+            next_execution = time.monotonic() + (0 if review or more else 2)
+            self.work_changed.set()
+
+        while not self.stopped:
+            self.work_changed.clear()
+            if self.clock_events:
+                async with self.lock:
+                    self.receive_clock_events()
+            player = getattr(self, 'player_input', None)
+            player_active = player and player.ready and player.native and player.live()
+            active = any(task is not None and not task.done()
+                         for task in (self.review_task, self.execution_task))
+            now = time.monotonic()
+            if not player_active and not active and now >= self.work_retry_at:
+                if self.wake.is_set():
+                    self.wake.clear()
+                    self.review_task = asyncio.create_task(self.review())
+                    self.review_task.add_done_callback(lambda task: finished(task, True))
+                elif (self.mode == 'automate' and self.handled_revision >= self.chat_revision
+                      and now >= next_execution):
+                    self.execution_task = asyncio.create_task(self.advance_execution())
+                    self.execution_task.add_done_callback(lambda task: finished(task, False))
+            active = any(task is not None and not task.done()
+                         for task in (self.review_task, self.execution_task))
+            # Task completion and Manual direction use notifications exclusively.
+            # Idle automatic work and native input expiry retain bounded checks.
+            delay = .1 if player_active else None if active or self.mode == 'manual' else 2
+            if not active and not player_active and self.wake.is_set():
+                delay = max(0, self.work_retry_at-now)
+            elif not active and not player_active and delay is not None:
+                deadline = max(self.work_retry_at, next_execution)
+                if deadline > now:
+                    delay = min(delay, deadline-now)
+            try:
+                await asyncio.wait_for(self.work_changed.wait(), delay)
+            except TimeoutError:
+                pass
 
     async def run(self):
         try:
@@ -1430,9 +1500,12 @@ class BridgeRuntime:
                 self.batch = await observe(self.game)
                 self.connected, self.phase = True, 'Manual'
                 self.clock_task = asyncio.create_task(self.watch_clock())
+                self.scheduler_task = asyncio.create_task(self.schedule_work())
                 self.update_strategy_state()
                 last_reconcile = 0
                 while not self.stopped:
+                    if self.scheduler_task.done():
+                        self.scheduler_task.result()
                     player = getattr(self, 'player_input', None)
                     if player and player.ready and player.native and player.live():
                         # Native admission/expiry guards the live load while the
@@ -1444,16 +1517,6 @@ class BridgeRuntime:
                         except TimeoutError:
                             pass
                         continue
-                    if ((self.review_task is None or self.review_task.done())
-                            and (self.execution_task is None or self.execution_task.done())):
-                        if self.wake.is_set():
-                            self.wake.clear()
-                            self.review_task = asyncio.create_task(self.review())
-                    if (self.mode == 'automate' and self.handled_revision >= self.chat_revision
-                            and (self.review_task is None or self.review_task.done())
-                            and not self.wake.is_set()
-                            and (self.execution_task is None or self.execution_task.done())):
-                        self.execution_task = asyncio.create_task(self.advance_execution())
                     try:
                         async with self.lock:
                             if await self.sync_identity():
@@ -1514,6 +1577,10 @@ class BridgeRuntime:
             self.phase = 'Connection failed'
             self.reply(failure_text(error))
         finally:
+            for task in (self.scheduler_task, self.review_task, self.execution_task):
+                if task:
+                    task.cancel()
+                    await asyncio.gather(task, return_exceptions=True)
             if self.clock_task:
                 self.clock_task.cancel()
                 await asyncio.gather(self.clock_task, return_exceptions=True)

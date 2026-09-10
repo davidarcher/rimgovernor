@@ -59,7 +59,7 @@ class Hands:
                     if recorded and not placements and not isinstance(action, (Zone, StandDown, CancelConstructionAction)):
                         raise Blocked('uncertain_write', 'Prior write has no confirmed receipt. Inspect its effects before replacing this step.')
                     if count >= max_operations:
-                        return
+                        return True
                     progress.state = 'executing'
                     if placements is not None:
                         receipt = await self.place(rt, operation, progress, key, revision, token, direction,

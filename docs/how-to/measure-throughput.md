@@ -104,6 +104,14 @@ against the private controller, retaining wall TPS including pauses, controller
 status, events and per-operation identity, preview, dispatch and read timings.
 It asserts zero inference attempts; it measures the loop without claiming colony
 survival. Use fresh output directories for both runs.
+Runtime and deterministic foothold reports include `startup_milestones`: elapsed time
+from automation setup to the first observed execution window, advanced tick, pawn work,
+new built object and stable foothold sample. Missing milestones remain unobserved.
+These reuse retained native data without extra bridge requests; timestamps are upper
+bounds set by observation cadence. Pawn work requires changed position/carry during
+the same work job. Neither work nor new buildings are attributed to controller orders.
+Load changes or observed rewinds invalidate the timing. Select a long enough sample
+to reach native progress before making setup-performance claims.
 Add `--profile-controller` to retain `controller.pstats` and completed wall timings
 for persistence, review, identity, native dispatch and Hands. Timings overlap;
 Python function timings include synchronous I/O and profiler overhead. Compare

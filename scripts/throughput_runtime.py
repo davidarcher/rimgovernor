@@ -38,6 +38,8 @@ async def run(args):
     sampler = None
     recording = True
     profile = None
+    milestones = None
+    milestone_task = None
     try:
         async with asyncio.timeout(180):
             while not rt.connected or not server.started:
@@ -111,7 +113,14 @@ async def run(args):
             profile = ControllerProfile(rt, root)
             profile.start()
         rt.current_plan.control.setdefault('policy', {})['execution_speed'] = 'Superfast'
+        from startup_milestones import StartupMilestones
+        milestones = StartupMilestones(rt)
         await rt.set_mode('automate')
+        async def sample_milestones():
+            while True:
+                milestones.sample(rt)
+                await asyncio.sleep(.1)
+        milestone_task = asyncio.create_task(sample_milestones())
         with (root/'dashboard-sampler.log').open('w', encoding='utf8') as log:
             sampler = await asyncio.create_subprocess_exec(sys.executable, 'scripts/dashboard_throughput.py',
                 '--port', '8790', '--seconds', str(args.seconds), '--interval', '1',
@@ -135,6 +144,12 @@ async def run(args):
         report['error'] = repr(error)
         raise
     finally:
+        if milestone_task:
+            milestone_task.cancel()
+            await asyncio.gather(milestone_task, return_exceptions=True)
+        if milestones:
+            milestones.sample(rt)
+            report['startup_milestones'] = milestones.report()
         if profile is not None:
             report['controller_profile'] = profile.stop()
         recording = False

@@ -50,6 +50,14 @@ The lease also protects against a controller that stops responding. Its timeout 
 independent of whether Python completes its next review. Exact budgets and stop rules
 are in the [session contracts](../reference/session-contracts.md).
 
+Controller work uses a notification-driven scheduler separate from dashboard refreshes.
+New direction and review completion wake it immediately. Hands yields after a bounded
+operation budget and requests an immediate continuation when that budget is exhausted.
+Only one review or execution task runs at a time. Idle/blocked work and native autosave
+refusals retain a two-second retry backoff; player input retains ownership.
+Native clock events currently arrive through journal reads and then notify the scheduler.
+Lease renewal and periodic observation remain independent of task completion.
+
 ## Progress must be observable
 
 Hands retains order receipts, while completion tracking looks for the action's
