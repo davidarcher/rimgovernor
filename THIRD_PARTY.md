@@ -49,6 +49,4 @@ The adapter derives from IlyaChichkov/HeadlessRimPatch at
 
 `third_party/RLE-LICENSE` preserves the MIT notice for previously incorporated
 AppSprout-dev/RLE source at `3220bf84d8befc7a252caf383daec88df8d90645`.
-`integrations/patches` retains RIMAPI source patch records; these are not a runtime
-backend or current build instructions. RIMAPI is not an active submodule.
 Keep license/provenance records when pruning project documentation.
