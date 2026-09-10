@@ -1,7 +1,7 @@
 """Deterministic signals and deliberately bounded model projections."""
 import hashlib
 import json
-from .native_forecasts import power_forecast
+from .native_forecasts import finite, power_forecast
 
 
 def fingerprint(value):
@@ -12,12 +12,15 @@ def features(batch):
     s, native = batch.summary, batch.native
     buildings = native.get('buildings', {})
     power = power_forecast(buildings)
+    mood_thresholds = {p['thingId']: finite((p.get('needs') or {}).get('breakThresholdMinor'))
+                       for p in native.get('pawns', {}).get('pawns', [])}
     return {'tick': s.end_tick, 'people': {'count': len(s.pawns),
         'downed': [p.thing_id for p in s.pawns if p.downed], 'dead': [p.thing_id for p in s.pawns if p.dead],
         'bleeding': [p.thing_id for p in s.pawns if p.bleeding], 'needs_tend': [p.thing_id for p in s.pawns if p.needs_tend],
         'no_job': [p.thing_id for p in s.pawns if p.job is None and not p.downed and not p.dead],
         'armed': sum(p.armed is True for p in s.pawns),
-        'mood': {p.thing_id: p.mood for p in s.pawns}, 'food_need': {p.thing_id: p.food for p in s.pawns}},
+        'mood': {p.thing_id: p.mood for p in s.pawns}, 'mood_thresholds': mood_thresholds,
+        'food_need': {p.thing_id: p.food for p in s.pawns}},
         'resources': {'allowed_units_by_def': {r.def_name: r.owned_unforbidden_units for r in s.supplies},
             'construction_deficit': buildings.get('resourceDeficit'),
             'food_days': None, 'expected_harvest': None,
@@ -79,8 +82,21 @@ class StrategicState:
             if low_power != self.latches.get('low_power', False):
                 self.signal('power.reserve_low' if low_power else 'power.reserve_recovered', power)
             self.latches['low_power'] = low_power
-        # Explicit enter/exit thresholds prevent mood and hunger boundary chatter.
-        for field, low, recovered in (('mood', .25, .35), ('food_need', .2, .4)):
+        # Native thresholds define risk; a ten-point recovery margin is latch
+        # policy, not a predicted break threshold. Unknown reads preserve risk.
+        for pawn, amount in value['people']['mood'].items():
+            threshold = value['people'].get('mood_thresholds', {}).get(pawn)
+            if finite(amount) is None or finite(threshold) is None:
+                continue
+            key = 'mood:'+pawn
+            was = self.latches.get(key, False)
+            now = amount < threshold + .1 if was else amount <= threshold
+            self.latches[key] = now
+            if now != was:
+                self.signal('mood.risk' if now else 'mood.recovered',
+                            {'pawn': pawn, 'value': amount, 'native_threshold': threshold})
+        # Hunger uses explicit enter/exit policy thresholds to prevent chatter.
+        for field, low, recovered in (('food_need', .2, .4),):
             for pawn, amount in value['people'][field].items():
                 if amount is None:
                     continue

@@ -43,7 +43,8 @@ async def run():
                 if not clock['active']:
                     break
                 await asyncio.sleep(.15)
-        record('native_tick_window', clock['stopReason'] == 'tick_budget' and clock['pauseVerified'], clock=clock)
+        record('native_tick_window', clock['stopReason'] in ('tick_budget', 'requested_pause')
+               and clock['pauseVerified'] and clock['lastTick'] > clock['startTick'], clock=clock)
         rt.supervisor.absorb(clock)
         rt.clock_events.extend(await rt.supervisor.poll())
         rt.receive_clock_events()
@@ -80,7 +81,10 @@ async def run():
                and any(e['kind'] == 'power.reserve_recovered' for e in state.pending)
                and sum(n['stored_wd'] or 0 for n in recovered['power']) > sum(n['stored_wd'] or 0 for n in low['power']),
                power=recovered['power'])
-        record('ordinary_native_rot_removes_food', not any(s['id'] == rice['id'] for s in after['foodSupply']['stocks']))
+        rot_state = (await rt.bridge.call('test/forecast_state')).structuredContent
+        record('ordinary_native_rot_removes_food', rot_state['food'] == rice['id']
+               and rot_state['rotStage'] == 'Rotting'
+               and not any(s['id'] == rice['id'] for s in after['foodSupply']['stocks']), native=rot_state)
         record('read_only_forecasts_leave_manual', rt.mode == 'manual' and not rt.current_plan.spec.steps)
         report['passed'] = True
     except BaseException as error:

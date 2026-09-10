@@ -101,7 +101,9 @@ def test_noop_world_updates_do_not_wake_brain_but_downed_pawn_does():
 
 
 def test_mood_hysteresis_does_not_chatter_and_missing_nutrition_is_unknown():
-    state=StrategicState();current=batch();state.update(current);state.decided()
+    state=StrategicState();current=batch()
+    current.native['pawns']['pawns'][0]['needs']['breakThresholdMinor']=.25
+    state.update(current);state.decided()
     current.summary.pawns[0].mood=.24
     assert state.update(current);state.decided()
     for mood in (.26,.24,.30,.34):

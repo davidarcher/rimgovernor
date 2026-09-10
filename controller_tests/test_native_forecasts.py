@@ -3,6 +3,7 @@ import pytest
 from rimbot.native_forecasts import forecasts
 from rimbot.strategic_state import StrategicState
 from test_power_forecast import batch, power_events
+from types import SimpleNamespace
 
 
 def facts():
@@ -70,6 +71,25 @@ def test_construction_work_uses_native_remainder_and_refuses_filtered_census():
     buildings['skipped'] = {}
     buildings['buildings'][0]['workLeft'] = None
     assert forecasts({}, buildings)['labor']['constructionWork'] is None
+
+
+def test_mood_risk_uses_native_pawn_threshold_and_retains_unknown_risk():
+    observation = batch({})
+    observation.summary.pawns = [SimpleNamespace(thing_id='p', downed=False, dead=False, bleeding=False,
+        needs_tend=False, job='Wait', armed=False, mood=.38, food=.8)]
+    observation.native['pawns'] = {'pawns': [{'thingId': 'p', 'needs': {'breakThresholdMinor': .4}}]}
+    state = StrategicState()
+    state.update(observation)
+    assert state.latches['mood:p'] is True
+    state.decided()
+    observation.native['pawns']['pawns'][0]['needs']['breakThresholdMinor'] = None
+    observation.summary.pawns[0].mood = .9
+    state.update(observation)
+    assert state.latches['mood:p'] is True
+    assert not any(e['kind'] == 'mood.recovered' for e in state.pending)
+    observation.native['pawns']['pawns'][0]['needs']['breakThresholdMinor'] = .4
+    state.update(observation)
+    assert state.latches['mood:p'] is False
 
 
 @pytest.mark.parametrize('watts,reserve', [(float('nan'), 10), (float('inf'), 10), ('100', 10),

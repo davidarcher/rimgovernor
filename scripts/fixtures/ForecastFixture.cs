@@ -13,6 +13,7 @@ namespace HomeBridge.BridgeTools
     {
         private static Thing generator;
         private static Thing battery;
+        private static Thing rice;
 
         [Tool("test/forecast_setup", Description = "Create a disposable power/food forecast fixture. Test builds only; no construction acceptance.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken)
@@ -39,7 +40,7 @@ namespace HomeBridge.BridgeTools
                 var fuel = generator.TryGetComp<CompRefuelable>();
                 fuel.ConsumeFuel(fuel.Fuel);
                 battery.TryGetComp<CompPowerBattery>().AddEnergy(5);
-                var rice = ThingMaker.MakeThing(ThingDef.Named("RawRice"));
+                rice = ThingMaker.MakeThing(ThingDef.Named("RawRice"));
                 rice.stackCount = 10;
                 GenSpawn.Spawn(rice, origin + new IntVec3(7, 0, 7), map);
                 rice.SetForbidden(false, false);
@@ -66,6 +67,17 @@ namespace HomeBridge.BridgeTools
                     lamp = lamp.ThingID, food = rice.GetUniqueLoadID(), foodTemperature = rice.AmbientTemperature,
                     animal = animal.GetUniqueLoadID(), hay = hay.GetUniqueLoadID(), zone = zone.ID,
                     setup = "Spawned test infrastructure, seeded battery reserve and aged rice. Subsequent power/rot progression uses ordinary native ticks." };
+            }, cancellationToken);
+        }
+
+        [Tool("test/forecast_state", Description = "Read retained fixture rot state even after native destruction. Test builds only.")]
+        public async Task<object> State(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                if (rice == null) throw new InvalidOperationException("Missing fixture food");
+                var rot = rice.TryGetComp<CompRottable>();
+                return new { success = true, food = rice.GetUniqueLoadID(), destroyed = rice.Destroyed,
+                    count = rice.stackCount, rotStage = rot.Stage.ToString(), rotProgress = rot.RotProgress };
             }, cancellationToken);
         }
 
