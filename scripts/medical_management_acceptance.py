@@ -36,6 +36,7 @@ async def run(args):
         rt = BridgeRuntime(store, root, headless=True)
         rt.bridge, rt.game = bridge, BridgeGame(bridge)
         async def refresh():
+            await rt.refresh_clock_events()
             await rt.sync_identity()
             rt.batch = await observe(rt.game)
             rt.reconcile_plan()
@@ -153,9 +154,14 @@ async def run(args):
                     report['passed'] = True
                     return
                 if args.case == 'shortage' and rt.current_plan.progress[surgery_id].state == 'complete':
-                    check('same_operation_completed_after_shortages', True, progress=rt.current_plan.progress[surgery_id].model_dump())
-                    report['passed'] = True
-                    return
+                    if not any(c['name'] == 'same_operation_completed_after_shortages' for c in report['checks']):
+                        check('same_operation_completed_after_shortages', True, progress=rt.current_plan.progress[surgery_id].model_dump())
+                    surgical = next(p for p in people if p['thingId'] == setup['surgical'])
+                    if surgical['dead'] is False and surgical['downed'] is False and not any(
+                            h['defName'] == 'Anesthetic' for h in surgical['health']['hediffs']):
+                        check('native_postoperative_recovery_observed', True, patient=surgical)
+                        report['passed'] = True
+                        return
                 if args.case == 'failure':
                     assert rt.current_plan.progress[surgery_id].state != 'complete', 'Zero-success fixture unexpectedly succeeded'
                 for pawn, owner in list(rt.draft_owners.items()):

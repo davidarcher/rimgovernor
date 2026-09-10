@@ -25,7 +25,7 @@ successful owned-process cleanup. Preserve failed trials in fresh output directo
 The probe uses the semantic player surgery command and deterministic tending through
 Hands, including enabling initially disabled bed rest. The care case checks disease
 disappearance, observed bed use and preservation of an undirected chronic missing limb. The shortage case checks actual native
-prosthetic installation. It exercises no language model and does not establish support for
+prosthetic installation and subsequent recovery from anesthesia. It exercises no language model and does not establish support for
 all disease definitions, all recipes or arbitrary long-term survival.
 
 Run `--case shortage` and `--case failure` in separate fresh workers. The shortage

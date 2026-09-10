@@ -28,6 +28,7 @@ first guided exercise, use [your first Docker test](../tutorials/first-docker-te
 - [Verify native forecasts](forecast-acceptance.md)
 - [Verify animal husbandry](husbandry-acceptance.md)
 - [Run focused headless probes](headless-probes.md)
+- [Verify medical care and surgery](medical-care-acceptance.md)
 - [Verify native clocks and interruptions](native-clock.md)
 - [Verify retained cancelled actions](cancelled-actions.md)
 - [Verify hunting screening and dispatch](hunting.md)
