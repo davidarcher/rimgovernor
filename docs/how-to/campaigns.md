@@ -44,6 +44,10 @@ For crop-focused acceptance, `--disable-hunting` issues ordinary persistent play
 work settings and verifies native hunting priorities are zero. This isolates crop
 replenishment and does not certify mixed hunting/crop autonomy. Unsafe native hunt
 routes still pause and hand control back to the player in the separate mixed run.
+For an isolated food-production scenario, `prepare_scenario.py --difficulty Peaceful`
+selects the native preset before generation. The preparation report retains the
+preset and its crop yield factor. Peaceful's ordinary yield bonus and reduced
+threats limit that acceptance scope; it does not certify Rough survival.
 
 Controller replays in `test_colony_controller.py` separately exercise deterministic
 layout variants, hysteresis, priorities, cancellation and accounting. They model labor

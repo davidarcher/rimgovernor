@@ -16,6 +16,7 @@ namespace HomeBridge.BridgeTools
         private static Scenario pending;
         private static string worldSeed;
         private static string requestedBiome;
+        private static DifficultyDef requestedDifficulty;
         private static bool patched;
 
         [Tool("test/configure_start", Description = "Arm one ordinary scenario start from the main menu; test builds only. Does not edit saves or existing colonies.")]
@@ -23,7 +24,8 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Native ScenarioDef name; inspect the definitions returned by list.")] string scenario,
             [ToolParameter(Description = "Native scenario editor count, 1 through 10.")] int count,
             [ToolParameter(Description = "World generation seed.")] string seed,
-            [ToolParameter(Description = "Optional native BiomeDef for an ordinary valid settlement tile.")] string biome = "")
+            [ToolParameter(Description = "Optional native BiomeDef for an ordinary valid settlement tile.")] string biome = "",
+            [ToolParameter(Description = "Native DifficultyDef, selected before colony generation.")] string difficulty = "Rough")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (Current.ProgramState != ProgramState.Entry || Find.CurrentMap != null || Current.Game != null)
@@ -33,6 +35,8 @@ namespace HomeBridge.BridgeTools
                     throw new ArgumentException("Require 1..10 pawns and a nonempty world seed.");
                 var definition = DefDatabase<ScenarioDef>.GetNamedSilentFail(scenario);
                 if (definition == null) throw new ArgumentException("Unknown ScenarioDef.");
+                var difficultyDef = DefDatabase<DifficultyDef>.GetNamedSilentFail(difficulty);
+                if (difficultyDef == null) throw new ArgumentException("Unknown DifficultyDef.");
                 if (!string.IsNullOrEmpty(biome) && DefDatabase<BiomeDef>.GetNamedSilentFail(biome)?.canBuildBase != true)
                     throw new ArgumentException("Unknown or non-settleable BiomeDef.");
                 var copy = definition.scenario.CopyForEditing();
@@ -48,8 +52,10 @@ namespace HomeBridge.BridgeTools
                     patched = true;
                 }
                 pending = copy; worldSeed = seed; requestedBiome = biome;
+                requestedDifficulty = difficultyDef;
                 return new { success = true, armed = true, scenario, count, seed, biome,
-                    storyteller = "Cassandra", difficulty = "Rough", mapSize = 250,
+                    storyteller = "Cassandra", difficulty, mapSize = 250,
+                    cropYieldFactor = difficultyDef.cropYieldFactor,
                     rainfall = "Normal", temperature = "Normal", population = "Normal" };
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -58,6 +64,9 @@ namespace HomeBridge.BridgeTools
         public async Task<object> List(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => new { success = true,
+                difficulties = DefDatabase<DifficultyDef>.AllDefsListForReading.Select(d => new {
+                    defName = d.defName, label = d.label, cropYieldFactor = d.cropYieldFactor
+                }).ToArray(),
                 scenarios = DefDatabase<ScenarioDef>.AllDefsListForReading.Select(d => new {
                     defName = d.defName, label = d.label,
                     pawnCount = d.scenario.AllParts.OfType<ScenPart_ConfigPage_ConfigureStartingPawns>()
@@ -77,7 +86,7 @@ namespace HomeBridge.BridgeTools
             Current.Game.InitData = new GameInitData();
             Current.Game.Scenario = scenario;
             Find.Scenario.PreConfigure();
-            Current.Game.storyteller = new Storyteller(StorytellerDefOf.Cassandra, DifficultyDefOf.Rough);
+            Current.Game.storyteller = new Storyteller(StorytellerDefOf.Cassandra, requestedDifficulty);
             Current.Game.World = WorldGenerator.GenerateWorld(0.3f, worldSeed,
                 OverallRainfall.Normal, OverallTemperature.Normal, OverallPopulation.Normal, LandmarkDensity.Normal);
             Find.GameInitData.ChooseRandomStartingTile();

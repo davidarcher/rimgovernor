@@ -15,6 +15,8 @@ in the checkpoint commit; do not append an implementation diary here.
   fertility and temperature variants. Include longer survival, changing seasons
   and production that replaces initial supplies. Sampled stable gates over a
   bounded window do not establish arbitrary long-term colony survival.
+  Resolve the combat/medical hold when all available doctors are controller-drafted
+  and a defender needs tending; preserve player draft ownership and combat safety.
 - [ ] **B04a · Complete deterministic food control.** Validate sustained crop
   replenishment and persistent player food targets through actual stock and pawn
   labor, including competing animal demand.

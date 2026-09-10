@@ -15,7 +15,8 @@ async def run(args):
     root=isolated_root(args.source_root,args.output)
     config=prepare(root)
     report={'outcome':'failed','save_edits':[], 'settings':{
-        'scenario':args.scenario,'count':args.count,'seed':args.seed,'biome':args.biome}}
+        'scenario':args.scenario,'count':args.count,'seed':args.seed,'biome':args.biome,
+        'difficulty':args.difficulty}}
     installation=Path(json.loads((config/'config.json').read_text())['games']['rimbot-trial']['workingDir'])
     dll=installation/'Mods/RimBotObservations/BridgeTools/Observations/RimBot.Observations.BridgeTools.dll'
     report['fixture_dll_sha256']=hashlib.sha256(dll.read_bytes()).hexdigest()
@@ -44,6 +45,7 @@ async def run(args):
             report['roster']=(await bridge.call('home/list_pawns',colonistsOnly=True,work=True)).structuredContent
             report['definitions_after']=(await bridge.call('test/list_start_scenarios')).structuredContent
             assert report['definitions_before']['scenarios']==report['definitions_after']['scenarios'], 'Global scenario definitions were changed'
+            assert report['definitions_before']['difficulties']==report['definitions_after']['difficulties']
             report['save']=(await bridge.call('rimworld/save_game',saveName='RimBot-scenario-start')).structuredContent
             assert report['save']['exists'] is True
             source=Path(report['save']['path']).resolve()
@@ -86,4 +88,5 @@ if __name__=='__main__':
     parser.add_argument('--count',type=int,choices=range(1,11),required=True)
     parser.add_argument('--seed',required=True)
     parser.add_argument('--biome',default='',help='Optional native biome for an ordinary valid settlement tile')
+    parser.add_argument('--difficulty',default='Rough',help='Native difficulty preset before generation; report retains its crop yield factor')
     asyncio.run(run(parser.parse_args()))

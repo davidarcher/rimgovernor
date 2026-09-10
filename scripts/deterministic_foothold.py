@@ -68,6 +68,23 @@ def stability_days(value):
     return days
 
 
+def sample_food_acceptance(acceptance, observer, facts, target_days):
+    harvests=sorted((p for p in observer['production']
+        if p['plant'] in ('Plant_Rice','Plant_Potato','Plant_Corn') and p['count']>0),key=lambda p:p['tick'])
+    acceptance['crop_harvests']=harvests
+    stocks=[s for s in (facts.get('foodSupply') or {}).get('stocks',[])
+        if s.get('defName') in ('RawRice','RawPotatoes','RawCorn') and s.get('eaters') and s.get('count',0)>0]
+    tick=facts.get('tick')
+    if harvests and tick is not None and tick>=harvests[0]['tick']:
+        if stocks:acceptance.setdefault('crop_stock_observations',[]).append(dict(tick=tick,stocks=stocks))
+        runway=facts.get('foodRunwayDays')
+        if target_days is not None and runway is not None and runway>=target_days:
+            acceptance.setdefault('target_observations',[]).append(dict(tick=tick,runway=runway))
+    acceptance['passed']=(bool(harvests) and harvests[-1]['tick']-harvests[0]['tick']>=60000
+        and bool(acceptance.get('crop_stock_observations'))
+        and (target_days is None or bool(acceptance.get('target_observations'))))
+
+
 async def run(args):
     NoInference.attempts = 0
     window=StabilityWindow(math.ceil(args.stability_days*60000))
@@ -165,19 +182,12 @@ async def run(args):
                 report['food_observer']=(await rt.bridge.call('test/food_observe')).structuredContent
                 (args.output/'food-observer.json').write_text(json.dumps(report['food_observer'],indent=2),encoding='utf8')
                 assert not report['food_observer']['truncated']
-                harvests=[p for p in report['food_observer']['production']
-                    if p['plant'] in ('Plant_Rice','Plant_Potato','Plant_Corn') and p['count']>0]
                 report.setdefault('food_acceptance',{'target_observations':[]})
                 acceptance=report['food_acceptance']
-                acceptance['crop_harvests']=harvests
                 if args.food_target_days is not None:
                     assert rt.current_plan.colony_goals['EnsureFoodSupply'].target['food_days']==args.food_target_days
                     assert rt.controller.policy.food_target_days==args.food_target_days
-                    runway=facts.get('foodRunwayDays')
-                    if runway is not None and runway>=args.food_target_days:
-                        acceptance['target_observations'].append(dict(tick=facts['tick'],runway=runway))
-                acceptance['passed']=(bool(harvests) and harvests[-1]['tick']-harvests[0]['tick']>=60000
-                    and (args.food_target_days is None or bool(acceptance['target_observations'])))
+                sample_food_acceptance(acceptance,report['food_observer'],facts,args.food_target_days)
                 (args.output/'food-acceptance.json').write_text(json.dumps(acceptance,indent=2),encoding='utf8')
             if lifecycle_days is not None:
                 async with rt.lock:
@@ -250,7 +260,9 @@ async def run(args):
                     'sha256':hashlib.sha256(save.read_bytes()).hexdigest()})
         store.close()
         (args.output/'result.json').write_text(json.dumps(report,indent=2),encoding='utf8')
-    return report['outcome'] in ('FOOTHOLD_STABLE','SUSTAINED_FOOTHOLD','LIFECYCLE_WINDOW')
+    return (report['outcome'] in ('FOOTHOLD_STABLE','SUSTAINED_FOOTHOLD','LIFECYCLE_WINDOW')
+            and not any(report.get(k) for k in ('error','cleanup_error','runtime_cleanup_error'))
+            and report['model_calls']==0 and report['model_attempts']==0)
 
 
 if __name__=='__main__':

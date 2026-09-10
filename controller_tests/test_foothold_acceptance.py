@@ -1,8 +1,34 @@
 from argparse import ArgumentTypeError
 import pytest
-from scripts.deterministic_foothold import StabilityWindow, stability_days
+from scripts.deterministic_foothold import StabilityWindow, stability_days, sample_food_acceptance
 
 GATES={name:True for name in ('sleeping','shelter','food','production','storage','cooking','temperature','power','medical','defense','work')}
+
+
+def test_food_acceptance_requires_accessible_crops_and_target_after_real_harvest():
+    evidence={}
+    facts=dict(tick=1,foodRunwayDays=9,foodSupply={'stocks':[]})
+    sample_food_acceptance(evidence,{'production':[]},facts,7)
+    assert not evidence['passed'] and not evidence.get('target_observations')
+    harvests={'production':[dict(plant='Plant_Rice',count=6,tick=t) for t in (100,60100)]}
+    facts.update(tick=60100,foodRunwayDays=2)
+    sample_food_acceptance(evidence,harvests,facts,7)
+    assert not evidence['passed']
+    facts['foodSupply']['stocks']=[dict(defName='RawRice',count=20,eaters=[])]
+    facts['foodRunwayDays']=7
+    sample_food_acceptance(evidence,harvests,facts,7)
+    assert not evidence['passed']
+    facts['foodSupply']['stocks'][0]['eaters']=['Thing_Human1']
+    sample_food_acceptance(evidence,harvests,facts,7)
+    assert evidence['passed']
+
+
+def test_one_harvest_batch_does_not_certify_sustained_replenishment():
+    evidence={}
+    facts=dict(tick=60100,foodRunwayDays=7,foodSupply={'stocks':[
+        dict(defName='RawRice',count=20,eaters=['Thing_Human1'])]})
+    sample_food_acceptance(evidence,{'production':[dict(plant='Plant_Rice',count=600,tick=60100)]},facts,7)
+    assert not evidence['passed']
 
 
 def test_stability_counts_observed_game_ticks_not_repeated_paused_samples():
