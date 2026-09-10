@@ -159,6 +159,9 @@ async def run(args):
             and not any(s.action.kind=='build_room_shell' for s in steps),room=room,actions=actions)
         await chat('Set exact cooler '+cooler['thingId']+' to 50 Celsius so this room can be used as shelter. Leave the original freezer cooler alone.')
         room,buildings=await window('settle_native_furniture')
+        report['sleeping_inventory']=await rt.game.query('home/list_things',category='buildings',match='SleepingSpot',
+            ownership='all',includeHeld=False,maxPositionsPerDef=100)
+        report['furnished_checkpoint']=await create_checkpoint(rt,rt.context_token)
         if args.variant=='hot':
             heater_actions=await furniture_handoff(rt,selection,'Heater')
             assert heater_actions
