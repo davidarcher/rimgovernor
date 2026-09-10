@@ -609,6 +609,15 @@ blueprint issuance does not certify subsequent pawn construction.
 allow command. It requires a known pre-write refusal, fresh native absence counts,
 same-action completion and retained recovery history with zero Hands writes.
 Buffered player pause/speed interruption guards are covered by controller tests.
+`scripts/resource_consumption_acceptance.py --checkpoint <native-resource-checkpoint>
+--output <fresh-directory>` copies an unchanged native save into a separate profile.
+It admits an ordinary bill job, reads unfinished work from ordinary native saves,
+then forbids a remote ingredient stack while verifying the same job remains active.
+Completion must stop with nonpositive work remaining, unchanged unfinished
+ingredients and no product. Ordinary unforbid must permit exactly one output while
+the reserve prevents another cycle. Bill settings, filters and suspension remain
+unchanged. The manifest records the actual imported controller source and separate
+harness hash; no policy setter interrupts the job during the stock-change test.
 Use `--material-identity` to verify that ordinary replacement of a separately
 grounded Steel wall blueprint produces distinct Wood blueprint identities and
 correct native material readbacks. Different materials must not return a false
