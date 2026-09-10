@@ -211,6 +211,8 @@ identities; unknown and unlisted threats retain risk. Supervised play ignores
 incapacitated enemies for hostile pauses and checks them again if they stand.
 This allows ordinary treatment and owned stand-down without attacking downed pawns.
 
+Downed permanent manhunters do not keep active combat open; any later recovery is
+observed as a fresh threat.
 Combat compilation, dispatch and clock admission inspect colonist health. Unknown
 health or a colonist at the native half-health limit produces an explicit hold;
 an unchanged injury cannot repeatedly rearm the combat clock. The native injury
@@ -227,3 +229,6 @@ shared material admission govern every construction action. Only completed build
 powered connected loads, observed research progress/completion and indoor capacity
 establish outcomes; blueprint receipts do not. Changed native prerequisites can release
 a development blocker without discarding existing projects or player selections.
+Research assignment weighs native Intellectual skill and, in checkbox mode, removes
+routine hauling/cleaning from the selected researcher so those earlier jobs cannot
+starve research indefinitely. Explicit work overrides retain authority.

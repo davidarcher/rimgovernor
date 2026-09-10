@@ -67,7 +67,8 @@ it with the local Docker worker. Keep writable runtime files on Docker's Linux f
 bind-mounted output directory after shutdown. Windows bind-mounted GABS claim files can
 produce publication races. Use a fresh source/mod snapshot and worker root for every run.
 
-The test-only fixture supplies starting resources, opponents, wounds, unavailable-doctor
+The development case uses normal Peaceful difficulty and nonperishable starting food.
+The test-only fixture supplies starting resources, clubs for ordinary equip jobs, opponents, wounds, unavailable-doctor
 mental state and native external orders. It never supplies finished buildings, research
 or treatment. The cases require actual expanded indoor capacity, researched electricity,
 connected powered loads and completed comfort furniture; two treated patients after a

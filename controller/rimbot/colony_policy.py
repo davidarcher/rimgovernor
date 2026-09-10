@@ -61,6 +61,8 @@ def derive(batch, native, policy):
     # The native faction census includes downed raiders. Remove only identities
     # positively observed incapacitated; unlisted/truncated threats retain risk.
     value['hostiles'] = max(0,batch.summary.hostile_count-len(incapacitated)) + batch.summary.hunting_predator_count
+    downed_predators={p['thingId'] for p in threats.get('huntingPredators',[]) if p.get('thingId') and p.get('downed') is True}
+    value['hostiles'] -= min(batch.summary.hunting_predator_count,len(downed_predators))
     value['armed'] = sum(p.armed is True and not p.downed and not p.dead for p in people)
     buildings = batch.native.get('buildings', {})
     nets = power_forecast(buildings)
@@ -194,7 +196,7 @@ def work_assignment(pawns, required_work=None, overrides=None, minimum_skills=No
             score = value['level'] + {'Minor': 2, 'Major': 4}.get(value.get('passion'), 0) - 3 * load[pawn['thingId']]
             candidates.append((load[pawn['thingId']], -score, pawn['thingId']))
         if candidates:
-            owner = min(candidates)[2]
+            owner = min(candidates, key=lambda row: (row[1],row[0],row[2]))[2] if work == 'Research' else min(candidates)[2]
             owners[work] = owner
             load[owner] += 1
     hunters = {owners['Hunting']} if 'Hunting' in owners else set()
@@ -225,7 +227,8 @@ def work_assignment(pawns, required_work=None, overrides=None, minimum_skills=No
                 primary = identity in growers if work=='Growing' else identity in hunters if work=='Hunting' else owners[work]==identity
                 result[identity][work] = 1 if primary else (3 if manual else 0)
             elif work in ('Hauling', 'Cleaning', 'BasicWorker'):
-                result[identity][work] = 3
+                result[identity][work] = (0 if not manual and owners.get('Research') == identity
+                                         and work in ('Hauling','Cleaning') else 3)
             else:
                 result[identity][work] = 0
         # Checkbox mode has no ranking. Limit specialist jobs instead of pretending

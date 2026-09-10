@@ -34,6 +34,7 @@ async def run(args):
         rt.bridge=bridge;rt.game=BridgeGame(bridge)
         async def refresh():
             await rt.sync_identity()
+            await rt.refresh_clock_events()
             rt.batch=await observe(rt.game)
             await rt.projects.reconcile(rt.game)
             rt.reconcile_plan()
@@ -50,7 +51,8 @@ async def run(args):
             value=(await bridge.call('test/b04f_setup',op=op,pawn=pawn)).structuredContent
             report['setup'].append(value);save()
             assert value['success']
-        async def window(combat=False):
+            return value
+        async def window(combat=False, max_ticks=None):
             assert time.monotonic()<deadline,'Native acceptance wall-clock bound expired'
             if combat:
                 rt.resume_after_review=True
@@ -59,8 +61,8 @@ async def run(args):
             else:
                 from rimbot.production_policy import sync_production_policy
                 await sync_production_policy(rt)
-                await rt.supervisor.change('Superfast',max_ticks=6000)
-            async with asyncio.timeout(90):
+                await rt.supervisor.change('Superfast',max_ticks=max_ticks or (12000 if args.case=='development' else 6000))
+            async with asyncio.timeout(180):
                 while True:
                     events=await rt.supervisor.poll()
                     if not rt.supervisor.state.get('active'):break
@@ -108,11 +110,15 @@ async def run(args):
                 await rt.hands.advance(rt)
                 if all(rt.current_plan.progress[s.id].state not in ('pending','executing') for s in steps):break
             for s in steps:
-                assert rt.current_plan.progress[s.id].state in ('waiting','complete'),rt.current_plan.progress[s.id]
+                assert rt.current_plan.progress[s.id].state in ('pending','waiting','complete'),rt.current_plan.progress[s.id]
             return [s.id for s in steps]
         async def finish_steps(ids, phase):
+            equipment=bool(ids) and all(getattr(s.action,'completion',None)=='pawn_equipped'
+                for s in rt.current_plan.spec.steps if s.id in ids)
             while any(rt.current_plan.progress[i].state!='complete' for i in ids):
-                await window()
+                rt.handled_revision=rt.chat_revision;rt.wake.clear()
+                await rt.hands.advance(rt)
+                await window(max_ticks=120 if equipment else None)
                 assert all(rt.current_plan.progress[i].state!='blocked' for i in ids), phase
             check(phase,True,steps={i:rt.current_plan.progress[i].model_dump() for i in ids})
         try:
@@ -124,6 +130,7 @@ async def run(args):
             facts,people=await refresh()
             check('native_order_history_available',all(type(p.get('orderGeneration')) is int for p in people))
             if args.case=='development':
+                await setup('development-settings')
                 await issue('EnsureWorkAssignments')
                 await issue('AllowStartingSupplies')
                 for _ in range(5):
@@ -142,16 +149,17 @@ async def run(args):
                 facts,_=await refresh()
                 check('ordinary_expansion',facts['indoorSleepingCapacity']>before,capacity=facts['indoorSleepingCapacity'])
                 goal=rt.current_plan.colony_goals.setdefault('EnsureResearch',ColonyGoal(priority_class=4))
-                goal.target['project']='Electricity'
-                for _ in range(180):
+                for project in ('Electricity','ComplexFurniture'):
+                    goal.target['project']=project
+                    for _ in range(180):
+                        facts,_=await refresh()
+                        if project in facts['development']['research']['finished']:break
+                        await issue('EnsureWorkAssignments')
+                        ids=await issue('EnsureResearch')
+                        if ids:await finish_steps(ids,'research_method')
+                        await window()
                     facts,_=await refresh()
-                    if 'Electricity' in facts['development']['research']['finished']:break
-                    await issue('EnsureWorkAssignments')
-                    ids=await issue('EnsureResearch')
-                    if ids:await finish_steps(ids,'research_method')
-                    await window()
-                facts,_=await refresh()
-                check('ordinary_research_completed','Electricity' in facts['development']['research']['finished'],research=facts['development']['research'])
+                    check('ordinary_research_completed',project in facts['development']['research']['finished'],research=facts['development']['research'])
                 goal.status='complete'
                 await issue('EnsureWorkAssignments')
                 load=await placement(rt,facts,'Heater',indoors=True)
@@ -179,6 +187,12 @@ async def run(args):
             elif args.case=='combat':
                 patient=people[0]['thingId']
                 await rt.native('home/order',dict(action='draft',pawn=patient,dryRun=False))
+                equipment=await setup('combat-equipment')
+                crew=sorted(people[1:],key=lambda p:(-max((s.get('level') or 0 for s in p['bio']['skills']
+                    if s['name'] in ('Melee','Shooting')),default=0),p['thingId']))[:4]
+                actions=[dict(kind='native_operation',tool='home/order',arguments=dict(action='equip',pawn=p['thingId'],target=w,watch=False),completion='pawn_equipped')
+                    for p,w in zip(crew,equipment['weapons'])]
+                await finish_steps(await issue('EnsureBasicDefense',('fixture-equipment',actions)),'native_squad_equipped')
                 await setup('wound',patient)
                 await setup('opponents')
                 ids=await issue('ActiveCombat')

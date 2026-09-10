@@ -7,6 +7,30 @@ from test_medical_recovery import fixture, recover
 from rimbot.colony_plan import ColonyGoal
 from rimbot.development import development_nodes, power_method, development_method
 from rimbot.medical_replacement import replace_doctor
+from rimbot.colony_policy import derive, work_assignment
+
+
+def test_downed_permanent_manhunter_does_not_keep_active_combat_open():
+    rt=Replay()
+    rt.batch.summary.hostile_count=2
+    rt.batch.native['status_after']={'threats':{'hostiles':[{'downed':True},{'downed':False}]}}
+    assert derive(rt.batch,rt.facts,rt.controller.policy)['hostiles']==1
+    rt.batch.native['status_after']['threats']['hostiles'][0]['downed']=False
+    assert derive(rt.batch,rt.facts,rt.controller.policy)['hostiles']==2
+
+
+def test_checkbox_researcher_can_work_before_endless_cleaning_and_respects_override():
+    rt=Replay(8)
+    for i,p in enumerate(rt.people):
+        p['work']['manualPriorities']=False
+        p['work']['types'].append(dict(name='Research',disabled=False,priority=0,priorityStored=0))
+        p['bio']['skills'].append(dict(name='Intellectual',level=20 if i==3 else 1,disabled=False))
+    assignments,covered=work_assignment(rt.people,{'Research':'Intellectual'})
+    assert covered
+    researcher=assignments[rt.people[3]['thingId']]
+    assert researcher['Research']==1 and researcher['Hauling']==researcher['Cleaning']==0
+    assignments,covered=work_assignment(rt.people,{'Research':'Intellectual'},{rt.people[3]['thingId']:{'Research':0}})
+    assert assignments[rt.people[3]['thingId']]['Research']==0
 
 
 def test_native_player_order_history_prevents_even_completed_external_job_recovery():
@@ -94,3 +118,4 @@ async def test_unavailable_doctor_gets_new_action_preserving_old_receipt(stale):
         assert plan.spec.steps[0].action.arguments['pawn']=='Thing_Doctor'
         assert plan.spec.steps[1].action.arguments['pawn']=='Thing_Alternate'
         assert plan.progress[plan.spec.steps[1].id].state=='pending'
+        assert plan.spec.steps[0].signature() not in plan.cancelled_actions
