@@ -978,8 +978,11 @@ input paths, a Windows game/GABS binary, mismatched mods or a reused output requ
 fixing the inputs and choosing a fresh run directory. Do not silently retry native
 crashes or clean up other tasks with global Docker prune commands.
 
-These are lifecycle checks; actual pawn outcomes and throughput need their own
-native acceptance. Startup failures are never retried silently. Remaining probes with hard-coded Windows paths must be ported
+The current runner's assertions cover lifecycle, not completed pawn work. Docker
+can run controller and native outcome assertions together; use or port gameplay
+scenarios to verify actual pawn work. Reusable scenario and recorder improvements
+are tracked under B17 in [BACKLOG.md](BACKLOG.md). Throughput needs separate
+measurement. Startup failures are never retried silently. Remaining probes with hard-coded Windows paths must be ported
 before use in containers. Headless remains the default. For rendered tests set `RIMBOT_DISPLAY=xvfb`,
 `RIMBOT_DISPLAY_RESOLUTION=1280x720` (640x480 through 3840x2160) and
 `RIMBOT_DISPLAY_RENDERER=llvmpipe`. Each container owns Xvfb `:99` in its own
@@ -1006,6 +1009,28 @@ credentials, selects a current-map colonist, confirms the selection through a
 separate native read, clears it and releases into Manual. The probe renews its
 lease like the browser and retains per-request evidence in `player-input.json`.
 These checks do not exercise raw image coordinates, drag/modifiers or WebRTC.
+
+### Existing diagnostic recording
+
+There are useful flight-recorder components, but no complete correlated failure
+bundle or general offline replay workflow yet:
+
+| Evidence | Available behavior and limits |
+| --- | --- |
+| Controller SQLite (`store.py`) | Persists state, events and retired action/method evidence. Event history can include diagnostics; default history excludes diagnostic kinds. |
+| `GET /api/diagnostics` | Read-only latest 100 events for the current colony, including diagnostics; not a complete run export. |
+| Tool diagnostics | Planner tool arguments/results, outcomes and timing are recorded with bounded payloads. Runtime native dispatches record tool results and receipts; this is not exhaustive coverage of background reads or failed/pre-dispatch calls. |
+| `ReviewEvidence` | Exact observations within a review, held in memory with a byte budget and eviction; not durable recording across process failure. |
+| Decision storage helpers | `Store.decision`, `finish_decision` and `read_decision` support compressed snapshots capped at 64, but currently have no runtime callers. Do not assume a run populated them. |
+| Native Docker output | Worker logs, `run/Player.log`, staging/input manifests, controller data, and any captured frames or successful paired checkpoints survive container removal. The native runner's `result.json` describes its assertions and cleanup. |
+
+For a failed Docker run, start with `result.json` and the numbered worker's
+`container.log`, then inspect native logs and retained controller evidence. A
+failure before report creation may leave only console/build output. Keep the
+whole output tree; a game crash may prevent a final paired checkpoint. Existing
+evidence cannot be assumed to reconstruct every observation or pawn transition.
+The correlated recorder, automatic failure export and reusable regression loop
+are unfinished B17 work in [BACKLOG.md](BACKLOG.md).
 
 ### Steam Linux inputs
 

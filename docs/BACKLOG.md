@@ -159,6 +159,53 @@ in the checkpoint commit; do not append an implementation diary here.
   pawn outcomes and mixed task builds. Bounded clock/shutdown/checkpoint acceptance
   does not establish sustained gameplay, inference throughput or cloud acceptance.
 
+  - [ ] **Reusable native scenario runner.** Extend the Docker harness with named
+    scenarios and shared setup, observation, tick-bounded waits, assertions and
+    owned-process cleanup. Port existing gameplay probes through the shared GABS
+    resolver instead of creating more standalone scripts. Declare each scenario's
+    required save/mod/schema/model/display inputs and distinguish missing fixture
+    prerequisites, infrastructure failures, assertion failures and timeouts.
+    Accept when one documented command lists/selects scenarios and runs at least
+    construction completion, resource production and paired-restart recovery in
+    fresh containers, with structured per-scenario results and JUnit output.
+  - [ ] **Pawn-outcome and scenario matrix.** Assert fresh native results tied to
+    colony/map/load, action and target identities: blueprint-to-building completion,
+    actual harvest/haul/craft stock changes and consumption, treatment completion,
+    and interrupted pending work across restart. Reuse B04/B07/B09 acceptance
+    contracts; receipts and elapsed ticks cannot satisfy completion. Add seeds,
+    scarce inputs, blocked paths, player edits and headless/rendered variants with
+    explicit coverage labels. Keep scripted controller scenarios separate from
+    actual local-model chat runs. Accept negative cases that reliably fail when
+    orders are accepted but pawn work cannot complete, retaining the last observed
+    job, blocker, resource state and expected-versus-actual postcondition.
+  - [ ] **Correlated flight recorder and failure bundles.** Build on SQLite events,
+    retained actions, tool diagnostics and native logs. Audit actual coverage first:
+    `Store` has compressed decision helpers but no current runtime callers, and
+    review-local evidence is transient. Record a versioned timeline linking run,
+    scenario, colony/map/load, native tick, wall time, plan/direction revision,
+    goal/action, native request/receipt/readback, clock holds and pawn outcomes.
+    Include failed calls and relevant background observations; identify omissions,
+    truncation and dropped records explicitly. Use bounded recording with measured
+    overhead and durable pre-write evidence, preserving the failure window before
+    rotation. Automatically collect a consistent SQLite backup, logs, build/input
+    hashes, last observations and rendered frame when available on assertion,
+    timeout or crash; attempt a paired checkpoint only while the game can safely
+    save, and retain partial evidence if it cannot. Accept by inducing an assertion
+    failure, timeout and native process exit and diagnosing each from its bundle
+    without an attached live session or unreported recording gaps.
+  - [ ] **Repeatable diagnosis and regression loop.** Emit a short failure summary
+    with the failed assertion, expected/actual values, last progress tick, active
+    pawn jobs/blockers and links into the correlated timeline. Retain exact source,
+    image, inputs, scenario parameters and one rerun command; reuse immutable paired
+    checkpoints for targeted continuation while labelling fresh-start runs separately.
+    Support offline timeline inspection and exporting recorded controller inputs to
+    focused fixture regressions; a replayed fixture does not certify native behavior
+    or bit-for-bit simulation replay. Add resource-bounded scenario scheduling and
+    explicit repeated-run/flakiness reports that retain every failed attempt.
+    Accept when a representative gameplay failure can be inspected offline, rerun
+    from its declared inputs, captured as a focused regression, and verified with
+    the same native scenario after a fix without writing a new probe script.
+
   **Rendered container acceptance.** Optional per-worker Xvfb/llvmpipe support
   provides explicit resolution, private rendered profiles and retained display/game
   logs. The two-worker runner captures native PNGs and verifies clocks, shutdown,
