@@ -198,7 +198,9 @@ Active resource goals extend deterministic work coverage with these jobs; incapa
 pawns remain excluded and explicit player work overrides retain ownership.
 They acquire nearby reachable mineables or mature wild plants with identity-guarded
 ordinary designators, or discover native bench recipes and create target-count
-bills. Existing bills count as continuing capacity only when their repeat mode
+bills. Available recipes with an available native option for every ingredient
+slot take precedence over recipes missing inputs; native bill admission still
+owns reachability, reservations and consumption. Existing bills count as continuing capacity only when their repeat mode
 and target cover the request. Player bill edits are preserved; an explicit goal
 renewal is required before replacing previously issued production that no longer
 covers its target. Construction material alternatives are selected against both

@@ -20,13 +20,6 @@ in the checkpoint commit; do not append an implementation diary here.
   Nutrition-based harvest limits and per-colonist inventory/rot forecasts exist;
   validate actual spoilage, changing temperatures and food sharing during sustained runs. Enforce
   persistent player food targets through production capacity as well as stock.
-- [ ] **B04e · Resource policy completeness.** Accept exact native ingredient job
-  admission and consumption guards, preserved player bill settings, persistent
-  resource floors and lease-scoped construction commitments in game. Cover actual
-  production and acquisition, material substitutions, stock changes during work,
-  native save/load and Manual ownership. Named components, medicine, steel and
-  fuel targets have generic source/recipe methods and deficit evidence; complete
-  their native outcome matrix, prerequisite recovery and production-capacity cases.
 - [ ] **B04f · Deterministic emergency/development methods.** Extend small-animal
   defense to larger encounters and extend medical recovery to unavailable doctors,
   multiple competing patients and player interruption ownership beyond tracked overrides,

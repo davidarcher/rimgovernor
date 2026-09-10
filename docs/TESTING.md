@@ -974,3 +974,12 @@ ownership. Completed explicit fixture setup orders are archived through normal
 plan revisions; their verified receipts remain in the paired controller database.
 Force-paused research dialogs are captured with UI targets and a new paired
 checkpoint before cleanup, preserving the native prerequisite outcome for review.
+Use `--production-resume --checkpoint <paired-manifest>` to continue an existing
+refinery and bill without repeating prerequisite setup. The probe records actual
+pawn jobs and stock through production. An observed supported animal threat can
+hand control to the shared deterministic defense method, then return to Manual
+after native threat clearance. Native guards remain active throughout.
+
+The named-resource matrix covers actual steel, component, herbal-medicine and
+wood acquisition, plus chemfuel production. Industrial-medicine target resolution
+does not certify industrial-medicine manufacturing or unavailable prerequisites.
