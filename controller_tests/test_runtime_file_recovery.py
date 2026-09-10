@@ -224,3 +224,24 @@ async def test_camera_read_recovers_claim_race_but_pan_does_not():
         await camera_call(rt,'rimworld/move_camera',{'direction':'left'})
     assert session.call_tool.await_count==1
 
+@pytest.mark.parametrize('op', ['status', 'events', 'start', 'pause', 'heartbeat'])
+async def test_temporary_gabp_loss_only_retries_clock_observations(op):
+    from rimbot.clock_control import PlayClock
+    fault = result({'message': "Game 'rimbot-trial' is not connected via GABP."}, True)
+    session = SimpleNamespace(call_tool=AsyncMock(side_effect=[fault, result({'running': True}), result({'success': True})]))
+    clock = PlayClock(BridgeClient(session))
+    if op in ('status', 'events'):
+        assert await clock.call(op=op) == {'success': True}
+        assert [c.args[0] for c in session.call_tool.await_args_list] == ['games_call_tool', 'games_status', 'games_call_tool']
+    else:
+        with pytest.raises(BridgeError):
+            await clock.call(op=op)
+        assert session.call_tool.await_count == 1
+
+
+async def test_persistent_gabp_loss_never_reconnects_or_restarts_the_game():
+    fault = result({'message': "Game 'rimbot-trial' is not connected via GABP."}, True)
+    game, session = game_with([fault, result({}), fault, result({}), fault], 'home/list_zones', {})
+    with pytest.raises(BridgeError):
+        await game.query('home/list_zones')
+    assert [c.args[0] for c in session.call_tool.await_args_list] == ['games_call_tool', 'games_status', 'games_call_tool', 'games_status', 'games_call_tool']

@@ -19,7 +19,7 @@ def run(args):
     name = 'rimbot-b15-' + uuid.uuid4().hex[:12]
     report = dict(passed=False, container=name, trip=args.trip, shared=args.shared, quests=args.quests, days=args.days, matrix=args.matrix,
                   logistics=args.logistics, multimap=args.multimap, emergency=args.emergency, diplomacy=args.diplomacy, quest_trade=args.quest_trade, expired=args.expired,
-                  prepared_days=args.prepared_days,
+                  prepared_days=args.prepared_days, recovery=args.recovery,
                   scope='Native caravan/quest observations and optional ordinary loaded caravan round trip')
     try:
         baseline = args.profile.resolve() / 'Saves/RimBot-tribal8-baseline.rws'
@@ -56,6 +56,7 @@ def run(args):
         with (output / 'container.log').open('w') as log:
             result = command('run', '--name', name, '--init', '--env', 'RIMBOT_UNITY_GC_TIME_SLICE=0',
                 '--env', 'PYTHONPATH=/app/scripts:/app/controller',
+                '--env', 'RIMBOT_RECOVERY=' + ('1' if args.recovery else '0'),
                 '--env', 'RIMBOT_SHARED_WORLD=' + ('1' if args.shared else '0'),
                 '--env', 'RIMBOT_QUEST_PROBE=' + ('1' if args.quests else '0'),
                 '--env', 'RIMBOT_SURVIVAL_DAYS=' + str(args.days),
@@ -98,6 +99,7 @@ if __name__ == '__main__':
     parser.add_argument('--image', default='rimbot-b15:local')
     parser.add_argument('--no-build', action='store_true')
     parser.add_argument('--trip', action='store_true')
+    parser.add_argument('--recovery', action='store_true', help='Observe ordinary ration depletion and explicit living return of a short-supplied party')
     parser.add_argument('--logistics', action='store_true', help='Verify explicit hold and return cargo unloading into native storage')
     parser.add_argument('--diplomacy', action='store_true', help='Visit a native settlement and give explicitly requested silver through shared Hands')
     parser.add_argument('--quest-trade', action='store_true', help='Acquire ordinary requested goods, visit the quest settlement and observe native fulfillment and rewards')
@@ -113,6 +115,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if args.matrix and not (args.trip and args.shared):
         parser.error('--matrix requires --trip --shared')
-    if (args.logistics or args.multimap or args.diplomacy or args.quest_trade) and not (args.trip and args.shared):
+    if (args.logistics or args.multimap or args.diplomacy or args.quest_trade or args.recovery) and not (args.trip and args.shared):
         parser.error('Logistics, diplomacy, trade quests and multiple maps require --trip --shared')
     raise SystemExit(0 if run(args) else 1)

@@ -7,7 +7,9 @@
 Use a task-specific `--image` and a new `--output` directory. It builds and pins
 one worker image, retains the exact probe hash, native calls and failures, and
 removes only its own container. `result.json` requires both native success and
-cleanup. No model inference is exercised.
+cleanup. No model inference is exercised. Linux workers keep mutable GABS claims
+and the game profile on their private Linux filesystem; after stopping the owned
+game, the probe retains that complete runtime under `native-runtime`.
 
 Add `--trip --shared` to require ordinary cargo packing, world movement and living
 home-map return through semantic commands, shared reservations and Hands. Omit
@@ -15,7 +17,10 @@ home-map return through semantic commands, shared reservations and Hands. Omit
 Unforbid orders and an ordinary stockpile; items outside home/storage are not
 silently made eligible for native caravan loading. One identified Ancient danger
 warning can be acknowledged after confirming no active hostile or hunting
-predator. Other interruptions fail with retained native evidence.
+predator. A single mad-animal notification can receive explicit scenario review
+when every native hostile is beyond the configured proximity radius and no
+predator is hunting colony members. Native proximity and injury stops remain
+active. Other interruptions fail with retained native evidence.
 
 `--quests` requires the separately built interruption fixture and checks an
 ordinary WandererJoin quest's terminal state plus the actual joined colonist.
@@ -34,7 +39,10 @@ preference set to at least two. The fixture never edits maps or pawn positions.
 eligibility and route/food limits, spends an explicit silver gift, observes
 goodwill, then verifies return storage. `--quest-trade --trip --shared` requires
 a native offer with obtainable goods and an item reward, uses shared acquisition,
-and observes native fulfillment and received cargo. Unobtainable offers do not
+and observes native fulfillment and received cargo. It can inspect visible ore
+or wild herbs, move through shared pawn orders to an observed approach, and then
+use the same native acquisition guards. Offers generated at later native ticks
+retain their independently generated quantities; no requirements are edited. Unobtainable offers do not
 authorize generated goods or changed quest requirements. These longer trips keep
 home food gathering in the existing shared goal and Hands.
 
@@ -63,3 +71,7 @@ work and shared food gathering. This narrower mode does not certify autonomous
 establishment. Settlement trips can prepare simple meals through native cooking
 bills when the colony has a usable station and cook; production must be observed
 before departure. The runner records the input save hash for either mode.
+
+`--recovery --trip --shared` holds a normally formed party until native ration
+consumption reaches the expedition recovery threshold, then requires an explicit
+return with living crew. It never deletes food or edits pawn needs.

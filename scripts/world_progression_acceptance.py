@@ -3,6 +3,8 @@ import asyncio
 import json
 import os
 import time
+import shutil
+import tempfile
 from pathlib import Path
 
 from rimbot.bridge_runtime import BridgeRuntime
@@ -18,12 +20,18 @@ async def run():
     root = Path(os.environ['RIMBOT_BRIDGE_ROOT'])
     output = root.parent / 'world-progression'
     output.mkdir(exist_ok=False)
+    # GABS claim files need Linux filesystem rename/locking semantics during Docker runs.
+    # Copy all runtime evidence back only after the owned game has stopped.
+    if os.name == 'posix':
+        from rimbot.headless import isolated_root
+        root = isolated_root(root, Path(tempfile.mkdtemp(prefix='rimbot-world-')) / 'run')
     store = Store(output / 'state.sqlite')
     NoInference.attempts = 0
     rt = BridgeRuntime(store, root, fresh=True, headless=True, model_factory=lambda _: NoInference())
     report = {'passed': False, 'scope': 'Native world-progression audit', 'cases': {}}
     shared = os.environ.get('RIMBOT_SHARED_WORLD') == '1'
     diplomacy = os.environ.get('RIMBOT_DIPLOMACY') == '1'
+    recovery = os.environ.get('RIMBOT_RECOVERY') == '1'
     quest_trade = os.environ.get('RIMBOT_QUEST_TRADE') == '1'
     settlement_trip = diplomacy or quest_trade
     prepared_days = os.environ.get('RIMBOT_PREPARED_DAYS') == '1'
@@ -96,6 +104,16 @@ async def run():
             assert len(report['interruptions']) == 1, 'Unexpected repeated Ancient danger warning'
             rt.supervisor.absorb(state)
             rt.supervisor.allow_resume()
+        elif state['stopReason'] == 'notification_batch' and state.get('stopDetail', '').startswith('1 new notification(s): Mad '):
+            danger = await read('home/status', colonists=True, threats=True)
+            hostiles = danger['threats']['hostiles']
+            report.setdefault('distant_animal_notifications', []).append(dict(clock=state, danger=danger))
+            assert state['pauseVerified'] and danger['counts']['huntingPredatorCount'] == 0
+            assert hostiles and all(isinstance(h.get('distanceToNearestColonist'), (int, float))
+                and h['distanceToNearestColonist'] > state['hostileWithin'] for h in hostiles), danger
+            # Explicit scenario review of a distant notice; native proximity/injury guards remain unchanged.
+            rt.supervisor.absorb(state)
+            rt.supervisor.allow_resume()
         elif state['stopReason'] == 'requested_pause':
             danger = await read('home/status', colonists=False, threats=True)
             assert state['owner'] == rt.supervisor.owner and state['pauseVerified'] and not rt.supervisor.hold
@@ -108,7 +126,7 @@ async def run():
             async with rt.lock:
                 await reconcile_world(rt)
                 rt.persist()
-        if settlement_trip or prepared_days:
+        if settlement_trip or prepared_days or recovery:
             async with rt.lock:
                 await rt.refresh_clock_events()
             async with asyncio.timeout(45):
@@ -196,6 +214,18 @@ async def run():
                     for s in p.get('bio', {}).get('skills', []) if s['name'] == 'Social' and not s['disabled']]
                 assert negotiators, 'No native capable negotiator'
                 pawn = max(negotiators)[1]
+            if settlement_trip and not supply_cells:
+                center = roster['pawns'][0]['position']
+                cells = await read('home/get_cells_plus', x=center['x'] - 4, z=center['z'] - 4, width=9, height=9)
+                vacant = [c for c in cells['cells'] if c.get('walkable') is True
+                    and not c.get('fogged') and not c.get('zoneId') and not c.get('things')]
+                assert len(vacant) >= 4, 'Observe available storage cells near the home crew'
+                zone_args = dict(op='create', zoneType='stockpile', label='Expedition return storage',
+                    cells=';'.join(f"{c['x']},{c['z']}" for c in vacant[:12]),
+                    allowSplit=True, preset='everything', watch=False)
+                preview = await read('home/zone_cells', **zone_args, dryRun=True)
+                assert preview.get('success') is True
+                report['return_stockpile'] = await read('home/zone_cells', **zone_args, dryRun=False)
             trade_quest = None
             if quest_trade:
                 assert shared
@@ -210,6 +240,35 @@ async def run():
                     candidate = next(q for q in world['quests'] if q['id'] == offer['questId'])
                     objective = candidate['tradeRequests'][0]
                     sources = await read('home/resource_sources', resource=objective['resource'])
+                    if (objective['resource'] in ('Plasteel', 'MedicineHerbal')
+                            and available_stock.get(objective['resource'], 0) + sum(s.get('yield', 0) for s in sources.get('sources', [])) < objective['count']):
+                        ore = await read('home/list_things', match='MineablePlasteel' if objective['resource'] == 'Plasteel' else 'Plant_HealrootWild',
+                            category='all', ownership='ours', maxPositionsPerDef=40)
+                        positions = [pos for row in ore.get('things', []) for pos in row.get('positions', [])]
+                        for pos in positions[:3]:
+                            vicinity = await read('home/get_cells_plus', x=pos['x'] - 3, z=pos['z'] - 3, width=7, height=7)
+                            approach = next((c for c in vicinity['cells'] if c.get('walkable') is True and not c.get('fogged')), None)
+                            if not approach:
+                                continue
+                            preview = await read('home/order', action='goto', pawn=pawn,
+                                x=approach['x'], z=approach['z'], watch=False, dryRun=True)
+                            if preview.get('success') is not True:
+                                continue
+                            await command(kind='DraftPawn', pawn=pawn, drafted=True, waits=False)
+                            await command(kind='MovePawn', pawn=pawn, x=approach['x'], z=approach['z'])
+                            deadline = time.monotonic() + 120
+                            while time.monotonic() < deadline:
+                                await window(600)
+                                people = await read('home/list_pawns', colonistsOnly=True)
+                                current = next(p for p in people['pawns'] if p['thingId'] == pawn)
+                                if current['position'] == dict(x=approach['x'], z=approach['z']):
+                                    break
+                            assert current['position'] == dict(x=approach['x'], z=approach['z']), 'Prospector did not reach observed ore approach'
+                            await command(kind='DraftPawn', pawn=pawn, drafted=False, waits=False)
+                            sources = await read('home/resource_sources', resource=objective['resource'])
+                            report.setdefault('prospecting', []).append(dict(ore=pos, approach=approach, sources=sources))
+                            if sources.get('sources'):
+                                break
                     choice = next((c for c in candidate['rewardChoices']
                         if any(r.get('items') for r in c['rewards'])), None)
                     obtainable = (available_stock.get(objective['resource'], 0)
@@ -219,6 +278,7 @@ async def run():
                     if obtainable and choice and objective['count'] <= 100:
                         trade_quest = candidate
                         break
+                    await window(600)
                 assert trade_quest, 'No bounded ordinary obtainable trade offer among the native candidates'
                 report['trade_quest'] = trade_quest
                 await command(kind='AcceptQuest', quest_id=trade_quest['id'], pawn_id=pawn,
@@ -261,9 +321,22 @@ async def run():
                     report['quest_acquisition'] = dict(resource=objective['resource'], required=objective['count'],
                         observed=facts['resources'][objective['resource']], source='Existing native stock')
                 catalog = await read('home/caravan')
-            food = next((g for definition in ('Pemmican', 'MealSurvivalPack', 'MealSimple')
-                for g in catalog['groups'] if g['defName'] == definition and g['available'] >= (
-                    (250 if diplomacy else 200 if quest_trade else 60) if definition == 'Pemmican' else (20 if settlement_trip else 6))), None)
+            def travel_food(catalog):
+                for definition in ('Pemmican', 'MealSurvivalPack', 'MealSimple'):
+                    count = ((250 if diplomacy else 200 if quest_trade else 25 if recovery else 60)
+                        if definition == 'Pemmican' else (20 if settlement_trip else 6))
+                    groups = [g for g in catalog['groups'] if g['defName'] == definition]
+                    if sum(g['available'] for g in groups) < count:
+                        continue
+                    remaining, cargo = count, []
+                    for group in groups:
+                        take = min(remaining, group['available'])
+                        if take:
+                            cargo.append(dict(group_id=group['id'], count=take))
+                            remaining -= take
+                    return dict(groups[0], manifest=cargo)
+                return None
+            food = travel_food(catalog)
             if food is None and settlement_trip:
                 facts = await read('home/colony_facts', planning=True)
                 bench = next((b for b in facts.get('cooking', []) if b['usable'] and 'CookMealSimple' in b['recipes']), None)
@@ -277,13 +350,12 @@ async def run():
                 while time.monotonic() < deadline:
                     await window(6000)
                     catalog = await read('home/caravan')
-                    food = next((g for g in catalog['groups'] if g['defName'] == 'MealSimple' and g['available'] >= 32), None)
+                    food = travel_food(catalog)
                     if food:
                         break
                 report['travel_meal_preparation'] = food
             assert food, 'Prepared native travel food is unavailable'
-            food_count = (250 if diplomacy else 200 if quest_trade else 60) if food['defName'] == 'Pemmican' else (20 if settlement_trip else 6)
-            manifest = [dict(group_id=food['id'], count=food_count)]
+            manifest = list(food['manifest'])
             if quest_trade:
                 goods = next(g for g in catalog['groups'] if g['defName'] == objective['resource'])
                 manifest.append(dict(group_id=goods['id'], count=objective['count']))
@@ -294,7 +366,7 @@ async def run():
             scope = await read('home/colony_identity')
             scope_args = {key: scope[key] for key in ('colonyId', 'loadToken', 'mapId')}
             for tile in catalog['neighbors']:
-                arguments = dict(scope_args, action='form', pawnIds=pawn, cargoIds=food['id'], counts=str(food_count), destination=tile)
+                arguments = dict(scope_args, action='form', pawnIds=pawn, cargoIds=','.join(c['group_id'] for c in manifest), counts=','.join(str(c['count']) for c in manifest), destination=tile)
                 preview = await read('home/caravan', **arguments, dryRun=True)
                 if preview.get('accepted') is True:
                     if os.environ.get('RIMBOT_WORLD_MATRIX') == '1':
@@ -412,6 +484,20 @@ async def run():
                 after_faction = next(f for f in report['gift']['observation']['factions'] if f['id'] == preview['route']['factionId'])
                 assert after_faction['goodwill'] > preview['route']['goodwill'], 'Native goodwill did not improve'
                 report['cases']['native_settlement_visit_and_diplomacy'] = 'passed'
+            if recovery:
+                from rimbot.expedition_policy import evaluate_world, policy_for
+                await command(kind='HoldCaravan', caravan_id=caravan_id, waits=False)
+                deadline = time.monotonic() + 900
+                while time.monotonic() < deadline:
+                    await window(6000)
+                    world = await read('home/world_progression')
+                    assessment = evaluate_world(policy_for(rt.current_plan), world, await read('home/colony_facts'))
+                    party = next(c for c in assessment['caravans'] if c['id'] == caravan_id)
+                    assert party['healthy'], 'Ration recovery scenario must retain living mobile crew'
+                    if party['recovery_required']:
+                        report['short_supplied_party'] = party
+                        break
+                assert report.get('short_supplied_party'), 'Native ration depletion did not reach the recovery threshold'
             return_args = dict(scope_args, action='return', caravanId=caravan_id)
             report['return_order'] = (await command(kind='RouteCaravan', caravan_id=caravan_id,
                 return_home=True, storage_resources=['Silver'] if logistics else [])) if shared else await read('home/caravan', **return_args, dryRun=False)
@@ -432,6 +518,8 @@ async def run():
                 report['plan'] = rt.current_plan.model_dump(mode='json')
                 assert all(rt.current_plan.progress[s].state == 'complete' for s in report['shared_steps'])
             report['cases']['caravan_round_trip'] = 'passed'
+            if recovery:
+                report['cases']['native_short_supplied_party_return'] = 'passed'
             if logistics:
                 report['cases']['native_return_storage_and_hold'] = 'passed'
         if os.environ.get('RIMBOT_MULTIMAP') == '1':
@@ -570,6 +658,10 @@ async def run():
         report['passed'] = True
     except Exception as error:
         report['error'] = repr(error)
+        try:
+            report['native_attention'] = (await rt.bridge.core('games_get_attention', gameId=rt.bridge.game_id)).structuredContent
+        except Exception as attention_error:
+            report['attention_error'] = repr(attention_error)
         if rt.connected:
             try:
                 report['failure_world'] = await read('home/world_progression')
@@ -582,6 +674,8 @@ async def run():
             await rt.stop()
         finally:
             store.close()
+            if os.name == 'posix':
+                shutil.copytree(root, output / 'native-runtime')
             (output / 'result.json').write_text(json.dumps(report, indent=2))
 
 

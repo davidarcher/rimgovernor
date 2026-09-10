@@ -45,13 +45,14 @@ async def runtime_file_read(operation, *args, **kwargs):
             claim_changed = isinstance(owner, BridgeClient) and all(part in detail for part in (
                 'failed to claim runtime ownership', 'a launch claim for',
                 'was published while preparing this operation', 're-check games_status and retry'))
-            if not (transient or claim_changed) or attempt == 2:
+            disconnected = isinstance(owner, BridgeClient) and 'not connected via gabp' in detail
+            if not (transient or claim_changed or disconnected) or attempt == 2:
                 raise
-            if claim_changed:
+            if claim_changed or disconnected:
                 await owner.core('games_status', gameId=owner.game_id)
             logging.getLogger(__name__).warning(
                 'Retrying read after GABS runtime publication failure (%s/2): %s', attempt + 1, error)
-            await asyncio.sleep(0.05 * (attempt + 1))
+            await asyncio.sleep(1.0 if disconnected else 0.05 * (attempt + 1))
 
 
 class BridgeClient:
