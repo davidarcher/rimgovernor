@@ -1,6 +1,7 @@
 """Bounded mood relief through shared goals and ordinary native need jobs."""
 from .native_forecasts import finite
 from .colony_plan import Failure
+from .bridge import BridgeError
 
 
 def assess(people, forecasts, previous):
@@ -81,7 +82,16 @@ async def method(rt, identity, facts, people):
         if type(args['expectedJob']) is not int or not args['expectedSchedule']:
             failures.append(name+': native job/schedule identity unavailable')
             continue
-        preview = await rt.inspect_native('home/relieve_need', dict(args, dryRun=True))
+        try:
+            preview = await rt.inspect_native('home/relieve_need', dict(args, dryRun=True))
+        except BridgeError as error:
+            # This call is admission-only. Dispatch errors remain owned by Hands.
+            preview = error.result.structuredContent or {}
+            if (preview.get('success') is not False
+                    or preview.get('tool') != 'home/relieve_need'
+                    or error.tool not in ('home/relieve_need', 'games_call_tool')):
+                raise
+            goal.evidence.setdefault('need_preview_refusals', {})[name] = preview
         if preview.get('success') is not True:
             failures.append(name+': '+str(preview.get('error')))
             continue

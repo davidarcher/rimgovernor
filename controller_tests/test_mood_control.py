@@ -119,6 +119,34 @@ async def test_ineligible_first_cause_can_use_eligible_alternative():
     assert name == 'joy'
 
 
+@pytest.mark.asyncio
+async def test_native_preview_exception_retains_refusal_and_tries_other_need():
+    from mcp.types import CallToolResult
+    from rimbot.bridge import BridgeError
+    p, rt = pawn(), runtime()
+    payload = dict(tool='home/relieve_need', success=False,
+                   error='Current job, carried cargo or fire prevents safe interruption.')
+    rt.inspect_native.side_effect = [BridgeError('games_call_tool',
+        CallToolResult(content=[], structuredContent=payload, isError=True)), {'success': True}]
+    name, actions = await method(rt, 'EnsureMood-Thing_Human1', {'mood':assess([p], [], {})}, [p])
+    assert name == 'joy' and len(actions) == 1
+    assert rt.current_plan.colony_goals['EnsureMood-Thing_Human1'].evidence['need_preview_refusals']['rest'] == payload
+    assert all(call.args[1]['dryRun'] is True for call in rt.inspect_native.await_args_list)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('payload', [{'success':False}, {'tool':'home/relieve_need'},
+    {'tool':'other/tool', 'success':False}])
+async def test_unidentified_need_preview_errors_propagate(payload):
+    from mcp.types import CallToolResult
+    from rimbot.bridge import BridgeError
+    p, rt = pawn(), runtime()
+    rt.inspect_native.side_effect = BridgeError('games_call_tool',
+        CallToolResult(content=[], structuredContent=payload, isError=True))
+    with pytest.raises(BridgeError):
+        await method(rt, 'EnsureMood-Thing_Human1', {'mood':assess([p], [], {})}, [p])
+
+
 @pytest.mark.parametrize('mismatch', [None, 'load', 'direction', 'age'])
 def test_uncertain_write_reconciles_only_fresh_owned_observations(mismatch):
     from rimbot.bridge_runtime import BridgeRuntime

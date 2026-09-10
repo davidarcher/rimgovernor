@@ -319,6 +319,23 @@ async def run(args):
                     check('subsequent_review_completes', rt.mode == 'automate')
                 finally:
                     rt.controller.skills.compile = original_compile
+                from rimbot.mood_control import assess, method as need_method
+                from rimbot.colony_skills import SkillBlocked
+                # Stale controller input exercises native admission without changing needs/jobs.
+                stale = dict(pawn, drafted=False, downed=False, jobPlayerForced=False,
+                    jobLoadId=-2, schedule={'current':'Anything'}, mentalState=None,
+                    needs={'mood':.1, 'breakThresholdMinor':.35, 'rest':.1, 'food':.8, 'joy':.8})
+                identity = 'EnsureMood-'+pawn['thingId']
+                rt.current_plan.colony_goals[identity] = ColonyGoal(priority_class=2)
+                try:
+                    await need_method(rt, identity, {'mood':assess([stale], [], {})}, [stale])
+                except SkillBlocked:
+                    evidence = rt.current_plan.colony_goals[identity].evidence.get('need_preview_refusals', {})
+                    check('stale_need_preview_refused_without_global_stop', bool(evidence), native=evidence)
+                else:
+                    raise AssertionError('Stale need identity unexpectedly passed admission')
+                await rt.controller.cycle()
+                check('review_after_need_refusal_completes', rt.mode == 'automate')
             elif args.case=='drafted-medical':
                 from rimbot.native_scenario import advance_game
                 # One player-owned draft stays protected throughout recovery.
