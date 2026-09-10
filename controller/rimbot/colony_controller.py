@@ -126,7 +126,7 @@ class ColonyController:
         await rt.ensure_context(token)
         if direction != rt.chat_revision or rt.mode != 'automate': return
         nodes = priority_nodes(facts, plan.control.setdefault('latches', {}), self.policy) + resource_nodes + population_nodes + herd_nodes
-        nodes += mood_nodes(facts['mood']) + upkeep_nodes(facts, plan.control)
+        nodes += mood_nodes(facts['mood']) + upkeep_nodes(facts, plan.control, plan.colony_goals)
         for identity in UPKEEP_GOALS:
             goal = plan.colony_goals.get(identity)
             if goal and not goal.cancelled and any(plan.progress[s].state in ('waiting', 'blocked', 'executing')
@@ -413,7 +413,7 @@ class ColonyController:
             if ((goal.steps or identity.startswith('Population-') or goal.evidence.get('waiting_for_native_cleaning')
                     or goal.evidence.get('waiting_for_native_fire') or goal.evidence.get('waiting_for_native_sleep')
                     or goal.evidence.get('waiting_for_storage_roof') or goal.evidence.get('waiting_for_medical_stock')
-                    or goal.evidence.get('waiting_for_native_pen')) and facts['tick'] - goal.last_progress_tick >= timeout
+                    or goal.evidence.get('waiting_for_native_pen') or goal.evidence.get('waiting_for_animal_feed')) and facts['tick'] - goal.last_progress_tick >= timeout
                     and (identity != 'MaintainMedicalCare' or any(p.state != 'complete' for p in existing))):
                 reason = f'No measurable progress within {timeout} game ticks; inspect labor/materials/postconditions'
                 goal.evidence['watchdog'] = dict(tick=facts['tick'], reason=reason,
@@ -435,7 +435,8 @@ class ColonyController:
                     if ((identity.startswith('Population-') and goal.status != 'complete')
                             or goal.evidence.get('waiting_for_native_cleaning') or goal.evidence.get('waiting_for_native_fire')
                             or goal.evidence.get('waiting_for_native_sleep') or goal.evidence.get('waiting_for_storage_roof')
-                            or goal.evidence.get('waiting_for_medical_stock') or goal.evidence.get('waiting_for_native_pen')):
+                            or goal.evidence.get('waiting_for_medical_stock') or goal.evidence.get('waiting_for_native_pen')
+                            or goal.evidence.get('waiting_for_animal_feed')):
                         plan.control['simulation_needed'] = True
                     existing_process = (identity=='CriticalMedical' and any(p.get('job')=='TendPatient' or
                         ((p.get('health') or {}).get('shouldSeekMedicalRest') is True and

@@ -62,6 +62,15 @@ and marker, and native observations must place the muffalo inside the suitable p
 The pet and release/slaughter settings remain unchanged. Simulation uses the
 bounded native scenario supervisor; this case does not certify stored feed reserves.
 
+For animal feed, use
+`python scripts/animal_feed_acceptance.py --source-root /worker/run --output /worker/feed --seconds 300`.
+The fixture supplies a hungry pet, a butcher spot, ingredients outside the pet's
+allowed area and enabled cooks. It supplies no kibble or bill. Require ordinary
+production, recovery of the reachable reserve and an observed increase in the
+animal's food need through eating. The reserve includes native competing eaters;
+the test preserves animal removal settings. This case does not establish protected
+delivery inside pens, ingredient replenishment or sustained seasonal feeding.
+
 Require process exit zero and `result.json.outcome == "passed"`. The report retains
 the source/input manifest, installed order schema, fixture setup, observations,
 receipts, postconditions and plan. Keep container and native logs alongside it.

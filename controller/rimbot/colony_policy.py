@@ -19,11 +19,15 @@ class ColonyPolicy:
     wood_reserve: int = 30
     medicine_min_per_colonist: int = 1
     medicine_target_per_colonist: int = 3
+    animal_feed_min_days: float = 2
+    animal_feed_target_days: float = 4
     max_method_attempts: int = 3
     blocked_after_ticks: int = 60000
     max_development_projects: int = 2
 
     def __post_init__(self):
+        if not 0 < self.animal_feed_min_days < self.animal_feed_target_days <= 30:
+            raise ValueError('Animal feed thresholds must be ordered and bounded')
         if not 0 <= self.medicine_min_per_colonist < self.medicine_target_per_colonist <= 20:
             raise ValueError('Medicine reserve thresholds must be ordered and bounded')
         if type(self.max_development_projects) is not int or not 1 <= self.max_development_projects <= 8:

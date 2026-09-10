@@ -7,6 +7,7 @@ from rimbot.animal_upkeep import containment_evidence, containment_method
 from rimbot.colony_plan import ColonyPlan, ColonyGoal
 from rimbot.colony_skills import SkillBlocked
 from rimbot.colony_upkeep import upkeep_nodes
+from rimbot.production_policy import required_resource_work
 
 
 def facts(**changes):
@@ -25,6 +26,14 @@ def test_containment_uses_native_pen_membership_and_preserves_player_removal_pol
     f = facts()
     f['upkeep']['tick'] = 9
     assert containment_evidence(f) is None
+
+
+def test_unknown_animal_census_does_not_block_essential_work_with_invented_handling_need():
+    plan = ColonyPlan(colony_goals={'MaintainAnimalContainment': ColonyGoal(priority_class=3)})
+    upkeep_nodes({}, plan.control)
+    assert 'Handling' not in required_resource_work(plan)
+    upkeep_nodes(facts(), plan.control)
+    assert required_resource_work(plan)['Handling'] == 'Animals'
 
 
 @pytest.mark.asyncio

@@ -71,8 +71,9 @@ in the checkpoint commit; do not append an implementation diary here.
 
   **Phase 5 — Sustain animals and medical supplies.** Extend verified native pen
   construction and containment to interrupted construction, changed pen filters,
-  unavailable handlers and larger starting herds. Establish reachable feed and
-  seasonal feed reserves independently of containment.
+  unavailable handlers and larger starting herds. Extend verified native feed
+  production and consumption to protected staging inside pens, unavailable benches
+  and ingredients, mixed herds, recurring depletion and seasonal feed reserves.
   Account for animal consumption separately from human food and protect sensitive
   stores with appropriate areas/filters. Do not automatically slaughter, release,
   breed or change bonded-animal policy to resolve a feed deficit. Extend verified

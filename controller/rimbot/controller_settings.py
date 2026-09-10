@@ -17,6 +17,8 @@ class PolicyChanges(BaseModel):
     wood_reserve: int | None=Field(default=None,ge=0,le=10000,strict=True)
     medicine_min_per_colonist: int | None=Field(default=None,ge=0,le=19,strict=True)
     medicine_target_per_colonist: int | None=Field(default=None,ge=1,le=20,strict=True)
+    animal_feed_min_days: float | None=Field(default=None,gt=0,le=30,strict=True)
+    animal_feed_target_days: float | None=Field(default=None,gt=0,le=30,strict=True)
     max_development_projects: int | None=Field(default=None,ge=1,le=8,strict=True)
     temperature_enter_low: float | None=Field(default=None,ge=-10,le=40,strict=True)
     temperature_exit_low: float | None=Field(default=None,ge=-10,le=40,strict=True)
@@ -38,6 +40,8 @@ class PolicyUpdate(BaseModel):
 
 
 FIELDS=[
+    ('animal_feed_min_days','Animals','Replenish below','days','Begin feed acquisition below this observed reachable reserve.'),
+    ('animal_feed_target_days','Animals','Feed target','days','Continue until reachable feed covers this native demand, including competing eaters and rot deadlines.'),
     ('medicine_min_per_colonist','Medicine','Replenish below','per colonist','Start replenishing usable reachable medicine below this reserve. Existing care policies stay in effect.'),
     ('medicine_target_per_colonist','Medicine','Medicine target','per colonist','Continue ordinary acquisition until this reserve is observed. Future harvest is not stock.'),
     ('max_development_projects','Development','Concurrent projects','projects','Limit new optional projects to this count and the observed available workers. Accepted work is retained when capacity falls; player work remains explicit.'),

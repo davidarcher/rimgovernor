@@ -22,7 +22,9 @@ namespace HomeBridge.BridgeTools
             {
                 var eaters = people.Where(p => p.needs?.food != null && !p.Downed && !p.InMentalState
                     && p.WillEat(thing) && PolicyAllows(p, thing) && !thing.IsForbidden(p)
-                    && p.CanReach(thing, PathEndMode.Touch, Danger.None)).ToList();
+                    && p.CanReach(thing, PathEndMode.Touch, Danger.None)
+                    && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null
+                        || p.playerSettings.AreaRestrictionInPawnCurrentMap[thing.Position])).ToList();
                 if (eaters.Count > 0 && seen.Add(thing.thingIDNumber)) stocks.Add(Stock(thing, eaters, null));
             }
             foreach (var pawn in people.Where(p => !p.Downed && !p.InMentalState))

@@ -100,6 +100,17 @@ namespace HomeBridge.BridgeTools
                     apparel = p.apparel?.WornApparel.Select(a => new { id = a.GetUniqueLoadID(),
                         defName = a.def.defName, hitPoints = a.HitPoints, maxHitPoints = a.MaxHitPoints }).ToList()
                 }).ToList()),
+                feedDefinitions = read("feedDefinitions", () => DefDatabase<ThingDef>.AllDefsListForReading
+                    .Where(d => d.category == ThingCategory.Item && d.IsNutritionGivingIngestible && !d.IsDrug
+                        && d.ingestible != null && (!d.ingestible.HumanEdible || (d.ingestible.foodType & FoodTypeFlags.Kibble) != 0)
+                        && (d.ingestible.foodType & FoodTypeFlags.Corpse) == 0)
+                    .OrderBy(d => d.defName).Select(d => new {
+                        defName = d.defName, nutritionPerItem = d.GetStatValueAbstract(StatDefOf.Nutrition),
+                        eaters = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.Faction == Faction.OfPlayerSilentFail
+                            && p.needs?.food != null && p.WillEat(d)
+                            && p.foodRestriction?.GetCurrentRespectedRestriction(p)?.filter.Allows(d) != false)
+                            .Select(p => p.GetUniqueLoadID()).ToList()
+                    }).ToList()),
                 animals = read("animals", () => map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
                     && p.Faction == Faction.OfPlayerSilentFail).Select(p => {
                         var needsPen = AnimalPenUtility.NeedsToBeManagedByRope(p);

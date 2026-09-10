@@ -73,12 +73,14 @@ def ingredient_deficits(recipe, resources):
 def required_resource_work(plan):
     result = {row['name']: next(iter(row.get('skills', [])), None)
               for key, goal in plan.colony_goals.items()
-              if (key.startswith('MaintainResource-') or key in ('MaintainEquipment', 'MaintainMedicalReserves')) and not goal.cancelled and goal.status != 'complete'
+              if (key.startswith('MaintainResource-') or key in ('MaintainEquipment', 'MaintainMedicalReserves', 'MaintainAnimalFeed')) and not goal.cancelled and goal.status != 'complete'
               for row in goal.evidence.get('work_types', [])}
     research = plan.colony_goals.get('EnsureResearch')
     if research and not research.cancelled and research.status != 'complete' and research.evidence.get('research', {}).get('queue'):
         result['Research'] = 'Intellectual'
-    if any((key.startswith('MaintainHerd-') or key == 'MaintainAnimalContainment') and not goal.cancelled and goal.status != 'complete'
+    containment = plan.control.get('upkeep', {}).get('MaintainAnimalContainment', {})
+    if any((key.startswith('MaintainHerd-') or key == 'MaintainAnimalContainment'
+            and containment.get('known') and containment.get('active')) and not goal.cancelled and goal.status != 'complete'
            for key, goal in plan.colony_goals.items()):
         result['Handling'] = 'Animals'
     return result

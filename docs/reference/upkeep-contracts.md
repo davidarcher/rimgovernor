@@ -113,6 +113,24 @@ inside a suitable native pen. No breeding, bonding, master or removal setting is
 changed. Feed sufficiency is a separate observation and cannot be inferred from
 containment or grazing space.
 
+`MaintainAnimalFeed` starts below two days of observed reachable feed per animal
+and recovers at four days, with configurable ordered thresholds. Each animal has
+its own latch; missing census, demand or access evidence cannot clear it. The
+combined forecast shares stock with every eligible eater, respects allowed areas
+and current rot deadlines, and credits neither pasture nor future production.
+Explicit player herd targets retain feed ownership, including cancelled targets;
+starting-animal upkeep does not replace those choices.
+
+Native feed definitions include non-human food and the installed kibble food-type
+flag, excluding drugs and corpses. Definition nutrition sizes bounded acquisition;
+actual reachable stock and demand determine recovery. At most eight eligible
+resources are considered through the shared source/bill method. Existing adequate
+bills are reused, player resource restrictions remain authoritative, and required
+production work joins shared allocation. The method never changes diets, animal
+areas, breeding or removal settings. Adequate global stock with insufficient animal
+access or rot runway produces an explicit staging blocker rather than more bills.
+Production receipts do not prove either access or ingestion.
+
 An `upkeep_target` action waits after the native job receipt. Hauling requires the
 same item identity and at least its original quantity in roofed valid storage;
 repair requires full observed target health; cleaning requires target absence
