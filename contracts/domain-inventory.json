@@ -4766,7 +4766,7 @@
       "category": "native-tool",
       "source": {
         "path": "controller/rimgovernor/session_checkpoint.py",
-        "line": 47
+        "line": 48
       },
       "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
@@ -4786,7 +4786,7 @@
       "category": "native-tool",
       "source": {
         "path": "controller/rimgovernor/session_checkpoint.py",
-        "line": 90
+        "line": 92
       },
       "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",

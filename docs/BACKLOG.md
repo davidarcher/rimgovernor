@@ -483,11 +483,6 @@ each bounded method.
   camera/selection invariance and offscreen moving-pawn captures have a dedicated
   probe; do not infer these broader outcomes from compilation or HTTP fixtures.
 
-- [ ] **Windows checkpoint deletion.** Close SQLite read connections before
-  deleting a saved pair. `test_explicit_deletion_preserves_other_pairs_and_native_saves`
-  currently fails with a locked `bridge.sqlite` on Windows, including on unchanged
-  main. Verify deletion preserves the other pairs and native saves.
-
 - [ ] **Reusable-game coverage.** Run `game_reuse_acceptance.py` in a native Linux
   worker and repeat the real-model execution suite with `--reuse-game`. Headless
   Windows acceptance covers three baseline resets, restored supplies, released
@@ -668,8 +663,6 @@ only intentional small, sanitized regression fixtures belong in source control.
       for 12; the representative Python sample retains partial-construction holds
       and a warning pause. Do not stop another task's native scenario.
 
-  Compatibility work retained for 04b: explicitly close checkpoint SQLite backup
-  connections on Windows; the Python transaction context does not close them.
   Extend the initial synthetic fixtures to native captures, complete paired
   checkpoints, nonzero archive epochs and the boundary/overflow decoding matrix
   with the corresponding Go consumer chunks. Inventory checks establish source

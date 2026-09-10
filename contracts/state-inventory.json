@@ -328,7 +328,7 @@
       "source": {
         "path": "controller/rimgovernor/session_checkpoint.py",
         "symbol": "create_checkpoint",
-        "line": 27
+        "line": 28
       },
       "go_package": "go/internal/store",
       "owner_chunk": "G01.04b",
@@ -351,7 +351,7 @@
       "source": {
         "path": "controller/rimgovernor/session_checkpoint.py",
         "symbol": "read_checkpoint",
-        "line": 102
+        "line": 104
       },
       "go_package": "go/internal/store",
       "owner_chunk": "G01.04b",
@@ -374,7 +374,7 @@
       "source": {
         "path": "controller/rimgovernor/session_checkpoint.py",
         "symbol": "prepare_resume",
-        "line": 117
+        "line": 119
       },
       "go_package": "go/internal/store",
       "owner_chunk": "G01.04b",
@@ -397,7 +397,7 @@
       "source": {
         "path": "controller/rimgovernor/session_checkpoint.py",
         "symbol": "stop_for_restart",
-        "line": 76
+        "line": 78
       },
       "go_package": "go/internal/store",
       "owner_chunk": "G01.04b",
@@ -420,7 +420,7 @@
       "source": {
         "path": "controller/rimgovernor/session_checkpoint.py",
         "symbol": "delete_checkpoint",
-        "line": 144
+        "line": 146
       },
       "go_package": "go/internal/store",
       "owner_chunk": "G01.04b",
@@ -443,7 +443,7 @@
       "source": {
         "path": "controller/rimgovernor/session_checkpoint.py",
         "symbol": "install_saved_game",
-        "line": 170
+        "line": 172
       },
       "go_package": "go/internal/store",
       "owner_chunk": "G01.04b",
@@ -466,7 +466,7 @@
       "source": {
         "path": "controller/rimgovernor/session_checkpoint.py",
         "symbol": "list_checkpoints",
-        "line": 127
+        "line": 129
       },
       "go_package": "go/internal/store",
       "owner_chunk": "G01.04b",

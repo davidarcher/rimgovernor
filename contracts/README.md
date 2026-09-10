@@ -3,7 +3,8 @@
 The original inventory rows describe the Python comparison surface for G01;
 `domain-inventory.json` also contains the repository-owned N01 native source
 baseline. These are not runtime capability declarations. `source_revision` records
-the Python revision inspected;
+the retained Python comparison revision. Source locators track the current checkout;
+locator-only refreshes do not recapture or change fixture provenance;
 `status` remains pending until the owning chunk's behavioral acceptance passes.
 
 - `domain-inventory.json`: module classification, semantic/action/completion kinds
