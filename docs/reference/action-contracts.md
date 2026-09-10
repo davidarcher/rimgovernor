@@ -19,6 +19,7 @@ what each action must observe.
 | Population native operations | Orders/settings have receipt boundaries; [population goals](population-contracts.md) separately observe custody, care, recruitment and work/equipment/housing integration. Current-load observed custody/settings can resolve an uncertain order without replaying it. |
 
 | `RequestSurgery` | `surgery_health` verifies the expected native condition change on the exact patient/body part. Bill removal does not certify success; postoperative recovery remains separate. See [medical care](medical-care.md). |
+| Upkeep native operations | `upkeep_target` waits for protected stock, repaired target health, or cleaned target absence. Ownership, quantity and unknown-state rules are in [upkeep contracts](upkeep-contracts.md). |
 | `trade` | Guarded open/stage/preview/accept with participant, content and silver-budget checks; hauling/storage remain separate. |
 | Caravan formation and travel | Exact living crew with observed loaded departure, destination arrival or home-map return; assembly and route receipts alone do not complete travel. |
 | Quest acceptance | Fresh scoped acceptance tick; native quest success remains a separate observed state. |

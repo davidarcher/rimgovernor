@@ -160,6 +160,9 @@ class ColonySkills:
         if goal_id == 'MaintainMedicalCare':
             from .medical_management import manage_care
             return await manage_care(self.rt, facts, people)
+        from .colony_upkeep import GOALS, upkeep_method
+        if goal_id in GOALS:
+            return await upkeep_method(self.rt, goal_id, facts, people)
         if goal_id.startswith('MaintainResource-'):
             from .production_policy import resource_method
             return await resource_method(self.rt, goal_id, facts)
@@ -463,6 +466,8 @@ class ColonySkills:
             step = PlanStep(id=identity, title=f'{goal_id}: {method}', goal_id=goal_id, source=goal.source,
                 priority=max(75 if goal.source=='PLAYER' else 0,100-goal.priority_class*20), action=action,
                 completion_criteria='Native effect observed; colony goal separately verifies functional postconditions')
+            if getattr(step.action, 'completion', None) == 'upkeep_target':
+                goal.evidence.setdefault('upkeep_orders', {})[identity] = dict(goal.evidence['upkeep_order']['target'])
             if goal_id=='EnsureFoodSupply' and method.startswith('hunt-'):
                 home=self.rt.current_plan.control.get('layout',{}).get('room')
                 anchor={'x':home['x']+home['width']//2,'z':home['z']+home['height']//2} if home else facts['center']

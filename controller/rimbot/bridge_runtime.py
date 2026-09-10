@@ -1348,10 +1348,13 @@ class BridgeRuntime:
                             self.note('combat_health_hold', hold)
                             self.persist()
                             return
-                    ticks=600 if waiting or engaged else 3000
                     from .surgery import recovery_patients
                     surgical_recovery = recovery_patients(self)
-                    clock = await self.supervisor.change('Normal' if engaged else self.controller.policy.execution_speed,
+                    fire = self.current_plan.colony_goals.get('MaintainFireSafety')
+                    fire_watch = bool(fire and fire.status == 'active' and not fire.cancelled
+                                      and fire.evidence.get('waiting_for_native_fire'))
+                    ticks=60 if fire_watch else 600 if waiting or engaged else 3000
+                    clock = await self.supervisor.change('Normal' if engaged or fire_watch else self.controller.policy.execution_speed,
                         mode='combat' if engaged else 'colony',
                         ignored_hostiles=','.join(combat.get('targets',[combat['target']])) if engaged else '', max_ticks=ticks,
                         **({'surgical_recovery':surgical_recovery} if surgical_recovery else {}))

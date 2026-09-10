@@ -113,7 +113,7 @@ namespace HomeBridge.BridgeTools
         /// documented. Used for validation and for the refusal text.</summary>
         private static readonly string[] Actions =
         {
-            "resolve", "draft", "undraft", "attack", "goto", "equip", "rescue", "capture", "tend", "haul", "work"
+            "resolve", "draft", "undraft", "attack", "goto", "equip", "rescue", "capture", "tend", "haul", "work", "repair", "clean"
         };
 
         /// <summary>Attack modes.</summary>
@@ -128,7 +128,7 @@ namespace HomeBridge.BridgeTools
             Title = "Order a colonist directly, as a job",
             Description =
                 "Issues a vanilla pawn order as a JOB, bypassing the right-click float menu entirely. "
-                + "action = resolve | draft | undraft | attack | goto | equip | rescue | capture | tend | haul | work. "
+                + "action = resolve | draft | undraft | attack | goto | equip | rescue | capture | tend | haul | work | repair | clean. "
                 + "The pawn and the target each accept four id forms - the full Thing_Human123, the ThingID Human123, the bare "
                 + "number 123, or a name/label case-insensitively - so an explicit id can never be 'ambiguous'. Hostility is "
                 + "NEVER a precondition: a drafted pawn may attack any spawned pawn, downed or not, hostile or not, exactly as "
@@ -158,7 +158,7 @@ namespace HomeBridge.BridgeTools
         public async Task<object> Order(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
-            [ToolParameter(Description = "resolve | draft | undraft | attack | goto | equip | rescue | capture | tend | haul | work. resolve reads and mutates nothing and is the safe way to learn a thing's id forms. haul is 'prioritize hauling X'; work is 'prioritize doing bills at X' - both go through the same WorkGiver path the float menu uses, so the job is the giver's own.", DefaultValue = "resolve")] string action = "resolve",
+            [ToolParameter(Description = "resolve | draft | undraft | attack | goto | equip | rescue | capture | tend | haul | work | repair | clean. resolve reads and mutates nothing and is the safe way to learn a thing's id forms. haul is 'prioritize hauling X'; work is 'prioritize doing bills at X' - both go through the same WorkGiver path the float menu uses, so the job is the giver's own.", DefaultValue = "resolve")] string action = "resolve",
             [ToolParameter(Description = "The colonist to order. Any of: the full thingId (Thing_Human123), the ThingID (Human123), the bare number (123), or a name/nickname case-insensitively. Required for every action except a resolve that names only a target.")] string pawn = null,
             [ToolParameter(Description = "What to act on, for attack / rescue / tend / equip, and optional under resolve. Any spawned pawn or thing on the current map, in any of the same four id forms plus its label, plus the DefName@x,z form home/bills and home/building_config take (TableMachining@62,141) so a bench addressed by bills.py is addressable here. Hostility is never required.")] string target = null,
             [ToolParameter(Description = "Destination cell x, for goto. Also a fallback locator for equip - the weapon lying on that cell - when target is not given.", DefaultValue = int.MinValue)] int x = int.MinValue,
@@ -173,10 +173,11 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Attack only a target that is still standing at native dispatch. Autonomous defense uses this to refuse attacks on incapacitated targets.", DefaultValue = false)] bool requireStandingTarget = false,
             [ToolParameter(Description = "Show the order on screen: select the target and jump the camera to it, then after a short lead select the pawn so the inspect pane shows the new job. Decorative only and never opens a float menu. A dry run and a refusal show nothing.", DefaultValue = true)] bool watch = true,
             [ToolParameter(Description = "How long the watch selection stays before it is put back, 1..60.", DefaultValue = Watch.DefaultSeconds)] int watchSeconds = Watch.DefaultSeconds,
-            [ToolParameter(Description = "Require a conscious colony health census above the combat threshold in the same main-thread operation as this order.", DefaultValue = false)] bool requireCombatHealth = false)
+            [ToolParameter(Description = "Require a conscious colony health census above the combat threshold in the same main-thread operation as this order.", DefaultValue = false)] bool requireCombatHealth = false,
+            [ToolParameter(Description = "Haul only: require a covered native storage destination, safe access and enabled hauling at dispatch. Does not alter player work or forbidden settings.", DefaultValue = false)] bool requireSafeStorage = false)
         {
             return BridgeCommon.WithUnknownArguments(
-                await OrderCore(ctx, cancellationToken, action, pawn, target, x, z, mode, draft, draftOwner, releaseOwner, allowPersistentDraft, dryRun, requireHostile, requireStandingTarget, watch, watchSeconds, requireCombatHealth)
+                await OrderCore(ctx, cancellationToken, action, pawn, target, x, z, mode, draft, draftOwner, releaseOwner, allowPersistentDraft, dryRun, requireHostile, requireStandingTarget, watch, watchSeconds, requireCombatHealth, requireSafeStorage)
                     .ConfigureAwait(false),
                 ctx, typeof(HomeOrderTools), ToolName);
         }
@@ -199,7 +200,7 @@ namespace HomeBridge.BridgeTools
             bool requireStandingTarget,
             bool watch,
             int watchSeconds,
-            bool requireCombatHealth)
+            bool requireCombatHealth, bool requireSafeStorage)
         {
             if (ctx == null || ctx.MainThread == null)
                 return Failure("No RimBridge main-thread dispatcher is available for this invocation.", "bad_arguments", action);
@@ -219,7 +220,8 @@ namespace HomeBridge.BridgeTools
                 DryRun = dryRun,
                 RequireHostile = requireHostile,
                 RequireStandingTarget = requireStandingTarget,
-                RequireCombatHealth = requireCombatHealth
+                RequireCombatHealth = requireCombatHealth,
+                RequireSafeStorage = requireSafeStorage
             };
 
             // ---------------------------------------------------------- hop 1
@@ -353,6 +355,7 @@ namespace HomeBridge.BridgeTools
             internal bool RequireHostile;
             internal bool RequireStandingTarget;
             internal bool RequireCombatHealth;
+            internal bool RequireSafeStorage;
         }
 
         /// <summary>Everything one call resolved, every refusal it found, and
@@ -583,8 +586,20 @@ namespace HomeBridge.BridgeTools
                 case "rescue": PrepareRescue(plan); break;
                 case "capture": PrepareCapture(plan); break;
                 case "tend": PrepareTend(plan); break;
-                case "haul": PrepareHaul(plan); break;
+                case "haul":
+                    PrepareHaul(plan);
+                    if (plan.Error == null && request.RequireSafeStorage) {
+                        var destination = plan.PreparedJob?.targetB.Cell ?? IntVec3.Invalid;
+                        if (!destination.IsValid || !destination.InBounds(plan.Map) || !destination.Roofed(plan.Map)
+                            || destination.GetSlotGroup(plan.Map) == null || plan.Pawn.Drafted || plan.Pawn.CurJob?.playerForced == true
+                            || !plan.Pawn.CanReach(plan.Target, PathEndMode.Touch, Danger.None)
+                            || !plan.Pawn.CanReach(destination, PathEndMode.OnCell, Danger.None)
+                            || plan.Pawn.workSettings == null || plan.Pawn.workSettings.GetPriority(WorkTypeDefOf.Hauling) <= 0)
+                            plan.Refuse("job_refused", "Safe hauling requires enabled work and reachable covered storage at dispatch.");
+                    }
+                    break;
                 case "work": PrepareWork(plan); break;
+                case "repair": case "clean": PrepareUpkeep(plan); break;
             }
 
             return plan;
@@ -1204,6 +1219,44 @@ namespace HomeBridge.BridgeTools
         /// reported honestly under their own `job.def` rather than being
         /// refused as "not a bill".
         /// </summary>
+        private static void PrepareUpkeep(Plan plan)
+        {
+            var t = plan.Target;
+            if (t == null || !t.Spawned || !plan.Map.areaManager.Home[t.Position])
+            {
+                plan.Refuse("job_refused", "Upkeep requires an exact spawned target inside the current home area.");
+                return;
+            }
+            if (t.IsForbidden(plan.Pawn) || !plan.Pawn.CanReach(t, PathEndMode.Touch, Danger.None)
+                || plan.Pawn.Drafted || plan.Pawn.CurJob?.playerForced == true || plan.Pawn.health.HasHediffsNeedingTend())
+            {
+                plan.Refuse("job_refused", "Upkeep requires safe access and an undrafted worker who needs no tending.");
+                return;
+            }
+            var action = plan.Request.Action;
+            if ((action == "repair" && (!(t is Building) || t.Faction != Faction.OfPlayerSilentFail || t.IsBurning()))
+                || (action == "clean" && !(t is Filth)))
+            {
+                plan.Refuse("job_refused", "Target is outside the bounded upkeep method.");
+                return;
+            }
+            var workName = action == "repair" ? "Construction" : "Cleaning";
+            var work = DefDatabase<WorkTypeDef>.GetNamedSilentFail(workName);
+            if (work == null || plan.Pawn.workSettings == null || plan.Pawn.workSettings.GetPriority(work) <= 0)
+            {
+                plan.Refuse("work_disabled", "Upkeep preserves disabled work and player priorities.");
+                return;
+            }
+            string failure;
+            var giverType = action == "repair" ? typeof(WorkGiver_Repair) : typeof(WorkGiver_CleanFilth);
+            if (!TryWorkGiverJob(plan, def => def.giverClass != null && giverType.IsAssignableFrom(def.giverClass), out failure))
+            {
+                plan.Refuse("job_refused", "Native upkeep work unavailable: " + failure);
+                return;
+            }
+            FinishWorkGiverPlan(plan);
+        }
+
         private static void PrepareWork(Plan plan)
         {
             if (plan.Target == null)

@@ -144,6 +144,7 @@ namespace HomeBridge.BridgeTools
                     && (t.Faction == null || t.Faction.IsPlayer)).ToList()),
                 ["nativeForecastInputs"] = ForecastFacts.Read(map, people, things),
                 ["gearUpkeep"] = planning ? GearUpkeepTools.Run(null, null, null, true) : null,
+                ["upkeep"] = UpkeepFacts.Read(map, people, things),
                 ["pendingFoodNutrition"] = things.OfType<Plant>().Where(p => p.HarvestableNow
                     && humanFood(p.def.plant.harvestedThingDef) && !(map.zoneManager.ZoneAt(p.Position) is Zone_Growing)
                     && map.designationManager.DesignationOn(p, DesignationDefOf.HarvestPlant) != null)

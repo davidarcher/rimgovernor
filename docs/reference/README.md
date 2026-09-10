@@ -13,6 +13,7 @@ conceptual introduction, start with [the system overview](../explanation/overvie
 ## Decision and execution contracts
 
 - [Controller and colony contracts](controller-contracts.md)
+- [Colony upkeep contracts and native capability audit](upkeep-contracts.md)
 - [Native forecast contracts](forecast-contracts.md)
 - [Mood relief contracts](mood-control.md)
 - [Population commitments and native custody](population-contracts.md)

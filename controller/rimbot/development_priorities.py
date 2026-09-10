@@ -51,6 +51,11 @@ def deficit(identity, goal, facts, policy):
     if identity == 'EnsureResearch':
         queue = goal.evidence.get('research', {}).get('queue')
         return (1 if queue else 0) if isinstance(queue, list) else None
+    from .colony_upkeep import CONTRACTS, evidence
+    contract = next((c for c in CONTRACTS if c.goal == identity), None)
+    if contract:
+        rows = evidence(facts)[contract.field]
+        return None if rows is None else 1 if rows else 0
     if identity == 'EnsureFoodStorage':
         return 0 if facts.get('foodStorage') is True else 1
     if identity == 'MaintainEquipment':

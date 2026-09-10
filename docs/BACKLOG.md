@@ -26,21 +26,22 @@ in the checkpoint commit; do not append an implementation diary here.
   choices, B06b facilities, B06c defensive layouts and B07 durable scheduling;
   this item owns their startup sequencing and the upkeep gaps between them.
 
-  **Phase 1 — Ground needs and completion contracts.** Audit installed native
-  reads/actions before extending schemas. Observe vulnerable item locations,
-  deterioration/rot, valid storage capacity and access; sleeping furniture and
-  assignments; home/allowed areas, fire, damage and roof support; animal containment,
-  diet and feed; clothing condition/thermal protection; medicine stock, patients,
-  worker availability, mood/rest/recreation and season/power evidence. Preserve
-  unknowns. Each goal needs an entry threshold, recovery threshold, bounded method,
-  ownership record, progress evidence and explicit blocker. Add stable scoring and
-  hysteresis so minor changes do not repeatedly rebuild facilities or reassign work.
+  **Phase 1 — Finish needs and completion contracts.** Extend the
+  [native upkeep audit](reference/upkeep-contracts.md) with pen eligibility and
+  containment, filtered storage capacity, allowed-area access, safe roof-support
+  replacement and seasonal lead-time evidence. Preserve unknowns. Extend the
+  maintained supply, cleaning, repair and fire contracts to the remaining goals:
+  sleeping use, facilities, food-chain operation, animals, medical reserves,
+  clothing and workforce changes. Each needs entry/recovery thresholds, a bounded
+  method, ownership, progress evidence and an explicit blocker. Add stable scoring
+  and hysteresis so minor changes do not rebuild facilities or reassign work.
 
   **Phase 2 — Secure landing supplies and sleeping.** Reuse suitable shelter and
   storage before building. Add covered general storage with native filters and
   capacity for vulnerable supplies, separate from food-specific storage. Prioritize
-  safe hauling by loss risk and survival value; verify item destinations and
-  deterioration protection instead of counting stockpile creation as completion.
+  safe hauling by loss risk and survival value; extend verified covered-storage
+  hauling to split/merged stacks, unavailable capacity and interrupted deliveries.
+  Item loss must remain distinct from successful protection.
   Restore temporary hauling overrides when the deficit clears. Upgrade floor
   sleeping to affordable beds through B06b, preserving usable sleeping capacity
   during replacement and respecting assignments and player furniture. Verify

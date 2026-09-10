@@ -19,6 +19,7 @@ introduces the idea before linking to the exact contracts and relevant source.
 
 1. [System overview](explanation/overview.md): who owns decisions, execution and simulation.
 2. [The control loop](explanation/control-loop.md): observations, priorities and verified progress.
+   [Upkeep contracts](reference/upkeep-contracts.md) cover native evidence and maintained jobs.
 3. [Plans and Hands](explanation/plans-and-hands.md): how a player request becomes ordinary game work.
 4. [Space and resources](explanation/space-and-resources.md): why valid plans need fresh native checks.
 5. [Sessions and recovery](explanation/sessions-and-recovery.md): identity, interruptions and paired saves.

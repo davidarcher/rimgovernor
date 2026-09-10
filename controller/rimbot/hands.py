@@ -162,6 +162,8 @@ class Hands:
                                     raise Blocked('population_order_unverified', reason(outcome), evidence=outcome)
                             if action.completion in ('patient_tended', 'patient_in_bed') and result.get('receipt', {}).get('job', {}).get('verified') is not True:
                                 raise Blocked('medical_order_unverified', 'Native state did not confirm the medical job.', evidence=result)
+                            if action.completion == 'upkeep_target' and result.get('receipt', {}).get('job', {}).get('verified') is not True:
+                                raise Blocked('upkeep_order_unverified', 'Native state did not confirm the upkeep job.', evidence=result)
                             receipt = {'native_outcome': result.get('receipt', result).get('outcome', 'receipt'),
                                 'meaning': 'Native command observed; this does not certify completion of pawn labor'}
                             if action.tool == 'home/recover_service':

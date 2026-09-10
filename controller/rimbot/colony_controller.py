@@ -7,6 +7,7 @@ from .colony_skills import ColonySkills, SkillBlocked
 from .config import ModelRole
 from .strategic_state import fingerprint
 from .development_priorities import arbitrate, release_admission
+from .colony_upkeep import GOALS as UPKEEP_GOALS, upkeep_nodes, reconcile_upkeep, progress_metric
 
 
 class ColonyController:
@@ -117,13 +118,20 @@ class ColonyController:
                 goal.evidence['deficit'] = None if stock is None else max(0, goal.target['quantity'] - stock)
                 if stock is None or stock < goal.target['quantity']:
                     resource_nodes.append((identity, 3))
+        reconcile_upkeep(rt, facts)
         old_latches = dict(plan.control.get('latches', {}))
         from .population import refresh as refresh_population
         population_nodes = await refresh_population(rt, facts, people['pawns'])
         await rt.ensure_context(token)
         if direction != rt.chat_revision or rt.mode != 'automate': return
         nodes = priority_nodes(facts, plan.control.setdefault('latches', {}), self.policy) + resource_nodes + population_nodes + herd_nodes
-        nodes += mood_nodes(facts['mood'])
+        nodes += mood_nodes(facts['mood']) + upkeep_nodes(facts, plan.control)
+        for identity in UPKEEP_GOALS:
+            goal = plan.colony_goals.get(identity)
+            if goal and not goal.cancelled and any(plan.progress[s].state in ('waiting', 'blocked', 'executing')
+                    for s in goal.steps if s in plan.progress) and identity not in dict(nodes):
+                # Disappearance or a player area edit cannot certify an issued job.
+                nodes.append((identity, goal.priority_class))
         nodes.sort(key=lambda node: node[1])
         waste = plan.colony_goals.get('MaintainWaste')
         if waste and not waste.cancelled:
@@ -240,6 +248,9 @@ class ColonyController:
                 goal.reopen_methods()
                 if identity.startswith('EnsureMood-'):
                     goal.evidence.pop('need_high_water', None)
+                if identity in UPKEEP_GOALS:
+                    goal.evidence.pop('remaining_work', None)
+                    goal.evidence.pop('completed_upkeep_steps', None)
                 goal.attempts += 1
                 if identity == 'CriticalMedical':
                     goal.evidence.pop('doctor_replacements', None)
@@ -260,6 +271,17 @@ class ColonyController:
                 goal.priority_class = priority
             else:
                 goal.priority_class = min(goal.priority_class, priority)
+            if identity in UPKEEP_GOALS:
+                goal.priority_class = priority
+                state = plan.control['upkeep'][identity]
+                signature = fingerprint({'targets': state['targets'], 'known': state['known'],
+                    'workers': people['pawns'], 'overrides': plan.control.get('work_overrides', {})})
+                if goal.status == 'blocked' and goal.evidence.get('upkeep_inputs') != signature and not goal.evidence.get('watchdog'):
+                    goal.status, goal.reason = 'active', ''
+                goal.evidence['upkeep_inputs'] = signature
+                goal.evidence['completion_contract'] = state
+                if state.get('unsafe'):
+                    goal.status, goal.reason = 'blocked', 'Fire exceeds bounded safe intervention; retain emergency hold'
             progress_fields = {
                 'RecoverDisasterServices': ['recovery'],
                 'MaintainWaste': ['waste'],
@@ -289,8 +311,19 @@ class ColonyController:
                                  for a in goal.evidence['husbandry'].get('animals', [])],
                     'pregnancies': [(a['id'], a.get('gestation')) for a in goal.evidence['husbandry'].get('animals', []) if a.get('pregnant')]}
                          if identity.startswith('MaintainHerd-') else None),
+                'upkeep': plan.control.get('upkeep', {}).get(identity, {}).get('targets'),
                 'steps': {s: plan.progress[s].state for s in goal.steps if s in plan.progress}})
-            if signature != goal.evidence.get('progress'):
+            changed = signature != goal.evidence.get('progress')
+            if identity in UPKEEP_GOALS:
+                metric = progress_metric(identity, plan.control['upkeep'][identity]['targets'])
+                previous = goal.evidence.get('remaining_work')
+                completed = sorted(s for s in goal.steps if s in plan.progress and plan.progress[s].state == 'complete')
+                changed = (metric is not None and (previous is None or metric < previous)
+                           or bool(set(completed) - set(goal.evidence.get('completed_upkeep_steps', []))))
+                if metric is not None:
+                    goal.evidence['remaining_work'] = metric if previous is None else min(metric, previous)
+                goal.evidence['completed_upkeep_steps'] = completed
+            if changed:
                 goal.evidence['progress'] = signature
                 goal.last_progress_tick = facts['tick']
             watchdog = goal.evidence.get('watchdog')

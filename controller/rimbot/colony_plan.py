@@ -140,7 +140,7 @@ class NativeOperation(Contract):
         'rimworld/open_main_tab', 'rimworld/close_main_tab']
     arguments: dict
     # Honest fallback for native operations lacking a higher-level compiler.
-    completion: Literal['service_recovered', 'need_recovered', 'pawn_gear', 'waste_contained', 'native_receipt', 'patient_tended', 'patient_in_bed', 'pawn_equipped', 'pawn_at_position',
+    completion: Literal['upkeep_target', 'service_recovered', 'need_recovered', 'pawn_gear', 'waste_contained', 'native_receipt', 'patient_tended', 'patient_in_bed', 'pawn_equipped', 'pawn_at_position',
                         'surgery_health', 'caravan_departed', 'caravan_arrived', 'caravan_returned', 'quest_completed'] = 'native_receipt'
     medical_effect: dict | None = None
     caravan_target: CaravanTarget | None = None
@@ -175,6 +175,10 @@ class NativeOperation(Contract):
                     or self.arguments.get('method') not in ('repair', 'refuel', 'breakdown')
                     or any(not str(self.arguments.get(k, '')).startswith('Thing_') for k in ('thingId', 'pawn'))):
                 raise ValueError('Recovery requires exact building/pawn IDs, method and service completion')
+        if self.completion == 'upkeep_target':
+            if (self.tool != 'home/order' or self.arguments.get('action') not in ('haul', 'repair', 'clean')
+                    or any(not str(self.arguments.get(k, '')).startswith('Thing_') for k in ('pawn', 'target'))):
+                raise ValueError('Upkeep postconditions require exact native pawn and target identities')
         if self.tool == 'home/manage_waste' or self.completion == 'waste_contained':
             if (self.tool != 'home/manage_waste' or self.completion != 'waste_contained'
                     or any(not str(self.arguments.get(k, '')).startswith('Thing_') for k in ('thingId', 'pawn'))):
@@ -358,6 +362,11 @@ def repeatable_player_setting(step):
                  or step.action.tool == 'home/order' and step.action.arguments.get('action') in ('draft', 'undraft', 'goto')))
 
 
+def repeatable_completed_operation(step):
+    return repeatable_player_setting(step) or (step.source == 'AUTOPILOT' and step.goal_id
+        and isinstance(step.action, NativeOperation) and step.action.completion == 'upkeep_target')
+
+
 class CommitSteps(Contract):
     expected_revision: int = Field(ge=0)
     reason: str = Field(min_length=1,max_length=1200)
@@ -367,8 +376,8 @@ class CommitSteps(Contract):
         existing={step.id for step in current.spec.steps}
         if any(step.id in existing for step in self.steps):
             raise ValueError('Append new step IDs only; existing work is preserved. Use commit_plan to revise it.')
-        renewed = {step.signature() for step in self.steps if repeatable_player_setting(step)}
-        retired = {step.id for step in current.spec.steps if repeatable_player_setting(step)
+        renewed = {step.signature() for step in self.steps if repeatable_completed_operation(step)}
+        retired = {step.id for step in current.spec.steps if repeatable_completed_operation(step)
                    and step.signature() in renewed and current.progress[step.id].state == 'complete'}
         pinned = set(current.control.get('combat', {}).get('steps', []))
         # Player rooms/zones still support maintained goals and native edit
@@ -485,7 +494,7 @@ class ColonyPlan(Contract):
                    and not (repeatable_treatment(step) and repeatable_treatment(prior)
                        and (old.get(step.id) == step or (self.progress[prior.id].state == 'complete'
                            and self.progress[prior.id].issued.get('0', {}).get('confirmed') is True)))
-                   and not (repeatable_player_setting(step) and repeatable_player_setting(prior)
+                   and not (repeatable_completed_operation(step) and repeatable_completed_operation(prior)
                        and self.progress[prior.id].state == 'complete'
                        and prior.id not in {s.id for s in decision.plan.steps}) for prior in old.values()):
                 raise ValueError('Reuse the existing step ID for identical intent')
