@@ -11,7 +11,7 @@ from rimbot.colony_upkeep import evidence, upkeep_nodes, upkeep_method, reconcil
 
 def facts():
     return {'tick': 10, 'upkeep': {'version': 1, 'tick': 10, 'errors': {},
-        'items': [], 'structures': [], 'fires': [], 'filth': [], 'storageCells': []}}
+        'items': [], 'structures': [], 'fires': [], 'filth': [], 'storageCells': [], 'beds': [], 'people': []}}
 
 
 def item(**changes):

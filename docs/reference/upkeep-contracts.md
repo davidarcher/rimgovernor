@@ -52,6 +52,22 @@ the supply goal still requires observed protected supplies. Missing covered spac
 or repeated capacity failure remains a blocker. This method does not build a new
 storeroom or change another stockpile's filters.
 
+`MaintainSleeping` reuses vacant eligible beds before building one affordable bed
+beside a controller-created floor spot. Ordinary construction uses shared resource
+admission, exact native placement/access previews and observed cell temperatures.
+The spot remains available throughout construction and after reassignment. An
+upgrade requires its exact confirmed native placement identity; matching coordinates
+alone cannot establish ownership. Player assignments and legacy receipts without
+that identity remain protected. The native `home/upkeep_bed` operation checks the
+previous assignment, vacancy, eligibility, allowed area, access and temperature
+together before transferring ownership; it never evicts another owner.
+
+Assignment and construction receipts do not complete sleeping upkeep. Recovery
+requires observed use by the assigned pawn in a suitable bed, retained only for
+that bed and current load. Missing reads, changed assignments, access loss and
+unsafe temperature reopen the deficit. Natural sleep uses the existing schedule;
+the method does not force rest, remove a floor spot or change a player's timetable.
+
 An `upkeep_target` action waits after the native job receipt. Hauling requires the
 same item identity and at least its original quantity in roofed valid storage;
 repair requires full observed target health; cleaning requires target absence

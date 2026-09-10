@@ -23,6 +23,7 @@ CONTRACTS = (
     UpkeepContract('SecureSupplies', 'vulnerable', 3),
     UpkeepContract('MaintainEssentialRepairs', 'damaged', 3),
     UpkeepContract('MaintainCleanFacilities', 'filth', 3),
+    UpkeepContract('MaintainSleeping', 'sleeping', 3),
 )
 GOALS = {c.goal for c in CONTRACTS}
 
@@ -64,10 +65,13 @@ def evidence(facts):
             filth = None
         else:
             filth = sorted((r for r in filth if r['home']), key=lambda r: (r.get('room') not in ('Kitchen', 'Hospital', 'Laboratory'), r['id']))
-    return dict(vulnerable=vulnerable, damaged=damaged, fires=fires, filth=filth)
+    return dict(vulnerable=vulnerable, damaged=damaged, fires=fires, filth=filth,
+                sleeping=facts.get('sleepingUpkeep') if current else None)
 
 
 def upkeep_nodes(facts, control):
+    from .sleeping_upkeep import sleeping_evidence
+    facts['sleepingUpkeep'] = sleeping_evidence(facts, control)
     observed = evidence(facts)
     states = control.setdefault('upkeep', {})
     nodes = []
@@ -93,6 +97,8 @@ def upkeep_nodes(facts, control):
 def progress_metric(goal_id, rows):
     if rows is None:
         return None
+    if goal_id == 'MaintainSleeping':
+        return len(rows)
     field = {'SecureSupplies': 'count', 'MaintainCleanFacilities': 'thickness', 'MaintainFireSafety': 'size'}.get(goal_id)
     values = ([r.get('maxHitPoints', 0) - r.get('hitPoints', 0) for r in rows]
               if goal_id == 'MaintainEssentialRepairs' else [r.get(field) for r in rows])
@@ -149,6 +155,10 @@ def reconcile_upkeep(rt, facts):
 async def upkeep_method(rt, goal_id, facts, people):
     from .colony_skills import SkillBlocked, native
     from .bridge import BridgeError
+
+    if goal_id == 'MaintainSleeping':
+        from .sleeping_upkeep import sleeping_method
+        return await sleeping_method(rt, facts)
 
     goal = rt.current_plan.colony_goals[goal_id]
     state = rt.current_plan.control['upkeep'][goal_id]

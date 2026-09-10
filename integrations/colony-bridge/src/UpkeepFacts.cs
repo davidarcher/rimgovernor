@@ -38,6 +38,8 @@ namespace HomeBridge.BridgeTools
                 }).ToList()),
                 beds = read("beds", () => buildings.OfType<Building_Bed>().Select(b => new {
                     id = b.GetUniqueLoadID(), defName = b.def.defName, slots = b.SleepingSlotsCount,
+                    x = b.Position.x, z = b.Position.z, humanlike = b.def.building.bed_humanlike,
+                    restEffectiveness = b.GetStatValue(StatDefOf.BedRestEffectiveness),
                     medical = b.Medical, prisoners = b.ForPrisoners,
                     owners = b.OwnersForReading.Select(p => p.GetUniqueLoadID()).ToList(),
                     users = people.Where(p => p.CurrentBed() == b).Select(p => p.GetUniqueLoadID()).ToList(),
@@ -72,6 +74,7 @@ namespace HomeBridge.BridgeTools
                 }),
                 people = read("people", () => people.Select(p => new {
                     id = p.GetUniqueLoadID(), rest = p.needs?.rest?.CurLevelPercentage,
+                    ownedBed = p.ownership?.OwnedBed?.GetUniqueLoadID(),
                     recreation = p.needs?.joy?.CurLevelPercentage, mood = p.needs?.mood?.CurLevelPercentage,
                     comfortableMin = p.GetStatValue(StatDefOf.ComfyTemperatureMin),
                     comfortableMax = p.GetStatValue(StatDefOf.ComfyTemperatureMax),

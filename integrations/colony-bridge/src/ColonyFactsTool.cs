@@ -194,6 +194,8 @@ namespace HomeBridge.BridgeTools
                         researchPrerequisites = (def.researchPrerequisites ?? new List<ResearchProjectDef>()).Select(r => r.defName).ToArray(),
                         constructionSkill = def.constructionSkillPrerequisite,
                         width = def.size.x, height = def.size.z,
+                        restEffectiveness = def.building?.bed_humanlike == true
+                            ? (float?)def.GetStatValueAbstract(StatDefOf.BedRestEffectiveness, stuff) : null,
                         costs = def.CostListAdjusted(stuff, false).ToDictionary(c => c.thingDef.defName, c => c.count),
                         growDays = def.plant?.growDays, fertilityMin = def.plant?.fertilityMin,
                         fertilitySensitivity = def.plant?.fertilitySensitivity,
@@ -212,6 +214,7 @@ namespace HomeBridge.BridgeTools
                         occupied = c.GetEdifice(map) != null || map.thingGrid.ThingsListAtFast(c).Any(t => t is Blueprint || t is Frame),
                         zone = map.zoneManager.ZoneAt(c) != null, roofed = c.Roofed(map),
                         indoors = c.GetRoom(map) != null && c.GetRoom(map).ProperRoom && !c.GetRoom(map).PsychologicallyOutdoors,
+                        temperature = c.GetRoom(map)?.Temperature,
                         storageEmpty = !c.GetThingList(map).Any(t => t is Plant || t is Building || t is Blueprint || t is Frame
                             || t.def.category == ThingCategory.Item),
                         supportsLight = c.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Light) });

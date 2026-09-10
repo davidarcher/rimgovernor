@@ -29,12 +29,21 @@ a pet, and checks reachable feed inside a closed enclosure. An allowed-area fixt
 then requires native hauling, repair and cleaning writes to refuse excluded targets.
 These assertions do not establish autonomous pen construction or feed replenishment.
 
+For sleeping upgrades, use a fresh worker/output with
+`python scripts/sleeping_upkeep_acceptance.py --source-root /worker/run --output /worker/sleeping --seconds 240`.
+The same fixture build prepares a warm room, wood and completed native bed research.
+Hands creates the starting
+floor spot and retains its native identity. The method must construct a bed through
+ordinary pawn work, preserve the floor, transfer the unchanged assignment, refuse
+a stale assignment request, and observe the pawn using the new bed. Low rest is
+a declared test input; normal native behavior performs the subsequent sleeping.
+
 Require process exit zero and `result.json.outcome == "passed"`. The report retains
 the source/input manifest, installed order schema, fixture setup, observations,
 receipts, postconditions and plan. Keep container and native logs alongside it.
 Failed trials must remain available; use another output directory after a fix.
 
 This probe establishes only its declared targets and bounded outcomes. It does not
-certify new storeroom construction, bed upgrades, safe wall replacement, sustained
+certify new storeroom construction, arbitrary bed replacements, safe wall replacement, sustained
 food/feed/medical production, seasonal preparation or the complete B04h campaign
 matrix. Those acceptance requirements remain in [the backlog](../BACKLOG.md).

@@ -523,6 +523,7 @@ namespace HomeBridge.BridgeTools
 
                 payload["placed"] = new Dictionary<string, object>
                 {
+                    { "thingId", blueprint.GetUniqueLoadID() },
                     { "thingIDNumber", SafeInt(() => blueprint.thingIDNumber) },
                     { "defName", blueprint.def != null ? blueprint.def.defName : null },
                     { "label", SafeThingLabel(blueprint) },

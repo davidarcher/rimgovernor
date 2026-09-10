@@ -360,7 +360,8 @@ class Hands:
             receipt = result['receipt']
             if receipt.get('outcome') not in ('placed', 'already_present'):
                 raise Blocked('placement_refused', reason(receipt), evidence=receipt)
-            return {'stuff': stuff, 'outcome': receipt['outcome']}
+            return {'stuff': stuff, 'outcome': receipt['outcome'],
+                    'placed_thing_id': (receipt.get('placed') or {}).get('thingId')}
         step=next(s for s in rt.current_plan.spec.steps if rt.current_plan.progress[s.id] is progress)
         evidence={k:last.get(k) for k in ('materials','rotations','researchFinished','buildableByPlayer')} if last else {}
         evidence.update(slot=key,load_token=token,direction=direction,signature=step.signature(),

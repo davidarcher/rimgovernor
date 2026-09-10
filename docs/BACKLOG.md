@@ -31,7 +31,7 @@ in the checkpoint commit; do not append an implementation diary here.
   capacity, safe roof-support
   replacement and seasonal lead-time evidence. Preserve unknowns. Extend the
   maintained supply, cleaning, repair and fire contracts to the remaining goals:
-  sleeping use, facilities, food-chain operation, animals, medical reserves,
+  facilities, food-chain operation, animals, medical reserves,
   clothing and workforce changes. Each needs entry/recovery thresholds, a bounded
   method, ownership, progress evidence and an explicit blocker. Add stable scoring
   and hysteresis so minor changes do not rebuild facilities or reassign work.
@@ -42,10 +42,10 @@ in the checkpoint commit; do not append an implementation diary here.
   safe hauling by loss risk and survival value; extend verified covered-storage
   hauling to split/merged stacks, unavailable capacity and interrupted deliveries.
   Item loss must remain distinct from successful protection.
-  Restore temporary hauling overrides when the deficit clears. Upgrade floor
-  sleeping to affordable beds through B06b, preserving usable sleeping capacity
-  during replacement and respecting assignments and player furniture. Verify
-  actual bed use, access and safe sleeping temperatures. Introduce dining and
+  Restore temporary hauling overrides when the deficit clears. Extend verified
+  floor-to-bed upgrades to shortages, unavailable research/materials, unsafe
+  temperatures, interrupted construction and changed player assignments across
+  load/restart scenarios. Introduce dining and
   recreation after urgent survival deficits; preserve player schedules and avoid
   unnecessary schedule rewrites when ordinary needs-driven behavior suffices.
 
