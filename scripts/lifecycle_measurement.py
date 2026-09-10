@@ -36,9 +36,9 @@ def ledger_sample(rt,path):
 
 
 async def bed_use_sample(rt):
-    roster=await rt.game.query('home/list_pawns',colonistsOnly=True,health=True,work=True,bio=True)
+    roster=await rt.game.query('home/list_pawns',colonistsOnly=True,health=True,work=True,bio=True,equipment=True)
     if roster.get('success') is not True:raise ValueError('Native bed-use roster unavailable')
     return {'native_action_count':rt.counters['actions'],'tick':rt.batch.summary.end_tick,'pawns':[{'id':p['thingId'],'job':p.get('job'),
         'dead':p.get('dead'),'downed':p.get('downed'),'drafted':p.get('drafted'),'mentalState':p.get('mentalState'),
-        'position':p.get('position'),'in_bed':(p.get('health') or {}).get('inBed'),
+        'position':p.get('position'),'equipment':p.get('equipment'),'in_bed':(p.get('health') or {}).get('inBed'),
         'bed':(p.get('health') or {}).get('bedThingId'),'work':p.get('work'),'bio':p.get('bio')} for p in roster['pawns']]}

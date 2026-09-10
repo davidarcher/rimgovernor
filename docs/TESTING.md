@@ -613,6 +613,10 @@ recovery history through subsequent ordinary simulation. Measurements include
 immutable archive hashes, live or archived recovery histories, native action
 counts and the native clock state at autosave boundaries. The lifecycle audit
 rejects changed or missing prior archive records and recovery history.
+Joined-pawn work acceptance compares completed deterministic assignment deltas
+with later native work-table readbacks for every joined pawn. These readbacks
+verify applied settings; actual bed use separately requires native `inBed` and
+`bedThingId` observations for every starting and joined colonist.
 
 Add `--mixed` to `scripts/session_checkpoint_acceptance.py` for an issued shell
 slot, its unissued material reservations, a pending growing zone and pending work
