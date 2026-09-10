@@ -11,6 +11,7 @@ import uuid
 from container_checks import docker_environment
 from container_input_cache import prepare_cache
 from container_scenario import dashboard_options, require_dashboard_image
+from worker_storage import storage_options, export_storage, release_storage
 
 
 def run(args):
@@ -78,6 +79,8 @@ def run(args):
                 probe.append('--search-comparison')
             if args.shell_comparison:
                 probe.append('--shell-comparison')
+            if args.profile_controller:
+                probe.append('--profile-controller')
         else:
             probe = ['python', 'scripts/throughput_acceptance.py', '--mode', mode,
                      '--repeats', str(args.repeats), '--ticks', *map(str, args.ticks)]
@@ -85,7 +88,8 @@ def run(args):
                 probe.append('--fixture')
             if args.checkpoint:
                 probe.append('--saved-checkpoint')
-        invocation.extend(['--mount', f'type=bind,source={root},target=/worker', image,
+        mounts, worker['storage'] = storage_options(command, root, name, args.worker_storage)
+        invocation.extend([*mounts, image,
                            '--unity-gc-time-slice', '0', '--display', 'headless' if mode == 'headless' else 'xvfb',
                            '--', *probe])
         worker['command'] = invocation
@@ -98,23 +102,34 @@ def run(args):
             print('Scenario dashboard: '+worker['dashboard_url'], flush=True)
             result = command('wait', name, capture_output=True, text=True, check=True, timeout=args.timeout)
             worker['exit_code'] = int(result.stdout.strip())
-            evidence = root/('run/runtime-throughput.json' if args.runtime_seconds else 'run/throughput-result.json')
             worker['scope'] = 'Production-loop measurement, not survival acceptance' if args.runtime_seconds else 'Native bounded outcomes and clock acceptance'
-            worker['passed'] = worker['exit_code'] == 0 and evidence.is_file() and json.loads(evidence.read_text()).get(
-                'measured' if args.runtime_seconds else 'passed') is True
+            worker['passed'] = worker['exit_code'] == 0
         except Exception as error:
             worker['error'] = repr(error)
         finally:
+            exported = export_storage(command, name, root, worker['storage'])
+            worker['passed'] = worker['passed'] and exported
+            evidence = root/('run/runtime-throughput.json' if args.runtime_seconds else 'run/throughput-result.json')
+            try:
+                worker['passed'] = worker['passed'] and evidence.is_file() and json.loads(evidence.read_text()).get(
+                    'measured' if args.runtime_seconds else 'passed') is True
+            except Exception as error:
+                worker.update(passed=False, evidence_error=repr(error))
             try:
                 with (root/'container.log').open('w', encoding='utf8') as stream:
                     command('logs', name, stdout=stream, stderr=subprocess.STDOUT, timeout=30)
             except Exception as error:
                 worker['log_error'] = repr(error)
                 worker['passed'] = False
-            cleanup = command('rm', '-f', name, capture_output=True, text=True, timeout=30)
-            (root/'cleanup.log').write_text(cleanup.stdout+cleanup.stderr, encoding='utf8')
-            worker['cleanup_ok'] = cleanup.returncode == 0 or 'No such container' in cleanup.stderr
+            if exported:
+                cleanup = command('rm', '-f', name, capture_output=True, text=True, timeout=30)
+                (root/'cleanup.log').write_text(cleanup.stdout+cleanup.stderr, encoding='utf8')
+                worker['cleanup_ok'] = cleanup.returncode == 0 or 'No such container' in cleanup.stderr
+            else:
+                worker['cleanup_ok'] = False
+                worker['container_retained'] = True
             worker['passed'] = worker['passed'] and worker['cleanup_ok']
+            release_storage(command, worker['storage'], worker['passed'])
             worker['seconds'] = time.perf_counter()-started
             worker['resource_state_after'] = command('stats', '--no-stream', '--format', '{{json .}}',
                 capture_output=True, text=True, timeout=30, check=True).stdout
@@ -140,6 +155,9 @@ if __name__ == '__main__':
     parser.add_argument('--runtime-seconds', type=int, default=0, help='Instead measure the production headless loop with the read-only dashboard sampler')
     parser.add_argument('--runtime-accelerated', action='store_true', help='Enable bounded test acceleration in the production-loop measurement')
     parser.add_argument('--runtime-unbatched-observations', action='store_true', help='Compare the legacy seven-call observation path')
+    parser.add_argument('--profile-controller', action='store_true', help='Retain Python CPU and nested controller wall timings')
+    parser.add_argument('--worker-storage', choices=['volume', 'bind'], default='volume',
+                        help='Durable Linux worker state, or host bind for an explicit storage comparison')
     parser.add_argument('--observation-comparison', action='store_true', help='Verify paired paused native observations before the runtime sample')
     parser.add_argument('--placement-comparison', action='store_true', help='Verify bounded placement batches against individual native previews')
     parser.add_argument('--search-comparison', action='store_true', help='Verify native site search and material alternative equivalence')

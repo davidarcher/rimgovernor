@@ -328,8 +328,11 @@ each bounded method.
   already use bounded preview batches.
   Hands coalesces zone/entrance reads within each read-only shell preflight;
   actual writes retain fresh checks.
-  Measure remaining paused setup through the first simulated tick, separating
-  repeated validation, persistence and controller scheduling from bridge time.
+  Measure remaining paused setup through the first simulated tick with the
+  controller profiler. Throughput workers use durable Linux volume state to avoid
+  host-bind commit overhead; assess other native launchers before extending this
+  storage/export contract. Separate repeated validation and controller scheduling
+  from bridge time.
   Native observations already support one
   request for the standard seven sections; retain identity invalidation, native
   interruption guards and durable mutation records in further optimizations.

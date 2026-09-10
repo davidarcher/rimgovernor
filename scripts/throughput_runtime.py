@@ -37,6 +37,7 @@ async def run(args):
     began = time.perf_counter()
     sampler = None
     recording = True
+    profile = None
     try:
         async with asyncio.timeout(180):
             while not rt.connected or not server.started:
@@ -105,6 +106,10 @@ async def run(args):
 
         rt.bridge.call = measured_call
         rt.supervisor.test_acceleration = args.accelerated
+        if args.profile_controller:
+            from controller_profile import ControllerProfile
+            profile = ControllerProfile(rt, root)
+            profile.start()
         rt.current_plan.control.setdefault('policy', {})['execution_speed'] = 'Superfast'
         await rt.set_mode('automate')
         with (root/'dashboard-sampler.log').open('w', encoding='utf8') as log:
@@ -130,6 +135,8 @@ async def run(args):
         report['error'] = repr(error)
         raise
     finally:
+        if profile is not None:
+            report['controller_profile'] = profile.stop()
         recording = False
         if getattr(rt, 'bridge', None):
             rt.bridge.timing_callback = None
@@ -158,6 +165,7 @@ async def run(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--accelerated', action='store_true')
+    parser.add_argument('--profile-controller', action='store_true', help='Retain Python CPU and nested controller wall timings')
     parser.add_argument('--seconds', type=int, default=120)
     parser.add_argument('--unbatched-observations', action='store_true', help='Compare the legacy seven-call observation path')
     parser.add_argument('--observation-comparison', action='store_true', help='Verify paired paused native observations before the runtime sample')

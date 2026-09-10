@@ -55,6 +55,16 @@ python scripts/container_throughput.py --game <linux-game> --mods <private-mods>
 ```
 
 Workers run sequentially through the existing content-addressed input cache.
+Throughput workers keep writable state in a private Docker volume by default.
+This avoids synchronous SQLite and recorder writes crossing Windows bind mounts;
+SQLite durability and recorder flush rules are unchanged. Evidence is exported to
+the requested output after the worker stops, and exported controller databases
+must pass `integrity_check`. Live observation uses the published dashboard;
+host-side run files appear after export. Successful exports and runs release the
+volume. Failures retain the named volume in `result.json`; export failures also
+retain the container for recovery. Use `--worker-storage bind` for an
+explicit host-filesystem comparison. This setting applies to the throughput
+launcher; other scenario launchers retain their own storage configuration.
 Each publishes an automatic loopback [scenario dashboard](scenario-launcher.md)
 and retains its URL in `dashboard.json`. Old images without dashboard support fail
 before launch. The observer uses cached data and never advances the game.
@@ -94,6 +104,11 @@ against the private controller, retaining wall TPS including pauses, controller
 status, events and per-operation identity, preview, dispatch and read timings.
 It asserts zero inference attempts; it measures the loop without claiming colony
 survival. Use fresh output directories for both runs.
+Add `--profile-controller` to retain `controller.pstats` and completed wall timings
+for persistence, review, identity, native dispatch and Hands. Timings overlap;
+Python function timings include synchronous I/O and profiler overhead. Compare
+unprofiled runs for throughput claims, and keep worker storage equal unless it is
+the variable under test.
 Use `--observation-comparison` with `--runtime-seconds` to compare four pairs
 of legacy and batched observations on the same paused native state, reversing
 order between pairs. Both paths must produce the same typed facts. Use
