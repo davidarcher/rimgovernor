@@ -3,8 +3,8 @@
 N01.00 source baseline: `3fea7d5c` (2026-09-10). This inventory records existing
 source and packaging behavior. It does not establish unified-package acceptance.
 The [source index](native-runtime-source-index.json) records all 117 tracked C#
-files in the two native integrations and `scripts/fixtures`, their LF-normalized
-UTF-8 source hashes,
+files in the two native integrations and `scripts/fixtures`, their LF-normalized,
+BOM-stripped UTF-8 source hashes,
 compilation category, migration owner and lexical static/reflection/patch anchors.
 Anchors are one-based lines at that revision. They include method declarations
 and reflection helpers; they are navigation evidence, not a C# semantic analysis.

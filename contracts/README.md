@@ -1,7 +1,9 @@
-# Go migration coverage
+# Migration coverage
 
-These inventories describe the Python comparison surface for G01. They are not
-Go capability declarations. `source_revision` records the Python revision inspected;
+The original inventory rows describe the Python comparison surface for G01;
+`domain-inventory.json` also contains the repository-owned N01 native source
+baseline. These are not runtime capability declarations. `source_revision` records
+the Python revision inspected;
 `status` remains pending until the owning chunk's behavioral acceptance passes.
 
 - `domain-inventory.json`: module classification, semantic/action/completion kinds
@@ -52,3 +54,20 @@ The refusal illustrates why transport success is not native operation success.
 These are historical comparison fixtures, not fresh discovery, save/reload
 acceptance or completed pawn work. The recorded source revision and artifact root
 identify the original run; current-source and unified-package parity remain open.
+
+The domain inventory's `native_surface` extension records exported declarations,
+project membership, normalized source fingerprints, compilation exclusions and
+production/fixture ownership. It has separate native provenance and links back to
+existing G01 rows. `check_go_coverage.py` runs its drift checker and negative
+self-tests; source extraction does not establish installed SDK availability or
+exhaustive implemented argument variants.
+
+- [Saved-state ownership](native-state-ownership.md) records exact persisted keys,
+  proposed owners and reconstruction/disconnect constraints.
+- [Runtime and packaging](native-runtime-packaging.md) records patch/loader/build
+  boundaries, deployment consumers and provenance gaps; its
+  [source index](native-runtime-source-index.json) retains lexical anchors and
+  normalized hashes for all inspected native and fixture sources.
+
+Unfinished native discovery, save/reload, migration and distribution work stays in
+N01.00e and the subsequent N01 chunks. These audits authorize no package cutover.

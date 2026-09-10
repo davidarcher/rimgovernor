@@ -887,7 +887,8 @@ the independently accepted gated subchunk and keep the blocked acceptance open.
 This is the implementation plan for combining `integrations/headless-rim` and
 `integrations/colony-bridge` into one installable **RimGovernor** native mod and
 bringing its C# code under the [development process](how-to/development-process.md).
-All chunks below are proposed work. G01 owns the Go rewrite and canonical schema
+The source-baseline slices below are landed; native compatibility acceptance and
+package implementation remain open. G01 owns the Go rewrite and canonical schema
 generation; N01 owns native packaging, implementation quality and game acceptance.
 The current deployment remains supported until the replacement passes its gates.
 
@@ -1036,6 +1037,43 @@ Commit accepted increments without enabling incomplete behavior by default.
   Deliver the field-level state ownership audit above with G01.04/G01.08, including
   removal targets, justified native exceptions and disconnected/save-branch tests.
   Dependencies: none; refresh against G01.00 and intervening gameplay fixes.
+
+  Landed baseline slices (source findings do not close native acceptance):
+
+  - [x] **N01.00a — Export and build-source baseline.** Native surface owner:
+    [shared domain inventory](../contracts/domain-inventory.json) now records
+    108 exports (55 production, 53 fixture), five projects, exact advertised
+    declarations/defaults and three compile exclusions. Existing G01 call-site
+    rows remain unchanged. `scripts/check_native_inventory.py` checks source
+    drift and rejects omitted exports, altered signatures and omitted exclusions;
+    the shared coverage command runs it.
+  - [x] **N01.00b — Saved-field source audit.** Native state owner:
+    [state ownership inventory](../contracts/native-state-ownership.md) maps
+    all 88 serialized field/key pairs across nine components and seven records
+    to proposed sole owners, reconstruction limits and migration/disconnect
+    requirements. Native exceptions are proposals awaiting G01 agreement and
+    acceptance, not authorization to remove existing protections.
+  - [x] **N01.00c — Runtime/package source audit.** Native packaging owner:
+    [runtime inventory](../contracts/native-runtime-packaging.md) and its
+    source index cover 117 native/fixture files, patch targets, lexical
+    static/reflection anchors, dependencies, fixture flags, deployment consumers
+    and repository provenance gaps.
+  - [x] **N01.00d — Retained reply comparison seed.** Native integrator:
+    [three actual SDK pairs](../contracts/fixtures/native-replies-baseline.json)
+    preserve identity, placement preview and spatial refusal from the retained
+    Linux baseline with line/file and input hashes. Exact text/structured payload
+    parity was checked; this is historical evidence, not fresh discovery.
+  - [ ] **N01.00e — Compatibility baseline closeout.** Native integrator with
+    G01.02/04/08: capture fresh complete production/fixture SDK discovery, including
+    external RimBridgeServer exports, duplicate registration and binder behavior;
+    enumerate implemented variants beyond advertised signatures and audit mutable
+    static fields beyond lexical anchors. Retain copied saves populated with each
+    native state family and normal/batch fresh-reload evidence. Agree field-level
+    exceptions, timeline and delivery contracts with G01 owners; resolve companion
+    source/distribution permission and verify headless corresponding-source/notices
+    packaging. Refresh source inventories for intervening native changes. Close
+    N01.00 only when these gaps have concrete evidence and per-entry ownership;
+    N01.01 package migration remains gated by this closeout.
 
 - [ ] **N01.01 — Unified package without behavioral refactoring.** Owner: native
   integrator. Move sources/provenance under the target root, preserve loader paths
