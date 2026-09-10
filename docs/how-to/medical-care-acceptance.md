@@ -23,8 +23,9 @@ surgical catalog, plan receipts and each assertion. Require `passed: true` and
 successful owned-process cleanup. Preserve failed trials in fresh output directories.
 
 The probe uses the semantic player surgery command and deterministic tending through
-Hands, including enabling initially disabled bed rest. It checks actual native prosthetic installation, disease disappearance and
-observed bed use. It exercises no language model and does not establish support for
+Hands, including enabling initially disabled bed rest. The care case checks disease
+disappearance, observed bed use and preservation of an undirected chronic missing limb. The shortage case checks actual native
+prosthetic installation. It exercises no language model and does not establish support for
 all disease definitions, all recipes or arbitrary long-term survival.
 
 Run `--case shortage` and `--case failure` in separate fresh workers. The shortage
@@ -34,3 +35,7 @@ The failure fixture uses a native recipe failure outcome with guaranteed probabi
 pawns still perform the operation and native workers apply injuries. It asserts a
 blocked health outcome and no automatic reissue. These test-only definition changes
 are excluded from production builds. Each report includes a source/input manifest.
+
+Use `--case repeat` to disable routine Doctor work in the fixture and require at
+least two completed Hands-issued native treatments for each disease patient.
+Treatment receipts alone do not satisfy this assertion.

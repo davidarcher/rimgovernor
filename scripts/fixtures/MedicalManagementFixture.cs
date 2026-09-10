@@ -14,7 +14,8 @@ namespace HomeBridge.BridgeTools
         [Tool("test/medical_management_setup", Description = "Disposable B23 initial disease, injury, beds and supplies. Never performs treatment or surgery.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Include two initial flu patients.", DefaultValue = true)] bool disease = true,
-            [ToolParameter(Description = "Set the disposable native recipe success factor to zero to exercise real surgical failure.", DefaultValue = false)] bool failSurgery = false)
+            [ToolParameter(Description = "Set the disposable native recipe success factor to zero to exercise real surgical failure.", DefaultValue = false)] bool failSurgery = false,
+            [ToolParameter(Description = "Disable routine Doctor work to exercise repeated explicit native tending.", DefaultValue = false)] bool manualTending = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var stage = "colony";
@@ -33,7 +34,7 @@ namespace HomeBridge.BridgeTools
                     foreach (var skill in pawn.skills.skills.Where(s => s.def == SkillDefOf.Medicine)) skill.Level = 20;
                     foreach (var work in new[] { "Doctor", "Patient", "PatientBedRest" }) {
                         var def = DefDatabase<WorkTypeDef>.GetNamed(work);
-                        if (!pawn.WorkTypeIsDisabled(def)) pawn.workSettings.SetPriority(def, disease && work == "PatientBedRest" ? 0 : 1);
+                        if (!pawn.WorkTypeIsDisabled(def)) pawn.workSettings.SetPriority(def, (disease && work == "PatientBedRest") || (manualTending && work == "Doctor") ? 0 : 1);
                     }
                 }
                 foreach (var item in new[] { ("MealSurvivalPack", 200), ("MedicineIndustrial", 60), ("WoodLog", 100), ("SimpleProstheticLeg", 1) }) {

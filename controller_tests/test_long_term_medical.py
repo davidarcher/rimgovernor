@@ -176,3 +176,31 @@ def test_surgical_outcome_requires_fresh_batch_and_same_native_context():
     rt.identity['loadToken'] = 'reloaded'
     BridgeRuntime.reconcile_plan(rt)
     assert rt.current_plan.progress['surgery'].failure.code == 'surgery_context_changed'
+
+
+@pytest.mark.asyncio
+async def test_stable_chronic_monitor_does_not_timeout_completed_recovery_settings():
+    rt = fixture()
+    for pawn in rt.people:
+        pawn['health'].update(needsTend=False, shouldSeekMedicalRest=False, hediffs=[])
+    pawn = rt.people[0]
+    pawn['health'].update(shouldSeekMedicalRest=True, medicalCare='Best',
+        hediffs=[dict(id='Hediff_1', defName='ChronicCondition', isBad=True)])
+    pawn['work']['types'].append(dict(name='PatientBedRest', disabled=False, priority=0))
+    from rimbot.colony_plan import PlanStep, StepProgress
+    step = PlanStep(id='rest', title='Recovery work', source='AUTOPILOT', goal_id='MaintainMedicalCare',
+        action=NativeOperation(tool='home/pawn_config', arguments={'pawn': pawn['thingId'], 'work':'PatientBedRest=1'}),
+        completion_criteria='Native work enabled')
+    rt.current_plan.spec.steps.append(step)
+    rt.current_plan.progress[step.id] = StepProgress(state='complete')
+    goal = rt.current_plan.colony_goals['MaintainMedicalCare'] = ColonyGoal(priority_class=2, steps=[step.id])
+    for entry in pawn['work']['types']:
+        if entry['name'] in ('Patient', 'PatientBedRest'): entry['priority'] = 1
+    for _ in range(30):
+        await rt.controller.cycle()
+        rt.labor()
+    assert goal.evidence['monitoring'] is True
+    rt.facts['tick'] += rt.controller.policy.blocked_after_ticks + 1
+    await rt.controller.cycle()
+    assert goal.status == 'active' and goal.evidence['monitoring'] is True
+    assert 'watchdog' not in goal.evidence

@@ -15,7 +15,8 @@ PatientBedRest work when available and not disabled by a player override. Native
 beds. Missing observations, unavailable work or player restrictions produce explicit
 blockers. Chronic conditions remain visible without automatically choosing elective
 operations. An absent tracked patient cannot certify recovery. These observations
-are current facts, not disease-prognosis estimates.
+are current facts, not disease-prognosis estimates. Stable chronic monitoring does
+not time out completed work settings; pending work still has the normal watchdog.
 
 Confirmed interrupted tending may resume within the existing recovery bound. An
 unavailable doctor can be replaced through a newly validated shared plan step;

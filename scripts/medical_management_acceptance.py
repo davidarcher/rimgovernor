@@ -63,6 +63,7 @@ async def run(args):
             facts, people = await refresh()
             goal = rt.current_plan.colony_goals.setdefault('CriticalMedical', ColonyGoal(priority_class=1))
             if any(rt.current_plan.progress[s].state in ('pending','executing','waiting') for s in goal.steps):
+                await rt.hands.advance(rt)
                 return
             if not any(p['health']['needsTend'] for p in people):
                 return
@@ -82,11 +83,11 @@ async def run(args):
                 ignoreModCompatibility=True, timeoutMs=90000)
             await bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
             await rt.sync_identity(); rt.mode = 'automate'
-            setup = (await bridge.call('test/medical_management_setup', disease=args.case=='care',
-                failSurgery=args.case=='failure')).structuredContent
+            setup = (await bridge.call('test/medical_management_setup', disease=args.case in ('care', 'repeat'),
+                failSurgery=args.case=='failure', manualTending=args.case=='repeat')).structuredContent
             report['setup'] = setup; save(); assert setup['success'], setup
             facts, people = await refresh()
-            if args.case == 'care':
+            if args.case in ('care', 'repeat'):
                 goal = rt.current_plan.colony_goals.setdefault('MaintainMedicalCare', ColonyGoal(priority_class=2))
                 method, actions = await rt.controller.skills.compile('MaintainMedicalCare', facts, people)
                 steps, costs = rt.controller.skills.steps('MaintainMedicalCare', method, actions, facts)
@@ -105,16 +106,18 @@ async def run(args):
                     for w in p['work']['types']) for p in people if p['thingId'] in setup['patients']))
                 check('native_disease_evidence', all(any(h.get('immunizable') is True and h.get('id')
                     for h in p['health']['hediffs']) for p in people if p['thingId'] in setup['patients']))
-            catalog = await rt.inspect_native('home/medical_operations', dict(patient=setup['surgical'], dryRun=True))
-            report['catalog'] = catalog; save()
-            option = next(r for r in catalog['recipes'] if r['recipe']=='InstallPegLeg' and r['part']==setup['part'])
-            check('native_surgery_eligibility', option['supported'], option=option)
-            result = await apply_command(rt, dict(kind='RequestSurgery', patient=setup['surgical'],
-                recipe=option['recipe'], part=option['part']), token=rt.context_token, revision=rt.chat_revision)
-            await rt.hands.advance(rt)
-            surgery_id = result['step']
-            check('surgery_waits_for_health', rt.current_plan.progress[surgery_id].state=='waiting',
-                progress=rt.current_plan.progress[surgery_id].model_dump())
+            surgery_id = None
+            if args.case not in ('care', 'repeat'):
+                catalog = await rt.inspect_native('home/medical_operations', dict(patient=setup['surgical'], dryRun=True))
+                report['catalog'] = catalog; save()
+                option = next(r for r in catalog['recipes'] if r['recipe']=='InstallPegLeg' and r['part']==setup['part'])
+                check('native_surgery_eligibility', option['supported'], option=option)
+                result = await apply_command(rt, dict(kind='RequestSurgery', patient=setup['surgical'],
+                    recipe=option['recipe'], part=option['part']), token=rt.context_token, revision=rt.chat_revision)
+                await rt.hands.advance(rt)
+                surgery_id = result['step']
+                check('surgery_waits_for_health', rt.current_plan.progress[surgery_id].state=='waiting',
+                    progress=rt.current_plan.progress[surgery_id].model_dump())
             if args.case == 'shortage':
                 receipt = dict(rt.current_plan.progress[surgery_id].issued['0'])
                 await bridge.call('test/medical_management_change', op='supplies-off')
@@ -130,8 +133,16 @@ async def run(args):
                 await bridge.call('test/medical_management_change', op='doctors-on')
                 check('shortage_preserves_exact_bill', rt.current_plan.progress[surgery_id].issued['0'] == receipt)
             for _ in range(65):
-                if args.case == 'care': await tend()
+                if args.case in ('care', 'repeat'): await tend()
                 facts, people = await window()
+                if args.case == 'repeat':
+                    completed = [s for s in rt.current_plan.spec.steps if s.goal_id == 'CriticalMedical'
+                        and rt.current_plan.progress[s.id].state == 'complete']
+                    if all(sum(s.action.arguments['target'] == patient for s in completed) >= 2
+                            for patient in setup['patients']):
+                        check('both_patients_retended_by_shared_hands', True, steps=[s.id for s in completed])
+                        report['passed'] = True
+                        return
                 if args.case == 'failure' and rt.current_plan.progress[surgery_id].state == 'blocked':
                     progress = rt.current_plan.progress[surgery_id]
                     check('native_failed_operation_not_completed', progress.failure.code in
@@ -154,11 +165,13 @@ async def run(args):
                 patients = [p for p in people if p['thingId'] in setup['patients']]
                 recovered = len(patients)==2 and all(p.get('dead') is False and
                     not any(h['defName']=='Flu' for h in p['health']['hediffs']) for p in patients)
-                if recovered and rt.current_plan.progress[surgery_id].state=='complete': break
-                assert rt.current_plan.progress[surgery_id].state != 'blocked', rt.current_plan.progress[surgery_id]
+                if args.case == 'care' and recovered: break
+                if surgery_id:
+                    assert rt.current_plan.progress[surgery_id].state != 'blocked', rt.current_plan.progress[surgery_id]
             assert args.case == 'care', 'Negative scenario did not reach its required outcome'
-            check('native_surgical_health_change', rt.current_plan.progress[surgery_id].state=='complete',
-                progress=rt.current_plan.progress[surgery_id].model_dump())
+            check('chronic_missing_limb_does_not_trigger_elective_surgery',
+                not any(s.action.kind == 'native_operation' and s.action.tool == 'home/medical_operations'
+                    for s in rt.current_plan.spec.steps))
             check('both_diseases_recovered', recovered, patients=patients)
             check('recovery_bed_use_observed', all(any(p['thingId']==identity and p['health'].get('inBed')
                 for sample in report['samples'] for p in sample['people']) for identity in setup['patients']))
@@ -176,5 +189,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, required=True)
     parser.add_argument('--seconds', type=int, default=1800)
-    parser.add_argument('--case', choices=('care', 'shortage', 'failure'), default='care')
+    parser.add_argument('--case', choices=('care', 'repeat', 'shortage', 'failure'), default='care')
     asyncio.run(run(parser.parse_args()))
