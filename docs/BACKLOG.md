@@ -17,6 +17,9 @@ in the checkpoint commit; do not append an implementation diary here.
   bounded window do not establish arbitrary long-term colony survival.
   Resolve the combat/medical hold when all available doctors are controller-drafted
   and a defender needs tending; preserve player draft ownership and combat safety.
+  Recover from native order refusals caused by current jobs, carried cargo or fire
+  without stopping all subsequent reviews. Observe before reconsidering the order;
+  preserve native interruption guards and never blindly retry uncertain writes.
 - [ ] **B04h · Complete startup and colony upkeep.** Implement the phased plan
   below through existing ColonyPlan goals, deterministic methods and Hands. Use
   observed deficits, urgency and player priorities rather than a fixed day-by-day
@@ -373,16 +376,6 @@ each bounded method.
   pawn/entity outcomes; test unavailable DLC, mixed content, interruptions and
   multi-map transitions. Add endgame objective planning only for selected player
   goals, with prerequisites and completion evidence appropriate to installed content.
-- [ ] **B16 · Sustained throughput.** Finish the uncontended performance comparison
-  using [the throughput probes](how-to/measure-throughput.md): ordinary versus
-  bounded test acceleration, fresh and reused older checkpoints, and rendered,
-  suspended, headless and capture modes. Hold inputs/source constant, keep follow
-  off, and run without competing native workers or model benchmarks. Retain
-  completed clock cases/minute including reloads, verified pawn outcomes, memory,
-  startup and operation overhead; compare equal-duration production-loop wall TPS
-  including pauses and game-tick observation age. Repeat the counterbalanced local
-  inference measurement and retain incorrect responses. Contended correctness
-  passes and burst TPS do not establish this final performance acceptance.
 - [ ] **Colonist dossier rendering coverage.** Broaden the native portrait/follow
   probe to modded weapon icons, apparel/body types, removed pawns,
   load/map transitions, competing viewers and simultaneous main-view video.

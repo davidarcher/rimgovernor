@@ -94,6 +94,10 @@ against the private controller, retaining wall TPS including pauses, controller
 status, events and per-operation identity, preview, dispatch and read timings.
 It asserts zero inference attempts; it measures the loop without claiming colony
 survival. Use fresh output directories for both runs.
+Inspect the final controller events as well as the sampler totals: a valid
+measurement can include a controller stopped by a native order refusal. Such a
+run measures the resulting pause; it does not establish uninterrupted progress or
+an end-to-end speedup. Keep refusal evidence and compare it with the ordinary run.
 
 Measure performance without competing workers. Resource snapshots expose
 contention; correctness passes under contention do not establish isolated
