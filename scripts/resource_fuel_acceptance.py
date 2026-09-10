@@ -11,7 +11,7 @@ from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.bridge import runtime_file_read
 from rimbot.headless import isolated_root, prepare
 from rimbot.store import Store
-from rimbot.colony_plan import ColonyGoal, CommitSteps
+from rimbot.colony_plan import ColonyGoal, CommitSteps, Decision, PlanSpec, NativeOperation
 from rimbot.player_commands import apply_command
 from rimbot.production_policy import resource_method, refresh_resource_prerequisite
 from rimbot.colony_skills import SkillBlocked
@@ -36,11 +36,26 @@ async def run(args):
     def record(name,passed,**evidence):
         report['cases'].append(dict(name=name,passed=bool(passed),**evidence));save()
         print(name+': '+str(bool(passed)),flush=True);assert passed,name
+    async def archive_fixture():
+        plan=rt.current_plan
+        if len(plan.spec.steps)<60:return
+        retired={s.id for s in plan.spec.steps if isinstance(s.action,NativeOperation)
+            and plan.progress[s.id].state=='complete'}
+        if not retired:return
+        spec=plan.spec.model_dump()
+        spec['steps']=[dict(s.model_dump(),after=[d.model_dump() for d in s.after if d.step not in retired])
+            for s in plan.spec.steps if s.id not in retired]
+        await rt.commit_strategy(Decision(expected_revision=plan.revision,disposition='revise',
+            assessment='Archive completed acceptance fixture orders',rationale='Preserve verified receipts in the durable action archive',
+            reply='Completed fixture orders archived.',plan=PlanSpec.model_validate(spec)),actor='strategist',
+            expected_token=rt.context_token,expected_revision=rt.chat_revision)
+        fixture_steps.difference_update(retired)
     async def command(**payload):
         async with rt.lock:
             rt.clock_events.extend(await rt.supervisor.poll())
             rt.receive_clock_events()
         if rt.review_task and not rt.review_task.done():await rt.review_task
+        await archive_fixture()
         value=await apply_command(rt,payload,token=rt.context_token,revision=rt.chat_revision)
         for _ in range(128):
             if not rt.manual_requests:break
@@ -50,6 +65,7 @@ async def run(args):
         from rimbot.colony_policy import derive
         return derive(rt.batch,await rt.game.query('home/colony_facts',planning=True),rt.controller.policy)
     async def compile_method(identity, selected=None):
+        await archive_fixture()
         observed=await facts()
         people=(await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True,equipment=True))['pawns']
         goal=rt.current_plan.colony_goals.setdefault(identity,ColonyGoal(priority_class=2,source='PLAYER'))
