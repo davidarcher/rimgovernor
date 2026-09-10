@@ -54,6 +54,14 @@ medicine through ordinary harvesting and leave every patient's care setting inta
 This bounded case does not establish cultivated healroot production or recurring
 seasonal supply.
 
+For starting-animal containment, use
+`python scripts/animal_containment_acceptance.py --source-root /worker/run --output /worker/animals --seconds 240`.
+The fixture supplies open ground, wood, a loose muffalo and a pet. Shared work
+allocation must enable ordinary handling, construction must complete a fence/gate
+and marker, and native observations must place the muffalo inside the suitable pen.
+The pet and release/slaughter settings remain unchanged. Simulation uses the
+bounded native scenario supervisor; this case does not certify stored feed reserves.
+
 Require process exit zero and `result.json.outcome == "passed"`. The report retains
 the source/input manifest, installed order schema, fixture setup, observations,
 receipts, postconditions and plan. Keep container and native logs alongside it.

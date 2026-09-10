@@ -78,7 +78,7 @@ def required_resource_work(plan):
     research = plan.colony_goals.get('EnsureResearch')
     if research and not research.cancelled and research.status != 'complete' and research.evidence.get('research', {}).get('queue'):
         result['Research'] = 'Intellectual'
-    if any(key.startswith('MaintainHerd-') and not goal.cancelled
+    if any((key.startswith('MaintainHerd-') or key == 'MaintainAnimalContainment') and not goal.cancelled and goal.status != 'complete'
            for key, goal in plan.colony_goals.items()):
         result['Handling'] = 'Animals'
     return result

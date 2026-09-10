@@ -109,6 +109,8 @@ namespace HomeBridge.BridgeTools
                         id = p.GetUniqueLoadID(), defName = p.def.defName, x = p.Position.x, z = p.Position.z,
                         food = p.needs?.food?.CurLevelPercentage, diet = p.RaceProps.foodType.ToString(),
                         requiresPen = needsPen, contained = needsPen ? (bool?)(pen != null) : null,
+                        release = map.designationManager.DesignationOn(p, DesignationDefOf.ReleaseAnimalToWild) != null,
+                        slaughter = map.designationManager.DesignationOn(p, DesignationDefOf.Slaughter) != null,
                         pen = pen?.parent.GetUniqueLoadID(), suitablePen = suitable?.parent.GetUniqueLoadID(),
                         reachableStoredFeed = items.Where(t => t.def.IsNutritionGivingIngestible
                             && !t.def.IsDrug && t.IngestibleNow && p.WillEat(t)

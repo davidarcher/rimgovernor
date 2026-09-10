@@ -102,6 +102,17 @@ healroot acquisition; unavailable sources or recipes remain explicit blockers.
 The method preserves patient care, drug policies and player production bills.
 Designations and bill receipts never prove replenishment.
 
+`MaintainAnimalContainment` observes native pen membership for eligible starting
+animals. Pets and animals marked for release or slaughter do not receive a pen
+request. Existing suitable pens are reused through ordinary native handling;
+Handling joins shared work allocation without overriding player-disabled work.
+If no suitable pen exists, one bounded 6×6 fence/gate enclosure and its pen marker
+can be constructed through the same native enclosure checks used for supply rooms.
+Built fences or a marker do not complete the goal: the animal must be observed
+inside a suitable native pen. No breeding, bonding, master or removal setting is
+changed. Feed sufficiency is a separate observation and cannot be inferred from
+containment or grazing space.
+
 An `upkeep_target` action waits after the native job receipt. Hauling requires the
 same item identity and at least its original quantity in roofed valid storage;
 repair requires full observed target health; cleaning requires target absence

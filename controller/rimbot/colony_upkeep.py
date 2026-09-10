@@ -25,6 +25,7 @@ CONTRACTS = (
     UpkeepContract('MaintainCleanFacilities', 'filth', 3),
     UpkeepContract('MaintainSleeping', 'sleeping', 3),
     UpkeepContract('MaintainMedicalReserves', 'medicine', 3),
+    UpkeepContract('MaintainAnimalContainment', 'containment', 3),
 )
 GOALS = {c.goal for c in CONTRACTS}
 
@@ -82,7 +83,8 @@ def evidence(facts):
             filth = sorted((r for r in filth if r['home']), key=lambda r: (r.get('room') not in ('Kitchen', 'Hospital', 'Laboratory'), r['id']))
     return dict(vulnerable=vulnerable, damaged=damaged, fires=fires, filth=filth,
                 sleeping=facts.get('sleepingUpkeep') if current else None,
-                medicine=facts.get('medicalReserve') if current else None)
+                medicine=facts.get('medicalReserve') if current else None,
+                containment=facts.get('animalContainment') if current else None)
 
 
 def upkeep_nodes(facts, control):
@@ -90,6 +92,8 @@ def upkeep_nodes(facts, control):
     facts['sleepingUpkeep'] = sleeping_evidence(facts, control)
     from .medical_reserves import reserve_evidence
     facts['medicalReserve'] = reserve_evidence(facts, control)
+    from .animal_upkeep import containment_evidence
+    facts['animalContainment'] = containment_evidence(facts)
     observed = evidence(facts)
     states = control.setdefault('upkeep', {})
     nodes = []
@@ -115,7 +119,7 @@ def upkeep_nodes(facts, control):
 def progress_metric(goal_id, rows):
     if rows is None:
         return None
-    if goal_id == 'MaintainSleeping':
+    if goal_id in ('MaintainSleeping', 'MaintainAnimalContainment'):
         return len(rows)
     field = {'SecureSupplies': 'count', 'MaintainMedicalReserves': 'count', 'MaintainCleanFacilities': 'thickness', 'MaintainFireSafety': 'size'}.get(goal_id)
     values = ([r.get('maxHitPoints', 0) - r.get('hitPoints', 0) for r in rows]
@@ -180,6 +184,9 @@ async def upkeep_method(rt, goal_id, facts, people):
     if goal_id == 'MaintainMedicalReserves':
         from .medical_reserves import reserve_method
         return await reserve_method(rt, facts)
+    if goal_id == 'MaintainAnimalContainment':
+        from .animal_upkeep import containment_method
+        return await containment_method(rt, facts, people)
 
     goal = rt.current_plan.colony_goals[goal_id]
     goal.evidence.pop('waiting_for_storage_roof', None)

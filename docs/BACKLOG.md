@@ -69,9 +69,10 @@ in the checkpoint commit; do not append an implementation diary here.
   temperatures. On failure, reassess food deadlines and prioritize safe hauling,
   repair or bounded cooking rather than assuming the freezer remains functional.
 
-  **Phase 5 — Sustain animals and medical supplies.** Detect starting animals and
-  native pen requirements; establish temporary safe containment or a suitable pen,
-  then verify actual containment, reachable feed and seasonal feed reserves.
+  **Phase 5 — Sustain animals and medical supplies.** Extend verified native pen
+  construction and containment to interrupted construction, changed pen filters,
+  unavailable handlers and larger starting herds. Establish reachable feed and
+  seasonal feed reserves independently of containment.
   Account for animal consumption separately from human food and protect sensitive
   stores with appropriate areas/filters. Do not automatically slaughter, release,
   breed or change bonded-animal policy to resolve a feed deficit. Extend verified
