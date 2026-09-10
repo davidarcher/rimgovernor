@@ -1,0 +1,386 @@
+{
+  "version": 1,
+  "source_revision": "28d115ee2e87dea536737f87b19b445a6c5b4b10",
+  "normalization": "Only chat fixture wall-clock injection at 1000.0; no post-hoc normalization.",
+  "items": [
+    {
+      "id": "observation.native",
+      "category": "observation",
+      "source": {
+        "path": "controller_tests/test_bridge_observation.py",
+        "symbol": "native",
+        "line": 52
+      },
+      "value": {
+        "status_before": {
+          "status": "game_loaded",
+          "time": {
+            "mapName": "Test",
+            "ticksGame": 100,
+            "paused": true
+          },
+          "alerts": [
+            {
+              "label": "Low food"
+            }
+          ],
+          "counts": {
+            "hostileCount": 2,
+            "huntingPredatorCount": 0
+          }
+        },
+        "status_after": {
+          "status": "game_loaded",
+          "time": {
+            "mapName": "Test",
+            "ticksGame": 100,
+            "paused": true
+          },
+          "alerts": [
+            {
+              "label": "Low food"
+            }
+          ],
+          "counts": {
+            "hostileCount": 2,
+            "huntingPredatorCount": 0
+          }
+        },
+        "pawns": {
+          "pawns": [
+            {
+              "thingId": "Thing_Human1",
+              "name": "A",
+              "position": {
+                "x": 10,
+                "z": 20
+              },
+              "job": null,
+              "drafted": false,
+              "downed": false,
+              "dead": false,
+              "needs": null,
+              "equipment": null,
+              "health": null
+            }
+          ]
+        },
+        "supplies": {
+          "things": [
+            {
+              "defName": "WoodLog",
+              "label": "Wood",
+              "ours": 500,
+              "oursUnforbidden": 0,
+              "forbidden": 500,
+              "inStockpile": 0,
+              "fogged": 50,
+              "traderStock": 100
+            }
+          ]
+        },
+        "buildings": {},
+        "rooms": {
+          "rooms": [
+            {
+              "fogged": true
+            },
+            {
+              "fogged": false
+            }
+          ]
+        },
+        "zones": {
+          "zoneCount": 0
+        }
+      },
+      "notes": "Exact synthetic native helper output; unknown nulls and known zeros retained. No live recording."
+    },
+    {
+      "id": "plan.action",
+      "category": "plan",
+      "source": {
+        "path": "controller_tests/test_plan_archive.py",
+        "symbol": "action",
+        "line": 9
+      },
+      "value": {
+        "step": {
+          "id": "action-0",
+          "title": "action-0",
+          "priority": 50,
+          "goal_id": "EnsureWorkAssignments",
+          "source": "AUTOPILOT",
+          "purpose": "production",
+          "after": [],
+          "action": {
+            "kind": "native_operation",
+            "tool": "home/pawn_config",
+            "arguments": {
+              "pawn": "Thing_Humanaction-0",
+              "work": "Growing=1",
+              "dryRun": false
+            },
+            "completion": "native_receipt"
+          },
+          "completion_criteria": "Native receipt",
+          "reconsider_when": []
+        },
+        "signature": "55458d70f075947cfc3ae25794405187f23c324667596ba69fb5726dd42fcfa7"
+      },
+      "notes": "Exact action helper with identity action-0; signature is unnormalized."
+    },
+    {
+      "id": "archive.action",
+      "category": "receipt",
+      "source": {
+        "path": "controller_tests/test_plan_archive.py",
+        "symbol": "persist",
+        "line": 25
+      },
+      "value": {
+        "step": {
+          "id": "action-0",
+          "title": "action-0",
+          "priority": 50,
+          "goal_id": "EnsureWorkAssignments",
+          "source": "AUTOPILOT",
+          "purpose": "production",
+          "after": [],
+          "action": {
+            "kind": "native_operation",
+            "tool": "home/pawn_config",
+            "arguments": {
+              "pawn": "Thing_Humanaction-0",
+              "work": "Growing=1",
+              "dryRun": false
+            },
+            "completion": "native_receipt"
+          },
+          "completion_criteria": "Native receipt",
+          "reconsider_when": []
+        },
+        "progress": {
+          "state": "complete",
+          "issued": {
+            "0": {
+              "confirmed": true,
+              "receipt": {
+                "id": "action-0"
+              }
+            }
+          },
+          "failure": null,
+          "project_id": null,
+          "recovery_history": []
+        },
+        "costs": null
+      },
+      "notes": "Exact first archived record from retired_plan(); accepted synthetic receipt does not prove pawn work."
+    },
+    {
+      "id": "archive.snapshot",
+      "category": "saved_state",
+      "source": {
+        "path": "controller_tests/test_plan_archive.py",
+        "symbol": "persist",
+        "line": 25
+      },
+      "value": {
+        "revision": 73,
+        "chosen_tick": 72,
+        "rationale": "work",
+        "spec": {
+          "long_term": "",
+          "right_now": "",
+          "goals": [],
+          "constraints": [],
+          "assumptions": [],
+          "risks": [],
+          "reserved_walkways": [],
+          "steps": [
+            {
+              "id": "action-72",
+              "title": "action-72",
+              "priority": 50,
+              "goal_id": "EnsureWorkAssignments",
+              "source": "AUTOPILOT",
+              "purpose": "production",
+              "after": [],
+              "action": {
+                "kind": "native_operation",
+                "tool": "home/pawn_config",
+                "arguments": {
+                  "pawn": "Thing_Humanaction-72",
+                  "work": "Growing=1",
+                  "dryRun": false
+                },
+                "completion": "native_receipt"
+              },
+              "completion_criteria": "Native receipt",
+              "reconsider_when": []
+            }
+          ]
+        },
+        "progress": {
+          "action-72": {
+            "state": "complete",
+            "issued": {
+              "0": {
+                "confirmed": true,
+                "receipt": {
+                  "id": "action-72"
+                }
+              }
+            },
+            "failure": null,
+            "project_id": null,
+            "recovery_history": []
+          }
+        },
+        "cancelled_ids": [],
+        "cancelled_actions": [],
+        "colony_goals": {
+          "EnsureWorkAssignments": {
+            "priority_class": 2,
+            "status": "active",
+            "method": "",
+            "reason": "",
+            "started_tick": 0,
+            "last_progress_tick": 0,
+            "attempts": 0,
+            "steps": [
+              "action-72"
+            ],
+            "evidence": {},
+            "source": "AUTOPILOT",
+            "target": {},
+            "cancelled": false,
+            "method_epoch": 0,
+            "archived_methods": 0
+          }
+        },
+        "control": {
+          "archived_action_count": 72
+        }
+      },
+      "notes": "Projection of compact persisted plan from 73-action test helper: history omitted to keep fixture small. All included fields exact; this is not a complete importable database."
+    },
+    {
+      "id": "api.chat_ack",
+      "category": "api_response",
+      "source": {
+        "path": "controller_tests/test_event_delivery.py",
+        "symbol": "test_lost_chat_acknowledgment_is_deduplicated_after_reopen",
+        "line": 21
+      },
+      "value": {
+        "accepted": true,
+        "event_id": 1,
+        "revision": 1
+      },
+      "notes": "Exact steer response used by chat API; injected wall-clock=1000.0 only. No HTTP envelope claimed."
+    },
+    {
+      "id": "state.chat_request",
+      "category": "saved_state",
+      "source": {
+        "path": "controller_tests/test_event_delivery.py",
+        "symbol": "test_lost_chat_acknowledgment_is_deduplicated_after_reopen",
+        "line": 21
+      },
+      "value": {
+        "bridge:colony:1": {
+          "chat": [
+            {
+              "id": 1,
+              "at": 1000.0,
+              "kind": "human",
+              "text": "Protect food",
+              "ts": 1000.0,
+              "revision": 1
+            }
+          ],
+          "plan": {
+            "long": "",
+            "short": ""
+          },
+          "projects": [],
+          "chat_revision": 1,
+          "handled_revision": 0,
+          "draft_owners": {},
+          "current_plan": {
+            "revision": 0,
+            "chosen_tick": 0,
+            "rationale": "",
+            "spec": {
+              "long_term": "",
+              "right_now": "",
+              "goals": [],
+              "constraints": [],
+              "assumptions": [],
+              "risks": [],
+              "reserved_walkways": [],
+              "steps": []
+            },
+            "progress": {},
+            "cancelled_ids": [],
+            "cancelled_actions": [],
+            "history": [],
+            "colony_goals": {},
+            "control": {
+              "player_direction": 1
+            }
+          },
+          "strategic_state": {
+            "memories": {},
+            "current": {},
+            "previous": {},
+            "last_decision": {},
+            "last_decision_tick": 0,
+            "latches": {},
+            "pending": [],
+            "trends": []
+          },
+          "advice": {}
+        },
+        "chat-request:colony:1:request-1": {
+          "text": "Protect food",
+          "interpret": true,
+          "receipt": {
+            "accepted": true,
+            "event_id": 1,
+            "revision": 1
+          }
+        }
+      },
+      "notes": "Exact disposable SQLite state after test request, including acknowledgment and runtime snapshot."
+    },
+    {
+      "id": "failure.observation",
+      "category": "failure",
+      "source": {
+        "path": "controller_tests/test_observation_recovery.py",
+        "symbol": "test_failed_read_does_not_invalidate_or_reissue_construction",
+        "line": 6
+      },
+      "value": {
+        "state": "waiting",
+        "issued": {
+          "0": {
+            "confirmed": true
+          }
+        },
+        "failure": {
+          "code": "observation_unavailable",
+          "detail": "Cannot verify: transient transport failure",
+          "retryable": true,
+          "evidence": {}
+        },
+        "project_id": "p",
+        "recovery_history": []
+      },
+      "notes": "Exact waiting progress after failed read reconciliation; issued slot retained, no retry."
+    }
+  ]
+}

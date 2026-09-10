@@ -653,7 +653,7 @@ only intentional small, sanitized regression fixtures belong in source control.
     domain/native capability ownership; contracts/domain-inventory.json.
   - [x] **00b:** HTTP/events, configuration, launchers and optional media surfaces;
     contracts/interface-inventory.json.
-  - [ ] **00c:** persistence/recovery surfaces and sanitized comparison fixtures;
+  - [x] **00c:** persistence/recovery surfaces and sanitized comparison fixtures;
     contracts/state-inventory.json and contracts/fixtures/.
   - [ ] **00d:** integrator coverage validation, provenance and uncontended baseline
     availability; depends on 00a–00c. Native timing remains pending until measured.
