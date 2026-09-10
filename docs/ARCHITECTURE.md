@@ -402,6 +402,14 @@ existing supervisor. An in-flight review must finish before a play request;
 Pause remains available. New direction or a load change prevents resuming.
 Ultrafast and boosted simulation remain outside the production gameplay surface.
 
+Discrete camera navigation uses a separate player-only endpoint with a fixed
+pan/zoom action set. Each request validates the live native contract under the
+runtime writer lock, rechecks loaded-session identity before dispatch and reads
+camera state back. Zoom stays within the reported normal range; extended zoom
+is refused. Navigation turns off action follow and preserves clock/automation
+settings. Native writes are sent once; an uncertain result requires inspecting
+the view. These controls neither hold keys nor claim exclusive input ownership.
+
 Action follow opts into the discovered native `watch` argument for supported real
 writes only. Reads, dry runs and unsupported tools do not gain camera behavior.
 The preference resets on load and is unavailable in headless mode. Native follow

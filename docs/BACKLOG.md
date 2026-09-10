@@ -187,6 +187,15 @@ in the checkpoint commit; do not append an implementation diary here.
   Keep explicit player input outside model execution and route it through the
   existing runtime's identity and writer guards, not a second game-order owner.
 
+  Discrete dashboard pan/zoom uses the installed camera signatures, validates
+  each live schema, serializes through the runtime lock, checks load identity
+  before dispatch and reads native camera state afterward. Navigation disables
+  action follow without changing clock or automation, clamps zoom to the normal
+  native range and never retries uncertain writes. Still validate pan directions,
+  map-edge clamping, zoom limits and concurrent native camera movement in a
+  rendered game; protocol tests do not establish gameplay acceptance. Selection,
+  context menus, pointer/key discovery and the ownership handoff below remain open.
+
   **Player handoff.** Add Take control and Resume automation. Taking control must
   invalidate pending autonomous work, suspend cinematic framing and acknowledge
   ownership before accepting input. Preserve the existing Manual clock semantics;

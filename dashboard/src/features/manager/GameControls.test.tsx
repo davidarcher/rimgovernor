@@ -29,3 +29,20 @@ it('computes wall throughput including paused samples and rejects rewinds',()=>{
  expect(tickRate([{at:1,tick:600},{at:3,tick:0}])).toBeNull();
  expect(tickRate([{at:1,tick:0}])).toBeNull();
 });
+
+it('serializes camera requests and binds discrete actions to the displayed session',async()=>{
+ let finish!: (value: unknown)=>void;
+ const fetch=vi.fn(()=>new Promise(resolve=>{finish=resolve;}));vi.stubGlobal('fetch',fetch);
+ render(<GameControls sessionId="load-a" connected stale={false} onError={()=>{}}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Pan camera left'}));
+ fireEvent.click(screen.getByRole('button',{name:'Zoom camera in'}));
+ expect(fetch).toHaveBeenCalledTimes(1);
+ expect(fetch).toHaveBeenCalledWith('/api/camera/navigate',expect.objectContaining({body:JSON.stringify({session_id:'load-a',action:'left'})}));
+ finish({ok:true,json:async()=>({})});
+ await waitFor(()=>expect(screen.getByRole('button',{name:'Zoom camera in'})).not.toBeDisabled());
+});
+it('disables camera navigation in headless games',()=>{
+ render(<GameControls sessionId="load-a" connected stale={false} headless onError={()=>{}}/>);
+ expect(screen.getByRole('button',{name:'Pan camera left'})).toBeDisabled();
+ expect(screen.getByRole('button',{name:'Zoom camera out'})).toBeDisabled();
+});

@@ -44,7 +44,9 @@ export default function GameControls({
       setNotice(
         path === "time"
           ? "Game control is now manual. Native state updates below."
-          : "Camera preference updated.",
+          : path === "camera/navigate"
+            ? "Camera state read back. Action follow is off."
+            : "Camera preference updated.",
       );
     } catch (e) {
       onError(String(e));
@@ -101,11 +103,20 @@ export default function GameControls({
         <span aria-hidden="true">◎</span> Follow actions{" "}
         <small>{following ? "ON" : "OFF"}</small>
       </button>
+      <div className="mgr-switch" role="group" aria-label="Camera navigation">
+        {[["left", "←", "Pan camera left"], ["up", "↑", "Pan camera up"],
+          ["down", "↓", "Pan camera down"], ["right", "→", "Pan camera right"],
+          ["in", "+", "Zoom camera in"], ["out", "−", "Zoom camera out"]].map(([action, glyph, label]) => (
+          <button key={action} aria-label={label} title={label}
+            disabled={disabled || headless}
+            onClick={() => act("camera/navigate", { action })}>{glyph}</button>
+        ))}
+      </div>
       <p className="control-help">
         Time buttons switch to Manual. Native danger stops still apply.{" "}
         {headless
           ? "Action follow requires a rendered game."
-          : "Follow actions frames supported writes in the game."}
+          : "Pan and zoom turn off action follow. Game time and automation stay as set."}
       </p>
       {notice && (
         <span className="sr-only" role="status">
