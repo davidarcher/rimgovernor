@@ -1,5 +1,19 @@
 # Upstream sources
 
+## Go dependencies
+
+The migration module pins Go 1.27.1, the official
+[MCP Go SDK v1.7.0](https://github.com/modelcontextprotocol/go-sdk/tree/v1.7.0)
+and [modernc SQLite v1.58.0](https://pkg.go.dev/modernc.org/sqlite@v1.58.0).
+Exact transitive versions and integrity hashes are in `go/go.mod` and `go/go.sum`.
+The SDK is in an MIT/Apache-2.0 licensing transition; its complete upstream notice
+is retained in `third_party/go-mcp-sdk-LICENSE`. Modernc's BSD-3-Clause notice is
+in `third_party/go-modernc-sqlite-LICENSE`; upstream SQLite and sqlite-vec notices
+are retained alongside it. Package sources remain in the Go module cache.
+Distribution must include applicable transitive notices with the packaged binary;
+G01.11 owns that packaging gate. These dependencies currently serve foundation
+tests, not a production controller.
+
 ## Dashboard
 
 `dashboard/src` and `dashboard/public` started from IlyaChichkov/rimapi-dashboard
