@@ -86,8 +86,10 @@ async def test_release_rechecks_direction_after_native_pause():
 @pytest.mark.asyncio
 async def test_held_input_blocks_native_writes_and_manual_dispatch_even_after_expiry():
     rt=runtime(); await request(rt,'input/take'); rt.player_input.deadline=0
+    rt.refresh_clock_events=AsyncMock()
     with pytest.raises(ValueError,match='Player control is held'):
         await BridgeRuntime.native(rt,'home/order',{'action':'draft','pawn':'a','dryRun':False})
+    rt.refresh_clock_events.assert_awaited_once()
     rt.manual_requests=[('a','load-a',5)]
     await BridgeRuntime.execute_manual_requests(rt)
     assert rt.manual_requests==[] and rt.manual_execution is None
