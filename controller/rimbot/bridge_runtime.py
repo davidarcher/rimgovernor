@@ -1039,11 +1039,32 @@ class BridgeRuntime:
                     if carried != step.action.caravan_target.carried_cargo:
                         raise ValueError('Crew inventory changed before formation; revalidate the manifest')
                 else:
+                    preview = await self.game.invoke(name, dict(arguments, dryRun=True))
                     world = await self.game.query('home/world_progression')
                     caravan = next((c for c in world.get('caravans', []) if c.get('id') == arguments['caravanId']), None)
                     if (world.get('complete') is not True or caravan is None or
                             {p['thingId'] for p in caravan['pawns']} != set(step.action.caravan_target.pawn_ids)):
                         raise ValueError('Caravan membership changed before route dispatch')
+                from .expedition_policy import policy_for, evaluate_expedition
+                world = await self.game.query('home/world_progression')
+                facts = await self.game.query('home/colony_facts', planning=True) if arguments['action'] == 'form' else {}
+                assessment = evaluate_expedition(policy_for(self.current_plan), preview, facts, world,
+                    action=arguments['action'], crew=step.action.caravan_target.pawn_ids, cargo=step.action.caravan_target.cargo)
+                if not assessment['eligible']:
+                    raise ValueError('Expedition policy changed: ' + '; '.join(assessment['blockers']))
+            if name == 'home/caravan_gift' and is_write(name, arguments):
+                from .expedition_policy import validate_gift
+                if not any(s.id == expected_step_id and getattr(s.action, 'tool', None) == name for s in self.current_plan.spec.steps):
+                    raise ValueError('Diplomacy requires a shared committed action')
+                preview = await self.game.invoke(name, dict(arguments, dryRun=True))
+                validate_gift(self.current_plan, preview)
+            if name == 'home/fulfill_quest' and is_write(name, arguments):
+                from .expedition_policy import validate_quest_spending
+                if not any(s.id == expected_step_id and getattr(s.action, 'tool', None) == name for s in self.current_plan.spec.steps):
+                    raise ValueError('Quest fulfillment requires a shared committed action')
+                preview = await self.game.invoke(name, dict(arguments, dryRun=True))
+                world = await self.game.query('home/world_progression')
+                validate_quest_spending(self.current_plan, preview, world, arguments['questId'])
             from .flight_recorder import recording_action
             action = next((s for s in self.current_plan.spec.steps if s.id == expected_step_id), None)
             with recording_action(expected_step_id, action.goal_id if action else None):
@@ -1101,6 +1122,9 @@ class BridgeRuntime:
                             {p['thingId'] for p in row['pawns']} == set(step.action.caravan_target.pawn_ids)
                             for row in verification.get('assemblies', [])):
                         raise ValueError('Native assembly was not observed; inspect before retrying')
+                    if arguments['action'] == 'stop' and not any(c['id'] == arguments['caravanId'] and c['moving'] is False
+                            for c in verification.get('caravans', [])):
+                        raise ValueError('Stopped caravan was not observed; inspect before retrying')
                 elif name == 'rimworld/open_letter':
                     verification = await self.game.invoke('rimworld/get_ui_state', {})
                     from .dialog_control import verify_letter_window

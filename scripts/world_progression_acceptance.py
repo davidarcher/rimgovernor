@@ -23,6 +23,7 @@ async def run():
     rt = BridgeRuntime(store, root, fresh=True, headless=True, model_factory=lambda _: NoInference())
     report = {'passed': False, 'scope': 'Native world-progression audit', 'cases': {}}
     shared = os.environ.get('RIMBOT_SHARED_WORLD') == '1'
+    logistics = os.environ.get('RIMBOT_LOGISTICS') == '1'
     async def command(*, waits=True, **payload):
         async with rt.lock:
             await rt.refresh_clock_events()
@@ -37,7 +38,17 @@ async def run():
         return dict(accepted=True, observation=await read('home/world_progression'))
     async def read(name, **args):
         async with rt.lock:
-            result = (await rt.bridge.call(name, **args)).structuredContent
+            for attempt in range(3):
+                try:
+                    result = (await rt.bridge.call(name, **args)).structuredContent
+                    break
+                except Exception as error:
+                    # Only replay pure observations after GABS refuses ownership.
+                    if (name not in ('home/world_progression', 'home/list_pawns', 'home/colony_facts')
+                            or 'Failed to claim runtime ownership' not in str(error) or attempt == 2):
+                        raise
+                    report.setdefault('ownership_read_retries', []).append(str(error))
+                    await asyncio.sleep(.5)
         with (output / 'calls.jsonl').open('a') as stream:
             stream.write(json.dumps(dict(tool=name, arguments=args, result=result)) + '\n')
         (output / (name.replace('/', '-') + '.json')).write_text(json.dumps(result, indent=2))
@@ -130,6 +141,10 @@ async def run():
             roster = await read('home/list_pawns', colonistsOnly=True, bio=True)
             pawn = roster['pawns'][0]['thingId']
             food = next(g for g in catalog['groups'] if g['defName'] == 'Pemmican')
+            manifest = [dict(group_id=food['id'], count=60)]
+            if logistics:
+                silver = next(g for g in catalog['groups'] if g['defName'] == 'Silver')
+                manifest.append(dict(group_id=silver['id'], count=20))
             report['formation'] = None
             scope = await read('home/colony_identity')
             scope_args = {key: scope[key] for key in ('colonyId', 'loadToken', 'mapId')}
@@ -165,7 +180,7 @@ async def run():
                         await rt.cancel_plan_step(pending['step'])
                         report['cases']['resource_competition'] = 'passed'
                     report['formation'] = (await command(kind='FormCaravan', pawn_ids=[pawn],
-                        cargo=[dict(group_id=food['id'], count=60)], destination=tile)) if shared else (
+                        cargo=manifest, destination=tile)) if shared else (
                         await read('home/caravan', **arguments, dryRun=False))
                     break
             assert report['formation'] and report['formation']['accepted'], report['formation']
@@ -188,6 +203,10 @@ async def run():
                         break
             assert report.get('arrived'), 'Ordinary caravan arrival not observed within wall bound'
             caravan_id = report['arrived']['id']
+            if logistics:
+                assert shared, 'Logistics acceptance requires shared Hands'
+                report['hold'] = await command(kind='HoldCaravan', caravan_id=caravan_id, waits=False)
+                assert not next(c for c in report['hold']['observation']['caravans'] if c['id'] == caravan_id)['moving']
             next_tile = next(t for t in catalog['neighbors'] if t != tile)
             move_args = dict(scope_args, action='move', caravanId=caravan_id, destination=next_tile)
             preview = await read('home/caravan', **move_args, dryRun=True)
@@ -210,7 +229,7 @@ async def run():
             assert report.get('moved'), 'World tile movement was not observed'
             return_args = dict(scope_args, action='return', caravanId=caravan_id)
             report['return_order'] = (await command(kind='RouteCaravan', caravan_id=caravan_id,
-                return_home=True)) if shared else await read('home/caravan', **return_args, dryRun=False)
+                return_home=True, storage_resources=['Silver'] if logistics else [])) if shared else await read('home/caravan', **return_args, dryRun=False)
             assert report['return_order']['accepted'] is True
             deadline = time.monotonic() + 600
             while time.monotonic() < deadline:
@@ -219,7 +238,8 @@ async def run():
                 report['samples'].append(world)
                 if not any(c['id'] == caravan_id for c in world['caravans']):
                     home = await read('home/list_pawns', colonistsOnly=True)
-                    if any(p['thingId'] == pawn and p.get('dead') is False for p in home['pawns']):
+                    if (any(p['thingId'] == pawn and p.get('dead') is False for p in home['pawns'])
+                            and (not logistics or all(rt.current_plan.progress[s].state == 'complete' for s in report['shared_steps']))):
                         report['returned'] = home
                         break
             assert report.get('returned'), 'Living returning colonist not observed on home map'
@@ -227,6 +247,47 @@ async def run():
                 report['plan'] = rt.current_plan.model_dump(mode='json')
                 assert all(rt.current_plan.progress[s].state == 'complete' for s in report['shared_steps'])
             report['cases']['caravan_round_trip'] = 'passed'
+            if logistics:
+                report['cases']['native_return_storage_and_hold'] = 'passed'
+        if os.environ.get('RIMBOT_MULTIMAP') == '1':
+            assert shared and report.get('returned'), 'Multi-map probe requires a completed shared round trip'
+            sites = await read('test/settle_caravan')
+            assert sites['maximumSettlements'] >= 2 and sites['candidates'], sites
+            catalog = await read('home/caravan')
+            food = next(g for g in catalog['groups'] if g['defName'] == 'Pemmican')
+            selected = None
+            for candidate in sites['candidates']:
+                preview = await read('home/caravan', **scope_args, action='form', pawnIds=pawn,
+                    cargoIds=food['id'], counts='60', destination=candidate)
+                if preview.get('accepted'):
+                    selected = candidate
+                    break
+            assert selected is not None, 'No ordinary reachable settlement candidate'
+            await command(kind='FormCaravan', pawn_ids=[pawn], cargo=[dict(group_id=food['id'], count=60)], destination=selected)
+            deadline = time.monotonic() + 600
+            while time.monotonic() < deadline:
+                await window()
+                world = await read('home/world_progression')
+                party = next((c for c in world['caravans'] if any(p['thingId'] == pawn for p in c['pawns'])), None)
+                if party and party['tile'] == selected and not party['moving']:
+                    break
+            assert party and party['tile'] == selected and not party['moving']
+            report['settlement_order'] = await read('test/settle_caravan', caravanId=party['id'], dryRun=False)
+            assert report['settlement_order']['accepted']
+            async with asyncio.timeout(120):
+                while True:
+                    world = await read('home/world_progression')
+                    homes = [m for m in world['maps'] if m['home']]
+                    if len(homes) >= 2 and world['mapId'] != scope_args['mapId']:
+                        break
+                    await asyncio.sleep(1)
+            assert any(m['id'] == scope_args['mapId'] and m['pawns'] for m in homes)
+            assert any(m['id'] != scope_args['mapId'] and any(p['thingId'] == pawn for p in m['pawns']) for m in homes)
+            stale = await read('home/caravan', **scope_args, action='stop', caravanId=party['id'], dryRun=False)
+            assert stale['accepted'] is False and 'changed' in stale['reason']
+            report['multiple_maps'] = world
+            report['stale_map_refusal'] = stale
+            report['cases']['multiple_active_maps_and_scope_invalidation'] = 'passed'
         if os.environ.get('RIMBOT_QUEST_PROBE') == '1':
             preview = await read('test/join_incident', dryRun=True)
             assert preview['eligible'], 'Ordinary join incident is ineligible in this scenario'
@@ -253,6 +314,7 @@ async def run():
             expected = {p['thingId'] for p in baseline['pawns']}
             start = await read('home/world_progression')
             report['survival'] = dict(start_tick=start['ticksGame'], required_days=days, samples=[])
+            rt.current_plan.control.setdefault('policy', {})['execution_speed'] = 'Superfast'
             await rt.set_mode('automate')
             deadline = time.monotonic() + 1800
             while True:
@@ -293,6 +355,7 @@ async def run():
                 await window(6000)
             assert readiness['winter_readiness_observed'] is False, 'Bare baseline must not certify winter readiness'
             report['cases']['cold_readiness_refusal'] = 'passed'
+        if os.environ.get('RIMBOT_WORLD_MATRIX') == '1' or os.environ.get('RIMBOT_EMERGENCY_PROBE') == '1':
             preview = await read('test/world_incident', definition='AnimalInsanitySingle', dryRun=True)
             assert preview['eligible'], 'Native mad-animal incident is unavailable'
             before = await read('home/world_progression')
@@ -300,7 +363,9 @@ async def run():
             assert report['emergency']['applied']
             async with rt.lock:
                 try:
-                    clock = await rt.supervisor.change('Superfast', max_ticks=600)
+                    clock = await rt.supervisor.call(op='start', owner=rt.supervisor.owner,
+                        leaseMs=15000, speed='Superfast', mode='colony', hostileWithin=250, maxTicks=600)
+                    rt.supervisor.absorb(clock)
                 except ValueError as error:
                     clock = await rt.supervisor.call(op='status')
                     report['emergency_refusal'] = str(error)

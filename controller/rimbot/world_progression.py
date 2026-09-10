@@ -14,19 +14,40 @@ def caravan_cargo_held(plan, identity):
         and progress.issued['0'].get('cargo_departed') is not True)
 
 
+def inventory_totals(items):
+    totals = {}
+    for item in items:
+        if not _number(item.get('count')) or item['count'] < 0:
+            raise ValueError('Native inventory count is unavailable')
+        totals[item['defName']] = totals.get(item['defName'], 0) + item['count']
+    return totals
+
+
 async def reconcile_world(rt):
     from .colony_plan import Failure
     plan = rt.current_plan
-    steps = [s for s in plan.spec.steps if getattr(s.action, 'caravan_target', None) is not None
+    steps = [s for s in plan.spec.steps if (getattr(s.action, 'caravan_target', None) is not None or getattr(s.action, 'completion', None) == 'quest_completed')
              and (plan.progress[s.id].state == 'waiting' or caravan_cargo_held(plan, s.id))]
     if not steps:
         return
-    world = await rt.game.query('home/world_progression')
+    world = await rt.game.query('home/world_progression', **({'includeStorage': True}
+        if any(s.action.caravan_target and s.action.caravan_target.storage_cargo for s in steps) else {}))
     for step in steps:
         progress = plan.progress[step.id]
         receipt = progress.issued.get('0', {})
         target = step.action.caravan_target
         scope = {key: step.action.arguments.get(key) for key in ('colonyId', 'loadToken', 'mapId')}
+        if step.action.completion == 'quest_completed':
+            state = quest_outcome(world, step.action.arguments['questId'], scope=scope, issued_tick=receipt.get('issued_tick'))
+            if state == 'complete':
+                progress.state = 'complete'
+                progress.failure = None
+                receipt['completed_tick'] = world['ticksGame']
+                rt.signal('plan.step_complete', {'step': step.id, 'quest': step.action.arguments['questId']})
+            elif state in ('blocked', 'invalidated'):
+                progress.state = 'blocked'
+                progress.failure = Failure(code='quest_outcome_changed', detail='Native quest failed, expired or changed scope')
+            continue
         outcome = caravan_outcome(world, scope=scope, pawn_ids=target.pawn_ids,
             destination=target.destination, issued_tick=receipt.get('issued_tick'),
             caravan_id=target.caravan_id or receipt.get('caravan_id'))
@@ -53,6 +74,17 @@ async def reconcile_world(rt):
             complete = (not any(c.get('id') == target.caravan_id for c in world['caravans'])
                 and all(identity in people and people[identity].get('dead') is False
                         and people[identity].get('downed') is False for identity in target.pawn_ids))
+            if complete and target.storage_cargo:
+                home = next((m for m in world.get('maps', []) if m['id'] == scope['mapId']), None)
+                if home is None or not isinstance(home.get('storedItems'), list):
+                    complete = False
+                else:
+                    stored = inventory_totals(home['storedItems'])
+                    held = inventory_totals([i for p in home['pawns'] if p['thingId'] in target.pawn_ids for i in p['inventory']])
+                    complete = all(held.get(r, 0) == 0 and stored.get(r, 0) >= count + target.stored_baseline.get(r, 0)
+                        for r, count in target.storage_cargo.items())
+                    if complete:
+                        receipt['stored_cargo'] = target.storage_cargo
         if progress.state != 'waiting':
             continue  # Observation can release cargo holds without reviving cancelled work.
         if complete:

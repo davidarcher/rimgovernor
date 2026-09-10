@@ -19,11 +19,11 @@ namespace HomeBridge.BridgeTools
         [Tool("home/caravan", Title = "Plan ordinary caravan packing or travel",
             Description = "Catalog native transfer groups, preview or start ordinary pawn assembly/loading, or route an existing player caravan. Requires a paused current map. dryRun defaults true. Never creates caravans instantly or moves cargo directly. Formation receipts certify only assembly started.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "catalog, form, move or return", DefaultValue = "catalog")] string action = "catalog",
+            [ToolParameter(Description = "catalog, form, move, visit, stop or return", DefaultValue = "catalog")] string action = "catalog",
             [ToolParameter(Description = "Comma-separated exact current-map colonist load IDs for form")] string pawnIds = null,
             [ToolParameter(Description = "Comma-separated catalog cargo group IDs; paired with counts")] string cargoIds = null,
             [ToolParameter(Description = "Comma-separated positive integer counts for each cargo group")] string counts = null,
-            [ToolParameter(Description = "Exact player caravan load ID for move/return")] string caravanId = null,
+            [ToolParameter(Description = "Exact player caravan load ID for move/visit/stop/return")] string caravanId = null,
             [ToolParameter(Description = "Observed surface destination tile", DefaultValue = -1)] int destination = -1,
             [ToolParameter(Description = "Observed colony ID; required except catalog")] string colonyId = null,
             [ToolParameter(Description = "Observed load token; required except catalog")] string loadToken = null,
@@ -59,15 +59,21 @@ namespace HomeBridge.BridgeTools
             var map = Find.CurrentMap;
             if (Current.Game == null || map == null || !Find.TickManager.Paused)
                 return Refuse("A loaded paused map is required");
-            if (action != "catalog" && action != "form" && action != "move" && action != "return")
+            if (action != "catalog" && action != "form" && action != "move" && action != "return" && action != "visit" && action != "stop")
                 return Refuse("Unknown caravan action");
-            if (action == "move" || action == "return")
+            if (action == "move" || action == "return" || action == "visit" || action == "stop")
             {
                 if (pawnIds != null || cargoIds != null || counts != null)
                     return Refuse("Travel does not accept formation arguments");
                 var caravan = Find.WorldObjects.Caravans.SingleOrDefault(c =>
                     c.IsPlayerControlled && c.GetUniqueLoadID() == caravanId);
                 if (caravan == null) return Refuse("Player caravan no longer exists");
+                if (action == "stop")
+                {
+                    if (!dryRun) caravan.pather.StopDead();
+                    return new { success = true, accepted = true, dryRun, destination = caravan.Tile.tileId,
+                        observation = WorldProgressionTools.ReadNow() };
+                }
                 PlanetTile target = action == "return" ? map.Tile : new PlanetTile(destination);
                 if (!target.Valid || target.tileId >= Find.WorldGrid.TilesCount || !caravan.CanReach(target))
                     return Refuse("Destination is invalid or unreachable");
@@ -78,7 +84,16 @@ namespace HomeBridge.BridgeTools
                         return Refuse("Current home cannot be entered");
                     arrival = new CaravanArrivalAction_Enter(map.Parent);
                 }
-                if (dryRun) return new { success = true, accepted = true, dryRun, destination = target.tileId };
+                if (action == "visit")
+                {
+                    var settlement = Find.WorldObjects.Settlements.SingleOrDefault(s => s.Tile == target);
+                    if (!CaravanArrivalAction_VisitSettlement.CanVisit(caravan, settlement))
+                        return Refuse("No eligible settlement visit at this tile");
+                    arrival = new CaravanArrivalAction_VisitSettlement(settlement);
+                }
+                if (dryRun) return new { success = true, accepted = true, dryRun, destination = target.tileId,
+                    route = RouteFacts(caravan.Tile, target, caravan.TicksPerMove, caravan.DaysWorthOfFood.days, caravan),
+                    returnStorage = StorageCandidates(map, caravan.PawnsListForReading.SelectMany(p => p.inventory.innerContainer)) };
                 bool started = caravan.pather.StartPath(target, arrival);
                 return new { success = true, accepted = started, dryRun, destination = target.tileId,
                     observation = WorldProgressionTools.ReadNow() };
@@ -153,9 +168,36 @@ namespace HomeBridge.BridgeTools
                     count = g.Sum(t => t.stackCount) }).ToArray();
             if (dryRun) return new { success = true, accepted = true, dryRun,
                 massUsage = dialog.MassUsage, massCapacity = dialog.MassCapacity,
-                costList = selected, carriedCargo = carried, materials = new { rows = available } };
+                costList = selected, carriedCargo = carried, materials = new { rows = available },
+                homePawns = map.mapPawns.FreeColonistsSpawned.Where(p => !pawns.Contains(p)).Select(p => p.GetUniqueLoadID()).ToArray(),
+                homeDoctors = map.mapPawns.FreeColonistsSpawned.Count(p => !pawns.Contains(p) && !p.Downed && !p.WorkTypeIsDisabled(WorkTypeDefOf.Doctor)),
+                route = RouteFacts(map.Tile, tile, CaravanTicksPerMoveUtility.GetTicksPerMove(new CaravanTicksPerMoveUtility.CaravanInfo(dialog)), food.days, null),
+                returnStorage = StorageCandidates(map, dialog.transferables.Where(g => !(g.AnyThing is Pawn) && g.CountToTransfer > 0).Select(g => g.AnyThing)) };
             bool accepted = (bool)Call(dialog, "TryFormAndSendCaravan");
             return new { success = true, accepted, dryRun, observation = WorldProgressionTools.ReadNow() };
+        }
+
+        private static object RouteFacts(PlanetTile from, PlanetTile to, int ticksPerMove, float foodDays, Caravan caravan)
+        {
+            using (var path = from.Layer.Pather.FindPath(from, to, caravan))
+            {
+                var settlement = Find.WorldObjects.Settlements.SingleOrDefault(s => s.Tile == to);
+                return new { reachable = path.Found,
+                    estimatedTicks = path.Found ? (int?)CaravanArrivalTimeEstimator.EstimatedTicksToArrive(from, to, path, 0f, ticksPerMove, Find.TickManager.TicksAbs) : null,
+                    foodDays, destination = to.tileId,
+                    temperature = GenTemperature.GetTemperatureFromSeasonAtTile(Find.TickManager.TicksAbs, to),
+                    settlementId = settlement?.GetUniqueLoadID(), factionId = settlement?.Faction?.GetUniqueLoadID(),
+                    hostile = settlement?.Faction?.HostileTo(Faction.OfPlayer) ?? false,
+                    goodwill = settlement?.Faction == null || settlement.Faction.IsPlayer ? (int?)null : settlement.Faction.PlayerGoodwill };
+            }
+        }
+
+        private static object[] StorageCandidates(Map map, IEnumerable<Thing> things)
+        {
+            return things.GroupBy(t => t.def).Select(g => (object)new { defName = g.Key.defName,
+                cells = map.zoneManager.AllZones.OfType<Zone_Stockpile>()
+                    .Where(z => z.GetStoreSettings().filter.Allows(g.Key))
+                    .SelectMany(z => z.Cells).Distinct().Count(c => c.Standable(map)) }).ToArray();
         }
     }
 }

@@ -14,6 +14,7 @@ class TradeEconomy(Contract):
     negotiator: str = Field(min_length=1)
     policy: TradePolicy
     max_silver_spend: int = Field(ge=0)
+from .expedition_policy import ExpeditionPolicy
 
 class ResearchRefused(ValueError):
     """Native research admission failed; preserve its factual explanation."""
@@ -73,6 +74,19 @@ class AcceptQuest(Contract):
     reward_choice: int = Field(default=-1, ge=-1, description='Exact observed reward index; -1 only when there are no reward choices')
 
 
+class FulfillQuest(Contract):
+    kind: Literal['FulfillQuest']
+    quest_id: str = Field(min_length=1)
+    caravan_id: str = Field(min_length=1)
+
+
+class GiftToSettlement(Contract):
+    kind: Literal['GiftToSettlement']
+    caravan_id: str = Field(min_length=1)
+    faction_id: str = Field(min_length=1)
+    silver: int = Field(gt=0)
+
+
 class CaravanCargo(Contract):
     group_id: str = Field(min_length=1)
     count: int = Field(gt=0)
@@ -90,12 +104,30 @@ class RouteCaravan(Contract):
     caravan_id: str = Field(min_length=1)
     destination: int | None = Field(default=None, ge=0)
     return_home: bool = False
+    visit_settlement: bool = False
+    storage_resources: list[str] = Field(default_factory=list, max_length=32)
 
     @model_validator(mode='after')
     def one_destination(self):
         if self.return_home == (self.destination is not None):
             raise ValueError('Choose one destination or return_home')
+        if self.return_home and self.visit_settlement or self.storage_resources and not self.return_home:
+            raise ValueError('Settlement visits and return-storage verification require their matching route')
         return self
+
+
+class HoldCaravan(Contract):
+    kind: Literal['HoldCaravan']
+    caravan_id: str = Field(min_length=1)
+
+
+class EvaluateWorld(Contract):
+    kind: Literal['EvaluateWorld']
+
+
+class SetExpeditionPolicy(Contract):
+    kind: Literal['SetExpeditionPolicy']
+    policy: 'ExpeditionPolicy'
 
 
 class CreateGoal(Contract):
@@ -285,10 +317,10 @@ class RescuePawn(Contract):
     patient: str = Field(min_length=1, description='Exact observed downed living colonist to carry to a native eligible bed.')
 
 
-Command = Annotated[RequestSurgery | FormCaravan | RouteCaravan | AcceptQuest | MaintainHerd | SetPopulationPolicy | SetPopulationDecision | TradeEconomy | SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | RelocateConstruction | AdoptRoom | BuildRoom |
+Command = Annotated[RequestSurgery | GiftToSettlement | FulfillQuest | SetExpeditionPolicy | EvaluateWorld | HoldCaravan | FormCaravan | RouteCaravan | AcceptQuest | MaintainHerd | SetPopulationPolicy | SetPopulationDecision | TradeEconomy | SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | RelocateConstruction | AdoptRoom | BuildRoom |
                     PlaceBuildings | CreateZone | EditZone | SetWorkPriority | CreateBill | SetBuildingTemperature | DraftPawn | MovePawn | TendPawn | RescuePawn, Field(discriminator='kind')]
 COMMAND = TypeAdapter(Command)
-COMMAND_TYPES = (RequestSurgery,FormCaravan,RouteCaravan,AcceptQuest,MaintainHerd,SetPopulationPolicy,SetPopulationDecision,TradeEconomy,SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,RelocateConstruction,AdoptRoom,BuildRoom,PlaceBuildings,
+COMMAND_TYPES = (RequestSurgery,GiftToSettlement,FulfillQuest,SetExpeditionPolicy,EvaluateWorld,HoldCaravan,FormCaravan,RouteCaravan,AcceptQuest,MaintainHerd,SetPopulationPolicy,SetPopulationDecision,TradeEconomy,SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,RelocateConstruction,AdoptRoom,BuildRoom,PlaceBuildings,
                  CreateZone,EditZone,SetWorkPriority,CreateBill,SetBuildingTemperature,DraftPawn,MovePawn,TendPawn,RescuePawn)
 COMMAND_NAMES = {kind.__name__ for kind in COMMAND_TYPES}
 
@@ -315,6 +347,11 @@ def semantic_tools(resources=None):
         'SetPopulationPolicy':'Set explicitly requested maximum population and minimum food reserve days. Does not authorize capturing or recruiting any individual; use SetPopulationDecision for exact observed pawns.',
         'SetPopulationDecision':'Explicit per-pawn rescue, hostile capture, prisoner recruitment, or withdrawal of future population orders. Requires an existing population capacity policy. Preserves other individuals and does not release existing prisoners. Native custody, care, recruitment and integration are observed separately.',
         'MaintainHerd':'Maintain player animal population, training and seasonal stored feed targets. Uses native normal breeding and handler work. Never infer culling permission from a population target. Animal settings changed by the player require explicit renewal.',
+        'GiftToSettlement':'Give an explicitly requested amount of caravan silver to the exact visited faction through normal gift trading. Checks carried silver reserves and observes native goodwill; never directly changes relations.',
+        'FulfillQuest':'Fulfill an explicitly requested ongoing native trade quest with the exact visiting caravan and eligible cargo. Waits for native quest success; never creates rewards or goods.',
+        'SetExpeditionPolicy':'Update the specified expedition risk limits while preserving other limits. Does not issue game orders.',
+        'EvaluateWorld':'Evaluate observed quest requirements, rewards, diplomacy and stranded caravan recovery against player expedition policy. Read-only; never accepts quests or issues orders.',
+        'HoldCaravan':'Stop an explicitly requested caravan in place through its native path follower. Preserves all pawns and cargo for player-directed recovery.',
         'FormCaravan':'Form an explicitly requested expedition using observed pawn IDs, native caravan cargo group IDs and destination tile. Reserves cargo and waits for actual loaded departure.',
         'RouteCaravan':'Route an explicitly requested existing player caravan to an observed tile or return it to the current home map. Native arrival is observed separately from route acceptance.',
         'AcceptQuest':'Accept a quest explicitly requested by the player using its observed ID, eligible colonist and chosen reward. Acceptance does not complete the quest.',
@@ -387,6 +424,10 @@ def resolve_colonist(query, pawns):
 
 
 def command_confirmation(name, result):
+    if name == 'SetExpeditionPolicy':
+        return 'Expedition policy updated. Future orders use these limits.'
+    if name == 'EvaluateWorld':
+        return 'World evaluation refreshed. No game orders issued.'
     if name=='CreateGoal':
         days=result.get('target',{}).get('food_days')
         return f'Food target set to {days:g} days.' if days is not None else 'Persistent colony goal accepted: '+result['goal']+'.'
@@ -403,7 +444,8 @@ def command_confirmation(name, result):
         return 'Construction relocation accepted. The validated replacement waits for exact old-order cancellation; pawn construction is tracked separately.'
     if name=='AdoptRoom':
         return 'Existing roofed room selected as the colony shelter. Native furnishings and temperature remain separately verified.'
-    titles={'FormCaravan':'Caravan assembly','RouteCaravan':'Caravan route','AcceptQuest':'Quest acceptance',
+    titles={'HoldCaravan':'Caravan hold','GiftToSettlement':'Diplomatic gift','FulfillQuest':'Quest fulfillment',
+            'FormCaravan':'Caravan assembly','RouteCaravan':'Caravan route','AcceptQuest':'Quest acceptance',
             'SetResearch':'Research change','SetWorkPriority':'Work assignment change','DraftPawn':'Draft change',
             'MovePawn':'Movement order','BuildRoom':'Room shell','PlaceBuildings':'Building batch',
             'CreateZone':'Zone','EditZone':'Zone edit','CreateBill':'Production bill','SetBuildingTemperature':'Temperature setpoint'}
@@ -472,6 +514,16 @@ async def apply_command(rt, payload, *, token, revision):
         plan.colony_goals[identity] = goal
         plan.control.setdefault('suppressed_goals', {}).pop(identity, None)
         result = {'goal': identity, 'target': goal.target}
+    elif isinstance(request, SetExpeditionPolicy):
+        from .expedition_policy import policy_for, ExpeditionPolicy
+        changed = dict(policy_for(plan).model_dump(), **request.policy.model_dump(exclude_unset=True))
+        plan.control['expedition_policy'] = ExpeditionPolicy.model_validate(changed).model_dump()
+        result = {'policy': plan.control['expedition_policy']}
+    elif isinstance(request, EvaluateWorld):
+        from .expedition_policy import policy_for, evaluate_world
+        world = await rt.game.query('home/world_progression')
+        facts = await rt.game.query('home/colony_facts', planning=True)
+        result = evaluate_world(policy_for(plan), world, facts)
     elif isinstance(request, CreateGoal):
         goal_id = request.goal
         if request.goal == 'MaintainWaste':
@@ -619,7 +671,7 @@ async def apply_command(rt, payload, *, token, revision):
                 part=request.part, expectedHealth=preview['healthSignature'], expectedCare=preview['medicalCare'],
                 **{k:preview[k] for k in ('colonyId', 'loadToken', 'mapId')}),
                 completion='surgery_health', medical_effect=effect)
-        elif isinstance(request, (FormCaravan, RouteCaravan)):
+        elif isinstance(request, (FormCaravan, RouteCaravan, HoldCaravan)):
             scope = await rt.game.query('home/colony_identity')
             arguments = {key: scope[key] for key in ('colonyId', 'loadToken', 'mapId')}
             if isinstance(request, FormCaravan):
@@ -640,22 +692,68 @@ async def apply_command(rt, payload, *, token, revision):
                 caravan = next((c for c in world.get('caravans', []) if c.get('id') == request.caravan_id), None)
                 if world.get('complete') is not True or caravan is None:
                     raise ValueError('Current complete caravan observation is required')
-                arguments.update(action='return' if request.return_home else 'move', caravanId=request.caravan_id)
-                destination = request.destination
-                if request.return_home:
+                holding = isinstance(request, HoldCaravan)
+                returning = not holding and request.return_home
+                arguments.update(action='stop' if holding else 'return' if returning else 'visit' if request.visit_settlement else 'move', caravanId=request.caravan_id)
+                destination = caravan['tile'] if holding else request.destination
+                if returning:
                     destination = (await rt.game.query('home/world'))['tile']
-                else:
+                elif not holding:
                     arguments['destination'] = destination
                 target = dict(pawn_ids=[p['thingId'] for p in caravan['pawns']], destination=destination, caravan_id=request.caravan_id)
-                completion = 'caravan_returned' if request.return_home else 'caravan_arrived'
+                completion = 'native_receipt' if holding else 'caravan_returned' if returning else 'caravan_arrived'
+                if returning and request.storage_resources:
+                    stored = await rt.game.query('home/world_progression', includeStorage=True)
+                    from .world_progression import inventory_totals
+                    items = [i for p in caravan['pawns'] for i in p.get('inventory', [])]
+                    totals = inventory_totals(items)
+                    if any(totals.get(resource, 0) <= 0 for resource in request.storage_resources):
+                        raise ValueError('Requested return cargo is not observed in the caravan')
+                    target['storage_cargo'] = {r: totals[r] for r in request.storage_resources}
+                    home = next(m for m in stored['maps'] if m['id'] == scope['mapId'])
+                    target['stored_baseline'] = inventory_totals(home['storedItems'])
             preview = await rt.inspect_native('home/caravan', dict(arguments, dryRun=True))
             if preview.get('accepted') is not True:
                 raise ValueError(preview.get('reason') or 'Native caravan request refused')
             if isinstance(request, FormCaravan):
                 target['cargo'] = {r['defName']: r['count'] for r in preview['costList']}
                 target['carried_cargo'] = {r['defName']: r['count'] for r in preview['carriedCargo']}
+            from .expedition_policy import policy_for, evaluate_expedition
+            world = await rt.game.query('home/world_progression')
+            facts = await rt.game.query('home/colony_facts', planning=True) if isinstance(request, FormCaravan) else {}
+            evaluation = evaluate_expedition(policy_for(plan), preview, facts, world,
+                action=arguments['action'], crew=target['pawn_ids'], cargo=target.get('cargo'))
+            if not evaluation['eligible']:
+                raise ValueError('Expedition policy: ' + '; '.join(evaluation['blockers']))
             action = native('home/caravan', **arguments)
             action.update(completion=completion, caravan_target=target)
+        elif isinstance(request, GiftToSettlement):
+            from .expedition_policy import validate_gift
+            scope = await rt.game.query('home/colony_identity')
+            world = await rt.game.query('home/world_progression')
+            caravan = next((c for c in world.get('caravans', []) if c['id'] == request.caravan_id), None)
+            if world.get('complete') is not True or caravan is None:
+                raise ValueError('Observe the exact current caravan before diplomacy')
+            arguments = {key: scope[key] for key in ('colonyId', 'loadToken', 'mapId')}
+            arguments.update(caravanId=request.caravan_id, factionId=request.faction_id, silver=request.silver,
+                pawnIds=','.join(p['thingId'] for p in caravan['pawns']))
+            preview = await rt.inspect_native('home/caravan_gift', dict(arguments, dryRun=True))
+            validate_gift(plan, preview)
+            action = native('home/caravan_gift', **arguments)
+        elif isinstance(request, FulfillQuest):
+            from .expedition_policy import validate_quest_spending
+            scope = await rt.game.query('home/colony_identity')
+            world = await rt.game.query('home/world_progression')
+            caravan = next((c for c in world.get('caravans', []) if c['id'] == request.caravan_id), None)
+            if world.get('complete') is not True or caravan is None:
+                raise ValueError('Observe the exact current caravan before fulfilling a quest')
+            arguments = {key: scope[key] for key in ('colonyId', 'loadToken', 'mapId')}
+            arguments.update(questId=request.quest_id, caravanId=request.caravan_id,
+                pawnIds=','.join(p['thingId'] for p in caravan['pawns']))
+            preview = await rt.inspect_native('home/fulfill_quest', dict(arguments, dryRun=True))
+            validate_quest_spending(plan, preview, world, request.quest_id)
+            action = native('home/fulfill_quest', **arguments)
+            action['completion'] = 'quest_completed'
         elif isinstance(request, AcceptQuest):
             scope = await rt.game.query('home/colony_identity')
             arguments = {key: scope[key] for key in ('colonyId', 'loadToken', 'mapId')}

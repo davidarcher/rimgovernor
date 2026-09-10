@@ -19,6 +19,26 @@ exact caravan membership and wait for world arrival or living home-map return.
 Quest acceptance validates native eligibility and an explicit reward choice;
 the acceptance action does not claim the quest objective is complete.
 
+Expedition policy checks native travel estimates, food margins, seasonal destination
+temperature, diplomatic relations, concurrent parties and remaining home staff.
+It deducts departing food from the home forecast. Explicit returns can retain food
+and temperature warnings so a stranded party can attempt recovery. Unreachable
+routes still refuse. EvaluateWorld reports resource deficits and recovery needs
+without issuing orders. SetExpeditionPolicy changes only the specified limits.
+
+HoldCaravan stops the exact observed party. RouteCaravan can visit a nonhostile
+settlement or return to the current home. Optional return storage resources require
+later native unloading and a corresponding increase in stored goods; arriving at
+the map edge alone does not complete that contract. Storage preview cells are
+accepting candidates, not guaranteed capacity or completed hauling.
+
+GiftToSettlement spends explicitly requested carried silver through native gift
+trading and observes goodwill. FulfillQuest invokes the enabled native trade-request
+confirmation with eligible carried goods and waits for native quest success.
+Both recheck player spending limits. Failed and expired objectives stay terminal.
+The world census includes each active map and return routes to loaded home maps;
+changing the current map invalidates pending orders scoped to the previous map.
+
 The accepted formation contract covers free human colonists with explicit cargo,
 leaves a colonist at home and requires at least one native food day. It refuses
 unavailable crew, excessive mass and ineligible routes. Unsupported quest choice

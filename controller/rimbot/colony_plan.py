@@ -119,19 +119,21 @@ class CaravanTarget(Contract):
     caravan_id: str | None = None
     cargo: dict[str, int] = Field(default_factory=dict)
     carried_cargo: dict[str, int] = Field(default_factory=dict)
+    storage_cargo: dict[str, int] = Field(default_factory=dict)
+    stored_baseline: dict[str, int] = Field(default_factory=dict)
 
     @model_validator(mode='after')
     def valid_manifest(self):
         if len(set(self.pawn_ids)) != len(self.pawn_ids) or any(not p.startswith('Thing_') for p in self.pawn_ids):
             raise ValueError('Caravan members require unique native pawn IDs')
-        if any(type(count) is not int or count <= 0 for count in [*self.cargo.values(), *self.carried_cargo.values()]):
+        if any(type(count) is not int or count <= 0 for count in [*self.cargo.values(), *self.carried_cargo.values(), *self.storage_cargo.values(), *self.stored_baseline.values()]):
             raise ValueError('Caravan cargo counts must be positive integers')
         return self
 
 
 class NativeOperation(Contract):
     kind: Literal['native_operation'] = 'native_operation'
-    tool: Literal['home/recovery_area', 'home/recover_service', 'home/husbandry_config', 'home/relieve_need', 'home/medical_operations', 'home/caravan', 'home/accept_quest', 'home/manage_waste', 'home/gear_upkeep', 'home/population', 'home/acquire_resource', 'home/production_policy', 'home/confirm_colony_names', 'home/pawn_config', 'home/building_config', 'home/bills', 'home/order',
+    tool: Literal['home/recovery_area', 'home/recover_service', 'home/husbandry_config', 'home/relieve_need', 'home/medical_operations', 'home/caravan_gift', 'home/fulfill_quest', 'home/caravan', 'home/accept_quest', 'home/manage_waste', 'home/gear_upkeep', 'home/population', 'home/acquire_resource', 'home/production_policy', 'home/confirm_colony_names', 'home/pawn_config', 'home/building_config', 'home/bills', 'home/order',
         'home/zone_cells', 'home/trade', 'home/research', 'rimworld/apply_architect_designator',
         'rimworld/open_letter', 'rimworld/dismiss_letter', 'rimworld/click_screen_target',
         'home/install', 'home/dialog_text', 'rimworld/click_ui_target', 'rimworld/scroll_ui_target',
@@ -139,7 +141,7 @@ class NativeOperation(Contract):
     arguments: dict
     # Honest fallback for native operations lacking a higher-level compiler.
     completion: Literal['service_recovered', 'need_recovered', 'pawn_gear', 'waste_contained', 'native_receipt', 'patient_tended', 'patient_in_bed', 'pawn_equipped', 'pawn_at_position',
-                        'surgery_health', 'caravan_departed', 'caravan_arrived', 'caravan_returned'] = 'native_receipt'
+                        'surgery_health', 'caravan_departed', 'caravan_arrived', 'caravan_returned', 'quest_completed'] = 'native_receipt'
     medical_effect: dict | None = None
     caravan_target: CaravanTarget | None = None
 
@@ -188,8 +190,12 @@ class NativeOperation(Contract):
                 raise ValueError('Need recovery requires an exact pawn and native need relief action')
         if self.tool == 'home/relieve_need' and self.completion != 'need_recovered':
             raise ValueError('Need relief requires observed need recovery, not an order receipt')
+        if (self.tool == 'home/fulfill_quest') != (self.completion == 'quest_completed'):
+            raise ValueError('Quest fulfillment requires native terminal quest completion')
+        if self.completion == 'quest_completed' and not self.arguments.get('questId'):
+            raise ValueError('Quest completion requires an exact native quest identity')
         if self.tool == 'home/caravan':
-            expected = {'form': 'caravan_departed', 'move': 'caravan_arrived', 'return': 'caravan_returned'}
+            expected = {'form': 'caravan_departed', 'move': 'caravan_arrived', 'visit': 'caravan_arrived', 'return': 'caravan_returned', 'stop': 'native_receipt'}
             if self.completion != expected.get(self.arguments.get('action')) or self.caravan_target is None:
                 raise ValueError('Caravan orders require a matching observed outcome target')
             if self.arguments['action'] == 'form':
@@ -197,7 +203,7 @@ class NativeOperation(Contract):
                     raise ValueError('Caravan manifest does not match selected pawn identities')
             elif self.arguments.get('caravanId') != self.caravan_target.caravan_id or not self.caravan_target.caravan_id:
                 raise ValueError('Caravan route requires the exact observed caravan identity')
-            if self.arguments['action'] != 'return' and self.arguments.get('destination') != self.caravan_target.destination:
+            if self.arguments['action'] not in ('return', 'stop') and self.arguments.get('destination') != self.caravan_target.destination:
                 raise ValueError('Caravan outcome destination must match the native order')
         elif self.caravan_target is not None or self.completion.startswith('caravan_'):
             raise ValueError('Caravan outcome targets require a caravan operation')

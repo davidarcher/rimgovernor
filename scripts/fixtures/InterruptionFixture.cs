@@ -4,6 +4,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using RimBridgeServer.Sdk;
 using RimWorld;
+using RimWorld.Planet;
+using System.Collections.Generic;
 using Verse;
 
 namespace RimBot.InterruptionFixtures
@@ -11,6 +13,46 @@ namespace RimBot.InterruptionFixtures
     // Separate test assembly; never part of production or the gameplay capability allowlist.
     public sealed class InterruptionFixture
     {
+        [Tool("test/settle_caravan", Description = "Disposable multi-map acceptance through the enabled native settle command. Requires the private profile's ordinary multiple-settlement setting. Does not create maps or relocate pawns directly.")]
+        public async Task<object> Settle(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            string caravanId = null, bool dryRun = true)
+        {
+            return await ctx.MainThread.InvokeAsync(() =>
+            {
+                if (Find.CurrentMap == null || !Find.TickManager.Paused)
+                    throw new InvalidOperationException("Load and pause a disposable colony first");
+                if (caravanId == null)
+                {
+                    var candidates = new HashSet<PlanetTile>();
+                    var neighbors = new List<PlanetTile>();
+                    Find.WorldGrid.GetTileNeighbors(Find.CurrentMap.Tile, neighbors);
+                    foreach (var tile in neighbors)
+                    {
+                        var next = new List<PlanetTile>();
+                        Find.WorldGrid.GetTileNeighbors(tile, next);
+                        foreach (var candidate in next) if (TileFinder.IsValidTileForNewSettlement(candidate)) candidates.Add(candidate);
+                    }
+                    return (object)new { success = true, candidates = candidates.Select(t => t.tileId).ToArray(),
+                        maximumSettlements = Prefs.MaxNumberOfPlayerSettlements };
+                }
+                var caravan = Find.WorldObjects.Caravans.Single(c => c.IsPlayerControlled && c.GetUniqueLoadID() == caravanId);
+                var command = (Command_Action)SettleInEmptyTileUtility.SettleCommand(caravan);
+                if (command.Disabled) return (object)new { success = true, accepted = false, reason = command.disabledReason };
+                if (!dryRun)
+                {
+                    var before = Find.WindowStack.Windows.ToArray();
+                    command.action();
+                    var confirmation = Find.WindowStack.Windows.OfType<Dialog_MessageBox>().SingleOrDefault(w => !before.Contains(w));
+                    if (confirmation != null)
+                    {
+                        confirmation.buttonAAction?.Invoke();
+                        confirmation.Close();
+                    }
+                }
+                return (object)new { success = true, accepted = true, dryRun, tile = caravan.Tile.tileId };
+            }, cancellationToken);
+        }
+
         [Tool("test/world_incident", Description = "Disposable ordinary ColdSnap or AnimalInsanitySingle incident at native storyteller settings. No direct condition, temperature, pawn or health edits.")]
         public async Task<object> WorldIncident(IRimBridgeContext ctx, CancellationToken cancellationToken,
             string definition, bool dryRun = true)

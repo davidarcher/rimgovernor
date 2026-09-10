@@ -1,5 +1,12 @@
 # Local research companion
 
+World expedition extensions are original RimBot code. Settlement visits use native
+caravan arrival actions; gifts use TradeSession and TradeDeal; quest fulfillment
+invokes the enabled TradeRequestComp command and its native confirmation. No game
+implementation is copied, and these tools do not directly change relations, create
+reward goods or set quest success. The separate multiple-map fixture invokes the
+enabled native settlement command with an ordinary private-profile settlement limit.
+
 The upstream C# source files in `src` were copied from
 https://github.com/Snowstar38/rimworld-claude-harness/tree/89c2e90fedd51419a3db55a7f9865b0aef29b270/companion/src
 for the user's explicitly requested local research integration. Original namespace

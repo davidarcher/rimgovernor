@@ -18,10 +18,11 @@ def run(args):
         return subprocess.run([docker, *values], cwd=source, env=environment, **kwargs)
     name = 'rimbot-b15-' + uuid.uuid4().hex[:12]
     report = dict(passed=False, container=name, trip=args.trip, shared=args.shared, quests=args.quests, days=args.days, matrix=args.matrix,
+                  logistics=args.logistics, multimap=args.multimap, emergency=args.emergency,
                   scope='Native caravan/quest observations and optional ordinary loaded caravan round trip')
     try:
         required = ['RimBot.Observations.BridgeTools.dll']
-        if args.quests or args.matrix:
+        if args.quests or args.matrix or args.emergency or args.multimap:
             required.append('RimBot.InterruptionFixtures.BridgeTools.dll')
         report['assemblies'] = {}
         for assembly in required:
@@ -55,6 +56,9 @@ def run(args):
                 '--env', 'RIMBOT_QUEST_PROBE=' + ('1' if args.quests else '0'),
                 '--env', 'RIMBOT_SURVIVAL_DAYS=' + str(args.days),
                 '--env', 'RIMBOT_WORLD_MATRIX=' + ('1' if args.matrix else '0'),
+                '--env', 'RIMBOT_EMERGENCY_PROBE=' + ('1' if args.emergency else '0'),
+                '--env', 'RIMBOT_LOGISTICS=' + ('1' if args.logistics else '0'),
+                '--env', 'RIMBOT_MULTIMAP=' + ('1' if args.multimap else '0'),
                 '--env', 'RIMBOT_CARAVAN_TRIP=' + ('1' if args.trip else '0'), *mounts,
                 image, '--', 'python', '/worker/probe.py', stdout=log, stderr=subprocess.STDOUT,
                 timeout=args.timeout)
@@ -86,11 +90,14 @@ if __name__ == '__main__':
     parser.add_argument('--image', default='rimbot-b15:local')
     parser.add_argument('--no-build', action='store_true')
     parser.add_argument('--trip', action='store_true')
+    parser.add_argument('--logistics', action='store_true', help='Verify explicit hold and return cargo unloading into native storage')
+    parser.add_argument('--multimap', action='store_true', help='Settle a second native map and verify scope invalidation; requires private profile allowing two settlements')
     parser.add_argument('--shared', action='store_true', help='Use shared semantic commands and Hands for the trip')
     parser.add_argument('--quests', action='store_true', help='Require ordinary join-quest outcome using the separate incident fixture')
     parser.add_argument('--days', type=int, choices=range(0, 61), default=0, help='Additional ordinary survival days with living roster checks')
     parser.add_argument('--timeout', type=int, default=2400)
     parser.add_argument('--matrix', action='store_true', help='Native reserve competition, cold-readiness refusal and emergency clock refusal')
+    parser.add_argument('--emergency', action='store_true', help='Native incident and conservative 250-cell danger-stop profile only')
     args = parser.parse_args()
     if args.matrix and not (args.trip and args.shared):
         parser.error('--matrix requires --trip --shared')

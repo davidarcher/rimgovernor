@@ -150,7 +150,7 @@ class Hands:
                                     player_direction=player_direction)
                             if step.goal_id and step.goal_id.startswith('Population-'):
                                 progress.issued[key].update(load_token=token, issued_at=time.time())
-                            if action.tool == 'home/caravan':
+                            if action.tool in ('home/caravan', 'home/fulfill_quest'):
                                 progress.issued[key]['issued_tick'] = rt.batch.summary.end_tick
                             rt.persist()
                             result = await rt.native(action.tool, args, expected_revision=direction, expected_token=token,
@@ -194,7 +194,7 @@ class Hands:
                                 outcome = result.get('receipt', result)
                                 receipt['order_generation'] = outcome.get('orderGeneration')
                                 receipt['patient_order_generation'] = outcome.get('targetOrderGeneration')
-                                if action.tool == 'home/caravan':
+                                if action.tool in ('home/caravan', 'home/fulfill_quest'):
                                     receipt['issued_tick'] = result.get('receipt', result).get('observation', {}).get('ticksGame', receipt['issued_tick'])
                         else:
                             self.guard(rt, revision, token, direction)
