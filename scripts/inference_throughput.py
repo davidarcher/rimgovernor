@@ -30,14 +30,15 @@ async def run(args):
     async def progress(_):
         pass
 
-    for concurrency in (1, 2):
+    for round_index, concurrency in ((r, c) for r in range(args.rounds)
+                                     for c in ((2, 1) if r % 2 else (1, 2))):
         rows = []
-        batch = dict(concurrency=concurrency, cases=rows)
+        batch = dict(round=round_index, concurrency=concurrency, cases=rows)
         report['trials'].append(batch)
         began = time.perf_counter()
 
         async def worker(index):
-            store = Store(args.output/f'c{concurrency}-w{index}.sqlite')
+            store = Store(args.output/f'r{round_index}-c{concurrency}-w{index}.sqlite')
             router = ModelRouter(load_model_routing(settings), store, LocalModel)
             try:
                 for sequence in range(index, len(selected), concurrency):
@@ -77,7 +78,8 @@ if __name__ == '__main__':
     parser.add_argument('--model', default='qwen3.5-4b')
     parser.add_argument('--model-url', default='http://127.0.0.1:1234/v1')
     parser.add_argument('--repeats', type=int, default=2)
+    parser.add_argument('--rounds', type=int, default=2, help='Reverse concurrency order on alternate rounds')
     args = parser.parse_args()
-    if not 1 <= args.repeats <= 100:
-        parser.error('Use 1..100 repeats')
+    if not 1 <= args.repeats <= 100 or not 1 <= args.rounds <= 20:
+        parser.error('Use 1..100 repeats and 1..20 rounds')
     asyncio.run(run(args))

@@ -60,7 +60,8 @@ async def run(args):
             bridge = await stack.enter_async_context(bridge_session(gabs_executable(root, config), config))
             fixture_store = Store(root/'fixture.sqlite')
             stack.callback(fixture_store.close)
-            fixture_runtime = BridgeRuntime(fixture_store, root, model_factory=lambda _: NoInference())
+            fixture_runtime = BridgeRuntime(fixture_store, root, headless=args.mode == 'headless',
+                                           model_factory=lambda _: NoInference())
             fixture_runtime.bridge = bridge
             fixture_runtime.game = BridgeGame(bridge)
             rendered_at = time.perf_counter()
@@ -78,7 +79,10 @@ async def run(args):
                         name == 'home/status' or (name == 'home/supervised_play' and arguments.get('op') in ('status', 'events'))
                         or (name == 'test/throughput_event' and arguments.get('op') == 'status')
                     ) else await bridge.call(name, **arguments)
-                    return reply.structuredContent
+                    value = reply.structuredContent
+                    if name == 'home/status':
+                        fixture_runtime.clock = value['time']
+                    return value
                 finally:
                     report['calls'].append(dict(tool=name, op=arguments.get('op'), phase=phase, seconds=time.perf_counter()-begin))
 
@@ -110,6 +114,9 @@ async def run(args):
                 assert baseline['time']['paused'] and tick in (baseline_tick, baseline_tick+1), baseline
                 expected = report.setdefault('loaded_baseline_tick', tick)
                 assert tick == expected, ('Reload changed the comparison starting tick', expected, tick)
+                await fixture_runtime.sync_identity()
+                fixture_runtime.connected = True
+                fixture_runtime.phase = 'Throughput clock acceptance'
                 return baseline
 
             async def maintain_render():
@@ -127,6 +134,7 @@ async def run(args):
             # Clock acceptance deliberately observes each stop without resuming;
             # ordinary pawn setup uses the shared scenario waiter above.
             async def stopped(clock):
+                fixture_runtime.supervisor = clock
                 captured_at = 0
                 async with asyncio.timeout(120):
                     while True:
@@ -134,6 +142,7 @@ async def run(args):
                         state = await call('home/supervised_play', op='status')
                         sample_memory()
                         clock.absorb(state)
+                        fixture_runtime.clock = dict(ticksGame=state['lastTick'], paused=state['paused'])
                         if not state['active']:
                             return state
                         if args.mode == 'capture' and time.perf_counter()-captured_at >= 1:
@@ -145,6 +154,9 @@ async def run(args):
                             data = candidate.read_bytes()
                             assert data.startswith(b'\x89PNG\r\n\x1a\n'), frame
                             frames.append(dict(path=str(candidate), sha256=hashlib.sha256(data).hexdigest(), bytes=len(data)))
+                            fixture_runtime.camera_bytes = data
+                            fixture_runtime.camera_version += 1
+                            fixture_runtime.camera_captured_at = time.time()
                             captured_at = time.perf_counter()
                         if state['leaseRemainingMs'] < 10000:
                             await clock.poll()

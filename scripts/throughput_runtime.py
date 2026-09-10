@@ -30,10 +30,11 @@ async def run(args):
     report = dict(measured=False, accelerated=args.accelerated, calls=[],
         inputs=json.loads((root/'inputs.json').read_text()),
         scope='Production deterministic controller wall throughput including pauses; no inference or survival claim')
-    server = uvicorn.Server(uvicorn.Config(create_app(rt), host='127.0.0.1', port=8787, log_level='warning'))
+    server = uvicorn.Server(uvicorn.Config(create_app(rt), host='127.0.0.1', port=8790, log_level='warning'))
     server_task = asyncio.create_task(server.serve())
     began = time.perf_counter()
     sampler = None
+    recording = True
     try:
         async with asyncio.timeout(180):
             while not rt.connected or not server.started:
@@ -64,7 +65,8 @@ async def run(args):
                 raise
             finally:
                 entry['seconds'] = time.perf_counter()-started
-                report['calls'].append(entry)
+                if recording:
+                    report['calls'].append(entry)
 
         rt.bridge.call = measured_call
         rt.supervisor.test_acceleration = args.accelerated
@@ -72,7 +74,7 @@ async def run(args):
         await rt.set_mode('automate')
         with (root/'dashboard-sampler.log').open('w', encoding='utf8') as log:
             sampler = await asyncio.create_subprocess_exec(sys.executable, 'scripts/dashboard_throughput.py',
-                '--port', '8787', '--seconds', str(args.seconds), '--interval', '1',
+                '--port', '8790', '--seconds', str(args.seconds), '--interval', '1',
                 '--output', str(root/'dashboard-throughput'), stdout=log, stderr=asyncio.subprocess.STDOUT)
             async with asyncio.timeout(args.seconds+30):
                 assert await sampler.wait() == 0, 'Read-only sampler failed; inspect dashboard-sampler.log'
@@ -93,6 +95,7 @@ async def run(args):
         report['error'] = repr(error)
         raise
     finally:
+        recording = False
         if sampler is not None and sampler.returncode is None:
             sampler.terminate()
             await sampler.wait()

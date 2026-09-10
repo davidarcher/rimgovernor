@@ -26,6 +26,8 @@ control. Wall TPS includes pauses. Paused time is a sampled approximation, and
 stop-reason counts count samples rather than distinct incidents. It excludes intervals
 across disconnects, rewinds and session changes. A paused colony yields zero TPS; peak
 speed and safety require separate isolated gameplay acceptance.
+The sampler also reports cached observation age in game ticks over valid intervals;
+missing or newer-than-clock observations are excluded from that age summary.
 
 ## Accelerated disposable acceptance
 
@@ -53,6 +55,9 @@ python scripts/container_throughput.py --game <linux-game> --mods <private-mods>
 ```
 
 Workers run sequentially through the existing content-addressed input cache.
+Each publishes an automatic loopback [scenario dashboard](scenario-launcher.md)
+and retains its URL in `dashboard.json`. Old images without dashboard support fail
+before launch. The observer uses cached data and never advances the game.
 The worker image caches native system dependencies separately from source, so
 editing a probe does not reinstall graphics libraries.
 `--no-input-cache` measures direct-bind staging; `--no-build` requires an unchanged
@@ -98,7 +103,8 @@ larger adaptive windows need separate observation-age acceptance.
 
 `scripts/inference_throughput.py --output <new-directory>` compares one and two
 concurrent local requests against the same scored semantic cases. It defaults to
-Qwen 3.5 4B; select an installed model with `--model`. In a local Docker image, set
+two rounds with reversed concurrency order on the second, retaining startup costs
+and every response. It defaults to Qwen 3.5 4B; select an installed model with `--model`. In a local Docker image, set
 `RIMBOT_ALLOW_DOCKER_HOST_MODEL=1` and pass
 `--model-url http://host.docker.internal:1234/v1`. Reports retain settings, fixture
 hashes, responses, failures, token counts and correct requests/minute. No game

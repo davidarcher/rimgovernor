@@ -10,6 +10,7 @@ from urllib.request import urlopen
 def summarize(samples):
     seconds = ticks = paused = 0
     excluded = 0
+    observation_ages = []
     counters = {key: {'count': 0, 'seconds': 0} for key in ('tools', 'actions', 'model_calls')}
     for before, after in zip(samples, samples[1:]):
         elapsed = after['at'] - before['at']
@@ -22,6 +23,9 @@ def summarize(samples):
             continue
         seconds += elapsed
         ticks += after['tick'] - before['tick']
+        observed = after.get('observation_tick')
+        if type(observed) is int and 0 <= observed <= after['tick']:
+            observation_ages.append(after['tick']-observed)
         if before.get('paused') and after.get('paused'):
             paused += elapsed
         for key, counter in counters.items():
@@ -34,6 +38,9 @@ def summarize(samples):
             'wall_tps': round(ticks / seconds, 2) if seconds else None,
             'both_endpoints_paused_seconds': round(paused, 3),
             'excluded_intervals': excluded,
+            'observation_age_ticks': {'samples': len(observation_ages),
+                'maximum': max(observation_ages) if observation_ages else None,
+                'mean': round(sum(observation_ages)/len(observation_ages), 2) if observation_ages else None},
             'counter_rates_per_second': {key: round(value['count'] / value['seconds'], 3) if value['seconds'] else None for key, value in counters.items()},
             'observed_stop_reasons': dict(Counter(s['stop_reason'] for s in samples if s.get('stop_reason'))),
             'scope': 'Sampled wall throughput including pauses. Actions are dispatched orders, not completed pawn jobs. Stop-reason counts are samples, not distinct events. Does not certify reaction latency, safety or native job completion.'}
@@ -63,6 +70,7 @@ def main():
                     state = json.load(response)
                 sample = {'session': state.get('sessionId'), 'connected': state.get('connected') and not state.get('game', {}).get('stale'),
                           'tick': state.get('game', {}).get('tick'), 'paused': state.get('game', {}).get('paused'),
+                          'observation_tick': (state.get('observation') or {}).get('end_tick'),
                           'mode': state.get('mode'), 'stop_reason': state.get('clockSupervisor', {}).get('stopReason'),
                           'requested_speed': state.get('clockSupervisor', {}).get('requestedSpeed'),
                           'counters': state.get('counters'), 'controller_status': state.get('currentPlan', {}).get('controller', {}).get('status')}

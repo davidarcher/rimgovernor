@@ -29,3 +29,14 @@ def test_order_rate_excludes_counter_resets():
     result=module.summarize(rows)
     assert result['counter_rates_per_second']['actions']==3
     assert result['counter_rates_per_second']['tools'] is None
+
+
+def test_observation_age_uses_only_valid_connected_intervals_and_ordered_ticks():
+    rows = [dict(sample(0, 100), observation_tick=90),
+            dict(sample(1, 400), observation_tick=100),
+            dict(sample(2, 500), observation_tick=600),
+            dict(sample(3, 10), observation_tick=0),
+            dict(sample(4, 1000, connected=False), observation_tick=0)]
+    result = module.summarize(rows)
+    assert result['observation_age_ticks'] == {'samples': 1, 'maximum': 300, 'mean': 300}
+    assert result['excluded_intervals'] == 2
