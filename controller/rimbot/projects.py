@@ -10,6 +10,7 @@ class Target(BaseModel):
     kind: Literal['building', 'zone', 'installation']
     thing_id: str = ''
     rotation: int = Field(default=0, ge=0, le=3)
+    expected_facing: Literal['north', 'east', 'south', 'west'] | None = None
     def_name: str = ''
     x: int = 0
     z: int = 0
@@ -18,6 +19,16 @@ class Target(BaseModel):
     zone_patches: list[Rectangle] = Field(default_factory=list, max_length=32)
     zone_type: Literal['stockpile', 'growing'] | None = None
     crop: str | None = None
+
+
+def facing_matches(target, building):
+    if target.expected_facing is None:
+        return True  # Legacy construction targets did not record a facing contract.
+    facing = building.get('rotation')
+    if not isinstance(facing, str) or facing.casefold() not in ('north', 'east', 'south', 'west'):
+        # Native ToStringHuman is localized. Unknown labels cannot prove rotation.
+        raise ValueError('Native building facing unavailable or unrecognized')
+    return facing.casefold() == target.expected_facing
 
 
 def zone_matches(target, result):
@@ -162,10 +173,11 @@ class ProjectBook:
                             raise ValueError('Building observation truncated')
                         matches = [b for b in result['buildings'] if b['position']['x'] == target.x
                             and b['position']['z'] == target.z and b['defName'] == target.def_name and b['status'] == 'built'
-                            and (not target.stuff or b['stuff'] == target.stuff)]
+                            and (not target.stuff or b['stuff'] == target.stuff) and facing_matches(target, b)]
                         queued = [b for b in result['buildings'] if b['position']['x'] == target.x
                             and b['position']['z'] == target.z and b['status'] in ('blueprint','frame')
-                            and b.get('buildDefName') == target.def_name and (not target.stuff or b['stuff'] == target.stuff)]
+                            and b.get('buildDefName') == target.def_name and (not target.stuff or b['stuff'] == target.stuff)
+                            and facing_matches(target, b)]
                         found += bool(matches)
                         pending += int(bool(queued) and not matches)
                         missing += int(not matches and not queued)

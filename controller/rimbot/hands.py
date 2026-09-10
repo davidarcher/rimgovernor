@@ -133,6 +133,7 @@ class Hands:
                     count += 1
                 if placements is not None:
                     targets = [{'kind': 'building', 'def_name': p.def_name, 'x': p.x, 'z': p.z,
+                        'expected_facing': p.rotation,
                         'stuff': progress.issued[str(i)].get('stuff') or ''} for i,p in enumerate(placements)]
                     row = rt.projects.upsert({'title': step.title, 'detail': step.completion_criteria, 'targets': targets})
                     progress.project_id, progress.state = row.id, 'waiting'
