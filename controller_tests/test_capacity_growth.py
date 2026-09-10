@@ -1,9 +1,9 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.capacity_growth import growth_fields,grow_shelter,protected_cells
-from rimbot.colony_plan import ColonyPlan,ColonyGoal
-from rimbot.colony_skills import ColonySkills
+from rimgovernor.capacity_growth import growth_fields,grow_shelter,protected_cells
+from rimgovernor.colony_plan import ColonyPlan,ColonyGoal
+from rimgovernor.colony_skills import ColonySkills
 
 
 def fixture():
@@ -67,7 +67,7 @@ async def test_expansion_skips_free_footprint_with_blocked_outside_entrance(monk
     good={'x':20,'z':16,'width':9,'height':9}
     for cell in facts['cells']:
         if (cell['x'],cell['z'])==(24,4):cell['walkable']=False
-    monkeypatch.setattr('rimbot.capacity_growth.starter_layouts',lambda _: [{'room':bad},{'room':good}])
+    monkeypatch.setattr('rimgovernor.capacity_growth.starter_layouts',lambda _: [{'room':bad},{'room':good}])
     rt=SimpleNamespace(current_plan=plan,controller=SimpleNamespace(policy=SimpleNamespace(max_method_attempts=3)),
         inspect_native=AsyncMock(return_value={'canPlace':True}))
     _,actions=await grow_shelter(ColonySkills(rt),facts)

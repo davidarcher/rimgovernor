@@ -9,14 +9,14 @@ from pathlib import Path
 
 from deterministic_foothold import NoInference
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_observation import observe
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.colony_plan import ColonyGoal, CommitSteps
-from rimbot.comfort_upkeep import comfort_evidence, comfort_method
-from rimbot.headless import isolated_root, prepare
-from rimbot.native_scenario import advance_game
-from rimbot.store import Store
+from rimgovernor.bridge_observation import observe
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps
+from rimgovernor.comfort_upkeep import comfort_evidence, comfort_method
+from rimgovernor.headless import isolated_root, prepare
+from rimgovernor.native_scenario import advance_game
+from rimgovernor.store import Store
 
 
 async def run(args):

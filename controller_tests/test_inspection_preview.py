@@ -2,7 +2,7 @@ import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge_runtime import BridgeRuntime
 
 
 def runtime(schema):
@@ -67,6 +67,6 @@ async def test_architect_write_remains_forbidden_during_inspection():
 
 
 def test_dry_run_cannot_bypass_execution_only_tools():
-    from rimbot.bridge_game import is_write
+    from rimgovernor.bridge_game import is_write
     for tool in ('rimworld/dismiss_letter','rimworld/set_time_speed','rimworld/click_ui_target'):
         assert is_write(tool,{'dryRun':True})

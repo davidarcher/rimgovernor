@@ -25,10 +25,10 @@ def stage(game, mods, profile, gabs, root, game_root=None, unity_gc_time_slice=N
                 or source == private_game or source in private_game.parents or private_game in source.parents):
             raise ValueError('Worker output must be separate from every input')
     required = [game/'RimWorldLinux', gabs, profile/'Config/Prefs.xml',
-                profile/'Config/ModsConfig.xml', profile/'Saves/RimBot-tribal8-baseline.rws',
-                mods/'RimBridgeServer/About/About.xml', mods/'RimBotObservations/About/About.xml']
+                profile/'Config/ModsConfig.xml', profile/'Saves/RimGovernor-tribal8-baseline.rws',
+                mods/'RimBridgeServer/About/About.xml', mods/'RimGovernorObservations/About/About.xml']
     if display is None:
-        required.append(mods/'RimBotHeadless/Assemblies/HeadlessRimPatch.dll')
+        required.append(mods/'RimGovernorHeadless/Assemblies/HeadlessRimPatch.dll')
     boot_config = game/'RimWorldLinux_Data/boot.config'
     if unity_gc_time_slice is not None:
         required.append(boot_config)
@@ -50,14 +50,14 @@ def stage(game, mods, profile, gabs, root, game_root=None, unity_gc_time_slice=N
     shutil.copytree(mods, private_game/'Mods')
     (root/'profile/Config').mkdir(parents=True)
     (root/'profile/Saves').mkdir()
-    for relative in ('Config/Prefs.xml', 'Config/ModsConfig.xml', 'Saves/RimBot-tribal8-baseline.rws'):
+    for relative in ('Config/Prefs.xml', 'Config/ModsConfig.xml', 'Saves/RimGovernor-tribal8-baseline.rws'):
         shutil.copy2(profile/relative, root/'profile'/relative)
     (root/'gabs').mkdir()
     shutil.copy2(gabs, root/'gabs/gabs')
     for executable in (private_game/'RimWorldLinux', root/'gabs/gabs'):
         executable.chmod(executable.stat().st_mode | 0o111)
-    config = {'version': '1.0', 'rimbot': {'gabsExecutable': 'gabs/gabs'}, 'games': {
-        'rimbot-trial': {'id': 'rimbot-trial', 'name': 'RimBot container worker',
+    config = {'version': '1.0', 'rimgovernor': {'gabsExecutable': 'gabs/gabs'}, 'games': {
+        'rimgovernor-trial': {'id': 'rimgovernor-trial', 'name': 'RimGovernor container worker',
                         'launchMode': 'DirectPath', 'target': str(private_game/'RimWorldLinux'),
                         'workingDir': str(private_game), 'args': []}}}
     (root/'config').mkdir()
@@ -77,13 +77,13 @@ def stage(game, mods, profile, gabs, root, game_root=None, unity_gc_time_slice=N
         prefs.write(prefs_path, encoding='utf8', xml_declaration=True)
         config_path = root/'config/config.json'
         rendered = json.loads(config_path.read_text(encoding='utf8'))
-        arguments = rendered['games']['rimbot-trial']['args']
+        arguments = rendered['games']['rimgovernor-trial']['args']
         arguments[arguments.index('-screen-width')+1] = str(display.width)
         arguments[arguments.index('-screen-height')+1] = str(display.height)
         arguments.append('-force-glcore')
         config_path.write_text(json.dumps(rendered, indent=2), encoding='utf8')
     files = [root/'gabs/gabs', private_game/'RimWorldLinux', *sorted((private_game/'Mods').rglob('*.dll')),
-             root/'profile/Saves/RimBot-tribal8-baseline.rws', *sorted((root/'profile/Config').glob('*.xml'))]
+             root/'profile/Saves/RimGovernor-tribal8-baseline.rws', *sorted((root/'profile/Config').glob('*.xml'))]
     for relative in ('UnityPlayer.so', 'RimWorldLinux_Data/boot.config',
                      'RimWorldLinux_Data/Managed/Assembly-CSharp.dll',
                      'RimWorldLinux_Data/MonoBleedingEdge/x86_64/libmonobdwgc-2.0.so'):
@@ -114,24 +114,24 @@ def main():
     parser.add_argument('--profile', default='/inputs/profile')
     parser.add_argument('--gabs', default='/inputs/gabs/gabs')
     parser.add_argument('--root', default='/worker/run')
-    parser.add_argument('--game-root', default='/opt/rimbot-game', help='Fresh container-local directory for the private game snapshot')
+    parser.add_argument('--game-root', default='/opt/rimgovernor-game', help='Fresh container-local directory for the private game snapshot')
     parser.add_argument('--unity-gc-time-slice', choices=['source', '0'],
-                        default=os.environ.get('RIMBOT_UNITY_GC_TIME_SLICE', 'source'),
+                        default=os.environ.get('RIMGOVERNOR_UNITY_GC_TIME_SLICE', 'source'),
                         help='Preserve source boot.config, or use the tested zero-time-slice startup mitigation')
-    parser.add_argument('--display', choices=['headless', 'xvfb'], default=os.environ.get('RIMBOT_DISPLAY', 'headless'))
-    parser.add_argument('--resolution', default=os.environ.get('RIMBOT_DISPLAY_RESOLUTION', '1280x720'))
-    parser.add_argument('--renderer', choices=['llvmpipe', 'd3d12'], default=os.environ.get('RIMBOT_DISPLAY_RENDERER', 'llvmpipe'))
+    parser.add_argument('--display', choices=['headless', 'xvfb'], default=os.environ.get('RIMGOVERNOR_DISPLAY', 'headless'))
+    parser.add_argument('--resolution', default=os.environ.get('RIMGOVERNOR_DISPLAY_RESOLUTION', '1280x720'))
+    parser.add_argument('--renderer', choices=['llvmpipe', 'd3d12'], default=os.environ.get('RIMGOVERNOR_DISPLAY_RENDERER', 'llvmpipe'))
     parser.add_argument('command', nargs=argparse.REMAINDER)
     args = parser.parse_args()
     if args.unity_gc_time_slice not in ('source', '0'):
-        parser.error('RIMBOT_UNITY_GC_TIME_SLICE must be source or 0')
+        parser.error('RIMGOVERNOR_UNITY_GC_TIME_SLICE must be source or 0')
     if args.display not in ('headless', 'xvfb') or args.renderer not in ('llvmpipe', 'd3d12'):
         parser.error('Unsupported display or renderer')
     display = DisplaySettings.parse(args.resolution, args.renderer) if args.display == 'xvfb' else None
-    cache_root = os.environ.get('RIMBOT_INPUT_CACHE_ROOT')
-    cache_key = os.environ.get('RIMBOT_INPUT_CACHE_KEY')
+    cache_root = os.environ.get('RIMGOVERNOR_INPUT_CACHE_ROOT')
+    cache_key = os.environ.get('RIMGOVERNOR_INPUT_CACHE_KEY')
     if bool(cache_root) != bool(cache_key):
-        parser.error('Input cache requires both RIMBOT_INPUT_CACHE_ROOT and RIMBOT_INPUT_CACHE_KEY')
+        parser.error('Input cache requires both RIMGOVERNOR_INPUT_CACHE_ROOT and RIMGOVERNOR_INPUT_CACHE_KEY')
     if cache_root:
         from .container_input_cache import read_manifest
         # The host helper verifies all payload bytes before mounting this snapshot read-only.
@@ -139,16 +139,16 @@ def main():
         args.game, args.mods, args.gabs = [Path(cache_root)/p for p in ('game', 'mods', 'gabs/gabs')]
     root = stage(args.game, args.mods, args.profile, args.gabs, args.root, args.game_root,
                  0 if args.unity_gc_time_slice == '0' else None, display, cache_key)
-    os.environ.update(RIMBOT_BRIDGE_ROOT=str(root), RIMBOT_DATA=str(root/'data'),
-                      RIMBOT_HEADLESS='0' if display else '1', RIMBOT_BRIDGE_FRESH='1')
-    command = args.command or ['python', '-m', 'rimbot', '--host', '0.0.0.0']
+    os.environ.update(RIMGOVERNOR_BRIDGE_ROOT=str(root), RIMGOVERNOR_DATA=str(root/'data'),
+                      RIMGOVERNOR_HEADLESS='0' if display else '1', RIMGOVERNOR_BRIDGE_FRESH='1')
+    command = args.command or ['python', '-m', 'rimgovernor', '--host', '0.0.0.0']
     if command[0] == '--':
         command = command[1:]
     if not command:
         parser.error('Command cannot be empty')
-    os.environ['RIMBOT_DISPLAY'] = args.display
-    if args.command and command[1:3] != ['-m', 'rimbot']:
-        os.environ['RIMBOT_SCENARIO_DASHBOARD'] = '1'
+    os.environ['RIMGOVERNOR_DISPLAY'] = args.display
+    if args.command and command[1:3] != ['-m', 'rimgovernor']:
+        os.environ['RIMGOVERNOR_SCENARIO_DASHBOARD'] = '1'
     if display:
         raise SystemExit(run_display(root, display, command))
     os.execvp(command[0], command)

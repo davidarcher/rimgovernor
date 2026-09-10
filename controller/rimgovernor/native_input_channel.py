@@ -9,7 +9,7 @@ import time
 
 class NativeInputChannel:
     def __init__(self, name, capacity):
-        if capacity != 4096 or not re.fullmatch(r'/dev/shm/RimBotInput-[a-f0-9]{32}', name):
+        if capacity != 4096 or not re.fullmatch(r'/dev/shm/RimGovernorInput-[a-f0-9]{32}', name):
             raise ValueError('Invalid private input channel')
         self.fd = os.open(name, os.O_RDWR | os.O_NOFOLLOW)
         try:

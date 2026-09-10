@@ -31,7 +31,7 @@
 
 ## Validation
 
-- Native scenario tick waits use `rimbot.native_scenario.advance_game` instead of
+- Native scenario tick waits use `rimgovernor.native_scenario.advance_game` instead of
   bespoke start/poll/resume loops. Its default acknowledges inspected Ancient danger
   fixture warnings and preserves the remaining tick budget. Interruption acceptance
   passes `expected_letters=()`; unexpected stops remain failures with evidence.
@@ -41,7 +41,7 @@
   licensed Linux inputs. Its current assertions cover lifecycle and optional
   rendered/input behavior; native pawn outcomes require scenario assertions.
   Use fresh output directories and task-specific image tags; retain reports and
-  failures under `.rimbot/` and report the exact scope tested.
+  failures under `.rimgovernor/` and report the exact scope tested.
 - Use `scripts/container_scenario.py` for new script-based native Docker runs.
   Specialized launchers must use its `dashboard_options` and
   `require_dashboard_image` helpers so scenarios publish automatic loopback

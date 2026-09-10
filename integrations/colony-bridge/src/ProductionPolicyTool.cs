@@ -26,11 +26,11 @@ namespace HomeBridge.BridgeTools
             if (patched) return;
             var method = AccessTools.Method(typeof(WorkGiver_DoBill), "TryFindBestBillIngredients");
             if (method == null) throw new InvalidOperationException("Native ingredient selection unavailable");
-            new Harmony("rimbot.production-policy").Patch(method,
+            new Harmony("rimgovernor.production-policy").Patch(method,
                 prefix: new HarmonyMethod(typeof(ProductionPolicyGuard), nameof(BeforeSelection)),
                 postfix: new HarmonyMethod(typeof(ProductionPolicyGuard), nameof(AfterSelection)),
                 finalizer: new HarmonyMethod(typeof(ProductionPolicyGuard), nameof(RestoreFilter)));
-            new Harmony("rimbot.production-policy").Patch(AccessTools.Method(typeof(Toils_Recipe), "FinishRecipeAndStartStoringProduct"),
+            new Harmony("rimgovernor.production-policy").Patch(AccessTools.Method(typeof(Toils_Recipe), "FinishRecipeAndStartStoringProduct"),
                 postfix: new HarmonyMethod(typeof(ProductionPolicyGuard), nameof(GuardConsumption)));
             patched = true;
         }

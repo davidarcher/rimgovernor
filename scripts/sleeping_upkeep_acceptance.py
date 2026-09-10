@@ -8,15 +8,15 @@ from pathlib import Path
 
 from deterministic_foothold import NoInference
 from session_checkpoint_acceptance import ready
-from rimbot.bridge import BridgeError
-from rimbot.bridge_observation import observe
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.colony_plan import ColonyGoal, CommitSteps
-from rimbot.colony_upkeep import upkeep_nodes
-from rimbot.headless import isolated_root, prepare
-from rimbot.sleeping_upkeep import sleeping_method
-from rimbot.store import Store
+from rimgovernor.bridge import BridgeError
+from rimgovernor.bridge_observation import observe
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps
+from rimgovernor.colony_upkeep import upkeep_nodes
+from rimgovernor.headless import isolated_root, prepare
+from rimgovernor.sleeping_upkeep import sleeping_method
+from rimgovernor.store import Store
 
 
 async def run(args):

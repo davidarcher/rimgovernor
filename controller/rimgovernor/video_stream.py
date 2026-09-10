@@ -36,7 +36,7 @@ class RawFrames:
         self.pixel_bytes = pixel_bytes
         self.top_down, self.bgra = top_down, bgra
         self.readback_ms = None
-        if sys.platform == 'linux' and re.fullmatch(r'/dev/shm/RimBotVideo-[a-f0-9]{32}', name):
+        if sys.platform == 'linux' and re.fullmatch(r'/dev/shm/RimGovernorVideo-[a-f0-9]{32}', name):
             self.fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW)
             try:
                 if os.fstat(self.fd).st_size != CAPACITY:
@@ -46,7 +46,7 @@ class RawFrames:
                 os.close(self.fd)
                 raise
             return
-        if sys.platform != 'win32' or not re.fullmatch(r'Local\\RimBotVideo-[a-f0-9]{32}', name):
+        if sys.platform != 'win32' or not re.fullmatch(r'Local\\RimGovernorVideo-[a-f0-9]{32}', name):
             raise ValueError('Unsupported native video buffer')
         from ctypes import wintypes
         self.api = ctypes.WinDLL('kernel32', use_last_error=True)
@@ -350,7 +350,7 @@ class SocketFrames:
 async def socket_frames(socket: WebSocket):
     from urllib.parse import urlparse
     if (urlparse(socket.headers.get('origin', '')).netloc != socket.headers.get('host')
-            or socket.headers.get('sec-websocket-protocol') != 'rimbot-view-v1'):
+            or socket.headers.get('sec-websocket-protocol') != 'rimgovernor-view-v1'):
         await socket.close(code=1008)
         return
     try:
@@ -370,7 +370,7 @@ async def socket_frames(socket: WebSocket):
                 await hub.release()
             await hub.drop(body.viewer)
             await hub.open_source(body.session_id)
-            await socket.accept(subprotocol='rimbot-view-v1')
+            await socket.accept(subprotocol='rimgovernor-view-v1')
             accepted = True
             hub.peers[body.viewer] = (peer, peer)
             hub.peer_ids[body.viewer] = (body.session_id, body.connection_id)

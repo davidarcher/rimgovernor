@@ -2,10 +2,10 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 import pytest
 from pydantic import ValidationError
-from rimbot.colony_plan import NativeOperation, ColonyPlan, Decision, PlanSpec
-from rimbot.config import ModelRole
-from rimbot.medical_outcome import patient_outcome, rescue_outcome
-from rimbot.bridge_runtime import BridgeRuntime
+from rimgovernor.colony_plan import NativeOperation, ColonyPlan, Decision, PlanSpec
+from rimgovernor.config import ModelRole
+from rimgovernor.medical_outcome import patient_outcome, rescue_outcome
+from rimgovernor.bridge_runtime import BridgeRuntime
 
 
 ARGS={'action':'tend','pawn':'Thing_Doctor','target':'Thing_Patient'}

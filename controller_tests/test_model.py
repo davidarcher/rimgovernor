@@ -1,8 +1,8 @@
 import json
 import httpx
 import pytest
-from rimbot.model import LocalModel, ModelError
-from rimbot.config import Settings
+from rimgovernor.model import LocalModel, ModelError
+from rimgovernor.config import Settings
 
 
 async def test_strict_chat_template_receives_one_user_turn_for_adjacent_context():
@@ -21,7 +21,7 @@ async def test_strict_chat_template_receives_one_user_turn_for_adjacent_context(
 
 
 def test_user_merging_preserves_images_and_distinct_tool_results():
-    from rimbot.model import alternating_user_messages
+    from rimgovernor.model import alternating_user_messages
     messages=[{'role':'user','content':'Question'},
               {'role':'user','content':[{'type':'image_url','image_url':{'url':'data:image/png;base64,AA=='}}]},
               {'role':'assistant','content':None,'tool_calls':[{'id':'one'}]},
@@ -35,7 +35,7 @@ def test_user_merging_preserves_images_and_distinct_tool_results():
 
 
 def test_new_direction_after_tool_evidence_remains_a_user_message():
-    from rimbot.model import alternating_user_messages
+    from rimgovernor.model import alternating_user_messages
     messages=[{'role':'assistant','tool_calls':[{'id':'one'}],'content':None},
               {'role':'tool','tool_call_id':'one','content':'Untrusted game text'},
               {'role':'user','content':'Changed player direction'},
@@ -48,9 +48,9 @@ def test_new_direction_after_tool_evidence_remains_a_user_message():
 
 
 def test_inference_grammar_preserves_controller_validation():
-    from rimbot.model import inference_tools
-    from rimbot.colony_plan import Decision
-    from rimbot.consultation import structured_tool
+    from rimgovernor.model import inference_tools
+    from rimgovernor.colony_plan import Decision
+    from rimgovernor.consultation import structured_tool
     from jsonschema import Draft202012Validator, ValidationError
     original = [structured_tool('commit_plan', 'Commit', Decision.model_json_schema())]
     wire = inference_tools(original)

@@ -7,39 +7,39 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.store import Store
-from rimbot.colony_plan import ColonyGoal, CommitSteps
-from rimbot.world_progression import caravan_outcome, survival_assessment
-from rimbot.player_commands import apply_command
-from rimbot.native_scenario import advance_game, ScenarioInterrupted
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.store import Store
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps
+from rimgovernor.world_progression import caravan_outcome, survival_assessment
+from rimgovernor.player_commands import apply_command
+from rimgovernor.native_scenario import advance_game, ScenarioInterrupted
 from session_checkpoint_acceptance import ready
 from deterministic_foothold import NoInference
 from native_scenario_support import settle_dispatch
 
 
 async def run():
-    root = Path(os.environ['RIMBOT_BRIDGE_ROOT'])
+    root = Path(os.environ['RIMGOVERNOR_BRIDGE_ROOT'])
     output = root.parent / 'world-progression'
     output.mkdir(exist_ok=False)
     # GABS claim files need Linux filesystem rename/locking semantics during Docker runs.
     # Copy all runtime evidence back only after the owned game has stopped.
     if os.name == 'posix':
-        from rimbot.headless import isolated_root
-        root = isolated_root(root, Path(tempfile.mkdtemp(prefix='rimbot-world-')) / 'run')
+        from rimgovernor.headless import isolated_root
+        root = isolated_root(root, Path(tempfile.mkdtemp(prefix='rimgovernor-world-')) / 'run')
         (output / 'runtime-location.json').write_text(json.dumps(dict(root=str(root))))
     store = Store(output / 'state.sqlite')
     NoInference.attempts = 0
     rt = BridgeRuntime(store, root, fresh=True, headless=True, model_factory=lambda _: NoInference())
     report = {'passed': False, 'scope': 'Native world-progression audit', 'cases': {}}
-    shared = os.environ.get('RIMBOT_SHARED_WORLD') == '1'
-    diplomacy = os.environ.get('RIMBOT_DIPLOMACY') == '1'
-    recovery = os.environ.get('RIMBOT_RECOVERY') == '1'
-    quest_trade = os.environ.get('RIMBOT_QUEST_TRADE') == '1'
+    shared = os.environ.get('RIMGOVERNOR_SHARED_WORLD') == '1'
+    diplomacy = os.environ.get('RIMGOVERNOR_DIPLOMACY') == '1'
+    recovery = os.environ.get('RIMGOVERNOR_RECOVERY') == '1'
+    quest_trade = os.environ.get('RIMGOVERNOR_QUEST_TRADE') == '1'
     settlement_trip = diplomacy or quest_trade
-    resume_trip = os.environ.get('RIMBOT_RESUME_WORLD') == '1'
-    prepared_days = os.environ.get('RIMBOT_PREPARED_DAYS') == '1'
-    logistics = os.environ.get('RIMBOT_LOGISTICS') == '1' or diplomacy
+    resume_trip = os.environ.get('RIMGOVERNOR_RESUME_WORLD') == '1'
+    prepared_days = os.environ.get('RIMGOVERNOR_PREPARED_DAYS') == '1'
+    logistics = os.environ.get('RIMGOVERNOR_LOGISTICS') == '1' or diplomacy
     def step_complete(identity):
         progress = rt.current_plan.progress.get(identity)
         if progress is not None:
@@ -84,8 +84,8 @@ async def run():
         (output / (name.replace('/', '-') + '.json')).write_text(json.dumps(result, indent=2))
         return result
     async def defend_home():
-        from rimbot.bridge_observation import observe
-        from rimbot.colony_policy import derive
+        from rimgovernor.bridge_observation import observe
+        from rimgovernor.colony_policy import derive
         async with rt.lock:
             await rt.refresh_clock_events()
         async with asyncio.timeout(45):
@@ -192,7 +192,7 @@ async def run():
                     and windows[0].get('type') == 'RimWorld.Dialog_NodeTreeWithFactionInfo'
                     and windows[0].get('dismissTargetId') and danger['counts']['hostileCount'] == 0
                     and danger['counts']['huntingPredatorCount'] == 0), targets
-                from rimbot.colony_plan import PlanStep, NativeOperation
+                from rimgovernor.colony_plan import PlanStep, NativeOperation
                 step = PlanStep(id=f'world-dismiss-{rt.current_plan.revision}-{windows[0]["id"]}',
                     title='Leave the optional world interaction', source='PLAYER',
                     action=NativeOperation(tool='rimworld/click_screen_target',
@@ -228,7 +228,7 @@ async def run():
         else:
             assert state['pauseVerified'] and state['stopReason'] == 'tick_budget', state
         if shared:
-            from rimbot.world_progression import reconcile_world
+            from rimgovernor.world_progression import reconcile_world
             async with rt.lock:
                 await reconcile_world(rt)
                 rt.persist()
@@ -239,7 +239,7 @@ async def run():
                 while rt.wake.is_set() or (rt.review_task and not rt.review_task.done()) or rt.handled_revision < rt.chat_revision:
                     await asyncio.sleep(.1)
             facts = await read('home/colony_facts', planning=True)
-            from rimbot.food_forecast import acquisition_targets
+            from rimgovernor.food_forecast import acquisition_targets
             targets, _ = acquisition_targets(facts, rt.controller.policy.food_target_days)
             if targets:
                 goal = rt.current_plan.colony_goals.setdefault('EnsureFoodSupply', ColonyGoal(priority_class=1, source='PLAYER'))
@@ -266,7 +266,7 @@ async def run():
         assert report['world']['complete'] is True
         assert report['catalog']['accepted'] is True
         report['cases']['observations'] = 'passed'
-        if os.environ.get('RIMBOT_FAILED_QUEST') == '1':
+        if os.environ.get('RIMGOVERNOR_FAILED_QUEST') == '1':
             failed = await read('test/join_incident', dryRun=False, acceptJoin=False)
             report['failed_quest'] = failed
             assert failed['eligible'] and failed['applied'] and not failed['joined']
@@ -278,7 +278,7 @@ async def run():
             assert observed['after'] == failed['before']
             report['failed_quest_readback'] = observed
             report['cases']['native_declined_join_quest_failed_without_admission'] = 'passed'
-        if os.environ.get('RIMBOT_EXPIRED_QUEST') == '1':
+        if os.environ.get('RIMGOVERNOR_EXPIRED_QUEST') == '1':
             offer = await read('test/trade_quest_offer', definition='ThreatReward_Raid_Joiner', dryRun=False)
             assert offer['eligible'] and offer['questId']
             initial = await read('home/world_progression')
@@ -295,7 +295,7 @@ async def run():
             scope_args = {k: initial[k] for k in ('colonyId', 'loadToken', 'mapId')}
             refused = await read('home/accept_quest', **scope_args, questId=quest['id'], pawnId=quest['eligiblePawns'][0], dryRun=True)
             assert refused['accepted'] is False
-            from rimbot.world_progression import quest_outcome
+            from rimgovernor.world_progression import quest_outcome
             assert quest_outcome(observed, quest['id'], scope=scope_args, issued_tick=initial['ticksGame']) == 'blocked'
             report['expired_quest'] = terminal
             report['expired_refusal'] = refused
@@ -331,7 +331,7 @@ async def run():
                     report['moved'] = world
                     break
             assert report.get('moved'), 'Checkpoint caravan did not reach the native quest settlement'
-        if os.environ.get('RIMBOT_CARAVAN_TRIP') == '1' and not resume_trip:
+        if os.environ.get('RIMGOVERNOR_CARAVAN_TRIP') == '1' and not resume_trip:
             observed = report['facts']
             supply_cells = observed.get('forbiddenSupplies', [])
             while observed.get('forbiddenSupplies'):
@@ -526,7 +526,7 @@ async def run():
                 arguments = dict(scope_args, action='form', pawnIds=pawn, cargoIds=','.join(c['group_id'] for c in manifest), counts=','.join(str(c['count']) for c in manifest), destination=tile)
                 preview = await read('home/caravan', **arguments, dryRun=True)
                 if preview.get('accepted') is True:
-                    if os.environ.get('RIMBOT_WORLD_MATRIX') == '1':
+                    if os.environ.get('RIMGOVERNOR_WORLD_MATRIX') == '1':
                         request = dict(kind='FormCaravan', pawn_ids=[pawn], cargo=[dict(group_id=food['id'], count=60)], destination=tile)
                         await command(kind='SetResourceReserve', resource='Pemmican', reserve=food['available'], waits=False)
                         before = len(rt.current_plan.spec.steps)
@@ -622,9 +622,9 @@ async def run():
                     report['moved'] = world
                     break
             assert report.get('moved'), 'World tile movement was not observed'
-        if os.environ.get('RIMBOT_CARAVAN_TRIP') == '1':
+        if os.environ.get('RIMGOVERNOR_CARAVAN_TRIP') == '1':
             if quest_trade:
-                from rimbot.world_progression import inventory_totals
+                from rimgovernor.world_progression import inventory_totals
                 before = next(c for c in world['caravans'] if c['id'] == caravan_id)
                 baseline_items = inventory_totals([i for p in before['pawns'] for i in p['inventory']])
                 report['fulfillment'] = await command(kind='FulfillQuest', quest_id=trade_quest['id'], caravan_id=caravan_id)
@@ -644,7 +644,7 @@ async def run():
                 assert after_faction['goodwill'] > preview['route']['goodwill'], 'Native goodwill did not improve'
                 report['cases']['native_settlement_visit_and_diplomacy'] = 'passed'
             if recovery:
-                from rimbot.expedition_policy import evaluate_world, policy_for
+                from rimgovernor.expedition_policy import evaluate_world, policy_for
                 await command(kind='HoldCaravan', caravan_id=caravan_id, waits=False)
                 deadline = time.monotonic() + 900
                 while time.monotonic() < deadline:
@@ -680,7 +680,7 @@ async def run():
                         and not p['downed'] and not p['drafted'] and not p['mentalState']), None)
                     if returned:
                         if return_stacks and not report.get('return_storage_expansion'):
-                            from rimbot.colony_plan import PlanStep, NativeOperation
+                            from rimgovernor.colony_plan import PlanStep, NativeOperation
                             position, size = returned['position'], report['facts']['mapSize']
                             cells = await read('home/get_cells_plus', x=max(0, min(position['x'] - 4, size['width'] - 9)),
                                 z=max(0, min(position['z'] - 4, size['height'] - 9)), width=9, height=9)
@@ -705,7 +705,7 @@ async def run():
                             assert rt.current_plan.progress[step.id].state == 'complete'
                             report['return_storage_expansion'] = dict(preview=preview, step=step.id)
                             # Creating storage can already satisfy the native return predicate.
-                            from rimbot.world_progression import reconcile_world
+                            from rimgovernor.world_progression import reconcile_world
                             async with rt.lock:
                                 await reconcile_world(rt)
                                 rt.persist()
@@ -732,7 +732,7 @@ async def run():
                             preview = await read('home/order', **args, dryRun=True)
                             if preview.get('success') is not True:
                                 continue
-                            from rimbot.colony_plan import PlanStep, NativeOperation
+                            from rimgovernor.colony_plan import PlanStep, NativeOperation
                             step = PlanStep(id='world-return-haul-' + item['thingId'],
                                 title='Store the observed returned cargo', source='PLAYER', purpose='storage',
                                 action=NativeOperation(tool='home/order', arguments=dict(args, dryRun=False)),
@@ -756,7 +756,7 @@ async def run():
                 report['cases']['native_short_supplied_party_return'] = 'passed'
             if logistics:
                 report['cases']['native_return_storage_and_hold'] = 'passed'
-        if os.environ.get('RIMBOT_MULTIMAP') == '1':
+        if os.environ.get('RIMGOVERNOR_MULTIMAP') == '1':
             assert shared and report.get('returned'), 'Multi-map probe requires a completed shared round trip'
             sites = await read('test/settle_caravan')
             assert sites['maximumSettlements'] >= 2 and sites['candidates'], sites
@@ -795,7 +795,7 @@ async def run():
             report['multiple_maps'] = world
             report['stale_map_refusal'] = stale
             report['cases']['multiple_active_maps_and_scope_invalidation'] = 'passed'
-        if os.environ.get('RIMBOT_QUEST_PROBE') == '1':
+        if os.environ.get('RIMGOVERNOR_QUEST_PROBE') == '1':
             preview = await read('test/join_incident', dryRun=True)
             assert preview['eligible'], 'Ordinary join incident is ineligible in this scenario'
             report['quest_incident'] = await read('test/join_incident', dryRun=False)
@@ -815,7 +815,7 @@ async def run():
             accepted = next(q for q in report['quest_acceptance']['observation']['quests'] if q['id'] == quest['id'])
             assert accepted['state'] == 'Ongoing' and accepted['acceptedTick'] >= 0
             report['cases']['native_quest_progression'] = 'passed'
-        days = int(os.environ.get('RIMBOT_SURVIVAL_DAYS', '0'))
+        days = int(os.environ.get('RIMGOVERNOR_SURVIVAL_DAYS', '0'))
         if days:
             baseline = await read('home/list_pawns', colonistsOnly=True)
             expected = {p['thingId'] for p in baseline['pawns']}
@@ -851,7 +851,7 @@ async def run():
             report['survival']['passed'] = True
             report['cases']['multi_day_survival'] = 'passed'
             await rt.set_mode('manual')
-        if os.environ.get('RIMBOT_WORLD_MATRIX') == '1':
+        if os.environ.get('RIMGOVERNOR_WORLD_MATRIX') == '1':
             preview = await read('test/world_incident', definition='ColdSnap', dryRun=True)
             assert preview['eligible'], 'Native cold snap is unavailable in this scenario'
             report['cold_snap'] = await read('test/world_incident', definition='ColdSnap', dryRun=False)
@@ -867,7 +867,7 @@ async def run():
                 await window(6000)
             assert readiness['winter_readiness_observed'] is False, 'Bare baseline must not certify winter readiness'
             report['cases']['cold_readiness_refusal'] = 'passed'
-        if os.environ.get('RIMBOT_WORLD_MATRIX') == '1' or os.environ.get('RIMBOT_EMERGENCY_PROBE') == '1':
+        if os.environ.get('RIMGOVERNOR_WORLD_MATRIX') == '1' or os.environ.get('RIMGOVERNOR_EMERGENCY_PROBE') == '1':
             preview = await read('test/world_incident', definition='AnimalInsanitySingle', dryRun=True)
             assert preview['eligible'], 'Native mad-animal incident is unavailable'
             before = await read('home/world_progression')

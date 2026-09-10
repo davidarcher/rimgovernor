@@ -21,10 +21,10 @@ namespace HomeBridge.BridgeTools
             if (patched) return;
             var method = AccessTools.Method(typeof(JobDriver_Mine), "DoDamage");
             if (method == null) throw new InvalidOperationException("Native mining damage contract unavailable");
-            new Harmony("rimbot.mining-safety").Patch(method,
+            new Harmony("rimgovernor.mining-safety").Patch(method,
                 prefix: new HarmonyMethod(typeof(MiningGuard), nameof(Before)),
                 postfix: new HarmonyMethod(typeof(MiningGuard), nameof(After)));
-            new Harmony("rimbot.mining-safety").Patch(AccessTools.Method(typeof(DesignationManager), "RemoveDesignation"),
+            new Harmony("rimgovernor.mining-safety").Patch(AccessTools.Method(typeof(DesignationManager), "RemoveDesignation"),
                 postfix: new HarmonyMethod(typeof(MiningGuard), nameof(Removed)));
             patched = true;
         }

@@ -2,11 +2,11 @@
 import asyncio
 import time
 
-from rimbot.bridge_observation import observe
-from rimbot.colony_plan import CommitSteps
-from rimbot.colony_upkeep import upkeep_nodes, upkeep_method, reconcile_upkeep
-from rimbot.native_scenario import advance_game
-from rimbot.production_policy import sync_production_policy
+from rimgovernor.bridge_observation import observe
+from rimgovernor.colony_plan import CommitSteps
+from rimgovernor.colony_upkeep import upkeep_nodes, upkeep_method, reconcile_upkeep
+from rimgovernor.native_scenario import advance_game
+from rimgovernor.production_policy import sync_production_policy
 
 
 async def deliver(rt, report, tracking, seconds):

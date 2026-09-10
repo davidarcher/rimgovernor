@@ -1,25 +1,25 @@
 """Fixture setup creates packed furniture; normal pawn labor must install it."""
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import asyncio
 import json
 import time
 from pathlib import Path
-from rimbot.bridge import bridge_session, BridgeError
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge_observation import observe
-from rimbot.colony_plan import Decision, PlanSpec
-from rimbot.config import ModelRole
-from rimbot.headless import prepare, isolated_root
-from rimbot.store import Store
+from rimgovernor.bridge import bridge_session, BridgeError
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge_observation import observe
+from rimgovernor.colony_plan import Decision, PlanSpec
+from rimgovernor.config import ModelRole
+from rimgovernor.headless import prepare, isolated_root
+from rimgovernor.store import Store
 
 
 async def main():
-    root = isolated_root('.rimbot/bridge', Path('.rimbot')/f'install-smoke-{time.time_ns()}')
+    root = isolated_root('.rimgovernor/bridge', Path('.rimgovernor')/f'install-smoke-{time.time_ns()}')
     async with bridge_session(gabs_executable(root), prepare(root)) as bridge:
         await bridge.core('games_start', gameId=bridge.game_id)
         await bridge.connect()
-        await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline', readiness='visual', timeoutMs=90000, ignoreModCompatibility=True)
+        await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline', readiness='visual', timeoutMs=90000, ignoreModCompatibility=True)
         await bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
         fixture = (await bridge.call('test/packed_furniture')).structuredContent
         store = Store(root/'test.sqlite')

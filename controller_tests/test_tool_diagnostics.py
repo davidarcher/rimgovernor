@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 from unittest.mock import Mock
 import time
-from rimbot.tool_diagnostics import record
-from rimbot.store import Store
+from rimgovernor.tool_diagnostics import record
+from rimgovernor.store import Store
 
 
 def test_rejection_keeps_identity_and_bounds_large_payload():

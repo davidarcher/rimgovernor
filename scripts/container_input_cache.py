@@ -9,7 +9,7 @@ import time
 import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'controller'))
-from rimbot.container_input_cache import digest, inventory, write_archive
+from rimgovernor.container_input_cache import digest, inventory, write_archive
 from container_checks import docker_environment
 
 
@@ -21,7 +21,7 @@ def prepare_cache(game, mods, gabs, image, output):
     manifest, sources = inventory(game, mods, gabs)
     hashed = time.monotonic()
     key = digest(manifest)
-    volume = 'rimbot-inputs-v1-'+key
+    volume = 'rimgovernor-inputs-v1-'+key
     report = {'key': key, 'volume': volume, 'passed': False,
               'hash_seconds': round(hashed-began, 3)}
     (output/'cache-manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf8')
@@ -30,12 +30,12 @@ def prepare_cache(game, mods, gabs, image, output):
         return subprocess.run([docker, *args], env=environment, **kwargs)
 
     def operate(operation, stream=None):
-        name = 'rimbot-cache-'+uuid.uuid4().hex[:12]
+        name = 'rimgovernor-cache-'+uuid.uuid4().hex[:12]
         try:
             with (output/f'cache-{operation}.log').open('w', encoding='utf8') as log:
                 return command('run', '--rm', '--network', 'none', '-i', '--name', name,
                     '--mount', f'type=volume,source={volume},target=/cache'+(',readonly' if operation == 'verify' else ''),
-                    '--entrypoint', 'python', image, '-m', 'rimbot.container_input_cache',
+                    '--entrypoint', 'python', image, '-m', 'rimgovernor.container_input_cache',
                     operation, '--key', key, stdin=stream or subprocess.DEVNULL,
                     stdout=log, stderr=subprocess.STDOUT, timeout=900)
         finally:
@@ -45,8 +45,8 @@ def prepare_cache(game, mods, gabs, image, output):
                 raise RuntimeError(f'Cache helper cleanup failed: {result.stderr}')
 
     try:
-        command('volume', 'create', '--label', 'rimbot.kind=input-cache',
-                '--label', 'rimbot.input-sha256='+key, volume, check=True, capture_output=True, timeout=30)
+        command('volume', 'create', '--label', 'rimgovernor.kind=input-cache',
+                '--label', 'rimgovernor.input-sha256='+key, volume, check=True, capture_output=True, timeout=30)
         result = operate('verify')
         report['hit'] = result.returncode == 0
         if result.returncode == 3:
@@ -68,7 +68,7 @@ def compose_override(image, cache=None):
     override = {'services': {'worker': {'image': image}}}
     if cache:
         override['services']['worker'].update(
-            environment={'RIMBOT_INPUT_CACHE_ROOT': '/cached-inputs/snapshot', 'RIMBOT_INPUT_CACHE_KEY': cache['key']},
+            environment={'RIMGOVERNOR_INPUT_CACHE_ROOT': '/cached-inputs/snapshot', 'RIMGOVERNOR_INPUT_CACHE_KEY': cache['key']},
             volumes=[{'type': 'volume', 'source': 'input-cache', 'target': '/cached-inputs', 'read_only': True}])
         override['volumes'] = {'input-cache': {'external': True, 'name': cache['volume']}}
     return override

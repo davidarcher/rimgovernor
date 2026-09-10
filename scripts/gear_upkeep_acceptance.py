@@ -5,13 +5,13 @@ import json
 import time
 import traceback
 from pathlib import Path
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge_observation import observe
-from rimbot.colony_plan import ColonyGoal, CommitSteps, PlanStep
-from rimbot.config import ModelRole
-from rimbot.gear_upkeep import compile_upkeep, compile_method
-from rimbot.headless import isolated_root, prepare
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge_observation import observe
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps, PlanStep
+from rimgovernor.config import ModelRole
+from rimgovernor.gear_upkeep import compile_upkeep, compile_method
+from rimgovernor.headless import isolated_root, prepare
+from rimgovernor.store import Store
 from deterministic_foothold import NoInference
 from session_checkpoint_acceptance import ready
 
@@ -52,7 +52,7 @@ async def run(args):
                             'Apparel policy excludes item')), str(error)
                     assert result.get('success') is False, result
                     report['checks'][label] = result
-                from rimbot.production_policy import sync_production_policy
+                from rimgovernor.production_policy import sync_production_policy
                 rt.current_plan.control['resource_policy'] = {'Apparel_BasicShirt': {'reserve': 999}}
                 async with rt.lock: await sync_production_policy(rt)
                 try:

@@ -1,5 +1,5 @@
-from rimbot.colony_plan import ColonyPlan
-from rimbot.spatial_program import stage_layout
+from rimgovernor.colony_plan import ColonyPlan
+from rimgovernor.spatial_program import stage_layout
 
 
 def test_services_wait_for_observed_shelter_while_food_and_emergencies_continue():

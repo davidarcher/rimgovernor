@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.colony_plan import ColonyGoal, ColonyPlan, PlanSpec, StepProgress
-from rimbot.resource_accounting import (
+from rimgovernor.colony_plan import ColonyGoal, ColonyPlan, PlanSpec, StepProgress
+from rimgovernor.resource_accounting import (
     ResourceShortage, execution_reservations, validate_allocations,
     validate_execution_costs,
 )
@@ -119,7 +119,7 @@ async def test_new_admission_still_reserves_all_accepted_projects():
 
 async def test_hands_dispatches_affordable_project_then_resumes_competitor_without_duplicates():
     from test_construction_recovery import fixture
-    from rimbot.construction_recovery import recover_construction
+    from rimgovernor.construction_recovery import recover_construction
 
     rt, stock = fixture()
     plan = rt.current_plan

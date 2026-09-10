@@ -1,9 +1,9 @@
-# RimBot
+# RimGovernor
 
 A local RimWorld colony controller with a React dashboard. Deterministic systems
 handle routine colony needs; a local model interprets explicit player chat and
 offers advice. Both use one durable plan and Hands executor through
-GABS/RimBridgeServer and the RimBot colony bridge companion. RimWorld owns the
+GABS/RimBridgeServer and the RimGovernor colony bridge companion. RimWorld owns the
 simulation and ordinary game rules.
 
 ## Start here
@@ -32,13 +32,18 @@ GABS and the prepared fixture described in [setup](docs/how-to/setup.md).
 Autopilot requires no inference; player chat needs the configured local model
 loaded in LM Studio.
 
+Application, mod, profile and checkpoint names must match the
+[RimGovernor deployment identity](docs/reference/project-identity.md). Use a fresh
+prepared profile when changing deployment identities; existing artifacts are not
+automatically migrated.
+
 ## Work on the project
 
 Follow [AGENTS.md](AGENTS.md), then [choose checks](docs/how-to/choose-tests.md)
 for the change. To run Linux controller tests without a local project environment:
 
 ```powershell
-python scripts/container_checks.py --workers 1 --image rimbot-checks:my-task --output .rimbot/docker-checks-01
+python scripts/container_checks.py --workers 1 --image rimgovernor-checks:my-task --output .rimgovernor/docker-checks-01
 ```
 
 Use Python 3.12+, a running Linux Docker daemon and a new output directory.

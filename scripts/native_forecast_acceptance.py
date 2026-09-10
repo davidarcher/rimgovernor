@@ -6,14 +6,14 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.native_forecasts import forecasts
-from rimbot.store import Store
-from rimbot.strategic_state import StrategicState
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.native_forecasts import forecasts
+from rimgovernor.store import Store
+from rimgovernor.strategic_state import StrategicState
 
 
 async def run():
-    root = Path(os.environ['RIMBOT_BRIDGE_ROOT'])
+    root = Path(os.environ['RIMGOVERNOR_BRIDGE_ROOT'])
     report = {'passed': False, 'cases': [], 'samples': [],
               'scope': 'Disposable fixture setup; ordinary native power charging, discharge and rot. No construction, pawn feeding or long-term survival acceptance.'}
     rt = BridgeRuntime(Store(root/'forecast.sqlite'), root, fresh=True, headless=True)

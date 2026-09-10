@@ -4,10 +4,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.colony_plan import ColonyGoal, PlanSpec, StepProgress
-from rimbot.colony_skills import ColonySkills
-from rimbot.resource_accounting import validate_allocations
-from rimbot.wall_upgrade import method, validate_bundle, reconcile, release_pending
+from rimgovernor.colony_plan import ColonyGoal, PlanSpec, StepProgress
+from rimgovernor.colony_skills import ColonySkills
+from rimgovernor.resource_accounting import validate_allocations
+from rimgovernor.wall_upgrade import method, validate_bundle, reconcile, release_pending
 from test_construction_ownership import scenario
 
 
@@ -193,7 +193,7 @@ async def test_changed_direction_releases_pending_and_uncertain_demolition_befor
 
 @pytest.mark.asyncio
 async def test_retired_targets_do_not_starve_independent_wall_batches():
-    from rimbot.strategic_state import fingerprint
+    from rimgovernor.strategic_state import fingerprint
     rt, facts = fixture()
     state = rt.current_plan.control['upkeep']['MaintainStoneShell']
     retired = [dict(id='retired-' + str(i), count=1) for i in range(9)]
@@ -208,8 +208,8 @@ async def test_retired_targets_do_not_starve_independent_wall_batches():
 
 @pytest.mark.asyncio
 async def test_stonecutter_uses_verified_rotation_that_fits_existing_shelter():
-    from rimbot.development import placement
-    from rimbot.colony_plan import ColonyPlan
+    from rimgovernor.development import placement
+    from rimgovernor.colony_plan import ColonyPlan
     f = dict(definitions={'TableStonecutter': dict(available=True, stuff='WoodLog')}, center=dict(x=10, z=10),
              cells=[dict(x=10, z=z, walkable=True, occupied=False, indoors=True) for z in range(10, 13)])
     rt = SimpleNamespace(current_plan=ColonyPlan(), game=SimpleNamespace(), inspect_native=AsyncMock(return_value=dict(canPlace=True,
@@ -222,7 +222,7 @@ async def test_stonecutter_uses_verified_rotation_that_fits_existing_shelter():
 
 @pytest.mark.asyncio
 async def test_manual_release_passes_real_gameplay_write_boundary():
-    from rimbot.bridge_game import BridgeGame
+    from rimgovernor.bridge_game import BridgeGame
     rt, facts = fixture()
     spec, steps, _ = await bundle(rt, facts)
     rt.current_plan.spec = spec
@@ -257,9 +257,9 @@ async def test_clock_invalidates_demolition_when_its_batch_loses_admission(inval
 
 @pytest.mark.asyncio
 async def test_native_demolition_transfers_project_slot_until_exact_replacement_is_built(tmp_path):
-    from rimbot.projects import ProjectBook
-    from rimbot.wall_upgrade import project_handoffs
-    from rimbot.spatial import validate_geometry, GeometryConflict
+    from rimgovernor.projects import ProjectBook
+    from rimgovernor.wall_upgrade import project_handoffs
+    from rimgovernor.spatial import validate_geometry, GeometryConflict
     rt, facts = fixture()
     spec, steps, _ = await bundle(rt, facts)
     plan = rt.current_plan
@@ -295,8 +295,8 @@ async def test_native_demolition_transfers_project_slot_until_exact_replacement_
     facts['upkeep']['construction'].append(successor)
     await book.reconcile(rt.game, plan=plan)
     assert project.state == 'complete' and project.matched_ids == ['stone-built']
-    from rimbot.plan_archive import bind_archive, prepare_archive, finish_archive
-    from rimbot.store import Store
+    from rimgovernor.plan_archive import bind_archive, prepare_archive, finish_archive
+    from rimgovernor.store import Store
     removal = steps[1]
     plan.control.setdefault('retired_steps', {})[removal.id] = removal.model_dump()
     plan.spec.steps = [s for s in plan.spec.steps if s.id != removal.id]
@@ -323,9 +323,9 @@ async def test_native_demolition_transfers_project_slot_until_exact_replacement_
 
 @pytest.mark.asyncio
 async def test_furniture_placement_preserves_native_stockpile_cells():
-    from rimbot.development import placement
-    from rimbot.colony_plan import ColonyPlan
-    from rimbot.colony_skills import SkillBlocked
+    from rimgovernor.development import placement
+    from rimgovernor.colony_plan import ColonyPlan
+    from rimgovernor.colony_skills import SkillBlocked
     facts = dict(definitions={'TableStonecutter': dict(available=True)}, center=dict(x=10, z=10),
         cells=[dict(x=10, z=10, walkable=True, occupied=False, indoors=True, zone='stockpile')])
     rt = SimpleNamespace(current_plan=ColonyPlan(), game=SimpleNamespace(), inspect_native=AsyncMock())
@@ -336,13 +336,13 @@ async def test_furniture_placement_preserves_native_stockpile_cells():
 
 @pytest.mark.asyncio
 async def test_stonecutter_preserves_selected_corners_interior_construction_approach(monkeypatch):
-    from rimbot.colony_skills import SkillBlocked
+    from rimgovernor.colony_skills import SkillBlocked
     rt, facts = fixture(stock=0, corner=True)
     facts['definitions']['TableStonecutter'] = dict(available=True, stuff='WoodLog')
     facts['center'] = dict(x=9, z=19)
     facts['cells'] = [dict(x=x, z=z, walkable=True, occupied=False, indoors=True)
                       for x in (8, 9) for z in (18, 19, 20)]
-    monkeypatch.setattr('rimbot.production_policy.resource_method', AsyncMock(side_effect=SkillBlocked(
+    monkeypatch.setattr('rimgovernor.production_policy.resource_method', AsyncMock(side_effect=SkillBlocked(
         'No available native production recipe and workbench for BlocksGranite')))
     def preview(tool, args):
         return dict(canPlace=True, rotations=[dict(rotation='east', accepted=True, blockingThings=[],
@@ -355,13 +355,13 @@ async def test_stonecutter_preserves_selected_corners_interior_construction_appr
 
 @pytest.mark.asyncio
 async def test_stonecutter_falls_back_outdoors_without_using_wall_work_area(monkeypatch):
-    from rimbot.colony_skills import SkillBlocked
+    from rimgovernor.colony_skills import SkillBlocked
     rt, facts = fixture(stock=0)
     facts['definitions']['TableStonecutter'] = dict(available=True, stuff='WoodLog')
     facts['center'] = dict(x=11, z=20)
     facts['cells'] = [dict(x=x, z=z, walkable=True, occupied=False, indoors=False)
                       for x in (11, 12) for z in (19, 20, 21)]
-    monkeypatch.setattr('rimbot.production_policy.resource_method', AsyncMock(side_effect=SkillBlocked(
+    monkeypatch.setattr('rimgovernor.production_policy.resource_method', AsyncMock(side_effect=SkillBlocked(
         'No available native production recipe and workbench for BlocksGranite')))
     rt.inspect_native = AsyncMock(side_effect=lambda tool, args: dict(canPlace=True,
         rotations=[dict(rotation='east', accepted=True, blockingThings=[],
@@ -373,13 +373,13 @@ async def test_stonecutter_falls_back_outdoors_without_using_wall_work_area(monk
 
 @pytest.mark.asyncio
 async def test_retired_wall_does_not_start_resource_production_again(monkeypatch):
-    from rimbot.colony_skills import SkillBlocked
-    from rimbot.strategic_state import fingerprint
+    from rimgovernor.colony_skills import SkillBlocked
+    from rimgovernor.strategic_state import fingerprint
     rt, facts = fixture(stock=0)
     goal = rt.current_plan.colony_goals['MaintainStoneShell']
     goal.evidence['methods'] = {'wall-' + fingerprint('built-wall')[:12]: ['retired-removal']}
     production = AsyncMock()
-    monkeypatch.setattr('rimbot.production_policy.resource_method', production)
+    monkeypatch.setattr('rimgovernor.production_policy.resource_method', production)
     with pytest.raises(SkillBlocked, match='previously admitted replacement'):
         await method(rt, facts)
     production.assert_not_awaited()

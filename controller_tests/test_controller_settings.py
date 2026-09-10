@@ -2,9 +2,9 @@ from dataclasses import asdict
 import pytest
 import httpx
 from pydantic import ValidationError
-from rimbot.colony_plan import ColonyGoal
-from rimbot.controller_settings import PolicyUpdate, PolicyChanges, settings_state, update_policy
-from rimbot.bridge_server import create_app
+from rimgovernor.colony_plan import ColonyGoal
+from rimgovernor.controller_settings import PolicyUpdate, PolicyChanges, settings_state, update_policy
+from rimgovernor.bridge_server import create_app
 from test_strategic_architecture import runtime
 
 
@@ -57,7 +57,7 @@ async def test_settings_route_requires_local_mutation_header_and_version(tmp_pat
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://testserver') as client:
         body=request(rt,execution_speed='Fast').model_dump(exclude_unset=True)
         assert (await client.post('/api/autopilot/settings',json=body)).status_code==403
-        response=await client.post('/api/autopilot/settings',json=body,headers={'X-RimBot':'1'})
+        response=await client.post('/api/autopilot/settings',json=body,headers={'X-RimGovernor':'1'})
         assert response.status_code==200 and response.json()['values']['execution_speed']=='Fast'
-        assert (await client.post('/api/autopilot/settings',json=body,headers={'X-RimBot':'1'})).status_code==400
+        assert (await client.post('/api/autopilot/settings',json=body,headers={'X-RimGovernor':'1'})).status_code==400
     rt.store.close()

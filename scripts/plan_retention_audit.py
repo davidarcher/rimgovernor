@@ -7,9 +7,9 @@ import argparse
 import json
 from pathlib import Path
 import time
-from rimbot.colony_plan import ColonyPlan, ColonyGoal, CommitSteps, PlanStep, StepProgress
-from rimbot.store import Store
-from rimbot.plan_archive import bind_archive,prepare_archive,finish_archive
+from rimgovernor.colony_plan import ColonyPlan, ColonyGoal, CommitSteps, PlanStep, StepProgress
+from rimgovernor.store import Store
+from rimgovernor.plan_archive import bind_archive,prepare_archive,finish_archive
 
 
 def run(args):

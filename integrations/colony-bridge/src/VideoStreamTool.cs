@@ -42,9 +42,9 @@ namespace HomeBridge.BridgeTools
         string error = "";
         int? savedVsync, savedFrameRate;
         bool UsePresented => Application.platform == RuntimePlatform.LinuxPlayer
-            && Environment.GetEnvironmentVariable("RIMBOT_PRIVATE_DISPLAY") == "1"
-            && Environment.GetEnvironmentVariable("RIMBOT_VIDEO_READBACK") != "sync"
-            && Environment.GetEnvironmentVariable("RIMBOT_VIDEO_READBACK") != "async";
+            && Environment.GetEnvironmentVariable("RIMGOVERNOR_PRIVATE_DISPLAY") == "1"
+            && Environment.GetEnvironmentVariable("RIMGOVERNOR_VIDEO_READBACK") != "sync"
+            && Environment.GetEnvironmentVariable("RIMGOVERNOR_VIDEO_READBACK") != "async";
         [StructLayout(LayoutKind.Sequential)]
         struct XImage
         {
@@ -57,8 +57,8 @@ namespace HomeBridge.BridgeTools
             int x, int y, uint width, uint height, UIntPtr planes, int format);
         [DllImport("libX11.so.6")] static extern int XDestroyImage(IntPtr image);
         bool UseAsync => SystemInfo.supportsAsyncGPUReadback && !asyncFailed &&
-            (Environment.GetEnvironmentVariable("RIMBOT_VIDEO_READBACK") == "async" ||
-             (Environment.GetEnvironmentVariable("RIMBOT_VIDEO_READBACK") != "sync" &&
+            (Environment.GetEnvironmentVariable("RIMGOVERNOR_VIDEO_READBACK") == "async" ||
+             (Environment.GetEnvironmentVariable("RIMGOVERNOR_VIDEO_READBACK") != "sync" &&
               !SystemInfo.graphicsDeviceName.ToLowerInvariant().Contains("llvmpipe")));
 
         public static object Lease(int seconds)
@@ -69,7 +69,7 @@ namespace HomeBridge.BridgeTools
             if (instance == null && seconds == 0) return new { supported = true, active = false };
             if (instance == null)
             {
-                instance = new GameObject("RimBotVideoStream").AddComponent<VideoStreamDriver>();
+                instance = new GameObject("RimGovernorVideoStream").AddComponent<VideoStreamDriver>();
                 DontDestroyOnLoad(instance.gameObject);
             }
             if (seconds > 0 && instance.mapping == null)
@@ -94,14 +94,14 @@ namespace HomeBridge.BridgeTools
 
         void Open()
         {
-            if (Environment.GetEnvironmentVariable("RIMBOT_PRIVATE_DISPLAY") == "1" && savedVsync == null)
+            if (Environment.GetEnvironmentVariable("RIMGOVERNOR_PRIVATE_DISPLAY") == "1" && savedVsync == null)
             {
                 savedVsync = QualitySettings.vSyncCount; savedFrameRate = Application.targetFrameRate;
                 QualitySettings.vSyncCount = 0; Application.targetFrameRate = 60;
             }
             if (Application.platform == RuntimePlatform.LinuxPlayer)
             {
-                bufferName = "/dev/shm/RimBotVideo-" + Guid.NewGuid().ToString("N");
+                bufferName = "/dev/shm/RimGovernorVideo-" + Guid.NewGuid().ToString("N");
                 file = new FileStream(bufferName, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite);
                 file.SetLength(Capacity);
                 mapping = MemoryMappedFile.CreateFromFile(file, null, Capacity,
@@ -109,7 +109,7 @@ namespace HomeBridge.BridgeTools
             }
             else
             {
-                bufferName = "Local\\RimBotVideo-" + Guid.NewGuid().ToString("N");
+                bufferName = "Local\\RimGovernorVideo-" + Guid.NewGuid().ToString("N");
                 mapping = MemoryMappedFile.CreateNew(bufferName, Capacity);
                 gate = new Mutex(false, bufferName + "-lock");
             }

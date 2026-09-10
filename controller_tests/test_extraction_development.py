@@ -1,9 +1,9 @@
 import pytest
-from rimbot.colony_plan import ColonyGoal, ColonyPlan, PlanStep, StepProgress
-from rimbot.colony_skills import SkillBlocked
-from rimbot.extraction_development import development_method, drilling_policy
-from rimbot.player_commands import CreateGoal
-from rimbot.production_policy import observe_mining_progress
+from rimgovernor.colony_plan import ColonyGoal, ColonyPlan, PlanStep, StepProgress
+from rimgovernor.colony_skills import SkillBlocked
+from rimgovernor.extraction_development import development_method, drilling_policy
+from rimgovernor.player_commands import CreateGoal
+from rimgovernor.production_policy import observe_mining_progress
 
 
 def fixture():

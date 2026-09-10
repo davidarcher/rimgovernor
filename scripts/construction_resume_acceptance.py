@@ -4,10 +4,10 @@ import asyncio
 import json
 from pathlib import Path
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.config import Settings
-from rimbot.session_checkpoint import prepare_resume
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.config import Settings
+from rimgovernor.session_checkpoint import prepare_resume
+from rimgovernor.store import Store
 
 
 async def run(args):

@@ -7,9 +7,9 @@ from storeroom_acceptance import run
 
 
 async def verify(rt, report, *, after_restart=False):
-    from rimbot.colony_plan import ColonyGoal, CommitSteps
-    from rimbot.home_coverage import method, targets
-    from rimbot.construction_ownership import owned_buildings
+    from rimgovernor.colony_plan import ColonyGoal, CommitSteps
+    from rimgovernor.home_coverage import method, targets
+    from rimgovernor.construction_ownership import owned_buildings
     facts = await rt.game.query('home/colony_facts', planning=True)
     goal_id = 'MaintainHomeCoverage'
     goal = rt.current_plan.colony_goals.setdefault(goal_id, ColonyGoal(priority_class=3))
@@ -67,7 +67,7 @@ async def verify(rt, report, *, after_restart=False):
     result['removed'] = removed
     facts = await rt.game.query('home/colony_facts', planning=True)
     assert next(r for r in targets(rt.current_plan, facts) if r['id'] == target)['excluded'] >= 1
-    from rimbot.colony_upkeep import upkeep_nodes
+    from rimgovernor.colony_upkeep import upkeep_nodes
     upkeep_nodes(facts, rt.current_plan.control, rt.current_plan.colony_goals, plan=rt.current_plan)
     state = rt.current_plan.control['upkeep'][goal_id]
     assert state['known'] and state['active']

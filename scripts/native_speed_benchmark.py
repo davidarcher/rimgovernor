@@ -1,24 +1,24 @@
 """Test-only speed benchmark. Normal controller/model safety policy is unchanged.
 Renders normally; omits dashboard captures. Does NOT claim headless performance.
 """
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import argparse
 import asyncio
 import json
 import time
 from pathlib import Path
-from rimbot.bridge import bridge_session, BridgeError
+from rimgovernor.bridge import bridge_session, BridgeError
 
 async def main(seconds,repeats,headless=False):
-    root=Path('.rimbot/bridge').resolve();rows=[]
-    from rimbot.headless import prepare
+    root=Path('.rimgovernor/bridge').resolve();rows=[]
+    from rimgovernor.headless import prepare
     configuration=prepare(root) if headless else root/'config'
     async with bridge_session(gabs_executable(root),configuration) as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
         try:
             for speed in ('Normal','Superfast','Ultrafast'):
                 for repeat in range(repeats):
-                    await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',timeoutMs=90000,ignoreModCompatibility=headless)
+                    await bridge.call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',readiness='visual',timeoutMs=90000,ignoreModCompatibility=headless)
                     await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
                     initial=(await bridge.call('home/status',colonists=False,threats=False)).structuredContent['time']
                     assert initial['paused'], 'Clock command was not applied; do not benchmark before native player control is ready'

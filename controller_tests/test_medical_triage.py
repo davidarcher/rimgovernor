@@ -2,10 +2,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.colony_plan import ColonyGoal, PlanStep, StepProgress, ColonyPlan, CommitSteps
-from rimbot.medical_triage import treatment_pairs
-from rimbot.medical_triage import threats_cleared
-from rimbot.colony_skills import SkillBlocked
+from rimgovernor.colony_plan import ColonyGoal, PlanStep, StepProgress, ColonyPlan, CommitSteps
+from rimgovernor.medical_triage import treatment_pairs
+from rimgovernor.medical_triage import threats_cleared
+from rimgovernor.colony_skills import SkillBlocked
 from test_colony_controller import Replay
 
 

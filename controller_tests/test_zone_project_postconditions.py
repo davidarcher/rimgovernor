@@ -4,10 +4,10 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.colony_plan import ColonyPlan, PlanSpec, StepProgress
-from rimbot.projects import ProjectBook
-from rimbot.hands import Hands
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.colony_plan import ColonyPlan, PlanSpec, StepProgress
+from rimgovernor.projects import ProjectBook
+from rimgovernor.hands import Hands
 
 
 def fixture():

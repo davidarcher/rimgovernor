@@ -72,11 +72,11 @@ run, but it cannot prove arbitrary long-term survival.
 
 ## Continue into the implementation
 
-Start with [colony_controller.py](../../controller/rimbot/colony_controller.py),
-[colony_policy.py](../../controller/rimbot/colony_policy.py) and
-[colony_skills.py](../../controller/rimbot/colony_skills.py). The runtime ties them to
+Start with [colony_controller.py](../../controller/rimgovernor/colony_controller.py),
+[colony_policy.py](../../controller/rimgovernor/colony_policy.py) and
+[colony_skills.py](../../controller/rimgovernor/colony_skills.py). The runtime ties them to
 observation and execution in
-[bridge_runtime.py](../../controller/rimbot/bridge_runtime.py).
+[bridge_runtime.py](../../controller/rimgovernor/bridge_runtime.py).
 
 Use [controller contracts](../reference/controller-contracts.md) for the exact priority
 order, gates, capacity bounds, hunting screen and current combat scope. Continue with

@@ -1,12 +1,12 @@
 """Verify obsolete starter-stock allow recovery through fresh native reads only."""
 import argparse,asyncio,json,traceback
 from pathlib import Path
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.colony_plan import ColonyGoal,CommitSteps,PlanStep
-from rimbot.headless import isolated_root,prepare
-from rimbot.store import Store
-from rimbot.supply_recovery import recover_starting_supplies
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.colony_plan import ColonyGoal,CommitSteps,PlanStep
+from rimgovernor.headless import isolated_root,prepare
+from rimgovernor.store import Store
+from rimgovernor.supply_recovery import recover_starting_supplies
 from session_checkpoint_acceptance import ready
 from deterministic_foothold import NoInference
 

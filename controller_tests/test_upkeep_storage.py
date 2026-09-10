@@ -3,8 +3,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.colony_plan import ColonyPlan, ColonyGoal, PlanStep, StepProgress, Zone, Rectangle
-from rimbot.upkeep_storage import covered_storage
+from rimgovernor.colony_plan import ColonyPlan, ColonyGoal, PlanStep, StepProgress, Zone, Rectangle
+from rimgovernor.upkeep_storage import covered_storage
 
 
 def runtime():
@@ -73,8 +73,8 @@ async def test_storage_refusal_and_repeated_capacity_failures_do_not_expand_with
 @pytest.mark.parametrize('refusal,creates', [('no_storage', True), ('work_disabled', False), ('not_reachable', False)])
 async def test_supply_method_only_creates_storage_for_observed_storage_failure(refusal, creates):
     from test_colony_upkeep import facts as upkeep_facts, item
-    from rimbot.colony_upkeep import upkeep_nodes, upkeep_method
-    from rimbot.colony_skills import SkillBlocked
+    from rimgovernor.colony_upkeep import upkeep_nodes, upkeep_method
+    from rimgovernor.colony_skills import SkillBlocked
     rt = runtime()
     rt.context_token, rt.chat_revision = 'colony:load', 0
     f = facts() | upkeep_facts()
@@ -93,8 +93,8 @@ async def test_supply_method_only_creates_storage_for_observed_storage_failure(r
         assert rt.inspect_native.await_count == 1
 @pytest.mark.asyncio
 async def test_storeroom_requires_native_geometry_and_retains_single_room_limit():
-    from rimbot.upkeep_storage import supply_storeroom
-    from rimbot.colony_skills import SkillBlocked
+    from rimgovernor.upkeep_storage import supply_storeroom
+    from rimgovernor.colony_skills import SkillBlocked
     rt = runtime()
     f = dict(center=dict(x=10, z=10), definitions={k: dict(available=True, stuff='WoodLog') for k in ('Wall', 'Door')},
         cells=[dict(x=x, z=z, walkable=True, occupied=False, zone=False, supportsLight=True, storageEmpty=True)
@@ -119,14 +119,14 @@ async def test_storeroom_requires_native_geometry_and_retains_single_room_limit(
 
 @pytest.mark.asyncio
 async def test_new_supply_room_waits_for_complete_native_roof_before_storage(monkeypatch):
-    from rimbot.upkeep_storage import supply_storeroom
+    from rimgovernor.upkeep_storage import supply_storeroom
     rt = runtime()
     step = PlanStep(id='room', title='Supply room', goal_id='SecureSupplies', completion_criteria='Native shell', action=dict(
         kind='build_room_shell', bounds=dict(x=8, z=8, width=6, height=6), wall_def='Wall',
         door_def='Door', materials=['WoodLog'], entrance='south'))
     rt.current_plan.spec.steps = [step]
     rt.current_plan.progress['room'] = StepProgress(state='complete')
-    monkeypatch.setattr('rimbot.shelter_handoff.verified_room', AsyncMock(return_value=None))
+    monkeypatch.setattr('rimgovernor.shelter_handoff.verified_room', AsyncMock(return_value=None))
     assert await covered_storage(rt, facts(), [dict(defName='MedicineHerbal')]) is None
     assert rt.current_plan.colony_goals['SecureSupplies'].evidence['waiting_for_storage_roof']
     assert await supply_storeroom(rt, facts()) is None

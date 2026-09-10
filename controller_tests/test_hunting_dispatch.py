@@ -1,8 +1,8 @@
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.colony_plan import ColonyGoal,PlanSpec,PlanStep,StepProgress
-from rimbot.hunting import HuntingRefused
-from rimbot.native_contracts import NativeNotDispatched
+from rimgovernor.colony_plan import ColonyGoal,PlanSpec,PlanStep,StepProgress
+from rimgovernor.hunting import HuntingRefused
+from rimgovernor.native_contracts import NativeNotDispatched
 from test_hunting_screen import pawn
 from test_strategic_architecture import runtime
 

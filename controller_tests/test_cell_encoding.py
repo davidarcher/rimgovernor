@@ -1,6 +1,6 @@
 from copy import deepcopy
-from rimbot.bridge_game import for_model
-from rimbot.request_budget import shorten
+from rimgovernor.bridge_game import for_model
+from rimgovernor.request_budget import shorten
 
 
 def test_repeated_cell_fields_fit_without_losing_coordinates_or_unknowns():

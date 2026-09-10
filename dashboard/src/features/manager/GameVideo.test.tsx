@@ -39,7 +39,7 @@ it('retains snapshots when continuous video is unavailable', () => {
 });
 it('uses same-origin protected streaming and acknowledges only decoded frames', async () => {
   render(<GameVideo session="a" viewer="one" enabled snapshot="/frame" />);
-  expect(sockets[0].protocol).toBe('rimbot-view-v1');
+  expect(sockets[0].protocol).toBe('rimgovernor-view-v1');
   expect(sockets[0].url).toContain('/api/video/frames?session_id=a&viewer=one&connection_id=');
   expect(sockets[0].send).not.toHaveBeenCalled();
   await act(async () => { await sockets[0].onmessage({ data: packet() }); });

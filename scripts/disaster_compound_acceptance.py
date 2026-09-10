@@ -5,14 +5,14 @@ import os
 from pathlib import Path
 
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.colony_plan import ColonyGoal, CommitSteps
-from rimbot.colony_skills import SkillBlocked
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps
+from rimgovernor.colony_skills import SkillBlocked
+from rimgovernor.store import Store
 
 
 async def run():
-    root = Path(os.environ['RIMBOT_BRIDGE_ROOT'])
+    root = Path(os.environ['RIMGOVERNOR_BRIDGE_ROOT'])
     rt = BridgeRuntime(Store(root/'compound.sqlite'), root, fresh=True, headless=True)
     report = dict(passed=False, cases=[], samples=[], methods=[],
                   scope='Disposable native compound damage/crop-loss inputs; ordinary native repairs, refueling, sowing, condition expiry and electrical service. No models or cheats in recovery execution.')
@@ -98,7 +98,7 @@ async def run():
                and any(b['thingId'] == setup['stove'] and b['powerOn'] is False for b in before['recovery']['buildings']))
         preview = await rt.inspect_native('home/recover_service', dict(thingId=setup['campfire'], pawn=setup['pawn'], method='refuel', dryRun=True))
         record('inaccessible_fuel_refused', preview.get('accepted') is False, preview=preview)
-        from rimbot.colony_skills import native
+        from rimgovernor.colony_skills import native
         await commit('RecoverDisasterServices', 'refuge-acceptance', [native('home/recovery_area', pawn=setup['pawn'], areaId=setup['refuge'])], before)
         restricted = (await rt.game.query('home/recovery_state'))['restrictions']
         record('native_roofed_work_restriction', any(p['pawn'] == setup['pawn'] and p['area'] == setup['refuge'] and p['leased'] for p in restricted))

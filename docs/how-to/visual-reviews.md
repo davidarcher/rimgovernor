@@ -5,7 +5,7 @@
 Use the normal staged Linux game/mod/profile/GABS inputs with a fresh output:
 
 ```powershell
-python scripts/container_visual_acceptance.py --game <linux-game> --mods <private-mods> --profile <prepared-profile> --gabs <linux-gabs-directory> --image rimbot-worker:my-visual-task --output .rimbot/visual-01 --model qwen3.5-4b
+python scripts/container_visual_acceptance.py --game <linux-game> --mods <private-mods> --profile <prepared-profile> --gabs <linux-gabs-directory> --image rimgovernor-worker:my-visual-task --output .rimgovernor/visual-01 --model qwen3.5-4b
 ```
 
 The wrapper builds and pins the task image, starts one private rendered worker,

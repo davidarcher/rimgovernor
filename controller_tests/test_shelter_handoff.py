@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.colony_plan import ColonyPlan,ColonyGoal
-from rimbot.colony_skills import ColonySkills,SkillBlocked
+from rimgovernor.colony_plan import ColonyPlan,ColonyGoal
+from rimgovernor.colony_skills import ColonySkills,SkillBlocked
 
 
 def fixture(count=8):
@@ -218,7 +218,7 @@ async def test_selected_room_thermal_requires_observed_unsafe_temperature(temper
 @pytest.mark.asyncio
 async def test_unissued_cached_farms_are_replanned_around_accepted_player_shell():
     from test_colony_controller import Replay
-    from rimbot.colony_plan import PlanSpec,PlanStep,StepProgress
+    from rimgovernor.colony_plan import PlanSpec,PlanStep,StepProgress
     rt=Replay()
     initial=await rt.controller.skills.layout(rt.facts)
     patch=initial['farms'][0]
@@ -233,7 +233,7 @@ async def test_unissued_cached_farms_are_replanned_around_accepted_player_shell(
 
 
 def test_footprint_census_allows_harmless_objects_but_not_replacements():
-    from rimbot.shelter_handoff import safe_rotation
+    from rimgovernor.shelter_handoff import safe_rotation
     harmless={'category':'Pawn','isBlueprint':False,'isFrame':False,'frameWouldBeCancelled':False,'wouldBeWiped':False}
     assert safe_rotation({'accepted':True,'blockingThings':[harmless]})
     for change in ({'category':'Building'},{'wouldBeWiped':True},{'frameWouldBeCancelled':True},{'isBlueprint':True}):

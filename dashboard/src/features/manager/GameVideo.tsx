@@ -54,7 +54,7 @@ export default function GameVideo({ session, viewer, enabled, snapshot, children
     if (message) onError?.(message);
     activeOwner.current = null;
     if (current) void fetch("/api/input/release", { method: "POST", keepalive: true,
-      headers: { "X-RimBot": "1", "Content-Type": "application/json" },
+      headers: { "X-RimGovernor": "1", "Content-Type": "application/json" },
       body: JSON.stringify({ session_id: session, viewer_id: current.viewer, lease_id: current.lease }),
     }).catch(() => {});
   }
@@ -72,7 +72,7 @@ export default function GameVideo({ session, viewer, enabled, snapshot, children
           inputSample.current = { at: performance.now(), selection: view.selection };
         }
         const response = await fetch("/api/input/event", { method: "POST",
-          headers: { "X-RimBot": "1", "Content-Type": "application/json" },
+          headers: { "X-RimGovernor": "1", "Content-Type": "application/json" },
           body: JSON.stringify({ session_id: session, viewer_id: current.viewer, lease_id: lease,
             source: view.source, frame: view.frame, order: ++order.current, ...input }),
         });
@@ -125,7 +125,7 @@ export default function GameVideo({ session, viewer, enabled, snapshot, children
     let decoder: VideoDecoder | undefined, decoderConfig = '';
     let decoded: ((frame: VideoFrame) => void) | undefined;
     let decodeFailure: ((error: Error) => void) | undefined;
-    const socket = new WebSocket(`${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/api/video/frames?${query}`, "rimbot-view-v1");
+    const socket = new WebSocket(`${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/api/video/frames?${query}`, "rimgovernor-view-v1");
     socket.binaryType = "arraybuffer";
     const fail = () => {
       if (stopped) return;

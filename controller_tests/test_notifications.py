@@ -1,6 +1,6 @@
 import pytest
-from rimbot.notifications import verify_dismissal
-from rimbot.bridge_game import is_write
+from rimgovernor.notifications import verify_dismissal
+from rimgovernor.bridge_game import is_write
 
 
 def test_notifications_have_explicit_write_boundary():

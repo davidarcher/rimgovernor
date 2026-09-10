@@ -23,7 +23,7 @@ index 0000000..2d52c17
 +  "openapi": "3.1.0",
 +  "info": {
 +    "title": "RIMAPI",
-+    "version": "1.10.0-rimbot.1",
++    "version": "1.10.0-rimgovernor.1",
 +    "description": "Canonical HTTP contract for the pinned RIMAPI fork. Legacy responses use snake_case and omit null properties. Construction v2 uses strict generated contracts. Documentation coverage is independent of AI action authorization. Camera control is HTTP; frame delivery uses the configured UDP destination. Third-party extension routes are outside this built-in contract."
 +  },
 +  "servers": [
@@ -29672,7 +29672,7 @@ index 0000000..c4b39db
 +  "openapi": "3.1.0",
 +  "info": {
 +    "title": "RIMAPI",
-+    "version": "1.10.0-rimbot.1",
++    "version": "1.10.0-rimgovernor.1",
 +    "description": "Canonical HTTP contract for the pinned RIMAPI fork. Legacy responses use snake_case and omit null properties. Construction v2 uses strict generated contracts. Documentation coverage is independent of AI action authorization. Camera control is HTTP; frame delivery uses the configured UDP destination. Third-party extension routes are outside this built-in contract."
 +  },
 +  "servers": [

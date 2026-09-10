@@ -4,7 +4,7 @@ import subprocess
 import sys
 import time
 import pytest
-from rimbot.windows_process import ProcessHandle
+from rimgovernor.windows_process import ProcessHandle
 
 pytestmark=pytest.mark.skipif(os.name!='nt',reason='Windows retained process handles')
 
@@ -34,7 +34,7 @@ def test_pause_and_parent_crash_resume_exact_worker(tmp_path):
         wait_for(lambda:beat.read_text()!=value)
         parentpid=tmp_path/'parent'
         owner=subprocess.Popen([sys.executable,'-c',
-            'import os,time;from pathlib import Path;from rimbot.windows_process import ProcessHandle;'
+            'import os,time;from pathlib import Path;from rimgovernor.windows_process import ProcessHandle;'
             f'Path({str(parentpid)!r}).write_text(str(os.getpid()));h=ProcessHandle({target.pid});'
             f'\nwith h.paused(Path({str(tmp_path/"crash")!r})): time.sleep(60)'])
         wait_for((tmp_path/'crash.ready').exists)

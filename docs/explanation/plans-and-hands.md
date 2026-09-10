@@ -69,8 +69,8 @@ through Hands while the game remains paused. This does not authorize unrelated
 autonomous work or resume the simulation. Player direction and load changes invalidate
 pending work that was prepared under an older context.
 
-Read [player_commands.py](../../controller/rimbot/player_commands.py),
-[colony_plan.py](../../controller/rimbot/colony_plan.py) and
-[hands.py](../../controller/rimbot/hands.py) for the implementation. The [command
+Read [player_commands.py](../../controller/rimgovernor/player_commands.py),
+[colony_plan.py](../../controller/rimgovernor/colony_plan.py) and
+[hands.py](../../controller/rimgovernor/hands.py) for the implementation. The [command
 contracts](../reference/command-contracts.md) and [action completion
 table](../reference/action-contracts.md) provide the exact rules.

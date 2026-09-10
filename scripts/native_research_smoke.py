@@ -1,20 +1,20 @@
 """Select an available native research project while paused; never add progress."""
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import asyncio
 import json
 from pathlib import Path
-from rimbot.bridge import bridge_session
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.headless import prepare
-from rimbot.store import Store
+from rimgovernor.bridge import bridge_session
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.headless import prepare
+from rimgovernor.store import Store
 
 
 async def main():
-    root=Path('.rimbot/bridge').resolve();evidence={}
+    root=Path('.rimgovernor/bridge').resolve();evidence={}
     async with bridge_session(gabs_executable(root),prepare(root)) as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
-        await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
+        await bridge.call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
         await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
         store=Store(root/'research-smoke.sqlite');rt=BridgeRuntime(store,root,headless=True)
         rt.bridge=bridge;rt.game=BridgeGame(bridge);await rt.sync_identity();rt.mode='automate'

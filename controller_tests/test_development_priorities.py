@@ -3,9 +3,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.colony_plan import ColonyPlan, ColonyGoal, PlanStep, StepProgress
-from rimbot.colony_policy import ColonyPolicy
-from rimbot.development_priorities import arbitrate, committed_projects, release_admission
+from rimgovernor.colony_plan import ColonyPlan, ColonyGoal, PlanStep, StepProgress
+from rimgovernor.colony_policy import ColonyPolicy
+from rimgovernor.development_priorities import arbitrate, committed_projects, release_admission
 from test_colony_controller import Replay, roster
 
 

@@ -1,9 +1,9 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.bridge_game import BridgeGame, is_write
-from rimbot.bridge_observation import ObservationGateway
-from rimbot.scout import SCOUT_READS
+from rimgovernor.bridge_game import BridgeGame, is_write
+from rimgovernor.bridge_observation import ObservationGateway
+from rimgovernor.scout import SCOUT_READS
 
 
 @pytest.mark.asyncio

@@ -3,14 +3,14 @@ from unittest.mock import AsyncMock,Mock
 
 import pytest
 
-from rimbot.colony_plan import ColonyPlan
-from rimbot.colony_skills import ColonySkills
+from rimgovernor.colony_plan import ColonyPlan
+from rimgovernor.colony_skills import ColonySkills
 from test_construction_preflight import native_reply
 
 
 def fixture(monkeypatch):
     candidates=[dict(room=dict(x=x,z=10,width=9,height=9),farm=None,farms=[]) for x in (10,30)]
-    monkeypatch.setattr('rimbot.colony_skills.starter_layouts',lambda _:candidates)
+    monkeypatch.setattr('rimgovernor.colony_skills.starter_layouts',lambda _:candidates)
     async def invoke(name,args,**kwargs):
         result=native_reply(name,args,canPlace=True)
         if name=='home/place_building':

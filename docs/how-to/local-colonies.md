@@ -5,7 +5,7 @@
 Start the standalone Outpost directory from the checkout root:
 
 ```powershell
-docker compose -p rimbot-colonies -f containers/colonies.compose.yaml up --build -d
+docker compose -p rimgovernor-colonies -f containers/colonies.compose.yaml up --build -d
 ```
 
 Open [Local colonies](http://127.0.0.1:8790/colonies). This container serves only the
@@ -20,17 +20,17 @@ permissions; keep this developer-only service bound to loopback. It does not
 start, stop, attach to or modify workers. Stop this directory alone with:
 
 ```powershell
-docker compose -p rimbot-colonies -f containers/colonies.compose.yaml down
+docker compose -p rimgovernor-colonies -f containers/colonies.compose.yaml down
 ```
 
-Set `RIMBOT_COLONIES_PORT` before launch to change the directory's host port. To run
-without a container after building the dashboard, use `python -m rimbot --colonies
+Set `RIMGOVERNOR_COLONIES_PORT` before launch to change the directory's host port. To run
+without a container after building the dashboard, use `python -m rimgovernor --colonies
 --port 8790`. The host variant reads Docker through its CLI, including standard
 Docker Desktop installation locations on Windows. Use a local Docker engine;
 the generated browser links point to this computer.
 
 Workers using `containers/compose.yaml` publish their dashboard automatically.
-Set `RIMBOT_COLONY_NAME` for a friendly name; otherwise the container name appears.
+Set `RIMGOVERNOR_COLONY_NAME` for a friendly name; otherwise the container name appears.
 Use the [standard scenario launcher](scenario-launcher.md) for script-based native
 tests. It publishes an automatic loopback port, and the worker enables a passive
 dashboard on the script's existing `BridgeRuntime`. The specialized population,

@@ -58,7 +58,7 @@ async def runtime_file_read(operation, *args, **kwargs):
 
 
 class BridgeClient:
-    def __init__(self, session: ClientSession, game_id: str = "rimbot-trial"):
+    def __init__(self, session: ClientSession, game_id: str = "rimgovernor-trial"):
         self.session = session
         self.game_id = game_id
         self.request_lock = asyncio.Lock()
@@ -169,15 +169,15 @@ class BridgeClient:
 
 
 @asynccontextmanager
-async def bridge_session(executable: Path, config_dir: Path, game_id="rimbot-trial"):
-    log_level = os.environ.get('RIMBOT_GABS_LOG_LEVEL', 'error')
+async def bridge_session(executable: Path, config_dir: Path, game_id="rimgovernor-trial"):
+    log_level = os.environ.get('RIMGOVERNOR_GABS_LOG_LEVEL', 'error')
     if log_level not in ('debug', 'info', 'warn', 'error'):
-        raise ValueError('RIMBOT_GABS_LOG_LEVEL must be debug, info, warn or error')
+        raise ValueError('RIMGOVERNOR_GABS_LOG_LEVEL must be debug, info, warn or error')
     parameters = StdioServerParameters(command=str(executable.resolve()), args=[
         "server", "stdio", "--configDir", str(config_dir.resolve()),
         "--log-level", log_level], env={key: os.environ[key] for key in (
             'DISPLAY', 'XAUTHORITY', 'XDG_RUNTIME_DIR', 'LIBGL_ALWAYS_SOFTWARE',
-            'GALLIUM_DRIVER', 'LP_NUM_THREADS', 'RIMBOT_PRIVATE_DISPLAY', 'RIMBOT_VIDEO_READBACK',
+            'GALLIUM_DRIVER', 'LP_NUM_THREADS', 'RIMGOVERNOR_PRIVATE_DISPLAY', 'RIMGOVERNOR_VIDEO_READBACK',
             'LD_LIBRARY_PATH', 'MESA_D3D12_DEFAULT_ADAPTER_NAME') if key in os.environ})
     async with stdio_client(parameters) as (reader, writer):
         async with ClientSession(reader, writer, read_timeout_seconds=timedelta(seconds=120)) as session:
@@ -198,6 +198,6 @@ def gabs_executable(root, configuration=None):
     root = Path(root).resolve()
     directory = Path(configuration) if configuration is not None else root/'config'
     config = json.loads((directory/'config.json').read_text(encoding='utf8'))
-    configured = config.get('rimbot', {}).get('gabsExecutable')
+    configured = config.get('rimgovernor', {}).get('gabsExecutable')
     path = Path(configured) if configured else Path('gabs/gabs-v1.1.1-windows-amd64/gabs.exe')
     return path if path.is_absolute() else root/path

@@ -1,7 +1,7 @@
 from copy import deepcopy
 import pytest
 from test_colony_controller import Replay
-from rimbot.colony_plan import ColonyGoal, CommitSteps, StepProgress
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps, StepProgress
 
 
 async def fixture(source='AUTOPILOT'):

@@ -7,14 +7,14 @@ attempts.
 
 Run commands from the repository root. Native probes require a disposable prepared
 profile and their stated fixture; run `--help` for the selected script. Keep outputs
-under a fresh `.rimbot/` directory, preserve failures, and never replace installed DLLs
+under a fresh `.rimgovernor/` directory, preserve failures, and never replace installed DLLs
 while any RimWorld instance is running. Container inputs use private snapshots.
 
 For the production deterministic bootstrap, run:
 
 ```powershell
 $env:PYTHONPATH='controller'
-.venv\Scripts\python.exe scripts\deterministic_foothold.py --source-root .rimbot/bridge --output .rimbot/deterministic-new --seconds 1800 --speed Superfast
+.venv\Scripts\python.exe scripts\deterministic_foothold.py --source-root .rimgovernor/bridge --output .rimgovernor/deterministic-new --seconds 1800 --speed Superfast
 ```
 
 The default is a fresh isolated headless profile; add `--rendered` for a visible game.
@@ -103,8 +103,8 @@ food replacement.
 ## Repeated model campaigns
 
 ```powershell
-.venv\Scripts\python.exe scripts\headless_iterations.py --iterations 20 --parallel 2 --output .rimbot/campaign-new
-.venv\Scripts\python.exe scripts\parallel_headless_smoke.py --output .rimbot/parallel-new
+.venv\Scripts\python.exe scripts\headless_iterations.py --iterations 20 --parallel 2 --output .rimgovernor/campaign-new
+.venv\Scripts\python.exe scripts\parallel_headless_smoke.py --output .rimgovernor/parallel-new
 ```
 
 Use fresh output directories, prepared baseline/mods and local LM Studio. Each worker

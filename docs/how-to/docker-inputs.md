@@ -13,7 +13,7 @@ runs dashboard typechecking/tests/build; the `tests` target runs the Python suit
 Windows-specific tests skip on Linux. Native acceptance is separate. Compose workers set
 `gc-max-time-slice=0` in their private Unity boot.config to mitigate observed Mono
 startup crashes. Original game inputs remain unchanged. Set
-`RIMBOT_UNITY_GC_TIME_SLICE=source` to preserve the original setting for comparisons.
+`RIMGOVERNOR_UNITY_GC_TIME_SLICE=source` to preserve the original setting for comparisons.
 The source boot hash, prepared boot hash and effective override are retained in
 `staging.json`/`inputs.json`. The [named runner](native-scenarios.md) supports repeated
 original/overridden GC trials, exact paused startup, three-day endurance and sampled
@@ -21,12 +21,12 @@ resource comparisons. These are bounded observations, not a native GC-pause prof
 Windows game executables cannot run in this image. Supply your licensed Linux RimWorld
 installation (including Data/Mono files), a Linux amd64 GABS executable named `gabs`, a
 complete `Mods` directory, and a prepared profile containing `Config/Prefs.xml`,
-`Config/ModsConfig.xml` and `Saves/RimBot-tribal8-baseline.rws`. The save is copied
+`Config/ModsConfig.xml` and `Saves/RimGovernor-tribal8-baseline.rws`. The save is copied
 unchanged.
 
 The mod directory must contain Core/DLC content where required by the game, Harmony,
-RimBridgeServer, RimBotObservations (including its identity assembly and BridgeTools)
-and RimBotHeadless. Resolve workshop links into this snapshot and match the active
+RimBridgeServer, RimGovernorObservations (including its identity assembly and BridgeTools)
+and RimGovernorHeadless. Resolve workshop links into this snapshot and match the active
 package IDs in ModsConfig.xml. Build task DLLs into a private staging directory using
 the native projects' path properties; do not use `-Install` on a shared running Windows
 installation. Finish staging all inputs before launch. Images contain
@@ -52,7 +52,7 @@ evidence. Never put licensed inputs in Git or images.
 
 Copy Harmony and the complete RimBridgeServer mod into the private mod directory. Build
 task-local companion binaries against the Linux references, then copy their
-About/Assemblies/BridgeTools folders into private RimBotObservations and RimBotHeadless
+About/Assemblies/BridgeTools folders into private RimGovernorObservations and RimGovernorHeadless
 directories. For example (use an available .NET SDK):
 
 ```powershell
@@ -67,7 +67,7 @@ install these task builds into the shared Windows game.
 ## Reuse Docker input snapshots
 
 The native acceptance runner automatically caches the game, mods and GABS in a local
-Docker volume named `rimbot-inputs-v1-<sha256>`. It hashes all source file contents on
+Docker volume named `rimgovernor-inputs-v1-<sha256>`. It hashes all source file contents on
 the host, excluding the game's `Mods` directory in favor of the explicit mod input.
 Changed files, additions and removals select a different volume even when sizes and
 timestamps are unchanged. Symlinks are dereferenced; directory cycles are refused.
@@ -90,8 +90,8 @@ when measuring end-to-end savings; a first upload is additional setup work.
 For manual Compose runs, prepare a snapshot with the same built worker image:
 
 ```powershell
-python scripts/container_input_cache.py --game <linux-game> --mods <private-mods> --gabs <linux-gabs-directory> --image rimbot-worker:my-task --output .rimbot/cache-01
-docker compose -f containers/compose.yaml -f .rimbot/cache-01/cache-compose.json up --no-build
+python scripts/container_input_cache.py --game <linux-game> --mods <private-mods> --gabs <linux-gabs-directory> --image rimgovernor-worker:my-task --output .rimgovernor/cache-01
+docker compose -f containers/compose.yaml -f .rimgovernor/cache-01/cache-compose.json up --no-build
 ```
 
 Set the normal Compose input/output environment variables first. The profile still

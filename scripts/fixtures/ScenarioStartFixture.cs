@@ -46,7 +46,7 @@ namespace HomeBridge.BridgeTools
                 part.pawnChoiceCount = Math.Max(count, part.pawnChoiceCount);
                 if (!patched)
                 {
-                    new Harmony("rimbot.test.scenario-start").Patch(
+                    new Harmony("rimgovernor.test.scenario-start").Patch(
                         AccessTools.Method(typeof(Root_Play), nameof(Root_Play.SetupForQuickTestPlay)),
                         prefix: new HarmonyMethod(typeof(ScenarioStartFixture), nameof(Start)));
                     patched = true;

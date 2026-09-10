@@ -1,21 +1,21 @@
 """Change ordinary stock after bill admission and verify final consumption protection."""
-from rimbot.native_scenario import advance_game
+from rimgovernor.native_scenario import advance_game
 import argparse,asyncio,hashlib,inspect,json,shutil,time,traceback
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge import runtime_file_read
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.headless import isolated_root,prepare
-from rimbot.session_checkpoint import read_checkpoint
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge import runtime_file_read
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.headless import isolated_root,prepare
+from rimgovernor.session_checkpoint import read_checkpoint
+from rimgovernor.store import Store
 from deterministic_foothold import NoInference
 from session_checkpoint_acceptance import ready
 
 async def run(args):
     data=read_checkpoint(args.checkpoint)
     root=isolated_root(Path(data['root']),args.output/'bridge')
-    shutil.copy2(args.checkpoint.parent/'game.rws',root/'profile/Saves/RimBot-tribal8-baseline.rws')
+    shutil.copy2(args.checkpoint.parent/'game.rws',root/'profile/Saves/RimGovernor-tribal8-baseline.rws')
     config=prepare(root);store=Store(args.output/'state.sqlite')
     rt=BridgeRuntime(store,root,fresh=True,headless=True,model_factory=lambda _:NoInference())
     report={'outcome':'failed','checkpoint':str(args.checkpoint),'checkpoint_data':data,'cases':[],'save_edits':[]}
@@ -56,13 +56,13 @@ async def run(args):
         needed=next(x['needed'] for x in recipe['ingredients'][0]['costOptions'] if x['defName']=='WoodLog')
         floor=wood-needed
         rt.current_plan.control['resource_policy']={'WoodLog':{'reserve':floor,'spending':'normal'}}
-        from rimbot.production_policy import sync_production_policy
+        from rimgovernor.production_policy import sync_production_policy
         async with rt.lock:await sync_production_policy(rt)
         roster=await rt.game.query('home/list_pawns',colonistsOnly=True,work=True,health=True)
         admitted=await order();record('native_job_admitted',True,receipt=admitted,wood=wood,floor=floor,quantity=needed)
         for i in range(40):
             await window(100)
-            snap=await snapshot('RimBot-consumption-working')
+            snap=await snapshot('RimGovernor-consumption-working')
             report['latest']=snap
             if snap['unfinished']:break
         else:raise AssertionError('No native unfinished work observed before timeout')
@@ -89,13 +89,13 @@ async def run(args):
         report['forbidden_cell']=cell
         before_forbid=await facts()
         report['ordinary_forbid']=await rt.game.invoke('rimworld/apply_architect_designator',dict(designatorId=forbidden,x=cell['x'],z=cell['z'],keepSelected=False),allow_write=True)
-        after_forbid=await facts();same_job=await snapshot('RimBot-consumption-stock-changed')
+        after_forbid=await facts();same_job=await snapshot('RimGovernor-consumption-stock-changed')
         current=next(x for x in same_job['jobs'] if x['id']==working['id'])
         record('stock_changed_after_admission',after_forbid['resources']['WoodLog']<before_forbid['resources']['WoodLog']
             and ET.fromstring(current['job']).findtext('curJob/loadID')==job_id,
             before=before_forbid['resources'],after=after_forbid['resources'],snapshot=same_job)
         await window(3000)
-        refused=await snapshot('RimBot-consumption-refused');observed=await facts()
+        refused=await snapshot('RimGovernor-consumption-refused');observed=await facts()
         kept=next((ET.fromstring(x) for x in refused['unfinished'] if ET.fromstring(x).findtext('id')==unfinished_id),None)
         record('consumption_refused_preserves_unfinished',kept is not None and float(kept.findtext('workLeft'))<=0
             and ET.tostring(kept.find('ingredients'),encoding='unicode')==ingredients

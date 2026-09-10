@@ -6,7 +6,7 @@ using RimBridgeServer.Sdk;
 using RimWorld;
 using Verse;
 
-namespace RimBot.CombatFixtures
+namespace RimGovernor.CombatFixtures
 {
     // Disposable scenario entry only. Production/model capability policy excludes test/*.
     public sealed class CombatFixture

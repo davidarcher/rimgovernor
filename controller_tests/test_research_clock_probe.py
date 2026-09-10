@@ -4,8 +4,8 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
 from mcp.types import CallToolResult
-from rimbot.bridge import BridgeError
-from rimbot.clock_control import PlayClock
+from rimgovernor.bridge import BridgeError
+from rimgovernor.clock_control import PlayClock
 
 spec = importlib.util.spec_from_file_location('research_acceptance', Path(__file__).resolve().parents[1]/'scripts/research_acceptance.py')
 probe = importlib.util.module_from_spec(spec)

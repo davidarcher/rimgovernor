@@ -96,7 +96,7 @@ _observers = weakref.WeakKeyDictionary()
 
 
 def attach(runtime):
-    if os.environ.get('RIMBOT_SCENARIO_DASHBOARD') != '1':
+    if os.environ.get('RIMGOVERNOR_SCENARIO_DASHBOARD') != '1':
         return
     try:
         loop = asyncio.get_running_loop()

@@ -1,4 +1,4 @@
-"""Stock RimMolt + local OpenAI-compatible model comparison. No RimBot runtime.
+"""Stock RimMolt + local OpenAI-compatible model comparison. No RimGovernor runtime.
 
 The already-loaded disposable colony is the test fixture. This client only adapts
 MCP tools to chat-completion tools, logs the exchange and pauses on exit.
@@ -31,7 +31,7 @@ def assemble(chunks):
 
 
 async def run(args):
-    folder=Path(args.output or ('.rimbot/rimmolt-comparison/'+time.strftime('%Y%m%d-%H%M%S')))
+    folder=Path(args.output or ('.rimgovernor/rimmolt-comparison/'+time.strftime('%Y%m%d-%H%M%S')))
     folder.mkdir(parents=True,exist_ok=True)
     started=time.monotonic()
     def log(kind,**values):

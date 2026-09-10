@@ -1,12 +1,12 @@
 """Retain a real native Hunt designation's exact target through archival and simulation."""
 import argparse,asyncio,json,time,traceback
 from pathlib import Path
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.colony_plan import ColonyGoal,CommitSteps,Decision,PlanSpec
-from rimbot.headless import isolated_root,prepare
-from rimbot.hunting import screen_prey
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.colony_plan import ColonyGoal,CommitSteps,Decision,PlanSpec
+from rimgovernor.headless import isolated_root,prepare
+from rimgovernor.hunting import screen_prey
+from rimgovernor.store import Store
 from deterministic_foothold import NoInference
 from lifecycle_measurement import ledger_sample
 from session_checkpoint_acceptance import ready

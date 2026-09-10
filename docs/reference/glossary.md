@@ -2,7 +2,7 @@
 
 [Documentation](../README.md) · Reference
 
-| Term | Meaning in RimBot |
+| Term | Meaning in RimGovernor |
 | --- | --- |
 | Colony identity | Native identity used to scope persistent goals, policies and history. |
 | Load token | Identity of the current loaded game context; old in-flight work cannot carry it into another load. |
@@ -22,7 +22,7 @@
 | Fixture | A declared test input or scenario setup. A native-shaped Python fixture is not a live game observation. |
 | GABS | The process used to discover and call the installed game bridge tools. |
 | RimBridgeServer | The native bridge providing general game and UI tools; the colony companion extends its capabilities. |
-| Outpost | The dashboard's display name; repository and package names remain RimBot. |
+| Outpost | The dashboard's display name; repository and package names remain RimGovernor. |
 
 See [plans and Hands](../explanation/plans-and-hands.md), [session
 contracts](session-contracts.md) and [testing and evidence](../explanation/testing.md)

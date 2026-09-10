@@ -1,8 +1,8 @@
 from copy import deepcopy
 from types import SimpleNamespace
 import pytest
-from rimbot.colony_plan import ColonyPlan, ColonyGoal
-from rimbot.research import prerequisite_queue, refresh, method, selected, eligible_researchers, validate_dispatch
+from rimgovernor.colony_plan import ColonyPlan, ColonyGoal
+from rimgovernor.research import prerequisite_queue, refresh, method, selected, eligible_researchers, validate_dispatch
 
 
 def project(name, deps=()):
@@ -77,7 +77,7 @@ async def test_missing_basic_laboratory_uses_shared_native_construction(monkeypa
     assert goal.status=='active' and goal.evidence['research']['build_laboratory']=='SimpleResearchBench'
     from unittest.mock import AsyncMock
     placement=AsyncMock(return_value={'kind':'place_buildings','placements':[{'def_name':'SimpleResearchBench','x':1,'z':2}]})
-    monkeypatch.setattr('rimbot.development.placement',placement)
+    monkeypatch.setattr('rimgovernor.development.placement',placement)
     _,actions=await method(rt,facts)
     assert actions[0]['kind']=='place_buildings'
     placement.assert_awaited_once_with(rt,facts,'SimpleResearchBench',indoors=True,goal=goal)
@@ -90,9 +90,9 @@ async def test_controller_retains_research_returned_by_native_preparation(monkey
     async def prepared(runtime,*args):
         runtime.current_plan.colony_goals['EnsureResearch']=ColonyGoal(priority_class=3)
         return [('EnsureResearch',3)]
-    monkeypatch.setattr('rimbot.research.refresh',prepared)
+    monkeypatch.setattr('rimgovernor.research.refresh',prepared)
     from unittest.mock import AsyncMock
-    monkeypatch.setattr('rimbot.research.method',AsyncMock(return_value=None))
+    monkeypatch.setattr('rimgovernor.research.method',AsyncMock(return_value=None))
     await rt.controller.cycle()
     assert rt.current_plan.colony_goals['EnsureResearch'].status!='complete'
 
@@ -161,7 +161,7 @@ async def test_no_speculative_research_reads_without_need():
 
 
 def test_laboratory_power_and_facilities_belong_to_the_same_bench():
-    from rimbot.research import usable_laboratories
+    from rimgovernor.research import usable_laboratories
     target = dict(requiredResearchBuilding='HiTech', requiredResearchFacilities=['Analyzer'])
     benches = {'benches': [dict(defName='Simple', powered=True, facilities=[dict(defName='Analyzer', active=True)]),
                            dict(defName='HiTech', powered=False, facilities=[])]}
@@ -172,7 +172,7 @@ def test_laboratory_power_and_facilities_belong_to_the_same_bench():
 
 @pytest.mark.asyncio
 async def test_prepared_research_cannot_outlive_cancelled_owner_or_changed_direction():
-    from rimbot.research import validate_dispatch
+    from rimgovernor.research import validate_dispatch
     rt = Runtime(); facts, people, nodes = inputs()
     await refresh(rt, facts, people, nodes)
     _, actions = await method(rt)
@@ -199,7 +199,7 @@ async def test_research_state_round_trip_does_not_reselect_owned_project():
 
 
 def test_unavailable_construction_records_a_research_bottleneck():
-    from rimbot.colony_skills import ColonySkills, SkillBlocked
+    from rimgovernor.colony_skills import ColonySkills, SkillBlocked
     rt = Runtime()
     with pytest.raises(SkillBlocked, match='No available observed construction definition'):
         ColonySkills(rt).steps('EnsureCooking', 'stove',
@@ -210,8 +210,8 @@ def test_unavailable_construction_records_a_research_bottleneck():
 
 @pytest.mark.parametrize('state', ['cancelled', 'advisor'])
 def test_cancelled_and_advisory_pending_steps_cannot_request_research(state):
-    from rimbot.colony_plan import PlanStep, StepProgress
-    from rimbot.research import needs
+    from rimgovernor.colony_plan import PlanStep, StepProgress
+    from rimgovernor.research import needs
     rt = Runtime(); facts, people, nodes = inputs()
     goal = rt.current_plan.colony_goals['EnsureCooking']
     if state == 'cancelled': goal.cancelled = True
@@ -223,7 +223,7 @@ def test_cancelled_and_advisory_pending_steps_cannot_request_research(state):
 
 
 def test_research_work_demand_ends_with_the_goal():
-    from rimbot.production_policy import required_resource_work
+    from rimgovernor.production_policy import required_resource_work
     rt = Runtime()
     goal = rt.current_plan.colony_goals['EnsureResearch'] = ColonyGoal(priority_class=3,
         evidence={'research':{'queue':['A']}})
@@ -233,8 +233,8 @@ def test_research_work_demand_ends_with_the_goal():
 
 
 def test_research_shares_development_capacity_until_native_work_finishes():
-    from rimbot.development_priorities import arbitrate, committed_projects
-    from rimbot.colony_policy import ColonyPolicy
+    from rimgovernor.development_priorities import arbitrate, committed_projects
+    from rimgovernor.colony_policy import ColonyPolicy
     from test_colony_controller import roster
     rt = Runtime()
     plan = rt.current_plan

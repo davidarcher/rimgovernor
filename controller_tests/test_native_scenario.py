@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from rimbot.native_scenario import advance_game, ScenarioInterrupted
+from rimgovernor.native_scenario import advance_game, ScenarioInterrupted
 
 
 def scenario():
@@ -56,7 +56,7 @@ async def test_default_warning_resumes_only_remaining_ticks_and_records_evidence
 @pytest.mark.parametrize('change', ['none', 'injured', 'other_downed', 'missing', 'unknown'])
 async def test_medical_rest_warning_requires_fresh_exact_patient_safety(monkeypatch, change):
     rt, status, _, calls = scenario()
-    monkeypatch.setattr('rimbot.medical_management.resting_patients', lambda _: 'Patient1')
+    monkeypatch.setattr('rimgovernor.medical_management.resting_patients', lambda _: 'Patient1')
     status['colonists'][0].update(thingId='Patient1', downed=True)
     status['counts']['downedCount'] = 1
     patient = dict(thingId='Patient1', dead=False, downed=True, drafted=False,

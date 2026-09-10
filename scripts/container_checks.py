@@ -25,7 +25,7 @@ def docker_environment():
     return executable, environment
 
 
-def run(output, workers=1, image='rimbot-checks:local', build=True, timeout=600,
+def run(output, workers=1, image='rimgovernor-checks:local', build=True, timeout=600,
         tests=(), keyword=None, controller_only=False):
     if not 1 <= workers <= 8:
         raise ValueError('workers must be between 1 and 8')
@@ -48,7 +48,7 @@ def run(output, workers=1, image='rimbot-checks:local', build=True, timeout=600,
             raise RuntimeError(f'Image build failed; see {output / "build.log"}')
     image_id = command('image', 'inspect', '--format', '{{.Id}}', image,
                        check=True, capture_output=True, text=True).stdout.strip()
-    prefix = 'rimbot-check-'+uuid.uuid4().hex[:12]
+    prefix = 'rimgovernor-check-'+uuid.uuid4().hex[:12]
     began = time.monotonic()
     def worker(index):
         destination = output/str(index)
@@ -63,7 +63,7 @@ def run(output, workers=1, image='rimbot-checks:local', build=True, timeout=600,
             with (destination/'pytest.log').open('w', encoding='utf8') as log:
                 result = command('run', '--rm', '--init', '--name', name,
                     '--mount', f'type=bind,source={destination},target=/artifacts',
-                    '--entrypoint', 'python', image_id, '-m', 'pytest', '-q', '--basetemp=/tmp/rimbot-pytest',
+                    '--entrypoint', 'python', image_id, '-m', 'pytest', '-q', '--basetemp=/tmp/rimgovernor-pytest',
                     '--junitxml=/artifacts/junit.xml', '--durations=10', *selection,
                     stdout=log, stderr=subprocess.STDOUT, timeout=timeout)
             code = result.returncode
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--workers', type=int, choices=range(1, 9), default=1,
                         help='Independent repetitions of the selection, not shards (default: 1)')
-    parser.add_argument('--image', default='rimbot-checks:local')
+    parser.add_argument('--image', default='rimgovernor-checks:local')
     parser.add_argument('--no-build', action='store_true', help='Use the specified existing image')
     parser.add_argument('--timeout', type=int, default=600, help='Per-container wall-time limit in seconds')
     parser.add_argument('--test', action='append', default=[],

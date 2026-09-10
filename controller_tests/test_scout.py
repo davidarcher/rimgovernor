@@ -1,7 +1,7 @@
 import json
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.scout import investigate
+from rimgovernor.scout import investigate
 
 
 def call(name, arguments):

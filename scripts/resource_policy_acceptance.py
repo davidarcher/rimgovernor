@@ -1,17 +1,17 @@
 """Ordinary native bill consumption, reserve enforcement and resource acquisition."""
-from rimbot.native_scenario import advance_game
+from rimgovernor.native_scenario import advance_game
 import argparse
 import asyncio
 import json
 import time
 from pathlib import Path
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.headless import isolated_root, prepare, prepare_rendered
-from rimbot.store import Store
-from rimbot.player_commands import apply_command
-from rimbot.colony_plan import ColonyGoal, CommitSteps
-from rimbot.campaign_manifest import capture_manifest
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.headless import isolated_root, prepare, prepare_rendered
+from rimgovernor.store import Store
+from rimgovernor.player_commands import apply_command
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps
+from rimgovernor.campaign_manifest import capture_manifest
 
 
 class MissingFixture(ValueError):
@@ -111,7 +111,7 @@ async def run(args):
             result=await command(kind='CreateGoal',goal='MaintainResource',resource=resource,quantity=quantity)
             record('target_'+resource,rt.current_plan.colony_goals[result['goal']].target=={'resource':resource,'quantity':quantity},sources=source)
         if args.acquisition:
-            from rimbot.production_policy import resource_method
+            from rimgovernor.production_policy import resource_method
             async def dispatch_acquisition(goal_id, method, actions, observed):
                 steps,_=rt.controller.skills.steps(goal_id,method,actions,observed)
                 await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
@@ -177,7 +177,7 @@ async def run(args):
                     and await stock(resource)>before_native,before=before_native,after=await stock(resource),
                     goal=goal.model_dump(mode='json'),tick=observed['tick'])
         if args.persistence:
-            from rimbot.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
+            from rimgovernor.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
             expected_policy=json.loads(json.dumps(rt.current_plan.control.get('resource_policy',{})))
             expected_native=(await bills(bench))['benches'][0]['bills'][0]['config']
             checkpoint=await create_checkpoint(rt,rt.context_token)

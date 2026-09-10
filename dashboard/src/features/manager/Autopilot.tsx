@@ -38,7 +38,7 @@ export default function Autopilot({settings,plan,sessionId,connected,mode,onSave
   try{
    const changes=Object.fromEntries(settings.fields.filter(f=>f.editable&&String(settings.values[f.key])!==draft[f.key]).map(f=>[f.key,f.key==='execution_speed'?draft[f.key]:Number(draft[f.key])]));
    if(!Object.keys(changes).length){setDirty(false);return;}
-   const response=await fetch('/api/autopilot/settings',{method:'POST',headers:{'Content-Type':'application/json','X-RimBot':'1'},body:JSON.stringify({session_id:sessionId,expected_version:base,changes})});
+   const response=await fetch('/api/autopilot/settings',{method:'POST',headers:{'Content-Type':'application/json','X-RimGovernor':'1'},body:JSON.stringify({session_id:sessionId,expected_version:base,changes})});
    const data=await response.json();if(!response.ok)throw Error(typeof data.detail==='string'?data.detail:'Check the setting values and try again.');
    onSaved(data);setBase(data.version);setDirty(false);setMessage('Settings saved. Autopilot will use them on its next review.');
   }catch(e){setError(String(e).replace(/^Error: /,''));}finally{setSaving(false);}

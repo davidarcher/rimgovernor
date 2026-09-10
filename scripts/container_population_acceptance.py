@@ -14,7 +14,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     for name in ('game','mods','profile','gabs','output'):
         parser.add_argument('--'+name,type=Path,required=True)
-    parser.add_argument('--image',default='rimbot-b22:worker')
+    parser.add_argument('--image',default='rimgovernor-b22:worker')
     parser.add_argument('--no-build',action='store_true')
     parser.add_argument('--display', choices=['headless', 'xvfb'], default='headless')
     parser.add_argument('--candidate-kind', choices=['Villager', 'SpaceRefugee_Clothed'], default='SpaceRefugee_Clothed')
@@ -31,7 +31,7 @@ def main():
             call('build','-f','containers/Dockerfile','--target','worker','-t',args.image,'.',
                  stdout=log,stderr=subprocess.STDOUT,check=True,timeout=1800)
     image=call('image','inspect','--format','{{.Id}}',args.image,capture_output=True,text=True,check=True).stdout.strip()
-    name='rimbot-b22-'+uuid.uuid4().hex[:10]
+    name='rimgovernor-b22-'+uuid.uuid4().hex[:10]
     require_dashboard_image(call, image)
     mounts=[]
     for key in ('game','mods','profile','gabs'):
@@ -44,8 +44,8 @@ def main():
     try:
         with (output/'container.log').open('w') as log:
             result=call('run','--rm','--init','--name',name,*dashboard_options(name, args.display),
-                '-e','RIMBOT_POPULATION_KIND='+args.candidate_kind, '-e','RIMBOT_POPULATION_SECONDS='+str(args.seconds),
-                '-e','RIMBOT_DISPLAY='+args.display,*mounts,image,
+                '-e','RIMGOVERNOR_POPULATION_KIND='+args.candidate_kind, '-e','RIMGOVERNOR_POPULATION_SECONDS='+str(args.seconds),
+                '-e','RIMGOVERNOR_DISPLAY='+args.display,*mounts,image,
                 '--display',args.display,'--unity-gc-time-slice','0','--','python','/worker/probe.py',
                 stdout=log,stderr=subprocess.STDOUT,timeout=args.seconds+600)
         report['exit_code']=result.returncode

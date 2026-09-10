@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.bridge_game import BridgeGame, is_write
+from rimgovernor.bridge_game import BridgeGame, is_write
 
 
 @pytest.mark.parametrize('args,expected',[({},False),({'set':'Project'},True),

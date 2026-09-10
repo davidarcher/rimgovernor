@@ -1,5 +1,5 @@
 """One-time migration of a paused legacy server through the existing GABS transport."""
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import argparse
 import asyncio
 import json
@@ -11,14 +11,14 @@ import sys
 import time
 import uuid
 import httpx
-from rimbot.bridge import bridge_session
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_observation import observe
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.session_checkpoint import create_checkpoint, profile_path, stop_for_restart
-from rimbot.store import Store
-from rimbot.windows_process import ProcessHandle
-from rimbot.colony_plan import ColonyPlan
+from rimgovernor.bridge import bridge_session
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_observation import observe
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.session_checkpoint import create_checkpoint, profile_path, stop_for_restart
+from rimgovernor.store import Store
+from rimgovernor.windows_process import ProcessHandle
+from rimgovernor.colony_plan import ColonyPlan
 
 
 def retain_game_process(runtime):
@@ -31,7 +31,7 @@ def retain_game_process(runtime):
 
 
 def read_game_claim(config, runtime):
-    claim = json.loads((Path(config)/'rimbot-trial/runtime.json').read_text(encoding='utf8'))
+    claim = json.loads((Path(config)/'rimgovernor-trial/runtime.json').read_text(encoding='utf8'))
     if claim.get('gamePid') != runtime.get('gamePid'):
         raise ValueError('Native process changed while inspecting ownership')
     return claim
@@ -97,7 +97,7 @@ async def migrate(args):
         game_process = None
         try:
             if not args.recover_disconnected:
-                response=await client.post('/api/control',json={'mode':'manual'},headers={'X-RimBot':'1'})
+                response=await client.post('/api/control',json={'mode':'manual'},headers={'X-RimGovernor':'1'})
                 response.raise_for_status()
             state=(await client.get('/api/state')).json()
             if not state['connected'] or state['mode']!='manual' or not state['game']['paused']:
@@ -151,10 +151,10 @@ async def migrate(args):
                                 boundary(work, report, 'controller_stopped')
                             finally: await rt.router.close()
                     finally: store.close()
-            env=dict(os.environ,PYTHONPATH=str(source/'controller'),RIMBOT_MODEL=state['chatModel'])
-            env.pop('RIMBOT_RESUME_CHECKPOINT',None)
+            env=dict(os.environ,PYTHONPATH=str(source/'controller'),RIMGOVERNOR_MODEL=state['chatModel'])
+            env.pop('RIMGOVERNOR_RESUME_CHECKPOINT',None)
             with (work/'restart.out.log').open('w') as out,(work/'restart.err.log').open('w') as err:
-                subprocess.Popen([sys.executable,'-m','rimbot','--resume',checkpoint['manifest_path'],'--port',str(args.port)],
+                subprocess.Popen([sys.executable,'-m','rimgovernor','--resume',checkpoint['manifest_path'],'--port',str(args.port)],
                     cwd=source,env=env,stdin=subprocess.DEVNULL,stdout=out,stderr=err,
                     creationflags=subprocess.CREATE_NO_WINDOW|subprocess.CREATE_NEW_PROCESS_GROUP)
             boundary(work, report, 'replacement_started')
@@ -181,7 +181,7 @@ async def migrate(args):
                 print('Migration interrupted. Native progress and recovery artifacts are retained at '+str(work),file=sys.stderr)
                 print('After ownership handoff the legacy connection cannot be restored automatically. '
                       'If its native game is still paused, retry with --recover-disconnected; '
-                      'if the game has stopped, use the retained checkpoint with python -m rimbot --resume.',file=sys.stderr)
+                      'if the game has stopped, use the retained checkpoint with python -m rimgovernor --resume.',file=sys.stderr)
             raise
         finally:
             if game_process: game_process.close()

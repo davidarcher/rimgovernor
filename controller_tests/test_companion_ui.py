@@ -1,11 +1,11 @@
 from copy import deepcopy
-from rimbot.bridge_game import for_model, READS
-from rimbot.vendor.companion_ui import slim_surface
+from rimgovernor.bridge_game import for_model, READS
+from rimgovernor.vendor.companion_ui import slim_surface
 import pytest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.store import Store
 
 
 def label(text, x=0, y=0):

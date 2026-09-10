@@ -8,13 +8,13 @@ from pathlib import Path
 
 from deterministic_foothold import NoInference
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_observation import observe
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.colony_plan import ColonyGoal, CommitSteps
-from rimbot.colony_upkeep import upkeep_nodes, upkeep_method, reconcile_upkeep
-from rimbot.headless import isolated_root, prepare
-from rimbot.store import Store
+from rimgovernor.bridge_observation import observe
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps
+from rimgovernor.colony_upkeep import upkeep_nodes, upkeep_method, reconcile_upkeep
+from rimgovernor.headless import isolated_root, prepare
+from rimgovernor.store import Store
 
 
 async def run(args):
@@ -36,7 +36,7 @@ async def run(args):
     async def advance():
         status = await rt.game.query('home/status', colonists=False, threats=True)
         assert status['threats'].get('hostileCount') == 0 and status['threats'].get('huntingPredatorCount') == 0
-        from rimbot.native_scenario import advance_game
+        from rimgovernor.native_scenario import advance_game
         await advance_game(rt, 400, report)
         rt.batch = await observe(rt.game)
         await rt.projects.reconcile(rt.game, plan=rt.current_plan)
@@ -105,7 +105,7 @@ async def run(args):
                 assert row['current'] != row['origin'], 'Blueprint receipt cannot be the finished wall identity'
         report['construction_lineage'] = lineage
         assert sum(r['failures'] for r in lineage) >= 1, 'Declared native construction fumble was not exercised'
-        from rimbot.construction_ownership import owned_buildings
+        from rimgovernor.construction_ownership import owned_buildings
         report['owned_buildings'] = owned_buildings(rt.current_plan, facts)
         assert len(report['owned_buildings']) == len(lineage), 'Every completed room piece needs both receipt and native lineage'
         if getattr(args, 'home_coverage', False):
@@ -134,7 +134,7 @@ async def run(args):
         assert delivery['source'] == report['setup']['medicine'] and not delivery['blocker']
         report['quantity_contract'] = (await rt.bridge.call('test/haul_quantity_contract')).structuredContent
         assert report['quantity_contract']['success'], report['quantity_contract']
-        from rimbot.session_checkpoint import create_checkpoint, stop_for_restart, prepare_resume
+        from rimgovernor.session_checkpoint import create_checkpoint, stop_for_restart, prepare_resume
         rt.execution_task = None
         report['before_restart'] = await rt.game.query('home/colony_facts', planning=True)
         checkpoint = await create_checkpoint(rt, rt.context_token)

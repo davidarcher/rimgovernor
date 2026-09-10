@@ -4,13 +4,13 @@ import asyncio
 import json
 from pathlib import Path
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.config import Settings
-from rimbot.player_commands import apply_command
-from rimbot.session_checkpoint import prepare_resume,create_checkpoint
-from rimbot.shelter_handoff import safe_rotation
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.config import Settings
+from rimgovernor.player_commands import apply_command
+from rimgovernor.session_checkpoint import prepare_resume,create_checkpoint
+from rimgovernor.shelter_handoff import safe_rotation
+from rimgovernor.store import Store
 
 async def run(args):
     source=json.loads(args.thermal_report.read_text());assert source['outcome']=='passed'

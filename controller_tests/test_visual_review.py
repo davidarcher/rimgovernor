@@ -3,9 +3,9 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
 from pydantic import ValidationError
-from rimbot.visual_review import review, Region
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.store import Store
+from rimgovernor.visual_review import review, Region
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.store import Store
 import io
 from PIL import Image
 
@@ -109,7 +109,7 @@ async def test_headless_never_uses_old_camera_image(tmp_path):
 async def test_image_consultation_captures_fresh_source_preserving_advice_schema(tmp_path):
     import base64
     import hashlib
-    from rimbot.consultation import Consultations
+    from rimgovernor.consultation import Consultations
     rt=BridgeRuntime(Store(tmp_path/'consult.sqlite'),tmp_path)
     rt.context_token='load';rt.sync_identity=AsyncMock(return_value=False)
     old=tmp_path/'old.png';old.write_bytes(b'old cached image');rt.camera_path=old

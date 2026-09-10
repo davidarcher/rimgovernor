@@ -5,17 +5,17 @@ import json
 import time
 import traceback
 from pathlib import Path
-from rimbot.bridge import bridge_session, gabs_executable
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_observation import observe
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.colony_plan import ColonyGoal, CommitSteps
-from rimbot.colony_policy import derive
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.headless import prepare
-from rimbot.medical_management import care_state
-from rimbot.player_commands import apply_command
-from rimbot.store import Store
+from rimgovernor.bridge import bridge_session, gabs_executable
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_observation import observe
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps
+from rimgovernor.colony_policy import derive
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.headless import prepare
+from rimgovernor.medical_management import care_state
+from rimgovernor.player_commands import apply_command
+from rimgovernor.store import Store
 
 
 async def run(args):
@@ -52,7 +52,7 @@ async def run(args):
             return facts, people
         async def window():
             assert time.monotonic()-began < args.seconds, 'Acceptance wall timeout'
-            from rimbot.surgery import recovery_patients
+            from rimgovernor.surgery import recovery_patients
             start = await rt.supervisor.change('Superfast', max_ticks=6000, surgical_recovery=recovery_patients(rt))
             assert start.get('active'), start
             async with asyncio.timeout(120):
@@ -80,7 +80,7 @@ async def run(args):
             await rt.hands.advance(rt)
         try:
             await bridge.core('games_start', gameId=bridge.game_id); await bridge.connect()
-            await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline', readiness='visual',
+            await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline', readiness='visual',
                 ignoreModCompatibility=True, timeoutMs=90000)
             await bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
             await rt.sync_identity(); rt.mode = 'automate'

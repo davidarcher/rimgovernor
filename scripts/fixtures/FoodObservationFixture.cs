@@ -65,7 +65,7 @@ namespace HomeBridge.BridgeTools
                 }
                 if (!patched)
                 {
-                    var harmony = new Harmony("rimbot.test.food-observation");
+                    var harmony = new Harmony("rimgovernor.test.food-observation");
                     harmony.Patch(AccessTools.Method(typeof(Thing), nameof(Thing.SplitOff)),
                         postfix: new HarmonyMethod(typeof(FoodObservationFixture), nameof(Split)));
                     harmony.Patch(AccessTools.Method(typeof(Thing), nameof(Thing.Ingested)),

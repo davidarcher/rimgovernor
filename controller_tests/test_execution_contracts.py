@@ -1,9 +1,9 @@
 from copy import deepcopy
 import pytest
 from jsonschema import Draft202012Validator
-from rimbot.colony_plan import CommitSteps
-from rimbot.consultation import structured_tool
-from rimbot.execution_contracts import ExecutionContracts
+from rimgovernor.colony_plan import CommitSteps
+from rimgovernor.consultation import structured_tool
+from rimgovernor.execution_contracts import ExecutionContracts
 
 
 def test_execution_requires_explicit_preview_or_write_intent():

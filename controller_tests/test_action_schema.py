@@ -1,9 +1,9 @@
 from copy import deepcopy
 import pytest
 from jsonschema import Draft202012Validator, ValidationError
-from rimbot.colony_plan import Decision
-from rimbot.consultation import structured_tool
-from rimbot.model import inference_tools
+from rimgovernor.colony_plan import Decision
+from rimgovernor.consultation import structured_tool
+from rimgovernor.model import inference_tools
 
 
 def test_wire_contract_requires_every_action_discriminator():

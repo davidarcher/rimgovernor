@@ -1,6 +1,6 @@
 from itertools import combinations
 
-from rimbot.supply_batches import supply_rectangles
+from rimgovernor.supply_batches import supply_rectangles
 
 
 def test_every_small_irregular_subset_preserves_exact_scope_without_overlap():

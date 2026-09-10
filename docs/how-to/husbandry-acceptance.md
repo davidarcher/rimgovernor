@@ -11,7 +11,7 @@ Do not replace DLLs in a running game or mutate inputs while staging.
 Run one isolated worker with a fresh output directory and task-specific image tag:
 
 ```powershell
-python scripts/container_husbandry_acceptance.py --game <linux-game> --mods <private-fixture-mods> --profile <prepared-profile> --gabs <linux-gabs-directory> --image rimbot-worker:my-husbandry-task --output .rimbot/husbandry-01
+python scripts/container_husbandry_acceptance.py --game <linux-game> --mods <private-fixture-mods> --profile <prepared-profile> --gabs <linux-gabs-directory> --image rimgovernor-worker:my-husbandry-task --output .rimgovernor/husbandry-01
 ```
 
 Replace placeholders with absolute paths. The runner builds and pins the worker

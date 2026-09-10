@@ -10,7 +10,7 @@ namespace HomeBridge.BridgeTools
         public GearOwnership(Game game) { }
         public override void ExposeData()
         {
-            Scribe_Collections.Look(ref Weapons, "rimbotUpkeepWeapons", LookMode.Value, LookMode.Value);
+            Scribe_Collections.Look(ref Weapons, "rimgovernorUpkeepWeapons", LookMode.Value, LookMode.Value);
             if (Weapons == null) Weapons = new Dictionary<string, string>();
         }
         public static GearOwnership State()

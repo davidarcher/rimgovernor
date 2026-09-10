@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools
         internal static void Install()
         {
             if (patched) return;
-            var harmony = new Harmony("rimbot.bounded-drilling");
+            var harmony = new Harmony("rimgovernor.bounded-drilling");
             harmony.Patch(AccessTools.Method(typeof(CompDeepDrill), "CanDrillNow"), postfix: new HarmonyMethod(typeof(DrillingGuard), nameof(Available)));
             harmony.Patch(AccessTools.Method(typeof(CompDeepDrill), "DrillWorkDone"),
                 prefix: new HarmonyMethod(typeof(DrillingGuard), nameof(Before)), postfix: new HarmonyMethod(typeof(DrillingGuard), nameof(After)));

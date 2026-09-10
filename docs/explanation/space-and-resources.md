@@ -76,9 +76,9 @@ stock need native readback. This is why production acceptance tests wait for paw
 rather than declaring success when a bill is accepted.
 
 The relevant source is
-[resource_accounting.py](../../controller/rimbot/resource_accounting.py),
-[construction_preflight.py](../../controller/rimbot/construction_preflight.py) and
-[production_policy.py](../../controller/rimbot/production_policy.py). Use [spatial
+[resource_accounting.py](../../controller/rimgovernor/resource_accounting.py),
+[construction_preflight.py](../../controller/rimgovernor/construction_preflight.py) and
+[production_policy.py](../../controller/rimgovernor/production_policy.py). Use [spatial
 contracts](../reference/spatial-contracts.md) for exact geometry bounds and [command
 contracts](../reference/command-contracts.md#provenance-and-resource-policies) for
 resource-policy semantics.

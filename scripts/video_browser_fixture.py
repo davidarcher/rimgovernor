@@ -10,8 +10,8 @@ import av
 import uvicorn
 from fastapi import Request
 from fastapi.responses import HTMLResponse, Response
-import rimbot.video_stream as video
-from rimbot.bridge_server import create_app
+import rimgovernor.video_stream as video
+from rimgovernor.bridge_server import create_app
 
 
 def fixture_app():
@@ -80,7 +80,7 @@ panel.style.cssText = 'position:fixed;bottom:8px;right:8px;z-index:9999;backgrou
 panel.textContent = 'Synthetic fixture: ';
 for (const [label, action] of [['Stall frames','stall'],['Resume frames','resume'],['Change session','load'],['Resize frames','resize']]) {
  const button = document.createElement('button'); button.textContent = label;
- button.onclick = () => fetch('/fixture/control', {method:'POST',headers:{'X-RimBot':'1','Content-Type':'application/json'},body:JSON.stringify({action})});
+ button.onclick = () => fetch('/fixture/control', {method:'POST',headers:{'X-RimGovernor':'1','Content-Type':'application/json'},body:JSON.stringify({action})});
  panel.append(button);
 }
 document.body.append(panel);

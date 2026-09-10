@@ -1,17 +1,17 @@
 """Real native hands, scripted strategist commitments, no auxiliary inference."""
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import asyncio
 import json
 from pathlib import Path
-from rimbot.bridge import bridge_session
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_observation import observe
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.colony_plan import Decision, PlanSpec
-from rimbot.store import Store
+from rimgovernor.bridge import bridge_session
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_observation import observe
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.colony_plan import Decision, PlanSpec
+from rimgovernor.store import Store
 
 async def main(headless=False, build=False, room=False):
-    root=Path('.rimbot/bridge').resolve()
+    root=Path('.rimgovernor/bridge').resolve()
     answer=None
     class Brain:
         calls=0
@@ -20,11 +20,11 @@ async def main(headless=False, build=False, room=False):
             return {'role':'assistant','tool_calls':[{'id':'commit','type':'function','function':{'name':'commit_plan','arguments':answer.model_dump_json()}}]},{}
         async def close(self):pass
     brain=Brain()
-    from rimbot.headless import prepare
+    from rimgovernor.headless import prepare
     configuration=prepare(root) if headless else root/'config'
     async with bridge_session(gabs_executable(root), configuration) as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
-        await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',timeoutMs=90000,ignoreModCompatibility=headless)
+        await bridge.call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',readiness='visual',timeoutMs=90000,ignoreModCompatibility=headless)
         await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
         store=Store(root/'strategy-smoke.sqlite')
         rt=BridgeRuntime(store,root,model_factory=lambda _:brain)
@@ -127,8 +127,8 @@ async def main(headless=False, build=False, room=False):
                 assert rt.counters['actions']==before+4 and brain.calls==1
                 print('PASS: pawn labor completed the wall; native built state and plan completion agree; no replay writes',flush=True)
             if room:
-                from rimbot.colony_plan import PlanStep, RoomShell
-                from rimbot.hands import room_placements
+                from rimgovernor.colony_plan import PlanStep, RoomShell
+                from rimgovernor.hands import room_placements
                 # Fixed fixture geometry, not a production base-layout policy.
                 shell=RoomShell(bounds={'x':pawn.position.x+10,'z':pawn.position.z+4,'width':5,'height':5},
                     wall_def='Wall',door_def='Door',materials=['WoodLog'],entrance='south')
@@ -138,7 +138,7 @@ async def main(headless=False, build=False, room=False):
                 bad_spec=spec.model_copy(deep=True)
                 bad_spec.steps.append(PlanStep(id='blocked-room',title='Blocked footprint probe',completion_criteria='Native geometry refuses before writing',action=shell.model_copy(deep=True)))
                 before_room=rt.counters['actions']
-                from rimbot.construction_preflight import preflight_construction, ConstructionRefusal
+                from rimgovernor.construction_preflight import preflight_construction, ConstructionRefusal
                 try:
                     await preflight_construction(bad_spec,rt.current_plan,rt.game)
                 except ConstructionRefusal as refused:

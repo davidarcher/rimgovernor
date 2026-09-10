@@ -165,23 +165,23 @@ async def furnish_room(rt,shell,definition=None):
             if not footprint<=interior or footprint&reserved:continue
             attempts+=1
             preview=await rt.inspect_native('home/zone_cells',{'op':'create','zoneType':'stockpile',
-                'label':'RimBot food storage','cells':';'.join(f'{x},{z}' for x,z in sorted(footprint)),
+                'label':'RimGovernor food storage','cells':';'.join(f'{x},{z}' for x,z in sorted(footprint)),
                 'preset':'food','priority':'Important','dryRun':True})
             if preview.get('cellsAccepted')!=9 or len(preview.get('cells',[]))!=9:continue
             if any(c.get('takenFrom') for c in preview['cells']):continue
-            return [{'kind':'create_zone','zone_type':'stockpile','label':'RimBot food storage',
+            return [{'kind':'create_zone','zone_type':'stockpile','label':'RimGovernor food storage',
                      'patches':[{'x':a,'z':b,'width':3,'height':3}],'preset':'food','priority':'Important'}]
     if definition is None:
         # Service furniture may divide the available floor into smaller patches.
         selected=[]
         for a,b in sorted(interior-reserved,key=lambda p:(-p[1],p[0]))[:128-attempts]:
             preview=await rt.inspect_native('home/zone_cells',{'op':'create','zoneType':'stockpile',
-                'label':'RimBot food storage','cells':f'{a},{b}',
+                'label':'RimGovernor food storage','cells':f'{a},{b}',
                 'preset':'food','priority':'Important','dryRun':True})
             if preview.get('cellsAccepted')!=1 or len(preview.get('cells',[]))!=1:continue
             if preview['cells'][0].get('takenFrom'):continue
             selected.append({'x':a,'z':b,'width':1,'height':1})
             if len(selected)==9:
-                return [{'kind':'create_zone','zone_type':'stockpile','label':'RimBot food storage',
+                return [{'kind':'create_zone','zone_type':'stockpile','label':'RimGovernor food storage',
                          'patches':selected,'preset':'food','priority':'Important'}]
     raise SkillBlocked('No verified space for '+(definition or 'food storage')+' in the shelter; refine or expand it')

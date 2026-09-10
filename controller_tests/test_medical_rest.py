@@ -3,10 +3,10 @@ from unittest.mock import AsyncMock
 import pytest
 from test_colony_controller import Replay
 from test_clock_control import NativeClock
-from rimbot.clock_control import PlayClock
-from rimbot.colony_plan import ColonyGoal
-from rimbot.colony_policy import derive,priority_nodes,criteria
-from rimbot.medical_management import resting_patients
+from rimgovernor.clock_control import PlayClock
+from rimgovernor.colony_plan import ColonyGoal
+from rimgovernor.colony_policy import derive,priority_nodes,criteria
+from rimgovernor.medical_management import resting_patients
 
 
 def resting_fixture():

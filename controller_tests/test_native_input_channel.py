@@ -8,7 +8,7 @@ import uuid
 
 import pytest
 
-from rimbot.native_input_channel import NativeInputChannel
+from rimgovernor.native_input_channel import NativeInputChannel
 
 
 pytestmark = pytest.mark.skipif(sys.platform != 'linux', reason='Private Linux native input mailbox')
@@ -17,7 +17,7 @@ pytestmark = pytest.mark.skipif(sys.platform != 'linux', reason='Private Linux n
 @pytest.mark.asyncio
 async def test_real_mailbox_order_refusal_and_no_replay():
     import fcntl
-    path = Path('/dev/shm') / ('RimBotInput-' + uuid.uuid4().hex)
+    path = Path('/dev/shm') / ('RimGovernorInput-' + uuid.uuid4().hex)
     fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600)
     os.ftruncate(fd, 4096)
     native = mmap.mmap(fd, 4096)
@@ -64,4 +64,4 @@ def test_channel_rejects_arbitrary_file_and_capacity():
     with pytest.raises(ValueError):
         NativeInputChannel('/etc/passwd', 4096)
     with pytest.raises(ValueError):
-        NativeInputChannel('/dev/shm/RimBotInput-' + 'a' * 32, 8192)
+        NativeInputChannel('/dev/shm/RimGovernorInput-' + 'a' * 32, 8192)

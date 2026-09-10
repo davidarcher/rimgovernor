@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import sqlite3
 import time
-from rimbot.store import Store
+from rimgovernor.store import Store
 
 
 def digest(db):

@@ -5,11 +5,11 @@ import json
 from pathlib import Path
 import subprocess
 
-from rimbot.bridge import bridge_session, gabs_executable
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.headless import prepare
-from rimbot.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
-from rimbot.store import Store
+from rimgovernor.bridge import bridge_session, gabs_executable
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.headless import prepare
+from rimgovernor.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
+from rimgovernor.store import Store
 from session_checkpoint_acceptance import ready
 
 
@@ -31,12 +31,12 @@ async def main(args):
     try:
         # The CLI owns the launch; neither controller below may stop its game.
         launched = await asyncio.to_thread(subprocess.run,
-            [str(executable), 'games', 'start', 'rimbot-trial', '--configDir', str(config)],
+            [str(executable), 'games', 'start', 'rimgovernor-trial', '--configDir', str(config)],
             capture_output=True, text=True, timeout=120, check=True)
         (root/'external-launch.log').write_text(launched.stdout+launched.stderr)
         async with bridge_session(executable, config) as bridge:
             await bridge.connect()
-            await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',
+            await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                               readiness='visual', timeoutMs=90000)
             await bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
             status = (await bridge.core('games_status', gameId=bridge.game_id)).structuredContent

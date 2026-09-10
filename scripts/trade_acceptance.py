@@ -3,10 +3,10 @@ import asyncio
 import json
 from pathlib import Path
 
-from rimbot.bridge import bridge_session, gabs_executable, BridgeError
-from rimbot.bridge_game import BridgeGame
-from rimbot.colony_plan import TradeAction
-from rimbot.trading import execute_trade
+from rimgovernor.bridge import bridge_session, gabs_executable, BridgeError
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.colony_plan import TradeAction
+from rimgovernor.trading import execute_trade
 
 
 async def run():
@@ -53,7 +53,7 @@ async def run():
         try:
             await bridge.core('games_start', gameId=bridge.game_id)
             await bridge.connect()
-            await call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline', readiness='visual',
+            await call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline', readiness='visual',
                        ignoreModCompatibility=True, timeoutMs=90000)
             await call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
             record('ordinary_supply_pod_landing', clock=await window())
@@ -367,7 +367,7 @@ async def run():
             await trade(action='set', sessionId=session, item=sale_rows[0]['defName'], count=-1)
             preview = await trade(action='preview')
             assert preview['wouldSucceed']
-            await call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline', readiness='visual',
+            await call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline', readiness='visual',
                        ignoreModCompatibility=True, timeoutMs=90000)
             await call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
             record('stale_load_refused', refusal=await refused(expected=['No TradeSession', 'load changed'], action='accept', sessionId=session, dealSignature=preview['dealSignature']))

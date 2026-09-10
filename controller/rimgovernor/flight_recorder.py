@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 
 
-_action_context = ContextVar('rimbot_recording_action', default={})
+_action_context = ContextVar('rimgovernor_recording_action', default={})
 
 
 @contextmanager
@@ -40,7 +40,7 @@ class FlightRecorder:
         self.truncated = 0
         self.rotations = 0
         self.durable_records = 0
-        self.run = os.environ.get('RIMBOT_RUN_ID', uuid.uuid4().hex)
+        self.run = os.environ.get('RIMGOVERNOR_RUN_ID', uuid.uuid4().hex)
         self.event('coverage', coverage='All BridgeClient.core requests, responses and exceptions, including background reads. Runtime snapshots at persistence boundaries. Requests/errors/outcomes are fsynced; response rows are flushed and become durable at the next durable record or rotation. A host crash can leave an explicit unmatched request. No in-game per-frame/pawn transition trace or model token recording.')
 
     def event(self, kind, *, context=None, durable=True, **payload):
@@ -58,7 +58,7 @@ class FlightRecorder:
                 self.truncated += 1
                 encoded = json.dumps(payload, default=str, separators=(',', ':')).encode()
             self.sequence += 1
-            row = dict(version=1, run=self.run, scenario=os.environ.get('RIMBOT_SCENARIO'),
+            row = dict(version=1, run=self.run, scenario=os.environ.get('RIMGOVERNOR_SCENARIO'),
                        sequence=self.sequence, wall_time=time.time(), monotonic=time.monotonic(),
                        kind=kind, context={**(self.context if context is None else context), **_action_context.get()})
             # Reuse the payload encoding used for the size/hash check. Responses
@@ -129,7 +129,7 @@ _recorder = None
 
 def recorder():
     global _recorder
-    path = os.environ.get('RIMBOT_FLIGHT_RECORDER')
+    path = os.environ.get('RIMGOVERNOR_FLIGHT_RECORDER')
     if path and (_recorder is None or _recorder.path != Path(path)):
         if _recorder is not None:
             _recorder.close()

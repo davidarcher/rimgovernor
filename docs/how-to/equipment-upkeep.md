@@ -8,7 +8,7 @@ Linux references with `-p:GearFixture=true`; this adds disposable `test/gear_fix
 setup. Default builds exclude it, and the controller gateway never exposes test
 tools to model execution. Stage that DLL only in the run's private mod tree.
 
-Run a fresh `rimbot.container_worker` with the task worker image and command:
+Run a fresh `rimgovernor.container_worker` with the task worker image and command:
 
 ```text
 -- python /app/scripts/gear_upkeep_acceptance.py --source-root /worker/run --output /worker/acceptance --production

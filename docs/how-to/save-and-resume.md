@@ -7,7 +7,7 @@ intent.
 
 Run commands from the repository root. Native probes require a disposable prepared
 profile and their stated fixture; run `--help` for the selected script. Keep outputs
-under a fresh `.rimbot/` directory, preserve failures, and never replace installed DLLs
+under a fresh `.rimgovernor/` directory, preserve failures, and never replace installed DLLs
 while any RimWorld instance is running. Container inputs use private snapshots.
 
 On a checkpoint-capable owned session, use Autopilot's **Save checkpoint and pause** or
@@ -16,7 +16,7 @@ verifies the native game and controller snapshot; unsupported older servers rema
 running. A worktree can supply `-Python <venv-python.exe>`. Keep the existing game DLLs
 installed until all sessions have closed.
 
-For a retained checkpoint, run `python -m rimbot --resume <checkpoint.json> --port
+For a retained checkpoint, run `python -m rimgovernor --resume <checkpoint.json> --port
 8787`. Close the previous owned process before manually resuming. This restores into a
 new SQLite database and starts in Manual. Resume preserves the saved colony/map and
 allows at most one native loading tick with pause-on-load enabled. Larger changes fail
@@ -28,7 +28,7 @@ reload it. Keep that game running. If its load or tick changes, create a new che
 instead of attempting to rewind it through an attached checkpoint.
 
 List retained pairs with `GET /api/session/checkpoints`. To remove a pair, send
-`POST /api/session/checkpoints/delete` with `X-RimBot: 1` and JSON containing the
+`POST /api/session/checkpoints/delete` with `X-RimGovernor: 1` and JSON containing the
 current `session_id` and its exact `manifest_path`. The active resume pair, restarting
 sessions, damaged pairs and unexpected directory contents are protected. Other pairs
 and the native profile's saves remain intact; retention is explicit, without expiry.

@@ -5,7 +5,7 @@
 `dashboard/src` and `dashboard/public` started from IlyaChichkov/rimapi-dashboard
 at `152454bbcc8ab7d2b3e6cfff797f6a1df03d36b1`. Its MIT license and copyright notice
 remain in `third_party/rimapi-dashboard-LICENSE`. The current React/Vite application
-uses RimBot's local controller API.
+uses RimGovernor's local controller API.
 
 ## Colony Bridge and companion formatters
 
@@ -15,7 +15,7 @@ Snowstar38/rimworld-claude-harness at
 No license file was present in that reviewed checkout; this does not imply
 redistribution rights. Pinned sources and modifications are recorded in
 [Colony Bridge provenance](integrations/colony-bridge/PROVENANCE.md) and
-[formatter provenance](controller/rimbot/vendor/PROVENANCE.md).
+[formatter provenance](controller/rimgovernor/vendor/PROVENANCE.md).
 RimWorld, Harmony and RimBridgeServer SDK assemblies are referenced, not bundled.
 Placement preview parsing also references the Newtonsoft.Json assembly supplied
 by the installed RimBridgeServer; its source and binary are not bundled here.

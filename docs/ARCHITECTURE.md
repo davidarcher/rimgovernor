@@ -2,7 +2,7 @@
 
 [Documentation](README.md)
 
-Start with [How RimBot fits together](explanation/overview.md). The internals are
+Start with [How RimGovernor fits together](explanation/overview.md). The internals are
 explained one topic at a time, with exact contracts in the
 [reference](reference/README.md). Read [space and
 resources](explanation/space-and-resources.md) for admission and dispatch constraints,

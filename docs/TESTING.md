@@ -8,7 +8,7 @@ index](how-to/README.md) lists every acceptance and audit procedure. Read [testi
 evidence](explanation/testing.md) for the distinction between fixtures, native outcomes,
 interpretation and sustained campaigns.
 
-Commands run from the repository root. Keep evidence under fresh `.rimbot/` directories
+Commands run from the repository root. Keep evidence under fresh `.rimgovernor/` directories
 and track unfinished acceptance in [BACKLOG.md](BACKLOG.md). The sections below preserve
 existing runbook links.
 

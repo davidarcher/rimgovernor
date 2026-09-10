@@ -1,4 +1,4 @@
-# RimBot backlog
+# RimGovernor backlog
 
 This is the single queue for implementation gaps, remaining reuse audits and
 gameplay acceptance. Work top-down within each priority. Check the current code
@@ -530,7 +530,7 @@ Proposed paths become real only when their owning chunk lands:
 | Path | Ownership and restrictions |
 | --- | --- |
 | `contracts/` | Canonical versioned wire schemas, compatibility fixtures and generation manifest; no game assemblies. |
-| `go/` | One Go module with pinned toolchain/dependencies and `cmd/rimbot`; avoid a module per subsystem. |
+| `go/` | One Go module with pinned toolchain/dependencies and `cmd/rimgovernor`; avoid a module per subsystem. |
 | `go/internal/wire/` | Generated wire types and explicit boundary decoding/validation; generated files carry provenance. |
 | `go/internal/domain/` | Owned IDs, observations, action variants, plan specification/progress, receipts and failures; no transport or database dependencies. |
 | `go/internal/bridge/` | MCP discovery, capability/version negotiation, bounded reads, native call receipts and transport diagnostics. |
@@ -629,7 +629,7 @@ changes and performs `git merge --ff-only` from a clean, coordinated main checko
 If main advances or becomes dirty, stop that landing and coordinate; never reset
 or overwrite another worker's edits. No merge commits and no pushes unless asked.
 Update the relevant checkbox and evidence in the landing commit. Keep reports,
-databases, native recordings and temporary tooling under ignored `.rimbot/` paths;
+databases, native recordings and temporary tooling under ignored `.rimgovernor/` paths;
 only intentional small, sanitized regression fixtures belong in source control.
 
 ### Sequenced chunks
@@ -839,7 +839,7 @@ with isolated inputs/resources; do not replace installed DLLs while any game run
 Every handoff includes: base and result commits, changed contracts, commands and
 exit codes, skips, fixture/native/model scope, artifact paths, migration/rollback
 impact and remaining manifest rows. Native waits use
-`rimbot.native_scenario.advance_game` while Python tooling remains; any Go-native
+`rimgovernor.native_scenario.advance_game` while Python tooling remains; any Go-native
 replacement must first match its interruption and tick-budget acceptance. New
 Python script-based Docker runs use `scripts/container_scenario.py` and its dashboard
 helpers. Follow [test selection](how-to/choose-tests.md),

@@ -9,7 +9,7 @@ using RimWorld.QuestGen;
 using System.Collections.Generic;
 using Verse;
 
-namespace RimBot.InterruptionFixtures
+namespace RimGovernor.InterruptionFixtures
 {
     // Separate test assembly; never part of production or the gameplay capability allowlist.
     public sealed class InterruptionFixture

@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import pytest
 
-from rimbot.projects import ProjectBook, zone_settings
+from rimgovernor.projects import ProjectBook, zone_settings
 from test_zone_project_postconditions import fixture, reconcile
 
 
@@ -80,8 +80,8 @@ def test_ambiguous_legacy_zone_owner_cannot_invent_expectations():
 async def test_unavailable_stockpile_preview_refuses_before_any_write(existing):
     from types import SimpleNamespace
     from unittest.mock import AsyncMock
-    from rimbot.colony_plan import Zone, StepProgress
-    from rimbot.hands import Hands
+    from rimgovernor.colony_plan import Zone, StepProgress
+    from rimgovernor.hands import Hands
 
     action = Zone(zone_type='stockpile', label='Supplies',
                   preset='nothing', allow=['Steel'],

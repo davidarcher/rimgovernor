@@ -12,7 +12,7 @@ $sourceRoot = Join-Path $repoRoot 'integrations/colony-bridge'
 if ($LASTEXITCODE -ne 0) { throw 'Observation companion build failed' }
 if ($Install) {
     if (Get-Process RimWorldWin64 -ErrorAction SilentlyContinue) { throw 'Close RimWorld before replacing its companion DLL' }
-    $destination = Join-Path $RimWorld 'Mods/RimBotObservations'
+    $destination = Join-Path $RimWorld 'Mods/RimGovernorObservations'
     New-Item -ItemType Directory -Force $destination | Out-Null
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'Assemblies') -Destination $destination -Recurse -Force
     Copy-Item -LiteralPath (Join-Path $sourceRoot 'About') -Destination $destination -Recurse -Force

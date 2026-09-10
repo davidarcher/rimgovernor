@@ -14,7 +14,7 @@ Run two separate Compose projects with automatic free loopback ports and native
 clock/checkpoint verification:
 
 ```powershell
-python scripts/container_native_acceptance.py --game <linux-game> --mods <private-mods> --profile <prepared-profile> --gabs <linux-gabs-directory> --image rimbot-worker:my-task --output .rimbot/docker-native-01
+python scripts/container_native_acceptance.py --game <linux-game> --mods <private-mods> --profile <prepared-profile> --gabs <linux-gabs-directory> --image rimgovernor-worker:my-task --output .rimgovernor/docker-native-01
 ```
 
 The runner builds/pins the worker image, loads two private copies of the baseline,
@@ -55,9 +55,9 @@ are never retried silently. Native probes use the configured cross-platform GABS
 
 ## Add rendering and player-input checks
 
-Headless remains the default. For rendered tests set `RIMBOT_DISPLAY=xvfb`,
-`RIMBOT_DISPLAY_RESOLUTION=1280x720` (640x480 through 3840x2160) and
-`RIMBOT_DISPLAY_RENDERER=llvmpipe`. Each container owns Xvfb `:99` in its own namespace
+Headless remains the default. For rendered tests set `RIMGOVERNOR_DISPLAY=xvfb`,
+`RIMGOVERNOR_DISPLAY_RESOLUTION=1280x720` (640x480 through 3840x2160) and
+`RIMGOVERNOR_DISPLAY_RENDERER=llvmpipe`. Each container owns Xvfb `:99` in its own namespace
 with TCP disabled; no host display socket or desktop focus is used. The worker verifies
 software OpenGL before launching the controller, sets private resolution/fullscreen
 preferences with UI scale 1, removes the HeadlessRim active package in its private
@@ -122,10 +122,10 @@ tool is excluded from normal builds and from model execution. Do not install it
 into a shared game.
 
 Run `python scripts/disaster_recovery_acceptance.py` as the command of a fresh
-`rimbot.container_worker`, with that mod snapshot and the prepared baseline. Use
+`rimgovernor.container_worker`, with that mod snapshot and the prepared baseline. Use
 `--unity-gc-time-slice 0` for the accepted container startup setting and an explicit
 `--gabs` executable path if the input release is nested. The probe reads
-`RIMBOT_BRIDGE_ROOT`; it does not attach to a host game or require inference.
+`RIMGOVERNOR_BRIDGE_ROOT`; it does not attach to a host game or require inference.
 
 Require process exit 0 and `run/disaster-result.json` with `passed: true` and
 `stopped: true`. Retain the result, `inputs.json`, `staging.json`, native logs and

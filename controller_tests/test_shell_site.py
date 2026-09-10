@@ -2,11 +2,11 @@ from copy import deepcopy
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 import pytest
-from rimbot.colony_plan import ColonyPlan, StepProgress
-from rimbot.construction_preflight import preflight_construction
-from rimbot.hands import Hands
-from rimbot.shell_site import ShellSiteRefusal, validate_shell_zones, validate_shell_access
-from rimbot.spatial import room_entrance
+from rimgovernor.colony_plan import ColonyPlan, StepProgress
+from rimgovernor.construction_preflight import preflight_construction
+from rimgovernor.hands import Hands
+from rimgovernor.shell_site import ShellSiteRefusal, validate_shell_zones, validate_shell_access
+from rimgovernor.spatial import room_entrance
 from test_construction_preflight import plan, native_reply, footprint
 
 

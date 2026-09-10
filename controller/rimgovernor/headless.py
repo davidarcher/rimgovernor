@@ -19,18 +19,18 @@ def isolated_root(source, destination):
     if destination.exists():
         raise ValueError('Worker root already exists; use a fresh directory')
     config=json.loads((source/'config/config.json').read_text(encoding='utf8'))
-    game=config['games']['rimbot-trial']
+    game=config['games']['rimgovernor-trial']
     _require_owned_launch(game)
     from .bridge import gabs_executable
     binary = gabs_executable(source)
     relative = binary.relative_to(source) if binary.is_relative_to(source) else Path('gabs')/binary.name
-    config.setdefault('rimbot', {})['gabsExecutable'] = relative.as_posix()
+    config.setdefault('rimgovernor', {})['gabsExecutable'] = relative.as_posix()
     (destination/relative).parent.mkdir(parents=True)
     shutil.copy2(binary, destination/relative)
     (destination/'config').mkdir(parents=True)
     (destination/'config/config.json').write_text(json.dumps(config,indent=2),encoding='utf8')
     for relative in ('profile/Config/Prefs.xml','profile/Config/ModsConfig.xml',
-                     'profile/Saves/RimBot-tribal8-baseline.rws'):
+                     'profile/Saves/RimGovernor-tribal8-baseline.rws'):
         target=destination/relative;target.parent.mkdir(parents=True,exist_ok=True)
         shutil.copy2(source/relative,target)
     return destination
@@ -41,7 +41,7 @@ def prepare_rendered(root):
     root = Path(root).resolve()
     configuration = root/'config'
     config = json.loads((configuration/'config.json').read_text(encoding='utf8'))
-    game = config['games']['rimbot-trial']
+    game = config['games']['rimgovernor-trial']
     _require_owned_launch(game)
     profile = root/'profile'
     mods = ET.parse(profile/'Config/ModsConfig.xml')
@@ -51,7 +51,7 @@ def prepare_rendered(root):
             active.remove(item)
     mods.write(profile/'Config/ModsConfig.xml', encoding='utf8', xml_declaration=True)
     game['args'] = ['-savedatafolder='+str(profile), '-logFile', str(root/'Player.log'),
-                    '-screen-fullscreen', '0', '-screen-width', '1280', '-screen-height', '720', '-rimbot-pause-on-load']
+                    '-screen-fullscreen', '0', '-screen-width', '1280', '-screen-height', '720', '-rimgovernor-pause-on-load']
     (configuration/'config.json').write_text(json.dumps(config,indent=2),encoding='utf8')
     return configuration
 
@@ -59,9 +59,9 @@ def prepare_rendered(root):
 def prepare(root):
     root=Path(root).resolve()
     config=json.loads((root/'config/config.json').read_text(encoding='utf8'))
-    game=config['games']['rimbot-trial']
+    game=config['games']['rimgovernor-trial']
     _require_owned_launch(game)
-    installed=Path(game['workingDir'])/'Mods/RimBotHeadless/Assemblies/HeadlessRimPatch.dll'
+    installed=Path(game['workingDir'])/'Mods/RimGovernorHeadless/Assemblies/HeadlessRimPatch.dll'
     if not installed.is_file():
         raise ValueError('Build/install the headless test mod with scripts/build_headless.ps1 -Install first')
     profile=root/'headless-profile'
@@ -74,9 +74,9 @@ def prepare(root):
     if not any((item.text or '').lower()=='redeyedev.headlessrim' for item in active):
         ET.SubElement(active,'li').text='redeyedev.headlessrim'
     mods.write(profile/'Config/ModsConfig.xml',encoding='utf8',xml_declaration=True)
-    baseline='RimBot-tribal8-baseline.rws'
+    baseline='RimGovernor-tribal8-baseline.rws'
     shutil.copy2(root/'profile/Saves'/baseline,profile/'Saves'/baseline)
-    game['args']=['-savedatafolder='+str(profile),'-logFile',str(root/'HeadlessPlayer.log'),'-batchmode','-nographics','-rimbot-pause-on-load']
+    game['args']=['-savedatafolder='+str(profile),'-logFile',str(root/'HeadlessPlayer.log'),'-batchmode','-nographics','-rimgovernor-pause-on-load']
     destination=root/'config-headless'
     destination.mkdir(exist_ok=True)
     (destination/'config.json').write_text(json.dumps(config,indent=2),encoding='utf8')
@@ -87,7 +87,7 @@ def rendered_headless_mismatch(root):
     """Allow only the known render-only mod difference in our prepared baseline."""
     root=Path(root)
     try:
-        saved=ET.parse(root/'profile/Saves/RimBot-tribal8-baseline.rws').getroot()
+        saved=ET.parse(root/'profile/Saves/RimGovernor-tribal8-baseline.rws').getroot()
         active=ET.parse(root/'profile/Config/ModsConfig.xml').getroot()
         required={n.text.casefold() for n in saved.findall('./meta/modIds/li') if n.text}
         enabled={n.text.casefold() for n in active.findall('./activeMods/li') if n.text}

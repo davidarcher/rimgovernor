@@ -54,7 +54,7 @@ export default function GameControls({
     const body = JSON.stringify({ session_id: sessionId, viewer_id: viewer, lease_id: lease });
     const send = (path: string) => fetch("/api/input/" + path, {
       method: "POST", keepalive: true,
-      headers: { "Content-Type": "application/json", "X-RimBot": "1" }, body,
+      headers: { "Content-Type": "application/json", "X-RimGovernor": "1" }, body,
     });
     const release = () => {
       if (stopped) return;
@@ -88,7 +88,7 @@ export default function GameControls({
     try {
       const r = await fetch("/api/" + path, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-RimBot": "1" },
+        headers: { "Content-Type": "application/json", "X-RimGovernor": "1" },
         body: JSON.stringify({ session_id: sessionId,
           ...(lease || path.startsWith("input/") ? { viewer_id: viewer, lease_id: lease } : {}), ...body }),
       });
@@ -102,7 +102,7 @@ export default function GameControls({
       if (path === "input/take") {
         if (!accepting.current) {
           void fetch("/api/input/release", { method: "POST", keepalive: true,
-            headers: { "Content-Type": "application/json", "X-RimBot": "1" },
+            headers: { "Content-Type": "application/json", "X-RimGovernor": "1" },
             body: JSON.stringify({ session_id: sessionId, viewer_id: viewer, lease_id: data.lease_id }),
           }).catch(() => {});
           return;

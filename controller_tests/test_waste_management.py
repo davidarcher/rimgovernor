@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from pydantic import ValidationError
 
-from rimbot.colony_plan import ColonyPlan, ColonyGoal, NativeOperation, Failure
-from rimbot.player_commands import CreateGoal
-from rimbot.waste_management import outcome, pending_items, compile_method
+from rimgovernor.colony_plan import ColonyPlan, ColonyGoal, NativeOperation, Failure
+from rimgovernor.player_commands import CreateGoal
+from rimgovernor.waste_management import outcome, pending_items, compile_method
 
 
 def action():
@@ -21,8 +21,8 @@ def test_receipts_cannot_complete_waste_work():
 
 
 def test_waste_deficit_enters_shared_development_admission():
-    from rimbot.development_priorities import deficit
-    from rimbot.colony_policy import ColonyPolicy
+    from rimgovernor.development_priorities import deficit
+    from rimgovernor.colony_policy import ColonyPolicy
     goal = ColonyGoal(priority_class=3)
     assert deficit('MaintainWaste', goal, {}, ColonyPolicy()) is None
     goal.evidence['observation'] = {'success': True, 'items': []}
@@ -85,7 +85,7 @@ def test_unwanted_is_explicit_exact_policy():
 
 @pytest.mark.asyncio
 async def test_native_refusal_never_compiles_write():
-    from rimbot.colony_skills import SkillBlocked
+    from rimgovernor.colony_skills import SkillBlocked
     plan = ColonyPlan()
     plan.colony_goals['MaintainWaste'] = ColonyGoal(priority_class=3)
     plan.control['waste'] = {'success': True, 'items': [{'thingId': 'Thing_Corpse1', 'eligible': True, 'state': 'exposed'}]}
@@ -98,7 +98,7 @@ async def test_native_refusal_never_compiles_write():
 
 @pytest.mark.asyncio
 async def test_read_load_race_discards_observation():
-    from rimbot.waste_management import refresh
+    from rimgovernor.waste_management import refresh
     plan = ColonyPlan()
     plan.colony_goals['MaintainWaste'] = ColonyGoal(priority_class=3)
     rt = SimpleNamespace(current_plan=plan, context_token='before', chat_revision=1,
@@ -113,7 +113,7 @@ async def test_read_load_race_discards_observation():
 
 @pytest.mark.asyncio
 async def test_candidate_selection_is_bounded_and_previews_only():
-    from rimbot.colony_skills import SkillBlocked
+    from rimgovernor.colony_skills import SkillBlocked
     plan = ColonyPlan()
     goal = ColonyGoal(priority_class=3)
     plan.colony_goals['MaintainWaste'] = goal
@@ -129,7 +129,7 @@ async def test_candidate_selection_is_bounded_and_previews_only():
 
 @pytest.mark.asyncio
 async def test_refused_target_cannot_starve_later_accessible_waste():
-    from rimbot.colony_skills import SkillBlocked
+    from rimgovernor.colony_skills import SkillBlocked
     plan = ColonyPlan()
     goal = ColonyGoal(priority_class=3)
     plan.colony_goals['MaintainWaste'] = goal
@@ -163,8 +163,8 @@ async def test_accepted_method_waits_for_containment_and_keeps_exact_policy():
 @pytest.mark.asyncio
 @pytest.mark.parametrize('tick,direction,expected', [(10, 2, 'waiting'), (11, 2, 'complete'), (11, 3, 'blocked')])
 async def test_durable_order_requires_fresh_tick_and_unchanged_direction(tick, direction, expected):
-    from rimbot.colony_plan import PlanSpec, PlanStep, StepProgress
-    from rimbot.waste_management import refresh
+    from rimgovernor.colony_plan import PlanSpec, PlanStep, StepProgress
+    from rimgovernor.waste_management import refresh
     step = PlanStep(id='waste-step', title='Contain corpse', action=action(), completion_criteria='Exact containment')
     plan = ColonyPlan(spec=PlanSpec(steps=[step]), control={'player_direction': direction},
         progress={step.id: StepProgress(state='waiting', issued={'0': {'confirmed': True,

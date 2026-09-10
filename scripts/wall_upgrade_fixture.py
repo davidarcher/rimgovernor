@@ -2,9 +2,9 @@
 import asyncio
 import time
 
-from rimbot.colony_plan import ColonyGoal, CommitSteps
-from rimbot.colony_upkeep import upkeep_nodes, reconcile_upkeep
-from rimbot.wall_upgrade import method
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps
+from rimgovernor.colony_upkeep import upkeep_nodes, reconcile_upkeep
+from rimgovernor.wall_upgrade import method
 
 
 async def verify_upgrade(rt, report, seconds, *, interrupt=False, corner=False, material_loss=False):
@@ -15,9 +15,9 @@ async def verify_upgrade(rt, report, seconds, *, interrupt=False, corner=False, 
     setup = (await rt.bridge.call('test/stone_upgrade_setup', walls=';'.join(walls), corner=corner)).structuredContent
     result = report['wall_upgrade_material_loss' if material_loss else 'wall_upgrade_interruption' if interrupt else 'wall_upgrade'] = dict(setup=setup, methods=[], enclosure=[], samples=[])
     async def advance_safely(ticks=300):
-        from rimbot.native_scenario import advance_game
-        from rimbot.production_policy import sync_production_policy
-        from rimbot.bridge_observation import observe
+        from rimgovernor.native_scenario import advance_game
+        from rimgovernor.production_policy import sync_production_policy
+        from rimgovernor.bridge_observation import observe
         async with rt.lock:
             await sync_production_policy(rt)
         await advance_game(rt, ticks, result)
@@ -36,7 +36,7 @@ async def verify_upgrade(rt, report, seconds, *, interrupt=False, corner=False, 
         state = rt.current_plan.control['upkeep'][goal_id]
         state['targets'] = [r for r in state['targets'] if r['id'] == setup['target']]
         if facts['definitions']['TableStonecutter']['available'] is False:
-            from rimbot.colony_skills import SkillBlocked
+            from rimgovernor.colony_skills import SkillBlocked
             try:
                 await method(rt, facts)
             except SkillBlocked as error:

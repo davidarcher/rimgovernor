@@ -3,7 +3,7 @@
 Requires a test build with CampaignMetricsFixture=true installed while every game
 is closed. This script never installs DLLs and always stops its owned game.
 """
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import argparse
 import asyncio
 import hashlib
@@ -13,14 +13,14 @@ import time
 import traceback
 from pathlib import Path
 
-from rimbot.bridge import bridge_session
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_observation import observe
-from rimbot.campaign_metrics import CampaignEvidence, event_metrics
-from rimbot.colony_plan import CommitSteps
-from rimbot.config import ModelRole
-from rimbot.headless import isolated_root, prepare
-from rimbot.store import Store
+from rimgovernor.bridge import bridge_session
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_observation import observe
+from rimgovernor.campaign_metrics import CampaignEvidence, event_metrics
+from rimgovernor.colony_plan import CommitSteps
+from rimgovernor.config import ModelRole
+from rimgovernor.headless import isolated_root, prepare
+from rimgovernor.store import Store
 from headless_iterations import FastTrial, sample_metrics
 
 
@@ -41,7 +41,7 @@ async def run(args):
             try:
                 await bridge.core('games_start',gameId=bridge.game_id)
                 await bridge.connect()
-                await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',timeoutMs=90000,ignoreModCompatibility=True)
+                await bridge.call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',readiness='visual',timeoutMs=90000,ignoreModCompatibility=True)
                 await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
                 rt.bridge=bridge;rt.game=BridgeGame(bridge);rt.connected=True
                 await rt.sync_identity();rt.batch=await observe(rt.game)

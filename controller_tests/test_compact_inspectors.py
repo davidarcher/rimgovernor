@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import pytest
 
-from rimbot.bridge_game import for_model
+from rimgovernor.bridge_game import for_model
 
 
 @pytest.mark.parametrize('tool,rows', [

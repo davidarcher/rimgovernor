@@ -1,6 +1,6 @@
 """Prepare native partial construction plus pending zone/work for paired restart."""
-from rimbot.colony_plan import ColonyGoal,CommitSteps
-from rimbot.player_commands import apply_command
+from rimgovernor.colony_plan import ColonyGoal,CommitSteps
+from rimgovernor.player_commands import apply_command
 
 
 async def prepare_mixed(rt, *, compact=False):
@@ -21,8 +21,8 @@ async def prepare_mixed(rt, *, compact=False):
     command={'kind':'BuildRoom','intent_id':'mixed-home','purpose':'shelter',
         'room':rt.controller.skills.shell(layout)}
     if compact:
-        from rimbot.colony_plan import RoomShell
-        from rimbot.hands import room_placements
+        from rimgovernor.colony_plan import RoomShell
+        from rimgovernor.hands import room_placements
         placements=room_placements(RoomShell.model_validate(command['room']))[:2]
         command={'kind':'PlaceBuildings','purpose':'shelter','buildings':{
             'kind':'place_buildings','placements':[p.model_dump(mode='json') for p in placements]}}
@@ -66,7 +66,7 @@ async def verify_mixed(rt,evidence):
 
 async def verify_rewind(rt,evidence):
     old_token=rt.context_token;old_revision=rt.chat_revision
-    await rt.bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',timeoutMs=90000)
+    await rt.bridge.call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',readiness='visual',timeoutMs=90000)
     await rt.sync_identity()
     assert rt.context_token!=old_token and rt.mode=='manual'
     await rt.projects.reconcile(rt.game)

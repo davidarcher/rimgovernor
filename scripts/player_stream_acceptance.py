@@ -20,7 +20,7 @@ class View:
         self.count = 0
 
     async def open(self):
-        self.socket = await connect(self.url, origin=self.base, subprotocols=['rimbot-view-v1'], max_size=16000000)
+        self.socket = await connect(self.url, origin=self.base, subprotocols=['rimgovernor-view-v1'], max_size=16000000)
         self.task = asyncio.create_task(self.read())
         await self.fresh()
         return self
@@ -47,7 +47,7 @@ class View:
 async def run(base, output, gesture_only=False):
     evidence = {'checks': []}
     views = []
-    async with httpx.AsyncClient(base_url=base, headers={'X-RimBot': '1'}, timeout=120) as client:
+    async with httpx.AsyncClient(base_url=base, headers={'X-RimGovernor': '1'}, timeout=120) as client:
         async def post(path, body, expected=200):
             response = await client.post(path, json=body)
             assert response.status_code == expected, (path, response.status_code, response.text)

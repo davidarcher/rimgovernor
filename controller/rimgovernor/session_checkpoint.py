@@ -15,7 +15,7 @@ def digest(path):
 def profile_path(root, headless):
     root = Path(root).resolve()
     config = root / ('config-headless' if headless else 'config') / 'config.json'
-    game = json.loads(config.read_text())['games']['rimbot-trial']
+    game = json.loads(config.read_text())['games']['rimgovernor-trial']
     if game.get('launchMode') != 'DirectPath': raise ValueError('Checkpoint requires a DirectPath private profile')
     folders = [a.split('=', 1)[1] for a in game.get('args', []) if a.startswith('-savedatafolder=')]
     if len(folders) != 1: raise ValueError('Cannot identify the private native save folder')
@@ -43,7 +43,7 @@ async def create_checkpoint(rt, session_id):
         if before.get('time', {}).get('paused') is not True or type(tick) is not int:
             raise ValueError('Native pause could not be verified; checkpoint was not published')
         identity = dict(rt.identity)
-        name = 'RimBot-checkpoint-' + uuid.uuid4().hex
+        name = 'RimGovernor-checkpoint-' + uuid.uuid4().hex
         await rt.bridge.call('rimworld/save_game', saveName=name)  # BridgeClient rejects native error receipts.
         await rt.sync_identity()
         after = await rt.game.query('home/status', colonists=False, threats=False)

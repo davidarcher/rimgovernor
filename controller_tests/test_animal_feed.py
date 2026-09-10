@@ -3,10 +3,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.animal_feed import feed_evidence, feed_method
-from rimbot.colony_plan import ColonyPlan, ColonyGoal
-from rimbot.colony_skills import SkillBlocked
-from rimbot.colony_upkeep import upkeep_nodes
+from rimgovernor.animal_feed import feed_evidence, feed_method
+from rimgovernor.colony_plan import ColonyPlan, ColonyGoal
+from rimgovernor.colony_skills import SkillBlocked
+from rimgovernor.colony_upkeep import upkeep_nodes
 
 
 def facts(nutrition=0, **changes):
@@ -46,7 +46,7 @@ async def test_empty_reserve_uses_native_feed_definition_and_shared_production(m
     plan = ColonyPlan(colony_goals={'MaintainAnimalFeed': ColonyGoal(priority_class=3)})
     upkeep_nodes(f, plan.control)
     helper = AsyncMock(return_value=('native-bill', [dict(kind='native_action')]))
-    monkeypatch.setattr('rimbot.production_policy.resource_method', helper)
+    monkeypatch.setattr('rimgovernor.production_policy.resource_method', helper)
     assert await feed_method(SimpleNamespace(current_plan=plan), f) == helper.return_value
     assert plan.colony_goals['MaintainAnimalFeed'].target == dict(resource='Kibble', quantity=80)
     assert plan.colony_goals['MaintainAnimalFeed'].evidence['feed_resource'] == 'Kibble'
@@ -59,7 +59,7 @@ async def test_unreachable_stock_does_not_trigger_unbounded_production(monkeypat
     plan = ColonyPlan(colony_goals={'MaintainAnimalFeed': ColonyGoal(priority_class=3)})
     upkeep_nodes(f, plan.control)
     helper = AsyncMock()
-    monkeypatch.setattr('rimbot.production_policy.resource_method', helper)
+    monkeypatch.setattr('rimgovernor.production_policy.resource_method', helper)
     with pytest.raises(SkillBlocked, match='staging required'):
         await feed_method(SimpleNamespace(current_plan=plan), f)
     helper.assert_not_awaited()
@@ -72,7 +72,7 @@ async def test_feed_respects_resource_policy_and_does_not_rewrite_animal_policy(
     plan.control['resource_policy'] = {'Kibble': {'spending': 'stopped'}}
     upkeep_nodes(f, plan.control)
     helper = AsyncMock()
-    monkeypatch.setattr('rimbot.production_policy.resource_method', helper)
+    monkeypatch.setattr('rimgovernor.production_policy.resource_method', helper)
     with pytest.raises(SkillBlocked, match='restricted by player resource policy'):
         await feed_method(SimpleNamespace(current_plan=plan), f)
     helper.assert_not_awaited()

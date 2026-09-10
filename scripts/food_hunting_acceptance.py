@@ -9,20 +9,20 @@ from pathlib import Path
 
 from deterministic_foothold import NoInference
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.colony_plan import ColonyGoal, CommitSteps
-from rimbot.colony_skills import native
-from rimbot.headless import isolated_root, prepare
-from rimbot.hunting import screen_prey
-from rimbot.player_commands import apply_command
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps
+from rimgovernor.colony_skills import native
+from rimgovernor.headless import isolated_root, prepare
+from rimgovernor.hunting import screen_prey
+from rimgovernor.player_commands import apply_command
+from rimgovernor.store import Store
 
 
 async def run(args):
     root=isolated_root(args.source_root,args.output/'bridge')
     if args.checkpoint:
-        shutil.copy2(args.checkpoint,root/'profile/Saves/RimBot-tribal8-baseline.rws')
+        shutil.copy2(args.checkpoint,root/'profile/Saves/RimGovernor-tribal8-baseline.rws')
     config=prepare(root)
     store=Store(args.output/'state.sqlite')
     rt=BridgeRuntime(store,root,fresh=True,headless=True,model_factory=lambda _:NoInference())
@@ -120,7 +120,7 @@ async def run(args):
             pauseWhenSatisfied='on',unpauseWhenYouHave=target//2,ingredientSearchRadius=40,watch=False)],current)
         await issue('FoodPreservationAcceptance','priority',[native('home/bills',action='move',
             bench=bench['id'].removeprefix('Thing_'),index=len(bench['bills']),to=0,watch=False)],await facts())
-        from rimbot.food_forecast import acquisition_targets
+        from rimgovernor.food_forecast import acquisition_targets
         plants,budget=acquisition_targets(current,7)
         report['preservation']['ingredient_acquisition']=budget
         if plants:
@@ -191,8 +191,8 @@ async def run(args):
                     s.id:rt.current_plan.progress[s.id].model_dump() for s in steps}
 
     async def observe_soil_crop():
-        from rimbot.food_capacity import choose_crop
-        from rimbot.native_forecasts import forecasts
+        from rimgovernor.food_capacity import choose_crop
+        from rimgovernor.native_forecasts import forecasts
         await setup(('AllowStartingSupplies','EnsureWorkAssignments'))
         current=await facts()
         cells=[c for c in current['cells'] if c['walkable'] and not c['occupied']

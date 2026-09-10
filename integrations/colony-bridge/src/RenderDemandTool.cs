@@ -41,9 +41,9 @@ namespace HomeBridge.BridgeTools
             if (Application.isBatchMode) return new { supported = false, suspended = true, reason = "Startup headless mode cannot render" };
             if (instance == null)
             {
-                instance = new GameObject("RimBotRenderDemand").AddComponent<RenderDemandDriver>();
+                instance = new GameObject("RimGovernorRenderDemand").AddComponent<RenderDemandDriver>();
                 DontDestroyOnLoad(instance.gameObject);
-                new Harmony("davidarcher.rimbot.render-demand").Patch(AccessTools.Method(typeof(MapDrawer), "DrawMapMesh"),
+                new Harmony("davidarcher.rimgovernor.render-demand").Patch(AccessTools.Method(typeof(MapDrawer), "DrawMapMesh"),
                     prefix: new HarmonyMethod(typeof(RenderDemandDriver), nameof(DrawPrefix)));
             }
             until = Mathf.Max(until, Time.realtimeSinceStartup + seconds);

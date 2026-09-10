@@ -49,7 +49,7 @@ class ProcessHandle:
         # A detached, bounded watchdog releases the controller if migration crashes.
         parent=ProcessHandle(os.getpid())
         try:
-            subprocess.Popen([sys.executable,'-m','rimbot.windows_process',str(self.pid),str(self.birth),
+            subprocess.Popen([sys.executable,'-m','rimgovernor.windows_process',str(self.pid),str(self.birth),
                 str(parent.pid),str(parent.birth),str(marker)],stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
                 creationflags=subprocess.DETACHED_PROCESS|subprocess.CREATE_NEW_PROCESS_GROUP)

@@ -11,7 +11,7 @@ namespace HomeBridge.BridgeTools
         internal static void Ensure()
         {
             if (patched) return;
-            new Harmony("rimbot.recovery-area-ownership").Patch(
+            new Harmony("rimgovernor.recovery-area-ownership").Patch(
                 AccessTools.PropertySetter(typeof(Pawn_PlayerSettings), "AreaRestrictionInPawnCurrentMap"),
                 prefix: new HarmonyMethod(typeof(RecoveryAreaOwnership), nameof(BeforeSetting)));
             patched = true;

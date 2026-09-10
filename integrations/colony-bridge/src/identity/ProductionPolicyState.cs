@@ -12,8 +12,8 @@ namespace HomeBridge.BridgeTools
         public ProductionPolicyState(Game game) { }
         public override void ExposeData()
         {
-            Scribe_Collections.Look(ref Floors, "rimbotProductionFloors", LookMode.Value, LookMode.Value);
-            Scribe_Collections.Look(ref Stopped, "rimbotProductionStopped", LookMode.Value);
+            Scribe_Collections.Look(ref Floors, "rimgovernorProductionFloors", LookMode.Value, LookMode.Value);
+            Scribe_Collections.Look(ref Stopped, "rimgovernorProductionStopped", LookMode.Value);
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
                 if (Floors == null) Floors = new Dictionary<string, int>();

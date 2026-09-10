@@ -45,7 +45,7 @@ def run_display(root, settings, command):
     destination = Path(root)/'display'
     destination.mkdir()
     env = dict(os.environ, DISPLAY=':99', LIBGL_ALWAYS_SOFTWARE='1',
-               GALLIUM_DRIVER=settings.renderer, LP_NUM_THREADS='4', RIMBOT_PRIVATE_DISPLAY='1')
+               GALLIUM_DRIVER=settings.renderer, LP_NUM_THREADS='4', RIMGOVERNOR_PRIVATE_DISPLAY='1')
     result = settings.manifest()
     server = child = None
     stopping = False

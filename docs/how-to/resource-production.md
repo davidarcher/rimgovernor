@@ -7,7 +7,7 @@ ordinary pawn work.
 
 Run commands from the repository root. Native probes require a disposable prepared
 profile and their stated fixture; run `--help` for the selected script. Keep outputs
-under a fresh `.rimbot/` directory, preserve failures, and never replace installed DLLs
+under a fresh `.rimgovernor/` directory, preserve failures, and never replace installed DLLs
 while any RimWorld instance is running. Container inputs use private snapshots.
 
 `scripts/resource_policy_acceptance.py --source-root <ordinary-prepared-root> --output

@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from rimbot.bridge_server import create_app
-from rimbot.video_stream import CAPACITY, PeerRequest, VideoHub, video_frame
+from rimgovernor.bridge_server import create_app
+from rimgovernor.video_stream import CAPACITY, PeerRequest, VideoHub, video_frame
 
 
 def test_linux_shared_frames_lock_freshness_and_cleanup():
@@ -18,8 +18,8 @@ def test_linux_shared_frames_lock_freshness_and_cleanup():
     import struct
     import uuid
     from pathlib import Path
-    from rimbot.video_stream import RawFrames
-    path = Path('/dev/shm') / ('RimBotVideo-' + uuid.uuid4().hex)
+    from rimgovernor.video_stream import RawFrames
+    path = Path('/dev/shm') / ('RimGovernorVideo-' + uuid.uuid4().hex)
     try:
         with path.open('w+b') as writer:
             writer.truncate(CAPACITY)
@@ -46,8 +46,8 @@ def test_linux_shared_frames_lock_freshness_and_cleanup():
 
 
 def test_shared_frames_reject_arbitrary_paths():
-    from rimbot.video_stream import RawFrames
-    for path in ('/etc/passwd', '/dev/shm/../passwd', '/dev/shm/RimBotVideo-no'):
+    from rimgovernor.video_stream import RawFrames
+    for path in ('/etc/passwd', '/dev/shm/../passwd', '/dev/shm/RimGovernorVideo-no'):
         with pytest.raises(ValueError):
             RawFrames(path)
 
@@ -64,11 +64,11 @@ async def test_socket_frame_metadata_acknowledgement_and_owner_disconnect(monkey
     import json
     import struct
     from starlette.websockets import WebSocketDisconnect
-    from rimbot.video_stream import socket_frames
+    from rimgovernor.video_stream import socket_frames
     pytest.importorskip('av')
     if hardware:
         from unittest.mock import Mock
-        monkeypatch.setattr('rimbot.video_stream.HardwareEncoder.encode', Mock(side_effect=RuntimeError('GPU unavailable')))
+        monkeypatch.setattr('rimgovernor.video_stream.HardwareEncoder.encode', Mock(side_effect=RuntimeError('GPU unavailable')))
     rt = runtime()
     rt.player_input = SimpleNamespace(viewer='a', session='session', token='lease')
     rt.set_mode = AsyncMock()
@@ -78,7 +78,7 @@ async def test_socket_frame_metadata_acknowledgement_and_owner_disconnect(monkey
     hub.latest = (1, 16, 16, time.time(), bytes([255, 0, 0, 255]) * 256, 4)
 
     class Socket:
-        headers = {'origin': 'http://testserver', 'host': 'testserver', 'sec-websocket-protocol': 'rimbot-view-v1'}
+        headers = {'origin': 'http://testserver', 'host': 'testserver', 'sec-websocket-protocol': 'rimgovernor-view-v1'}
         query_params = {'session_id': 'session', 'viewer': 'a', 'connection_id': 'connection', 'hardware': str(hardware).lower()}
         app = SimpleNamespace(state=SimpleNamespace(video=hub))
         accept = AsyncMock()
@@ -116,10 +116,10 @@ async def test_socket_frame_metadata_acknowledgement_and_owner_disconnect(monkey
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('origin,protocol,session', [('https://other', 'rimbot-view-v1', 'session'),
-    ('http://testserver', '', 'session'), ('http://testserver', 'rimbot-view-v1', 'old-load')])
+@pytest.mark.parametrize('origin,protocol,session', [('https://other', 'rimgovernor-view-v1', 'session'),
+    ('http://testserver', '', 'session'), ('http://testserver', 'rimgovernor-view-v1', 'old-load')])
 async def test_socket_rejects_foreign_origin_missing_protocol_and_stale_load(origin, protocol, session):
-    from rimbot.video_stream import socket_frames
+    from rimgovernor.video_stream import socket_frames
     rt = runtime(); hub = VideoHub(rt)
     hub.open_source = AsyncMock()
     socket = SimpleNamespace(headers={'origin': origin, 'host': 'testserver', 'sec-websocket-protocol': protocol},
@@ -222,7 +222,7 @@ async def test_close_endpoint_requires_local_header():
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver') as client:
         body = {'viewer': 'a', 'session_id': 'session', 'connection_id': 'one'}
         assert (await client.post('/api/video/close', json=body)).status_code == 403
-        assert (await client.post('/api/video/close', json=body, headers={'X-RimBot': '1'})).status_code == 200
+        assert (await client.post('/api/video/close', json=body, headers={'X-RimGovernor': '1'})).status_code == 200
         assert (await client.get('/api/video/status')).json()['active'] is False
     app.state.video.disconnect.assert_awaited_once()
 
@@ -232,7 +232,7 @@ async def test_delayed_pause_heartbeat_cannot_override_new_play():
     rt = runtime()
     app = create_app(rt)
     app.state.rt = rt
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver', headers={'X-RimBot': '1'}) as client:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver', headers={'X-RimGovernor': '1'}) as client:
         assert (await client.post('/api/video', json={'viewer': 'a', 'playing': True, 'revision': 3})).status_code == 200
         stale = await client.post('/api/video', json={'viewer': 'a', 'playing': False, 'revision': 2})
         assert stale.json() == {'playing': True, 'ignored': True}

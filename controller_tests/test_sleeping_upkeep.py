@@ -3,10 +3,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.colony_plan import ColonyGoal, ColonyPlan, PlanStep, StepProgress
-from rimbot.colony_skills import SkillBlocked
-from rimbot.colony_upkeep import upkeep_nodes
-from rimbot.sleeping_upkeep import sleeping_evidence, sleeping_method
+from rimgovernor.colony_plan import ColonyGoal, ColonyPlan, PlanStep, StepProgress
+from rimgovernor.colony_skills import SkillBlocked
+from rimgovernor.colony_upkeep import upkeep_nodes
+from rimgovernor.sleeping_upkeep import sleeping_evidence, sleeping_method
 
 
 def facts():

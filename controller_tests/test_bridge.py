@@ -4,7 +4,7 @@ import asyncio
 import pytest
 pytest.importorskip("mcp")
 from mcp.types import CallToolResult, TextContent
-from rimbot.bridge import BridgeClient, BridgeError
+from rimgovernor.bridge import BridgeClient, BridgeError
 
 
 async def test_connect_waits_for_readiness_without_replaying_start_or_load(monkeypatch):
@@ -13,7 +13,7 @@ async def test_connect_waits_for_readiness_without_replaying_start_or_load(monke
                             structuredContent={'message': "Game is not connected via GABP"})
     session = AsyncMock()
     session.call_tool.side_effect = [ready, pending, ready]
-    monkeypatch.setattr('rimbot.bridge.asyncio.sleep', AsyncMock())
+    monkeypatch.setattr('rimgovernor.bridge.asyncio.sleep', AsyncMock())
     assert await BridgeClient(session).connect() is ready
     assert [call.args[0] for call in session.call_tool.await_args_list] == [
         'games_connect', 'games_tool_names', 'games_tool_names']
@@ -27,7 +27,7 @@ async def test_native_result_and_error_are_preserved_without_retry():
     bridge = BridgeClient(session)
     assert await bridge.call("rimworld/apply_architect_designator", x=3, z=4) is result
     session.call_tool.assert_awaited_once_with("games_call_tool", {
-        "gameId": "rimbot-trial", "tool": "rimworld/apply_architect_designator",
+        "gameId": "rimgovernor-trial", "tool": "rimworld/apply_architect_designator",
         "arguments": {"x": 3, "z": 4}})
     session.call_tool.reset_mock()
     failure = CallToolResult(isError=True, content=[TextContent(type="text", text="blocked")])
@@ -45,7 +45,7 @@ async def test_discovery_requests_one_schema_not_entire_catalog():
     bridge = BridgeClient(session)
     await bridge.detail("rimworld/get_cell_info")
     session.call_tool.assert_awaited_once_with("games_tool_detail", {
-        "gameId": "rimbot-trial", "tool": "rimworld/get_cell_info"})
+        "gameId": "rimgovernor-trial", "tool": "rimworld/get_cell_info"})
 
 
 async def test_native_failure_inside_successful_transport_is_failure():
@@ -115,7 +115,7 @@ async def test_failed_durable_request_is_timed_without_native_dispatch(monkeypat
     class Recorder:
         context = {}
         def event(self, *args, **kwargs): raise OSError('disk full')
-    monkeypatch.setattr('rimbot.flight_recorder.recorder', lambda: Recorder())
+    monkeypatch.setattr('rimgovernor.flight_recorder.recorder', lambda: Recorder())
     bridge = BridgeClient(AsyncMock())
     timings = []
     bridge.timing_callback = timings.append

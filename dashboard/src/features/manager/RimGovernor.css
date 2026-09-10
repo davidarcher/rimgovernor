@@ -599,7 +599,7 @@
 .bridge-shell .autopilot-goal {
   border-color: var(--line);
 }
-.outpost-footer {
+.governor-footer {
   display: flex;
   justify-content: space-between;
   padding: 4px 36px 23px;
@@ -691,7 +691,7 @@
   .priority-ladder small {
     margin-left: auto;
   }
-  .outpost-footer {
+  .governor-footer {
     gap: 20px;
   }
   .station-status {

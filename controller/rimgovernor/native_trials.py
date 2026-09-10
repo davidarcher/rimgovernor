@@ -69,7 +69,7 @@ class ReusableGame:
         (self.output/'reuse.json').write_text(json.dumps(self.report, indent=2), encoding='utf8')
 
     def fingerprints(self):
-        config = json.loads((self.configuration/'config.json').read_text(encoding='utf8'))['games']['rimbot-trial']
+        config = json.loads((self.configuration/'config.json').read_text(encoding='utf8'))['games']['rimgovernor-trial']
         paths = [self.baseline, self.configuration/'config.json', gabs_executable(self.root),
                  self.root/'headless-profile/Config/ModsConfig.xml', Path(config['target']),
                  *sorted(p for p in (Path(config['workingDir'])/'Mods').rglob('*') if p.is_file())]
@@ -80,7 +80,7 @@ class ReusableGame:
         try:
             self.root = isolated_root(self.source, self.output/'bridge')
             self.configuration = prepare(self.root)
-            self.baseline = self.root/'headless-profile/Saves/RimBot-tribal8-baseline.rws'
+            self.baseline = self.root/'headless-profile/Saves/RimGovernor-tribal8-baseline.rws'
             ticks = re.findall(rb'<tickManager>\s*<ticksGame>(\d+)</ticksGame>', self.baseline.read_bytes())
             if len(ticks) != 1:
                 raise ValueError('Expected one baseline tick-manager value')
@@ -146,7 +146,7 @@ class ReusableGame:
             if self.last_identity and self.token(await self.identity()) != self.token(self.last_identity):
                 raise RuntimeError('Native load changed outside the trial; refusing baseline reload')
             began = time.monotonic()
-            await self.bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',
+            await self.bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                 readiness='visual', timeoutMs=90000, ignoreModCompatibility=True)
             identity = await self.identity()
             status = (await self.bridge.call('home/status', colonists=False, threats=False)).structuredContent

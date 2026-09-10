@@ -5,7 +5,7 @@ import pytest
 pytest.importorskip('mcp')
 from mcp.types import CallToolResult
 from jsonschema import ValidationError
-from rimbot.bridge_observation import ObservationGateway, project, observe
+from rimgovernor.bridge_observation import ObservationGateway, project, observe
 
 
 async def test_native_batch_preserves_projection_and_rejects_partial_sections():

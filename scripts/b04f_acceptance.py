@@ -4,16 +4,16 @@ import asyncio
 import json
 import time
 from pathlib import Path
-from rimbot.bridge import BridgeError, bridge_session, gabs_executable
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_observation import observe
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.colony_plan import ColonyGoal, CommitSteps, PlanStep
-from rimbot.colony_policy import derive
-from rimbot.development import placement
-from rimbot.headless import prepare
-from rimbot.store import Store
+from rimgovernor.bridge import BridgeError, bridge_session, gabs_executable
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_observation import observe
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps, PlanStep
+from rimgovernor.colony_policy import derive
+from rimgovernor.development import placement
+from rimgovernor.headless import prepare
+from rimgovernor.store import Store
 
 
 async def run(args):
@@ -59,7 +59,7 @@ async def run(args):
                 rt.current_plan.control['simulation_needed']=True
                 await rt.advance_execution()
             else:
-                from rimbot.production_policy import sync_production_policy
+                from rimgovernor.production_policy import sync_production_policy
                 await sync_production_policy(rt)
                 await rt.supervisor.change('Superfast',max_ticks=max_ticks or (12000 if args.case=='development' else 6000))
             async with asyncio.timeout(180):
@@ -111,7 +111,7 @@ async def run(args):
             goal=rt.current_plan.colony_goals.setdefault(identity,ColonyGoal(priority_class=0 if identity=='ActiveCombat' else 2))
             goal.status='active'
             if identity=='EnsureResearch' and selected is None:
-                from rimbot.research import refresh as prepare_research
+                from rimgovernor.research import refresh as prepare_research
                 await prepare_research(rt,facts,people,[])
                 await issue('EnsureWorkAssignments')
                 facts,people=await refresh()
@@ -168,7 +168,7 @@ async def run(args):
                     await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
                 check('ordinary_crashlanded_start',census.get('colonists')==3)
             else:
-                await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
+                await bridge.call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
             await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
             await rt.sync_identity();rt.mode='automate'
             if args.case != 'recurring-harvest': await setup('stocks')
@@ -239,7 +239,7 @@ async def run(args):
                 check('native_connected_power',facts['powerRequired'] and facts['powerHeadroom']>=0
                     and load_row['powered'] and load_row['net']==generator_row['net']
                     and generator_row['outputW']>0 and bool(conduits),power=power,conduits=conduits)
-                from rimbot.development import development_nodes
+                from rimgovernor.development import development_nodes
                 for _ in range(20):
                     facts,_=await refresh()
                     if ('EnsureComfort',4) not in development_nodes(facts):break
@@ -282,7 +282,7 @@ async def run(args):
                     await window()
                 check('combat_triage_completed',not next(p for p in people if p['thingId']==patient)['health']['needsTend'])
             elif args.case=='recurring-harvest':
-                from rimbot.native_scenario import advance_game
+                from rimgovernor.native_scenario import advance_game
                 await issue('EnsureWorkAssignments')
                 target=(await setup('harvest-plant'))['plant']
                 await bridge.call('test/food_observe')
@@ -313,8 +313,8 @@ async def run(args):
                 check('prior_harvest_receipt_preserved',archived and archived['progress']==completed[0][first],archive=archived)
                 report['harvest_receipts']=completed
             elif args.case=='medical-rest':
-                from rimbot.native_scenario import advance_game,ScenarioInterrupted
-                from rimbot.colony_policy import priority_nodes
+                from rimgovernor.native_scenario import advance_game,ScenarioInterrupted
+                from rimgovernor.colony_policy import priority_nodes
                 await issue('EnsureWorkAssignments')
                 patient=people[0]['thingId']
                 await setup('resting-patient',patient)
@@ -348,8 +348,8 @@ async def run(args):
                 else:
                     raise AssertionError('New tending/bleeding need did not stop medical-rest monitoring')
             elif args.case=='equipment-observation':
-                from rimbot.native_scenario import advance_game
-                from rimbot.colony_plan import Failure
+                from rimgovernor.native_scenario import advance_game
+                from rimgovernor.colony_plan import Failure
                 equipment=await setup('combat-equipment')
                 facts,people=await refresh()
                 pawn=next(p for p in people if not p.get('drafted') and not p.get('downed') and not p.get('dead'))
@@ -379,8 +379,8 @@ async def run(args):
                 check('original_uncertain_receipts_preserved',all(
                     rt.current_plan.progress[i].issued==retained[i]['issued'] for i in ids))
             elif args.case=='refused-preview':
-                from rimbot.native_scenario import advance_game
-                from rimbot.order_refusal import refused_preview
+                from rimgovernor.native_scenario import advance_game
+                from rimgovernor.order_refusal import refused_preview
                 await setup('combat-equipment')
                 ids = await issue('EnsureBasicDefense')
                 rt.supervisor.test_acceleration = True
@@ -416,8 +416,8 @@ async def run(args):
                     check('subsequent_review_completes', rt.mode == 'automate')
                 finally:
                     rt.controller.skills.compile = original_compile
-                from rimbot.mood_control import assess, method as need_method
-                from rimbot.colony_skills import SkillBlocked
+                from rimgovernor.mood_control import assess, method as need_method
+                from rimgovernor.colony_skills import SkillBlocked
                 # Stale controller input exercises native admission without changing needs/jobs.
                 stale = dict(pawn, drafted=False, downed=False, jobPlayerForced=False,
                     jobLoadId=-2, schedule={'current':'Anything'}, mentalState=None,
@@ -434,7 +434,7 @@ async def run(args):
                 await rt.controller.cycle()
                 check('review_after_need_refusal_completes', rt.mode == 'automate')
             elif args.case=='drafted-medical':
-                from rimbot.native_scenario import advance_game
+                from rimgovernor.native_scenario import advance_game
                 # One player-owned draft stays protected throughout recovery.
                 protected = people[-1]['thingId']
                 await bridge.call('home/order', action='draft', pawn=protected, dryRun=False, watch=False)
@@ -509,9 +509,9 @@ async def run(args):
                     actor='strategist',expected_token=rt.context_token,expected_revision=rt.chat_revision)
                 await setup('low-health',people[0]['thingId'])
                 facts,people=await refresh()
-                from rimbot.combat_health import combat_health_hold
+                from rimgovernor.combat_health import combat_health_hold
                 check('native_health_hold',bool(combat_health_hold({'pawns':people})),people=people)
-                from rimbot.colony_skills import SkillBlocked
+                from rimgovernor.colony_skills import SkillBlocked
                 refused=False
                 try:await rt.controller.skills.compile('ActiveCombat',facts,people)
                 except SkillBlocked:refused=True

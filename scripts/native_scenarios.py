@@ -181,7 +181,7 @@ def run(args):
         return preflight_failure('infrastructure_failure', error)
     def command(*parts, **kwargs):
         return subprocess.run([docker, *parts], env=env, cwd=source, **kwargs)
-    for name, relative in [('game', 'RimWorldLinux'), ('mods', ''), ('profile', 'Saves/RimBot-tribal8-baseline.rws'), ('gabs', 'gabs')]:
+    for name, relative in [('game', 'RimWorldLinux'), ('mods', ''), ('profile', 'Saves/RimGovernor-tribal8-baseline.rws'), ('gabs', 'gabs')]:
         if not (getattr(args, name)/relative).exists():
             return preflight_failure('missing_prerequisite', f'Missing required {name} input: {getattr(args, name)/relative}')
     for scenario in args.scenario:
@@ -236,7 +236,7 @@ def run(args):
         scenario, attempt = item
         root = output/f'{scenario}-{attempt}'
         root.mkdir()
-        name = 'rimbot-scenario-'+uuid.uuid4().hex[:12]
+        name = 'rimgovernor-scenario-'+uuid.uuid4().hex[:12]
         row = dict(scenario=scenario, attempt=attempt, container=name, category='infrastructure_failure', cleanup=False,
                    recording=args.recording, storage=args.storage)
         volume = name+'-work' if args.storage == 'volume' else None
@@ -263,18 +263,18 @@ def run(args):
         sampler.start()
         try:
             if volume:
-                command('volume', 'create', '--label', 'rimbot.scenario='+name, volume,
+                command('volume', 'create', '--label', 'rimgovernor.scenario='+name, volume,
                         capture_output=True, text=True, check=True, timeout=30)
                 volume_created = True
             cmd = ['run', '--init', '--name', name, '--memory', args.memory, '--cpus', str(args.cpus),
-                   '-e', 'RIMBOT_UNITY_GC_TIME_SLICE='+args.gc,
-                   '-e', 'RIMBOT_DISPLAY='+args.display,
-                   '-e', 'RIMBOT_GABS_LOG_LEVEL='+args.gabs_log_level,
-                   '-e', 'RIMBOT_RUN_ID='+name,
-                   '-e', 'RIMBOT_SCENARIO='+scenario]
+                   '-e', 'RIMGOVERNOR_UNITY_GC_TIME_SLICE='+args.gc,
+                   '-e', 'RIMGOVERNOR_DISPLAY='+args.display,
+                   '-e', 'RIMGOVERNOR_GABS_LOG_LEVEL='+args.gabs_log_level,
+                   '-e', 'RIMGOVERNOR_RUN_ID='+name,
+                   '-e', 'RIMGOVERNOR_SCENARIO='+scenario]
             cmd += dashboard_options(scenario+' '+str(attempt), args.display)
             if args.recording == 'on':
-                cmd += ['-e', 'RIMBOT_FLIGHT_RECORDER=/worker/timeline.jsonl']
+                cmd += ['-e', 'RIMGOVERNOR_FLIGHT_RECORDER=/worker/timeline.jsonl']
             for key in ('game', 'mods', 'profile', 'gabs'):
                 cmd += ['--mount', f'type=bind,source={getattr(args, key).resolve()},target=/inputs/{key},readonly']
             storage = f'type=volume,source={volume},target=/worker' if volume else f'type=bind,source={root},target=/worker'
@@ -390,7 +390,7 @@ def main():
     parser.add_argument('--scenario', nargs='+', choices=SCENARIOS, default=['construction', 'production', 'paired-restart'])
     for key in ('game', 'mods', 'profile', 'gabs', 'output'):
         parser.add_argument('--'+key, type=Path)
-    parser.add_argument('--image', default='rimbot-worker:native-scenarios')
+    parser.add_argument('--image', default='rimgovernor-worker:native-scenarios')
     parser.add_argument('--checkpoint', type=Path, help='Immutable named-runner checkpoint directory for targeted construction continuation')
     parser.add_argument('--no-build', action='store_true')
     parser.add_argument('--repeat', type=int, choices=range(1, 101), default=1)

@@ -28,5 +28,5 @@ it('retains the last directory on failure and removes stopped workers on recover
   expect(screen.getByRole('status')).toHaveTextContent('Showing the last discovered colonies');
   await act(async () => { await vi.advanceTimersByTimeAsync(10000); });
   expect(screen.queryByText(colony.name)).toBeNull();
-  expect(screen.getByText('No running RimBot Docker colonies found.')).toBeVisible();
+  expect(screen.getByText('No running RimGovernor Docker colonies found.')).toBeVisible();
 });

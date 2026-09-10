@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
 
         internal ClockEventJournal()
         {
-            directory = Path.Combine(GenFilePaths.SaveDataFolderPath, "RimBotClockEvents");
+            directory = Path.Combine(GenFilePaths.SaveDataFolderPath, "RimGovernorClockEvents");
             Directory.CreateDirectory(directory);
             foreach (var pending in Directory.GetFiles(directory, "*.pending"))
             {

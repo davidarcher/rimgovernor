@@ -1,4 +1,4 @@
-from rimbot.food_preservation import preservation_bill
+from rimgovernor.food_preservation import preservation_bill
 
 
 def facts():

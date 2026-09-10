@@ -31,7 +31,7 @@ export default function LocalColonies() {
     <p>Open a colony in its own tab and switch between them without losing your place.</p>
     {loading && <p role="status">Finding running colonies…</p>}
     {error && <p role="status">{error} {colonies.length > 0 && 'Showing the last discovered colonies.'}</p>}
-    {!loading && !error && colonies.length === 0 && <p>No running RimBot Docker colonies found.</p>}
+    {!loading && !error && colonies.length === 0 && <p>No running RimGovernor Docker colonies found.</p>}
     <ul>{colonies.map(colony => <li key={colony.id}>
       <div><strong>{colony.name}</strong><small>{colony.display === 'xvfb' ? 'Rendered game view' : 'Headless · no game image'}</small></div>
       {colony.url ? <a href={colony.url} target={`colony-${colony.id}`} rel="noopener">Open colony ↗</a>

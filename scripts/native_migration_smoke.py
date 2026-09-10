@@ -1,26 +1,26 @@
 """Disposable native smoke: save identity, an instant zone, draft cleanup and ticks.
 Run with the dashboard controller and RimWorld closed. Never invokes a model.
 """
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import asyncio
 import json
 from pathlib import Path
-from rimbot.bridge import bridge_session
-from rimbot.bridge_game import BridgeGame
-from rimbot.projects import ProjectBook
+from rimgovernor.bridge import bridge_session
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.projects import ProjectBook
 
 async def main():
-    root=Path('.rimbot/bridge').resolve()
+    root=Path('.rimgovernor/bridge').resolve()
     evidence={}
     async with bridge_session(gabs_executable(root),root/'config') as bridge:
         await bridge.core('games_start',gameId=bridge.game_id)
         await bridge.connect()
-        await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',timeoutMs=90000)
+        await bridge.call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',readiness='visual',timeoutMs=90000)
         await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
         game=BridgeGame(bridge)
         first=await game.query('home/colony_identity')
-        await bridge.call('rimworld/save_game',saveName='RimBot-native-identity-check')
-        await bridge.call('rimworld/load_game_ready',saveName='RimBot-native-identity-check',readiness='visual',timeoutMs=90000)
+        await bridge.call('rimworld/save_game',saveName='RimGovernor-native-identity-check')
+        await bridge.call('rimworld/load_game_ready',saveName='RimGovernor-native-identity-check',readiness='visual',timeoutMs=90000)
         second=await game.query('home/colony_identity')
         assert first['colonyId']==second['colonyId'] and first['loadToken']!=second['loadToken'],(first,second)
         evidence['saved_identity']={'same_colony':True,'new_load_token':True}

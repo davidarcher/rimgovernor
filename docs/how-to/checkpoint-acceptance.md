@@ -7,7 +7,7 @@ and resume a session](save-and-resume.md) for the base probe.
 
 Run commands from the repository root. Native probes require a disposable prepared
 profile and their stated fixture; run `--help` for the selected script. Keep outputs
-under a fresh `.rimbot/` directory, preserve failures, and never replace installed DLLs
+under a fresh `.rimgovernor/` directory, preserve failures, and never replace installed DLLs
 while any RimWorld instance is running. Container inputs use private snapshots.
 
 Add `--mixed` to `scripts/session_checkpoint_acceptance.py` for an issued shell slot,

@@ -1,7 +1,7 @@
 import json
 from types import SimpleNamespace
 import pytest
-from rimbot import virtual_display as display
+from rimgovernor import virtual_display as display
 
 
 class Process:
@@ -65,7 +65,7 @@ def test_display_death_stops_owned_command(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_bridge_passes_display_settings_without_unrelated_environment(tmp_path, monkeypatch):
     from contextlib import asynccontextmanager
-    from rimbot import bridge
+    from rimgovernor import bridge
     monkeypatch.setenv('DISPLAY', ':99')
     monkeypatch.setenv('GALLIUM_DRIVER', 'llvmpipe')
     monkeypatch.setenv('UNRELATED_SECRET', 'excluded')

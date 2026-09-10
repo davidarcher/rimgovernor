@@ -3,9 +3,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.colony_plan import ColonyGoal
-from rimbot.colony_policy import ColonyPolicy
-from rimbot.disaster_recovery import prioritize, reconcile
+from rimgovernor.colony_plan import ColonyGoal
+from rimgovernor.colony_policy import ColonyPolicy
+from rimgovernor.disaster_recovery import prioritize, reconcile
 from test_colony_controller import Replay, facts
 
 
@@ -88,7 +88,7 @@ async def test_unpowered_stove_uses_bounded_campfire_fallback():
 
 @pytest.mark.asyncio
 async def test_cooking_fallback_refuses_occupied_or_zoned_cells():
-    from rimbot.colony_skills import SkillBlocked
+    from rimgovernor.colony_skills import SkillBlocked
     rt = Replay()
     rt.current_plan.colony_goals['EnsureCooking'] = ColonyGoal(priority_class=2)
     value = stable()

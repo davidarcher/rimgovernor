@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.store import Store
 
 
 @asynccontextmanager

@@ -2,10 +2,10 @@ import pytest
 import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.colony_plan import ColonyPlan
-from rimbot.memory import update_memory
-from rimbot.strategic_state import StrategicState
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.colony_plan import ColonyPlan
+from rimgovernor.memory import update_memory
+from rimgovernor.strategic_state import StrategicState
 
 
 def call(notes, op, id='camp', **kwargs):
@@ -69,7 +69,7 @@ async def test_runtime_rejects_stale_colony_or_direction(token, revision):
 
 @pytest.mark.asyncio
 async def test_player_forget_checks_version_and_invalidates_review():
-    from rimbot.strategic_state import fingerprint
+    from rimgovernor.strategic_state import fingerprint
     state = StrategicState()
     call(state.memories, 'write', text='Lesson', evidence='Observation')
     rt = SimpleNamespace(lock=asyncio.Lock(), sync_identity=AsyncMock(),

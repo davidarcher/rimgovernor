@@ -7,14 +7,14 @@ import sys
 import time
 from collections import Counter
 from pathlib import Path
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.config import Settings
-from rimbot.store import Store
-from rimbot.campaign_metrics import CampaignEvidence, event_metrics
-from rimbot.bridge_game import is_write
-from rimbot.receipts import _outcome
-from rimbot.bridge_observation import observe
-from rimbot.campaign_manifest import capture_manifest
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.config import Settings
+from rimgovernor.store import Store
+from rimgovernor.campaign_metrics import CampaignEvidence, event_metrics
+from rimgovernor.bridge_game import is_write
+from rimgovernor.receipts import _outcome
+from rimgovernor.bridge_observation import observe
+from rimgovernor.campaign_manifest import capture_manifest
 
 
 def consecutive_passes(results, *, require_manifest=False):
@@ -95,7 +95,7 @@ async def worker(args):
     store=Store(folder/'state.sqlite')
     root=args.source_root
     if args.isolated:
-        from rimbot.headless import isolated_root
+        from rimgovernor.headless import isolated_root
         root=isolated_root(root,folder/'bridge')
     rt=FastTrial(store,root,fresh=True,headless=not args.rendered,settings=Settings(model=args.model))
     report={'iteration':args.worker,'model':args.model,'headless':not args.rendered,'speed':'Paused deliberation; bounded execution',
@@ -106,11 +106,11 @@ async def worker(args):
     (folder/'thresholds.json').write_text(json.dumps(report['metrics']['thresholds'],indent=2),encoding='utf-8')
     start=time.monotonic()
     try:
-        from rimbot.headless import prepare, prepare_rendered
+        from rimgovernor.headless import prepare, prepare_rendered
         configuration = prepare_rendered(root) if args.rendered else prepare(root)
         source = Path(__file__).resolve().parents[1]
         loaded_runtime = Path(sys.modules[BridgeRuntime.__module__].__file__).resolve()
-        if loaded_runtime != source/'controller/rimbot/bridge_runtime.py':
+        if loaded_runtime != source/'controller/rimgovernor/bridge_runtime.py':
             raise ValueError('Campaign runtime was imported from another checkout; set PYTHONPATH to this source/controller')
         manifest = capture_manifest(source, root, configuration,
                                     rt.router.routing.model_dump(mode='json'),
@@ -194,9 +194,9 @@ if __name__=='__main__':
     parser.add_argument('--fixed-window',action='store_true',help='Do not extend the observation window after a late first action')
     parser.add_argument('--rendered',action='store_true',help='Show the isolated game window with normal rendering')
     parser.add_argument('--model',default='qwen3.5-9b')
-    parser.add_argument('--source-root',type=Path,default=Path('.rimbot/bridge'))
+    parser.add_argument('--source-root',type=Path,default=Path('.rimgovernor/bridge'))
     parser.add_argument('--direction',default='',help='Frozen player objective, recorded before automation begins')
-    parser.add_argument('--output',type=Path,default=Path('.rimbot/headless-campaign'))
+    parser.add_argument('--output',type=Path,default=Path('.rimgovernor/headless-campaign'))
     args=parser.parse_args()
     if args.worker:asyncio.run(worker(args))
     else:

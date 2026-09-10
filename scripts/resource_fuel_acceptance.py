@@ -1,5 +1,5 @@
 """Ordinary research, construction and target-count chemfuel production acceptance."""
-from rimbot.native_scenario import advance_game
+from rimgovernor.native_scenario import advance_game
 import argparse
 import asyncio
 import json
@@ -8,16 +8,16 @@ import xml.etree.ElementTree as ET
 import time
 from pathlib import Path
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge import runtime_file_read
-from rimbot.headless import isolated_root, prepare
-from rimbot.store import Store
-from rimbot.colony_plan import ColonyGoal, CommitSteps, Decision, PlanSpec, NativeOperation
-from rimbot.player_commands import apply_command
-from rimbot.production_policy import resource_method, refresh_resource_prerequisite
-from rimbot.colony_skills import SkillBlocked, native
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.session_checkpoint import prepare_resume
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge import runtime_file_read
+from rimgovernor.headless import isolated_root, prepare
+from rimgovernor.store import Store
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps, Decision, PlanSpec, NativeOperation
+from rimgovernor.player_commands import apply_command
+from rimgovernor.production_policy import resource_method, refresh_resource_prerequisite
+from rimgovernor.colony_skills import SkillBlocked, native
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.session_checkpoint import prepare_resume
 
 
 async def run(args):
@@ -29,7 +29,7 @@ async def run(args):
         root=isolated_root(args.source_root,args.output/'bridge')
         if args.source_save:
             ET.parse(args.source_save)
-            shutil.copy2(args.source_save,root/'profile/Saves/RimBot-tribal8-baseline.rws')
+            shutil.copy2(args.source_save,root/'profile/Saves/RimGovernor-tribal8-baseline.rws')
         config=prepare(root);store=Store(args.output/'state.sqlite')
     rt=BridgeRuntime(store,root,fresh=True,headless=True,resume=args.checkpoint)
     report={'outcome':'failed','cases':[]};fixture_steps=set();food_support_ready=False;deadline=time.monotonic()+args.seconds
@@ -67,7 +67,7 @@ async def run(args):
             await rt.execute_manual_requests()
         return value
     async def facts():
-        from rimbot.colony_policy import derive
+        from rimgovernor.colony_policy import derive
         return derive(rt.batch,await rt.game.query('home/colony_facts',planning=True),rt.controller.policy)
     async def compile_method(identity, selected=None):
         await archive_fixture()
@@ -194,7 +194,7 @@ async def run(args):
                     if 'BiofuelRefining' in research.get('finished',[]):break
                     progress=(research.get('current') or {}).get('progress',0)
                     if int(progress//150)>report.get('research_checkpoint_band',0):
-                        from rimbot.session_checkpoint import create_checkpoint
+                        from rimgovernor.session_checkpoint import create_checkpoint
                         report['research_checkpoint']=await create_checkpoint(rt,rt.context_token)
                         report['research_checkpoint_band']=int(progress//150)
                         save()
@@ -209,7 +209,7 @@ async def run(args):
         roster=(await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True,health=True))['pawns']
         report['production_start']={'pawns':roster,'bills':await rt.game.invoke('home/bills',{'action':'list','dryRun':True}),
             'facts':await facts()}
-        from rimbot.session_checkpoint import create_checkpoint
+        from rimgovernor.session_checkpoint import create_checkpoint
         report['production_start_checkpoint']=await create_checkpoint(rt,rt.context_token)
         save()
         crafters=[p for p in roster if not any(p.get(k) for k in ('dead','downed','drafted','mentalState'))
@@ -226,7 +226,7 @@ async def run(args):
         after=(await facts())['resources']['Chemfuel']
         record('native_chemfuel_produced',after>before,before=before,after=after,
             bills=await rt.game.invoke('home/bills',{'action':'list','dryRun':True}))
-        from rimbot.session_checkpoint import create_checkpoint
+        from rimgovernor.session_checkpoint import create_checkpoint
         report['production_checkpoint']=await create_checkpoint(rt,rt.context_token)
         record('zero_inference',rt.counters.get('model_calls',0)==0,counters=rt.counters)
         report['outcome']='passed'
@@ -237,7 +237,7 @@ async def run(args):
                 report['failure_native']={'status':await rt.game.query('home/status',colonists=True,threats=True),
                     'pawns':await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True,health=True),
                     'bills':await rt.game.invoke('home/bills',{'action':'list','dryRun':True})}
-                from rimbot.session_checkpoint import create_checkpoint
+                from rimgovernor.session_checkpoint import create_checkpoint
                 report['failure_checkpoint']=await create_checkpoint(rt,rt.context_token)
             except Exception as diagnostic_error:report['diagnostic_error']=repr(diagnostic_error)
         raise

@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.expedition_policy import ExpeditionPolicy, evaluate_expedition, evaluate_world, home_food_after
+from rimgovernor.expedition_policy import ExpeditionPolicy, evaluate_expedition, evaluate_world, home_food_after
 
 
 def evidence():
@@ -99,7 +99,7 @@ def test_quest_evaluation_lists_carried_goods_without_crediting_them_to_home():
 @pytest.mark.asyncio
 @pytest.mark.parametrize('cargo,remaining_warden,blocked', [(20, True, False), (80, True, True), (20, False, True)])
 async def test_departure_preserves_population_food_and_assigned_care(cargo, remaining_warden, blocked):
-    from rimbot.expedition_policy import guard_population_commitments
+    from rimgovernor.expedition_policy import guard_population_commitments
     _, facts, _ = evidence()
     facts.update(bedCapacity=3, nutritionPerDay=2, foodNutrition=10)
     snapshot = dict(success=True, people=[dict(thingId=p, admitted=True, dead=False, nutritionPerDay=1)

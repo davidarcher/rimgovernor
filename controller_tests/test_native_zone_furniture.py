@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 import pytest
-from rimbot.colony_plan import ColonyPlan, PlanSpec, Placement, StepProgress, Zone
-from rimbot.hands import Hands, Blocked
+from rimgovernor.colony_plan import ColonyPlan, PlanSpec, Placement, StepProgress, Zone
+from rimgovernor.hands import Hands, Blocked
 
 
 def runtime(legal=True):

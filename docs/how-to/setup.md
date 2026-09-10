@@ -15,12 +15,12 @@ powershell -ExecutionPolicy Bypass -File scripts\build_observation_bridge.ps1 -I
 Prepare the isolated profile using `scripts/prepare_bridge_trial.py` with
 `--observations`, `--source-profile` pointing to the normal RimWorld save folder, and
 `--rimworld` pointing to the game install. This requires the checkpointed
-`RimBot-tribal8-baseline.rws` fixture. It copies the fixture and strips its retired mod
+`RimGovernor-tribal8-baseline.rws` fixture. It copies the fixture and strips its retired mod
 component from the copy, never the original.
 
 The existing local installation keeps GABS v1.1.1 at
-`.rimbot/bridge/gabs/gabs-v1.1.1-windows-amd64/gabs.exe` and its configuration at
-`.rimbot/bridge/config/config.json`. These binaries and the test save are not in Git. A
+`.rimgovernor/bridge/gabs/gabs-v1.1.1-windows-amd64/gabs.exe` and its configuration at
+`.rimgovernor/bridge/config/config.json`. These binaries and the test save are not in Git. A
 clean checkout needs those prerequisites; setup.ps1 does not download or create them. LM
 Studio defaults to http://127.0.0.1:1234/v1.
 
@@ -34,7 +34,7 @@ With the required baseline present in the source profile, run:
 
 Replace both paths with your existing profile and game installation. The script checks
 the baseline hash and refuses a different save. Its default output root is
-`.rimbot/bridge`; `--root` selects another location. It writes a private profile, GABS
+`.rimgovernor/bridge`; `--root` selects another location. It writes a private profile, GABS
 configuration and fixture manifest. This preparation does not supply the GABS
 executable. Stop on a missing prerequisite rather than substituting an unrelated save
 and treating it as the baseline.

@@ -3,15 +3,15 @@ from copy import deepcopy
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge_observation import ObservationBatch, project
-from rimbot.colony_plan import ColonyPlan, PlanSpec, Decision, RoomShell
-from rimbot.config import Settings, ModelRole, ModelRouting, load_model_routing
-from rimbot.consultation import Consultations
-from rimbot.hands import room_placements, validate_geometry
-from rimbot.model_router import ModelRouter
-from rimbot.strategic_state import StrategicState, features, context
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge_observation import ObservationBatch, project
+from rimgovernor.colony_plan import ColonyPlan, PlanSpec, Decision, RoomShell
+from rimgovernor.config import Settings, ModelRole, ModelRouting, load_model_routing
+from rimgovernor.consultation import Consultations
+from rimgovernor.hands import room_placements, validate_geometry
+from rimgovernor.model_router import ModelRouter
+from rimgovernor.strategic_state import StrategicState, features, context
+from rimgovernor.store import Store
 from test_construction_preflight import footprint, native_reply
 
 

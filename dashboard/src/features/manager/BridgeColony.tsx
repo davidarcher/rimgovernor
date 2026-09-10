@@ -10,7 +10,7 @@ import Autopilot, {
 } from "./Autopilot";
 import "./Manager.css";
 import "./BridgeColony.css";
-import "./Outpost.css";
+import "./RimGovernor.css";
 import FieldGuide, { Muffalo } from "./FieldGuide";
 import { readable, humanize } from "./labels";
 import GameControls from "./GameControls";
@@ -95,7 +95,7 @@ export default function BridgeColony() {
     const heartbeat = () =>
       fetch("/api/video", {
         method: "POST",
-        headers: { "X-RimBot": "1", "Content-Type": "application/json" },
+        headers: { "X-RimGovernor": "1", "Content-Type": "application/json" },
         body: JSON.stringify({
           viewer: viewer.current,
           revision: ++videoRevision.current,
@@ -111,7 +111,7 @@ export default function BridgeColony() {
       document.removeEventListener("visibilitychange", heartbeat);
       fetch("/api/video", {
         method: "POST",
-        headers: { "X-RimBot": "1", "Content-Type": "application/json" },
+        headers: { "X-RimGovernor": "1", "Content-Type": "application/json" },
         body: JSON.stringify({ viewer: viewer.current, playing: false, revision: ++videoRevision.current }),
         keepalive: true,
       }).catch(() => {});
@@ -220,7 +220,7 @@ export default function BridgeColony() {
     setError("");
     const r = await fetch("/api/" + path, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-RimBot": "1" },
+      headers: { "Content-Type": "application/json", "X-RimGovernor": "1" },
       body: JSON.stringify(body),
     });
     if (!r.ok) {
@@ -289,7 +289,7 @@ export default function BridgeColony() {
         <a href="#" className="mgr-brand">
           <Muffalo />
           <div>
-            OUTPOST<small>A RIMWORLD FIELD STATION</small>
+            RIMGOVERNOR<small>RIMWORLD COLONY CONTROL</small>
           </div>
         </a>
         <div className="mgr-inline station-status">
@@ -606,7 +606,7 @@ export default function BridgeColony() {
           <div className="section-heading">
             <div>
               <p className="mgr-eyebrow">THE PEOPLE WHO MAKE IT POSSIBLE</p>
-              <h1>Life at the outpost.</h1>
+              <h1>Life in the colony.</h1>
             </div>
             <div className="mgr-inline">
               <a href="#people">Colonists</a>
@@ -656,7 +656,7 @@ export default function BridgeColony() {
               onCancel={(id) => {
                 fetch(`/api/plan/steps/${encodeURIComponent(id)}`, {
                   method: "DELETE",
-                  headers: { "X-RimBot": "1" },
+                  headers: { "X-RimGovernor": "1" },
                 })
                   .then(async (r) => {
                     if (!r.ok) throw Error((await r.json()).detail);
@@ -721,8 +721,8 @@ export default function BridgeColony() {
           </section>
         </div>
       </main>
-      <footer className="outpost-footer">
-        <span>OUTPOST / SURVIVAL IS A SHARED PROJECT</span>
+      <footer className="governor-footer">
+        <span>RIMGOVERNOR / SURVIVAL IS A SHARED PROJECT</span>
         <span>RimWorld owns the simulation. You set the direction.</span>
       </footer>
     </div>

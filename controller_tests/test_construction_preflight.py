@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.colony_plan import ColonyPlan, PlanSpec
-from rimbot.construction_preflight import preflight_construction, ConstructionRefusal
+from rimgovernor.colony_plan import ColonyPlan, PlanSpec
+from rimgovernor.construction_preflight import preflight_construction, ConstructionRefusal
 
 
 def footprint(args, **result):

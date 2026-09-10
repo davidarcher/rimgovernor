@@ -4,17 +4,17 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.colony_plan import ColonyPlan
-from rimbot.construction_preflight import preflight_construction
-from rimbot.hands import Hands
-from rimbot.shell_site import ShellSiteRefusal
+from rimgovernor.colony_plan import ColonyPlan
+from rimgovernor.construction_preflight import preflight_construction
+from rimgovernor.hands import Hands
+from rimgovernor.shell_site import ShellSiteRefusal
 from test_construction_preflight import plan, native_reply
 from test_shell_site import runtime
 
 
 @pytest.mark.asyncio
 async def test_cancelled_unbuilt_shell_does_not_project_walls_or_own_space():
-    from rimbot.colony_plan import StepProgress,PlanStep
+    from rimgovernor.colony_plan import StepProgress,PlanStep
     current=ColonyPlan(spec=plan())
     identity=current.spec.steps[0].id
     current.progress[identity]=StepProgress(state='cancelled')
@@ -33,7 +33,7 @@ async def test_cancelled_unbuilt_shell_does_not_project_walls_or_own_space():
 
 @pytest.mark.asyncio
 async def test_cancelled_neighbor_cannot_close_active_shell_local_exit():
-    from rimbot.colony_plan import StepProgress
+    from rimgovernor.colony_plan import StepProgress
     from test_shell_connectivity import reader
     spec=plan();neighbor=spec.steps[0].model_copy(deep=True);neighbor.id='cancelled-neighbor'
     neighbor.action.bounds.x,neighbor.action.bounds.z=8,3

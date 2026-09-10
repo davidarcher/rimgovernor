@@ -1,6 +1,6 @@
 import json
 import pytest
-from rimbot.knowledge import search_knowledge, read_knowledge
+from rimgovernor.knowledge import search_knowledge, read_knowledge
 
 
 @pytest.mark.parametrize('question,expected', [

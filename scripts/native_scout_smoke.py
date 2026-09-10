@@ -1,24 +1,24 @@
 """Scout test on a disposable baseline. Run with controller/game closed."""
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import asyncio
 import json
 from pathlib import Path
-from rimbot.bridge import bridge_session
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_observation import observe
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.config import ModelRole, ModelRouting, Settings
-from rimbot.store import Store
+from rimgovernor.bridge import bridge_session
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_observation import observe
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.config import ModelRole, ModelRouting, Settings
+from rimgovernor.store import Store
 
 
 async def main():
-    root=Path('.rimbot/bridge').resolve()
+    root=Path('.rimgovernor/bridge').resolve()
     settings=Settings(model='qwen3.5-9b',max_output_tokens=2048,reasoning=False)
     routing=ModelRouting(roles={ModelRole.STRATEGIST:settings,ModelRole.ANALYST:settings})
     async with bridge_session(gabs_executable(root),root/'config') as bridge:
         await bridge.core('games_start',gameId=bridge.game_id)
         await bridge.connect()
-        await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',timeoutMs=90000)
+        await bridge.call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',readiness='visual',timeoutMs=90000)
         await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
         store=Store(root/'scout-smoke.sqlite')
         rt=BridgeRuntime(store,root,routing=routing)

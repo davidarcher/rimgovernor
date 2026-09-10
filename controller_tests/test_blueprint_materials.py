@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock,Mock
 import pytest
-from rimbot.colony_plan import ColonyPlan,Placement,StepProgress
-from rimbot.hands import Hands
+from rimgovernor.colony_plan import ColonyPlan,Placement,StepProgress
+from rimgovernor.hands import Hands
 
 
 @pytest.mark.asyncio

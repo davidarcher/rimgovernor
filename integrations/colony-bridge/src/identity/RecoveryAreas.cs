@@ -29,8 +29,8 @@ namespace HomeBridge.BridgeTools
         public RecoveryAreas(Game game) { }
         public override void ExposeData()
         {
-            Scribe_Collections.Look(ref Claims, "rimbotRecoveryAreas", LookMode.Deep);
-            Scribe_Collections.Look(ref Overrides, "rimbotRecoveryAreaOverrides", LookMode.Reference);
+            Scribe_Collections.Look(ref Claims, "rimgovernorRecoveryAreas", LookMode.Deep);
+            Scribe_Collections.Look(ref Overrides, "rimgovernorRecoveryAreaOverrides", LookMode.Reference);
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
                 if (Claims == null) Claims = new List<RecoveryAreaClaim>();

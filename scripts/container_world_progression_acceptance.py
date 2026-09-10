@@ -17,18 +17,18 @@ def run(args):
     docker, environment = docker_environment()
     def command(*values, **kwargs):
         return subprocess.run([docker, *values], cwd=source, env=environment, **kwargs)
-    name = 'rimbot-b15-' + uuid.uuid4().hex[:12]
+    name = 'rimgovernor-b15-' + uuid.uuid4().hex[:12]
     report = dict(passed=False, container=name, trip=args.trip, shared=args.shared, quests=args.quests, days=args.days, matrix=args.matrix,
                   logistics=args.logistics, multimap=args.multimap, emergency=args.emergency, diplomacy=args.diplomacy, quest_trade=args.quest_trade, expired=args.expired, failed=args.failed,
                   prepared_days=args.prepared_days, recovery=args.recovery, resume_trip=args.resume_trip,
                   scope='Native caravan/quest observations and optional ordinary loaded caravan round trip')
     try:
-        baseline = args.profile.resolve() / 'Saves/RimBot-tribal8-baseline.rws'
+        baseline = args.profile.resolve() / 'Saves/RimGovernor-tribal8-baseline.rws'
         if baseline.is_file():
             report['baseline'] = dict(path=str(baseline), sha256=hashlib.sha256(baseline.read_bytes()).hexdigest())
-        required = ['RimBot.Observations.BridgeTools.dll', 'RimBot.ColonyIdentity.dll', 'HeadlessRimPatch.dll']
+        required = ['RimGovernor.Observations.BridgeTools.dll', 'RimGovernor.ColonyIdentity.dll', 'HeadlessRimPatch.dll']
         if args.quests or args.matrix or args.emergency or args.multimap or args.quest_trade or args.expired or args.failed:
-            required.append('RimBot.InterruptionFixtures.BridgeTools.dll')
+            required.append('RimGovernor.InterruptionFixtures.BridgeTools.dll')
         report['assemblies'] = {}
         for assembly in required:
             matches = list(args.mods.resolve().rglob(assembly))
@@ -55,23 +55,23 @@ def run(args):
                 raise ValueError(f'Missing native input directory: {path}')
             mounts += ['--mount', f'type=bind,source={path},target=/inputs/{target},readonly']
         mounts += ['--mount', f'type=bind,source={output},target=/worker']
-        command('run', '-d', '--name', name, '--init', *dashboard_options(name), '--env', 'RIMBOT_UNITY_GC_TIME_SLICE=0',
+        command('run', '-d', '--name', name, '--init', *dashboard_options(name), '--env', 'RIMGOVERNOR_UNITY_GC_TIME_SLICE=0',
                 '--env', 'PYTHONPATH=/app/scripts:/app/controller',
-                '--env', 'RIMBOT_RESUME_WORLD=' + ('1' if args.resume_trip else '0'),
-                '--env', 'RIMBOT_RECOVERY=' + ('1' if args.recovery else '0'),
-                '--env', 'RIMBOT_SHARED_WORLD=' + ('1' if args.shared else '0'),
-                '--env', 'RIMBOT_QUEST_PROBE=' + ('1' if args.quests else '0'),
-                '--env', 'RIMBOT_SURVIVAL_DAYS=' + str(args.days),
-                '--env', 'RIMBOT_PREPARED_DAYS=' + ('1' if args.prepared_days else '0'),
-                '--env', 'RIMBOT_WORLD_MATRIX=' + ('1' if args.matrix else '0'),
-                '--env', 'RIMBOT_EMERGENCY_PROBE=' + ('1' if args.emergency else '0'),
-                '--env', 'RIMBOT_LOGISTICS=' + ('1' if args.logistics else '0'),
-                '--env', 'RIMBOT_MULTIMAP=' + ('1' if args.multimap else '0'),
-                '--env', 'RIMBOT_DIPLOMACY=' + ('1' if args.diplomacy else '0'),
-                '--env', 'RIMBOT_QUEST_TRADE=' + ('1' if args.quest_trade else '0'),
-                '--env', 'RIMBOT_FAILED_QUEST=' + ('1' if args.failed else '0'),
-                '--env', 'RIMBOT_EXPIRED_QUEST=' + ('1' if args.expired else '0'),
-                '--env', 'RIMBOT_CARAVAN_TRIP=' + ('1' if args.trip else '0'), *mounts,
+                '--env', 'RIMGOVERNOR_RESUME_WORLD=' + ('1' if args.resume_trip else '0'),
+                '--env', 'RIMGOVERNOR_RECOVERY=' + ('1' if args.recovery else '0'),
+                '--env', 'RIMGOVERNOR_SHARED_WORLD=' + ('1' if args.shared else '0'),
+                '--env', 'RIMGOVERNOR_QUEST_PROBE=' + ('1' if args.quests else '0'),
+                '--env', 'RIMGOVERNOR_SURVIVAL_DAYS=' + str(args.days),
+                '--env', 'RIMGOVERNOR_PREPARED_DAYS=' + ('1' if args.prepared_days else '0'),
+                '--env', 'RIMGOVERNOR_WORLD_MATRIX=' + ('1' if args.matrix else '0'),
+                '--env', 'RIMGOVERNOR_EMERGENCY_PROBE=' + ('1' if args.emergency else '0'),
+                '--env', 'RIMGOVERNOR_LOGISTICS=' + ('1' if args.logistics else '0'),
+                '--env', 'RIMGOVERNOR_MULTIMAP=' + ('1' if args.multimap else '0'),
+                '--env', 'RIMGOVERNOR_DIPLOMACY=' + ('1' if args.diplomacy else '0'),
+                '--env', 'RIMGOVERNOR_QUEST_TRADE=' + ('1' if args.quest_trade else '0'),
+                '--env', 'RIMGOVERNOR_FAILED_QUEST=' + ('1' if args.failed else '0'),
+                '--env', 'RIMGOVERNOR_EXPIRED_QUEST=' + ('1' if args.expired else '0'),
+                '--env', 'RIMGOVERNOR_CARAVAN_TRIP=' + ('1' if args.trip else '0'), *mounts,
                 image, '--', 'python', '/worker/probe.py', capture_output=True, text=True, check=True, timeout=120)
         address = command('port', name, '8787/tcp', capture_output=True, text=True, check=True).stdout.strip()
         report['dashboard_url'] = 'http://' + address + '/scenario'
@@ -96,7 +96,7 @@ def run(args):
             retained = output / 'world-progression/native-runtime'
             if location.is_file() and not retained.exists():
                 runtime = json.loads(location.read_text())['root']
-                if not (runtime.startswith('/tmp/rimbot-world-') and runtime.endswith('/run') and '..' not in runtime):
+                if not (runtime.startswith('/tmp/rimgovernor-world-') and runtime.endswith('/run') and '..' not in runtime):
                     raise ValueError('Unexpected private runtime path')
                 copied = command('cp', name + ':' + runtime, str(retained), capture_output=True, text=True, timeout=120)
                 report['runtime_recovery_ok'] = copied.returncode == 0
@@ -120,7 +120,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     for key in ('game', 'mods', 'profile', 'gabs', 'output'):
         parser.add_argument('--' + key, type=Path, required=True)
-    parser.add_argument('--image', default='rimbot-b15:local')
+    parser.add_argument('--image', default='rimgovernor-b15:local')
     parser.add_argument('--no-build', action='store_true')
     parser.add_argument('--trip', action='store_true')
     parser.add_argument('--resume-trip', action='store_true', help='Continue one observed checkpoint caravan toward its ongoing trade quest, then verify rewards and return storage')

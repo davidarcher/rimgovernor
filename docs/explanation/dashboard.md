@@ -63,7 +63,7 @@ completed.
 
 The React entry point is
 [BridgeColony.tsx](../../dashboard/src/features/manager/BridgeColony.tsx). Server-side
-controls are in [dashboard_controls.py](../../controller/rimbot/dashboard_controls.py).
+controls are in [dashboard_controls.py](../../controller/rimgovernor/dashboard_controls.py).
 See [interface contracts](../reference/interface-contracts.md) for lease, capture and
 transport details, or [dashboard acceptance](../how-to/dashboard-acceptance.md) for
 verification procedures.

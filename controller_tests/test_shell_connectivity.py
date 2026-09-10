@@ -1,11 +1,11 @@
 from copy import deepcopy
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.colony_plan import ColonyPlan
-from rimbot.hands import Hands
-from rimbot.construction_preflight import preflight_construction
-from rimbot.shell_site import ShellSiteRefusal, validate_shell_connectivity
-from rimbot.spatial import room_entrance
+from rimgovernor.colony_plan import ColonyPlan
+from rimgovernor.hands import Hands
+from rimgovernor.construction_preflight import preflight_construction
+from rimgovernor.shell_site import ShellSiteRefusal, validate_shell_connectivity
+from rimgovernor.spatial import room_entrance
 from test_construction_preflight import plan, native_reply
 from test_shell_site import runtime
 
@@ -78,7 +78,7 @@ async def test_pending_neighbor_shell_cannot_close_the_only_local_exit():
 @pytest.mark.asyncio
 async def test_admitting_neighbor_revalidates_already_completed_room_exit():
     from types import SimpleNamespace
-    from rimbot.colony_plan import StepProgress
+    from rimgovernor.colony_plan import StepProgress
     current = ColonyPlan(spec=plan(), progress={'room': StepProgress(state='complete')})
     spec = current.spec.model_copy(deep=True)
     neighbor = spec.steps[0].model_copy(deep=True)

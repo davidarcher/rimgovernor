@@ -9,15 +9,15 @@ import json
 import shutil
 import os
 from pathlib import Path
-from rimbot.bridge import bridge_session, BridgeError, gabs_executable
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_observation import observe
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.headless import prepare, isolated_root
-from rimbot.store import Store
-from rimbot.colony_plan import Decision, PlanSpec, ColonyGoal
-from rimbot.config import ModelRole, Settings
-from rimbot.campaign_manifest import capture_manifest, file_hash
+from rimgovernor.bridge import bridge_session, BridgeError, gabs_executable
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_observation import observe
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.headless import prepare, isolated_root
+from rimgovernor.store import Store
+from rimgovernor.colony_plan import Decision, PlanSpec, ColonyGoal
+from rimgovernor.config import ModelRole, Settings
+from rimgovernor.campaign_manifest import capture_manifest, file_hash
 
 
 async def draft_ownership_probe(rt, evidence):
@@ -166,7 +166,7 @@ async def tend_wounded(rt, evidence, recovery=False):
 
 async def main(tend=False, root=None, recovery=False, existing_patient=False, require_interruption=False, rescue=False, rescue_chat=False,raid=False):
     isolated = root is not None
-    root=Path(root or '.rimbot/bridge').resolve();evidence={}
+    root=Path(root or '.rimgovernor/bridge').resolve();evidence={}
     configuration=prepare(root)
     source=Path(__file__).resolve().parents[1]
     inference='configured local rescue selection' if rescue_chat else 'no inference'
@@ -179,10 +179,10 @@ async def main(tend=False, root=None, recovery=False, existing_patient=False, re
         evidence['manifest']=capture_manifest(source,root,configuration,{'mode':inference})
     async with bridge_session(gabs_executable(root, configuration),configuration) as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
-        await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
+        await bridge.call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
         await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
-        settings=Settings(model_url=os.environ.get('RIMBOT_MODEL_URL','http://127.0.0.1:1234/v1'),
-            model=os.environ.get('RIMBOT_MODEL','qwen3.5-4b'))
+        settings=Settings(model_url=os.environ.get('RIMGOVERNOR_MODEL_URL','http://127.0.0.1:1234/v1'),
+            model=os.environ.get('RIMGOVERNOR_MODEL','qwen3.5-4b'))
         store=Store(root/'combat-smoke.sqlite');rt=BridgeRuntime(store,root,headless=True,settings=settings)
         rt.bridge=bridge;rt.game=BridgeGame(bridge)
         await rt.sync_identity();rt.batch=await observe(rt.game);rt.mode='automate'
@@ -299,5 +299,5 @@ if __name__=='__main__':
         parser.error('--prepared-root cannot be combined with copied fixture arguments')
     if args.patient_save and not args.output: parser.error('--patient-save requires a fresh --output and --source-root')
     root=args.prepared_root or (isolated_root(args.source_root,args.output) if args.source_root else None)
-    if args.patient_save: shutil.copy2(args.patient_save,root/'profile/Saves/RimBot-tribal8-baseline.rws')
+    if args.patient_save: shutil.copy2(args.patient_save,root/'profile/Saves/RimGovernor-tribal8-baseline.rws')
     asyncio.run(main(args.tend or args.recovery,root,args.recovery,bool(args.patient_save),args.require_interruption))

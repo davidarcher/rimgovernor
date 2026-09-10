@@ -3,10 +3,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.colony_plan import ColonyGoal, NativeOperation
-from rimbot.service_recovery import pending, outcome, compile_method
-from rimbot.colony_policy import ColonyPolicy, criteria
-from rimbot.disaster_recovery import reconcile
+from rimgovernor.colony_plan import ColonyGoal, NativeOperation
+from rimgovernor.service_recovery import pending, outcome, compile_method
+from rimgovernor.colony_policy import ColonyPolicy, criteria
+from rimgovernor.disaster_recovery import reconcile
 from test_disaster_recovery import stable
 
 
@@ -91,7 +91,7 @@ def test_missing_damaged_target_and_missing_state_do_not_restore_episode():
 
 @pytest.mark.asyncio
 async def test_compile_is_bounded_and_refuses_inaccessible_native_supplies():
-    from rimbot.colony_skills import SkillBlocked
+    from rimgovernor.colony_skills import SkillBlocked
     rt = SimpleNamespace(inspect_native=AsyncMock(return_value={'success': True, 'accepted': False}))
     people = [dict(thingId=f'Thing_Pawn{i}') for i in range(20)]
     with pytest.raises(SkillBlocked, match='reachable'):
@@ -113,14 +113,14 @@ def test_recovery_cannot_use_receipt_only_completion():
 
 
 def test_native_recovery_refusal_reason_is_visible():
-    from rimbot.receipts import reason
+    from rimgovernor.receipts import reason
     assert reason({'success': True, 'accepted': False, 'error': None, 'reason': 'Roofed refuge inaccessible'}) == 'Roofed refuge inaccessible'
 
 
 @pytest.mark.asyncio
 async def test_live_gateway_allows_recovery_reads_but_not_recovery_writes():
     from mcp.types import CallToolResult
-    from rimbot.bridge_game import BridgeGame
+    from rimgovernor.bridge_game import BridgeGame
     bridge = AsyncMock()
     bridge.detail.return_value = CallToolResult(content=[], structuredContent={
         'inputSchema': {'type': 'object', 'properties': {}}})

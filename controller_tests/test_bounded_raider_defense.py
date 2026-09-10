@@ -1,11 +1,11 @@
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.colony_plan import ColonyGoal
-from rimbot.colony_skills import SkillBlocked
+from rimgovernor.colony_plan import ColonyGoal
+from rimgovernor.colony_skills import SkillBlocked
 from test_colony_controller import Replay
-from rimbot.bridge import BridgeError
+from rimgovernor.bridge import BridgeError
 from mcp.types import CallToolResult
-from rimbot.colony_policy import derive,ColonyPolicy
+from rimgovernor.colony_policy import derive,ColonyPolicy
 
 
 def fixture():

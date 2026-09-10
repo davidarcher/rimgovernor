@@ -255,7 +255,7 @@ class BridgeRuntime:
         if not isinstance(before, dict) or any(before.get(key) is None for key in keys):
             raise ValueError('Native camera provenance is unavailable')
         capture = await self.bridge.call('rimworld/take_screenshot',
-            fileName='rimbot-review-'+uuid.uuid4().hex, includeTargets=False, suppressMessage=True)
+            fileName='rimgovernor-review-'+uuid.uuid4().hex, includeTargets=False, suppressMessage=True)
         data = Path(capture.structuredContent['path']).read_bytes()
         after = (await self.bridge.call('rimworld/get_camera_state')).structuredContent
         if not isinstance(after, dict) or any(before[key] != after.get(key) for key in keys):
@@ -1479,7 +1479,7 @@ class BridgeRuntime:
                 if self.resume and self.fresh:
                     await bridge.call('rimworld/load_game_ready', saveName=checkpoint['save_name'], readiness='visual', timeoutMs=90000, ignoreModCompatibility=False)
                 elif self.fresh:
-                    await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline', readiness='visual', timeoutMs=90000, ignoreModCompatibility=self.headless or rendered_headless_mismatch(self.root))
+                    await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline', readiness='visual', timeoutMs=90000, ignoreModCompatibility=self.headless or rendered_headless_mismatch(self.root))
                 if not self.resume or self.fresh:
                     await bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
                 self.game = BridgeGame(bridge)
@@ -1549,7 +1549,7 @@ class BridgeRuntime:
                                                     for viewer, until in self.video_viewers.items())
                             if not self.headless and snapshot_watching:
                                 await asyncio.sleep(.15)
-                                image = await bridge.call('rimworld/take_screenshot', fileName='rimbot-live', includeTargets=False, suppressMessage=True)
+                                image = await bridge.call('rimworld/take_screenshot', fileName='rimgovernor-live', includeTargets=False, suppressMessage=True)
                                 candidate = Path(image.structuredContent['path']).resolve()
                                 if candidate.is_relative_to(self.root) and candidate.is_file():
                                     frame = candidate.read_bytes()

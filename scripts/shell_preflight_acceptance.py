@@ -1,9 +1,9 @@
 """Compare read-only Hands shell validation on unchanged native state."""
 import time
 from types import SimpleNamespace
-from rimbot.colony_plan import ColonyPlan, PlanSpec, StepProgress
-from rimbot.hands import Hands
-from rimbot.spatial import room_placements
+from rimgovernor.colony_plan import ColonyPlan, PlanSpec, StepProgress
+from rimgovernor.hands import Hands
+from rimgovernor.spatial import room_placements
 from placement_preview_acceptance import facts as strip_transport
 
 

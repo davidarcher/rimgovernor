@@ -1,6 +1,6 @@
-# RimBot documentation
+# RimGovernor documentation
 
-RimBot connects a deterministic colony controller and local-model player chat to
+RimGovernor connects a deterministic colony controller and local-model player chat to
 RimWorld. Both use the same durable plan and native execution path. Choose a starting
 point by what you want to do or understand.
 
@@ -9,6 +9,7 @@ point by what you want to do or understand.
 | Can I try the development workflow without installing the game? | [Tutorial: your first Docker test](tutorials/first-docker-test.md) |
 | How do I run, test or recover something? | [How-to guides](how-to/README.md) |
 | Which module, contract or artifact do I need? | [Technical reference](reference/README.md) |
+| Which names must match across an installation? | [Project identity](reference/project-identity.md) |
 | How do the internals fit together, and why? | [Explanation: the system overview](explanation/overview.md) |
 | What is unfinished? | [Project backlog](BACKLOG.md) |
 | How should agents sequence the Go rewrite? | [Go controller rewrite plan](BACKLOG.md#g01--go-controller-rewrite) |

@@ -1,5 +1,5 @@
 """Cross a real autosave boundary with ordinary simulation, then reload its save."""
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import argparse
 import asyncio
 import hashlib
@@ -8,14 +8,14 @@ import time
 import traceback
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from rimbot.bridge import bridge_session
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.clock_control import PlayClock
-from rimbot.headless import isolated_root,prepare
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge_observation import observe
-from rimbot.store import Store
+from rimgovernor.bridge import bridge_session
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.clock_control import PlayClock
+from rimgovernor.headless import isolated_root,prepare
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge_observation import observe
+from rimgovernor.store import Store
 
 
 async def run(args):
@@ -38,7 +38,7 @@ async def run(args):
             try:
                 await bridge.core('games_start',gameId=bridge.game_id)
                 await bridge.connect()
-                await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',
+                await bridge.call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',
                     readiness='visual',timeoutMs=90000)
                 clock=PlayClock(bridge);await clock.change('Paused')
                 if args.mixed:

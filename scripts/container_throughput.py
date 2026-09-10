@@ -40,7 +40,7 @@ def run(args):
         for filename in ('Prefs.xml', 'ModsConfig.xml'):
             shutil.copy2(args.profile/'Config'/filename, profile/'Config'/filename)
         checkpoint_hash = hashlib.sha256(args.checkpoint.read_bytes()).hexdigest()
-        copied = profile/'Saves/RimBot-tribal8-baseline.rws'
+        copied = profile/'Saves/RimGovernor-tribal8-baseline.rws'
         shutil.copy2(args.checkpoint, copied)
         if any(hashlib.sha256(p.read_bytes()).hexdigest() != checkpoint_hash for p in (copied, args.checkpoint)):
             raise ValueError('Checkpoint changed during snapshot preparation')
@@ -49,7 +49,7 @@ def run(args):
     for mode in args.modes:
         root = output/mode
         root.mkdir()
-        name = 'rimbot-b16-'+uuid.uuid4().hex[:12]
+        name = 'rimgovernor-b16-'+uuid.uuid4().hex[:12]
         peers = command('ps', '--format', '{{json .}}', capture_output=True, text=True, check=True).stdout
         worker = dict(mode=mode, container=name, other_containers=[json.loads(line) for line in peers.splitlines()], passed=False)
         worker['resource_state_before'] = command('stats', '--no-stream', '--format', '{{json .}}',
@@ -58,11 +58,11 @@ def run(args):
         display = 'headless' if mode == 'headless' else 'xvfb'
         invocation = ['run', '-d', '--init', '--name', name, *dashboard_options('B16 throughput '+mode, display)]
         if args.recording == 'on':
-            invocation.extend(['-e', 'RIMBOT_FLIGHT_RECORDER=/worker/timeline.jsonl'])
+            invocation.extend(['-e', 'RIMGOVERNOR_FLIGHT_RECORDER=/worker/timeline.jsonl'])
         if cache:
             invocation.extend(['--mount', f"type=volume,source={cache['volume']},target=/cached-inputs,readonly",
-                               '-e', 'RIMBOT_INPUT_CACHE_ROOT=/cached-inputs/snapshot',
-                               '-e', 'RIMBOT_INPUT_CACHE_KEY='+cache['key']])
+                               '-e', 'RIMGOVERNOR_INPUT_CACHE_ROOT=/cached-inputs/snapshot',
+                               '-e', 'RIMGOVERNOR_INPUT_CACHE_KEY='+cache['key']])
         for path, destination in ((args.game, 'game'), (args.mods, 'mods'), (profile, 'profile'), (args.gabs, 'gabs')):
             invocation.extend(['--mount', f'type=bind,source={path.resolve()},target=/inputs/{destination},readonly'])
         if args.runtime_seconds:
@@ -146,7 +146,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('game', 'mods', 'profile', 'gabs', 'output'):
         parser.add_argument('--'+name, type=Path, required=True)
-    parser.add_argument('--image', default='rimbot-worker:b16')
+    parser.add_argument('--image', default='rimgovernor-worker:b16')
     parser.add_argument('--no-build', action='store_true')
     parser.add_argument('--no-input-cache', action='store_true')
     parser.add_argument('--recording', choices=['on', 'off'], default='on', help='Match standard native scenarios; disable only for explicit recording-overhead comparisons')

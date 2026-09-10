@@ -5,22 +5,22 @@ import json
 import os
 from pathlib import Path
 
-from rimbot.bridge import bridge_session, gabs_executable
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge_observation import observe
-from rimbot.colony_plan import CommitSteps
-from rimbot.player_commands import apply_command
-from rimbot.store import Store
-from rimbot.waste_management import refresh, pending_items
+from rimgovernor.bridge import bridge_session, gabs_executable
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge_observation import observe
+from rimgovernor.colony_plan import CommitSteps
+from rimgovernor.player_commands import apply_command
+from rimgovernor.store import Store
+from rimgovernor.waste_management import refresh, pending_items
 
 
 async def run():
-    root = Path(os.environ['RIMBOT_BRIDGE_ROOT'])
+    root = Path(os.environ['RIMGOVERNOR_BRIDGE_ROOT'])
     report = {'passed': False, 'cases': [], 'scope': 'Scripted native waste hauling; no model inference'}
     source = Path(__file__).resolve().parents[1]
     report['source_sha256'] = {str(p.relative_to(source)): hashlib.sha256(p.read_bytes()).hexdigest()
-        for p in [*sorted((source/'controller/rimbot').rglob('*.py')),
+        for p in [*sorted((source/'controller/rimgovernor').rglob('*.py')),
                   *sorted((source/'integrations/colony-bridge/src').rglob('*.cs')), Path(__file__)]}
     def record(name, passed, **evidence):
         report['cases'].append(dict(name=name, passed=bool(passed), **evidence))
@@ -31,10 +31,10 @@ async def run():
         try:
             await bridge.core('games_start', gameId=bridge.game_id)
             await bridge.connect()
-            await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',
+            await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                               readiness='visual', ignoreModCompatibility=True, timeoutMs=120000)
             await bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
-            burial = os.environ.get('RIMBOT_WASTE_BURIAL') == '1'
+            burial = os.environ.get('RIMGOVERNOR_WASTE_BURIAL') == '1'
             fixture = (await bridge.call('test/waste_fixture', burial=burial)).structuredContent
             targets = [fixture['corpse']] if burial else [fixture['corpse'], fixture['unwanted']]
             report['fixture'] = fixture

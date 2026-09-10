@@ -5,12 +5,12 @@ import json
 import os
 import socket
 from pathlib import Path
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.config import Settings
-from rimbot.headless import isolated_root,prepare,prepare_rendered
-from rimbot.store import Store
-from rimbot.session_checkpoint import create_checkpoint,prepare_resume,stop_for_restart
-from rimbot.player_commands import apply_command
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.config import Settings
+from rimgovernor.headless import isolated_root,prepare,prepare_rendered
+from rimgovernor.store import Store
+from rimgovernor.session_checkpoint import create_checkpoint,prepare_resume,stop_for_restart
+from rimgovernor.player_commands import apply_command
 
 
 def work_priorities(roster):
@@ -33,7 +33,7 @@ async def run(args):
         (args.output/'progress.json').write_text(json.dumps(report,indent=2),encoding='utf8')
         print(json.dumps(case),flush=True)
     async def chat(prompt):
-        import rimbot.planner as planner
+        import rimgovernor.planner as planner
         original=planner.apply_command
         requests=[]
         async def measured(*positional,**keywords):
@@ -79,7 +79,7 @@ async def run(args):
     try:
         if args.port:
             import uvicorn
-            from rimbot.bridge_server import create_app
+            from rimgovernor.bridge_server import create_app
             server=uvicorn.Server(uvicorn.Config(create_app(rt),host='127.0.0.1',port=args.port,log_level='warning'))
             server_task=asyncio.create_task(server.serve())
         else: await rt.start()
@@ -280,8 +280,8 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source-root',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
-    parser.add_argument('--model',default=os.environ.get('RIMBOT_MODEL','qwen3.5-4b'))
-    parser.add_argument('--model-url',default=os.environ.get('RIMBOT_MODEL_URL','http://127.0.0.1:1234/v1'))
+    parser.add_argument('--model',default=os.environ.get('RIMGOVERNOR_MODEL','qwen3.5-4b'))
+    parser.add_argument('--model-url',default=os.environ.get('RIMGOVERNOR_MODEL_URL','http://127.0.0.1:1234/v1'))
     parser.add_argument('--rendered',action='store_true',help='Run the disposable colony visibly')
     parser.add_argument('--port',type=int,help='Serve the disposable colony dashboard while testing')
     parser.add_argument('--extended',action='store_true',help='Also verify research, native refusal and cancellation across autonomous reviews')

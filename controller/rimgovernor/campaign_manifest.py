@@ -22,7 +22,7 @@ def file_hash(path):
 
 def tracked_source(source):
     source = Path(source).resolve()
-    if os.environ.get('RIMBOT_CONTAINER_SOURCE') == '1' and not (source/'.git').exists():
+    if os.environ.get('RIMGOVERNOR_CONTAINER_SOURCE') == '1' and not (source/'.git').exists():
         rows=[]
         for directory in ('controller','scripts','integrations','third_party'):
             for path in sorted((source/directory).rglob('*')):
@@ -31,7 +31,7 @@ def tracked_source(source):
                     rows.append([path.relative_to(source).as_posix(),file_hash(path)])
         for name in ('pyproject.toml','THIRD_PARTY.md'):
             rows.append([name,file_hash(source/name)])
-        if not rows or not (source/'controller/rimbot/bridge_runtime.py').is_file():
+        if not rows or not (source/'controller/rimgovernor/bridge_runtime.py').is_file():
             raise ValueError('Packaged controller source is missing')
         return dict(revision=None,tracked_dirty=None,tracked_status=None,
                     tracked_files=len(rows),untracked_code=None,content_sha256=_digest(rows),
@@ -75,7 +75,7 @@ def capture_manifest(source, worker_root, configuration, routing, *, profile=Non
     directory names do not make otherwise identical campaigns differ.
     """
     source, root, configuration = Path(source).resolve(), Path(worker_root).resolve(), Path(configuration).resolve()
-    game = json.loads((configuration/'config.json').read_text(encoding='utf8'))['games']['rimbot-trial']
+    game = json.loads((configuration/'config.json').read_text(encoding='utf8'))['games']['rimgovernor-trial']
     game_root = Path(game['workingDir'])
     if not game_root.is_absolute():
         game_root = (configuration/game_root).resolve()
@@ -103,7 +103,7 @@ def capture_manifest(source, worker_root, configuration, routing, *, profile=Non
     if len(identity_candidates) != 1:
         raise ValueError('Expected one installed colony identity assembly')
     paths = {
-        'baseline_save': profile/'Saves/RimBot-tribal8-baseline.rws',
+        'baseline_save': profile/'Saves/RimGovernor-tribal8-baseline.rws',
         'profile_preferences': profile/'Config/Prefs.xml',
         'profile_mods': profile/'Config/ModsConfig.xml',
         'gabs': gabs_executable(root, configuration),
@@ -111,7 +111,7 @@ def capture_manifest(source, worker_root, configuration, routing, *, profile=Non
         'identity_dll': identity_candidates[0],
     }
     if '-nographics' in game.get('args',[]):
-        paths['headless_dll']=game_root/'Mods/RimBotHeadless/Assemblies/HeadlessRimPatch.dll'
+        paths['headless_dll']=game_root/'Mods/RimGovernorHeadless/Assemblies/HeadlessRimPatch.dll'
     inputs = dict(version=3, source=snapshot_source(source) if source_snapshot else tracked_source(source), inference=routing,
                   observations_package=package, observations_assembly=assembly,
                   artifacts={key: file_hash(path) for key, path in paths.items()})

@@ -9,7 +9,7 @@ using RimBridgeServer.Sdk;
 using RimWorld;
 using Verse;
 
-namespace RimBot.ConstructionLedgerFixture
+namespace RimGovernor.ConstructionLedgerFixture
 {
     // Optional disposable-test observer. Every native method runs unchanged.
     public sealed class ConstructionLedger
@@ -25,7 +25,7 @@ namespace RimBot.ConstructionLedgerFixture
             {
                 if (!installed)
                 {
-                    var patch = new Harmony("rimbot.test.construction-ledger");
+                    var patch = new Harmony("rimgovernor.test.construction-ledger");
                     foreach (var method in new[] { "CompleteConstruction", "FailConstruction" })
                         patch.Patch(AccessTools.Method(typeof(Frame), method),
                             prefix: new HarmonyMethod(typeof(ConstructionLedger), nameof(Before)),

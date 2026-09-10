@@ -27,7 +27,7 @@ export default function ProjectList({
     try {
       const r = await fetch("/api/projects" + path, {
         method,
-        headers: { "X-RimBot": "1", "Content-Type": "application/json" },
+        headers: { "X-RimGovernor": "1", "Content-Type": "application/json" },
         body: body ? JSON.stringify(body) : undefined,
       });
       if (!r.ok) {

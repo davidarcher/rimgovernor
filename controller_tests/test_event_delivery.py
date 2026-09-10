@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.clock_control import PlayClock
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.clock_control import PlayClock
+from rimgovernor.store import Store
 
 
 def runtime(path):

@@ -1,7 +1,7 @@
 from copy import deepcopy
 import pytest
-from rimbot.food_forecast import food_forecast, acquisition_targets
-from rimbot.colony_policy import derive, ColonyPolicy, criteria
+from rimgovernor.food_forecast import food_forecast, acquisition_targets
+from rimgovernor.colony_policy import derive, ColonyPolicy, criteria
 from test_colony_controller import Replay
 
 

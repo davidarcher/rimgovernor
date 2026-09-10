@@ -1,9 +1,9 @@
 """Prepare an ordinary native Crashlanded start without save/game-state edits."""
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import argparse,asyncio,json,shutil
 from pathlib import Path
-from rimbot.bridge import bridge_session
-from rimbot.headless import isolated_root,prepare
+from rimgovernor.bridge import bridge_session
+from rimgovernor.headless import isolated_root,prepare
 async def main(args):
     root=isolated_root(args.source_root,args.output)
     config=prepare(root);report={}
@@ -16,7 +16,7 @@ async def main(args):
             assert 'rimworld/start_debug_game_ready' in json.dumps(names), names
             report['start']=(await bridge.call('rimworld/start_debug_game_ready',readiness='visual',pauseIfNeeded=True,timeoutMs=120000)).structuredContent
             await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
-            from rimbot.bridge import BridgeError
+            from rimgovernor.bridge import BridgeError
             for arrival in range(30):
                 try:
                     report['facts']=(await bridge.call('home/colony_facts',planning=False)).structuredContent
@@ -30,14 +30,14 @@ async def main(args):
             assert report['facts']['tick']<=600, report['facts']['tick']
             report['save_contract']=(await bridge.detail('rimworld/save_game')).structuredContent
             assert 'saveName' in json.dumps(report['save_contract'])
-            report['save']=(await bridge.call('rimworld/save_game',saveName='RimBot-crashlanded-start')).structuredContent
+            report['save']=(await bridge.call('rimworld/save_game',saveName='RimGovernor-crashlanded-start')).structuredContent
             assert report['save']['exists'] is True, report['save']
             source=Path(report['save']['path']).resolve()
             assert source.is_relative_to(root),source
-            shutil.copy2(source,root/'profile/Saves/RimBot-tribal8-baseline.rws')
+            shutil.copy2(source,root/'profile/Saves/RimGovernor-tribal8-baseline.rws')
             report['save_edits']=[]
             report['scenario']='Native Crashlanded quick-start: Cassandra/Rough, ordinary world and pawn generation'
-            report['baseline_name']='RimBot-tribal8-baseline.rws is the legacy harness filename; this save contains three Crashlanded colonists.'
+            report['baseline_name']='RimGovernor-tribal8-baseline.rws is the legacy harness filename; this save contains three Crashlanded colonists.'
             report['outcome']='prepared'
         except Exception as error:
             report['error']=str(error);raise

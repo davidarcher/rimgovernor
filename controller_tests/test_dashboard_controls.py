@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, Mock
 import httpx
 import pytest
 
-from rimbot.bridge_server import create_app
-from rimbot.bridge_game import BridgeGame
+from rimgovernor.bridge_server import create_app
+from rimgovernor.bridge_game import BridgeGame
 
 
 def runtime():
@@ -23,7 +23,7 @@ def runtime():
 @pytest.mark.asyncio
 async def test_time_takes_manual_ownership_and_invalidates_pending_work():
     rt=runtime(); app=create_app(rt); app.state.rt=rt
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver', headers={'X-RimBot':'1'}) as client:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver', headers={'X-RimGovernor':'1'}) as client:
         result=await client.post('/api/time', json={'session_id':'load-a','speed':'Fast'})
     assert result.status_code==200
     assert rt.mode=='manual' and rt.chat_revision==5 and not rt.resume_after_review
@@ -36,7 +36,7 @@ async def test_time_takes_manual_ownership_and_invalidates_pending_work():
 @pytest.mark.asyncio
 async def test_stale_session_and_bad_speed_do_not_touch_clock():
     rt=runtime(); app=create_app(rt); app.state.rt=rt
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver', headers={'X-RimBot':'1'}) as client:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver', headers={'X-RimGovernor':'1'}) as client:
         assert (await client.post('/api/time',json={'session_id':'old','speed':'Fast'})).status_code==400
         assert (await client.post('/api/time',json={'session_id':'load-a','speed':'Ultrafast'})).status_code==422
         assert (await client.post('/api/time',json={'session_id':'load-a','speed':'Normal','ultraSpeedBoost':True})).status_code==422
@@ -48,7 +48,7 @@ async def test_stale_session_and_bad_speed_do_not_touch_clock():
 async def test_failed_pause_never_resumes_and_leaves_automation_off():
     rt=runtime(); rt.supervisor.change.side_effect=ValueError('Native pause failed')
     app=create_app(rt); app.state.rt=rt
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver', headers={'X-RimBot':'1'}) as client:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver', headers={'X-RimGovernor':'1'}) as client:
         assert (await client.post('/api/time',json={'session_id':'load-a','speed':'Normal'})).status_code==400
     assert rt.mode=='manual'
     rt.supervisor.change.assert_awaited_once_with('Paused')
@@ -62,7 +62,7 @@ async def test_new_direction_during_pause_prevents_resume():
         rt.chat_revision += 1
     rt.release_drafts.side_effect=new_direction
     app=create_app(rt);app.state.rt=rt
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://testserver',headers={'X-RimBot':'1'}) as client:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://testserver',headers={'X-RimGovernor':'1'}) as client:
         result=await client.post('/api/time',json={'session_id':'load-a','speed':'Fast'})
         assert result.status_code==400
         assert 'New player direction' in result.json()['detail']
@@ -73,7 +73,7 @@ async def test_new_direction_during_pause_prevents_resume():
 async def test_review_blocks_play_but_not_explicit_pause():
     rt=runtime();rt.review_task=SimpleNamespace(done=lambda:False)
     app=create_app(rt);app.state.rt=rt
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://testserver',headers={'X-RimBot':'1'}) as client:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://testserver',headers={'X-RimGovernor':'1'}) as client:
         assert (await client.post('/api/time',json={'session_id':'load-a','speed':'Normal'})).status_code==400
         rt.supervisor.change.assert_not_awaited()
         assert (await client.post('/api/time',json={'session_id':'load-a','speed':'Paused'})).status_code==200
@@ -85,7 +85,7 @@ async def test_camera_is_explicit_session_bound_and_rendered_only():
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver') as client:
         body={'session_id':'load-a','following':True}
         assert (await client.post('/api/camera/follow',json=body)).status_code==403
-        headers={'X-RimBot':'1'}
+        headers={'X-RimGovernor':'1'}
         assert (await client.post('/api/camera/follow',json={**body,'session_id':'old'},headers=headers)).status_code==400
         assert not rt.game.cinematic
         assert (await client.post('/api/camera/follow',json=body,headers=headers)).json()=={'following':True}
@@ -129,7 +129,7 @@ def camera_runtime():
 
 async def navigate(rt, **body):
     app = create_app(rt); app.state.rt = rt
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver', headers={'X-RimBot': '1'}) as client:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver', headers={'X-RimGovernor': '1'}) as client:
         return await client.post('/api/camera/navigate', json={'session_id': 'load-a', 'action': 'left', **body})
 
 
@@ -224,7 +224,7 @@ async def test_camera_state_reads_native_geometry_without_writes(case):
 async def test_delayed_released_control_never_dispatches_native_write(path, body):
     rt, _ = camera_runtime(); rt.player_input = None
     app = create_app(rt); app.state.rt = rt
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver', headers={'X-RimBot': '1'}) as client:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver', headers={'X-RimGovernor': '1'}) as client:
         response = await client.post('/api/'+path, json=dict(body, session_id='load-a', viewer_id='old-owner', lease_id='released'))
     assert response.status_code == 400
     assert all(call.args == ('rimworld/get_camera_state',) for call in rt.bridge.call.await_args_list)

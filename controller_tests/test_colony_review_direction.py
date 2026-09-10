@@ -1,6 +1,6 @@
 import pytest
 
-from rimbot.colony_skills import SkillBlocked
+from rimgovernor.colony_skills import SkillBlocked
 from test_colony_controller import Replay
 
 

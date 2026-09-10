@@ -1,5 +1,5 @@
 """Ordinary pawn construction followed by deterministic furnishing of a player shell."""
-from rimbot.native_scenario import advance_game
+from rimgovernor.native_scenario import advance_game
 import argparse
 import asyncio
 import json
@@ -7,13 +7,13 @@ import time
 from pathlib import Path
 from deterministic_foothold import NoInference
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.headless import isolated_root,prepare
-from rimbot.player_commands import apply_command
-from rimbot.store import Store
-from rimbot.colony_plan import ColonyGoal,CommitSteps
-from rimbot.colony_policy import starter_layouts
-from rimbot.campaign_manifest import capture_manifest
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.headless import isolated_root,prepare
+from rimgovernor.player_commands import apply_command
+from rimgovernor.store import Store
+from rimgovernor.colony_plan import ColonyGoal,CommitSteps
+from rimgovernor.colony_policy import starter_layouts
+from rimgovernor.campaign_manifest import capture_manifest
 
 
 async def run(args):
@@ -58,8 +58,8 @@ async def run(args):
         await rt.execute_manual_requests()
         report.update(shell=shell,player_step=result['step'],initial_tick=rt.batch.summary.end_tick)
         if args.restart_pending:
-            from rimbot.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
-            from rimbot.bridge import runtime_file_read
+            from rimgovernor.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
+            from rimgovernor.bridge import runtime_file_read
             roster = await rt.game.query('home/list_pawns', colonistsOnly=True, work=True)
             assignments = [(p['thingId'], next(w['priorityStored'] if p['work'].get('manualPriorities') else
                 int(w['priority'] > 0) for w in p['work']['types'] if w['name'] == 'Construction'))

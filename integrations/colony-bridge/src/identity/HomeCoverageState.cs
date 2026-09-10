@@ -10,9 +10,9 @@ namespace HomeBridge.BridgeTools
         public HomeCoverageState(Map map) : base(map) { Excluded = new BoolGrid(map); }
         public override void ExposeData()
         {
-            Scribe_Deep.Look(ref Excluded, "rimbotHomeExcluded");
-            Scribe_Values.Look(ref Initialized, "rimbotHomeInitialized");
-            Scribe_Values.Look(ref Revision, "rimbotHomeRevision");
+            Scribe_Deep.Look(ref Excluded, "rimgovernorHomeExcluded");
+            Scribe_Values.Look(ref Initialized, "rimgovernorHomeInitialized");
+            Scribe_Values.Look(ref Revision, "rimgovernorHomeRevision");
             if (Scribe.mode == LoadSaveMode.PostLoadInit && Excluded == null) Excluded = new BoolGrid(map);
         }
     }

@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
             if (patched) return;
             var setter = AccessTools.PropertySetter(typeof(Pawn_DraftController), "Drafted");
             if (setter == null) throw new MissingMethodException("Pawn_DraftController.Drafted");
-            new Harmony("rimbot.draft-ownership").Patch(setter,
+            new Harmony("rimgovernor.draft-ownership").Patch(setter,
                 prefix: new HarmonyMethod(typeof(DraftOwnership), nameof(BeforeDraft)));
             patched = true;
         }

@@ -1,9 +1,9 @@
 import sqlite3
 import pytest
-from rimbot.colony_plan import ColonyPlan,CommitSteps,PlanStep,StepProgress,ColonyGoal
-from rimbot.plan_archive import bind_archive,prepare_archive,finish_archive
-from rimbot.store import Store
-from rimbot.planner import inspect_plan
+from rimgovernor.colony_plan import ColonyPlan,CommitSteps,PlanStep,StepProgress,ColonyGoal
+from rimgovernor.plan_archive import bind_archive,prepare_archive,finish_archive
+from rimgovernor.store import Store
+from rimgovernor.planner import inspect_plan
 
 
 def action(identity):
@@ -181,7 +181,7 @@ def test_mixed_pending_method_stays_live_and_old_action_methods_can_compact_late
 @pytest.mark.asyncio
 async def test_skill_compiler_uses_archived_method_membership(tmp_path):
     from types import SimpleNamespace
-    from rimbot.colony_skills import ColonySkills
+    from rimgovernor.colony_skills import ColonySkills
     store=Store(tmp_path/'state.sqlite');plan=retired_plan()
     goal=ColonyGoal(priority_class=0,evidence={'methods':{'names-7':['action-0']}})
     plan.colony_goals['ConfirmColonyNames']=goal
@@ -197,7 +197,7 @@ async def test_skill_compiler_uses_archived_method_membership(tmp_path):
 
 
 def test_player_capacity_archives_completed_receipts_but_pins_maintained_construction(tmp_path):
-    from rimbot.colony_plan import PlanSpec
+    from rimgovernor.colony_plan import PlanSpec
     store=Store(tmp_path/'player.sqlite')
     rows=[action('player-'+str(i)).model_copy(update={'source':'PLAYER'}) for i in range(80)]
     plan=ColonyPlan(spec=PlanSpec(steps=rows))
@@ -218,7 +218,7 @@ def test_player_capacity_archives_completed_receipts_but_pins_maintained_constru
 
 
 def test_full_unfinished_player_plan_refuses_without_dropping_work():
-    from rimbot.colony_plan import PlanSpec
+    from rimgovernor.colony_plan import PlanSpec
     rows=[action('pending-'+str(i)).model_copy(update={'source':'PLAYER'}) for i in range(80)]
     plan=ColonyPlan(spec=PlanSpec(steps=rows),progress={s.id:StepProgress() for s in rows})
     before=plan.model_dump()
@@ -229,7 +229,7 @@ def test_full_unfinished_player_plan_refuses_without_dropping_work():
 
 @pytest.mark.parametrize('setting', ['work', 'draft', 'undraft', 'goto'])
 def test_completed_player_setting_can_be_renewed_without_erasing_previous_receipt(tmp_path, setting):
-    from rimbot.colony_plan import PlanSpec
+    from rimgovernor.colony_plan import PlanSpec
     old=action('old').model_copy(update={'source':'PLAYER'})
     if setting != 'work':
         old.action = old.action.model_copy(update={'tool': 'home/order', 'arguments': {'action': setting, 'pawn': 'Thing_Human1', 'dryRun': False}})
@@ -248,7 +248,7 @@ def test_completed_player_setting_can_be_renewed_without_erasing_previous_receip
 
 @pytest.mark.parametrize('setting', ['work', 'draft', 'undraft', 'goto'])
 def test_pending_player_setting_cannot_be_duplicated(setting):
-    from rimbot.colony_plan import PlanSpec
+    from rimgovernor.colony_plan import PlanSpec
     old=action('old').model_copy(update={'source':'PLAYER'})
     if setting != 'work':
         old.action = old.action.model_copy(update={'tool': 'home/order', 'arguments': {'action': setting, 'pawn': 'Thing_Human1', 'dryRun': False}})

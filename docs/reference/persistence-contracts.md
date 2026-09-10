@@ -59,7 +59,7 @@ transaction commit. Failed delivery retains its inbox, enters Manual and invalid
 old writes. Colony-scoped source cursors and unconsumed inboxes survive load changes.
 
 The native supervisor retains immutable, consecutively numbered XML events under
-the private profile's `RimBotClockEvents` directory. Each row carries colony/map/load
+the private profile's `RimGovernorClockEvents` directory. Each row carries colony/map/load
 identity. A flushed temporary row is published by rename; a complete staged row is
 recovered after process restart. Partial rows, conflicting publication and sequence
 gaps fail closed. A journal-write failure pauses the current game and disarms the

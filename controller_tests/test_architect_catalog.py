@@ -1,5 +1,5 @@
 from copy import deepcopy
-from rimbot.bridge_game import for_model
+from rimgovernor.bridge_game import for_model
 
 
 def test_registry_definitions_survive_large_duplicate_ui_state():
@@ -38,7 +38,7 @@ def test_large_catalog_can_be_traversed_without_lost_or_partial_entries():
 
 
 def test_continuation_is_complete_and_preserves_native_filters():
-    from rimbot.bridge_game import inspection_result
+    from rimgovernor.bridge_game import inspection_result
     payload={'designators':[{'id':str(i)} for i in range(10)]}
     args={'categoryId':'architect-category:structure','includeHidden':False}
     first=inspection_result(payload,'rimworld/list_architect_designators',args)

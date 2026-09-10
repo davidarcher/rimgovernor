@@ -10,15 +10,15 @@ import time
 import traceback
 from pathlib import Path
 
-from rimbot.bridge_observation import observe
-from rimbot.colony_plan import CommitSteps
-from rimbot.config import Settings, ModelRole
-from rimbot.consultation import structured_tool
-from rimbot.execution_contracts import ExecutionContracts
-from rimbot.model import LocalModel
-from rimbot.native_trials import ReusableGame
-from rimbot.campaign_manifest import tracked_source
-from rimbot.native_contracts import validate_arguments
+from rimgovernor.bridge_observation import observe
+from rimgovernor.colony_plan import CommitSteps
+from rimgovernor.config import Settings, ModelRole
+from rimgovernor.consultation import structured_tool
+from rimgovernor.execution_contracts import ExecutionContracts
+from rimgovernor.model import LocalModel
+from rimgovernor.native_trials import ReusableGame
+from rimgovernor.campaign_manifest import tracked_source
+from rimgovernor.native_contracts import validate_arguments
 
 
 def require(condition, evidence):
@@ -229,7 +229,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--case', choices=('all', 'supplies', 'work', 'bill'), default='all')
     parser.add_argument('--reuse-game', action='store_true', help='Reload the baseline between cases in one owned process; stop on failure')
-    parser.add_argument('--source-root', type=Path, default=Path('.rimbot/bridge'))
+    parser.add_argument('--source-root', type=Path, default=Path('.rimgovernor/bridge'))
     parser.add_argument('--model', default='qwen3.5-9b')
-    parser.add_argument('--output', type=Path, default=Path('.rimbot') / f'execution-acceptance-{time.time_ns()}')
+    parser.add_argument('--output', type=Path, default=Path('.rimgovernor') / f'execution-acceptance-{time.time_ns()}')
     raise SystemExit(0 if asyncio.run(main(parser.parse_args())) else 1)

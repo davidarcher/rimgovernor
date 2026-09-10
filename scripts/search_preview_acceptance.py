@@ -1,8 +1,8 @@
 """Native site-search and material-preview equivalence without game writes."""
 import time
-from rimbot.development import placement
-from rimbot.colony_skills import SkillBlocked
-from rimbot.placement_previews import PlacementPreviews, PreviewCandidate
+from rimgovernor.development import placement
+from rimgovernor.colony_skills import SkillBlocked
+from rimgovernor.placement_previews import PlacementPreviews, PreviewCandidate
 from placement_preview_acceptance import facts as strip_transport
 
 

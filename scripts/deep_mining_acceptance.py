@@ -5,13 +5,13 @@ import json
 import time
 from pathlib import Path
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.colony_plan import ColonyGoal, CommitSteps
-from rimbot.headless import isolated_root
-from rimbot.production_policy import resource_method, sync_production_policy
-from rimbot.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
-from rimbot.store import Store
-from rimbot.native_scenario import advance_game
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps
+from rimgovernor.headless import isolated_root
+from rimgovernor.production_policy import resource_method, sync_production_policy
+from rimgovernor.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
+from rimgovernor.store import Store
+from rimgovernor.native_scenario import advance_game
 
 
 async def run(args):

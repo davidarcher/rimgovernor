@@ -4,19 +4,19 @@ import json
 import os
 import time
 from pathlib import Path
-from rimbot.bridge import bridge_session, gabs_executable, BridgeError
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_observation import observe as batch
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.colony_plan import CommitSteps
-from rimbot.player_commands import apply_command
-from rimbot.population import observe, compile_method, refresh, guard, SkillBlocked, goal_id
-from rimbot.store import Store
+from rimgovernor.bridge import bridge_session, gabs_executable, BridgeError
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_observation import observe as batch
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.colony_plan import CommitSteps
+from rimgovernor.player_commands import apply_command
+from rimgovernor.population import observe, compile_method, refresh, guard, SkillBlocked, goal_id
+from rimgovernor.store import Store
 
 
 async def run():
-    root = Path(os.environ['RIMBOT_BRIDGE_ROOT'])
-    headless = os.environ.get('RIMBOT_DISPLAY') == 'headless'
+    root = Path(os.environ['RIMGOVERNOR_BRIDGE_ROOT'])
+    headless = os.environ.get('RIMGOVERNOR_DISPLAY') == 'headless'
     config = root/('config-headless' if headless else 'config')
     report = {'passed': False, 'scope': 'Prepared candidate; ordinary native capture, care, recruitment and integration', 'cases': [], 'observations': []}
     def save(): (root/'population.json').write_text(json.dumps(report, indent=2))
@@ -29,9 +29,9 @@ async def run():
         try:
             await bridge.core('games_start', gameId=bridge.game_id)
             await bridge.connect()
-            await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline', readiness='visual', ignoreModCompatibility=True, timeoutMs=120000)
+            await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline', readiness='visual', ignoreModCompatibility=True, timeoutMs=120000)
             await bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
-            fixture = (await bridge.call('test/population_setup', candidateKind=os.environ.get('RIMBOT_POPULATION_KIND', 'Villager'))).structuredContent
+            fixture = (await bridge.call('test/population_setup', candidateKind=os.environ.get('RIMGOVERNOR_POPULATION_KIND', 'Villager'))).structuredContent
             report['fixture'] = fixture; save()
             game = BridgeGame(bridge)
             rt = BridgeRuntime(Store(root/'population.sqlite'), root, headless=headless)
@@ -59,7 +59,7 @@ async def run():
             check('candidate_initially_needs_care', fixture['state']['needsTend'] is True and fixture['state']['food'] < .3)
             goal = rt.current_plan.colony_goals[identity]
             capture_seen = False; recruited = False; fed = False; rescued = False; tended = False; stale_checked = False
-            deadline = time.monotonic() + int(os.environ.get('RIMBOT_POPULATION_SECONDS', '1200'))
+            deadline = time.monotonic() + int(os.environ.get('RIMGOVERNOR_POPULATION_SECONDS', '1200'))
             while time.monotonic() < deadline:
                 facts = await game.query('home/colony_facts', planning=True)
                 people = (await game.query('home/list_pawns', colonistsOnly=True, work=True, bio=True, equipment=True))['pawns']

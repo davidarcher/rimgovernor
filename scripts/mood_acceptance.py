@@ -1,17 +1,17 @@
 """Local Docker mood relief: shared compilation/Hands and actual native need recovery."""
 import asyncio
-from rimbot.native_scenario import advance_game
+from rimgovernor.native_scenario import advance_game
 import argparse
 import json
 import os
 import traceback
 from pathlib import Path
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge import BridgeError
-from rimbot.bridge_observation import observe
-from rimbot.colony_plan import ColonyGoal, CommitSteps
-from rimbot.mood_control import assess
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge import BridgeError
+from rimgovernor.bridge_observation import observe
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps
+from rimgovernor.mood_control import assess
+from rimgovernor.store import Store
 from deterministic_foothold import NoInference
 from session_checkpoint_acceptance import ready
 
@@ -20,7 +20,7 @@ SCENARIOS = ('joy', 'rest', 'food', 'forced', 'schedule', 'mental', 'stale_job',
 
 
 async def run(scenarios):
-    root = Path(os.environ['RIMBOT_BRIDGE_ROOT'])
+    root = Path(os.environ['RIMGOVERNOR_BRIDGE_ROOT'])
     store = Store(root/'mood.sqlite')
     rt = BridgeRuntime(store, root, fresh=True, headless=True, model_factory=lambda _: NoInference())
     report = {'passed':False, 'cases':[], 'requested_scenarios':scenarios,

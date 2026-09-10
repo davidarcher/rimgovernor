@@ -6,7 +6,7 @@ export default function Notebook({notes,sessionId,onChange}:{notes:Memory[];sess
  async function forget(note:Memory){
   setPending(note.id);setError('');
   try{
-   const r=await fetch(`/api/memories/${encodeURIComponent(note.id)}`,{method:'DELETE',headers:{'X-RimBot':'1','Content-Type':'application/json'},body:JSON.stringify({session_id:sessionId,version:note.version})});
+   const r=await fetch(`/api/memories/${encodeURIComponent(note.id)}`,{method:'DELETE',headers:{'X-RimGovernor':'1','Content-Type':'application/json'},body:JSON.stringify({session_id:sessionId,version:note.version})});
    if(!r.ok)throw Error((await r.json()).detail||'Could not forget note');
    await onChange();
   }catch(e){setError(String(e));}finally{setPending(null);}

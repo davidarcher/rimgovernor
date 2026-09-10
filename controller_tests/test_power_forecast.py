@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from rimbot.strategic_state import StrategicState, features
+from rimgovernor.strategic_state import StrategicState, features
 
 
 def batch(buildings):

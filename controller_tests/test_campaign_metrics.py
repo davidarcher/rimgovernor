@@ -2,8 +2,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from rimbot.campaign_metrics import CampaignEvidence, intent_metrics
-from rimbot.colony_plan import ColonyPlan, PlanSpec, StepProgress
+from rimgovernor.campaign_metrics import CampaignEvidence, intent_metrics
+from rimgovernor.colony_plan import ColonyPlan, PlanSpec, StepProgress
 
 
 def fixture():
@@ -137,7 +137,7 @@ def test_first_progress_requires_change_and_completion_requires_baseline():
 
 
 def test_exact_attempt_fingerprints_failures_latency_and_replay():
-    from rimbot.campaign_metrics import event_metrics
+    from rimgovernor.campaign_metrics import event_metrics
     rows=[dict(id=i,at=100+i,kind='planner_tool',tool='inspect',arguments={'x':1},outcome='rejected' if i==1 else 'returned',elapsed_seconds=i) for i in range(1,4)]
     rows += [dict(id=4,at=104,kind='campaign_native',tool='home/bills',arguments={'action':'add'},outcome='returned',elapsed_seconds=2,useful_order_receipt=True),
              dict(id=5,at=105,kind='planner_tool',tool='inspect',arguments={'truncated':True},outcome='cancelled'),
@@ -159,7 +159,7 @@ async def test_runner_records_ambiguous_native_failure_without_calling_it_a_refu
     import importlib.util
     from pathlib import Path
     from unittest.mock import AsyncMock, Mock
-    from rimbot.bridge_runtime import BridgeRuntime
+    from rimgovernor.bridge_runtime import BridgeRuntime
     spec=importlib.util.spec_from_file_location('campaign_runner',Path(__file__).parents[1]/'scripts/headless_iterations.py')
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     rt=object.__new__(module.FastTrial);rt.note=Mock()

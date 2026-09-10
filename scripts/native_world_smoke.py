@@ -1,18 +1,18 @@
 """Read native climate and settlement context without opening the world view."""
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import asyncio
 import json
 from pathlib import Path
-from rimbot.bridge import bridge_session
-from rimbot.bridge_game import BridgeGame
-from rimbot.headless import prepare
+from rimgovernor.bridge import bridge_session
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.headless import prepare
 
 
 async def main():
-    root=Path('.rimbot/bridge').resolve()
+    root=Path('.rimgovernor/bridge').resolve()
     async with bridge_session(gabs_executable(root),prepare(root)) as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
-        await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
+        await bridge.call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
         await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
         game=BridgeGame(bridge)
         before=await game.query('home/status')

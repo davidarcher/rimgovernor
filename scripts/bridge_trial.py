@@ -2,7 +2,7 @@
 
 Install dependencies first: pip install -e .
 Use --start once, then --load-fixture to reload the disposable baseline.
-Raw SDK receipts and schemas are retained under .rimbot/bridge/evidence.
+Raw SDK receipts and schemas are retained under .rimgovernor/bridge/evidence.
 """
 import argparse
 import asyncio
@@ -10,7 +10,7 @@ import json
 import time
 from pathlib import Path
 
-from rimbot.bridge import BridgeError, bridge_session, gabs_executable
+from rimgovernor.bridge import BridgeError, bridge_session, gabs_executable
 
 
 async def run(args):
@@ -42,7 +42,7 @@ async def run(args):
             page = await record("tools-" + cursor, bridge.names(cursor=cursor))
         if args.load_fixture:
             await record("load", bridge.call("rimworld/load_game_ready",
-                saveName="RimBot-tribal8-baseline", readiness="visual", timeoutMs=90000))
+                saveName="RimGovernor-tribal8-baseline", readiness="visual", timeoutMs=90000))
         paused = await record("pause", bridge.call("rimworld/set_time_speed", speed="Paused", ultraSpeedBoost=False))
         assert paused.structuredContent["paused"] is True
         colonists = []
@@ -63,7 +63,7 @@ async def run(args):
             designators.extend(result.structuredContent["designators"])
         await record("nearby-cells", bridge.call("rimworld/get_cells_info", x=136, z=122, width=8, height=8))
         if args.observations:
-            from rimbot.bridge_observation import ObservationGateway, observe
+            from rimgovernor.bridge_observation import ObservationGateway, observe
             gateway = ObservationGateway(bridge)
             started = time.monotonic()
             batch = await observe(gateway)
@@ -102,13 +102,13 @@ async def run(args):
             await record("select", bridge.call("rimworld/select_pawn", pawnId=pawn, append=False))
             await record("gizmos", bridge.call("rimworld/list_selected_gizmos"))
             await record("selection", bridge.call("rimworld/get_selection_semantics"))
-            await record("screenshot", bridge.call("rimworld/take_screenshot", fileName="rimbot-bridge-trial", includeTargets=False, suppressMessage=True))
+            await record("screenshot", bridge.call("rimworld/take_screenshot", fileName="rimgovernor-bridge-trial", includeTargets=False, suppressMessage=True))
     print(f"Evidence: {output}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", default=".rimbot/bridge")
+    parser.add_argument("--root", default=".rimgovernor/bridge")
     parser.add_argument("--gabs", help="Override the prepared profile's GABS executable")
     parser.add_argument("--start", action="store_true")
     parser.add_argument("--load-fixture", action="store_true")

@@ -1,10 +1,10 @@
 from unittest.mock import AsyncMock
 from copy import deepcopy
 import pytest
-from rimbot.player_commands import apply_command,command_schema,resolve_goal_id,resolve_colonist
-from rimbot.colony_plan import ColonyPlan, CommitSteps, PlanStep, StepProgress
-from rimbot.resource_accounting import validate_allocations
-from rimbot.resource_accounting import validate_execution_costs
+from rimgovernor.player_commands import apply_command,command_schema,resolve_goal_id,resolve_colonist
+from rimgovernor.colony_plan import ColonyPlan, CommitSteps, PlanStep, StepProgress
+from rimgovernor.resource_accounting import validate_allocations
+from rimgovernor.resource_accounting import validate_execution_costs
 from test_strategic_architecture import runtime, batch, room_plan
 from test_construction_preflight import footprint, native_reply
 
@@ -38,7 +38,7 @@ async def test_resource_policy_commands_preserve_other_field_and_other_resources
 
 
 def test_semantic_schema_has_provider_object_envelope_and_goal_names_resolve_only_unambiguously():
-    from rimbot.consultation import structured_tool
+    from rimgovernor.consultation import structured_tool
     schema=structured_tool('command','Command',command_schema())['function']['parameters']
     assert schema['type']=='object' and schema['required']==['request']
     assert 'request' in schema['properties']
@@ -161,7 +161,7 @@ async def test_research_preflight_failure_never_commits_a_player_order(tmp_path,
 
 @pytest.mark.asyncio
 async def test_chat_returns_native_research_refusal_without_model_rephrasing(tmp_path):
-    from rimbot.planner import Planner
+    from rimgovernor.planner import Planner
     rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch();rt.mode='manual'
     rt.chat_revision=1
     rt.chat=[{'kind':'human','revision':1,'text':'Set research to geothermal.'}]
@@ -177,7 +177,7 @@ async def test_chat_returns_native_research_refusal_without_model_rephrasing(tmp
 
 @pytest.mark.asyncio
 async def test_chat_can_apply_both_explicit_policy_changes_without_another_model_turn(tmp_path):
-    from rimbot.planner import Planner
+    from rimgovernor.planner import Planner
     rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch();rt.mode='manual'
     query=rt.game.query
     async def observed(name,**args):
@@ -198,7 +198,7 @@ async def test_chat_can_apply_both_explicit_policy_changes_without_another_model
 
 @pytest.mark.asyncio
 async def test_food_target_does_not_discard_explicit_policies_in_same_response(tmp_path):
-    from rimbot.planner import Planner
+    from rimgovernor.planner import Planner
     rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch();rt.mode='manual'
     query=rt.game.query
     async def observed(name,**args):
@@ -289,8 +289,8 @@ async def test_defense_only_component_policy_is_a_hard_shared_gate(tmp_path):
 
 
 def test_policy_tool_uses_native_definition_catalog_even_when_stock_is_zero():
-    from rimbot.player_commands import semantic_tools
-    from rimbot.native_contracts import validate_arguments
+    from rimgovernor.player_commands import semantic_tools
+    from rimgovernor.native_contracts import validate_arguments
     tool=next(t for t in semantic_tools({'WoodLog','ComponentIndustrial'})
         if t['function']['name']=='ModifyResourcePolicy')['function']
     validate_arguments(tool['name'],tool['parameters'],{'resource':'ComponentIndustrial','spending':'defense_only'})
@@ -299,7 +299,7 @@ def test_policy_tool_uses_native_definition_catalog_even_when_stock_is_zero():
 
 
 def test_resource_names_resolve_exact_native_labels_without_expanding_base_names():
-    from rimbot.player_commands import resolve_resource,semantic_tools
+    from rimgovernor.player_commands import resolve_resource,semantic_tools
     labels={'ComponentIndustrial':'component','ComponentSpacer':'advanced component','Steel':'steel'}
     assert resolve_resource('component',labels)=='ComponentIndustrial'
     assert resolve_resource('advanced component',labels)=='ComponentSpacer'
@@ -329,7 +329,7 @@ async def test_native_resource_label_is_persisted_as_exact_definition_id(tmp_pat
 
 @pytest.mark.asyncio
 async def test_archived_player_intent_is_observed_without_replay(tmp_path):
-    from rimbot.plan_archive import bind_archive
+    from rimgovernor.plan_archive import bind_archive
     rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch();rt.mode='manual'
     request={'kind':'BuildRoom','intent_id':'bedroom','room':{'kind':'build_room_shell',
         'bounds':{'x':10,'z':10,'width':5,'height':5},'wall_def':'Wall','door_def':'Door',

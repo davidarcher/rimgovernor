@@ -1,5 +1,5 @@
 """Ordinary setup shared by native scenario probes."""
-from rimbot.colony_plan import ColonyGoal, CommitSteps
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps
 import asyncio
 import re
 

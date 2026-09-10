@@ -1,17 +1,17 @@
 """Recover a costed native construction after ordinary forbidding makes stock unavailable."""
-from rimbot.native_scenario import advance_game
+from rimgovernor.native_scenario import advance_game
 import argparse
 import asyncio
 import json
 import traceback
 from pathlib import Path
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.colony_plan import ColonyGoal,CommitSteps
-from rimbot.construction_recovery import recover_construction
-from rimbot.headless import isolated_root,prepare
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.colony_plan import ColonyGoal,CommitSteps
+from rimgovernor.construction_recovery import recover_construction
+from rimgovernor.headless import isolated_root,prepare
+from rimgovernor.store import Store
 
 
 async def exercise_recovery(rt,report=None,*,obstruction=False,material_identity=False):

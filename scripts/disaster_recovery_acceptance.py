@@ -5,14 +5,14 @@ import os
 from pathlib import Path
 
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.colony_plan import ColonyGoal, CommitSteps
-from rimbot.colony_policy import ColonyPolicy
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps
+from rimgovernor.colony_policy import ColonyPolicy
+from rimgovernor.store import Store
 
 
 async def run():
-    root = Path(os.environ['RIMBOT_BRIDGE_ROOT'])
+    root = Path(os.environ['RIMGOVERNOR_BRIDGE_ROOT'])
     rt = BridgeRuntime(Store(root/'disaster.sqlite'), root, fresh=True, headless=True)
     report = {'passed': False, 'cases': [], 'samples': [],
               'scope': 'Test-only environmental/stove setup; native condition expiry and ordinary campfire construction. No sustained disaster survival claim.'}

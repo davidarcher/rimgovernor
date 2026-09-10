@@ -10,12 +10,12 @@ import traceback
 
 from session_checkpoint_acceptance import ready
 from native_scenario_support import allow_starting_supplies, baseline_tick
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.flight_recorder import recorder
-from rimbot.native_scenario import advance_game, ScenarioInterrupted
-from rimbot.headless import isolated_root, prepare_rendered
-from rimbot.player_commands import apply_command
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.flight_recorder import recorder
+from rimgovernor.native_scenario import advance_game, ScenarioInterrupted
+from rimgovernor.headless import isolated_root, prepare_rendered
+from rimgovernor.player_commands import apply_command
+from rimgovernor.store import Store
 
 
 class MissingPrerequisite(ValueError):
@@ -30,7 +30,7 @@ async def run(args):
     checkpoint = None
     state_path = args.output/'state.sqlite'
     if getattr(args, 'checkpoint', None):
-        from rimbot.session_checkpoint import prepare_resume, digest
+        from rimgovernor.session_checkpoint import prepare_resume, digest
         data = json.loads((args.checkpoint/'checkpoint.json').read_text())
         if data.get('root') != str(root.resolve()) or data.get('owned') is not True or data.get('headless') != (not args.rendered):
             raise MissingPrerequisite('Checkpoint must belong to this named-runner root, ownership and display mode')
@@ -99,7 +99,7 @@ async def run(args):
             assert rt.counters['actions'] == 0, 'Continuation redispatched a game order'
             report.update(category='passed', start='immutable checkpoint; previously issued work only')
             return True
-        expected_tick = baseline_tick(args.source_root/'profile/Saves/RimBot-tribal8-baseline.rws')
+        expected_tick = baseline_tick(args.source_root/'profile/Saves/RimGovernor-tribal8-baseline.rws')
         initial_tick = report['initial']['time']['ticksGame']
         report['baseline_tick'] = dict(expected=expected_tick, actual=initial_tick)
         if args.case in ('construction', 'blocked-construction', 'startup', 'endurance'):
@@ -119,7 +119,7 @@ async def run(args):
                         await asyncio.sleep(.05)
                 if variant == 'load':
                     report['injection'] = (await rt.bridge.call('rimworld/load_game_ready',
-                        saveName='RimBot-tribal8-baseline', readiness='visual', timeoutMs=90000)).model_dump(mode='json')
+                        saveName='RimGovernor-tribal8-baseline', readiness='visual', timeoutMs=90000)).model_dump(mode='json')
                 else:
                     report['injection'] = (await rt.bridge.call('test/interruption_letter',
                         label='Ancient danger', after='none' if variant=='recovery' else variant)).structuredContent
@@ -223,7 +223,7 @@ async def run(args):
             and (b.get('isBlueprint') is True or b.get('isFrame') is True)]
         assert report['accepted_targets'], 'Native pending construction was not separately observed after dispatch'
         if getattr(args, 'checkpoint_before_work', False):
-            from rimbot.session_checkpoint import create_checkpoint
+            from rimgovernor.session_checkpoint import create_checkpoint
             report['pending_checkpoint'] = await create_checkpoint(rt, rt.context_token)
         start = time.monotonic()
         limit = 1200 if args.case=='blocked-construction' else 12000
@@ -275,7 +275,7 @@ async def run(args):
                 report['frame_omission'] = repr(error)
         if report['category'] != 'passed' and args.case != 'native-exit' and rt.connected:
             try:
-                from rimbot.session_checkpoint import create_checkpoint
+                from rimgovernor.session_checkpoint import create_checkpoint
                 status = (await rt.bridge.call('home/supervised_play', op='status')).structuredContent
                 native_time = (await rt.game.query('home/status', colonists=False, threats=False))['time']
                 if native_time.get('paused') is True and not status.get('active'):

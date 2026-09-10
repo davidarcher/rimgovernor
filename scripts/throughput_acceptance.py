@@ -11,19 +11,19 @@ import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from rimbot.bridge import BridgeError, bridge_session, gabs_executable, runtime_file_read
-from rimbot.clock_control import PlayClock
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge_game import BridgeGame
-from rimbot.native_scenario import advance_game
-from rimbot.store import Store
-from rimbot.flight_recorder import recorder
-from rimbot.supply_batches import supply_rectangles
+from rimgovernor.bridge import BridgeError, bridge_session, gabs_executable, runtime_file_read
+from rimgovernor.clock_control import PlayClock
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.native_scenario import advance_game
+from rimgovernor.store import Store
+from rimgovernor.flight_recorder import recorder
+from rimgovernor.supply_batches import supply_rectangles
 from deterministic_foothold import NoInference
 
 
 async def run(args):
-    root = Path(os.environ['RIMBOT_BRIDGE_ROOT'])
+    root = Path(os.environ['RIMGOVERNOR_BRIDGE_ROOT'])
     prefs_path = root/'profile/Config/Prefs.xml'
     prefs = ET.parse(prefs_path)
     pause = prefs.getroot().find('pauseOnLoad')
@@ -32,22 +32,22 @@ async def run(args):
     pause.text = 'True'
     prefs.write(prefs_path, encoding='utf8', xml_declaration=True)
     # Native saves can contain .NET field tags rejected by Python's XML parser.
-    saved = (root/'profile/Saves/RimBot-tribal8-baseline.rws').read_text(encoding='utf-8-sig')
+    saved = (root/'profile/Saves/RimGovernor-tribal8-baseline.rws').read_text(encoding='utf-8-sig')
     tick_field = re.search(r'<tickManager>\s*<ticksGame>(\d+)</ticksGame>', saved)
     if tick_field is None:
         raise ValueError('Native checkpoint has no tickManager/ticksGame metadata')
     baseline_tick = int(tick_field[1])
     config = root/'config'
     # prepare() owns the configuration path and preserves the worker's private game.
-    if os.environ.get('RIMBOT_HEADLESS') == '1':
-        from rimbot.headless import prepare
+    if os.environ.get('RIMGOVERNOR_HEADLESS') == '1':
+        from rimgovernor.headless import prepare
         config = prepare(root)
     report = dict(passed=False, samples=[], calls=[], stops=[], mode=args.mode,
                   start_type='saved_checkpoint' if args.saved_checkpoint else 'fresh_baseline',
                   inputs=json.loads((root/'inputs.json').read_text()),
                   scope='Native clock boundaries, supply scope, ordinary movement and scheduled safety-onset reactions; inference is measured separately')
     report['source_hashes'] = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in (
-        Path(__file__), Path('controller/rimbot/clock_control.py'), Path('controller/rimbot/supply_batches.py'))}
+        Path(__file__), Path('controller/rimgovernor/clock_control.py'), Path('controller/rimgovernor/supply_batches.py'))}
     report['prepared_prefs_sha256'] = hashlib.sha256(prefs_path.read_bytes()).hexdigest()
     report['baseline_save_tick'] = baseline_tick
     path = root/'throughput-result.json'
@@ -102,7 +102,7 @@ async def run(args):
 
             async def load():
                 nonlocal rendered_at
-                await call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',
+                await call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                            readiness='visual', timeoutMs=90000, ignoreModCompatibility=True)
                 await call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
                 if args.mode != 'headless':

@@ -2,14 +2,14 @@ from copy import deepcopy
 from types import SimpleNamespace
 import pytest
 
-from rimbot.population import capacity, guard, refresh, preview_order, SkillBlocked
-from rimbot.player_commands import COMMAND, semantic_tools, apply_command
-from rimbot.bridge_game import is_write
-from rimbot.colony_plan import ColonyPlan, ColonyGoal, PlanStep, StepProgress
-from rimbot.bridge import BridgeError
+from rimgovernor.population import capacity, guard, refresh, preview_order, SkillBlocked
+from rimgovernor.player_commands import COMMAND, semantic_tools, apply_command
+from rimgovernor.bridge_game import is_write
+from rimgovernor.colony_plan import ColonyPlan, ColonyGoal, PlanStep, StepProgress
+from rimgovernor.bridge import BridgeError
 from mcp.types import CallToolResult
-from rimbot.colony_policy import required_colony_work
-from rimbot.bridge_observation import ObservationGateway
+from rimgovernor.colony_policy import required_colony_work
+from rimgovernor.bridge_observation import ObservationGateway
 
 
 def state():
@@ -193,7 +193,7 @@ async def test_uncertain_custody_requires_current_load_outcome_and_preserves_can
 
 @pytest.mark.asyncio
 async def test_recruit_equipping_preserves_forbidden_weapon_groups(monkeypatch):
-    from rimbot import population
+    from rimgovernor import population
     pawn = {'thingId': 'Thing_Recruit', 'admitted': True}
     worker = dict(pawn, equipment={'armed': False}, bio={'incapableOfTags': []})
     async def guard(*args): return pawn, {}, [worker]

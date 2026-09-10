@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import pytest
 
-from rimbot.colony_plan import ColonyPlan, Failure
+from rimgovernor.colony_plan import ColonyPlan, Failure
 from test_colony_controller import Replay
 
 

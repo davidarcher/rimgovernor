@@ -10,11 +10,11 @@ import shutil
 import hashlib
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge import runtime_file_read
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.headless import isolated_root, prepare, prepare_rendered
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge import runtime_file_read
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.headless import isolated_root, prepare, prepare_rendered
+from rimgovernor.store import Store
 
 
 STABILITY_GATES=frozenset(('sleeping','shelter','food','production','storage','cooking','temperature','power','medical','defense','work'))
@@ -91,7 +91,7 @@ async def run(args):
     window=StabilityWindow(math.ceil(args.stability_days*60000))
     root = isolated_root(args.source_root, args.output/'bridge')
     if args.checkpoint:
-        shutil.copy2(args.checkpoint,root/'profile/Saves/RimBot-tribal8-baseline.rws')
+        shutil.copy2(args.checkpoint,root/'profile/Saves/RimGovernor-tribal8-baseline.rws')
     config = prepare_rendered(root) if args.rendered else prepare(root)
     store = Store(args.output/'state.sqlite')
     rt = BridgeRuntime(store, root, fresh=True, headless=not args.rendered, model_factory=lambda _: NoInference())
@@ -141,7 +141,7 @@ async def run(args):
             report['recovery_fixture']=await exercise_recovery(rt)
         rt.current_plan.control.setdefault('policy', {})['execution_speed'] = args.speed
         if getattr(args,'disable_hunting',False):
-            from rimbot.player_commands import apply_command
+            from rimgovernor.player_commands import apply_command
             if rt.review_task and not rt.review_task.done():await rt.review_task
             rt.execution_task=asyncio.current_task()
             try:
@@ -159,7 +159,7 @@ async def run(args):
             finally:
                 rt.execution_task=None
         if getattr(args,'food_target_days',None) is not None:
-            from rimbot.player_commands import apply_command
+            from rimgovernor.player_commands import apply_command
             report['food_target']=await apply_command(rt,dict(kind='CreateGoal',goal='EnsureFoodSupply',
                 food_days=args.food_target_days),token=rt.context_token,revision=rt.chat_revision)
         from startup_milestones import StartupMilestones
@@ -264,7 +264,7 @@ async def run(args):
             profile=root/('profile' if args.rendered else 'headless-profile')
             report['lifecycle']['autosaves']=[]
             for save in (profile/'Saves').glob('*.rws'):
-                if save.name=='RimBot-tribal8-baseline.rws':continue
+                if save.name=='RimGovernor-tribal8-baseline.rws':continue
                 xml=ET.parse(save).getroot()
                 report['lifecycle']['autosaves'].append({'name':save.name,'tick':int(xml.findtext('.//tickManager/ticksGame')),
                     'sha256':hashlib.sha256(save.read_bytes()).hexdigest()})

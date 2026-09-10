@@ -1,10 +1,10 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.colony_plan import ColonyPlan, ColonyGoal, StepProgress
-from rimbot.production_policy import production_budgets, sync_production_policy, resource_method, ingredient_deficits
-from rimbot.colony_skills import SkillBlocked, ColonySkills
-from rimbot.player_commands import CreateGoal
+from rimgovernor.colony_plan import ColonyPlan, ColonyGoal, StepProgress
+from rimgovernor.production_policy import production_budgets, sync_production_policy, resource_method, ingredient_deficits
+from rimgovernor.colony_skills import SkillBlocked, ColonySkills
+from rimgovernor.player_commands import CreateGoal
 
 
 def target(resource='Steel', quantity=100):
@@ -141,7 +141,7 @@ async def test_slow_native_mining_progress_prevents_false_stall_without_creditin
 
 @pytest.mark.asyncio
 async def test_mining_watchdog_recovers_only_from_same_load_actual_work():
-    from rimbot.production_policy import refresh_resource_progress
+    from rimgovernor.production_policy import refresh_resource_progress
     rt, identity, _ = target()
     rt.context_token, rt.chat_revision = 'context', 0
     goal = rt.current_plan.colony_goals[identity]
@@ -259,8 +259,8 @@ def test_resource_target_contract_rejects_missing_and_misplaced_quantities():
 @pytest.mark.asyncio
 @pytest.mark.parametrize('restriction', ['stop','reserve','competing'])
 async def test_explicit_material_substitution_selects_an_affordable_permitted_native_cost(restriction):
-    from rimbot.colony_plan import PlanSpec
-    from rimbot.resource_accounting import validate_allocations
+    from rimgovernor.colony_plan import PlanSpec
+    from rimgovernor.resource_accounting import validate_allocations
     plan = ColonyPlan()
     if restriction == 'stop': plan.control['resource_policy']={'WoodLog':{'spending':'stop'}}
     if restriction == 'reserve': plan.control['resource_policy']={'WoodLog':{'reserve':10}}
@@ -279,7 +279,7 @@ async def test_explicit_material_substitution_selects_an_affordable_permitted_na
 
 @pytest.mark.asyncio
 async def test_resource_prerequisite_recovery_observes_new_bench_without_writing():
-    from rimbot.production_policy import refresh_resource_prerequisite
+    from rimgovernor.production_policy import refresh_resource_prerequisite
     rt, identity, facts=target('Chemfuel')
     goal=rt.current_plan.colony_goals[identity]
     goal.status='blocked';goal.reason='No available native production recipe and workbench for Chemfuel'

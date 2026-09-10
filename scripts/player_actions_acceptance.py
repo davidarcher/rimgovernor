@@ -1,22 +1,22 @@
 """B13 native settings and capability audit in a disposable rendered Docker worker.
 
-Run through rimbot.container_worker with this script as its command. Inputs are
+Run through rimgovernor.container_worker with this script as its command. Inputs are
 copied by that runner. No model calls, debug actions, or edited saves are used.
 """
 import asyncio
 import json
 import os
 from pathlib import Path
-from rimbot.bridge import bridge_session, gabs_executable, BridgeError
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge_observation import observe
-from rimbot.player_commands import apply_command
-from rimbot.store import Store
+from rimgovernor.bridge import bridge_session, gabs_executable, BridgeError
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge_observation import observe
+from rimgovernor.player_commands import apply_command
+from rimgovernor.store import Store
 
 
 async def run():
-    root=Path(os.environ['RIMBOT_BRIDGE_ROOT'])
+    root=Path(os.environ['RIMGOVERNOR_BRIDGE_ROOT'])
     report={'passed':False,'scope':'Native player settings, zone geometry, bill whitelist and capability audit; no downstream pawn labor assertion.'}
     config=root/'config'
     async with bridge_session(gabs_executable(root,config),config) as bridge:
@@ -24,7 +24,7 @@ async def run():
         try:
             await bridge.core('games_start',gameId=bridge.game_id)
             await bridge.connect()
-            await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=120000)
+            await bridge.call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=120000)
             await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
             game=BridgeGame(bridge)
             rt=BridgeRuntime(Store(root/'acceptance.sqlite'),root,headless=False)

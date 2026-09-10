@@ -3,9 +3,9 @@ from copy import deepcopy
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 import pytest
-from rimbot.colony_plan import ColonyPlan, ColonyGoal, PlanSpec, StepProgress, Failure
-from rimbot.medical_recovery import recover_treatment
-from rimbot.bridge_runtime import BridgeRuntime
+from rimgovernor.colony_plan import ColonyPlan, ColonyGoal, PlanSpec, StepProgress, Failure
+from rimgovernor.medical_recovery import recover_treatment
+from rimgovernor.bridge_runtime import BridgeRuntime
 
 
 def fixture():

@@ -4,9 +4,9 @@ import json
 from pathlib import Path
 import sqlite3
 from history_query_audit import digest
-from rimbot.colony_plan import ColonyPlan,Decision,PlanSpec
-from rimbot.plan_archive import bind_archive,prepare_archive,finish_archive
-from rimbot.store import Store
+from rimgovernor.colony_plan import ColonyPlan,Decision,PlanSpec
+from rimgovernor.plan_archive import bind_archive,prepare_archive,finish_archive
+from rimgovernor.store import Store
 
 
 def run(args):

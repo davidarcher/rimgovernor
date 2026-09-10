@@ -1,23 +1,23 @@
 """Native husbandry outcomes in a disposable local Docker fixture; no inference."""
-from rimbot.native_scenario import advance_game
+from rimgovernor.native_scenario import advance_game
 import asyncio
 import json
 import os
 from pathlib import Path
 
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge import BridgeError
-from rimbot.colony_plan import CommitSteps
-from rimbot.config import ModelRole
-from rimbot.husbandry import refresh_husbandry, husbandry_method
-from rimbot.player_commands import apply_command
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge import BridgeError
+from rimgovernor.colony_plan import CommitSteps
+from rimgovernor.config import ModelRole
+from rimgovernor.husbandry import refresh_husbandry, husbandry_method
+from rimgovernor.player_commands import apply_command
+from rimgovernor.store import Store
 from session_checkpoint_acceptance import ready
 from deterministic_foothold import NoInference
 
 
 async def run():
-    root = Path(os.environ['RIMBOT_BRIDGE_ROOT'])
+    root = Path(os.environ['RIMGOVERNOR_BRIDGE_ROOT'])
     report = {'passed': False, 'cases': [], 'samples': [],
               'scope': 'Seeded native fixture; ordinary feeding, birth, training, milk and wool outcomes. No local-model interpretation or seasonal survival claim.'}
     rt = BridgeRuntime(Store(root/'husbandry.sqlite'), root, fresh=True, headless=True,

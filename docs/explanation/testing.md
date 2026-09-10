@@ -2,7 +2,7 @@
 
 [Documentation](../README.md) · [System overview](overview.md)
 
-A test result is useful when its claim is precise. RimBot has fixture tests, native game
+A test result is useful when its claim is precise. RimGovernor has fixture tests, native game
 probes, local-model checks and sustained campaigns. They observe different boundaries,
 so success in one does not automatically establish another.
 

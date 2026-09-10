@@ -8,14 +8,14 @@ import time
 
 import httpx
 
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.store import Store
 from deterministic_foothold import NoInference
 from session_checkpoint_acceptance import ready
 
 
 async def run(seconds):
-    root = Path(os.environ['RIMBOT_BRIDGE_ROOT'])
+    root = Path(os.environ['RIMGOVERNOR_BRIDGE_ROOT'])
     store = Store(root/'observer.sqlite')
     rt = BridgeRuntime(store, root, fresh=True, headless=True, model_factory=lambda _: NoInference())
     report = {'passed': False, 'scope': 'Native paused tick and direction invariance under HTTP observation; no pawn-work or rendering claim.'}
@@ -34,7 +34,7 @@ async def run(seconds):
                 reads += 1
                 await asyncio.sleep(1)
             for path in ('/api/control', '/api/chat', '/api/video', '/api/player/input'):
-                assert (await client.post(path, json={}, headers={'X-RimBot': '1'})).status_code == 403
+                assert (await client.post(path, json={}, headers={'X-RimGovernor': '1'})).status_code == 403
         after = (await rt.game.query('home/status', colonists=False, threats=False))['time']
         assert before['ticksGame'] == after['ticksGame'] and after['paused'] is True
         assert (rt.context_token, rt.chat_revision, rt.mode) == (identity, revision, mode)

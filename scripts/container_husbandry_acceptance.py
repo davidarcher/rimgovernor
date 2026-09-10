@@ -24,7 +24,7 @@ def run(args):
                     stdout=stream, stderr=subprocess.STDOUT, check=True, timeout=1800)
     image = command('image', 'inspect', '--format', '{{.Id}}', args.image,
                     capture_output=True, text=True, check=True).stdout.strip()
-    name = 'rimbot-husbandry-' + uuid.uuid4().hex[:12]
+    name = 'rimgovernor-husbandry-' + uuid.uuid4().hex[:12]
     require_dashboard_image(command, image)
     invocation = ['run', '--rm', '--init', '--name', name, *dashboard_options(name)]
     for path, destination in ((args.game, 'game'), (args.mods, 'mods'),
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     for argument in ('game', 'mods', 'profile', 'gabs', 'output'):
         parser.add_argument('--' + argument, type=Path, required=True)
-    parser.add_argument('--image', default='rimbot-worker:husbandry')
+    parser.add_argument('--image', default='rimgovernor-worker:husbandry')
     parser.add_argument('--no-build', action='store_true')
     parser.add_argument('--timeout', type=int, default=1200)
     raise SystemExit(0 if run(parser.parse_args()) else 1)

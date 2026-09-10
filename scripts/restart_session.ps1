@@ -9,7 +9,7 @@ $taskProcess=Get-Process -Id $taskHealth.pid
 $taskBirth=$taskProcess.StartTime.ToUniversalTime()
 $null=$taskProcess.Handle # Retain the process handle so PID reuse cannot redirect termination.
 $taskState=Invoke-RestMethod "$taskUrl/api/state"
-$taskCheckpoint=Invoke-RestMethod "$taskUrl/api/session/checkpoint" -Method Post -Headers @{'X-RimBot'='1'} -ContentType application/json -Body (@{session_id=$taskState.sessionId}|ConvertTo-Json) -TimeoutSec 120
+$taskCheckpoint=Invoke-RestMethod "$taskUrl/api/session/checkpoint" -Method Post -Headers @{'X-RimGovernor'='1'} -ContentType application/json -Body (@{session_id=$taskState.sessionId}|ConvertTo-Json) -TimeoutSec 120
 $taskManifest=$taskCheckpoint.manifest_path
 if (!(Test-Path -LiteralPath $taskManifest)) { throw 'Verified checkpoint is unavailable; controller was not stopped.' }
 $taskCurrent=Invoke-RestMethod "$taskUrl/api/health"
@@ -17,18 +17,18 @@ if ($taskCurrent.pid -ne $taskHealth.pid -or $taskCurrent.source_root -ne $taskS
 $taskPython=if($Python){(Resolve-Path -LiteralPath $Python).Path}else{Join-Path $taskSource '.venv/Scripts/python.exe'}
 if (!(Test-Path -LiteralPath $taskPython)) { throw 'Python environment is unavailable; controller was not stopped.' }
 $env:PYTHONPATH=Join-Path $taskSource 'controller'
-& $taskPython -c 'import sys; from rimbot.session_checkpoint import read_checkpoint; read_checkpoint(sys.argv[1])' $taskManifest
+& $taskPython -c 'import sys; from rimgovernor.session_checkpoint import read_checkpoint; read_checkpoint(sys.argv[1])' $taskManifest
 if ($LASTEXITCODE -ne 0) { throw 'Checkpoint verification failed; controller was not stopped.' }
 $taskLatest=Invoke-RestMethod "$taskUrl/api/state"
 if ($taskLatest.sessionId -ne $taskState.sessionId -or $taskLatest.mode -ne 'manual' -or !$taskLatest.game.paused -or $taskLatest.game.tick -ne $taskCheckpoint.tick) { throw 'Colony changed after checkpoint; controller was not stopped.' }
-$null=Invoke-RestMethod "$taskUrl/api/session/stop" -Method Post -Headers @{'X-RimBot'='1'} -ContentType application/json -Body (@{session_id=$taskState.sessionId;manifest_path=$taskManifest}|ConvertTo-Json) -TimeoutSec 120
+$null=Invoke-RestMethod "$taskUrl/api/session/stop" -Method Post -Headers @{'X-RimGovernor'='1'} -ContentType application/json -Body (@{session_id=$taskState.sessionId;manifest_path=$taskManifest}|ConvertTo-Json) -TimeoutSec 120
 $taskProcess.Kill()
 if (!$taskProcess.WaitForExit(30000)) { throw 'Controller did not exit; checkpoint retained.' }
 $env:PYTHONPATH=Join-Path $taskSource 'controller'
-$env:RIMBOT_MODEL=$taskState.chatModel
-Remove-Item Env:RIMBOT_RESUME_CHECKPOINT -ErrorAction SilentlyContinue
+$env:RIMGOVERNOR_MODEL=$taskState.chatModel
+Remove-Item Env:RIMGOVERNOR_RESUME_CHECKPOINT -ErrorAction SilentlyContinue
 $taskLog=Join-Path (Split-Path $taskManifest) ('restart-'+(Get-Date -Format 'yyyyMMdd-HHmmss'))
-Start-Process -FilePath $taskPython -ArgumentList @('-m','rimbot','--port',"$Port",'--resume',"`"$taskManifest`"") -WorkingDirectory $taskSource -WindowStyle Hidden -RedirectStandardOutput "$taskLog.out.log" -RedirectStandardError "$taskLog.err.log"
+Start-Process -FilePath $taskPython -ArgumentList @('-m','rimgovernor','--port',"$Port",'--resume',"`"$taskManifest`"") -WorkingDirectory $taskSource -WindowStyle Hidden -RedirectStandardOutput "$taskLog.out.log" -RedirectStandardError "$taskLog.err.log"
 Write-Host "Saved at tick $($taskCheckpoint.tick). Restarting in Manual: $taskUrl"
 Write-Host "Checkpoint retained: $taskManifest"
 $taskDeadline=(Get-Date).AddSeconds(120)

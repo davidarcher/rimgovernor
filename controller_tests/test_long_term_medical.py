@@ -2,11 +2,11 @@ from copy import deepcopy
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.colony_plan import ColonyGoal, NativeOperation
-from rimbot.medical_management import care_state, manage_care
-from rimbot.colony_skills import SkillBlocked
-from rimbot.surgery import surgery_outcome, effect_from_preview
-from rimbot.medical_replacement import replace_doctor
+from rimgovernor.colony_plan import ColonyGoal, NativeOperation
+from rimgovernor.medical_management import care_state, manage_care
+from rimgovernor.colony_skills import SkillBlocked
+from rimgovernor.surgery import surgery_outcome, effect_from_preview
+from rimgovernor.medical_replacement import replace_doctor
 from test_medical_triage import fixture
 
 
@@ -123,7 +123,7 @@ async def test_doctor_replacement_keeps_receipts_and_honors_player_ownership(cha
 
 def surgical_runtime():
     from unittest.mock import Mock
-    from rimbot.colony_plan import ColonyPlan, PlanStep, StepProgress
+    from rimgovernor.colony_plan import ColonyPlan, PlanStep, StepProgress
     plan = ColonyPlan()
     plan.spec.steps.append(PlanStep(id='surgery', title='Install leg', action=action(),
         completion_criteria='Native peg leg observed'))
@@ -138,7 +138,7 @@ def surgical_runtime():
 @pytest.mark.parametrize('change', ['none', 'cancelled', 'direction', 'load', 'map', 'colony',
     'unknown_receipt', 'future_tick', 'expired', 'autopilot'])
 def test_anesthesia_clock_permission_is_bounded_and_player_scoped(change):
-    from rimbot.surgery import recovery_patients
+    from rimgovernor.surgery import recovery_patients
     rt = surgical_runtime()
     progress = rt.current_plan.progress['surgery']
     if change == 'cancelled': progress.state = 'cancelled'
@@ -152,7 +152,7 @@ def test_anesthesia_clock_permission_is_bounded_and_player_scoped(change):
 
 
 def test_surgery_timeout_observes_late_native_success_without_reissuing():
-    from rimbot.bridge_runtime import BridgeRuntime
+    from rimgovernor.bridge_runtime import BridgeRuntime
     rt = surgical_runtime()
     rt.batch.summary.end_tick = 60100
     receipt = deepcopy(rt.current_plan.progress['surgery'].issued)
@@ -166,7 +166,7 @@ def test_surgery_timeout_observes_late_native_success_without_reissuing():
 
 
 def test_surgical_outcome_requires_fresh_batch_and_same_native_context():
-    from rimbot.bridge_runtime import BridgeRuntime
+    from rimgovernor.bridge_runtime import BridgeRuntime
     rt = surgical_runtime()
     rt.batch.native['pawns']['pawns'][0]['health']['hediffs'] = [dict(id='Hediff_2', defName='PegLeg', partIndex=7)]
     rt.batch.started_at = 10
@@ -187,7 +187,7 @@ async def test_stable_chronic_monitor_does_not_timeout_completed_recovery_settin
     pawn['health'].update(shouldSeekMedicalRest=True, medicalCare='Best',
         hediffs=[dict(id='Hediff_1', defName='ChronicCondition', isBad=True)])
     pawn['work']['types'].append(dict(name='PatientBedRest', disabled=False, priority=0))
-    from rimbot.colony_plan import PlanStep, StepProgress
+    from rimgovernor.colony_plan import PlanStep, StepProgress
     step = PlanStep(id='rest', title='Recovery work', source='AUTOPILOT', goal_id='MaintainMedicalCare',
         action=NativeOperation(tool='home/pawn_config', arguments={'pawn': pawn['thingId'], 'work':'PatientBedRest=1'}),
         completion_criteria='Native work enabled')

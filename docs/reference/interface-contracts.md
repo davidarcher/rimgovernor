@@ -5,7 +5,7 @@
 Outpost is the dashboard display name. These are its control, presentation and transport
 contracts.
 
-Outpost is the dashboard display name; runtime and package names remain RimBot. Watch
+Outpost is the dashboard display name; runtime and package names remain RimGovernor. Watch
 keeps chat beside the current game snapshots. Priorities explains actual priority
 classes, selected methods, blockers and observed foothold gates; targets edit the same
 controller policy. Work separates unfinished orders from optional history. Colony groups
@@ -16,7 +16,7 @@ preserve the last good data.
 ## Local colony discovery
 
 `GET /api/colonies` lists running local Docker workers identified by the
-`io.rimbot.colony=1` label or the `rimbot.container_worker` entrypoint. It returns
+`io.rimgovernor.colony=1` label or the `rimgovernor.container_worker` entrypoint. It returns
 container ID, name, display mode, start time and a loopback URL for published
 container port 8787. Missing ports produce a null URL. Discovery errors return
 `colonies: null` and an error; an empty array means successful discovery of no workers.
@@ -112,19 +112,19 @@ viewer leases; headless sessions cannot supply video.
 
 Watch uses same-origin `/api/video/frames` WebSocket delivery when the `video` Python
 extra and native `home/video_stream` are present. The connection requires the
-`rimbot-view-v1` subprotocol and current session identity. Up to four viewers share one
+`rimgovernor-view-v1` subprotocol and current session identity. Up to four viewers share one
 native framebuffer. NVIDIA NVENC supplies independent H.264 frames to WebCodecs-capable
 browsers; unavailable hardware or decoding falls back to JPEG. Each packet carries its
 native source, frame sequence, dimensions, capture time and session. One unacknowledged
 frame per viewer bounds backpressure. Browser paint acknowledgement supplies display
 latency metrics. Windows uses a named mapping and nonblocking mutex;
-Linux uses a private `/dev/shm/RimBotVideo-<id>` mapping and nonblocking file locks.
+Linux uses a private `/dev/shm/RimGovernorVideo-<id>` mapping and nonblocking file locks.
 Readers accept only that buffer namespace and exact capacity. Native lease cleanup
 unlinks the Linux buffer; existing readers close their mappings independently.
 Unity captures the
 full framebuffer after rendering, at most 60 times per second and up to 3840×2160.
 Private Xvfb workers capture their process-owned presented window; optional
-`RIMBOT_VIDEO_READBACK=async` or `sync` selects GPU readback or ReadPixels for comparison.
+`RIMGOVERNOR_VIDEO_READBACK=async` or `sync` selects GPU readback or ReadPixels for comparison.
 The capture ceiling is not a delivered-fps guarantee. Private display frame pacing
 uses 60 fps without virtual-display vsync while capture is leased, then restores the
 previous settings. Each consumer takes the latest frame instead of queuing

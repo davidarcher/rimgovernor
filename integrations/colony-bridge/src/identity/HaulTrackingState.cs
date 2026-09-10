@@ -34,7 +34,7 @@ namespace HomeBridge.BridgeTools
         public HaulTrackingState(Game game) { }
         public override void ExposeData()
         {
-            Scribe_Collections.Look(ref Records, "rimbotHaulTracking", LookMode.Deep);
+            Scribe_Collections.Look(ref Records, "rimgovernorHaulTracking", LookMode.Deep);
             if (Scribe.mode == LoadSaveMode.PostLoadInit && Records == null) Records = new List<HaulRecord>();
         }
     }

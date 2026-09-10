@@ -3,9 +3,9 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 import httpx
 import pytest
-from rimbot.bridge_server import create_app
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.player_input import InputLease
+from rimgovernor.bridge_server import create_app
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.player_input import InputLease
 
 
 def runtime():
@@ -22,7 +22,7 @@ def runtime():
 
 async def request(rt, path, **body):
     app=create_app(rt); app.state.rt=rt
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://testserver',headers={'X-RimBot':'1'}) as client:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://testserver',headers={'X-RimGovernor':'1'}) as client:
         return await client.post('/api/'+path,json={'session_id':'load-a','viewer_id':'a',**body})
 
 
@@ -125,7 +125,7 @@ async def test_clear_selection_needs_observed_empty_selection():
 
 @pytest.mark.parametrize('viewer, token', [('a', 'released'), ('a', ''), ('', 'released')])
 def test_released_credentials_cannot_fall_back_to_unowned_controls(viewer, token):
-    from rimbot.player_input import check_player_control
+    from rimgovernor.player_input import check_player_control
     rt = SimpleNamespace(player_input=None)
     with pytest.raises(ValueError, match='expired'):
         check_player_control(rt, 'load-a', viewer, token)
@@ -170,5 +170,5 @@ async def test_frame_input_rejects_boolean_coordinates_and_old_load_without_nati
 
 
 def test_direct_input_is_outside_model_gameplay_surface():
-    from rimbot.bridge_game import READS, WRITES
+    from rimgovernor.bridge_game import READS, WRITES
     assert 'home/player_input' not in READS | WRITES

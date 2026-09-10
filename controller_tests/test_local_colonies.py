@@ -4,13 +4,13 @@ from unittest.mock import Mock
 import httpx
 import pytest
 
-from rimbot import local_colonies as directory
+from rimgovernor import local_colonies as directory
 
 
 def worker(**changes):
     value = {'Id': 'abc', 'Name': '/winter-test',
-             'Config': {'Entrypoint': ['python', '-m', 'rimbot.container_worker'],
-                        'Env': ['RIMBOT_DISPLAY=xvfb']},
+             'Config': {'Entrypoint': ['python', '-m', 'rimgovernor.container_worker'],
+                        'Env': ['RIMGOVERNOR_DISPLAY=xvfb']},
              'State': {'Running': True, 'StartedAt': '2026-09-10T00:00:00Z'},
              'NetworkSettings': {'Ports': {'8787/tcp': [{'HostIp': '127.0.0.1', 'HostPort': '45678'}]}}}
     value.update(changes)
@@ -35,8 +35,8 @@ def test_unpublished_or_nonlocal_workers_remain_visible_without_link(binding):
 
 
 def test_labels_support_named_workers():
-    entries = directory.worker_entries([worker(Config={'Labels': {'io.rimbot.colony': '1',
-                                                                  'io.rimbot.colony.name': 'Winter'}})])
+    entries = directory.worker_entries([worker(Config={'Labels': {'io.rimgovernor.colony': '1',
+                                                                  'io.rimgovernor.colony.name': 'Winter'}})])
     assert entries[0]['name'] == 'Winter'
 
 

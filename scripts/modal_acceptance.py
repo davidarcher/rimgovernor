@@ -1,16 +1,16 @@
 """Native confirmation and final game-value acceptance using gated disposable fixtures."""
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import argparse
 import asyncio
 import json
 import subprocess
 from pathlib import Path
 
-from rimbot.bridge import bridge_session, BridgeError
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.headless import isolated_root, prepare
-from rimbot.store import Store
+from rimgovernor.bridge import bridge_session, BridgeError
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.headless import isolated_root, prepare
+from rimgovernor.store import Store
 
 NAMING=('faction','settlement','combined','zone','area','policy','bill','storage',
         'storage_new','pen','gravship','gravship_given','pawn','animal')
@@ -20,7 +20,7 @@ async def run(args):
     root=isolated_root(args.source,args.output)
     config_dir=prepare(root)
     config=json.loads((config_dir/'config.json').read_text())
-    config['games']['rimbot-trial']['args']=[a for a in config['games']['rimbot-trial']['args']
+    config['games']['rimgovernor-trial']['args']=[a for a in config['games']['rimgovernor-trial']['args']
                                            if a not in ('-batchmode','-nographics')]
     (config_dir/'config.json').write_text(json.dumps(config))
     report={'revision':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
@@ -30,7 +30,7 @@ async def run(args):
             try:
                 await bridge.core('games_start',gameId=bridge.game_id)
                 await bridge.connect()
-                await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',
+                await bridge.call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',
                                   readiness='visual',timeoutMs=90000,ignoreModCompatibility=True)
                 await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
                 store=Store(root/'state.sqlite')
@@ -158,7 +158,7 @@ async def run(args):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--source',type=Path,default=Path('.rimbot/bridge'))
+    parser.add_argument('--source',type=Path,default=Path('.rimgovernor/bridge'))
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--cases',nargs='+',default=[*NAMING,'quest','race'])
     asyncio.run(run(parser.parse_args()))

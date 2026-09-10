@@ -2,10 +2,10 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock,Mock
 import pytest
 import asyncio
-from rimbot.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge_runtime import BridgeRuntime
 from test_construction_recovery import fixture
-from rimbot.colony_plan import ColonyPlan,ColonyGoal,PlanSpec,StepProgress
-from rimbot.supply_recovery import recover_starting_supplies
+from rimgovernor.colony_plan import ColonyPlan,ColonyGoal,PlanSpec,StepProgress
+from rimgovernor.supply_recovery import recover_starting_supplies
 
 async def blocked_supply():
     rt,_=fixture()
@@ -76,8 +76,8 @@ async def test_obsolete_allow_refuses_uncertain_stock_and_changed_authority(chan
 @pytest.mark.asyncio
 @pytest.mark.parametrize('kind',['external_pause','external_speed_changed'])
 async def test_buffered_native_player_clock_input_invalidates_no_write_reconciliation(kind, tmp_path):
-    from rimbot.store import Store
-    from rimbot.strategic_state import StrategicState
+    from rimgovernor.store import Store
+    from rimgovernor.strategic_state import StrategicState
     rt=await blocked_supply()
     rt.clock_events=[];rt.chat=[];rt.wake=asyncio.Event()
     rt.note=Mock(return_value={'id':1,'text':'Player clock input'})

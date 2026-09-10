@@ -38,8 +38,8 @@ namespace HomeBridge.BridgeTools
                     record.RebindVerified = source != null;
                     if (source != null) record.SavedHitPoints = source.HitPoints;
                 }
-            Scribe_Collections.Look(ref Records, "rimbotMining", LookMode.Deep);
-            Scribe_Collections.Look(ref Drills, "rimbotDrilling", LookMode.Deep);
+            Scribe_Collections.Look(ref Records, "rimgovernorMining", LookMode.Deep);
+            Scribe_Collections.Look(ref Drills, "rimgovernorDrilling", LookMode.Deep);
             if (Scribe.mode == LoadSaveMode.PostLoadInit && Records == null) Records = new List<MiningRecord>();
             if (Scribe.mode == LoadSaveMode.PostLoadInit && Drills == null) Drills = new List<DrillingRecord>();
         }

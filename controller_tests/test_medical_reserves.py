@@ -3,9 +3,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.colony_plan import ColonyPlan, ColonyGoal
-from rimbot.colony_upkeep import upkeep_nodes
-from rimbot.medical_reserves import reserve_evidence, reserve_method
+from rimgovernor.colony_plan import ColonyPlan, ColonyGoal
+from rimgovernor.colony_upkeep import upkeep_nodes
+from rimgovernor.medical_reserves import reserve_evidence, reserve_method
 
 
 def facts(count=0):

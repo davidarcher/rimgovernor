@@ -1,14 +1,14 @@
 """Read-only B12 contract acceptance on a separately owned baseline game."""
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import argparse
 import asyncio
 import json
 import subprocess
 from pathlib import Path
 
-from rimbot.bridge import bridge_session
-from rimbot.bridge_game import BridgeGame, for_model
-from rimbot.headless import isolated_root, prepare
+from rimgovernor.bridge import bridge_session
+from rimgovernor.bridge_game import BridgeGame, for_model
+from rimgovernor.headless import isolated_root, prepare
 
 
 async def run(args):
@@ -21,7 +21,7 @@ async def run(args):
             try:
                 await bridge.core('games_start',gameId=bridge.game_id)
                 await bridge.connect()
-                await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',
+                await bridge.call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',
                                   readiness='visual',timeoutMs=90000,ignoreModCompatibility=True)
                 await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
                 if args.fixture:
@@ -106,7 +106,7 @@ async def run(args):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--source',type=Path,default=Path('.rimbot/bridge'))
+    parser.add_argument('--source',type=Path,default=Path('.rimgovernor/bridge'))
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--fixture',action='store_true',help='Requires a temporary InspectorFixture build; creates disposable test objects.')
     asyncio.run(run(parser.parse_args()))

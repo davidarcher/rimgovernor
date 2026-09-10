@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.colony_plan import ColonyGoal, ColonyPlan, PlanSpec, PlanStep, StepProgress
-from rimbot.colony_skills import SkillBlocked
-from rimbot.colony_upkeep import evidence, upkeep_nodes, upkeep_method, reconcile_upkeep
+from rimgovernor.colony_plan import ColonyGoal, ColonyPlan, PlanSpec, PlanStep, StepProgress
+from rimgovernor.colony_skills import SkillBlocked
+from rimgovernor.colony_upkeep import evidence, upkeep_nodes, upkeep_method, reconcile_upkeep
 
 
 def facts():
@@ -233,7 +233,7 @@ async def test_controller_fire_preempts_development_and_recovery_reuses_goal():
 @pytest.mark.asyncio
 async def test_native_worker_refusal_checks_an_alternate_without_writing():
     from mcp.types import CallToolResult
-    from rimbot.bridge import BridgeError
+    from rimgovernor.bridge import BridgeError
     rt, f = runtime(), facts()
     f['upkeep']['items'] = [item()]
     f['upkeep']['storageCells'] = [dict(x=10, z=12, roofed=True)]
@@ -271,8 +271,8 @@ async def test_worsening_rot_does_not_reset_upkeep_watchdog():
 
 
 def test_recurrent_maintenance_retires_only_verified_completed_order():
-    from rimbot.colony_plan import CommitSteps
-    from rimbot.config import ModelRole
+    from rimgovernor.colony_plan import CommitSteps
+    from rimgovernor.config import ModelRole
     rt = runtime('repair')
     original = rt.current_plan.spec.steps[0]
     original.source = 'AUTOPILOT'
@@ -320,7 +320,7 @@ async def test_controller_supervises_ordinary_fire_work_and_holds_when_it_stalls
     assert rt.current_plan.control.get('execution_hold')
 def test_retry_inputs_ignore_simulation_noise_but_preserve_eligibility_changes():
     from copy import deepcopy
-    from rimbot.colony_upkeep import retry_signature
+    from rimgovernor.colony_upkeep import retry_signature
     state = dict(known=True, targets=[dict(id='Thing_Item1', rotTicks=1000, temperature=20, count=50)])
     people = [dict(thingId='Thing_Human1', position=dict(x=1, z=1), health=dict(needsTend=False, bleeding=False))]
     baseline = retry_signature(state, people, {}, {})

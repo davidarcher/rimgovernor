@@ -5,7 +5,7 @@ import weakref
 import httpx
 import pytest
 
-from rimbot import scenario_dashboard as dashboard
+from rimgovernor import scenario_dashboard as dashboard
 
 
 class Runtime:
@@ -34,7 +34,7 @@ async def test_readonly_observation_and_session_replacement():
             assert (await client.get('/api/state')).json()['game']['tick'] == 42
         for method in ('POST', 'PUT', 'PATCH', 'DELETE'):
             for route in ('/api/control', '/api/chat', '/api/video', '/api/session/stop', '/api/player/input'):
-                assert (await client.request(method, route, headers={'X-RimBot': '1'}, json={})).status_code == 403
+                assert (await client.request(method, route, headers={'X-RimGovernor': '1'}, json={})).status_code == 403
         assert (await client.get('/api/people')).status_code == 404
         assert (await client.get('/api/camera?session_id=load-a')).content == b'png-a'
         second = Runtime()
@@ -55,11 +55,11 @@ async def test_readonly_observation_and_session_replacement():
 async def test_hook_is_opt_in_and_reuses_process_observer(monkeypatch):
     starts = Mock()
     monkeypatch.setattr(dashboard.Observer, 'start', starts)
-    monkeypatch.delenv('RIMBOT_SCENARIO_DASHBOARD', raising=False)
+    monkeypatch.delenv('RIMGOVERNOR_SCENARIO_DASHBOARD', raising=False)
     first, second = Runtime(), Runtime()
     dashboard.attach(first)
     starts.assert_not_called()
-    monkeypatch.setenv('RIMBOT_SCENARIO_DASHBOARD', '1')
+    monkeypatch.setenv('RIMGOVERNOR_SCENARIO_DASHBOARD', '1')
     dashboard.attach(first)
     dashboard.attach(first)
     dashboard.attach(second)

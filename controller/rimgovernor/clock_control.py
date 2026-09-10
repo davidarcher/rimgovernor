@@ -13,7 +13,7 @@ class PlayClock:
     def __init__(self, bridge, store=None, context=None, *, test_acceleration=False):
         self.bridge = bridge
         self.test_acceleration = test_acceleration
-        self.owner = 'rimbot-' + uuid.uuid4().hex
+        self.owner = 'rimgovernor-' + uuid.uuid4().hex
         self.epoch = 0
         self.cursor = 0
         self.hold = None

@@ -7,7 +7,7 @@ disposable game.
 
 Run commands from the repository root. Native probes require a disposable prepared
 profile and their stated fixture; run `--help` for the selected script. Keep outputs
-under a fresh `.rimbot/` directory, preserve failures, and never replace installed DLLs
+under a fresh `.rimgovernor/` directory, preserve failures, and never replace installed DLLs
 while any RimWorld instance is running. Container inputs use private snapshots.
 
 Close controller/game before installing and launching the isolated headless profile:
@@ -17,7 +17,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build_headless.ps1 -Install
 powershell -ExecutionPolicy Bypass -File launch.ps1 -Headless -NoBrowser
 ```
 
-This derives `.rimbot/bridge/headless-profile`, enables HeadlessRimPatch and uses
+This derives `.rimgovernor/bridge/headless-profile`, enables HeadlessRimPatch and uses
 `-batchmode -nographics`. Native fade readiness still matters. The dashboard stays
 available without images; restart without `-Headless` for interactive rendering.
 
@@ -37,7 +37,7 @@ each script's `--help` and fixture requirements before running it:
 Use the shared test operation for new bounded simulation waits:
 
 ```python
-from rimbot.native_scenario import advance_game
+from rimgovernor.native_scenario import advance_game
 
 clock = await advance_game(rt, 600, report, timeout=120)
 ```
@@ -120,7 +120,7 @@ a shared running game.
 
 Read assertions before interpreting results: for example, a healthy-pawn rescue refusal
 does not validate carrying a patient to bed. Some scripts use real models, some scripted
-decisions, and some only inspect/refuse actions. Reports stay local under `.rimbot/`;
+decisions, and some only inspect/refuse actions. Reports stay local under `.rimgovernor/`;
 retain failures as well as successful runs.
 
 ## Real-model execution
@@ -133,7 +133,7 @@ supply, work and bill cases sequentially in one private headless game. Use
 
 ```powershell
 $env:PYTHONPATH='controller'
-.venv\Scripts\python.exe scripts/execution_acceptance_smoke.py --case all --reuse-game --source-root .rimbot/bridge --output .rimbot/execution-reuse-01
+.venv\Scripts\python.exe scripts/execution_acceptance_smoke.py --case all --reuse-game --source-root .rimgovernor/bridge --output .rimgovernor/execution-reuse-01
 ```
 
 Each case reloads the unchanged baseline paused at its saved tick (at most one native
@@ -162,7 +162,7 @@ mode instead uses `worker-<case>/reuse.json`. Neither mode retries failed writes
 For model-free acceptance of the reuse boundary itself, run:
 
 ```powershell
-.venv\Scripts\python.exe scripts/game_reuse_acceptance.py --source-root .rimbot/bridge --output .rimbot/reuse-native-01
+.venv\Scripts\python.exe scripts/game_reuse_acceptance.py --source-root .rimgovernor/bridge --output .rimgovernor/reuse-native-01
 ```
 
 This runs three baseline loads in one process. Each case verifies a scoped native Allow
@@ -170,7 +170,7 @@ change and owned drafting; the next case must see the original forbidden supplie
 new load identity, no prior controller marker/chat/queued request and a revoked old
 client. Cleanup separately verifies the pawn is undrafted. This verifies reuse and
 ordinary native mutations, not pawn labor or model interpretation. In Docker, run the
-same script as a `rimbot.container_worker` command with `--source-root /worker/run` and
+same script as a `rimgovernor.container_worker` command with `--source-root /worker/run` and
 an unused output under `/worker`; the cached input staging workflow is unchanged.
 
 For targeted real-model execution, run `.venv\Scripts\python.exe
@@ -180,14 +180,14 @@ isolated headless baseline and verifies native readback through the normal
 commitment/Hands path. The accepted scope is one selected supply stack allowed, work
 enabled in checkbox mode and one bill created on the exact bench. It does not certify
 numbered priority scheduling or completed production. All three cases passed with Qwen
-3.5 9B; local evidence is under `.rimbot/execution-acceptance-1788898095948598300/`.
+3.5 9B; local evidence is under `.rimgovernor/execution-acceptance-1788898095948598300/`.
 
 ## Priorities and cooking
 
 For numbered priorities and actual cooking, run:
 
 ```powershell
-.venv\Scripts\python.exe scripts\production_acceptance.py --source-root .rimbot/bridge --output .rimbot/production-new
+.venv\Scripts\python.exe scripts\production_acceptance.py --source-root .rimgovernor/bridge --output .rimgovernor/production-new
 ```
 
 This isolated fixture enables numbered work priorities, replaces one starting food stack
@@ -204,7 +204,7 @@ separate player-action acceptance case.
 For Windows runtime-file recovery, run the following with the controller environment:
 
 ```powershell
-.venv\Scripts\python.exe scripts\runtime_file_acceptance.py --source .rimbot/bridge --output .rimbot/runtime-file-new
+.venv\Scripts\python.exe scripts\runtime_file_acceptance.py --source .rimgovernor/bridge --output .rimgovernor/runtime-file-new
 ```
 
 The test owns an isolated game and uses real Windows file handles to block private
@@ -214,17 +214,17 @@ Choose a fresh evidence directory for every run.
 
 ## Dialogs and inspectors
 
-For naming and quest-choice checks, `scripts/modal_acceptance.py --source .rimbot/bridge
---output .rimbot/modal-new` requires a temporary `ModalFixture=true` build in a rendered
+For naming and quest-choice checks, `scripts/modal_acceptance.py --source .rimgovernor/bridge
+--output .rimgovernor/modal-new` requires a temporary `ModalFixture=true` build in a rendered
 isolated game. For controlled sleeping, hauling, construction interruption and removal,
-`scripts/campaign_metrics_acceptance.py --source .rimbot/bridge --output
-.rimbot/metrics-new` requires `CampaignMetricsFixture=true`. Both fixtures are excluded
+`scripts/campaign_metrics_acceptance.py --source .rimgovernor/bridge --output
+.rimgovernor/metrics-new` requires `CampaignMetricsFixture=true`. Both fixtures are excluded
 from production builds. Install and restore DLLs only after an escalated CIM process
 check confirms every RimWorld instance is closed. The harnesses stop their own games;
 preserve failures and use new output paths.
 
 For selective native inspector checks, run `scripts/inspector_acceptance.py` with
-`--source .rimbot/bridge --output .rimbot/inspectors-new`. Its optional `--fixture`
+`--source .rimgovernor/bridge --output .rimgovernor/inspectors-new`. Its optional `--fixture`
 requires a temporary build with `-p:InspectorFixture=true` and populates thermal,
 ingredient, power and storage cases. Keep all games closed while swapping DLLs, restore
 the previous DLL afterward, and exclude fixture tools from the production build. The

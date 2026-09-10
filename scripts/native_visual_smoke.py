@@ -3,28 +3,28 @@
 The fixture places ordinary blueprints, never instant buildings. No model orders.
 Camera framing belongs to this disposable test; the reviewer must leave it alone.
 """
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import asyncio
 import json
 import time
 import re
 from pathlib import Path
-from rimbot.bridge import bridge_session, BridgeError
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge_observation import observe
-from rimbot.config import Settings, ModelRole, ModelRouting
-from rimbot.store import Store
+from rimgovernor.bridge import bridge_session, BridgeError
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge_observation import observe
+from rimgovernor.config import Settings, ModelRole, ModelRouting
+from rimgovernor.store import Store
 
 
 async def main():
-    root=Path('.rimbot/bridge').resolve()
+    root=Path('.rimgovernor/bridge').resolve()
     settings=Settings(model='qwen3.5-9b',reasoning=False,max_output_tokens=2048,timeout_seconds=180)
     routing=ModelRouting(roles={ModelRole.STRATEGIST:settings,ModelRole.ARCHITECT:settings})
     evidence={}
     async with bridge_session(gabs_executable(root),root/'config') as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
-        await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',
+        await bridge.call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',readiness='visual',
             ignoreModCompatibility=True,timeoutMs=90000)
         await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
         store=Store(root/'visual-smoke.sqlite');rt=BridgeRuntime(store,root,routing=routing)

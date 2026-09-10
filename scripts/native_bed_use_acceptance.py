@@ -1,10 +1,10 @@
 """Observe actual second-seed bed use after ordinary construction and a Manual sleep timetable."""
 import argparse,asyncio,json,time,traceback
 from pathlib import Path
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.headless import isolated_root,prepare
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.headless import isolated_root,prepare
+from rimgovernor.store import Store
 from deterministic_foothold import NoInference
 from session_checkpoint_acceptance import ready
 from lifecycle_measurement import bed_use_sample

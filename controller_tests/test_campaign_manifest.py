@@ -6,8 +6,8 @@ import subprocess
 
 import pytest
 
-from rimbot.campaign_manifest import capture_manifest, tracked_source, snapshot_source
-from rimbot.config import ModelRouting, ModelRole, Settings
+from rimgovernor.campaign_manifest import capture_manifest, tracked_source, snapshot_source
+from rimgovernor.config import ModelRouting, ModelRole, Settings
 
 
 def write(path, content):
@@ -30,12 +30,12 @@ def fixture(tmp_path):
     write(game/'Mods/CustomFolder/About/About.xml', metadata)
     write(game/'Mods/CustomFolder/BridgeTools/Test.Observations.dll', 'production dll')
     write(game/'Mods/CustomFolder/Assemblies/Test.Identity.dll', 'identity dll')
-    for relative in ('headless-profile/Saves/RimBot-tribal8-baseline.rws',
+    for relative in ('headless-profile/Saves/RimGovernor-tribal8-baseline.rws',
                      'headless-profile/Config/Prefs.xml', 'headless-profile/Config/ModsConfig.xml',
                      'gabs/gabs-v1.1.1-windows-amd64/gabs.exe'):
         write(root/relative, relative)
     configuration = root/'config-headless'
-    write(configuration/'config.json', json.dumps({'games': {'rimbot-trial': {'workingDir': str(game)}}}))
+    write(configuration/'config.json', json.dumps({'games': {'rimgovernor-trial': {'workingDir': str(game)}}}))
     routing = ModelRouting(roles={ModelRole.STRATEGIST: Settings(model='fixed-model')}).model_dump(mode='json')
     return source, root, configuration, routing
 
@@ -129,10 +129,10 @@ def test_untracked_executable_source_changes_manifest(tmp_path):
 def test_headless_binary_is_required_and_changes_campaign_identity(tmp_path):
     source,root,config,routing=fixture(tmp_path)
     data=json.loads((config/'config.json').read_text())
-    data['games']['rimbot-trial']['args']=['-batchmode','-nographics']
+    data['games']['rimgovernor-trial']['args']=['-batchmode','-nographics']
     write(config/'config.json',json.dumps(data))
     with pytest.raises(FileNotFoundError):capture_manifest(source,root,config,routing)
-    dll=Path(data['games']['rimbot-trial']['workingDir'])/'Mods/RimBotHeadless/Assemblies/HeadlessRimPatch.dll'
+    dll=Path(data['games']['rimgovernor-trial']['workingDir'])/'Mods/RimGovernorHeadless/Assemblies/HeadlessRimPatch.dll'
     write(dll,'old headless binary')
     before=capture_manifest(source,root,config,routing)
     write(dll,'current headless binary')
@@ -142,15 +142,15 @@ def test_headless_binary_is_required_and_changes_campaign_identity(tmp_path):
 
 
 def test_container_manifest_hashes_actual_packaged_source_without_git(tmp_path,monkeypatch):
-    monkeypatch.setenv('RIMBOT_CONTAINER_SOURCE','1')
-    write(tmp_path/'controller/rimbot/bridge_runtime.py','first')
+    monkeypatch.setenv('RIMGOVERNOR_CONTAINER_SOURCE','1')
+    write(tmp_path/'controller/rimgovernor/bridge_runtime.py','first')
     write(tmp_path/'pyproject.toml','package')
     write(tmp_path/'THIRD_PARTY.md','licenses')
     first=tracked_source(tmp_path)
     assert first['revision'] is None and first['mode']=='container_source_bytes'
-    write(tmp_path/'controller/rimbot/bridge_runtime.py','second')
+    write(tmp_path/'controller/rimgovernor/bridge_runtime.py','second')
     assert first['content_sha256']!=tracked_source(tmp_path)['content_sha256']
-    write(tmp_path/'controller/rimbot/__pycache__/temporary.py','ignored')
+    write(tmp_path/'controller/rimgovernor/__pycache__/temporary.py','ignored')
     before=tracked_source(tmp_path)
-    write(tmp_path/'controller/rimbot/__pycache__/temporary.py','also ignored')
+    write(tmp_path/'controller/rimgovernor/__pycache__/temporary.py','also ignored')
     assert before==tracked_source(tmp_path)

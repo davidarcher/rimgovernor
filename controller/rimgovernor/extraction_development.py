@@ -76,7 +76,7 @@ def development_method(goal, sources, facts):
         key = 'deep-storage-' + fingerprint({'resource': goal.target['resource'], 'cells': cells})[:16]
         if goal.method_seen(key):
             raise SkillBlocked('Material storage unavailable: interrupted deep extraction storage needs inspection')
-        return key, [{'kind': 'create_zone', 'zone_type': 'stockpile', 'label': 'RimBot ' + key,
+        return key, [{'kind': 'create_zone', 'zone_type': 'stockpile', 'label': 'RimGovernor ' + key,
             'preset': 'nothing', 'allow': [goal.target['resource']], 'priority': 'Important',
             'patches': [dict(c, width=1, height=1) for c in cells]}]
     definitions = infrastructure.get('definitions', [])

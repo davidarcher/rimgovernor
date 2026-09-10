@@ -62,7 +62,7 @@ async def covered_storage(rt, facts, targets):
         attempts += 1
         if preview.get('success') is True and preview.get('cellsAccepted') == 4:
             goal.evidence['storage_preview'] = preview
-            return method, [dict(kind='create_zone', zone_type='stockpile', label='RimBot supplies '+method[-8:],
+            return method, [dict(kind='create_zone', zone_type='stockpile', label='RimGovernor supplies '+method[-8:],
                 patches=[dict(x=x, z=z, width=2, height=2)], preset='nothing', allow=definitions,
                 priority='Important', covered_empty=True)]
         if attempts >= 8:

@@ -6,12 +6,12 @@ Use local Linux Docker and [prepared inputs](docker-inputs.md). Run from an isol
 task worktree with a private, fully staged mod snapshot. No scenario calls a language
 model. Native game files stay outside the image.
 Rebuild the private observation/identity mod with the task source: disposable launches
-use `-rimbot-pause-on-load` to pause in the native loaded-game callback. The startup and
+use `-rimgovernor-pause-on-load` to pause in the native loaded-game callback. The startup and
 construction probes require the exact saved tick, not a later controller pause.
 
 ```powershell
 python scripts/native_scenarios.py --list
-python scripts/native_scenarios.py --scenario construction production paired-restart --game <linux-game> --mods <private-mods> --profile <profile> --gabs <linux-gabs-directory> --image rimbot-worker:my-task --output .rimbot/scenarios-01
+python scripts/native_scenarios.py --scenario construction production paired-restart --game <linux-game> --mods <private-mods> --profile <profile> --gabs <linux-gabs-directory> --image rimgovernor-worker:my-task --output .rimgovernor/scenarios-01
 ```
 
 The default is one container at a time, with two CPUs, 4 GiB memory and a 900-second
@@ -72,7 +72,7 @@ readbacks. These exercise live native play-UI tools; they do not measure browser
 coordinate mapping or end-to-end browser latency.
 `endurance` requires thirty exact, paused 6,000-tick boundaries over three game days;
 it allows ordinary starting supplies and records window timings. The disposable
-fixture uses `rimbot.native_scenario.advance_game` for exact remaining-tick continuation
+fixture uses `rimgovernor.native_scenario.advance_game` for exact remaining-tick continuation
 after attributed Ancient danger warnings and complete native safety observations.
 Unexpected holds fail. This measures native
 process/clock endurance, not successful colony survival or completed pawn work.
@@ -95,7 +95,7 @@ repair; sampled throughput cannot establish precise GC pause behavior.
 `warning-recovery`, `warning-pause`, `warning-modal`, `warning-raid` and `warning-load`
 exercise shared-wait recovery and refusal through native callbacks. They require the
 separate `scripts/fixtures/InterruptionFixtures.csproj` assembly under the private
-mod snapshot's `RimBotObservations/BridgeTools/InterruptionFixtures/` directory.
+mod snapshot's `RimGovernorObservations/BridgeTools/InterruptionFixtures/` directory.
 Build with the Linux `RimWorldManagedDir` and `RimBridgeSdkDir` overrides. The fixture
 delivers native letters, opens a real modal and executes an ordinary raid incident;
 the pause case uses a native player-equivalent call, not physical keyboard input.
@@ -117,9 +117,9 @@ it never sends an out-of-range native read or silently skips the discontinuity.
 ## Diagnose without the live game
 
 ```powershell
-python scripts/inspect_native_failure.py .rimbot/scenarios-01/construction-1
-python scripts/inspect_native_failure.py .rimbot/scenarios-01/construction-1 --summary
-python scripts/inspect_native_failure.py .rimbot/scenarios-01/construction-1 --export .rimbot/construction-fixtures.json
+python scripts/inspect_native_failure.py .rimgovernor/scenarios-01/construction-1
+python scripts/inspect_native_failure.py .rimgovernor/scenarios-01/construction-1 --summary
+python scripts/inspect_native_failure.py .rimgovernor/scenarios-01/construction-1 --export .rimgovernor/construction-fixtures.json
 ```
 
 Offline inspection uses only Python's standard library. Each trial also writes

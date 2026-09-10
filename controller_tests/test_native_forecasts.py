@@ -1,7 +1,7 @@
 import pytest
 
-from rimbot.native_forecasts import forecasts
-from rimbot.strategic_state import StrategicState
+from rimgovernor.native_forecasts import forecasts
+from rimgovernor.strategic_state import StrategicState
 from test_power_forecast import batch, power_events
 from types import SimpleNamespace
 

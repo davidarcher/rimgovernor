@@ -183,7 +183,7 @@ async def resource_method(rt, goal_id, facts):
                 storage_method = 'material-storage-' + fingerprint({'resource': resource, 'cells': cells})[:12]
                 if goal.method_seen(storage_method):
                     raise SkillBlocked('Material storage unavailable: previously issued storage changed; inspection required')
-                return storage_method, [{'kind': 'create_zone', 'zone_type': 'stockpile', 'label': 'RimBot ' + storage_method,
+                return storage_method, [{'kind': 'create_zone', 'zone_type': 'stockpile', 'label': 'RimGovernor ' + storage_method,
                     'preset': 'nothing', 'allow': [resource], 'priority': 'Important',
                     'patches': [dict(c, width=1, height=1) for c in cells]}]
         goal.evidence['selected_sources'] = [{k: s[k] for k in ('thingId', 'resource', 'x', 'z', 'yield')} for s in selected]

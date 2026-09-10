@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
-  <name>RimBot Colony Bridge</name>
-  <author>RimBot research integration; companion sources by Snowstar38</author>
-  <packageId>davidarcher.rimbot.observations</packageId>
+  <name>RimGovernor Colony Bridge</name>
+  <author>RimGovernor research integration; companion sources by Snowstar38</author>
+  <packageId>davidarcher.rimgovernor.observations</packageId>
   <supportedVersions><li>1.6</li></supportedVersions>
   <modDependencies><li><packageId>brrainz.rimbridgeserver</packageId><displayName>RimBridgeServer</displayName></li></modDependencies>
   <loadAfter><li>brrainz.rimbridgeserver</li></loadAfter>
-  <description>Companion observations and native gameplay commands for the local RimBot controller.</description>
+  <description>Companion observations and native gameplay commands for the local RimGovernor controller.</description>
 </ModMetaData>

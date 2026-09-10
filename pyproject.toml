@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "rimbot"
+name = "rimgovernor"
 version = "0.2.0"
 description = "External RimWorld colony controller and dashboard over RimBridgeServer"
 requires-python = ">=3.12"
@@ -14,13 +14,13 @@ video = ["av>=16,<17", "websockets>=14,<16"]
 test = ["pytest>=8", "pytest-asyncio>=0.24"]
 
 [project.scripts]
-rimbot = "rimbot.__main__:main"
+rimgovernor = "rimgovernor.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["controller"]
 
 [tool.setuptools.package-data]
-rimbot = ["static/*", "static/assets/*", "data/*.json", "data/strategies/*.json"]
+rimgovernor = ["static/*", "static/assets/*", "data/*.json", "data/strategies/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["controller_tests"]

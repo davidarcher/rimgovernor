@@ -22,7 +22,7 @@ class Settings(BaseModel):
     def local_url(cls, value):
         p = urlparse(value)
         hosts = {'localhost', '127.0.0.1', '::1'}
-        if os.environ.get('RIMBOT_ALLOW_DOCKER_HOST_MODEL') == '1':
+        if os.environ.get('RIMGOVERNOR_ALLOW_DOCKER_HOST_MODEL') == '1':
             hosts.add('host.docker.internal')
         if p.scheme != 'http' or p.hostname not in hosts or p.username is not None or p.password is not None or p.query or p.fragment:
             raise ValueError('Use HTTP loopback or explicitly enable the Docker host for local inference.')
@@ -50,4 +50,4 @@ def load_model_routing(primary: Settings, path=None):
         return routing
     return ModelRouting(roles={ModelRole.STRATEGIST: primary})
 
-DATA_DIR = Path(__import__('os').environ.get('RIMBOT_DATA', '.rimbot')).resolve()
+DATA_DIR = Path(__import__('os').environ.get('RIMGOVERNOR_DATA', '.rimgovernor')).resolve()

@@ -1,5 +1,5 @@
-from rimbot.colony_plan import ColonyPlan, ColonyGoal, PlanStep, StepProgress
-from rimbot.construction_ownership import owned_buildings
+from rimgovernor.colony_plan import ColonyPlan, ColonyGoal, PlanStep, StepProgress
+from rimgovernor.construction_ownership import owned_buildings
 
 
 def scenario():

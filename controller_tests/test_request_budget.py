@@ -1,6 +1,6 @@
 import json
 import pytest
-from rimbot.request_budget import fit_request,encoded_size
+from rimgovernor.request_budget import fit_request,encoded_size
 
 
 
@@ -31,8 +31,8 @@ def test_bounded_calibration_retains_context_without_changing_output_reserve():
 
 async def test_context_stream_failure_retries_once_with_smaller_budget():
     import httpx
-    from rimbot.model import LocalModel
-    from rimbot.config import Settings
+    from rimgovernor.model import LocalModel
+    from rimgovernor.config import Settings
     requests=[]
     def respond(request):
         requests.append(json.loads(request.content))

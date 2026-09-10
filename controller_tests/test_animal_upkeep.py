@@ -3,11 +3,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.animal_upkeep import containment_evidence, containment_method
-from rimbot.colony_plan import ColonyPlan, ColonyGoal
-from rimbot.colony_skills import SkillBlocked
-from rimbot.colony_upkeep import upkeep_nodes
-from rimbot.production_policy import required_resource_work
+from rimgovernor.animal_upkeep import containment_evidence, containment_method
+from rimgovernor.colony_plan import ColonyPlan, ColonyGoal
+from rimgovernor.colony_skills import SkillBlocked
+from rimgovernor.colony_upkeep import upkeep_nodes
+from rimgovernor.production_policy import required_resource_work
 
 
 def facts(**changes):
@@ -58,7 +58,7 @@ async def test_missing_pen_uses_shared_bounded_enclosure_without_releasing_or_sl
     upkeep_nodes(f, plan.control)
     rt = SimpleNamespace(current_plan=plan)
     helper = AsyncMock(return_value=dict(kind='build_room_shell'))
-    monkeypatch.setattr('rimbot.upkeep_sites.enclosure_site', helper)
+    monkeypatch.setattr('rimgovernor.upkeep_sites.enclosure_site', helper)
     _, actions = await containment_method(rt, f, [])
     assert actions == [dict(kind='build_room_shell')]
     assert helper.await_args.kwargs == dict(wall='Fence', door='FenceGate', empty_interior=False)

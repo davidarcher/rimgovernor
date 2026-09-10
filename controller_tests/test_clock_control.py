@@ -1,15 +1,15 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.clock_control import PlayClock
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.store import Store
+from rimgovernor.clock_control import PlayClock
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.store import Store
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('changed', [None, 'owner', 'epoch', 'session', 'running', 'unverified', 'external'])
 async def test_pause_observes_exact_completed_tick_window_without_retry(changed):
-    from rimbot.bridge import BridgeError
+    from rimgovernor.bridge import BridgeError
     bridge = NativeClock()
     clock = PlayClock(bridge)
     await clock.change('Superfast', max_ticks=600)
@@ -81,10 +81,10 @@ async def test_acceleration_preserves_tracked_surgical_recovery_profile():
 @pytest.mark.asyncio
 @pytest.mark.parametrize('operation', ['status', 'events'])
 async def test_clock_reads_recover_published_launch_claim(operation):
-    from rimbot.bridge import BridgeClient, BridgeError
-    bridge = BridgeClient(None, 'rimbot-trial')
+    from rimgovernor.bridge import BridgeClient, BridgeError
+    bridge = BridgeClient(None, 'rimgovernor-trial')
     failure = BridgeError('games_call_tool', SimpleNamespace(structuredContent={'error':
-        "Failed to claim runtime ownership: a launch claim for 'rimbot-trial' was published while preparing this operation; re-check games_status and retry"}, content=[]))
+        "Failed to claim runtime ownership: a launch claim for 'rimgovernor-trial' was published while preparing this operation; re-check games_status and retry"}, content=[]))
     bridge.core = AsyncMock(side_effect=[failure, SimpleNamespace(structuredContent={}),
                                         SimpleNamespace(structuredContent={'success': True})])
     assert await PlayClock(bridge).call(op=operation) == {'success': True}
@@ -95,10 +95,10 @@ async def test_clock_reads_recover_published_launch_claim(operation):
 @pytest.mark.asyncio
 @pytest.mark.parametrize('operation', ['start', 'pause', 'heartbeat'])
 async def test_clock_mutations_never_retry_launch_claim_errors(operation):
-    from rimbot.bridge import BridgeClient, BridgeError
-    bridge = BridgeClient(None, 'rimbot-trial')
+    from rimgovernor.bridge import BridgeClient, BridgeError
+    bridge = BridgeClient(None, 'rimgovernor-trial')
     failure = BridgeError('games_call_tool', SimpleNamespace(structuredContent={'error':
-        "Failed to claim runtime ownership: a launch claim for 'rimbot-trial' was published while preparing this operation; re-check games_status and retry"}, content=[]))
+        "Failed to claim runtime ownership: a launch claim for 'rimgovernor-trial' was published while preparing this operation; re-check games_status and retry"}, content=[]))
     bridge.core = AsyncMock(side_effect=failure)
     with pytest.raises(BridgeError): await PlayClock(bridge).call(op=operation)
     assert bridge.core.call_count == 1
@@ -430,7 +430,7 @@ async def test_pause_during_policy_preparation_prevents_clock_start(tmp_path, mo
     rt = BridgeRuntime(store, tmp_path, model_factory=lambda _: SimpleNamespace())
     rt.mode = 'automate'
     rt.sync_identity = AsyncMock(return_value=False)
-    monkeypatch.setattr('rimbot.production_policy.sync_production_policy', AsyncMock())
+    monkeypatch.setattr('rimgovernor.production_policy.sync_production_policy', AsyncMock())
     rt.supervisor = SimpleNamespace(poll=AsyncMock(side_effect=[[], [
         dict(kind='external_pause', detail='Pause during policy preparation', epoch=1)]]),
         change=AsyncMock(), acknowledged_stop=None)

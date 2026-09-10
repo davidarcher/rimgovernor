@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
         internal static void Install()
         {
             if (installed) return;
-            var harmony = new Harmony("rimbot.home-coverage");
+            var harmony = new Harmony("rimgovernor.home-coverage");
             harmony.Patch(AccessTools.Method(typeof(Area_Home), "Set"),
                 prefix: new HarmonyMethod(typeof(HomeCoverage), nameof(Set)));
             harmony.Patch(AccessTools.Method(typeof(Area), nameof(Area.Clear)),

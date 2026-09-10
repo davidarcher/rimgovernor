@@ -3,10 +3,10 @@ from copy import deepcopy
 from types import SimpleNamespace
 from unittest.mock import AsyncMock,Mock
 import pytest
-from rimbot.colony_plan import ColonyPlan,ColonyGoal,PlanSpec,StepProgress,Failure
-from rimbot.construction_recovery import recover_construction
-from rimbot.hands import Hands
-from rimbot.resource_accounting import ResourceShortage,validate_execution_costs
+from rimgovernor.colony_plan import ColonyPlan,ColonyGoal,PlanSpec,StepProgress,Failure
+from rimgovernor.construction_recovery import recover_construction
+from rimgovernor.hands import Hands
+from rimgovernor.resource_accounting import ResourceShortage,validate_execution_costs
 
 
 def fixture():

@@ -7,11 +7,11 @@ import hashlib
 import os
 from math import sqrt
 from pathlib import Path
-from rimbot.config import Settings, ModelRole, load_model_routing
-from rimbot.model import LocalModel
-from rimbot.model_router import ModelRouter
-from rimbot.player_commands import COMMAND,COMMAND_NAMES,semantic_tools,resolve_goal_id,resolve_resource
-from rimbot.store import Store
+from rimgovernor.config import Settings, ModelRole, load_model_routing
+from rimgovernor.model import LocalModel
+from rimgovernor.model_router import ModelRouter
+from rimgovernor.player_commands import COMMAND,COMMAND_NAMES,semantic_tools,resolve_goal_id,resolve_resource
+from rimgovernor.store import Store
 
 CASES = [
     ('research', 'Set research to geothermal.', {'kind':'SetResearch','project':'GeothermalPower'}),
@@ -167,7 +167,7 @@ async def run(output, *, model=None, repeats=1, model_url=None):
     output.mkdir(parents=True,exist_ok=False)
     store=Store(output/'metrics.sqlite')
     settings=Settings(**({'model':model} if model else {}),
-                      model_url=model_url or os.environ.get('RIMBOT_MODEL_URL','http://127.0.0.1:1234/v1'))
+                      model_url=model_url or os.environ.get('RIMGOVERNOR_MODEL_URL','http://127.0.0.1:1234/v1'))
     router=ModelRouter(load_model_routing(settings),store,LocalModel)
     rows=[]
     async def progress(_): pass

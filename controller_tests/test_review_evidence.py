@@ -1,7 +1,7 @@
 import json
 import pytest
-from rimbot.review_evidence import ReviewEvidence
-from rimbot.request_budget import fit_request
+from rimgovernor.review_evidence import ReviewEvidence
+from rimgovernor.request_budget import fit_request
 
 
 def test_exact_result_is_isolated_and_searchable():

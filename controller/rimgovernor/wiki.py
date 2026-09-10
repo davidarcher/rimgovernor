@@ -48,7 +48,7 @@ async def wiki_lookup(operation, query, section=None, *, transport=None):
         if section is not None:
             params['section'] = section
     async with httpx.AsyncClient(timeout=15, follow_redirects=False, transport=transport,
-                                 headers={'User-Agent':'RimBot-local-research/0.2'}) as client:
+                                 headers={'User-Agent':'RimGovernor-local-research/0.2'}) as client:
         async with client.stream('GET', 'https://rimworldwiki.com/api.php', params=params) as response:
             response.raise_for_status()
             body = bytearray()

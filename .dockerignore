@@ -19,7 +19,7 @@
 **/obj/**
 **/*.dll
 **/*.exe
-controller/rimbot/static/**
+controller/rimgovernor/static/**
 !THIRD_PARTY.md
 !third_party/
 !third_party/**

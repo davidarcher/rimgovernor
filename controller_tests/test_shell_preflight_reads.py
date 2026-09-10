@@ -2,8 +2,8 @@ import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.hands import Hands, Blocked
-from rimbot.spatial import room_placements
+from rimgovernor.hands import Hands, Blocked
+from rimgovernor.spatial import room_placements
 from test_shell_site import runtime, census, zone
 from test_construction_preflight import footprint
 

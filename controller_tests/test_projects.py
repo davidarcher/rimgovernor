@@ -1,10 +1,10 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.projects import ProjectBook
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.store import Store
-from rimbot.receipts import verdict_line, _outcome
+from rimgovernor.projects import ProjectBook
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.store import Store
+from rimgovernor.receipts import verdict_line, _outcome
 
 @pytest.mark.asyncio
 async def test_projects_follow_blueprint_frame_finished_and_removed():

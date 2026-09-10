@@ -7,12 +7,12 @@ from pathlib import Path
 import shutil
 import socket
 import uvicorn
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge_server import create_app
-from rimbot.headless import isolated_root,prepare_rendered
-from rimbot.player_commands import apply_command
-from rimbot.session_checkpoint import create_checkpoint,prepare_resume,read_checkpoint,stop_for_restart
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge_server import create_app
+from rimgovernor.headless import isolated_root,prepare_rendered
+from rimgovernor.player_commands import apply_command
+from rimgovernor.session_checkpoint import create_checkpoint,prepare_resume,read_checkpoint,stop_for_restart
+from rimgovernor.store import Store
 
 
 async def run(args):
@@ -20,7 +20,7 @@ async def run(args):
     with socket.socket() as listener: listener.bind(('127.0.0.1',args.port))
     root=isolated_root(Path(checkpoint['root']),args.output/'bridge')
     prepare_rendered(root)
-    shutil.copy2(args.checkpoint.parent/'game.rws',root/'profile/Saves/RimBot-tribal8-baseline.rws')
+    shutil.copy2(args.checkpoint.parent/'game.rws',root/'profile/Saves/RimGovernor-tribal8-baseline.rws')
     store=Store(args.output/'state.sqlite')
     rt=BridgeRuntime(store,root,fresh=True,headless=False)
     server=uvicorn.Server(uvicorn.Config(create_app(rt),host='127.0.0.1',port=args.port,log_level='warning'))

@@ -1,11 +1,11 @@
 import json
 import pytest
-from rimbot.planner import facts_index,inspect_facts
+from rimgovernor.planner import facts_index,inspect_facts
 
 
 def test_controller_initial_index_omits_large_receipts_and_preserves_exact_state():
-    from rimbot.colony_plan import ColonyPlan,ColonyGoal
-    from rimbot.planner import controller_index
+    from rimgovernor.colony_plan import ColonyPlan,ColonyGoal
+    from rimgovernor.planner import controller_index
     plan=ColonyPlan()
     plan.colony_goals['room']=ColonyGoal(priority_class=2,evidence={'native':'x'*100000})
     plan.control['player_intents']={'room':{'step':'build-room','request':{'kind':'PlaceBuildings','geometry':'y'*100000}}}
@@ -20,8 +20,8 @@ def test_controller_initial_index_omits_large_receipts_and_preserves_exact_state
 
 
 def test_intent_index_distinguishes_unissued_refinement_from_native_construction():
-    from rimbot.colony_plan import ColonyPlan,StepProgress
-    from rimbot.planner import controller_index
+    from rimgovernor.colony_plan import ColonyPlan,StepProgress
+    from rimgovernor.planner import controller_index
     plan=ColonyPlan(progress={'room':StepProgress()})
     plan.control['player_intents']={'bedroom':{'step':'room','request':{'kind':'BuildRoom'}}}
     assert controller_index(plan)['player_intents'][0]['issued_operations']==0

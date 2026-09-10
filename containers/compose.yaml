@@ -1,8 +1,8 @@
 services:
   worker:
     labels:
-      io.rimbot.colony: "1"
-      io.rimbot.colony.name: ${RIMBOT_COLONY_NAME:-}
+      io.rimgovernor.colony: "1"
+      io.rimgovernor.colony.name: ${RIMGOVERNOR_COLONY_NAME:-}
     build:
       context: ..
       dockerfile: containers/Dockerfile
@@ -10,44 +10,44 @@ services:
     init: true
     stop_grace_period: 60s
     environment:
-      RIMBOT_DISPLAY: ${RIMBOT_DISPLAY:-headless}
-      RIMBOT_DISPLAY_RESOLUTION: ${RIMBOT_DISPLAY_RESOLUTION:-1280x720}
-      RIMBOT_DISPLAY_RENDERER: ${RIMBOT_DISPLAY_RENDERER:-llvmpipe}
-      RIMBOT_UNITY_GC_TIME_SLICE: ${RIMBOT_UNITY_GC_TIME_SLICE:-0}
-      RIMBOT_ALLOW_DOCKER_HOST_MODEL: "1"
-      RIMBOT_MODEL_URL: http://host.docker.internal:1234/v1
-      RIMBOT_MODEL: ${RIMBOT_MODEL:-qwen3.5-4b}
+      RIMGOVERNOR_DISPLAY: ${RIMGOVERNOR_DISPLAY:-headless}
+      RIMGOVERNOR_DISPLAY_RESOLUTION: ${RIMGOVERNOR_DISPLAY_RESOLUTION:-1280x720}
+      RIMGOVERNOR_DISPLAY_RENDERER: ${RIMGOVERNOR_DISPLAY_RENDERER:-llvmpipe}
+      RIMGOVERNOR_UNITY_GC_TIME_SLICE: ${RIMGOVERNOR_UNITY_GC_TIME_SLICE:-0}
+      RIMGOVERNOR_ALLOW_DOCKER_HOST_MODEL: "1"
+      RIMGOVERNOR_MODEL_URL: http://host.docker.internal:1234/v1
+      RIMGOVERNOR_MODEL: ${RIMGOVERNOR_MODEL:-qwen3.5-4b}
     extra_hosts:
       - host.docker.internal:host-gateway
     volumes:
       - type: bind
-        source: ${RIMBOT_LINUX_GAME:?Set RIMBOT_LINUX_GAME}
+        source: ${RIMGOVERNOR_LINUX_GAME:?Set RIMGOVERNOR_LINUX_GAME}
         target: /inputs/game
         read_only: true
         bind:
           create_host_path: false
       - type: bind
-        source: ${RIMBOT_WORKER_MODS:?Set RIMBOT_WORKER_MODS}
+        source: ${RIMGOVERNOR_WORKER_MODS:?Set RIMGOVERNOR_WORKER_MODS}
         target: /inputs/mods
         read_only: true
         bind:
           create_host_path: false
       - type: bind
-        source: ${RIMBOT_WORKER_PROFILE:?Set RIMBOT_WORKER_PROFILE}
+        source: ${RIMGOVERNOR_WORKER_PROFILE:?Set RIMGOVERNOR_WORKER_PROFILE}
         target: /inputs/profile
         read_only: true
         bind:
           create_host_path: false
       - type: bind
-        source: ${RIMBOT_LINUX_GABS:?Set RIMBOT_LINUX_GABS}
+        source: ${RIMGOVERNOR_LINUX_GABS:?Set RIMGOVERNOR_LINUX_GABS}
         target: /inputs/gabs
         read_only: true
         bind:
           create_host_path: false
       - type: bind
-        source: ${RIMBOT_WORKER_OUTPUT:?Set a fresh RIMBOT_WORKER_OUTPUT}
+        source: ${RIMGOVERNOR_WORKER_OUTPUT:?Set a fresh RIMGOVERNOR_WORKER_OUTPUT}
         target: /worker
         bind:
           create_host_path: false
     ports:
-      - "127.0.0.1:${RIMBOT_WORKER_PORT:-8788}:8787"
+      - "127.0.0.1:${RIMGOVERNOR_WORKER_PORT:-8788}:8787"

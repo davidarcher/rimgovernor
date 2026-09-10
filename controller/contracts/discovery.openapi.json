@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "RimBot discovery",
+    "title": "RimGovernor discovery",
     "version": "1.0.0"
   },
   "paths": {},

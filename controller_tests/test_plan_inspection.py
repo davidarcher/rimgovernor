@@ -1,7 +1,7 @@
 import pytest
-from rimbot.colony_plan import ColonyPlan, Decision, PlanSpec, PlanStep, StepProgress, Zone, Rectangle
-from rimbot.config import ModelRole
-from rimbot.planner import inspect_plan
+from rimgovernor.colony_plan import ColonyPlan, Decision, PlanSpec, PlanStep, StepProgress, Zone, Rectangle
+from rimgovernor.config import ModelRole
+from rimgovernor.planner import inspect_plan
 
 
 def test_inspection_exposes_revision_progress_and_unknown_ids():

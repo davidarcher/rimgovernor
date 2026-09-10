@@ -1,9 +1,9 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.colony_plan import ColonyGoal, NativeOperation, Failure
-from rimbot.colony_skills import SkillBlocked
-from rimbot.mood_control import assess, method, outcome, priority_nodes
+from rimgovernor.colony_plan import ColonyGoal, NativeOperation, Failure
+from rimgovernor.colony_skills import SkillBlocked
+from rimgovernor.mood_control import assess, method, outcome, priority_nodes
 
 
 def pawn(**changes):
@@ -122,7 +122,7 @@ async def test_ineligible_first_cause_can_use_eligible_alternative():
 @pytest.mark.asyncio
 async def test_native_preview_exception_retains_refusal_and_tries_other_need():
     from mcp.types import CallToolResult
-    from rimbot.bridge import BridgeError
+    from rimgovernor.bridge import BridgeError
     p, rt = pawn(), runtime()
     payload = dict(success=False,
                    error='Current job, carried cargo or fire prevents safe interruption.')
@@ -139,7 +139,7 @@ async def test_native_preview_exception_retains_refusal_and_tries_other_need():
     {'tool':'other/tool', 'success':False}])
 async def test_unidentified_need_preview_errors_propagate(payload):
     from mcp.types import CallToolResult
-    from rimbot.bridge import BridgeError
+    from rimgovernor.bridge import BridgeError
     p, rt = pawn(), runtime()
     rt.inspect_native.side_effect = BridgeError('games_call_tool',
         CallToolResult(content=[], structuredContent=payload, isError=True))
@@ -149,8 +149,8 @@ async def test_unidentified_need_preview_errors_propagate(payload):
 
 @pytest.mark.parametrize('mismatch', [None, 'load', 'direction', 'age'])
 def test_uncertain_write_reconciles_only_fresh_owned_observations(mismatch):
-    from rimbot.bridge_runtime import BridgeRuntime
-    from rimbot.colony_plan import ColonyPlan, PlanSpec, PlanStep, StepProgress
+    from rimgovernor.bridge_runtime import BridgeRuntime
+    from rimgovernor.colony_plan import ColonyPlan, PlanSpec, PlanStep, StepProgress
     plan = ColonyPlan(spec=PlanSpec(steps=[PlanStep(id='need-test', title='Rest',
         action=action(), completion_criteria='Observed rest recovery')]))
     progress = plan.progress['need-test'] = StepProgress()

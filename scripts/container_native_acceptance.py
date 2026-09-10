@@ -35,15 +35,15 @@ def run(args):
     override = output/'image.yaml'
     cache = None if args.no_input_cache else prepare_cache(args.game, args.mods, args.gabs/'gabs', image, output)
     override.write_text(json.dumps(compose_override(image, cache), indent=2), encoding='utf8')
-    prefix = 'rimbot-native-'+uuid.uuid4().hex[:10]
+    prefix = 'rimgovernor-native-'+uuid.uuid4().hex[:10]
     workers = []
     for index in range(2):
         root = output/str(index)
         root.mkdir()
-        env = dict(environment, RIMBOT_LINUX_GAME=str(args.game.resolve()),
-                   RIMBOT_WORKER_MODS=str(args.mods.resolve()), RIMBOT_WORKER_PROFILE=str(args.profile.resolve()),
-                   RIMBOT_LINUX_GABS=str(args.gabs.resolve()), RIMBOT_WORKER_OUTPUT=str(root), RIMBOT_WORKER_PORT='0',
-                   RIMBOT_DISPLAY=args.display, RIMBOT_DISPLAY_RESOLUTION=args.resolution)
+        env = dict(environment, RIMGOVERNOR_LINUX_GAME=str(args.game.resolve()),
+                   RIMGOVERNOR_WORKER_MODS=str(args.mods.resolve()), RIMGOVERNOR_WORKER_PROFILE=str(args.profile.resolve()),
+                   RIMGOVERNOR_LINUX_GABS=str(args.gabs.resolve()), RIMGOVERNOR_WORKER_OUTPUT=str(root), RIMGOVERNOR_WORKER_PORT='0',
+                   RIMGOVERNOR_DISPLAY=args.display, RIMGOVERNOR_DISPLAY_RESOLUTION=args.resolution)
         workers.append(dict(root=root, project=f'{prefix}-{index}', env=env))
     def compose(worker, *command, **kwargs):
         return subprocess.run([docker, 'compose', '-f', str(source/'containers/compose.yaml'),
@@ -52,7 +52,7 @@ def run(args):
     def api(worker, endpoint, body=None):
         data = None if body is None else json.dumps(body).encode()
         request = urllib.request.Request(worker['url']+endpoint, data=data,
-            headers={'Content-Type': 'application/json', 'x-rimbot': '1'})
+            headers={'Content-Type': 'application/json', 'x-rimgovernor': '1'})
         with urllib.request.urlopen(request, timeout=120) as response:
             return json.load(response)
     def start(worker):
@@ -231,7 +231,7 @@ if __name__ == '__main__':
     parser.add_argument('--display', choices=['headless', 'xvfb'], default='headless')
     parser.add_argument('--player-input', action='store_true', help='Verify B18 handoff and selection in a rendered worker')
     parser.add_argument('--resolution', default='1280x720')
-    parser.add_argument('--image', default='rimbot-worker:local')
+    parser.add_argument('--image', default='rimgovernor-worker:local')
     parser.add_argument('--no-build', action='store_true')
     parser.add_argument('--no-input-cache', action='store_true', help='Copy inputs directly from bind mounts for an uncached comparison')
     parser.add_argument('--startup-timeout', type=int, default=240)

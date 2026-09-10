@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.colony_plan import ColonyGoal, PlanStep, StepProgress
-from rimbot.home_coverage import targets, method, guard
+from rimgovernor.colony_plan import ColonyGoal, PlanStep, StepProgress
+from rimgovernor.home_coverage import targets, method, guard
 from test_construction_ownership import scenario
 
 
@@ -49,7 +49,7 @@ async def test_home_write_rechecks_player_edits_and_native_observation(change):
 
 @pytest.mark.asyncio
 async def test_player_exclusions_remain_a_visible_blocker_without_repainting():
-    from rimbot.colony_skills import SkillBlocked
+    from rimgovernor.colony_skills import SkillBlocked
     rt, facts, row = fixture()
     row['excluded'] = 1
     assert targets(rt.current_plan, facts)[0]['count'] == 3
@@ -89,5 +89,5 @@ def test_incomplete_home_observation_cannot_prove_recovery(change):
 
 
 def test_home_tool_is_registered_as_a_guarded_write():
-    from rimbot.bridge_game import WRITES
+    from rimgovernor.bridge_game import WRITES
     assert 'home/upkeep_home' in WRITES

@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
         internal static void EnsurePatched()
         {
             if (installed) return;
-            var harmony = new Harmony("rimbot.letter-pause-source");
+            var harmony = new Harmony("rimgovernor.letter-pause-source");
             var receive = AccessTools.Method(typeof(LetterStack), "ReceiveLetter",
                 new[] { typeof(Letter), typeof(string), typeof(int), typeof(bool) });
             var speed = AccessTools.PropertySetter(typeof(TickManager), "CurTimeSpeed");

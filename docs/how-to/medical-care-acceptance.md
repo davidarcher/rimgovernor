@@ -9,7 +9,7 @@ missing-leg patient, beds, medicine and capable doctors; it does not complete
 treatment, surgery or recovery.
 
 Build the task source using the Dockerfile's `worker` target. Run a fresh
-`rimbot.container_worker` with the private inputs and this command:
+`rimgovernor.container_worker` with the private inputs and this command:
 
 ```text
 python /app/scripts/medical_management_acceptance.py --root /worker/run --seconds 1800

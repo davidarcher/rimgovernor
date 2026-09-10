@@ -1,18 +1,18 @@
 """Native construction cancellation, shared execution and optional local chat acceptance."""
-from rimbot.native_scenario import advance_game
+from rimgovernor.native_scenario import advance_game
 import argparse
 import asyncio
 import json
 from pathlib import Path
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge import BridgeError
-from rimbot.headless import isolated_root,prepare
-from rimbot.store import Store
-from rimbot.player_commands import apply_command
-from rimbot.colony_plan import ColonyGoal, CommitSteps
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.config import Settings
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge import BridgeError
+from rimgovernor.headless import isolated_root,prepare
+from rimgovernor.store import Store
+from rimgovernor.player_commands import apply_command
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.config import Settings
 
 
 async def run(args):
@@ -163,7 +163,7 @@ async def run(args):
                     preview=await rt.game.invoke('home/place_building',dict(defName='Bed',stuff='WoodLog',
                         x=cell['x'],z=cell['z'],rotation='north',dryRun=True))
                     if not preview.get('canPlace'):continue
-                    from rimbot.shelter_handoff import safe_rotation
+                    from rimgovernor.shelter_handoff import safe_rotation
                     if not any(safe_rotation(row) for row in preview.get('rotations',[])):continue
                     try:
                         bed=await command(kind='PlaceBuildings',buildings={'kind':'place_buildings',

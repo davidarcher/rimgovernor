@@ -1,6 +1,6 @@
 from types import SimpleNamespace
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.colony_plan import PlanStep, StepProgress
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.colony_plan import PlanStep, StepProgress
 
 
 def test_failed_read_does_not_invalidate_or_reissue_construction():

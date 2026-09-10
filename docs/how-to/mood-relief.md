@@ -9,20 +9,20 @@ excluded from production builds and the model gameplay gateway. It seeds a pawn'
 need deficit and a known timetable/job; subsequent recovery uses normal game ticks.
 Never install this fixture into a player game or replace a running worker's DLLs.
 
-Set `RIMBOT_LINUX_GAME`, `RIMBOT_WORKER_MODS`, `RIMBOT_WORKER_PROFILE` and
-`RIMBOT_LINUX_GABS` to those input directories. Set `RIMBOT_WORKER_OUTPUT` to a
-new empty directory under the task's `.rimbot/`. Build the current worktree's
+Set `RIMGOVERNOR_LINUX_GAME`, `RIMGOVERNOR_WORKER_MODS`, `RIMGOVERNOR_WORKER_PROFILE` and
+`RIMGOVERNOR_LINUX_GABS` to those input directories. Set `RIMGOVERNOR_WORKER_OUTPUT` to a
+new empty directory under the task's `.rimgovernor/`. Build the current worktree's
 worker image, then run this PowerShell command with a unique container name/tag:
 
 ```powershell
-docker build -f containers/Dockerfile --target worker -t rimbot-worker:mood .
-docker run --rm --init --memory 4g --cpus 2 --name rimbot-mood-test `
-  --mount "type=bind,source=$env:RIMBOT_LINUX_GAME,target=/inputs/game,readonly" `
-  --mount "type=bind,source=$env:RIMBOT_WORKER_MODS,target=/inputs/mods,readonly" `
-  --mount "type=bind,source=$env:RIMBOT_WORKER_PROFILE,target=/inputs/profile,readonly" `
-  --mount "type=bind,source=$env:RIMBOT_LINUX_GABS,target=/inputs/gabs,readonly" `
-  --mount "type=bind,source=$env:RIMBOT_WORKER_OUTPUT,target=/worker" `
-  rimbot-worker:mood --unity-gc-time-slice 0 -- python /app/scripts/mood_acceptance.py
+docker build -f containers/Dockerfile --target worker -t rimgovernor-worker:mood .
+docker run --rm --init --memory 4g --cpus 2 --name rimgovernor-mood-test `
+  --mount "type=bind,source=$env:RIMGOVERNOR_LINUX_GAME,target=/inputs/game,readonly" `
+  --mount "type=bind,source=$env:RIMGOVERNOR_WORKER_MODS,target=/inputs/mods,readonly" `
+  --mount "type=bind,source=$env:RIMGOVERNOR_WORKER_PROFILE,target=/inputs/profile,readonly" `
+  --mount "type=bind,source=$env:RIMGOVERNOR_LINUX_GABS,target=/inputs/gabs,readonly" `
+  --mount "type=bind,source=$env:RIMGOVERNOR_WORKER_OUTPUT,target=/worker" `
+  rimgovernor-worker:mood --unity-gc-time-slice 0 -- python /app/scripts/mood_acceptance.py
 ```
 
 Require exit code zero and `run/mood-result.json` with `passed: true`. The report

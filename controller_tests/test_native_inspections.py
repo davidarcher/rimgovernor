@@ -1,11 +1,11 @@
 from copy import deepcopy
 import pytest
 from jsonschema import Draft202012Validator, ValidationError
-from rimbot.native_inspections import NativeInspections
+from rimgovernor.native_inspections import NativeInspections
 
 
 def test_research_discovery_exposes_reads_and_previews_without_write_authority():
-    from rimbot.native_inspections import DESCRIBABLE
+    from rimgovernor.native_inspections import DESCRIBABLE
     assert 'home/research' in DESCRIBABLE and 'rimworld/set_time_speed' not in DESCRIBABLE
     schema={'type':'object','properties':{'set':{'type':'string'},'locked':{'type':'boolean'},
         'dryRun':{'type':'boolean','default':True}},'additionalProperties':False}
@@ -48,7 +48,7 @@ def test_execution_only_contract_is_not_exposed_as_callable():
 
 
 def test_catalog_continuation_matches_the_advertised_tool_schema():
-    from rimbot.bridge_game import inspection_result
+    from rimgovernor.bridge_game import inspection_result
     tools=[]; registry=NativeInspections()
     schema={'type':'object','properties':{'categoryId':{'type':'string'}},
             'required':['categoryId'],'additionalProperties':False}

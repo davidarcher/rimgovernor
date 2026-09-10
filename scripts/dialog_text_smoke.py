@@ -1,29 +1,29 @@
 """Verify exact naming input, stale-ID refusal and paused native readback."""
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import asyncio
 import json
 import time
 from pathlib import Path
-from rimbot.bridge import bridge_session, BridgeError
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.headless import prepare, isolated_root
-from rimbot.store import Store
+from rimgovernor.bridge import bridge_session, BridgeError
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.headless import prepare, isolated_root
+from rimgovernor.store import Store
 
 
 async def main(rendered=False):
-    root = isolated_root('.rimbot/bridge', Path('.rimbot') / f'dialog-text-smoke-{time.time_ns()}')
+    root = isolated_root('.rimgovernor/bridge', Path('.rimgovernor') / f'dialog-text-smoke-{time.time_ns()}')
     config_dir = prepare(root)
     if rendered:
         config_file = config_dir/'config.json'
         config = json.loads(config_file.read_text())
-        config['games']['rimbot-trial']['args'] = [a for a in config['games']['rimbot-trial']['args']
+        config['games']['rimgovernor-trial']['args'] = [a for a in config['games']['rimgovernor-trial']['args']
                                                   if a not in ('-batchmode', '-nographics')]
         config_file.write_text(json.dumps(config))
     async with bridge_session(gabs_executable(root), config_dir) as bridge:
         await bridge.core('games_start', gameId=bridge.game_id)
         await bridge.connect()
-        await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',
+        await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                           readiness='visual', timeoutMs=90000, ignoreModCompatibility=True)
         await bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
         store = Store(root/'dialog.sqlite')

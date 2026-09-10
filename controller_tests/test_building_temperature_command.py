@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock
 from copy import deepcopy
 import pytest
-from rimbot.player_commands import apply_command
+from rimgovernor.player_commands import apply_command
 from test_strategic_architecture import runtime, batch
 
 

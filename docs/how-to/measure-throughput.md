@@ -17,7 +17,7 @@ verified goals, and confirm raw IDs stay in diagnostics.
 For a non-invasive throughput sample of an existing controller:
 
 ```powershell
-.venv\Scripts\python.exe scripts/dashboard_throughput.py --port 8787 --seconds 120 --output .rimbot/throughput-sample
+.venv\Scripts\python.exe scripts/dashboard_throughput.py --port 8787 --seconds 120 --output .rimgovernor/throughput-sample
 ```
 
 The output directory must be new. This sends only GET requests to cached dashboard
@@ -51,7 +51,7 @@ first interruption without filling the remaining budget.
 The lease test drafts colonists through native orders to isolate lease expiry.
 
 ```powershell
-python scripts/container_throughput.py --game <linux-game> --mods <private-mods> --profile <profile> --gabs <gabs-directory> --image rimbot-worker:my-throughput --output .rimbot/throughput-new --fixture --modes headless rendered suspended
+python scripts/container_throughput.py --game <linux-game> --mods <private-mods> --profile <profile> --gabs <gabs-directory> --image rimgovernor-worker:my-throughput --output .rimgovernor/throughput-new --fixture --modes headless rendered suspended
 ```
 
 Workers run sequentially through the existing content-addressed input cache.
@@ -204,7 +204,7 @@ larger adaptive windows need separate observation-age acceptance.
 concurrent local requests against the same scored semantic cases. It defaults to
 two rounds with reversed concurrency order on the second, retaining startup costs
 and every response. It defaults to Qwen 3.5 4B; select an installed model with `--model`. In a local Docker image, set
-`RIMBOT_ALLOW_DOCKER_HOST_MODEL=1` and pass
+`RIMGOVERNOR_ALLOW_DOCKER_HOST_MODEL=1` and pass
 `--model-url http://host.docker.internal:1234/v1`. Reports retain settings, fixture
 hashes, responses, failures, token counts and correct requests/minute. No game
 orders are sent. Hold model weights, context/offload settings and competing

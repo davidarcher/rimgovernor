@@ -4,16 +4,16 @@ from unittest.mock import AsyncMock
 import pytest
 from test_colony_controller import Replay
 from test_medical_recovery import fixture, recover
-from rimbot.colony_plan import ColonyGoal
-from rimbot.development import development_nodes, power_method, development_method
-from rimbot.medical_replacement import replace_doctor
-from rimbot.colony_policy import derive, work_assignment
+from rimgovernor.colony_plan import ColonyGoal
+from rimgovernor.development import development_nodes, power_method, development_method
+from rimgovernor.medical_replacement import replace_doctor
+from rimgovernor.colony_policy import derive, work_assignment
 
 
 @pytest.mark.asyncio
 async def test_native_building_skill_requirement_blocks_before_placement():
-    from rimbot.development import placement
-    from rimbot.colony_skills import SkillBlocked
+    from rimgovernor.development import placement
+    from rimgovernor.colony_skills import SkillBlocked
     rt=Replay();rt.facts['definitions']['Heater']={'available':True,'constructionSkill':5}
     rt.game.query=AsyncMock(return_value={'pawns':rt.people})
     for p in rt.people:
@@ -134,7 +134,7 @@ async def test_unavailable_doctor_gets_new_action_preserving_old_receipt(stale):
     (1.5, 'Verb.CanHitTarget is false', False), (.2, 'Player order changed', False)])
 async def test_small_animal_defense_retains_native_defensive_fire_after_range_refusal(body_size, reason, fallback):
     from mcp.types import CallToolResult
-    from rimbot.bridge import BridgeError
+    from rimgovernor.bridge import BridgeError
     rt = Replay(2)
     rt.draft_owners = {}
     for pawn in rt.people:

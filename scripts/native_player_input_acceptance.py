@@ -3,7 +3,7 @@
 An operator sends the requested key to the rendered game after ready.json appears.
 No native time-setting API substitutes for the keyboard input under test.
 """
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import argparse
 import asyncio
 import json
@@ -11,12 +11,12 @@ import time
 import traceback
 from pathlib import Path
 
-from rimbot.bridge import bridge_session
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.headless import isolated_root, prepare_rendered, rendered_headless_mismatch
-from rimbot.store import Store
+from rimgovernor.bridge import bridge_session
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.headless import isolated_root, prepare_rendered, rendered_headless_mismatch
+from rimgovernor.store import Store
 
 
 async def run(args):
@@ -37,7 +37,7 @@ async def run(args):
                 await bridge.core('games_start', gameId=bridge.game_id)
                 await bridge.connect()
                 async def load():
-                    await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',
+                    await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                         readiness='visual', timeoutMs=90000,
                         ignoreModCompatibility=rendered_headless_mismatch(root))
                     await rt.sync_identity()

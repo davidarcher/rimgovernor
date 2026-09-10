@@ -3,10 +3,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.colony_plan import ColonyPlan, PlanStep, StepProgress
-from rimbot.construction_preflight import ConstructionRefusal, preflight_construction
-from rimbot.shell_site import ShellSiteRefusal
-from rimbot.spatial import projected_obstruction
+from rimgovernor.colony_plan import ColonyPlan, PlanStep, StepProgress
+from rimgovernor.construction_preflight import ConstructionRefusal, preflight_construction
+from rimgovernor.shell_site import ShellSiteRefusal
+from rimgovernor.spatial import projected_obstruction
 from test_construction_preflight import native_reply, plan
 
 

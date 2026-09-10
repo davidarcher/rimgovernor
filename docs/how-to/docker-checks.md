@@ -32,8 +32,8 @@ operator: `& 'C:/path/to/python.exe' scripts/container_checks.py --help`.
 ## Run the suite
 
 ```powershell
-python scripts/container_checks.py --workers 1 --image rimbot-checks:my-task --output .rimbot/docker-checks-01
-Get-Content .rimbot/docker-checks-01/result.json
+python scripts/container_checks.py --workers 1 --image rimgovernor-checks:my-task --output .rimgovernor/docker-checks-01
+Get-Content .rimgovernor/docker-checks-01/result.json
 ```
 
 Do not create the output directory first: the runner creates it and refuses an existing
@@ -62,8 +62,8 @@ directory and choose a fresh name after fixing a failure.
 
 ## Repeat an unchanged image
 
-To repeat an unchanged image, use `--image rimbot-checks:my-task --no-build --output
-.rimbot/docker-checks-02`. Omit `--no-build` after source changes: source is copied into
+To repeat an unchanged image, use `--image rimgovernor-checks:my-task --no-build --output
+.rimgovernor/docker-checks-02`. Omit `--no-build` after source changes: source is copied into
 the image, not mounted from the worktree. Keep image tags unique between concurrent
 tasks.
 
@@ -73,7 +73,7 @@ Select one or more files or node IDs with repeated `--test` flags, optionally fi
 with `-k`. Use forward slashes and paths relative to the worktree root:
 
 ```powershell
-python scripts/container_checks.py --controller-only --test controller_tests/test_container_worker.py --image rimbot-checks:my-task-controller --output .rimbot/docker-focused-01
+python scripts/container_checks.py --controller-only --test controller_tests/test_container_worker.py --image rimgovernor-checks:my-task-controller --output .rimgovernor/docker-focused-01
 ```
 
 The runner retains the selection, build target, dashboard-check status, JUnit and the

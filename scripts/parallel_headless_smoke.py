@@ -4,8 +4,8 @@ from contextlib import AsyncExitStack
 import json
 from pathlib import Path
 import time
-from rimbot.bridge import bridge_session, gabs_executable
-from rimbot.headless import isolated_root, prepare
+from rimgovernor.bridge import bridge_session, gabs_executable
+from rimgovernor.headless import isolated_root, prepare
 
 
 async def main(output, source_root):
@@ -18,7 +18,7 @@ async def main(output, source_root):
         async def start(client):
             await client.core('games_start',gameId=client.game_id)
             await client.connect()
-            await client.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',
+            await client.call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',
                 readiness='visual',timeoutMs=90000,ignoreModCompatibility=True)
             await client.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
         await asyncio.gather(*(start(c) for c in clients))
@@ -42,6 +42,6 @@ if __name__=='__main__':
     import argparse
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output',type=Path,required=True)
-    parser.add_argument('--source-root', type=Path, default=Path('.rimbot/bridge'))
+    parser.add_argument('--source-root', type=Path, default=Path('.rimgovernor/bridge'))
     args = parser.parse_args()
     asyncio.run(main(args.output, args.source_root))

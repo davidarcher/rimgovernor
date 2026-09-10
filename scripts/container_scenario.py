@@ -11,12 +11,12 @@ from worker_storage import storage_options, export_storage, release_storage
 
 
 def dashboard_options(name, display='headless'):
-    return ['--publish', '127.0.0.1::8787', '--label', 'io.rimbot.colony=1',
-            '--label', 'io.rimbot.colony.name='+name, '-e', 'RIMBOT_DISPLAY='+display]
+    return ['--publish', '127.0.0.1::8787', '--label', 'io.rimgovernor.colony=1',
+            '--label', 'io.rimgovernor.colony.name='+name, '-e', 'RIMGOVERNOR_DISPLAY='+display]
 
 
 def require_dashboard_image(call, image):
-    version = call('image', 'inspect', '--format', '{{ index .Config.Labels "io.rimbot.scenario-dashboard" }}',
+    version = call('image', 'inspect', '--format', '{{ index .Config.Labels "io.rimgovernor.scenario-dashboard" }}',
                    image, capture_output=True, text=True, check=True).stdout.strip()
     if version != '1':
         raise ValueError('Rebuild the worker image: it lacks the scenario dashboard hook')
@@ -29,7 +29,7 @@ def run(args):
     docker, environment = docker_environment()
     def call(*values, **kwargs):
         return subprocess.run([docker, *values], cwd=source, env=environment, **kwargs)
-    name = 'rimbot-scenario-'+uuid.uuid4().hex[:12]
+    name = 'rimgovernor-scenario-'+uuid.uuid4().hex[:12]
     report = {'container': name, 'passed': False, 'scope': 'Scenario exit status; inspect its native assertions separately.'}
     launched = False
     try:
@@ -46,8 +46,8 @@ def run(args):
             cache = prepare_cache(args.game, args.mods, args.gabs/'gabs', image, output)
             report['input_cache'] = cache
             mounts += ['--mount', f"type=volume,source={cache['volume']},target=/cached-inputs,readonly",
-                '-e', 'RIMBOT_INPUT_CACHE_ROOT=/cached-inputs/snapshot',
-                '-e', 'RIMBOT_INPUT_CACHE_KEY='+cache['key']]
+                '-e', 'RIMGOVERNOR_INPUT_CACHE_ROOT=/cached-inputs/snapshot',
+                '-e', 'RIMGOVERNOR_INPUT_CACHE_KEY='+cache['key']]
         for key in ('game', 'mods', 'profile', 'gabs'):
             mounts += ['--mount', f'type=bind,source={getattr(args, key).resolve()},target=/inputs/{key},readonly']
         storage, report['storage'] = storage_options(call, output, name, getattr(args, 'worker_storage', 'volume'))

@@ -1,6 +1,6 @@
 """Rendered Docker visual evaluation; ordinary blueprint fixtures and local inference only.
 
-Run as the command of rimbot.container_worker so all game/profile files are private.
+Run as the command of rimgovernor.container_worker so all game/profile files are private.
 Scores describe this small paired layout sample, not general visual reliability.
 """
 import argparse
@@ -11,15 +11,15 @@ import time
 from pathlib import Path
 
 from pydantic import BaseModel
-from rimbot.bridge import bridge_session, gabs_executable, BridgeError
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.config import Settings, ModelRole, ModelRouting
-from rimbot.consultation import structured_tool
-from rimbot.review_evidence import ReviewEvidence
-from rimbot.store import Store
-from rimbot.visual_review import review
-from rimbot.visual_source import read_source
+from rimgovernor.bridge import bridge_session, gabs_executable, BridgeError
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.config import Settings, ModelRole, ModelRouting
+from rimgovernor.consultation import structured_tool
+from rimgovernor.review_evidence import ReviewEvidence
+from rimgovernor.store import Store
+from rimgovernor.visual_review import review
+from rimgovernor.visual_source import read_source
 
 
 class Decision(BaseModel):
@@ -38,9 +38,9 @@ async def decide(rt, evidence):
 
 
 async def run(args):
-    root = Path(os.environ['RIMBOT_BRIDGE_ROOT'])
+    root = Path(os.environ['RIMGOVERNOR_BRIDGE_ROOT'])
     output = Path(args.output); output.mkdir(parents=True, exist_ok=False)
-    settings = Settings(model=args.model, model_url=os.environ['RIMBOT_MODEL_URL'], reasoning=False,
+    settings = Settings(model=args.model, model_url=os.environ['RIMGOVERNOR_MODEL_URL'], reasoning=False,
                         temperature=0, max_output_tokens=2048, timeout_seconds=300)
     routing = ModelRouting(roles={ModelRole.STRATEGIST:settings,ModelRole.ARCHITECT:settings})
     store = Store(output/'state.sqlite')
@@ -67,7 +67,7 @@ async def run(args):
             try:
                 for has_door in (False, True):
                     case={'expected_door':has_door}; report['cases'].append(case); save()
-                    await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
+                    await bridge.call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
                     await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
                     await rt.sync_identity()
                     status=await rt.game.query('home/status',colonists=False,threats=False)
@@ -169,5 +169,5 @@ async def run(args):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output',default='/worker/evaluation')
-    parser.add_argument('--model',default=os.environ.get('RIMBOT_MODEL','qwen3.5-4b'))
+    parser.add_argument('--model',default=os.environ.get('RIMGOVERNOR_MODEL','qwen3.5-4b'))
     asyncio.run(run(parser.parse_args()))

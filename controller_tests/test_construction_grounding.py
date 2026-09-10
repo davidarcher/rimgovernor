@@ -1,10 +1,10 @@
 import json
 import pytest
-from rimbot.bridge_game import for_model
-from rimbot.colony_plan import RoomShell
-from rimbot.colony_plan import CommitSteps
-from rimbot.consultation import structured_tool
-from rimbot.construction_grounding import ground_construction
+from rimgovernor.bridge_game import for_model
+from rimgovernor.colony_plan import RoomShell
+from rimgovernor.colony_plan import CommitSteps
+from rimgovernor.consultation import structured_tool
+from rimgovernor.construction_grounding import ground_construction
 
 
 def test_discovered_mod_definitions_update_commitment_choices_without_touching_native_tools():

@@ -3,7 +3,7 @@
     <TargetFramework>net472</TargetFramework>
     <LangVersion>latest</LangVersion>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-    <AssemblyName>RimBot.InterruptionFixtures.BridgeTools</AssemblyName>
+    <AssemblyName>RimGovernor.InterruptionFixtures.BridgeTools</AssemblyName>
     <OutputPath>../../work/interruption-fixtures/</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <DebugType>none</DebugType>

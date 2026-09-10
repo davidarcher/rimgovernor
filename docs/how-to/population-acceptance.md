@@ -10,7 +10,7 @@ private mod snapshot before launching. Production builds omit `PopulationFixture
 From the task worktree, run:
 
 ```powershell
-python scripts/container_population_acceptance.py --game <linux-game> --mods <private-task-mods> --profile <prepared-profile> --gabs <linux-gabs-directory> --image rimbot-worker:population-task --output .rimbot/population-01
+python scripts/container_population_acceptance.py --game <linux-game> --mods <private-task-mods> --profile <prepared-profile> --gabs <linux-gabs-directory> --image rimgovernor-worker:population-task --output .rimgovernor/population-01
 ```
 
 The fixture prepares a prison, spare housing, food, medical supplies, a downed

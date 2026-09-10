@@ -1,16 +1,16 @@
 """Test-only boosted Ultrafast comparison; its native ceiling is 9,000 TPS."""
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import asyncio
 import json
 import time
 from pathlib import Path
 from native_render_smoke import game_window
-from rimbot.bridge import bridge_session
-from rimbot.headless import prepare
+from rimgovernor.bridge import bridge_session
+from rimgovernor.headless import prepare
 
 
 async def main():
-    root=Path('.rimbot/bridge').resolve()
+    root=Path('.rimgovernor/bridge').resolve()
     rows=[]
     for headless in (False,True):
         config=prepare(root) if headless else root/'config'
@@ -21,7 +21,7 @@ async def main():
             try:
                 for mode in (['headless'] if headless else ['rendered','suspended']):
                     for repeat in range(2):
-                        await call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',timeoutMs=90000,ignoreModCompatibility=headless)
+                        await call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',readiness='visual',timeoutMs=90000,ignoreModCompatibility=headless)
                         await call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
                         if not headless:
                             user,window=game_window()

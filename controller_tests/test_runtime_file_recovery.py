@@ -5,19 +5,19 @@ from unittest.mock import AsyncMock
 import pytest
 from mcp.types import CallToolResult
 
-from rimbot.bridge import BridgeClient, BridgeError
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.colony_plan import ColonyPlan, PlanStep, StepProgress
-from rimbot.hands import Hands
-from rimbot.projects import ProjectBook
+from rimgovernor.bridge import BridgeClient, BridgeError
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.colony_plan import ColonyPlan, PlanStep, StepProgress
+from rimgovernor.hands import Hands
+from rimgovernor.projects import ProjectBook
 
 
 FAULT = (
-    "Failed to claim runtime ownership for 'rimbot-trial': failed to publish runtime state: "
+    "Failed to claim runtime ownership for 'rimgovernor-trial': failed to publish runtime state: "
     "rename C:\\GABS\\.runtime-2910154312.tmp C:\\GABS\\runtime.json: Access is denied."
 )
-CLAIM_FAULT = ("Failed to claim runtime ownership for 'rimbot-trial': a launch claim for 'rimbot-trial' "
+CLAIM_FAULT = ("Failed to claim runtime ownership for 'rimgovernor-trial': a launch claim for 'rimgovernor-trial' "
                "was published while preparing this operation; re-check games_status and retry")
 
 
@@ -29,9 +29,9 @@ def result(payload, error=False):
 async def test_native_connection_allows_slow_start_without_takeover_or_replay():
     session=SimpleNamespace(call_tool=AsyncMock(return_value=result({'connected':True})))
     await BridgeClient(session).connect()
-    session.call_tool.assert_any_await('games_connect',{'gameId':'rimbot-trial','timeout':60})
+    session.call_tool.assert_any_await('games_connect',{'gameId':'rimgovernor-trial','timeout':60})
     assert sum(c.args[0]=='games_connect' for c in session.call_tool.await_args_list)==1
-    session.call_tool.assert_any_await('games_tool_names',{'gameId':'rimbot-trial','cursor':'','query':'rimworld/load_game_ready'})
+    session.call_tool.assert_any_await('games_tool_names',{'gameId':'rimgovernor-trial','cursor':'','query':'rimworld/load_game_ready'})
 
 
 def game_with(responses, tool, properties):
@@ -44,7 +44,7 @@ def game_with(responses, tool, properties):
 @pytest.fixture(autouse=True)
 def no_retry_delay(monkeypatch):
     sleep = AsyncMock()
-    monkeypatch.setattr('rimbot.bridge.asyncio.sleep', sleep)
+    monkeypatch.setattr('rimgovernor.bridge.asyncio.sleep', sleep)
     return sleep
 
 
@@ -60,7 +60,7 @@ async def test_observation_retries_publish_fault_with_bounded_backoff(no_retry_d
 @pytest.mark.asyncio
 @pytest.mark.parametrize('op',['status','events','start','heartbeat','pause'])
 async def test_native_claim_race_retries_only_clock_reads(op):
-    from rimbot.clock_control import PlayClock
+    from rimgovernor.clock_control import PlayClock
     session=SimpleNamespace(call_tool=AsyncMock(side_effect=[
         result({'message':CLAIM_FAULT},True),result({'running':True}),result({'success':True})]))
     clock=PlayClock(BridgeClient(session))
@@ -181,7 +181,7 @@ async def test_launch_claim_read_refreshes_status_before_bounded_retry():
         result({'zones': []})], 'home/list_zones', {})
     assert await game.query('home/list_zones') == {'zones': []}
     assert [c.args[0] for c in session.call_tool.await_args_list] == ['games_call_tool', 'games_status', 'games_call_tool']
-    assert session.call_tool.await_args_list[1].args[1] == {'gameId': 'rimbot-trial'}
+    assert session.call_tool.await_args_list[1].args[1] == {'gameId': 'rimgovernor-trial'}
 
 
 async def test_launch_claim_mutation_failure_never_refreshes_or_replays():
@@ -199,7 +199,7 @@ async def test_repeated_launch_claim_read_failure_exhausts_two_retries():
 
 @pytest.mark.parametrize('op', ['status','events','start','pause','heartbeat'])
 async def test_clock_launch_claim_recovery_is_read_only(op):
-    from rimbot.clock_control import PlayClock
+    from rimgovernor.clock_control import PlayClock
     session=SimpleNamespace(call_tool=AsyncMock(side_effect=[
         result({'message':CLAIM_FAULT},True),result({'running':True}),result({'success':True})]))
     clock=PlayClock(BridgeClient(session))
@@ -213,7 +213,7 @@ async def test_clock_launch_claim_recovery_is_read_only(op):
 
 @pytest.mark.asyncio
 async def test_camera_read_recovers_claim_race_but_pan_does_not():
-    from rimbot.dashboard_controls import camera_call
+    from rimgovernor.dashboard_controls import camera_call
     session = SimpleNamespace(call_tool=AsyncMock(side_effect=[result({'message':CLAIM_FAULT},True),
         result({'running':True}), result({'success':True,'mapId':'Map_0'})]))
     rt = SimpleNamespace(bridge=BridgeClient(session))
@@ -226,8 +226,8 @@ async def test_camera_read_recovers_claim_race_but_pan_does_not():
 
 @pytest.mark.parametrize('op', ['status', 'events', 'start', 'pause', 'heartbeat'])
 async def test_temporary_gabp_loss_only_retries_clock_observations(op):
-    from rimbot.clock_control import PlayClock
-    fault = result({'message': "Game 'rimbot-trial' is not connected via GABP."}, True)
+    from rimgovernor.clock_control import PlayClock
+    fault = result({'message': "Game 'rimgovernor-trial' is not connected via GABP."}, True)
     session = SimpleNamespace(call_tool=AsyncMock(side_effect=[fault, result({'running': True}), result({'success': True})]))
     clock = PlayClock(BridgeClient(session))
     if op in ('status', 'events'):
@@ -240,7 +240,7 @@ async def test_temporary_gabp_loss_only_retries_clock_observations(op):
 
 
 async def test_persistent_gabp_loss_never_reconnects_or_restarts_the_game():
-    fault = result({'message': "Game 'rimbot-trial' is not connected via GABP."}, True)
+    fault = result({'message': "Game 'rimgovernor-trial' is not connected via GABP."}, True)
     game, session = game_with([fault, result({}), fault, result({}), fault], 'home/list_zones', {})
     with pytest.raises(BridgeError):
         await game.query('home/list_zones')

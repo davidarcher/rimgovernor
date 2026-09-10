@@ -13,7 +13,7 @@ tools with their existing filters and diagnostics. It adds game/map guards and
 native scheduling measurements; it copies no game implementation. Colony identity
 advertises this optional batch contract for compatibility with older companions.
 
-World expedition extensions are original RimBot code. Settlement visits use native
+World expedition extensions are original RimGovernor code. Settlement visits use native
 caravan arrival actions; gifts use TradeSession and TradeDeal; quest fulfillment
 invokes the enabled TradeRequestComp command and its native confirmation. No game
 implementation is copied, and these tools do not directly change relations, create
@@ -34,6 +34,9 @@ RimWorld and RimBridgeServer SDK assemblies are referenced, never bundled.
 Any subsequent source modifications must be recorded here and tested in-game.
 
 Local changes:
+- Assembly names, mod package identity, persisted key prefixes, environment variables
+  and pause-on-load arguments use RimGovernor. Upstream namespaces and authorship remain
+  intact; native profiles and checkpoints require matching deployment identities.
 - `RecoveryTools.cs`, `RecoveryAreaOwnership.cs` and `identity/RecoveryAreas.cs`
   are original local recovery observation, guarded native WorkGiver dispatch and
   bounded allowed-area ownership code. `ColonyFactsTool.cs` adds native condition
@@ -197,7 +200,7 @@ The temporary standalone overlay is replaced by the dashboard on port 8787.
 - `ColonyIdentity.cs` is local code: save-backed GameComponent identity plus a
   nonserialized load token. Attaches the component when bridge extension loading
   occurs after Verse has cached component types. Disposable launches with
-  `-rimbot-pause-on-load` also select ordinary Paused speed in the loaded-game
+  `-rimgovernor-pause-on-load` also select ordinary Paused speed in the loaded-game
   callback, before simulation advances. Saved ticks and game contents are not edited;
   launches without the flag retain native load behavior.
 - Python `receipts.py` copies reason/_outcome/verdict_line from upstream
@@ -236,7 +239,7 @@ native options. No turn-clock budget or extra inference service is introduced.
 
 Live validation: native lease expiry without heartbeat, external pause latch and
 explicit resume, actual pawn movement, and runtime-owned undraft/pause cleanup.
-Evidence is recorded locally in `.rimbot/bridge/clock-smoke.json` by
+Evidence is recorded locally in `.rimgovernor/bridge/clock-smoke.json` by
 `scripts/native_clock_smoke.py`. This is not a live raid/combat test.
 
 ## Native weapon discovery
@@ -415,7 +418,7 @@ RimWorld owns pawn generation, entry-cell legality, relationships and the joinin
 letter; the fixture records roster IDs without directly creating or editing pawns.
 
 Resource policies use native recipe quantities, ingredient selection and recipe
-completion to enforce ordinary production budgets. Original RimBot guard code
+completion to enforce ordinary production budgets. Original RimGovernor guard code
 wraps these callbacks without copying game implementation or replacing bill
 settings. Exact-identity acquisition invokes the normal mining/plant designators.
 The identity assembly stores resource policy metadata beside colony identity;
@@ -430,7 +433,7 @@ Special stockpile filters enumerate native configurable SpecialThingFilterDef
 definitions and call ThingFilter.SetAllow on live or detached preview filters.
 This original extension uses the native settings API and copies no game source.
 
-The native clock event journal is original RimBot code. It retains typed event
+The native clock event journal is original RimGovernor code. It retains typed event
 payloads and colony/map/load identity in immutable XML rows under the private
 profile, publishes flushed rows by rename and recovers complete staged rows.
 It does not serialize or edit simulation state. Journal failures pause supervised
@@ -442,7 +445,7 @@ normal simulation rules and copies no game implementation. The existing attribut
 PawnSettingsRead supplies animal training and product observations. HusbandryFixture
 is a separately enabled test-only prerequisite builder, absent from production DLLs.
 
-Upkeep observations and guarded storage operations are original RimBot code using
+Upkeep observations and guarded storage operations are original RimGovernor code using
 native thing, slot-group, bed, pen and allowed-area APIs. Repair and cleaning use
 installed WorkGivers through the existing order pipeline; firefighting retains
 ordinary native work because its WorkGiver is not directly orderable. The optional

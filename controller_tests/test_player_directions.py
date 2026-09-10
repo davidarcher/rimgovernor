@@ -1,4 +1,4 @@
-from rimbot.strategic_state import player_directions
+from rimgovernor.strategic_state import player_directions
 
 
 def test_game_events_and_model_summaries_cannot_displace_player_objective():

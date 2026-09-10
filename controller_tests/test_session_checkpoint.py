@@ -4,9 +4,9 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 import pytest
-from rimbot.store import Store
-from rimbot.session_checkpoint import create_checkpoint, read_checkpoint, prepare_resume, install_saved_game, stop_for_restart
-from rimbot.session_checkpoint import list_checkpoints, delete_checkpoint
+from rimgovernor.store import Store
+from rimgovernor.session_checkpoint import create_checkpoint, read_checkpoint, prepare_resume, install_saved_game, stop_for_restart
+from rimgovernor.session_checkpoint import list_checkpoints, delete_checkpoint
 
 
 def fixture(tmp_path):
@@ -15,7 +15,7 @@ def fixture(tmp_path):
     (profile/'Config').mkdir()
     (profile/'Config/Prefs.xml').write_text('<Prefs><pauseOnLoad>False</pauseOnLoad></Prefs>')
     (tmp_path/'config').mkdir()
-    (tmp_path/'config/config.json').write_text(json.dumps({'games':{'rimbot-trial':{
+    (tmp_path/'config/config.json').write_text(json.dumps({'games':{'rimgovernor-trial':{
         'launchMode':'DirectPath','args':['-savedatafolder='+str(profile)]}}}))
     store=Store(tmp_path/'original.sqlite')
     store.set('goal',{'source':'PLAYER','food_days':20})
@@ -26,7 +26,7 @@ def fixture(tmp_path):
     async def save(name,**args):
         (profile/'Saves'/(args['saveName']+'.rws')).write_text('<savegame><game>native</game></savegame>')
         return {'success':True}
-    rt.bridge=SimpleNamespace(call=AsyncMock(side_effect=save),core=AsyncMock(),game_id='rimbot-trial')
+    rt.bridge=SimpleNamespace(call=AsyncMock(side_effect=save),core=AsyncMock(),game_id='rimgovernor-trial')
     return rt
 
 
@@ -85,7 +85,7 @@ async def test_failed_save_never_publishes_a_restart_manifest(tmp_path,failure):
     session=rt.context_token
     if failure=='stale': session='old-load'
     elif failure=='unowned':
-        (tmp_path/'config/config.json').write_text(json.dumps({'games':{'rimbot-trial':{'launchMode':'SteamAppId'}}}))
+        (tmp_path/'config/config.json').write_text(json.dumps({'games':{'rimgovernor-trial':{'launchMode':'SteamAppId'}}}))
     elif failure=='pause': rt.game.query.return_value={'time':{'ticksGame':500,'paused':False}}
     elif failure=='drafts': rt.draft_owners={'doctor':'load'}
     elif failure=='save': rt.bridge.call.side_effect=ValueError('Native save refused')
@@ -111,13 +111,13 @@ async def test_failed_save_never_publishes_a_restart_manifest(tmp_path,failure):
 @pytest.mark.asyncio
 async def test_endpoint_requires_local_header_and_current_colony(tmp_path):
     import httpx
-    from rimbot.bridge_server import create_app
+    from rimgovernor.bridge_server import create_app
     rt=fixture(tmp_path)
     app=create_app(rt);app.state.rt=rt
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://testserver') as client:
         assert (await client.post('/api/session/checkpoint',json={'session_id':rt.context_token})).status_code==403
-        assert (await client.post('/api/session/checkpoint',headers={'X-RimBot':'1'},json={'session_id':'old'})).status_code==400
-        assert (await client.post('/api/session/checkpoint',headers={'X-RimBot':'1'},json={'session_id':rt.context_token})).status_code==200
+        assert (await client.post('/api/session/checkpoint',headers={'X-RimGovernor':'1'},json={'session_id':'old'})).status_code==400
+        assert (await client.post('/api/session/checkpoint',headers={'X-RimGovernor':'1'},json={'session_id':rt.context_token})).status_code==200
     rt.store.close()
 
 
@@ -135,7 +135,7 @@ async def test_restart_never_stops_a_session_changed_since_its_checkpoint(tmp_pa
         elif change=='mode': rt.mode='automate'
         if change is None:
             await stop_for_restart(rt,rt.context_token,checkpoint['manifest_path'])
-            rt.bridge.core.assert_awaited_once_with('games_stop',gameId='rimbot-trial')
+            rt.bridge.core.assert_awaited_once_with('games_stop',gameId='rimgovernor-trial')
             assert rt.shutdown.is_set() and rt.session_closing and not rt.connected
         else:
             with pytest.raises(ValueError,match='changed'): await stop_for_restart(rt,rt.context_token,checkpoint['manifest_path'])

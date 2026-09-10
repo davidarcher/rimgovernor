@@ -15,10 +15,10 @@ import av
 import uvicorn
 from fastapi import FastAPI
 from websockets.asyncio.client import connect
-from rimbot.bridge import bridge_session, gabs_executable
-from rimbot.clock_control import PlayClock
-from rimbot.headless import isolated_root, prepare_rendered, rendered_headless_mismatch
-from rimbot.video_stream import VideoHub, router
+from rimgovernor.bridge import bridge_session, gabs_executable
+from rimgovernor.clock_control import PlayClock
+from rimgovernor.headless import isolated_root, prepare_rendered, rendered_headless_mismatch
+from rimgovernor.video_stream import VideoHub, router
 
 
 async def run(args):
@@ -33,7 +33,7 @@ async def run(args):
             try:
                 await bridge.core('games_start', gameId=bridge.game_id)
                 await bridge.connect()
-                await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',
+                await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                                   readiness='visual', timeoutMs=90000,
                                   ignoreModCompatibility=rendered_headless_mismatch(root))
                 await PlayClock(bridge).change('Paused')
@@ -146,7 +146,7 @@ async def run(args):
                 count = 0
                 hashes = set()
                 url=f'ws://127.0.0.1:{port}/api/video/frames?session_id=acceptance&viewer=probe&connection_id=probe&hardware=false'
-                async with connect(url,origin=f'http://127.0.0.1:{port}',subprotocols=['rimbot-view-v1'],max_size=16000000) as client:
+                async with connect(url,origin=f'http://127.0.0.1:{port}',subprotocols=['rimgovernor-view-v1'],max_size=16000000) as client:
                     while time.monotonic() - started < args.seconds:
                         packet=await asyncio.wait_for(client.recv(),12)
                         length,=struct.unpack_from('<I',packet)

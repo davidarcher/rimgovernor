@@ -5,7 +5,7 @@ export default function SessionCheckpoint({sessionId,connected}:{sessionId:strin
  async function save(){
   setBusy(true);setError('');setMessage('');
   try {
-   const response=await fetch('/api/session/checkpoint',{method:'POST',headers:{'Content-Type':'application/json','X-RimBot':'1'},body:JSON.stringify({session_id:sessionId})});
+   const response=await fetch('/api/session/checkpoint',{method:'POST',headers:{'Content-Type':'application/json','X-RimGovernor':'1'},body:JSON.stringify({session_id:sessionId})});
    const result=await response.json();
    if(!response.ok)throw Error(result.detail||'Checkpoint could not be saved.');
    setMessage(`Colony and controller saved at game tick ${result.tick}. Autopilot is now in Manual.`);

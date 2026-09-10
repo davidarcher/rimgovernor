@@ -48,7 +48,7 @@ namespace HomeBridge.BridgeTools
         public static void ObserveUi()
         {
             if (observingUi) return;
-            new Harmony("rimbot.player-frame-ui").Patch(AccessTools.Method(typeof(Root), "OnGUI"),
+            new Harmony("rimgovernor.player-frame-ui").Patch(AccessTools.Method(typeof(Root), "OnGUI"),
                 prefix: new HarmonyMethod(typeof(PlayerFrame), nameof(BeforeGui)));
             observingUi = true;
         }
@@ -221,12 +221,12 @@ namespace HomeBridge.BridgeTools
         static PrivatePlayerInput Get()
         {
             if (Application.platform != RuntimePlatform.LinuxPlayer || Application.isBatchMode
-                || Environment.GetEnvironmentVariable("RIMBOT_PRIVATE_DISPLAY") != "1")
+                || Environment.GetEnvironmentVariable("RIMGOVERNOR_PRIVATE_DISPLAY") != "1")
                 throw new InvalidOperationException("Direct input requires the isolated rendered Docker worker");
             if (instance == null)
             {
                 PlayerFrame.ObserveUi();
-                instance = new GameObject("RimBotPlayerInput").AddComponent<PrivatePlayerInput>();
+                instance = new GameObject("RimGovernorPlayerInput").AddComponent<PrivatePlayerInput>();
                 DontDestroyOnLoad(instance.gameObject);
                 instance.display = XOpenDisplay(null);
                 if (instance.display == IntPtr.Zero)
@@ -354,7 +354,7 @@ namespace HomeBridge.BridgeTools
         void OpenChannel()
         {
             if (channel != null) return;
-            channelName = "/dev/shm/RimBotInput-" + Guid.NewGuid().ToString("N");
+            channelName = "/dev/shm/RimGovernorInput-" + Guid.NewGuid().ToString("N");
             channelFile = new FileStream(channelName, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite);
             channelFile.SetLength(4096);
             channelMap = MemoryMappedFile.CreateFromFile(channelFile, null, 4096, MemoryMappedFileAccess.ReadWrite, HandleInheritability.None, true);

@@ -5,14 +5,14 @@ import json
 import socket
 from pathlib import Path
 import uvicorn
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge_server import create_app
-from rimbot.headless import isolated_root,prepare_rendered
-from rimbot.hunting import screen_prey
-from rimbot.store import Store
-from rimbot.colony_plan import ColonyGoal,CommitSteps
-from rimbot.colony_skills import native
-from rimbot.config import ModelRole
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge_server import create_app
+from rimgovernor.headless import isolated_root,prepare_rendered
+from rimgovernor.hunting import screen_prey
+from rimgovernor.store import Store
+from rimgovernor.colony_plan import ColonyGoal,CommitSteps
+from rimgovernor.colony_skills import native
+from rimgovernor.config import ModelRole
 
 
 async def run(args):

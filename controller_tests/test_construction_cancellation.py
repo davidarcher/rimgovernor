@@ -1,8 +1,8 @@
 from copy import deepcopy
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.colony_plan import PlanSpec, StepProgress, ColonyGoal
-from rimbot.player_commands import apply_command
+from rimgovernor.colony_plan import PlanSpec, StepProgress, ColonyGoal
+from rimgovernor.player_commands import apply_command
 from test_strategic_architecture import runtime, batch
 
 
@@ -139,13 +139,13 @@ async def test_preservation_instruction_overrules_model_removal(tmp_path,instruc
     'Cancel its frames; leave the finished walls alone.',
     'Do not keep constructing this bedroom. Remove its pending blueprints.'])
 def test_completed_building_preservation_does_not_refuse_pending_removal(instruction):
-    from rimbot.construction_cancellation import preserves_pending_orders
+    from rimgovernor.construction_cancellation import preserves_pending_orders
     assert not preserves_pending_orders(instruction)
 
 
 @pytest.mark.asyncio
 async def test_raw_plan_cannot_bypass_player_preservation_instruction(tmp_path):
-    from rimbot.colony_plan import CommitSteps
+    from rimgovernor.colony_plan import CommitSteps
     rt, rows = await fixture(tmp_path)
     result=await cancel(rt)
     action=next(s for s in rt.current_plan.spec.steps if s.id==result['step']).model_copy(deep=True)
@@ -193,7 +193,7 @@ async def test_ambiguous_or_conflicting_human_request_cannot_remove_native_order
 
 @pytest.mark.asyncio
 async def test_move_request_cannot_be_reduced_to_standalone_removal(tmp_path):
-    from rimbot.colony_plan import CommitSteps
+    from rimgovernor.colony_plan import CommitSteps
     rt,rows=await fixture(tmp_path)
     result=await cancel(rt)
     removal=next(s for s in rt.current_plan.spec.steps if s.id==result['step']).model_copy(deep=True)

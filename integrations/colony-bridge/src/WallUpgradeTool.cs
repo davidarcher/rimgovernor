@@ -26,7 +26,7 @@ namespace HomeBridge.BridgeTools
         {
             if (installed) return;
             PlayerFrame.ObserveUi();
-            var harmony = new Harmony("rimbot.wall-upgrade");
+            var harmony = new Harmony("rimgovernor.wall-upgrade");
             harmony.Patch(AccessTools.Method(typeof(WorkGiver_Deconstruct), nameof(WorkGiver_Deconstruct.HasJobOnThing)),
                 postfix: new HarmonyMethod(typeof(WallUpgradeSafety), nameof(Eligible)));
             harmony.Patch(AccessTools.Method(typeof(JobDriver_Deconstruct), "FinishedRemoving"),

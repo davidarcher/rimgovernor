@@ -30,10 +30,10 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
-.rimbot/
+.rimgovernor/
 dist/
 build/
 .env
 node_modules/
 .pnpm-store/
-controller/rimbot/static/
+controller/rimgovernor/static/

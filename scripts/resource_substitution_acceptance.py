@@ -1,5 +1,5 @@
 """Observe reserve-aware material substitution through actual ordinary construction."""
-from rimbot.native_scenario import advance_game
+from rimgovernor.native_scenario import advance_game
 import argparse
 import asyncio
 import json
@@ -8,15 +8,15 @@ import hashlib
 import time
 from pathlib import Path
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge import runtime_file_read
-from rimbot.store import Store
-from rimbot.player_commands import apply_command
-from rimbot.session_checkpoint import prepare_resume
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.colony_plan import ColonyGoal, CommitSteps
-from rimbot.production_policy import resource_method
-from rimbot.colony_skills import native
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge import runtime_file_read
+from rimgovernor.store import Store
+from rimgovernor.player_commands import apply_command
+from rimgovernor.session_checkpoint import prepare_resume
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps
+from rimgovernor.production_policy import resource_method
+from rimgovernor.colony_skills import native
 
 
 async def run(args):

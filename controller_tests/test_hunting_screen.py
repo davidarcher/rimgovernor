@@ -1,7 +1,7 @@
-from rimbot.hunting import screen_prey
+from rimgovernor.hunting import screen_prey
 import pytest
 from unittest.mock import AsyncMock
-from rimbot.colony_plan import ColonyGoal
+from rimgovernor.colony_plan import ColonyGoal
 from test_colony_controller import Replay
 
 

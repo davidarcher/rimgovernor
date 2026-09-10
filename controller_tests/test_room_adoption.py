@@ -1,9 +1,9 @@
 from copy import deepcopy
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.player_commands import apply_command
-from rimbot.shelter_handoff import completed_shelters,player_shelter,sleeping_handoff
-from rimbot.colony_skills import SkillBlocked
+from rimgovernor.player_commands import apply_command
+from rimgovernor.shelter_handoff import completed_shelters,player_shelter,sleeping_handoff
+from rimgovernor.colony_skills import SkillBlocked
 from test_strategic_architecture import runtime,batch
 
 

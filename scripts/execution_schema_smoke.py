@@ -1,28 +1,28 @@
 """Real local-model commitment using a discovered contract, then paused readback."""
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import asyncio
 import json
 from pathlib import Path
-from rimbot.bridge import bridge_session
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_observation import observe
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.colony_plan import CommitSteps
-from rimbot.config import Settings, ModelRole
-from rimbot.consultation import structured_tool
-from rimbot.execution_contracts import ExecutionContracts
-from rimbot.headless import prepare, isolated_root
-from rimbot.model import LocalModel
-from rimbot.native_contracts import validate_arguments
-from rimbot.store import Store
+from rimgovernor.bridge import bridge_session
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_observation import observe
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.colony_plan import CommitSteps
+from rimgovernor.config import Settings, ModelRole
+from rimgovernor.consultation import structured_tool
+from rimgovernor.execution_contracts import ExecutionContracts
+from rimgovernor.headless import prepare, isolated_root
+from rimgovernor.model import LocalModel
+from rimgovernor.native_contracts import validate_arguments
+from rimgovernor.store import Store
 
 
 async def main():
     import time
-    root=isolated_root('.rimbot/bridge',Path('.rimbot')/f'execution-schema-{time.time_ns()}')
+    root=isolated_root('.rimgovernor/bridge',Path('.rimgovernor')/f'execution-schema-{time.time_ns()}')
     async with bridge_session(gabs_executable(root),prepare(root)) as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
-        await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',timeoutMs=90000,ignoreModCompatibility=True)
+        await bridge.call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',readiness='visual',timeoutMs=90000,ignoreModCompatibility=True)
         await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
         store=Store(root/'execution-schema-smoke.sqlite')
         rt=BridgeRuntime(store,root);rt.bridge=bridge;rt.game=BridgeGame(bridge)

@@ -1,14 +1,14 @@
 """Disposable native clock test; run with the controller and game closed."""
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import asyncio
 import json
 from pathlib import Path
 from types import SimpleNamespace
-from rimbot.bridge import bridge_session
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.clock_control import PlayClock
-from rimbot.store import Store
+from rimgovernor.bridge import bridge_session
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.clock_control import PlayClock
+from rimgovernor.store import Store
 
 
 async def until(test, timeout=8):
@@ -22,12 +22,12 @@ async def until(test, timeout=8):
 
 
 async def main():
-    root=Path('.rimbot/bridge').resolve()
+    root=Path('.rimgovernor/bridge').resolve()
     evidence={}
     async with bridge_session(gabs_executable(root), root/'config') as bridge:
         await bridge.core('games_start', gameId=bridge.game_id)
         await bridge.connect()
-        await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline', readiness='visual', timeoutMs=90000)
+        await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline', readiness='visual', timeoutMs=90000)
         game = BridgeGame(bridge)
         clock = PlayClock(bridge)
         await clock.change('Paused')

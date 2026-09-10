@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from rimbot.colony_plan import ColonyGoal
+from rimgovernor.colony_plan import ColonyGoal
 from test_colony_controller import Replay
 
 

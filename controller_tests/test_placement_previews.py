@@ -2,7 +2,7 @@ from types import SimpleNamespace
 import json
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.placement_previews import PlacementPreviews
+from rimgovernor.placement_previews import PlacementPreviews
 
 
 def placements(count=20):

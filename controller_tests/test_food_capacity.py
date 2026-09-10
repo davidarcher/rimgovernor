@@ -2,10 +2,10 @@ from copy import deepcopy
 from dataclasses import replace
 import pytest
 
-from rimbot.colony_policy import ColonyPolicy, criteria, priority_nodes
-from rimbot.food_capacity import field_target
-from rimbot.food_capacity import choose_crop
-from rimbot.capacity_growth import growth_fields
+from rimgovernor.colony_policy import ColonyPolicy, criteria, priority_nodes
+from rimgovernor.food_capacity import field_target
+from rimgovernor.food_capacity import choose_crop
+from rimgovernor.capacity_growth import growth_fields
 from test_capacity_growth import fixture
 
 
@@ -86,7 +86,7 @@ def test_unknown_native_crop_inputs_cannot_select_a_field(key,value):
 
 
 def test_mixed_crops_use_their_own_native_yields():
-    from rimbot.food_capacity import field_coverage
+    from rimgovernor.food_capacity import field_coverage
     _,facts=fixture()
     facts['definitions']['Plant_Potato']=dict(growDays=3,harvestNutrition=.6,fertilityMin=.7)
     facts['farms']=[dict(edible=True,crop='Plant_Rice',growingCells=1209),
@@ -99,7 +99,7 @@ def test_mixed_crops_use_their_own_native_yields():
 @pytest.mark.asyncio
 async def test_crop_and_storage_goals_do_not_claim_the_same_zone_label():
     from test_colony_controller import Replay
-    from rimbot.colony_plan import ColonyGoal
+    from rimgovernor.colony_plan import ColonyGoal
     rt=Replay(8)
     rt.facts['foodRunwayDays']=10
     for name in ('EnsureFoodSupply','EnsureFoodStorage'):

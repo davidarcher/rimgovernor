@@ -1,6 +1,6 @@
 {
-  "short_name": "Rimworld Dashboard",
-  "name": "Rimworld Dashboard with RIMAPI mod for the colony analyze",
+  "short_name": "RimGovernor",
+  "name": "RimGovernor \u2014 RimWorld colony control",
   "icons": [
     {
       "src": "favicon.ico",
@@ -9,8 +9,8 @@
     },
     {
       "src": "favicon.svg",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "sizes": "any",
+      "type": "image/svg+xml"
     },
     {
       "src": "logo192.png",
@@ -25,6 +25,6 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#101717",
+  "background_color": "#101717"
 }

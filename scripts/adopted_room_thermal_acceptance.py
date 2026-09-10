@@ -1,20 +1,20 @@
 """Furnish an edited native room and verify cold/hot recovery through ordinary labor."""
-from rimbot.native_scenario import advance_game
+from rimgovernor.native_scenario import advance_game
 import argparse
 import asyncio
 import json
 import time
 from pathlib import Path
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.config import Settings
-from rimbot.session_checkpoint import prepare_resume,create_checkpoint
-from rimbot.store import Store
-from rimbot.player_commands import apply_command
-from rimbot.colony_plan import ColonyGoal,CommitSteps,PlanStep
-from rimbot.shelter_handoff import furniture_handoff,player_shelter
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.bridge import runtime_file_read
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.config import Settings
+from rimgovernor.session_checkpoint import prepare_resume,create_checkpoint
+from rimgovernor.store import Store
+from rimgovernor.player_commands import apply_command
+from rimgovernor.colony_plan import ColonyGoal,CommitSteps,PlanStep
+from rimgovernor.shelter_handoff import furniture_handoff,player_shelter
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.bridge import runtime_file_read
 
 
 async def run(args):

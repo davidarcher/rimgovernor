@@ -1,5 +1,5 @@
 """Paired restart, retired-room protection and ordinary live edits of an accepted room."""
-from rimbot.native_scenario import advance_game
+from rimgovernor.native_scenario import advance_game
 import argparse
 import asyncio
 import json
@@ -7,19 +7,19 @@ from pathlib import Path
 
 from deterministic_foothold import NoInference
 from session_checkpoint_acceptance import ready
-from rimbot.bridge import runtime_file_read
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.colony_plan import Decision,PlanSpec
-from rimbot.colony_skills import SkillBlocked
-from rimbot.player_commands import apply_command
-from rimbot.room_adoption import validate_adoption
-from rimbot.session_checkpoint import prepare_resume,create_checkpoint
-from rimbot.shelter_handoff import player_shelter,verified_room,sleeping_handoff
-from rimbot.colony_policy import criteria,ColonyPolicy
-from rimbot.spatial_program import stage_layout
-from rimbot.shell_site import ShellSiteRefusal
-from rimbot.store import Store
+from rimgovernor.bridge import runtime_file_read
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.colony_plan import Decision,PlanSpec
+from rimgovernor.colony_skills import SkillBlocked
+from rimgovernor.player_commands import apply_command
+from rimgovernor.room_adoption import validate_adoption
+from rimgovernor.session_checkpoint import prepare_resume,create_checkpoint
+from rimgovernor.shelter_handoff import player_shelter,verified_room,sleeping_handoff
+from rimgovernor.colony_policy import criteria,ColonyPolicy
+from rimgovernor.spatial_program import stage_layout
+from rimgovernor.shell_site import ShellSiteRefusal
+from rimgovernor.store import Store
 
 
 async def run(args):

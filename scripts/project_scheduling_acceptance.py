@@ -1,5 +1,5 @@
 """Observe competing native construction, partial restart and dependent pawn work."""
-from rimbot.native_scenario import advance_game
+from rimgovernor.native_scenario import advance_game
 import argparse
 import asyncio
 from copy import deepcopy
@@ -10,13 +10,13 @@ import traceback
 
 from deterministic_foothold import NoInference
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge import BridgeError, runtime_file_read
-from rimbot.colony_plan import CommitSteps, Decision, PlanStep
-from rimbot.headless import isolated_root, prepare
-from rimbot.player_commands import apply_command
-from rimbot.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge import BridgeError, runtime_file_read
+from rimgovernor.colony_plan import CommitSteps, Decision, PlanStep
+from rimgovernor.headless import isolated_root, prepare
+from rimgovernor.player_commands import apply_command
+from rimgovernor.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
+from rimgovernor.store import Store
 
 
 class MissingFixture(RuntimeError):

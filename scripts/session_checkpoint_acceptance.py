@@ -4,12 +4,12 @@ import asyncio
 import json
 import time
 from pathlib import Path
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.headless import isolated_root, prepare_rendered
-from rimbot.player_commands import apply_command
-from rimbot.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart, list_checkpoints, delete_checkpoint, profile_path
-from rimbot.store import Store
-from rimbot.colony_plan import Decision,PlanSpec,CommitSteps,PlanStep,ColonyGoal
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.headless import isolated_root, prepare_rendered
+from rimgovernor.player_commands import apply_command
+from rimgovernor.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart, list_checkpoints, delete_checkpoint, profile_path
+from rimgovernor.store import Store
+from rimgovernor.colony_plan import Decision,PlanSpec,CommitSteps,PlanStep,ColonyGoal
 
 
 async def ready(rt):
@@ -80,7 +80,7 @@ async def main(args):
     try:
         await ready(rt)
         if getattr(args,'uncertain_zone',False):
-            from rimbot.campaign_manifest import capture_manifest
+            from rimgovernor.campaign_manifest import capture_manifest
             report['manifest']=capture_manifest(Path(__file__).resolve().parents[1],root,
                 root/('config' if args.rendered else 'config-headless'),{'mode':'no inference'})
         initial=rt.batch.summary.end_tick
@@ -162,7 +162,7 @@ async def main(args):
             rt.stopped = True
             rt.shutdown.set()
             # Reproduce a crash after a row flush but before publication.
-            journal = profile_path(root, not args.rendered)/'RimBotClockEvents'
+            journal = profile_path(root, not args.rendered)/'RimGovernorClockEvents'
             last = sorted(journal.glob('*.xml'))[-1]
             last.rename(journal/'acceptance.pending')
             report['staged_publication'] = last.name

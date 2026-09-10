@@ -1,10 +1,10 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 import pytest
-from rimbot.colony_plan import ColonyPlan, PlanSpec, StepProgress
-from rimbot.construction_preflight import preflight_construction, ConstructionRefusal
-from rimbot.hands import Hands, Blocked
-from rimbot.spatial import GeometryConflict, validate_geometry, entrance_cells, native_footprint
+from rimgovernor.colony_plan import ColonyPlan, PlanSpec, StepProgress
+from rimgovernor.construction_preflight import preflight_construction, ConstructionRefusal
+from rimgovernor.hands import Hands, Blocked
+from rimgovernor.spatial import GeometryConflict, validate_geometry, entrance_cells, native_footprint
 from test_construction_preflight import plan, footprint
 
 

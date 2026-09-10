@@ -1,7 +1,7 @@
 import pytest
 from test_colony_controller import Replay
-from rimbot.colony_plan import ColonyGoal
-from rimbot.colony_policy import work_assignment
+from rimgovernor.colony_plan import ColonyGoal
+from rimgovernor.colony_policy import work_assignment
 
 
 @pytest.mark.asyncio

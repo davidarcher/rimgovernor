@@ -8,17 +8,17 @@ from pathlib import Path
 from deterministic_foothold import NoInference
 from session_checkpoint_acceptance import ready
 from spatial_site_acceptance import complete_buildings,complete_zones
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.colony_plan import PlanStep
-from rimbot.construction_preflight import preflight_construction
-from rimbot.hands import Hands
-from rimbot.headless import isolated_root,prepare
-from rimbot.player_commands import apply_command
-from rimbot.shell_site import ShellSiteRefusal,ZONE_ARGUMENTS
-from rimbot.spatial import projected_obstruction
-from rimbot.colony_plan import Placement
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.colony_plan import PlanStep
+from rimgovernor.construction_preflight import preflight_construction
+from rimgovernor.hands import Hands
+from rimgovernor.headless import isolated_root,prepare
+from rimgovernor.player_commands import apply_command
+from rimgovernor.shell_site import ShellSiteRefusal,ZONE_ARGUMENTS
+from rimgovernor.spatial import projected_obstruction
+from rimgovernor.colony_plan import Placement
+from rimgovernor.store import Store
 
 
 async def run(args):

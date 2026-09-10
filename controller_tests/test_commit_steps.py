@@ -1,5 +1,5 @@
 import pytest
-from rimbot.colony_plan import ColonyPlan, PlanSpec, CommitSteps
+from rimgovernor.colony_plan import ColonyPlan, PlanSpec, CommitSteps
 
 
 def request():

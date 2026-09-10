@@ -2,10 +2,10 @@ from copy import deepcopy
 
 import pytest
 
-from rimbot.player_commands import AdoptRoom, apply_command
-from rimbot.room_geometry import articulation_cells, irregular_aisle
-from rimbot.shelter_handoff import player_shelter, verified_room
-from rimbot.colony_skills import SkillBlocked
+from rimgovernor.player_commands import AdoptRoom, apply_command
+from rimgovernor.room_geometry import articulation_cells, irregular_aisle
+from rimgovernor.shelter_handoff import player_shelter, verified_room
+from rimgovernor.colony_skills import SkillBlocked
 from test_room_adoption import fixture
 
 
@@ -61,7 +61,7 @@ def test_aisle_connects_entrance_and_protects_every_narrow_connector():
     shell=dict(entrance='west',entrance_cell=dict(x=0,z=2))
     aisle=irregular_aisle(shell,cells)
     assert {(4,2),(5,2)}<=aisle<=cells
-    from rimbot.shell_site import connected_cells
+    from rimgovernor.shell_site import connected_cells
     assert connected_cells((1,2),aisle)==aisle
     assert articulation_cells(cells,(1,2))<=aisle
 

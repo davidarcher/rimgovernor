@@ -6,7 +6,7 @@ orders and clock windows come from the shared controller; no damage/gear edits.
 import argparse
 import asyncio
 from pathlib import Path
-from rimbot.bridge_observation import observe
+from rimgovernor.bridge_observation import observe
 
 
 async def run_raid(rt,evidence):

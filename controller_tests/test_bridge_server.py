@@ -2,8 +2,8 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import httpx
 import pytest
-from rimbot.bridge_server import create_app
-from rimbot.bridge_game import BridgeGame
+from rimgovernor.bridge_server import create_app
+from rimgovernor.bridge_game import BridgeGame
 
 @pytest.mark.asyncio
 async def test_only_native_routes_and_local_mutations():
@@ -14,8 +14,8 @@ async def test_only_native_routes_and_local_mutations():
         assert (await client.get('/api/health')).json()['backend']=='rimbridge'
         assert (await client.get('/rimapi/api/v1/map')).status_code==404
         assert (await client.post('/api/chat',json={'text':'hello'})).status_code==403
-        assert (await client.post('/api/chat',json={'text':'hello'},headers={'X-RimBot':'1','Origin':'http://external.example'})).status_code==403
-        assert (await client.post('/api/chat',json={'text':'hello'},headers={'X-RimBot':'1'})).status_code==202
+        assert (await client.post('/api/chat',json={'text':'hello'},headers={'X-RimGovernor':'1','Origin':'http://external.example'})).status_code==403
+        assert (await client.post('/api/chat',json={'text':'hello'},headers={'X-RimGovernor':'1'})).status_code==202
         rt.steer.assert_awaited_once_with('hello', request_id=None, session_id=None)
 
 @pytest.mark.asyncio
@@ -40,8 +40,8 @@ async def test_notebook_delete_requires_local_header_and_versioned_body():
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://testserver') as client:
         body={'session_id':'colony-load','version':'a'*64}
         assert (await client.request('DELETE','/api/memories/camp',json=body)).status_code==403
-        assert (await client.request('DELETE','/api/memories/camp',json={},headers={'X-RimBot':'1'})).status_code==422
-        response=await client.request('DELETE','/api/memories/camp',json=body,headers={'X-RimBot':'1'})
+        assert (await client.request('DELETE','/api/memories/camp',json={},headers={'X-RimGovernor':'1'})).status_code==422
+        response=await client.request('DELETE','/api/memories/camp',json=body,headers={'X-RimGovernor':'1'})
         assert response.json()=={'deleted':'camp'}
         rt.forget_memory.assert_awaited_once_with('camp','colony-load','a'*64)
 
@@ -50,7 +50,7 @@ async def test_notebook_delete_requires_local_header_and_versioned_body():
 async def test_video_viewers_are_independent_and_expire():
     rt=SimpleNamespace(video_viewers={'expired':0})
     app=create_app(rt);app.state.rt=rt
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://testserver',headers={'X-RimBot':'1'}) as client:
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://testserver',headers={'X-RimGovernor':'1'}) as client:
         for viewer in ['one','two']:
             assert (await client.post('/api/video',json={'viewer':viewer,'playing':True})).status_code==200
         assert set(rt.video_viewers)=={'one','two'}

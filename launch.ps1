@@ -3,8 +3,8 @@ param([int]$Port=8787,[string]$Model='qwen3.5-9b',[string]$ModelsConfig='', [swi
 $ErrorActionPreference='Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $taskPython=Join-Path $PSScriptRoot '.venv/Scripts/python.exe'
-$taskRoot=Join-Path $PSScriptRoot '.rimbot/bridge'
-if (!(Test-Path $taskPython) -or !(Test-Path 'controller/rimbot/static/index.html')) { throw 'Run setup.ps1 first.' }
+$taskRoot=Join-Path $PSScriptRoot '.rimgovernor/bridge'
+if (!(Test-Path $taskPython) -or !(Test-Path 'controller/rimgovernor/static/index.html')) { throw 'Run setup.ps1 first.' }
 if (!(Test-Path "$taskRoot/config/config.json") -or !(Test-Path "$taskRoot/gabs/gabs-v1.1.1-windows-amd64/gabs.exe")) { throw 'Prepare the native bridge profile and GABS first; see README.md.' }
 if ($Port -lt 1024 -or $Port -gt 65535) { throw 'Choose a port between 1024 and 65535.' }
 if ($FreshGame -and $NoGame) { throw 'Use either FreshGame or NoGame.' }
@@ -24,10 +24,10 @@ if ($taskHealth) {
  if ($Headless -and $taskGame) { throw 'Close RimWorld before starting headless test mode.' }
  if ($FreshGame -and $taskGame) { throw 'Close RimWorld before starting a fresh fixture.' }
  if ($NoGame -and !$taskGame) { throw 'NoGame requires a running game with RimBridgeServer.' }
- $env:RIMBOT_MODEL=$Model
- $env:RIMBOT_HEADLESS=if($Headless){'1'}else{'0'}
- if ($ModelsConfig) { $env:RIMBOT_MODELS_CONFIG=(Resolve-Path -LiteralPath $ModelsConfig).Path } else { Remove-Item Env:RIMBOT_MODELS_CONFIG -ErrorAction SilentlyContinue }
- $taskArguments=@('-m','rimbot','--port',"$Port")
+ $env:RIMGOVERNOR_MODEL=$Model
+ $env:RIMGOVERNOR_HEADLESS=if($Headless){'1'}else{'0'}
+ if ($ModelsConfig) { $env:RIMGOVERNOR_MODELS_CONFIG=(Resolve-Path -LiteralPath $ModelsConfig).Path } else { Remove-Item Env:RIMGOVERNOR_MODELS_CONFIG -ErrorAction SilentlyContinue }
+ $taskArguments=@('-m','rimgovernor','--port',"$Port")
  if ($FreshGame -or (!$NoGame -and !$taskGame)) { $taskArguments+='--fresh-game' }
  if ($Reload) { $taskArguments+='--reload' }
  $taskStamp=Get-Date -Format 'yyyyMMdd-HHmmss'

@@ -2,8 +2,8 @@
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework><LangVersion>latest</LangVersion>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-    <AssemblyName>RimBot.CombatFixtures.BridgeTools</AssemblyName>
-    <OutputPath>../../.rimbot/combat-fixtures/</OutputPath>
+    <AssemblyName>RimGovernor.CombatFixtures.BridgeTools</AssemblyName>
+    <OutputPath>../../.rimgovernor/combat-fixtures/</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <DebugType>none</DebugType><CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>

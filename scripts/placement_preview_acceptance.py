@@ -1,7 +1,7 @@
 """Compare native placement previews without issuing construction or advancing time."""
 import time
 import json
-from rimbot.bridge import BridgeError
+from rimgovernor.bridge import BridgeError
 
 
 def facts(payload):
@@ -17,7 +17,7 @@ async def compare_placement_previews(rt):
                    for i, (name, material) in enumerate([('Door','WoodLog'), ('Door','Steel'),
                                                         ('SleepingSpot',''), ('SleepingSpot','')])]
     candidates += [dict(defName='Wall', x=-1, z=-1, rotation='north', stuff='WoodLog'),
-                   dict(defName='RimBotMissingDefinitionForAcceptance', x=x, z=z, rotation='north', stuff='')]
+                   dict(defName='RimGovernorMissingDefinitionForAcceptance', x=x, z=z, rotation='north', stuff='')]
     arguments = dict(placements=json.dumps(candidates))
     before = await rt.game.query('home/status')
     buildings = facts(await rt.game.query('home/list_buildings', playerOnly=True))

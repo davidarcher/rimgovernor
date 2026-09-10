@@ -8,7 +8,7 @@ are in [save and resume a session](../how-to/save-and-resume.md).
 Startup/reload enters Manual. Saved colony ID plus map scopes durable plans, projects,
 direction, memory and trends; a per-load token invalidates in-flight work. Save after
 identity attachment to retain identity across game restarts. Model changes do not erase
-colony intent. SQLite defaults to `.rimbot/bridge.sqlite`; `RIMBOT_DATA` can isolate
+colony intent. SQLite defaults to `.rimgovernor/bridge.sqlite`; `RIMGOVERNOR_DATA` can isolate
 controller state.
 
 ## Paired checkpoint publication
@@ -18,7 +18,7 @@ Owned DirectPath sessions support paired checkpoints through the local `POST
 pending direction, enters Manual, verifies pause and owned-draft cleanup, then records
 an ordinary native save and a SQLite backup under the writer lock. Identity/tick
 changes, partial saves and unresolved ownership prevent publication. The final manifest
-records hashes for both artifacts. No native save content is edited. `python -m rimbot
+records hashes for both artifacts. No native save content is edited. `python -m rimgovernor
 --resume <checkpoint.json>` validates the pair, restores into a new database, enables
 the private profile's native pause-on-load preference before launch, and checks
 colony/map identity and tick before connecting. Native load may advance one tick; larger
@@ -65,7 +65,7 @@ Migration checks the persisted GABS DirectPath workload claim against the observ
 PID and retains a Windows handle with the claim's raw FILETIME birth fingerprint.
 Missing birth identity and executable-name cleanup fallbacks are refused.
 The pinned GABS v1.1.1 source (`b5f441a04fa908852fdece18a08a8876ac970a4d`)
-owns the process claims, birth checks, lease recovery and shutdown join. RimBot
+owns the process claims, birth checks, lease recovery and shutdown join. RimGovernor
 uses those existing operations rather than introducing a second game-process manager.
 Durable phase records bracket suspension, backup, takeover, native save, game stop,
 controller stop and replacement startup. A pending stop requires inspection before
@@ -122,7 +122,7 @@ simulation; map trade requires adjacency. Native watch presentation is off unles
 player enables action follow for the current load. Native game eligibility remains
 authoritative. The server binds to loopback and guards dashboard mutations with
 same-origin/header checks. Model configuration accepts HTTP loopback endpoints by
-default. `RIMBOT_ALLOW_DOCKER_HOST_MODEL=1` also permits `host.docker.internal` for the
+default. `RIMGOVERNOR_ALLOW_DOCKER_HOST_MODEL=1` also permits `host.docker.internal` for the
 explicitly configured host LM Studio URL, with no paid-provider fallback. Container
 servers bind inside their network namespace; Compose publishes only a host loopback
 port.

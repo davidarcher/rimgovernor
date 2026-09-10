@@ -13,7 +13,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     for name in ('game','mods','profile','gabs','output'):
         parser.add_argument('--'+name,type=Path,required=True)
-    parser.add_argument('--image',default='rimbot-b13:worker')
+    parser.add_argument('--image',default='rimgovernor-b13:worker')
     parser.add_argument('--no-build',action='store_true')
     args=parser.parse_args()
     output=args.output.resolve();output.mkdir(parents=True,exist_ok=False)
@@ -26,7 +26,7 @@ def main():
             call('build','-f','containers/Dockerfile','--target','worker','-t',args.image,'.',
                  stdout=log,stderr=subprocess.STDOUT,check=True,timeout=1800)
     image=call('image','inspect','--format','{{.Id}}',args.image,capture_output=True,text=True,check=True).stdout.strip()
-    name='rimbot-b13-'+uuid.uuid4().hex[:10]
+    name='rimgovernor-b13-'+uuid.uuid4().hex[:10]
     require_dashboard_image(call, image)
     mounts=[]
     for key in ('game','mods','profile','gabs'):

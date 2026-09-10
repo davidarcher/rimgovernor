@@ -68,7 +68,7 @@ async def take_control(body: TakeControl, request: Request):
         await guard()
         if rt.clock.get('paused') is not True:
             raise ValueError('Native pause was not confirmed; player control was not acknowledged')
-        if not rt.headless and os.environ.get('RIMBOT_PRIVATE_DISPLAY') == '1':
+        if not rt.headless and os.environ.get('RIMGOVERNOR_PRIVATE_DISPLAY') == '1':
             arguments = {'action': 'take', 'owner': lease.token}
             await camera_contract(rt, 'home/player_input', arguments)
             native = await camera_call(rt, 'home/player_input', arguments)

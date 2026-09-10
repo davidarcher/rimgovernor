@@ -3,9 +3,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.colony_plan import ColonyPlan, TradeAction
-from rimbot.trade_policy import economic_reserves, select_trade
-from rimbot.trading import execute_trade
+from rimgovernor.colony_plan import ColonyPlan, TradeAction
+from rimgovernor.trade_policy import economic_reserves, select_trade
+from rimgovernor.trading import execute_trade
 
 
 def fixture():
@@ -133,7 +133,7 @@ async def test_selected_quantities_and_native_atomic_floors(changed_quantity):
 @pytest.mark.asyncio
 async def test_economic_command_enters_shared_plan_without_native_writes(tmp_path):
     from test_strategic_architecture import runtime, batch
-    from rimbot.player_commands import apply_command
+    from rimgovernor.player_commands import apply_command
     rt = runtime(tmp_path)
     try:
         await rt.sync_identity()

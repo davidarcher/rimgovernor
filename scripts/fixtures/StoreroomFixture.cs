@@ -129,7 +129,7 @@ namespace HomeBridge.BridgeTools
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 failConstruction = constructionFailure;
                 if (constructionFailure && !failureHook) {
-                    new Harmony("rimbot.fixture.construction-fumble").Patch(AccessTools.Method(typeof(Frame), nameof(Frame.CompleteConstruction)),
+                    new Harmony("rimgovernor.fixture.construction-fumble").Patch(AccessTools.Method(typeof(Frame), nameof(Frame.CompleteConstruction)),
                         prefix: new HarmonyMethod(typeof(StoreroomFixture), nameof(FailOnce)));
                     failureHook = true;
                 }

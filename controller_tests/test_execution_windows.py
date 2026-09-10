@@ -3,9 +3,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.colony_plan import PlanSpec, StepProgress
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.colony_plan import PlanSpec, StepProgress
+from rimgovernor.store import Store
 
 
 def runtime(tmp_path, state='waiting', confirmed=True):
@@ -74,7 +74,7 @@ async def test_confirmed_work_gets_bounded_window_then_pauses_for_review(tmp_pat
 
 @pytest.mark.asyncio
 async def test_native_fire_watch_uses_normal_speed_and_sixty_tick_review(tmp_path):
-    from rimbot.colony_plan import ColonyGoal
+    from rimgovernor.colony_plan import ColonyGoal
     rt, store = runtime(tmp_path, 'complete')
     from dataclasses import replace
     rt.controller.policy = replace(rt.controller.policy, execution_speed='Superfast')
@@ -128,7 +128,7 @@ async def test_review_pauses_before_observation_and_never_unpauses_before_orders
         rt.supervisor.change.assert_awaited_once_with('Paused')
         assert rt.deliberating
         return None
-    monkeypatch.setattr('rimbot.bridge_runtime.observe', observe)
+    monkeypatch.setattr('rimgovernor.bridge_runtime.observe', observe)
     rt.planner = SimpleNamespace(play_bridge=AsyncMock())
     rt.controller.cycle = AsyncMock()
     try:
@@ -198,7 +198,7 @@ async def test_blocked_emergency_prevents_time_even_with_waiting_construction(tm
 @pytest.mark.asyncio
 @pytest.mark.parametrize('state,profile',[('complete','combat'),('blocked','colony'),('pending','colony')])
 async def test_combat_clock_acknowledges_only_a_dispatched_active_defense(tmp_path,state,profile):
-    from rimbot.colony_plan import ColonyGoal
+    from rimgovernor.colony_plan import ColonyGoal
     rt,store=runtime(tmp_path)
     try:
         rt.current_plan.control['combat']={'target':'Thing_Hare1','steps':['attack']}
@@ -215,7 +215,7 @@ async def test_combat_clock_acknowledges_only_a_dispatched_active_defense(tmp_pa
 @pytest.mark.asyncio
 @pytest.mark.parametrize('health', [0.4, 0.5, None, float('nan')])
 async def test_combat_rearm_holds_existing_injury_without_starting_clock(tmp_path, health):
-    from rimbot.colony_plan import ColonyGoal
+    from rimgovernor.colony_plan import ColonyGoal
     rt, store = runtime(tmp_path)
     try:
         rt.current_plan.control['combat'] = {'target': 'Thing_Hare1', 'steps': ['attack']}

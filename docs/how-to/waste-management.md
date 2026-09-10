@@ -10,7 +10,7 @@ replace DLLs in an installation used by a running game.
 
 Build a task-specific worker image using `containers/Dockerfile --target worker`.
 Run it with fresh writable output and the native inputs mounted read-only. Pass
-the ordinary `rimbot.container_worker` input arguments and this command:
+the ordinary `rimgovernor.container_worker` input arguments and this command:
 
 ```text
 -- python /app/scripts/waste_acceptance.py
@@ -22,7 +22,7 @@ maintained goal through player admission, compiles the deterministic method,
 executes with Hands and waits for actual pawn delivery. It verifies that receipt
 acceptance remains waiting and that relocated items still exist.
 
-Run a second fresh worker with Docker environment `RIMBOT_WASTE_BURIAL=1` to prepare
+Run a second fresh worker with Docker environment `RIMGOVERNOR_WASTE_BURIAL=1` to prepare
 a named colony corpse and an accepting grave. The case verifies protection without
 burial authority, explicitly requests burial, observes the exact body inside its
 grave and refuses exhumation. Setup may create test objects; acceptance actions use

@@ -3,7 +3,7 @@
 [Documentation](../README.md) · [Local colonies](local-colonies.md)
 
 Use `scripts/container_scenario.py` for new script-based native runs. It stages
-private inputs through `rimbot.container_worker`, pins the image, publishes a free
+private inputs through `rimgovernor.container_worker`, pins the image, publishes a free
 loopback dashboard port and removes only its own container when the command exits
 or times out. It preserves logs, the URL in `dashboard.json` and exit/cleanup evidence
 in `result.json`. Command success does not replace the scenario's native assertions.
@@ -18,7 +18,7 @@ Host-side runtime files appear after export; use the dashboard during execution.
 From the checkout root, with [prepared Linux inputs](docker-inputs.md):
 
 ```powershell
-python scripts/container_scenario.py --game <linux-game> --mods <private-mods> --profile <prepared-profile> --gabs <linux-gabs-directory> --output .rimbot/watch-01 --image rimbot-worker:watch-01 --name "Observer acceptance" -- python scripts/scenario_dashboard_acceptance.py --seconds 30
+python scripts/container_scenario.py --game <linux-game> --mods <private-mods> --profile <prepared-profile> --gabs <linux-gabs-directory> --output .rimgovernor/watch-01 --image rimgovernor-worker:watch-01 --name "Observer acceptance" -- python scripts/scenario_dashboard_acceptance.py --seconds 30
 ```
 
 The GABS input is a directory containing `gabs`. Output must be fresh. Open the
@@ -39,7 +39,7 @@ observer shows already-retained frames; it does not turn on capture or alter tim
 
 ## Shared contract
 
-The worker enables `RIMBOT_SCENARIO_DASHBOARD=1` for custom scenario commands.
+The worker enables `RIMGOVERNOR_SCENARIO_DASHBOARD=1` for custom scenario commands.
 `BridgeRuntime` registers with a single observer on the scenario's event loop,
 including manually driven runtimes. Registration never calls `start`, launches a
 game, reads native state or owns the runtime lifecycle. A replacement runtime becomes

@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 from execution_acceptance_smoke import setup
-from rimbot.native_trials import ReusableGame
+from rimgovernor.native_trials import ReusableGame
 
 
 async def main(args):
@@ -48,6 +48,6 @@ async def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--source-root', type=Path, default=Path('.rimbot/bridge'))
+    parser.add_argument('--source-root', type=Path, default=Path('.rimgovernor/bridge'))
     parser.add_argument('--output', type=Path, required=True)
     raise SystemExit(0 if asyncio.run(main(parser.parse_args())) else 1)

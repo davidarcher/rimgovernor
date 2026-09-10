@@ -1,21 +1,21 @@
 import json
 from pathlib import Path
 import pytest
-from rimbot.container_worker import stage
-from rimbot.bridge import gabs_executable
-from rimbot.config import Settings
+from rimgovernor.container_worker import stage
+from rimgovernor.bridge import gabs_executable
+from rimgovernor.config import Settings
 
 
 def inputs(tmp_path):
     game, mods, profile = [tmp_path/name for name in ('game', 'mods', 'profile')]
     for root, name, content in [
         (game, 'RimWorldLinux', b'linux'),
-        (mods, 'RimBotHeadless/Assemblies/HeadlessRimPatch.dll', b'first'),
+        (mods, 'RimGovernorHeadless/Assemblies/HeadlessRimPatch.dll', b'first'),
         (mods, 'RimBridgeServer/About/About.xml', b'<ModMetaData/>'),
-        (mods, 'RimBotObservations/About/About.xml', b'<ModMetaData/>'),
+        (mods, 'RimGovernorObservations/About/About.xml', b'<ModMetaData/>'),
         (profile, 'Config/Prefs.xml', b'<Prefs/>'),
         (profile, 'Config/ModsConfig.xml', b'<ModsConfigData><activeMods><li>ludeon.rimworld</li></activeMods></ModsConfigData>'),
-        (profile, 'Saves/RimBot-tribal8-baseline.rws', b'unchanged save'),
+        (profile, 'Saves/RimGovernor-tribal8-baseline.rws', b'unchanged save'),
     ]:
         path = root/name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -28,20 +28,20 @@ def inputs(tmp_path):
 def test_workers_snapshot_binaries_profiles_and_claims(tmp_path):
     sources = inputs(tmp_path)
     a, b = [stage(*sources, tmp_path/name) for name in ('a', 'b')]
-    dll = Path('game/Mods/RimBotHeadless/Assemblies/HeadlessRimPatch.dll')
-    (sources[1]/'RimBotHeadless/Assemblies/HeadlessRimPatch.dll').write_bytes(b'next build')
+    dll = Path('game/Mods/RimGovernorHeadless/Assemblies/HeadlessRimPatch.dll')
+    (sources[1]/'RimGovernorHeadless/Assemblies/HeadlessRimPatch.dll').write_bytes(b'next build')
     assert (a/dll).read_bytes() == (b/dll).read_bytes() == b'first'
     (a/dll).write_bytes(b'worker change')
     assert (b/dll).read_bytes() == b'first'
     for root in (a, b):
         config = json.loads((root/'config-headless/config.json').read_text())
-        game = config['games']['rimbot-trial']
+        game = config['games']['rimgovernor-trial']
         assert game['target'] == str(root/'game/RimWorldLinux')
         assert game['workingDir'] == str(root/'game')
         assert game['launchMode'] == 'DirectPath' and 'stopProcessName' not in game
         assert game['args'][0] == '-savedatafolder='+str(root/'headless-profile')
         assert gabs_executable(root) == root/'gabs/gabs'
-        assert (root/'profile/Saves/RimBot-tribal8-baseline.rws').read_bytes() == b'unchanged save'
+        assert (root/'profile/Saves/RimGovernor-tribal8-baseline.rws').read_bytes() == b'unchanged save'
         assert str(dll).replace('\\', '/') in {key.replace('\\', '/') for key in json.loads((root/'inputs.json').read_text())}
     with pytest.raises((FileExistsError, ValueError)):
         stage(*sources, a)
@@ -62,10 +62,10 @@ def test_nested_worker_refused(tmp_path):
 
 
 def test_docker_model_requires_explicit_opt_in(monkeypatch):
-    monkeypatch.delenv('RIMBOT_ALLOW_DOCKER_HOST_MODEL', raising=False)
+    monkeypatch.delenv('RIMGOVERNOR_ALLOW_DOCKER_HOST_MODEL', raising=False)
     with pytest.raises(ValueError):
         Settings(model_url='http://host.docker.internal:1234/v1')
-    monkeypatch.setenv('RIMBOT_ALLOW_DOCKER_HOST_MODEL', '1')
+    monkeypatch.setenv('RIMGOVERNOR_ALLOW_DOCKER_HOST_MODEL', '1')
     assert Settings(model_url='http://host.docker.internal:1234/v1').model_url.endswith('/v1')
     for url in ['https://api.openai.com/v1', 'http://192.168.1.2:1234/v1',
                 'http://host.docker.internal.evil/v1', 'http://user@host.docker.internal/v1']:
@@ -74,7 +74,7 @@ def test_docker_model_requires_explicit_opt_in(monkeypatch):
 
 
 def test_linux_gabs_is_private_in_cloned_profile(tmp_path):
-    from rimbot.headless import isolated_root
+    from rimgovernor.headless import isolated_root
     sources = inputs(tmp_path)
     root = stage(*sources, tmp_path/'original')
     clone = isolated_root(root, tmp_path/'clone')
@@ -87,9 +87,9 @@ def test_container_local_game_keeps_artifacts_external(tmp_path):
     sources = inputs(tmp_path)
     root = stage(*sources, tmp_path/'artifacts', tmp_path/'private-game')
     config = json.loads((root/'config/config.json').read_text())
-    assert config['games']['rimbot-trial']['workingDir'] == str(tmp_path/'private-game')
+    assert config['games']['rimgovernor-trial']['workingDir'] == str(tmp_path/'private-game')
     assert not (root/'game').exists()
-    assert (root/'headless-profile/Saves/RimBot-tribal8-baseline.rws').is_file()
+    assert (root/'headless-profile/Saves/RimGovernor-tribal8-baseline.rws').is_file()
     assert 'game/RimWorldLinux' in json.loads((root/'inputs.json').read_text())
     with pytest.raises(ValueError, match='fresh'):
         stage(*sources, tmp_path/'another-root', tmp_path/'private-game')
@@ -116,12 +116,12 @@ def test_gc_mitigation_changes_only_private_boot_config(tmp_path):
 
 
 def test_rendered_worker_preserves_sources_and_uses_private_display(tmp_path):
-    from rimbot.virtual_display import DisplaySettings
+    from rimgovernor.virtual_display import DisplaySettings
     sources = inputs(tmp_path)
-    (sources[1]/'RimBotHeadless/Assemblies/HeadlessRimPatch.dll').unlink()
+    (sources[1]/'RimGovernorHeadless/Assemblies/HeadlessRimPatch.dll').unlink()
     original = (sources[2]/'Config/ModsConfig.xml').read_bytes()
     root = stage(*sources, tmp_path/'rendered', display=DisplaySettings.parse('1600x900'))
-    args = json.loads((root/'config/config.json').read_text())['games']['rimbot-trial']['args']
+    args = json.loads((root/'config/config.json').read_text())['games']['rimgovernor-trial']['args']
     assert '-nographics' not in args and '-batchmode' not in args
     assert args[args.index('-screen-width')+1] == '1600'
     assert args[args.index('-screen-height')+1] == '900'
@@ -138,6 +138,6 @@ def test_rendered_worker_preserves_sources_and_uses_private_display(tmp_path):
 
 @pytest.mark.parametrize('resolution', ['0x720', '1280x0', '3841x2160', '640x2161', '1280;echo x', '-1x720'])
 def test_display_rejects_invalid_dimensions(resolution):
-    from rimbot.virtual_display import DisplaySettings
+    from rimgovernor.virtual_display import DisplaySettings
     with pytest.raises(ValueError):
         DisplaySettings.parse(resolution)

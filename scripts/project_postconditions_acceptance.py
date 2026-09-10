@@ -8,11 +8,11 @@ import traceback
 
 from deterministic_foothold import NoInference
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.colony_plan import CommitSteps, Decision, PlanStep
-from rimbot.headless import isolated_root, prepare
-from rimbot.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.colony_plan import CommitSteps, Decision, PlanStep
+from rimgovernor.headless import isolated_root, prepare
+from rimgovernor.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
+from rimgovernor.store import Store
 
 
 async def run(args):
@@ -160,7 +160,7 @@ async def run(args):
             and rt.current_plan.progress['farm'].issued == original_receipts['farm'] and rt.counters['actions'] == 0)
         old_token, old_revision = rt.context_token, rt.chat_revision
         before = rt.counters['actions']
-        await rt.bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline', readiness='visual', timeoutMs=90000)
+        await rt.bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline', readiness='visual', timeoutMs=90000)
         await rt.sync_identity()
         rt.manual_requests = [('dependent', old_token, old_revision)]
         await rt.execute_manual_requests()

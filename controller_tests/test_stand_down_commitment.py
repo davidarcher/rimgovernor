@@ -3,11 +3,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.colony_plan import ColonyPlan, Decision, PlanSpec, StepProgress
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.config import ModelRole
-from rimbot.native_contracts import validate_stand_down_steps
-from rimbot.store import Store
+from rimgovernor.colony_plan import ColonyPlan, Decision, PlanSpec, StepProgress
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.config import ModelRole
+from rimgovernor.native_contracts import validate_stand_down_steps
+from rimgovernor.store import Store
 
 
 def release(identity='release', after=(), pawn='Thing_A'):

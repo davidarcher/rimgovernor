@@ -329,7 +329,7 @@ class ColonySkills:
                 goal.evidence['field_capacity']={'selected_cells':sum(p['width']*p['height'] for p in patches),
                     'minimum_growing_cells':facts['colonists']*10}
                 if patches:
-                    return initial_method, [{'kind': 'create_zone', 'zone_type': 'growing', 'label': 'RimBot food',
+                    return initial_method, [{'kind': 'create_zone', 'zone_type': 'growing', 'label': 'RimGovernor food',
                                      'crop': crop, 'patches': patches}]
             if crop and (not unused(initial_method) or any(f.get('edible') and f.get('usableCells',0)>0
                     for f in facts.get('farms',[]))) and facts.get('indoorSleepingCapacity',0)>=facts['colonists']:
@@ -343,7 +343,7 @@ class ColonySkills:
                 patches=growth_fields(rt.current_plan,facts,rt.controller.policy.food_target_days)
                 method=initial_method+'-expand-'+fingerprint(patches)[:8]
                 if patches and unused(method):
-                    return method,[{'kind':'create_zone','zone_type':'growing','label':'RimBot '+method,
+                    return method,[{'kind':'create_zone','zone_type':'growing','label':'RimGovernor '+method,
                         'crop':crop,'patches':patches}]
             if facts.get('foodRunwayDays', 0) < rt.controller.policy.food_target_days and facts.get('armed', 0):
                 butcher = facts.get('butchering', [])

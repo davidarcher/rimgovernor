@@ -1,6 +1,6 @@
 {
   "files.watcherExclude": {
     "**/.worktrees/**": true,
-    "**/.rimbot/**": true
+    "**/.rimgovernor/**": true
   }
 }

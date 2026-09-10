@@ -8,7 +8,7 @@ environment. The image build also checks and builds the dashboard.
 
 ## Before you start
 
-Use a checkout of RimBot, Python 3.12+ and a running Docker Engine or Docker Desktop
+Use a checkout of RimGovernor, Python 3.12+ and a running Docker Engine or Docker Desktop
 with Linux containers. The first build needs network access to image and package
 registries. Open PowerShell in the repository root. If other work is active, use your
 task's separate worktree.
@@ -30,7 +30,7 @@ Choose a new output directory. For this exercise, use the following name only if
 not already exist; the runner creates it for you.
 
 ```powershell
-python scripts/container_checks.py --workers 1 --image rimbot-checks:first-test --output .rimbot/first-docker-test
+python scripts/container_checks.py --workers 1 --image rimgovernor-checks:first-test --output .rimgovernor/first-docker-test
 $LASTEXITCODE
 ```
 
@@ -41,8 +41,8 @@ result manifest after the worker finishes. A successful run returns exit code `0
 ## 3. Read the evidence
 
 ```powershell
-Get-Content .rimbot/first-docker-test/result.json
-Get-Content .rimbot/first-docker-test/0/pytest.log -Tail 20
+Get-Content .rimgovernor/first-docker-test/result.json
+Get-Content .rimgovernor/first-docker-test/0/pytest.log -Tail 20
 ```
 
 In `result.json`, find `passed: true`, the immutable `image` ID and the single worker's
@@ -50,13 +50,13 @@ In `result.json`, find `passed: true`, the immutable `image` ID and the single w
 including platform skips. Windows-only behavior is not tested by this Linux run.
 
 If the image failed to build, there may be no result manifest. Read
-`.rimbot/first-docker-test/build.log` and keep the failed output directory. After fixing
+`.rimgovernor/first-docker-test/build.log` and keep the failed output directory. After fixing
 the reported cause, use a new directory for the next attempt.
 
 ## 4. Locate the retained artifacts
 
 ```powershell
-Get-ChildItem .rimbot/first-docker-test/0
+Get-ChildItem .rimgovernor/first-docker-test/0
 ```
 
 The directory contains `pytest.log`, `junit.xml` and `cleanup.log`. The runner removes

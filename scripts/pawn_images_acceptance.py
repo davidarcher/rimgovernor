@@ -5,9 +5,9 @@ import base64
 import json
 from pathlib import Path
 
-from rimbot.bridge import bridge_session, gabs_executable, runtime_file_read
-from rimbot.clock_control import PlayClock
-from rimbot.headless import isolated_root, prepare_rendered, rendered_headless_mismatch
+from rimgovernor.bridge import bridge_session, gabs_executable, runtime_file_read
+from rimgovernor.clock_control import PlayClock
+from rimgovernor.headless import isolated_root, prepare_rendered, rendered_headless_mismatch
 
 
 async def run(args):
@@ -20,7 +20,7 @@ async def run(args):
     if args.game_root:
         path = config_dir / 'config.json'
         config = json.loads(path.read_text())
-        game = config['games']['rimbot-trial']
+        game = config['games']['rimgovernor-trial']
         game['target'] = str(args.game_root / 'RimWorldWin64.exe')
         game['workingDir'] = str(args.game_root)
         path.write_text(json.dumps(config, indent=2))
@@ -42,7 +42,7 @@ async def run(args):
                     return result
                 await bridge.core('games_start', gameId=bridge.game_id)
                 await bridge.connect()
-                await read('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',
+                await read('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                            readiness='visual', timeoutMs=90000,
                            ignoreModCompatibility=rendered_headless_mismatch(root))
                 clock = PlayClock(bridge)
@@ -77,7 +77,7 @@ async def run(args):
                 for field in ('selectedCount', 'selectionFingerprint', 'selectedObjects'):
                     assert report['selection_before'][field] == report['selection_after'][field]
                 assert (await read('home/colony_identity'))['tick'] == identity['tick']
-                from rimbot.bridge import BridgeError
+                from rimgovernor.bridge import BridgeError
                 try:
                     report['stale_refusal'] = (await bridge.call('home/pawn_image', pawnId=pawn['thingId'], sessionId='old', view='follow')).structuredContent
                     assert report['stale_refusal'].get('success') is not True

@@ -2,7 +2,7 @@
 
 [Documentation](../README.md) · [System overview](overview.md)
 
-RimBot must know which world a piece of work belongs to. A colony identity and map scope
+RimGovernor must know which world a piece of work belongs to. A colony identity and map scope
 durable intent, while a load token identifies the current loaded instance. Reloading the
 same colony can preserve its goals without granting old in-flight operations permission
 to act in the new load.

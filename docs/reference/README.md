@@ -8,6 +8,7 @@ conceptual introduction, start with [the system overview](../explanation/overvie
 ## Locate the implementation
 
 - [Source map](source-map.md)
+- [Project names and deployment identity](project-identity.md)
 - [Terms used in the internals](glossary.md)
 
 ## Decision and execution contracts

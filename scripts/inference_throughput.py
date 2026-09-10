@@ -6,11 +6,11 @@ import json
 import time
 from pathlib import Path
 
-from rimbot.config import Settings, ModelRole, load_model_routing
-from rimbot.model import LocalModel
-from rimbot.model_router import ModelRouter
-from rimbot.player_commands import semantic_tools
-from rimbot.store import Store
+from rimgovernor.config import Settings, ModelRole, load_model_routing
+from rimgovernor.model import LocalModel
+from rimgovernor.model_router import ModelRouter
+from rimgovernor.player_commands import semantic_tools
+from rimgovernor.store import Store
 from semantic_command_benchmark import CASES, FACTS, score
 
 

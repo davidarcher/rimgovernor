@@ -5,11 +5,11 @@ from unittest.mock import AsyncMock
 from jsonschema import Draft202012Validator
 import pytest
 
-from rimbot.colony_plan import CommitSteps, Decision, RoomShell, Zone
-from rimbot.consultation import structured_tool
-from rimbot.execution_contracts import ExecutionContracts
-from rimbot.hands import Hands
-from rimbot.model import inference_tools
+from rimgovernor.colony_plan import CommitSteps, Decision, RoomShell, Zone
+from rimgovernor.consultation import structured_tool
+from rimgovernor.execution_contracts import ExecutionContracts
+from rimgovernor.hands import Hands
+from rimgovernor.model import inference_tools
 
 
 def action():
@@ -133,7 +133,7 @@ def test_room_bounds_advertise_interior_minimum_without_restricting_zone_patches
 
 @pytest.mark.asyncio
 async def test_unknown_native_crop_is_refused_without_substitution():
-    from rimbot.hands import Blocked
+    from rimgovernor.hands import Blocked
     zone = Zone.model_validate(dict(action(), crop='UnknownToNative'))
     rt = SimpleNamespace(mode='automate', context_token='load', chat_revision=0, handled_revision=0,
         current_plan=SimpleNamespace(revision=0),
@@ -148,7 +148,7 @@ async def test_unknown_native_crop_is_refused_without_substitution():
 
 @pytest.mark.asyncio
 async def test_invalid_crop_preflight_leaves_new_zone_uncreated():
-    from rimbot.hands import Blocked
+    from rimgovernor.hands import Blocked
     zone = Zone.model_validate(dict(action(), crop='UnknownToNative'))
     rt = SimpleNamespace(game=SimpleNamespace(query=AsyncMock(return_value={'zones': []})),
         inspect_native=AsyncMock(return_value={'success':False, 'error':'No sowable ground plant matches UnknownToNative'}),

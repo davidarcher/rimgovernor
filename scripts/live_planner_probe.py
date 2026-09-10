@@ -9,7 +9,7 @@ import httpx
 def run(url, seconds, output):
     report = {'kind':'live_model_probe', 'starter_base_verified':False, 'events':[],
               'first_order_seconds':None, 'first_completed_step_seconds':None}
-    with httpx.Client(base_url=url, timeout=20, trust_env=False, headers={'X-RimBot':'1'}) as client:
+    with httpx.Client(base_url=url, timeout=20, trust_env=False, headers={'X-RimGovernor':'1'}) as client:
         def get(path):
             response=client.get(path); response.raise_for_status(); return response.json()
         def control(mode):
@@ -69,7 +69,7 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--url',default='http://127.0.0.1:8787')
     parser.add_argument('--seconds',type=int,default=180)
-    parser.add_argument('--output',type=Path,default=Path('.rimbot/live-planner-probe.json'))
+    parser.add_argument('--output',type=Path,default=Path('.rimgovernor/live-planner-probe.json'))
     args=parser.parse_args()
     if args.seconds<1: parser.error('--seconds must be positive')
     result=run(args.url,args.seconds,args.output)

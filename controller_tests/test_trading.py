@@ -2,10 +2,10 @@ from unittest.mock import AsyncMock, Mock
 from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
-from rimbot.colony_plan import TradeAction
-from rimbot.trading import execute_trade
-from rimbot.colony_plan import ColonyPlan, PlanSpec, StepProgress
-from rimbot.hands import Hands
+from rimgovernor.colony_plan import TradeAction
+from rimgovernor.trading import execute_trade
+from rimgovernor.colony_plan import ColonyPlan, PlanSpec, StepProgress
+from rimgovernor.hands import Hands
 
 
 def action():

@@ -3,7 +3,7 @@
 Uses installed mods read-only. A scripted plan places native-legal fixture
 construction; no model or editor tools are involved. Every trial keeps evidence.
 """
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import argparse
 import asyncio
 from contextlib import contextmanager
@@ -16,15 +16,15 @@ import subprocess
 import time
 import traceback
 
-from rimbot.bridge import bridge_session
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_observation import observe
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.colony_plan import ColonyPlan, Decision, PlanSpec
-from rimbot.config import ModelRole
-from rimbot.headless import isolated_root, prepare
-from rimbot.projects import ProjectBook
-from rimbot.store import Store
+from rimgovernor.bridge import bridge_session
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_observation import observe
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.colony_plan import ColonyPlan, Decision, PlanSpec
+from rimgovernor.config import ModelRole
+from rimgovernor.headless import isolated_root, prepare
+from rimgovernor.projects import ProjectBook
+from rimgovernor.store import Store
 
 
 @contextmanager
@@ -81,7 +81,7 @@ async def main(source, output):
                 print('Starting private headless game', flush=True)
                 report['start'] = (await bridge.core('games_start', gameId=bridge.game_id)).model_dump(mode='json')
                 await bridge.connect()
-                await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',
+                await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                                   readiness='visual', timeoutMs=90000, ignoreModCompatibility=True)
                 await bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
                 rt = BridgeRuntime(store, root)

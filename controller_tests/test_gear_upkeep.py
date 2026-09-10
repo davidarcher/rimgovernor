@@ -1,9 +1,9 @@
 import pytest
-from rimbot.colony_plan import ColonyGoal, NativeOperation, Failure
-from rimbot.colony_skills import SkillBlocked
-from rimbot.gear_upkeep import compile_upkeep, needs_upkeep
-from rimbot.medical_outcome import pawn_order_outcome
-from rimbot.bridge_game import is_write
+from rimgovernor.colony_plan import ColonyGoal, NativeOperation, Failure
+from rimgovernor.colony_skills import SkillBlocked
+from rimgovernor.gear_upkeep import compile_upkeep, needs_upkeep
+from rimgovernor.medical_outcome import pawn_order_outcome
+from rimgovernor.bridge_game import is_write
 
 
 def observation():
@@ -62,8 +62,8 @@ def test_apparel_write_cannot_use_receipt_completion_or_omit_identity():
 @pytest.mark.parametrize('changed', [None, 'load', 'direction', 'stale','missing_receipt','unknown_health','cancelled','wrong_item'])
 def test_uncertain_dressing_reconciles_only_with_fresh_owned_context(changed,completion):
     from types import SimpleNamespace
-    from rimbot.bridge_runtime import BridgeRuntime
-    from rimbot.colony_plan import ColonyPlan, PlanSpec, PlanStep, StepProgress
+    from rimgovernor.bridge_runtime import BridgeRuntime
+    from rimgovernor.colony_plan import ColonyPlan, PlanSpec, PlanStep, StepProgress
     rt = BridgeRuntime.__new__(BridgeRuntime)
     action = compile_upkeep(ColonyGoal(priority_class=3), observation())[1][0]
     if completion=='pawn_equipped':
@@ -90,8 +90,8 @@ def test_uncertain_dressing_reconciles_only_with_fresh_owned_context(changed,com
 @pytest.mark.parametrize('policy,expected', [({}, 'produce'), ({'reserve': 80}, 'blocked'), ({'spending': 'stop'}, 'blocked')])
 async def test_bounded_production_obeys_native_costs_and_resource_policy(policy, expected):
     from types import SimpleNamespace
-    from rimbot.colony_plan import ColonyPlan
-    from rimbot.gear_upkeep import compile_method
+    from rimgovernor.colony_plan import ColonyPlan
+    from rimgovernor.gear_upkeep import compile_method
     goal = ColonyGoal(priority_class=3)
     plan = ColonyPlan(colony_goals={'MaintainEquipment': goal}, control={'resource_policy': {'Cloth': policy}})
     state = observation()
@@ -118,16 +118,16 @@ async def test_bounded_production_obeys_native_costs_and_resource_policy(policy,
 @pytest.mark.asyncio
 async def test_existing_gear_precedes_any_procurement_reads():
     from types import SimpleNamespace
-    from rimbot.colony_plan import ColonyPlan
-    from rimbot.gear_upkeep import compile_method
+    from rimgovernor.colony_plan import ColonyPlan
+    from rimgovernor.gear_upkeep import compile_method
     rt = SimpleNamespace(current_plan=ColonyPlan(colony_goals={'MaintainEquipment': ColonyGoal(priority_class=3)}))
     assert (await compile_method(rt, dict(gearUpkeep=observation())))[1][0]['tool'] == 'home/gear_upkeep'
 
 
 def test_development_scheduler_admits_observed_equipment_deficit():
-    from rimbot.colony_plan import ColonyPlan
-    from rimbot.colony_policy import ColonyPolicy
-    from rimbot.development_priorities import arbitrate, deficit
+    from rimgovernor.colony_plan import ColonyPlan
+    from rimgovernor.colony_policy import ColonyPolicy
+    from rimgovernor.development_priorities import arbitrate, deficit
     goal = ColonyGoal(priority_class=3)
     plan = ColonyPlan(colony_goals={'MaintainEquipment': goal})
     facts = dict(tick=100, gearUpkeep=observation())

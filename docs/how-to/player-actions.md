@@ -6,7 +6,7 @@ Prepare [licensed Linux inputs](docker-inputs.md) and stage current task DLLs in
 private mods directory. Run from the isolated task checkout with local Linux Docker:
 
 ```powershell
-python scripts/container_player_actions.py --game <linux-game> --mods <private-mods> --profile <prepared-profile> --gabs <linux-gabs-directory> --image rimbot-b13:my-task --output .rimbot/player-actions-01
+python scripts/container_player_actions.py --game <linux-game> --mods <private-mods> --profile <prepared-profile> --gabs <linux-gabs-directory> --image rimgovernor-b13:my-task --output .rimgovernor/player-actions-01
 ```
 
 Replace the placeholders with absolute paths. The output directory must not exist.

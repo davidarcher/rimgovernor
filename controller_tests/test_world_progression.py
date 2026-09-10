@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.world_progression import caravan_outcome, quest_outcome, survival_assessment
+from rimgovernor.world_progression import caravan_outcome, quest_outcome, survival_assessment
 
 
 SCOPE = dict(colonyId='colony', loadToken='load', mapId=1)
@@ -99,7 +99,7 @@ def test_invalid_winter_horizons_are_refused(days):
 @pytest.mark.parametrize('accepted', [True, False])
 async def test_quest_request_previews_and_joins_shared_plan_only_if_eligible(tmp_path, accepted):
     from test_strategic_architecture import runtime, batch
-    from rimbot.player_commands import apply_command
+    from rimgovernor.player_commands import apply_command
     rt = runtime(tmp_path)
     await rt.sync_identity()
     rt.batch = batch()
@@ -124,7 +124,7 @@ async def test_quest_request_previews_and_joins_shared_plan_only_if_eligible(tmp
 
 
 def caravan_plan():
-    from rimbot.colony_plan import ColonyPlan, PlanStep, StepProgress
+    from rimgovernor.colony_plan import ColonyPlan, PlanStep, StepProgress
     plan = ColonyPlan()
     plan.spec.steps = [PlanStep(id='trip', title='Trip', source='PLAYER', completion_criteria='Loaded departure',
         action=dict(kind='native_operation', tool='home/caravan', completion='caravan_departed',
@@ -137,8 +137,8 @@ def caravan_plan():
 
 @pytest.mark.parametrize('state', ['waiting', 'cancelled', 'blocked'])
 def test_confirmed_assembly_holds_cargo_until_observed_departure(state):
-    from rimbot.resource_accounting import execution_reservations
-    from rimbot.production_policy import production_budgets
+    from rimgovernor.resource_accounting import execution_reservations
+    from rimgovernor.production_policy import production_budgets
     plan = caravan_plan()
     plan.progress['trip'].state = state
     assert execution_reservations(plan, 'other') == {'Pemmican': 60}
@@ -149,7 +149,7 @@ def test_confirmed_assembly_holds_cargo_until_observed_departure(state):
 
 
 def test_nonworld_native_serialization_preserves_prior_fingerprint():
-    from rimbot.colony_plan import NativeOperation
+    from rimgovernor.colony_plan import NativeOperation
     action = NativeOperation(tool='home/research', arguments={'set': 'A', 'dryRun': False})
     assert action.model_dump_json() == '{"kind":"native_operation","tool":"home/research","arguments":{"set":"A","dryRun":false},"completion":"native_receipt"}'
 
@@ -158,7 +158,7 @@ def test_nonworld_native_serialization_preserves_prior_fingerprint():
 async def test_loaded_departure_completes_shared_action_without_replaying_write():
     from types import SimpleNamespace
     from unittest.mock import Mock
-    from rimbot.world_progression import reconcile_world
+    from rimgovernor.world_progression import reconcile_world
     plan = caravan_plan()
     value = observation()
     pawn = value['caravans'][0]['pawns'][0]
@@ -175,8 +175,8 @@ async def test_loaded_departure_completes_shared_action_without_replaying_write(
 async def test_uncertain_departure_releases_observed_cargo_without_reviving_blocked_work():
     from types import SimpleNamespace
     from unittest.mock import Mock
-    from rimbot.world_progression import reconcile_world
-    from rimbot.resource_accounting import execution_reservations
+    from rimgovernor.world_progression import reconcile_world
+    from rimgovernor.resource_accounting import execution_reservations
     plan = caravan_plan()
     progress = plan.progress['trip']
     progress.state = 'blocked'
@@ -194,8 +194,8 @@ async def test_uncertain_departure_releases_observed_cargo_without_reviving_bloc
 
 @pytest.mark.asyncio
 async def test_cargo_reserve_policy_rejects_admission():
-    from rimbot.colony_plan import ColonyPlan
-    from rimbot.resource_accounting import validate_allocations
+    from rimgovernor.colony_plan import ColonyPlan
+    from rimgovernor.resource_accounting import validate_allocations
     from types import SimpleNamespace
     plan = caravan_plan()
     current = ColonyPlan()
@@ -210,8 +210,8 @@ async def test_cargo_reserve_policy_rejects_admission():
 
 @pytest.mark.asyncio
 async def test_revision_cannot_drop_a_cancelled_live_cargo_hold():
-    from rimbot.colony_plan import PlanSpec
-    from rimbot.resource_accounting import validate_allocations
+    from rimgovernor.colony_plan import PlanSpec
+    from rimgovernor.resource_accounting import validate_allocations
     plan = caravan_plan()
     plan.cancel('trip')
     with pytest.raises(ValueError, match='Retain the caravan action'):
@@ -228,7 +228,7 @@ def test_player_route_change_invalidates_arrival_expectation():
 async def test_preexisting_crew_food_does_not_count_as_newly_loaded_cargo():
     from types import SimpleNamespace
     from unittest.mock import Mock
-    from rimbot.world_progression import reconcile_world
+    from rimgovernor.world_progression import reconcile_world
     plan = caravan_plan()
     plan.spec.steps[0].action.caravan_target.carried_cargo = {'Pemmican': 20}
     value = observation()

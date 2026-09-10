@@ -1,6 +1,6 @@
 from copy import deepcopy
 import pytest
-from rimbot.colony_plan import ColonyPlan,CommitSteps,Decision,PlanSpec,PlanStep
+from rimgovernor.colony_plan import ColonyPlan,CommitSteps,Decision,PlanSpec,PlanStep
 
 
 def cancelled_plan():

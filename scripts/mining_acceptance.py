@@ -6,14 +6,14 @@ import time
 from pathlib import Path
 
 from session_checkpoint_acceptance import ready
-from rimbot.bridge import BridgeError
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.colony_plan import ColonyGoal, CommitSteps, PlanStep
-from rimbot.production_policy import resource_method
-from rimbot.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
-from rimbot.headless import isolated_root
-from rimbot.store import Store
-from rimbot.native_scenario import advance_game
+from rimgovernor.bridge import BridgeError
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps, PlanStep
+from rimgovernor.production_policy import resource_method
+from rimgovernor.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
+from rimgovernor.headless import isolated_root
+from rimgovernor.store import Store
+from rimgovernor.native_scenario import advance_game
 
 
 async def run(args):

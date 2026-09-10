@@ -32,7 +32,7 @@ namespace HomeBridge.BridgeTools
         public WallRemovalState(Game game) { }
         public override void ExposeData()
         {
-            Scribe_Collections.Look(ref Records, "rimbotWallRemoval", LookMode.Deep);
+            Scribe_Collections.Look(ref Records, "rimgovernorWallRemoval", LookMode.Deep);
             if (Scribe.mode == LoadSaveMode.PostLoadInit && Records == null) Records = new List<WallRemovalRecord>();
         }
     }

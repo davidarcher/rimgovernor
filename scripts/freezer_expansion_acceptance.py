@@ -1,20 +1,20 @@
 """Build and expand powered cold storage using ordinary labor and explicit chat."""
-from rimbot.native_scenario import advance_game
+from rimgovernor.native_scenario import advance_game
 import argparse
 import asyncio
 import json
 import time
 from pathlib import Path
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.config import Settings
-from rimbot.headless import isolated_root, prepare
-from rimbot.store import Store
-from rimbot.player_commands import apply_command
-from rimbot.colony_plan import Buildings, ColonyGoal, CommitSteps
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.bridge import runtime_file_read
-from rimbot.session_checkpoint import create_checkpoint, prepare_resume
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.config import Settings
+from rimgovernor.headless import isolated_root, prepare
+from rimgovernor.store import Store
+from rimgovernor.player_commands import apply_command
+from rimgovernor.colony_plan import Buildings, ColonyGoal, CommitSteps
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.bridge import runtime_file_read
+from rimgovernor.session_checkpoint import create_checkpoint, prepare_resume
 
 SIZE=8
 

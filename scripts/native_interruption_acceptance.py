@@ -3,7 +3,7 @@
 Letter setup uses a separate disposable fixture DLL and the real LetterStack.
 Production observation/identity binaries are unchanged by this harness.
 """
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import argparse
 import asyncio
 import hashlib
@@ -12,12 +12,12 @@ import shutil
 import traceback
 from pathlib import Path
 
-from rimbot.bridge import bridge_session
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.headless import isolated_root, prepare
-from rimbot.store import Store
+from rimgovernor.bridge import bridge_session
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.headless import isolated_root, prepare
+from rimgovernor.store import Store
 
 
 async def run(args):
@@ -29,8 +29,8 @@ async def run(args):
         'manifest': capture_manifest(Path(__file__).resolve().parents[1], root, config, {'mode': 'no inference'})}
     if args.alternate_save:
         report['alternate_save_sha256'] = hashlib.sha256(args.alternate_save.read_bytes()).hexdigest()
-    installed = Path(json.loads((config / 'config.json').read_text())['games']['rimbot-trial']['workingDir'])
-    fixture = installed / 'Mods/RimBotObservations/BridgeTools/InterruptionFixtures/RimBot.InterruptionFixtures.BridgeTools.dll'
+    installed = Path(json.loads((config / 'config.json').read_text())['games']['rimgovernor-trial']['workingDir'])
+    fixture = installed / 'Mods/RimGovernorObservations/BridgeTools/InterruptionFixtures/RimGovernor.InterruptionFixtures.BridgeTools.dll'
     report['fixture_sha256'] = hashlib.sha256(fixture.read_bytes()).hexdigest()
     def save():
         (args.output / 'result.json').write_text(json.dumps(report, indent=2))
@@ -48,7 +48,7 @@ async def run(args):
                 await bridge.core('games_start', gameId=bridge.game_id)
                 await bridge.connect()
                 async def load():
-                    await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',
+                    await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                         readiness='visual', timeoutMs=90000)
                     await rt.sync_identity()
                     await rt.supervisor.change('Paused')
@@ -118,7 +118,7 @@ async def run(args):
                 assert rt.supervisor.state['active'], rt.supervisor.state
                 record('nonstopping_announcement', delivered=delivered, events=events)
                 await rt.supervisor.change('Paused')
-                for save_name in ['RimBot-tribal8-baseline'] + (['Interruption-alternate'] if args.alternate_save else []):
+                for save_name in ['RimGovernor-tribal8-baseline'] + (['Interruption-alternate'] if args.alternate_save else []):
                     await load()
                     token, direction, revision = rt.context_token, rt.chat_revision, rt.current_plan.revision
                     old_colony = rt.identity['colonyId']

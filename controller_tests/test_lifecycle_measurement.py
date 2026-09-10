@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 
-from rimbot.colony_plan import ColonyPlan, CommitSteps, PlanStep, StepProgress
-from rimbot.plan_archive import bind_archive, finish_archive, prepare_archive
-from rimbot.store import Store
+from rimgovernor.colony_plan import ColonyPlan, CommitSteps, PlanStep, StepProgress
+from rimgovernor.plan_archive import bind_archive, finish_archive, prepare_archive
+from rimgovernor.store import Store
 from scripts.lifecycle_measurement import ledger_sample
 
 

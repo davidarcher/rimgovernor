@@ -11,16 +11,16 @@ import json
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from rimbot.bridge import bridge_session, gabs_executable, BridgeError, runtime_file_read
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge_observation import observe
-from rimbot.clock_control import PlayClock
-from rimbot.colony_plan import ColonyGoal, CommitSteps
-from rimbot.headless import prepare
-from rimbot.research import refresh, method
-from rimbot.store import Store
-from rimbot.config import ModelRole
+from rimgovernor.bridge import bridge_session, gabs_executable, BridgeError, runtime_file_read
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge_observation import observe
+from rimgovernor.clock_control import PlayClock
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps
+from rimgovernor.headless import prepare
+from rimgovernor.research import refresh, method
+from rimgovernor.store import Store
+from rimgovernor.config import ModelRole
 
 
 class ResearchClock(PlayClock):
@@ -54,7 +54,7 @@ async def poll_research_clock(clock, report):
 
 
 def fixture(root):
-    path = root/'profile/Saves/RimBot-tribal8-baseline.rws'
+    path = root/'profile/Saves/RimGovernor-tribal8-baseline.rws'
     original = path.read_bytes()
     # The supplied baseline contains legacy non-UTF8 pawn names. Normalize only
     # this disposable profile; retain both hashes and the normalization choice.
@@ -107,7 +107,7 @@ async def run(args):
         async with bridge_session(gabs_executable(root), prepare(root)) as bridge:
             rt.bridge = bridge; rt.game = BridgeGame(bridge)
             await bridge.core('games_start', gameId=bridge.game_id); await bridge.connect()
-            await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',
+            await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                               readiness='visual', ignoreModCompatibility=True, timeoutMs=90000)
             await bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
             await rt.sync_identity(); rt.mode = 'automate'

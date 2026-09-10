@@ -6,9 +6,9 @@ Fixture injury acknowledgements are explicit and never enable production recover
 import argparse
 import asyncio
 from pathlib import Path
-from rimbot.bridge import BridgeError
-from rimbot.bridge_observation import observe
-from rimbot.player_commands import apply_command
+from rimgovernor.bridge import BridgeError
+from rimgovernor.bridge_observation import observe
+from rimgovernor.player_commands import apply_command
 
 
 async def run_rescue(rt, evidence, chat=False):

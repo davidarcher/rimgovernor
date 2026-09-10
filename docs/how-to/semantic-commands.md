@@ -6,7 +6,7 @@ Measure fixed-fact model interpretation separately from real native command acce
 
 Run commands from the repository root. Native probes require a disposable prepared
 profile and their stated fixture; run `--help` for the selected script. Keep outputs
-under a fresh `.rimbot/` directory, preserve failures, and never replace installed DLLs
+under a fresh `.rimgovernor/` directory, preserve failures, and never replace installed DLLs
 while any RimWorld instance is running. Container inputs use private snapshots.
 
 ## Live planner probe
@@ -18,7 +18,7 @@ Launch a fresh disposable colony with an empty plan and leave it in Manual:
 ```
 
 This enables automation and real model orders, records results in
-`.rimbot/live-planner-probe.json`, then returns the same session to Manual. It does not
+`.rimgovernor/live-planner-probe.json`, then returns the same session to Manual. It does not
 reload a save or reset an existing plan. Compare from the same fixture and fixed
 revision/model settings. `orders_observed` proves neither completed shelter nor
 survival.
@@ -84,9 +84,9 @@ contexts. Wrong-resource, reserve-tool and unauthorized-removal counts are separ
 schema-valid error categories; schema and request failures are counted independently.
 Run the same matrix on each local model and retain all failed cases.
 
-The chat and refinement probes accept `--model-url`, defaulting to `RIMBOT_MODEL_URL`
+The chat and refinement probes accept `--model-url`, defaulting to `RIMGOVERNOR_MODEL_URL`
 or loopback. Docker workers explicitly permit the local Docker host address.
-Worker images set `RIMBOT_CONTAINER_SOURCE=1`: native manifests hash packaged source
+Worker images set `RIMGOVERNOR_CONTAINER_SOURCE=1`: native manifests hash packaged source
 bytes when Git metadata is absent and record the Git revision as unavailable.
 Use a fixed image and current private companion DLLs. An unbuilt controller bind
 mount hides the image's dashboard assets. Linux-local runtime storage can avoid

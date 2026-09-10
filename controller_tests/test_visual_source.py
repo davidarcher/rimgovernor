@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 from PIL import Image
-from rimbot.visual_source import detail_frame, retain_source, read_source
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.store import Store
+from rimgovernor.visual_source import detail_frame, retain_source, read_source
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.store import Store
 
 
 def pixels():
@@ -53,7 +53,7 @@ async def test_camera_movement_during_capture_is_not_undone_or_retained(tmp_path
 @pytest.mark.asyncio
 async def test_source_endpoint_never_substitutes_current_camera(tmp_path):
     import httpx
-    from rimbot.bridge_server import create_app
+    from rimgovernor.bridge_server import create_app
     data = pixels(); source = retain_source(tmp_path, data)
     rt = SimpleNamespace(root=tmp_path, advice={'report':{'source':source}}, camera_bytes=b'new camera')
     app = create_app(rt); app.state.rt = rt

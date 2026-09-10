@@ -1,6 +1,6 @@
 import httpx
 import pytest
-from rimbot.wiki import wiki_lookup, plain
+from rimgovernor.wiki import wiki_lookup, plain
 
 
 def transport(payload):

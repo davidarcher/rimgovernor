@@ -8,7 +8,7 @@ $env:DOTNET_ROOT=Split-Path $taskDotnet -Parent
 if($LASTEXITCODE -ne 0){throw 'Headless patch build failed'}
 if($Install){
  if(Get-Process RimWorldWin64 -ErrorAction SilentlyContinue){throw 'Close RimWorld before installing the headless DLL'}
- $taskDestination=Join-Path $RimWorld 'Mods/RimBotHeadless'
+ $taskDestination=Join-Path $RimWorld 'Mods/RimGovernorHeadless'
  New-Item -ItemType Directory -Force $taskDestination | Out-Null
  Copy-Item -LiteralPath "$taskSource/Assemblies","$taskSource/About","$taskSource/LICENSE" -Destination $taskDestination -Recurse -Force
 }

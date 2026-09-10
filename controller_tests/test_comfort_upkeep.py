@@ -3,11 +3,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.colony_plan import ColonyPlan, ColonyGoal
-from rimbot.comfort_upkeep import comfort_evidence, comfort_method
-from rimbot.development_priorities import arbitrate
-from rimbot.colony_policy import ColonyPolicy
-from rimbot.colony_policy import priority_nodes
+from rimgovernor.colony_plan import ColonyPlan, ColonyGoal
+from rimgovernor.comfort_upkeep import comfort_evidence, comfort_method
+from rimgovernor.development_priorities import arbitrate
+from rimgovernor.colony_policy import ColonyPolicy
+from rimgovernor.colony_policy import priority_nodes
 from test_colony_controller import roster
 
 
@@ -43,7 +43,7 @@ async def test_seat_placement_is_limited_to_native_eating_surface_adjacency(monk
     plan = ColonyPlan(colony_goals={'EnsureComfort': ColonyGoal(priority_class=4)})
     f['comfortUpkeep'] = comfort_evidence(f, plan.control)
     helper = AsyncMock(return_value=dict(kind='place_buildings'))
-    monkeypatch.setattr('rimbot.development.placement', helper)
+    monkeypatch.setattr('rimgovernor.development.placement', helper)
     await comfort_method(SimpleNamespace(current_plan=plan), f)
     assert helper.await_args.args[1]['cells'] == [dict(x=1, z=2)]
     assert helper.await_args.args[2] == 'DiningChair'

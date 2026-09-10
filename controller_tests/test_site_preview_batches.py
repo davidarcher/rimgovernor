@@ -3,9 +3,9 @@ import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.colony_plan import ColonyPlan, PlanSpec
-from rimbot.development import placement
-from rimbot.resource_accounting import validate_allocations
+from rimgovernor.colony_plan import ColonyPlan, PlanSpec
+from rimgovernor.development import placement
+from rimgovernor.resource_accounting import validate_allocations
 
 
 @pytest.mark.parametrize('first_safe', [0, 9, 31])

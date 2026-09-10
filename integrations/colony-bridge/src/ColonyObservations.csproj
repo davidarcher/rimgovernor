@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
     <LangVersion>latest</LangVersion>
-    <AssemblyName>RimBot.Observations.BridgeTools</AssemblyName>
+    <AssemblyName>RimGovernor.Observations.BridgeTools</AssemblyName>
     <OutputPath>../BridgeTools/Observations/</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>

@@ -2,8 +2,8 @@ from copy import deepcopy
 from unittest.mock import AsyncMock
 from types import SimpleNamespace
 import pytest
-from rimbot.player_commands import COMMAND, apply_command
-from rimbot.player_action_verification import verify_zone_edit, selection_identity, verify_bill_whitelist, verify_main_tab_closed
+from rimgovernor.player_commands import COMMAND, apply_command
+from rimgovernor.player_action_verification import verify_zone_edit, selection_identity, verify_bill_whitelist, verify_main_tab_closed
 from test_strategic_architecture import runtime, batch
 
 
@@ -76,8 +76,8 @@ def test_bill_readback_rejects_replacement_at_same_index_and_changed_filter():
 
 @pytest.mark.asyncio
 async def test_bill_execution_uses_read_only_mixed_tool_invocation(tmp_path):
-    from rimbot.production_policy import policy_arguments
-    from rimbot.strategic_state import fingerprint
+    from rimgovernor.production_policy import policy_arguments
+    from rimgovernor.strategic_state import fingerprint
     rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch();rt.mode='automate'
     rt._production_policy_signature=fingerprint(policy_arguments(rt))
     bill={'billId':'Bill1','index':0,'filter':{'allowedDefNames':['WoodLog']}}

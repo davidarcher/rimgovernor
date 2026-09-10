@@ -7,11 +7,11 @@ references and copy its output plus the identity assembly into a fresh private m
 snapshot. This adds test-only incident setup, ordinary trade/dismiss jobs and exact
 stock observations; it never edits pawn statistics, inventory or saves. Production
 builds exclude the fixture. With the [Docker input variables](docker-worker.md) configured and
-`RIMBOT_DISPLAY=headless`, run a fresh worker:
+`RIMGOVERNOR_DISPLAY=headless`, run a fresh worker:
 
 ```powershell
-docker compose -f containers/compose.yaml -p rimbot-trade build worker
-docker compose -f containers/compose.yaml -p rimbot-trade run --rm worker -- python /app/scripts/trade_acceptance.py
+docker compose -f containers/compose.yaml -p rimgovernor-trade build worker
+docker compose -f containers/compose.yaml -p rimgovernor-trade run --rm worker -- python /app/scripts/trade_acceptance.py
 ```
 
 The probe waits for normal supply-pod landing, designates a native stockpile,

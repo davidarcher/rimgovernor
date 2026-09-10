@@ -10,11 +10,11 @@ from pathlib import Path
 
 import uvicorn
 
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.bridge_server import create_app
-from rimbot.store import Store
-from rimbot.flight_recorder import recorder
-from rimbot.bridge_observation import observe
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.bridge_server import create_app
+from rimgovernor.store import Store
+from rimgovernor.flight_recorder import recorder
+from rimgovernor.bridge_observation import observe
 from deterministic_foothold import NoInference
 
 
@@ -33,7 +33,7 @@ async def verify_pause_race(rt, report):
 
 async def _verify_pause_race(rt, report):
     """Delay a real active-status readback until its native window has stopped."""
-    from rimbot.native_scenario import advance_game
+    from rimgovernor.native_scenario import advance_game
     clock = rt.supervisor
     original = clock.call
     started = None
@@ -81,7 +81,7 @@ async def _verify_pause_race(rt, report):
 
 
 async def run(args):
-    root = Path(os.environ['RIMBOT_BRIDGE_ROOT'])
+    root = Path(os.environ['RIMGOVERNOR_BRIDGE_ROOT'])
     prefs_path = root/'profile/Config/Prefs.xml'
     prefs = ET.parse(prefs_path)
     pause = prefs.getroot().find('pauseOnLoad')

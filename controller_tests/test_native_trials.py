@@ -5,8 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from rimbot import native_trials as trials
-from rimbot.container_worker import stage
+from rimgovernor import native_trials as trials
+from rimgovernor.container_worker import stage
 from test_container_worker import inputs
 
 
@@ -19,7 +19,7 @@ class Result:
 
 
 class Bridge:
-    game_id = 'rimbot-trial'
+    game_id = 'rimgovernor-trial'
 
     def __init__(self):
         self.calls, self.load, self.tick = [], 0, 10
@@ -70,7 +70,7 @@ class Runtime:
 @pytest.fixture
 def fixture(tmp_path, monkeypatch):
     sources = inputs(tmp_path)
-    (sources[2]/'Saves/RimBot-tribal8-baseline.rws').write_bytes(b'<tickManager><ticksGame>10</ticksGame></tickManager>')
+    (sources[2]/'Saves/RimGovernor-tribal8-baseline.rws').write_bytes(b'<tickManager><ticksGame>10</ticksGame></tickManager>')
     source = stage(*sources, tmp_path/'source')
     bridge = Bridge()
 

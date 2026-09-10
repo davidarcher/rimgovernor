@@ -1,8 +1,8 @@
-# How RimBot fits together
+# How RimGovernor fits together
 
 [Documentation](../README.md) · Explanation
 
-RimBot has two ways to decide what to do. The deterministic controller handles routine
+RimGovernor has two ways to decide what to do. The deterministic controller handles routine
 colony needs. A local language model interprets a player's explicit chat request and can
 offer advice. Both paths submit work to one shared plan. RimWorld decides whether an
 order is legal and whether pawns can actually carry it out.

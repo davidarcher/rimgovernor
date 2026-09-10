@@ -1,5 +1,5 @@
 """Generate an ordinary scenario-editor start with the test-only setup fixture."""
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import argparse
 import asyncio
 import hashlib
@@ -7,8 +7,8 @@ import json
 import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from rimbot.bridge import BridgeError,bridge_session,gabs_executable
-from rimbot.headless import isolated_root,prepare
+from rimgovernor.bridge import BridgeError,bridge_session,gabs_executable
+from rimgovernor.headless import isolated_root,prepare
 
 
 async def run(args):
@@ -17,8 +17,8 @@ async def run(args):
     report={'outcome':'failed','save_edits':[], 'settings':{
         'scenario':args.scenario,'count':args.count,'seed':args.seed,'biome':args.biome,
         'difficulty':args.difficulty}}
-    installation=Path(json.loads((config/'config.json').read_text())['games']['rimbot-trial']['workingDir'])
-    dll=installation/'Mods/RimBotObservations/BridgeTools/Observations/RimBot.Observations.BridgeTools.dll'
+    installation=Path(json.loads((config/'config.json').read_text())['games']['rimgovernor-trial']['workingDir'])
+    dll=installation/'Mods/RimGovernorObservations/BridgeTools/Observations/RimGovernor.Observations.BridgeTools.dll'
     report['fixture_dll_sha256']=hashlib.sha256(dll.read_bytes()).hexdigest()
     async with bridge_session(gabs_executable(root,config),config) as bridge:
         try:
@@ -46,7 +46,7 @@ async def run(args):
             report['definitions_after']=(await bridge.call('test/list_start_scenarios')).structuredContent
             assert report['definitions_before']['scenarios']==report['definitions_after']['scenarios'], 'Global scenario definitions were changed'
             assert report['definitions_before']['difficulties']==report['definitions_after']['difficulties']
-            report['save']=(await bridge.call('rimworld/save_game',saveName='RimBot-scenario-start')).structuredContent
+            report['save']=(await bridge.call('rimworld/save_game',saveName='RimGovernor-scenario-start')).structuredContent
             assert report['save']['exists'] is True
             source=Path(report['save']['path']).resolve()
             assert source.is_relative_to(root)
@@ -55,7 +55,7 @@ async def run(args):
             assert str(args.count) in report['saved_pawn_counts'],report['saved_pawn_counts']
             report['saved_pawn_choice_counts']=[n.text for n in saved.findall('.//scenario//pawnChoiceCount')]
             assert any(args.count<=int(n)<=10 for n in report['saved_pawn_choice_counts'])
-            target=root/'profile/Saves/RimBot-tribal8-baseline.rws'
+            target=root/'profile/Saves/RimGovernor-tribal8-baseline.rws'
             shutil.copy2(source,target)
             report['sha256']=hashlib.sha256(source.read_bytes()).hexdigest()
             assert report['sha256']==hashlib.sha256(target.read_bytes()).hexdigest()

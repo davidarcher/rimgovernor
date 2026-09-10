@@ -13,7 +13,7 @@ async def run(base, output, model_only=False, simulation_only=False):
     result = {'samples': []}
     view = None
     owner = None
-    async with httpx.AsyncClient(base_url=base, headers={'X-RimBot': '1'}, timeout=120) as client:
+    async with httpx.AsyncClient(base_url=base, headers={'X-RimGovernor': '1'}, timeout=120) as client:
         async def post(path, body):
             response = await client.post(path, json=body)
             response.raise_for_status()

@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.native_contracts import validate_arguments, validate_native_steps
-from rimbot.colony_plan import PlanSpec
+from rimgovernor.native_contracts import validate_arguments, validate_native_steps
+from rimgovernor.colony_plan import PlanSpec
 
 
 def test_argument_failure_does_not_repeat_large_schema():

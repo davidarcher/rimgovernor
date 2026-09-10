@@ -12,12 +12,12 @@ namespace HomeBridge.BridgeTools
         {
             // Isolated probes must observe the saved tick before ordinary simulation
             // can advance while the bridge waits for visual readiness.
-            if (Array.IndexOf(Environment.GetCommandLineArgs(), "-rimbot-pause-on-load") >= 0)
+            if (Array.IndexOf(Environment.GetCommandLineArgs(), "-rimgovernor-pause-on-load") >= 0)
                 Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
         }
         public override void ExposeData()
         {
-            Scribe_Values.Look(ref ColonyId, "rimbotColonyId");
+            Scribe_Values.Look(ref ColonyId, "rimgovernorColonyId");
             if (Scribe.mode == LoadSaveMode.PostLoadInit && string.IsNullOrEmpty(ColonyId))
                 ColonyId = Guid.NewGuid().ToString("N");
         }

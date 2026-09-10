@@ -3,12 +3,12 @@ import asyncio
 import json
 import argparse
 from pathlib import Path
-from rimbot.bridge import bridge_session, BridgeError, gabs_executable
-from rimbot.bridge_game import BridgeGame
-from rimbot.bridge_observation import observe
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.headless import prepare
-from rimbot.store import Store
+from rimgovernor.bridge import bridge_session, BridgeError, gabs_executable
+from rimgovernor.bridge_game import BridgeGame
+from rimgovernor.bridge_observation import observe
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.headless import prepare
+from rimgovernor.store import Store
 
 
 async def main(root):
@@ -16,7 +16,7 @@ async def main(root):
     configuration=prepare(root)
     async with bridge_session(gabs_executable(root,configuration),configuration) as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
-        await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
+        await bridge.call('rimworld/load_game_ready',saveName='RimGovernor-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
         await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
         store=Store(root/'ranged-smoke.sqlite');rt=BridgeRuntime(store,root,headless=True)
         rt.bridge=bridge;rt.game=BridgeGame(bridge)

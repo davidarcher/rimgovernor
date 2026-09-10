@@ -11,7 +11,7 @@ SCRIPTS = Path(__file__).resolve().parents[1]/'scripts'
 sys.path.insert(0, str(SCRIPTS))
 from native_scenarios import backup_databases, classify, junit, resource_summary
 from inspect_native_failure import inspect, concise_summary
-from rimbot.flight_recorder import FlightRecorder
+from rimgovernor.flight_recorder import FlightRecorder
 from native_scenario_support import baseline_tick
 import pytest
 
@@ -130,7 +130,7 @@ def test_missing_image_retains_structured_preflight_failure(tmp_path, monkeypatc
     import native_scenarios
     inputs = {}
     for name, relative in [('game','RimWorldLinux'), ('mods',''),
-                           ('profile','Saves/RimBot-tribal8-baseline.rws'), ('gabs','gabs')]:
+                           ('profile','Saves/RimGovernor-tribal8-baseline.rws'), ('gabs','gabs')]:
         root = tmp_path/name; root.mkdir(); inputs[name]=root
         if relative:
             path=root/relative; path.parent.mkdir(parents=True, exist_ok=True); path.touch()
@@ -151,7 +151,7 @@ def test_volume_export_precedes_acceptance_and_preserves_failed_export(tmp_path,
     import native_scenarios
     inputs = {}
     for name, relative in [('game','RimWorldLinux'), ('mods',''),
-                           ('profile','Saves/RimBot-tribal8-baseline.rws'), ('gabs','gabs')]:
+                           ('profile','Saves/RimGovernor-tribal8-baseline.rws'), ('gabs','gabs')]:
         root=tmp_path/name; root.mkdir(); inputs[name]=root
         if relative:
             path=root/relative; path.parent.mkdir(parents=True, exist_ok=True); path.touch()

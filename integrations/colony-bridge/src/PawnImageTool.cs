@@ -58,9 +58,9 @@ namespace HomeBridge.BridgeTools
             if (pending != null) throw new InvalidOperationException("Pawn image capture is busy");
             if (instance == null)
             {
-                instance = new GameObject("RimBotPawnImages").AddComponent<PawnImageCapture>();
+                instance = new GameObject("RimGovernorPawnImages").AddComponent<PawnImageCapture>();
                 DontDestroyOnLoad(instance.gameObject);
-                var harmony = new Harmony("davidarcher.rimbot.pawn-images");
+                var harmony = new Harmony("davidarcher.rimgovernor.pawn-images");
                 harmony.Patch(AccessTools.Method(typeof(Game), "UpdatePlay"),
                     prefix: new HarmonyMethod(typeof(PawnImageCapture), nameof(BeforeDraw)),
                     postfix: new HarmonyMethod(typeof(PawnImageCapture), nameof(AfterDraw)),

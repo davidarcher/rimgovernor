@@ -13,10 +13,10 @@ snapshot. After setting the [Docker input/output variables](docker-worker.md), r
 from the task worktree:
 
 ```powershell
-docker compose -f containers/compose.yaml -p rimbot-b08 run --build --rm worker -- python /app/scripts/native_forecast_acceptance.py
+docker compose -f containers/compose.yaml -p rimgovernor-b08 run --build --rm worker -- python /app/scripts/native_forecast_acceptance.py
 ```
 
-The script uses the staged `RIMBOT_BRIDGE_ROOT`. Its result is retained at
+The script uses the staged `RIMGOVERNOR_BRIDGE_ROOT`. Its result is retained at
 `run/forecast-result.json` beside `inputs.json` and private logs. Each attempt needs
 a fresh output directory and container. Keep failed evidence.
 

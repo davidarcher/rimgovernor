@@ -1,4 +1,4 @@
-from rimbot.projects import ProjectBook
+from rimgovernor.projects import ProjectBook
 
 
 def test_same_title_construction_actions_keep_independent_native_targets():

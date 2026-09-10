@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from rimbot.bridge_server import create_app
+from rimgovernor.bridge_server import create_app
 
 
 def runtime():
@@ -56,8 +56,8 @@ async def test_image_identity_cache_headless_and_fixed_native_contract(monkeypat
     frame = b'\x89PNG\r\n\x1a\nfixture'
     call = AsyncMock(return_value={'success': True, 'sessionId': 'load-a', 'pawnId': 'Pawn1',
                                  'tick': 12, 'pngBase64': base64.b64encode(frame).decode()})
-    monkeypatch.setattr('rimbot.colony_people.camera_contract', contract)
-    monkeypatch.setattr('rimbot.colony_people.camera_call', call)
+    monkeypatch.setattr('rimgovernor.colony_people.camera_contract', contract)
+    monkeypatch.setattr('rimgovernor.colony_people.camera_call', call)
     app = create_app(rt); app.state.rt = rt
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://testserver') as client:
         url = '/api/people/Pawn1/image?session_id=load-a&view=follow'

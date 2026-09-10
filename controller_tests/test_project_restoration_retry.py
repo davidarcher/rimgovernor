@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.colony_plan import Decision, Failure
+from rimgovernor.colony_plan import Decision, Failure
 from test_strategic_architecture import runtime, batch
 from test_zone_project_postconditions import fixture
 

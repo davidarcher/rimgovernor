@@ -6,8 +6,8 @@ import sqlite3
 
 import pytest
 from mcp.types import CallToolResult
-from rimbot.bridge import BridgeClient, BridgeError
-from rimbot.flight_recorder import FlightRecorder, read_timeline, recording_action
+from rimgovernor.bridge import BridgeClient, BridgeError
+from rimgovernor.flight_recorder import FlightRecorder, read_timeline, recording_action
 
 
 def test_retention_and_truncation_are_explicit(tmp_path):
@@ -33,7 +33,7 @@ def test_truncated_receipt_keeps_request_correlation(tmp_path):
 @pytest.mark.asyncio
 async def test_transport_records_before_write_and_preserves_error(tmp_path, monkeypatch):
     path = tmp_path/'timeline.jsonl'
-    monkeypatch.setenv('RIMBOT_FLIGHT_RECORDER', str(path))
+    monkeypatch.setenv('RIMGOVERNOR_FLIGHT_RECORDER', str(path))
     class Session:
         async def call_tool(self, name, arguments):
             rows = list(read_timeline(path))
@@ -48,7 +48,7 @@ async def test_transport_records_before_write_and_preserves_error(tmp_path, monk
 @pytest.mark.asyncio
 async def test_transport_records_lost_response_without_retry(tmp_path, monkeypatch):
     path = tmp_path/'timeline.jsonl'
-    monkeypatch.setenv('RIMBOT_FLIGHT_RECORDER', str(path))
+    monkeypatch.setenv('RIMGOVERNOR_FLIGHT_RECORDER', str(path))
     class Session:
         calls = 0
         async def call_tool(self, *args):
@@ -64,7 +64,7 @@ async def test_transport_records_lost_response_without_retry(tmp_path, monkeypat
 def test_buffered_receipt_is_checkpointed_by_next_request(tmp_path, monkeypatch):
     path=tmp_path/'timeline.jsonl'
     sync=[]
-    monkeypatch.setattr('rimbot.flight_recorder.os.fsync', lambda _:sync.append(path.read_bytes()))
+    monkeypatch.setattr('rimgovernor.flight_recorder.os.fsync', lambda _:sync.append(path.read_bytes()))
     record=FlightRecorder(path)
     request=record.event('native_request', tool='write')
     record.event('native_response', request=request, result={'accepted':True}, durable=False)
@@ -101,7 +101,7 @@ def test_payload_encoding_preserves_unicode_nested_values_and_single_conversion(
 def test_recorder_reopens_after_close_and_preserves_rotation_and_durability(tmp_path, monkeypatch):
     path = tmp_path/'timeline.jsonl'
     synced = []
-    monkeypatch.setattr('rimbot.flight_recorder.os.fsync', lambda fd: synced.append(fd))
+    monkeypatch.setattr('rimgovernor.flight_recorder.os.fsync', lambda fd: synced.append(fd))
     record = FlightRecorder(path, segment_bytes=1024, segments=3, payload_bytes=2048)
     record.event('native_request', value='a'*1100)
     record.event('native_response', value='b', durable=False)
@@ -140,7 +140,7 @@ def test_partial_utf8_tail_preserves_earlier_records(tmp_path):
 @pytest.mark.asyncio
 async def test_interleaved_calls_keep_their_dispatch_context(tmp_path, monkeypatch):
     path = tmp_path/'timeline.jsonl'
-    monkeypatch.setenv('RIMBOT_FLIGHT_RECORDER', str(path))
+    monkeypatch.setenv('RIMGOVERNOR_FLIGHT_RECORDER', str(path))
     started, release = asyncio.Event(), asyncio.Event()
     class Session:
         async def call_tool(self, name, arguments):

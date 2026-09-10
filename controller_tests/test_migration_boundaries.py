@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from test_legacy_migration import migration, snapshot
-from rimbot.store import Store
+from rimgovernor.store import Store
 
 
 PHASES = ['controller_suspended', 'database_copied', 'takeover_pending', 'taken_over',
@@ -23,7 +23,7 @@ async def test_interrupted_migration_never_replays_ownership_save_or_stop(tmp_pa
     source = tmp_path/'source'; source.mkdir()
     root = tmp_path/'root'; root.mkdir()
     configuration = root/'config'; configuration.mkdir()
-    (configuration/'config.json').write_text(json.dumps({'rimbot':{'gabsExecutable':'gabs/test-gabs'}}))
+    (configuration/'config.json').write_text(json.dumps({'rimgovernor':{'gabsExecutable':'gabs/test-gabs'}}))
     database = tmp_path/'original.sqlite'
     store = Store(database); store.set('bridge:colony:0', saved); store.close()
     calls = []
@@ -50,7 +50,7 @@ async def test_interrupted_migration_never_replays_ownership_save_or_stop(tmp_pa
             'gamePid': 202, 'pidStartTime': 456, 'launchMode': 'DirectPath', 'pidRole': 'workload'}}})
     @asynccontextmanager
     async def session(*_):
-        yield SimpleNamespace(core=core, game_id='rimbot-trial')
+        yield SimpleNamespace(core=core, game_id='rimgovernor-trial')
     async def checkpoint(*_):
         calls.append('save')
         return {'manifest_path': str(root/'checkpoint.json'), 'tick': 100}

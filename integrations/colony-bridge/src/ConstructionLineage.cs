@@ -36,7 +36,7 @@ namespace HomeBridge.BridgeTools
         internal static void Install()
         {
             if (installed) return;
-            var harmony = new Harmony("rimbot.construction-lineage");
+            var harmony = new Harmony("rimgovernor.construction-lineage");
             harmony.Patch(AccessTools.Method(typeof(Blueprint_Build), "MakeSolidThing"),
                 postfix: new HarmonyMethod(typeof(ConstructionLineage), nameof(FrameCreated)));
             harmony.Patch(AccessTools.Method(typeof(Frame), nameof(Frame.CompleteConstruction)),

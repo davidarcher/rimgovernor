@@ -1,5 +1,5 @@
 """Verify exact native execution boundaries and external clock ownership in a private game."""
-from rimbot.bridge import gabs_executable
+from rimgovernor.bridge import gabs_executable
 import argparse
 import asyncio
 import hashlib
@@ -8,22 +8,22 @@ from pathlib import Path
 import subprocess
 import time
 
-from rimbot.bridge import bridge_session
-from rimbot.clock_control import PlayClock
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.headless import isolated_root, prepare, prepare_rendered, rendered_headless_mismatch
+from rimgovernor.bridge import bridge_session
+from rimgovernor.clock_control import PlayClock
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.headless import isolated_root, prepare, prepare_rendered, rendered_headless_mismatch
 
 
 async def run(args):
     args.output.mkdir(parents=True, exist_ok=False)
     root = isolated_root(args.source_root, args.output/'bridge')
     config = prepare_rendered(root) if args.rendered else prepare(root)
-    game_config = json.loads((config/'config.json').read_text())['games']['rimbot-trial']
-    dll = Path(game_config['workingDir'])/'Mods/RimBotObservations/BridgeTools/Observations/RimBot.Observations.BridgeTools.dll'
+    game_config = json.loads((config/'config.json').read_text())['games']['rimgovernor-trial']
+    dll = Path(game_config['workingDir'])/'Mods/RimGovernorObservations/BridgeTools/Observations/RimGovernor.Observations.BridgeTools.dll'
     report = {'outcome': 'failed', 'cases': [], 'started': time.time(),
               'revision': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
               'native_sha256': hashlib.sha256(dll.read_bytes()).hexdigest(),
-              'baseline_sha256': hashlib.sha256((root/'profile/Saves/RimBot-tribal8-baseline.rws').read_bytes()).hexdigest(),
+              'baseline_sha256': hashlib.sha256((root/'profile/Saves/RimGovernor-tribal8-baseline.rws').read_bytes()).hexdigest(),
               'rendered': args.rendered}
     report['manifest'] = capture_manifest(Path(__file__).resolve().parents[1], root, config,
         {'mode': 'no inference'}, profile=root/('profile' if args.rendered else 'headless-profile'))
@@ -44,14 +44,14 @@ async def run(args):
             try:
                 await bridge.core('games_start', gameId=bridge.game_id)
                 await bridge.connect()
-                await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',
+                await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                                   readiness='visual', timeoutMs=90000,
                                   ignoreModCompatibility=args.rendered and rendered_headless_mismatch(root))
                 clock = PlayClock(bridge)
                 await clock.change('Paused')
                 for speed in ('Normal', 'Fast', 'Superfast'):
                     for budget in (1, 37, 600):
-                        await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',
+                        await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                                           readiness='visual', timeoutMs=90000,
                                           ignoreModCompatibility=args.rendered and rendered_headless_mismatch(root))
                         clock = PlayClock(bridge)
@@ -107,7 +107,7 @@ async def run(args):
                 await bridge.call('home/supervised_play', op='start', owner=clock.owner,
                                   speed='Normal', leaseMs=15000, maxTicks=3000,
                                   hostileWithin=40, injuryStopCooldownMs=0)
-                await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline',
+                await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                                   readiness='visual', timeoutMs=90000,
                                   ignoreModCompatibility=args.rendered and rendered_headless_mismatch(root))
                 changed = await stopped()

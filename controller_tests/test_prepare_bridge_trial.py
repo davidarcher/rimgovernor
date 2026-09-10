@@ -19,13 +19,13 @@ def test_trial_uses_process_identity_without_executable_name_fallback(tmp_path, 
         '<ModsConfigData><activeMods><li>brrainz.harmony</li></activeMods></ModsConfigData>')
     (source/'Config/Prefs.xml').write_text('<Prefs/>')
     baseline=b'<savegame><meta><modIds/><modNames/></meta></savegame>'
-    save=source/'Saves/RimBot-tribal8-baseline.rws'
+    save=source/'Saves/RimGovernor-tribal8-baseline.rws'
     save.write_bytes(baseline)
     monkeypatch.setattr(module,'BASELINE_SHA256',hashlib.sha256(baseline).hexdigest())
 
     module.prepare(source,game,root)
 
-    config=json.loads((root/'config/config.json').read_text())['games']['rimbot-trial']
+    config=json.loads((root/'config/config.json').read_text())['games']['rimgovernor-trial']
     assert config['launchMode']=='DirectPath'
     assert config['target']==str(game/'RimWorldWin64.exe')
     assert 'stopProcessName' not in config

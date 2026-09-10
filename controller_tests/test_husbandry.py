@@ -1,8 +1,8 @@
 import pytest
 from pydantic import ValidationError
 
-from rimbot.husbandry import assess_herd, validate_dispatch
-from rimbot.player_commands import COMMAND, MaintainHerd, semantic_tools
+from rimgovernor.husbandry import assess_herd, validate_dispatch
+from rimgovernor.player_commands import COMMAND, MaintainHerd, semantic_tools
 
 
 def inputs():
@@ -96,7 +96,7 @@ def test_command_contract_and_discovery():
 
 
 def test_unowned_native_write_refused():
-    from rimbot.colony_plan import ColonyPlan
+    from rimgovernor.colony_plan import ColonyPlan
     with pytest.raises(ValueError, match='player herd target'):
         validate_dispatch(ColonyPlan(), None, {})
 
@@ -110,7 +110,7 @@ def test_handler_workload_preserves_unknown_and_disabled_work():
 
 
 def test_slaughter_cannot_bypass_current_player_policy():
-    from rimbot.colony_plan import ColonyPlan, ColonyGoal, PlanStep, PlanSpec
+    from rimgovernor.colony_plan import ColonyPlan, ColonyGoal, PlanStep, PlanSpec
     args = dict(animal='cow1', slaughter=True, dryRun=False)
     step = PlanStep(id='herd-step', title='Cull surplus', goal_id='MaintainHerd-Cow',
                     completion_criteria='Native slaughter designation observed',
@@ -125,8 +125,8 @@ def test_slaughter_cannot_bypass_current_player_policy():
 
 
 def test_seasonal_feed_uses_native_demand_and_competing_eaters():
-    from rimbot.colony_plan import ColonyGoal, ColonyPlan
-    from rimbot.husbandry import update_feed_goal
+    from rimgovernor.colony_plan import ColonyGoal, ColonyPlan
+    from rimgovernor.husbandry import update_feed_goal
     target, observed, feed = inputs()
     goal = ColonyGoal(priority_class=3, target=target, evidence={'husbandry': assess_herd(target, observed, feed)})
     plan = ColonyPlan(colony_goals={'MaintainHerd-Cow': goal})
@@ -146,8 +146,8 @@ def test_seasonal_feed_uses_native_demand_and_competing_eaters():
 @pytest.mark.asyncio
 async def test_cancelled_herd_stops_linked_feed_goal_without_native_reads():
     from types import SimpleNamespace
-    from rimbot.colony_plan import ColonyGoal, ColonyPlan
-    from rimbot.husbandry import refresh_husbandry
+    from rimgovernor.colony_plan import ColonyGoal, ColonyPlan
+    from rimgovernor.husbandry import refresh_husbandry
     parent = ColonyGoal(priority_class=3, cancelled=True)
     child = ColonyGoal(priority_class=3, evidence={'herd_owner': 'MaintainHerd-Cow'})
     plan = ColonyPlan(colony_goals={'MaintainHerd-Cow': parent, 'MaintainResource-herd-Cow-Hay': child})
@@ -159,8 +159,8 @@ async def test_cancelled_herd_stops_linked_feed_goal_without_native_reads():
 async def test_explicit_herd_renewal_uses_new_attempt_and_retires_prior_feed_work():
     from types import SimpleNamespace
     from unittest.mock import AsyncMock
-    from rimbot.colony_plan import ColonyGoal, ColonyPlan
-    from rimbot.player_commands import apply_command
+    from rimgovernor.colony_plan import ColonyGoal, ColonyPlan
+    from rimgovernor.player_commands import apply_command
     parent = ColonyGoal(priority_class=3, attempts=2)
     child = ColonyGoal(priority_class=3, evidence={'herd_owner': 'MaintainHerd-Cow'})
     plan = ColonyPlan(colony_goals={'MaintainHerd-Cow': parent, 'MaintainResource-herd-Cow-Hay': child})
@@ -177,8 +177,8 @@ async def test_explicit_herd_renewal_uses_new_attempt_and_retires_prior_feed_wor
 async def test_cancel_command_immediately_cancels_herd_feed_steps():
     from types import SimpleNamespace
     from unittest.mock import AsyncMock
-    from rimbot.colony_plan import ColonyGoal, ColonyPlan, PlanSpec, PlanStep, StepProgress
-    from rimbot.player_commands import apply_command
+    from rimgovernor.colony_plan import ColonyGoal, ColonyPlan, PlanSpec, PlanStep, StepProgress
+    from rimgovernor.player_commands import apply_command
     step = PlanStep(id='feed-step', title='Acquire feed', completion_criteria='Stored feed observed',
         action=dict(kind='native_operation', tool='home/acquire_resource', arguments={'dryRun': False}))
     parent = ColonyGoal(priority_class=3)
@@ -195,8 +195,8 @@ async def test_cancel_command_immediately_cancels_herd_feed_steps():
 async def test_map_change_holds_herd_and_its_feed_work():
     from types import SimpleNamespace
     from unittest.mock import AsyncMock
-    from rimbot.colony_plan import ColonyGoal, ColonyPlan
-    from rimbot.husbandry import refresh_husbandry
+    from rimgovernor.colony_plan import ColonyGoal, ColonyPlan
+    from rimgovernor.husbandry import refresh_husbandry
     parent = ColonyGoal(priority_class=3, evidence={'scope': {'colonyId': 'A', 'mapId': 1}})
     child = ColonyGoal(priority_class=3, evidence={'herd_owner': 'MaintainHerd-Cow'})
     plan = ColonyPlan(colony_goals={'MaintainHerd-Cow': parent, 'MaintainResource-herd-Cow-Hay': child})

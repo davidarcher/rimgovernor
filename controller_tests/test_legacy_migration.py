@@ -4,8 +4,8 @@ import importlib.util
 from pathlib import Path
 import sqlite3
 import pytest
-from rimbot.colony_plan import ColonyPlan
-from rimbot.store import Store
+from rimgovernor.colony_plan import ColonyPlan
+from rimgovernor.store import Store
 
 spec=importlib.util.spec_from_file_location('legacy_migration',Path(__file__).parents[1]/'scripts/migrate_legacy_session.py')
 migration=importlib.util.module_from_spec(spec)

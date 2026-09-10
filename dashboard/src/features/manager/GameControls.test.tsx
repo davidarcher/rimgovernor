@@ -11,7 +11,7 @@ it('sends session-bound native time and camera requests separately',async()=>{
  render(<GameControls sessionId="load-a" connected stale={false} paused following={false} onError={()=>{}}/>);
  fireEvent.click(screen.getByRole('button',{name:'Play game at fast speed'}));
  await waitFor(()=>expect(screen.getByRole('button',{name:'Pause game'})).not.toBeDisabled());
- expect(fetch.mock.calls[0]).toEqual(['/api/time',expect.objectContaining({body:JSON.stringify({session_id:'load-a',speed:'Fast'}),headers:expect.objectContaining({'X-RimBot':'1'})})]);
+ expect(fetch.mock.calls[0]).toEqual(['/api/time',expect.objectContaining({body:JSON.stringify({session_id:'load-a',speed:'Fast'}),headers:expect.objectContaining({'X-RimGovernor':'1'})})]);
  fireEvent.click(screen.getByRole('button',{name:/Follow actions/}));
  await waitFor(()=>expect(fetch).toHaveBeenCalledTimes(2));
  expect(fetch).toHaveBeenLastCalledWith('/api/camera/follow',expect.anything());

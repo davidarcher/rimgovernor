@@ -7,15 +7,15 @@ from pathlib import Path
 
 from deterministic_foothold import NoInference
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.colony_plan import CommitSteps, PlanStep, RoomShell
-from rimbot.construction_preflight import preflight_construction
-from rimbot.headless import isolated_root, prepare
-from rimbot.player_commands import apply_command
-from rimbot.shell_site import ShellSiteRefusal, ZONE_ARGUMENTS, cell_set
-from rimbot.spatial import room_entrance
-from rimbot.store import Store
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.colony_plan import CommitSteps, PlanStep, RoomShell
+from rimgovernor.construction_preflight import preflight_construction
+from rimgovernor.headless import isolated_root, prepare
+from rimgovernor.player_commands import apply_command
+from rimgovernor.shell_site import ShellSiteRefusal, ZONE_ARGUMENTS, cell_set
+from rimgovernor.spatial import room_entrance
+from rimgovernor.store import Store
 
 
 def complete_buildings(census):

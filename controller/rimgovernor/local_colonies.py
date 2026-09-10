@@ -34,7 +34,7 @@ def worker_entries(containers):
         config = container.get('Config') or {}
         labels = config.get('Labels') or {}
         command = (config.get('Entrypoint') or []) + (config.get('Cmd') or [])
-        if labels.get('io.rimbot.colony') != '1' and 'rimbot.container_worker' not in command:
+        if labels.get('io.rimgovernor.colony') != '1' and 'rimgovernor.container_worker' not in command:
             continue
         if not container.get('State', {}).get('Running'):
             continue
@@ -48,8 +48,8 @@ def worker_entries(containers):
                 break
         environment = dict(item.split('=', 1) for item in config.get('Env', []) if '=' in item)
         entries.append({'id': container['Id'],
-                        'name': labels.get('io.rimbot.colony.name') or container['Name'].lstrip('/'),
-                        'url': url, 'display': environment.get('RIMBOT_DISPLAY', 'headless'),
+                        'name': labels.get('io.rimgovernor.colony.name') or container['Name'].lstrip('/'),
+                        'url': url, 'display': environment.get('RIMGOVERNOR_DISPLAY', 'headless'),
                         'startedAt': container['State'].get('StartedAt', '')})
     return sorted(entries, key=lambda item: (item['name'].casefold(), item['id']))
 

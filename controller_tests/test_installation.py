@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 import pytest
-from rimbot.projects import ProjectBook
+from rimgovernor.projects import ProjectBook
 
 
 @pytest.mark.asyncio

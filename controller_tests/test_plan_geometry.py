@@ -1,6 +1,6 @@
 import pytest
-from rimbot.colony_plan import PlanSpec
-from rimbot.hands import GeometryConflict, validate_geometry
+from rimgovernor.colony_plan import PlanSpec
+from rimgovernor.hands import GeometryConflict, validate_geometry
 
 
 def layout(zone, reverse=False):
@@ -40,7 +40,7 @@ def test_walkway_conflict_is_preserved_with_coordinates():
 
 
 def furnishing_after_zone(state='complete'):
-    from rimbot.colony_plan import ColonyPlan, StepProgress
+    from rimgovernor.colony_plan import ColonyPlan, StepProgress
     zone=dict(id='stores',title='Stores',completion_criteria='Zone exists',action=dict(
         kind='create_zone',zone_type='stockpile',label='Stores',patches=[dict(x=10,z=10,width=3,height=3)]))
     bed=dict(id='bed',title='Player furniture edit',completion_criteria='Placed',action=dict(
@@ -78,7 +78,7 @@ def test_completed_history_does_not_remove_explicit_walkway_constraints():
 async def test_native_placement_still_refuses_an_occupied_completed_footprint():
     from types import SimpleNamespace
     from unittest.mock import AsyncMock
-    from rimbot.construction_preflight import preflight_construction,ConstructionRefusal
+    from rimgovernor.construction_preflight import preflight_construction,ConstructionRefusal
     current,spec=furnishing_after_zone()
     validate_geometry(spec,current=current)
     game=SimpleNamespace(invoke=AsyncMock(return_value={'canPlace':False,'success':True,

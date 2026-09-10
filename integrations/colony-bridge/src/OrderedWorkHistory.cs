@@ -30,7 +30,7 @@ namespace HomeBridge.BridgeTools
                 {
                     var target = AccessTools.Method(typeof(Pawn_JobTracker), "TryTakeOrderedJob");
                     if (target == null) return null;
-                    var harmony = new Harmony("rimbot.ordered-work-history");
+                    var harmony = new Harmony("rimgovernor.ordered-work-history");
                     var prefix = new HarmonyMethod(typeof(OrderedWorkHistory).GetMethod(nameof(BeforeOrder), BindingFlags.Static | BindingFlags.NonPublic));
                     harmony.Patch(target, prefix: prefix);
                     harmony.Patch(AccessTools.Method(typeof(Pawn_DraftController), "GetGizmos"),

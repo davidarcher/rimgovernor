@@ -2,9 +2,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 from mcp.types import CallToolResult
-from rimbot.bridge import BridgeError
-from rimbot.order_refusal import refused_preview
-from rimbot.order_refusal import prerequisites
+from rimgovernor.bridge import BridgeError
+from rimgovernor.order_refusal import refused_preview
+from rimgovernor.order_refusal import prerequisites
 from test_colony_controller import Replay
 
 

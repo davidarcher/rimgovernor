@@ -29,7 +29,7 @@ def test_standard_launcher_publishes_loopback_and_retains_url_and_cleanup(tmp_pa
     assert launcher.run(args)
     invocation = next(call for call in calls if call[1] == 'run')
     assert invocation[invocation.index('--publish')+1] == '127.0.0.1::8787'
-    assert 'io.rimbot.colony.name=Winter campaign' in invocation
+    assert 'io.rimgovernor.colony.name=Winter campaign' in invocation
     assert json.loads((args.output/'dashboard.json').read_text())['dashboard_url'] == 'http://127.0.0.1:43210/scenario'
     assert calls[-1][1:3] == ['rm', '-f']
 

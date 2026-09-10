@@ -4,10 +4,10 @@ from copy import deepcopy
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
-from rimbot.colony_controller import ColonyController
-from rimbot.colony_plan import ColonyPlan, ColonyGoal, PlanSpec, StepProgress
-from rimbot.colony_policy import ColonyPolicy, criteria, priority_nodes, allocation, starter_layouts, work_assignment
-from rimbot.player_commands import apply_command
+from rimgovernor.colony_controller import ColonyController
+from rimgovernor.colony_plan import ColonyPlan, ColonyGoal, PlanSpec, StepProgress
+from rimgovernor.colony_policy import ColonyPolicy, criteria, priority_nodes, allocation, starter_layouts, work_assignment
+from rimgovernor.player_commands import apply_command
 
 
 def facts(count=3):
@@ -243,7 +243,7 @@ def test_work_assignment_respects_disabled_work_and_is_stable():
 
 @pytest.mark.asyncio
 async def test_startup_storage_does_not_wait_for_optional_equipment_slots():
-    from rimbot.colony_plan import PlanStep,NativeOperation,Failure
+    from rimgovernor.colony_plan import PlanStep,NativeOperation,Failure
     rt=Replay(8)
     rt.current_plan.control['policy']={'max_development_projects':1}
     rt.current_plan.control['layout']=starter_layouts(rt.facts)[0]
@@ -283,7 +283,7 @@ async def test_player_field_is_existing_work_and_cancellation_suppresses_recreat
 
 
 def test_completed_native_actions_retire_without_losing_receipts_or_pending_work():
-    from rimbot.colony_plan import CommitSteps,PlanStep
+    from rimgovernor.colony_plan import CommitSteps,PlanStep
     plan=ColonyPlan()
     def step(i):
         return PlanStep(id=f'a{i}',title='Configure',source='AUTOPILOT',completion_criteria='Native readback',
@@ -393,7 +393,7 @@ async def test_small_manhunter_method_uses_native_orders_and_owned_cleanup(dista
     rt.current_plan.colony_goals['ActiveCombat'].evidence['methods'][method]=['a','b']
     assert await rt.controller.skills.compile('ActiveCombat',rt.facts,rt.people) is None
     enemy['animals']['bodySize']=5
-    from rimbot.colony_skills import SkillBlocked
+    from rimgovernor.colony_skills import SkillBlocked
     with pytest.raises(SkillBlocked,match='outside'):
         await rt.controller.skills.compile('ActiveCombat',rt.facts,rt.people)
 
@@ -425,7 +425,7 @@ async def test_initial_naming_uses_exact_native_suggestions_in_shared_plan():
 
 @pytest.mark.asyncio
 async def test_predation_response_requires_confirmed_colony_prey():
-    from rimbot.colony_skills import SkillBlocked
+    from rimgovernor.colony_skills import SkillBlocked
     rt=Replay();rt.draft_owners={}
     rt.current_plan.colony_goals['ActiveCombat']=ColonyGoal(priority_class=0)
     for person in rt.people: person['bio'].update(incapableOfRead=True,incapableOfTags=[])
@@ -497,7 +497,7 @@ async def test_native_resource_work_enables_capable_workers_and_preserves_player
     compiled=await rt.controller.skills.compile('EnsureWorkAssignments',rt.facts,rt.people)
     assert any('Mining=1' in a['arguments']['work'] for a in compiled[1])
     rt.current_plan.control['work_overrides']={p['thingId']:{'Mining':0} for p in rt.people}
-    from rimbot.colony_skills import SkillBlocked
+    from rimgovernor.colony_skills import SkillBlocked
     with pytest.raises(SkillBlocked,match='player work overrides'):
         await rt.controller.skills.compile('EnsureWorkAssignments',rt.facts,rt.people)
     goal.cancelled=True

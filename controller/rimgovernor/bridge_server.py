@@ -40,12 +40,12 @@ def create_app(runtime=None):
     @asynccontextmanager
     async def lifespan(app):
         rt = runtime or BridgeRuntime(Store(DATA_DIR/'bridge.sqlite'),
-            os.environ.get('RIMBOT_BRIDGE_ROOT', '.rimbot/bridge'),
-            fresh=os.environ.get('RIMBOT_BRIDGE_FRESH') == '1',
-            resume=os.environ.get('RIMBOT_RESUME_CHECKPOINT'),
-            headless=os.environ.get('RIMBOT_HEADLESS') == '1',
-            settings=Settings(model=os.environ.get('RIMBOT_MODEL', 'qwen3.5-9b'), model_url=os.environ.get('RIMBOT_MODEL_URL', 'http://127.0.0.1:1234/v1')),
-            routing=load_model_routing(Settings(model=os.environ.get('RIMBOT_MODEL', 'qwen3.5-9b'), model_url=os.environ.get('RIMBOT_MODEL_URL', 'http://127.0.0.1:1234/v1')), os.environ.get('RIMBOT_MODELS_CONFIG')))
+            os.environ.get('RIMGOVERNOR_BRIDGE_ROOT', '.rimgovernor/bridge'),
+            fresh=os.environ.get('RIMGOVERNOR_BRIDGE_FRESH') == '1',
+            resume=os.environ.get('RIMGOVERNOR_RESUME_CHECKPOINT'),
+            headless=os.environ.get('RIMGOVERNOR_HEADLESS') == '1',
+            settings=Settings(model=os.environ.get('RIMGOVERNOR_MODEL', 'qwen3.5-9b'), model_url=os.environ.get('RIMGOVERNOR_MODEL_URL', 'http://127.0.0.1:1234/v1')),
+            routing=load_model_routing(Settings(model=os.environ.get('RIMGOVERNOR_MODEL', 'qwen3.5-9b'), model_url=os.environ.get('RIMGOVERNOR_MODEL_URL', 'http://127.0.0.1:1234/v1')), os.environ.get('RIMGOVERNOR_MODELS_CONFIG')))
         app.state.rt = rt
         app.state.video = VideoHub(rt)
         await rt.start()
@@ -56,7 +56,7 @@ def create_app(runtime=None):
             await rt.stop()
             if runtime is None:
                 rt.store.close()
-    app = FastAPI(title='RimBot live colony', lifespan=lifespan)
+    app = FastAPI(title='RimGovernor live colony', lifespan=lifespan)
     app.include_router(dashboard_controls)
     app.include_router(video_routes)
     app.include_router(people_routes)
@@ -71,7 +71,7 @@ def create_app(runtime=None):
     async def local_only(request, call_next):
         if request.method not in ('GET', 'HEAD'):
             origin = request.headers.get('origin')
-            if request.headers.get('x-rimbot') != '1' or (origin and urlparse(origin).netloc != request.headers.get('host')):
+            if request.headers.get('x-rimgovernor') != '1' or (origin and urlparse(origin).netloc != request.headers.get('host')):
                 return JSONResponse({'detail': 'Use the local colony dashboard'}, status_code=403)
         response = await call_next(request)
         response.headers['Cache-Control'] = 'no-store'
@@ -93,7 +93,7 @@ def create_app(runtime=None):
 
     @app.get('/api/health')
     async def health():
-        return {'service': 'rimbot', 'backend': 'rimbridge', 'pid': os.getpid(), 'source_root': str(Path(__file__).resolve().parents[2])}
+        return {'service': 'rimgovernor', 'backend': 'rimbridge', 'pid': os.getpid(), 'source_root': str(Path(__file__).resolve().parents[2])}
 
     @app.get('/api/visual-reviews/{review_id}/source')
     async def visual_source(review_id: str, request: Request):

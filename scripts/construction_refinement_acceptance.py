@@ -5,15 +5,15 @@ import json
 import os
 from pathlib import Path
 from session_checkpoint_acceptance import ready
-from rimbot.bridge_runtime import BridgeRuntime
-from rimbot.headless import isolated_root, prepare
-from rimbot.store import Store
-from rimbot.player_commands import apply_command
-from rimbot.colony_plan import ColonyGoal, CommitSteps
-from rimbot.campaign_manifest import capture_manifest
-from rimbot.config import Settings
-from rimbot.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
-from rimbot.shelter_handoff import safe_rotation
+from rimgovernor.bridge_runtime import BridgeRuntime
+from rimgovernor.headless import isolated_root, prepare
+from rimgovernor.store import Store
+from rimgovernor.player_commands import apply_command
+from rimgovernor.colony_plan import ColonyGoal, CommitSteps
+from rimgovernor.campaign_manifest import capture_manifest
+from rimgovernor.config import Settings
+from rimgovernor.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
+from rimgovernor.shelter_handoff import safe_rotation
 
 
 async def run(args):
@@ -66,9 +66,9 @@ async def run(args):
             goal.evidence.setdefault('methods',{})[method]=[s.id for s in steps]
             facts=await rt.game.query('home/colony_facts',planning=True)
         if args.rooms:
-            from rimbot.colony_plan import PlanStep, PlanSpec
-            from rimbot.colony_policy import starter_layouts
-            from rimbot.construction_preflight import preflight_construction
+            from rimgovernor.colony_plan import PlanStep, PlanSpec
+            from rimgovernor.colony_policy import starter_layouts
+            from rimgovernor.construction_preflight import preflight_construction
             shell=None
             for layout in starter_layouts(facts)[:12]:
                 candidate=rt.controller.skills.shell(layout)
@@ -117,7 +117,7 @@ async def run(args):
                 and not rt.current_plan.progress[prior].issued,progress=progress.model_dump())
             facts=await rt.game.query('home/colony_facts',planning=True)
         cells=[]
-        from rimbot.colony_plan import RoomShell
+        from rimgovernor.colony_plan import RoomShell
         rooms=[s.action.bounds for s in rt.current_plan.spec.steps if isinstance(s.action,RoomShell)]
         for cell in sorted(facts['cells'], key=lambda c:(c['x']-facts['center']['x'])**2+(c['z']-facts['center']['z'])**2):
             if not cell.get('walkable') or cell.get('occupied'): continue
@@ -236,7 +236,7 @@ if __name__=='__main__':
     parser.add_argument('--source-root',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--model',default='qwen3.5-4b')
-    parser.add_argument('--model-url',default=os.environ.get('RIMBOT_MODEL_URL','http://127.0.0.1:1234/v1'))
+    parser.add_argument('--model-url',default=os.environ.get('RIMGOVERNOR_MODEL_URL','http://127.0.0.1:1234/v1'))
     parser.add_argument('--rooms',action='store_true',help='Admit and refine a chat room before dispatch, then observe exact native orders')
     parser.add_argument('--wording',choices=['explicit','conversational'],default='explicit')
     args=parser.parse_args()

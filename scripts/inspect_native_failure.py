@@ -6,7 +6,7 @@ import sys
 
 # Offline diagnosis needs only the standard library, including on an uninstalled host.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'controller'))
-from rimbot.flight_recorder import read_timeline
+from rimgovernor.flight_recorder import read_timeline
 
 
 def inspect(root, export=None):

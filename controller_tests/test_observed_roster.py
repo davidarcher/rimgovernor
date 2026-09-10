@@ -1,6 +1,6 @@
 from types import SimpleNamespace
-from rimbot.bridge_models import BridgePawn
-from rimbot.strategic_state import observed_roster
+from rimgovernor.bridge_models import BridgePawn
+from rimgovernor.strategic_state import observed_roster
 
 
 def pawn(index):

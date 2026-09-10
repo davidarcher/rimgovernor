@@ -28,7 +28,7 @@ namespace HomeBridge.BridgeTools
         internal static void Install()
         {
             if (installed) return;
-            var harmony = new Harmony("rimbot.haul-tracking");
+            var harmony = new Harmony("rimgovernor.haul-tracking");
             harmony.Patch(AccessTools.Method(typeof(Thing), nameof(Thing.TryAbsorbStack)),
                 prefix: new HarmonyMethod(typeof(HaulTracking), nameof(MergeBegin)),
                 finalizer: new HarmonyMethod(typeof(HaulTracking), nameof(MergeEnd)));

@@ -1,6 +1,6 @@
 from types import SimpleNamespace
-from rimbot.bridge_models import BridgeSupply
-from rimbot.strategic_state import observed_supplies
+from rimgovernor.bridge_models import BridgeSupply
+from rimgovernor.strategic_state import observed_supplies
 
 
 def supply(name, owned=100, allowed=20):

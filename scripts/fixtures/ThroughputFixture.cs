@@ -55,7 +55,7 @@ namespace HomeBridge.BridgeTools
                     }
                     if (!patched)
                     {
-                        new Harmony("rimbot.throughput-fixture").Patch(AccessTools.Method(typeof(TickManager), "DoSingleTick"),
+                        new Harmony("rimgovernor.throughput-fixture").Patch(AccessTools.Method(typeof(TickManager), "DoSingleTick"),
                             postfix: new HarmonyMethod(typeof(ThroughputFixture), nameof(Tick)) { priority = Priority.First });
                         patched = true;
                     }

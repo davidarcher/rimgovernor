@@ -14,7 +14,7 @@ def run(args):
     output=args.output.resolve();output.mkdir(parents=True,exist_ok=False)
     source=Path(__file__).resolve().parents[1]
     docker,environment=docker_environment()
-    name='rimbot-visual-'+uuid.uuid4().hex[:12]
+    name='rimgovernor-visual-'+uuid.uuid4().hex[:12]
     def command(*values,**kwargs):
         return subprocess.run([docker,*values],cwd=source,env=environment,**kwargs)
     report={'passed':False,'container':name,'scope':'Rendered native blueprint layout, camera ownership, local visual advice and evidence recall; no completed pawn work.'}
@@ -34,8 +34,8 @@ def run(args):
             mounts.extend(['--mount',f'type=bind,source={path.resolve()},target={target}'+(',readonly' if readonly else '')])
         with (output/'container.log').open('w',encoding='utf8') as log:
             result=command('run','--name',name,'--init',*dashboard_options(name, 'xvfb'),'--add-host','host.docker.internal:host-gateway',
-                '-e','RIMBOT_ALLOW_DOCKER_HOST_MODEL=1','-e','RIMBOT_MODEL_URL=http://host.docker.internal:1234/v1',
-                '-e','RIMBOT_MODEL='+args.model,'-e','RIMBOT_DISPLAY=xvfb','-e','RIMBOT_UNITY_GC_TIME_SLICE=0',
+                '-e','RIMGOVERNOR_ALLOW_DOCKER_HOST_MODEL=1','-e','RIMGOVERNOR_MODEL_URL=http://host.docker.internal:1234/v1',
+                '-e','RIMGOVERNOR_MODEL='+args.model,'-e','RIMGOVERNOR_DISPLAY=xvfb','-e','RIMGOVERNOR_UNITY_GC_TIME_SLICE=0',
                 *mounts,image,'--','python','scripts/native_visual_acceptance.py',
                 stdout=log,stderr=subprocess.STDOUT,timeout=args.timeout)
         report['exit_code']=result.returncode

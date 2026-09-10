@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
         public ConstructionLineageState(Game game) { }
         public override void ExposeData()
         {
-            Scribe_Collections.Look(ref Records, "rimbotConstructionLineage", LookMode.Deep);
+            Scribe_Collections.Look(ref Records, "rimgovernorConstructionLineage", LookMode.Deep);
             if (Scribe.mode == LoadSaveMode.PostLoadInit && Records == null) Records = new List<ConstructionLineageRecord>();
         }
     }

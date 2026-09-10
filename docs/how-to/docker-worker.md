@@ -14,18 +14,18 @@ fresh output directory; preserve failed results.
 For a native worker, set absolute input paths and create a fresh output directory:
 
 ```powershell
-$env:RIMBOT_LINUX_GAME = 'D:/RimBotInputs/linux-game'
-$env:RIMBOT_WORKER_MODS = 'D:/RimBotInputs/mods-build-a'
-$env:RIMBOT_WORKER_PROFILE = 'D:/RimBotInputs/profile'
-$env:RIMBOT_LINUX_GABS = 'D:/RimBotInputs/linux-gabs'
-$env:RIMBOT_WORKER_OUTPUT = 'D:/RimBotRuns/a'
-$env:RIMBOT_WORKER_PORT = '8788'
-New-Item -ItemType Directory $env:RIMBOT_WORKER_OUTPUT
-docker compose -f containers/compose.yaml -p rimbot-a up --build -d
+$env:RIMGOVERNOR_LINUX_GAME = 'D:/RimGovernorInputs/linux-game'
+$env:RIMGOVERNOR_WORKER_MODS = 'D:/RimGovernorInputs/mods-build-a'
+$env:RIMGOVERNOR_WORKER_PROFILE = 'D:/RimGovernorInputs/profile'
+$env:RIMGOVERNOR_LINUX_GABS = 'D:/RimGovernorInputs/linux-gabs'
+$env:RIMGOVERNOR_WORKER_OUTPUT = 'D:/RimGovernorRuns/a'
+$env:RIMGOVERNOR_WORKER_PORT = '8788'
+New-Item -ItemType Directory $env:RIMGOVERNOR_WORKER_OUTPUT
+docker compose -f containers/compose.yaml -p rimgovernor-a up --build -d
 ```
 
 In a second terminal/worktree set the same input variables, select that task's mod
-snapshot, and use a fresh output directory, port `8789` and project `rimbot-b`. Do not
+snapshot, and use a fresh output directory, port `8789` and project `rimgovernor-b`. Do not
 use `--scale`: each worker needs its own output mount and host port. Images are built
 per Compose project, so worktree changes do not replace a peer's image. The dashboard is
 at `http://127.0.0.1:8788` (or the selected port).
@@ -39,7 +39,7 @@ publishing](https://docs.docker.com/engine/network/port-publishing/) describe th
 mappings.
 
 Each startup copies game/mod binaries into the private container-local
-`/opt/rimbot-game` directory and the prepared profile to `/worker/run`. The game uses
+`/opt/rimgovernor-game` directory and the prepared profile to `/worker/run`. The game uses
 Linux filesystem semantics; later input DLL replacements cannot change its running
 snapshot. `run/inputs.json` records staged hashes; profiles, GABS configuration/claims,
 logs, controller SQLite and checkpoints stay under the output mount. The private game
