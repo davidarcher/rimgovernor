@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from rimbot.colony_plan import ColonyGoal, PlanStep, StepProgress, ColonyPlan
+from rimbot.colony_plan import ColonyGoal, PlanStep, StepProgress, ColonyPlan, CommitSteps
 from rimbot.medical_triage import treatment_pairs
 from rimbot.colony_skills import SkillBlocked
 from test_colony_controller import Replay
@@ -69,9 +69,13 @@ async def test_repeat_tending_while_another_patient_keeps_goal_active_survives_r
         method, actions = await rt.controller.skills.compile('CriticalMedical', rt.facts, rt.people)
         assert method == 'tend-Thing_Human1' + (f'-{episode}' if episode else '')
         identity = f'treatment-{episode}'
-        rt.current_plan.spec.steps.append(PlanStep(id=identity, title='Treat', goal_id='CriticalMedical',
-            source='AUTOPILOT', action=actions[0], completion_criteria='Native tending observed'))
-        rt.current_plan.progress[identity] = StepProgress(state='complete')
+        step = PlanStep(id=identity, title='Treat', goal_id='CriticalMedical',
+            source='AUTOPILOT', action=actions[0], completion_criteria='Native tending observed')
+        prior = {k: v.model_dump() for k, v in rt.current_plan.progress.items()}
+        rt.current_plan.commit(CommitSteps(expected_revision=rt.current_plan.revision, reason='Fresh native retend eligibility',
+            steps=[step]).decision(rt.current_plan), actor='strategist', tick=100 + episode * 30000)
+        assert all(rt.current_plan.progress[k].model_dump() == v for k, v in prior.items())
+        rt.current_plan.progress[identity] = StepProgress(state='complete', issued={'0': {'confirmed':True}})
         goal.steps.append(identity)
         goal.evidence.setdefault('methods', {})[method] = [identity]
         rt.current_plan = ColonyPlan.model_validate_json(rt.current_plan.model_dump_json())
@@ -88,3 +92,19 @@ async def test_repeat_tending_reports_lost_staff_instead_of_waiting_forever():
         p['downed'] = True
     with pytest.raises(SkillBlocked, match='No available'):
         await rt.controller.skills.compile('CriticalMedical', rt.facts, rt.people)
+
+
+@pytest.mark.parametrize('state,confirmed,source', [('waiting',True,'AUTOPILOT'), ('blocked',False,'AUTOPILOT'),
+    ('complete',False,'AUTOPILOT'), ('complete',True,'PLAYER')])
+def test_repeat_treatment_cannot_replace_pending_uncertain_or_player_intent(state, confirmed, source):
+    rt = fixture()
+    step = PlanStep(id='first', title='Tend', source=source, goal_id='CriticalMedical',
+        action={'kind':'native_operation','tool':'home/order','completion':'patient_tended',
+                'arguments':{'action':'tend','pawn':'Thing_Doctor','target':'Thing_Patient'}},
+        completion_criteria='Health observed')
+    rt.current_plan.spec.steps = [step]
+    rt.current_plan.progress['first'] = StepProgress(state=state, issued={'0': {'confirmed':confirmed}})
+    again = step.model_copy(update={'id':'again'})
+    with pytest.raises(ValueError, match='identical intent'):
+        rt.current_plan.commit(CommitSteps(expected_revision=0, reason='Retend', steps=[again]).decision(rt.current_plan),
+            actor='strategist', tick=500)

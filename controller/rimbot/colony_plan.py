@@ -388,6 +388,12 @@ class ColonyGoal(Contract):
         self.evidence['methods'] = {}
 
 
+def repeatable_treatment(step):
+    return (step.source == 'AUTOPILOT' and step.goal_id == 'CriticalMedical'
+        and isinstance(step.action, NativeOperation) and step.action.tool == 'home/order'
+        and step.action.completion == 'patient_tended' and step.action.arguments.get('action') == 'tend')
+
+
 class ColonyPlan(Contract):
     revision: int = 0
     chosen_tick: int = 0
@@ -428,6 +434,9 @@ class ColonyPlan(Contract):
                     continue
                 raise ValueError('Player cancelled step '+step.id)
             if any(prior.id != step.id and prior.signature() == step.signature()
+                   and not (repeatable_treatment(step) and repeatable_treatment(prior)
+                       and (old.get(step.id) == step or (self.progress[prior.id].state == 'complete'
+                           and self.progress[prior.id].issued.get('0', {}).get('confirmed') is True)))
                    and not (repeatable_player_setting(step) and repeatable_player_setting(prior)
                        and self.progress[prior.id].state == 'complete'
                        and prior.id not in {s.id for s in decision.plan.steps}) for prior in old.values()):
