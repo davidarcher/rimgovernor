@@ -46,7 +46,9 @@ async def run_raid(rt,evidence):
             goal=goal.model_dump() if goal else None,control=rt.current_plan.control.get('combat')))
         print('Raid review:',rt.batch.summary.end_tick,'defeated:',cleared,'goal:',goal.status if goal else None,flush=True)
         if goal and goal.status=='blocked':raise AssertionError(goal.reason)
-        rt.resume_after_review=not cleared
+        # Continue ordinary post-combat treatment until its owned doctor draft
+        # is also released; combat stand-down can finish before that labor.
+        rt.resume_after_review=True
         for _ in range(16):
             await rt.advance_execution()
             if (rt.wake.is_set() or rt.supervisor.state.get('active')
@@ -61,7 +63,7 @@ async def run_raid(rt,evidence):
                 for s in rt.current_plan.spec.steps if s.id in fighting['steps']))
         if cleared:
             cleanup=[s for s in rt.current_plan.spec.steps if s.action.kind=='stand_down' and s.source=='AUTOPILOT']
-            if cleanup and all(rt.current_plan.progress[s.id].state=='complete' for s in cleanup):
+            if cleanup and not rt.draft_owners and all(rt.current_plan.progress[s.id].state=='complete' for s in cleanup):
                 evidence['strategy_stand_down']=[dict(step=s.model_dump(),progress=rt.current_plan.progress[s.id].model_dump()) for s in cleanup]
                 break
         if rt.wake.is_set() and not rt.supervisor.state.get('active'):

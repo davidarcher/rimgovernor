@@ -138,3 +138,17 @@ async def test_repeated_launch_claim_read_failure_exhausts_two_retries():
     game, session = game_with([fault, result({}), fault, result({}), fault], 'home/list_zones', {})
     with pytest.raises(BridgeError): await game.query('home/list_zones')
     assert session.call_tool.await_count == 5
+
+
+@pytest.mark.parametrize('op', ['status','events','start','pause','heartbeat'])
+async def test_clock_launch_claim_recovery_is_read_only(op):
+    from rimbot.clock_control import PlayClock
+    session=SimpleNamespace(call_tool=AsyncMock(side_effect=[
+        result({'message':CLAIM_FAULT},True),result({'running':True}),result({'success':True})]))
+    clock=PlayClock(BridgeClient(session))
+    if op in ('status','events'):
+        assert await clock.call(op=op)=={'success':True}
+        assert [c.args[0] for c in session.call_tool.await_args_list]==['games_call_tool','games_status','games_call_tool']
+    else:
+        with pytest.raises(BridgeError):await clock.call(op=op)
+        assert session.call_tool.await_count==1
