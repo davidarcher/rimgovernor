@@ -1,8 +1,8 @@
 # Go controller migration tools
 
-The Go module currently exposes `rimgovernor version` and help. Native startup and
-all other commands fail explicitly. Production launchers still use Python; this
-command neither starts a bridge nor opens a colony database.
+The Go module exposes version/help and offline evidence replay. Native startup
+and unsupported commands fail explicitly. Production launchers still use Python;
+the Go command neither starts a bridge nor opens a colony database.
 
 Use Go **1.27.1**, selected in `.go-version` and required by `go.mod`.
 From this directory:
@@ -27,7 +27,35 @@ graph. See [attribution](../THIRD_PARTY.md#go-dependencies). The intended genera
 is repository-owned Go tooling under the same toolchain; G01.02 introduces it with
 the first actual wire contract. No external schema generator is installed yet.
 
-Offline replay and Windows/Linux CI gates are the next G01.01 subchunks. Media
+Windows/Linux CI gates are the next G01.01 subchunk. Media
 dependencies are unresolved until G01.09c; this slice makes no promise of a fully
 static production binary. See [G01](../docs/BACKLOG.md#g01--go-controller-rewrite)
 for the native, storage, model and cutover gates.
+
+## Offline evidence replay
+
+```powershell
+go run ./cmd/rimgovernor replay ../contracts/fixtures/state-baseline.json ../contracts/fixtures/state-baseline.json
+```
+
+Supply an expected recording and a candidate recording to compare their JSON.
+Exit 0 means they match; exit 1 reports a difference, input error or invalid JSON;
+exit 2 reports command usage errors. Files open read-only and close after the
+comparison. This is an evidence comparator; it does not execute controller policy,
+recover a game session or certify native outcomes. Later consumer chunks supply
+their Go decision and receipt recordings for comparison.
+
+Only insignificant JSON whitespace is normalized. Object/array order, IDs,
+generations, unknown fields, nulls, string escapes and number lexemes remain
+significant. In particular, `1`, `1.0`, and reordered object properties can differ
+because persisted Python signatures preserve their representation. No timestamps
+or other nondeterministic fields are silently dropped.
+
+Each input is limited to 8 MiB including whitespace and 128 nested containers.
+Malformed/trailing JSON, duplicate decoded keys and invalid UTF-8 fail explicitly.
+The first mismatch is reported as a zero-based byte offset after whitespace
+compaction. Raw evidence never becomes an unchecked domain payload.
+
+`internal/testkit` also provides explicitly injected clocks and recorded ID
+sequences for deterministic consumer tests. They do not advance simulation or
+invent IDs after the recorded sequence is exhausted.
