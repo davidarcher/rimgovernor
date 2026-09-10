@@ -153,6 +153,7 @@ async def run(args):
             row = {'elapsed':round(time.monotonic()-start,1),'tick':rt.clock.get('ticksGame'),
                    'status':control.get('status'),'criteria':control.get('criteria'),
                    'mode':rt.mode,'phase':rt.phase,'steps':len(rt.current_plan.spec.steps),
+                   'threats':rt.batch.native.get('status_after',{}).get('threats',{}),
                    'colonists':facts.get('colonists'),'indoor_sleeping':facts.get('indoorSleepingCapacity'),
                    'usable_farm_cells':sum(f.get('usableCells',0) for f in facts.get('farms',[]) if f.get('edible')),
                    'food':{k:facts.get(k) for k in ('foodSupply','foodForecast','foodNutrition',
