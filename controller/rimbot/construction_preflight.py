@@ -2,6 +2,7 @@
 from .colony_plan import Buildings, RoomShell, Zone
 from .spatial import room_placements, native_footprint, validate_geometry, projected_obstruction, room_entrance
 from .shell_site import validate_shell_site, validate_shell_connectivity
+from .placement_previews import PlacementPreviews
 
 
 class ConstructionRefusal(ValueError):
@@ -37,17 +38,15 @@ async def preflight_construction(spec, current, game, *, refresh=False, deferred
         action=step.action
         placements=room_placements(action) if isinstance(action,RoomShell) else (
             action.placements if isinstance(action,Buildings) else [])
+        previews = PlacementPreviews(game, placements, checked)
         for index, placement in enumerate(placements):
             evidence={}
             accepted=False
             for stuff in placement.materials or [None]:
-                args=dict(defName=placement.def_name,x=placement.x,z=placement.z,
-                          rotation=placement.rotation,dryRun=True)
-                if stuff is not None:args['stuff']=stuff
                 key=(placement.def_name,placement.x,placement.z,placement.rotation,stuff)
                 if key not in checked:
                     try:
-                        checked[key]=await game.invoke('home/place_building',args,allow_write=False)
+                        checked[key]=await previews.get(placement, stuff)
                     except Exception as error:
                         checked[key]={'success':False,'error':str(error)[:1200]}
                 result=checked[key]

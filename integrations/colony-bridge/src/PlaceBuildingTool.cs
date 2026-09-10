@@ -175,9 +175,8 @@ namespace HomeBridge.BridgeTools
             if (dryRun)
             {
                 var evaluated = await ctx.MainThread
-                    .InvokeAsync(() => Build(def, x, z, rotation, stuff, godMode, true, false, null), cancellationToken)
+                    .InvokeAsync(() => Preview(def, x, z, rotation, stuff, godMode), cancellationToken)
                     .ConfigureAwait(false);
-                Stamp(evaluated, Watch.Skipped("dry run"));
                 return evaluated;
             }
 
@@ -220,6 +219,13 @@ namespace HomeBridge.BridgeTools
         }
 
         /// <summary>Put the watch block on a reply that is a payload.</summary>
+        internal static object Preview(string def, int x, int z, string rotation, string stuff, bool godMode = false)
+        {
+            var result = Build(def, x, z, rotation, stuff, godMode, true, false, null);
+            Stamp(result, Watch.Skipped("dry run"));
+            return result;
+        }
+
         private static void Stamp(object reply, Dictionary<string, object> watch)
         {
             var payload = reply as Dictionary<string, object>;

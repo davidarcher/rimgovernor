@@ -65,6 +65,7 @@ class BridgeClient:
         self.start_result = None
         self.timing_callback = None
         self.observation_batch_version = 0
+        self.placement_preview_batch_version = 0
 
     async def core(self, name: str, **arguments) -> CallToolResult:
         from .flight_recorder import recorder
@@ -97,7 +98,7 @@ class BridgeClient:
             operation = (result.structuredContent or {}).get('operation')
             if isinstance(operation, dict):
                 timing['native_ms'] = operation.get('DurationMs')
-            if arguments.get('tool') == 'home/observation_batch':
+            if arguments.get('tool') in ('home/observation_batch', 'home/placement_previews'):
                 timing['native_batch'] = (result.structuredContent or {}).get('timing')
             if result.isError or (result.structuredContent or {}).get("success") is False:
                 raise BridgeError(name, result)
@@ -105,6 +106,7 @@ class BridgeClient:
                 self.start_result = result
             if name == 'games_call_tool' and arguments.get('tool') == 'home/colony_identity':
                 self.observation_batch_version = (result.structuredContent or {}).get('observationBatchVersion', 0)
+                self.placement_preview_batch_version = (result.structuredContent or {}).get('placementPreviewBatchVersion', 0)
             timing['success'] = True
             return result
         except BaseException as error:

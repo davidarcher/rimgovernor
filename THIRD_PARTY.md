@@ -17,6 +17,8 @@ redistribution rights. Pinned sources and modifications are recorded in
 [Colony Bridge provenance](integrations/colony-bridge/PROVENANCE.md) and
 [formatter provenance](controller/rimbot/vendor/PROVENANCE.md).
 RimWorld, Harmony and RimBridgeServer SDK assemblies are referenced, not bundled.
+Placement preview parsing also references the Newtonsoft.Json assembly supplied
+by the installed RimBridgeServer; its source and binary are not bundled here.
 GABS and installed game prerequisites are supplied separately.
 
 The original pawn-image integration uses RimWorld's native portraits and item icons;

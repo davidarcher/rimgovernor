@@ -119,6 +119,23 @@ encoding is reused for size checks and writing.
 The recorder keeps its append handle open between events, flushes every row,
 and fsyncs durable events. Rotation closes the handle before renaming segments;
 session shutdown and changing recorder destinations close it durably.
+
+Use `--placement-comparison` with `--runtime-seconds` to compare four reversed-order
+pairs of 16 individual and batched native placement previews. The probe retains
+complete placement verdicts, costs and footprints, including invalid candidates;
+it rejects malformed/oversized requests and checks unchanged construction and
+paused ticks. Native batch timing separates main-thread queue and execution time.
+
+Construction preflight and resource allocation prefetch at most 16 first-choice
+placements through `home/placement_previews` when colony identity advertises
+`placementPreviewBatchVersion: 1`. The input is a validated JSON list of
+definition, coordinates, rotation and material;
+extra fields, non-integer coordinates and more than 16 candidates are refused.
+The ordinary preview evaluator runs on one native main-thread turn. Candidates
+do not project each other's buildings or
+reserve materials. Results are retained only within the current review, preserving
+material choice order and individual fallback previews. Older companions use the
+individual path. Actual writes retain fresh native preflight and identity checks.
 Inspect the final controller events as well as the sampler totals: a valid
 measurement can include a controller stopped by a native order refusal. Such a
 run measures the resulting pause; it does not establish uninterrupted progress or

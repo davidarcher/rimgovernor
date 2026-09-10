@@ -2,6 +2,7 @@
 from .colony_plan import Buildings, RoomShell, NativeOperation
 from .hands import room_placements
 from .world_progression import caravan_cargo_held
+from .placement_previews import PlacementPreviews
 
 
 class ResourceShortage(ValueError):
@@ -83,16 +84,14 @@ async def validate_allocations(spec, current, game, *, deferred_wall_steps=froze
             if chosen is None: raise ValueError('Resource reservation rejected: no single permitted material covers the complete room shell')
             action.materials = [chosen]
         placements = room_placements(action) if isinstance(action, RoomShell) else action.placements if isinstance(action, Buildings) else []
+        previews = PlacementPreviews(game, placements)
         slots = {}
         for index, placement in enumerate(placements):
             choices = placement.materials or [None]
             accepted = None
             refusal = None
             for material in choices:
-                args = dict(defName=placement.def_name, x=placement.x, z=placement.z,
-                            rotation=placement.rotation, dryRun=True)
-                if material: args['stuff'] = material
-                preview = await game.invoke('home/place_building', args, allow_write=False)
+                preview = await previews.get(placement, material)
                 if preview.get('canPlace') is not True and step.id not in deferred_wall_steps: continue
                 material_rows = preview.get('materials')
                 if material_rows is None or material_rows.get('unreadable') or 'costList' not in preview:

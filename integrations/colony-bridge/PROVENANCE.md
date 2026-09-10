@@ -1,5 +1,13 @@
 # Local research companion
 
+`PlacementPreviewsTool.cs` is original bounded orchestration of the attributed
+`PlaceBuildingTool.cs` dry-run evaluator. The shared evaluator preserves ordinary
+placement, cost and footprint rules; the batch supplies no write or god-mode
+option and copies no game implementation. Colony identity advertises the optional
+batch capability.
+The parser references RimBridgeServer's installed Newtonsoft.Json assembly;
+no library source or binary is copied into this integration.
+
 `ObservationBatchTool.cs` is original orchestration of the attributed observation
 tools with their existing filters and diagnostics. It adds game/map guards and
 native scheduling measurements; it copies no game implementation. Colony identity

@@ -72,6 +72,8 @@ def run(args):
                 probe.append('--unbatched-observations')
             if args.observation_comparison:
                 probe.append('--observation-comparison')
+            if args.placement_comparison:
+                probe.append('--placement-comparison')
         else:
             probe = ['python', 'scripts/throughput_acceptance.py', '--mode', mode,
                      '--repeats', str(args.repeats), '--ticks', *map(str, args.ticks)]
@@ -135,6 +137,7 @@ if __name__ == '__main__':
     parser.add_argument('--runtime-accelerated', action='store_true', help='Enable bounded test acceleration in the production-loop measurement')
     parser.add_argument('--runtime-unbatched-observations', action='store_true', help='Compare the legacy seven-call observation path')
     parser.add_argument('--observation-comparison', action='store_true', help='Verify paired paused native observations before the runtime sample')
+    parser.add_argument('--placement-comparison', action='store_true', help='Verify bounded placement batches against individual native previews')
     parser.add_argument('--modes', nargs='+', choices=['headless', 'rendered', 'suspended', 'capture'], default=['headless'])
     parser.add_argument('--repeats', type=int, default=2)
     parser.add_argument('--ticks', type=int, nargs='+', default=[37, 600, 6000])

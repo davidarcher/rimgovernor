@@ -46,6 +46,10 @@ async def run(args):
         report['startup_seconds'] = time.perf_counter()-began
         report['initial_tick'] = rt.batch.summary.end_tick
         rt.bridge.timing_callback = report['bridge_calls'].append
+        if args.placement_comparison:
+            from placement_preview_acceptance import compare_placement_previews
+            report['placement_comparison'] = await compare_placement_previews(rt)
+            report['bridge_calls'].clear()
         if args.observation_comparison:
             report['observation_comparison'] = []
             for repeat in range(4):
@@ -72,7 +76,7 @@ async def run(args):
             started = time.perf_counter()
             entry = dict(tool=name, success=False)
             entry['phase'] = ('identity' if name == 'home/colony_identity' else
-                              'preview' if arguments.get('dryRun') is True else
+                              'preview' if arguments.get('dryRun') is True or name == 'home/placement_previews' else
                               'clock' if name == 'home/supervised_play' else
                               'dispatch' if arguments.get('dryRun') is False else 'read')
             try:
@@ -149,6 +153,7 @@ if __name__ == '__main__':
     parser.add_argument('--seconds', type=int, default=120)
     parser.add_argument('--unbatched-observations', action='store_true', help='Compare the legacy seven-call observation path')
     parser.add_argument('--observation-comparison', action='store_true', help='Verify paired paused native observations before the runtime sample')
+    parser.add_argument('--placement-comparison', action='store_true', help='Verify bounded placement batches against individual native previews')
     args = parser.parse_args()
     if not 10 <= args.seconds <= 1800:
         parser.error('Use 10..1800 seconds')

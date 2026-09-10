@@ -323,8 +323,10 @@ each bounded method.
 - [ ] **Bridge request overhead.** Use the boundary timings in
   [throughput measurements](how-to/measure-throughput.md) to split remaining MCP
   session time into GABS ownership preparation, transport/decoding and native
-  scheduling. Compare bounded placement-candidate batches and shared observation
-  inputs before relaxing serialization. Native observations already support one
+  scheduling. Extend bounded preview batching to site searches and material
+  alternatives, and compare shared observation inputs before relaxing serialization.
+  Construction preflight and allocation already batch first-choice placements.
+  Native observations already support one
   request for the standard seven sections; retain identity invalidation, native
   interruption guards and durable mutation records in further optimizations.
 
