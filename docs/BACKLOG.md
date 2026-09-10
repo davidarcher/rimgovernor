@@ -91,6 +91,10 @@ in the checkpoint commit; do not append an implementation diary here.
   and immediate entrance access now gate shell admission and dispatch; verify live
   enclosed-farm refusal, interrupted batches, large zones and custom definitions,
   and measure repeated preflight/dispatch observation latency.
+  Local four-neighbor interior/entrance connectivity now gates shell admission and
+  each dispatch batch using native cells and projected room shells. Verify native
+  sealed pockets, altered interiors and map edges; extend beyond the three-cell
+  observation margin to pawn-specific routes and other projected building types.
   Compare sites using bounded terrain, supplies, danger, fertility and travel evidence. Accept
   ruins/nonrectangular shelters; reject sealed rooms and blocked corridors beyond
   immediate entrances. Validate native floor/roof/area/designator coverage before adding tools.

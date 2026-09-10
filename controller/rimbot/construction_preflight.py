@@ -1,7 +1,7 @@
 """Native dry-run validation of new construction intent before commitment."""
 from .colony_plan import Buildings, RoomShell, Zone
 from .spatial import room_placements, native_footprint, validate_geometry
-from .shell_site import validate_shell_site
+from .shell_site import validate_shell_site, validate_shell_connectivity
 
 
 class ConstructionRefusal(ValueError):
@@ -17,6 +17,9 @@ async def preflight_construction(spec, current, game):
     previous={step.id:step for step in current.spec.steps}
     def spatial_signature(plan):
         return [(s.id, s.signature()) for s in plan.steps if isinstance(s.action, (Buildings, RoomShell, Zone))]
+    def shells(plan):
+        return [(s.id, s.signature()) for s in plan.steps if isinstance(s.action, RoomShell)]
+    shells_changed = shells(spec) != shells(current.spec)
     if (spatial_signature(spec) == spatial_signature(current.spec)
             and spec.reserved_walkways == current.spec.reserved_walkways):
         return
@@ -65,3 +68,11 @@ async def preflight_construction(spec, current, game):
                 return await game.invoke(name, arguments, allow_write=False)
             await validate_shell_site(step.id, action, read)
     validate_geometry(spec, footprints)
+    if shells_changed:
+        async def read(name, arguments):
+            return await game.invoke(name, arguments, allow_write=False)
+        for step in spec.steps:
+            if isinstance(step.action, RoomShell):
+                # New walls can seal an existing room that has no work left to
+                # redispatch. Validate both sides of that spatial relationship.
+                await validate_shell_connectivity(step.id, step.action, read, spec)

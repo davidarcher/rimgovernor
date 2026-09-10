@@ -38,6 +38,11 @@ fixture adds a farm between batches and verifies no further shell orders while
 retaining the first receipt. Real zone edits and pawn route behavior remain B06
 gameplay acceptance; fixtures are not game observations.
 
+`test_shell_connectivity.py` checks four-neighbor interior and local exterior
+connectivity, projected neighboring shells, clipped map edges, large-room query
+caps, unknown cells and interrupted batch persistence. The bounded exterior margin
+does not certify a route to a pawn or unrestricted map-wide connectivity.
+
 `test_project_resource_scheduling.py` covers resource competition in ready order,
 dependency gates, uncertain writes, persisted receipts and Hands restock recovery.
 Admission still requires enough stock for all accepted commitments. B07 native
