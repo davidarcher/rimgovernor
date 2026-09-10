@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 import pytest
-from rimbot.colony_plan import ColonyPlan, Placement, StepProgress, Zone
+from rimbot.colony_plan import ColonyPlan, PlanSpec, Placement, StepProgress, Zone
 from rimbot.hands import Hands, Blocked
 
 
@@ -27,8 +27,12 @@ async def test_native_legal_furniture_can_share_stockpile_cells():
 @pytest.mark.asyncio
 async def test_native_refused_furniture_never_issues():
     rt=runtime(False)
+    rt.current_plan=ColonyPlan(spec=PlanSpec(steps=[dict(id='bed',title='Bed',
+        completion_criteria='Built',action=dict(kind='place_buildings',placements=[
+            dict(x=10,z=10,def_name='SleepingSpot')]))]),progress={'bed':StepProgress()})
+    rt.batch=SimpleNamespace(summary=SimpleNamespace(end_tick=100))
     with pytest.raises(Blocked) as error:
-        await Hands().place(rt, Placement(x=10,z=10,def_name='SleepingSpot'), StepProgress(), '0', 0, 'load', 0)
+        await Hands().place(rt, Placement(x=10,z=10,def_name='SleepingSpot'), rt.current_plan.progress['bed'], '0', 0, 'load', 0)
     assert error.value.failure.code=='construction_unavailable'
     rt.native.assert_not_awaited()
 
