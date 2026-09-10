@@ -38,12 +38,28 @@ ordinary pawn work, preserve the floor, transfer the unchanged assignment, refus
 a stale assignment request, and observe the pawn using the new bed. Low rest is
 a declared test input; normal native behavior performs the subsequent sleeping.
 
+For new storage construction, use a fresh worker/output with
+`python scripts/storeroom_acceptance.py --source-root /worker/run --output /worker/storeroom --seconds 240`.
+The fixture prepares open ground, construction wood, exposed medicine and enabled
+workers. The method must build the shell, observe native enclosure and roofing,
+create the filtered zone, observe accepting capacity and verify delivered medicine.
+The driver resumes bounded Hands passes after observation review; native dispatch
+and context guards remain active.
+
+For medical reserves, use
+`python scripts/medicine_reserve_acceptance.py --source-root /worker/run --output /worker/medicine --seconds 240`.
+The fixture removes existing medicine, prepares mature native wild medicine plants
+and enables skilled plant workers. Shared resource actions must produce observed
+medicine through ordinary harvesting and leave every patient's care setting intact.
+This bounded case does not establish cultivated healroot production or recurring
+seasonal supply.
+
 Require process exit zero and `result.json.outcome == "passed"`. The report retains
 the source/input manifest, installed order schema, fixture setup, observations,
 receipts, postconditions and plan. Keep container and native logs alongside it.
 Failed trials must remain available; use another output directory after a fix.
 
 This probe establishes only its declared targets and bounded outcomes. It does not
-certify new storeroom construction, arbitrary bed replacements, safe wall replacement, sustained
+certify arbitrary bed replacements, safe wall replacement, sustained
 food/feed/medical production, seasonal preparation or the complete B04h campaign
 matrix. Those acceptance requirements remain in [the backlog](../BACKLOG.md).

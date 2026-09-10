@@ -91,3 +91,43 @@ async def test_supply_method_only_creates_storage_for_observed_storage_failure(r
         with pytest.raises(SkillBlocked):
             await upkeep_method(rt, 'SecureSupplies', f, people)
         assert rt.inspect_native.await_count == 1
+@pytest.mark.asyncio
+async def test_storeroom_requires_native_geometry_and_retains_single_room_limit():
+    from rimbot.upkeep_storage import supply_storeroom
+    from rimbot.colony_skills import SkillBlocked
+    rt = runtime()
+    f = dict(center=dict(x=10, z=10), definitions={k: dict(available=True, stuff='WoodLog') for k in ('Wall', 'Door')},
+        cells=[dict(x=x, z=z, walkable=True, occupied=False, zone=False, supportsLight=True, storageEmpty=True)
+               for x in range(9, 17) for z in range(9, 17)])
+    async def inspect(tool, args):
+        if tool == 'home/place_building':
+            return dict(canPlace=True, rotations=[dict(accepted=True, blockingThings=[])])
+        return dict(success=True, pawns=[dict(targets=[dict(nativeReachable=True, projectedReachable=True)])])
+    rt.inspect_native.side_effect = inspect
+    _, actions = await supply_storeroom(rt, f)
+    step = PlanStep(id='room', title='Supply room', goal_id='SecureSupplies', completion_criteria='Native shell', action=actions[0])
+    rt.current_plan.spec.steps.append(step)
+    rt.current_plan.progress['room'] = StepProgress(state='waiting')
+    with pytest.raises(SkillBlocked, match='no duplicate room'):
+        await supply_storeroom(rt, f)
+    rt.current_plan.spec.steps = []
+    rt.inspect_native.side_effect = None
+    rt.inspect_native.return_value = dict(canPlace=False)
+    with pytest.raises(SkillBlocked, match='No safe accessible'):
+        await supply_storeroom(rt, f)
+
+
+@pytest.mark.asyncio
+async def test_new_supply_room_waits_for_complete_native_roof_before_storage(monkeypatch):
+    from rimbot.upkeep_storage import supply_storeroom
+    rt = runtime()
+    step = PlanStep(id='room', title='Supply room', goal_id='SecureSupplies', completion_criteria='Native shell', action=dict(
+        kind='build_room_shell', bounds=dict(x=8, z=8, width=6, height=6), wall_def='Wall',
+        door_def='Door', materials=['WoodLog'], entrance='south'))
+    rt.current_plan.spec.steps = [step]
+    rt.current_plan.progress['room'] = StepProgress(state='complete')
+    monkeypatch.setattr('rimbot.shelter_handoff.verified_room', AsyncMock(return_value=None))
+    assert await covered_storage(rt, facts(), [dict(defName='MedicineHerbal')]) is None
+    assert rt.current_plan.colony_goals['SecureSupplies'].evidence['waiting_for_storage_roof']
+    assert await supply_storeroom(rt, facts()) is None
+    rt.inspect_native.assert_not_awaited()

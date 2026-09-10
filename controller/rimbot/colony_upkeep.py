@@ -24,6 +24,7 @@ CONTRACTS = (
     UpkeepContract('MaintainEssentialRepairs', 'damaged', 3),
     UpkeepContract('MaintainCleanFacilities', 'filth', 3),
     UpkeepContract('MaintainSleeping', 'sleeping', 3),
+    UpkeepContract('MaintainMedicalReserves', 'medicine', 3),
 )
 GOALS = {c.goal for c in CONTRACTS}
 
@@ -55,8 +56,9 @@ def evidence(facts):
     vulnerable = None
     if items is not None and all(type(r.get('roofed')) is bool and type(r.get('inStorage')) is bool
             and finite(r.get('deteriorationRate')) is not None and isinstance(r.get('id'), str)
+            and finite(r.get('baseDeteriorationRate', r.get('deteriorationRate'))) is not None
             and type(r.get('forbidden')) is bool for r in items):
-        vulnerable = [r for r in items if r['deteriorationRate'] > 0 and not r['roofed']
+        vulnerable = [r for r in items if r.get('baseDeteriorationRate', r['deteriorationRate']) > 0 and (not r['roofed'] or not r['inStorage'])
                       and not r['forbidden']]
         # Actual food deadlines outrank durable materials; stable IDs break ties.
         vulnerable.sort(key=lambda r: (not r.get('medicine', False),
@@ -79,12 +81,15 @@ def evidence(facts):
         else:
             filth = sorted((r for r in filth if r['home']), key=lambda r: (r.get('room') not in ('Kitchen', 'Hospital', 'Laboratory'), r['id']))
     return dict(vulnerable=vulnerable, damaged=damaged, fires=fires, filth=filth,
-                sleeping=facts.get('sleepingUpkeep') if current else None)
+                sleeping=facts.get('sleepingUpkeep') if current else None,
+                medicine=facts.get('medicalReserve') if current else None)
 
 
 def upkeep_nodes(facts, control):
     from .sleeping_upkeep import sleeping_evidence
     facts['sleepingUpkeep'] = sleeping_evidence(facts, control)
+    from .medical_reserves import reserve_evidence
+    facts['medicalReserve'] = reserve_evidence(facts, control)
     observed = evidence(facts)
     states = control.setdefault('upkeep', {})
     nodes = []
@@ -112,7 +117,7 @@ def progress_metric(goal_id, rows):
         return None
     if goal_id == 'MaintainSleeping':
         return len(rows)
-    field = {'SecureSupplies': 'count', 'MaintainCleanFacilities': 'thickness', 'MaintainFireSafety': 'size'}.get(goal_id)
+    field = {'SecureSupplies': 'count', 'MaintainMedicalReserves': 'count', 'MaintainCleanFacilities': 'thickness', 'MaintainFireSafety': 'size'}.get(goal_id)
     values = ([r.get('maxHitPoints', 0) - r.get('hitPoints', 0) for r in rows]
               if goal_id == 'MaintainEssentialRepairs' else [r.get(field) for r in rows])
     return sum(values) if all(finite(v) is not None for v in values) else None
@@ -172,8 +177,12 @@ async def upkeep_method(rt, goal_id, facts, people):
     if goal_id == 'MaintainSleeping':
         from .sleeping_upkeep import sleeping_method
         return await sleeping_method(rt, facts)
+    if goal_id == 'MaintainMedicalReserves':
+        from .medical_reserves import reserve_method
+        return await reserve_method(rt, facts)
 
     goal = rt.current_plan.colony_goals[goal_id]
+    goal.evidence.pop('waiting_for_storage_roof', None)
     state = rt.current_plan.control['upkeep'][goal_id]
     if not state['known']:
         raise SkillBlocked('Upkeep evidence unavailable: ' + goal_id)
@@ -259,7 +268,8 @@ async def upkeep_method(rt, goal_id, facts, people):
     storage_missing = any((f.get('preview') or {}).get('errorKind') == 'no_storage'
         or f.get('error') == 'Native haul destination is not verified covered storage' for f in failures)
     if action == 'haul' and candidates and storage_missing:
-        from .upkeep_storage import covered_storage
+        from .upkeep_storage import covered_storage, supply_storeroom
         if storage := await covered_storage(rt, facts, rows[:8]):
             return storage
+        return await supply_storeroom(rt, facts)
     raise SkillBlocked('No available enabled worker and safe native ' + action + ' job; preserve player settings')

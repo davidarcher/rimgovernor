@@ -12,7 +12,7 @@ unavailable read. The section tick must match the enclosing observation.
 | Need | Available native evidence and action boundary |
 | --- | --- |
 | Supplies | Per-item identity, location, quantity, condition, deterioration stat, roof, valid storage, rot deadline and forbidden status. `home/order` hauling previews native storage access. `requireSafeStorage` rechecks enabled hauling, safe reach and covered storage during dispatch. |
-| Storage | Existing slot cells, roof and occupancy; native hauling decides whether filters, priorities, reservations and capacity admit an exact item. Cell count alone is not usable capacity. |
+| Storage | Existing slot cells, roof, occupancy and item-specific native filtered capacity. Native hauling separately decides worker access and delivery; cell count alone is not usable capacity. |
 | Sleeping | Bed definition, slots, owners, current users, pawn-specific access, roof and temperature. Capacity does not establish actual use or suitable worn protection. |
 | Home and structures | Exact occupied/protected cells with home coverage; owned building condition, material, roof and support definition. A support definition does not prove a replacement batch is safe. |
 | Fire, cleaning, repair | Exact native targets and condition. `home/order` repair/clean use the installed WorkGivers and their normal eligibility. These methods require current home coverage, safe access and enabled work. The installed firefighting WorkGiver is not directly orderable: enabled workers respond normally while the controller watches at most three home fires of size at most one. |
@@ -48,6 +48,16 @@ do not reopen a failed method. A 2,500-tick review window catches changed capaci
 or routes without retrying every observation; outstanding receipts and watchdog
 holds remain authoritative.
 
+Supplies require both roofing and valid storage. The native base deterioration rate
+identifies vulnerable items even when their current rate becomes zero under a roof.
+Current deterioration and rot deadlines remain separate observations.
+
+`storageCapacity` reports each observed item's currently unreserved covered slot
+capacity using native storage acceptance, stacking and cell limits. Reservations,
+fire and native construction blockers exclude cells. This is physical capacity,
+not a delivery route or a reservation: different items compete for the same cells,
+so capacities cannot be summed. Worker-specific dispatch still validates access.
+
 When hauling reports no storage, the supply method can create a filtered 2×2
 stockpile in existing covered space. It preserves observed plants, items, buildings,
 zones, committed geometry and reserved walkways, previews at most eight candidates,
@@ -55,8 +65,13 @@ and admits at most three such stockpiles. Filters allow only the observed target
 definitions. An atomic native guard rechecks roof, occupancy and zone ownership
 before creation. Exact geometry and filter readback complete the zone action;
 the supply goal still requires observed protected supplies. Missing covered space
-or repeated capacity failure remains a blocker. This method does not build a new
-storeroom or change another stockpile's filters.
+or repeated capacity failure remains a blocker. If no existing covered space fits,
+one 6×6 supply shell may be admitted through ordinary shared construction. At most
+three sites receive native footprint and projected-access previews. Existing
+structures, zones and reserved geometry remain protected. Native enclosure and
+complete roofing must be observed before the filtered zone is created; the entrance
+aisle stays free. The controller does not build duplicate rooms after interruption
+or change another stockpile's filters.
 
 `MaintainSleeping` reuses vacant eligible beds before building one affordable bed
 beside a controller-created floor spot. Ordinary construction uses shared resource
@@ -74,6 +89,18 @@ requires observed use by the assigned pawn in a suitable bed, retained only for
 that bed and current load. Missing reads, changed assignments, access loss and
 unsafe temperature reopen the deficit. Natural sleep uses the existing schedule;
 the method does not force rest, remove a floor spot or change a player's timetable.
+
+`MaintainMedicalReserves` starts below the configured medicine units per colonist
+and remains active until the higher recovery reserve is observed. Defaults are one
+and three respectively; these are planning policy, not forecasts of treatment demand.
+Current usable, reachable medicine of any native medicine definition counts toward
+the reserve. Forbidden, expired, unreachable and future stock cannot establish it.
+Replenishment uses the native herbal-medicine definition and the existing resource
+source/production method. Required PlantCutting work joins shared allocation while
+player overrides remain authoritative. Native eligibility decides mature wild
+healroot acquisition; unavailable sources or recipes remain explicit blockers.
+The method preserves patient care, drug policies and player production bills.
+Designations and bill receipts never prove replenishment.
 
 An `upkeep_target` action waits after the native job receipt. Hauling requires the
 same item identity and at least its original quantity in roofed valid storage;

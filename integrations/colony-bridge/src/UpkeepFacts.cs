@@ -31,6 +31,7 @@ namespace HomeBridge.BridgeTools
                         x = t.Position.x, z = t.Position.z, hitPoints = t.HitPoints, maxHitPoints = t.MaxHitPoints,
                         roofed = t.Position.Roofed(map), inStorage = t.IsInValidStorage(),
                         deteriorationRate = t.GetStatValue(StatDefOf.DeteriorationRate),
+                        baseDeteriorationRate = t.def.GetStatValueAbstract(StatDefOf.DeteriorationRate, t.Stuff),
                         rotTicks = rot != null && rot.Active ? (int?)Math.Max(0, rot.TicksUntilRotAtCurrentTemp) : null,
                         perishable = rot != null && rot.Active, temperature = t.AmbientTemperature,
                         forbidden = t.IsForbidden(Faction.OfPlayerSilentFail), medicine = t.def.IsMedicine,
@@ -50,6 +51,22 @@ namespace HomeBridge.BridgeTools
                 storageCells = read("storageCells", () => map.AllCells.Where(c => c.GetSlotGroup(map) != null)
                     .Select(c => new { x = c.x, z = c.z, roofed = c.Roofed(map),
                         occupied = c.GetThingList(map).Any(t => t.def.category == ThingCategory.Item) }).ToList()),
+                storageCapacity = read("storageCapacity", () => items.OrderBy(t => t.thingIDNumber).Select(t => {
+                    int capacity = 0, acceptingCells = 0;
+                    foreach (var group in map.haulDestinationManager.AllGroupsListInPriorityOrder) {
+                        if (!group.parent.HaulDestinationEnabled
+                            || group.parent is Thing container && container.Faction != Faction.OfPlayerSilentFail) continue;
+                        if (!group.Settings.AllowedToAccept(t)) continue;
+                        foreach (var c in group.CellsList) {
+                            if (!c.Roofed(map) || !StoreUtility.IsGoodStoreCell(c, map, t, null, Faction.OfPlayerSilentFail)) continue;
+                            var stacks = c.GetThingList(map).Where(a => a.def.category == ThingCategory.Item).ToList();
+                            int room = stacks.Where(a => a != t && a.CanStackWith(t)).Sum(a => System.Math.Max(0, a.def.stackLimit - a.stackCount));
+                            room += System.Math.Max(0, c.GetMaxItemsAllowedInCell(map) - stacks.Count) * t.def.stackLimit;
+                            if (room > 0) { capacity += room; acceptingCells++; }
+                        }
+                    }
+                    return new { item = t.GetUniqueLoadID(), unreservedCoveredCapacity = capacity, acceptingCells };
+                }).ToList()),
                 structures = read("structures", () => buildings.Select(b => new {
                     id = b.GetUniqueLoadID(), defName = b.def.defName, x = b.Position.x, z = b.Position.z,
                     hitPoints = b.HitPoints, maxHitPoints = b.MaxHitPoints, burning = b.IsBurning(),

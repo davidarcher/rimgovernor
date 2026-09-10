@@ -27,18 +27,17 @@ in the checkpoint commit; do not append an implementation diary here.
   this item owns their startup sequencing and the upkeep gaps between them.
 
   **Phase 1 — Finish needs and completion contracts.** Extend the
-  [native upkeep audit](reference/upkeep-contracts.md) with filtered storage
-  capacity, safe roof-support
+  [native upkeep audit](reference/upkeep-contracts.md) with safe roof-support
   replacement and seasonal lead-time evidence. Preserve unknowns. Extend the
   maintained supply, cleaning, repair and fire contracts to the remaining goals:
-  facilities, food-chain operation, animals, medical reserves,
+  facilities, food-chain operation, animals,
   clothing and workforce changes. Each needs entry/recovery thresholds, a bounded
   method, ownership, progress evidence and an explicit blocker. Add stable scoring
   and hysteresis so minor changes do not rebuild facilities or reassign work.
 
   **Phase 2 — Secure landing supplies and sleeping.** Reuse suitable shelter and
-  storage before building. Add covered general storage with native filters and
-  capacity for vulnerable supplies, separate from food-specific storage. Prioritize
+  storage before building. Extend covered general storage to obstructed interiors
+  and changed native capacity without disturbing player filters. Prioritize
   safe hauling by loss risk and survival value; extend verified covered-storage
   hauling to split/merged stacks, unavailable capacity and interrupted deliveries.
   Item loss must remain distinct from successful protection.
@@ -75,9 +74,10 @@ in the checkpoint commit; do not append an implementation diary here.
   then verify actual containment, reachable feed and seasonal feed reserves.
   Account for animal consumption separately from human food and protect sensitive
   stores with appropriate areas/filters. Do not automatically slaughter, release,
-  breed or change bonded-animal policy to resolve a feed deficit. Maintain medical
-  reserves, audit native healroot eligibility and acquisition/production options,
-  and coordinate replenishment with B06b clinics and existing medical response.
+  breed or change bonded-animal policy to resolve a feed deficit. Extend verified
+  wild-medicine reserve replenishment to cultivated healroot, exhausted wild sources,
+  recurring harvest ownership and unavailable staff. Coordinate production with
+  B06b clinics and existing medical response.
   Preserve patient care policies; unavailable supplies or staff remain visible.
 
   **Phase 6 — Prepare for seasonal and workforce changes.** Derive preparation

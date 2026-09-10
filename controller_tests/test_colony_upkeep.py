@@ -10,13 +10,13 @@ from rimbot.colony_upkeep import evidence, upkeep_nodes, upkeep_method, reconcil
 
 
 def facts():
-    return {'tick': 10, 'upkeep': {'version': 1, 'tick': 10, 'errors': {},
+    return {'tick': 10, 'colonists': 0, 'resources': {}, 'upkeep': {'version': 1, 'tick': 10, 'errors': {},
         'items': [], 'structures': [], 'fires': [], 'filth': [], 'storageCells': [], 'beds': [], 'people': []}}
 
 
 def item(**changes):
-    return dict(id='Thing_Medicine1', roofed=False, inStorage=False, forbidden=False,
-                deteriorationRate=1, count=10, medicine=True, **changes)
+    return dict(dict(id='Thing_Medicine1', roofed=False, inStorage=False, forbidden=False,
+                deteriorationRate=1, count=10, medicine=True), **changes)
 
 
 def runtime(action='haul'):
@@ -46,6 +46,14 @@ def test_failed_and_stale_sections_cannot_prove_recovery():
     assert evidence(f)['vulnerable'] is None
     f['upkeep']['tick'] = 9
     assert all(v is None for v in evidence(f).values())
+
+
+def test_roofed_supplies_outside_valid_storage_remain_a_deficit():
+    f = facts()
+    f['upkeep']['items'] = [item(roofed=True, inStorage=False, deteriorationRate=0, baseDeteriorationRate=6)]
+    assert evidence(f)['vulnerable']
+    f['upkeep']['items'][0]['inStorage'] = True
+    assert evidence(f)['vulnerable'] == []
 
 
 def test_forbidden_items_and_non_home_filth_are_preserved():
@@ -277,4 +285,3 @@ def test_retry_inputs_ignore_simulation_noise_but_preserve_eligibility_changes()
     assert retry_signature(state, changed, {}, {}) != baseline
     state['targets'][0]['forbidden'] = True
     assert retry_signature(state, people, {}, {}) != baseline
-
