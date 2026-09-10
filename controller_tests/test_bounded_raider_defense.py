@@ -5,6 +5,7 @@ from rimbot.colony_skills import SkillBlocked
 from test_colony_controller import Replay
 from rimbot.bridge import BridgeError
 from mcp.types import CallToolResult
+from rimbot.colony_policy import derive,ColonyPolicy
 
 
 def fixture():
@@ -106,6 +107,38 @@ async def test_unarmed_defender_cannot_be_sent_into_nearby_melee_raider():
     rt,_=fixture();rt.people[0]['equipment']={'armed':False,'primary':None}
     with pytest.raises(SkillBlocked,match='equipped defenders'):
         await rt.controller.skills.compile('ActiveCombat',rt.facts,rt.people)
+
+
+@pytest.mark.parametrize('count,rows,remaining',[
+    (1,[{'thingId':'Enemy','downed':True}],0),
+    (2,[{'thingId':'Enemy','downed':True}],1),
+    (2,[{'thingId':'Enemy','downed':True}]*2,1),
+    (1,[{'thingId':'Enemy'}],1),
+    (1,[{'thingId':'Enemy','downed':False}],1),
+])
+def test_incapacitated_threats_do_not_hide_unseen_or_standing_enemies(count,rows,remaining):
+    rt,_=fixture();rt.batch.summary.hostile_count=count
+    rt.batch.native['status_after']={'threats':{'hostiles':rows}}
+    assert derive(rt.batch,rt.facts,ColonyPolicy())['hostiles']==remaining
+
+
+@pytest.mark.asyncio
+async def test_downed_raider_selects_owned_stand_down():
+    rt,enemy=fixture();enemy['nearestColonistDistance']=90;rt.batch.summary.hostile_count=1
+    async def query(name,**args):
+        if name=='home/colony_facts':return rt.facts
+        return {'pawns':rt.people if args.get('colonistsOnly') else [enemy]}
+    rt.game.query=query
+    await rt.controller.cycle()
+    for step in rt.current_plan.spec.steps:rt.current_plan.progress[step.id].state='complete'
+    for pawn in rt.people:
+        pawn['drafted']=True;rt.draft_owners[pawn['thingId']]=rt.context_token
+    enemy['downed']=True
+    rt.batch.native['status_after']={'threats':{'hostiles':[{'thingId':enemy['thingId'],'downed':True}]}}
+    await rt.controller.cycle()
+    assert rt.current_plan.colony_goals['ActiveCombat'].status=='complete'
+    cleanup=[s for s in rt.current_plan.spec.steps if s.action.kind=='stand_down']
+    assert len(cleanup)==1 and set(cleanup[0].action.pawn_ids)==set(rt.draft_owners)
 
 
 @pytest.mark.asyncio

@@ -55,7 +55,12 @@ def derive(batch, native, policy):
     people = batch.summary.pawns
     value['medicalKnown'] = all(p.bleeding is not None and getattr(p,'needs_tend',None) is not None for p in people if not p.dead)
     value['criticalPatients'] = [p.thing_id for p in people if not p.dead and (p.downed or p.bleeding or p.needs_tend)]
-    value['hostiles'] = batch.summary.hostile_count + batch.summary.hunting_predator_count
+    threats=batch.native.get('status_after',{}).get('threats',{})
+    incapacitated={p['thingId'] for p in threats.get('hostiles',[])
+        if p.get('thingId') and p.get('downed') is True}
+    # The native faction census includes downed raiders. Remove only identities
+    # positively observed incapacitated; unlisted/truncated threats retain risk.
+    value['hostiles'] = max(0,batch.summary.hostile_count-len(incapacitated)) + batch.summary.hunting_predator_count
     value['armed'] = sum(p.armed is True and not p.downed and not p.dead for p in people)
     buildings = batch.native.get('buildings', {})
     nets = power_forecast(buildings)

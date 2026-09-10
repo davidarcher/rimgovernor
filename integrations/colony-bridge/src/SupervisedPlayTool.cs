@@ -578,6 +578,7 @@ namespace HomeBridge.BridgeTools
             {
                 string why;
                 if (!HomePlayUntilEventTools.SafeIsColonist(p)
+                    && !HomePlayUntilEventTools.SafeDowned(p) && !HomePlayUntilEventTools.SafeDead(p)
                     && HomePlayUntilEventTools.IsHostile(p, out why)
                     && !s.IgnoredHostiles.Contains(p.thingIDNumber)
                     && colonists.Any(c => Distance(p, c) <= s.HostileWithin))

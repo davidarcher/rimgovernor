@@ -173,6 +173,12 @@ target after orders dispatch; other threats and severe injury remain guarded. Bl
 emergencies prevent routine waiting work from restarting time. Larger threats and
 electrical generation still report explicit blockers.
 
+Confirmed downed raiders remain faction hostiles in the native census but no
+longer require combat. The controller subtracts only exact observed incapacitated
+identities; unknown and unlisted threats retain risk. Supervised play ignores
+incapacitated enemies for hostile pauses and checks them again if they stand.
+This allows ordinary treatment and owned stand-down without attacking downed pawns.
+
 Combat compilation, dispatch and clock admission inspect colonist health. Unknown
 health or a colonist at the native half-health limit produces an explicit hold;
 an unchanged injury cannot repeatedly rearm the combat clock. The native injury

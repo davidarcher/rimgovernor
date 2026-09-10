@@ -90,6 +90,9 @@ transitions, checks ownership atomically before release, and optionally refuses
 attacks on downed targets. Ordinary job construction and native eligibility remain
 upstream-derived. The separate local `scripts/fixtures/CombatFixture.cs` uses native
 incident APIs only for disposable acceptance setup; it is not production tooling.
+The local supervised-play guard excludes downed/dead enemies from active hostile
+pauses, matching its existing conscious-hostile clearance event. Standing enemies
+and colonist injury thresholds remain guarded.
 
 The React dashboard borrows the upstream overlay's game/chat/short-summary layout
 and separate long-term direction, adapted to our existing dashboard styles.
