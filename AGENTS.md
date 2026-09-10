@@ -38,6 +38,11 @@
   rendered/input behavior; native pawn outcomes require scenario assertions.
   Use fresh output directories and task-specific image tags; retain reports and
   failures under `.rimbot/` and report the exact scope tested.
+- During iteration, run affected test files and their contract neighbors. Run the
+  full affected suite once before handoff; avoid repeating it on an unchanged revision.
+  Use one Docker check worker by default: extra workers repeat, not shard, tests.
+  Use `--controller-only --test controller_tests/test_NAME.py` for focused Docker
+  controller checks; omit `--test` for the full controller suite.
 - Use checks appropriate to the change; `build.ps1` runs controller and dashboard
   checks. Distinguish compilation/protocol checks from actual gameplay validation.
 - Never replace installed DLLs while any RimWorld instance is running, including

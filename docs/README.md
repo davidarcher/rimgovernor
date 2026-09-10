@@ -29,7 +29,7 @@ introduces the idea before linking to the exact contracts and relevant source.
 
 - [Set up a Windows checkout](how-to/setup.md) and [launch a prepared colony](how-to/launch.md).
 - [Choose checks](how-to/choose-tests.md), [run local checks](how-to/local-checks.md),
-  or [run Docker controller checks](how-to/docker-checks.md).
+  or [run focused/full Docker controller checks](how-to/docker-checks.md).
 - [Prepare Linux inputs](how-to/docker-inputs.md) and [run native Docker acceptance](how-to/docker-native.md).
 - [Verify spatial construction, access and reuse](how-to/spatial-acceptance.md).
 - [Evaluate visual review and evidence recall](how-to/visual-reviews.md).

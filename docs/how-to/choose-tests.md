@@ -14,7 +14,13 @@
 | Actual language interpretation or sustained colony behavior | [Real model probe](semantic-commands.md#live-planner-probe), [campaigns and performance](campaigns.md) | Configured local LM Studio when inference is involved; bounded lifecycle checks do not establish these outcomes. |
 
 For agents: inspect the affected tests and choose the smallest relevant check, then run
-the required broader checks for the change. Report commands, exit status, skips,
+the full affected suite once before handoff. Controller-only changes need the full
+controller suite; dashboard-only changes need typecheck, Vitest and build. Changes to
+shared contracts, packaging or test infrastructure need both. Reuse a successful run
+on the same revision/environment when no relevant source has changed; do not repeat
+full suites after documentation-only follow-ups. Additional Docker workers repeat the
+suite rather than divide it, so use one unless testing isolation or repetition.
+Report commands, exit status, skips,
 artifact locations and what remains unverified. Keep failed trials. A documentation-only
 edit normally needs command/flag and link verification, not a new game session. Do not
 mark backlog gameplay acceptance complete from fixture tests, compilation or native

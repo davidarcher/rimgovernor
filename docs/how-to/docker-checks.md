@@ -32,13 +32,13 @@ operator: `& 'C:/path/to/python.exe' scripts/container_checks.py --help`.
 ## Run the suite
 
 ```powershell
-python scripts/container_checks.py --workers 2 --image rimbot-checks:my-task --output .rimbot/docker-checks-01
+python scripts/container_checks.py --workers 1 --image rimbot-checks:my-task --output .rimbot/docker-checks-01
 Get-Content .rimbot/docker-checks-01/result.json
 ```
 
 Do not create the output directory first: the runner creates it and refuses an existing
-path. `--workers` accepts 1 through 8 (default 2). Each worker runs the **entire**
-Python suite; this is isolation/repetition, not sharding. Use 1 for a single regression
+path. `--workers` accepts 1 through 8 (default 1). Each worker runs the **same selected**
+Python tests (the entire suite when no selection is supplied); this is isolation/repetition, not sharding. Use 1 for a single regression
 run. `--timeout 600` is the default per-worker limit in seconds; the image build has a
 separate 1,800-second limit. Dashboard typecheck, Vitest and build run in the image
 build stage (which Docker may cache), not in each worker. Neither native DLL compilation
@@ -69,16 +69,26 @@ tasks.
 
 ## Run a focused test
 
-For a focused test, the wrapper has no pytest-argument forwarding. Build the same test
-target and invoke pytest directly instead:
+Select one or more files or node IDs with repeated `--test` flags, optionally filtered
+with `-k`. Use forward slashes and paths relative to the worktree root:
 
 ```powershell
-docker build -f containers/Dockerfile --target tests -t rimbot-checks:my-task .
-docker run --rm --init rimbot-checks:my-task python -m pytest -q controller_tests/test_container_worker.py
+python scripts/container_checks.py --controller-only --test controller_tests/test_container_worker.py --image rimbot-checks:my-task-controller --output .rimbot/docker-focused-01
 ```
 
-This direct command reports to the terminal; it does not produce the wrapper's retained
-result manifest or JUnit artifacts.
+The runner retains the selection, build target, dashboard-check status, JUnit and the
+slowest ten tests. No tests collected remains a failure. Omit `--test` to run the full
+controller suite before handoff. Use `--workers 2` only when independent repetition or
+isolation is the subject of the test; it does not make a single suite faster.
+
+`--controller-only` builds the `controller-tests` target, skipping dashboard dependencies,
+checks and assets. Omit it for dashboard/shared-contract changes and combined verification.
+Use distinct tags for controller-only and combined images. With `--no-build`, the supplied
+image determines available assets; no dashboard checks are claimed for that invocation.
+
+Python dependency installation is cached independently of controller/test/script edits.
+Changes to `pyproject.toml` invalidate that layer. Continue building after source changes;
+Docker cache reuse is safe here, whereas `--no-build` would test old copied source.
 
 ## Related reading
 
