@@ -174,9 +174,12 @@ async def run(args):
         candidates=[p for p in roster if any(w['name']=='Research' and not w['disabled'] for w in p['work']['types'])]
         assert candidates,'No capable native researcher'
         candidates=sorted(candidates,key=lambda p:-next((s.get('level',0) for s in p['bio']['skills'] if s['name']=='Intellectual'),0))[:2]
+        research=await rt.game.invoke('home/research',{'filter':'Biofuel','finished':True,'locked':True})
+        if 'BiofuelRefining' in research.get('finished',[]):candidates=[]
         for candidate in candidates:
             research_work=next(w for w in candidate['work']['types'] if w['name']=='Research')
-            if research_work.get('priority')!=1:
+            override=rt.current_plan.control.get('work_overrides',{}).get(candidate['thingId'],{}).get('Research')
+            if research_work.get('priority')!=1 and not (override==1 and research_work.get('priority',0)>0):
                 await command(kind='SetWorkPriority',pawn=candidate['thingId'],work_type='Research',priority=1)
             for work in candidate['work']['types']:
                 if work['name'] not in ('Research','Firefighter','Patient','PatientBedRest','BedRest') and not work['disabled'] and work.get('priority',0)!=0:
