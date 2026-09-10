@@ -46,6 +46,10 @@ With the same fixture, `--preservation` adds and prioritizes an ordinary native
 long-lived food recipe after butchering. Acceptance requires native recipe products
 from pawn work and an increase in accessible product stock. This checks explicit
 preservation orders; automatic rot-risk selection has separate controller tests.
+Use `--preservation-only --checkpoint <save>` to isolate the same recipe/output
+check in an untouched save with existing cooking and work setup. Native bill
+diagnostics retain ingredient shortfalls; normal bounded wild-plant harvesting
+can supply ingredients. This mode does not claim hunting acceptance.
 
 ## Related reading
 

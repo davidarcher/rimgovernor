@@ -138,7 +138,7 @@ async def run(args):
             quantity=sum(s['count'] for s in current['foodSupply']['stocks'] if s['defName']==product['defName'])
             report['preservation']['samples'].append(dict(tick=current['tick'],quantity=quantity,
                 outputs=outputs,stocks=current['foodSupply']['stocks'],cooking=current['cooking'],
-                bills=await rt.game.query('home/bills',bench=bench['id'].removeprefix('Thing_'))))
+                bills=(await rt.bridge.call('home/bills',action='list',bench=bench['id'].removeprefix('Thing_'))).structuredContent))
             save()
             if outputs and quantity>previous:
                 report['cases'].append(dict(name='Native preservation output entered accessible stock',
@@ -175,9 +175,13 @@ async def run(args):
         await ready(rt)
         if rt.review_task and not rt.review_task.done():await rt.review_task
         rt.execution_task=asyncio.current_task()
-        if args.spoilage or args.preservation:
+        if args.spoilage or args.preservation or args.preservation_only:
             report['observer']=(await rt.bridge.call('test/food_observe')).structuredContent
-        if args.observe_food_id:
+        if args.preservation_only:
+            assert args.checkpoint,'Preservation-only acceptance requires an unchanged native checkpoint'
+            await observe_preservation()
+            report.update(outcome='passed',scope='Native preservation output from ordinary acquired ingredients; hunting is a separate case')
+        elif args.observe_food_id:
             assert args.checkpoint and args.spoilage
             await observe_spoilage({'id':args.observe_food_id},require_sharing=False)
             report.update(outcome='passed',scope='Native temperature response and rot of unchanged autosaved food')
@@ -279,6 +283,7 @@ if __name__=='__main__':
     parser.add_argument('--checkpoint',type=Path,help='Unmodified native save for targeted food acceptance')
     parser.add_argument('--spoilage',action='store_true',help='With FoodObservationFixture, forbid one ordinarily butchered stack and observe actual rot, temperature variation and shared-stock ingestion')
     parser.add_argument('--preservation',action='store_true',help='With FoodObservationFixture, prioritize an ordinary long-lived food bill and require actual pawn output entering accessible stock')
+    parser.add_argument('--preservation-only',action='store_true',help='Exercise preservation and ordinary ingredient acquisition in an unchanged checkpoint with existing cooking/work setup; skips hunting')
     parser.add_argument('--observe-food-id',help='Observe an existing perishable stack in an unmodified checkpoint; skips hunting and shared-ingestion assertions')
     parser.add_argument('--vary-temperature',action='store_true',help='Queue ordinary deconstruction of the observed campfire to measure food temperature response')
     parser.add_argument('--seconds',type=int,default=900)
