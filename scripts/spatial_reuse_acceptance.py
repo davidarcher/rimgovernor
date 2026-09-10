@@ -13,7 +13,9 @@ from rimbot.colony_skills import SkillBlocked
 from rimbot.player_commands import apply_command
 from rimbot.room_adoption import validate_adoption
 from rimbot.session_checkpoint import prepare_resume,create_checkpoint
-from rimbot.shelter_handoff import player_shelter,verified_room
+from rimbot.shelter_handoff import player_shelter,verified_room,sleeping_handoff
+from rimbot.colony_policy import criteria,ColonyPolicy
+from rimbot.spatial_program import stage_layout
 from rimbot.shell_site import ShellSiteRefusal
 from rimbot.store import Store
 
@@ -49,6 +51,18 @@ async def run(args):
         await command(goal.evidence['request'])
         room,interior=await verified_room(rt,shell)
         record('paired_native_room_and_furnishings_preserved',len(interior)==40 and room['openRoofCount']==0 and len(room['beds'])>=2,room=room)
+        facts=await rt.game.query('home/colony_facts',planning=True)
+        stage_layout(rt.current_plan,facts,criteria(facts,ColonyPolicy()),[])
+        record('native_shortfall_keeps_shelter_phase',rt.current_plan.control['spatial_program']['stage']=='habitable_shelter',
+            program=rt.current_plan.control['spatial_program'])
+        selected=await sleeping_handoff(rt,facts,identity,shell)
+        assert selected,'Expected observed indoor sleeping shortfall'
+        await command(dict(kind='PlaceBuildings',purpose='shelter',buildings=selected[1][0]))
+        facts=await rt.game.query('home/colony_facts',planning=True)
+        stage_layout(rt.current_plan,facts,criteria(facts,ColonyPolicy()),[])
+        record('observed_native_capacity_releases_service_phase',facts['indoorSleepingCapacity']>=facts['colonists']
+            and rt.current_plan.control['spatial_program']['stage'] in ('food_services','capacity'),
+            program=rt.current_plan.control['spatial_program'],facts=facts)
         completed=[s.id for s in rt.current_plan.spec.steps if s.action.kind=='place_buildings'
             and rt.current_plan.progress[s.id].state=='complete']
         assert len(completed)>=2,completed

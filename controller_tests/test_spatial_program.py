@@ -11,6 +11,7 @@ def test_services_wait_for_observed_shelter_while_food_and_emergencies_continue(
     assert not plan.spec.steps and plan.control['spatial_program']['stage']=='habitable_shelter'
     # An issued/completed action list without native gates cannot advance the stage.
     assert stage_layout(plan,dict(tick=200),dict(shelter=None,sleeping=True),nodes)==selected
+    assert plan.control['spatial_program']['roles']['sleeping']['verified'] is False
 
 
 def test_native_capacity_reopens_after_growth_and_survives_plan_persistence():

@@ -150,7 +150,10 @@ setpoint control. The accepted setpoint does not certify room temperature or pow
 
 `AdoptRoom` selects an existing native room as the preferred shelter without changing
 its old construction project or issuing orders. Admission verifies exact enclosed
-interior, complete roof and a native central doorway on the requested side. Native
+interior, complete roof and a native doorway on the requested side. Rectangles use
+the central doorway; nonrectangular adoption supplies exact `interior_cells` and
+`entrance_cell` together, following the [spatial contract](spatial-contracts.md).
+Native
 colony/map/load identity is retained with the adoption; another load requires fresh
 explicit adoption. Handoff rechecks geometry and entrance after player edits, retains
 existing objects and fits furnishings through the shared native previews. Missing or

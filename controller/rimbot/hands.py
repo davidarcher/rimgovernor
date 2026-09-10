@@ -3,7 +3,7 @@ import time
 from .colony_plan import Buildings, RoomShell, Zone, NativeOperation, ClockAction, StandDown, Placement, Failure, TradeAction, CancelConstructionAction
 from .receipts import reason
 from .spatial import room_placements, GeometryConflict, validate_geometry, native_footprint
-from .shell_site import ShellSiteRefusal, ZONE_ARGUMENTS, validate_shell_zones, validate_shell_access, validate_shell_connectivity
+from .shell_site import ShellSiteRefusal, ZONE_ARGUMENTS, validate_shell_zones, validate_shell_access
 from .projects import zone_settings
 
 
@@ -49,16 +49,6 @@ class Hands:
                     for index, placement in enumerate(placements):
                         self.guard(rt, revision, token, direction)
                         await self.place(rt, placement, progress, str(index), revision, token, direction, preview_only=True)
-                    self.guard(rt, revision, token, direction)
-                    async def read_connectivity(name, args):
-                        self.guard(rt, revision, token, direction)
-                        result = await rt.game.query(name, **args)
-                        self.guard(rt, revision, token, direction)
-                        return result
-                    try:
-                        await validate_shell_connectivity(step.id, action, read_connectivity, rt.current_plan.spec)
-                    except ShellSiteRefusal as error:
-                        raise Blocked(error.code, str(error), evidence=error.evidence) from error
                 operations = placements if placements is not None else action.targets if isinstance(action, CancelConstructionAction) else [action]
                 for index, operation in enumerate(operations):
                     self.guard(rt, revision, token, direction)

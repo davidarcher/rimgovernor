@@ -8,7 +8,7 @@ def stage_layout(plan, facts, gates, nodes):
     stage='capacity' if shelter and services else 'food_services' if shelter else 'habitable_shelter'
     roles={
         'sleeping':dict(goal='EnsureInitialShelter',required=facts.get('colonists'),
-            observed=facts.get('indoorSleepingCapacity'),verified=gates.get('sleeping') is True),
+            observed=facts.get('indoorSleepingCapacity'),verified=shelter),
         'food_storage':dict(goal='EnsureFoodStorage',verified=gates.get('storage') is True),
         'cooking':dict(goal='EnsureCooking',verified=gates.get('cooking') is True),
         'temperature':dict(goal='EnsureTemperatureSafety',verified=gates.get('temperature') is True),

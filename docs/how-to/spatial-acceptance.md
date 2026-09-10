@@ -28,7 +28,8 @@ are used.
 
 `scripts/spatial_reuse_acceptance.py --checkpoint <paired-manifest> --output
 <fresh-directory>` resumes that checkpoint in a fresh owned process, requires
-fresh room adoption, archives completed construction, refuses a sealed exit and
+fresh room adoption, fills the observed indoor sleeping shortfall to release the
+food-service phase, archives completed construction, refuses a sealed exit and
 observes a normal pawn-built corner edit invalidate the original room shape.
 Keep checkpoint paths valid inside the resumed container and use fresh worker
 staging; do not rewrite the checkpoint's recorded paths or manifest.
@@ -38,7 +39,8 @@ staging; do not rewrite the checkpoint's recorded paths or manifest.
 the private observation mod's `Defs` directory before startup. The fixture inherits
 ordinary Wall rules and is never installed in the player's mod set. The probe
 checks custom-definition obstruction, an untracked sealed pocket, map-edge refusal,
-native floor/roof/home-area previews, a 1024-cell zone preview, and a real interrupted
+native floor/roof/home-area previews, a 1024-cell zone preview and exact native
+created grid, and a real interrupted
 two-object batch. The first native write deliberately loses its response; the next
 pass must observe it without duplication. Reports distinguish preview evidence,
 native objects and pawn completion, and retain dispatch/preflight wall times.

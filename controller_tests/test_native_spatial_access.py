@@ -32,6 +32,21 @@ async def test_cancelled_unbuilt_shell_does_not_project_walls_or_own_space():
 
 
 @pytest.mark.asyncio
+async def test_cancelled_neighbor_cannot_close_active_shell_local_exit():
+    from rimbot.colony_plan import StepProgress
+    from test_shell_connectivity import reader
+    spec=plan();neighbor=spec.steps[0].model_copy(deep=True);neighbor.id='cancelled-neighbor'
+    neighbor.action.bounds.x,neighbor.action.bounds.z=8,3
+    neighbor.action.bounds.width,neighbor.action.bounds.height=9,6
+    neighbor.action.entrance='west';spec.steps.append(neighbor)
+    current=ColonyPlan(spec=spec,progress={neighbor.id:StepProgress(state='cancelled')})
+    cells=reader(blocked={(11,9),(13,9)})
+    async def invoke(name,args,**kwargs):
+        return await cells(name,args) if name=='home/get_cells_plus' else native_reply(name,args,canPlace=True)
+    await preflight_construction(spec,current,SimpleNamespace(invoke=invoke),refresh=True)
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize('evidence,code',[
     ({'success':False,'error':'No paused map'},'incomplete_pawn_access'),
     ({'success':True,'accepted':True},'incomplete_pawn_access'),

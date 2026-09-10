@@ -93,12 +93,13 @@ async def preflight_construction(spec, current, game, *, refresh=False):
             await validate_shell_site(step.id, action, read)
     validate_geometry(spec, footprints, current=current)
     if has_shells:
+        projected_spec=spec.model_copy(update={'steps':active})
         async def read(name, arguments):
             return await game.invoke(name, arguments, allow_write=False)
         for step in active:
             if isinstance(step.action, RoomShell):
                 # Furniture or new walls can seal a room with no remaining work.
-                await validate_shell_connectivity(step.id, step.action, read, spec,
+                await validate_shell_connectivity(step.id, step.action, read, projected_spec,
                                                   obstructions=obstructions)
     if footprints:
         from .shell_site import ShellSiteRefusal

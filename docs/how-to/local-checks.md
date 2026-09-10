@@ -32,15 +32,14 @@ Shared spatial controller checks are in `test_spatial_constraints.py`,
 `test_plan_geometry.py` and `test_construction_preflight.py`. They cover entrances in
 all rotations, indoor farm refusal, retained-building and same-batch native footprint
 conflicts, unknown geometry, and refusal before dispatch. These use native-shaped
-fixtures; B06 still requires ordinary pawn construction, live player edits and observed
-access acceptance.
+fixtures; use [spatial native acceptance](spatial-acceptance.md) for ordinary pawn
+construction, live player edits and observed access.
 
 `test_shell_site.py` exercises complete native zone census validation, enclosed farm
 refusal, allowed indoor stockpiles, immediate doorway access in all rotations,
 unknown/truncated geometry and direction changes. A serialized partial-dispatch fixture
 adds a farm between batches and verifies no further shell orders while retaining the
-first receipt. Real zone edits and pawn route behavior remain B06 gameplay acceptance;
-fixtures are not game observations.
+first receipt. Fixtures are not game observations.
 
 `test_shell_connectivity.py` checks four-neighbor interior and local exterior
 connectivity, projected neighboring shells, clipped map edges, large-room query caps,
