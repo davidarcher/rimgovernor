@@ -96,6 +96,7 @@ async def run(args):
         people=(await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True,health=True))['pawns']
         goal=rt.current_plan.colony_goals.setdefault(identity,ColonyGoal(priority_class=2,source='PLAYER'))
         selected=await rt.controller.skills.compile(identity,facts,people)
+        report.setdefault('goal_compilation',[]).append({'identity':identity,'facts':facts,'selected':selected})
         assert selected,identity+' did not produce its expected native method'
         method,actions=selected
         steps,_=rt.controller.skills.steps(identity,method,actions,facts)
@@ -157,6 +158,7 @@ async def run(args):
             and all(rt.current_plan.progress[s.id].state=='complete' for s in steps)
             and not any(s.action.kind=='build_room_shell' for s in steps),room=room,actions=actions)
         await chat('Set exact cooler '+cooler['thingId']+' to 50 Celsius so this room can be used as shelter. Leave the original freezer cooler alone.')
+        room,buildings=await window('settle_native_furniture')
         if args.variant=='hot':
             heater_actions=await furniture_handoff(rt,selection,'Heater')
             assert heater_actions
