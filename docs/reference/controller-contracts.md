@@ -192,8 +192,10 @@ labor, medical, mood and power projections and their input limits.
 
 ## Progress, capacity and bootstrap dialogs
 
-Goals record selected methods, attempts, step IDs and observable progress. Invalid
-templates have a bounded alternative-site search; unknown or failed native actions
+Goals record selected methods, attempts, step IDs and observable progress.
+Native events or player direction arriving during method selection retain a pending
+review; neither a refusal nor a no-op acknowledges newer evidence from an old read.
+Invalid templates have a bounded alternative-site search; unknown or failed native actions
 become explicit blockers. A no-progress watchdog prevents silent indefinite waiting.
 Above eight colonists, starter sleeping uses verified room and native footprint fitting,
 preserving its entrance aisle and three service rows. The starter uses its available

@@ -388,6 +388,8 @@ class ColonyController:
                 continue
             try:
                 compiled = await self.skills.compile(identity, facts, people['pawns'])
+                if rt.context_token != token or rt.chat_revision != direction or rt.mode != 'automate':
+                    return
                 if compiled is None:
                     release_admission(plan, identity, development_admitted, 'Existing method awaiting native progress')
                     if identity.startswith('Population-') and goal.status != 'complete':
@@ -432,6 +434,8 @@ class ColonyController:
                 rt.persist()
                 return
             except SkillBlocked as error:
+                if rt.context_token != token or rt.chat_revision != direction or rt.mode != 'automate':
+                    return
                 self.block(goal, identity, str(error))
                 release_admission(plan, identity, development_admitted, str(error))
             except ValueError as error:
