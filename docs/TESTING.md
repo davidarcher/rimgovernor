@@ -444,6 +444,22 @@ window, not arbitrary long-term survival or difficult-biome coverage.
 
 ### Visible dashboard acceptance
 
+`setup.ps1` installs the `video` extra. For an existing Python environment run
+`python -m pip install -e '.[video]'`. Build/install the observation companion
+only with every RimWorld process stopped; older companions use snapshot fallback.
+Run `scripts/video_stream_acceptance.py --source-root <prepared-root> --output
+<fresh-directory>` with `controller` on `PYTHONPATH` to receive native frames over
+a real local WebRTC connection in a disposable paused colony. It checks decoded
+dimensions, advancing frames, peer cleanup and unchanged paused native tick.
+Restore any temporarily installed companion after the owned game stops. This
+probe measures native-to-aiortc delivery, not Chrome capture-to-display latency,
+hardware encoding, input safety or simulation throughput.
+
+In Chrome, verify Live video, Pause video retaining the current frame, resume,
+hidden-tab cleanup, load changes, multiple viewers and snapshot fallback after a
+stream stall. Resize/fullscreen must retain the image aspect ratio. The 30–60 fps,
+latency and CPU/GPU/TPS acceptance work remains in B18.
+
 Use a rendered prepared profile and the local web server for player-facing tests.
 Verify that `/api/camera` supplies complete immutable PNG responses while native
 captures advance; pause/play video must retain the last good frame. Check an actual

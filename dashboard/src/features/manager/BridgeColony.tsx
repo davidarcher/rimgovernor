@@ -15,6 +15,7 @@ import FieldGuide, { Muffalo } from "./FieldGuide";
 import { readable, humanize } from "./labels";
 import GameControls from "./GameControls";
 import Throughput from "./Throughput";
+import GameVideo from "./GameVideo";
 type Message = { id: number; kind: string; text: string; at: number };
 type State = {
   cinematic?: boolean;
@@ -358,9 +359,10 @@ export default function BridgeColony() {
               </div>
             </div>
             <div className="bridge-image">
-              {camera ? (
-                <img src={camera} alt="Current RimWorld colony" />
-              ) : (
+              <GameVideo session={s?.sessionId} viewer={viewer.current}
+                enabled={videoPlaying && view === "colony" && !!s?.connected && !s?.headless}
+                snapshot={camera}>
+              {!camera && (
                 <div className="camera-empty">
                   <Muffalo large />
                   <span className="mgr-eyebrow">NO SIGNAL / FIELD CAMERA</span>
@@ -372,6 +374,7 @@ export default function BridgeColony() {
                   </p>
                 </div>
               )}
+              </GameVideo>
             </div>
             <GameControls
               key={s?.sessionId}

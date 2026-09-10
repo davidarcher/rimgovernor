@@ -16,6 +16,7 @@ from .store import Store
 from .controller_settings import PolicyUpdate, update_policy
 from .dashboard_controls import router as dashboard_controls
 from .session_checkpoint import create_checkpoint, stop_for_restart
+from .video_stream import VideoHub, router as video_routes
 
 
 class CheckpointRequest(BaseModel):
@@ -44,15 +45,20 @@ def create_app(runtime=None):
             settings=Settings(model=os.environ.get('RIMBOT_MODEL', 'qwen3.5-9b')),
             routing=load_model_routing(Settings(model=os.environ.get('RIMBOT_MODEL', 'qwen3.5-9b')), os.environ.get('RIMBOT_MODELS_CONFIG')))
         app.state.rt = rt
+        app.state.video = VideoHub(rt)
         await rt.start()
         try:
             yield
         finally:
+            await app.state.video.close()
             await rt.stop()
             if runtime is None:
                 rt.store.close()
     app = FastAPI(title='RimBot live colony', lifespan=lifespan)
     app.include_router(dashboard_controls)
+    app.include_router(video_routes)
+    if runtime is not None:
+        app.state.video = VideoHub(runtime)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=['127.0.0.1', 'localhost', '[::1]', 'testserver'])
     assets = Path(__file__).parent/'static'
     app.mount('/assets', StaticFiles(directory=assets/'assets'), name='overlay-assets')
@@ -65,7 +71,7 @@ def create_app(runtime=None):
                 return JSONResponse({'detail': 'Use the local colony dashboard'}, status_code=403)
         response = await call_next(request)
         response.headers['Cache-Control'] = 'no-store'
-        response.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'none'"
+        response.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'none'"
         return response
 
     @app.exception_handler(ValueError)
@@ -141,6 +147,7 @@ def create_app(runtime=None):
             rt.video_viewers[viewer] = now + 8
         else:
             rt.video_viewers.pop(viewer, None)
+            await request.app.state.video.drop(viewer)
         return {'playing': body['playing']}
 
     @app.get('/api/camera')

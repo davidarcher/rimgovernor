@@ -205,11 +205,14 @@ in the checkpoint commit; do not append an implementation diary here.
   when the view changes during a drag. Never replay an uncertain click automatically.
   Confirm effects from native state rather than treating input delivery as completion.
 
-  **Continuous video.** Evaluate a dedicated WebRTC video path, targeting 30–60 fps
-  on desktop Chrome; this is a design target, not an established performance result.
-  Prototype capture and encoding without PNG disk round trips, using hardware
-  encoding where available. Capture/encode/delivery must run independently of slow
-  controller reviews and inference while preserving native main-thread constraints.
+  **Continuous video.** The receive-only WebRTC prototype is implemented: native
+  RGB shared memory, latest-frame delivery, viewer leases, session cleanup and
+  visible snapshot fallback. Paused native-to-aiortc delivery is verified; this does
+  not establish desktop Chrome acceptance or the 30–60 fps target. Remaining work:
+  evaluate asynchronous GPU readback and hardware encoding instead of synchronous
+  ReadPixels/software encoding, and measure Chrome delivery and simulation cost.
+  Verify capture/encode/delivery during slow controller reviews and inference
+  while preserving native main-thread constraints.
   Evaluate WebRTC data channels versus the existing server's WebSocket support for
   small input messages; use one authoritative input path. Bound queues and discard
   stale video frames instead of accumulating latency. Keep snapshots as a visible

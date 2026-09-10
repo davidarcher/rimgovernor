@@ -14,6 +14,9 @@ RimWorld and RimBridgeServer SDK assemblies are referenced, never bundled.
 Any subsequent source modifications must be recorded here and tested in-game.
 
 Local changes:
+- `VideoStreamTool.cs` is original local presentation code. It captures the Unity
+  framebuffer after rendering into a leased RGB24 shared-memory slot on Windows.
+  It does not issue input, alter simulation speed or expose editor operations.
 - `scripts/fixtures/ScenarioStartFixture.cs` is an optional test-build setup hook.
   Native `ScenPart_ConfigPage_ConfigureStartingPawns.DoEditInterface` supplies the
   1..10 count bounds; the hook changes a `Scenario.CopyForEditing` copy and follows

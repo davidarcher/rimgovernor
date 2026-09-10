@@ -13,7 +13,7 @@ if (!$PythonPath) {
 if ($LASTEXITCODE) { throw 'Python 3.12+ is required.' }
 if (!(Test-Path '.venv\Scripts\python.exe')) { & $PythonPath -m venv .venv }
 if ($LASTEXITCODE) { throw 'Could not create the Python environment.' }
-& '.\.venv\Scripts\python.exe' -m pip install -e '.[test]'
+& '.\.venv\Scripts\python.exe' -m pip install -e '.[test,video]'
 if ($LASTEXITCODE) { throw 'Python dependency installation failed.' }
 $pnpm = Get-Command pnpm -ErrorAction SilentlyContinue
 $bundledPnpm = Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\bin\fallback\pnpm.cmd'

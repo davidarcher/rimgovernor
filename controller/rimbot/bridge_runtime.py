@@ -72,6 +72,7 @@ class BridgeRuntime:
         self.connected = self.stopped = self.resume_after_review = False
         self.batch = self.game = self.bridge = self.review_task = None
         self.video_viewers = {}
+        self.streaming_viewers = set()
         self.render_state = {}
         self.camera_path = None
         self.camera_bytes = None
@@ -1031,7 +1032,9 @@ class BridgeRuntime:
                                 watching = any(until > time.monotonic() for until in self.video_viewers.values())
                                 lease = await bridge.call('home/render_demand', seconds=8 if watching else 0)
                                 self.render_state = lease.structuredContent
-                            if not self.headless and watching:
+                            snapshot_watching = any(until > time.monotonic() and viewer not in self.streaming_viewers
+                                                    for viewer, until in self.video_viewers.items())
+                            if not self.headless and snapshot_watching:
                                 await asyncio.sleep(.15)
                                 image = await bridge.call('rimworld/take_screenshot', fileName='rimbot-live', includeTargets=False, suppressMessage=True)
                                 candidate = Path(image.structuredContent['path']).resolve()

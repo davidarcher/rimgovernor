@@ -416,6 +416,23 @@ cannot truncate an in-flight HTTP response. A failed refresh retains the last go
 frame and reports the delay. Visible game windows render independently of browser
 viewer leases; headless sessions cannot supply video.
 
+Watch negotiates receive-only WebRTC through the protected `/api/video/offer`
+endpoint when the `video` Python extra and native `home/video_stream` are present.
+There are no input data channels or external STUN/TURN services. Up to four peers
+share one native RGB24 buffer; a nonblocking named mutex protects whole-frame reads.
+Unity captures the full framebuffer after rendering, at most 30 times per second
+and up to 3840×2160. This uses synchronous ReadPixels and software encoding;
+the capture ceiling is not a delivered-fps guarantee. Each consumer takes the
+latest frame instead of queuing obsolete frames. Encoding runs off the asyncio
+thread; native lease renewal and buffer sampling run separately from reviews.
+
+Viewer heartbeats renew an eight-second lease. Hidden/paused views close their
+peer, and colony/load changes invalidate it. Native capture releases its resources
+after lease expiry; headless mode never starts it. Connected streaming viewers
+do not request PNG snapshots. Unsupported or stalled streams display the snapshot
+fallback, retaining the last good image. Streaming does not change simulation
+speed, control ownership or cinematic preferences.
+
 Chat supplies structured evidence separately from the current player request.
 Request budgeting may shorten evidence but never the protected current request;
 internal preservation metadata is removed before inference. This prevents large
