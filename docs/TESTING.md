@@ -622,6 +622,13 @@ Joined-pawn work acceptance compares completed deterministic assignment deltas
 with later native work-table readbacks for every joined pawn. These readbacks
 verify applied settings; actual bed use separately requires native `inBed` and
 `bedThingId` observations for every starting and joined colonist.
+`scripts/native_bed_use_acceptance.py --source-root <ordinary-prepared-root>
+--output <fresh-directory>` verifies additional-seed actual bed use. Routine
+construction must supply indoor capacity for the entire starting roster. Once
+native threats, tending needs and active mental states are clear, the fixture
+enters Manual and applies an ordinary sleep timetable. Every starter must then
+have a native bed identity and `inBed` observation. This bounded fixture certifies
+bed use, not sustained survival or emergency handling.
 Add `--archive-fixture` to start a lifecycle campaign with an ordinary completed
 work-setting action and method in the durable archive. Native work readback must
 verify the action before explicit retirement. The audit requires nonempty initial
