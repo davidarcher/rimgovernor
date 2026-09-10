@@ -38,6 +38,10 @@ Hidden fixture quest evidence stays outside the gameplay observation surface.
 
 `--logistics --trip --shared` additionally loads silver, issues an explicit hold,
 and waits for returned silver to leave the pawn inventory and enter native storage.
+Return probes can create ordinary receiving stockpiles near the returning pawn
+and issue shared haul orders for observed ground cargo. They refresh stack IDs
+after native unloading and recheck storage before hauling; completion requires
+the native stored quantity, not the haul receipt.
 `--multimap` extends that trip by settling a second native home and checking old-map
 order refusal. Supply a private profile with the ordinary maximum-settlements
 preference set to at least two. The fixture never edits maps or pawn positions.

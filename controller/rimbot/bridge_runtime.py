@@ -1072,7 +1072,7 @@ class BridgeRuntime:
             if name in ('home/caravan', 'home/caravan_gift', 'home/fulfill_quest') and is_write(name, arguments):
                 if (expected_token != self.context_token or expected_revision != self.chat_revision
                         or expected_plan_revision != self.current_plan.revision):
-                    raise ValueError('Player direction or plan changed during expedition validation; no command sent')
+                    raise NativeNotDispatched('Player direction or plan changed during expedition validation; no command sent')
             from .flight_recorder import recording_action
             action = next((s for s in self.current_plan.spec.steps if s.id == expected_step_id), None)
             with recording_action(expected_step_id, action.goal_id if action else None):

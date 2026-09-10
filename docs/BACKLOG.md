@@ -327,16 +327,18 @@ each bounded method.
   native lead/capture timing makes the selected action visible. Add manual-camera
   suppression and configurable/decoupled cinematic pacing before claiming a
   continuous high-speed director.
-- [ ] **B15 · World progression.** World/research reads and research selection
-  exist. Audit and accept normal caravan assembly, loading, movement and quest
-  progression. Extend evaluation to competing resources, emergencies, multi-day
-  survival and winter readiness before claiming full-game capability.
-  Add policy-driven expedition/quest evaluation, diplomacy and return logistics:
-  eligible participants, route/time risk, travel supplies, carrying capacity,
-  home-colony staffing and return storage. Coordinate [economic trading](reference/command-contracts.md#economic-selection) and B22 population
-  decisions. Preserve player commitments and distinguish accepting a quest from
-  completing it. Verify native departures, travel, interactions, rewards and returns,
-  including failed/expired objectives, stranded parties and multiple active maps.
+- [x] **B15 · World progression.** Shared expedition and quest commands evaluate
+  participant eligibility, route/time risk, supplies, capacity, home staffing and
+  return storage against player policy, economic reserves and B22 care commitments.
+  Scoped native observations distinguish packing, departure, arrival, quest
+  acceptance, fulfillment, rewards and stored returns; uncertain writes are not
+  replayed. Native acceptance covers loaded round trips, settlement gifts and
+  goodwill, acquired quest goods and received rewards, failed/expired objectives,
+  short-supplied party recovery, competing cargo, emergency stops and multiple
+  active maps with stale-map refusal. Two days of prepared-colony survival and
+  cold-exposure readiness refusal are accepted; sustained seasonal survival and
+  autonomous foothold coverage remain in B04. See the
+  [world progression procedure](how-to/world-progression.md) for exact scenario scope.
 - [ ] **B30 · DLC gameplay systems.** Maintain an installed-content capability and
   acceptance matrix; B06b room coverage does not establish the associated gameplay.
   Discover native definitions and prerequisites, gate methods on actual colony need

@@ -539,10 +539,11 @@ async def run():
                             raise AssertionError('Cargo bypassed the player reserve')
                         assert len(rt.current_plan.spec.steps) == before
                         await command(kind='SetResourceReserve', resource='Pemmican', reserve=0, waits=False)
-                        first = dict(request, cargo=[dict(group_id=food['id'], count=food['available'] * 3 // 4)])
+                        competing = next(g for g in catalog['groups'] if g['defName'] == 'Silver')
+                        first = dict(request, cargo=manifest + [dict(group_id=competing['id'], count=competing['available'] * 3 // 4)])
                         pending = await apply_command(rt, first, token=rt.context_token, revision=rt.chat_revision)
                         second = dict(request, pawn_ids=[roster['pawns'][1]['thingId']],
-                            cargo=[dict(group_id=food['id'], count=food['available'] // 2)])
+                            cargo=manifest + [dict(group_id=competing['id'], count=competing['available'] // 2)])
                         try:
                             await apply_command(rt, second, token=rt.context_token, revision=rt.chat_revision)
                         except ValueError as error:
@@ -678,13 +679,56 @@ async def run():
                     returned = next((p for p in home['pawns'] if p['thingId'] == pawn and not p['dead']
                         and not p['downed'] and not p['drafted'] and not p['mentalState']), None)
                     if returned:
+                        if return_stacks and not report.get('return_storage_expansion'):
+                            from rimbot.colony_plan import PlanStep, NativeOperation
+                            position, size = returned['position'], report['facts']['mapSize']
+                            cells = await read('home/get_cells_plus', x=max(0, min(position['x'] - 4, size['width'] - 9)),
+                                z=max(0, min(position['z'] - 4, size['height'] - 9)), width=9, height=9)
+                            vacant = [c for c in cells['cells'] if c.get('walkable') is True
+                                and not c.get('fogged') and not c.get('zoneId') and not c.get('things')]
+                            assert len(vacant) >= 4, 'Observe free receiving storage near the returning pawn'
+                            args = dict(op='create', zoneType='stockpile', label='Expedition unloading',
+                                cells=';'.join(f"{c['x']},{c['z']}" for c in vacant[:4]),
+                                allowSplit=True, preset='nothing', allow=','.join(return_resources), priority='Important', watch=False)
+                            preview = await read('home/zone_cells', **args, dryRun=True)
+                            assert preview.get('success') is True, preview
+                            step = PlanStep(id=f'world-return-storage-{rt.current_plan.revision}',
+                                title='Prepare receiving storage for returned cargo', source='PLAYER', purpose='storage',
+                                action=NativeOperation(tool='home/zone_cells', arguments=dict(args, dryRun=False)),
+                                completion_criteria='Observed empty cells accept the returned resources')
+                            await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
+                                reason='Provide receiving space after the expedition', steps=[step]).decision(rt.current_plan),
+                                actor='strategist', expected_token=rt.context_token, expected_revision=rt.chat_revision)
+                            rt.manual_requests.append((step.id, rt.context_token, rt.chat_revision))
+                            await rt.execute_manual_requests()
+                            await settle_dispatch(rt, [step])
+                            assert rt.current_plan.progress[step.id].state == 'complete'
+                            report['return_storage_expansion'] = dict(preview=preview, step=step.id)
+                            # Creating storage can already satisfy the native return predicate.
+                            from rimbot.world_progression import reconcile_world
+                            async with rt.lock:
+                                await reconcile_world(rt)
+                                rt.persist()
+                            if all(step_complete(s) for s in report['shared_steps']):
+                                report['returned'] = home
+                                break
                         for item in return_stacks:
                             if item['thingId'] in hauled:
                                 continue
-                            location = await read('home/order', action='resolve', target=item['thingId'], dryRun=True)
-                            if (location.get('target') or {}).get('spawned') is not True:
+                            storage = await read('home/world_progression', includeStorage=True)
+                            stored_ids = {i['thingId'].removeprefix('Thing_') for m in storage['maps']
+                                if m['id'] == scope_args['mapId'] for i in m['storedItems']}
+                            ground = await read('home/list_things', match=item['defName'], category='all', ownership='ours',
+                                includeHeld=False, maxPositionsPerDef=100)
+                            positions = [p for row in ground.get('things', []) if row['defName'] == item['defName']
+                                for p in row.get('positions', []) if p.get('spawned') is True
+                                and p['thingId'].removeprefix('Thing_') not in stored_ids]
+                            if not positions:
                                 continue
-                            args = dict(action='haul', pawn=pawn, target=item['thingId'], draft=False, watch=False)
+                            # Native unloading may merge stacks and replace their IDs.
+                            target = min(positions, key=lambda p: (p['thingId'].removeprefix('Thing_') != item['thingId'].removeprefix('Thing_'),
+                                (p['x'] - returned['position']['x']) ** 2 + (p['z'] - returned['position']['z']) ** 2))
+                            args = dict(action='haul', pawn=pawn, target=target['thingId'], draft=False, watch=False)
                             preview = await read('home/order', **args, dryRun=True)
                             if preview.get('success') is not True:
                                 continue
