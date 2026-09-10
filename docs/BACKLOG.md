@@ -287,6 +287,47 @@ in the checkpoint commit; do not append an implementation diary here.
   defenses, retreat and repair after damage. Controller geometry tests and placed
   blueprints do not establish enemy pathing, raid victory or sustainable defense;
   require isolated native scenarios with observed movement and combat outcomes.
+- [ ] **B06d · Lighting, floors, routes and facility utilities.** Extend B06b room
+  methods and B04h upkeep with maintained environment requirements, using the
+  existing shared goals, resource accounting and Hands. Audit native observations
+  and actions before adding APIs; terrain `supportsLight` means structural support,
+  not illumination. Distinguish safe/legal placement from functional performance.
+  Lighting: observe light at actual work and interaction cells, identify relevant
+  native penalties/requirements, and choose affordable fixtures and coverage with
+  power/fuel dependencies. Reuse existing light, respect player preferences and
+  darkness-dependent crops, and repair coverage after outages or layout changes.
+  Keep ordinary workplace lighting separate from B06a crop-light requirements.
+  Flooring: select native materials by role-specific cleanliness, movement, beauty,
+  flammability, availability and cost. Prefer targeted kitchen/clinic improvements
+  and measured traffic bottlenecks before decorative coverage. Preserve growing
+  soil, player floors, access and room function during bounded installation or
+  replacement; include material production and hauling in the admitted budget.
+  Routes: use observed pawn reachability and travel evidence to connect beds,
+  workplaces, stores, dining and defense positions. Score travel reduction against
+  paving/construction cost; protect door interactions, widths, retreat and civilian
+  paths. Do not mistake local flood-fill connectivity or straight-line distance
+  for map-wide safe routing. Re-evaluate after obstacles, doors or threats change.
+  Cleanliness: define observed targets for kitchens and clinics, assign bounded
+  cleaning response when normal work coverage fails, and distinguish removable
+  filth from floor/building contributions. Site butcher work and other dirty
+  processing using native cleanliness effects; avoid contaminating shared clean
+  workspaces. Verify cleaned cells/room stats and restore temporary work overrides.
+  Power: implement B04f generation/connectivity methods that choose available native
+  generators, fuel supply, conduits and storage against actual connected loads,
+  operating schedules and reliability needs. Account for daylight peaks, sustained
+  deficits and stored energy; expose unknown capacity or unavailable research as
+  blockers. Verify each critical consumer is connected and powered, not just that
+  some network has surplus. Include refueling, repairs and bounded outage recovery.
+  Refrigeration: complete B04h freezer operation with verified enclosure/roofing,
+  cooler orientation, unobstructed heat rejection, seasonal cooling demand and
+  protected electrical capacity. Measure food-storage temperature and spoilage
+  recovery; a placed cooler or nominal thermostat is insufficient evidence.
+  Acceptance: dark/partially lit benches, protected fungus rooms, changed layouts,
+  filthy versus inherently dirty rooms, kitchen/butcher separation, interrupted
+  flooring, unreachable stores, costly detours, disconnected consumers, exhausted
+  fuel/batteries, day/night load changes and hot-weather freezer failure. Add
+  deterministic fixtures and isolated native runs observing illumination, cleaning,
+  completed floors, actual travel, generation/refueling and maintained temperatures.
 - [ ] **B09 · Combat and rescue acceptance.** Controlled movement, equip, observed
   melee/ranged hits, tending and owned-draft cleanup have passed scripted tests.
   Rescue delivery tracking exists but actual carry-to-bed has not passed a live
