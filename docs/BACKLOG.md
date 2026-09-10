@@ -15,11 +15,15 @@ in the checkpoint commit; do not append an implementation diary here.
   fertility and temperature variants. Include longer survival, changing seasons
   and production that replaces initial supplies. Sampled stable gates over a
   bounded window do not establish arbitrary long-term colony survival.
-  Resolve the combat/medical hold when all available doctors are controller-drafted
-  and a defender needs tending; preserve player draft ownership and combat safety.
-  Recover from native order refusals caused by current jobs, carried cargo or fire
-  without stopping all subsequent reviews. Observe before reconsidering the order;
-  preserve native interruption guards and never blindly retry uncertain writes.
+  Close eight-colonist startup deficits: establish crop labor and interim food before
+  initial rations run out; fit the food stockpile around service furniture; and
+  reconcile interrupted equipment/hauling and upkeep watchdogs from native outcomes.
+  Mixed hunting coverage must resolve unsafe-route holds without bypassing the
+  native guard. Crop-only Peaceful trials are separate from Rough survival acceptance.
+  Provide safe triage while hostiles remain when all doctors are controller-drafted;
+  preserve player draft ownership and combat safety. Post-combat owned-draft release
+  does not establish active-combat treatment. Repeat the sustained matrix after fixes;
+  targeted medical/refusal passes do not close these survival requirements.
 - [ ] **B04h · Complete startup and colony upkeep.** Implement the phased plan
   below through existing ColonyPlan goals, deterministic methods and Hands. Use
   observed deficits, urgency and player priorities rather than a fixed day-by-day
@@ -348,12 +352,12 @@ each bounded method.
 
 - [ ] **Linux-volume storage for other native test launchers.** Audit remaining
   launchers for synchronous writes through host bind mounts. Extend the throughput
-  launcher's private-volume contract where measurements justify it: unchanged
+  and standard scenario launchers' private-volume contract where measurements justify it: unchanged
   SQLite/recorder durability, export only after stopping the worker, database
   integrity checks, retained failure evidence and recovery volumes/containers,
   and verified cleanup after success. Preserve live scenario dashboards and an
-  explicit bind-storage comparison option. Throughput workers already use this
-  contract; verify each additional launcher's normal, failed and interrupted runs.
+  explicit bind-storage comparison option. Throughput and standard scenario workers
+  use this contract; verify each additional launcher's normal, failed and interrupted runs.
 
 - [ ] **End-to-end native throughput acceptance.** Compare unprofiled runs with
   fixed images, inputs, speed/recording settings and uncontended Docker resources.

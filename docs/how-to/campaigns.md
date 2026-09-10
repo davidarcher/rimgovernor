@@ -76,6 +76,18 @@ required alongside sustained gates. Vary the explicit seed/biome and extend the
 stability window for seasonal trials. Each run has a fresh output and private Linux
 state volume; a timeout, native hold or failed food assertion remains a failure.
 Rough is the default difficulty. Peaceful runs must be labelled separately.
+Use `--scenario Crashlanded` to select that native start instead of the default
+`LostTribe`; `--disable-hunting` labels an explicit crop-focused work policy.
+The world seed does not freeze native pawn generation: compare immutable prepared
+saves for repeatability, and retain each fresh start's manifest and preparation report.
+
+For bounded recovery acceptance through the same launcher, use
+`python scripts/b04f_acceptance.py --root /worker/run --case drafted-medical --seconds 600`
+or `--case refused-preview`. These require `EmergencyDevelopmentFixture=true` in
+the private companion. The former checks actual tending and player draft ownership
+after threats clear; the latter exercises real native order and stale need-admission
+refusals and verifies subsequent controller reviews. They do not certify sustained food
+or active-combat triage.
 
 ## Repeated model campaigns
 

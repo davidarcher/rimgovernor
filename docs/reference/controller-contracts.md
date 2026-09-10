@@ -203,6 +203,10 @@ settings, equipment, stock or upkeep evidence permit a fresh selection; a
 2,500-tick window also rechecks routes. Unknown failures and dispatched writes
 retain their existing reconciliation requirements. This never retries an uncertain
 write or relaxes native interruption guards.
+Need-recovery admission previews likewise retain native refusals on the mood goal
+and can consider another measured need. GABS errors retain the requested tool identity
+even when the native payload omits it. Dispatch failures remain subject to Hands'
+existing uncertainty and observed-recovery contracts.
 Above eight colonists, starter sleeping uses verified room and native footprint fitting,
 preserving its entrance aisle and three service rows. The starter uses its available
 sleeping capacity before proposing another nearby shell on observed free ground with
