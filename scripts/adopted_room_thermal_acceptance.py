@@ -167,6 +167,11 @@ async def run(args):
             assert heater_actions
             await commit_actions('ordinary-fixture-heater',heater_actions)
             target=heater_actions[0]['placements'][0]
+            generator=source['site']['generator']
+            wire={(x,generator['z']) for x in range(generator['x'],target['x']+1)}
+            wire|={(target['x'],z) for z in range(generator['z'],bounds['z']+2)}
+            await command(kind='PlaceBuildings',purpose='shelter',buildings={'kind':'place_buildings','placements':[
+                dict(def_name='PowerConduit',x=x,z=z) for x,z in sorted(wire)]})
             for _ in range(80):
                 room,buildings=await window('build_heater')
                 heater=next((b for b in buildings['buildings'] if b['defName']=='Heater'
