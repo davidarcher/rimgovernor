@@ -89,7 +89,7 @@ async def run(args):
         def measured_note(kind,*values,**data):
             if kind=='clock_event' and data.get('native_event',{}).get('kind') in ('long_event','force_pause_cleared','tick_budget'):
                 report['lifecycle']['boundaries'].append({'event':data['native_event'],
-                    'window_deadline':rt.execution_window_end,'plan':ledger_sample(rt,args.output/'state.sqlite')})
+                    'native_clock':dict(rt.supervisor.state),'window_deadline':rt.execution_window_end,'plan':ledger_sample(rt,args.output/'state.sqlite')})
             return original_note(kind,*values,**data)
         rt.note=measured_note
     report['start_type']='saved_checkpoint' if args.checkpoint else 'fresh_baseline'
@@ -110,6 +110,9 @@ async def run(args):
         initial_token=rt.context_token
         if not args.checkpoint and report['initial_game_tick']>600:
             raise ValueError('Fresh baseline must be within its first 600 game ticks; use --checkpoint for resumed saves')
+        if getattr(args,'recovery_fixture',False):
+            from construction_recovery_acceptance import exercise_recovery
+            report['recovery_fixture']=await exercise_recovery(rt)
         rt.current_plan.control.setdefault('policy', {})['execution_speed'] = args.speed
         await rt.set_mode('automate')
         deadline = time.monotonic()+args.seconds
@@ -207,6 +210,7 @@ if __name__=='__main__':
     parser.add_argument('--rendered',action='store_true')
     parser.add_argument('--checkpoint',type=Path,help='Debug resume from an unmodified native save; not a fresh-colony acceptance run')
     parser.add_argument('--lifecycle-days',type=stability_days,help='Measure bounded native lifecycle/ledger/bed use over this duration; does not require or certify sustained food gates')
+    parser.add_argument('--recovery-fixture',action='store_true',help='Before the campaign, use ordinary stock forbidding to record a verified prewrite construction recovery in the same persistent ledger')
     parser.add_argument('--join-count',type=int,choices=range(4),default=0,help='After tick 50000 request up to three ordinary test-only WandererJoin incidents; requires native CanFireNow and the separate incident fixture')
     parser.add_argument('--speed',choices=['Normal','Fast','Superfast'],default='Fast')
     raise SystemExit(0 if asyncio.run(run(parser.parse_args())) else 1)

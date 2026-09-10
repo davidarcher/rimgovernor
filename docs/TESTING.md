@@ -596,6 +596,15 @@ resource failure, refusal while stock remains forbidden, same-action recovery af
 native availability returns, and exactly two observed native blueprint identities.
 The probe runs shared Hands and preserves the recovery history with no inference;
 blueprint issuance does not certify subsequent pawn construction.
+Use `--obstruction` to test a separately grounded Steel wall blueprint temporarily
+blocking the planned Wood wall. The fixture cancels only that exact conflicting
+blueprint, then requires fresh previews and same-action recovery.
+
+Add `--recovery-fixture` to a lifecycle campaign to retain the native resource
+recovery history through subsequent ordinary simulation. Measurements include
+immutable archive hashes, live or archived recovery histories, native action
+counts and the native clock state at autosave boundaries. The lifecycle audit
+rejects changed or missing prior archive records and recovery history.
 
 Add `--mixed` to `scripts/session_checkpoint_acceptance.py` for an issued shell
 slot, its unissued material reservations, a pending growing zone and pending work

@@ -13,7 +13,14 @@ def audit(report):
     assert ledger and ledger[-1]['tick']-report['initial_game_tick']>=life['days']*60000
     for a,b in zip(ledger,ledger[1:]):
         assert b['tick']>=a['tick']
+        for table,records in a.get('archive_hashes',{}).items():
+            assert all(b['archive_hashes'][table].get(identity)==digest for identity,digest in records.items()),'Archived evidence changed or disappeared'
         assert all(b['table_rows'][name]>=count for name,count in a['table_rows'].items())
+    if report.get('recovery_fixture'):
+        assert ledger[0]['recovery_histories'],'Native recovery fixture history was not measured'
+        for sample in ledger[1:]:
+            for identity,history in ledger[0]['recovery_histories'].items():
+                assert sample['recovery_histories'].get(identity,[])[:len(history)]==history,'Native recovery history lost or rewritten'
     starting=set(report['starting_colonists'])
     joined={pawn for event in report.get('join_incidents',[]) for pawn in event['result']['joined']}
     used={p['id'] for sample in beds for p in sample['pawns'] if p['in_bed'] is True and p['bed']}
