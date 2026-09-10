@@ -142,6 +142,32 @@ def test_hysteresis_and_unknown_do_not_clear_risk():
     assert not criteria(f,policy)['temperature']
 
 
+@pytest.mark.parametrize('growing, expected', [(14, False), (15, True), (16, True)])
+def test_production_gate_counts_growing_cells_across_edible_farms(growing, expected):
+    f = facts(count=3)
+    f['farms'] = [
+        dict(edible=True, usableCells=100, growingCells=15),
+        dict(edible=True, usableCells=100, growingCells=growing),
+        dict(edible=False, usableCells=100, growingCells=100),
+        dict(usableCells=100, growingCells=100),
+        dict(edible=True, usableCells=100),
+    ]
+    assert criteria(f, ColonyPolicy())['production'] is expected
+
+
+def test_production_gate_requires_growing_crops():
+    f = facts(count=3)
+    assert criteria(f, ColonyPolicy())['production'] is False
+    f['farms'] = [dict(edible=True, usableCells=100, growingCells=0)]
+    assert criteria(f, ColonyPolicy())['production'] is False
+
+
+def test_production_gate_requires_colonists():
+    f = facts()
+    f['colonists'] = 0
+    assert criteria(f, ColonyPolicy())['production'] is False
+
+
 def test_unissued_and_native_reservations_do_not_double_spend():
     p=ColonyPlan(control={'costs':{'first':{'0':{'WoodLog':60}}}},progress={'first':StepProgress()})
     f={'resources':{'WoodLog':100},'constructionDeficit':{}}

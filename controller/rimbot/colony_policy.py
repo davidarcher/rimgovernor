@@ -74,8 +74,8 @@ def criteria(facts, policy):
         'sleeping': count > 0 and facts.get('bedCapacity', 0) >= count,
         'shelter': count > 0 and facts.get('indoorSleepingCapacity', 0) >= count,
         'food': food is not None and food >= policy.foothold_food_days,
-        'production': any(f.get('edible') is True and f.get('growingCells', 0) >= count * 10
-                          for f in facts.get('farms', [])),
+        'production': count > 0 and sum(f.get('growingCells', 0) for f in facts.get('farms', [])
+                                       if f.get('edible') is True) >= count * 10,
         'storage': facts.get('foodStorage') is True,
         'cooking': any(b.get('usable') is True and any(not bill.get('suspended', True)
                        and bill.get('recipe') in b.get('recipes', []) for bill in b.get('bills', []))

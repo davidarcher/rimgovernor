@@ -90,7 +90,8 @@ Paths in the table without a directory prefix are under `controller/rimbot/`.
    the clock stays paused; it does not dispatch unrelated autonomous work.
 
 `FOOTHOLD_STABLE` requires every gate: sufficient sleeping capacity in a roofed
-indoor room, at least three stock days of food by default, viable growing cells,
+indoor room, at least three stock days of food by default, at least ten observed
+growing cells per colonist summed across edible farms,
 indoor food storage, usable cooking with a bill, safe sleeping temperature,
 sufficient power if electrical thermal loads exist, no critical patient, two
 armed colonists (or everyone in a smaller colony), no active threat, and verified
