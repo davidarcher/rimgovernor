@@ -7,6 +7,7 @@ import subprocess
 import uuid
 
 from container_checks import docker_environment
+from container_scenario import dashboard_options, require_dashboard_image
 
 
 def run(args):
@@ -42,6 +43,7 @@ def run(args):
         image = command('image', 'inspect', '--format', '{{.Id}}', args.image,
                         capture_output=True, text=True, check=True).stdout.strip()
         report['image'] = image
+        require_dashboard_image(command, image)
         # Preserve the exact probe independently of image cache or later worktree edits.
         probe = (source / 'scripts/world_progression_acceptance.py').read_bytes()
         (output / 'probe.py').write_bytes(probe)
@@ -53,8 +55,7 @@ def run(args):
                 raise ValueError(f'Missing native input directory: {path}')
             mounts += ['--mount', f'type=bind,source={path},target=/inputs/{target},readonly']
         mounts += ['--mount', f'type=bind,source={output},target=/worker']
-        with (output / 'container.log').open('w') as log:
-            result = command('run', '--name', name, '--init', '--env', 'RIMBOT_UNITY_GC_TIME_SLICE=0',
+        command('run', '-d', '--name', name, '--init', *dashboard_options(name), '--env', 'RIMBOT_UNITY_GC_TIME_SLICE=0',
                 '--env', 'PYTHONPATH=/app/scripts:/app/controller',
                 '--env', 'RIMBOT_RECOVERY=' + ('1' if args.recovery else '0'),
                 '--env', 'RIMBOT_SHARED_WORLD=' + ('1' if args.shared else '0'),
@@ -70,16 +71,25 @@ def run(args):
                 '--env', 'RIMBOT_FAILED_QUEST=' + ('1' if args.failed else '0'),
                 '--env', 'RIMBOT_EXPIRED_QUEST=' + ('1' if args.expired else '0'),
                 '--env', 'RIMBOT_CARAVAN_TRIP=' + ('1' if args.trip else '0'), *mounts,
-                image, '--', 'python', '/worker/probe.py', stdout=log, stderr=subprocess.STDOUT,
-                timeout=args.timeout)
-        report['exit_code'] = result.returncode
+                image, '--', 'python', '/worker/probe.py', capture_output=True, text=True, check=True, timeout=120)
+        address = command('port', name, '8787/tcp', capture_output=True, text=True, check=True).stdout.strip()
+        report['dashboard_url'] = 'http://' + address + '/scenario'
+        (output / 'dashboard.json').write_text(json.dumps(report, indent=2))
+        print('Scenario dashboard: ' + report['dashboard_url'], flush=True)
+        result = command('wait', name, capture_output=True, text=True, check=True, timeout=args.timeout)
+        report['exit_code'] = int(result.stdout.strip())
         native = output / 'world-progression/result.json'
         if native.is_file():
             report['native_passed'] = json.loads(native.read_text())['passed']
-        report['passed'] = result.returncode == 0 and report.get('native_passed') is True
+        report['passed'] = report['exit_code'] == 0 and report.get('native_passed') is True
     except Exception as error:
         report['error'] = repr(error)
     finally:
+        try:
+            with (output / 'container.log').open('w') as log:
+                command('logs', name, stdout=log, stderr=subprocess.STDOUT, timeout=30)
+        except Exception as error:
+            report['log_error'] = repr(error)
         try:
             location = output / 'world-progression/runtime-location.json'
             retained = output / 'world-progression/native-runtime'

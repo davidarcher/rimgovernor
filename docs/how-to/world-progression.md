@@ -7,7 +7,9 @@
 Use a task-specific `--image` and a new `--output` directory. It builds and pins
 one worker image, retains the exact probe hash, native calls and failures, and
 removes only its own container. `result.json` requires both native success and
-cleanup. Stage both newly built observation and colony-identity assemblies in
+cleanup. The runner prints an automatic loopback observation dashboard URL and
+retains it in `dashboard.json`; rebuild images that lack the scenario dashboard
+hook. Stage both newly built observation and colony-identity assemblies in
 the same private mod snapshot; the runner records each hash. No model inference
 is exercised. Linux workers keep mutable GABS claims
 and the game profile on their private Linux filesystem; after stopping the owned
