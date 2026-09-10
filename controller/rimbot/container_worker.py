@@ -5,48 +5,81 @@ import json
 import os
 from pathlib import Path
 import shutil
+import time
+import re
 
 from .headless import prepare
 
 
-def stage(game, mods, profile, gabs, root):
+def stage(game, mods, profile, gabs, root, game_root=None, unity_gc_time_slice=None):
     game, mods, profile, gabs, root = [Path(p).resolve() for p in (game, mods, profile, gabs, root)]
+    if unity_gc_time_slice not in (None, 0):
+        raise ValueError('Unity GC time slice supports only source (None) or zero')
+    private_game = Path(game_root).resolve() if game_root is not None else root/'game'
+    if private_game.exists() or private_game == root or private_game in root.parents:
+        raise ValueError('Private game directory must be fresh and separate from the worker root')
     for source in (game, mods, profile, gabs):
-        if source == root or source in root.parents or root in source.parents:
+        if (source == root or source in root.parents or root in source.parents
+                or source == private_game or source in private_game.parents or private_game in source.parents):
             raise ValueError('Worker output must be separate from every input')
     required = [game/'RimWorldLinux', gabs, profile/'Config/Prefs.xml',
                 profile/'Config/ModsConfig.xml', profile/'Saves/RimBot-tribal8-baseline.rws',
                 mods/'RimBotHeadless/Assemblies/HeadlessRimPatch.dll',
                 mods/'RimBridgeServer/About/About.xml', mods/'RimBotObservations/About/About.xml']
+    boot_config = game/'RimWorldLinux_Data/boot.config'
+    if unity_gc_time_slice is not None:
+        required.append(boot_config)
     for path in required:
         if not path.is_file():
             raise ValueError(f'Missing Linux worker input: {path}')
+    original_boot = boot_config.read_bytes() if boot_config.is_file() else None
+    if unity_gc_time_slice is not None and not re.search(rb'^gc-max-time-slice=\d+\r?$', original_boot, re.M):
+        raise ValueError('Expected an existing Unity gc-max-time-slice setting')
     root.mkdir(parents=True, exist_ok=False)
+    started = time.monotonic()
+    print(f'Staging private game files in {private_game}', flush=True)
     # Dereference input links so running workers cannot observe later DLL changes.
-    shutil.copytree(game, root/'game', ignore=shutil.ignore_patterns('Mods'))
-    shutil.copytree(mods, root/'game/Mods')
+    shutil.copytree(game, private_game, ignore=shutil.ignore_patterns('Mods'))
+    if unity_gc_time_slice is not None:
+        prepared_boot = re.sub(rb'^gc-max-time-slice=\d+', b'gc-max-time-slice=0', original_boot, flags=re.M)
+        (private_game/'RimWorldLinux_Data/boot.config').write_bytes(prepared_boot)
+    print('Staging private mod DLLs and profile', flush=True)
+    shutil.copytree(mods, private_game/'Mods')
     (root/'profile/Config').mkdir(parents=True)
     (root/'profile/Saves').mkdir()
     for relative in ('Config/Prefs.xml', 'Config/ModsConfig.xml', 'Saves/RimBot-tribal8-baseline.rws'):
         shutil.copy2(profile/relative, root/'profile'/relative)
     (root/'gabs').mkdir()
     shutil.copy2(gabs, root/'gabs/gabs')
-    for executable in (root/'game/RimWorldLinux', root/'gabs/gabs'):
+    for executable in (private_game/'RimWorldLinux', root/'gabs/gabs'):
         executable.chmod(executable.stat().st_mode | 0o111)
     config = {'version': '1.0', 'rimbot': {'gabsExecutable': 'gabs/gabs'}, 'games': {
         'rimbot-trial': {'id': 'rimbot-trial', 'name': 'RimBot container worker',
-                        'launchMode': 'DirectPath', 'target': str(root/'game/RimWorldLinux'),
-                        'workingDir': str(root/'game'), 'args': []}}}
+                        'launchMode': 'DirectPath', 'target': str(private_game/'RimWorldLinux'),
+                        'workingDir': str(private_game), 'args': []}}}
     (root/'config').mkdir()
     (root/'config/config.json').write_text(json.dumps(config, indent=2), encoding='utf8')
     prepare(root)
-    files = [root/'gabs/gabs', root/'game/RimWorldLinux', *sorted((root/'game/Mods').rglob('*.dll')),
+    files = [root/'gabs/gabs', private_game/'RimWorldLinux', *sorted((private_game/'Mods').rglob('*.dll')),
              root/'profile/Saves/RimBot-tribal8-baseline.rws', *sorted((root/'profile/Config').glob('*.xml'))]
+    for relative in ('UnityPlayer.so', 'RimWorldLinux_Data/boot.config',
+                     'RimWorldLinux_Data/Managed/Assembly-CSharp.dll',
+                     'RimWorldLinux_Data/MonoBleedingEdge/x86_64/libmonobdwgc-2.0.so'):
+        if (private_game/relative).is_file():
+            files.append(private_game/relative)
     hashes = {}
     for path in files:
         with path.open('rb') as stream:
-            hashes[str(path.relative_to(root))] = hashlib.file_digest(stream, 'sha256').hexdigest()
+            relative = Path('game')/path.relative_to(private_game) if path.is_relative_to(private_game) else path.relative_to(root)
+            hashes[relative.as_posix()] = hashlib.file_digest(stream, 'sha256').hexdigest()
     (root/'inputs.json').write_text(json.dumps(hashes, indent=2), encoding='utf8')
+    elapsed = round(time.monotonic()-started, 3)
+    (root/'staging.json').write_text(json.dumps({'elapsed_seconds': elapsed,
+        'game_source': str(game), 'mods_source': str(mods), 'profile_source': str(profile),
+        'gabs_source': str(gabs), 'private_game': str(private_game),
+        'unity_gc_time_slice': unity_gc_time_slice,
+        'source_boot_sha256': hashlib.sha256(original_boot).hexdigest() if original_boot is not None else None}, indent=2), encoding='utf8')
+    print(f'Worker inputs ready in {elapsed}s; starting command', flush=True)
     return root
 
 
@@ -57,9 +90,16 @@ def main():
     parser.add_argument('--profile', default='/inputs/profile')
     parser.add_argument('--gabs', default='/inputs/gabs/gabs')
     parser.add_argument('--root', default='/worker/run')
+    parser.add_argument('--game-root', default='/opt/rimbot-game', help='Fresh container-local directory for the private game snapshot')
+    parser.add_argument('--unity-gc-time-slice', choices=['source', '0'],
+                        default=os.environ.get('RIMBOT_UNITY_GC_TIME_SLICE', 'source'),
+                        help='Preserve source boot.config, or use the tested zero-time-slice startup mitigation')
     parser.add_argument('command', nargs=argparse.REMAINDER)
     args = parser.parse_args()
-    root = stage(args.game, args.mods, args.profile, args.gabs, args.root)
+    if args.unity_gc_time_slice not in ('source', '0'):
+        parser.error('RIMBOT_UNITY_GC_TIME_SLICE must be source or 0')
+    root = stage(args.game, args.mods, args.profile, args.gabs, args.root, args.game_root,
+                 0 if args.unity_gc_time_slice == '0' else None)
     os.environ.update(RIMBOT_BRIDGE_ROOT=str(root), RIMBOT_DATA=str(root/'data'),
                       RIMBOT_HEADLESS='1', RIMBOT_BRIDGE_FRESH='1')
     command = args.command or ['python', '-m', 'rimbot', '--host', '0.0.0.0']

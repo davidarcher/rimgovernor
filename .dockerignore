@@ -20,3 +20,6 @@
 **/*.dll
 **/*.exe
 controller/rimbot/static/**
+!THIRD_PARTY.md
+!third_party/
+!third_party/**

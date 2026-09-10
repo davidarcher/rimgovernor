@@ -628,8 +628,14 @@ zero TPS; peak speed and safety require separate isolated gameplay acceptance.
 
 ## Docker workers (B17)
 
-The Docker targets are available for acceptance; native Linux execution is not
-accepted yet. Docker Engine/Desktop with Linux containers and Compose is required.
+Docker Engine/Desktop with Linux containers and Compose is required. The image
+build runs dashboard typechecking/tests/build; the `tests` target runs the Python
+suite. Windows-specific tests skip on Linux. Native acceptance is separate. Compose
+workers set `gc-max-time-slice=0` in their private Unity boot.config to mitigate
+observed Mono startup crashes. Original game inputs remain unchanged. Set
+`RIMBOT_UNITY_GC_TIME_SLICE=source` to preserve the original setting for comparisons.
+The source boot hash, prepared boot hash and effective override are retained in
+`staging.json`/`inputs.json`. Broader startup and GC-pause acceptance remains in B17.
 Windows game executables cannot run in this image. Supply your licensed Linux
 RimWorld installation (including Data/Mono files), a Linux amd64 GABS executable
 named `gabs`, a complete `Mods` directory, and a prepared profile containing
@@ -645,14 +651,17 @@ on a shared running Windows installation. Finish staging all inputs before launc
 Images contain controller/dashboard code only; licensed game files are mounted
 at runtime and never included in the build context.
 
-Run controller checks without game inputs (two `docker run` commands can execute
-simultaneously, with their own writable layers):
+Run parallel controller checks without game inputs:
 
 ```powershell
-docker build -f containers/Dockerfile --target tests -t rimbot-checks .
-docker run --rm rimbot-checks
-docker run --rm rimbot-checks python -m pytest -q controller_tests/test_container_worker.py
+python scripts/container_checks.py --workers 2 --output .rimbot/docker-checks-01
 ```
+
+The output directory must be new. The runner builds the test image, pins its image
+ID for every worker, and retains separate pytest logs/JUnit files and a combined
+result manifest. Add `--image <tag> --no-build` to reuse an image; the report records
+its immutable ID. Each worker has its own filesystem, process namespace and test
+artifacts. A timeout removes only that invocation's named container.
 
 For a native worker, set absolute input paths and create a fresh output directory:
 
@@ -681,25 +690,63 @@ Docker's [host networking documentation](https://docs.docker.com/compose/how-tos
 and [loopback port publishing](https://docs.docker.com/engine/network/port-publishing/)
 describe these mappings.
 
-Each startup copies game/mod binaries and the prepared profile to `/worker/run`.
-This costs disk space per worker but prevents later input DLL replacements from
-changing a running worker. `run/inputs.json` records staged hashes; profiles,
+Each startup copies game/mod binaries into the private container-local
+`/opt/rimbot-game` directory and the prepared profile to `/worker/run`. The game
+uses Linux filesystem semantics; later input DLL replacements cannot change its
+running snapshot. `run/inputs.json` records staged hashes; profiles,
 GABS configuration/claims, logs, controller SQLite and checkpoints stay under the
-output mount. An existing `run` directory is refused, including after an incomplete
+output mount. The private game copy is removed with the container. An existing
+`run` or private game directory is refused, including after an incomplete
 startup. Preserve it as evidence and select a fresh output for another run.
 `docker compose ... down` stops only that project; it does not delete bind-mounted
 artifacts. Do not use Docker restart as a checkpoint restore procedure.
 
-To run the native two-game lifecycle smoke inside a fresh worker container:
+Run two separate Compose projects with automatic free loopback ports and native
+clock/checkpoint verification:
 
 ```powershell
-docker compose -f containers/compose.yaml -p rimbot-smoke run --rm worker -- python scripts/parallel_headless_smoke.py --source-root /worker/run --output /worker/smoke
+python scripts/container_native_acceptance.py --game <linux-game> --mods <private-mods> --profile <prepared-profile> --gabs <linux-gabs-directory> --output .rimbot/docker-native-01
 ```
 
-This probe checks discovery/loading, independent clocks and peer survival inside
-one namespace. Also run two separate Compose projects, advance one colony while
-the other is paused, stop the first project and verify the second still answers
-native reads with its expected tick. Retain both output trees and Compose logs.
+The runner builds/pins the worker image, loads two private copies of the baseline,
+advances one colony while the other remains paused, stops the first project and
+requires a fresh native read from the survivor. It then saves a paired native and
+controller checkpoint. Both projects are removed afterward; output trees, logs,
+input hashes, checkpoint and result manifest remain. Failures are retained. Add
+`--image <tag> --no-build` to use an existing image, or `--startup-timeout 480` for
+slow Windows bind mounts. `run/staging.json` measures the input-copy time.
+
 These are lifecycle checks; actual pawn outcomes and throughput need their own
-native acceptance. Remaining probes with hard-coded Windows paths must be ported
+native acceptance. Startup failures are never retried silently. Remaining probes with hard-coded Windows paths must be ported
 before use in containers. Rendering/video is outside the headless worker scope.
+
+### Steam Linux inputs
+
+Use the signed-in Steam client's console (`steam://nav/console`) to query
+`app_info_print 294100`. In its `depots` section, choose the base depot with
+`oslist` set to `linux` (294103) and its current `public` manifest. Run
+`download_depot 294100 294103 <manifest>`. Steam reports completion and the separate
+`steamapps/content/app_294100/depot_294103` directory; this does not switch the
+installed Windows game's platform. Wait for completion before copying the files.
+
+For installed DLC, select each Linux depot with the corresponding `dlcappid` from
+the same metadata and download it through the signed-in client. Royalty, Ideology,
+Biotech and Odyssey use 1149643, 294108, 367686 and 294116 respectively. Use Steam's
+current manifests, and download only owned DLC required by the profile. Copy the
+base depot into a fresh private game directory, then merge the downloaded DLC
+`Data` directories into that directory's `Data`. Retain depot/manifest IDs and
+`Version.txt` beside the test evidence. Never put licensed inputs in Git or images.
+
+Copy Harmony and the complete RimBridgeServer mod into the private mod directory.
+Build task-local companion binaries against the Linux references, then copy their
+About/Assemblies/BridgeTools folders into private RimBotObservations and
+RimBotHeadless directories. For example (use an available .NET SDK):
+
+```powershell
+dotnet build integrations/colony-bridge/src/ColonyObservations.csproj -c Release "-p:RimWorldManagedDir=<linux-game>/RimWorldLinux_Data/Managed" "-p:RimBridgeSdkDir=<private-mods>/RimBridgeServer/1.6/Assemblies" "-p:HarmonyAssembly=<private-mods>/Harmony/Current/Assemblies/0Harmony.dll"
+dotnet build integrations/headless-rim/src/HeadlessRim.csproj -c Release "-p:RimWorldManagedDir=<linux-game>/RimWorldLinux_Data/Managed" "-p:HarmonyAssembly=<private-mods>/Harmony/Current/Assemblies/0Harmony.dll"
+```
+
+Use a Linux GABS release matching the tested bridge version, verify the upstream
+release asset SHA-256, and retain its LICENSE/provenance alongside the executable.
+Do not install these task builds into the shared Windows game.

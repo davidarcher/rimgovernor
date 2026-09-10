@@ -426,11 +426,18 @@ demand. `integrations/headless-rim` removes presentation paths in isolated test
 profiles. Each campaign worker owns a separate controller, SQLite database,
 game profile, GABS runtime and logs. Windows workers share installed game/mod
 files read-only. `container_worker.py` copies licensed Linux game/mod inputs into
-a fresh worker directory before starting any game process. Each container owns
+a fresh container-local Linux directory before starting any game process;
+profiles, databases, logs and checkpoints use the host output mount. Compose
+workers apply a recorded zero GC time-slice setting to the private Unity boot
+configuration to mitigate early Mono startup crashes; source inputs are unchanged. Each container owns
 its DLL snapshot and records binary/profile hashes in `inputs.json`; no installed
 DLL swap is involved. Inputs must remain stable during staging. Configuration
 may set `rimbot.gabsExecutable` relative to the worker root (or absolute); legacy
 Windows profiles retain their existing default.
+`scripts/container_checks.py` runs independent Linux controller suites against one
+pinned image ID. `scripts/container_native_acceptance.py` creates two Compose
+projects and verifies native clocks, peer survival, clean shutdown and a retained
+paired checkpoint through the normal controller API.
 
 Build output, saves, logs, binaries and measurements belong outside Git. Source
 attribution stays beside integrations and in [THIRD_PARTY.md](../THIRD_PARTY.md).

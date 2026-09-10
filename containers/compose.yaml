@@ -7,6 +7,7 @@ services:
     init: true
     stop_grace_period: 60s
     environment:
+      RIMBOT_UNITY_GC_TIME_SLICE: ${RIMBOT_UNITY_GC_TIME_SLICE:-0}
       RIMBOT_ALLOW_DOCKER_HOST_MODEL: "1"
       RIMBOT_MODEL_URL: http://host.docker.internal:1234/v1
       RIMBOT_MODEL: ${RIMBOT_MODEL:-qwen3.5-4b}

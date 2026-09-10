@@ -43,7 +43,7 @@ def test_workers_snapshot_binaries_profiles_and_claims(tmp_path):
         assert gabs_executable(root) == root/'gabs/gabs'
         assert (root/'profile/Saves/RimBot-tribal8-baseline.rws').read_bytes() == b'unchanged save'
         assert str(dll).replace('\\', '/') in {key.replace('\\', '/') for key in json.loads((root/'inputs.json').read_text())}
-    with pytest.raises(FileExistsError):
+    with pytest.raises((FileExistsError, ValueError)):
         stage(*sources, a)
 
 
@@ -81,3 +81,35 @@ def test_linux_gabs_is_private_in_cloned_profile(tmp_path):
     assert gabs_executable(clone) == clone/'gabs/gabs'
     gabs_executable(root).write_bytes(b'changed')
     assert gabs_executable(clone).read_bytes() == b'gabs'
+
+
+def test_container_local_game_keeps_artifacts_external(tmp_path):
+    sources = inputs(tmp_path)
+    root = stage(*sources, tmp_path/'artifacts', tmp_path/'private-game')
+    config = json.loads((root/'config/config.json').read_text())
+    assert config['games']['rimbot-trial']['workingDir'] == str(tmp_path/'private-game')
+    assert not (root/'game').exists()
+    assert (root/'headless-profile/Saves/RimBot-tribal8-baseline.rws').is_file()
+    assert 'game/RimWorldLinux' in json.loads((root/'inputs.json').read_text())
+    with pytest.raises(ValueError, match='fresh'):
+        stage(*sources, tmp_path/'another-root', tmp_path/'private-game')
+    assert not (tmp_path/'another-root').exists()
+
+
+def test_gc_mitigation_changes_only_private_boot_config(tmp_path):
+    sources = inputs(tmp_path)
+    boot = sources[0]/'RimWorldLinux_Data/boot.config'
+    boot.parent.mkdir()
+    original = b'other-setting=1\ngc-max-time-slice=3\n'
+    boot.write_bytes(original)
+    root = stage(*sources, tmp_path/'worker', unity_gc_time_slice=0)
+    assert boot.read_bytes() == original
+    assert (root/'game/RimWorldLinux_Data/boot.config').read_bytes() == original.replace(b'slice=3', b'slice=0')
+    assert 'game/RimWorldLinux_Data/boot.config' in json.loads((root/'inputs.json').read_text())
+    assert json.loads((root/'staging.json').read_text())['unity_gc_time_slice'] == 0
+    untouched = stage(*sources, tmp_path/'unchanged')
+    assert (untouched/'game/RimWorldLinux_Data/boot.config').read_bytes() == original
+    boot.write_bytes(b'unrecognized=3')
+    with pytest.raises(ValueError, match='existing Unity'):
+        stage(*sources, tmp_path/'refused', unity_gc_time_slice=0)
+    assert not (tmp_path/'refused').exists()
