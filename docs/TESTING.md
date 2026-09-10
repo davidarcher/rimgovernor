@@ -3,6 +3,31 @@
 Use [README.md](../README.md) for initial setup and launch. Run commands below from
 the repository root. All unfinished validation belongs in [BACKLOG.md](BACKLOG.md).
 
+## Choose the test scope
+
+| What changed / what you need to establish | Available support | Requirements and limits |
+| --- | --- | --- |
+| Controller logic, contracts, persistence | `controller_tests/`; focused pytest or full `build.ps1` | Local Python environment; fixtures do not establish native outcomes. |
+| Dashboard behavior and build | `build.ps1` runs typecheck, Vitest and Vite build | Local Python and dashboard dependencies from setup; native UI acceptance is separate. |
+| Generated observation DTO matches its schema | `scripts/generate_bridge_observation.py --check` | Local Python environment; run explicitly, outside `build.ps1`. |
+| Linux regression checks or independent copies of the suite | [Docker controller checks](#docker-controller-checks-no-game-required) | Host Python 3.12+ and Linux Docker; no game, mods, GABS, LM Studio, local venv or host Node required. Windows-specific tests skip. |
+| Native Linux startup, isolation, clock, shutdown and checkpoint retention | [Automated native Docker acceptance](#automated-native-docker-acceptance) | Docker Compose and staged licensed Linux game/mod/profile/GABS inputs; no model inference is exercised. |
+| Rendered native container snapshots | Native Docker runner with `--display xvfb` | Same native inputs; private Xvfb/llvmpipe, no host desktop focus. Inspect retained frames. |
+| Completed pawn work, recovery or gameplay invariants | Focused native probes below and [headless testing](#headless-testing) | Disposable prepared colony, matching native DLLs and probe-specific prerequisites; read assertions and `--help`. Some probes still require Windows. |
+| Actual language interpretation or sustained colony behavior | [Real model probe](#real-model-probe), [campaigns and performance](#campaigns-and-performance) | Configured local LM Studio when inference is involved; bounded lifecycle checks do not establish these outcomes. |
+
+For agents: inspect the affected tests and choose the smallest relevant check,
+then run the required broader checks for the change. Report commands, exit status,
+skips, artifact locations and what remains unverified. Keep failed trials. A
+documentation-only edit normally needs command/flag and link verification, not a
+new game session. Do not mark backlog gameplay acceptance complete from fixture
+tests, compilation or native receipts alone.
+
+Use an isolated task worktree when peers may be active. A worktree does not inherit
+the main checkout's `.venv` or `node_modules`; run setup there for local checks, or
+use the Docker runner to build that worktree's source. Do not reuse another task's
+mutable image tag or output directory.
+
 ## Local checks
 
 ```powershell
@@ -786,6 +811,78 @@ zero TPS; peak speed and safety require separate isolated gameplay acceptance.
 
 ## Docker workers (B17)
 
+There are two runners: `container_checks.py` runs Python tests without a game;
+`container_native_acceptance.py` starts two actual Linux games. Both build from
+the checkout containing the script, pin the resulting image ID, and retain local
+evidence. `docker compose up` alone starts a worker; it is not a test assertion.
+
+### Docker controller checks (no game required)
+
+From the task worktree root, use host Python 3.12+ and a running Docker daemon in
+Linux-container mode. The runner uses only the Python standard library on the
+host; it installs project/test and dashboard dependencies in the image. The first
+build needs access to base images and package registries. Check Docker first:
+
+```powershell
+python --version
+docker info --format '{{.OSType}}'
+```
+
+The Docker result must be `linux`. Native runs additionally require
+`docker compose version`. If `docker` is not on PATH, add Docker Desktop's
+`resources/bin` directory; the Python runners also discover standard Windows
+Docker Desktop install locations.
+
+If `python` is unavailable on PATH, substitute `py -3.12` or an absolute path to
+an existing Python 3.12+ executable (for example the checkout's
+`.venv\Scripts\python.exe`). A quoted executable path in PowerShell needs the
+call operator: `& 'C:/path/to/python.exe' scripts/container_checks.py --help`.
+
+```powershell
+python scripts/container_checks.py --workers 2 --image rimbot-checks:my-task --output .rimbot/docker-checks-01
+Get-Content .rimbot/docker-checks-01/result.json
+```
+
+Do not create the output directory first: the runner creates it and refuses an
+existing path. `--workers` accepts 1 through 8 (default 2). Each worker runs the
+**entire** Python suite; this is isolation/repetition, not sharding. Use 1 for a
+single regression run. `--timeout 600` is the default per-worker limit in seconds;
+the image build has a separate 1,800-second limit. Dashboard typecheck, Vitest and
+build run in the image build stage (which Docker may cache), not in each worker.
+Neither native DLL compilation nor the separate schema-generation check runs here.
+
+Success requires process exit code 0 and `result.json` with `passed: true`,
+including every worker's successful exit, JUnit presence and cleanup. Inspect:
+
+| Artifact under the output directory | Purpose |
+| --- | --- |
+| `build.log` | Image/dependency/dashboard build output; absent with `--no-build`. |
+| `result.json` | Immutable image ID, scope, timings and worker results. |
+| `0/pytest.log`, `0/junit.xml` (and `1/`, etc.) | Test failures, counts and platform skips per worker. |
+| `0/cleanup.log` (and peers) | Removal of only this invocation's named containers. |
+
+A build or image-inspection failure can occur before `result.json` exists; inspect
+the console and `build.log` rather than treating missing results as a pass. Preserve
+the directory and choose a fresh name after fixing a failure.
+
+To repeat an unchanged image, use
+`--image rimbot-checks:my-task --no-build --output .rimbot/docker-checks-02`.
+Omit `--no-build` after source changes: source is copied into the image, not mounted
+from the worktree. Keep image tags unique between concurrent tasks.
+
+For a focused test, the wrapper has no pytest-argument forwarding. Build the same
+test target and invoke pytest directly instead:
+
+```powershell
+docker build -f containers/Dockerfile --target tests -t rimbot-checks:my-task .
+docker run --rm --init rimbot-checks:my-task python -m pytest -q controller_tests/test_container_worker.py
+```
+
+This direct command reports to the terminal; it does not produce the wrapper's
+retained result manifest or JUnit artifacts.
+
+### Native Docker inputs
+
 Docker Engine/Desktop with Linux containers and Compose is required. The image
 build runs dashboard typechecking/tests/build; the `tests` target runs the Python
 suite. Windows-specific tests skip on Linux. Native acceptance is separate. Compose
@@ -809,17 +906,7 @@ on a shared running Windows installation. Finish staging all inputs before launc
 Images contain controller/dashboard code only; licensed game files are mounted
 at runtime and never included in the build context.
 
-Run parallel controller checks without game inputs:
-
-```powershell
-python scripts/container_checks.py --workers 2 --output .rimbot/docker-checks-01
-```
-
-The output directory must be new. The runner builds the test image, pins its image
-ID for every worker, and retains separate pytest logs/JUnit files and a combined
-result manifest. Add `--image <tag> --no-build` to reuse an image; the report records
-its immutable ID. Each worker has its own filesystem, process namespace and test
-artifacts. A timeout removes only that invocation's named container.
+### Manual native Docker worker
 
 For a native worker, set absolute input paths and create a fresh output directory:
 
@@ -859,11 +946,13 @@ startup. Preserve it as evidence and select a fresh output for another run.
 `docker compose ... down` stops only that project; it does not delete bind-mounted
 artifacts. Do not use Docker restart as a checkpoint restore procedure.
 
+### Automated native Docker acceptance
+
 Run two separate Compose projects with automatic free loopback ports and native
 clock/checkpoint verification:
 
 ```powershell
-python scripts/container_native_acceptance.py --game <linux-game> --mods <private-mods> --profile <prepared-profile> --gabs <linux-gabs-directory> --output .rimbot/docker-native-01
+python scripts/container_native_acceptance.py --game <linux-game> --mods <private-mods> --profile <prepared-profile> --gabs <linux-gabs-directory> --image rimbot-worker:my-task --output .rimbot/docker-native-01
 ```
 
 The runner builds/pins the worker image, loads two private copies of the baseline,
@@ -873,6 +962,21 @@ controller checkpoint. Both projects are removed afterward; output trees, logs,
 input hashes, checkpoint and result manifest remain. Failures are retained. Add
 `--image <tag> --no-build` to use an existing image, or `--startup-timeout 480` for
 slow Windows bind mounts. `run/staging.json` measures the input-copy time.
+
+Replace the angle-bracket placeholders with existing absolute paths, quoting paths
+with spaces. `--gabs` is a directory containing `gabs`, not the executable path.
+Unlike manual Compose setup, do not pre-create `--output`; the runner creates it
+and supplies the input/output/port environment variables itself. Startup timeout
+defaults to 240 seconds. The runner does not send player chat or measure inference;
+LM Studio is needed when subsequently testing model-dependent behavior.
+
+Require exit code 0 and `result.json` with `passed: true`; inspect its cleanup and
+checkpoint hash results too. Each numbered worker directory retains `compose.log`,
+`container.log`, `cleanup.log` and `run/` evidence. For startup failures inspect
+`run/Player.log`, `run/staging.json` and, in rendered mode, `run/display/`. Missing
+input paths, a Windows game/GABS binary, mismatched mods or a reused output require
+fixing the inputs and choosing a fresh run directory. Do not silently retry native
+crashes or clean up other tasks with global Docker prune commands.
 
 These are lifecycle checks; actual pawn outcomes and throughput need their own
 native acceptance. Startup failures are never retried silently. Remaining probes with hard-coded Windows paths must be ported

@@ -83,7 +83,8 @@ the strategist asks a specific question; there is no domain-manager fan-out.
 
 - [Architecture](docs/ARCHITECTURE.md): runtime pieces, ownership, contracts and data flow.
 - [Backlog](docs/BACKLOG.md): prioritized implementation, audit and gameplay acceptance work.
-- [Testing](docs/TESTING.md): native checks, real-model probes, headless campaigns and benchmarks.
+- [Testing](docs/TESTING.md): test selection, local/Docker checks, native acceptance,
+  real-model probes, headless campaigns and benchmarks.
 
 Plans, projects and notes persist by saved colony identity/map. Save after identity
 attachment to retain it across game restarts. Strategy cards are available through
@@ -91,6 +92,20 @@ planner retrieval; optional advisers remain read-only. The combined autonomous
 eight-tribal starter foothold is not yet demonstrated.
 
 ## Development
+
+Choose checks with the [test selection guide](docs/TESTING.md#choose-the-test-scope).
+For Docker checks without a local project environment, game files or LM Studio:
+
+```powershell
+python scripts/container_checks.py --workers 2 --image rimbot-checks:my-task --output .rimbot/docker-checks-01
+```
+
+Start Docker with Linux containers and use Python 3.12+. The output directory must
+not already exist. Each worker runs the full controller suite; dashboard checks
+run during image build. See [Docker instructions](docs/TESTING.md#docker-controller-checks-no-game-required)
+for results, focused tests and the separate native-game runner.
+
+For an existing local setup:
 
 ```powershell
 .venv\Scripts\python.exe -m pytest -q

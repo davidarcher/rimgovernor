@@ -29,6 +29,12 @@
 
 ## Validation
 
+- Start with the [test selection guide](docs/TESTING.md#choose-the-test-scope).
+  [Docker controller checks](docs/TESTING.md#docker-controller-checks-no-game-required)
+  need no game files or model server; the separate native Docker runner needs
+  licensed Linux inputs and verifies game lifecycle, not completed pawn work.
+  Use fresh output directories and task-specific image tags; retain reports and
+  failures under `.rimbot/` and report the exact scope tested.
 - Use checks appropriate to the change; `build.ps1` runs controller and dashboard
   checks. Distinguish compilation/protocol checks from actual gameplay validation.
 - Never replace installed DLLs while any RimWorld instance is running, including
