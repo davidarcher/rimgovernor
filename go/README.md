@@ -27,8 +27,15 @@ graph. See [attribution](../THIRD_PARTY.md#go-dependencies). The intended genera
 is repository-owned Go tooling under the same toolchain; G01.02 introduces it with
 the first actual wire contract. No external schema generator is installed yet.
 
-Windows/Linux CI gates are the next G01.01 subchunk. Media
-dependencies are unresolved until G01.09c; this slice makes no promise of a fully
+CI checks formatting, module integrity/drift, vet, tests and command builds on
+Windows and Linux with the pinned toolchain. Linux also runs `go test -race ./...`
+with CGO enabled and GCC available. Windows race coverage requires a compatible C
+compiler and is not claimed by the current local checks. Go source uses LF on both
+platforms so formatting results survive a clean checkout.
+
+The existing Python/dashboard workflow is retained and also validates the migration
+inventories and baseline fixtures. Media dependencies are unresolved until G01.09c;
+this slice makes no promise of a fully
 static production binary. See [G01](../docs/BACKLOG.md#g01--go-controller-rewrite)
 for the native, storage, model and cutover gates.
 

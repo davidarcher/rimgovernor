@@ -675,7 +675,7 @@ only intentional small, sanitized regression fixtures belong in source control.
   with the corresponding Go consumer chunks. Inventory checks establish source
   coverage, not Go or native behavioral parity.
 
-- [ ] **G01.01 — Go build and replay foundation.** Owner: integration agent.
+- [x] **G01.01 — Go build and replay foundation.** Owner: integration agent.
   Add the module, minimal non-writing command, injected clocks/IDs and offline
   replay runner. Pin a supported Go release, MCP SDK, SQLite driver and generators
   after checking licenses, Windows/Linux support and dependency maintenance. Decide
@@ -695,7 +695,7 @@ only intentional small, sanitized regression fixtures belong in source control.
       sources; no runtime adapters. Owner: replay agent.
     - [x] **01b.2:** read-only file replay command, errors and file-based tests.
       Owner: CLI agent; final validation depends on 01b.1.
-  - [ ] **01c:** retained Python/dashboard checks plus Go formatting, vet, unit/race
+  - [x] **01c:** retained Python/dashboard checks plus Go formatting, vet, unit/race
     tests and Windows/Linux build CI; clean platform validation and evidence.
     Owner: integrator. Depends on 01b.
 
