@@ -186,6 +186,28 @@ in the checkpoint commit; do not append an implementation diary here.
   postconditions. Migrate legacy targets lacking expectations only with grounded
   evidence. Extend zone contracts to stockpile filters/priority and sow/cut settings,
   and expose invariant native facing across game languages.
+- [ ] **B06c · Defensive layouts and killbox strategy.** Add deterministic methods
+  for layered perimeter defense, controlled approaches, chokepoints and killboxes,
+  coordinated with B06 spatial planning, B04f emergency response and B09 combat.
+  Compare bounded terrain-aware layouts against available defenders, native weapon
+  ranges, line of sight, cover, materials, research and power. Reuse defensible
+  terrain and existing structures; stage affordable cover and fallback positions
+  before costly walls, traps or turrets. Preserve civilian access, hauling routes,
+  entrances, retreat paths and safe defender deployment during construction.
+  Validate firing arcs, friendly-fire exposure, melee contact, trap access/rearming,
+  doors, repair access and shared resource reservations using native observations.
+  Treat enemy routing through a killbox as a conditional tactic, not a guaranteed
+  colony invariant. Include explicit fallback/hold behavior for attacks that bypass
+  or invalidate the approach, including breaches, sappers, sieges and internal/drop
+  threats; verify actual native threat behavior rather than assuming funnel use.
+  Connect completed defensive geometry to bounded rally, engagement and withdrawal
+  methods through the shared plan and Hands. Recheck layout and threat observations
+  after player edits, damaged structures, changed equipment and colony/load changes.
+  Acceptance: constrained terrain, staged construction, safe civilian/defender
+  routes, actual cover and firing behavior, ordinary approaching threats, bypassed
+  defenses, retreat and repair after damage. Controller geometry tests and placed
+  blueprints do not establish enemy pathing, raid victory or sustainable defense;
+  require isolated native scenarios with observed movement and combat outcomes.
 - [ ] **B09 · Combat and rescue acceptance.** Controlled movement, equip, observed
   melee/ranged hits, tending and owned-draft cleanup have passed scripted tests.
   Rescue delivery tracking exists but actual carry-to-bed has not passed a live
