@@ -688,12 +688,12 @@ only intentional small, sanitized regression fixtures belong in source control.
   - [x] **01a:** pinned module/dependencies, attribution and a non-writing CLI;
     compile/test MCP and SQLite dependency support with explicit connection closure.
     Owner: integrator. Depends on the 00 inventory/baseline gate.
-  - [ ] **01b:** injected clocks/IDs and offline replay with documented normalization,
+  - [x] **01b:** injected clocks/IDs and offline replay with documented normalization,
     exact numeric/identity/order handling and deliberate action/receipt corruption
     tests. Owner: replay agent. Depends on 01a.
     - [x] **01b.1:** bounded raw-evidence JSON comparison and injected clock/ID
       sources; no runtime adapters. Owner: replay agent.
-    - [ ] **01b.2:** read-only file replay command, errors and file-based tests.
+    - [x] **01b.2:** read-only file replay command, errors and file-based tests.
       Owner: CLI agent; final validation depends on 01b.1.
   - [ ] **01c:** retained Python/dashboard checks plus Go formatting, vet, unit/race
     tests and Windows/Linux build CI; clean platform validation and evidence.
