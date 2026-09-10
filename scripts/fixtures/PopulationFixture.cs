@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using RimBridgeServer.Sdk;
 using RimWorld;
 using Verse;
+using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
@@ -14,18 +15,22 @@ namespace HomeBridge.BridgeTools
         private static Pawn candidate;
 
         [Tool("test/population_setup", Description = "Disposable population fixture, excluded from production and model access. Prepares a downed hostile candidate, prison, spare housing and supplies. Does not capture or recruit.")]
-        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Native starting candidate kind: Villager for resistance work or SpaceRefugee_Clothed for bounded admission.")] string candidateKind = "Villager")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (candidate != null || Find.CurrentMap == null || !Find.TickManager.Paused)
                     throw new InvalidOperationException("One setup on a paused disposable map is required");
                 var map = Find.CurrentMap;
                 var workers = map.mapPawns.FreeColonistsSpawned.ToList();
+                if (candidateKind != "Villager" && candidateKind != "SpaceRefugee_Clothed")
+                    throw new ArgumentException("Unsupported fixture candidate kind");
                 var anchor = workers.First().Position;
                 var origins = map.AllCells.OrderBy(c => c.DistanceToSquared(anchor)).Where(c =>
                     CellRect.FromLimits(c, c + new IntVec3(15, 0, 9)).Cells.All(p => p.InBounds(map)
                         && !p.Fogged(map) && p.GetEdifice(map) == null
-                        && p.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy))).Take(1).ToList();
+                        && p.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy))
+                    && workers.Any(p => p.CanReach(c + new IntVec3(7, 0, 3), PathEndMode.OnCell, Danger.Deadly))).Take(1).ToList();
                 if (origins.Count == 0) throw new InvalidOperationException("Fixture requires an unfogged 16x10 heavy-terrain area without edifices");
                 var origin = origins[0];
                 foreach (var cell in CellRect.FromLimits(origin, origin + new IntVec3(15, 0, 9)).Cells)
@@ -48,10 +53,26 @@ namespace HomeBridge.BridgeTools
                 }
                 var prison = (Building_Bed)spawn("Bed", 2, 3);
                 prison.ForPrisoners = true;
-                for (int i = 0; i <= workers.Count + 1; i++) spawn("SleepingSpot", 8 + i % 6, 1 + i / 6 * 2);
-                for (int i = 0; i < 10; i++) spawn("MealSurvivalPack", 8 + i % 6, 6 + i / 6).stackCount = 10;
+                map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
+                if (!prison.ForPrisoners || prison.GetRoom().PsychologicallyOutdoors)
+                    throw new InvalidOperationException("Fixture prison bed must be indoors and configured for prisoners");
+                for (int x = 8; x <= 14; x++) for (int z = 0; z <= 6; z++)
+                {
+                    if (x == 8 || x == 14 || z == 0 || z == 6) spawn(x == 11 && z == 0 ? "Door" : "Wall", x, z);
+                    var cell = origin + new IntVec3(x, 0, z);
+                    map.roofGrid.SetRoof(cell, RoofDefOf.RoofConstructed);
+                    map.areaManager.Home[cell] = true;
+                }
+                for (int i = 0; i <= workers.Count + 1; i++) spawn("SleepingSpot", 9 + i % 5, 1 + i / 5 * 2);
+                for (int i = 0; i < 40; i++)
+                {
+                    var food = spawn("MealSurvivalPack", i % 14, 7 + i / 14);
+                    food.stackCount = food.def.stackLimit;
+                    map.roofGrid.SetRoof(food.Position, RoofDefOf.RoofConstructed);
+                }
                 spawn("MedicineIndustrial", 10, 4).stackCount = 20;
                 spawn("Gun_Revolver", 11, 4);
+                map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
                 foreach (var p in workers)
                 {
                     if (p.drafter != null) p.drafter.Drafted = false;
@@ -59,9 +80,8 @@ namespace HomeBridge.BridgeTools
                         if (!p.WorkTypeIsDisabled(def)) p.workSettings.SetPriority(def, 1);
                 }
                 var faction = Find.FactionManager.AllFactions.First(f => !f.IsPlayer && f.HostileTo(Faction.OfPlayer) && f.def.humanlikeFaction);
-                candidate = PawnGenerator.GeneratePawn(PawnKindDefOf.Villager, faction);
+                candidate = PawnGenerator.GeneratePawn(DefDatabase<PawnKindDef>.GetNamed(candidateKind), faction);
                 candidate.guest.Recruitable = true;
-                candidate.guest.resistance = 0;
                 GenSpawn.Spawn(candidate, origin + new IntVec3(7, 0, 3), map);
                 candidate.health.AddHediff(HediffDefOf.Anesthetic);
                 candidate.health.AddHediff(DefDatabase<HediffDef>.GetNamed("Bruise"), candidate.RaceProps.body.corePart).Severity = 3;
@@ -73,8 +93,15 @@ namespace HomeBridge.BridgeTools
                 visitor.health.AddHediff(DefDatabase<HediffDef>.GetNamed("Bruise"), visitor.RaceProps.body.corePart).Severity = 3;
                 visitor.needs.food.CurLevelPercentage = .2f;
                 return new { success = true, candidate = candidate.GetUniqueLoadID(), prison = prison.GetUniqueLoadID(),
+                    candidateKind,
                     visitor = visitor.GetUniqueLoadID(),
-                    scope = "Prepared zero-resistance recruitable downed hostile; ordinary capture, feeding, recruitment and integration required",
+                    prisonCell = prison.Position.IsInPrisonCell(map),
+                    bedChecks = workers.Select(p => new { pawn = p.GetUniqueLoadID(),
+                        usable = RestUtility.CanUseBedNow(prison, candidate, false, guestStatusOverride: GuestStatus.Prisoner),
+                        reachable = p.CanReach(prison, PathEndMode.OnCell, Danger.Some),
+                        reservable = p.CanReserve(prison),
+                        nativeBed = RestUtility.FindBedFor(candidate, p, false, false, GuestStatus.Prisoner)?.GetUniqueLoadID() }).ToArray(),
+                    scope = "Prepared recruitable downed hostile; native capture assigns resistance, ordinary care and recruitment required",
                     state = PopulationTools.Person(candidate) };
             }, cancellationToken).ConfigureAwait(false);
         }

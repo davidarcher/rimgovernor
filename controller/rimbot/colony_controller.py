@@ -318,7 +318,7 @@ class ColonyController:
                            and recovery.get('state') == 'blocked' else failed.detail)
                 continue
             timeout = 3000 if identity=='ActiveCombat' else 600000 if identity.startswith('Population-') else self.policy.blocked_after_ticks
-            if goal.steps and facts['tick'] - goal.last_progress_tick >= timeout:
+            if (goal.steps or identity.startswith('Population-')) and facts['tick'] - goal.last_progress_tick >= timeout:
                 reason = f'No measurable progress within {timeout} game ticks; inspect labor/materials/postconditions'
                 goal.evidence['watchdog'] = dict(tick=facts['tick'], reason=reason,
                     completed_steps=[s for s in goal.steps if s in plan.progress and plan.progress[s].state == 'complete'])

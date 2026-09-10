@@ -2,11 +2,14 @@ from copy import deepcopy
 from types import SimpleNamespace
 import pytest
 
-from rimbot.population import capacity, guard, refresh, SkillBlocked
-from rimbot.player_commands import COMMAND, semantic_tools
+from rimbot.population import capacity, guard, refresh, preview_order, SkillBlocked
+from rimbot.player_commands import COMMAND, semantic_tools, apply_command
 from rimbot.bridge_game import is_write
-from rimbot.colony_plan import ColonyPlan, ColonyGoal
+from rimbot.colony_plan import ColonyPlan, ColonyGoal, PlanStep, StepProgress
+from rimbot.bridge import BridgeError
+from mcp.types import CallToolResult
 from rimbot.colony_policy import required_colony_work
+from rimbot.bridge_observation import ObservationGateway
 
 
 def state():
@@ -59,6 +62,23 @@ def test_population_adds_warden_demand_until_commitment_is_complete():
 
 
 @pytest.mark.asyncio
+async def test_real_observation_gateway_allows_population_read_but_never_settings_writes():
+    calls = []
+    async def detail(tool):
+        return SimpleNamespace(structuredContent={'inputSchema': {'type': 'object', 'properties': {}}})
+    async def call(tool, **kwargs):
+        calls.append((tool, kwargs))
+        return SimpleNamespace(structuredContent={'success': True, 'people': []})
+    gateway = ObservationGateway(SimpleNamespace(detail=detail, call=call))
+    assert (await gateway.query('home/population'))['success']
+    with pytest.raises(ValueError, match='cannot change'):
+        await gateway.query('home/population', pawn='Thing_B', interaction='AttemptRecruit', dryRun=False)
+    with pytest.raises(ValueError, match='cannot change'):
+        await gateway.query('home/population', pawn='Thing_B', interaction='AttemptRecruit')
+    assert calls == [('home/population', {})]
+
+
+@pytest.mark.asyncio
 async def test_fresh_guard_preserves_changed_individual_setting():
     policy, facts, snapshot, people = state()
     plan = ColonyPlan()
@@ -73,11 +93,26 @@ async def test_fresh_guard_preserves_changed_individual_setting():
 
 
 @pytest.mark.asyncio
+async def test_explicit_new_decision_does_not_inherit_previous_setting_ownership():
+    policy, facts, snapshot, people = state()
+    plan = ColonyPlan()
+    plan.control['population_policy'] = policy
+    key = 'Population-Thing_B'
+    plan.colony_goals[key] = ColonyGoal(priority_class=3, target={'pawn': 'Thing_B', 'decision': 'recruit', 'interaction': 'MaintainOnly'})
+    plan.spec.steps = [PlanStep(id='old-setting', title='Prior setting', goal_id=key, completion_criteria='Setting',
+        action={'kind': 'native_operation', 'tool': 'home/population', 'arguments': {'pawn': 'Thing_B', 'interaction': 'AttemptRecruit', 'dryRun': False}})]
+    plan.progress['old-setting'] = StepProgress(state='complete', issued={'0': {'confirmed': True}})
+    async def query(name, **kwargs): return snapshot
+    rt = SimpleNamespace(current_plan=plan, game=SimpleNamespace(query=query))
+    assert (await guard(rt, key, facts, people))[0]['interaction'] == 'MaintainOnly'
+
+
+@pytest.mark.asyncio
 async def test_admission_requires_real_integration_and_never_recaptures_completed_recruit():
     policy, facts, snapshot, people = state()
     plan = ColonyPlan()
     goal = plan.colony_goals['Population-Thing_B'] = ColonyGoal(priority_class=3, target={'pawn': 'Thing_B', 'decision': 'recruit'})
-    snapshot['people'][1].update(admitted=True, prisoner=False, ownedBed='Thing_Bed', ownedBedForPrisoners=False, needsTend=False, food=.8)
+    snapshot['people'][1].update(admitted=True, prisoner=False, ownedBed='Thing_Bed', ownedBedForPrisoners=False, ownedBedIndoors=True, needsTend=False, food=.8)
     async def query(name, **kwargs): return deepcopy(snapshot)
     async def ensure(token): pass
     rt = SimpleNamespace(current_plan=plan, game=SimpleNamespace(query=query), context_token='load', chat_revision=0, ensure_context=ensure)
@@ -88,3 +123,69 @@ async def test_admission_requires_real_integration_and_never_recaptures_complete
     assert goal.status == 'complete'
     snapshot['people'][1].update(admitted=False, prisoner=False, guest=False)
     assert await refresh(rt, facts, people) == []
+
+
+@pytest.mark.asyncio
+async def test_player_direction_race_does_not_record_candidate():
+    policy, facts, snapshot, people = state()
+    plan = ColonyPlan()
+    plan.control['population_policy'] = policy
+    async def ensure(token): pass
+    async def query(name, **kwargs):
+        rt.chat_revision += 1
+        return snapshot
+    rt = SimpleNamespace(current_plan=plan, game=SimpleNamespace(query=query), chat_revision=1,
+                         context_token='load', ensure_context=ensure)
+    with pytest.raises(ValueError, match='direction changed'):
+        await apply_command(rt, {'kind': 'SetPopulationDecision', 'pawn': 'Thing_B', 'decision': 'recruit'}, token='load', revision=1)
+    assert not plan.colony_goals
+
+
+@pytest.mark.asyncio
+async def test_provisioning_retains_native_population_count():
+    policy, facts, snapshot, people = state()
+    facts['colonists'] = 1
+    plan = ColonyPlan()
+    plan.control['population_policy'] = policy
+    plan.colony_goals['Population-Thing_B'] = ColonyGoal(priority_class=3, target={'pawn': 'Thing_B', 'decision': 'recruit'})
+    async def ensure(token): pass
+    async def query(name, **kwargs): return snapshot
+    rt = SimpleNamespace(current_plan=plan, game=SimpleNamespace(query=query), chat_revision=1,
+                         context_token='load', ensure_context=ensure)
+    await refresh(rt, facts, people)
+    assert facts['colonists'] == 1
+    assert facts['populationHousingTarget'] == 2
+    assert facts['populationNutritionPerDay'] == pytest.approx(3.2)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('native_preview', [True, False])
+async def test_preview_refusal_is_retained_but_infrastructure_error_is_not_eligibility(native_preview):
+    payload = {'success': False, 'dryRun': native_preview, 'error': 'no bed'}
+    async def inspect(*args): raise BridgeError('home/order', CallToolResult(content=[], isError=True, structuredContent=payload))
+    rt = SimpleNamespace(inspect_native=inspect)
+    goal = ColonyGoal(priority_class=3)
+    if native_preview:
+        assert await preview_order(rt, goal, {'action': 'capture'}) == payload
+        assert goal.evidence['refused_previews'] == [payload]
+    else:
+        with pytest.raises(BridgeError): await preview_order(rt, goal, {'action': 'capture'})
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('issued_load,progress_state,expected', [('load', 'blocked', 'complete'), ('old', 'blocked', 'blocked'), ('load', 'cancelled', 'cancelled')])
+async def test_uncertain_custody_requires_current_load_outcome_and_preserves_cancellation(issued_load, progress_state, expected):
+    policy, facts, snapshot, people = state()
+    snapshot['people'][1]['bed'] = 'Thing_PrisonBed'
+    plan = ColonyPlan()
+    key = 'Population-Thing_B'
+    plan.colony_goals[key] = ColonyGoal(priority_class=3, target={'pawn': 'Thing_B', 'decision': 'recruit'}, steps=['capture'])
+    plan.spec.steps = [PlanStep(id='capture', title='Capture', goal_id=key, completion_criteria='Observed custody',
+        action={'kind': 'native_operation', 'tool': 'home/order', 'arguments': {'action': 'capture', 'pawn': 'Thing_A', 'target': 'Thing_B', 'dryRun': False}})]
+    plan.progress['capture'] = StepProgress(state=progress_state, issued={'0': {'confirmed': False, 'load_token': issued_load}})
+    async def ensure(token): pass
+    async def query(name, **kwargs): return snapshot
+    rt = SimpleNamespace(current_plan=plan, game=SimpleNamespace(query=query), chat_revision=1,
+                         context_token='load', ensure_context=ensure)
+    await refresh(rt, facts, people)
+    assert plan.progress['capture'].state == expected

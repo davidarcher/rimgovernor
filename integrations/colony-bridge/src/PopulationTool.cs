@@ -11,6 +11,14 @@ namespace HomeBridge.BridgeTools
 {
     public sealed class PopulationTools
     {
+        private static bool? IndoorBed(Pawn p)
+        {
+            var bed = p.ownership?.OwnedBed;
+            if (bed == null) return null;
+            return bed.Spawned && bed.Position.Roofed(bed.Map) && bed.GetRoom()?.ProperRoom == true
+                && !bed.GetRoom().PsychologicallyOutdoors;
+        }
+
         internal static object Person(Pawn p) => new {
             thingId = p.GetUniqueLoadID(), name = p.LabelShort, dead = p.Dead, downed = p.Downed,
             admitted = p.IsFreeColonist && p.Faction == Faction.OfPlayerSilentFail,
@@ -21,6 +29,7 @@ namespace HomeBridge.BridgeTools
             resistance = p.guest == null ? (float?)null : p.guest.Resistance,
             bed = p.CurrentBed()?.GetUniqueLoadID(), ownedBed = p.ownership?.OwnedBed?.GetUniqueLoadID(),
             ownedBedForPrisoners = p.ownership?.OwnedBed?.ForPrisoners,
+            ownedBedIndoors = IndoorBed(p),
             food = p.needs?.food?.CurLevelPercentage,
             nutritionPerDay = p.needs?.food == null ? (float?)null : p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f,
             needsTend = p.health?.HasHediffsNeedingTend(),

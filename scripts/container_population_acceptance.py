@@ -15,7 +15,11 @@ def main():
         parser.add_argument('--'+name,type=Path,required=True)
     parser.add_argument('--image',default='rimbot-b22:worker')
     parser.add_argument('--no-build',action='store_true')
+    parser.add_argument('--display', choices=['headless', 'xvfb'], default='headless')
+    parser.add_argument('--candidate-kind', choices=['Villager', 'SpaceRefugee_Clothed'], default='SpaceRefugee_Clothed')
+    parser.add_argument('--seconds', type=int, default=1200)
     args=parser.parse_args()
+    if not 60 <= args.seconds <= 7200: parser.error('--seconds must be 60..7200')
     output=args.output.resolve();output.mkdir(parents=True,exist_ok=False)
     source=Path(__file__).resolve().parents[1]
     docker,env=docker_environment()
@@ -33,12 +37,15 @@ def main():
     probe=source/'scripts/population_acceptance.py'
     shutil.copy2(probe, output/'probe.py')
     mounts+=['--mount',f'type=bind,source={output},target=/worker']
-    report=dict(image=image,probe_sha256=hashlib.sha256(probe.read_bytes()).hexdigest(),container=name,passed=False)
+    report=dict(image=image,probe_sha256=hashlib.sha256(probe.read_bytes()).hexdigest(),container=name,passed=False,
+                display=args.display, candidate_kind=args.candidate_kind, seconds=args.seconds)
     try:
         with (output/'container.log').open('w') as log:
-            result=call('run','--rm','--init','--name',name,*mounts,image,
-                '--display','xvfb','--unity-gc-time-slice','0','--','python','/worker/probe.py',
-                stdout=log,stderr=subprocess.STDOUT,timeout=1800)
+            result=call('run','--rm','--init','--name',name,
+                '-e','RIMBOT_POPULATION_KIND='+args.candidate_kind, '-e','RIMBOT_POPULATION_SECONDS='+str(args.seconds),
+                '-e','RIMBOT_DISPLAY='+args.display,*mounts,image,
+                '--display',args.display,'--unity-gc-time-slice','0','--','python','/worker/probe.py',
+                stdout=log,stderr=subprocess.STDOUT,timeout=args.seconds+600)
         report['exit_code']=result.returncode
         native=json.loads((output/'run/population.json').read_text())
         report['passed']=result.returncode==0 and native.get('passed') is True

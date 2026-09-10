@@ -140,9 +140,16 @@ class Hands:
                             if action.completion == 'need_recovered':
                                 progress.issued[key].update(issued_at=time.time(), load_token=token,
                                     player_direction=player_direction)
+                            if step.goal_id and step.goal_id.startswith('Population-'):
+                                progress.issued[key].update(load_token=token, issued_at=time.time())
                             rt.persist()
                             result = await rt.native(action.tool, args, expected_revision=direction, expected_token=token,
                                 expected_plan_revision=revision, reconcile=False, expected_step_id=step.id)
+                            if step.goal_id and step.goal_id.startswith('Population-'):
+                                outcome = result.get('receipt', result)
+                                if outcome.get('success') is not True or (action.tool == 'home/order'
+                                        and (outcome.get('job') or {}).get('verified') is not True):
+                                    raise Blocked('population_order_unverified', reason(outcome), evidence=outcome)
                             if action.completion in ('patient_tended', 'patient_in_bed') and result.get('receipt', {}).get('job', {}).get('verified') is not True:
                                 raise Blocked('medical_order_unverified', 'Native state did not confirm the medical job.', evidence=result)
                             receipt = {'native_outcome': result.get('receipt', result).get('outcome', 'receipt'),

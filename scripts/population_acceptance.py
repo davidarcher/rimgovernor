@@ -4,35 +4,37 @@ import json
 import os
 import time
 from pathlib import Path
-from rimbot.bridge import bridge_session, gabs_executable
+from rimbot.bridge import bridge_session, gabs_executable, BridgeError
 from rimbot.bridge_game import BridgeGame
 from rimbot.bridge_observation import observe as batch
 from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.colony_plan import CommitSteps
 from rimbot.player_commands import apply_command
-from rimbot.population import observe, compile_method, refresh, SkillBlocked, goal_id
+from rimbot.population import observe, compile_method, refresh, guard, SkillBlocked, goal_id
 from rimbot.store import Store
 
 
 async def run():
     root = Path(os.environ['RIMBOT_BRIDGE_ROOT'])
+    headless = os.environ.get('RIMBOT_DISPLAY') == 'headless'
+    config = root/('config-headless' if headless else 'config')
     report = {'passed': False, 'scope': 'Prepared candidate; ordinary native capture, care, recruitment and integration', 'cases': [], 'observations': []}
     def save(): (root/'population.json').write_text(json.dumps(report, indent=2))
     def check(name, value, **evidence):
         report['cases'].append(dict(name=name, passed=bool(value), **evidence)); save()
         print(name, bool(value), flush=True)
         assert value, name
-    async with bridge_session(gabs_executable(root, root/'config'), root/'config') as bridge:
+    async with bridge_session(gabs_executable(root, config), config) as bridge:
         rt = None
         try:
             await bridge.core('games_start', gameId=bridge.game_id)
             await bridge.connect()
             await bridge.call('rimworld/load_game_ready', saveName='RimBot-tribal8-baseline', readiness='visual', ignoreModCompatibility=True, timeoutMs=120000)
             await bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
-            fixture = (await bridge.call('test/population_setup')).structuredContent
+            fixture = (await bridge.call('test/population_setup', candidateKind=os.environ.get('RIMBOT_POPULATION_KIND', 'Villager'))).structuredContent
             report['fixture'] = fixture; save()
             game = BridgeGame(bridge)
-            rt = BridgeRuntime(Store(root/'population.sqlite'), root, headless=False)
+            rt = BridgeRuntime(Store(root/'population.sqlite'), root, headless=headless)
             rt.bridge, rt.game, rt.mode = bridge, game, 'manual'
             await rt.sync_identity(); rt.batch = await batch(game)
             report['identity'] = rt.context_token
@@ -44,11 +46,20 @@ async def run():
             await command(kind='SetPopulationDecision', pawn=candidate, decision='recruit')
             visitor = fixture['visitor']; visitor_identity = goal_id(visitor)
             await command(kind='SetPopulationDecision', pawn=visitor, decision='rescue')
+            await command(kind='SetPopulationPolicy', maximum=1, food_days=1)
+            try:
+                await guard(rt, identity)
+            except SkillBlocked as error:
+                check('over_capacity_refused_before_custody', 'maximum' in str(error), error=str(error))
+            else:
+                raise AssertionError('Capacity policy did not refuse the commitment')
+            await command(kind='SetPopulationPolicy', maximum=20, food_days=1)
             initial = await observe(rt)
             check('candidate_not_admitted', next(p for p in initial['people'] if p['thingId'] == candidate)['admitted'] is False, snapshot=initial)
+            check('candidate_initially_needs_care', fixture['state']['needsTend'] is True and fixture['state']['food'] < .3)
             goal = rt.current_plan.colony_goals[identity]
-            capture_seen = False; recruited = False; fed = False; rescued = False; tended = False
-            deadline = time.monotonic() + 1200
+            capture_seen = False; recruited = False; fed = False; rescued = False; tended = False; stale_checked = False
+            deadline = time.monotonic() + int(os.environ.get('RIMBOT_POPULATION_SECONDS', '1200'))
             while time.monotonic() < deadline:
                 facts = await game.query('home/colony_facts', planning=True)
                 people = (await game.query('home/list_pawns', colonistsOnly=True, work=True, bio=True, equipment=True))['pawns']
@@ -58,7 +69,18 @@ async def run():
                 if visitor_state:
                     rescued |= visitor_state.get('guest') is True and visitor_state.get('prisoner') is False and bool(visitor_state.get('bed'))
                 if current: tended |= current.get('needsTend') is False
-                report['observations'].append({'tick': facts['tick'], 'candidate': current, 'goal': goal.model_dump(mode='json')}); save()
+                report['observations'].append({'tick': facts['tick'], 'candidate': current, 'visitor': visitor_state,
+                    'goal': goal.model_dump(mode='json'), 'visitor_goal': rt.current_plan.colony_goals[visitor_identity].model_dump(mode='json')}); save()
+                if current and current.get('prisoner') and not stale_checked:
+                    try:
+                        refused = await game.query('home/population', pawn=candidate, interaction='MaintainOnly', expectedInteraction='stale-setting', dryRun=True)
+                    except BridgeError as error:
+                        refused = error.result.structuredContent or {}
+                        if refused.get('success') is not False: raise
+                    check('stale_player_setting_refused', refused.get('success') is False, receipt=refused)
+                    after = next(p for p in (await observe(rt))['people'] if p['thingId'] == candidate)
+                    check('stale_setting_preserved', after['interaction'] == current['interaction'])
+                    stale_checked = True
                 if current:
                     capture_seen |= current.get('prisoner') is True and bool(current.get('bed'))
                     fed |= (current.get('food') or 0) > .3

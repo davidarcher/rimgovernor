@@ -40,6 +40,7 @@ introduces the idea before linking to the exact contracts and relevant source.
 - [Verify zone, bill and UI player actions](how-to/player-actions.md) against their [coverage contracts](reference/player-actions.md).
 - [Verify waste hauling and burial](how-to/waste-management.md) against their [containment contracts](reference/waste-management.md).
 - [Population commitments](reference/population-contracts.md) distinguish candidates, native custody and admitted colonists.
+- [Verify population outcomes in Docker](how-to/population-acceptance.md).
 - [Save and resume](how-to/save-and-resume.md) or [inspect a failed run](how-to/inspect-failure.md).
 - [Verify policy trades](how-to/trade-acceptance.md) against actual goods and silver.
 - [Verify equipment upkeep](how-to/equipment-upkeep.md) and its [native contracts](reference/equipment-upkeep.md).

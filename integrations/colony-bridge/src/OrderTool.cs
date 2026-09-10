@@ -868,9 +868,14 @@ namespace HomeBridge.BridgeTools
                 return;
             }
             var bed = RestUtility.FindBedFor(target, plan.Pawn, false, false, GuestStatus.Prisoner);
-            if (bed == null || !plan.Pawn.CanReserveAndReach(target, PathEndMode.Touch, Danger.Deadly))
+            if (bed == null)
             {
-                plan.Refuse("capture_no_bed_or_path", "No available native prisoner bed or reservable path.");
+                plan.Refuse("capture_no_bed", "RestUtility found no available native prisoner bed for this worker and target.");
+                return;
+            }
+            if (!plan.Pawn.CanReserveAndReach(target, PathEndMode.Touch, Danger.Deadly))
+            {
+                plan.Refuse("capture_no_path", "Native target reservation or reachability refused for this worker.");
                 return;
             }
             plan.JobDef = JobDefOf.Capture;

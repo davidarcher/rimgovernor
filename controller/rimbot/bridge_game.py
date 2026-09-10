@@ -73,7 +73,8 @@ class BridgeGame(ObservationGateway):
             if 'watch' in schema.get('properties', {}):
                 arguments['watch'] = self.cinematic and is_write(tool, arguments)
             if (tool.startswith('home/') and 'dryRun' in schema.get('properties', {}) and 'dryRun' not in arguments
-                    and (tool != 'home/research' or arguments.get('set'))):
+                    and (tool != 'home/research' or arguments.get('set'))
+                    and (tool != 'home/population' or arguments.get('interaction') is not None)):
                 raise ValueError('State dryRun explicitly: true to preview, false to act')
         if not is_write(tool, arguments) and (tool in READS or arguments.get('dryRun') is True):
             result = await runtime_file_read(self.bridge.call, tool, **arguments)

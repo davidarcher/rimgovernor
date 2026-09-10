@@ -1,10 +1,23 @@
 """Explicit population commitments, native custody and ordinary recruitment labor."""
 from .colony_skills import SkillBlocked, native
 from .strategic_state import fingerprint
+from .bridge import BridgeError
 
 
 def goal_id(pawn):
     return 'Population-' + pawn
+
+
+async def preview_order(rt, goal, args):
+    try:
+        return await rt.inspect_native('home/order', dict(args, dryRun=True))
+    except BridgeError as error:
+        payload = error.result.structuredContent or {}
+        if payload.get('success') is not False or payload.get('dryRun') is not True:
+            raise  # Infrastructure errors are not pawn eligibility evidence.
+        goal.evidence.setdefault('refused_previews', []).append(payload)
+        goal.evidence['refused_previews'] = goal.evidence['refused_previews'][-16:]
+        return payload
 
 
 def capacity(policy, facts, snapshot, commitments, people):
@@ -74,11 +87,32 @@ async def refresh(rt, facts, people):
     for key, goal in goals.items():
         p = by_id.get(goal.target['pawn'])
         goal.evidence['population'] = p
+        if goal.evidence.get('custody', {}).get('load') != token:
+            goal.evidence.pop('custody', None)
+        if p and p.get('bed') and p.get('dead') is False:
+            if p.get('prisoner') is True:
+                goal.evidence['custody'] = {'kind': 'capture', 'bed': p['bed'], 'tick': snapshot['tick'], 'load': token, 'map': snapshot.get('mapId')}
+            elif p.get('guest') is True and p.get('admitted') is False:
+                goal.evidence['custody'] = {'kind': 'rescue', 'bed': p['bed'], 'tick': snapshot['tick'], 'load': token, 'map': snapshot.get('mapId')}
+        for step in plan.spec.steps:
+            if step.id not in goal.steps or step.goal_id != key or step.action.kind != 'native_operation': continue
+            progress = plan.progress[step.id]
+            issued = progress.issued.get('0', {})
+            if progress.state == 'cancelled' or issued.get('confirmed') or issued.get('load_token') != token or not p: continue
+            action = step.action
+            custody = goal.evidence.get('custody', {})
+            observed = (action.tool == 'home/order' and action.arguments.get('target') == p['thingId']
+                        and action.arguments.get('action') == custody.get('kind') and custody.get('load') == token)
+            observed |= (action.tool == 'home/population' and action.arguments.get('pawn') == p['thingId']
+                         and p.get('prisoner') is True and p.get('interaction') == action.arguments.get('interaction'))
+            if observed:
+                issued.update(confirmed=True, observed_tick=snapshot['tick'], observation=p)
+                progress.state, progress.failure = 'complete', None
         if p and p.get('admitted') is True:
             worker = workers.get(p['thingId'], {})
             equipment = (worker.get('equipment') or {}).get('primary')
             incapable = (worker.get('bio') or {}).get('incapableOfTags', [])
-            housing = bool(p.get('ownedBed')) and p.get('ownedBedForPrisoners') is False
+            housing = bool(p.get('ownedBed')) and p.get('ownedBedForPrisoners') is False and p.get('ownedBedIndoors') is True
             integrated = housing and any(w.get('priority', 0) > 0 for w in (worker.get('work') or {}).get('types', []))
             integrated = integrated and (bool(equipment) or 'Violent' in incapable)
             goal.evidence['integration'] = {'housing': housing, 'work': worker.get('work'),
@@ -112,7 +146,7 @@ async def guard(rt, identity, facts=None, people=None):
     if p.get('prisoner') is True:
         expected = goal.target['interaction']
         for step in plan.spec.steps:
-            if step.goal_id == identity and step.action.kind == 'native_operation' and step.action.tool == 'home/population':
+            if step.id in goal.steps and step.goal_id == identity and step.action.kind == 'native_operation' and step.action.tool == 'home/population':
                 issued = plan.progress[step.id].issued.get('0', {})
                 if issued.get('confirmed'):
                     expected = step.action.arguments['interaction']
@@ -141,12 +175,14 @@ async def compile_method(rt, identity, facts, people):
             for weapon in sorted(t['thingId'] for row in weapons.get('things', []) if row.get('oursUnforbidden', 0) > 0
                                  for t in row.get('positions', [])):
                 args = dict(action='equip', pawn=p['thingId'], target=weapon, watch=False)
-                preview = await rt.inspect_native('home/order', dict(args, dryRun=True))
+                preview = await preview_order(rt, goal, args)
                 if preview.get('success') is True:
                     return 'equip', [dict(native('home/order', **args), completion='pawn_equipped')]
             raise SkillBlocked('Recruit equipment allocation lacks a native eligible available weapon')
         return None  # Shared work/shelter methods and native needs-driven bed claiming integrate the recruit.
     if p.get('prisoner'):
+        if goal.method_seen('capture') and goal.evidence.get('custody', {}).get('kind') != 'capture':
+            raise SkillBlocked('Capture custody exists but delivery to a prisoner bed is not yet observed')
         if p.get('needsTend') is None or p.get('food') is None:
             raise SkillBlocked('Prisoner care state is unknown')
         if p['needsTend'] or p['food'] <= .3:
@@ -166,7 +202,7 @@ async def compile_method(rt, identity, facts, people):
             return None
         return 'recruit-setting', [native('home/population', pawn=p['thingId'], interaction=mode,
                                          expectedInteraction=p['interaction'])]
-    if p.get('guest') and p.get('bed'):
+    if p.get('guest') and (p.get('bed') or goal.evidence.get('custody', {}).get('kind') == 'rescue'):
         if goal.target['decision'] == 'rescue' and p.get('needsTend') is False and (p.get('food') or 0) > .3:
             goal.status, goal.reason = 'complete', ''
             return None
@@ -183,7 +219,7 @@ async def compile_method(rt, identity, facts, people):
         if worker.get('job') in ('Capture', 'Rescue', 'TendPatient'):
             continue
         args = dict(action=action, pawn=worker['thingId'], target=p['thingId'], watch=False)
-        preview = await rt.inspect_native('home/order', dict(args, dryRun=True))
+        preview = await preview_order(rt, goal, args)
         if preview.get('success') is True:
             return action, [native('home/order', **args)]
     raise SkillBlocked('No native eligible worker, custody bed or reachable capture/rescue target')
