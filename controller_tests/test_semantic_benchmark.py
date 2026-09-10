@@ -83,3 +83,13 @@ def test_small_perfect_sample_has_uncertainty_and_failed_requests_count():
     report=benchmark.reliability([{'correct':True}]*3)
     assert report['accuracy']==1 and 0<report['wilson95'][0]<.5
     assert benchmark.reliability([{'correct':True},{'correct':False,'error':'request failed'}])['accuracy']==.5
+
+
+def test_semantic_error_categories_distinguish_wrong_resource_from_reserve_selection():
+    wrong=benchmark.score({'tool_calls':[call('ModifyResourcePolicy',resource='Steel',spending='defense_only')]},POLICY)
+    assert wrong['semantic_error_types']==['wrong_resource']
+    reserve=benchmark.score({'tool_calls':[call('SetResourceReserve',resource='ComponentIndustrial',reserve=3)]},POLICY)
+    assert reserve['semantic_error_types']==['reserve_tool_selection']
+    remove=benchmark.score({'tool_calls':[call('CancelConstruction',intent_id='bedroom')]},
+                           {'kind':'CancelGoal','goal':'intent-bedroom'})
+    assert remove['semantic_error_types']==['unauthorized_removal']

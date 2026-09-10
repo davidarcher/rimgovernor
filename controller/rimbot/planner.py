@@ -95,6 +95,8 @@ class Planner:
             'Direct actions, maintained goals and resource policy changes share ColonyPlan and Hands with autopilot. '
             'Use CreateGoal for persistent targets such as 20 days of food, ModifyResourcePolicy for spending constraints, '
             'and SetResourceReserve only for an explicitly requested numeric reserve. These policy commands preserve the other setting. '
+            'Maintaining or replenishing a resource quantity uses CreateGoal with MaintainResource, resource and quantity; '
+            'a spending reserve protects existing stock and does not replenish it. '
             'If both settings are explicitly requested, return both policy calls in the same response. '
             'Use CancelGoal to stop future controller work while retaining existing game orders. '
             'Use CancelConstruction for an explicit request to remove a tracked intent\'s pending blueprints/frames; completed buildings remain. '

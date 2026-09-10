@@ -21,5 +21,6 @@ CMD ["python", "-m", "pytest", "-q"]
 FROM tests AS worker
 RUN apt-get update && apt-get install -y --no-install-recommends libglib2.0-0 libglu1-mesa libgl1 libxcursor1 libxrandr2 libxinerama1 libxi6 libasound2 libgtk-3-0 libnss3 libxss1 libxtst6 xvfb x11-utils mesa-utils libgl1-mesa-dri && rm -rf /var/lib/apt/lists/*
 ENV PYTHONUNBUFFERED=1
+ENV RIMBOT_CONTAINER_SOURCE=1
 ENTRYPOINT ["python", "-m", "rimbot.container_worker"]
 CMD []

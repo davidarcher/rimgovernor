@@ -126,3 +126,18 @@ def test_headless_binary_is_required_and_changes_campaign_identity(tmp_path):
     after=capture_manifest(source,root,config,routing)
     assert before['inputs']['artifacts']['headless_dll']!=after['inputs']['artifacts']['headless_dll']
     assert before['fingerprint']!=after['fingerprint']
+
+
+def test_container_manifest_hashes_actual_packaged_source_without_git(tmp_path,monkeypatch):
+    monkeypatch.setenv('RIMBOT_CONTAINER_SOURCE','1')
+    write(tmp_path/'controller/rimbot/bridge_runtime.py','first')
+    write(tmp_path/'pyproject.toml','package')
+    write(tmp_path/'THIRD_PARTY.md','licenses')
+    first=tracked_source(tmp_path)
+    assert first['revision'] is None and first['mode']=='container_source_bytes'
+    write(tmp_path/'controller/rimbot/bridge_runtime.py','second')
+    assert first['content_sha256']!=tracked_source(tmp_path)['content_sha256']
+    write(tmp_path/'controller/rimbot/__pycache__/temporary.py','ignored')
+    before=tracked_source(tmp_path)
+    write(tmp_path/'controller/rimbot/__pycache__/temporary.py','also ignored')
+    assert before==tracked_source(tmp_path)

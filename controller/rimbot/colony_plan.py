@@ -244,6 +244,11 @@ class Decision(Contract):
     retry_steps: list[str] = Field(default_factory=list, max_length=16, description='Explicitly retry blocked steps only when their failure is marked retryable and new evidence supports it.')
 
 
+def repeatable_player_setting(step):
+    return (step.source == 'PLAYER' and isinstance(step.action, NativeOperation)
+            and step.action.tool in ('home/production_policy', 'home/research', 'home/pawn_config', 'home/building_config'))
+
+
 class CommitSteps(Contract):
     expected_revision: int = Field(ge=0)
     reason: str = Field(min_length=1,max_length=1200)
@@ -253,10 +258,20 @@ class CommitSteps(Contract):
         existing={step.id for step in current.spec.steps}
         if any(step.id in existing for step in self.steps):
             raise ValueError('Append new step IDs only; existing work is preserved. Use commit_plan to revise it.')
-        retired = set()
+        renewed = {step.signature() for step in self.steps if repeatable_player_setting(step)}
+        retired = {step.id for step in current.spec.steps if repeatable_player_setting(step)
+                   and step.signature() in renewed and current.progress[step.id].state == 'complete'}
+        pinned = set(current.control.get('combat', {}).get('steps', []))
+        # Player rooms/zones still support maintained goals and native edit
+        # reconciliation. Their completion is not permission to forget them.
+        pinned.update(identity for goal in current.colony_goals.values()
+                      if goal.source == 'PLAYER' and not goal.cancelled
+                      for identity in goal.steps)
         if len(current.spec.steps)+len(self.steps)>72:
-            retired = {step.id for step in current.spec.steps if step.source=='AUTOPILOT'
-                       and isinstance(step.action,NativeOperation) and current.progress[step.id].state=='complete'}
+            retired |= {step.id for step in current.spec.steps if step.id not in pinned
+                       and current.progress[step.id].state == 'complete'
+                       and (step.source == 'PLAYER' or isinstance(step.action, NativeOperation))}
+        retired -= pinned
         rows = []
         for step in [*current.spec.steps,*self.steps]:
             if step.id in retired: continue
@@ -351,7 +366,10 @@ class ColonyPlan(Contract):
                 if old.get(step.id)==step and self.progress[step.id].state=='cancelled':
                     continue
                 raise ValueError('Player cancelled step '+step.id)
-            if any(prior.id != step.id and prior.signature() == step.signature() for prior in old.values()):
+            if any(prior.id != step.id and prior.signature() == step.signature()
+                   and not (repeatable_player_setting(step) and repeatable_player_setting(prior)
+                       and self.progress[prior.id].state == 'complete'
+                       and prior.id not in {s.id for s in decision.plan.steps}) for prior in old.values()):
                 raise ValueError('Reuse the existing step ID for identical intent')
             if step.id in old and step.signature() != old[step.id].signature():
                 raise ValueError('Changed execution intent needs a new step ID; keep prior receipts intact')

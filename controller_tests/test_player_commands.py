@@ -325,3 +325,24 @@ async def test_native_resource_label_is_persisted_as_exact_definition_id(tmp_pat
     assert result['resource']=='ComponentIndustrial'
     assert rt.current_plan.control['resource_policy']=={'ComponentIndustrial':{'reserve':0,'spending':'stop'}}
     rt.store.close()
+
+
+@pytest.mark.asyncio
+async def test_archived_player_intent_is_observed_without_replay(tmp_path):
+    from rimbot.plan_archive import bind_archive
+    rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch();rt.mode='manual'
+    request={'kind':'BuildRoom','intent_id':'bedroom','room':{'kind':'build_room_shell',
+        'bounds':{'x':10,'z':10,'width':5,'height':5},'wall_def':'Wall','door_def':'Door',
+        'materials':['WoodLog'],'entrance':'south'}}
+    step=PlanStep(id='player-bedroom',title='Bedroom',source='PLAYER',action=request['room'],completion_criteria='Native room')
+    rt.store.archive_and_set(rt.colony,'archive-test',{}, {step.id:{'step':step.model_dump(),
+        'progress':StepProgress(state='complete',issued={'0':{'confirmed':True}}).model_dump(),'costs':None}})
+    rt.current_plan.control.update(archived_action_count=1,player_intents={'bedroom':{'step':step.id,'request':request}})
+    bind_archive(rt.current_plan,rt.store,rt.colony)
+    result=await apply_command(rt,request,token=rt.context_token,revision=rt.chat_revision)
+    assert result=={'existing_step':step.id,'state':'complete','archived':True}
+    assert not rt.manual_requests and not rt.current_plan.spec.steps
+    changed=deepcopy(request);changed['room']['entrance']='north'
+    with pytest.raises(ValueError,match='completed and archived'):
+        await apply_command(rt,changed,token=rt.context_token,revision=rt.chat_revision)
+    rt.store.close()

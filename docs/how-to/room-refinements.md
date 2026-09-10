@@ -61,5 +61,13 @@ restore the previous DLL only with every game stopped.
 
 ## Related reading
 
+`scripts/construction_refinement_acceptance.py --rooms --wording conversational`
+holds the fixture executor while chat admits a room and refines its entrance, then
+requires exact native orders for that shell. It verifies relocation, a deliberately
+lost removal receipt, conflicting preservation requests across multiple intents,
+paired restart and fresh removal of only the remaining pending orders. Use
+`--wording explicit` for the alternate request context. These paused checks certify
+orders and settings, not pawn-built rooms or general model reliability.
+
 [Choose tests](choose-tests.md) · [Test evidence explained](../explanation/testing.md) ·
 [Backlog](../BACKLOG.md)

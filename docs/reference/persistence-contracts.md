@@ -22,6 +22,16 @@ remain live, and a missing method archive blocks replay after restart.
 
 ## Goal evidence and history indexes
 
+When an append would exceed 72 live steps, eligible completed PLAYER commands
+also retire. Active player goal references and combat references remain live;
+unfinished work is never discarded to fit the 80-step limit. Player intent records
+retain their exact request and archived action identity. Repeating an archived
+intent observes its completed state; changed intent requires a new explicit ID.
+An explicit new research, production-policy, pawn-setting or building-setting
+command can restore an earlier value after the old command completed. The old
+setting receipt archives before the new action executes. Pending settings and
+non-idempotent operations retain duplicate-intent protection.
+
 Hunting target metadata follows its completed action into an immutable goal-evidence
 table in the same snapshot transaction. Pending targets remain live; metadata from older
 snapshots whose actions were already archived is migrated without altering the original

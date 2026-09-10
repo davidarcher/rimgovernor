@@ -4,6 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import os
 import xml.etree.ElementTree as ET
 
 
@@ -21,6 +22,20 @@ def file_hash(path):
 
 def tracked_source(source):
     source = Path(source).resolve()
+    if os.environ.get('RIMBOT_CONTAINER_SOURCE') == '1' and not (source/'.git').exists():
+        rows=[]
+        for directory in ('controller','scripts','integrations','third_party'):
+            for path in sorted((source/directory).rglob('*')):
+                if (path.is_file() and path.suffix.lower() in {'.py','.cs','.ps1','.ts','.tsx','.js','.json','.toml','.csproj','.xml'}
+                        and not {'__pycache__','obj','bin','node_modules'} & set(path.relative_to(source).parts)):
+                    rows.append([path.relative_to(source).as_posix(),file_hash(path)])
+        for name in ('pyproject.toml','THIRD_PARTY.md'):
+            rows.append([name,file_hash(source/name)])
+        if not rows or not (source/'controller/rimbot/bridge_runtime.py').is_file():
+            raise ValueError('Packaged controller source is missing')
+        return dict(revision=None,tracked_dirty=None,tracked_status=None,
+                    tracked_files=len(rows),untracked_code=None,content_sha256=_digest(rows),
+                    mode='container_source_bytes',files=rows)
     def git(*args):
         return subprocess.check_output(['git', '-C', str(source), *args])
     names = git('ls-files', '-z', '--cached').decode('utf8').split('\0')

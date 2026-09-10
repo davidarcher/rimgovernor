@@ -194,3 +194,55 @@ async def test_skill_compiler_uses_archived_method_membership(tmp_path):
     method,actions=await skills.compile('ConfirmColonyNames',facts,[])
     assert method=='names-7' and len(actions)==1
     store.close()
+
+
+def test_player_capacity_archives_completed_receipts_but_pins_maintained_construction(tmp_path):
+    from rimbot.colony_plan import PlanSpec
+    store=Store(tmp_path/'player.sqlite')
+    rows=[action('player-'+str(i)).model_copy(update={'source':'PLAYER'}) for i in range(80)]
+    plan=ColonyPlan(spec=PlanSpec(steps=rows))
+    plan.progress={s.id:StepProgress(state='complete',issued={'0':{'confirmed':True,'receipt':{'id':s.id}}}) for s in rows}
+    plan.progress[rows[-1].id].state='waiting'
+    plan.colony_goals['intent-room']=ColonyGoal(priority_class=2,source='PLAYER',steps=[rows[0].id])
+    plan.control['player_intents']={'original':{'step':rows[1].id,'request':{'kind':'SetWorkPriority'}}}
+    original=plan.progress[rows[1].id].model_dump()
+    bind_archive(plan,store,'colony')
+    decision=CommitSteps(expected_revision=0,reason='next player order',steps=[action('next')]).decision(plan)
+    plan.commit(decision,actor='strategist',tick=1)
+    persist(store,plan)
+    assert {s.id for s in plan.spec.steps}=={rows[0].id,rows[-1].id,'next'}
+    assert store.retired_action('colony',rows[1].id)['progress']==original
+    assert plan.control['player_intents']['original']['step']==rows[1].id
+    assert plan.colony_goals['intent-room'].steps==[rows[0].id]
+    store.close()
+
+
+def test_full_unfinished_player_plan_refuses_without_dropping_work():
+    from rimbot.colony_plan import PlanSpec
+    rows=[action('pending-'+str(i)).model_copy(update={'source':'PLAYER'}) for i in range(80)]
+    plan=ColonyPlan(spec=PlanSpec(steps=rows),progress={s.id:StepProgress() for s in rows})
+    before=plan.model_dump()
+    with pytest.raises(ValueError):
+        CommitSteps(expected_revision=0,reason='new',steps=[action('next')]).decision(plan)
+    assert plan.model_dump()==before
+
+
+def test_completed_player_setting_can_be_renewed_without_erasing_previous_receipt(tmp_path):
+    from rimbot.colony_plan import PlanSpec
+    old=action('old').model_copy(update={'source':'PLAYER'})
+    new=old.model_copy(update={'id':'new'})
+    plan=ColonyPlan(spec=PlanSpec(steps=[old]),progress={'old':StepProgress(state='complete',issued={'0':{'confirmed':True}})})
+    store=Store(tmp_path/'renew.sqlite')
+    plan.commit(CommitSteps(expected_revision=0,reason='Explicitly restore prior setting',steps=[new]).decision(plan),actor='strategist',tick=2)
+    persist(store,plan)
+    assert [s.id for s in plan.spec.steps]==['new'] and plan.progress['new'].state=='pending'
+    assert store.retired_action('colony','old')['progress']['issued']=={'0':{'confirmed':True}}
+    store.close()
+
+
+def test_pending_player_setting_cannot_be_duplicated():
+    from rimbot.colony_plan import PlanSpec
+    old=action('old').model_copy(update={'source':'PLAYER'})
+    plan=ColonyPlan(spec=PlanSpec(steps=[old]),progress={'old':StepProgress(state='waiting')})
+    with pytest.raises(ValueError,match='existing step ID'):
+        plan.commit(CommitSteps(expected_revision=0,reason='duplicate',steps=[old.model_copy(update={'id':'new'})]).decision(plan),actor='strategist',tick=2)

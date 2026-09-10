@@ -184,9 +184,9 @@ def semantic_tools(resources=None):
     from .consultation import structured_tool
     descriptions = {
         'SetResearch':'Select a research project requested by the player.',
-        'CreateGoal':'Set a persistent colony target. The deterministic controller chooses downstream actions.',
+        'CreateGoal':'Set a persistent colony target. MaintainResource with resource and quantity means keep acquiring or producing that stock, for example maintain 50 steel. The deterministic controller chooses downstream actions.',
         'ModifyResourcePolicy':'Change a resource spending restriction while preserving its existing reserve.',
-        'SetResourceReserve':'Change only an explicitly requested numeric resource reserve, preserving the spending restriction. Do not use for spending-only instructions.',
+        'SetResourceReserve':'Protect an explicitly requested numeric stock floor from spending, preserving the spending restriction. This does not acquire stock. Use CreateGoal/MaintainResource to replenish or maintain a stock target. Do not use for spending-only instructions.',
         'CancelGoal':'Stop future controller orders for a named goal. KEEP all existing game blueprints and frames. Use this when the player says to keep, retain or leave existing orders in place.',
         'CancelConstruction':'REMOVE existing pending blueprints and partly built frames for a tracked player intent. Use ONLY when the player explicitly requests removing those game orders. NEVER use when told to keep blueprints, frames or existing orders; use CancelGoal instead. Completed buildings remain.',
         'BuildRoom':'Request a room shell with walls and an entrance using inspected geometry.',
@@ -448,6 +448,15 @@ async def apply_command(rt, payload, *, token, revision):
         if prior is None:
             last = plan.control.get('player_intents', {}).get(intent, {}).get('step')
             prior = next((s for s in plan.spec.steps if s.id == last), None)
+            archived_id = last or identity
+            archived = (plan._archive_read(archived_id) if plan._archive_read is not None else None)
+            if archived:
+                archived_action = archived['step']['action']
+                proposed = PlanStep(id=identity, title=request.kind, action=action,
+                                    completion_criteria='Native desired state observed').action.model_dump()
+                if archived_action == proposed:
+                    return {'existing_step': archived_id, 'state': 'complete', 'archived': True}
+                raise ValueError('This intent is completed and archived. Use a new explicit intent for new work; its receipts are preserved.')
         if prior:
             if prior.action.model_dump() == PlanStep(id=identity, title=request.kind, action=action,
                     completion_criteria='Native desired state observed').action.model_dump():

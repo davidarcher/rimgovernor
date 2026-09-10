@@ -5,7 +5,7 @@ import re
 
 def preserves_pending_orders(text):
     """Refuse explicit preservation clauses even if the interpreter chooses removal."""
-    qualifiers = r'(?:(?:all|the|its|these|those|my|our|any|existing|pending|current|issued|already|placed|game|construction)\s+)*'
+    qualifiers = r"(?:(?:all|the|its|these|those|my|our|any|existing|pending|current|issued|already|placed|game|construction|[\w-]+['’]s)\s+)*"
     objects = r'(?:blueprints?|frames?|orders)\b'
     keep = r'\b(?:keep|retain|preserve|leave)\s+'
     negative = r"\b(?:do\s+not|don't|don’t|never)\s+(?:remove|delete|cancel|clear)\s+"
@@ -16,6 +16,12 @@ def validate_player_authorization(rt, revision):
     messages = [m.get('text','') for m in rt.chat if m.get('kind')=='human' and m.get('revision')==revision]
     if any(preserves_pending_orders(text) for text in messages):
         raise ValueError('Player explicitly requested preserving existing construction orders; removal refused. Use CancelGoal to stop future work.')
+    # A goal cancellation alone never authorizes destroying native orders.
+    # Scripted semantic acceptance has no human message; ordinary chat must
+    # include an explicit construction-removal clause in this revision.
+    removal = r'\b(?:remove|delete|clear(?:\s+away)?|take\s+down|cancel)\b[^.!?;\n]{0,140}\b(?:blueprints?|frames?|construction|orders)\b'
+    if messages and not any(re.search(removal,text,re.IGNORECASE) for text in messages):
+        raise ValueError('Construction removal needs an explicit request to remove pending orders; goal cancellation alone preserves them.')
 
 
 async def capture_targets(game, plan, source_step):

@@ -69,5 +69,29 @@ resolved definitions rather than accepting extra resource changes.
 
 ## Related reading
 
+Add `--matrix` to verify two available and two locked research projects before
+and after `--restart`, plus maintained resource-goal cancellation/resumption.
+Refusal requires the model to request the intended project and receive its native
+refusal; merely leaving research unchanged does not pass that case.
+Add `--archive` to execute 81 explicit zero-inference policy orders, verify exact
+archived PLAYER receipts and retained intent, then accept new chat. With `--restart`,
+the probe also verifies those receipts after paired native save/load.
+`--explicit-resources` disambiguates ordinary versus advanced components in the
+initial policy request; retain the broad-wording failures separately.
+
+The benchmark has 32 fixed cases. `--repeats 2` covers fresh and historical-message
+contexts. Wrong-resource, reserve-tool and unauthorized-removal counts are separate
+schema-valid error categories; schema and request failures are counted independently.
+Run the same matrix on each local model and retain all failed cases.
+
+The chat and refinement probes accept `--model-url`, defaulting to `RIMBOT_MODEL_URL`
+or loopback. Docker workers explicitly permit the local Docker host address.
+Worker images set `RIMBOT_CONTAINER_SOURCE=1`: native manifests hash packaged source
+bytes when Git metadata is absent and record the Git revision as unavailable.
+Use a fixed image and current private companion DLLs. An unbuilt controller bind
+mount hides the image's dashboard assets. Linux-local runtime storage can avoid
+Windows bind-mount publication faults; export its entire evidence tree before
+removing the owned container.
+
 [Choose tests](choose-tests.md) · [Test evidence explained](../explanation/testing.md) ·
 [Backlog](../BACKLOG.md)

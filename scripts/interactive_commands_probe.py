@@ -10,6 +10,7 @@ from rimbot.config import Settings
 from rimbot.headless import isolated_root,prepare,prepare_rendered
 from rimbot.store import Store
 from rimbot.session_checkpoint import create_checkpoint,prepare_resume,stop_for_restart
+from rimbot.player_commands import apply_command
 
 
 def work_priorities(roster):
@@ -23,7 +24,8 @@ async def run(args):
     root=isolated_root(args.source_root,args.output/'bridge')
     prepare_rendered(root) if args.rendered else prepare(root)
     store=Store(args.output/'state.sqlite')
-    rt=BridgeRuntime(store,root,fresh=True,headless=not args.rendered,settings=Settings(model=args.model,timeout_seconds=90))
+    settings=Settings(model=args.model,model_url=args.model_url,timeout_seconds=90)
+    rt=BridgeRuntime(store,root,fresh=True,headless=not args.rendered,settings=settings)
     report={'outcome':'failed','cases':[]}
     server=server_task=None
     def record(case):
@@ -31,13 +33,48 @@ async def run(args):
         (args.output/'progress.json').write_text(json.dumps(report,indent=2),encoding='utf8')
         print(json.dumps(case),flush=True)
     async def chat(prompt):
+        import rimbot.planner as planner
+        original=planner.apply_command
+        requests=[]
+        async def measured(*positional,**keywords):
+            row={'request':positional[1]};requests.append(row)
+            try:
+                result=await original(*positional,**keywords)
+                row['result']=json.loads(json.dumps(result));return result
+            except Exception as error:
+                row.update(error=str(error),error_type=type(error).__name__);raise
         print('PLAYER: '+prompt,flush=True)
-        await rt.steer(prompt)
-        revision=rt.chat_revision
-        async with asyncio.timeout(180):
-            while (rt.current_plan.control.get('interpreted_player_revision',0)<revision or rt.deliberating):
-                await asyncio.sleep(.5)
+        planner.apply_command=measured
+        try:
+            await rt.steer(prompt)
+            revision=rt.chat_revision
+            async with asyncio.timeout(180):
+                while (rt.current_plan.control.get('interpreted_player_revision',0)<revision or rt.deliberating):
+                    await asyncio.sleep(.5)
+        finally:planner.apply_command=original
+        report.setdefault('chat_requests',[]).append({'prompt':prompt,'revision':revision,'commands':requests})
         return [m['text'] for m in rt.chat if m.get('revision')==revision and m.get('kind')=='summary']
+    async def research_matrix(boundary):
+        catalog=await rt.game.invoke('home/research',{'locked':True})
+        available=catalog.get('available',[])[:2]
+        locked=catalog.get('locked',[])[:2]
+        assert len(available)==2 and len(locked)==2, 'Research matrix needs two available and two locked native projects'
+        for index,project in enumerate(available):
+            phrase=('Switch our current research project to ' if index else 'Please select ')
+            reply=await chat(phrase+project['label']+' for research. Do not issue construction orders.')
+            current=await rt.game.invoke('home/research',{})
+            record({'command':boundary+'_research_'+project['defName'],'reply':reply,
+                'passed':(current.get('current') or {}).get('defName')==project['defName']})
+        for project in locked:
+            before=await rt.game.invoke('home/research',{})
+            actions=rt.counters['actions']
+            reply=await chat('Research '+project['label']+' next. If it cannot be selected, explain why and leave current research unchanged.')
+            after=await rt.game.invoke('home/research',{})
+            record({'command':boundary+'_refusal_'+project['defName'],'reply':reply,
+                'passed':bool(reply) and before.get('current')==after.get('current') and actions==rt.counters['actions']
+                    and any(row.get('error_type')=='ResearchRefused' and row['request'].get('project','').casefold()
+                        in (project['label'].casefold(),project['defName'].casefold())
+                        for row in report['chat_requests'][-1]['commands'])})
     try:
         if args.port:
             import uvicorn
@@ -87,13 +124,13 @@ async def run(args):
                 'passed':bool(goal and goal.target.get('food_days')==12 and goal.source=='PLAYER'
                     and policy=={'Steel':{'reserve':80,'spending':'normal'},
                                  'ComponentIndustrial':{'reserve':0,'spending':'stop'}}
-                    and rt.counters['actions']==before_actions)})
+                    and rt.counters['actions']-before_actions==2)})
             reply=await chat('Allow normal component spending, and allow steel spending only for defense. Keep both reserves unchanged.')
             policy=rt.current_plan.control.get('resource_policy',{})
             record({'command':'two_resource_policies','reply':reply,'observed':json.loads(json.dumps(policy)),
                 'passed':policy=={'Steel':{'reserve':80,'spending':'defense_only'},
                                   'ComponentIndustrial':{'reserve':0,'spending':'normal'}}
-                    and rt.counters['actions']==before_actions})
+                    and rt.counters['actions']-before_actions==4})
             research=await rt.game.invoke('home/research',{'locked':True})
             (args.output/'research-before.json').write_text(json.dumps(research,indent=2))
             available=[p for p in research.get('available',[]) if p.get('defName')!=(research.get('current') or {}).get('defName')]
@@ -137,6 +174,37 @@ async def run(args):
             goal=rt.current_plan.colony_goals.get('EnsureFoodSupply')
             record({'command':'resume_goal','reply':reply,'passed':bool(goal and not goal.cancelled
                 and goal.source=='PLAYER' and goal.target.get('food_days')==12)})
+        if args.matrix:
+            await research_matrix('before_load')
+            for prompt in ('Maintain a stock of 50 steel.', 'Cancel the MaintainResource-Steel goal. Keep native orders.',
+                           'Resume maintaining a stock of 50 steel.'):
+                reply=await chat(prompt)
+                goal=rt.current_plan.colony_goals.get('MaintainResource-Steel')
+                record({'command':'resource_goal','prompt':prompt,'reply':reply,
+                    'passed':bool(goal and goal.cancelled==prompt.startswith('Cancel') and goal.target=={'resource':'Steel','quantity':50})})
+        archive_evidence={}
+        if args.archive:
+            calls=rt.counters['model_calls']
+            first=next(s for s in rt.current_plan.spec.steps if s.source=='PLAYER'
+                       and rt.current_plan.progress[s.id].state=='complete')
+            exact={'step':first.model_dump(),'progress':rt.current_plan.progress[first.id].model_dump(),
+                   'costs':rt.current_plan.control.get('costs',{}).get(first.id)}
+            intents=json.loads(json.dumps(rt.current_plan.control.get('player_intents',{})))
+            for reserve in range(101,182):
+                result=await apply_command(rt,{'kind':'SetResourceReserve','resource':'Steel','reserve':reserve},
+                    token=rt.context_token,revision=rt.chat_revision)
+                await rt.execute_manual_requests()
+                assert rt.current_plan.progress[result['step']].state=='complete', result
+                assert len(rt.current_plan.spec.steps)<=80
+            archive_evidence={first.id:exact}
+            record({'command':'completed_player_capacity','iterations':81,'inference_calls':rt.counters['model_calls']-calls,
+                'archived':rt.current_plan.control.get('archived_action_count'),
+                'passed':rt.current_plan._archive_read(first.id)==exact and rt.counters['model_calls']==calls
+                    and all(rt.current_plan.control['player_intents'].get(k)==v for k,v in intents.items())})
+            reply=await chat('Keep 182 steel in reserve. Leave steel spending and every other resource unchanged.')
+            record({'command':'chat_after_capacity','reply':reply,
+                'passed':rt.current_plan.control['resource_policy']['Steel']['reserve']==182
+                    and rt.current_plan._archive_read(first.id)==exact})
         if args.restart:
             checkpoint=await create_checkpoint(rt,rt.context_token)
             old_token=rt.context_token
@@ -149,7 +217,7 @@ async def run(args):
             data,state=prepare_resume(checkpoint['manifest_path'])
             store=Store(state/'bridge.sqlite')
             rt=BridgeRuntime(store,root,fresh=True,headless=not args.rendered,
-                settings=Settings(model=args.model,timeout_seconds=90),resume=checkpoint['manifest_path'])
+                settings=settings,resume=checkpoint['manifest_path'])
             await rt.start()
             async with asyncio.timeout(120):
                 while not rt.connected:
@@ -161,6 +229,18 @@ async def run(args):
                     and rt.batch.summary.end_tick in (data['tick'],data['tick']+1)
                     and rt.current_plan.model_dump()==expected_plan and rt.chat==expected_chat
                     and not rt.draft_owners and not rt.manual_requests and rt.counters['model_calls']==0})
+            if archive_evidence:
+                record({'command':'player_archive_after_native_restart',
+                    'passed':all(rt.current_plan._archive_read(k)==v for k,v in archive_evidence.items())})
+            if args.matrix:
+                await research_matrix('after_load')
+                for prompt in ('Stop maintaining the steel stock target. Keep existing game orders.',
+                               'Maintain 60 steel again.'):
+                    reply=await chat(prompt)
+                    goal=rt.current_plan.colony_goals.get('MaintainResource-Steel')
+                    record({'command':'resource_goal_after_load','prompt':prompt,'reply':reply,
+                        'passed':bool(goal and goal.cancelled==prompt.startswith('Stop')
+                            and goal.target=={'resource':'Steel','quantity':50 if prompt.startswith('Stop') else 60})})
             reply=await chat('Cancel the food supply goal. Keep existing game orders in place.')
             goal=rt.current_plan.colony_goals.get('EnsureFoodSupply')
             record({'command':'cancel_after_restart','reply':reply,'passed':bool(goal and goal.cancelled)})
@@ -199,10 +279,13 @@ if __name__=='__main__':
     parser.add_argument('--source-root',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--model',default=os.environ.get('RIMBOT_MODEL','qwen3.5-4b'))
+    parser.add_argument('--model-url',default=os.environ.get('RIMBOT_MODEL_URL','http://127.0.0.1:1234/v1'))
     parser.add_argument('--rendered',action='store_true',help='Run the disposable colony visibly')
     parser.add_argument('--port',type=int,help='Serve the disposable colony dashboard while testing')
     parser.add_argument('--extended',action='store_true',help='Also verify research, native refusal and cancellation across autonomous reviews')
     parser.add_argument('--restart',action='store_true',help='Verify paired native restart, preserved plan/chat/policies and subsequent goal cancel/resume')
+    parser.add_argument('--archive',action='store_true',help='Execute 81 explicit policy orders, retain exact PLAYER receipts and accept subsequent chat')
+    parser.add_argument('--matrix',action='store_true',help='Two native research selections/refusals and a resource goal across paired restart')
     args=parser.parse_args()
     if args.restart and args.port: parser.error('--restart uses the headless controller lifecycle; omit --port')
     raise SystemExit(0 if asyncio.run(run(args)) else 1)

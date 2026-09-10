@@ -4,6 +4,7 @@ import asyncio
 import json
 import time
 import hashlib
+import os
 from math import sqrt
 from pathlib import Path
 from rimbot.config import Settings, ModelRole, load_model_routing
@@ -51,6 +52,30 @@ CASES = [
      {'kind':'CancelGoal','goal':'intent-bedroom'}),
     ('remove_frames', 'Remove the bedroom construction orders, including its partly built frames. Leave the completed walls in place.',
      {'kind':'CancelConstruction','intent_id':'bedroom'}),
+    ('preserve_not_remove', 'Cancel the bedroom goal, but leave its pending frames and blueprints alone.',
+     {'kind':'CancelGoal','goal':'intent-bedroom'}),
+    ('different_intents', 'Cancel the bedroom goal while keeping its blueprints. Stop the workshop goal too.',
+     [{'kind':'CancelGoal','goal':'intent-bedroom'},{'kind':'CancelGoal','goal':'workshop'}]),
+    ('cancel_correct_room', 'Remove only the workshop pending construction orders. The bedroom is a different project.',
+     {'kind':'CancelConstruction','intent_id':'workshop'}),
+    ('lost_receipt', 'The last removal reply was lost. Inspect what remains, then remove the bedroom pending construction orders only.',
+     {'kind':'CancelConstruction','intent_id':'bedroom'}),
+    ('no_reserve', 'Components are for defense only now. I am not asking you to reserve any quantity.',
+     {'kind':'ModifyResourcePolicy','resource':'ComponentIndustrial','spending':'defense_only'}),
+    ('no_spending_change', 'Protect a stock floor of 7 advanced components; leave spending permissions as they are.',
+     {'kind':'SetResourceReserve','resource':'ComponentSpacer','reserve':7}),
+    ('herbal_distractor', 'Reserve 15 herbal medicine, not ordinary medicine.',
+     {'kind':'SetResourceReserve','resource':'MedicineHerbal','reserve':15}),
+    ('plasteel_distractor', 'Freeze plasteel spending. Steel can stay as it is.',
+     {'kind':'ModifyResourcePolicy','resource':'Plasteel','spending':'stop'}),
+    ('research_wording', 'Switch our selected research project to Advanced lights; no other orders.',
+     {'kind':'SetResearch','project':'ColoredLights'}),
+    ('resume_wording', 'Start maintaining food supply again at 18 days of food.',
+     {'kind':'CreateGoal','goal':'EnsureFoodSupply','food_days':18}),
+    ('stock_target', 'Maintain a stock of 50 steel.',
+     {'kind':'CreateGoal','goal':'MaintainResource','resource':'Steel','quantity':50}),
+    ('replenish_target', 'Keep replenishing ordinary components until we have 12 in stock.',
+     {'kind':'CreateGoal','goal':'MaintainResource','resource':'ComponentIndustrial','quantity':12}),
     ('explain', "Why aren't you building the workshop?", None),
 ]
 FACTS = {
@@ -68,13 +93,14 @@ FACTS = {
              'workshop':{'status':'blocked','reason':'Requires 160 steel; only 120 is unreserved'},
              'intent-bedroom':{'label':'bedroom','status':'active','target':{'intent_id':'bedroom'}}},
     'player_intents':{'bedroom':{'step':'player-bedroom','kind':'BuildRoom','pending_blueprints':12,
-                                'partial_frames':2,'completed_walls':7}},
+                                'partial_frames':2,'completed_walls':7},
+                      'workshop':{'step':'player-workshop','kind':'BuildRoom','pending_blueprints':4}},
 }
 
 
 def normalize(request):
     request=dict(request)
-    if request['kind'] in ('ModifyResourcePolicy','SetResourceReserve'):
+    if request['kind'] in ('ModifyResourcePolicy','SetResourceReserve') or request.get('goal')=='MaintainResource':
         request['resource']=resolve_resource(request['resource'],FACTS['policyResources'])
     if request['kind']=='CancelGoal': request['goal']=resolve_goal_id(request['goal'],FACTS['goals'])
     if request['kind']=='CancelConstruction':
@@ -108,6 +134,21 @@ def score(answer,expected):
             if expected_requests else not calls and all(word in (answer.get('content') or '').lower() for word in ('steel','160','120')))
     except ValueError: pass  # A valid schema with an unresolved goal is a semantic error.
     row['semantic_errors']=int(not row['correct'])
+    row['semantic_error_types']=[]
+    if row['semantic_errors']:
+        expected_kinds={r['kind'] for r in expected_requests}
+        actual_kinds={r['kind'] for r in row['requests']}
+        if ('SetResourceReserve' in actual_kinds) != ('SetResourceReserve' in expected_kinds):
+            row['semantic_error_types'].append('reserve_tool_selection')
+        if any(r.get('resource') for r in expected_requests):
+            try:
+                if {normalize(r).get('resource') for r in row['requests'] if r.get('resource')} != {
+                        normalize(r).get('resource') for r in expected_requests if r.get('resource')}:
+                    row['semantic_error_types'].append('wrong_resource')
+            except ValueError: row['semantic_error_types'].append('wrong_resource')
+        if 'CancelConstruction' in actual_kinds and 'CancelConstruction' not in expected_kinds:
+            row['semantic_error_types'].append('unauthorized_removal')
+        if not row['semantic_error_types']: row['semantic_error_types'].append('other_semantic')
     return row
 
 
@@ -122,10 +163,11 @@ def reliability(rows):
     return {'correct':correct,'total':n,'accuracy':p,'wilson95':[max(0,center-margin),min(1,center+margin)]}
 
 
-async def run(output, *, model=None, repeats=1):
+async def run(output, *, model=None, repeats=1, model_url=None):
     output.mkdir(parents=True,exist_ok=False)
     store=Store(output/'metrics.sqlite')
-    settings=Settings(**({'model':model} if model else {}))
+    settings=Settings(**({'model':model} if model else {}),
+                      model_url=model_url or os.environ.get('RIMBOT_MODEL_URL','http://127.0.0.1:1234/v1'))
     router=ModelRouter(load_model_routing(settings),store,LocalModel)
     rows=[]
     async def progress(_): pass
@@ -139,11 +181,15 @@ async def run(output, *, model=None, repeats=1):
             start=time.monotonic()
             row={'id':identity,'repeat':repeat+1,'model':settings.model,'prompt':prompt,'expected':expected,'schema_failures':0,'semantic_errors':0,'unnecessary_calls':0,'correct':False}
             try:
+                history=([{'role':'user','content':'Earlier I wanted 40 steel reserved and the bedroom kept. These are historical directions.'},
+                          {'role':'assistant','content':'The current saved facts are authoritative. I will interpret your next request separately.'}]
+                         if repeat%2 else [])
+                row['context']='historical_directions' if history else 'fresh'
                 answer,usage=await router.complete(ModelRole.STRATEGIST,[
                     {'role':'system','content':'You interpret RimWorld player commands. Use semantic tools only for '
                      'explicit orders. Explain questions from facts. The deterministic validator owns legality and '
                      'execution; never claim a requested action has completed. Facts: '+json.dumps(FACTS)},
-                    {'role':'user','content':prompt}], tools, progress)
+                    *history, {'role':'user','content':prompt}], tools, progress)
                 row.update(answer=answer,usage=usage,**score(answer,expected))
             except Exception as error:
                 row['error']=str(error)
@@ -159,6 +205,8 @@ async def run(output, *, model=None, repeats=1):
             'semantic_errors':sum(r['semantic_errors'] for r in rows),
             'request_errors':sum('error' in r for r in rows),
             'unnecessary_calls':sum(r['unnecessary_calls'] for r in rows),'game_writes':0,'cases':rows,
+            'semantic_error_types':{kind:sum(kind in r.get('semantic_error_types',[]) for r in rows)
+                for kind in ('wrong_resource','reserve_tool_selection','unauthorized_removal','other_semantic')},
             'reliability':reliability(rows),'by_case':{identity:reliability([r for r in rows if r['id']==identity])
                 for identity,_,_ in CASES},'manifest':manifest}
     (output/'results.json').write_text(json.dumps(report,indent=2),encoding='utf8')

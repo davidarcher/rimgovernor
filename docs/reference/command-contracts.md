@@ -88,6 +88,11 @@ goal request re-enables it. Existing native blueprints/designations are retained
 
 ## Exact native removal
 
+Chat removal requires an explicit construction-removal clause in the current
+request. Cancelling a goal alone does not authorize removing game objects.
+Conflicting preservation/removal clauses conservatively preserve all orders.
+This is bounded English protection, not a general natural-language authorization proof.
+
 Explicit `CancelConstruction` resolves a tracked player construction intent and captures
 its current pending native objects from issued placements. Admission previews every
 exact target before atomically accepting the removal batch and suppressing the original

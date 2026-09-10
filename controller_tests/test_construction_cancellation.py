@@ -171,3 +171,19 @@ async def test_pending_removal_rechecks_preservation_before_execution(tmp_path):
     rt.native.assert_not_awaited()
     assert len(rows)==2
     rt.store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('instruction', [
+    'Cancel the bedroom.',
+    'Stop work on that room.',
+    "Remove the bedroom construction orders. Keep workshop's blueprints in place.",
+    'Remove the room orders but keep its pending blueprints.'])
+async def test_ambiguous_or_conflicting_human_request_cannot_remove_native_orders(tmp_path,instruction):
+    rt,rows=await fixture(tmp_path)
+    rt.chat.append({'kind':'human','revision':rt.chat_revision,'text':instruction})
+    before=deepcopy(rt.current_plan.model_dump())
+    with pytest.raises(ValueError):await cancel(rt)
+    assert rt.current_plan.model_dump()==before and len(rows)==2
+    rt.native.assert_not_awaited()
+    rt.store.close()

@@ -2,6 +2,7 @@
 import argparse
 import asyncio
 import json
+import os
 from pathlib import Path
 from session_checkpoint_acceptance import ready
 from rimbot.bridge_runtime import BridgeRuntime
@@ -20,7 +21,7 @@ async def run(args):
     configuration = prepare(root)
     store = Store(args.output/'initial.sqlite')
     rt = BridgeRuntime(store, root, fresh=True, headless=True,
-                       settings=Settings(model=args.model, timeout_seconds=90))
+                       settings=Settings(model=args.model, model_url=args.model_url, timeout_seconds=90))
     report = {'outcome':'failed', 'cases':[], 'scope':'Native relocation and interrupted cancellation; pawn construction and freezer cooling are separate acceptance'}
     def record(name, passed, **evidence):
         report['cases'].append(dict(name=name, passed=bool(passed), **evidence))
@@ -64,6 +65,54 @@ async def run(args):
             assert all(rt.current_plan.progress[s.id].state=='complete' for s in steps)
             goal.evidence.setdefault('methods',{})[method]=[s.id for s in steps]
             facts=await rt.game.query('home/colony_facts',planning=True)
+        if args.rooms:
+            from rimbot.colony_plan import PlanStep, PlanSpec
+            from rimbot.colony_policy import starter_layouts
+            from rimbot.construction_preflight import preflight_construction
+            shell=None
+            for layout in starter_layouts(facts)[:12]:
+                candidate=rt.controller.skills.shell(layout)
+                candidate['bounds'].update(width=4,height=4)
+                candidate['entrance']='south'
+                step=PlanStep(id='room-preview',title='Room preview',source='PLAYER',action=candidate,
+                              completion_criteria='Native shell')
+                try:
+                    await preflight_construction(PlanSpec(steps=[*rt.current_plan.spec.steps,step]),rt.current_plan,rt.game)
+                    candidate['entrance']='north'
+                    step=step.model_copy(update={'action':step.action.model_copy(update={'entrance':'north'})})
+                    await preflight_construction(PlanSpec(steps=[*rt.current_plan.spec.steps,step]),rt.current_plan,rt.game)
+                except ValueError: continue
+                candidate['entrance']='south';shell=candidate;break
+            assert shell, 'No native legal room-refinement fixture'
+            # Hold only the fixture executor to exercise a human refinement
+            # arriving after admission but before its first construction write.
+            execute=rt.execute_manual_requests
+            async def held(): pass
+            rt.execute_manual_requests=held
+            try:
+                bounds=shell['bounds']
+                existing_intents=set(rt.current_plan.control.get('player_intents',{}))
+                await chat('Plan a wooden 4 by 4 room called chat-bedroom at x '+str(bounds['x'])+
+                    ', z '+str(bounds['z'])+', with a south entrance. Use ordinary walls and a door. Its purpose is shelter.')
+                intents=rt.current_plan.control.get('player_intents',{})
+                created=set(intents)-existing_intents
+                assert len(created)==1, 'Chat must admit exactly one room intent'
+                intent=created.pop();prior=intents[intent]['step']
+                initial=next(s.action for s in rt.current_plan.spec.steps if s.id==prior)
+                record('chat_room_admitted_before_dispatch',rt.current_plan.progress[prior].state=='pending'
+                    and initial.model_dump()==shell,shell=shell,intent=intent)
+                await chat('For '+intent+', keep that exact location, size and wood material, but put the entrance on the north side instead.')
+                current=rt.current_plan.control['player_intents'][intent]['step']
+                action=next(s.action for s in rt.current_plan.spec.steps if s.id==current)
+                record('chat_room_refinement_preserves_geometry',current!=prior and action.bounds.model_dump()==bounds
+                    and action.entrance=='north' and action.materials==['WoodLog']
+                    and rt.current_plan.progress[prior].state=='cancelled')
+            finally:rt.execute_manual_requests=execute
+            await execute()
+            progress=rt.current_plan.progress[current]
+            record('refined_room_native_orders',progress.state=='waiting' and len(progress.issued)==12
+                and not rt.current_plan.progress[prior].issued,progress=progress.model_dump())
+            facts=await rt.game.query('home/colony_facts',planning=True)
         cells=[]
         for cell in sorted(facts['cells'], key=lambda c:(c['x']-facts['center']['x'])**2+(c['z']-facts['center']['z'])**2):
             if not cell.get('walkable') or cell.get('occupied'): continue
@@ -94,6 +143,10 @@ async def run(args):
         prompt=('Relocate construction intent '+source['step']+'. Remove its old pending blueprints and place the '
                 'replacement walls using this exact inspected construction specification: '+json.dumps(buildings([3,4]))+
                 '. Preserve all unrelated construction. Use RelocateConstruction, not a separate unrelated building order.')
+        if args.wording=='conversational':
+            prompt=('Move the pending wooden walls in '+source['step']+' to '+
+                ' and '.join('x '+str(cells[i]['x'])+', z '+str(cells[i]['z']) for i in (3,4))+
+                '. Take down its old blueprints as part of moving that same project. Other projects stay as they are.')
         await chat(prompt)
         relocations=[s for s in rt.current_plan.spec.steps if s.id.startswith('relocate-build-')]
         record('local_model_selects_relocation',len(relocations)==1)
@@ -120,6 +173,14 @@ async def run(args):
         record('lost_receipt_stops_without_replay',len(remaining)==1 and rt.current_plan.progress[removal['step']].state=='blocked')
         await chat('Stop future work for now. Keep all the existing blueprints and frames in place. Do not cancel construction.')
         record('player_preservation_keeps_remaining_orders',remaining|unrelated <= {b['thingId'] for b in await listed()})
+        for prompt in (
+            'Cancel the goal for '+second['step']+'. Leave its pending blueprints and frames alone.',
+            'Remove the construction orders for '+second['step']+', but keep its pending blueprints in place.',
+            'Remove the construction orders for '+second['step']+'. Keep '+neighbor['step']+"'s blueprints in place."):
+            before={b['thingId'] for b in await listed()}
+            await chat(prompt)
+            record('ambiguous_or_conflicting_removal_preserves_native_orders',
+                before=={b['thingId'] for b in await listed()},prompt=prompt)
         checkpoint=await create_checkpoint(rt,rt.context_token)
         old_token=rt.context_token
         report['checkpoint']=checkpoint
@@ -128,7 +189,7 @@ async def run(args):
         _,state=prepare_resume(checkpoint['manifest_path'])
         store=Store(state/'bridge.sqlite')
         rt=BridgeRuntime(store,root,fresh=True,headless=True,resume=checkpoint['manifest_path'],
-            settings=Settings(model=args.model,timeout_seconds=90))
+            settings=Settings(model=args.model,model_url=args.model_url,timeout_seconds=90))
         await ready(rt)
         record('paired_load_preserves_remaining_native_orders',rt.mode=='manual' and rt.context_token!=old_token
             and remaining|unrelated <= {b['thingId'] for b in await listed()} and rt.counters['actions']==0)
@@ -141,7 +202,11 @@ async def run(args):
         record('old_load_cancellation_cannot_retarget',progress.state=='blocked' and
             remaining|unrelated <= {b['thingId'] for b in await listed()} and rt.counters['actions']==0,
             failure=progress.failure.model_dump())
-        await chat('Cancel construction of '+second['step']+'. Remove its remaining pending blueprints and frames. Preserve unrelated construction and completed buildings.')
+        prompt='Cancel construction of '+second['step']+'. Remove its remaining pending blueprints and frames. Preserve unrelated construction and completed buildings.'
+        if args.wording=='conversational':
+            prompt=('The earlier removal response was lost. For '+second['step']+
+                ', clear away only the unfinished construction still there. Leave completed buildings intact; do not touch the other projects.')
+        await chat(prompt)
         present={b['thingId'] for b in await listed()}
         record('fresh_local_request_after_load_removes_only_remaining',not remaining&present and unrelated<=present
             and rt.mode=='manual' and (await rt.game.query('home/status',colonists=False,threats=False))['time']['paused'])
@@ -151,8 +216,12 @@ async def run(args):
         raise
     finally:
         report['plan']=rt.current_plan.model_dump()
-        await rt.stop();store.close()
-        (args.output/'result.json').write_text(json.dumps(report,indent=2))
+        try:
+            if hasattr(rt,'task'): await rt.stop()
+        except Exception as error: report['cleanup_error']=repr(error)
+        finally:
+            store.close()
+            (args.output/'result.json').write_text(json.dumps(report,indent=2))
 
 
 if __name__=='__main__':
@@ -160,5 +229,8 @@ if __name__=='__main__':
     parser.add_argument('--source-root',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--model',default='qwen3.5-4b')
+    parser.add_argument('--model-url',default=os.environ.get('RIMBOT_MODEL_URL','http://127.0.0.1:1234/v1'))
+    parser.add_argument('--rooms',action='store_true',help='Admit and refine a chat room before dispatch, then observe exact native orders')
+    parser.add_argument('--wording',choices=['explicit','conversational'],default='explicit')
     args=parser.parse_args()
     asyncio.run(asyncio.wait_for(run(args),900))
