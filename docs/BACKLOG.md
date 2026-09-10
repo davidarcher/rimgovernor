@@ -651,7 +651,7 @@ only intentional small, sanitized regression fixtures belong in source control.
   revision; integrator combines them before accepting 00):
   - [ ] **00a:** production modules, semantic commands, completion kinds and
     domain/native capability ownership; contracts/domain-inventory.json.
-  - [ ] **00b:** HTTP/events, configuration, launchers and optional media surfaces;
+  - [x] **00b:** HTTP/events, configuration, launchers and optional media surfaces;
     contracts/interface-inventory.json.
   - [ ] **00c:** persistence/recovery surfaces and sanitized comparison fixtures;
     contracts/state-inventory.json and contracts/fixtures/.
