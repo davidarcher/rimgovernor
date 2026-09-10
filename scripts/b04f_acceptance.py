@@ -109,6 +109,7 @@ async def run(args):
             method,actions=compiled
             if goal.method_seen(method):return []
             steps,costs=rt.controller.skills.steps(identity,method,actions,facts)
+            if not steps:return []
             await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
                 reason='B04f native method acceptance',steps=steps).decision(rt.current_plan),actor='strategist',
                 expected_token=rt.context_token,expected_revision=rt.chat_revision)
