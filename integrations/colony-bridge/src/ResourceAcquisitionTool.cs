@@ -17,11 +17,13 @@ namespace HomeBridge.BridgeTools
             ? t.Map.designationManager.DesignationAt(t.Position, DesignationDefOf.Mine) != null
             : t.Map.designationManager.DesignationOn(t, DesignationDefOf.HarvestPlant) != null
                 || t.Map.designationManager.DesignationOn(t, DesignationDefOf.CutPlant) != null;
+        private static Designator DesignatorFor(Thing t) => t is Mineable ? (Designator)new Designator_Mine() :
+            t.def.plant.IsTree ? new Designator_PlantsHarvestWood() : new Designator_PlantsHarvest();
         private static bool Eligible(Thing t, Map map)
         {
             if (!t.Spawned || t.Position.Fogged(map) || t.IsForbidden(Faction.OfPlayer) || Product(t) == null) return false;
             if (t is Plant plant && (!plant.HarvestableNow || map.zoneManager.ZoneAt(t.Position) is Zone_Growing)) return false;
-            return (t is Plant || t is Mineable) && map.mapPawns.FreeColonistsSpawned.Any(p => !p.Downed && !p.Drafted
+            return (t is Plant || t is Mineable) && (Designated(t) || DesignatorFor(t).CanDesignateThing(t).Accepted) && map.mapPawns.FreeColonistsSpawned.Any(p => !p.Downed && !p.Drafted
                 && !p.InMentalState && p.Position.DistanceTo(t.Position) <= 50 && p.CanReach(t, PathEndMode.Touch, Danger.None));
         }
         [Tool("home/resource_sources", Title = "Reachable native resource sources",
@@ -36,7 +38,7 @@ namespace HomeBridge.BridgeTools
                 var rows = map.listerThings.AllThings.Where(t => Product(t)?.defName == resource && Eligible(t, map))
                     .OrderBy(t => t.thingIDNumber).Take(40).Select(t => new { thingId = t.ThingID,
                         resource, workTypes = new[] { HomeBillsTools.WorkTypeMetadata(
-                            t is Mineable ? WorkTypeDefOf.Mining : t.def.plant.IsTree ? WorkTypeDefOf.PlantCutting : WorkTypeDefOf.Growing) },
+                            t is Mineable ? WorkTypeDefOf.Mining : WorkTypeDefOf.PlantCutting) },
                         x = t.Position.x, z = t.Position.z, designated = Designated(t),
                         method = t is Mineable ? "mine" : t.def.plant.IsTree ? "cut" : "harvest",
                         yield = t is Plant plant ? plant.YieldNow() : t.def.building.mineableYield }).ToList();
@@ -64,10 +66,9 @@ namespace HomeBridge.BridgeTools
                 if (thing == null || thing.Position.x != x || thing.Position.z != z || Product(thing)?.defName != resource || !Eligible(thing, map))
                     return new { success = false, error = "Resource source changed or is unsafe/unavailable" };
                 if (Designated(thing)) return new { success = true, dryRun, designated = true, thingId, resource };
-                Designator designator = thing is Mineable ? (Designator)new Designator_Mine() :
-                    thing.def.plant.IsTree ? new Designator_PlantsCut() : new Designator_PlantsHarvest();
+                Designator designator = DesignatorFor(thing);
                 var verdict = designator.CanDesignateThing(thing);
-                if (!verdict.Accepted) return new { success = false, error = verdict.Reason };
+                if (!verdict.Accepted) return new { success = false, error = string.IsNullOrEmpty(verdict.Reason) ? "Native resource designation refused" : verdict.Reason };
                 if (!dryRun) designator.DesignateThing(thing);
                 return new { success = dryRun || Designated(thing), dryRun, designated = Designated(thing), thingId, resource };
             }, cancellationToken).ConfigureAwait(false);

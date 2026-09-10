@@ -281,3 +281,8 @@ wraps these callbacks without copying game implementation or replacing bill
 settings. Exact-identity acquisition invokes the normal mining/plant designators.
 The identity assembly stores resource policy metadata beside colony identity;
 transient controller construction holds are excluded from native saves.
+
+Wild plant and mature tree acquisition uses the native harvest and harvest-wood
+designators. Both generate HarvestPlant work consumed by WorkGiver_PlantsCut;
+source metadata therefore requests PlantCutting, while mining requests Mining.
+The source list and final dispatch both honor native designation eligibility.

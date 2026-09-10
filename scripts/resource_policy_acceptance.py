@@ -91,7 +91,7 @@ async def run(args):
         report['recipes']=recipes
         roster=(await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True))['pawns']
         for person in roster:
-            for work in ('Crafting','Mining','PlantCutting','Growing'):
+            for work in ('Crafting',):
                 if any(w['name']==work and not w['disabled'] for w in person['work']['types']):
                     await command(kind='SetWorkPriority',pawn=person['thingId'],work_type=work,priority=1)
         recipe=next(r for r in recipes['recipes'] if len(r['ingredients'])==1
@@ -136,7 +136,7 @@ async def run(args):
             record('target_'+resource,rt.current_plan.colony_goals[result['goal']].target=={'resource':resource,'quantity':quantity},sources=source)
         if args.acquisition:
             from rimbot.production_policy import resource_method
-            for resource in ('Steel','ComponentIndustrial','MedicineHerbal'):
+            for resource in ('Steel','ComponentIndustrial','MedicineHerbal','WoodLog'):
                 observed=await facts();goal_id='MaintainResource-'+resource
                 goal=rt.current_plan.colony_goals[goal_id]
                 goal.target['quantity']=observed['resources'].get(resource,0)+1
@@ -177,6 +177,24 @@ async def run(args):
                 record('native_acquired_'+resource,observed['resources'].get(resource,0)>=goal.target['quantity']
                     and await stock(resource)>before_native,before=before_native,after=await stock(resource),
                     goal=goal.model_dump(mode='json'),tick=observed['tick'])
+        if args.persistence:
+            from rimbot.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
+            expected_policy=json.loads(json.dumps(rt.current_plan.control.get('resource_policy',{})))
+            expected_native=(await bills(bench))['benches'][0]['bills'][0]['config']
+            checkpoint=await create_checkpoint(rt,rt.context_token)
+            report['checkpoint']=checkpoint
+            await stop_for_restart(rt,rt.context_token,checkpoint['manifest_path'])
+            await rt.stop();store.close()
+            _,state_root=prepare_resume(checkpoint['manifest_path'])
+            store=Store(state_root/'bridge.sqlite')
+            rt=BridgeRuntime(store,root,fresh=True,headless=True,resume=checkpoint['manifest_path'])
+            await ready(rt)
+            record('paired_policy_preserved',rt.mode=='manual' and rt.current_plan.control.get('resource_policy')==expected_policy)
+            record('paired_bill_settings_preserved',(await bills(bench))['benches'][0]['bills'][0]['config']==expected_native)
+            before_resume=await stock('WoodLog')
+            await window(600)
+            record('manual_reserve_enforced',await stock('WoodLog')>=expected_policy['WoodLog'].get('reserve',0),
+                before=before_resume,after=await stock('WoodLog'),policy=expected_policy)
         record('zero_inference',rt.counters.get('model_calls',0)==0,counters=rt.counters)
         report['outcome']='passed'
     except Exception as error:
@@ -184,7 +202,13 @@ async def run(args):
     finally:
         report['plan']=rt.current_plan.model_dump(mode='json')
         report['counters']=rt.counters
-        await rt.stop();store.close()
+        try:
+            if rt.connected:
+                rt.session_closing=True
+                report['cleanup']=(await rt.bridge.core('games_stop',gameId=rt.bridge.game_id)).model_dump(mode='json')
+                rt.owned_game_stopped=True
+        finally:
+            await rt.stop();store.close()
         (args.output/'result.json').write_text(json.dumps(report,indent=2))
 
 
@@ -193,6 +217,7 @@ if __name__=='__main__':
     parser.add_argument('--source-root',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--seconds',type=int,default=300)
+    parser.add_argument('--persistence',action='store_true',help='Require paired native save/load and Manual reserve enforcement')
     parser.add_argument('--acquisition',action='store_true',help='Require actual native mined steel/components and harvested herbal medicine')
     args=parser.parse_args()
-    asyncio.run(asyncio.wait_for(run(args),args.seconds*(4 if args.acquisition else 1)+240))
+    asyncio.run(asyncio.wait_for(run(args),args.seconds*(5 if args.acquisition else 1)+480))
