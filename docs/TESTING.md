@@ -601,6 +601,10 @@ Add `--mixed` to `scripts/session_checkpoint_acceptance.py` for an issued shell
 slot, its unissued material reservations, a pending growing zone and pending work
 setting. The paired native restart must retain exact controller state and native
 building IDs while staying in Manual with no replay or stale manual requests.
+Add `--rewind` with `--mixed` to reload the unchanged older native baseline after
+the paired restart. The probe requires later blueprint identities to disappear,
+discards an explicitly delivered obsolete queued request, and rejects an old-load
+native write without changing the observed building set or leaving Manual.
 
 `scripts/cancel_construction_acceptance.py --source-root <prepared-root> --output
 <fresh-directory>` tests the native exact-target cancellation contract in a private
