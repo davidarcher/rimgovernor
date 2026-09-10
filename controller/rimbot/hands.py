@@ -2,47 +2,7 @@
 import time
 from .colony_plan import Buildings, RoomShell, Zone, NativeOperation, ClockAction, StandDown, Placement, Failure, TradeAction, CancelConstructionAction
 from .receipts import reason
-
-
-def room_placements(room: RoomShell):
-    b = room.bounds
-    x2, z2 = b.x+b.width-1, b.z+b.height-1
-    door = {'north': (b.x+b.width//2, z2), 'south': (b.x+b.width//2, b.z),
-        'east': (x2, b.z+b.height//2), 'west': (b.x, b.z+b.height//2)}[room.entrance]
-    perimeter = [(x, z) for x, z in b.cells() if x in (b.x, x2) or z in (b.z, z2)]
-    # Put the door first; no room shell can compile into four corners only.
-    perimeter.sort(key=lambda c: c != door)
-    return [Placement(x=x, z=z, def_name=room.door_def if (x,z)==door else room.wall_def,
-        rotation=room.entrance if (x,z)==door else 'north', materials=room.materials) for x,z in perimeter]
-
-
-class GeometryConflict(ValueError):
-    def __init__(self, step, other, point):
-        self.evidence = {'step_id': step, 'conflicts_with': other,
-                         'cell': {'x': point[0], 'z': point[1]}}
-        super().__init__(f'{step} overlaps {other} at x={point[0]}, z={point[1]}; '
-                         'adjust the conflicting footprint or reserved walkway')
-
-
-def validate_geometry(spec):
-    reserved = {c for r in spec.reserved_walkways for c in r.cells()}
-    claimed = {}
-    for step in spec.steps:
-        action = step.action
-        if isinstance(action, RoomShell):
-            points = [(p.x,p.z) for p in room_placements(action)]
-        elif isinstance(action, Buildings):
-            points = [(p.x,p.z) for p in action.placements]
-        elif isinstance(action, Zone):
-            points = sorted({c for patch in action.patches for c in patch.cells()})
-        else:
-            continue
-        for point in points:
-            if point in reserved:
-                raise GeometryConflict(step.id, 'reserved walkway', point)
-            if point in claimed and claimed[point] != step.id:
-                raise GeometryConflict(step.id, claimed[point], point)
-            claimed[point] = step.id
+from .spatial import room_placements, GeometryConflict, validate_geometry, native_footprint
 
 
 class Blocked(Exception):
@@ -249,7 +209,16 @@ class Hands:
                 raise Blocked('construction_resources',str(error),retryable=True,evidence=dict(error.evidence,
                     slot=key,load_token=token,direction=direction,signature=step.signature(),
                     tick=rt.batch.summary.end_tick)) from error
-            occupied = {(c['x'], c['z']) for r in preview['rotations'] for c in r.get('occupiedCells', [])}
+            try:
+                occupied = native_footprint(preview, p)
+                owner = next((s for s in rt.current_plan.spec.steps
+                              if rt.current_plan.progress.get(s.id) is progress), None)
+                if owner is not None:
+                    validate_geometry(rt.current_plan.spec, {(owner.id, key): occupied})
+            except GeometryConflict as error:
+                raise Blocked('spatial_conflict', str(error), evidence=error.evidence) from error
+            except ValueError as error:
+                raise Blocked('incomplete_building_geometry', str(error)) from error
             reserved = {c for r in rt.current_plan.spec.reserved_walkways for c in r.cells()}
             if occupied & reserved:
                 raise Blocked('reserved_walkway', 'Building footprint crosses a reserved walkway')

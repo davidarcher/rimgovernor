@@ -12,7 +12,7 @@ async def test_native_legal_blueprint_can_be_queued_with_forbidden_materials():
         game=SimpleNamespace(query=AsyncMock(side_effect=[{'buildings':[]},{'zones':[]} ])),
         inspect_native=AsyncMock(return_value={'canPlace':True,'madeFromStuff':True,
             'materials':{'canBuildNow':False,'missing':'5 wood, all forbidden'},
-            'rotations':[{'occupiedCells':[{'x':10,'z':10}]}]}),
+            'rotations':[{'rotation':'north','occupiedCells':[{'x':10,'z':10}]}]}),
         native=AsyncMock(return_value={'receipt':{'outcome':'placed'}}))
     result=await Hands().place(rt,Placement(x=10,z=10,def_name='Wall',materials=['WoodLog']),
         StepProgress(),'0',0,'load',0)

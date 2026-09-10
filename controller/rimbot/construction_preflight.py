@@ -1,6 +1,6 @@
 """Native dry-run validation of new construction intent before commitment."""
-from .colony_plan import Buildings, RoomShell
-from .hands import room_placements
+from .colony_plan import Buildings, RoomShell, Zone
+from .spatial import room_placements, native_footprint, validate_geometry
 
 
 class ConstructionRefusal(ValueError):
@@ -14,15 +14,21 @@ class ConstructionRefusal(ValueError):
 
 async def preflight_construction(spec, current, game):
     previous={step.id:step for step in current.spec.steps}
+    def spatial_signature(plan):
+        return [(s.id, s.signature()) for s in plan.steps if isinstance(s.action, (Buildings, RoomShell, Zone))]
+    if (spatial_signature(spec) == spatial_signature(current.spec)
+            and spec.reserved_walkways == current.spec.reserved_walkways):
+        return
+    validate_geometry(spec)
     checked={}
+    footprints={}
     for step in spec.steps:
         old=previous.get(step.id)
-        if old and old.signature()==step.signature():
-            continue  # Existing work is reconciled by Hands, not rejected on re-planning.
+        unchanged=old is not None and old.signature()==step.signature()
         action=step.action
         placements=room_placements(action) if isinstance(action,RoomShell) else (
             action.placements if isinstance(action,Buildings) else [])
-        for placement in placements:
+        for index, placement in enumerate(placements):
             evidence={}
             accepted=False
             for stuff in placement.materials or [None]:
@@ -43,8 +49,14 @@ async def preflight_construction(spec, current, game):
                     continue
                 # Dependent work can need clearance first. Still require a resolved
                 # definition; leave site readiness to execution after dependencies.
-                if result.get('success') is not False and (
+                if result.get('success') is not False and (unchanged or
                         result.get('canPlace') is True or (step.after and 'canPlace' in result)):
+                    try:
+                        footprints[(step.id, str(index))] = native_footprint(result, placement)
+                    except ValueError as error:
+                        evidence['error'] = str(error)
+                        continue
                     accepted=True;break
             if not accepted:
                 raise ConstructionRefusal(step,placement,evidence)
+    validate_geometry(spec, footprints)

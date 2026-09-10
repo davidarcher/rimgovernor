@@ -245,6 +245,15 @@ retain issued work until fresh evidence arrives. Ambiguous non-idempotent writes
 block for inspection instead of automatic replay; only explicitly retryable
 failures can be retried through the plan.
 
+Shared spatial validation rejects overlapping planned room bounds, growing zones
+inside planned rooms, and building footprints across reserved walkways or a room's
+doorway and immediate inside/outside approaches. Indoor stockpiles remain allowed.
+Changing construction, zones or walkways refreshes native footprints for the live
+plan, including retained buildings; unavailable geometry refuses admission.
+Hands rechecks the current placement's footprint before writing. These constraints
+protect accepted planned space; they do not establish native reachability, arbitrary
+room connectivity, future expansion rights or access throughout pawn construction.
+
 Completed actions removed from the active specification move to a compressed,
 colony-scoped SQLite archive. Their exact specification, progress/receipts and
 cost metadata are committed atomically with the compact live snapshot before

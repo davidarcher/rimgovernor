@@ -82,11 +82,16 @@ in the checkpoint commit; do not append an implementation diary here.
 ## P1 — Functional colony planning and recovery
 
 - [ ] **B06 · Spatial architecture.** Extend existing room compilation, geometry
-  checks and native preflight with long-term layout, shared reservations, entrances,
-  outside/room connectivity, room roles and staged construction. Compare sites
+  checks and native preflight with long-term layout, outside/room connectivity,
+  room roles and staged construction. Shared planned-room bounds, immediate entrance
+  clearance and native footprint conflicts are validated at admission, with current
+  placement footprint checks in Hands. Verify these under native construction and
+  player edits; extend protection to observed/retired rooms and continuous corridors,
+  and reject shells enclosing existing native farms without perimeter overlap.
+  Compare sites
   using bounded terrain, supplies, danger, fertility and travel evidence. Accept
-  ruins/nonrectangular shelters; reject sealed rooms, blocked corridors and farm
-  overlap. Validate native floor/roof/area/designator coverage before adding tools.
+  ruins/nonrectangular shelters; reject sealed rooms and blocked corridors beyond
+  immediate entrances. Validate native floor/roof/area/designator coverage before adding tools.
 - [ ] **B07 · Durable project scheduling.** Extend basic building/zone/installation
   reconciliation with maintained functional goals, resource competition and
   production consumption. Verify dependent work, player edits, save rewinds and

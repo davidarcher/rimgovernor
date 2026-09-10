@@ -6,6 +6,7 @@ from rimbot.colony_plan import ColonyPlan, CommitSteps, PlanStep, StepProgress
 from rimbot.resource_accounting import validate_allocations
 from rimbot.resource_accounting import validate_execution_costs
 from test_strategic_architecture import runtime, batch, room_plan
+from test_construction_preflight import footprint
 
 
 @pytest.mark.asyncio
@@ -257,8 +258,8 @@ async def test_room_followup_replaces_only_unissued_intent_and_preserves_history
 @pytest.mark.asyncio
 async def test_shared_arbitration_rejects_player_and_autopilot_double_spend(tmp_path):
     rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch()
-    rt.game.invoke=AsyncMock(return_value={'canPlace':True,'costList':[{'defName':'WoodLog','count':60}],
-        'materials':{'rows':[{'defName':'WoodLog','available':100}]}})
+    rt.game.invoke=AsyncMock(side_effect=lambda name,args,**kw: footprint(args,canPlace=True,costList=[{'defName':'WoodLog','count':60}],
+        materials={'rows':[{'defName':'WoodLog','available':100}]}))
     first=PlanStep(id='auto',title='Auto',source='AUTOPILOT',action={'kind':'place_buildings',
         'placements':[{'def_name':'Bed','x':1,'z':1,'materials':['WoodLog']}]},completion_criteria='Bed exists')
     await rt.commit_strategy(CommitSteps(expected_revision=0,reason='Auto',steps=[first]).decision(rt.current_plan),
@@ -275,8 +276,8 @@ async def test_shared_arbitration_rejects_player_and_autopilot_double_spend(tmp_
 async def test_defense_only_component_policy_is_a_hard_shared_gate(tmp_path):
     rt=runtime(tmp_path);await rt.sync_identity();rt.batch=batch()
     rt.current_plan.control['resource_policy']={'ComponentIndustrial':{'reserve':0,'spending':'defense_only'}}
-    rt.game.invoke=AsyncMock(return_value={'canPlace':True,'costList':[{'defName':'ComponentIndustrial','count':3}],
-        'materials':{'rows':[{'defName':'ComponentIndustrial','available':10}]}})
+    rt.game.invoke=AsyncMock(side_effect=lambda name,args,**kw: footprint(args,canPlace=True,costList=[{'defName':'ComponentIndustrial','count':3}],
+        materials={'rows':[{'defName':'ComponentIndustrial','available':10}]}))
     step=PlanStep(id='power',title='Power',source='PLAYER',purpose='production',action={'kind':'place_buildings',
         'placements':[{'def_name':'Generator','x':1,'z':1}]},completion_criteria='Built')
     proposal=CommitSteps(expected_revision=0,reason='Player',steps=[step]).decision(rt.current_plan)

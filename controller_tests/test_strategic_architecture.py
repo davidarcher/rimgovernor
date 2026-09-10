@@ -12,6 +12,7 @@ from rimbot.hands import room_placements, validate_geometry
 from rimbot.model_router import ModelRouter
 from rimbot.strategic_state import StrategicState, features, context
 from rimbot.store import Store
+from test_construction_preflight import footprint
 
 
 def batch():
@@ -62,7 +63,7 @@ def runtime(tmp_path, **kwargs):
     store = Store(tmp_path/'state.sqlite')
     rt = BridgeRuntime(store, tmp_path, **kwargs)
     rt.game = SimpleNamespace(query=AsyncMock(return_value={'colonyId':'test','mapId':1,'loadToken':'load'}),
-        invoke=AsyncMock(return_value={'success':True,'canPlace':True,'costList':[{'defName':'WoodLog','count':5}], 'materials':{'rows':[{'defName':'WoodLog','available':1000}]}}))
+        invoke=AsyncMock(side_effect=lambda name,args,**kw: footprint(args,success=True,canPlace=True,costList=[{'defName':'WoodLog','count':5}], materials={'rows':[{'defName':'WoodLog','available':1000}]}) if name=='home/place_building' else {'success':True}))
     return rt
 
 
@@ -222,7 +223,7 @@ async def test_invented_construction_is_repaired_before_any_plan_is_saved(tmp_pa
     async def preview(name,args,**kwargs):
         assert args['dryRun'] is True and kwargs['allow_write'] is False
         if args['defName']=='Door_Wood':raise ValueError('Unknown definition')
-        return {'canPlace':True,'success':True,'costList':[{'defName':'WoodLog','count':5}], 'materials':{'rows':[{'defName':'WoodLog','available':1000}]}}
+        return footprint(args,canPlace=True,success=True,costList=[{'defName':'WoodLog','count':5}], materials={'rows':[{'defName':'WoodLog','available':1000}]})
     rt=runtime(tmp_path,model_factory=lambda _:Brain())
     await rt.sync_identity();rt.batch=batch();rt.strategic_state.update(rt.batch)
     rt.game.invoke=AsyncMock(side_effect=preview)

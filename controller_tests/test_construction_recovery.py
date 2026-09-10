@@ -24,7 +24,7 @@ def fixture():
     async def preview(name,args):
         return {'canPlace':True,'madeFromStuff':True,'costList':[{'defName':'WoodLog','count':5}],
             'materials':{'rows':[{'defName':'WoodLog','available':stock['wood']}]},
-            'rotations':[{'occupiedCells':[{'x':args['x'],'z':args['z']}]}]}
+            'rotations':[{'rotation':args['rotation'],'occupiedCells':[{'x':args['x'],'z':args['z']}]}]}
     async def native(*args,**kwargs):
         stock['wood']=9
         return {'receipt':{'outcome':'placed','stuff':'WoodLog'}}

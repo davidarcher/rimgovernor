@@ -26,6 +26,13 @@ success is not gameplay acceptance. Preserve source provenance beside copied cod
 
 ## Native execution windows
 
+Shared spatial controller checks are in `test_spatial_constraints.py`,
+`test_plan_geometry.py` and `test_construction_preflight.py`. They cover entrances
+in all rotations, indoor farm refusal, retained-building and same-batch native
+footprint conflicts, unknown geometry, and refusal before dispatch. These use
+native-shaped fixtures; B06 still requires ordinary pawn construction, live
+player edits and observed access acceptance.
+
 Run `scripts/native_tick_budget_acceptance.py --source-root <prepared-root>
 --output <new-directory>` with `controller` on `PYTHONPATH`. Each speed/budget
 case reloads the unchanged baseline. The native companion must independently
