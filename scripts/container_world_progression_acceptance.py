@@ -20,7 +20,7 @@ def run(args):
     name = 'rimbot-b15-' + uuid.uuid4().hex[:12]
     report = dict(passed=False, container=name, trip=args.trip, shared=args.shared, quests=args.quests, days=args.days, matrix=args.matrix,
                   logistics=args.logistics, multimap=args.multimap, emergency=args.emergency, diplomacy=args.diplomacy, quest_trade=args.quest_trade, expired=args.expired, failed=args.failed,
-                  prepared_days=args.prepared_days, recovery=args.recovery,
+                  prepared_days=args.prepared_days, recovery=args.recovery, resume_trip=args.resume_trip,
                   scope='Native caravan/quest observations and optional ordinary loaded caravan round trip')
     try:
         baseline = args.profile.resolve() / 'Saves/RimBot-tribal8-baseline.rws'
@@ -57,6 +57,7 @@ def run(args):
         mounts += ['--mount', f'type=bind,source={output},target=/worker']
         command('run', '-d', '--name', name, '--init', *dashboard_options(name), '--env', 'RIMBOT_UNITY_GC_TIME_SLICE=0',
                 '--env', 'PYTHONPATH=/app/scripts:/app/controller',
+                '--env', 'RIMBOT_RESUME_WORLD=' + ('1' if args.resume_trip else '0'),
                 '--env', 'RIMBOT_RECOVERY=' + ('1' if args.recovery else '0'),
                 '--env', 'RIMBOT_SHARED_WORLD=' + ('1' if args.shared else '0'),
                 '--env', 'RIMBOT_QUEST_PROBE=' + ('1' if args.quests else '0'),
@@ -122,6 +123,7 @@ if __name__ == '__main__':
     parser.add_argument('--image', default='rimbot-b15:local')
     parser.add_argument('--no-build', action='store_true')
     parser.add_argument('--trip', action='store_true')
+    parser.add_argument('--resume-trip', action='store_true', help='Continue one observed checkpoint caravan toward its ongoing trade quest, then verify rewards and return storage')
     parser.add_argument('--recovery', action='store_true', help='Observe ordinary ration depletion and explicit living return of a short-supplied party')
     parser.add_argument('--logistics', action='store_true', help='Verify explicit hold and return cargo unloading into native storage')
     parser.add_argument('--diplomacy', action='store_true', help='Visit a native settlement and give explicitly requested silver through shared Hands')
@@ -137,6 +139,8 @@ if __name__ == '__main__':
     parser.add_argument('--matrix', action='store_true', help='Native reserve competition, cold-readiness refusal and emergency clock refusal')
     parser.add_argument('--emergency', action='store_true', help='Native incident and conservative 250-cell danger-stop profile only')
     args = parser.parse_args()
+    if args.resume_trip and not (args.trip and args.shared and args.quest_trade and not args.diplomacy):
+        parser.error('--resume-trip requires --trip --shared --quest-trade without --diplomacy')
     if args.matrix and not (args.trip and args.shared):
         parser.error('--matrix requires --trip --shared')
     if (args.logistics or args.multimap or args.diplomacy or args.quest_trade or args.recovery) and not (args.trip and args.shared):

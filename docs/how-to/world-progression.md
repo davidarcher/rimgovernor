@@ -54,6 +54,16 @@ retain their independently generated quantities; no requirements are edited. Uno
 authorize generated goods or changed quest requirements. These longer trips keep
 home food gathering in the existing shared goal and Hands.
 
+`--resume-trip --quest-trade --trip --shared` continues an untouched native
+checkpoint with one living caravan already traveling toward one ongoing trade
+quest with an unambiguous item reward. It observes the existing route without
+reissuing it, then creates fresh scoped fulfillment and return commands. This
+case verifies checkpoint continuation and return storage; initial acceptance and
+packing belong to the source run's evidence. Optional dismissible world-event
+dialogs use their exact native dismiss control after threat checks; other modal
+stops remain failures. Failed runs retain native UI state and an ordinary save
+when the bridge remains available.
+
 `--expired` waits for the ordinary short-lived ThreatReward_Raid_Joiner offer to
 expire without acceptance, then verifies native acceptance refusal and terminal
 outcome evaluation. No quest deadlines or ticks are edited.

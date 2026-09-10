@@ -195,7 +195,8 @@ The temporary standalone overlay is replaced by the dashboard on port 8787.
 
 - Identity persistence lives in a separate normal mod assembly
   `src/identity/ColonyIdentity.csproj` (installed under Assemblies). The bridge
-  extension only exposes its read tool. This fixes Verse's cached type lookup
+  extension exposes its read tool. Save-backed policy, recovery, mining and gear
+  ownership components also live in this early-loaded assembly. This fixes Verse's cached type lookup
   during save deserialization; the live save/reload smoke verifies identity
   continuity and load-token rotation.
 

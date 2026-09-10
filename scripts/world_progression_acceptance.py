@@ -15,6 +15,7 @@ from rimbot.player_commands import apply_command
 from rimbot.native_scenario import advance_game, ScenarioInterrupted
 from session_checkpoint_acceptance import ready
 from deterministic_foothold import NoInference
+from native_scenario_support import settle_dispatch
 
 
 async def run():
@@ -36,6 +37,7 @@ async def run():
     recovery = os.environ.get('RIMBOT_RECOVERY') == '1'
     quest_trade = os.environ.get('RIMBOT_QUEST_TRADE') == '1'
     settlement_trip = diplomacy or quest_trade
+    resume_trip = os.environ.get('RIMBOT_RESUME_WORLD') == '1'
     prepared_days = os.environ.get('RIMBOT_PREPARED_DAYS') == '1'
     logistics = os.environ.get('RIMBOT_LOGISTICS') == '1' or diplomacy
     def step_complete(identity):
@@ -58,6 +60,7 @@ async def run():
         if result.get('archived'):
             assert not waits and result['state'] == 'complete', result
         else:
+            await settle_dispatch(rt, [next(s for s in rt.current_plan.spec.steps if s.id == step_id)])
             progress = rt.current_plan.progress[step_id]
             assert progress.state == ('waiting' if waits else 'complete'), progress.model_dump()
             if step_id not in report.setdefault('shared_steps', []):
@@ -108,6 +111,7 @@ async def run():
         rt.current_plan.control['combat'] = dict(target=targets[0], targets=targets, pawns=defenders, steps=[s.id for s in steps])
         rt.manual_requests.extend((s.id, rt.context_token, rt.chat_revision) for s in steps)
         await rt.execute_manual_requests()
+        await settle_dispatch(rt, steps)
         assert all(rt.current_plan.progress[s.id].state in ('waiting', 'complete') for s in steps)
         history = []
         for _ in range(40):
@@ -155,6 +159,11 @@ async def run():
             if evidence.get('failure') != 'Unexpected native interruption':
                 raise
             state = evidence['windows'][-1]
+        async with rt.lock:
+            await rt.refresh_clock_events()
+        async with asyncio.timeout(45):
+            while rt.wake.is_set() or (rt.review_task and not rt.review_task.done()) or rt.handled_revision < rt.chat_revision:
+                await asyncio.sleep(.1)
         if state['stopReason'] in ('force_paused', 'colony_naming'):
             facts = await read('home/colony_facts', planning=True)
             if facts.get('colonyNaming'):
@@ -167,6 +176,7 @@ async def run():
                     actor='strategist', expected_token=rt.context_token, expected_revision=rt.chat_revision)
                 rt.manual_requests.extend((s.id, rt.context_token, rt.chat_revision) for s in steps)
                 await rt.execute_manual_requests()
+                await settle_dispatch(rt, steps)
                 assert all(rt.current_plan.progress[s.id].state == 'complete' for s in steps)
                 goal.evidence.setdefault('methods', {})[method] = [s.id for s in steps]
                 report['bootstrap_names'] = facts['colonyNaming']
@@ -193,6 +203,7 @@ async def run():
                     actor='strategist', expected_token=rt.context_token, expected_revision=rt.chat_revision)
                 rt.manual_requests.append((step.id, rt.context_token, rt.chat_revision))
                 await rt.execute_manual_requests()
+                await settle_dispatch(rt, [step])
                 assert rt.current_plan.progress[step.id].state == 'complete'
                 assert not (await read('rimworld/get_ui_state'))['windows']
                 rt.supervisor.absorb(state)
@@ -242,6 +253,7 @@ async def run():
                         actor='strategist', expected_token=rt.context_token, expected_revision=rt.chat_revision)
                     rt.manual_requests.extend((s.id, rt.context_token, rt.chat_revision) for s in steps)
                     await rt.execute_manual_requests()
+                    await settle_dispatch(rt, steps)
                     assert all(rt.current_plan.progress[s.id].state == 'complete' for s in steps)
                     goal.evidence.setdefault('methods', {})[method] = [s.id for s in steps]
         return state
@@ -288,7 +300,38 @@ async def run():
             report['expired_quest'] = terminal
             report['expired_refusal'] = refused
             report['cases']['native_offer_expired_without_acceptance_or_replay'] = 'passed'
-        if os.environ.get('RIMBOT_CARAVAN_TRIP') == '1':
+        if resume_trip:
+            assert quest_trade and shared and not diplomacy
+            world = await read('home/world_progression')
+            assert len(world['caravans']) == 1, 'Observe exactly one checkpoint caravan'
+            party = world['caravans'][0]
+            assert len(party['pawns']) == 1 and not party['pawns'][0]['dead'] and not party['pawns'][0]['downed']
+            pawn, caravan_id = party['pawns'][0]['thingId'], party['id']
+            candidates = [q for q in world['quests'] if q['state'] == 'Ongoing' and len(q['tradeRequests']) == 1
+                and q['tradeRequests'][0]['tile'] == party['destination']]
+            assert len(candidates) == 1, 'Checkpoint must identify one ongoing quest at the active destination'
+            trade_quest = candidates[0]
+            assert len(trade_quest['rewardChoices']) == 1, 'Checkpoint reward choice must be unambiguous'
+            choice = trade_quest['rewardChoices'][0]
+            assert any(r.get('items') for r in choice['rewards'])
+            scope = await read('home/colony_identity')
+            scope_args = {k: scope[k] for k in ('colonyId', 'loadToken', 'mapId')}
+            report['checkpoint_caravan'] = party
+            report['trade_quest'] = trade_quest
+            report['samples'] = []
+            deadline = time.monotonic() + 600
+            while time.monotonic() < deadline:
+                await window(6000)
+                world = await read('home/world_progression')
+                report['samples'].append(world)
+                outcome = caravan_outcome(world, scope=scope_args, pawn_ids=[pawn],
+                    destination=trade_quest['tradeRequests'][0]['tile'], issued_tick=scope['tick'], caravan_id=caravan_id)
+                assert outcome['state'] not in ('invalidated', 'blocked'), outcome
+                if outcome['state'] == 'arrived':
+                    report['moved'] = world
+                    break
+            assert report.get('moved'), 'Checkpoint caravan did not reach the native quest settlement'
+        if os.environ.get('RIMBOT_CARAVAN_TRIP') == '1' and not resume_trip:
             observed = report['facts']
             supply_cells = observed.get('forbiddenSupplies', [])
             while observed.get('forbiddenSupplies'):
@@ -301,6 +344,7 @@ async def run():
                     actor='strategist', expected_token=rt.context_token, expected_revision=rt.chat_revision)
                 rt.manual_requests.extend((s.id, rt.context_token, rt.chat_revision) for s in steps)
                 await rt.execute_manual_requests()
+                await settle_dispatch(rt, steps)
                 assert all(rt.current_plan.progress[s.id].state == 'complete' for s in steps)
                 goal.evidence.setdefault('methods', {})[method] = [s.id for s in steps]
                 observed = await read('home/colony_facts', planning=True)
@@ -423,6 +467,7 @@ async def run():
                             actor='strategist', expected_token=rt.context_token, expected_revision=rt.chat_revision)
                         rt.manual_requests.extend((s.id, rt.context_token, rt.chat_revision) for s in steps)
                         await rt.execute_manual_requests()
+                        await settle_dispatch(rt, steps)
                         assert all(rt.current_plan.progress[s.id].state == 'complete' for s in steps)
                         goal.evidence.setdefault('methods', {})[method] = [s.id for s in steps]
                     await window(6000)
@@ -576,6 +621,7 @@ async def run():
                     report['moved'] = world
                     break
             assert report.get('moved'), 'World tile movement was not observed'
+        if os.environ.get('RIMBOT_CARAVAN_TRIP') == '1':
             if quest_trade:
                 from rimbot.world_progression import inventory_totals
                 before = next(c for c in world['caravans'] if c['id'] == caravan_id)
@@ -630,7 +676,7 @@ async def run():
             if shared:
                 report['plan'] = rt.current_plan.model_dump(mode='json')
                 assert all(step_complete(s) for s in report['shared_steps'])
-            report['cases']['caravan_round_trip'] = 'passed'
+            report['cases']['caravan_checkpoint_continuation_and_return' if resume_trip else 'caravan_round_trip'] = 'passed'
             if recovery:
                 report['cases']['native_short_supplied_party_return'] = 'passed'
             if logistics:
@@ -780,6 +826,7 @@ async def run():
                 report['failure_ui'] = await read('rimworld/get_screen_targets')
                 report['failure_world'] = await read('home/world_progression')
                 report['failure_plan'] = rt.current_plan.model_dump(mode='json')
+                report['failure_checkpoint'] = await read('rimworld/save_game', saveName='B15-acceptance-failure')
             except Exception as inspection_error:
                 report['failure_inspection_error'] = repr(inspection_error)
         raise

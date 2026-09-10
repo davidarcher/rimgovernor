@@ -39,8 +39,10 @@ namespace HomeBridge.BridgeTools
                 {
                     TradeSession.SetupWith(settlement, negotiator, true);
                     var row = TradeSession.deal.AllTradeables.SingleOrDefault(t => t.ThingDef == ThingDefOf.Silver);
-                    if (row == null || !row.CanAdjustTo(-silver).Accepted) return Refuse("Native caravan silver is insufficient");
-                    row.AdjustTo(-silver);
+                    // Gift mode reverses the native transfer direction: positive gives
+                    // colony goods to the settlement, unlike an ordinary sale.
+                    if (row == null || !row.CanAdjustTo(silver).Accepted) return Refuse("Native caravan silver is insufficient");
+                    row.AdjustTo(silver);
                     int available = row.CountHeldBy(Transactor.Colony);
                     int gain = FactionGiftUtility.GetGoodwillChange(TradeSession.deal.AllTradeables, settlement.Faction);
                     int before = settlement.Faction.PlayerGoodwill;

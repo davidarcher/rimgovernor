@@ -2327,8 +2327,7 @@ namespace HomeBridge.BridgeTools
         /// In a trade session positive means the colony gains, so giving away is
         /// a negative count. Gift mode flips `PositiveCountDirection` to
         /// `Destination`, so there positive is the giving direction. Reading
-        /// `TradeSession.giftMode` rather than hardcoding the sign is what keeps
-        /// the guard correct in the one mode nobody has tested.
+        /// `TradeSession.giftMode` keeps the guard aligned with native transfers.
         /// </summary>
         private static bool WouldGiveAway(Tradeable t, int target)
         {
