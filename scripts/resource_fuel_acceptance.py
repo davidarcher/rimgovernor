@@ -103,9 +103,22 @@ async def run(args):
             save()
         if clock['stopReason'] in ('letter_pause','notification_batch'):
             danger=await rt.game.query('home/status',colonists=False,threats=True)
-            record('observed_notification',clock['pauseVerified'] and danger['counts']['hostileCount']==0
-                and danger['counts']['huntingPredatorCount']==0,clock=clock,danger=danger)
-            rt.supervisor.absorb(clock);rt.supervisor.allow_resume()
+            record('observed_notification',clock['pauseVerified'],clock=clock,danger=danger)
+            if danger['counts']['hostileCount'] or danger['counts']['huntingPredatorCount']:
+                await rt.set_mode('automate')
+                until=time.monotonic()+180
+                while True:
+                    status=await rt.game.query('home/status',colonists=True,threats=True)
+                    report['danger_progress']={'status':status,'mode':rt.mode,
+                        'pawns':await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True,health=True)}
+                    save()
+                    if not status['counts']['hostileCount'] and not status['counts']['huntingPredatorCount']:break
+                    assert time.monotonic()<until,'Shared ordinary danger response did not finish within acceptance bound'
+                    await asyncio.sleep(1)
+                await rt.set_mode('manual')
+                record('ordinary_danger_resolved',True,status=status)
+            else:
+                rt.supervisor.absorb(clock);rt.supervisor.allow_resume()
         else:assert clock['pauseVerified'] and clock['stopReason'] in ('tick_budget','requested_pause'),clock
         if rt.review_task and not rt.review_task.done():await rt.review_task
         async with rt.lock:
@@ -118,6 +131,9 @@ async def run(args):
         await rt.execute_manual_requests()
         report['latest']={'phase':phase,'clock':clock,'facts':await facts(),
             'research':await rt.game.invoke('home/research',{'filter':'Biofuel','finished':True,'locked':True})}
+        if phase=='produce-chemfuel':
+            report['production_progress']={'pawns':await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True,health=True),
+                'bills':await rt.game.invoke('home/bills',{'action':'list','dryRun':True})}
         save()
         if food_support_ready:
             for identity in ('EnsureBasicDefense','EnsureFoodSupply','EnsureCooking','MaintainResource-WoodLog'):
@@ -151,61 +167,71 @@ async def run(args):
         (args.output/'manifest.json').write_text(json.dumps(capture_manifest(Path(__file__).resolve().parents[1],
             root,config,rt.router.routing.model_dump(mode='json')),indent=2))
         await ready(rt)
-        while await compile_method('AllowStartingSupplies'):pass
-        while await compile_method('EnsureWorkAssignments'):pass
-        observed=await facts();initial_center=observed['center'];initial_origin=(initial_center['x'],initial_center['z'])
-        await place('ButcherSpot',initial_origin)
-        await place('Campfire',(initial_origin[0]+4,initial_origin[1]))
-        await command(kind='CreateGoal',goal='MaintainResource',resource='WoodLog',quantity=350)
-        food_support_ready=True
-        for identity in ('EnsureBasicDefense','EnsureFoodSupply','EnsureCooking','MaintainResource-WoodLog'):
-            for _ in range(4):
-                if not await compile_method(identity):break
-        result=await command(kind='CreateGoal',goal='MaintainResource',resource='Chemfuel',quantity=35)
-        identity=result['goal'];goal=rt.current_plan.colony_goals[identity]
-        try:await resource_method(rt,identity,await facts())
-        except SkillBlocked as error:goal.status,goal.reason='blocked',str(error)
-        record('missing_prerequisite_reported',goal.status=='blocked',reason=goal.reason)
-        observed=await facts();center=observed['center'];origin=(center['x'],center['z'])
-        bench=await place('SimpleResearchBench',origin,['WoodLog'])
-        second=await place('SimpleResearchBench',(origin[0]+6,origin[1]),['WoodLog'],minimum_count=2)
-        record('ordinary_research_bench_built',bool(bench) and bool(second),benches=[bench,second])
-        roster=(await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True))['pawns']
-        candidates=[p for p in roster if any(w['name']=='Research' and not w['disabled'] for w in p['work']['types'])]
-        assert candidates,'No capable native researcher'
-        candidates=sorted(candidates,key=lambda p:-next((s.get('level',0) for s in p['bio']['skills'] if s['name']=='Intellectual'),0))[:2]
-        research=await rt.game.invoke('home/research',{'filter':'Biofuel','finished':True,'locked':True})
-        if 'BiofuelRefining' in research.get('finished',[]):candidates=[]
-        for candidate in candidates:
-            research_work=next(w for w in candidate['work']['types'] if w['name']=='Research')
-            override=rt.current_plan.control.get('work_overrides',{}).get(candidate['thingId'],{}).get('Research')
-            if research_work.get('priority')!=1 and not (override==1 and research_work.get('priority',0)>0):
-                await command(kind='SetWorkPriority',pawn=candidate['thingId'],work_type='Research',priority=1)
-            for work in candidate['work']['types']:
-                if work['name'] not in ('Research','Firefighter','Patient','PatientBedRest','BedRest') and not work['disabled'] and work.get('priority',0)!=0:
-                    await command(kind='SetWorkPriority',pawn=candidate['thingId'],work_type=work['name'],priority=0)
-        while await compile_method('EnsureWorkAssignments'):pass
-        research=await rt.game.invoke('home/research',{'filter':'Biofuel','finished':True,'locked':True})
-        if 'BiofuelRefining' not in research.get('finished',[]):
-            await command(kind='SetResearch',project='BiofuelRefining')
-            while True:
-                await window('research-biofuel')
-                research=report['latest']['research']
-                if 'BiofuelRefining' in research.get('finished',[]):break
-                progress=(research.get('current') or {}).get('progress',0)
-                if int(progress//150)>report.get('research_checkpoint_band',0):
-                    from rimbot.session_checkpoint import create_checkpoint
-                    report['research_checkpoint']=await create_checkpoint(rt,rt.context_token)
-                    report['research_checkpoint_band']=int(progress//150)
-                    save()
-        record('ordinary_biofuel_research_completed',True,research=research)
-        generator=await place('WoodFiredGenerator',origin)
-        position=generator['position'];refinery=await place('BiofuelRefinery',(position['x']+3,position['z']))
-        record('ordinary_refinery_built',bool(refinery),refinery=refinery,generator=generator)
-        record('native_prerequisite_recovered',await refresh_resource_prerequisite(rt,identity,await facts()),goal=goal.model_dump(mode='json'))
-        selected=await resource_method(rt,identity,await facts());assert selected
-        await compile_method(identity,selected)
-        while await compile_method('EnsureWorkAssignments'):pass
+        if args.production_resume:
+            identity='MaintainResource-Chemfuel';goal=rt.current_plan.colony_goals[identity]
+            listing=await rt.game.query('home/list_buildings',aggregate=False,playerOnly=True)
+            refinery=next(b for b in listing['buildings'] if b['defName']=='BiofuelRefinery'
+                and not b.get('isBlueprint') and not b.get('isFrame'))
+            selected=await resource_method(rt,identity,await facts())
+            if selected:await compile_method(identity,selected)
+            while await compile_method('EnsureWorkAssignments'):pass
+            record('paired_production_setup_restored',True,checkpoint=str(args.checkpoint),refinery=refinery)
+        else:
+            while await compile_method('AllowStartingSupplies'):pass
+            while await compile_method('EnsureWorkAssignments'):pass
+            observed=await facts();initial_center=observed['center'];initial_origin=(initial_center['x'],initial_center['z'])
+            await place('ButcherSpot',initial_origin)
+            await place('Campfire',(initial_origin[0]+4,initial_origin[1]))
+            await command(kind='CreateGoal',goal='MaintainResource',resource='WoodLog',quantity=350)
+            food_support_ready=True
+            for identity in ('EnsureBasicDefense','EnsureFoodSupply','EnsureCooking','MaintainResource-WoodLog'):
+                for _ in range(4):
+                    if not await compile_method(identity):break
+            result=await command(kind='CreateGoal',goal='MaintainResource',resource='Chemfuel',quantity=35)
+            identity=result['goal'];goal=rt.current_plan.colony_goals[identity]
+            try:await resource_method(rt,identity,await facts())
+            except SkillBlocked as error:goal.status,goal.reason='blocked',str(error)
+            record('missing_prerequisite_reported',goal.status=='blocked',reason=goal.reason)
+            observed=await facts();center=observed['center'];origin=(center['x'],center['z'])
+            bench=await place('SimpleResearchBench',origin,['WoodLog'])
+            second=await place('SimpleResearchBench',(origin[0]+6,origin[1]),['WoodLog'],minimum_count=2)
+            record('ordinary_research_bench_built',bool(bench) and bool(second),benches=[bench,second])
+            roster=(await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True))['pawns']
+            candidates=[p for p in roster if any(w['name']=='Research' and not w['disabled'] for w in p['work']['types'])]
+            assert candidates,'No capable native researcher'
+            candidates=sorted(candidates,key=lambda p:-next((s.get('level',0) for s in p['bio']['skills'] if s['name']=='Intellectual'),0))[:2]
+            research=await rt.game.invoke('home/research',{'filter':'Biofuel','finished':True,'locked':True})
+            if 'BiofuelRefining' in research.get('finished',[]):candidates=[]
+            for candidate in candidates:
+                research_work=next(w for w in candidate['work']['types'] if w['name']=='Research')
+                override=rt.current_plan.control.get('work_overrides',{}).get(candidate['thingId'],{}).get('Research')
+                if research_work.get('priority')!=1 and not (override==1 and research_work.get('priority',0)>0):
+                    await command(kind='SetWorkPriority',pawn=candidate['thingId'],work_type='Research',priority=1)
+                for work in candidate['work']['types']:
+                    if work['name'] not in ('Research','Firefighter','Patient','PatientBedRest','BedRest') and not work['disabled'] and work.get('priority',0)!=0:
+                        await command(kind='SetWorkPriority',pawn=candidate['thingId'],work_type=work['name'],priority=0)
+            while await compile_method('EnsureWorkAssignments'):pass
+            research=await rt.game.invoke('home/research',{'filter':'Biofuel','finished':True,'locked':True})
+            if 'BiofuelRefining' not in research.get('finished',[]):
+                await command(kind='SetResearch',project='BiofuelRefining')
+                while True:
+                    await window('research-biofuel')
+                    research=report['latest']['research']
+                    if 'BiofuelRefining' in research.get('finished',[]):break
+                    progress=(research.get('current') or {}).get('progress',0)
+                    if int(progress//150)>report.get('research_checkpoint_band',0):
+                        from rimbot.session_checkpoint import create_checkpoint
+                        report['research_checkpoint']=await create_checkpoint(rt,rt.context_token)
+                        report['research_checkpoint_band']=int(progress//150)
+                        save()
+            record('ordinary_biofuel_research_completed',True,research=research)
+            generator=await place('WoodFiredGenerator',origin)
+            position=generator['position'];refinery=await place('BiofuelRefinery',(position['x']+3,position['z']))
+            record('ordinary_refinery_built',bool(refinery),refinery=refinery,generator=generator)
+            record('native_prerequisite_recovered',await refresh_resource_prerequisite(rt,identity,await facts()),goal=goal.model_dump(mode='json'))
+            selected=await resource_method(rt,identity,await facts());assert selected
+            await compile_method(identity,selected)
+            while await compile_method('EnsureWorkAssignments'):pass
         roster=(await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True,health=True))['pawns']
         report['production_start']={'pawns':roster,'bills':await rt.game.invoke('home/bills',{'action':'list','dryRun':True}),
             'facts':await facts()}
@@ -231,7 +257,16 @@ async def run(args):
         record('zero_inference',rt.counters.get('model_calls',0)==0,counters=rt.counters)
         report['outcome']='passed'
     except Exception as error:
-        report['error']=repr(error);report['error_evidence']=getattr(error,'evidence',None);raise
+        report['error']=repr(error);report['error_evidence']=getattr(error,'evidence',None)
+        if rt.connected:
+            try:
+                report['failure_native']={'status':await rt.game.query('home/status',colonists=True,threats=True),
+                    'pawns':await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True,health=True),
+                    'bills':await rt.game.invoke('home/bills',{'action':'list','dryRun':True})}
+                from rimbot.session_checkpoint import create_checkpoint
+                report['failure_checkpoint']=await create_checkpoint(rt,rt.context_token)
+            except Exception as diagnostic_error:report['diagnostic_error']=repr(diagnostic_error)
+        raise
     finally:
         report['plan']=rt.current_plan.model_dump(mode='json')
         try:
@@ -247,6 +282,7 @@ if __name__=='__main__':
     parser.add_argument('--source-root',type=Path,required=True)
     parser.add_argument('--source-save',type=Path,help='Resume an unchanged completed native autosave in a new isolated profile')
     parser.add_argument('--checkpoint',type=Path,help='Resume the immutable paired native/controller research checkpoint')
+    parser.add_argument('--production-resume',action='store_true',help='Continue existing native refinery and bill from the paired production-start checkpoint')
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--seconds',type=int,default=2400)
     args=parser.parse_args();asyncio.run(asyncio.wait_for(run(args),args.seconds+180))
