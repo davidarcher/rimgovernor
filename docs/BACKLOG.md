@@ -308,12 +308,6 @@ in the checkpoint commit; do not append an implementation diary here.
   recreation, food, environment and social needs without overriding player policy.
   Preserve uncertainty about future mood and respect traits/ideology. Verify actual
   need recovery and safe handling of active breaks, not furniture placement alone.
-- [ ] **B20 · Research driven by colony needs.** Extend research selection with
-  native prerequisite discovery and a bounded queue tied to admitted goals and
-  observed bottlenecks. Coordinate B06b laboratory capacity, eligible researcher
-  coverage and material/power costs. Preserve player research choices and reassess
-  obsolete priorities without churn. Verify research progress/completion and the
-  resulting unlocked capability before dependent construction or production.
 - [ ] **B21 · Equipment and apparel upkeep.** Maintain suitable weapons, armor and
   clothing using native wear, quality, protection, thermal stats, pawn capabilities
   and existing outfits. Prefer available replacements before production/trade;
