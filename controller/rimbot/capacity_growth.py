@@ -40,12 +40,12 @@ def growth_fields(plan,facts):
     return patches
 
 
-async def grow_shelter(skills,facts):
+async def grow_shelter(skills,facts,goal_id='EnsureInitialShelter'):
     from .colony_skills import SkillBlocked
     from .shelter_handoff import sleeping_handoff
     from .colony_plan import RoomShell
     from .hands import room_placements
-    rt=skills.rt;plan=rt.current_plan;goal=plan.colony_goals['EnsureInitialShelter']
+    rt=skills.rt;plan=rt.current_plan;goal=plan.colony_goals[goal_id]
     for room in plan.control.get('shelter_expansions',[]):
         key=fingerprint(room)[:8];shell=skills.shell({'room':room})
         if not goal.method_seen('expand-shell-'+key):return 'expand-shell-'+key,[shell]

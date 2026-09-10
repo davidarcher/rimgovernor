@@ -133,7 +133,7 @@ namespace HomeBridge.BridgeTools
                     }).ToList()
                 },
                 ["farms"] = farms, ["cooking"] = cooking, ["acquisition"] = acquisition,
-                ["butchering"] = butchering,
+                ["butchering"] = butchering, ["development"] = DevelopmentFacts.Read(map),
                 ["foodStorage"] = foodStorage,
                 ["waste"] = HomeWasteTools.Census("", ""),
                 ["forbiddenSupplies"] = allowedSupplies,
@@ -142,7 +142,7 @@ namespace HomeBridge.BridgeTools
             };
             if (planning) {
                 var definitions = new Dictionary<string, object>();
-                foreach (var name in new[] { "Wall", "Door", "Bed", "SleepingSpot", "Campfire", "ButcherSpot", "FueledStove", "Heater", "PassiveCooler", "Cooler", "WoodFiredGenerator", "PowerConduit", "Sandbags", "Barricade", "Plant_Rice" }) {
+                foreach (var name in new[] { "Wall", "Door", "Bed", "SleepingSpot", "Campfire", "ButcherSpot", "FueledStove", "Heater", "PassiveCooler", "Cooler", "WoodFiredGenerator", "PowerConduit", "Sandbags", "Barricade", "Plant_Rice", "SimpleResearchBench", "Table1x2c", "DiningChair", "HorseshoesPin" }) {
                     var def = DefDatabase<ThingDef>.GetNamedSilentFail(name);
                     if (def == null) continue;
                     var wood = DefDatabase<ThingDef>.GetNamedSilentFail("WoodLog");
@@ -150,6 +150,7 @@ namespace HomeBridge.BridgeTools
                     if (def.MadeFromStuff && (stuff == null || !GenStuff.AllowedStuffsFor(def).Contains(stuff))) continue;
                     definitions[name] = new { defName = name, stuff = stuff?.defName,
                         available = def.researchPrerequisites == null || def.researchPrerequisites.All(r => r.IsFinished),
+                        researchPrerequisites = (def.researchPrerequisites ?? new List<ResearchProjectDef>()).Select(r => r.defName).ToArray(),
                         width = def.size.x, height = def.size.z,
                         costs = def.CostListAdjusted(stuff, false).ToDictionary(c => c.thingDef.defName, c => c.count),
                         growDays = def.plant?.growDays, fertilityMin = def.plant?.fertilityMin,
@@ -164,6 +165,7 @@ namespace HomeBridge.BridgeTools
                     cells.Add(new { x, z, walkable = c.Walkable(map), fertility = map.fertilityGrid.FertilityAt(c),
                         occupied = c.GetEdifice(map) != null || map.thingGrid.ThingsListAtFast(c).Any(t => t is Blueprint || t is Frame),
                         zone = map.zoneManager.ZoneAt(c) != null, roofed = c.Roofed(map),
+                        indoors = c.GetRoom(map) != null && c.GetRoom(map).ProperRoom && !c.GetRoom(map).PsychologicallyOutdoors,
                         supportsLight = c.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Light) });
                 }
                 result["definitions"] = definitions;

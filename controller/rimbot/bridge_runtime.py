@@ -1269,7 +1269,7 @@ class BridgeRuntime:
                     surgical_recovery = recovery_patients(self)
                     clock = await self.supervisor.change('Normal' if engaged else self.controller.policy.execution_speed,
                         mode='combat' if engaged else 'colony',
-                        ignored_hostiles=combat['target'] if engaged else '', max_ticks=ticks,
+                        ignored_hostiles=','.join(combat.get('targets',[combat['target']])) if engaged else '', max_ticks=ticks,
                         **({'surgical_recovery':surgical_recovery} if surgical_recovery else {}))
                     self.execution_window_end = clock['tickDeadline'] if clock.get('active') else None
                     self.execution_wait_explicit = False

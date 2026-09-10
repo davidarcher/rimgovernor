@@ -63,6 +63,17 @@ class ColonyController:
 
         from .medical_management import care_state
         facts['longTermMedical'] = care_state(people['pawns'], plan.control.get('facts', {}).get('longTermMedical'))
+        by_pawn = {p['thingId']:p for p in people['pawns']}
+        for step in plan.spec.steps:
+            if step.source != 'AUTOPILOT' or step.action.kind != 'native_operation' or step.action.tool != 'home/order':
+                continue
+            pawn = step.action.arguments.get('pawn')
+            receipt = plan.progress[step.id].issued.get('0',{})
+            issued = receipt.get('order_generation')
+            current = by_pawn.get(pawn,{}).get('orderGeneration')
+            if type(issued) is int and type(current) is int and current != issued:
+                rt.draft_owners.pop(pawn,None)
+                plan.control.setdefault('player_draft_overrides',{})[pawn] = by_pawn[pawn].get('drafted')
         managed=set(plan.control.get('combat',{}).get('pawns',[]))
         managed.update(s.action.arguments.get('pawn') for s in plan.spec.steps
             if s.source=='AUTOPILOT' and s.action.kind=='native_operation'
@@ -207,12 +218,20 @@ class ColonyController:
                     goal.evidence.pop('watchdog', None)
                     goal.last_progress_tick = facts['tick']
                 goal.evidence['availability'] = gear_signature
+            if identity in ('EnsureBasicPower', 'EnsureResearch', 'EnsureComfort', 'EnsureExpansion'):
+                observed = fingerprint({'development': facts.get('development'), 'resources': facts.get('resources'),
+                    'definitions': facts.get('definitions'), 'capacity': facts.get('indoorSleepingCapacity')})
+                if goal.status == 'blocked' and goal.evidence.get('development_state') != observed:
+                    goal.status, goal.reason = 'active', ''
+                goal.evidence['development_state'] = observed
             if goal.status == 'complete':
                 goal.status = 'active'
                 goal.reopen_methods()
                 if identity.startswith('EnsureMood-'):
                     goal.evidence.pop('need_high_water', None)
                 goal.attempts += 1
+                if identity == 'CriticalMedical':
+                    goal.evidence.pop('doctor_replacements', None)
                 goal.last_progress_tick = facts['tick']
                 self.event('goal_reopened', identity)
             if identity.startswith('EnsureMood-'):
@@ -240,7 +259,9 @@ class ColonyController:
                 'CriticalMedical': ['criticalPatients'], 'ActiveCombat': ['hostiles'],
                 'MaintainMedicalCare': ['longTermMedical'],
                 'EnsureTemperatureSafety': ['sleepingTemperatureMin', 'sleepingTemperatureMax'],
-                'EnsureBasicPower': ['powerHeadroom'], 'AllowStartingSupplies': ['forbiddenSupplies']}
+                'EnsureBasicPower': ['powerHeadroom'], 'AllowStartingSupplies': ['forbiddenSupplies'],
+                'EnsureResearch': ['development'], 'EnsureComfort': ['development'],
+                'EnsureExpansion': ['indoorSleepingCapacity']}
             progress_facts = {key: facts.get(key) for key in progress_fields.get(identity,
                 ['resources'] if identity.startswith('MaintainResource-') else [])}
             if identity.startswith('EnsureMood-'):
@@ -274,7 +295,7 @@ class ColonyController:
                     goal.evidence.pop('watchdog', None)
                     self.event('goal_resumed', identity, reason='Tracked work completed after watchdog hold')
             # Emergency work suspends development without erasing issued orders.
-            suspended = minimum < 2 and goal.priority_class > minimum
+            suspended = minimum < 2 and goal.priority_class > minimum and identity != 'CriticalMedical'
             if suspended and goal.status == 'active':
                 goal.status = 'suspended'
                 self.event('goal_suspended', identity)
@@ -378,6 +399,7 @@ class ColonyController:
                     participants=set(plan.control.get('combat',{}).get('pawns',[]))
                     participants.update(a['arguments']['pawn'] for a in actions)
                     plan.control['combat']={'target':goal.evidence['combat_target'],
+                        'targets':goal.evidence.get('combat_targets',[goal.evidence['combat_target']]),
                         'pawns':sorted(participants), 'steps':[s.id for s in steps]}
                 goal.method = method
                 goal.steps.extend(s.id for s in steps)

@@ -27,6 +27,7 @@ def facts(count=3):
 def roster(count=3):
     return [dict(thingId=f'Thing_Human{i}',dead=False,downed=False,drafted=False,orderGeneration=0,health={
         'summaryPct':1, 'careObservationVersion':1, 'shouldSeekMedicalRest':False, 'needsTend':False, 'hediffs':[]},
+    return [dict(thingId=f'Thing_Human{i}',dead=False,downed=False,drafted=False,orderGeneration=0,health={'summaryPct':1},
         bio={'skills':[{'name':s,'level':(i*3+j)%12,'passion':'Minor','disabled':False}
                        for j,s in enumerate(('Medicine','Cooking','Construction','Plants','Shooting'))]},
         work={'applies':True,'manualPriorities':True,'types':[dict(name=w,disabled=False,priority=0,priorityStored=0)
@@ -59,6 +60,7 @@ class Replay:
         raise AssertionError(name)
     async def inspect_native(self,name,args):
         if name=='home/place_building': return {'canPlace':True}
+        if name=='home/order': return {'success':True}
         raise AssertionError(name)
     async def invoke(self,name,args,**kwargs):
         from test_construction_preflight import native_reply
@@ -309,9 +311,9 @@ async def test_small_manhunter_method_uses_native_orders_and_owned_cleanup(dista
     assert all(a['tool']=='home/order' and a['arguments']['dryRun'] is False for a in actions)
     rt.current_plan.colony_goals['ActiveCombat'].evidence['methods'][method]=['a','b']
     assert await rt.controller.skills.compile('ActiveCombat',rt.facts,rt.people) is None
-    enemy['animals']['bodySize']=2
+    enemy['animals']['bodySize']=5
     from rimbot.colony_skills import SkillBlocked
-    with pytest.raises(SkillBlocked,match='exceeds'):
+    with pytest.raises(SkillBlocked,match='outside'):
         await rt.controller.skills.compile('ActiveCombat',rt.facts,rt.people)
 
 

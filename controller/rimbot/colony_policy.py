@@ -69,6 +69,12 @@ def derive(batch, native, policy):
     value['constructionDeficit'] = {r['defName']: r['stillNeeded'] for r in buildings.get('resourceDeficit', [])}
     value['powerRequired'] = any((b.get('defName') or b.get('buildDefName')) in ('Heater', 'Cooler')
                                  for b in buildings.get('buildings', []))
+    if isinstance(native.get('development'), dict):
+        power = native['development']['power']
+        consumers = [p for p in power if p['baseW'] < 0]
+        value['powerRequired'] = bool(consumers)
+        value['powerHeadroom'] = min((sum(p['outputW'] for p in power if p['net'] == c['net'])
+            if c['net'] is not None and c['powered'] else -1 for c in consumers), default=0)
     zones = batch.native.get('zones', {}).get('zones', [])
     value['foodStorage'] = native.get('foodStorage') is True
     value['workCoverage'] = False  # The work skill replaces this after fresh native work readback.
@@ -127,6 +133,9 @@ def priority_nodes(facts, latches, policy):
     medical = facts.get('longTermMedical', {})
     if medical.get('patients') or medical.get('unknown'):
         nodes.append(('MaintainMedicalCare', 2))
+    if gates['shelter'] and gates['food'] and gates['medical'] and not facts.get('hostiles'):
+        from .development import development_nodes
+        nodes.extend(development_nodes(facts))
     return nodes
 
 

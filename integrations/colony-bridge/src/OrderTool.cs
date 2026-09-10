@@ -172,10 +172,11 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Refuse a target that is not hostile to the player faction. Defaults to FALSE, because vanilla imposes no such rule and imposing it is what got a colonist killed.", DefaultValue = false)] bool requireHostile = false,
             [ToolParameter(Description = "Attack only a target that is still standing at native dispatch. Autonomous defense uses this to refuse attacks on incapacitated targets.", DefaultValue = false)] bool requireStandingTarget = false,
             [ToolParameter(Description = "Show the order on screen: select the target and jump the camera to it, then after a short lead select the pawn so the inspect pane shows the new job. Decorative only and never opens a float menu. A dry run and a refusal show nothing.", DefaultValue = true)] bool watch = true,
-            [ToolParameter(Description = "How long the watch selection stays before it is put back, 1..60.", DefaultValue = Watch.DefaultSeconds)] int watchSeconds = Watch.DefaultSeconds)
+            [ToolParameter(Description = "How long the watch selection stays before it is put back, 1..60.", DefaultValue = Watch.DefaultSeconds)] int watchSeconds = Watch.DefaultSeconds,
+            [ToolParameter(Description = "Require a conscious colony health census above the combat threshold in the same main-thread operation as this order.", DefaultValue = false)] bool requireCombatHealth = false)
         {
             return BridgeCommon.WithUnknownArguments(
-                await OrderCore(ctx, cancellationToken, action, pawn, target, x, z, mode, draft, draftOwner, releaseOwner, allowPersistentDraft, dryRun, requireHostile, requireStandingTarget, watch, watchSeconds)
+                await OrderCore(ctx, cancellationToken, action, pawn, target, x, z, mode, draft, draftOwner, releaseOwner, allowPersistentDraft, dryRun, requireHostile, requireStandingTarget, watch, watchSeconds, requireCombatHealth)
                     .ConfigureAwait(false),
                 ctx, typeof(HomeOrderTools), ToolName);
         }
@@ -197,7 +198,8 @@ namespace HomeBridge.BridgeTools
             bool requireHostile,
             bool requireStandingTarget,
             bool watch,
-            int watchSeconds)
+            int watchSeconds,
+            bool requireCombatHealth)
         {
             if (ctx == null || ctx.MainThread == null)
                 return Failure("No RimBridge main-thread dispatcher is available for this invocation.", "bad_arguments", action);
@@ -216,7 +218,8 @@ namespace HomeBridge.BridgeTools
                 AllowPersistentDraft = allowPersistentDraft,
                 DryRun = dryRun,
                 RequireHostile = requireHostile,
-                RequireStandingTarget = requireStandingTarget
+                RequireStandingTarget = requireStandingTarget,
+                RequireCombatHealth = requireCombatHealth
             };
 
             // ---------------------------------------------------------- hop 1
@@ -349,6 +352,7 @@ namespace HomeBridge.BridgeTools
             internal bool DryRun;
             internal bool RequireHostile;
             internal bool RequireStandingTarget;
+            internal bool RequireCombatHealth;
         }
 
         /// <summary>Everything one call resolved, every refusal it found, and
@@ -456,6 +460,15 @@ namespace HomeBridge.BridgeTools
                 return plan;
             }
             plan.Map = map;
+            if (request.RequireCombatHealth) {
+                var colonists = map.mapPawns.FreeColonistsSpawned;
+                if (colonists.Count == 0 || colonists.Any(p => p.Dead || p.Downed ||
+                    p.health?.summaryHealth == null ||
+                    !(p.health.summaryHealth.SummaryHealthPercent > 0.5005f))) {
+                    plan.Refuse("combat_health_hold", "Colony health does not admit an autonomous combat order.");
+                    return plan;
+                }
+            }
 
             // ------------------------------------------------------ the pawn
             var pawnWanted = !string.IsNullOrEmpty(request.PawnArg);
@@ -1630,6 +1643,7 @@ namespace HomeBridge.BridgeTools
                 // for a work order: it forwards to TryTakeOrderedJob with the
                 // giver's own tagToGive, then records the priority-work cell so
                 // the pawn keeps working that spot. A plain order uses JobTag.Misc.
+                OrderedWorkHistory.Read(plan.Pawn);
                 plan.Issued = plan.Scanner != null
                     ? jobs.TryTakeOrderedJobPrioritizedWork(job, plan.Scanner, BridgeCommon.Try(() => plan.Target.Position, IntVec3.Invalid))
                     : jobs.TryTakeOrderedJob(job, JobTag.Misc);

@@ -112,6 +112,7 @@ class Hands:
                                 from .production_policy import policy_arguments
                                 args = policy_arguments(rt)
                             if step.source=='AUTOPILOT' and step.goal_id=='ActiveCombat':
+                                args['requireCombatHealth'] = True
                                 from .combat_health import combat_health_hold
                                 health = await rt.game.query('home/list_pawns', colonistsOnly=True, health=True)
                                 hold = combat_health_hold(health)
@@ -172,6 +173,8 @@ class Hands:
                                 receipt['bill_id'] = result.get('receipt', result).get('billId')
                                 if not receipt['bill_id']:
                                     raise Blocked('surgery_uncertain', 'Operation bill identity was not confirmed; observe before retrying', evidence=result)
+                            if action.tool == 'home/order':
+                                receipt['order_generation'] = result.get('receipt', result).get('orderGeneration')
                             if action.tool == 'home/install':
                                 native = result.get('receipt', result)
                                 receipt['inner_id'] = native['thingId']
