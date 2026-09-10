@@ -25,6 +25,13 @@ def result(payload, error=False):
     return CallToolResult(content=[], structuredContent=payload, isError=error)
 
 
+@pytest.mark.asyncio
+async def test_native_connection_allows_slow_start_without_takeover_or_replay():
+    session=SimpleNamespace(call_tool=AsyncMock(return_value=result({'connected':True})))
+    await BridgeClient(session).connect()
+    session.call_tool.assert_awaited_once_with('games_connect',{'gameId':'rimbot-trial','timeout':60})
+
+
 def game_with(responses, tool, properties):
     session = SimpleNamespace(call_tool=AsyncMock(side_effect=responses))
     game = BridgeGame(BridgeClient(session))

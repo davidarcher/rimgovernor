@@ -55,6 +55,12 @@ namespace HomeBridge.BridgeTools
                 && t.IngestibleNow && people.All(p => p.WillEat(t)) && reachable(t)).ToList();
             var demand = people.Sum(p => p.needs?.food == null ? 0f :
                 p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);
+            var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
+                && p.Faction == Faction.OfPlayerSilentFail && p.needs?.food != null).ToList();
+            Func<ThingDef, float?> productionDemand = food => food == null ? (float?)null : demand +
+                animals.Where(p => p.RaceProps.CanEverEat(food)
+                    && p.foodRestriction?.GetCurrentRespectedRestriction(p)?.filter.Allows(food) != false)
+                .Sum(p => p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);
             var nutrition = food.Sum(t => t.stackCount * people.Min(p => FoodUtility.NutritionForEater(p, t)));
             var supplies = things.Where(t => t.def.category == ThingCategory.Item
                 && (t.Faction == null || t.Faction.IsPlayer) && !t.IsForbidden(Faction.OfPlayerSilentFail)
@@ -91,6 +97,7 @@ namespace HomeBridge.BridgeTools
                         recipe = r.defName, available = r.AvailableNow,
                         products = r.products.Select(p => new { defName = p.thingDef.defName, count = p.count,
                             edible = humanFood(p.thingDef), nutrition = p.thingDef.GetStatValueAbstract(StatDefOf.Nutrition),
+                            nutritionDemandPerDay = productionDemand(p.thingDef),
                             rotDays = p.thingDef.GetCompProperties<CompProperties_Rottable>()?.daysToRotStart }).ToList() }).ToList(),
                     bills = b.BillStack.Bills.Select(bill => new { recipe = bill.recipe.defName, suspended = bill.suspended,
                         repeatMode = (bill as Bill_Production)?.repeatMode?.defName,
@@ -189,6 +196,7 @@ namespace HomeBridge.BridgeTools
                         costs = def.CostListAdjusted(stuff, false).ToDictionary(c => c.thingDef.defName, c => c.count),
                         growDays = def.plant?.growDays, fertilityMin = def.plant?.fertilityMin,
                         fertilitySensitivity = def.plant?.fertilitySensitivity,
+                        nutritionDemandPerDay = productionDemand(def.plant?.harvestedThingDef),
                         edibleCrop = def.plant != null && humanFood(def.plant.harvestedThingDef),
                         sowingNow = def.plant == null ? (bool?)null : PlantUtility.GrowthSeasonNow(map, def),
                         harvestNutrition = def.plant?.harvestedThingDef == null ? (float?)null :

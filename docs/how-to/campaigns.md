@@ -29,6 +29,11 @@ debugging; those reports are labelled `saved_checkpoint` and do not count as
 fresh-colony acceptance. A timeout, blocker or partial shelter is not a pass. Stop uses
 this profile's PID-owned GABS launch; never terminate all processes by executable name.
 
+For packaged Docker sources without Git metadata, add `--source-snapshot` to hash
+the packaged source bytes. Unavailable Git revision and dirty flags stay unknown.
+Sustained samples retain native food stocks, holders, rot forecasts, crop labor
+and cooking bills.
+
 Controller replays in `test_colony_controller.py` separately exercise deterministic
 layout variants, hysteresis, priorities, cancellation and accounting. They model labor
 explicitly and cannot substitute for native gameplay acceptance. Chat tests cover typed

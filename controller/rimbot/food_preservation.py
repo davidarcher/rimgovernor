@@ -1,5 +1,5 @@
 """Preserve forecast-at-risk food through native recipes and ordinary bills."""
-from math import ceil
+from math import ceil, isfinite
 
 
 def preservation_bill(facts,target_days):
@@ -15,10 +15,12 @@ def preservation_bill(facts,target_days):
             if len(products)!=1:continue
             product=products[0]
             nutrition=product.get('nutrition')
-            if product.get('edible') is not True or not nutrition or nutrition<=0:continue
+            if product.get('edible') is not True or type(nutrition) not in (int,float) or not isfinite(nutrition) or nutrition<=0:continue
             shelf=product.get('rotDays')
-            if shelf is not None and shelf<=target_days:continue
-            quantity=ceil(facts['nutritionPerDay']*target_days/nutrition)
+            if shelf is not None and (type(shelf) not in (int,float) or not isfinite(shelf) or shelf<=target_days):continue
+            demand=product.get('nutritionDemandPerDay',facts['nutritionPerDay'])
+            if type(demand) not in (int,float) or not isfinite(demand) or demand<=0:continue
+            quantity=ceil(demand*target_days/nutrition)
             covered=any(b.get('recipe')==recipe['recipe'] and b.get('suspended') is False
                 and (b.get('repeatMode')=='Forever' or (b.get('repeatMode')=='TargetCount'
                      and b.get('targetCount',0)>=quantity)) for b in bench.get('bills',[]))

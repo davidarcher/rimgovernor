@@ -7,7 +7,7 @@ import json
 import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from rimbot.bridge import BridgeError,bridge_session
+from rimbot.bridge import BridgeError,bridge_session,gabs_executable
 from rimbot.headless import isolated_root,prepare
 
 
@@ -15,11 +15,11 @@ async def run(args):
     root=isolated_root(args.source_root,args.output)
     config=prepare(root)
     report={'outcome':'failed','save_edits':[], 'settings':{
-        'scenario':args.scenario,'count':args.count,'seed':args.seed}}
+        'scenario':args.scenario,'count':args.count,'seed':args.seed,'biome':args.biome}}
     installation=Path(json.loads((config/'config.json').read_text())['games']['rimbot-trial']['workingDir'])
     dll=installation/'Mods/RimBotObservations/BridgeTools/Observations/RimBot.Observations.BridgeTools.dll'
     report['fixture_dll_sha256']=hashlib.sha256(dll.read_bytes()).hexdigest()
-    async with bridge_session(gabs_executable(root),config) as bridge:
+    async with bridge_session(gabs_executable(root,config),config) as bridge:
         try:
             await bridge.core('games_start',gameId=bridge.game_id)
             await bridge.connect()
@@ -39,6 +39,7 @@ async def run(args):
                     await asyncio.sleep(.25)
                     await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
             assert report['facts']['colonists']==args.count,report.get('facts')
+            if args.biome:assert report['facts']['biome']==args.biome,report['facts']['biome']
             assert report['facts']['tick']<=600,report['facts']['tick']
             report['roster']=(await bridge.call('home/list_pawns',colonistsOnly=True,work=True)).structuredContent
             report['definitions_after']=(await bridge.call('test/list_start_scenarios')).structuredContent
@@ -84,4 +85,5 @@ if __name__=='__main__':
     parser.add_argument('--scenario',required=True,help='Native ScenarioDef name')
     parser.add_argument('--count',type=int,choices=range(1,11),required=True)
     parser.add_argument('--seed',required=True)
+    parser.add_argument('--biome',default='',help='Optional native biome for an ordinary valid settlement tile')
     asyncio.run(run(parser.parse_args()))

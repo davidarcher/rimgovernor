@@ -32,6 +32,15 @@ def test_split_fields_count_together_but_unsown_cells_do_not():
     assert not criteria(facts, ColonyPolicy())['production']
 
 
+def test_crop_budget_includes_native_competing_animal_demand():
+    _,facts=fixture()
+    original=field_target(facts)
+    facts['definitions']['Plant_Rice']['nutritionDemandPerDay']=facts['nutritionPerDay']*2
+    assert field_target(facts)==original*2
+    facts['definitions']['Plant_Rice']['nutritionDemandPerDay']=None
+    assert field_target(facts) is None
+
+
 def test_unknown_native_capacity_cannot_complete_food_goal():
     _, facts = fixture()
     facts.update(foodRunwayDays=40, farms=[dict(edible=True, growingCells=2000)])
@@ -52,6 +61,10 @@ def test_crop_selection_uses_soil_and_native_climate_without_crediting_food():
     assert choose_crop(facts)=='Plant_Rice'
     for cell in facts['cells']:cell['fertility']=.7
     assert choose_crop(facts)=='Plant_Potato'
+    facts['foodRunwayDays']=1
+    assert choose_crop(facts)=='Plant_Rice'
+    facts['foodRunwayDays']=20
+    assert choose_crop(facts)=='Plant_Potato'
     facts['foodClimate']['growingDays']=10
     assert choose_crop(facts)=='Plant_Rice'
     facts['foodClimate']['growingDaysRemaining']=5
@@ -61,6 +74,14 @@ def test_crop_selection_uses_soil_and_native_climate_without_crediting_food():
     assert choose_crop(facts) is None
     facts['foodClimate']['sowingNow']=True
     for cell in facts['cells']:cell['roofed']=True
+    assert choose_crop(facts) is None
+
+
+@pytest.mark.parametrize('key',['growDays','harvestNutrition','fertilityMin','fertilitySensitivity'])
+@pytest.mark.parametrize('value',[None,True,float('nan'),float('inf'),-1])
+def test_unknown_native_crop_inputs_cannot_select_a_field(key,value):
+    _,facts=fixture()
+    facts['definitions']['Plant_Rice'][key]=value
     assert choose_crop(facts) is None
 
 

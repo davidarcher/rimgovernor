@@ -15,16 +15,12 @@ in the checkpoint commit; do not append an implementation diary here.
   fertility and temperature variants. Include longer survival, changing seasons
   and production that replaces initial supplies. Sampled stable gates over a
   bounded window do not establish arbitrary long-term colony survival.
-- [ ] **B04a · Complete deterministic food control.** Verify hunting, butchering,
-  crop labor, food runway and spoilage-aware storage under real pawn behavior.
-  Add safe prey reachability and monitoring after designation and season/biome-specific methods.
-  Nutrition-based harvest limits and per-colonist inventory/rot forecasts exist;
-  validate actual spoilage, changing temperatures and food sharing during sustained runs.
-  Validate persistent player food targets through actual replenishment as well as
-    stock. Mixed-crop field budgets, native route screening and supervised hunting
-    holds, season/soil crop selection and preservation bills are implemented;
-    native sustained replenishment, hunting/butchering, route degradation,
-    spoilage/temperature/sharing and seasonal acceptance remain required.
+- [ ] **B04a · Complete deterministic food control.** Validate sustained crop
+  replenishment and persistent player food targets through actual stock and pawn
+  labor, including competing animal demand. Complete native preservation output
+  and season/soil-specific crop labor acceptance.
+  Keep planned yield separate from stored nutrition and preserve unknown access,
+  diet and rot observations.
 - [ ] **B04h · Complete startup and colony upkeep.** Implement the phased plan
   below through existing ColonyPlan goals, deterministic methods and Hands. Use
   observed deficits, urgency and player priorities rather than a fixed day-by-day

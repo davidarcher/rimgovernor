@@ -118,6 +118,10 @@ async def run(args):
             from construction_recovery_acceptance import exercise_recovery
             report['recovery_fixture']=await exercise_recovery(rt)
         rt.current_plan.control.setdefault('policy', {})['execution_speed'] = args.speed
+        if getattr(args,'food_target_days',None) is not None:
+            from rimbot.player_commands import apply_command
+            report['food_target']=await apply_command(rt,dict(kind='CreateGoal',goal='EnsureFoodSupply',
+                food_days=args.food_target_days),token=rt.context_token,revision=rt.chat_revision)
         await rt.set_mode('automate')
         deadline = time.monotonic()+args.seconds
         while time.monotonic()<deadline:
@@ -213,6 +217,7 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source-root',type=Path,required=True)
     parser.add_argument('--source-snapshot',action='store_true',help='Fingerprint packaged source bytes when running in a Docker image without Git metadata')
+    parser.add_argument('--food-target-days',type=float,help='Explicit persistent player food target, validated through CreateGoal')
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--seconds',type=int,default=1800)
     parser.add_argument('--stability-days',type=stability_days,default=2,help='Consecutive observed stable game days after bootstrap; 0 checks establishment only (default: 2)')

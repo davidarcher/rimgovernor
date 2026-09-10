@@ -53,6 +53,10 @@ Local changes:
   No native game source or assemblies are bundled. `PopulationFixture` is optional
   disposable starting-state setup, excluded from production/model access; actual
   custody, care and recruitment remain normal native pawn work.
+- `scripts/fixtures/FoodObservationFixture.cs` is optional original read-only test
+  code. It observes native ingestion and stack splits and retains food references
+  for rot readback after destruction. It does not spawn, age or move food, alter
+  temperatures, change pawn behavior or advance time. Default builds exclude it.
 - `ForecastFacts.cs` is original local read-only animal-feed, crop-work and
   medical/mood input accounting. `FoodSupplyFacts.cs` records native eater policy,
   diet and access eligibility; `ColonyFactsTool.cs` exposes these inputs.
@@ -89,7 +93,8 @@ Local changes:
   and any required footprint egress. It never changes the path grid or simulation.
 - `ColonyFactsTool.cs` exposes native crop fertility response, current sowing season,
   remaining seasonal temperature window, fresh animal corpse identities and native
-  cooking recipe products, shelf life and bill targets. These are observations;
+  cooking recipe products, shelf life and bill targets. Product-specific production
+  demand includes native animal diets and food policies. These are observations;
   future crop, weather and preservation outcomes require ordinary pawn validation.
 - `OrderTool.cs` verifies immediate Equip completion by exact primary-weapon
   identity, in addition to its existing current-job check. A different weapon
@@ -108,6 +113,8 @@ Local changes:
   `Root_Play.SetupForQuickTestPlay` lifecycle calls with the selected world seed.
   RimWorld generates all pawns, supplies and terrain. The default scenario defs
   remain unchanged. No game assembly or decompiled source file is distributed.
+  Optional biome selection chooses a generated surface tile accepted by native
+  settlement validation before map generation; it does not edit an existing map.
   The fixture is absent from normal builds and rejects existing colonies.
 - `FoodSupplyFacts.cs` reads native fed consumption, individual held food,
   `FoodUtility.NutritionForEater` and `CompRottable.TicksUntilRotAtCurrentTemp`.

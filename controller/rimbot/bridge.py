@@ -102,7 +102,9 @@ class BridgeClient:
                     if state.get('status') in ('running', 'connected') and state.get('toolCount', 0) > 0:
                         return status
                     await asyncio.sleep(.5)
-        result = await self.core("games_connect", gameId=self.game_id)
+        result = await self.core("games_connect", gameId=self.game_id, timeout=60)
+        # Process startup and GABP readiness are separate. Only repeat discovery;
+        # never retry a load or another game mutation after an uncertain result.
         deadline = asyncio.get_running_loop().time() + 120
         while True:
             try:

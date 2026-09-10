@@ -168,6 +168,18 @@ observed holder. Earliest-expiry allocation uses native rot deadlines at the cur
 temperature; the lowest per-colonist runway drives the food gate. Invalid supply
 observations remain unknown. Future harvest, changing temperatures, job selection and
 food sharing are not guaranteed. Harvest ETA remains an optimistic lower bound.
+
+The maintained food goal budgets each crop's capacity from native daily demand and
+yield, using the larger of its growth allowance and the persisted food target.
+Capacity includes native demand from colony animals permitted to eat that crop or
+preserved product; future grazing is not credited against this budget.
+Rice, potatoes and corn are ranked by native yield, soil response and remaining
+seasonal temperature window. A stock buffer shorter than the fastest crop's growth
+allowance prioritizes that faster crop. Expansion preserves existing zones and shelter access;
+unknown capacity cannot complete the goal. Projected yield never counts as stock.
+When rot risk limits runway, available long-lived native recipes can receive a
+target-count bill. A bill receipt cannot certify preserved food. Food stockpiles
+use a distinct label from crop zones.
 See [forecast contracts](forecast-contracts.md) for animal feed, crop/construction
 labor, medical, mood and power projections and their input limits.
 
@@ -203,8 +215,11 @@ anchor and action signature. Immediately before writing, the shared runtime rech
 wildlife, the planned cell, outstanding hunt count and paused native tick under its
 writer lock. It then verifies the selected animal's hunt designation. Missing legacy
 target metadata and changed observations block without a write; unconfirmed writes
-remain uncertain. This does not certify a hunter's route or monitor threats after
-designation. Native external inputs are not atomic with these Python checks.
+remain uncertain. Native evidence requires an enabled, ranged hunter with a
+Danger.None path avoiding predators by 25 cells and an ordinary prey death action.
+Supervised play pauses when an active hunt loses that route. Future prey movement
+and shooting positions remain uncertain; native external inputs are not atomic
+with the Python checks.
 
 ## Wild-plant acquisition
 

@@ -15,13 +15,15 @@ namespace HomeBridge.BridgeTools
     {
         private static Scenario pending;
         private static string worldSeed;
+        private static string requestedBiome;
         private static bool patched;
 
         [Tool("test/configure_start", Description = "Arm one ordinary scenario start from the main menu; test builds only. Does not edit saves or existing colonies.")]
         public async Task<object> Configure(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Native ScenarioDef name; inspect the definitions returned by list.")] string scenario,
             [ToolParameter(Description = "Native scenario editor count, 1 through 10.")] int count,
-            [ToolParameter(Description = "World generation seed.")] string seed)
+            [ToolParameter(Description = "World generation seed.")] string seed,
+            [ToolParameter(Description = "Optional native BiomeDef for an ordinary valid settlement tile.")] string biome = "")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (Current.ProgramState != ProgramState.Entry || Find.CurrentMap != null || Current.Game != null)
@@ -31,6 +33,8 @@ namespace HomeBridge.BridgeTools
                     throw new ArgumentException("Require 1..10 pawns and a nonempty world seed.");
                 var definition = DefDatabase<ScenarioDef>.GetNamedSilentFail(scenario);
                 if (definition == null) throw new ArgumentException("Unknown ScenarioDef.");
+                if (!string.IsNullOrEmpty(biome) && DefDatabase<BiomeDef>.GetNamedSilentFail(biome)?.canBuildBase != true)
+                    throw new ArgumentException("Unknown or non-settleable BiomeDef.");
                 var copy = definition.scenario.CopyForEditing();
                 var part = copy.AllParts.OfType<ScenPart_ConfigPage_ConfigureStartingPawns>().SingleOrDefault();
                 if (part == null) throw new ArgumentException("Scenario has no editable starting-pawn count.");
@@ -43,8 +47,8 @@ namespace HomeBridge.BridgeTools
                         prefix: new HarmonyMethod(typeof(ScenarioStartFixture), nameof(Start)));
                     patched = true;
                 }
-                pending = copy; worldSeed = seed;
-                return new { success = true, armed = true, scenario, count, seed,
+                pending = copy; worldSeed = seed; requestedBiome = biome;
+                return new { success = true, armed = true, scenario, count, seed, biome,
                     storyteller = "Cassandra", difficulty = "Rough", mapSize = 250,
                     rainfall = "Normal", temperature = "Normal", population = "Normal" };
             }, cancellationToken).ConfigureAwait(false);
@@ -77,6 +81,15 @@ namespace HomeBridge.BridgeTools
             Current.Game.World = WorldGenerator.GenerateWorld(0.3f, worldSeed,
                 OverallRainfall.Normal, OverallTemperature.Normal, OverallPopulation.Normal, LandmarkDensity.Normal);
             Find.GameInitData.ChooseRandomStartingTile();
+            if (!string.IsNullOrEmpty(requestedBiome))
+            {
+                var surface = Find.WorldGrid.Surface;
+                var candidates = Enumerable.Range(0, surface.TilesCount).Select(i => surface[i])
+                    .Where(t => t.PrimaryBiome.defName == requestedBiome && TileFinder.IsValidTileForNewSettlement(t.tile))
+                    .Take(1).ToList();
+                if (candidates.Count == 0) throw new InvalidOperationException("No native valid settlement tile in requested biome");
+                Find.GameInitData.startingTile = candidates[0].tile;
+            }
             Find.GameInitData.mapSize = 250;
             Find.Scenario.PostIdeoChosen();
             return false;
