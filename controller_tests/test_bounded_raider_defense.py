@@ -3,6 +3,8 @@ import pytest
 from rimbot.colony_plan import ColonyGoal
 from rimbot.colony_skills import SkillBlocked
 from test_colony_controller import Replay
+from rimbot.bridge import BridgeError
+from mcp.types import CallToolResult
 
 
 def fixture():
@@ -36,6 +38,25 @@ async def test_missing_native_firing_solution_waits_without_admitting_attack():
     assert await rt.controller.skills.compile('ActiveCombat',rt.facts,rt.people) is None
     assert rt.current_plan.colony_goals['ActiveCombat'].evidence['firing_solution_refusal']['success'] is False
     assert not rt.current_plan.spec.steps
+
+
+@pytest.mark.asyncio
+async def test_obstructed_shooter_does_not_delay_legal_defenders():
+    rt,_=fixture()
+    refusal=BridgeError('home/order',CallToolResult(content=[],isError=True,
+        structuredContent={'message':'Verb.CanHitTarget is false'}))
+    rt.inspect_native.side_effect=[{'success':True},refusal,{'success':True}]
+    _,actions=await rt.controller.skills.compile('ActiveCombat',rt.facts,rt.people)
+    assert [a['arguments']['action'] for a in actions]==['attack','draft','attack']
+    assert len({a['arguments']['pawn'] for a in actions})==3
+
+
+@pytest.mark.asyncio
+async def test_unavailable_native_preview_cannot_be_treated_as_an_obstruction():
+    rt,_=fixture()
+    rt.inspect_native.side_effect=BridgeError('home/order',CallToolResult(content=[],isError=True,
+        structuredContent={'message':'Bridge unavailable'}))
+    with pytest.raises(BridgeError):await rt.controller.skills.compile('ActiveCombat',rt.facts,rt.people)
 
 
 @pytest.mark.asyncio

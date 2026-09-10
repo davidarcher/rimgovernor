@@ -160,7 +160,9 @@ A bounded combat method prepares two capable colonists for one small manhunting 
 or confirmed small predator hunting colony members. One observed melee-only humanlike
 raider requires three capable colonists with health at least 85% and no tending need.
 Unknown weapons, ranged raiders and multiple enemies retain a hold. Native auto mode
-uses equipped weapons and firing previews; standing-target and current-hostility
+uses equipped weapons and individual firing previews. An obstructed shooter stays
+drafted while other defenders engage; unavailable previews retain the hold.
+Standing-target and current-hostility
 guards protect dispatch. Defense uses threat readback, treatment and owned-draft
 cleanup. Its clock acknowledges only that inspected
 target after orders dispatch; other threats and severe injury remain guarded. Blocked

@@ -163,13 +163,14 @@ async def main(tend=False, root=None, recovery=False, existing_patient=False, re
     root=Path(root or '.rimbot/bridge').resolve();evidence={}
     configuration=prepare(root)
     source=Path(__file__).resolve().parents[1]
+    inference='configured local rescue selection' if rescue_chat else 'no inference'
     if (root/'inputs.json').is_file():
         evidence['manifest']={'worker_inputs':json.loads((root/'inputs.json').read_text()),
             'source_files':{str(p.relative_to(source)):file_hash(p)
                 for directory in ('controller','scripts') for p in sorted((source/directory).rglob('*.py'))},
-            'scope':'Staged Docker inputs and executed Python source; no inference.'}
+            'scope':'Staged Docker inputs and executed Python source; '+inference+'.'}
     else:
-        evidence['manifest']=capture_manifest(source,root,configuration,{'mode':'no inference'})
+        evidence['manifest']=capture_manifest(source,root,configuration,{'mode':inference})
     async with bridge_session(gabs_executable(root, configuration),configuration) as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
         await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)

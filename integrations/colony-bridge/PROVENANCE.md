@@ -84,6 +84,13 @@ requires explicit dryRun for companion writes, disables watch delays, and refuse
 godMode. Native receipts and post-command observations are kept separately from
 claims of completed pawn work.
 
+Local `DraftOwnership.cs` instruments the native draft setter with ephemeral
+controller claims. The adapted `OrderTool` acquires claims only on new draft
+transitions, checks ownership atomically before release, and optionally refuses
+attacks on downed targets. Ordinary job construction and native eligibility remain
+upstream-derived. The separate local `scripts/fixtures/CombatFixture.cs` uses native
+incident APIs only for disposable acceptance setup; it is not production tooling.
+
 The React dashboard borrows the upstream overlay's game/chat/short-summary layout
 and separate long-term direction, adapted to our existing dashboard styles.
 No Twitch credentials, hosted service, OBS setup or inline script is included.

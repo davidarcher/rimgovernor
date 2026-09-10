@@ -175,17 +175,25 @@ class ColonySkills:
                 # Native auto mode uses the equipped weapon. A rifle carrier must
                 # not be sent to club a raider merely because melee skill is high.
                 previews=[]
-                for action in actions:
+                attacks=0
+                for index,action in enumerate(actions):
                     try:
                         preview=await rt.inspect_native('home/order',dict(action['arguments'],dryRun=True))
                     except BridgeError as error:
-                        goal.evidence['firing_solution_refusal']=str(error)
-                        return None
+                        if 'Verb.CanHitTarget is false' not in error.detail:
+                            raise
+                        # An obstructed shooter keeps ordinary drafted defensive
+                        # fire. Do not delay other defenders' legal attacks.
+                        previews.append({'pawn':action['arguments']['pawn'],'refusal':str(error)})
+                        actions[index]=native('home/order',action='draft',pawn=action['arguments']['pawn'],watch=False)
+                        continue
                     previews.append(preview)
                     if preview.get('success') is not True:
                         goal.evidence['firing_solution_refusal']=preview
                         return None
+                    attacks+=1
                 goal.evidence['firing_solutions']=previews
+                if not attacks:return None
             return method,actions
         if goal_id == 'CriticalMedical':
             if facts.get('medicalKnown') is not True:
