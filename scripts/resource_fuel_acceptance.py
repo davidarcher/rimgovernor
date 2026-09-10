@@ -50,11 +50,15 @@ async def run(args):
             reply='Completed fixture orders archived.',plan=PlanSpec.model_validate(spec)),actor='strategist',
             expected_token=rt.context_token,expected_revision=rt.chat_revision)
         fixture_steps.difference_update(retired)
-    async def command(**payload):
+    async def settle_clock():
         async with rt.lock:
             rt.clock_events.extend(await rt.supervisor.poll())
             rt.receive_clock_events()
-        if rt.review_task and not rt.review_task.done():await rt.review_task
+        async with asyncio.timeout(30):
+            while rt.wake.is_set() or (rt.review_task and not rt.review_task.done()):
+                await asyncio.sleep(.1)
+    async def command(**payload):
+        await settle_clock()
         await archive_fixture()
         value=await apply_command(rt,payload,token=rt.context_token,revision=rt.chat_revision)
         for _ in range(128):
@@ -105,6 +109,7 @@ async def run(args):
             danger=await rt.game.query('home/status',colonists=False,threats=True)
             record('observed_notification',clock['pauseVerified'],clock=clock,danger=danger)
             if danger['counts']['hostileCount'] or danger['counts']['huntingPredatorCount']:
+                await settle_clock()
                 await rt.set_mode('automate')
                 until=time.monotonic()+180
                 while True:
