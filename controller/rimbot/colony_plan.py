@@ -30,9 +30,39 @@ class Placement(Cell):
     materials: list[str] = Field(default_factory=list, max_length=8, description='Observed acceptable stuff defs in preference order; native eligibility and available quantities choose one.')
 
 
+class ConstructionRef(Contract):
+    step: str = Field(min_length=1)
+    slot: int = Field(ge=0, le=255)
+
+
+class WallGuard(Cell):
+    original: ConstructionRef
+    target: ConstructionRef
+    backups: list[ConstructionRef] = Field(min_length=3, max_length=3)
+    permanent: ConstructionRef | None = None
+    left: str = Field(min_length=1)
+    right: str = Field(min_length=1)
+    nx: int = Field(ge=-1, le=1)
+    nz: int = Field(ge=-1, le=1)
+
+    @model_validator(mode='after')
+    def orientation(self):
+        if abs(self.nx) + abs(self.nz) != 1:
+            raise ValueError('Wall guard requires one cardinal exterior direction')
+        return self
+
+
 class Buildings(Contract):
     kind: Literal['place_buildings'] = 'place_buildings'
     placements: list[Placement] = Field(min_length=1, max_length=256)
+    replacement_of: ConstructionRef | None = None
+
+    @model_serializer(mode='wrap')
+    def serialize(self, handler):
+        value = handler(self)
+        if self.replacement_of is None:
+            value.pop('replacement_of', None)
+        return value
 
 
 class RoomBounds(Rectangle):
@@ -136,17 +166,18 @@ class CaravanTarget(Contract):
 
 class NativeOperation(Contract):
     kind: Literal['native_operation'] = 'native_operation'
-    tool: Literal['home/upkeep_bed', 'home/recovery_area', 'home/recover_service', 'home/husbandry_config', 'home/relieve_need', 'home/medical_operations', 'home/caravan_gift', 'home/fulfill_quest', 'home/caravan', 'home/accept_quest', 'home/manage_waste', 'home/gear_upkeep', 'home/population', 'home/acquire_resource', 'home/production_policy', 'home/confirm_colony_names', 'home/pawn_config', 'home/building_config', 'home/bills', 'home/order',
+    tool: Literal['home/upkeep_wall', 'home/upkeep_bed', 'home/recovery_area', 'home/recover_service', 'home/husbandry_config', 'home/relieve_need', 'home/medical_operations', 'home/caravan_gift', 'home/fulfill_quest', 'home/caravan', 'home/accept_quest', 'home/manage_waste', 'home/gear_upkeep', 'home/population', 'home/acquire_resource', 'home/production_policy', 'home/confirm_colony_names', 'home/pawn_config', 'home/building_config', 'home/bills', 'home/order',
         'home/zone_cells', 'home/trade', 'home/research', 'rimworld/apply_architect_designator',
         'rimworld/open_letter', 'rimworld/dismiss_letter', 'rimworld/click_screen_target',
         'home/install', 'home/dialog_text', 'rimworld/click_ui_target', 'rimworld/scroll_ui_target',
         'rimworld/open_main_tab', 'rimworld/close_main_tab']
     arguments: dict
     # Honest fallback for native operations lacking a higher-level compiler.
-    completion: Literal['upkeep_target', 'service_recovered', 'need_recovered', 'pawn_gear', 'waste_contained', 'native_receipt', 'patient_tended', 'patient_in_bed', 'pawn_equipped', 'pawn_at_position',
+    completion: Literal['wall_removed', 'upkeep_target', 'service_recovered', 'need_recovered', 'pawn_gear', 'waste_contained', 'native_receipt', 'patient_tended', 'patient_in_bed', 'pawn_equipped', 'pawn_at_position',
                         'surgery_health', 'caravan_departed', 'caravan_arrived', 'caravan_returned', 'quest_completed'] = 'native_receipt'
     medical_effect: dict | None = None
     caravan_target: CaravanTarget | None = None
+    wall_guard: WallGuard | None = None
 
     @model_serializer(mode='wrap')
     def serialize(self, handler):
@@ -155,7 +186,17 @@ class NativeOperation(Contract):
             value.pop('caravan_target', None)  # Preserve existing native-action fingerprints.
         if self.medical_effect is None:
             value.pop('medical_effect', None)
+        if self.wall_guard is None:
+            value.pop('wall_guard', None)
         return value
+
+    @model_validator(mode='after')
+    def wall_completion(self):
+        if self.tool == 'home/upkeep_wall' or self.completion == 'wall_removed' or self.wall_guard is not None:
+            if self.tool != 'home/upkeep_wall' or self.completion != 'wall_removed' or self.wall_guard is None \
+                    or self.arguments != {'action': 'remove'}:
+                raise ValueError('Wall removal requires a guarded construction-reference bundle')
+        return self
 
     @model_validator(mode='after')
     def medical_completion(self):

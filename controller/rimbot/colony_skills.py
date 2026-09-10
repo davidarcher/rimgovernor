@@ -485,7 +485,14 @@ class ColonySkills:
                         required = goal.evidence.setdefault('required_capabilities', [])
                         if placement.def_name not in required: required.append(placement.def_name)
                     raise SkillBlocked('No available observed construction definition: '+placement.def_name)
-                costs[str(slot)] = definition['costs']
+                material = placement.materials[0] if placement.materials else definition.get('stuff')
+                if material != definition.get('stuff') and material not in definition['costs']:
+                    observed = goal.evidence.get('construction_costs', {}).get(placement.def_name, {}).get(material)
+                    if not observed:
+                        raise SkillBlocked('Native costs for the selected construction material are unavailable')
+                    costs[str(slot)] = observed
+                else:
+                    costs[str(slot)] = definition['costs']
             slots[identity] = costs
             result.append(step)
         return result, slots

@@ -58,6 +58,8 @@ async def take_control(body: TakeControl, request: Request):
                 raise InterruptedError('New player direction arrived during handoff')
         await rt.supervisor.change('Paused')
         await guard()
+        from .wall_upgrade import release_pending
+        await release_pending(rt)
         released = await rt.release_drafts(guard=guard)
         if released.get('failed'):
             raise ValueError('Owned drafts could not be released; player control was not acknowledged')
@@ -320,6 +322,8 @@ async def player_time(body: TimeControl, request: Request):
         rt.persist()
         await rt.supervisor.change('Paused')
         await rt.release_drafts()
+        from .wall_upgrade import release_pending
+        await release_pending(rt)
         await check_session(rt, body.session_id)
         if rt.chat_revision != direction:
             raise ValueError('New player direction arrived; time remains paused')

@@ -109,6 +109,12 @@ async def run(args):
         from rimbot.construction_ownership import owned_buildings
         report['owned_buildings'] = owned_buildings(rt.current_plan, facts)
         assert len(report['owned_buildings']) == len(lineage), 'Every completed room piece needs both receipt and native lineage'
+        if args.wall_upgrade:
+            from wall_upgrade_fixture import verify_upgrade
+            await verify_upgrade(rt, report, args.seconds)
+            await verify_upgrade(rt, report, args.seconds, interrupt=True)
+            facts = await sample()
+            lineage = facts['upkeep']['construction']
         report['support_previews'] = []
         wall = None
         for candidate in [r for r in lineage if r['definition'] == 'Wall' and r['present']][:20]:
@@ -140,6 +146,10 @@ async def run(args):
         assert rt.current_plan.model_dump() == before_plan, 'Paired restart changed completed plan or receipts'
         after_restart = await rt.game.query('home/colony_facts', planning=True)
         report['after_restart'] = after_restart
+        if args.wall_upgrade:
+            held = report['wall_upgrade_interruption']['held_original']
+            assert any(r['id'] == held for r in after_restart['upkeep']['structures'])
+            assert after_restart['upkeep']['wallRemoval'] == report['before_restart']['upkeep']['wallRemoval']
         assert after_restart['upkeep']['construction'] == report['before_restart']['upkeep']['construction']
         before_records = {r['id']: r for r in report['before_restart']['upkeep']['hauling']}
         after_records = {r['id']: r for r in after_restart['upkeep']['hauling']}
@@ -184,4 +194,5 @@ if __name__ == '__main__':
     parser.add_argument('--source-root', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--seconds', type=int, default=240)
+    parser.add_argument('--wall-upgrade', action='store_true', help='Require native stonecutting, guarded wall replacement and backup removal')
     raise SystemExit(0 if asyncio.run(run(parser.parse_args())) else 1)

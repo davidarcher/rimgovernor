@@ -30,8 +30,8 @@ alone cannot transfer ownership. Records persist with the game and report missin
 or ambiguous identities explicitly. Missing identities after load are not rebound
 by coordinates. The bounded ledger retains at most 4,096 origins.
 
-`construction_ownership.owned_buildings` additionally requires a completed,
-confirmed autonomous plan placement with matching definition, material, rotation
+`construction_ownership.owned_buildings` additionally requires a confirmed
+autonomous plan placement and native completed building with matching definition, material, rotation
 and location. Reused player blueprints, player goals, cancelled goals and uncertain
 receipts confer no autonomous ownership. Lineage is evidence, not authorization to
 deconstruct a structure or an assurance that removing it is safe.
@@ -41,6 +41,34 @@ native support radius while excluding the specified wall as a holder. It changes
 no roof or building. Fog, map-edge uncertainty, pending collapse and unsupported
 cells refuse the certificate. Planned supports earn no credit. Replacement must
 also preserve enclosure and escape access and repeat safety checks at execution.
+
+`MaintainStoneShell` admits one straight-wall upgrade after urgent needs. Only
+confirmed autonomous construction can supply a demolition target. A complete
+bundle reserves three stone backup walls, guarded removal of the original wall,
+one permanent stone wall, and guarded cleanup of each backup. The exterior cells
+must be empty, side walls unchanged and the original interior enclosed and roofed.
+Native spatial preflight preserves existing access. Installed material costs and
+shared reservations cover all four walls before demolition; runtime estimates
+cannot overwrite validated native allocations. Stone acquisition uses ordinary
+resource recipes and can build one native stonecutter when a suitable site exists.
+
+Observed native demolition transfers its original project slot to the exact
+replacement construction reference. The old project waits for that replacement;
+verified completion satisfies the transferred slot, and replacement loss reopens
+it. Other slots retain their own native completion and ownership checks. This
+handoff releases only the retired slot's planned footprint; edits to its action
+or removal dependency invalidate the exemption. Furniture placement preserves
+existing stockpile cells.
+
+`home/upkeep_wall` creates an ordinary native deconstruction designation. Completion
+comes from the actual native deconstruction job, not disappearance of a wall. The
+guard rechecks exact supporting identities, enclosure, roofs, remaining materials
+and resource policies before completion. Jobs require active supervised simulation.
+Native UI input, Manual, a load/map change or changed safety invalidates pending
+demolition. Player replacement of a designation relinquishes controller ownership.
+Cleanup requires the completed permanent wall. Missing or uncertain outcomes stay
+blocked. Corner geometry, interrupted-batch recovery and wider native acceptance
+remain listed in the backlog.
 
 `SecureSupplies`, `MaintainEssentialRepairs`, `MaintainCleanFacilities` and
 `MaintainFireSafety` retain their goal identities across recovery and recurrence.

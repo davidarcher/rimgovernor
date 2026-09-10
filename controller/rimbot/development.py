@@ -17,7 +17,7 @@ def development_nodes(facts):
     return nodes
 
 
-async def placement(rt, facts, definition, *, indoors=None, near=None, radius=22, goal=None):
+async def placement(rt, facts, definition, *, indoors=None, near=None, radius=22, goal=None, rotations='North'):
     from .shelter_handoff import safe_rotation
     definition_data = facts.get('definitions', {}).get(definition, {})
     if definition_data.get('available') is not True:
@@ -37,7 +37,7 @@ async def placement(rt, facts, definition, *, indoors=None, near=None, radius=22
             raise SkillBlocked(f'Native construction requires an available assigned level {minimum} builder: {definition}')
     center = near or facts['center']
     cells = {(c['x'], c['z']): c for c in facts['cells']}
-    free = {p for p, c in cells.items() if c.get('walkable') is True and not c.get('occupied')
+    free = {p for p, c in cells.items() if c.get('walkable') is True and not c.get('occupied') and not c.get('zone')
             and (indoors is None or c.get('indoors') is indoors)}
     from .shelter_handoff import entrance_aisle
     for step in rt.current_plan.spec.steps:
@@ -50,19 +50,22 @@ async def placement(rt, facts, definition, *, indoors=None, near=None, radius=22
     candidates = sorted((p for p in free if max(abs(p[0]-center['x']), abs(p[1]-center['z'])) <= radius),
                         key=lambda p: ((p[0]-center['x'])**2+(p[1]-center['z'])**2, p))
     for x, z in candidates[:64]:
-        args = dict(defName=definition, x=x, z=z, rotation='North', dryRun=True)
+        args = dict(defName=definition, x=x, z=z, rotation=rotations, dryRun=True)
         if definition_data.get('stuff'):
             args['stuff'] = definition_data['stuff']
         preview = await rt.inspect_native('home/place_building', args)
         rows = [r for r in preview.get('rotations', []) if safe_rotation(r)]
-        if preview.get('canPlace') is not True or len(rows) != 1:
+        if preview.get('canPlace') is not True or (rotations != 'all' and len(rows) != 1):
             continue
-        footprint = {(p['x'], p['z']) for p in rows[0].get('occupiedCells', [])}
-        if footprint and footprint <= free:
-            value = dict(def_name=definition, x=x, z=z)
-            if definition_data.get('stuff'):
-                value['materials'] = [definition_data['stuff']]
-            return {'kind':'place_buildings', 'placements':[value]}
+        for row in rows[:4]:
+            footprint = {(p['x'], p['z']) for p in row.get('occupiedCells', [])}
+            rotation = row.get('rotation', 'north').lower()
+            if footprint and footprint <= free and rotation in ('north', 'east', 'south', 'west'):
+                value = dict(def_name=definition, x=x, z=z)
+                if rotation != 'north': value['rotation'] = rotation
+                if definition_data.get('stuff'):
+                    value['materials'] = [definition_data['stuff']]
+                return {'kind':'place_buildings', 'placements':[value]}
     raise SkillBlocked('No safe observed placement for '+definition+' in bounded native search')
 
 

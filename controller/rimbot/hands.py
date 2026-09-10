@@ -103,6 +103,10 @@ class Hands:
                     else:
                         if isinstance(action, NativeOperation):
                             args = dict(action.arguments)
+                            if action.tool == 'home/upkeep_wall':
+                                from .wall_upgrade import arguments as wall_arguments
+                                args = await wall_arguments(rt, step)
+                                self.guard(rt, revision, token, direction)
                             if step.goal_id and step.goal_id.startswith('Population-'):
                                 from .population import guard, SkillBlocked
                                 try:
@@ -131,7 +135,7 @@ class Hands:
                             schema = await rt.game.describe(action.tool)
                             if 'dryRun' in schema.get('properties', {}):
                                 preview = await rt.inspect_native(action.tool, dict(args, dryRun=True))
-                                if preview.get('success') is False or (action.tool in ('home/manage_waste', 'home/recover_service', 'home/recovery_area') and preview.get('accepted') is not True):
+                                if preview.get('success') is False or (action.tool in ('home/upkeep_wall', 'home/manage_waste', 'home/recover_service', 'home/recovery_area') and preview.get('accepted') is not True):
                                     raise Blocked('native_refused', reason(preview), evidence=preview)
                                 if action.completion == 'surgery_health':
                                     from .surgery import effect_from_preview
@@ -164,6 +168,8 @@ class Hands:
                                 raise Blocked('medical_order_unverified', 'Native state did not confirm the medical job.', evidence=result)
                             if action.completion == 'upkeep_target' and result.get('receipt', {}).get('job', {}).get('verified') is not True:
                                 raise Blocked('upkeep_order_unverified', 'Native state did not confirm the upkeep job.', evidence=result)
+                            if action.tool == 'home/upkeep_wall' and result.get('receipt', result).get('accepted') is not True:
+                                raise Blocked('wall_removal_unverified', 'Native wall demolition was not confirmed.', evidence=result)
                             receipt = {'native_outcome': result.get('receipt', result).get('outcome', 'receipt'),
                                 'meaning': 'Native command observed; this does not certify completion of pawn labor'}
                             if action.tool == 'home/recover_service':
@@ -185,6 +191,12 @@ class Hands:
                             if action.tool == 'home/order':
                                 receipt['order_generation'] = result.get('receipt', result).get('orderGeneration')
                                 receipt['haul_tracking_id'] = result.get('receipt', result).get('haulTrackingId')
+                            if action.tool == 'home/upkeep_wall':
+                                outcome = result.get('receipt', result)
+                                receipt['wall_removal_id'] = outcome.get('removalId')
+                                receipt['wall_target'] = outcome.get('target')
+                                if not receipt['wall_removal_id'] or receipt['wall_target'] != args['target']:
+                                    raise Blocked('wall_removal_unverified', 'Native demolition identity was not confirmed.', evidence=result)
                             if action.tool == 'home/install':
                                 native = result.get('receipt', result)
                                 receipt['inner_id'] = native['thingId']

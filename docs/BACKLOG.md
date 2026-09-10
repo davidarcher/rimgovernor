@@ -28,8 +28,8 @@ in the checkpoint commit; do not append an implementation diary here.
 
   **Phase 1 — Finish needs and completion contracts.** Extend the
   [native upkeep audit](reference/upkeep-contracts.md) with safe enclosure/escape
-  replacement and seasonal lead-time evidence. Roof-support previews and saved
-  construction lineage are available; destructive replacement is not admitted.
+  replacement and seasonal lead-time evidence. Roof-support previews, saved
+  construction lineage and guarded straight-wall replacement are available.
   Preserve unknowns. Extend the
   maintained supply, cleaning, repair and fire contracts to the remaining goals:
   facilities, food-chain operation, animals,
@@ -62,6 +62,9 @@ in the checkpoint commit; do not append an implementation diary here.
   after native support/access checks; retain roofs, enclosure and escape routes
   throughout each replacement batch. Verify extinguished fires, completed repairs
   and remaining support rather than designations or worker assignments alone.
+  Finish native acceptance of guarded straight-wall bundles, extend backup geometry
+  to corners, and exercise material loss, player interruption and restart during a
+  pending demolition. Retire or recover interrupted batches without duplicate work.
 
   **Phase 4 — Operate the food chain.** Extend B04a/B06b from bills and rooms to
   reachable ingredient staging, output storage, hauling and cleaning capacity.

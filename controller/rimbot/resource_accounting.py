@@ -11,7 +11,7 @@ class ResourceShortage(ValueError):
         super().__init__('Current resources no longer cover reservations: '+resource)
 
 
-async def validate_allocations(spec, current, game):
+async def validate_allocations(spec, current, game, *, deferred_wall_steps=frozenset()):
     previous = {s.id: s for s in current.spec.steps}
     slots_by_step = {}
     spendable, requested = {}, {}
@@ -93,7 +93,7 @@ async def validate_allocations(spec, current, game):
                             rotation=placement.rotation, dryRun=True)
                 if material: args['stuff'] = material
                 preview = await game.invoke('home/place_building', args, allow_write=False)
-                if preview.get('canPlace') is not True: continue
+                if preview.get('canPlace') is not True and step.id not in deferred_wall_steps: continue
                 material_rows = preview.get('materials')
                 if material_rows is None or material_rows.get('unreadable') or 'costList' not in preview:
                     refusal = 'Native construction costs are unavailable; no allocation accepted'

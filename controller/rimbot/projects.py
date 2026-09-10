@@ -202,14 +202,38 @@ class ProjectBook:
     async def reconcile(self, game, *, only_id=None, plan=None):
         if plan is not None:
             self.ground_legacy_targets(plan)
+        handoffs, handoff_error = {}, None
+        if plan is not None:
+            from .wall_upgrade import project_handoffs
+            try:
+                handoffs = await project_handoffs(plan, game)
+            except Exception as error:
+                handoff_error = str(error)
+                plan.control.pop('wall_handoffs', None)
+        handoff_sources = {s.action.wall_guard.target.step for s in plan.spec.steps
+                           if getattr(s.action, 'wall_guard', None)} if plan is not None else set()
         # Queries are memoized for this pass, not persisted across changes in game state.
         cache = {}
         for row in self.rows:
             if (only_id is not None and row.id != only_id) or row.state == 'cancelled' or not row.targets:
                 continue
             found, pending, missing, ids = 0, 0, 0, []
+            delegated = 0
             try:
+                if handoff_error and row.source_step in handoff_sources:
+                    raise ValueError(handoff_error)
                 for target in row.targets:
+                    delegates = [h for h in handoffs.values() if h['source_step'] == row.source_step
+                        and target.kind == 'building' and (target.def_name, target.x, target.z, target.stuff)
+                            == (h['definition'], h['x'], h['z'], h['stuff'])]
+                    if delegates:
+                        if len(delegates) != 1:
+                            raise ValueError('Construction handoff is ambiguous')
+                        delegated += int(delegates[0]['status'] == 'complete')
+                        pending += int(delegates[0]['status'] == 'pending')
+                        missing += int(delegates[0]['status'] == 'missing')
+                        if delegates[0]['thing']: ids.append(delegates[0]['thing'])
+                        continue
                     key = ('zone', bool(target.zone_patches), target.zone_settings is not None) if target.kind == 'zone' else target.model_dump_json()
                     if key not in cache:
                         if target.kind == 'installation':
@@ -259,8 +283,9 @@ class ProjectBook:
                         missing += int(not matches and not queued)
                         ids.extend(b['thingId'] for b in matches)
                 row.matched_ids = ids
-                if found == len(row.targets):
-                    row.state, row.evidence = 'complete', f'{found} targets observed in the game'
+                if found + delegated == len(row.targets):
+                    row.state, row.evidence = 'complete', (f'{found} targets observed in the game'
+                        + (f'; {delegated} slots transferred to verified replacements' if delegated else ''))
                 elif pending:
                     row.state, row.evidence = 'pending', f'{found} complete; {pending} awaiting pawn work; {missing} missing'
                 else:

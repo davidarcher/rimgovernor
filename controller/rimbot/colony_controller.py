@@ -416,7 +416,7 @@ class ColonyController:
                     or goal.evidence.get('waiting_for_native_fire') or goal.evidence.get('waiting_for_native_sleep')
                     or goal.evidence.get('waiting_for_storage_roof') or goal.evidence.get('waiting_for_medical_stock')
                     or goal.evidence.get('waiting_for_native_pen') or goal.evidence.get('waiting_for_animal_feed')
-                    or goal.evidence.get('waiting_for_native_comfort')) and facts['tick'] - goal.last_progress_tick >= timeout
+                    or goal.evidence.get('waiting_for_native_comfort') or goal.evidence.get('waiting_for_stone_blocks')) and facts['tick'] - goal.last_progress_tick >= timeout
                     and (identity != 'MaintainMedicalCare' or any(p.state != 'complete' for p in existing))):
                 reason = f'No measurable progress within {timeout} game ticks; inspect labor/materials/postconditions'
                 goal.evidence['watchdog'] = dict(tick=facts['tick'], reason=reason,
@@ -439,7 +439,8 @@ class ColonyController:
                             or goal.evidence.get('waiting_for_native_cleaning') or goal.evidence.get('waiting_for_native_fire')
                             or goal.evidence.get('waiting_for_native_sleep') or goal.evidence.get('waiting_for_storage_roof')
                             or goal.evidence.get('waiting_for_medical_stock') or goal.evidence.get('waiting_for_native_pen')
-                            or goal.evidence.get('waiting_for_animal_feed') or goal.evidence.get('waiting_for_native_comfort')):
+                            or goal.evidence.get('waiting_for_animal_feed') or goal.evidence.get('waiting_for_native_comfort')
+                            or goal.evidence.get('waiting_for_stone_blocks')):
                         plan.control['simulation_needed'] = True
                     existing_process = (identity=='CriticalMedical' and any(p.get('job')=='TendPatient' or
                         ((p.get('health') or {}).get('shouldSeekMedicalRest') is True and
@@ -474,7 +475,8 @@ class ColonyController:
                 goal.method = method
                 goal.steps.extend(s.id for s in steps)
                 goal.evidence.setdefault('methods', {})[method] = [s.id for s in steps]
-                plan.control.setdefault('costs', {}).update(slots)
+                for step_id, estimates in slots.items():
+                    plan.control.setdefault('costs', {}).setdefault(step_id, estimates)
                 goal.last_progress_tick = facts['tick']
                 self.event('skill_started', identity, method=method, steps=[s.id for s in steps])
                 # One small commitment per cycle; Hands gets the next turn.

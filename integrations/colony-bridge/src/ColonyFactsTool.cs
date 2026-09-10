@@ -183,7 +183,7 @@ namespace HomeBridge.BridgeTools
             };
             if (planning) {
                 var definitions = new Dictionary<string, object>();
-                foreach (var name in new[] { "Wall", "Door", "Bed", "SleepingSpot", "Campfire", "ButcherSpot", "FueledStove", "Heater", "PassiveCooler", "Cooler", "WoodFiredGenerator", "PowerConduit", "Sandbags", "Barricade", "StandingLamp", "SimpleResearchBench", "Table1x2c", "DiningChair", "HorseshoesPin", "Plant_Rice", "Plant_Potato", "Plant_Corn", "Fence", "FenceGate", "PenMarker" }) {
+                foreach (var name in new[] { "Wall", "Door", "Bed", "SleepingSpot", "Campfire", "ButcherSpot", "FueledStove", "Heater", "PassiveCooler", "Cooler", "WoodFiredGenerator", "PowerConduit", "Sandbags", "Barricade", "StandingLamp", "SimpleResearchBench", "Table1x2c", "DiningChair", "HorseshoesPin", "Plant_Rice", "Plant_Potato", "Plant_Corn", "TableStonecutter", "Fence", "FenceGate", "PenMarker" }) {
                     var def = DefDatabase<ThingDef>.GetNamedSilentFail(name);
                     if (def == null) continue;
                     var wood = DefDatabase<ThingDef>.GetNamedSilentFail("WoodLog");

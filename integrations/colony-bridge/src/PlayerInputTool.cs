@@ -42,6 +42,7 @@ namespace HomeBridge.BridgeTools
         public long UiRevision;
         public int Selection;
         static long uiRevision;
+        internal static long CurrentUiRevision => uiRevision;
         static bool observingUi;
 
         public static void ObserveUi()

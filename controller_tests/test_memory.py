@@ -3,6 +3,7 @@ import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 from rimbot.bridge_runtime import BridgeRuntime
+from rimbot.colony_plan import ColonyPlan
 from rimbot.memory import update_memory
 from rimbot.strategic_state import StrategicState
 
@@ -72,7 +73,7 @@ async def test_player_forget_checks_version_and_invalidates_review():
     state = StrategicState()
     call(state.memories, 'write', text='Lesson', evidence='Observation')
     rt = SimpleNamespace(lock=asyncio.Lock(), sync_identity=AsyncMock(),
-        context_token='current', chat_revision=2, strategic_state=state,current_plan=SimpleNamespace(control={}),
+        context_token='current', chat_revision=2, strategic_state=state,current_plan=ColonyPlan(),
         persist=Mock(), note=Mock(), mode='automate', wake=asyncio.Event())
     version = fingerprint(state.memories['camp'])
     for session, stamp in [('old', version), ('current', 'stale')]:

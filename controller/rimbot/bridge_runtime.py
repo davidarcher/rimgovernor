@@ -329,8 +329,10 @@ class BridgeRuntime:
                     validate_player_authorization(self, expected_revision)
                     validate_relocation_bundle(self, expected_revision, decision.plan)
                 await validate_cancellations(decision.plan, self.current_plan, self.game, self.identity)
-                await preflight_construction(decision.plan, self.current_plan, self.game)
-                allocations = await validate_allocations(decision.plan, self.current_plan, self.game)
+                from .wall_upgrade import validate_bundle
+                deferred_walls = await validate_bundle(decision.plan, self.current_plan, self.game)
+                await preflight_construction(decision.plan, self.current_plan, self.game, deferred_wall_steps=deferred_walls)
+                allocations = await validate_allocations(decision.plan, self.current_plan, self.game, deferred_wall_steps=deferred_walls)
                 # Contract discovery can yield while the game loads another colony.
                 await self.sync_identity()
                 if expected_token != self.context_token or expected_revision != self.chat_revision:
@@ -562,6 +564,8 @@ class BridgeRuntime:
             note = self.strategic_state.memories.get(identity)
             if note is None or fingerprint(note) != version:
                 raise ValueError('Note changed or was removed; refresh the notebook')
+            from .wall_upgrade import release_pending
+            await release_pending(self)
             del self.strategic_state.memories[identity]
             # Invalidate pending strategy/hands work just like fresh player direction.
             self.chat_revision += 1
@@ -626,6 +630,8 @@ class BridgeRuntime:
             if prior['text'] != text or prior['interpret'] != interpret:
                 raise ValueError('Chat request identity was already used for different content')
             return prior['receipt']
+        from .wall_upgrade import release_pending
+        await release_pending(self)
         if interpret:
             from .player_input import release_native
             await release_native(self)
@@ -731,6 +737,9 @@ class BridgeRuntime:
         except Exception as error:
             self.note('blocker', 'Could not pause the game: '+failure_text(error))
         await self.release_drafts()
+
+        from .wall_upgrade import release_pending
+        await release_pending(self)
 
     async def set_mode(self, mode, *, player_owner=None):
         if mode not in ('manual', 'automate'):

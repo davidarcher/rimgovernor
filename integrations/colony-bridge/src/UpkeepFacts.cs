@@ -28,6 +28,7 @@ namespace HomeBridge.BridgeTools
                 comfort = read("comfort", () => ComfortFacts.Read(map)),
                 construction = read("construction", () => ConstructionLineage.Read(map)),
                 hauling = read("hauling", () => HaulTracking.Read(map)),
+                wallRemoval = read("wallRemoval", () => WallUpgradeSafety.Read(map)),
                 items = read("items", () => items.OrderBy(t => t.thingIDNumber).Select(t => {
                     var rot = t.TryGetComp<CompRottable>();
                     return new { id = t.GetUniqueLoadID(), defName = t.def.defName, count = t.stackCount,
@@ -75,6 +76,7 @@ namespace HomeBridge.BridgeTools
                     hitPoints = b.HitPoints, maxHitPoints = b.MaxHitPoints, burning = b.IsBurning(),
                     home = b.OccupiedRect().All(c => map.areaManager.Home[c]),
                     holdsRoof = b.def.holdsRoof, stuff = b.Stuff?.defName,
+                    flammability = b.GetStatValue(StatDefOf.Flammability),
                     roofed = b.OccupiedRect().All(c => c.Roofed(map))
                 }).ToList()),
                 fires = read("fires", () => things.OfType<Fire>().Select(f => new {

@@ -27,6 +27,7 @@ CONTRACTS = (
     UpkeepContract('MaintainMedicalReserves', 'medicine', 3),
     UpkeepContract('MaintainAnimalContainment', 'containment', 3),
     UpkeepContract('MaintainAnimalFeed', 'animal_feed', 3),
+    UpkeepContract('MaintainStoneShell', 'stone_shell', 4),
 )
 GOALS = {c.goal for c in CONTRACTS}
 
@@ -86,7 +87,8 @@ def evidence(facts):
                 sleeping=facts.get('sleepingUpkeep') if current else None,
                 medicine=facts.get('medicalReserve') if current else None,
                 containment=facts.get('animalContainment') if current else None,
-                animal_feed=facts.get('animalFeed') if current else None)
+                animal_feed=facts.get('animalFeed') if current else None,
+                stone_shell=facts.get('stoneUpkeep') if current else None)
 
 
 def upkeep_nodes(facts, control, goals=None, *, plan=None):
@@ -98,6 +100,8 @@ def upkeep_nodes(facts, control, goals=None, *, plan=None):
     facts['animalContainment'] = containment_evidence(facts)
     from .animal_feed import feed_evidence
     facts['animalFeed'] = feed_evidence(facts, control, goals)
+    from .wall_upgrade import evidence as stone_evidence
+    facts['stoneUpkeep'] = stone_evidence(facts, plan)
     observed = evidence(facts)
     states = control.setdefault('upkeep', {})
     nodes = []
@@ -127,7 +131,7 @@ def upkeep_nodes(facts, control, goals=None, *, plan=None):
 def progress_metric(goal_id, rows):
     if rows is None:
         return None
-    if goal_id in ('MaintainSleeping', 'MaintainAnimalContainment'):
+    if goal_id in ('MaintainSleeping', 'MaintainAnimalContainment', 'MaintainStoneShell'):
         return len(rows)
     field = {'SecureSupplies': 'count', 'MaintainMedicalReserves': 'count', 'MaintainAnimalFeed': 'count', 'MaintainCleanFacilities': 'thickness', 'MaintainFireSafety': 'size'}.get(goal_id)
     values = ([r.get('maxHitPoints', 0) - r.get('hitPoints', 0) for r in rows]
@@ -137,6 +141,8 @@ def progress_metric(goal_id, rows):
 
 def reconcile_upkeep(rt, facts):
     from .colony_plan import Failure
+    from .wall_upgrade import reconcile as reconcile_walls
+    reconcile_walls(rt, facts)
 
     raw = facts.get('upkeep') or {}
     if raw.get('version') != 1 or raw.get('tick') != facts.get('tick'):
@@ -223,6 +229,9 @@ async def upkeep_method(rt, goal_id, facts, people):
     if goal_id == 'MaintainAnimalFeed':
         from .animal_feed import feed_method
         return await feed_method(rt, facts)
+    if goal_id == 'MaintainStoneShell':
+        from .wall_upgrade import method as stone_method
+        return await stone_method(rt, facts)
 
     goal = rt.current_plan.colony_goals[goal_id]
     goal.evidence.pop('waiting_for_storage_roof', None)

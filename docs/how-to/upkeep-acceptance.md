@@ -78,6 +78,17 @@ and exact resolution of both pieces of a pending split stack in Manual. A fixtur
 then moves those pieces into covered storage to test completion of the saved
 quantity obligation; it does not claim pawn hauling after restart.
 
+For stone production and a straight-wall upgrade, use
+`python scripts/wall_upgrade_acceptance.py --source-root /worker/run --output /worker/stone --seconds 600`.
+This extends the storeroom scenario with empty exterior backup cells, chunks,
+native raw workbench materials and enabled workers. Missing research must first
+refuse construction; the fixture then supplies that prerequisite for the labor
+case. No blocks, workbench or bill are supplied. Require ordinary
+stonecutting, construction of the backup enclosure, native demolition of one owned
+wall, permanent stone construction and backup removal. Observe roof/enclosure
+between stages. The case does not establish corner replacement or recovery after
+player interruption during demolition.
+
 For animal feed, use
 `python scripts/animal_feed_acceptance.py --source-root /worker/run --output /worker/feed --seconds 300`.
 The fixture supplies a hungry pet, a butcher spot, ingredients outside the pet's

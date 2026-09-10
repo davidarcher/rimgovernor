@@ -13,7 +13,7 @@ class ConstructionRefusal(ValueError):
             'Inspect native evidence and correct the plan; no plan change or construction was issued.')
 
 
-async def preflight_construction(spec, current, game, *, refresh=False):
+async def preflight_construction(spec, current, game, *, refresh=False, deferred_wall_steps=frozenset()):
     previous={step.id:step for step in current.spec.steps}
     def spatial_signature(plan):
         return [(s.id, s.signature()) for s in plan.steps if isinstance(s.action, (Buildings, RoomShell, Zone))]
@@ -68,7 +68,7 @@ async def preflight_construction(spec, current, game, *, refresh=False):
                     if len(rows) != 1 or not safe_rotation(rows[0]):
                         evidence['error'] = 'Relocation replacement must preserve all existing native objects.'
                         continue
-                if result.get('success') is not False and (unchanged or
+                if (result.get('success') is not False or step.id in deferred_wall_steps) and (unchanged or
                         result.get('canPlace') is True or (step.after and not relocation and 'canPlace' in result)):
                     try:
                         footprints[(step.id, str(index))] = native_footprint(result, placement)

@@ -73,6 +73,16 @@ def validate_geometry(spec, footprints=None, *, current=None):
         progress = current.progress.get(step.id) if current else None
         return bool(old and progress and progress.state in ('complete','cancelled') and old.action == step.action)
     active = [step for step in spec.steps if not inactive(step)]
+    def transferred(step, slot):
+        handoff = current.control.get('wall_handoffs', {}).get(f'{step.id}:{slot}') if current else None
+        old = previous.get(step.id)
+        if not handoff or not old or old.action != step.action:
+            return False
+        removal = previous.get(handoff.get('removal'))
+        proposed = next((s for s in spec.steps if removal and s.id == removal.id), None)
+        return bool(removal and proposed and proposed.signature() == removal.signature()
+            and current.progress[removal.id].state == 'complete'
+            and removal.signature() == handoff.get('signature'))
     rooms = [(s.id, s.action) for s in active if isinstance(s.action, RoomShell)]
     claimed = {}
     for step in active:
@@ -80,7 +90,8 @@ def validate_geometry(spec, footprints=None, *, current=None):
         placements = room_placements(action) if isinstance(action, RoomShell) else (
             action.placements if isinstance(action, Buildings) else [])
         groups = [(str(i), footprints.get((step.id, str(i)), {(p.x, p.z)}))
-                  for i, p in enumerate(placements)]
+                  for i, p in enumerate(placements)
+                  if not transferred(step, i)]
         if isinstance(action, Zone):
             groups = [('zone', {c for patch in action.patches for c in patch.cells()})]
         for slot, points in groups:

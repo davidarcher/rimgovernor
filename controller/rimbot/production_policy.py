@@ -33,6 +33,8 @@ def policy_arguments(rt):
 
 async def sync_production_policy(rt):
     """Called while holding the runtime writer lock, before starting simulation."""
+    from .wall_upgrade import release_pending
+    await release_pending(rt, changed_only=True)
     args = policy_arguments(rt)
     signature = fingerprint(args)
     # Native policies can outlive a controller database: even an empty snapshot
@@ -73,7 +75,7 @@ def ingredient_deficits(recipe, resources):
 def required_resource_work(plan):
     result = {row['name']: next(iter(row.get('skills', [])), None)
               for key, goal in plan.colony_goals.items()
-              if (key.startswith('MaintainResource-') or key in ('MaintainEquipment', 'MaintainMedicalReserves', 'MaintainAnimalFeed')) and not goal.cancelled and goal.status != 'complete'
+              if (key.startswith('MaintainResource-') or key in ('MaintainEquipment', 'MaintainMedicalReserves', 'MaintainAnimalFeed', 'MaintainStoneShell')) and not goal.cancelled and goal.status != 'complete'
               for row in goal.evidence.get('work_types', [])}
     research = plan.colony_goals.get('EnsureResearch')
     if research and not research.cancelled and research.status != 'complete' and research.evidence.get('research', {}).get('queue'):

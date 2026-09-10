@@ -1,0 +1,118 @@
+"""Native ordinary-work acceptance within the disposable storeroom scenario."""
+import asyncio
+import time
+
+from rimbot.colony_plan import ColonyGoal, CommitSteps
+from rimbot.colony_upkeep import upkeep_nodes, reconcile_upkeep
+from rimbot.wall_upgrade import method
+
+
+async def verify_upgrade(rt, report, seconds, *, interrupt=False):
+    facts = await rt.game.query('home/colony_facts', planning=True)
+    wooden = {r['id'] for r in facts['upkeep']['structures'] if r['defName'] == 'Wall' and r['flammability'] > 0}
+    walls = [r['current'] for r in facts['upkeep']['construction'] if r['definition'] == 'Wall' and r['present'] and r['current'] in wooden]
+    setup = (await rt.bridge.call('test/stone_upgrade_setup', walls=';'.join(walls))).structuredContent
+    result = report['wall_upgrade_interruption' if interrupt else 'wall_upgrade'] = dict(setup=setup, methods=[], enclosure=[], samples=[])
+    async def advance_safely(ticks=300):
+        from rimbot.native_scenario import advance_game
+        from rimbot.production_policy import sync_production_policy
+        from rimbot.bridge_observation import observe
+        async with rt.lock:
+            await sync_production_policy(rt)
+        await advance_game(rt, ticks, result)
+        rt.batch = await observe(rt.game)
+        await rt.projects.reconcile(rt.game, plan=rt.current_plan)
+        rt.reconcile_plan()
+    assert setup['success'] and (interrupt or setup['initialBlocks'] == 0), setup
+    goal_id = 'MaintainStoneShell'
+    goal = rt.current_plan.colony_goals.setdefault(goal_id, ColonyGoal(priority_class=4))
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        facts = await rt.game.query('home/colony_facts', planning=True)
+        result['samples'].append(facts)
+        assert not facts['upkeep']['errors'], facts['upkeep']['errors']
+        upkeep_nodes(facts, rt.current_plan.control, rt.current_plan.colony_goals, plan=rt.current_plan)
+        state = rt.current_plan.control['upkeep'][goal_id]
+        state['targets'] = [r for r in state['targets'] if r['id'] == setup['target']]
+        if facts['definitions']['TableStonecutter']['available'] is False:
+            from rimbot.colony_skills import SkillBlocked
+            try:
+                await method(rt, facts)
+            except SkillBlocked as error:
+                assert 'Native construction prerequisite unavailable: TableStonecutter' in str(error)
+                assert 'TableStonecutter' in goal.evidence['required_capabilities']
+                result['missing_research_refusal'] = str(error)
+            else:
+                raise AssertionError('Missing stonecutter research did not block construction')
+            result['research_fixture'] = (await rt.bridge.call('test/stonecutting_prerequisite')).structuredContent
+            assert result['research_fixture']['success']
+            continue
+        compiled = await method(rt, facts)
+        if compiled is None:
+            assert goal.evidence.get('waiting_for_stone_blocks')
+            await advance_safely()
+            continue
+        key, actions = compiled
+        if key.startswith('wall-'):
+            result['produced_blocks'] = facts.get('resources', {}).get(setup['stone'], 0)
+            assert result['produced_blocks'] >= goal.evidence['wall_upgrade']['reserved_blocks']
+        steps, _ = rt.controller.skills.steps(goal_id, key, actions, facts)
+        await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
+            reason='Native stone wall acceptance', steps=steps).decision(rt.current_plan),
+            actor='strategist', expected_token=rt.context_token, expected_revision=rt.chat_revision)
+        goal.steps.extend(s.id for s in steps)
+        goal.evidence.setdefault('methods', {})[key] = [s.id for s in steps]
+        while time.monotonic() < deadline:
+            rt.execution_task = asyncio.current_task()
+            rt.handled_revision, rt.mode = rt.chat_revision, 'automate'
+            await rt.hands.advance(rt)
+            rt.mode = 'manual'
+            if interrupt and key.startswith('wall-') and rt.current_plan.progress[steps[1].id].issued:
+                receipt = rt.current_plan.progress[steps[1].id].issued['0']
+                assert receipt['confirmed'] and receipt['wall_removal_id']
+                await rt.halt()
+                await advance_safely(1800)
+                facts = await rt.game.query('home/colony_facts', planning=True)
+                reconcile_upkeep(rt, facts)
+                row = next(r for r in facts['upkeep']['wallRemoval'] if r['id'] == receipt['wall_removal_id'])
+                assert not row['complete'] and row['blocker'] == 'Automation stopped; pending demolition invalidated', row
+                assert any(r['id'] == setup['target'] for r in facts['upkeep']['structures'])
+                assert rt.current_plan.progress[steps[1].id].state == 'blocked'
+                assert not rt.current_plan.progress[steps[2].id].issued
+                count = len(facts['upkeep']['wallRemoval'])
+                rt.handled_revision, rt.mode = rt.chat_revision, 'automate'
+                await rt.hands.advance(rt)
+                rt.mode = 'manual'
+                after = await rt.game.query('home/colony_facts', planning=True)
+                assert len(after['upkeep']['wallRemoval']) == count
+                assert any(r['id'] == setup['target'] for r in after['upkeep']['structures'])
+                result.update(outcome='passed', held_original=setup['target'], removal=row,
+                    progress=[rt.current_plan.progress[s.id].model_dump() for s in steps])
+                print('stone upgrade: Manual invalidation preserved original wall and prevented replay', flush=True)
+                return
+            await advance_safely()
+            facts = await rt.game.query('home/colony_facts', planning=True)
+            reconcile_upkeep(rt, facts)
+            enclosure = (await rt.bridge.call('test/wall_enclosure', **{k: setup[k] for k in ('x', 'z', 'nx', 'nz')})).structuredContent
+            result['enclosure'].append(enclosure)
+            assert enclosure['enclosed'] and enclosure['fullyRoofed'] and not enclosure['pendingCollapse'], enclosure
+            progress = [rt.current_plan.progress[s.id] for s in steps]
+            assert not any(p.state in ('blocked', 'cancelled') for p in progress), [p.model_dump() for p in progress]
+            if all(p.state == 'complete' for p in progress):
+                break
+        assert all(rt.current_plan.progress[s.id].state == 'complete' for s in steps), 'Native stone work timed out'
+        result['methods'].append(dict(key=key, steps=[s.model_dump() for s in steps],
+            progress=[rt.current_plan.progress[s.id].model_dump() for s in steps]))
+        print('stone upgrade: ' + key + ' shared actions completed', flush=True)
+        if key.startswith('wall-'):
+            rows = facts['upkeep']['construction']
+            origin = rt.current_plan.progress[steps[2].id].issued['0']['placed_thing_id']
+            permanent = next(r for r in rows if r['origin'] == origin)
+            assert permanent['present'] and permanent['stage'] == 'built' and permanent['stuff'] == setup['stone']
+            assert next(r for r in rows if r['current'] == setup['target'])['present'] is False
+            backups = {v['placed_thing_id'] for v in rt.current_plan.progress[steps[0].id].issued.values()}
+            assert len(backups) == 3 and all(not r['present'] for r in rows if r['origin'] in backups)
+            result['permanent'] = permanent
+            result['outcome'] = 'passed'
+            return
+    raise AssertionError('Native stone production or wall replacement timed out')
