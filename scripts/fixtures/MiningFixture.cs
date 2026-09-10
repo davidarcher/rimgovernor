@@ -17,6 +17,14 @@ namespace HomeBridge.BridgeTools
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
+                if (action == "inspect") {
+                    var cell = new IntVec3(x, 0, z);
+                    var region = GenRadial.RadialCellsAround(cell, RoofCollapseUtility.RoofMaxSupportDistance, true).ToList();
+                    return new { success = true, standable = cell.InBounds(map) && cell.Standable(map),
+                        unknown = region.Count(c => !c.InBounds(map) || c.Fogged(map)),
+                        roofs = region.Count(c => c.InBounds(map) && c.Roofed(map)),
+                        collapsing = region.Count(c => c.InBounds(map) && map.roofCollapseBuffer.IsMarkedToCollapse(c)) };
+                }
                 if (action == "roof") { map.roofGrid.SetRoof(new IntVec3(x, 0, z), RoofDefOf.RoofConstructed); return new { success = true }; }
                 if (action == "unroof") { map.roofGrid.SetRoof(new IntVec3(x, 0, z), null); return new { success = true }; }
                 if (action == "cancel") {

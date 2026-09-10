@@ -33,13 +33,29 @@ def drilling_policy(plan):
 
 
 def development_method(goal, sources, facts):
-    from .colony_skills import SkillBlocked
+    from .colony_skills import SkillBlocked, native
     infrastructure = sources.get('infrastructure') or {}
     if not goal.target.get('deep_extraction'):
         raise SkillBlocked('Deep extraction requires explicit player approval of drilling and its native infestation risk')
     owned = infrastructure.get('owned', [])
     if any(r.get('missing') is True and r.get('depleted') is not True and goal.method_seen(facility_key(r)) for r in owned):
         raise SkillBlocked('Extraction facility was removed before depletion; inspect retained construction before renewing work')
+    for drill in infrastructure.get('drills', []):
+        if not any(r.get('thingId') == drill['thingId'] and r.get('depleted') is True for r in owned):
+            continue
+        if drill.get('switchOn') is False:
+            continue
+        if drill.get('switchOn') is not True or not drill.get('flickWorkers'):
+            raise SkillBlocked('Extraction development cannot retire depleted equipment without a native switch and eligible worker')
+        work = goal.evidence.setdefault('work_types', [])
+        if infrastructure['flickWorkType'] not in work:
+            work.append(infrastructure['flickWorkType'])
+        method = 'retire-drill-' + drill['thingId']
+        if drill.get('flickDesignated'):
+            return None
+        if goal.method_seen(method):
+            raise SkillBlocked('Depleted drill switch-off was interrupted; inspect and explicitly renew the resource goal')
+        return method, [native('home/building_config', thing=drill['thingId'], power='off', watch=False)]
     working = [d for d in infrastructure.get('drills', []) if d.get('resource') == goal.target['resource']
                and any(r.get('thingId') == d['thingId'] for r in owned)]
     if working:

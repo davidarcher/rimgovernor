@@ -33,7 +33,8 @@ scanner, ordinary construction supplies, an existing qualified builder and miner
 deep deposits. Before the goal begins, the fixture sets the nearest selected seam to
 one unit and the other to two native portions. These are scenario inputs. Construction,
 drilling speed, mining yield, recovered stock and hauling are native pawn outcomes.
-The scenario stages storage and two drills through shared Hands, checks depletion
+The scenario stages storage and two drills through shared Hands, restores drill
+ownership through a paired restart, checks pawn-operated power release and depletion
 replacement, verifies a satisfied stock target stops further work while ore remains,
 and observes the output in storage. `result.json` retains native power, pawn and
 extraction observations throughout. Initial grid settling is bounded; setup failures

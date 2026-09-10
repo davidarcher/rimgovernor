@@ -75,8 +75,13 @@ namespace HomeBridge.BridgeTools
                 .Select(b => new { thingId = b.ThingID, defName = b.def.defName, x = b.Position.x, z = b.Position.z,
                     resource = DeepDrillUtility.GetNextResource(b.Position, map)?.defName,
                     available = b.GetComp<CompDeepDrill>().CanDrillNow(), forbidden = b.IsForbidden(Faction.OfPlayer),
+                    switchOn = (bool?)b.GetComp<CompFlickable>()?.SwitchIsOn,
+                    flickDesignated = map.designationManager.DesignationOn(b, DesignationDefOf.Flick) != null,
+                    flickWorkers = map.mapPawns.FreeColonistsSpawned.Where(p => ExtractionDevelopment.Worker(p, ExtractionDevelopment.FlickWork)
+                        && p.CanReach(b, PathEndMode.Touch, Danger.None)).Select(p => p.ThingID).ToList(),
                     progress = b.GetComp<CompDeepDrill>().ProgressToNextPortionPercent }).ToList();
             return new { definitions, scannersActive, scanners, deposits, drills,
+                flickWorkType = ExtractionDevelopment.FlickWork == null ? null : HomeBillsTools.WorkTypeMetadata(ExtractionDevelopment.FlickWork),
                 sites = development ? ExtractionDevelopment.Sites(map, resource) : new List<object>(),
                 owned = MiningGuard.State().Drills.Where(r => r.MapId == map.uniqueID && r.Resource == resource)
                     .Select(r => new { defName = r.Definition, thingId = r.ThingId, pendingId = r.PendingId, x = r.X, z = r.Z, recovered = r.Recovered,

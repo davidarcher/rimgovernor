@@ -52,13 +52,19 @@ to a grid whose observed surplus covers the equipment. Missing research, power,
 labor or deposits blocks development with its evidence; it does not grant research,
 generate power, reveal undiscovered deposits or suppress infestations.
 
-Only committed new drill placements enter the supervised extraction policy. Existing
-player drills cannot be adopted. Before each native work interval, owned drills check
+Only confirmed new drill blueprints enter the supervised extraction policy. Native
+blueprint-to-frame and frame-to-building transitions bind the exact owned drill;
+existing player drills and unrelated replacement buildings cannot be adopted.
+Before each native work interval, owned drills check
 the exact resource, retained building identity, forbidden state and current stock
 target. Depleted seams cannot fall through to stone-chunk production. The final native
 portion may overshoot the target; work speed and yield remain native. Output counters
 measure actual spawned stock increases and never certify hauling. Fresh observations
 choose another eligible deposit after depletion without moving an existing building.
+Depleted owned drills first receive a normal power-switch designation. An eligible
+native worker must flick the switch before the released grid capacity can admit a
+replacement. Receipts cannot certify this power release, and a cancelled switch
+request cannot silently repeat.
 
 Ownership and recovered output persist with the native save. Stock targets are
 re-admitted from the paired controller state before supervised simulation and are not

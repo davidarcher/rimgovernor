@@ -88,6 +88,16 @@ async def run(args):
                     record('hands_'+step.id, rt.current_plan.progress[step.id].state in ('complete','waiting'),
                         progress=rt.current_plan.progress[step.id].model_dump(mode='json'))
                 if actions[0]['kind'] == 'place_buildings': break
+                if actions[0]['kind'] == 'native_operation':
+                    await work('basic')
+                    deadline = time.monotonic() + args.seconds
+                    target = actions[0]['arguments']['thing']
+                    while time.monotonic() < deadline:
+                        await window()
+                        retired = next(d for d in report['latest']['infrastructure']['drills'] if d['thingId'] == target)
+                        if retired['switchOn'] is False: break
+                    record('native_power_release_'+target, retired['switchOn'] is False, drill=retired)
+                    await work('construct')
             site = goal.evidence['extraction_facility']
             deadline = time.monotonic() + args.seconds
             while time.monotonic() < deadline:

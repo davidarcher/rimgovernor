@@ -84,3 +84,21 @@ def test_drill_work_progress_is_not_stock_and_old_tick_cannot_reopen_watchdog():
     sources['infrastructure']['drills'][0]['progress'] = .4
     sources['tick'] = 15
     assert not observe_mining_progress(goal, sources)
+
+
+def test_depleted_drill_power_release_waits_for_native_switch_and_respects_cancellation():
+    goal, sources, _ = fixture()
+    infrastructure = sources['infrastructure']
+    drill = dict(thingId='old', resource='ChunkGranite', switchOn=True, flickWorkers=['worker'], flickDesignated=False)
+    infrastructure.update(drills=[drill], owned=[dict(thingId='old',depleted=True)], flickWorkType={'name':'BasicWorker'})
+    method, actions = development_method(goal, sources, {})
+    assert actions[0]['tool'] == 'home/building_config' and actions[0]['arguments']['power'] == 'off'
+    goal.evidence['methods'] = {method:['switch']}
+    drill['flickDesignated'] = True
+    assert development_method(goal, sources, {}) is None
+    assert goal.evidence['work_types'] == [{'name':'BasicWorker'}]
+    drill['flickDesignated'] = False
+    with pytest.raises(SkillBlocked, match='interrupted'): development_method(goal, sources, {})
+    drill['switchOn'] = False
+    _, actions = development_method(goal, sources, {})
+    assert actions[0]['kind'] == 'place_buildings'

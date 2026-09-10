@@ -29,7 +29,8 @@ namespace HomeBridge.BridgeTools
                     return new { success = true, first = new { x = first.x, z = first.z } };
                 }
                 if (action != "setup") {
-                    var enabled = action == "construct" ? WorkTypeDefOf.Construction : action == "haul" ? WorkTypeDefOf.Hauling : WorkTypeDefOf.Mining;
+                    var enabled = action == "construct" ? WorkTypeDefOf.Construction : action == "haul" ? WorkTypeDefOf.Hauling
+                        : action == "basic" ? ExtractionDevelopment.FlickWork : WorkTypeDefOf.Mining;
                     foreach (var worker in map.mapPawns.FreeColonistsSpawned.ToList())
                         foreach (var work in DefDatabase<WorkTypeDef>.AllDefs.ToList())
                             if (!worker.WorkTypeIsDisabled(work)) worker.workSettings.SetPriority(work, work == enabled ? 1 : 0);

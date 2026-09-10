@@ -133,6 +133,9 @@ async def run(args):
             evidence = next(e for e in observed['extractions'] if e['thingId'] == target['thingId'])
             record('recovered_' + target['thingId'], evidence['finished'] >= 0 and evidence['recovered'] > 0
                 and not any(s['thingId'] == target['thingId'] for s in observed['sources']), extraction=evidence)
+            geometry = await fixture(action='inspect', x=target['x'], z=target['z'])
+            record('safe_geometry_' + target['thingId'], geometry['standable']
+                and geometry['unknown'] == geometry['roofs'] == geometry['collapsing'] == 0, geometry=geometry)
         record('depleted_receipt_cannot_replay', (await dispatch(first, refuse=True)).get('success') is False)
         await fixture(action='hauling')
         deadline = time.monotonic() + args.seconds
@@ -168,6 +171,9 @@ async def run(args):
             (args.output / 'progress.json').write_text(json.dumps(report, indent=2))
             if pending['finished'] >= 0 or pending['cancelled']: break
         record('resumed_native_output', pending['finished'] >= 0 and pending['recovered'] > 0, extraction=pending)
+        geometry = await fixture(action='inspect', x=third['x'], z=third['z'])
+        record('safe_resumed_geometry', geometry['standable']
+            and geometry['unknown'] == geometry['roofs'] == geometry['collapsing'] == 0, geometry=geometry)
         record('zero_inference', rt.counters.get('model_calls', 0) == 0)
         report['passed'] = True
     except Exception as error:
