@@ -643,7 +643,8 @@ immutable powered, supplied or working-freezer checkpoint after an infrastructur
 --output <fresh-directory> --variant hot|cold` then adopts an edited room, preserves
 existing furniture, fills native sleeping capacity and verifies ordinary fueled
 thermal furniture and temperature recovery. Each variant resumes the immutable
-checkpoint independently. These probes require the named local model to be loaded;
+checkpoint independently, verifies exact native food filters and storage priority, and
+records both freezers across three loaded native windows before editing. These probes require the named local model to be loaded;
 retain failed reports and distinguish powered construction from actual cooling.
 
 `scripts/cancel_construction_acceptance.py --source-root <prepared-root> --output

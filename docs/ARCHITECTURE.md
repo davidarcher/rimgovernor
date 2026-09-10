@@ -243,6 +243,11 @@ request and operation budget; it never dispatches unrelated work. Native constru
 projects retain their source step identity, so equal display titles cannot replace
 another action's completion targets. Legacy descriptive projects remain separate.
 
+Geometry admission retains conflicts between unfinished actions and explicit reserved
+walkways. Unchanged completed actions remain history and do not reserve their old
+cells against later player edits. New placement still requires native previews against
+the current map, including actual buildings and cancellation hazards.
+
 `SetBuildingTemperature` requires one exact observed completed player building and
 a successful native temperature-control preview. It uses shared Hands and the native
 setpoint control. The accepted setpoint does not certify room temperature or power.

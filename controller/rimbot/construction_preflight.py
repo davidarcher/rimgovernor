@@ -23,7 +23,7 @@ async def preflight_construction(spec, current, game):
     if (spatial_signature(spec) == spatial_signature(current.spec)
             and spec.reserved_walkways == current.spec.reserved_walkways):
         return
-    validate_geometry(spec)
+    validate_geometry(spec, current=current)
     checked={}
     footprints={}
     for step in spec.steps:
@@ -75,7 +75,7 @@ async def preflight_construction(spec, current, game):
             async def read(name, arguments):
                 return await game.invoke(name, arguments, allow_write=False)
             await validate_shell_site(step.id, action, read)
-    validate_geometry(spec, footprints)
+    validate_geometry(spec, footprints, current=current)
     if shells_changed:
         async def read(name, arguments):
             return await game.invoke(name, arguments, allow_write=False)

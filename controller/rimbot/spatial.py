@@ -50,13 +50,19 @@ def native_footprint(preview, placement):
     return points
 
 
-def validate_geometry(spec, footprints=None):
+def validate_geometry(spec, footprints=None, *, current=None):
     """Footprints keyed by (step ID, slot) refine the conservative anchor checks."""
     footprints = footprints or {}
     reserved = {c for r in spec.reserved_walkways for c in r.cells()}
-    rooms = [(s.id, s.action) for s in spec.steps if isinstance(s.action, RoomShell)]
+    previous = {step.id: step for step in current.spec.steps} if current else {}
+    def completed(step):
+        old = previous.get(step.id)
+        progress = current.progress.get(step.id) if current else None
+        return bool(old and progress and progress.state == 'complete' and old.action == step.action)
+    active = [step for step in spec.steps if not completed(step)]
+    rooms = [(s.id, s.action) for s in active if isinstance(s.action, RoomShell)]
     claimed = {}
-    for step in spec.steps:
+    for step in active:
         action = step.action
         placements = room_placements(action) if isinstance(action, RoomShell) else (
             action.placements if isinstance(action, Buildings) else [])

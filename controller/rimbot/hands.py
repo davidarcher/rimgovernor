@@ -227,7 +227,7 @@ class Hands:
                 owner = next((s for s in rt.current_plan.spec.steps
                               if rt.current_plan.progress.get(s.id) is progress), None)
                 if owner is not None:
-                    validate_geometry(rt.current_plan.spec, {(owner.id, key): occupied})
+                    validate_geometry(rt.current_plan.spec, {(owner.id, key): occupied}, current=rt.current_plan)
             except GeometryConflict as error:
                 raise Blocked('spatial_conflict', str(error), evidence=error.evidence) from error
             except ValueError as error:

@@ -25,7 +25,8 @@ async def run(args):
     store=Store(state/'bridge.sqlite')
     rt=BridgeRuntime(store,Path(data['root']),fresh=True,headless=True,resume=checkpoint,
         settings=Settings(model=args.model,timeout_seconds=90))
-    report={'outcome':'failed','variant':args.variant,'source_checkpoint':checkpoint,'cases':[],'samples':[]}
+    report={'outcome':'failed','variant':args.variant,'source_checkpoint':checkpoint,
+            'source_checkpoint_manifest':data,'cases':[],'samples':[]}
     bounds=dict(source['site']['second'],width=source['site']['size'],height=source['site']['size'])
     deadline=time.monotonic()+args.seconds
     def record(name,passed,**evidence):
@@ -109,7 +110,32 @@ async def run(args):
         (args.output/'manifest.json').write_text(json.dumps(capture_manifest(Path(__file__).resolve().parents[1],
             Path(data['root']),Path(data['root'])/'config-headless',rt.router.routing.model_dump(mode='json')),indent=2))
         await ready(rt)
-        room,buildings=await observations()
+        await settle()
+        zones=await rt.game.query('home/list_zones',includeCells=True,filter=True,maxCellsPerZone=10000)
+        for label in ('first','second'):
+            origin=source['site'][label];size=source['site']['size']
+            expected={(x,z) for x in range(origin['x']+1,origin['x']+size-1)
+                      for z in range(origin['z']+1,origin['z']+size-1)}
+            matches=[zone for zone in zones['zones'] if zone.get('gridCellsNotListed')==0
+                and {(p['x'],p['z']) for p in zone.get('gridCells',[])}==expected]
+            assert len(matches)==1,matches
+            zone=matches[0]
+            policy=await rt.game.invoke('home/zone_cells',{'op':'filter','zone':str(zone['id']),
+                'preset':'food','priority':'Important','dryRun':True,'watch':False})
+            record('native_'+label+'_food_storage_policy',zone.get('priority')=='Important'
+                and policy.get('success') is True and policy.get('changed') is False,zone=zone,policy=policy)
+        for _ in range(3):
+            room,buildings=await window('verify_loaded_freezer')
+            first=source['site']['first']
+            census=await rt.game.query('home/list_rooms',x=first['x']+1,z=first['z']+1,cells=True)
+            interior={(x,z) for x in range(first['x']+1,first['x']+source['site']['size']-1)
+                      for z in range(first['z']+1,first['z']+source['site']['size']-1)}
+            original=next(r for r in census['rooms'] if r.get('cellsComplete') is True
+                and {(p['x'],p['z']) for p in r['cells']}==interior)
+            report['samples'][-1]['original_freezer']=original
+            assert original['temperature']<=0 and room['temperature']<=0
+            assert original['stockpileCellsInRoom']==len(interior) and room['stockpileCellsInRoom']==len(interior)
+        record('loaded_freezers_remain_cold',True,original=original,expanded=room)
         cooler=next(b for b in buildings['buildings'] if b['defName']=='Cooler'
             and b['position']=={'x':bounds['x']+bounds['width']//2,'z':bounds['z']})
         # A real player-style furniture edit occupies the first fitting candidate.

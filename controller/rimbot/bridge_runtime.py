@@ -277,7 +277,7 @@ class BridgeRuntime:
                 raise ValueError('Colony or direction changed; decision was not committed')
             allocations = {}
             if decision.plan:
-                validate_geometry(decision.plan)
+                validate_geometry(decision.plan, current=self.current_plan)
                 await validate_native_steps(decision.plan, self.game)
                 from .construction_cancellation import validate_cancellations
                 if any(s.action.kind == 'cancel_construction' and not any(old.id == s.id for old in self.current_plan.spec.steps)
