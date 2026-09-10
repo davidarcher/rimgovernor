@@ -353,13 +353,6 @@ in the checkpoint commit; do not append an implementation diary here.
   excavation hazards block the affected work. Stage hauling/storage and later
   extraction infrastructure through B06/B06b/B07 scheduling. Verify actual recovered
   resources and safe completed geometry, including interrupted digs and depleted sites.
-- [ ] **B27 · Waste and corpse management.** Add maintained disposal/storage goals
-  for corpses, spoiled goods and unwanted items using native filters, deterioration,
-  hazards and pawn/ideology preferences. Separate dirty storage from occupied clean
-  facilities and protect graves, quest items and player-designated possessions.
-  Choose accessible disposal methods within policy and resource limits; distinguish
-  temporary relocation from completed disposal. Verify actual hauling/destruction
-  and exposure reduction without broad unreviewed item deletion or zone reassignment.
 - [ ] **B28 · Disaster-specific recovery.** Coordinate B04f emergencies, B04h upkeep
   and B06d utilities for prolonged environmental disruption, crop loss and concurrent
   infrastructure failures. Discover the actual event and affected capabilities;
