@@ -68,9 +68,13 @@ bind-mounted output directory after shutdown. Windows bind-mounted GABS claim fi
 produce publication races. Use a fresh source/mod snapshot and worker root for every run.
 
 The development case uses normal Peaceful difficulty and nonperishable starting food.
+Use `--new-crashlanded` for ordinary native three-colonist generation and starting
+technology; the case must complete a newly selected available research project.
+For an unchanged native autosave continuation, pass `--research-project <defName>`
+to retain that completion requirement. Keep the original save and its input hash.
 The test-only fixture supplies starting resources, clubs for ordinary equip jobs, opponents, wounds, unavailable-doctor
 mental state and native external orders. It never supplies finished buildings, research
-or treatment. The cases require actual expanded indoor capacity, researched electricity,
+or treatment. The cases require actual expanded indoor capacity, completed research,
 connected powered loads and completed comfort furniture; two treated patients after a
 provider replacement and a preserved player order; multi-opponent defense with triage;
 and compiler/dispatch/clock health holds including stale-preview and repeated admissions.

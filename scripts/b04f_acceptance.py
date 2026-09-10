@@ -83,6 +83,16 @@ async def run(args):
                         rt.supervisor.allow_resume()
                     elif combat and not (await refresh())[0].get('hostiles'):
                         pass
+                    elif clock.get('stopReason')=='force_paused':
+                        targets=await rt.game.query('rimworld/get_screen_targets')
+                        report['paused_ui']=targets;save()
+                        research=rt.current_plan.colony_goals.get('EnsureResearch')
+                        completed=research and research.target.get('project') in facts.get('development',{}).get('research',{}).get('finished',[])
+                        windows=targets.get('targets',{}).get('windows',[])
+                        assert completed and len(windows)==1 and windows[0].get('type')=='Verse.Dialog_NodeTree' and windows[0].get('dismissTargetId'),targets
+                        await rt.native('rimworld/click_screen_target',{'targetId':windows[0]['dismissTargetId']},reconcile=False)
+                        check('native_research_dialog_closed',not (await rt.game.query('rimworld/get_ui_state')).get('windows'),ui=targets)
+                        rt.supervisor.allow_resume()
                     else:
                         raise AssertionError('Native guard stopped fixture: '+str(clock))
             return await refresh()
@@ -113,6 +123,7 @@ async def run(args):
                 assert rt.current_plan.progress[s.id].state in ('pending','waiting','complete'),rt.current_plan.progress[s.id]
             return [s.id for s in steps]
         async def finish_steps(ids, phase):
+            if not ids:return
             equipment=bool(ids) and all(getattr(s.action,'completion',None) in ('pawn_equipped','pawn_at_position')
                 for s in rt.current_plan.spec.steps if s.id in ids)
             while any(rt.current_plan.progress[i].state!='complete' for i in ids):
@@ -123,7 +134,21 @@ async def run(args):
             check(phase,True,steps={i:rt.current_plan.progress[i].model_dump() for i in ids})
         try:
             await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
-            await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
+            if args.new_crashlanded:
+                report['native_start']=(await bridge.call('rimworld/start_debug_game_ready',readiness='visual',pauseIfNeeded=True,timeoutMs=120000)).structuredContent
+                census={}
+                for _ in range(30):
+                    try:
+                        census=(await bridge.call('home/colony_facts',planning=False)).structuredContent
+                        if census.get('colonists')==3:break
+                    except BridgeError as error:
+                        if 'No living colonists' not in str(error):raise
+                    await bridge.call('rimworld/set_time_speed',speed='Normal',ultraSpeedBoost=False)
+                    await asyncio.sleep(.25)
+                    await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
+                check('ordinary_crashlanded_start',census.get('colonists')==3)
+            else:
+                await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
             await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
             await rt.sync_identity();rt.mode='automate'
             await setup('stocks')
@@ -140,7 +165,7 @@ async def run(args):
                     await finish_steps(ids,'shelter_work')
                     await window()
                 check('ordinary_roofed_shelter',facts['indoorSleepingCapacity']>=facts['colonists'],facts=facts)
-                before=facts['indoorSleepingCapacity']
+                before=facts['colonists']
                 for _ in range(5):
                     facts,_=await refresh()
                     if facts['indoorSleepingCapacity']>before:break
@@ -149,7 +174,13 @@ async def run(args):
                 facts,_=await refresh()
                 check('ordinary_expansion',facts['indoorSleepingCapacity']>before,capacity=facts['indoorSleepingCapacity'])
                 goal=rt.current_plan.colony_goals.setdefault('EnsureResearch',ColonyGoal(priority_class=4))
-                for project in ('Electricity','ComplexFurniture'):
+                projects=['Electricity','ComplexFurniture']
+                if args.research_project:projects.append(args.research_project)
+                if args.new_crashlanded:
+                    await finish_steps(await issue('EnsureResearch'),'native_research_bench')
+                    facts,_=await refresh()
+                    projects.append(min(facts['development']['research']['available'],key=lambda p:(p['cost'],p['defName']))['defName'])
+                for project in projects:
                     goal.target['project']=project
                     for _ in range(180):
                         facts,_=await refresh()
@@ -175,7 +206,15 @@ async def run(args):
                     if ids:await finish_steps(ids,'ordinary_connection')
                     await window()
                 facts,_=await refresh()
-                check('native_connected_power',facts['powerRequired'] and facts['powerHeadroom']>=0,power=facts['development']['power'])
+                power=facts['development']['power']
+                load_row=next(p for p in power if p['id']==target['id'])
+                site=generator['placements'][0]
+                generator_row=next(p for p in power if p['defName']=='WoodFiredGenerator'
+                    and p['x']==site['x'] and p['z']==site['z'])
+                conduits=[b for b in facts['development']['furniture'] if b['defName']=='PowerConduit']
+                check('native_connected_power',facts['powerRequired'] and facts['powerHeadroom']>=0
+                    and load_row['powered'] and load_row['net']==generator_row['net']
+                    and generator_row['outputW']>0 and bool(conduits),power=power,conduits=conduits)
                 from rimbot.development import development_nodes
                 for _ in range(20):
                     facts,_=await refresh()
@@ -304,4 +343,6 @@ if __name__=='__main__':
     parser.add_argument('--root',type=Path,required=True)
     parser.add_argument('--case',choices=['development','combat','medical','health'],required=True)
     parser.add_argument('--seconds',type=int,default=1800)
+    parser.add_argument('--new-crashlanded',action='store_true',help='Use ordinary native Crashlanded generation and starting technology, without save edits')
+    parser.add_argument('--research-project',help='Require this native project on a saved-colony continuation')
     asyncio.run(run(parser.parse_args()))
