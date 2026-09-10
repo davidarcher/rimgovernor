@@ -70,6 +70,43 @@ in the checkpoint commit; do not append an implementation diary here.
   custom definitions, sealed pockets, altered interiors and map edges. Measure
   repeated preflight/dispatch observation cost; controller fixtures do not establish
   native routes, construction completion or throughput.
+- [ ] **B06a · Deterministic crop and farm plot selection.** Coordinate with B04a
+  food control and B08 forecasts. Replace distance-first rice patch packing with
+  bounded, explainable crop/site scoring shared by starter and expansion methods.
+  Prefer nearby rich soil for rice/corn, but penalize travel, hauling, fragmentation
+  and unsafe access enough that distant rich soil can lose to suitable local soil.
+  Use stable tie breaks and configurable distance/score limits; calibrate the
+  tradeoff with measured pawn work rather than inventing a universal distance cutoff.
+  Prefer contiguous additions to compatible controller-managed farms before new
+  compact fields; reserve isolated 1x1 cells for constrained-soil fallback. Preserve
+  player crop choices, existing plants, other zones, entrances and reserved routes.
+  Reuse native `home/zone_cells` add/preview support through durable shared actions
+  with exact before/after geometry, direction guards and uncertain-write recovery;
+  do not let native add transfer cells from another zone.
+  Current planning facts expose fertility and free-ground geometry within 22 cells
+  of the colony center, but only rice crop definitions. Start with local fertility,
+  compactness and adjacency ranking; distance is only a proxy until native route
+  evidence is available. Audit existing definition/query tools before extending
+  observations for corn/potatoes, fertility sensitivity, sow/harvest work, effective
+  yield, light/rest cycles and remaining growing season. Use installed native
+  definitions and difficulty modifiers, not fixed wiki statistics.
+  Prefer rice when first-harvest urgency or a short season dominates; consider corn
+  when reserves and the growing window support its longer cycle and lower labor.
+  Prefer potatoes on nearby growable stony soil/gravel when better soil is too far
+  away, subject to the same urgency check; bare rock is not growable soil. Rank
+  conservative nutrition per tile/day alongside time to first harvest and labor.
+  Rich soil improves growth speed, not yield per harvest. Keep projected production
+  separate from stored food and observed growing cells; unknown season/access data
+  must not certify food security or trigger destructive crop switching.
+  Acceptance: nearby versus distant rich soil, poor-soil potato selection, urgent
+  rice versus adequately buffered corn, short/unknown seasons, contiguous expansion,
+  fragmented terrain, preserved player zones, changed direction and lost receipts.
+  Add deterministic fixtures, then native scenarios observing sowing, travel,
+  harvest and replenished food stocks; zone receipts alone do not establish success.
+  Strategy references: RimWorld Wiki [rice](https://rimworldwiki.com/wiki/Rice_plant),
+  [corn](https://rimworldwiki.com/wiki/Corn_plant),
+  [potatoes](https://rimworldwiki.com/wiki/Potato_plant) and
+  [plant growth](https://rimworldwiki.com/wiki/Plants#Fertility).
 - [ ] **B07 · Durable project scheduling.** Extend maintained functional goals,
   resource competition and production-consumption accounting through the shared
   plan and Hands; coordinate ingredient-policy coverage with B04e. Verify real
