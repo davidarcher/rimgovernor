@@ -661,7 +661,7 @@ only intentional small, sanitized regression fixtures belong in source control.
       inventory argument-dependent native read/write boundaries (domain agent).
     - [x] **00d.2:** inventory platform discovery variables and tooling cache CLI
       options with source checks (interface agent; independent of 00d.1).
-    - [ ] **00d.3:** retain exact Python serialization/signature comparison cases
+    - [x] **00d.3:** retain exact Python serialization/signature comparison cases
       and uncertain issued-action evidence (state agent; independent of 00d.1–2).
     - [ ] **00d.4:** integrator final coverage review and baseline availability
       record; depends on 00d.1–3. Uncontended native timing is still required before
