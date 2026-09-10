@@ -72,6 +72,11 @@ Ordinary medicine hauling requires the native quantity ledger's protected-delive
 tick. A separate disposable-stack fixture exercises native split/merge operations,
 partial delivery, destruction before delivery and retained proof after consumption.
 Those accounting checks are distinct from the scenario's pawn-labor acceptance.
+The scenario creates a paired checkpoint and restarts the private game. It requires
+unchanged construction identities and plan receipts, retained delivery/loss proofs,
+and exact resolution of both pieces of a pending split stack in Manual. A fixture
+then moves those pieces into covered storage to test completion of the saved
+quantity obligation; it does not claim pawn hauling after restart.
 
 For animal feed, use
 `python scripts/animal_feed_acceptance.py --source-root /worker/run --output /worker/feed --seconds 300`.

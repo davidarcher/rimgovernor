@@ -41,8 +41,9 @@ in the checkpoint commit; do not append an implementation diary here.
   storage before building. Extend covered general storage to obstructed interiors
   and changed native capacity without disturbing player filters. Prioritize
   safe hauling by loss risk and survival value; extend verified covered-storage
-  hauling quantity tracking to unavailable capacity, interruptions and paired
-  restart. Native split/merge accounting and pre-delivery loss are verified.
+  hauling quantity tracking to unavailable capacity and interrupted pawn work.
+  Native split/merge accounting, pre-delivery loss and saved quantity/construction
+  identities across paired restart are verified; resumed pawn delivery remains open.
   Item loss must remain distinct from successful protection.
   Restore temporary hauling overrides when the deficit clears. Extend verified
   floor-to-bed upgrades to shortages, unavailable research/materials, unsafe

@@ -44,9 +44,38 @@ namespace HomeBridge.BridgeTools
                 var loss = Current.Game.GetComponent<HaulTrackingState>().Records.Single(r => r.Id == lossId);
                 bool lossBlocked = !loss.Complete && loss.Blocker != null;
                 lost.Destroy();
+                var pending = stack(10, outside);
+                var pendingId = HaulTracking.Begin(pending, pawn); HaulTracking.Accept(pendingId, true);
+                var pendingPiece = pending.SplitOff(4);
+                var otherCell = GenRadial.RadialCellsAround(outside, 5, false).First(c => c.InBounds(map)
+                    && !c.Roofed(map) && c.Standable(map) && !c.GetThingList(map).Any(t => t.def.category == ThingCategory.Item));
+                GenSpawn.Spawn(pendingPiece, otherCell, map);
                 return new { success = partialWaited && mergedDelivered && proofRetained && lossBlocked,
-                    partialWaited, mergedDelivered, proofRetained, lossBlocked, delivered = id, loss = lossId,
+                    partialWaited, mergedDelivered, proofRetained, lossBlocked, delivered = id, loss = lossId, pending = pendingId,
                     records = HaulTracking.Read(map) };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        [Tool("test/finish_saved_quantity", Description = "Move exact surviving disposable fixture portions after load to verify saved quantity identities. Does not certify pawn hauling.")]
+        public async Task<object> FinishSavedQuantity(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Saved fixture tracking ID.")] string tracking)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                HaulTracking.Read(map);
+                var record = Current.Game.GetComponent<HaulTrackingState>().Records.Single(r => r.Id == tracking);
+                if (record.Complete || record.Blocker != null || record.Portions.Count != 2 || record.RequiredCount != 10)
+                    throw new System.InvalidOperationException("Pending split obligation did not survive save/load");
+                var storage = map.AllCells.Where(c => c.Roofed(map) && c.GetSlotGroup(map) != null
+                    && c.GetSlotGroup(map).Settings.filter.Allows(ThingDefOf.MedicineHerbal)
+                    && !c.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)).Take(2).ToList();
+                if (storage.Count != 2) throw new System.InvalidOperationException("Saved covered capacity changed");
+                for (int i = 0; i < 2; i++) {
+                    var portion = record.Portions[i];
+                    var thing = map.listerThings.AllThings.Single(t => t.GetUniqueLoadID() == portion.Id);
+                    if (thing.stackCount != portion.Count) throw new System.InvalidOperationException("Saved quantity changed");
+                    thing.DeSpawn(); GenSpawn.Spawn(thing, storage[i], map);
+                }
+                return new { success = record.Complete && record.Blocker == null, records = HaulTracking.Read(map) };
             }, cancellationToken).ConfigureAwait(false);
         }
         private static bool FailOnce(Frame __instance, Pawn worker)

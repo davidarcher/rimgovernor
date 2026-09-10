@@ -123,6 +123,38 @@ async def run(args):
         assert delivery['source'] == report['setup']['medicine'] and not delivery['blocker']
         report['quantity_contract'] = (await rt.bridge.call('test/haul_quantity_contract')).structuredContent
         assert report['quantity_contract']['success'], report['quantity_contract']
+        from rimbot.session_checkpoint import create_checkpoint, stop_for_restart, prepare_resume
+        rt.execution_task = None
+        report['before_restart'] = await rt.game.query('home/colony_facts', planning=True)
+        checkpoint = await create_checkpoint(rt, rt.context_token)
+        report['checkpoint'] = checkpoint
+        before_plan, old_token = rt.current_plan.model_dump(), rt.context_token
+        await stop_for_restart(rt, rt.context_token, checkpoint['manifest_path'])
+        await rt.stop(); store.close()
+        _, resumed_state = prepare_resume(checkpoint['manifest_path'])
+        store = Store(resumed_state / 'bridge.sqlite')
+        rt = BridgeRuntime(store, root, fresh=True, headless=True, resume=checkpoint['manifest_path'],
+                           model_factory=lambda _: NoInference())
+        await ready(rt)
+        assert rt.mode == 'manual' and rt.context_token != old_token
+        assert rt.current_plan.model_dump() == before_plan, 'Paired restart changed completed plan or receipts'
+        after_restart = await rt.game.query('home/colony_facts', planning=True)
+        report['after_restart'] = after_restart
+        assert after_restart['upkeep']['construction'] == report['before_restart']['upkeep']['construction']
+        before_records = {r['id']: r for r in report['before_restart']['upkeep']['hauling']}
+        after_records = {r['id']: r for r in after_restart['upkeep']['hauling']}
+        for identity, before in before_records.items():
+            # Cached references are deliberately not serialized. Completed proof
+            # needs no surviving item; pending portions must resolve exact IDs.
+            after = after_records[identity]
+            assert {k: v for k, v in before.items() if k != 'portions'} == {k: v for k, v in after.items() if k != 'portions'}
+            assert [(p['id'], p['count']) for p in before['portions']] == [(p['id'], p['count']) for p in after['portions']]
+        pending = after_records[report['quantity_contract']['pending']]
+        assert not pending['complete'] and not pending['blocker'] and all(p['resolved'] for p in pending['portions'])
+        report['saved_quantity_completion'] = (await rt.bridge.call('test/finish_saved_quantity',
+            tracking=report['quantity_contract']['pending'])).structuredContent
+        assert report['saved_quantity_completion']['success']
+        print('paired restart: saved construction and quantity identities verified', flush=True)
         report['replacement'] = (await rt.bridge.call('test/replace_lineage_wall', target=wall['current'])).structuredContent
         assert report['replacement']['success']
         after = (await rt.game.query('home/colony_facts', planning=True))['upkeep']['construction']
