@@ -5,7 +5,7 @@ import {afterEach,it,expect,vi} from 'vitest';
 import GameControls from './GameControls';
 import {tickRate} from './Throughput';
 
-afterEach(()=>{cleanup();vi.unstubAllGlobals();});
+afterEach(()=>{cleanup();vi.unstubAllGlobals();vi.restoreAllMocks();});
 it('sends session-bound native time and camera requests separately',async()=>{
  const fetch=vi.fn(async()=>({ok:true,json:async()=>({})}));vi.stubGlobal('fetch',fetch);
  render(<GameControls sessionId="load-a" connected stale={false} paused following={false} onError={()=>{}}/>);
@@ -47,12 +47,14 @@ it('disables camera navigation in headless games',()=>{
  expect(screen.getByRole('button',{name:'Zoom camera out'})).toBeDisabled();
 });
 
-it('acquires player control and releases without resuming on blur',async()=>{
+it.each(['blur', 'hidden', 'unmount'])('releases player control without resuming on %s',async(reason)=>{
  const fetch=vi.fn(async(_url: string,_options?: RequestInit)=>({ok:true,json:async()=>({lease_id:'lease-a'})}));vi.stubGlobal('fetch',fetch);
- render(<GameControls sessionId="load-a" connected stale={false} onError={()=>{}}/>);
+ const {unmount}=render(<GameControls sessionId="load-a" connected stale={false} onError={()=>{}}/>);
  fireEvent.click(screen.getByRole('button',{name:'Take control'}));
  await screen.findByRole('button',{name:'You have control'});
- fireEvent(window,new Event('blur'));
+ if(reason==='unmount') unmount();
+ else if(reason==='hidden') {vi.spyOn(document,'hidden','get').mockReturnValue(true);fireEvent(document,new Event('visibilitychange'));}
+ else fireEvent(window,new Event('blur'));
  await waitFor(()=>expect(fetch).toHaveBeenCalledWith('/api/input/release',expect.objectContaining({keepalive:true})));
  const call=fetch.mock.calls.find(c=>c[0]==='/api/input/release')!;
  expect(JSON.parse(call[1]!.body as string)).toMatchObject({session_id:'load-a',lease_id:'lease-a'});

@@ -71,6 +71,22 @@ it('rejects a stale-load packet before drawing or acknowledging it', async () =>
   expect(sockets[0].close).toHaveBeenCalled();
 });
 
+it('stops streaming while hidden, then reconnects without requesting input ownership', async () => {
+  const fetch = vi.fn(async () => ({ ok: true }));
+  vi.stubGlobal('fetch', fetch);
+  const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+  render(<GameVideo session="a" viewer="one" enabled snapshot="/frame" owner={{viewer: 'one', lease: 'lease', direct: true}} />);
+  await act(async () => { await sockets[0].onmessage({ data: packet() }); });
+  hidden.mockReturnValue(true);
+  fireEvent(document, new Event('visibilitychange'));
+  expect(sockets[0].close).toHaveBeenCalled();
+
+  hidden.mockReturnValue(false);
+  fireEvent(document, new Event('visibilitychange'));
+  expect(sockets).toHaveLength(2);
+  expect(fetch.mock.calls.some(call => (call as unknown[])[0] === '/api/input/take')).toBe(false);
+});
+
 it('preserves gesture boundaries, coalesces moves and never replays an uncertain event', async () => {
   vi.stubGlobal('PointerEvent', MouseEvent);
   let finish!: (value: unknown) => void;

@@ -486,7 +486,7 @@ each bounded method.
   end-to-end acceptance with periodic owner heartbeats and fresh zoom-limit frames
   after resolving the GABS read-claim race; partial geometry/lease evidence does not
   certify the full rendered sequence under load. Broaden acceptance
-  to video, camera edge clamping, pointer selection, menus/dialogs and placement gestures,
+  to video, camera edge clamping, pointer selection, menus/dialogs and placement gestures.
   Measure sustained rendering overhead against headless workers.
   Protocol and bounded lifecycle checks do not certify those native interactions.
 
