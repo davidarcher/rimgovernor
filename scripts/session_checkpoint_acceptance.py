@@ -68,6 +68,10 @@ async def main(args):
     report={}
     try:
         await ready(rt)
+        if getattr(args,'uncertain_zone',False):
+            from rimbot.campaign_manifest import capture_manifest
+            report['manifest']=capture_manifest(Path(__file__).resolve().parents[1],root,
+                root/('config' if args.rendered else 'config-headless'),{'mode':'no inference'})
         initial=rt.batch.summary.end_tick
         await apply_command(rt,{'kind':'CreateGoal','goal':'EnsureFoodSupply','food_days':20},
                             token=rt.context_token,revision=rt.chat_revision)
@@ -77,6 +81,9 @@ async def main(args):
         if getattr(args,'mixed',False):
             from mixed_checkpoint_fixture import prepare_mixed
             report['mixed']=await prepare_mixed(rt)
+            if getattr(args,'uncertain_zone',False):
+                from uncertain_checkpoint_fixture import prepare_uncertain_zone
+                report['uncertain_zone']=await prepare_uncertain_zone(rt,report['mixed'])
         else:
             await rt.bridge.call('rimworld/set_time_speed',speed='Fast',ultraSpeedBoost=False)
             await asyncio.sleep(2)
@@ -102,8 +109,15 @@ async def main(args):
         assert resumed.chat==report['chat']
         assert not resumed.draft_owners and resumed.counters['model_calls']==0
         if getattr(args,'mixed',False):
-            from mixed_checkpoint_fixture import verify_mixed
-            report['mixed_verification']=await verify_mixed(resumed,report['mixed'])
+            if getattr(args,'uncertain_zone',False):
+                from uncertain_checkpoint_fixture import verify_uncertain_zone
+                report['uncertain_zone_verification']=await verify_uncertain_zone(resumed,report['uncertain_zone'])
+                assert resumed.current_plan.control['costs']==report['mixed']['costs']
+                assert resumed.current_plan.progress[report['mixed']['work']].state=='pending'
+                assert len(resumed.current_plan.progress[report['mixed']['shell']].issued)==1
+            else:
+                from mixed_checkpoint_fixture import verify_mixed
+                report['mixed_verification']=await verify_mixed(resumed,report['mixed'])
         if args.archive:
             archived=report['archive'];identity=archived['identity']
             assert store.retired_action(resumed.colony,identity)==archived['record']
@@ -142,7 +156,9 @@ if __name__=='__main__':
     parser.add_argument('--methods',action='store_true',help='With --archive, also verify durable method deduplication after native paired restart')
     parser.add_argument('--mixed',action='store_true',help='Preserve partial native shell, unissued reservations, pending growing zone and work assignment without replay')
     parser.add_argument('--rewind',action='store_true',help='With --mixed, reload the original native save and verify obsolete queued work and writes cannot replay')
+    parser.add_argument('--uncertain-zone',action='store_true',help='With --mixed, lose a successful native zone-create receipt and preserve the uncertain action across paired restart')
     args=parser.parse_args()
     if args.methods and not args.archive:parser.error('--methods requires --archive')
     if args.rewind and not args.mixed:parser.error('--rewind requires --mixed')
+    if args.uncertain_zone and (not args.mixed or args.rewind):parser.error('--uncertain-zone requires --mixed and excludes --rewind')
     asyncio.run(asyncio.wait_for(main(args),240))
