@@ -14,6 +14,7 @@ from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.bridge_server import create_app
 from rimbot.store import Store
 from rimbot.flight_recorder import recorder
+from rimbot.bridge_observation import observe
 from deterministic_foothold import NoInference
 
 
@@ -28,7 +29,7 @@ async def run(args):
     prefs.write(prefs_path, encoding='utf8', xml_declaration=True)
     store = Store(root/'throughput.sqlite')
     rt = BridgeRuntime(store, root, fresh=True, headless=True, model_factory=lambda _: NoInference())
-    report = dict(measured=False, accelerated=args.accelerated, calls=[],
+    report = dict(measured=False, accelerated=args.accelerated, calls=[], bridge_calls=[],
         inputs=json.loads((root/'inputs.json').read_text()),
         scope='Production deterministic controller wall throughput including pauses; no inference or survival claim')
     server = uvicorn.Server(uvicorn.Config(create_app(rt), host='127.0.0.1', port=8790, log_level='warning'))
@@ -44,6 +45,27 @@ async def run(args):
                 await asyncio.sleep(.25)
         report['startup_seconds'] = time.perf_counter()-began
         report['initial_tick'] = rt.batch.summary.end_tick
+        rt.bridge.timing_callback = report['bridge_calls'].append
+        if args.observation_comparison:
+            report['observation_comparison'] = []
+            for repeat in range(4):
+                previous = None
+                for batched in ((False, True) if repeat % 2 == 0 else (True, False)):
+                    rt.game.batch_observations = batched
+                    first_call = len(report['bridge_calls'])
+                    started = time.perf_counter()
+                    batch = await observe(rt.game)
+                    assert batch.summary.paused and batch.summary.same_tick, 'Comparison requires paused native state'
+                    current = batch.summary.model_dump(mode='json')
+                    if previous is not None:
+                        assert current == previous, 'Batched observation changed projected native facts'
+                    previous = current
+                    report['observation_comparison'].append(dict(repeat=repeat, batched=batched,
+                        seconds=time.perf_counter()-started, summary=current,
+                        bridge_calls=report['bridge_calls'][first_call:]))
+            report['bridge_calls'].clear()
+        rt.game.batch_observations = not args.unbatched_observations
+        report['batched_observations'] = rt.game.batch_observations
         original = rt.bridge.call
 
         async def measured_call(name, **arguments):
@@ -97,6 +119,8 @@ async def run(args):
         raise
     finally:
         recording = False
+        if getattr(rt, 'bridge', None):
+            rt.bridge.timing_callback = None
         if sampler is not None and sampler.returncode is None:
             sampler.terminate()
             await sampler.wait()
@@ -123,6 +147,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--accelerated', action='store_true')
     parser.add_argument('--seconds', type=int, default=120)
+    parser.add_argument('--unbatched-observations', action='store_true', help='Compare the legacy seven-call observation path')
+    parser.add_argument('--observation-comparison', action='store_true', help='Verify paired paused native observations before the runtime sample')
     args = parser.parse_args()
     if not 10 <= args.seconds <= 1800:
         parser.error('Use 10..1800 seconds')

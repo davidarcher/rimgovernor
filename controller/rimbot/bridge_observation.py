@@ -13,6 +13,7 @@ from .bridge import BridgeClient, runtime_file_read
 from .bridge_models import BridgeObservation
 
 OBSERVATION_TOOLS = frozenset({
+    'home/observation_batch',
     'home/recovery_state',
     'home/waste_state',
 
@@ -30,6 +31,7 @@ class ObservationGateway:
     def __init__(self, bridge: BridgeClient):
         self.bridge = bridge
         self.schemas: dict[str, dict] = {}
+        self.batch_observations = True
 
     async def query(self, tool: str, **arguments) -> dict:
         if tool == 'home/population' and arguments.get('interaction') is not None and arguments.get('dryRun') is not True:
@@ -105,6 +107,15 @@ def project(native: dict[str, dict]) -> BridgeObservation:
 
 async def observe(gateway: ObservationGateway) -> ObservationBatch:
     started_at = time.time()
+    if gateway.batch_observations and getattr(gateway.bridge, 'observation_batch_version', 0) == 1:
+        payload = await gateway.query('home/observation_batch')
+        if payload.get('version') != 1 or payload.get('success') is not True:
+            raise ValueError('Unsupported or failed native observation batch')
+        native = payload['sections']
+        for section, value in native.items():
+            if not isinstance(value, dict) or value.get('success') is False or value.get('unknownArguments'):
+                raise ValueError(f'Invalid native observation section: {section}')
+        return ObservationBatch(project(native), native, started_at)
     native = {}
     for section, tool, arguments in [
         ('status_before', 'home/status', {}),

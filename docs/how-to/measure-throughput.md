@@ -94,6 +94,31 @@ against the private controller, retaining wall TPS including pauses, controller
 status, events and per-operation identity, preview, dispatch and read timings.
 It asserts zero inference attempts; it measures the loop without claiming colony
 survival. Use fresh output directories for both runs.
+Use `--observation-comparison` with `--runtime-seconds` to compare four pairs
+of legacy and batched observations on the same paused native state, reversing
+order between pairs. Both paths must produce the same typed facts. Use
+`--runtime-unbatched-observations` for the legacy path during the runtime sample.
+The normal path uses the batch only when the native identity advertises version 1;
+older companions retain individual reads.
+
+Runtime reports include `bridge_calls`: request recording, shared-queue wait,
+MCP session call, response model conversion, response recording and total seconds.
+Native receipt `DurationMs` is retained separately. Session time includes GABS,
+transport, native scheduling and response decoding; subtracting native duration
+does not isolate network latency. Native batches expose an initial main-thread
+queue measurement and per-section await times, including their scheduling.
+Recorder statistics separate lock wait, JSON encoding, rotation, write/flush and
+fsync. These nested timings overlap the bridge totals; do not add them together.
+The timing callback is opt-in, stores no arguments, and cannot alter a receipt.
+
+Observation batching retains the existing section filters, before/after ticks and
+diagnostics. It does not cache facts or allow concurrent mutations; a game/map
+change invalidates the batch. The game can advance between sections, so a batch
+is not an atomic snapshot. Request and error durability remains unchanged; payload
+encoding is reused for size checks and writing.
+The recorder keeps its append handle open between events, flushes every row,
+and fsyncs durable events. Rotation closes the handle before renaming segments;
+session shutdown and changing recorder destinations close it durably.
 Inspect the final controller events as well as the sampler totals: a valid
 measurement can include a controller stopped by a native order refusal. Such a
 run measures the resulting pause; it does not establish uninterrupted progress or

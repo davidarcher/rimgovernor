@@ -82,6 +82,40 @@ def test_corrupt_tail_is_reported(tmp_path):
     assert list(read_timeline(path))[-1]['kind']=='recording_gap'
 
 
+def test_payload_encoding_preserves_unicode_nested_values_and_single_conversion(tmp_path):
+    class Value:
+        calls = 0
+        def __str__(self):
+            self.calls += 1
+            return 'quoted "colonist" — 雪'
+    value = Value()
+    path = tmp_path/'timeline.jsonl'
+    record = FlightRecorder(path)
+    record.event('sample', nested={'value': value, 'items': [None, True, '\\']})
+    assert value.calls == 1
+    row = list(read_timeline(path))[-1]
+    assert row['payload']['nested'] == {'value': 'quoted "colonist" — 雪', 'items': [None, True, '\\']}
+    assert all(seconds >= 0 for seconds in record.stats()['phase_seconds'].values())
+
+
+def test_recorder_reopens_after_close_and_preserves_rotation_and_durability(tmp_path, monkeypatch):
+    path = tmp_path/'timeline.jsonl'
+    synced = []
+    monkeypatch.setattr('rimbot.flight_recorder.os.fsync', lambda fd: synced.append(fd))
+    record = FlightRecorder(path, segment_bytes=1024, segments=3, payload_bytes=2048)
+    record.event('native_request', value='a'*1100)
+    record.event('native_response', value='b', durable=False)
+    before = len(synced)
+    record.close()
+    assert len(synced) == before+1
+    record.event('native_request', value='c')
+    record.close()
+    rows = list(read_timeline(path))
+    assert [row['kind'] for row in rows] == ['coverage','native_request','native_response','native_request']
+    assert [row['sequence'] for row in rows] == [1,2,3,4]
+    assert rows[1]['payload']['value'] == 'a'*1100
+
+
 def test_invalid_record_and_unrelated_sidecar_are_tolerated(tmp_path):
     path = tmp_path/'timeline.jsonl'
     FlightRecorder(path)

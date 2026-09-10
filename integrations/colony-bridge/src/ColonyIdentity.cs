@@ -26,7 +26,7 @@ namespace HomeBridge.BridgeTools
                 if (string.IsNullOrEmpty(identity.ColonyId)) identity.ColonyId = Guid.NewGuid().ToString("N");
                 return new { success = true, colonyId = identity.ColonyId,
                     loadToken = identity.LoadToken, mapId = Find.CurrentMap.uniqueID,
-                    tick = Find.TickManager.TicksGame };
+                    tick = Find.TickManager.TicksGame, observationBatchVersion = 1 };
             }, cancellationToken).ConfigureAwait(false);
         }
     }

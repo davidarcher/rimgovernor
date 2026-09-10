@@ -77,12 +77,52 @@ async def test_clock_reads_and_mutations_share_one_native_request_queue():
 
 async def test_cancelled_queued_request_never_reaches_native_session():
     bridge = BridgeClient(AsyncMock())
+    timings = []
+    bridge.timing_callback = timings.append
     async with bridge.request_lock:
         task = asyncio.create_task(bridge.call('home/place_building', dryRun=False))
         await asyncio.sleep(0)
         task.cancel()
         with pytest.raises(asyncio.CancelledError): await task
     bridge.session.call_tool.assert_not_awaited()
+    assert timings[0]['error_type'] == 'CancelledError'
+    assert 'session_seconds' not in timings[0]
+    assert timings[0]['queue_seconds'] >= 0
+
+
+async def test_timing_distinguishes_queue_and_session_and_cannot_replace_receipt():
+    async def call(*args):
+        await asyncio.sleep(.01)
+        return CallToolResult(content=[], structuredContent={'operation': {'DurationMs': 2}})
+    bridge = BridgeClient(AsyncMock(call_tool=AsyncMock(side_effect=call)))
+    timings = []
+    bridge.timing_callback = timings.append
+    async with bridge.request_lock:
+        task = asyncio.create_task(bridge.call('home/status'))
+        await asyncio.sleep(.02)
+    result = await task
+    assert timings[0]['queue_seconds'] >= .015
+    assert timings[0]['session_seconds'] >= .005
+    assert timings[0]['native_ms'] == 2
+    assert timings[0]['success']
+    def broken(_): raise RuntimeError('observer failure')
+    bridge.timing_callback = broken
+    assert (await bridge.call('home/status')).structuredContent == result.structuredContent
+
+
+async def test_failed_durable_request_is_timed_without_native_dispatch(monkeypatch):
+    class Recorder:
+        context = {}
+        def event(self, *args, **kwargs): raise OSError('disk full')
+    monkeypatch.setattr('rimbot.flight_recorder.recorder', lambda: Recorder())
+    bridge = BridgeClient(AsyncMock())
+    timings = []
+    bridge.timing_callback = timings.append
+    with pytest.raises(OSError, match='disk full'):
+        await bridge.call('home/order', action='goto')
+    bridge.session.call_tool.assert_not_awaited()
+    assert timings[0]['error_type'] == 'OSError'
+    assert 'session_seconds' not in timings[0]
 
 
 async def test_startup_waits_for_gabs_background_connector_without_superseding_it():

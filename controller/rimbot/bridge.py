@@ -9,6 +9,7 @@ from copy import deepcopy
 import asyncio
 import logging
 import os
+import time
 from datetime import timedelta
 from pathlib import Path
 
@@ -62,29 +63,66 @@ class BridgeClient:
         self.request_lock = asyncio.Lock()
         self.recording_context = None
         self.start_result = None
+        self.timing_callback = None
+        self.observation_batch_version = 0
 
     async def core(self, name: str, **arguments) -> CallToolResult:
         from .flight_recorder import recorder
-        recording = recorder()
-        if recording and self.recording_context:
-            recording.context = self.recording_context()
-        context = deepcopy(recording.context) if recording else None
-        request = recording.event('native_request', context=context, tool=name, arguments=arguments) if recording else None
+        began = time.perf_counter()
+        timing = dict(core_tool=name, tool=arguments.get('tool', name), success=False)
+        recording, context, request, queued = None, None, None, None
         try:
+            recording = recorder()
+            if recording and self.recording_context:
+                recording.context = self.recording_context()
+            context = deepcopy(recording.context) if recording else None
+            request = recording.event('native_request', context=context, tool=name, arguments=arguments) if recording else None
+            timing['request_record_seconds'] = time.perf_counter()-began
             # Serialize GABS ownership preparation without replaying uncertain writes.
+            queued = time.perf_counter()
             async with self.request_lock:
-                result = await self.session.call_tool(name, arguments)
+                timing['queue_seconds'] = time.perf_counter()-queued
+                dispatched = time.perf_counter()
+                try:
+                    result = await self.session.call_tool(name, arguments)
+                finally:
+                    timing['session_seconds'] = time.perf_counter()-dispatched
+            encoded = time.perf_counter()
             if recording:
-                recording.event('native_response', context=context, durable=False, request=request, tool=name, result=result.model_dump(mode='json'))
+                payload = result.model_dump(mode='json')
+                timing['response_model_seconds'] = time.perf_counter()-encoded
+                recorded = time.perf_counter()
+                recording.event('native_response', context=context, durable=False, request=request, tool=name, result=payload)
+                timing['response_record_seconds'] = time.perf_counter()-recorded
+            operation = (result.structuredContent or {}).get('operation')
+            if isinstance(operation, dict):
+                timing['native_ms'] = operation.get('DurationMs')
+            if arguments.get('tool') == 'home/observation_batch':
+                timing['native_batch'] = (result.structuredContent or {}).get('timing')
             if result.isError or (result.structuredContent or {}).get("success") is False:
                 raise BridgeError(name, result)
             if name == 'games_start':
                 self.start_result = result
+            if name == 'games_call_tool' and arguments.get('tool') == 'home/colony_identity':
+                self.observation_batch_version = (result.structuredContent or {}).get('observationBatchVersion', 0)
+            timing['success'] = True
             return result
         except BaseException as error:
-            if recording:
+            timing['error_type'] = type(error).__name__
+            if queued is not None and 'queue_seconds' not in timing:
+                timing['queue_seconds'] = time.perf_counter()-queued
+            if 'request_record_seconds' not in timing:
+                timing['request_record_seconds'] = time.perf_counter()-began
+            if recording and request is not None:
                 recording.event('native_error', context=context, request=request, tool=name, error=repr(error))
             raise
+        finally:
+            timing['total_seconds'] = time.perf_counter()-began
+            if self.timing_callback is not None:
+                try:
+                    self.timing_callback(timing)
+                except Exception:
+                    logging.getLogger(__name__).exception('Bridge timing observer failed')
 
     async def connect(self) -> CallToolResult:
         started, self.start_result = self.start_result, None
@@ -141,7 +179,13 @@ async def bridge_session(executable: Path, config_dir: Path, game_id="rimbot-tri
     async with stdio_client(parameters) as (reader, writer):
         async with ClientSession(reader, writer, read_timeout_seconds=timedelta(seconds=120)) as session:
             await session.initialize()
-            yield BridgeClient(session, game_id)
+            try:
+                yield BridgeClient(session, game_id)
+            finally:
+                from .flight_recorder import recorder
+                recording = recorder()
+                if recording:
+                    recording.close()
 
 
 

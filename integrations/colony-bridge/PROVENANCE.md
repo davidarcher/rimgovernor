@@ -1,5 +1,10 @@
 # Local research companion
 
+`ObservationBatchTool.cs` is original orchestration of the attributed observation
+tools with their existing filters and diagnostics. It adds game/map guards and
+native scheduling measurements; it copies no game implementation. Colony identity
+advertises this optional batch contract for compatibility with older companions.
+
 World expedition extensions are original RimBot code. Settlement visits use native
 caravan arrival actions; gifts use TradeSession and TradeDeal; quest fulfillment
 invokes the enabled TradeRequestComp command and its native confirmation. No game

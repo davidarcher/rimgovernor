@@ -320,6 +320,14 @@ each bounded method.
 
 ## P2 — Coverage, inspection and evaluation scale
 
+- [ ] **Bridge request overhead.** Use the boundary timings in
+  [throughput measurements](how-to/measure-throughput.md) to split remaining MCP
+  session time into GABS ownership preparation, transport/decoding and native
+  scheduling. Compare bounded placement-candidate batches and shared observation
+  inputs before relaxing serialization. Native observations already support one
+  request for the standard seven sections; retain identity invalidation, native
+  interruption guards and durable mutation records in further optimizations.
+
 - [ ] **Broader scenario observer coverage.** Measure retained-frame rendering and
   observation overhead during sustained campaigns. Bridge-only probes without a
   `BridgeRuntime` have no controller state to publish; add explicit observation

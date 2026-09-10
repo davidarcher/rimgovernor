@@ -5,7 +5,31 @@ import pytest
 pytest.importorskip('mcp')
 from mcp.types import CallToolResult
 from jsonschema import ValidationError
-from rimbot.bridge_observation import ObservationGateway, project
+from rimbot.bridge_observation import ObservationGateway, project, observe
+
+
+async def test_native_batch_preserves_projection_and_rejects_partial_sections():
+    bridge = AsyncMock()
+    bridge.observation_batch_version = 1
+    gateway = ObservationGateway(bridge)
+    gateway.query = AsyncMock(return_value={'success': True, 'version': 1, 'sections': native()})
+    batch = await observe(gateway)
+    assert batch.summary == project(native())
+    gateway.query.assert_awaited_once_with('home/observation_batch')
+    gateway.query.return_value['sections']['pawns']['success'] = False
+    with pytest.raises(ValueError, match='pawns'):
+        await observe(gateway)
+
+
+async def test_legacy_observation_remains_available_without_capability():
+    bridge = AsyncMock()
+    bridge.observation_batch_version = 0
+    gateway = ObservationGateway(bridge)
+    data = native()
+    gateway.query = AsyncMock(side_effect=[data[k] for k in
+        ('status_before', 'pawns', 'supplies', 'buildings', 'rooms', 'zones', 'status_after')])
+    assert (await observe(gateway)).summary == project(data)
+    assert gateway.query.await_count == 7
 
 
 async def test_observation_gateway_blocks_writes_and_unknown_arguments_before_dispatch():
