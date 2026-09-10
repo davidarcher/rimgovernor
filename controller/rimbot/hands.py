@@ -301,6 +301,8 @@ class Hands:
             raise Blocked('zone_readback', 'Zone geometry did not match its committed intent')
         if action.crop and zone.get('plantDef') != action.crop:
             raise Blocked('crop_readback', 'Growing zone exists but its observed crop does not match the requested crop')
-        row = rt.projects.upsert({'title': action.label, 'targets':[{'kind':'zone','zone_id':str(zone['id'])}]})
+        row = rt.projects.upsert({'title': action.label, 'targets':[{'kind':'zone','zone_id':str(zone['id']),
+            'zone_patches': [patch.model_dump() for patch in action.patches],
+            'zone_type': action.zone_type, 'crop': action.crop or None}]})
         progress.project_id = row.id
         return {'zone': action.label, 'cells': len(cells), 'crop': action.crop}

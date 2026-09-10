@@ -3,6 +3,7 @@ import re
 import uuid
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
+from .colony_plan import Rectangle
 
 class Target(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -14,6 +15,52 @@ class Target(BaseModel):
     z: int = 0
     zone_id: str = ''
     stuff: str = ''
+    zone_patches: list[Rectangle] = Field(default_factory=list, max_length=32)
+    zone_type: Literal['stockpile', 'growing'] | None = None
+    crop: str | None = None
+
+
+def zone_matches(target, result):
+    """Distinguish an observed edit from unavailable native zone postconditions."""
+    if (result.get('success') is not True or not isinstance(result.get('zones'), list)
+            or result.get('zoneCount') != len(result['zones'])
+            or result.get('zoneCountOnMap') != len(result['zones'])
+            or (result.get('totals') or {}).get('gridSweepFailed') is not False):
+        raise ValueError('Complete zone census unavailable')
+    matches = [z for z in result['zones'] if str(z['id']) == target.zone_id]
+    if not matches:
+        return False
+    if len(matches) != 1:
+        raise ValueError('Zone identity is ambiguous')
+    zone = matches[0]
+    geometry = []
+    for field, count, omitted in (('cells', 'listedCellCount', 'cellsNotListed'),
+                                   ('gridCells', 'gridCellCount', 'gridCellsNotListed')):
+        cells = zone.get(field)
+        if not isinstance(cells, list) or any(not isinstance(c, dict) or
+                any(type(c.get(k)) is not int for k in ('x', 'z')) for c in cells):
+            raise ValueError('Zone cell coordinates unavailable')
+        points = {(c['x'], c['z']) for c in cells}
+        if len(points) != len(cells) or zone.get(count) != len(points) or zone.get(omitted) != 0:
+            raise ValueError('Zone geometry truncated or inconsistent')
+        geometry.append(points)
+    if zone.get('consistent') is not True or geometry[0] != geometry[1]:
+        raise ValueError('Zone list/grid agreement unavailable')
+    expected = {cell for patch in target.zone_patches for cell in patch.cells()}
+    if geometry[0] != expected:
+        return False
+    observed_type = ('growing' if zone.get('type') == 'Zone_Growing' or 'plantDefExplicitlySet' in zone
+                     else 'stockpile' if zone.get('type') == 'Zone_Stockpile' or 'filterSummary' in zone else None)
+    if observed_type is None:
+        raise ValueError('Zone type unavailable')
+    if target.zone_type is not None and target.zone_type != observed_type:
+        return False
+    if target.crop:
+        if not isinstance(zone.get('plantDef'), str) or not zone['plantDef']:
+            raise ValueError('Explicit zone crop unavailable')
+        if zone['plantDef'] != target.crop:
+            return False
+    return True
 
 class ProjectSpec(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -78,13 +125,14 @@ class ProjectBook:
             found, pending, missing, ids = 0, 0, 0, []
             try:
                 for target in row.targets:
-                    key = target.model_dump_json()
+                    key = ('zone', bool(target.zone_patches)) if target.kind == 'zone' else target.model_dump_json()
                     if key not in cache:
                         if target.kind == 'installation':
                             result = await game.invoke('home/install', {'thingId': target.thing_id, 'dryRun': True})
                             cache[key] = ('installation', result)
                         elif target.kind == 'zone':
-                            result = await game.query('home/list_zones')
+                            args = dict(includeCells=True, includeContents=False, maxCellsPerZone=10000) if target.zone_patches else {}
+                            result = await game.query('home/list_zones', **args)
                             cache[key] = ('zone', result)
                         else:
                             result = await game.query('home/list_buildings', match=target.def_name,
@@ -104,10 +152,11 @@ class ProjectBook:
                         if complete:
                             ids.append(target.thing_id)
                     elif kind == 'zone':
-                        matches = [z for z in result['zones'] if str(z['id']) == target.zone_id and z['gridCellCount'] > 0]
+                        matches = ([target.zone_id] if zone_matches(target, result) else []) if target.zone_patches else [
+                            str(z['id']) for z in result['zones'] if str(z['id']) == target.zone_id and z['gridCellCount'] > 0]
                         found += bool(matches)
                         missing += not matches
-                        ids.extend(str(z['id']) for z in matches)
+                        ids.extend(matches)
                     else:
                         if result.get('skipped', {}).get('byMaxDetailed', 0):
                             raise ValueError('Building observation truncated')
