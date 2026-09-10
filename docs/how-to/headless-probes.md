@@ -57,6 +57,27 @@ the new worker. A fixture with no patient is a failed prerequisite, not a recove
 Preserve all reports. Recovery exhaustion, stale reads, save rewinds and player
 overrides also have deterministic replay coverage.
 
+## Emergency and development acceptance
+
+`scripts/b04f_acceptance.py --root <staged-worker-root> --case
+development|medical|combat|health` runs the deterministic emergency/development matrix.
+Build the task-private companion with `-p:EmergencyDevelopmentFixture=true` and stage
+it with the local Docker worker. Keep writable runtime files on Docker's Linux filesystem
+(for example `container_worker --root /native/run`) and copy the reports to the task's
+bind-mounted output directory after shutdown. Windows bind-mounted GABS claim files can
+produce publication races. Use a fresh source/mod snapshot and worker root for every run.
+
+The test-only fixture supplies starting resources, opponents, wounds, unavailable-doctor
+mental state and native external orders. It never supplies finished buildings, research
+or treatment. The cases require actual expanded indoor capacity, researched electricity,
+connected powered loads and completed comfort furniture; two treated patients after a
+provider replacement and a preserved player order; multi-opponent defense with triage;
+and compiler/dispatch/clock health holds including stale-preview and repeated admissions.
+Keep `b04f-result.json`, input/source manifests, SQLite observations and game logs together.
+Build again without the fixture property for production; never install fixture DLLs into
+a shared running game.
+
+
 Read assertions before interpreting results: for example, a healthy-pawn rescue refusal
 does not validate carrying a patient to bed. Some scripts use real models, some scripted
 decisions, and some only inspect/refuse actions. Reports stay local under `.rimbot/`;

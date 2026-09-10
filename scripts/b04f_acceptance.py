@@ -40,6 +40,11 @@ async def run(args):
             rt.handled_revision=rt.chat_revision;rt.wake.clear()
             facts=derive(rt.batch,await rt.game.query('home/colony_facts',planning=True),rt.controller.policy)
             people=(await rt.game.query('home/list_pawns',colonistsOnly=True,bio=True,work=True,health=True,equipment=True))['pawns']
+            report['latest']={'tick':facts['tick'],'threats':rt.batch.native.get('status_after',{}).get('threats'),
+                'development':facts.get('development'), 'people':[
+                    {k:p.get(k) for k in ('thingId','job','jobTarget','drafted','downed','mentalState','position','health')}
+                    for p in people]}
+            save()
             return facts,people
         async def setup(op,pawn=''):
             value=(await bridge.call('test/b04f_setup',op=op,pawn=pawn)).structuredContent
@@ -255,6 +260,7 @@ async def run(args):
                 check('native_health_dispatch_hold',rt.counters['actions']==before and failure and failure.code=='combat_health_hold')
                 start=rt.supervisor.epoch
                 for _ in range(3):
+                    await refresh()
                     rt.resume_after_review=True;rt.current_plan.control['simulation_needed']=True
                     await rt.advance_execution()
                 check('unchanged_health_never_rearms',rt.supervisor.epoch==start and bool(rt.current_plan.control.get('execution_hold')))

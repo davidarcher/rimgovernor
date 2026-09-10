@@ -9,13 +9,13 @@ write outcomes must be inspected before any further action.
 
 Confirmed interrupted autonomous treatment has bounded recovery on the same action
 identity. Under the runtime writer lock, fresh patient/doctor observations and the
-native tick must match the issued load and current direction. Completed or resumed
-treatment is observed without another order. A replacement archives the prior
-receipt/failure in durable action recovery history, clears only that attempt's issued
-slots, and passes through normal Hands preview, validation and postcondition tracking
-again. The existing method-attempt limit bounds replacements. Unknown/legacy receipt
-scope, save rewinds, competing treatment, incapable doctors and player overrides retain
-an explicit hold. Goal recovery evidence and reasons are shared with chat and the
+native tick must match the issued load and current direction. Completed or resumed treatment
+is observed without another order. A replacement archives the prior receipt/failure
+in durable action recovery history, clears only that attempt's issued slots, and
+passes through normal Hands preview, validation and postcondition tracking again.
+The existing method-attempt limit bounds replacements. Unknown/legacy receipt scope,
+save rewinds, competing treatment and player overrides retain an
+explicit hold. Goal recovery evidence and reasons are shared with chat and the
 Autopilot panel. Medical priorities include native tending needs even without bleeding.
 
 New treatment methods rank observed bleeding deadlines, native life-threatening state, then downed patients and
@@ -25,12 +25,14 @@ Existing tending retains its job and supervised simulation time. Player-disabled
 doctors and externally drafted pawns are excluded. Confirmed treatment receipts
 retain the player-direction generation: interrupted treatment after changed or
 unknown direction stays held, while completed/resumed treatment can be observed
-without another order.
+without another order. Receipts also retain load-scoped native order generations for
+both provider and patient. Native ordered jobs and player draft toggles increment that
+history; automatic job selection and mental-break undrafting do not. Changed or unknown
+history prevents recovery and releases autonomous draft ownership. A confirmed unavailable
+doctor can be replaced with a newly validated action while the cancelled original retains
+its exact receipt and failure. Replacement limits apply per medical episode.
 
-Confirmed unavailable providers may be replaced by a newly validated action while
-retaining the original step and receipts. Native ordered-job generations on both
-doctor and patient must remain unchanged. Unknown generations and external player
-orders retain a hold. See [long-term medical care](medical-care.md) for repeat
+See [long-term medical care](medical-care.md) for repeat
 tending, recovery monitoring and separately directed surgery.
 
 ## Construction recovery

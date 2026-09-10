@@ -191,23 +191,20 @@ so a batch can exceed its remaining target by one plant's yield.
 
 ## Bounded combat response
 
-A bounded combat method prepares two capable colonists for one small manhunting animal
-or confirmed small predator hunting colony members. One observed melee-only humanlike
+A bounded squad method assigns at least two capable defenders per observed opponent,
+up to four opponents and eight defenders. It supports manhunters and confirmed hunting
+predators up to native body size four, and observed humanlike opponents; ranged
+opponents require ranged defenders. Native previews decide attack legality. The clock
+acknowledges only the exact inspected opponents after dispatch; new threats and severe
+injury retain their guards. Medical triage can run alongside defense. Blocked emergencies
+prevent routine waiting work from restarting time; unsupported encounters remain explicit holds.
+
+One observed melee-only humanlike
 raider requires three capable equipped colonists with health at least 85% and no tending need.
 While the enemy is distant, an unarmed defender can fetch a native-approved ground
 weapon within 12 cells. The shared action waits for the exact equipped identity;
 held weapons and existing equipment are preserved. Missing equipment near the
 threat retains a hold. Selection prefers equipped defenders and weapon-relevant skills.
-Unknown weapons, ranged raiders and multiple enemies retain a hold. Native auto mode
-uses equipped weapons and individual firing previews. An obstructed shooter stays
-drafted while other defenders engage; unavailable previews retain the hold.
-Standing-target and current-hostility
-guards protect dispatch. Defense uses threat readback, treatment and owned-draft
-cleanup. Its clock acknowledges only that inspected
-target after orders dispatch; other threats and severe injury remain guarded. Blocked
-emergencies prevent routine waiting work from restarting time. Larger threats and
-electrical generation still report explicit blockers.
-
 Confirmed downed raiders remain faction hostiles in the native census but no
 longer require combat. The controller subtracts only exact observed incapacitated
 identities; unknown and unlisted threats retain risk. Supervised play ignores
@@ -218,3 +215,15 @@ Combat compilation, dispatch and clock admission inspect colonist health. Unknow
 health or a colonist at the native half-health limit produces an explicit hold;
 an unchanged injury cannot repeatedly rearm the combat clock. The native injury
 thresholds and zero injury cooldown remain unchanged.
+Autonomous orders also request the native main-thread health guard, so changed health
+between a preview/read and dispatch cannot admit another combat order.
+
+Development methods use native completed furniture, electrical topology, research
+availability/prerequisites and observed placement cells. They build generators and
+bounded conduit batches, retain an existing research selection, resolve requested
+research prerequisites, fit indoor beds/dining furniture and outdoor recreation, and
+extend shelter capacity through the shared room-shell method. Native previews and
+shared material admission govern every construction action. Only completed buildings,
+powered connected loads, observed research progress/completion and indoor capacity
+establish outcomes; blueprint receipts do not. Changed native prerequisites can release
+a development blocker without discarding existing projects or player selections.
