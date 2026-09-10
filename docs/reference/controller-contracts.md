@@ -84,8 +84,30 @@ Replacement cooking searches at most eight nearby observed free cells with nativ
 previews; it does not require a new starter-house footprint.
 Starter heating is suppressed only by a usable campfire inside the selected room,
 not by an arbitrary stove or a campfire elsewhere on the map.
-An existing unfueled campfire is not duplicated. These bounded methods do not
-implement electrical repairs, exposure-safe work areas or prolonged refueling.
+An existing unfueled campfire is not duplicated. `RecoverDisasterServices` selects
+bounded refueling, structural repair and breakdown-repair jobs through native
+WorkGivers. `home/recovery_state` observes exact building health, fuel, breakdown
+and electrical state. `home/recover_service` preserves work permissions, allowed
+areas, forbidden supplies, reservations and player-forced jobs. Hands previews
+again at dispatch; `service_recovered` requires fresh target health, breakdown or
+fuel evidence. Missing targets and interrupted labor never count as completion.
+Unavailable supplies resume selection only after observed prerequisites change.
+An unreconstructed destroyed building remains a deficit requiring accepted
+rebuilding work. Power recovery requires actual powered service, not net headroom
+alone; solar flares defer generation changes while the cooking fallback remains
+available.
+
+During native toxic fallout, `home/recovery_area` can lease an existing wholly
+roofed, reachable allowed area. It refuses unsafe areas and any widening of a
+player restriction. The saved lease expires after 600 ticks, condition expiry or
+a load change. Any later area setter relinquishes ownership, including a change
+and reversal between observations. Player overrides are preserved. This restricts
+work destinations; it does not make travel paths or every environmental hazard
+safe. No observed refuge produces a blocker. Outdoor acquisition and field
+expansion pause during the roof-sensitive hazard and become eligible again after
+expiry. Native growers retain existing fields and resow lost crops under normal
+work permissions; forecast harvest never substitutes for stored food.
+
 Stock snapshots describe accessible stock, not causal consumption accounting.
 Service deficits observed during an event can predate it; the record does not
 establish that the event caused them.

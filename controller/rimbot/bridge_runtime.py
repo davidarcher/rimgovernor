@@ -1130,6 +1130,8 @@ class BridgeRuntime:
                 await self.projects.reconcile(self.game, plan=self.current_plan)
                 from .waste_management import refresh as refresh_waste
                 await refresh_waste(self)
+                from .service_recovery import refresh as refresh_services
+                await refresh_services(self)
                 self.reconcile_plan()
                 self.persist()
             # Inference is requested only by a new player message. Native events
@@ -1361,6 +1363,8 @@ class BridgeRuntime:
                                 await self.projects.reconcile(self.game, plan=self.current_plan)
                                 from .waste_management import refresh as refresh_waste
                                 await refresh_waste(self)
+                                from .service_recovery import refresh as refresh_services
+                                await refresh_services(self)
                                 self.reconcile_plan()
                                 if self.strategic_state.pending and self.mode == 'automate':
                                     self.wake.set()

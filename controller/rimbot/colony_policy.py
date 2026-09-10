@@ -99,8 +99,10 @@ def criteria(facts, policy):
                        for b in facts.get('cooking', [])),
         'temperature': low is not None and high is not None and low >= policy.temperature_enter_low
                        and high <= policy.temperature_enter_high,
-        'power': not facts.get('powerRequired', True) or (facts.get('powerHeadroom') is not None
-                                                         and facts['powerHeadroom'] >= 0),
+        'power': (not facts.get('powerRequired', True) or (facts.get('powerHeadroom') is not None
+                                                         and facts['powerHeadroom'] >= 0))
+                 and not any(b.get('powerOn') is False and not b.get('forbidden')
+                             for b in facts.get('recovery', {}).get('buildings', [])),
         'medical': facts.get('medicalKnown') is True and facts.get('criticalPatients') == [],
         'defense': facts.get('hostiles') == 0 and facts.get('armed', 0) >= min(2, count),
         'work': facts.get('workCoverage') is True and not facts.get('cleanupPawns') and not facts.get('colonyNaming'),

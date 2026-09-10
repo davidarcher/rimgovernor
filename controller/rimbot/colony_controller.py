@@ -138,6 +138,11 @@ class ColonyController:
         from .disaster_recovery import reconcile, prioritize
         recovery = reconcile(plan.control, facts, self.policy, context=token, direction=direction)
         nodes = prioritize(nodes, recovery)
+        if recovery and recovery['phase'] != 'restored':
+            from .service_recovery import pending
+            services = pending(facts.get('recovery', {}))
+            if services or services is None or facts.get('recovery', {}).get('roofHazard'):
+                nodes.append(('RecoverDisasterServices', 2))
         for name, value in plan.control['latches'].items():
             if old_latches.get(name) != value:
                 self.event('hysteresis_changed', name, active=value)
@@ -254,6 +259,7 @@ class ColonyController:
             else:
                 goal.priority_class = min(goal.priority_class, priority)
             progress_fields = {
+                'RecoverDisasterServices': ['recovery'],
                 'MaintainWaste': ['waste'],
                 'EnsureFoodSupply': ['foodNutrition'], 'MaintainWood': ['resources'],
                 'EnsureInitialShelter': ['bedCapacity', 'indoorSleepingCapacity'],
@@ -315,6 +321,15 @@ class ColonyController:
                 if facts.get('resources') != goal.evidence.get('blocked_stock'):
                     goal.status, goal.reason = 'active', ''
                     self.event('goal_resumed', identity)
+            if goal.status == 'blocked' and not any(plan.progress[s].state == 'blocked' for s in goal.steps if s in plan.progress):
+                from .service_recovery import prerequisites
+                service_changed = (identity == 'RecoverDisasterServices'
+                    and goal.evidence.get('service_prerequisite') != prerequisites(facts))
+                exposure_ended = (goal.reason.startswith('Roof-sensitive disruption:')
+                    and facts.get('recovery', {}).get('roofHazard') is False)
+                if service_changed or exposure_ended:
+                    goal.status, goal.reason = 'active', ''
+                    self.event('goal_resumed', identity, reason='Observed recovery prerequisite changed')
         from .research import refresh as refresh_research
         research_nodes = await refresh_research(rt, facts, people['pawns'], nodes)
         await rt.ensure_context(token)

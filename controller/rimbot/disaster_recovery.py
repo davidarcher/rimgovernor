@@ -7,6 +7,7 @@ SERVICES = {
     'sleeping': 'EnsureInitialShelter', 'shelter': 'EnsureInitialShelter',
     'temperature': 'EnsureTemperatureSafety', 'cooking': 'EnsureCooking',
     'power': 'EnsureBasicPower', 'storage': 'EnsureFoodStorage',
+    'infrastructure': 'RecoverDisasterServices',
 }
 
 
@@ -37,6 +38,18 @@ def reconcile(control, facts, policy, *, context, direction):
             return previous
         previous = None
     gates = criteria(facts, policy)
+    state = facts.get('recovery')
+    if state is not None:
+        from .service_recovery import pending
+        work = pending(state)
+        tracked = set((previous or {}).get('damaged_buildings', []))
+        tracked.update(row['thingId'] for row, method in work or [] if method != 'refuel')
+        observed = {row['thingId'] for row in state.get('buildings', [])
+                    if row.get('hitPoints') == row.get('maxHitPoints') and row.get('broken') is False}
+        gates['infrastructure'] = work == [] and tracked <= observed
+    else:
+        tracked = set((previous or {}).get('damaged_buildings', []))
+        gates['infrastructure'] = previous is None or not previous.get('damaged_buildings')
     deficits = [name for name in SERVICES if not gates[name]]
     if not previous and not conditions:
         return None
@@ -49,6 +62,7 @@ def reconcile(control, facts, policy, *, context, direction):
         direction=direction, observed_tick=facts['tick'], conditions=conditions,
         deficits=deficits, stock=dict(facts.get('resources', {})),
         affected_services=sorted(set(previous['affected_services']) | set(deficits)),
+        damaged_buildings=sorted(tracked),
     )
     previous['phase'] = ('disrupted' if deficits else 'temporary_survival') if conditions else (
         'recovering' if deficits else 'restored')

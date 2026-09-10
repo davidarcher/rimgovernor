@@ -132,9 +132,24 @@ Require process exit 0 and `run/disaster-result.json` with `passed: true` and
 the SQLite store. The cases cover temporary and permanent condition reads,
 native expiry, selection of the cooking fallback, completed campfire construction
 at the planned cell, and accessible wood stock decrease. Fixture-created
-infrastructure is not construction acceptance. These cases do not establish
-prolonged environmental survival, toxic exposure control, infrastructure repair
-or full disaster recovery; those remain in B28.
+infrastructure is not construction acceptance.
+
+## Verify compound disaster recovery
+
+Use the same fixture build and private-worker setup with
+`python scripts/disaster_compound_acceptance.py`. Require exit 0 and
+`run/compound-result.json` with `passed: true` and `stopped: true`. Retain the
+native logs, inputs, SQLite store and result samples, including failed runs.
+
+The disposable fixture damages structure and generation, destroys rice, empties
+fuel, forbids fuel supplies and starts toxic fallout alongside a one-day solar
+flare. The probe checks inaccessible-fuel refusal, an observed roofed-area lease,
+player override preservation, native condition expiry, ordinary damage repair,
+fuel consumption, resowing and restored stove power. Setup mutations are confined
+to the test tool; recovery uses shared compiled actions, Hands and native pawn
+work. The existing cooking-fallback probe separately verifies actual construction.
+These scenarios exercise bounded recovery methods, not survival through every
+event, mod, path exposure or arbitrary missing infrastructure.
 
 ## Verify research work
 

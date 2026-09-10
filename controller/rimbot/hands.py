@@ -129,7 +129,7 @@ class Hands:
                             schema = await rt.game.describe(action.tool)
                             if 'dryRun' in schema.get('properties', {}):
                                 preview = await rt.inspect_native(action.tool, dict(args, dryRun=True))
-                                if preview.get('success') is False or (action.tool == 'home/manage_waste' and preview.get('accepted') is not True):
+                                if preview.get('success') is False or (action.tool in ('home/manage_waste', 'home/recover_service', 'home/recovery_area') and preview.get('accepted') is not True):
                                     raise Blocked('native_refused', reason(preview), evidence=preview)
                                 if action.completion == 'surgery_health':
                                     from .surgery import effect_from_preview
@@ -159,6 +159,8 @@ class Hands:
                                 raise Blocked('medical_order_unverified', 'Native state did not confirm the medical job.', evidence=result)
                             receipt = {'native_outcome': result.get('receipt', result).get('outcome', 'receipt'),
                                 'meaning': 'Native command observed; this does not certify completion of pawn labor'}
+                            if action.tool == 'home/recover_service':
+                                receipt['recovery_receipt'] = result.get('receipt', result)
                             if action.tool == 'home/manage_waste':
                                 receipt['waste_receipt'] = result.get('receipt', result)
                             if action.tool == 'home/husbandry_config':

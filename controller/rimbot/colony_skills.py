@@ -129,6 +129,9 @@ class ColonySkills:
         raise SkillBlocked('No legal nearby cooking fallback in the bounded native search')
 
     async def compile(self, goal_id, facts, people):
+        if goal_id == 'RecoverDisasterServices':
+            from .service_recovery import compile_method
+            return await compile_method(self.rt, self.rt.current_plan.colony_goals[goal_id], facts, people)
         if goal_id == 'MaintainWaste':
             from .waste_management import compile_method
             return await compile_method(self.rt, self.rt.current_plan.colony_goals[goal_id])
@@ -162,6 +165,9 @@ class ColonySkills:
             return await resource_method(self.rt, goal_id, facts)
         """Return a named method and bounded actions, or wait for its postcondition."""
         rt = self.rt
+        if goal_id == 'EnsureBasicPower' and any(c.get('defName') == 'SolarFlare' for c in facts.get('environment', {}).get('conditions', [])):
+            rt.current_plan.control['simulation_needed'] = True
+            return None
         if goal_id in ('EnsureBasicPower', 'EnsureResearch', 'EnsureComfort', 'EnsureExpansion'):
             from .development import development_method
             return await development_method(self, goal_id, facts, people)
@@ -242,6 +248,8 @@ class ColonySkills:
             if batch and unused(method):return method,batch
             return None
         if goal_id in ('MaintainWood', 'EnsureFoodSupply'):
+            if facts.get('recovery', {}).get('roofHazard'):
+                raise SkillBlocked('Roof-sensitive disruption: preserve reachable stock and sheltered work; outdoor acquisition and field expansion are deferred')
             food = goal_id == 'EnsureFoodSupply'
             resource = 'food' if food else 'tree'
             targets = [p for p in facts.get('acquisition', []) if p[resource] and not p['designated']]

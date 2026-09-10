@@ -32,7 +32,9 @@ namespace HomeBridge.BridgeTools
             var workers = people.Where(p => !p.Downed && !p.InMentalState && !p.Drafted).ToList();
             var center = new IntVec3((int)people.Average(p => p.Position.x), 0, (int)people.Average(p => p.Position.z));
             var things = map.listerThings.AllThings.Where(t => t.Spawned && !t.Position.Fogged(map)).ToList();
-            Func<Thing, bool> reachable = t => workers.Any(p => p.CanReach(t, PathEndMode.Touch, Danger.None));
+            Func<Thing, bool> reachable = t => workers.Any(p =>
+                (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null || p.playerSettings.AreaRestrictionInPawnCurrentMap[t.Position])
+                && p.CanReach(t, PathEndMode.Touch, Danger.None));
             Func<ThingDef, bool> humanFood = d => d != null && d.IsNutritionGivingIngestible && !d.IsDrug
                 && d.ingestible != null && (d.ingestible.foodType & (FoodTypeFlags.Corpse | FoodTypeFlags.Kibble)) == 0
                 && people.All(p => p.WillEat(d));
@@ -136,6 +138,7 @@ namespace HomeBridge.BridgeTools
                 ["butchering"] = butchering, ["development"] = DevelopmentFacts.Read(map),
                 ["foodStorage"] = foodStorage,
                 ["waste"] = HomeWasteTools.Census("", ""),
+                ["recovery"] = HomeRecoveryTools.Census(),
                 ["forbiddenSupplies"] = allowedSupplies,
                 ["notes"] = new[] { "Raw runway is shared-diet accessible stock divided by fed consumption. foodSupply separately observes holder-owned inventory and native rot deadlines for the controller's per-colonist forecast; neither guarantees future temperature or access.",
                     "Harvest ETA is an optimistic lower bound; it cannot clear food risk. Growing cells exclude temperature/fertility failures but do not forecast seasons." }

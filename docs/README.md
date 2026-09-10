@@ -36,6 +36,7 @@ introduces the idea before linking to the exact contracts and relevant source.
 - [Prepare/cache Linux inputs](how-to/docker-inputs.md) and [run native Docker acceptance](how-to/docker-native.md).
 - [Verify spatial construction, access and reuse](how-to/spatial-acceptance.md).
 - [Verify environmental observations and cooking fallback](how-to/docker-native.md#verify-environmental-observation-and-cooking-fallback).
+- [Verify compound disaster recovery](how-to/docker-native.md#verify-compound-disaster-recovery).
 - [Evaluate visual review and evidence recall](how-to/visual-reviews.md).
 - [Verify mood relief](how-to/mood-relief.md) against its [native recovery contracts](reference/mood-control.md).
 

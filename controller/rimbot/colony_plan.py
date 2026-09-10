@@ -112,14 +112,14 @@ class CancelConstructionAction(Contract):
 
 class NativeOperation(Contract):
     kind: Literal['native_operation'] = 'native_operation'
-    tool: Literal['home/husbandry_config', 'home/relieve_need', 'home/medical_operations', 'home/manage_waste', 'home/gear_upkeep', 'home/population', 'home/acquire_resource', 'home/production_policy', 'home/confirm_colony_names', 'home/pawn_config', 'home/building_config', 'home/bills', 'home/order',
+    tool: Literal['home/recovery_area', 'home/recover_service', 'home/husbandry_config', 'home/relieve_need', 'home/medical_operations', 'home/manage_waste', 'home/gear_upkeep', 'home/population', 'home/acquire_resource', 'home/production_policy', 'home/confirm_colony_names', 'home/pawn_config', 'home/building_config', 'home/bills', 'home/order',
         'home/zone_cells', 'home/trade', 'home/research', 'rimworld/apply_architect_designator',
         'rimworld/open_letter', 'rimworld/dismiss_letter', 'rimworld/click_screen_target',
         'home/install', 'home/dialog_text', 'rimworld/click_ui_target', 'rimworld/scroll_ui_target',
         'rimworld/open_main_tab', 'rimworld/close_main_tab']
     arguments: dict
     # Honest fallback for native operations lacking a higher-level compiler.
-    completion: Literal['need_recovered', 'pawn_gear', 'waste_contained', 'native_receipt', 'patient_tended', 'patient_in_bed', 'pawn_equipped', 'pawn_at_position', 'surgery_health'] = 'native_receipt'
+    completion: Literal['service_recovered', 'need_recovered', 'pawn_gear', 'waste_contained', 'native_receipt', 'patient_tended', 'patient_in_bed', 'pawn_equipped', 'pawn_at_position', 'surgery_health'] = 'native_receipt'
     medical_effect: dict | None = None
 
     @model_serializer(mode='wrap')
@@ -145,6 +145,11 @@ class NativeOperation(Contract):
                     or self.medical_effect['part'] != self.arguments.get('part')
                     or not (self.medical_effect['addsHediff'] or self.medical_effect['removesHediff'])):
                 raise ValueError('Surgical effect must match the exact requested recipe and body part')
+        if self.tool == 'home/recover_service' or self.completion == 'service_recovered':
+            if (self.tool != 'home/recover_service' or self.completion != 'service_recovered'
+                    or self.arguments.get('method') not in ('repair', 'refuel', 'breakdown')
+                    or any(not str(self.arguments.get(k, '')).startswith('Thing_') for k in ('thingId', 'pawn'))):
+                raise ValueError('Recovery requires exact building/pawn IDs, method and service completion')
         if self.tool == 'home/manage_waste' or self.completion == 'waste_contained':
             if (self.tool != 'home/manage_waste' or self.completion != 'waste_contained'
                     or any(not str(self.arguments.get(k, '')).startswith('Thing_') for k in ('thingId', 'pawn'))):
