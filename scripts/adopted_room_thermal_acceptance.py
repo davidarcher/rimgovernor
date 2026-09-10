@@ -170,8 +170,13 @@ async def run(args):
             generator=source['site']['generator']
             wire={(x,generator['z']) for x in range(generator['x'],target['x']+1)}
             wire|={(target['x'],z) for z in range(generator['z'],bounds['z']+2)}
+            previews=[await rt.inspect_native('home/place_building',dict(defName='PowerConduit',x=x,z=z,dryRun=True))
+                for x,z in sorted(wire)]
+            report['fixture_conduit_previews']=previews
+            legal=[cell for cell,preview in zip(sorted(wire),previews) if preview.get('canPlace') is True]
+            assert legal,'No native conduit route accepted'
             await command(kind='PlaceBuildings',purpose='shelter',buildings={'kind':'place_buildings','placements':[
-                dict(def_name='PowerConduit',x=x,z=z) for x,z in sorted(wire)]})
+                dict(def_name='PowerConduit',x=x,z=z) for x,z in legal]})
             for _ in range(80):
                 room,buildings=await window('build_heater')
                 heater=next((b for b in buildings['buildings'] if b['defName']=='Heater'
@@ -214,6 +219,7 @@ async def run(args):
         report['outcome']='passed'
     except Exception as error:
         report['error']=repr(error)
+        report['error_evidence']=getattr(error,'evidence',None)
         raise
     finally:
         report['plan']=rt.current_plan.model_dump()
