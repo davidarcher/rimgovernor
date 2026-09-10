@@ -26,6 +26,8 @@ namespace HomeBridge.BridgeTools
             var map = Find.CurrentMap;
             if (map == null) return new { success = false, error = "Load a colony first" };
             var people = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).ToList();
+            var conditions = new List<GameCondition>();
+            map.gameConditionManager.GetAllGameConditionsAffectingMap(map, conditions);
             if (people.Count == 0) return new { success = false, error = "No living colonists" };
             var workers = people.Where(p => !p.Downed && !p.InMentalState && !p.Drafted).ToList();
             var center = new IntVec3((int)people.Average(p => p.Position.x), 0, (int)people.Average(p => p.Position.z));
@@ -67,6 +69,7 @@ namespace HomeBridge.BridgeTools
             var cooking = things.OfType<Building_WorkTable>().Where(b => b.Faction != null && b.Faction.IsPlayer
                 && reachable(b) && b.def.AllRecipes.Any(r => r.products.Any(p => humanFood(p.thingDef))))
                 .Select(b => new { id = b.GetUniqueLoadID(), defName = b.def.defName,
+                    position = new { x = b.Position.x, z = b.Position.z },
                     usable = !b.IsBurning() && (b.TryGetComp<CompPowerTrader>() == null || b.TryGetComp<CompPowerTrader>().PowerOn)
                         && (b.TryGetComp<CompRefuelable>() == null || b.TryGetComp<CompRefuelable>().HasFuel),
                     recipes = b.def.AllRecipes.Where(r => r.products.Any(p => humanFood(p.thingDef))).Select(r => r.defName).ToList(),
@@ -121,6 +124,13 @@ namespace HomeBridge.BridgeTools
                 ["sleepingTemperatureMin"] = temperatures.Count == 0 ? (object)null : temperatures.Min(),
                 ["sleepingTemperatureMax"] = temperatures.Count == 0 ? (object)null : temperatures.Max(),
                 ["outdoorTemperature"] = map.mapTemperature.OutdoorTemp,
+                ["environment"] = new {
+                    conditions = conditions.Select(c => new {
+                        id = c.uniqueID, defName = c.def.defName, implementation = c.GetType().FullName,
+                        label = c.LabelCap.ToString(), permanent = c.Permanent,
+                        ticksLeft = c.Permanent ? (int?)null : c.TicksLeft
+                    }).ToList()
+                },
                 ["farms"] = farms, ["cooking"] = cooking, ["acquisition"] = acquisition,
                 ["butchering"] = butchering,
                 ["foodStorage"] = foodStorage,

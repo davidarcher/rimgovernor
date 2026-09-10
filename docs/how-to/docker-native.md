@@ -118,6 +118,29 @@ requires a baseline whose initial camera is far enough
 from map edges for ten-cell moves. It does not certify edge clamping, browser
 lifecycle events, pending pawn work, selection or pointer/drag gestures.
 
+## Verify environmental observation and cooking fallback
+
+Build the task-private companion with `-p:DisasterFixture=true` in addition to the
+Linux reference properties from [input preparation](docker-inputs.md), and stage
+its observation and identity DLLs into a fresh private mod snapshot. The fixture
+tool is excluded from normal builds and from model execution. Do not install it
+into a shared game.
+
+Run `python scripts/disaster_recovery_acceptance.py` as the command of a fresh
+`rimbot.container_worker`, with that mod snapshot and the prepared baseline. Use
+`--unity-gc-time-slice 0` for the accepted container startup setting and an explicit
+`--gabs` executable path if the input release is nested. The probe reads
+`RIMBOT_BRIDGE_ROOT`; it does not attach to a host game or require inference.
+
+Require process exit 0 and `run/disaster-result.json` with `passed: true` and
+`stopped: true`. Retain the result, `inputs.json`, `staging.json`, native logs and
+the SQLite store. The cases cover temporary and permanent condition reads,
+native expiry, selection of the cooking fallback, completed campfire construction
+at the planned cell, and accessible wood stock decrease. Fixture-created
+infrastructure is not construction acceptance. These cases do not establish
+prolonged environmental survival, toxic exposure control, infrastructure repair
+or full disaster recovery; those remain in B28.
+
 ## Related reading
 
 [Choose tests](choose-tests.md) · [Test evidence explained](../explanation/testing.md) ·

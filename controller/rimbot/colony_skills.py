@@ -105,6 +105,29 @@ class ColonySkills:
             raise SkillBlocked('Native designator unavailable: '+class_name)
         return rows[0]['id']
 
+    async def cooking_fallback(self, facts):
+        """A replacement cooking service does not require a new house footprint."""
+        plan = self.rt.current_plan
+        protected = {cell for path in plan.spec.reserved_walkways for cell in path.cells()}
+        for step in plan.spec.steps:
+            if isinstance(step.action, RoomShell):
+                protected.update(step.action.bounds.cells())
+        center = facts['center']
+        candidates = [c for c in facts.get('cells', [])
+                      if c.get('walkable') is True and c.get('supportsLight') is True
+                      and c.get('occupied') is False and c.get('zone') is False
+                      and (c['x'], c['z']) not in protected
+                      and max(abs(c['x']-center['x']), abs(c['z']-center['z'])) <= 6]
+        candidates.sort(key=lambda c: (not c.get('roofed', False),
+            (c['x']-center['x'])**2 + (c['z']-center['z'])**2, c['x'], c['z']))
+        for cell in candidates[:8]:
+            preview = await self.rt.inspect_native('home/place_building', dict(
+                defName='Campfire', x=cell['x'], z=cell['z'], dryRun=True))
+            if preview.get('canPlace') is True:
+                return [{'kind': 'place_buildings', 'placements': [
+                    {'def_name': 'Campfire', 'x': cell['x'], 'z': cell['z']}]}]
+        raise SkillBlocked('No legal nearby cooking fallback in the bounded native search')
+
     async def compile(self, goal_id, facts, people):
         if goal_id == 'MaintainWaste':
             from .waste_management import compile_method
@@ -388,15 +411,20 @@ class ColonySkills:
                     'patches': [layout['storage']], 'preset': 'food', 'priority': 'Important'}]
             return None
         if goal_id == 'EnsureCooking':
-            if not facts.get('cooking') and unused('campfire'):
+            benches = facts.get('cooking', [])
+            usable = [bench for bench in benches if bench.get('usable') is True]
+            if (not usable and not any(bench.get('defName') == 'Campfire' for bench in benches)
+                    and unused('campfire')):
                 from .shelter_handoff import player_shelter,furniture_handoff
                 if selection:=player_shelter(rt.current_plan):
                     actions=await furniture_handoff(rt,selection,'Campfire')
                     return ('campfire',actions) if actions else None
+                if benches:
+                    return 'campfire', await self.cooking_fallback(facts)
                 layout = await self.layout(facts)
                 return 'campfire', [{'kind': 'place_buildings', 'placements': [{'def_name': 'Campfire',
                     'x': layout['room']['x']+6, 'z': layout['room']['z']+6}]}]
-            for bench in facts.get('cooking', []):
+            for bench in usable:
                 if bench.get('recipes') and unused('bill'):
                     recipe = 'CookMealSimple' if 'CookMealSimple' in bench['recipes'] else sorted(bench['recipes'])[0]
                     return 'bill', [native('home/bills', action='add', bench=bench['id'].removeprefix('Thing_'), recipe=recipe,
@@ -423,7 +451,11 @@ class ColonySkills:
                 cold = facts.get('sleepingTemperatureMin', 20) < rt.controller.policy.temperature_enter_low
                 definition = 'Campfire' if cold else 'PassiveCooler'
                 layout = await self.layout(facts)
-                if cold and facts.get('cooking'): return None  # A fueled campfire already heats the shared starter room.
+                room = layout['room']
+                if cold and any(b.get('defName') == 'Campfire' and b.get('usable') is True
+                                and room['x'] < b.get('position', {}).get('x', -1) < room['x']+room['width']-1
+                                and room['z'] < b.get('position', {}).get('z', -1) < room['z']+room['height']-1
+                                for b in facts.get('cooking', [])): return None
                 return 'thermal', [{'kind': 'place_buildings', 'placements': [{'def_name': definition,
                     'x': layout['room']['x']+2, 'z': layout['room']['z']+6}]}]
             return None

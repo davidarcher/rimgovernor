@@ -102,6 +102,9 @@ class ColonyController:
                     and not any(plan.progress[s].state == 'blocked' for s in waste.steps if s in plan.progress)):
                 waste.status, waste.reason = 'active', ''
             facts['waste'] = plan.control.get('waste', {}).get('items')
+        from .disaster_recovery import reconcile, prioritize
+        recovery = reconcile(plan.control, facts, self.policy, context=token, direction=direction)
+        nodes = prioritize(nodes, recovery)
         for name, value in plan.control['latches'].items():
             if old_latches.get(name) != value:
                 self.event('hysteresis_changed', name, active=value)
@@ -178,7 +181,10 @@ class ColonyController:
                 goal.attempts += 1
                 goal.last_progress_tick = facts['tick']
                 self.event('goal_reopened', identity)
-            goal.priority_class = min(goal.priority_class, priority)
+            if identity in ('MaintainWood', 'EnsureFoodStorage') and goal.source == 'AUTOPILOT':
+                goal.priority_class = priority
+            else:
+                goal.priority_class = min(goal.priority_class, priority)
             progress_fields = {
                 'MaintainWaste': ['waste'],
                 'EnsureFoodSupply': ['foodNutrition'], 'MaintainWood': ['resources'],

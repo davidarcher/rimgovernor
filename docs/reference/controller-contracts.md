@@ -57,6 +57,37 @@ research or expansion methods, or establish their native gameplay acceptance.
 
 ## Method compilation and work allocation
 
+### Environmental disruption
+
+`home/colony_facts.environment.conditions` reports current-map native condition
+IDs, definitions, implementation types, labels, permanence and remaining ticks.
+Permanent conditions have no remaining-tick estimate; reading their duration can
+itself trigger a native error/pause and is deliberately avoided.
+
+`ColonyPlan.control.disaster_recovery` retains load-scoped service deficits and
+stock observations. Active conditions distinguish `disrupted` service from
+`temporary_survival`; expiry leaves `recovering` until every tracked service gate
+passes. Missing observations retain `unknown`, and a load change or tick rewind
+discards the old episode. Restored episodes do not absorb unrelated later shortages.
+Food, production, shelter, sleeping, temperature, cooking, power and storage use
+the existing controller gates. Affected services and needed wood acquisition are
+promoted to survival priority without superseding combat or medical emergencies.
+This is coordination within the existing goals, not an additional executor.
+
+An unusable cooking bench permits one campfire construction method when no
+campfire already exists. Unusable benches receive no new cooking bills.
+Replacement cooking searches at most eight nearby observed free cells with native
+previews; it does not require a new starter-house footprint.
+Starter heating is suppressed only by a usable campfire inside the selected room,
+not by an arbitrary stove or a campfire elsewhere on the map.
+An existing unfueled campfire is not duplicated. These bounded methods do not
+implement electrical repairs, exposure-safe work areas or prolonged refueling.
+Stock snapshots describe accessible stock, not causal consumption accounting.
+Service deficits observed during an event can predate it; the record does not
+establish that the event caused them.
+
+### Shared compilation
+
 Methods compile small batches of semantic construction/zone/native actions. Starter
 templates rank nearby legal shelter sites and disjoint fertile farm patches, then use
 bounded native previews. Fragmented soil can use smaller patches within the same zone

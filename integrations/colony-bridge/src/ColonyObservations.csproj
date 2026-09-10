@@ -14,6 +14,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../../scripts/fixtures/WasteFixture.cs" Condition="'$(WasteFixture)' == 'true'" />
+    <Compile Include="../../../scripts/fixtures/DisasterFixture.cs" Condition="'$(DisasterFixture)' == 'true'" />
     <Compile Include="../../../scripts/fixtures/TradeFixture.cs" Condition="'$(TradeFixture)' == 'true'" />
     <Compile Include="../../../scripts/fixtures/ScenarioStartFixture.cs" Condition="'$(ScenarioStartFixture)' == 'true'" />
     <Compile Include="../../../scripts/fixtures/ConstructionLedgerFixture.cs" Condition="'$(ConstructionLedgerFixture)' == 'true'" />

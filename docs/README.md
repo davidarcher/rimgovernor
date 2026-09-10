@@ -32,6 +32,7 @@ introduces the idea before linking to the exact contracts and relevant source.
   or [run focused/full Docker controller checks](how-to/docker-checks.md).
 - [Prepare Linux inputs](how-to/docker-inputs.md) and [run native Docker acceptance](how-to/docker-native.md).
 - [Verify spatial construction, access and reuse](how-to/spatial-acceptance.md).
+- [Verify environmental observations and cooking fallback](how-to/docker-native.md#verify-environmental-observation-and-cooking-fallback).
 - [Evaluate visual review and evidence recall](how-to/visual-reviews.md).
 - [Verify zone, bill and UI player actions](how-to/player-actions.md) against their [coverage contracts](reference/player-actions.md).
 - [Verify waste hauling and burial](how-to/waste-management.md) against their [containment contracts](reference/waste-management.md).
