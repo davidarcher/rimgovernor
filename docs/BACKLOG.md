@@ -303,6 +303,50 @@ in the checkpoint commit; do not append an implementation diary here.
   deterministic fixtures and isolated native runs observing illumination, cleaning,
   completed floors, actual travel, generation/refueling and maintained temperatures.
 
+- [ ] **B06e · Irregular rooms and circular/oval tribal huts.** Extend new room
+  construction beyond rectangular shells through the existing shared plan and
+  deterministic Hands. Reuse exact-cell adoption and furnishing of existing
+  irregular rooms; this does not yet establish construction of arbitrary shapes.
+  Represent exact connected interior cells, boundary walls and entrances, retaining
+  bounds only for indexing and bounded reads. Provide deterministic rectangle,
+  circle and ellipse generators, including orientation and size controls for oval
+  teepee-style tribal layouts, then support connected irregular footprints.
+  Player chat selects shape, size and style; geometry generation and game orders
+  remain deterministic. Preserve rectangular callers and saved-plan compatibility.
+  Extend overlap, zone, doorway, roof-support, resource-cost and access checks to
+  exact geometry at admission and dispatch. Fit furniture using native footprints
+  while preserving entrance aisles, narrow connectors and interaction cells.
+  Discover available materials and native building definitions. Circular or oval
+  ordinary-wall huts provide the initial footprint feature; literal teepee/tent
+  appearance requires suitable installed content or separately scoped art and
+  building definitions, with provenance retained for reused assets.
+  Acceptance: completed circular and oval huts in multiple sizes/orientations,
+  concave rooms, narrow connectors, constrained terrain, native enclosure/roofing,
+  actual pawn access and furnishing use. Include partial construction, player
+  edits, material shortages and paired restart without duplicate orders. Geometry
+  fixtures and accepted blueprints alone do not establish usable native rooms.
+
+- [ ] **B06f · Staged excavation and mountain-base rooms.** Build on B06e exact
+  geometry and existing irregular-room adoption to excavate requested rooms and
+  corridors through normal pawn mining. Keep this separate from resource-target
+  surface mining, whose current safety guard deliberately excludes roof-adjacent
+  excavation, including supported tunnels; do not relax that guard globally.
+  Discover native rock, roof, support and mining eligibility. Plan bounded stages
+  that preserve support and worker access, retaining natural pillars or completing
+  required supports before dependent excavation. Treat unknown/fogged cells as
+  unknown and reobserve newly exposed space before extending work. Hold and
+  reassess on newly revealed threats, unsafe support or changed player geometry.
+  Account for labor, debris hauling, construction materials and usable access;
+  complete required doors, walls and furnishings before adopting habitable rooms.
+  Use shared dependencies, durable identities and uncertain-write reconciliation;
+  manual direction and colony/load/map changes invalidate pending work.
+  Acceptance: actual pawn excavation of irregular rooms and connecting corridors,
+  support retained throughout staged work, enclosure and functional room use,
+  blocked access, interrupted mining, changed roofs/supports, revealed hazards and
+  paired restart. Verify native outcomes without editor excavation or bypassing
+  ordinary roof-collapse rules. See [spatial contracts](reference/spatial-contracts.md)
+  and [mining contracts](reference/mining-contracts.md) for current boundaries.
+
 - [ ] **B29 · Colony-wide development priorities.** Arbitrate comfort, research,
   production, defense and expansion through the existing deterministic priority tree
   and shared plans. Extend the bounded storage/defense/resource admission order to
