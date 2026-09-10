@@ -26,9 +26,12 @@ and the [test selection guide](../docs/how-to/choose-tests.md) for acceptance sc
 
 ## Timing baseline
 
-The uncontended Python baseline is pending. Measurements alongside another native
-scenario cannot establish this baseline. Coordinate an uncontended window without
-stopping a workload owned by another task.
+The [Python baseline](python-baseline.json) records a bounded uncontended headless
+sample, source/input/image hashes and retained artifacts. It includes partial
+construction holds and a native warning pause. Observed pawn work and new buildings
+are not attributed to controller actions; recovery and sustained outcomes remain
+separate acceptance gates. Measurements alongside another native scenario cannot
+establish an uncontended comparison.
 
 Before G01.12, use the existing [throughput procedure](../docs/how-to/measure-throughput.md)
 with isolated licensed inputs and identical game, model, storage and rendering
