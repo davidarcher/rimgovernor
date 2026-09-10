@@ -36,6 +36,30 @@ class SetPopulationDecision(Contract):
     decision: Literal['rescue', 'capture', 'recruit', 'ignore']
 
 
+class MaintainHerd(Contract):
+    kind: Literal['MaintainHerd']
+    race: str = Field(min_length=1, description='Exact observed native animal race definition.')
+    minimum: int = Field(ge=0, le=500)
+    maximum: int = Field(ge=0, le=500)
+    feed_days: float = Field(ge=1, le=120, allow_inf_nan=False,
+        description='Stored feed reserve horizon including seasonal planning. Grazing is not stored feed.')
+    feed_resource: str | None = Field(default=None,
+        description='Observed native feed definition to replenish through shared resource goals. Omit to select existing feed exclusive to animals.')
+    trainables: list[str] = Field(default_factory=list, max_length=16)
+    protected_ids: list[str] = Field(default_factory=list, max_length=500)
+    allow_slaughter: bool = Field(default=False,
+        description='True only for explicit player authorization to cull surplus. Bonds, masters and pregnancy remain protected.')
+    breeding_pairs: int = Field(default=0, ge=0, le=250,
+        description='Retain at least this many fertile adult males and females during culling. Does not override player separation or sterilization.')
+
+    @model_validator(mode='after')
+    def bounds(self):
+        if self.minimum > self.maximum: raise ValueError('Herd minimum exceeds maximum')
+        if self.breeding_pairs * 2 > self.maximum: raise ValueError('Breeding reserve exceeds herd maximum')
+        if len(set(self.trainables)) != len(self.trainables): raise ValueError('Duplicate trainables')
+        return self
+
+
 class CreateGoal(Contract):
     kind: Literal['CreateGoal']
     goal: Literal['EnsureFoodSupply', 'EnsureInitialShelter', 'EnsureFoodStorage', 'EnsureCooking',
@@ -220,10 +244,10 @@ class RescuePawn(Contract):
     patient: str = Field(min_length=1, description='Exact observed downed living colonist to carry to a native eligible bed.')
 
 
-Command = Annotated[SetPopulationPolicy | SetPopulationDecision | TradeEconomy | SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | RelocateConstruction | AdoptRoom | BuildRoom |
+Command = Annotated[MaintainHerd | SetPopulationPolicy | SetPopulationDecision | TradeEconomy | SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | RelocateConstruction | AdoptRoom | BuildRoom |
                     PlaceBuildings | CreateZone | EditZone | SetWorkPriority | CreateBill | SetBuildingTemperature | DraftPawn | MovePawn | TendPawn | RescuePawn, Field(discriminator='kind')]
 COMMAND = TypeAdapter(Command)
-COMMAND_TYPES = (SetPopulationPolicy,SetPopulationDecision,TradeEconomy,SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,RelocateConstruction,AdoptRoom,BuildRoom,PlaceBuildings,
+COMMAND_TYPES = (MaintainHerd,SetPopulationPolicy,SetPopulationDecision,TradeEconomy,SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,RelocateConstruction,AdoptRoom,BuildRoom,PlaceBuildings,
                  CreateZone,EditZone,SetWorkPriority,CreateBill,SetBuildingTemperature,DraftPawn,MovePawn,TendPawn,RescuePawn)
 COMMAND_NAMES = {kind.__name__ for kind in COMMAND_TYPES}
 
@@ -249,6 +273,7 @@ def semantic_tools(resources=None):
         'TradeEconomy':'Request one bounded exchange with an observed adjacent map trader and negotiator. Use explicit player stock targets, buy/sell quantity limits and price limits. Targets are evaluated in priority order against fresh inventory; shared reserves and commitments remain protected. Never invent export demand, sell equipment/food/medicine, promise future production, or accept a quest. Use MaintainResource separately for player-requested replenishment.',
         'SetPopulationPolicy':'Set explicitly requested maximum population and minimum food reserve days. Does not authorize capturing or recruiting any individual; use SetPopulationDecision for exact observed pawns.',
         'SetPopulationDecision':'Explicit per-pawn rescue, hostile capture, prisoner recruitment, or withdrawal of future population orders. Requires an existing population capacity policy. Preserves other individuals and does not release existing prisoners. Native custody, care, recruitment and integration are observed separately.',
+        'MaintainHerd':'Maintain player animal population, training and seasonal stored feed targets. Uses native normal breeding and handler work. Never infer culling permission from a population target. Animal settings changed by the player require explicit renewal.',
         'SetResearch':'Select a research project requested by the player.',
         'CreateGoal':'Set a persistent colony target. MaintainResource with resource and quantity means keep acquiring or producing that stock, for example maintain 50 steel. The deterministic controller chooses downstream actions.',
         'ModifyResourcePolicy':'Change a resource spending restriction while preserving its existing reserve.',
@@ -376,6 +401,28 @@ async def apply_command(rt, payload, *, token, revision):
                 target={'pawn': request.pawn, 'decision': request.decision, 'interaction': p.get('interaction')},
                 started_tick=snapshot['tick'], last_progress_tick=snapshot['tick'])
         result = {'goal': identity, 'decision': request.decision, 'execution': 'Population goal recorded; native outcomes remain unverified'}
+    elif isinstance(request, MaintainHerd):
+        observed = await rt.game.invoke('home/husbandry_facts', {})
+        await rt.ensure_context(token)
+        if rt.chat_revision != revision: raise ValueError('Player direction changed; herd target discarded')
+        if rt.current_plan is not plan: raise ValueError('Colony plan changed; herd target discarded')
+        animals = [a for a in observed.get('animals', []) if a['race'] == request.race]
+        if observed.get('success') is not True or not animals:
+            raise ValueError('Herd target requires an observed player animal race on the current map')
+        if any(name not in {r['name'] for a in animals for r in a['training']} for name in request.trainables):
+            raise ValueError('Unknown native animal trainable')
+        if set(request.protected_ids) - {a['id'] for a in animals}:
+            raise ValueError('Protected animal IDs must belong to the observed herd')
+        identity = 'MaintainHerd-' + request.race
+        prior = plan.colony_goals.get(identity)
+        if prior:
+            for step in prior.steps:
+                if step in plan.progress and plan.progress[step].state != 'complete': plan.cancel(step)
+        goal = ColonyGoal(priority_class=3, source='PLAYER', target=request.model_dump(exclude={'kind'}))
+        goal.evidence['scope'] = {k: observed[k] for k in ('colonyId', 'mapId')}
+        plan.colony_goals[identity] = goal
+        plan.control.setdefault('suppressed_goals', {}).pop(identity, None)
+        result = {'goal': identity, 'target': goal.target}
     elif isinstance(request, CreateGoal):
         goal_id = request.goal
         if request.goal == 'MaintainWaste':

@@ -74,7 +74,11 @@ class ColonyController:
         pending_supplies = [p for p in pending_supplies if (p['x'],p['z']) in still_forbidden]
         plan.control['starting_supplies'] = pending_supplies
         facts['forbiddenSupplies'] = pending_supplies
-        assignments, coverage = work_assignment(people['pawns'], required_colony_work(plan), plan.control.get('work_overrides', {}))
+        from .husbandry import refresh_husbandry, required_handler_skill
+        herd_nodes = await refresh_husbandry(rt, native)
+        await rt.ensure_context(token)
+        if direction != rt.chat_revision or rt.mode != 'automate': return
+        assignments, coverage = work_assignment(people['pawns'], required_colony_work(plan), plan.control.get('work_overrides', {}), required_handler_skill(plan))
         for pawn, values in plan.control.get('work_overrides', {}).items():
             if pawn in assignments: assignments[pawn].update(values)
         coverage = coverage and all(any(values.get(work, 0) > 0 for values in assignments.values())
@@ -102,7 +106,7 @@ class ColonyController:
         population_nodes = await refresh_population(rt, facts, people['pawns'])
         await rt.ensure_context(token)
         if direction != rt.chat_revision or rt.mode != 'automate': return
-        nodes = priority_nodes(facts, plan.control.setdefault('latches', {}), self.policy) + resource_nodes + population_nodes
+        nodes = priority_nodes(facts, plan.control.setdefault('latches', {}), self.policy) + resource_nodes + population_nodes + herd_nodes
         nodes += mood_nodes(facts['mood'])
         nodes.sort(key=lambda node: node[1])
         waste = plan.colony_goals.get('MaintainWaste')
@@ -243,6 +247,11 @@ class ColonyController:
                         best[cause['need']] = level
                 progress_facts = dict(best)
             signature = fingerprint({'facts': progress_facts,
+                'herd': ({'population': goal.evidence['husbandry'].get('population'),
+                    'training': [(a['id'], [(r['name'], r.get('learned'), r.get('stepsDone')) for r in a['training']])
+                                 for a in goal.evidence['husbandry'].get('animals', [])],
+                    'pregnancies': [(a['id'], a.get('gestation')) for a in goal.evidence['husbandry'].get('animals', []) if a.get('pregnant')]}
+                         if identity.startswith('MaintainHerd-') else None),
                 'steps': {s: plan.progress[s].state for s in goal.steps if s in plan.progress}})
             if signature != goal.evidence.get('progress'):
                 goal.evidence['progress'] = signature
@@ -338,7 +347,7 @@ class ColonyController:
                         plan.control['simulation_needed'] = True
                     existing_process = (identity=='CriticalMedical' and any(p.get('job')=='TendPatient' for p in people['pawns'])) or (identity=='EnsureFoodSupply' and any(f.get('growingCells',0)>0 for f in facts.get('farms',[]))) or (
                         identity in ('EnsureFoodSupply','MaintainWood') and any(p.get('designated') for p in facts.get('acquisition',[])))
-                    if goal.evidence.get('methods') or goal.archived_methods or existing_process or identity.startswith('MaintainResource-') or identity=='EnsureResearch': plan.control['simulation_needed'] = True
+                    if goal.evidence.get('methods') or goal.archived_methods or existing_process or identity.startswith(('MaintainResource-', 'MaintainHerd-')) or identity=='EnsureResearch': plan.control['simulation_needed'] = True
                     continue
                 method, actions = compiled
                 steps, slots = self.skills.steps(identity, method, actions, facts)

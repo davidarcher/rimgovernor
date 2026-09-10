@@ -917,6 +917,9 @@ class BridgeRuntime:
                 raise ValueError('New player direction arrived during preparation; no command sent')
             if expected_token is not None and expected_token != self.context_token:
                 raise ValueError('Loaded colony changed during preparation; no command sent')
+            if name == 'home/husbandry_config' and not arguments.get('dryRun', False):
+                from .husbandry import validate_dispatch
+                validate_dispatch(self.current_plan, expected_step_id, arguments)
             hunting_target=None
             if expected_step_id and name=='rimworld/apply_architect_designator':
                 step=next((s for s in self.current_plan.spec.steps if s.id==expected_step_id),None)

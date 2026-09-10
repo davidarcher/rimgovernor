@@ -155,7 +155,7 @@ def required_colony_work(plan):
     return work
 
 
-def work_assignment(pawns, required_work=None, overrides=None):
+def work_assignment(pawns, required_work=None, overrides=None, minimum_skills=None):
     """Greedy coverage with stable tie breaks and a load penalty for specialists."""
     skill_for = {'Hunting': 'Shooting', 'Doctor': 'Medicine', 'Cooking': 'Cooking', 'Construction': 'Construction',
                  'Growing': 'Plants', 'PlantCutting': 'Plants'}
@@ -176,6 +176,8 @@ def work_assignment(pawns, required_work=None, overrides=None):
             skills = {s['name']: s for s in (pawn.get('bio') or {}).get('skills', [])}
             value = skills.get(skill, {}) if skill else {'level': 0}
             if value.get('level') is None or value.get('disabled'):
+                continue
+            if value['level'] < (minimum_skills or {}).get(work, 0):
                 continue
             score = value['level'] + {'Minor': 2, 'Major': 4}.get(value.get('passion'), 0) - 3 * load[pawn['thingId']]
             candidates.append((load[pawn['thingId']], -score, pawn['thingId']))

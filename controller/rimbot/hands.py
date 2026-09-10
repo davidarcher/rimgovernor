@@ -156,6 +156,14 @@ class Hands:
                                 'meaning': 'Native command observed; this does not certify completion of pawn labor'}
                             if action.tool == 'home/manage_waste':
                                 receipt['waste_receipt'] = result.get('receipt', result)
+                            if action.tool == 'home/husbandry_config':
+                                outcome = result.get('receipt', result)
+                                self.guard(rt, revision, token, direction)
+                                if outcome.get('success') is not True or not outcome.get('after'):
+                                    raise Blocked('husbandry_unconfirmed', 'Animal setting write is unconfirmed; observe before retrying', evidence=result)
+                                goal = rt.current_plan.colony_goals[step.goal_id]
+                                goal.evidence['settings'][args['animal']] = outcome['after']
+                                receipt['animal_settings'] = outcome
                             if action.tool == 'home/install':
                                 native = result.get('receipt', result)
                                 receipt['inner_id'] = native['thingId']

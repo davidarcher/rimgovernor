@@ -7,7 +7,7 @@ For the end-to-end path, read [plans and Hands](../explanation/plans-and-hands.m
 
 The chat command union supports SetResearch, BuildRoom, PlaceBuildings, CreateZone, EditZone,
 SetWorkPriority, CreateBill, DraftPawn, MovePawn, TendPawn, RescuePawn, CreateGoal, CancelGoal,
-ModifyResourcePolicy, SetResourceReserve, TradeEconomy, SetPopulationPolicy and SetPopulationDecision. The model receives individually named
+ModifyResourcePolicy, SetResourceReserve, TradeEconomy, MaintainHerd, SetPopulationPolicy and SetPopulationDecision. The model receives individually named
 semantic tools and read-only native inspection/preview tools, not arbitrary native
 execution. Fresh native facts and resource-definition labels are available in Manual as
 well as Automate. The latest player message follows the evidence context. Consecutive
@@ -20,6 +20,9 @@ remain chat tools. Advice is evidence, never executable authority.
 
 `EditZone` changes an existing observed zone through native eligibility and readback.
 `CreateBill.ingredients` optionally supplies a complete native ingredient whitelist.
+`MaintainHerd` sets population, breeder reserve, training and seasonal feed targets
+under the [animal husbandry contract](husbandry-contracts.md); surplus slaughter
+requires its separate explicit permission.
 See [player action coverage](player-actions.md) for fields, special storage filters,
 UI reference guards and the native capability audit.
 

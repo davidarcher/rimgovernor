@@ -150,6 +150,9 @@ class ColonySkills:
         if goal_id.startswith('Population-'):
             from .population import compile_method
             return await compile_method(self.rt, goal_id, facts, people)
+        if goal_id.startswith('MaintainHerd-'):
+            from .husbandry import husbandry_method
+            return await husbandry_method(self.rt, goal_id)
         if goal_id.startswith('MaintainResource-'):
             from .production_policy import resource_method
             return await resource_method(self.rt, goal_id, facts)
@@ -297,7 +300,8 @@ class ColonySkills:
                     x=p['x'], z=p['z'], keepSelected=False) for p in facts['forbiddenSupplies'][:8]]
             return None
         if goal_id == 'EnsureWorkAssignments':
-            assignments, covered = work_assignment(people, required_colony_work(rt.current_plan), rt.current_plan.control.get('work_overrides', {}))
+            from .husbandry import required_handler_skill
+            assignments, covered = work_assignment(people, required_colony_work(rt.current_plan), rt.current_plan.control.get('work_overrides', {}), required_handler_skill(rt.current_plan))
             for pawn, values in rt.current_plan.control.get('work_overrides', {}).items():
                 if pawn in assignments: assignments[pawn].update(values)
             covered = covered and all(any(values.get(work, 0) > 0 for values in assignments.values())
@@ -503,8 +507,8 @@ class ColonySkills:
         goal = self.rt.current_plan.colony_goals[goal_id]
         result, slots = [], {}
         for index, action in enumerate(actions):
-            identity = ('resource-' + fingerprint({'goal':goal_id,'attempt':goal.attempts,'method':method,'index':index})[:32]
-                        if goal_id.startswith('MaintainResource-') else f'{goal_id}-{goal.attempts}-{method}-{index}'[:64])
+            identity = (('herd-' if goal_id.startswith('MaintainHerd-') else 'resource-') + fingerprint({'goal':goal_id,'attempt':goal.attempts,'method':method,'index':index})[:32]
+                        if goal_id.startswith(('MaintainResource-', 'MaintainHerd-')) else f'{goal_id}-{goal.attempts}-{method}-{index}'[:64])
             step = PlanStep(id=identity, title=f'{goal_id}: {method}', goal_id=goal_id, source=goal.source,
                 priority=max(75 if goal.source=='PLAYER' else 0,100-goal.priority_class*20), action=action,
                 completion_criteria='Native effect observed; colony goal separately verifies functional postconditions')

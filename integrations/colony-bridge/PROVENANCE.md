@@ -372,3 +372,9 @@ payloads and colony/map/load identity in immutable XML rows under the private
 profile, publishes flushed rows by rename and recovers complete staged rows.
 It does not serialize or edit simulation state. Journal failures pause supervised
 play and surface an explicit failure instead of silently discarding history.
+
+HusbandryTools is an original extension using native animal settings, training,
+slaughter eligibility, enclosed pen lookup and pawn reachability APIs. It preserves
+normal simulation rules and copies no game implementation. The existing attributed
+PawnSettingsRead supplies animal training and product observations. HusbandryFixture
+is a separately enabled test-only prerequisite builder, absent from production DLLs.
