@@ -5,7 +5,6 @@ from .strategic_state import fingerprint
 
 
 async def relocate(rt, request, *, token, revision):
-    validate_player_authorization(rt, revision)
     plan = rt.current_plan
     intent = plan.control.get('player_intents', {}).get(request.intent_id, {})
     source_id = intent.get('step', request.intent_id)
@@ -19,6 +18,13 @@ async def relocate(rt, request, *, token, revision):
     if any(dep.step == source.id for step in plan.spec.steps for dep in step.after):
         raise ValueError('Dependent work references this construction; resolve it before relocation')
     progress = plan.progress[source.id]
+    if isinstance(source.action, RoomShell) and not progress.issued and progress.state in ('pending','blocked'):
+        from .player_commands import apply_command
+        intent_key=next((key for key,value in plan.control.get('player_intents',{}).items()
+                         if value.get('step')==source.id),request.intent_id)
+        return await apply_command(rt,{'kind':'BuildRoom','intent_id':intent_key,
+            'room':request.replacement.model_dump(),'purpose':source.purpose},token=token,revision=revision)
+    validate_player_authorization(rt, revision)
     targets = await capture_targets(rt.game, plan, source.id)
     # Completed or independently removed slots cannot be interpreted as consent
     # to duplicate construction elsewhere. Use a separate explicit project.

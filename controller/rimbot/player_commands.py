@@ -338,8 +338,10 @@ async def apply_command(rt, payload, *, token, revision):
         from .construction_relocation import relocate
         result = await relocate(rt, request, token=token, revision=revision)
     elif isinstance(request, CancelConstruction):
-        from .construction_cancellation import capture_targets, validate_player_authorization
+        from .construction_cancellation import capture_targets, validate_player_authorization, requests_relocation
         from .colony_plan import CancelConstructionAction
+        if requests_relocation(rt,revision):
+            raise ValueError('Player requested relocation. Use RelocateConstruction so the replacement is validated before any removal.')
         validate_player_authorization(rt, revision)
         intent = plan.control.get('player_intents', {}).get(request.intent_id, {})
         source_id = intent.get('step', request.intent_id)

@@ -20,7 +20,7 @@ checks both live method entries and that table. Each natural goal reopening adva
 method epoch, allowing new work without deleting archived associations. Pending methods
 remain live, and a missing method archive blocks replay after restart.
 
-## Goal evidence and history indexes
+## Player command capacity
 
 When an append would exceed 72 live steps, eligible completed PLAYER commands
 also retire. Active player goal references and combat references remain live;
@@ -31,6 +31,8 @@ An explicit new research, production-policy, pawn-setting or building-setting
 command can restore an earlier value after the old command completed. The old
 setting receipt archives before the new action executes. Pending settings and
 non-idempotent operations retain duplicate-intent protection.
+
+## Goal evidence and history indexes
 
 Hunting target metadata follows its completed action into an immutable goal-evidence
 table in the same snapshot transaction. Pending targets remain live; metadata from older

@@ -38,23 +38,6 @@ in the checkpoint commit; do not append an implementation diary here.
   Single-patient interrupted tending has native Docker acceptance through actual
   completed treatment and draft cleanup. This does not establish competing-patient
   triage, changed player direction in the game or low-health combat rearming.
-- [ ] **B04g · Native command acceptance.** Extend the isolated native chat probe to construction and room
-  refinements. Define and accept completed PLAYER-order archival when the 80-step
-  live plan fills, preserving durable receipts and player intent. Broaden wording and context for
-  issued-construction cancellation after a lost receipt, which has one native
-  local-model acceptance case. Broaden research selection,
-  refusal and persistent goal cancel/resume coverage across projects, models and
-  save/load boundaries. Measure schema-valid semantic errors, including wrong
-  resources and erroneous reserve-tool selection, separately from native refusals and
-  zero-inference controller acceptance. A passing scripted model run is not a
-  reliability rate.
-  Combined goal/policy and multi-resource requests have native paused-session
-  acceptance, including paired restart and subsequent goal cancellation/resumption.
-  Repeated fixed-fact measurement includes native resource-label distractors;
-  broaden wording, contexts and models beyond this bounded acceptance. Include
-  preservation-versus-removal ambiguity and conflicting instructions across
-  multiple construction intents; the conservative preservation guard is not a
-  general natural-language authorization proof.
 
 - [ ] **B04h · Complete startup and colony upkeep.** Implement the phased plan
   below through existing ColonyPlan goals, deterministic methods and Hands. Use

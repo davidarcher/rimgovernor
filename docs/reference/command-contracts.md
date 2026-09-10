@@ -85,6 +85,9 @@ goals; related pending or blocked player work prevents a competing autonomous pr
 Cancelling related player work suppresses its autonomous replacement until an explicit
 goal request re-enables it. Existing native blueprints/designations are retained by
 `CancelGoal`.
+The bounded chat intent index exposes live state and issued-operation count without
+receipt bodies, so unissued refinement can be distinguished from native construction.
+Missing live progress remains unavailable; exact history is retrieved through inspection.
 
 ## Exact native removal
 
@@ -107,6 +110,11 @@ tool. This conservative refusal does not certify arbitrary wording or multi-inte
 scope.
 
 ## Relocation and dependencies
+
+Relocating an unissued room uses the existing validated `BuildRoom` refinement
+path with the same intent identity and no removal action. Explicit move requests
+cannot admit standalone cancellation: the plan must include a replacement that
+depends on completed removal, preserving validation before destructive work.
 
 `RelocateConstruction` admits replacement geometry and exact old-order removal in one
 validated plan. Replacement placements must already pass native placement, resource

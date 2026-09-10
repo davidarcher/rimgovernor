@@ -177,6 +177,8 @@ async def test_pending_removal_rechecks_preservation_before_execution(tmp_path):
 @pytest.mark.parametrize('instruction', [
     'Cancel the bedroom.',
     'Stop work on that room.',
+    'Do not cancel construction of the room.',
+    "Don't remove the current construction.",
     "Remove the bedroom construction orders. Keep workshop's blueprints in place.",
     'Remove the room orders but keep its pending blueprints.'])
 async def test_ambiguous_or_conflicting_human_request_cannot_remove_native_orders(tmp_path,instruction):
@@ -184,6 +186,25 @@ async def test_ambiguous_or_conflicting_human_request_cannot_remove_native_order
     rt.chat.append({'kind':'human','revision':rt.chat_revision,'text':instruction})
     before=deepcopy(rt.current_plan.model_dump())
     with pytest.raises(ValueError):await cancel(rt)
+    assert rt.current_plan.model_dump()==before and len(rows)==2
+    rt.native.assert_not_awaited()
+    rt.store.close()
+
+
+@pytest.mark.asyncio
+async def test_move_request_cannot_be_reduced_to_standalone_removal(tmp_path):
+    from rimbot.colony_plan import CommitSteps
+    rt,rows=await fixture(tmp_path)
+    result=await cancel(rt)
+    removal=next(s for s in rt.current_plan.spec.steps if s.id==result['step']).model_copy(deep=True)
+    removal.id='bypass';rt.current_plan.spec.steps.pop();rt.current_plan.progress.pop(result['step'])
+    rt.chat.append({'kind':'human','revision':rt.chat_revision,
+        'text':'Move the pending walls to x 30, z 30. Remove their old blueprints as part of that move.'})
+    before=deepcopy(rt.current_plan.model_dump())
+    with pytest.raises(ValueError,match='RelocateConstruction'):await cancel(rt)
+    with pytest.raises(ValueError,match='RelocateConstruction'):
+        await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,reason='Move',steps=[removal]).decision(rt.current_plan),
+            actor='strategist',expected_token=rt.context_token,expected_revision=rt.chat_revision)
     assert rt.current_plan.model_dump()==before and len(rows)==2
     rt.native.assert_not_awaited()
     rt.store.close()

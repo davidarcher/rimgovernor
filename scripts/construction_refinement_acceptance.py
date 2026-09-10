@@ -93,7 +93,9 @@ async def run(args):
                 bounds=shell['bounds']
                 existing_intents=set(rt.current_plan.control.get('player_intents',{}))
                 await chat('Build a wooden 4 by 4 room called chat-bedroom at x '+str(bounds['x'])+
-                    ', z '+str(bounds['z'])+', with a south entrance. Use ordinary walls and a door. Its purpose is shelter.')
+                    ', z '+str(bounds['z'])+', with a south entrance. Its purpose is shelter. '
+                    'The native preview resolved wall definition '+shell['wall_def']+', door definition '+shell['door_def']+
+                    ' and material '+shell['materials'][0]+'. Use those inspected definitions.')
                 intents=rt.current_plan.control.get('player_intents',{})
                 created=set(intents)-existing_intents
                 assert len(created)==1, 'Chat must admit exactly one room intent'
@@ -101,7 +103,8 @@ async def run(args):
                 initial=next(s.action for s in rt.current_plan.spec.steps if s.id==prior)
                 record('chat_room_admitted_before_dispatch',rt.current_plan.progress[prior].state=='pending'
                     and initial.model_dump()==shell,shell=shell,intent=intent)
-                await chat('For '+intent+', keep that exact location, size and wood material, but put the entrance on the north side instead.')
+                await chat('No native orders have been issued for '+intent+' yet. Revise that same unissued room: '
+                    'keep its exact location, size and wood material, but put the entrance on the north side instead. Do not create a second room.')
                 current=rt.current_plan.control['player_intents'][intent]['step']
                 action=next(s.action for s in rt.current_plan.spec.steps if s.id==current)
                 record('chat_room_refinement_preserves_geometry',current!=prior and action.bounds.model_dump()==bounds
@@ -114,8 +117,11 @@ async def run(args):
                 and not rt.current_plan.progress[prior].issued,progress=progress.model_dump())
             facts=await rt.game.query('home/colony_facts',planning=True)
         cells=[]
+        from rimbot.colony_plan import RoomShell
+        rooms=[s.action.bounds for s in rt.current_plan.spec.steps if isinstance(s.action,RoomShell)]
         for cell in sorted(facts['cells'], key=lambda c:(c['x']-facts['center']['x'])**2+(c['z']-facts['center']['z'])**2):
             if not cell.get('walkable') or cell.get('occupied'): continue
+            if any(b.x-3<=cell['x']<b.x+b.width+3 and b.z-3<=cell['z']<b.z+b.height+3 for b in rooms):continue
             if any(abs(cell['x']-p['x'])+abs(cell['z']-p['z'])<3 for p in cells): continue
             preview=await rt.game.invoke('home/place_building',dict(defName='Wall',stuff='WoodLog',
                 x=cell['x'],z=cell['z'],rotation='north',dryRun=True))
@@ -157,6 +163,7 @@ async def run(args):
             and rt.current_plan.progress[replacement.id].state=='waiting'
             and len(rt.current_plan.progress[replacement.id].issued)==2,
             replacement=replacement.model_dump(), progress=rt.current_plan.progress[replacement.id].model_dump())
+        await rt.steer('Begin independent scripted cancellation fixture; keep the colony paused.',interpret=False)
         second=await command(kind='PlaceBuildings',buildings=buildings([5,6]))
         await rt.execute_manual_requests()
         removal=await command(kind='CancelConstruction',intent_id=second['step'])

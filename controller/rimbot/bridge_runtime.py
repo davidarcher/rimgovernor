@@ -312,8 +312,9 @@ class BridgeRuntime:
                 from .construction_cancellation import validate_cancellations
                 if any(s.action.kind == 'cancel_construction' and not any(old.id == s.id for old in self.current_plan.spec.steps)
                        for s in decision.plan.steps):
-                    from .construction_cancellation import validate_player_authorization
+                    from .construction_cancellation import validate_player_authorization, validate_relocation_bundle
                     validate_player_authorization(self, expected_revision)
+                    validate_relocation_bundle(self, expected_revision, decision.plan)
                 await validate_cancellations(decision.plan, self.current_plan, self.game, self.identity)
                 await preflight_construction(decision.plan, self.current_plan, self.game)
                 allocations = await validate_allocations(decision.plan, self.current_plan, self.game)

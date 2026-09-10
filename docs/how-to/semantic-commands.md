@@ -67,7 +67,7 @@ afterward. A passed paused-session check does not prove pawn production. The sem
 benchmark includes native labels for related resources as distractors; score exact
 resolved definitions rather than accepting extra resource changes.
 
-## Related reading
+## Expanded native and model matrix
 
 Add `--matrix` to verify two available and two locked research projects before
 and after `--restart`, plus maintained resource-goal cancellation/resumption.
@@ -92,6 +92,8 @@ Use a fixed image and current private companion DLLs. An unbuilt controller bind
 mount hides the image's dashboard assets. Linux-local runtime storage can avoid
 Windows bind-mount publication faults; export its entire evidence tree before
 removing the owned container.
+
+## Related reading
 
 [Choose tests](choose-tests.md) · [Test evidence explained](../explanation/testing.md) ·
 [Backlog](../BACKLOG.md)

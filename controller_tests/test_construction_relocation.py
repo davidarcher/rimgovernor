@@ -115,3 +115,52 @@ async def test_manual_dependency_stops_on_direction_change(tmp_path):
     rt.hands.advance.assert_awaited_once()
     assert rt.current_plan.progress[result['step']].state=='pending'
     rt.store.close()
+
+
+@pytest.mark.asyncio
+async def test_unissued_room_relocation_uses_shared_refinement_without_removal(tmp_path,monkeypatch):
+    from rimbot.colony_plan import RoomShell,StepProgress
+    from rimbot.player_commands import RelocateConstruction
+    from rimbot.construction_relocation import relocate as apply_relocation
+    rt,rows=await setup(tmp_path)
+    shell=RoomShell(bounds={'x':20,'z':20,'width':4,'height':4},wall_def='Wall',door_def='Door',materials=['WoodLog'],entrance='south')
+    rt.current_plan.spec.steps[0].action=shell
+    rt.current_plan.progress['player-room']=StepProgress()
+    request=RelocateConstruction(kind='RelocateConstruction',intent_id='player-room',replacement=shell.model_copy(update={'entrance':'north'}))
+    refine=AsyncMock(return_value={'step':'refined'})
+    monkeypatch.setattr('rimbot.player_commands.apply_command',refine)
+    result=await apply_relocation(rt,request,token=rt.context_token,revision=rt.chat_revision)
+    assert result=={'step':'refined'}
+    payload=refine.await_args.args[1]
+    assert payload['kind']=='BuildRoom' and payload['intent_id']=='room'
+    assert payload['room']['entrance']=='north' and payload['room']['bounds']==shell.bounds.model_dump()
+    rt.game.invoke.assert_not_awaited()
+    assert len(rows)==2
+    rt.store.close()
+
+
+@pytest.mark.asyncio
+async def test_issued_relocation_allows_unrelated_admission_but_uncertain_slots_stay_strict(tmp_path):
+    from rimbot.colony_plan import PlanStep,StepProgress
+    from rimbot.construction_preflight import preflight_construction,ConstructionRefusal
+    rt,rows=await setup(tmp_path)
+    result=await relocate(rt)
+    plan=rt.current_plan
+    plan.progress[result['step']]=StepProgress(state='waiting',issued={'0':{'confirmed':True},'1':{'confirmed':True}})
+    plan.progress[result['cancellation_step']].state='complete'
+    original=rt.game.invoke.side_effect
+    async def observed(name,args,**kwargs):
+        reply=await original(name,args,**kwargs)
+        if name=='home/place_building' and args['x'] in (30,31):
+            reply['canPlace']=False
+            reply['rotations'][0].update(accepted=False,blockingThings=[{'thingId':'OwnedBlueprint','isBlueprint':True}])
+        return reply
+    rt.game.invoke=AsyncMock(side_effect=observed)
+    spec=plan.spec.model_copy(deep=True)
+    spec.steps.append(PlanStep(id='unrelated',title='Unrelated wall',completion_criteria='Built',action={
+        'kind':'place_buildings','placements':[{'def_name':'Wall','x':40,'z':30,'materials':['WoodLog']}]}))
+    await preflight_construction(spec,plan,rt.game)
+    plan.progress[result['step']].issued['0']['confirmed']=False
+    with pytest.raises(ConstructionRefusal):await preflight_construction(spec,plan,rt.game)
+    rt.native.assert_not_awaited()
+    rt.store.close()

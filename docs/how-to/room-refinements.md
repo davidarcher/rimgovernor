@@ -59,7 +59,7 @@ set, native removal, preserved unrelated orders and paused Manual mode. This sin
 request is not a general model reliability measurement. Install its companion and
 restore the previous DLL only with every game stopped.
 
-## Related reading
+## Chat refinement and lost receipts
 
 `scripts/construction_refinement_acceptance.py --rooms --wording conversational`
 holds the fixture executor while chat admits a room and refines its entrance, then
@@ -68,6 +68,8 @@ lost removal receipt, conflicting preservation requests across multiple intents,
 paired restart and fresh removal of only the remaining pending orders. Use
 `--wording explicit` for the alternate request context. These paused checks certify
 orders and settings, not pawn-built rooms or general model reliability.
+
+## Related reading
 
 [Choose tests](choose-tests.md) · [Test evidence explained](../explanation/testing.md) ·
 [Backlog](../BACKLOG.md)

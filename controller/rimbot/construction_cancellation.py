@@ -9,7 +9,8 @@ def preserves_pending_orders(text):
     objects = r'(?:blueprints?|frames?|orders)\b'
     keep = r'\b(?:keep|retain|preserve|leave)\s+'
     negative = r"\b(?:do\s+not|don't|don’t|never)\s+(?:remove|delete|cancel|clear)\s+"
-    return bool(re.search('(?:'+keep+'|'+negative+')'+qualifiers+objects, text, re.IGNORECASE))
+    return bool(re.search('(?:'+keep+'|'+negative+')'+qualifiers+objects, text, re.IGNORECASE)
+                or re.search(negative+qualifiers+r'construction\b',text,re.IGNORECASE))
 
 
 def validate_player_authorization(rt, revision):
@@ -22,6 +23,22 @@ def validate_player_authorization(rt, revision):
     removal = r'\b(?:remove|delete|clear(?:\s+away)?|take\s+down|cancel)\b[^.!?;\n]{0,140}\b(?:blueprints?|frames?|construction|orders)\b'
     if messages and not any(re.search(removal,text,re.IGNORECASE) for text in messages):
         raise ValueError('Construction removal needs an explicit request to remove pending orders; goal cancellation alone preserves them.')
+
+
+def requests_relocation(rt, revision):
+    pattern=r'\b(?:move|relocate)\b[^.!?;\n]{0,120}\b(?:construction|blueprints?|frames?|walls?|room|intent)\b'
+    return any(re.search(pattern,m.get('text',''),re.IGNORECASE) for m in rt.chat
+               if m.get('kind')=='human' and m.get('revision')==revision)
+
+
+def validate_relocation_bundle(rt, revision, spec):
+    if not requests_relocation(rt,revision):return
+    existing={s.id for s in rt.current_plan.spec.steps}
+    for removal in spec.steps:
+        if removal.id in existing or not isinstance(removal.action,CancelConstructionAction):continue
+        if not any(isinstance(s.action,(Buildings,RoomShell)) and
+                   any(d.step==removal.id and d.when=='complete' for d in s.after) for s in spec.steps):
+            raise ValueError('Player requested relocation. Use RelocateConstruction so the replacement is validated before any removal.')
 
 
 async def capture_targets(game, plan, source_step):

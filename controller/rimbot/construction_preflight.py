@@ -55,7 +55,9 @@ async def preflight_construction(spec, current, game):
                 # definition; leave site readiness to execution after dependencies.
                 relocation = any(dependency.step == candidate.id and candidate.action.kind == 'cancel_construction'
                     for dependency in step.after for candidate in spec.steps)
-                if relocation:
+                confirmed = (relocation and unchanged and step.id in current.progress
+                             and current.progress[step.id].issued.get(str(index),{}).get('confirmed') is True)
+                if relocation and not confirmed:
                     from .shelter_handoff import safe_rotation
                     rows = result.get('rotations', [])
                     if len(rows) != 1 or not safe_rotation(rows[0]):

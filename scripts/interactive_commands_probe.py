@@ -60,8 +60,8 @@ async def run(args):
         locked=catalog.get('locked',[])[:2]
         assert len(available)==2 and len(locked)==2, 'Research matrix needs two available and two locked native projects'
         for index,project in enumerate(available):
-            phrase=('Switch our current research project to ' if index else 'Please select ')
-            reply=await chat(phrase+project['label']+' for research. Do not issue construction orders.')
+            identity=project['label'] if boundary=='before_load' else project['defName']
+            reply=await chat('Set the selected research project to "'+identity+'".')
             current=await rt.game.invoke('home/research',{})
             record({'command':boundary+'_research_'+project['defName'],'reply':reply,
                 'passed':(current.get('current') or {}).get('defName')==project['defName']})
