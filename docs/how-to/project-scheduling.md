@@ -16,9 +16,15 @@ projects, restricts ordinary stock through native forbidding, interrupts a parti
 batch, verifies a paused paired restart, then requires actual pawn construction
 and exact material consumption. Restoring stock resumes the retained competitor;
 dependent work waits for real completion, and repeated dispatch must issue nothing.
+Build its private companion with `-p:ConstructionLedgerFixture=true`. This optional
+test-only observer records native Frame completion/failure and before/after resource
+counts without changing those methods. The probe reconciles full stock, including
+pawn-held items, against those events so ordinary construction failures are counted
+as actual losses. Missing/truncated observer evidence fails acceptance. Default
+production builds omit the observer.
 
 For local Docker, stage private current companion binaries using the worker
-[isolated worker procedure](isolated-workers.md), build the task's image, and run each probe as the worker command:
+[isolated worker procedure](docker-worker.md), build the task's image, and run each probe as the worker command:
 `docker compose -f containers/compose.yaml -p <unique-project> run --rm worker --
 python /app/scripts/project_postconditions_acceptance.py --source-root /worker/run
 --output /worker/acceptance`. Use fresh worker output for each probe. Staged input

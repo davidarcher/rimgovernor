@@ -16,6 +16,8 @@ FAULT = (
     "Failed to claim runtime ownership for 'rimbot-trial': failed to publish runtime state: "
     "rename C:\\GABS\\.runtime-2910154312.tmp C:\\GABS\\runtime.json: Access is denied."
 )
+CLAIM_FAULT = ("Failed to claim runtime ownership for 'rimbot-trial': a launch claim for 'rimbot-trial' "
+               "was published while preparing this operation; re-check games_status and retry")
 
 
 def result(payload, error=False):
@@ -115,3 +117,24 @@ async def test_repeated_faults_preserve_receipts_across_restore_without_orders()
     assert rt.projects.rows[0].matched_ids == ['Wall1']
     assert session.call_tool.await_count == 13
     assert all(call.args[1]['tool'] == 'home/list_buildings' for call in session.call_tool.await_args_list)
+
+
+async def test_launch_claim_read_refreshes_status_before_bounded_retry():
+    game, session = game_with([result({'message': CLAIM_FAULT}, True), result({'running': True}),
+        result({'zones': []})], 'home/list_zones', {})
+    assert await game.query('home/list_zones') == {'zones': []}
+    assert [c.args[0] for c in session.call_tool.await_args_list] == ['games_call_tool', 'games_status', 'games_call_tool']
+    assert session.call_tool.await_args_list[1].args[1] == {'gameId': 'rimbot-trial'}
+
+
+async def test_launch_claim_mutation_failure_never_refreshes_or_replays():
+    game, session = game_with([result({'message': CLAIM_FAULT}, True)], 'home/place_building', {'dryRun': {'type': 'boolean'}})
+    with pytest.raises(BridgeError): await game.invoke('home/place_building', {'dryRun': False}, allow_write=True)
+    assert session.call_tool.await_count == 1
+
+
+async def test_repeated_launch_claim_read_failure_exhausts_two_retries():
+    fault = result({'message': CLAIM_FAULT}, True)
+    game, session = game_with([fault, result({}), fault, result({}), fault], 'home/list_zones', {})
+    with pytest.raises(BridgeError): await game.query('home/list_zones')
+    assert session.call_tool.await_count == 5

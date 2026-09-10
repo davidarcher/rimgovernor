@@ -27,7 +27,7 @@ class BridgeError(RuntimeError):
 
 
 async def runtime_file_read(operation, *args, **kwargs):
-    """Retry only read operations after the observed GABS Windows publish fault.
+    """Retry only reads after the observed GABS publication/launch-claim faults.
 
     Callers must establish read-only policy before entering this helper. A lost
     mutation receipt is ambiguous even when its error mentions a runtime file.
@@ -40,8 +40,14 @@ async def runtime_file_read(operation, *args, **kwargs):
             transient = all(part in detail for part in (
                 'failed to claim runtime ownership', 'failed to publish runtime state: rename ',
                 'runtime.json', 'access is denied'))
-            if not transient or attempt == 2:
+            owner = getattr(operation, '__self__', None)
+            claim_changed = isinstance(owner, BridgeClient) and all(part in detail for part in (
+                'failed to claim runtime ownership', 'a launch claim for',
+                'was published while preparing this operation', 're-check games_status and retry'))
+            if not (transient or claim_changed) or attempt == 2:
                 raise
+            if claim_changed:
+                await owner.core('games_status', gameId=owner.game_id)
             logging.getLogger(__name__).warning(
                 'Retrying read after GABS runtime publication failure (%s/2): %s', attempt + 1, error)
             await asyncio.sleep(0.05 * (attempt + 1))

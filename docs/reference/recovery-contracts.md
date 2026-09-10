@@ -57,7 +57,12 @@ player-direction, plan and action guards.
 
 The observed GABS runtime-state publication fault permits two bounded retries for
 approved reads and explicit previews. Mutations and mixed-operation defaults do not use
-these retries. Model inspection reports retain native scope notes, and unavailable power
+these retries. Requests within one GABS session are serialized to avoid overlapping
+ownership publication. Cancellation while queued sends no request. The observed launch
+claim collision additionally refreshes `games_status` before a bounded read/preview
+retry. A lost mutation response still requires observation. Long native calls can delay
+queued heartbeats; the independent native lease remains the safety boundary.
+Model inspection reports retain native scope notes, and unavailable power
 observations cannot clear an established reserve-risk signal. Selective native building
 reports include cooler intake/exhaust and vent front/back cells for current rotation,
 including intended blueprint/frame geometry. Fogged or out-of-bounds cell state remains

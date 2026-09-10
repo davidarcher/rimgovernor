@@ -34,6 +34,15 @@ async def run(args):
     async def wood_inventory():
         census = await rt.game.query('home/list_things', match='WoodLog', ownership='all', includeHeld=True, maxPositionsPerDef=200)
         return sum(r['total'] for r in census['things'] if r['defName'] == 'WoodLog'), census
+    async def construction_consumption(identity):
+        ledger = (await rt.bridge.call('test/construction_ledger')).structuredContent
+        assert ledger['readable'], ledger
+        step = next(s for s in rt.current_plan.spec.steps if s.id == identity)
+        cells = {(p.x, p.z) for p in step.action.placements}
+        events = [e for e in ledger['events'] if e['defName'] == 'Wall' and (e['x'], e['z']) in cells]
+        completed = [e for e in events if e['outcome'] == 'CompleteConstruction']
+        assert len(completed) == len(cells) and {(e['x'], e['z']) for e in completed} == cells, events
+        return sum(e['consumed'].get('WoodLog', 0) for e in events), events
     async def reconcile():
         await rt.projects.reconcile(rt.game, plan=rt.current_plan)
         rt.reconcile_plan()
@@ -58,6 +67,10 @@ async def run(args):
         return state
     async def dispatch(ids, limit=12):
         # The explicitly requested PLAYER steps use the same scoped Hands entry.
+        async with rt.lock:
+            await rt.refresh_clock_events()
+        if rt.review_task and not rt.review_task.done(): await rt.review_task
+        if rt.chat_revision > rt.handled_revision or rt.wake.is_set(): await rt.review()
         rt.manual_execution = (rt.context_token, rt.chat_revision, rt.current_plan.revision)
         try:
             await rt.hands.advance(rt, max_operations=limit, only_ids=set(ids))
@@ -67,6 +80,7 @@ async def run(args):
     async def finish(identity):
         deadline = time.monotonic()+args.seconds
         while rt.current_plan.progress[identity].state != 'complete' and time.monotonic() < deadline:
+            if rt.current_plan.progress[identity].state == 'blocked': break
             await window()
         record('ordinary_pawn_completion_'+identity, rt.current_plan.progress[identity].state == 'complete',
             progress=rt.current_plan.progress[identity].model_dump(), buildings=await buildings(), facts=await facts())
@@ -152,6 +166,8 @@ async def run(args):
             and rt.current_plan.model_dump() == expected_plan and rt.current_plan.control['costs'] == costs
             and {b['thingId'] for b in actual['buildings']} == {b['thingId'] for b in expected_buildings['buildings']}
             and rt.counters['actions'] == 0, checkpoint=checkpoint)
+        ledger = (await rt.bridge.call('test/construction_ledger')).structuredContent
+        record('native_consumption_observer_starts_before_pawn_work', ledger['readable'] and not ledger['events'])
         first_receipts = deepcopy(rt.current_plan.progress['first'].issued)
         await dispatch(['first', 'later', 'dependent'])
         later = rt.current_plan.progress['later']
@@ -160,8 +176,10 @@ async def run(args):
             and not rt.current_plan.progress['dependent'].issued, plan=rt.current_plan.model_dump())
         await finish('first')
         after_first, stock_after_first = await wood_inventory()
-        record('first_project_actually_consumes_native_materials', inventory_before_first-after_first == first_cost,
-            before=inventory_before_first, after=after_first, consumed=first_cost,
+        consumed_first, first_events = await construction_consumption('first')
+        record('first_project_actually_consumes_native_materials', inventory_before_first-after_first == consumed_first
+            and consumed_first >= first_cost,
+            before=inventory_before_first, after=after_first, consumed=consumed_first, base_cost=first_cost, events=first_events,
             before_census=stock_before_first, after_census=stock_after_first)
         for p in held:
             c = p.get('position', p)
@@ -178,10 +196,13 @@ async def run(args):
             and not rt.current_plan.progress['dependent'].issued, restocked=restocked, plan=rt.current_plan.model_dump())
         await finish('later')
         after_later, stock_after_later = await wood_inventory()
-        record('competing_project_actually_consumes_native_materials', inventory_before_later-after_later == later_cost,
-            before=inventory_before_later, after=after_later, consumed=later_cost,
+        consumed_later, later_events = await construction_consumption('later')
+        record('competing_project_actually_consumes_native_materials', inventory_before_later-after_later == consumed_later
+            and consumed_later >= later_cost,
+            before=inventory_before_later, after=after_later, consumed=consumed_later, base_cost=later_cost, events=later_events,
             before_census=stock_before_later, after_census=stock_after_later)
         await dispatch(['dependent'])
+        await finish('dependent')
         record('dependent_chain_waits_for_actual_pawn_completion', rt.current_plan.progress['dependent'].state == 'complete', plan=rt.current_plan.model_dump())
         before = rt.counters['actions']
         await dispatch(['first', 'later', 'dependent'])

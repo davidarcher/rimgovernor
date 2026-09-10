@@ -63,7 +63,8 @@ async def run(args):
             assignments = [(p['thingId'], next(w['priorityStored'] if p['work'].get('manualPriorities') else
                 int(w['priority'] > 0) for w in p['work']['types'] if w['name'] == 'Construction'))
                 for p in roster['pawns'] if any(w['name'] == 'Construction' and not w['disabled'] for w in p['work']['types'])]
-            for pawn, _ in assignments:
+            for pawn, priority in assignments:
+                if priority == 0: continue
                 await apply_command(rt, dict(kind='SetWorkPriority', pawn=pawn, work_type='Construction', priority=0),
                     token=rt.context_token, revision=rt.chat_revision)
                 await rt.execute_manual_requests()
@@ -93,9 +94,11 @@ async def run(args):
             assert rt.mode == 'manual' and rt.context_token != old_token and rt.current_plan.model_dump() == expected
             assert rt.counters['actions'] == 0 and rt.batch.summary.end_tick in (data['tick'], data['tick']+1)
             assert {b['thingId'] for b in before_buildings['buildings']} == {b['thingId'] for b in after_buildings['buildings']}
-            report['pending_restart'] = dict(checkpoint=checkpoint, plan=expected, clock=clock, buildings=after_buildings)
+            report['pending_restart'] = dict(checkpoint=checkpoint, plan=expected, clock=clock, buildings=after_buildings,
+                original_construction_assignments=assignments)
             print('PASS: delayed shell, native identities and receipts preserved across held restart', flush=True)
             for pawn, priority in assignments:
+                if priority == 0: continue
                 await apply_command(rt, dict(kind='SetWorkPriority', pawn=pawn, work_type='Construction', priority=priority),
                     token=rt.context_token, revision=rt.chat_revision)
                 await rt.execute_manual_requests()

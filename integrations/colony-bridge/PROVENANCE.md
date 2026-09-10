@@ -20,6 +20,11 @@ Local changes:
   `ListBuildingsTool.cs` preserves unavailable aggregate watts instead of zero.
   The optional `ForecastFixture` compile flag includes only disposable test setup;
   production builds and the model gateway exclude its tools.
+- `scripts/fixtures/ConstructionLedgerFixture.cs` is optional original test code.
+  Harmony prefixes/postfixes observe native Frame completion/failure and resource
+  counts. The native methods run unchanged; no resources, pawn skills or outcomes
+  are written. Default builds exclude this fixture and model execution cannot
+  access its `test/` tool.
 - `ZoneSettingsContract.cs` reads exact native ThingFilter definition/special-filter
   allowances and hit-point, quality and mental-break ranges without display
   truncation. `ZoneCellsTool` includes that contract in filter previews/readbacks
