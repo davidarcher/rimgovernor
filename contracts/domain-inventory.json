@@ -8,7 +8,7 @@
       "source": {
         "path": "controller/rimgovernor/__init__.py"
       },
-      "go_package": "cmd/rimgovernor",
+      "go_package": "go/cmd/rimgovernor",
       "owner_chunk": "G01.11",
       "fixtures": [],
       "native_scenarios": [
@@ -23,7 +23,7 @@
       "source": {
         "path": "controller/rimgovernor/__main__.py"
       },
-      "go_package": "cmd/rimgovernor",
+      "go_package": "go/cmd/rimgovernor",
       "owner_chunk": "G01.11",
       "fixtures": [],
       "native_scenarios": [
@@ -38,7 +38,7 @@
       "source": {
         "path": "controller/rimgovernor/animal_feed.py"
       },
-      "go_package": "internal/capability/care",
+      "go_package": "go/internal/policy/care",
       "owner_chunk": "G01.07e",
       "fixtures": [
         "controller_tests/test_animal_feed.py"
@@ -55,7 +55,7 @@
       "source": {
         "path": "controller/rimgovernor/animal_upkeep.py"
       },
-      "go_package": "internal/capability/care",
+      "go_package": "go/internal/policy/care",
       "owner_chunk": "G01.07e",
       "fixtures": [
         "controller_tests/test_animal_upkeep.py"
@@ -72,7 +72,7 @@
       "source": {
         "path": "controller/rimgovernor/bridge.py"
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_architect_catalog.py",
@@ -239,7 +239,7 @@
         "path": "controller/rimgovernor/bridge.py",
         "line": 106
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bridge.py",
@@ -298,7 +298,7 @@
         "path": "controller/rimgovernor/bridge.py",
         "line": 147
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bridge.py",
@@ -318,7 +318,7 @@
         "path": "controller/rimgovernor/bridge.py",
         "line": 161
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bridge.py",
@@ -337,7 +337,7 @@
         "path": "controller/rimgovernor/bridge.py",
         "line": 164
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bridge.py"
@@ -355,7 +355,7 @@
         "path": "controller/rimgovernor/bridge.py",
         "line": 167
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bridge.py",
@@ -379,7 +379,7 @@
         "path": "controller/rimgovernor/bridge.py",
         "line": 102
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bridge_observation.py"
@@ -397,7 +397,7 @@
         "path": "controller/rimgovernor/bridge.py",
         "line": 102
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_placement_previews.py",
@@ -417,7 +417,7 @@
         "path": "controller/rimgovernor/bridge.py",
         "line": 108
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_native_scenario.py",
@@ -444,7 +444,7 @@
         "path": "controller/rimgovernor/bridge.py",
         "line": 54
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bridge.py",
@@ -468,7 +468,7 @@
         "path": "controller/rimgovernor/bridge.py",
         "line": 153
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_native_trials.py",
@@ -529,7 +529,7 @@
       "source": {
         "path": "controller/rimgovernor/bridge_game.py"
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_architect_catalog.py",
@@ -601,7 +601,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_home_coverage.py"
@@ -619,7 +619,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_wall_upgrade.py"
@@ -637,7 +637,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_sleeping_upkeep.py"
@@ -655,7 +655,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -671,7 +671,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_service_recovery.py"
@@ -689,7 +689,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_husbandry.py"
@@ -707,7 +707,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_mood_control.py"
@@ -725,7 +725,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_long_term_medical.py"
@@ -743,7 +743,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -759,7 +759,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -775,7 +775,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_world_progression.py"
@@ -793,7 +793,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_world_progression.py"
@@ -811,7 +811,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_waste_management.py"
@@ -829,7 +829,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_gear_upkeep.py"
@@ -847,7 +847,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_expedition_policy.py",
@@ -866,7 +866,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_husbandry.py",
@@ -891,7 +891,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -907,7 +907,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_construction_cancellation.py",
@@ -927,7 +927,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_colony_controller.py"
@@ -946,7 +946,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_colony_controller.py",
@@ -974,7 +974,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bridge.py",
@@ -1036,7 +1036,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 15
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_colony_controller.py",
@@ -1069,7 +1069,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 16
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_building_temperature_command.py",
@@ -1088,7 +1088,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 16
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_campaign_metrics.py",
@@ -1122,7 +1122,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 16
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bounded_raider_defense.py",
@@ -1184,7 +1184,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 16
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_runtime_file_recovery.py"
@@ -1204,7 +1204,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 16
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_building_facing_postconditions.py",
@@ -1236,7 +1236,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 16
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -1253,7 +1253,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 16
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_installation.py",
@@ -1272,7 +1272,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 17
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_clock_control.py",
@@ -1337,7 +1337,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 17
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bridge.py",
@@ -1372,7 +1372,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 18
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bridge_runtime.py",
@@ -1393,7 +1393,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 18
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_inspection_preview.py",
@@ -1413,7 +1413,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 18
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_dialog_control.py"
@@ -1434,7 +1434,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 19
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_companion_ui.py",
@@ -1456,7 +1456,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 19
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -1472,7 +1472,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 20
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -1489,7 +1489,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 20
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -1507,7 +1507,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 7
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_wall_upgrade.py"
@@ -1525,7 +1525,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 7
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -1541,7 +1541,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 7
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_service_recovery.py"
@@ -1559,7 +1559,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 7
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -1575,7 +1575,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 7
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -1591,7 +1591,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 7
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_production_policy.py"
@@ -1613,7 +1613,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 8
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -1629,7 +1629,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 8
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bridge.py"
@@ -1647,7 +1647,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 9
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bridge.py"
@@ -1665,7 +1665,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 9
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_architect_catalog.py",
@@ -1694,7 +1694,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 10
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -1710,7 +1710,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 10
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_architect_catalog.py"
@@ -1731,7 +1731,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 11
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_notifications.py"
@@ -1753,7 +1753,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 11
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bridge_runtime.py",
@@ -1777,7 +1777,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 11
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_dialog_control.py"
@@ -1798,7 +1798,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 12
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_companion_ui.py",
@@ -1820,7 +1820,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 12
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -1836,7 +1836,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 12
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -1852,7 +1852,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 13
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -1868,7 +1868,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 13
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_compact_inspectors.py",
@@ -1888,7 +1888,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 13
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -1905,7 +1905,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 122
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_cell_encoding.py",
@@ -1930,7 +1930,7 @@
         "path": "controller/rimgovernor/bridge_game.py",
         "line": 53
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_world.py"
@@ -1948,7 +1948,7 @@
       "source": {
         "path": "controller/rimgovernor/bridge_models.py"
       },
-      "go_package": "internal/contracts",
+      "go_package": "go/internal/wire",
       "owner_chunk": "G01.02",
       "fixtures": [
         "controller_tests/test_observed_roster.py",
@@ -1966,7 +1966,7 @@
       "source": {
         "path": "controller/rimgovernor/bridge_observation.py"
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bridge_observation.py",
@@ -2015,7 +2015,7 @@
         "path": "controller/rimgovernor/bridge_observation.py",
         "line": 22
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bounded_raider_defense.py",
@@ -2088,7 +2088,7 @@
         "path": "controller/rimgovernor/bridge_observation.py",
         "line": 23
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bridge.py",
@@ -2161,7 +2161,7 @@
         "path": "controller/rimgovernor/bridge_observation.py",
         "line": 23
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bounded_raider_defense.py",
@@ -2238,7 +2238,7 @@
         "path": "controller/rimgovernor/bridge_observation.py",
         "line": 23
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_campaign_metrics.py",
@@ -2271,7 +2271,7 @@
         "path": "controller/rimgovernor/bridge_observation.py",
         "line": 24
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_building_temperature_command.py",
@@ -2330,7 +2330,7 @@
         "path": "controller/rimgovernor/bridge_observation.py",
         "line": 24
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_colony_controller.py",
@@ -2354,7 +2354,7 @@
         "path": "controller/rimgovernor/bridge_observation.py",
         "line": 24
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_compact_inspectors.py",
@@ -2386,7 +2386,7 @@
         "path": "controller/rimgovernor/bridge_observation.py",
         "line": 25
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -2402,7 +2402,7 @@
         "path": "controller/rimgovernor/bridge_observation.py",
         "line": 27
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_construction_preflight.py",
@@ -2425,7 +2425,7 @@
       "source": {
         "path": "controller/rimgovernor/bridge_runtime.py"
       },
-      "go_package": "internal/runtime",
+      "go_package": "go/internal/runtime",
       "owner_chunk": "G01.06b",
       "fixtures": [
         "controller_tests/test_bridge_runtime.py",
@@ -2540,7 +2540,7 @@
         "path": "controller/rimgovernor/bridge_runtime.py",
         "line": 251
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_visual_review.py"
@@ -2559,7 +2559,7 @@
         "path": "controller/rimgovernor/bridge_runtime.py",
         "line": 257
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_visual_review.py"
@@ -2578,7 +2578,7 @@
         "path": "controller/rimgovernor/bridge_runtime.py",
         "line": 253
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_dashboard_controls.py",
@@ -2601,7 +2601,7 @@
       "source": {
         "path": "controller/rimgovernor/bridge_server.py"
       },
-      "go_package": "internal/server",
+      "go_package": "go/internal/server",
       "owner_chunk": "G01.09a",
       "fixtures": [
         "controller_tests/test_bridge_server.py",
@@ -2628,7 +2628,7 @@
       "source": {
         "path": "controller/rimgovernor/campaign_manifest.py"
       },
-      "go_package": "tools/scenario",
+      "go_package": "go/internal/testkit",
       "owner_chunk": "G01.11",
       "fixtures": [
         "controller_tests/test_campaign_manifest.py"
@@ -2671,7 +2671,7 @@
         "scripts/upkeep_acceptance.py"
       ],
       "status": "pending",
-      "notes": "Scenario/development infrastructure; G01.11 must retain or adapt tooling without embedding a Python production controller. Fixture/scenario paths import/qualify this module or contain this exact capability literal; references do not establish assertion coverage or a passing Go run."
+      "notes": "Import/call audit: no production controller importer or launcher entry point; callers are scripts/tests and native_trials (also tooling). Scenario/development infrastructure; G01.11 must retain or adapt tooling without embedding a Python production controller. Fixture/scenario paths import/qualify this module or contain this exact capability literal; references do not establish assertion coverage or a passing Go run."
     },
     {
       "id": "module:controller/rimgovernor/campaign_metrics.py",
@@ -2679,7 +2679,7 @@
       "source": {
         "path": "controller/rimgovernor/campaign_metrics.py"
       },
-      "go_package": "tools/scenario",
+      "go_package": "go/internal/testkit",
       "owner_chunk": "G01.11",
       "fixtures": [
         "controller_tests/test_campaign_metrics.py"
@@ -2688,7 +2688,7 @@
         "scripts/campaign_metrics_acceptance.py"
       ],
       "status": "pending",
-      "notes": "Scenario/development infrastructure; G01.11 must retain or adapt tooling without embedding a Python production controller. Fixture/scenario paths import/qualify this module or contain this exact capability literal; references do not establish assertion coverage or a passing Go run."
+      "notes": "Import/call audit: no production controller importer or launcher entry point; callers are scripts/tests. Scenario/development infrastructure; G01.11 must retain or adapt tooling without embedding a Python production controller. Fixture/scenario paths import/qualify this module or contain this exact capability literal; references do not establish assertion coverage or a passing Go run."
     },
     {
       "id": "module:controller/rimgovernor/capacity_growth.py",
@@ -2696,7 +2696,7 @@
       "source": {
         "path": "controller/rimgovernor/capacity_growth.py"
       },
-      "go_package": "internal/capability/development",
+      "go_package": "go/internal/policy/development",
       "owner_chunk": "G01.07d",
       "fixtures": [
         "controller_tests/test_capacity_growth.py",
@@ -2715,7 +2715,7 @@
       "source": {
         "path": "controller/rimgovernor/chat_advice.py"
       },
-      "go_package": "internal/model",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [],
       "native_scenarios": [
@@ -2730,7 +2730,7 @@
       "source": {
         "path": "controller/rimgovernor/clock_control.py"
       },
-      "go_package": "internal/runtime",
+      "go_package": "go/internal/runtime",
       "owner_chunk": "G01.06b",
       "fixtures": [
         "controller_tests/test_clock_control.py",
@@ -2758,7 +2758,7 @@
         "path": "controller/rimgovernor/clock_control.py",
         "line": 6
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bridge.py",
@@ -2785,7 +2785,7 @@
       "source": {
         "path": "controller/rimgovernor/colony_controller.py"
       },
-      "go_package": "internal/capability/food",
+      "go_package": "go/internal/policy/food",
       "owner_chunk": "G01.07b",
       "fixtures": [
         "controller_tests/test_colony_controller.py"
@@ -2802,7 +2802,7 @@
       "source": {
         "path": "controller/rimgovernor/colony_people.py"
       },
-      "go_package": "internal/server",
+      "go_package": "go/internal/server",
       "owner_chunk": "G01.09a",
       "fixtures": [
         "controller_tests/test_colony_people.py"
@@ -2820,7 +2820,7 @@
         "path": "controller/rimgovernor/colony_people.py",
         "line": 56
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_colony_people.py"
@@ -2837,7 +2837,7 @@
       "source": {
         "path": "controller/rimgovernor/colony_plan.py"
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_action_schema.py",
@@ -2990,7 +2990,7 @@
       "source": {
         "path": "controller/rimgovernor/colony_policy.py"
       },
-      "go_package": "internal/policy",
+      "go_package": "go/internal/policy",
       "owner_chunk": "G01.05",
       "fixtures": [
         "controller_tests/test_b04f_methods.py",
@@ -3028,7 +3028,7 @@
       "source": {
         "path": "controller/rimgovernor/colony_skills.py"
       },
-      "go_package": "internal/capability/food",
+      "go_package": "go/internal/policy/food",
       "owner_chunk": "G01.07b",
       "fixtures": [
         "controller_tests/test_animal_feed.py",
@@ -3078,7 +3078,7 @@
       "source": {
         "path": "controller/rimgovernor/colony_upkeep.py"
       },
-      "go_package": "internal/capability/shelter",
+      "go_package": "go/internal/policy/shelter",
       "owner_chunk": "G01.07c",
       "fixtures": [
         "controller_tests/test_animal_feed.py",
@@ -3107,7 +3107,7 @@
       "source": {
         "path": "controller/rimgovernor/combat_health.py"
       },
-      "go_package": "internal/capability/emergency",
+      "go_package": "go/internal/policy/emergency",
       "owner_chunk": "G01.07a",
       "fixtures": [],
       "native_scenarios": [
@@ -3122,7 +3122,7 @@
       "source": {
         "path": "controller/rimgovernor/combat_method.py"
       },
-      "go_package": "internal/capability/emergency",
+      "go_package": "go/internal/policy/emergency",
       "owner_chunk": "G01.07a",
       "fixtures": [],
       "native_scenarios": [
@@ -3138,7 +3138,7 @@
       "source": {
         "path": "controller/rimgovernor/comfort_upkeep.py"
       },
-      "go_package": "internal/capability/development",
+      "go_package": "go/internal/policy/development",
       "owner_chunk": "G01.07d",
       "fixtures": [
         "controller_tests/test_comfort_upkeep.py"
@@ -3155,7 +3155,7 @@
       "source": {
         "path": "controller/rimgovernor/config.py"
       },
-      "go_package": "internal/launch",
+      "go_package": "go/internal/runtime",
       "owner_chunk": "G01.11",
       "fixtures": [
         "controller_tests/test_campaign_manifest.py",
@@ -3201,7 +3201,7 @@
       "source": {
         "path": "controller/rimgovernor/construction_cancellation.py"
       },
-      "go_package": "internal/hands",
+      "go_package": "go/internal/hands",
       "owner_chunk": "G01.06a",
       "fixtures": [
         "controller_tests/test_construction_cancellation.py"
@@ -3218,7 +3218,7 @@
       "source": {
         "path": "controller/rimgovernor/construction_grounding.py"
       },
-      "go_package": "internal/hands",
+      "go_package": "go/internal/hands",
       "owner_chunk": "G01.06a",
       "fixtures": [
         "controller_tests/test_construction_grounding.py"
@@ -3235,7 +3235,7 @@
       "source": {
         "path": "controller/rimgovernor/construction_ownership.py"
       },
-      "go_package": "internal/hands",
+      "go_package": "go/internal/hands",
       "owner_chunk": "G01.06a",
       "fixtures": [
         "controller_tests/test_construction_ownership.py"
@@ -3253,7 +3253,7 @@
       "source": {
         "path": "controller/rimgovernor/construction_preflight.py"
       },
-      "go_package": "internal/hands",
+      "go_package": "go/internal/hands",
       "owner_chunk": "G01.06a",
       "fixtures": [
         "controller_tests/test_construction_preflight.py",
@@ -3280,7 +3280,7 @@
       "source": {
         "path": "controller/rimgovernor/construction_recovery.py"
       },
-      "go_package": "internal/hands",
+      "go_package": "go/internal/hands",
       "owner_chunk": "G01.06a",
       "fixtures": [
         "controller_tests/test_construction_recovery.py",
@@ -3298,7 +3298,7 @@
       "source": {
         "path": "controller/rimgovernor/construction_relocation.py"
       },
-      "go_package": "internal/hands",
+      "go_package": "go/internal/hands",
       "owner_chunk": "G01.06a",
       "fixtures": [
         "controller_tests/test_construction_relocation.py"
@@ -3315,7 +3315,7 @@
       "source": {
         "path": "controller/rimgovernor/consultation.py"
       },
-      "go_package": "internal/model",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_action_schema.py",
@@ -3338,11 +3338,11 @@
     },
     {
       "id": "module:controller/rimgovernor/container_input_cache.py",
-      "category": "python-tooling",
+      "category": "python-production",
       "source": {
         "path": "controller/rimgovernor/container_input_cache.py"
       },
-      "go_package": "internal/launch",
+      "go_package": "go/internal/runtime",
       "owner_chunk": "G01.11",
       "fixtures": [
         "controller_tests/test_container_input_cache.py"
@@ -3351,15 +3351,15 @@
         "scripts/container_native_acceptance.py"
       ],
       "status": "pending",
-      "notes": "Scenario/development infrastructure; G01.11 must retain or adapt tooling without embedding a Python production controller. Native paths are family acceptance candidates, not demonstrated per-item coverage; owner must add explicit assertions where absent."
+      "notes": "Dual-use input-cache tooling and production startup dependency: container_worker.main imports read_manifest when RIMGOVERNOR_INPUT_CACHE_ROOT is configured, before launching the controller. G01.11 must migrate this validation path; retaining development cache commands alone cannot remove the production Python dependency. Native paths are family acceptance candidates, not demonstrated per-item coverage; owner must add explicit assertions where absent."
     },
     {
       "id": "module:controller/rimgovernor/container_worker.py",
-      "category": "python-tooling",
+      "category": "python-production",
       "source": {
         "path": "controller/rimgovernor/container_worker.py"
       },
-      "go_package": "internal/launch",
+      "go_package": "go/internal/runtime",
       "owner_chunk": "G01.11",
       "fixtures": [
         "controller_tests/test_container_input_cache.py",
@@ -3372,7 +3372,7 @@
         "scripts/player_actions_acceptance.py"
       ],
       "status": "pending",
-      "notes": "Scenario/development infrastructure; G01.11 must retain or adapt tooling without embedding a Python production controller. Fixture/scenario paths import/qualify this module or contain this exact capability literal; references do not establish assertion coverage or a passing Go run."
+      "notes": "Dual-use production launcher and scenario worker: containers/Dockerfile ENTRYPOINT executes this module; main defaults to python -m rimgovernor when no scenario command is supplied. G01.11 must migrate private input staging and production process launch before G01.13 can retire Python. Fixture/scenario paths import/qualify this module or contain this exact capability literal; references do not establish assertion coverage or a passing Go run."
     },
     {
       "id": "module:controller/rimgovernor/controller_settings.py",
@@ -3380,7 +3380,7 @@
       "source": {
         "path": "controller/rimgovernor/controller_settings.py"
       },
-      "go_package": "internal/server",
+      "go_package": "go/internal/server",
       "owner_chunk": "G01.09a",
       "fixtures": [
         "controller_tests/test_controller_settings.py"
@@ -3397,7 +3397,7 @@
       "source": {
         "path": "controller/rimgovernor/dashboard_controls.py"
       },
-      "go_package": "internal/server",
+      "go_package": "go/internal/server",
       "owner_chunk": "G01.09a",
       "fixtures": [
         "controller_tests/test_runtime_file_recovery.py"
@@ -3415,7 +3415,7 @@
         "path": "controller/rimgovernor/dashboard_controls.py",
         "line": 184
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -3431,7 +3431,7 @@
         "path": "controller/rimgovernor/dashboard_controls.py",
         "line": 194
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_player_input.py"
@@ -3450,7 +3450,7 @@
         "path": "controller/rimgovernor/dashboard_controls.py",
         "line": 194
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -3467,7 +3467,7 @@
         "path": "controller/rimgovernor/dashboard_controls.py",
         "line": 271
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_dashboard_controls.py"
@@ -3486,7 +3486,7 @@
         "path": "controller/rimgovernor/dashboard_controls.py",
         "line": 275
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_dashboard_controls.py",
@@ -3506,7 +3506,7 @@
         "path": "controller/rimgovernor/dashboard_controls.py",
         "line": 73
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_player_input.py"
@@ -3523,7 +3523,7 @@
       "source": {
         "path": "controller/rimgovernor/development.py"
       },
-      "go_package": "internal/capability/development",
+      "go_package": "go/internal/policy/development",
       "owner_chunk": "G01.07d",
       "fixtures": [
         "controller_tests/test_b04f_methods.py",
@@ -3548,7 +3548,7 @@
       "source": {
         "path": "controller/rimgovernor/development_priorities.py"
       },
-      "go_package": "internal/policy",
+      "go_package": "go/internal/policy",
       "owner_chunk": "G01.05",
       "fixtures": [
         "controller_tests/test_comfort_upkeep.py",
@@ -3569,7 +3569,7 @@
       "source": {
         "path": "controller/rimgovernor/dialog_control.py"
       },
-      "go_package": "internal/player",
+      "go_package": "go/internal/server",
       "owner_chunk": "G01.09b",
       "fixtures": [
         "controller_tests/test_dialog_control.py"
@@ -3586,7 +3586,7 @@
       "source": {
         "path": "controller/rimgovernor/disaster_recovery.py"
       },
-      "go_package": "internal/capability/shelter",
+      "go_package": "go/internal/policy/shelter",
       "owner_chunk": "G01.07c",
       "fixtures": [
         "controller_tests/test_disaster_recovery.py",
@@ -3604,7 +3604,7 @@
       "source": {
         "path": "controller/rimgovernor/execution_contracts.py"
       },
-      "go_package": "internal/contracts",
+      "go_package": "go/internal/wire",
       "owner_chunk": "G01.02",
       "fixtures": [
         "controller_tests/test_execution_contracts.py",
@@ -3624,7 +3624,7 @@
       "source": {
         "path": "controller/rimgovernor/expedition_policy.py"
       },
-      "go_package": "internal/capability/world",
+      "go_package": "go/internal/policy/world",
       "owner_chunk": "G01.07f",
       "fixtures": [
         "controller_tests/test_expedition_policy.py"
@@ -3641,7 +3641,7 @@
       "source": {
         "path": "controller/rimgovernor/extraction_development.py"
       },
-      "go_package": "internal/capability/development",
+      "go_package": "go/internal/policy/development",
       "owner_chunk": "G01.07d",
       "fixtures": [
         "controller_tests/test_extraction_development.py"
@@ -3659,7 +3659,7 @@
       "source": {
         "path": "controller/rimgovernor/flight_recorder.py"
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_bridge.py",
@@ -3679,7 +3679,7 @@
       "source": {
         "path": "controller/rimgovernor/food_capacity.py"
       },
-      "go_package": "internal/capability/food",
+      "go_package": "go/internal/policy/food",
       "owner_chunk": "G01.07b",
       "fixtures": [
         "controller_tests/test_food_capacity.py"
@@ -3696,7 +3696,7 @@
       "source": {
         "path": "controller/rimgovernor/food_forecast.py"
       },
-      "go_package": "internal/capability/food",
+      "go_package": "go/internal/policy/food",
       "owner_chunk": "G01.07b",
       "fixtures": [
         "controller_tests/test_food_forecast.py"
@@ -3714,7 +3714,7 @@
       "source": {
         "path": "controller/rimgovernor/food_preservation.py"
       },
-      "go_package": "internal/capability/food",
+      "go_package": "go/internal/policy/food",
       "owner_chunk": "G01.07b",
       "fixtures": [
         "controller_tests/test_food_preservation.py"
@@ -3731,7 +3731,7 @@
       "source": {
         "path": "controller/rimgovernor/gear_upkeep.py"
       },
-      "go_package": "internal/capability/development",
+      "go_package": "go/internal/policy/development",
       "owner_chunk": "G01.07d",
       "fixtures": [
         "controller_tests/test_gear_upkeep.py"
@@ -3748,7 +3748,7 @@
       "source": {
         "path": "controller/rimgovernor/hands.py"
       },
-      "go_package": "internal/hands",
+      "go_package": "go/internal/hands",
       "owner_chunk": "G01.06a",
       "fixtures": [
         "controller_tests/test_blueprint_materials.py",
@@ -3782,7 +3782,7 @@
       "source": {
         "path": "controller/rimgovernor/headless.py"
       },
-      "go_package": "internal/launch",
+      "go_package": "go/internal/runtime",
       "owner_chunk": "G01.11",
       "fixtures": [
         "controller_tests/test_container_worker.py",
@@ -3865,7 +3865,7 @@
       "source": {
         "path": "controller/rimgovernor/home_coverage.py"
       },
-      "go_package": "internal/capability/shelter",
+      "go_package": "go/internal/policy/shelter",
       "owner_chunk": "G01.07c",
       "fixtures": [
         "controller_tests/test_home_coverage.py"
@@ -3882,7 +3882,7 @@
       "source": {
         "path": "controller/rimgovernor/hunting.py"
       },
-      "go_package": "internal/capability/food",
+      "go_package": "go/internal/policy/food",
       "owner_chunk": "G01.07b",
       "fixtures": [
         "controller_tests/test_hunting_dispatch.py",
@@ -3902,7 +3902,7 @@
       "source": {
         "path": "controller/rimgovernor/husbandry.py"
       },
-      "go_package": "internal/capability/care",
+      "go_package": "go/internal/policy/care",
       "owner_chunk": "G01.07e",
       "fixtures": [
         "controller_tests/test_husbandry.py"
@@ -3919,7 +3919,7 @@
       "source": {
         "path": "controller/rimgovernor/knowledge.py"
       },
-      "go_package": "internal/model",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_knowledge.py"
@@ -3936,7 +3936,7 @@
       "source": {
         "path": "controller/rimgovernor/local_colonies.py"
       },
-      "go_package": "internal/server",
+      "go_package": "go/internal/server",
       "owner_chunk": "G01.09a",
       "fixtures": [
         "controller_tests/test_local_colonies.py"
@@ -3953,7 +3953,7 @@
       "source": {
         "path": "controller/rimgovernor/medical_management.py"
       },
-      "go_package": "internal/capability/care",
+      "go_package": "go/internal/policy/care",
       "owner_chunk": "G01.07e",
       "fixtures": [
         "controller_tests/test_long_term_medical.py",
@@ -3972,7 +3972,7 @@
       "source": {
         "path": "controller/rimgovernor/medical_outcome.py"
       },
-      "go_package": "internal/capability/emergency",
+      "go_package": "go/internal/policy/emergency",
       "owner_chunk": "G01.07a",
       "fixtures": [
         "controller_tests/test_gear_upkeep.py",
@@ -3991,7 +3991,7 @@
       "source": {
         "path": "controller/rimgovernor/medical_recovery.py"
       },
-      "go_package": "internal/capability/emergency",
+      "go_package": "go/internal/policy/emergency",
       "owner_chunk": "G01.07a",
       "fixtures": [
         "controller_tests/test_medical_recovery.py"
@@ -4009,7 +4009,7 @@
       "source": {
         "path": "controller/rimgovernor/medical_replacement.py"
       },
-      "go_package": "internal/capability/care",
+      "go_package": "go/internal/policy/care",
       "owner_chunk": "G01.07e",
       "fixtures": [
         "controller_tests/test_b04f_methods.py",
@@ -4029,7 +4029,7 @@
       "source": {
         "path": "controller/rimgovernor/medical_reserves.py"
       },
-      "go_package": "internal/capability/care",
+      "go_package": "go/internal/policy/care",
       "owner_chunk": "G01.07e",
       "fixtures": [
         "controller_tests/test_medical_reserves.py"
@@ -4046,7 +4046,7 @@
       "source": {
         "path": "controller/rimgovernor/medical_triage.py"
       },
-      "go_package": "internal/capability/emergency",
+      "go_package": "go/internal/policy/emergency",
       "owner_chunk": "G01.07a",
       "fixtures": [
         "controller_tests/test_medical_triage.py"
@@ -4064,7 +4064,7 @@
       "source": {
         "path": "controller/rimgovernor/memory.py"
       },
-      "go_package": "internal/model",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_memory.py"
@@ -4081,7 +4081,7 @@
       "source": {
         "path": "controller/rimgovernor/model.py"
       },
-      "go_package": "internal/model",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_action_schema.py",
@@ -4104,7 +4104,7 @@
       "source": {
         "path": "controller/rimgovernor/model_router.py"
       },
-      "go_package": "internal/model",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_strategic_architecture.py"
@@ -4121,7 +4121,7 @@
       "source": {
         "path": "controller/rimgovernor/mood_control.py"
       },
-      "go_package": "internal/capability/care",
+      "go_package": "go/internal/policy/care",
       "owner_chunk": "G01.07e",
       "fixtures": [
         "controller_tests/test_mood_control.py"
@@ -4139,7 +4139,7 @@
       "source": {
         "path": "controller/rimgovernor/native_contracts.py"
       },
-      "go_package": "internal/contracts",
+      "go_package": "go/internal/wire",
       "owner_chunk": "G01.02",
       "fixtures": [
         "controller_tests/test_hunting_dispatch.py",
@@ -4160,7 +4160,7 @@
       "source": {
         "path": "controller/rimgovernor/native_forecasts.py"
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_native_forecasts.py"
@@ -4178,7 +4178,7 @@
       "source": {
         "path": "controller/rimgovernor/native_input_channel.py"
       },
-      "go_package": "internal/player",
+      "go_package": "go/internal/server",
       "owner_chunk": "G01.09b",
       "fixtures": [
         "controller_tests/test_native_input_channel.py"
@@ -4195,7 +4195,7 @@
       "source": {
         "path": "controller/rimgovernor/native_inspections.py"
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_native_inspections.py"
@@ -4212,7 +4212,7 @@
       "source": {
         "path": "controller/rimgovernor/native_scenario.py"
       },
-      "go_package": "tools/scenario",
+      "go_package": "go/internal/testkit",
       "owner_chunk": "G01.11",
       "fixtures": [
         "controller_tests/test_native_scenario.py"
@@ -4245,7 +4245,7 @@
         "scripts/world_progression_acceptance.py"
       ],
       "status": "pending",
-      "notes": "Scenario/development infrastructure; G01.11 must retain or adapt tooling without embedding a Python production controller. Fixture/scenario paths import/qualify this module or contain this exact capability literal; references do not establish assertion coverage or a passing Go run."
+      "notes": "Import/call audit: no production controller importer or launcher entry point; callers are scripts/tests. Scenario/development infrastructure; G01.11 must retain or adapt tooling without embedding a Python production controller. Fixture/scenario paths import/qualify this module or contain this exact capability literal; references do not establish assertion coverage or a passing Go run."
     },
     {
       "id": "module:controller/rimgovernor/native_trials.py",
@@ -4253,7 +4253,7 @@
       "source": {
         "path": "controller/rimgovernor/native_trials.py"
       },
-      "go_package": "tools/scenario",
+      "go_package": "go/internal/testkit",
       "owner_chunk": "G01.11",
       "fixtures": [
         "controller_tests/test_native_trials.py"
@@ -4263,7 +4263,7 @@
         "scripts/game_reuse_acceptance.py"
       ],
       "status": "pending",
-      "notes": "Scenario/development infrastructure; G01.11 must retain or adapt tooling without embedding a Python production controller. Fixture/scenario paths import/qualify this module or contain this exact capability literal; references do not establish assertion coverage or a passing Go run."
+      "notes": "Import/call audit: no production controller importer or launcher entry point; callers are scripts/tests. Scenario/development infrastructure; G01.11 must retain or adapt tooling without embedding a Python production controller. Fixture/scenario paths import/qualify this module or contain this exact capability literal; references do not establish assertion coverage or a passing Go run."
     },
     {
       "id": "native-tool:games_kill",
@@ -4272,7 +4272,7 @@
         "path": "controller/rimgovernor/native_trials.py",
         "line": 112
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_native_trials.py"
@@ -4293,7 +4293,7 @@
       "source": {
         "path": "controller/rimgovernor/notifications.py"
       },
-      "go_package": "internal/runtime",
+      "go_package": "go/internal/runtime",
       "owner_chunk": "G01.06b",
       "fixtures": [
         "controller_tests/test_notifications.py"
@@ -4310,7 +4310,7 @@
       "source": {
         "path": "controller/rimgovernor/order_refusal.py"
       },
-      "go_package": "internal/hands",
+      "go_package": "go/internal/hands",
       "owner_chunk": "G01.06a",
       "fixtures": [
         "controller_tests/test_order_refusal.py"
@@ -4327,7 +4327,7 @@
       "source": {
         "path": "controller/rimgovernor/placement_previews.py"
       },
-      "go_package": "internal/contracts",
+      "go_package": "go/internal/wire",
       "owner_chunk": "G01.02",
       "fixtures": [
         "controller_tests/test_placement_previews.py"
@@ -4344,7 +4344,7 @@
       "source": {
         "path": "controller/rimgovernor/plan_archive.py"
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_lifecycle_measurement.py",
@@ -4364,7 +4364,7 @@
       "source": {
         "path": "controller/rimgovernor/planner.py"
       },
-      "go_package": "internal/model",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_chat_facts_context.py",
@@ -4384,7 +4384,7 @@
       "source": {
         "path": "controller/rimgovernor/player_action_verification.py"
       },
-      "go_package": "internal/player",
+      "go_package": "go/internal/server",
       "owner_chunk": "G01.09b",
       "fixtures": [
         "controller_tests/test_remaining_player_actions.py"
@@ -4401,7 +4401,7 @@
       "source": {
         "path": "controller/rimgovernor/player_commands.py"
       },
-      "go_package": "internal/model",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_building_temperature_command.py",
@@ -4458,7 +4458,7 @@
       "source": {
         "path": "controller/rimgovernor/player_input.py"
       },
-      "go_package": "internal/player",
+      "go_package": "go/internal/server",
       "owner_chunk": "G01.09b",
       "fixtures": [
         "controller_tests/test_player_input.py"
@@ -4475,7 +4475,7 @@
       "source": {
         "path": "controller/rimgovernor/population.py"
       },
-      "go_package": "internal/capability/care",
+      "go_package": "go/internal/policy/care",
       "owner_chunk": "G01.07e",
       "fixtures": [
         "controller_tests/test_population.py"
@@ -4492,7 +4492,7 @@
       "source": {
         "path": "controller/rimgovernor/production_policy.py"
       },
-      "go_package": "internal/capability/food",
+      "go_package": "go/internal/policy/food",
       "owner_chunk": "G01.07b",
       "fixtures": [
         "controller_tests/test_animal_feed.py",
@@ -4525,7 +4525,7 @@
       "source": {
         "path": "controller/rimgovernor/projects.py"
       },
-      "go_package": "internal/hands",
+      "go_package": "go/internal/hands",
       "owner_chunk": "G01.06a",
       "fixtures": [
         "controller_tests/test_building_facing_postconditions.py",
@@ -4550,7 +4550,7 @@
       "source": {
         "path": "controller/rimgovernor/receipts.py"
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_projects.py",
@@ -4568,7 +4568,7 @@
       "source": {
         "path": "controller/rimgovernor/request_budget.py"
       },
-      "go_package": "internal/model",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_cell_encoding.py",
@@ -4587,7 +4587,7 @@
       "source": {
         "path": "controller/rimgovernor/research.py"
       },
-      "go_package": "internal/capability/development",
+      "go_package": "go/internal/policy/development",
       "owner_chunk": "G01.07d",
       "fixtures": [
         "controller_tests/test_research_control.py"
@@ -4605,7 +4605,7 @@
       "source": {
         "path": "controller/rimgovernor/resource_accounting.py"
       },
-      "go_package": "internal/policy",
+      "go_package": "go/internal/policy",
       "owner_chunk": "G01.05",
       "fixtures": [
         "controller_tests/test_construction_recovery.py",
@@ -4628,7 +4628,7 @@
       "source": {
         "path": "controller/rimgovernor/review_evidence.py"
       },
-      "go_package": "internal/model",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_review_evidence.py"
@@ -4645,7 +4645,7 @@
       "source": {
         "path": "controller/rimgovernor/room_adoption.py"
       },
-      "go_package": "internal/capability/shelter",
+      "go_package": "go/internal/policy/shelter",
       "owner_chunk": "G01.07c",
       "fixtures": [],
       "native_scenarios": [
@@ -4660,7 +4660,7 @@
       "source": {
         "path": "controller/rimgovernor/room_geometry.py"
       },
-      "go_package": "internal/policy",
+      "go_package": "go/internal/policy",
       "owner_chunk": "G01.05",
       "fixtures": [
         "controller_tests/test_irregular_room_adoption.py"
@@ -4677,7 +4677,7 @@
       "source": {
         "path": "controller/rimgovernor/scenario_dashboard.py"
       },
-      "go_package": "internal/server",
+      "go_package": "go/internal/server",
       "owner_chunk": "G01.09a",
       "fixtures": [
         "controller_tests/test_scenario_dashboard.py"
@@ -4694,7 +4694,7 @@
       "source": {
         "path": "controller/rimgovernor/scout.py"
       },
-      "go_package": "internal/model",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_scout.py",
@@ -4712,7 +4712,7 @@
       "source": {
         "path": "controller/rimgovernor/service_recovery.py"
       },
-      "go_package": "internal/capability/shelter",
+      "go_package": "go/internal/policy/shelter",
       "owner_chunk": "G01.07c",
       "fixtures": [
         "controller_tests/test_service_recovery.py"
@@ -4729,7 +4729,7 @@
       "source": {
         "path": "controller/rimgovernor/session_checkpoint.py"
       },
-      "go_package": "internal/store",
+      "go_package": "go/internal/store",
       "owner_chunk": "G01.04b",
       "fixtures": [
         "controller_tests/test_session_checkpoint.py"
@@ -4768,7 +4768,7 @@
         "path": "controller/rimgovernor/session_checkpoint.py",
         "line": 47
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -4788,7 +4788,7 @@
         "path": "controller/rimgovernor/session_checkpoint.py",
         "line": 90
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [
         "controller_tests/test_session_checkpoint.py"
@@ -4836,7 +4836,7 @@
       "source": {
         "path": "controller/rimgovernor/shell_site.py"
       },
-      "go_package": "internal/capability/shelter",
+      "go_package": "go/internal/policy/shelter",
       "owner_chunk": "G01.07c",
       "fixtures": [
         "controller_tests/test_irregular_room_adoption.py",
@@ -4859,7 +4859,7 @@
       "source": {
         "path": "controller/rimgovernor/shelter_handoff.py"
       },
-      "go_package": "internal/capability/shelter",
+      "go_package": "go/internal/policy/shelter",
       "owner_chunk": "G01.07c",
       "fixtures": [
         "controller_tests/test_irregular_room_adoption.py",
@@ -4884,7 +4884,7 @@
       "source": {
         "path": "controller/rimgovernor/sleeping_upkeep.py"
       },
-      "go_package": "internal/capability/shelter",
+      "go_package": "go/internal/policy/shelter",
       "owner_chunk": "G01.07c",
       "fixtures": [
         "controller_tests/test_sleeping_upkeep.py"
@@ -4901,7 +4901,7 @@
       "source": {
         "path": "controller/rimgovernor/spatial.py"
       },
-      "go_package": "internal/policy",
+      "go_package": "go/internal/policy",
       "owner_chunk": "G01.05",
       "fixtures": [
         "controller_tests/test_projected_obstruction.py",
@@ -4927,7 +4927,7 @@
       "source": {
         "path": "controller/rimgovernor/spatial_program.py"
       },
-      "go_package": "internal/capability/shelter",
+      "go_package": "go/internal/policy/shelter",
       "owner_chunk": "G01.07c",
       "fixtures": [
         "controller_tests/test_spatial_program.py"
@@ -4944,7 +4944,7 @@
       "source": {
         "path": "controller/rimgovernor/store.py"
       },
-      "go_package": "internal/store",
+      "go_package": "go/internal/store",
       "owner_chunk": "G01.04b",
       "fixtures": [
         "controller_tests/test_bridge_runtime.py",
@@ -5053,7 +5053,7 @@
       "source": {
         "path": "controller/rimgovernor/strategic_state.py"
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_memory.py",
@@ -5080,7 +5080,7 @@
       "source": {
         "path": "controller/rimgovernor/supply_batches.py"
       },
-      "go_package": "internal/capability/shelter",
+      "go_package": "go/internal/policy/shelter",
       "owner_chunk": "G01.07c",
       "fixtures": [
         "controller_tests/test_supply_batches.py"
@@ -5097,7 +5097,7 @@
       "source": {
         "path": "controller/rimgovernor/supply_recovery.py"
       },
-      "go_package": "internal/capability/shelter",
+      "go_package": "go/internal/policy/shelter",
       "owner_chunk": "G01.07c",
       "fixtures": [
         "controller_tests/test_supply_recovery.py"
@@ -5114,7 +5114,7 @@
       "source": {
         "path": "controller/rimgovernor/surgery.py"
       },
-      "go_package": "internal/capability/care",
+      "go_package": "go/internal/policy/care",
       "owner_chunk": "G01.07e",
       "fixtures": [
         "controller_tests/test_long_term_medical.py"
@@ -5131,7 +5131,7 @@
       "source": {
         "path": "controller/rimgovernor/tool_diagnostics.py"
       },
-      "go_package": "internal/server",
+      "go_package": "go/internal/server",
       "owner_chunk": "G01.09a",
       "fixtures": [
         "controller_tests/test_tool_diagnostics.py"
@@ -5148,7 +5148,7 @@
       "source": {
         "path": "controller/rimgovernor/trade_policy.py"
       },
-      "go_package": "internal/capability/care",
+      "go_package": "go/internal/policy/care",
       "owner_chunk": "G01.07e",
       "fixtures": [
         "controller_tests/test_trade_policy.py"
@@ -5167,7 +5167,7 @@
       "source": {
         "path": "controller/rimgovernor/trading.py"
       },
-      "go_package": "internal/capability/care",
+      "go_package": "go/internal/policy/care",
       "owner_chunk": "G01.07e",
       "fixtures": [
         "controller_tests/test_trade_policy.py",
@@ -5185,7 +5185,7 @@
       "source": {
         "path": "controller/rimgovernor/upkeep_sites.py"
       },
-      "go_package": "internal/capability/shelter",
+      "go_package": "go/internal/policy/shelter",
       "owner_chunk": "G01.07c",
       "fixtures": [
         "controller_tests/test_animal_upkeep.py"
@@ -5202,7 +5202,7 @@
       "source": {
         "path": "controller/rimgovernor/upkeep_storage.py"
       },
-      "go_package": "internal/capability/shelter",
+      "go_package": "go/internal/policy/shelter",
       "owner_chunk": "G01.07c",
       "fixtures": [
         "controller_tests/test_upkeep_storage.py"
@@ -5219,7 +5219,7 @@
       "source": {
         "path": "controller/rimgovernor/vendor/__init__.py"
       },
-      "go_package": "internal/player",
+      "go_package": "go/internal/server",
       "owner_chunk": "G01.09b",
       "fixtures": [],
       "native_scenarios": [
@@ -5234,7 +5234,7 @@
       "source": {
         "path": "controller/rimgovernor/vendor/companion_ui.py"
       },
-      "go_package": "internal/player",
+      "go_package": "go/internal/server",
       "owner_chunk": "G01.09b",
       "fixtures": [
         "controller_tests/test_companion_ui.py"
@@ -5251,7 +5251,7 @@
       "source": {
         "path": "controller/rimgovernor/video_stream.py"
       },
-      "go_package": "internal/media",
+      "go_package": "go/internal/presentation",
       "owner_chunk": "G01.09c",
       "fixtures": [
         "controller_tests/test_video_stream.py"
@@ -5269,7 +5269,7 @@
         "path": "controller/rimgovernor/video_stream.py",
         "line": 169
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -5284,7 +5284,7 @@
       "source": {
         "path": "controller/rimgovernor/virtual_display.py"
       },
-      "go_package": "internal/media",
+      "go_package": "go/internal/presentation",
       "owner_chunk": "G01.09c",
       "fixtures": [
         "controller_tests/test_container_worker.py",
@@ -5302,7 +5302,7 @@
       "source": {
         "path": "controller/rimgovernor/visual_review.py"
       },
-      "go_package": "internal/model",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_visual_review.py"
@@ -5319,7 +5319,7 @@
       "source": {
         "path": "controller/rimgovernor/visual_source.py"
       },
-      "go_package": "internal/media",
+      "go_package": "go/internal/presentation",
       "owner_chunk": "G01.09c",
       "fixtures": [
         "controller_tests/test_visual_source.py"
@@ -5336,7 +5336,7 @@
       "source": {
         "path": "controller/rimgovernor/wall_upgrade.py"
       },
-      "go_package": "internal/capability/shelter",
+      "go_package": "go/internal/policy/shelter",
       "owner_chunk": "G01.07c",
       "fixtures": [
         "controller_tests/test_wall_upgrade.py"
@@ -5353,7 +5353,7 @@
       "source": {
         "path": "controller/rimgovernor/waste_management.py"
       },
-      "go_package": "internal/capability/care",
+      "go_package": "go/internal/policy/care",
       "owner_chunk": "G01.07e",
       "fixtures": [
         "controller_tests/test_waste_management.py"
@@ -5370,7 +5370,7 @@
       "source": {
         "path": "controller/rimgovernor/wiki.py"
       },
-      "go_package": "internal/model",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_wiki.py"
@@ -5387,7 +5387,7 @@
       "source": {
         "path": "controller/rimgovernor/windows_process.py"
       },
-      "go_package": "internal/launch",
+      "go_package": "go/internal/runtime",
       "owner_chunk": "G01.11",
       "fixtures": [
         "controller_tests/test_windows_process.py"
@@ -5404,7 +5404,7 @@
       "source": {
         "path": "controller/rimgovernor/world_progression.py"
       },
-      "go_package": "internal/capability/world",
+      "go_package": "go/internal/policy/world",
       "owner_chunk": "G01.07f",
       "fixtures": [
         "controller_tests/test_world_progression.py"
@@ -5423,7 +5423,7 @@
         "symbol": "TradeEconomy",
         "line": 12
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_trade_policy.py"
@@ -5442,7 +5442,7 @@
         "symbol": "SetResearch",
         "line": 24
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_player_commands.py",
@@ -5463,7 +5463,7 @@
         "symbol": "SetPopulationPolicy",
         "line": 29
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_population.py"
@@ -5482,7 +5482,7 @@
         "symbol": "SetPopulationDecision",
         "line": 35
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_population.py"
@@ -5501,7 +5501,7 @@
         "symbol": "RequestSurgery",
         "line": 40
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [],
       "native_scenarios": [
@@ -5518,7 +5518,7 @@
         "symbol": "MaintainHerd",
         "line": 47
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_husbandry.py"
@@ -5537,7 +5537,7 @@
         "symbol": "AcceptQuest",
         "line": 71
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_world_progression.py"
@@ -5556,7 +5556,7 @@
         "symbol": "FulfillQuest",
         "line": 78
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [],
       "native_scenarios": [
@@ -5573,7 +5573,7 @@
         "symbol": "GiftToSettlement",
         "line": 84
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [],
       "native_scenarios": [
@@ -5590,7 +5590,7 @@
         "symbol": "FormCaravan",
         "line": 96
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [],
       "native_scenarios": [
@@ -5607,7 +5607,7 @@
         "symbol": "RouteCaravan",
         "line": 103
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [],
       "native_scenarios": [
@@ -5624,7 +5624,7 @@
         "symbol": "HoldCaravan",
         "line": 120
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [],
       "native_scenarios": [
@@ -5641,7 +5641,7 @@
         "symbol": "EvaluateWorld",
         "line": 125
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [],
       "native_scenarios": [
@@ -5658,7 +5658,7 @@
         "symbol": "SetExpeditionPolicy",
         "line": 129
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [],
       "native_scenarios": [
@@ -5675,7 +5675,7 @@
         "symbol": "CreateGoal",
         "line": 134
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_colony_controller.py",
@@ -5704,7 +5704,7 @@
         "symbol": "ModifyResourcePolicy",
         "line": 166
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_colony_controller.py",
@@ -5726,7 +5726,7 @@
         "symbol": "SetResourceReserve",
         "line": 173
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_player_commands.py",
@@ -5749,7 +5749,7 @@
         "symbol": "CancelGoal",
         "line": 179
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_colony_controller.py",
@@ -5770,7 +5770,7 @@
         "symbol": "CancelConstruction",
         "line": 184
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_construction_cancellation.py",
@@ -5791,7 +5791,7 @@
         "symbol": "BuildRoom",
         "line": 189
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_chat_facts_context.py",
@@ -5817,7 +5817,7 @@
         "symbol": "RelocateConstruction",
         "line": 196
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_construction_cancellation.py",
@@ -5837,7 +5837,7 @@
         "symbol": "AdoptRoom",
         "line": 202
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_irregular_room_adoption.py",
@@ -5859,7 +5859,7 @@
         "symbol": "CreateZone",
         "line": 231
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_colony_controller.py"
@@ -5879,7 +5879,7 @@
         "symbol": "PlaceBuildings",
         "line": 237
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_chat_facts_context.py",
@@ -5910,7 +5910,7 @@
         "symbol": "EditZone",
         "line": 243
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_remaining_player_actions.py"
@@ -5929,7 +5929,7 @@
         "symbol": "SetWorkPriority",
         "line": 268
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_plan_archive.py",
@@ -5956,7 +5956,7 @@
         "symbol": "CreateBill",
         "line": 275
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_remaining_player_actions.py"
@@ -5977,7 +5977,7 @@
         "symbol": "SetBuildingTemperature",
         "line": 290
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_building_temperature_command.py"
@@ -5996,7 +5996,7 @@
         "symbol": "DraftPawn",
         "line": 296
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [],
       "native_scenarios": [
@@ -6013,7 +6013,7 @@
         "symbol": "MovePawn",
         "line": 302
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [],
       "native_scenarios": [
@@ -6030,7 +6030,7 @@
         "symbol": "TendPawn",
         "line": 309
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_player_medical_commands.py"
@@ -6049,7 +6049,7 @@
         "symbol": "RescuePawn",
         "line": 315
       },
-      "go_package": "internal/commands",
+      "go_package": "go/internal/model",
       "owner_chunk": "G01.08",
       "fixtures": [
         "controller_tests/test_player_medical_commands.py"
@@ -6068,7 +6068,7 @@
         "symbol": "Buildings",
         "line": 68
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_building_facing_postconditions.py",
@@ -6133,7 +6133,7 @@
         "symbol": "RoomShell",
         "line": 86
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_animal_upkeep.py",
@@ -6167,7 +6167,7 @@
         "symbol": "Zone",
         "line": 119
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_action_schema.py",
@@ -6204,7 +6204,7 @@
         "symbol": "CancelConstructionAction",
         "line": 147
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [],
       "native_scenarios": [
@@ -6222,7 +6222,7 @@
         "symbol": "NativeOperation",
         "line": 180
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_building_facing_postconditions.py",
@@ -6282,7 +6282,7 @@
         "symbol": "TradeAction",
         "line": 328
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_trading.py"
@@ -6301,7 +6301,7 @@
         "symbol": "ClockAction",
         "line": 345
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_session_checkpoint.py",
@@ -6330,7 +6330,7 @@
         "symbol": "StandDown",
         "line": 353
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_bounded_raider_defense.py",
@@ -6354,7 +6354,7 @@
         "symbol": "NativeOperation",
         "line": 188
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [],
       "native_scenarios": [
@@ -6371,7 +6371,7 @@
         "symbol": "NativeOperation",
         "line": 188
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_colony_upkeep.py"
@@ -6390,7 +6390,7 @@
         "symbol": "NativeOperation",
         "line": 188
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_service_recovery.py"
@@ -6409,7 +6409,7 @@
         "symbol": "NativeOperation",
         "line": 188
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_mood_control.py"
@@ -6428,7 +6428,7 @@
         "symbol": "NativeOperation",
         "line": 188
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_gear_upkeep.py"
@@ -6447,7 +6447,7 @@
         "symbol": "NativeOperation",
         "line": 188
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_waste_management.py"
@@ -6466,7 +6466,7 @@
         "symbol": "NativeOperation",
         "line": 188
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_colony_controller.py",
@@ -6487,7 +6487,7 @@
         "symbol": "NativeOperation",
         "line": 188
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_medical_outcome.py",
@@ -6510,7 +6510,7 @@
         "symbol": "NativeOperation",
         "line": 188
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_medical_outcome.py",
@@ -6530,7 +6530,7 @@
         "symbol": "NativeOperation",
         "line": 188
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_bounded_raider_defense.py",
@@ -6551,7 +6551,7 @@
         "symbol": "NativeOperation",
         "line": 188
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_plan_archive.py"
@@ -6570,7 +6570,7 @@
         "symbol": "NativeOperation",
         "line": 188
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_long_term_medical.py"
@@ -6589,7 +6589,7 @@
         "symbol": "NativeOperation",
         "line": 188
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [
         "controller_tests/test_world_progression.py"
@@ -6608,7 +6608,7 @@
         "symbol": "NativeOperation",
         "line": 188
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [],
       "native_scenarios": [
@@ -6625,7 +6625,7 @@
         "symbol": "NativeOperation",
         "line": 188
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [],
       "native_scenarios": [
@@ -6642,7 +6642,7 @@
         "symbol": "NativeOperation",
         "line": 188
       },
-      "go_package": "internal/plan",
+      "go_package": "go/internal/domain",
       "owner_chunk": "G01.04a",
       "fixtures": [],
       "native_scenarios": [
@@ -6658,7 +6658,7 @@
         "path": "controller/rimgovernor/bridge.py",
         "symbol": "BridgeClient.call"
       },
-      "go_package": "internal/bridge",
+      "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
       "fixtures": [],
       "native_scenarios": [
@@ -6666,6 +6666,30 @@
       ],
       "status": "pending",
       "notes": "Exact native name declared/referenced in controller source; occurrence is inventory evidence, not proof of dispatch or installed availability. G01.03 owns discovery/read classification; writes remain gated until G01.06 and corresponding G01.07/09 handlers. Bridge.call/name/core accept computed tools; native schemas are discovered at runtime. Audit callers, gameplay allowlists and request recordings before claiming closed-world coverage; no arbitrary discovered write is authorized. No direct named fixture reference found; the named G01 owner must add focused contract coverage before migration. Native paths are family acceptance candidates, not demonstrated per-item coverage; owner must add explicit assertions where absent. Behavioral acceptance owner: G01.03."
+    },
+    {
+      "id": "native-tool:argument-sensitive-dispatch",
+      "category": "native-tool",
+      "source": {
+        "path": "controller/rimgovernor/bridge_game.py",
+        "symbol": "is_write"
+      },
+      "go_package": "go/internal/bridge",
+      "owner_chunk": "G01.03",
+      "fixtures": [
+        "controller_tests/test_population.py",
+        "controller_tests/test_research.py",
+        "controller_tests/test_inspection_preview.py",
+        "controller_tests/test_gear_upkeep.py",
+        "controller_tests/test_world.py",
+        "controller_tests/test_trading.py"
+      ],
+      "native_scenarios": [
+        "scripts/execution_schema_smoke.py",
+        "scripts/container_player_actions.py"
+      ],
+      "status": "pending",
+      "notes": "Native read/write classification depends on arguments and branch order, not only tool names. home/population writes only with non-null interaction and dryRun not true; home/caravan catalog (including omitted action) is a read; home/research writes only with a truthy set and dryRun not true. home/* and rimworld/apply_architect_designator dryRun=true are previews. home/order resolve (including omitted action) is a read. home/trade list_traders (including omitted action), sheet, preview and status are reads; other trade actions write unless previewed. Remaining names follow WRITES. BridgeGame.invoke also restricts names to READS|WRITES and validates discovered arguments; an unknown name classified false is not authorized. G01.03 owns fail-closed read-only admission; G01.06 owns write authorization. Existing fixture paths cover portions of this boundary; owner must add a complete branch/argument matrix. Native scenarios are acceptance candidates, not proven Go parity."
     }
   ]
 }

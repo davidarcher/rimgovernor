@@ -657,7 +657,7 @@ only intentional small, sanitized regression fixtures belong in source control.
     contracts/state-inventory.json and contracts/fixtures/.
   - [ ] **00d:** integrator coverage validation, provenance and uncontended baseline
     availability; depends on 00a–00c. Native timing remains pending until measured.
-    - [ ] **00d.1:** reconcile production Docker helpers and canonical Go ownership;
+    - [x] **00d.1:** reconcile production Docker helpers and canonical Go ownership;
       inventory argument-dependent native read/write boundaries (domain agent).
     - [ ] **00d.2:** inventory platform discovery variables and tooling cache CLI
       options with source checks (interface agent; independent of 00d.1).

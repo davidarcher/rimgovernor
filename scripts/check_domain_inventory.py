@@ -48,6 +48,7 @@ def inventory_sources(root=ROOT):
         for value, symbol, line in literal_fields(path, field):
             result[category + ':' + value] = {'path': path.relative_to(root).as_posix(), 'symbol': symbol, 'line': line}
     result['native-tool:dynamic-discovery'] = {'path': 'controller/rimgovernor/bridge.py', 'symbol': 'BridgeClient.call'}
+    result['native-tool:argument-sensitive-dispatch'] = {'path': 'controller/rimgovernor/bridge_game.py', 'symbol': 'is_write'}
     return result
 
 
@@ -68,7 +69,8 @@ def main():
         assert row['source'] == expected[row['id']], f'Stale source location: {row["id"]}'
         assert row['status'] in {'pending', 'in-progress', 'migrated', 'retained-tooling', 'retired'}
         assert re.fullmatch(r'G01\.\d{2}[a-z]?', row['owner_chunk']), row['id']
-        assert row['go_package'] and row['notes'], row['id']
+        assert re.fullmatch(r'go/(?:cmd/rimgovernor|internal/(?:wire|domain|bridge|store|policy|hands|runtime|model|server|presentation|testkit)(?:/[a-z][a-z0-9_]*)*)', row['go_package']), row['id']
+        assert row['notes'], row['id']
         assert isinstance(row['fixtures'], list) and isinstance(row['native_scenarios'], list)
         for path in row['fixtures'] + row['native_scenarios']:
             assert (ROOT / path).is_file(), (row['id'], path)
