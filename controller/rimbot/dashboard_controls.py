@@ -3,12 +3,13 @@ from typing import Literal
 import math
 
 from fastapi import APIRouter, Request, Query
-from pydantic import BaseModel, ConfigDict, Field, StrictBool
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 from jsonschema import Draft202012Validator
-from .bridge import runtime_file_read
+from .bridge import runtime_file_read, BridgeError
 from .native_contracts import validate_arguments
 from .player_input import InputLease, require_owner, check_player_control
 import time
+import os
 
 router = APIRouter(prefix='/api')
 
@@ -38,6 +39,8 @@ async def take_control(body: TakeControl, request: Request):
             raise ValueError('Another viewer has player control')
         if not rt.supervisor:
             raise ValueError('Native clock supervision is unavailable')
+        from .player_input import release_native
+        await release_native(rt)
         lease = InputLease.create(body.session_id, body.viewer_id)
         rt.player_input = lease
         rt.mode, rt.resume_after_review = 'manual', False
@@ -63,16 +66,36 @@ async def take_control(body: TakeControl, request: Request):
         await guard()
         if rt.clock.get('paused') is not True:
             raise ValueError('Native pause was not confirmed; player control was not acknowledged')
+        if not rt.headless and os.environ.get('RIMBOT_PRIVATE_DISPLAY') == '1':
+            arguments = {'action': 'take', 'owner': lease.token}
+            await camera_contract(rt, 'home/player_input', arguments)
+            native = await camera_call(rt, 'home/player_input', arguments)
+            lease.native = True
+            from .native_input_channel import NativeInputChannel
+            try:
+                lease.channel = NativeInputChannel(native['channel'], native['capacity'])
+            except Exception:
+                await release_native(rt)
+                raise
         lease.ready, lease.deadline = True, time.monotonic() + 15
-        return {'lease_id': lease.token, 'mode': 'manual'}
+        return {'lease_id': lease.token, 'mode': 'manual', 'direct_input': lease.native}
 
 
 @router.post('/input/heartbeat')
 async def input_heartbeat(body: TakeControl, request: Request):
     rt = request.app.state.rt
     async with rt.lock:
-        await check_session(rt, body.session_id)
         lease = require_owner(rt, body.session_id, body.viewer_id, body.lease_id)
+        if lease.channel:
+            if not rt.connected or body.session_id != rt.context_token or getattr(rt, 'session_closing', False):
+                raise ValueError('Loaded player session changed')
+        else:
+            await check_session(rt, body.session_id)
+        if lease.native:
+            if lease.channel:
+                await lease.channel.call(action='renew', owner=lease.token)
+            else:
+                await camera_call(rt, 'home/player_input', {'action': 'renew', 'owner': lease.token})
         lease.deadline = time.monotonic() + 15
         return {'active': True}
 
@@ -99,6 +122,49 @@ class CameraNavigation(PlayerControl):
 
 class PawnSelection(TakeControl):
     pawn_id: str = Field(default='', max_length=100)
+
+
+class FrameInput(TakeControl):
+    source: str = Field(min_length=1, max_length=200)
+    frame: StrictInt = Field(gt=0, le=9007199254740991)
+    order: StrictInt = Field(gt=0, le=9007199254740991)
+    kind: Literal['move', 'down', 'up', 'wheel', 'keyDown', 'keyUp']
+    x: StrictInt = Field(ge=0, lt=3840)
+    y: StrictInt = Field(ge=0, lt=2160)
+    button: StrictInt = Field(default=0, ge=0, le=2)
+    key: str = Field(default='', max_length=30)
+    delta: StrictInt = Field(default=0, ge=-1, le=1)
+
+
+@router.post('/input/event')
+async def frame_input(body: FrameInput, request: Request):
+    rt = request.app.state.rt
+    async with rt.lock:
+        lease = require_owner(rt, body.session_id, body.viewer_id, body.lease_id)
+        if (not lease.native or rt.headless or not rt.connected
+                or getattr(rt, 'session_closing', False) or body.session_id != rt.context_token):
+            raise ValueError('Direct player input is unavailable for this loaded view')
+        if body.order != lease.order + 1:
+            raise ValueError('Input order is stale or has a gap')
+        lease.order = body.order
+        arguments = body.model_dump(exclude={'session_id', 'viewer_id', 'lease_id'})
+        try:
+            # Native admission checks the exact captured game/map/camera/window
+            # context on its main thread, including loads not yet polled here.
+            if lease.channel:
+                result = await lease.channel.call(**dict(arguments, action='event', owner=lease.token))
+            else:
+                result = await camera_call(rt, 'home/player_input',
+                    dict(arguments, action='event', owner=lease.token))
+        except Exception as error:
+            from .player_input import release_native
+            try:
+                await release_native(rt)
+            except Exception:
+                pass  # Independent native expiry still releases held input.
+            lease.native = False
+            raise ValueError('Input was not confirmed. Release control and inspect the view before taking control again.') from error
+        return result
 
 
 @router.post('/input/select')
@@ -146,7 +212,10 @@ async def camera_contract(rt, tool, arguments):
 
 async def camera_call(rt, tool, arguments):
     # Relative input is never retried after an uncertain native dispatch.
-    result = await rt.bridge.call(tool, **arguments)
+    try:
+        result = await rt.bridge.call(tool, **arguments)
+    except BridgeError as error:
+        raise ValueError(f'Native player request failed: {error.detail}') from error
     payload = result.structuredContent
     if (getattr(result, 'isError', False) or not isinstance(payload, dict)
             or payload.get('success') is not True or payload.get('unknownArguments')):

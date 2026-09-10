@@ -7,6 +7,18 @@ from mcp.types import CallToolResult, TextContent
 from rimbot.bridge import BridgeClient, BridgeError
 
 
+async def test_connect_waits_for_readiness_without_replaying_start_or_load(monkeypatch):
+    ready = CallToolResult(content=[])
+    pending = CallToolResult(content=[], isError=True,
+                            structuredContent={'message': "Game is not connected via GABP"})
+    session = AsyncMock()
+    session.call_tool.side_effect = [ready, pending, ready]
+    monkeypatch.setattr('rimbot.bridge.asyncio.sleep', AsyncMock())
+    assert await BridgeClient(session).connect() is ready
+    assert [call.args[0] for call in session.call_tool.await_args_list] == [
+        'games_connect', 'games_tool_names', 'games_tool_names']
+
+
 async def test_native_result_and_error_are_preserved_without_retry():
     session = AsyncMock()
     result = CallToolResult(content=[TextContent(type="text", text="queued")],

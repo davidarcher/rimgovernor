@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { PlayerOwner } from "./GameVideo";
 
 export default function GameControls({
   sessionId,
@@ -10,6 +11,8 @@ export default function GameControls({
   speed,
   pawns = [],
   onError,
+  viewerId,
+  onControl,
 }: {
   sessionId: string;
   connected: boolean;
@@ -20,12 +23,16 @@ export default function GameControls({
   speed?: string;
   pawns?: { thing_id: string; name: string }[];
   onError: (error: string) => void;
+  viewerId?: string;
+  onControl?: (owner: PlayerOwner | null) => void;
 }) {
   const [busy, setBusy] = useState(false),
     [notice, setNotice] = useState("");
   const pending = useRef(false);
-  const [viewer] = useState(() => crypto.randomUUID());
+  const [viewer] = useState(() => viewerId || crypto.randomUUID());
   const [lease, setLease] = useState("");
+  const [direct, setDirect] = useState(false);
+  useEffect(() => { onControl?.(lease ? { viewer, lease, direct } : null); }, [lease, viewer, direct, onControl]);
   const accepting = useRef(true);
   useEffect(() => {
     accepting.current = !document.hidden;
@@ -64,6 +71,7 @@ export default function GameControls({
     const visibility = () => { if (document.hidden) release(); };
     window.addEventListener("blur", release);
     document.addEventListener("visibilitychange", visibility);
+    if (!accepting.current) release();
     return () => {
       window.clearInterval(timer);
       window.removeEventListener("blur", release);
@@ -100,6 +108,7 @@ export default function GameControls({
           return;
         }
         setLease(data.lease_id);
+        setDirect(data.direct_input === true);
       }
       if (path === "input/release") setLease("");
       setNotice(

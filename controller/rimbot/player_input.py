@@ -11,6 +11,9 @@ class InputLease:
     token: str
     deadline: float
     ready: bool = False
+    native: bool = False
+    order: int = 0
+    channel: object = None
 
     @classmethod
     def create(cls, session, viewer):
@@ -31,3 +34,22 @@ def require_owner(rt, session, viewer, token):
 def check_player_control(rt, session, viewer, token):
     if getattr(rt, 'player_input', None) is not None or viewer or token:
         require_owner(rt, session, viewer, token)
+
+
+async def release_native(rt):
+    lease = getattr(rt, 'player_input', None)
+    if lease and lease.native:
+        if lease.channel:
+            try:
+                result = await lease.channel.call(action='release', owner=lease.token)
+            except Exception:
+                # A release is idempotent; uncertain game events are never retried.
+                result = (await rt.bridge.call('home/player_input', action='release', owner=lease.token)).structuredContent
+            finally:
+                lease.channel.close()
+                lease.channel = None
+        else:
+            result = (await rt.bridge.call('home/player_input', action='release', owner=lease.token)).structuredContent
+        if (result or {}).get('released') is not True:
+            raise ValueError('Native held input cleanup was not confirmed')
+        lease.native = False

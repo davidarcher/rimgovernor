@@ -58,6 +58,71 @@ def runtime():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('hardware', [False, True])
+async def test_socket_frame_metadata_acknowledgement_and_owner_disconnect(monkeypatch, hardware):
+    import json
+    import struct
+    from starlette.websockets import WebSocketDisconnect
+    from rimbot.video_stream import socket_frames
+    pytest.importorskip('av')
+    if hardware:
+        from unittest.mock import Mock
+        monkeypatch.setattr('rimbot.video_stream.HardwareEncoder.encode', Mock(side_effect=RuntimeError('GPU unavailable')))
+    rt = runtime()
+    rt.player_input = SimpleNamespace(viewer='a', session='session', token='lease')
+    rt.set_mode = AsyncMock()
+    hub = VideoHub(rt)
+    hub.open_source = AsyncMock()
+    hub.source_name = 'native-source'
+    hub.latest = (1, 16, 16, time.time(), bytes([255, 0, 0, 255]) * 256, 4)
+
+    class Socket:
+        headers = {'origin': 'http://testserver', 'host': 'testserver', 'sec-websocket-protocol': 'rimbot-view-v1'}
+        query_params = {'session_id': 'session', 'viewer': 'a', 'connection_id': 'connection', 'hardware': str(hardware).lower()}
+        app = SimpleNamespace(state=SimpleNamespace(video=hub))
+        accept = AsyncMock()
+        close = AsyncMock()
+        packets = []
+
+        async def send_bytes(self, packet):
+            self.packets.append(packet)
+
+        async def receive_text(self):
+            if len(self.packets) == 2:
+                raise WebSocketDisconnect()
+            hub.latest = (2, 16, 16, hub.latest[3] + .04, hub.latest[4], 4)
+            return json.dumps({'frame': 1, 'displayed': time.time()})
+
+    socket = Socket()
+    await socket_frames(socket)
+    assert len(socket.packets) == 2
+    for index, packet in enumerate(socket.packets):
+        size, = struct.unpack_from('<I', packet)
+        metadata = json.loads(packet[4:4 + size])
+        assert metadata['frame'] == index + 1 and metadata['source'] == 'native-source'
+        assert metadata['width'] == metadata['height'] == 16
+        assert metadata['encoding'] == 'jpeg'
+        assert packet[4 + size:][:2] == b'\xff\xd8'
+    assert not hub.peers
+    rt.set_mode.assert_awaited_once_with('manual', player_owner=('session', 'a', 'lease'))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('origin,protocol,session', [('https://other', 'rimbot-view-v1', 'session'),
+    ('http://testserver', '', 'session'), ('http://testserver', 'rimbot-view-v1', 'old-load')])
+async def test_socket_rejects_foreign_origin_missing_protocol_and_stale_load(origin, protocol, session):
+    from rimbot.video_stream import socket_frames
+    rt = runtime(); hub = VideoHub(rt)
+    hub.open_source = AsyncMock()
+    socket = SimpleNamespace(headers={'origin': origin, 'host': 'testserver', 'sec-websocket-protocol': protocol},
+        query_params={'session_id': session, 'viewer': 'a', 'connection_id': 'connection'},
+        app=SimpleNamespace(state=SimpleNamespace(video=hub)), close=AsyncMock(), accept=AsyncMock())
+    await socket_frames(socket)
+    hub.open_source.assert_not_awaited()
+    socket.accept.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_signaling_origin_and_session_guards():
     pytest.importorskip('aiortc')
     rt = runtime()

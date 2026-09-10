@@ -15,8 +15,8 @@ import FieldGuide, { Muffalo } from "./FieldGuide";
 import { readable, humanize } from "./labels";
 import GameControls from "./GameControls";
 import Throughput from "./Throughput";
-import GameVideo from "./GameVideo";
 import VisualReviews, { type VisualReview } from "./VisualReviews";
+import GameVideo, { type PlayerOwner } from "./GameVideo";
 type Message = { id: number; kind: string; text: string; at: number };
 type State = {
   visualReviews?: VisualReview[];
@@ -58,6 +58,7 @@ type State = {
   observation?: PeopleObservation | null;
 };
 export default function BridgeColony() {
+  const [playerOwner, setPlayerOwner] = useState<PlayerOwner | null>(null);
   const [s, setState] = useState<State | null>(null),
     [error, setError] = useState(""),
     [text, setText] = useState(""),
@@ -377,7 +378,7 @@ export default function BridgeColony() {
             <div className="bridge-image">
               <GameVideo session={s?.sessionId} viewer={viewer.current}
                 enabled={videoPlaying && view === "colony" && !!s?.connected && !s?.headless}
-                snapshot={camera}>
+                snapshot={camera} owner={playerOwner} onError={setError}>
               {!camera && (
                 <div className="camera-empty">
                   <Muffalo large />
@@ -393,6 +394,8 @@ export default function BridgeColony() {
               </GameVideo>
             </div>
             <GameControls
+              viewerId={viewer.current}
+              onControl={setPlayerOwner}
               key={s?.sessionId}
               sessionId={s?.sessionId || ""}
               connected={!!s?.connected}
@@ -421,7 +424,8 @@ export default function BridgeColony() {
               <small className="mgr-muted">
                 {s?.headless
                   ? "Native state and controls remain available. Restart without -Headless to watch the colony."
-                  : "Game snapshots refresh every few seconds."}
+                  : playerOwner?.direct ? "Click the live view to play. Colony readings refresh after control is released."
+                    : "Live video falls back to snapshots if the stream is interrupted."}
               </small>
               {(imageError || s?.cameraError) && (
                 <p role="status">

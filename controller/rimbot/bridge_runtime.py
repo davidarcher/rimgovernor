@@ -108,6 +108,9 @@ class BridgeRuntime:
         token = key+':'+identity['loadToken']
         changed = token != self.context_token
         if changed:
+            player = getattr(self, 'player_input', None)
+            if player and player.channel:
+                player.channel.close()
             self.player_input = None
             self.ui_targets.clear()
             saved = self.store.get('bridge:'+key, {})
@@ -613,6 +616,9 @@ class BridgeRuntime:
             if prior['text'] != text or prior['interpret'] != interpret:
                 raise ValueError('Chat request identity was already used for different content')
             return prior['receipt']
+        if interpret:
+            from .player_input import release_native
+            await release_native(self)
         revision, direction = self.chat_revision, dict(self.current_plan.control)
         count = len(self.chat)
         try:
@@ -702,6 +708,11 @@ class BridgeRuntime:
         self.mode, self.resume_after_review = 'manual', False
         self.execution_window_end = None
         self.execution_wait_explicit = False
+        from .player_input import release_native
+        try:
+            await release_native(self)
+        except Exception as error:
+            self.note('blocker', 'Could not confirm held player input release: '+failure_text(error))
         try:
             if self.supervisor:
                 await self.supervisor.change('Paused')
@@ -726,6 +737,8 @@ class BridgeRuntime:
                     raise ValueError('Loaded colony changed; player control was not released')
             elif mode == 'automate' and getattr(self, 'player_input', None) is not None:
                 raise ValueError('Release player control before resuming automation')
+            from .player_input import release_native
+            await release_native(self)
             if mode == 'manual':
                 await self.halt()
             if self.supervisor:
@@ -1312,6 +1325,17 @@ class BridgeRuntime:
                 self.update_strategy_state()
                 last_reconcile = 0
                 while not self.stopped:
+                    player = getattr(self, 'player_input', None)
+                    if player and player.ready and player.native and player.live():
+                        # Native admission/expiry guards the live load while the
+                        # player owns input. Defer bulk reads that hold the writer
+                        # lock; retain last good colony data and clock supervision.
+                        self.receive_clock_events()
+                        try:
+                            await asyncio.wait_for(self.shutdown.wait(), .1)
+                        except TimeoutError:
+                            pass
+                        continue
                     if ((self.review_task is None or self.review_task.done())
                             and (self.execution_task is None or self.execution_task.done())):
                         if self.wake.is_set():

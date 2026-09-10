@@ -21,24 +21,25 @@ class Process:
 
 
 @pytest.mark.parametrize('renderer_ok', [True, False])
+@pytest.mark.parametrize('renderer_name', ['llvmpipe', 'd3d12'])
 @pytest.mark.parametrize('child_code, expected', [(7, 7), (-15, 143)])
-def test_display_verifies_renderer_and_cleans_up(tmp_path, monkeypatch, renderer_ok, child_code, expected):
+def test_display_verifies_renderer_and_cleans_up(tmp_path, monkeypatch, renderer_ok, renderer_name, child_code, expected):
     server, child = Process(), Process(child_code)
     launched = []
     def launch(command, **kwargs):
         launched.append((command, kwargs))
         return server if command[0] == 'Xvfb' else child
     def run(command, **kwargs):
-        output = b'llvmpipe' if renderer_ok else b'unknown renderer'
+        output = (renderer_name + '\nAccelerated: yes').encode() if renderer_ok else b'unknown renderer'
         return SimpleNamespace(returncode=0, stdout=output, stderr=b'')
     monkeypatch.setattr(display.subprocess, 'Popen', launch)
     monkeypatch.setattr(display.subprocess, 'run', run)
     if renderer_ok:
-        assert display.run_display(tmp_path, display.DisplaySettings.parse('1280x720'), ['worker']) == expected
+        assert display.run_display(tmp_path, display.DisplaySettings.parse('1280x720', renderer_name), ['worker']) == expected
         assert launched[1][1]['env']['LIBGL_ALWAYS_SOFTWARE'] == '1'
     else:
-        with pytest.raises(RuntimeError, match='llvmpipe'):
-            display.run_display(tmp_path, display.DisplaySettings.parse('1280x720'), ['worker'])
+        with pytest.raises(RuntimeError, match=renderer_name):
+            display.run_display(tmp_path, display.DisplaySettings.parse('1280x720', renderer_name), ['worker'])
         assert len(launched) == 1
     assert server.terminated
     assert '-nolisten' in launched[0][0]

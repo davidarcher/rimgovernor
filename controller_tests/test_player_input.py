@@ -130,3 +130,45 @@ def test_released_credentials_cannot_fall_back_to_unowned_controls(viewer, token
     with pytest.raises(ValueError, match='expired'):
         check_player_control(rt, 'load-a', viewer, token)
     check_player_control(rt, 'load-a', '', '')
+
+
+@pytest.mark.asyncio
+async def test_frame_input_requires_native_ownership_and_is_ordered():
+    rt = runtime(); await request(rt, 'input/take')
+    rt.headless = False
+    rt.player_input.native = True
+    rt.bridge = SimpleNamespace(call=AsyncMock(return_value=SimpleNamespace(structuredContent={'success': True, 'order': 1})))
+    body = dict(lease_id=rt.player_input.token, source='buffer', frame=5, order=1, kind='down', x=12, y=20)
+    assert (await request(rt, 'input/event', **body)).status_code == 200
+    assert (await request(rt, 'input/event', **body)).status_code == 400
+    assert rt.bridge.call.await_count == 1
+    assert rt.bridge.call.await_args.kwargs['owner'] == rt.player_input.token
+    assert rt.bridge.call.await_args.kwargs['frame'] == 5
+    assert (await request(rt, 'input/event', **dict(body, order=2, lease_id='other'))).status_code == 400
+    assert rt.bridge.call.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_uncertain_frame_input_is_not_replayed_and_releases_held_state():
+    rt = runtime(); await request(rt, 'input/take'); rt.headless = False; rt.player_input.native = True
+    rt.bridge = SimpleNamespace(call=AsyncMock(side_effect=[RuntimeError('lost receipt'), SimpleNamespace(structuredContent={'released': True})]))
+    body = dict(lease_id=rt.player_input.token, source='buffer', frame=5, order=1, kind='down', x=12, y=20)
+    assert (await request(rt, 'input/event', **body)).status_code == 400
+    assert [call.kwargs['action'] for call in rt.bridge.call.await_args_list] == ['event', 'release']
+    assert not rt.player_input.native
+
+
+@pytest.mark.asyncio
+async def test_frame_input_rejects_boolean_coordinates_and_old_load_without_native_dispatch():
+    rt = runtime(); await request(rt, 'input/take'); rt.headless = False; rt.player_input.native = True
+    rt.bridge = SimpleNamespace(call=AsyncMock())
+    body = dict(lease_id=rt.player_input.token, source='buffer', frame=5, order=1, kind='down', x=True, y=20)
+    assert (await request(rt, 'input/event', **body)).status_code == 422
+    rt.context_token = 'new-load'
+    assert (await request(rt, 'input/event', **dict(body, x=12))).status_code == 400
+    rt.bridge.call.assert_not_awaited()
+
+
+def test_direct_input_is_outside_model_gameplay_surface():
+    from rimbot.bridge_game import READS, WRITES
+    assert 'home/player_input' not in READS | WRITES

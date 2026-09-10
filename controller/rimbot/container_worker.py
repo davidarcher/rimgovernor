@@ -120,14 +120,14 @@ def main():
                         help='Preserve source boot.config, or use the tested zero-time-slice startup mitigation')
     parser.add_argument('--display', choices=['headless', 'xvfb'], default=os.environ.get('RIMBOT_DISPLAY', 'headless'))
     parser.add_argument('--resolution', default=os.environ.get('RIMBOT_DISPLAY_RESOLUTION', '1280x720'))
-    parser.add_argument('--renderer', choices=['llvmpipe'], default=os.environ.get('RIMBOT_DISPLAY_RENDERER', 'llvmpipe'))
+    parser.add_argument('--renderer', choices=['llvmpipe', 'd3d12'], default=os.environ.get('RIMBOT_DISPLAY_RENDERER', 'llvmpipe'))
     parser.add_argument('command', nargs=argparse.REMAINDER)
     args = parser.parse_args()
     if args.unity_gc_time_slice not in ('source', '0'):
         parser.error('RIMBOT_UNITY_GC_TIME_SLICE must be source or 0')
-    if args.display not in ('headless', 'xvfb') or args.renderer != 'llvmpipe':
+    if args.display not in ('headless', 'xvfb') or args.renderer not in ('llvmpipe', 'd3d12'):
         parser.error('Unsupported display or renderer')
-    display = DisplaySettings.parse(args.resolution) if args.display == 'xvfb' else None
+    display = DisplaySettings.parse(args.resolution, args.renderer) if args.display == 'xvfb' else None
     cache_root = os.environ.get('RIMBOT_INPUT_CACHE_ROOT')
     cache_key = os.environ.get('RIMBOT_INPUT_CACHE_KEY')
     if bool(cache_root) != bool(cache_key):

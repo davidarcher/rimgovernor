@@ -70,7 +70,18 @@ class BridgeClient:
         return result
 
     async def connect(self) -> CallToolResult:
-        return await self.core("games_connect", gameId=self.game_id)
+        result = await self.core("games_connect", gameId=self.game_id)
+        # Process startup and GABP readiness are separate. Only repeat discovery;
+        # never retry a load or another game mutation after an uncertain result.
+        deadline = asyncio.get_running_loop().time() + 120
+        while True:
+            try:
+                await self.names(query='rimworld/load_game_ready')
+                return result
+            except BridgeError as error:
+                if 'not connected via GABP' not in error.detail or asyncio.get_running_loop().time() >= deadline:
+                    raise
+                await asyncio.sleep(.25)
 
     async def names(self, *, cursor: str = "", query: str = "") -> CallToolResult:
         return await self.core("games_tool_names", gameId=self.game_id, cursor=cursor, query=query)
@@ -89,7 +100,8 @@ async def bridge_session(executable: Path, config_dir: Path, game_id="rimbot-tri
         "server", "stdio", "--configDir", str(config_dir.resolve()),
         "--log-level", "error"], env={key: os.environ[key] for key in (
             'DISPLAY', 'XAUTHORITY', 'XDG_RUNTIME_DIR', 'LIBGL_ALWAYS_SOFTWARE',
-            'GALLIUM_DRIVER', 'LP_NUM_THREADS') if key in os.environ})
+            'GALLIUM_DRIVER', 'LP_NUM_THREADS', 'RIMBOT_PRIVATE_DISPLAY', 'RIMBOT_VIDEO_READBACK',
+            'LD_LIBRARY_PATH', 'MESA_D3D12_DEFAULT_ADAPTER_NAME') if key in os.environ})
     async with stdio_client(parameters) as (reader, writer):
         async with ClientSession(reader, writer, read_timeout_seconds=timedelta(seconds=120)) as session:
             await session.initialize()

@@ -1,110 +1,97 @@
-import React from "react";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
-import GameVideo from "./GameVideo";
+import React from 'react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import GameVideo, { imagePoint } from './GameVideo';
 
+let sockets: any[];
+class Socket {
+  binaryType = ''; onmessage: any; onerror: any; onclose: any;
+  close = vi.fn(); send = vi.fn();
+  constructor(public url: string, public protocol: string) { sockets.push(this); }
+}
+beforeEach(() => {
+  sockets = []; vi.stubGlobal('WebSocket', Socket);
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: vi.fn() } as any);
+  vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ close: vi.fn() })));
+  vi.stubGlobal('requestAnimationFrame', (callback: any) => { callback(0); return 1; });
+});
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers(); });
-
-it("keeps the snapshot when WebRTC is unavailable", () => {
-  vi.stubGlobal("RTCPeerConnection", undefined);
-  render(<GameVideo session="a" viewer="one" enabled snapshot="/api/camera?v=1" />);
-  expect(screen.getByAltText("Current RimWorld colony").getAttribute("src")).toBe("/api/camera?v=1");
-  expect(screen.getByRole("status").textContent).toContain("Snapshots");
+function packet(session = 'a', width = 1280, height = 720) {
+  const meta = new TextEncoder().encode(JSON.stringify({ session, width, height, source: 'native', frame: 3, captured: Date.now()/1000 }));
+  const bytes = new Uint8Array(meta.length + 5); new DataView(bytes.buffer).setUint32(0, meta.length, true);
+  bytes.set(meta, 4); return bytes.buffer;
+}
+it('rejects letterboxing and maps scaling/fullscreen to source pixels', () => {
+  const rect = { left: 20, top: 10, width: 1000, height: 1000 };
+  expect(imagePoint(rect, 1280, 720, 520, 510)).toEqual({ x: 640, y: 360 });
+  expect(imagePoint(rect, 1280, 720, 520, 20)).toBeNull();
+  expect(imagePoint({ left: 0, top: 0, width: 2560, height: 1440 }, 1280, 720, 1280, 720)).toEqual({ x: 640, y: 360 });
+  expect(imagePoint({ left: 0, top: 0, width: 0, height: 0 }, 1280, 720, 0, 0)).toBeNull();
 });
-
-it("closes the old peer on pause and does not negotiate in a paused view", async () => {
-  const peers: any[] = [];
-  class Peer {
-    iceGatheringState = "complete";
-    localDescription = { type: "offer", sdp: "offer" };
-    addTransceiver = vi.fn();
-    createOffer = vi.fn(async () => this.localDescription);
-    setLocalDescription = vi.fn(async () => {});
-    setRemoteDescription = vi.fn(async () => {});
-    close = vi.fn();
-    constructor() { peers.push(this); }
-  }
-  vi.stubGlobal("RTCPeerConnection", Peer);
-  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ type: "answer", sdp: "answer" }) })));
-  const { rerender } = render(<GameVideo session="a" viewer="one" enabled snapshot="frame" />);
-  await waitFor(() => expect(peers[0].setRemoteDescription).toHaveBeenCalled());
-  expect(peers[0].addTransceiver).toHaveBeenCalledWith("video", { direction: "recvonly" });
-  const request = JSON.parse((fetch as any).mock.calls[0][1].body);
-  expect(request).toEqual({ session_id: "a", viewer: "one", sdp: "offer", connection_id: expect.any(String) });
-  rerender(<GameVideo session="a" viewer="one" enabled={false} snapshot="frame" />);
-  expect(peers[0].close).toHaveBeenCalled();
-  expect(peers).toHaveLength(1);
-  const closeRequest = (fetch as any).mock.calls.find((call: any[]) => call[0] === "/api/video/close");
-  expect(JSON.parse(closeRequest[1].body)).toEqual({ session_id: "a", viewer: "one", connection_id: request.connection_id });
-  expect(screen.getByRole("status").textContent).toBe("Video paused");
+it('retains snapshots when continuous video is unavailable', () => {
+  vi.stubGlobal('WebSocket', undefined);
+  render(<GameVideo session="a" viewer="one" enabled snapshot="/frame" />);
+  expect(screen.getByAltText('Current RimWorld colony').getAttribute('src')).toBe('/frame');
 });
-
-it("times out negotiation and retains the fallback", async () => {
+it('uses same-origin protected streaming and acknowledges only decoded frames', async () => {
+  render(<GameVideo session="a" viewer="one" enabled snapshot="/frame" />);
+  expect(sockets[0].protocol).toBe('rimbot-view-v1');
+  expect(sockets[0].url).toContain('/api/video/frames?session_id=a&viewer=one&connection_id=');
+  expect(sockets[0].send).not.toHaveBeenCalled();
+  await act(async () => { await sockets[0].onmessage({ data: packet() }); });
+  expect(JSON.parse(sockets[0].send.mock.calls[0][0]).frame).toBe(3);
+  expect(screen.getByRole('status').textContent).toContain('Live video');
+});
+it('retains the presented canvas on disconnect and rejects another load', async () => {
+  const { rerender } = render(<GameVideo session="a" viewer="one" enabled snapshot="/frame" />);
+  await act(async () => { await sockets[0].onmessage({ data: packet() }); sockets[0].onclose(); });
+  expect(screen.getByLabelText('Live RimWorld colony').style.display).toBe('block');
+  rerender(<GameVideo session="b" viewer="one" enabled={false} snapshot="/new-frame" />);
+  expect(screen.getByLabelText('Live RimWorld colony').style.display).toBe('none');
+  expect(screen.getByAltText('Current RimWorld colony').getAttribute('src')).toBe('/new-frame');
+});
+it('resizes the canvas to native resolution and closes on pause without retries', async () => {
   vi.useFakeTimers();
-  const close = vi.fn();
-  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true })));
-  vi.stubGlobal("RTCPeerConnection", class {
-    addTransceiver() {}
-    createOffer() { return new Promise(() => {}); }
-    close = close;
-  });
-  render(<GameVideo session="a" viewer="one" enabled snapshot="last-frame" />);
-  await act(async () => { await vi.advanceTimersByTimeAsync(11000); });
-  expect(close).toHaveBeenCalled();
-  expect(screen.getByAltText("Current RimWorld colony").getAttribute("src")).toBe("last-frame");
-});
-
-it("retries with a new connection ID and cancels retries on pause", async () => {
-  vi.useFakeTimers();
-  const peers: any[] = [];
-  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false })));
-  vi.stubGlobal("RTCPeerConnection", class {
-    iceGatheringState = "complete";
-    localDescription = { sdp: "offer" };
-    constructor() { peers.push(this); }
-    addTransceiver() {}
-    async createOffer() { return this.localDescription; }
-    async setLocalDescription() {}
-    close() {}
-  });
-  const { rerender } = render(<GameVideo session="a" viewer="one" enabled snapshot="frame" />);
-  await act(async () => { await vi.advanceTimersByTimeAsync(3100); });
-  expect(peers).toHaveLength(2);
-  const offers = (fetch as any).mock.calls.filter((call: any[]) => call[0] === "/api/video/offer");
-  expect(JSON.parse(offers[0][1].body).connection_id).not.toBe(JSON.parse(offers[1][1].body).connection_id);
-  rerender(<GameVideo session="a" viewer="one" enabled={false} snapshot="frame" />);
+  const { rerender } = render(<GameVideo session="a" viewer="one" enabled snapshot="/frame" />);
+  await act(async () => { await sockets[0].onmessage({ data: packet('a', 640, 480) }); });
+  const canvas = screen.getByLabelText('Live RimWorld colony') as HTMLCanvasElement;
+  expect([canvas.width, canvas.height]).toEqual([640, 480]);
+  rerender(<GameVideo session="a" viewer="one" enabled={false} snapshot="/frame" />);
   await act(async () => { await vi.advanceTimersByTimeAsync(60000); });
-  expect(peers).toHaveLength(2);
+  expect(sockets[0].close).toHaveBeenCalled(); expect(sockets).toHaveLength(1);
+});
+it('rejects a stale-load packet before drawing or acknowledging it', async () => {
+  render(<GameVideo session="a" viewer="one" enabled snapshot="/frame" />);
+  await act(async () => { await sockets[0].onmessage({ data: packet('other') }); });
+  expect(createImageBitmap).not.toHaveBeenCalled(); expect(sockets[0].send).not.toHaveBeenCalled();
+  expect(sockets[0].close).toHaveBeenCalled();
 });
 
-it("preserves a presented frame when the media track closes and clears it on load", async () => {
-  let peer: any;
-  let presented: () => void = () => {};
-  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ type: "answer", sdp: "answer" }) })));
-  vi.stubGlobal("MediaStream", class {});
-  vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
-  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ drawImage: vi.fn() } as any);
-  vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockReturnValue("data:image/jpeg;base64,cHJlc2VydmVk");
-  vi.stubGlobal("RTCPeerConnection", class {
-    iceGatheringState = "complete";
-    connectionState = "connected";
-    localDescription = { sdp: "offer" };
-    constructor() { peer = this; }
-    addTransceiver() {}
-    async createOffer() { return this.localDescription; }
-    async setLocalDescription() {}
-    async setRemoteDescription() {}
-    close() {}
-  });
-  const { rerender } = render(<GameVideo session="a" viewer="one" enabled snapshot="frame" />);
-  const element = screen.getByLabelText("Live RimWorld colony") as HTMLVideoElement;
-  Object.defineProperties(element, { readyState: { value: 2, configurable: true }, videoWidth: { value: 64 }, videoHeight: { value: 36 } });
-  element.requestVideoFrameCallback = (callback) => { presented = callback as any; return 1; };
-  element.cancelVideoFrameCallback = vi.fn();
-  await act(async () => { peer.ontrack({ track: {} }); presented(); });
-  Object.defineProperty(element, "readyState", { value: 0 });
-  await act(async () => { peer.connectionState = "closed"; peer.onconnectionstatechange(); });
-  expect(screen.getByAltText("Current RimWorld colony").getAttribute("src")).toBe("data:image/jpeg;base64,cHJlc2VydmVk");
-  rerender(<GameVideo session="b" viewer="one" enabled={false} snapshot="new-frame" />);
-  expect(screen.getByAltText("Current RimWorld colony").getAttribute("src")).toBe("new-frame");
+it('preserves gesture boundaries, coalesces moves and never replays an uncertain event', async () => {
+  vi.stubGlobal('PointerEvent', MouseEvent);
+  let finish!: (value: unknown) => void;
+  const fetch = vi.fn((path: string) => path === '/api/input/event'
+    ? new Promise(resolve => { finish = resolve; }) : Promise.resolve({ ok: true }));
+  vi.stubGlobal('fetch', fetch);
+  render(<GameVideo session="a" viewer="one" enabled snapshot="" owner={{viewer: 'one', lease: 'lease', direct: true}} />);
+  await act(async () => { await sockets[0].onmessage({ data: packet() }); });
+  const element = screen.getByLabelText('Live RimWorld colony') as HTMLCanvasElement;
+  vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({left: 0, top: 0, width: 1280, height: 720} as DOMRect);
+  element.setPointerCapture = vi.fn(); element.hasPointerCapture = () => false;
+  fireEvent.pointerDown(element, {clientX: 50, clientY: 60, button: 0});
+  fireEvent.pointerMove(element, {clientX: 55, clientY: 65});
+  fireEvent.pointerMove(element, {clientX: 60, clientY: 70});
+  fireEvent.pointerUp(element, {clientX: 60, clientY: 70, button: 0});
+  expect(fetch).toHaveBeenCalledTimes(1);
+  await act(async () => { finish({ok: true}); });
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+  expect(JSON.parse((fetch.mock.calls[1] as any)[1].body)).toMatchObject({kind: 'move', x: 60, y: 70, order: 2});
+  await act(async () => { finish({ok: true}); });
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
+  expect(JSON.parse((fetch.mock.calls[2] as any)[1].body)).toMatchObject({kind: 'up', order: 3});
+  await act(async () => { finish({ok: false, json: async () => ({detail: 'uncertain'})}); });
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(4));
+  expect(fetch.mock.calls[3][0]).toBe('/api/input/release');
+  fireEvent.pointerDown(element, {clientX: 70, clientY: 70, button: 0});
+  expect(fetch).toHaveBeenCalledTimes(4);
 });
