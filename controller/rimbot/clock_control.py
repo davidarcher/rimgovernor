@@ -1,6 +1,7 @@
 """Native, renewable game-clock supervision; no model turn or thinking budget."""
 import asyncio
 import uuid
+from .bridge import runtime_file_read
 
 TOOL = 'home/supervised_play'
 HOLD_REASONS = frozenset({'external_pause', 'external_speed_changed', 'lease_expired',
@@ -41,7 +42,10 @@ class PlayClock:
                     {'cursor': self.cursor if cursor is None else cursor, 'epoch': self.epoch, 'context': self.context})
 
     async def call(self, **arguments):
-        reply = await self.bridge.call(TOOL, **arguments)
+        if arguments.get('op') in ('status','events'):
+            reply = await runtime_file_read(self.bridge.call, TOOL, **arguments)
+        else:
+            reply = await self.bridge.call(TOOL, **arguments)
         result = reply.structuredContent
         if not isinstance(result, dict) or result.get('success') is not True:
             raise ValueError('Native clock did not confirm the request')

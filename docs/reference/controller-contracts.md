@@ -157,8 +157,12 @@ so a batch can exceed its remaining target by one plant's yield.
 ## Bounded combat response
 
 A bounded combat method prepares two capable colonists for one small manhunting animal
-or confirmed small predator hunting colony members, then uses native attacks, threat
-readback, treatment and owned-draft cleanup. Its clock acknowledges only that inspected
+or confirmed small predator hunting colony members. One observed melee-only humanlike
+raider requires three capable colonists with health at least 85% and no tending need.
+Unknown weapons, ranged raiders and multiple enemies retain a hold. Native auto mode
+uses equipped weapons and firing previews; standing-target and current-hostility
+guards protect dispatch. Defense uses threat readback, treatment and owned-draft
+cleanup. Its clock acknowledges only that inspected
 target after orders dispatch; other threats and severe injury remain guarded. Blocked
 emergencies prevent routine waiting work from restarting time. Larger threats and
 electrical generation still report explicit blockers.

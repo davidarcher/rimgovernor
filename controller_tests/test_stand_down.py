@@ -69,6 +69,34 @@ async def test_legacy_native_read_does_not_authorize_cleanup(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_claim_change_between_read_and_write_is_observed_without_replay(tmp_path):
+    rt=runtime(tmp_path);rt.draft_owners={'AI':'load'};owner='load';writes=0
+    async def invoke(name,args,**kwargs):
+        nonlocal owner,writes
+        if args['action']=='undraft':
+            assert args['releaseOwner']=='load'
+            owner=None;writes+=1
+            raise RuntimeError('Native draft ownership changed')
+        return {'pawn':{'thingId':'AI','drafted':True,'draftOwner':owner}}
+    rt.game=SimpleNamespace(invoke=AsyncMock(side_effect=invoke))
+    first=await rt.release_drafts()
+    assert 'AI' in first['failed'] and 'AI' in rt.draft_owners
+    second=await rt.release_drafts()
+    assert second['not_owned']==['AI'] and not rt.draft_owners and writes==1
+    rt.store.close()
+
+
+@pytest.mark.asyncio
+async def test_unknown_draft_state_cannot_authorize_an_undraft(tmp_path):
+    rt=runtime(tmp_path);rt.draft_owners={'AI':'load'}
+    rt.game=SimpleNamespace(invoke=AsyncMock(return_value={'pawn':{'thingId':'AI','draftOwner':'load'}}))
+    result=await rt.release_drafts()
+    assert result['failed'] and rt.game.invoke.await_count==1
+    assert rt.draft_owners=={'AI':'load'}
+    rt.store.close()
+
+
+@pytest.mark.asyncio
 async def test_steering_during_resolution_stops_undraft(tmp_path):
     rt=runtime(tmp_path);rt.draft_owners={'AI':'load'}
     async def invoke(name,args,**kwargs):

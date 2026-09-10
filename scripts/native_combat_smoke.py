@@ -7,6 +7,7 @@ import asyncio
 import argparse
 import json
 import shutil
+import os
 from pathlib import Path
 from rimbot.bridge import bridge_session, BridgeError, gabs_executable
 from rimbot.bridge_game import BridgeGame
@@ -15,7 +16,7 @@ from rimbot.bridge_runtime import BridgeRuntime
 from rimbot.headless import prepare, isolated_root
 from rimbot.store import Store
 from rimbot.colony_plan import Decision, PlanSpec, ColonyGoal
-from rimbot.config import ModelRole
+from rimbot.config import ModelRole, Settings
 from rimbot.campaign_manifest import capture_manifest, file_hash
 
 
@@ -157,7 +158,7 @@ async def tend_wounded(rt, evidence, recovery=False):
     print('PASS: native wound treated, no tending remains, owned medical drafts released',flush=True)
 
 
-async def main(tend=False, root=None, recovery=False, existing_patient=False, require_interruption=False):
+async def main(tend=False, root=None, recovery=False, existing_patient=False, require_interruption=False, rescue=False, rescue_chat=False,raid=False):
     isolated = root is not None
     root=Path(root or '.rimbot/bridge').resolve();evidence={}
     configuration=prepare(root)
@@ -173,11 +174,21 @@ async def main(tend=False, root=None, recovery=False, existing_patient=False, re
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
         await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
         await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
-        store=Store(root/'combat-smoke.sqlite');rt=BridgeRuntime(store,root,headless=True)
+        settings=Settings(model_url=os.environ.get('RIMBOT_MODEL_URL','http://127.0.0.1:1234/v1'),
+            model=os.environ.get('RIMBOT_MODEL','qwen3.5-4b'))
+        store=Store(root/'combat-smoke.sqlite');rt=BridgeRuntime(store,root,headless=True,settings=settings)
         rt.bridge=bridge;rt.game=BridgeGame(bridge)
         await rt.sync_identity();rt.batch=await observe(rt.game);rt.mode='automate'
         try:
             await draft_ownership_probe(rt,evidence)
+            if raid:
+                from native_raid_acceptance import run_raid
+                await run_raid(rt,evidence)
+                return
+            if rescue:
+                from native_rescue_smoke import run_rescue
+                await run_rescue(rt,evidence,rescue_chat)
+                return
             if existing_patient:
                 await tend_wounded(rt,evidence,recovery)
                 return
@@ -265,7 +276,7 @@ async def main(tend=False, root=None, recovery=False, existing_patient=False, re
             await rt.halt();await rt.router.close();store.close()
             if isolated:
                 evidence['game_cleanup'] = (await bridge.core('games_stop',gameId=bridge.game_id)).model_dump(mode='json')
-            (root/('medical-smoke.json' if tend else 'combat-smoke.json')).write_text(json.dumps(evidence,indent=2),encoding='utf8')
+            (root/('raid-smoke.json' if raid else 'rescue-smoke.json' if rescue else 'medical-smoke.json' if tend else 'combat-smoke.json')).write_text(json.dumps(evidence,indent=2),encoding='utf8')
 
 
 if __name__=='__main__':

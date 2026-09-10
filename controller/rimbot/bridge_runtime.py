@@ -596,6 +596,8 @@ class BridgeRuntime:
                     await guard()
                 if state.get('pawn', {}).get('thingId') != pawn:
                     raise ValueError('Pawn identity was not confirmed')
+                if type(state['pawn'].get('drafted')) is not bool:
+                    raise ValueError('Native draft state is unavailable; cleanup requires inspection')
                 if state['pawn'].get('drafted') is not False:
                     if 'draftOwner' not in state['pawn']:
                         raise ValueError('Native draft ownership is unavailable; cleanup requires inspection')

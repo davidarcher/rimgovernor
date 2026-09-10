@@ -1,8 +1,9 @@
 """Disposable headless equip/readback/ranged-hit acceptance test, no model calls."""
 import asyncio
 import json
+import argparse
 from pathlib import Path
-from rimbot.bridge import bridge_session, BridgeError
+from rimbot.bridge import bridge_session, BridgeError, gabs_executable
 from rimbot.bridge_game import BridgeGame
 from rimbot.bridge_observation import observe
 from rimbot.bridge_runtime import BridgeRuntime
@@ -10,9 +11,10 @@ from rimbot.headless import prepare
 from rimbot.store import Store
 
 
-async def main():
-    root=Path('.rimbot/bridge').resolve();evidence={}
-    async with bridge_session(root/'gabs/gabs-v1.1.1-windows-amd64/gabs.exe',prepare(root)) as bridge:
+async def main(root):
+    root=Path(root).resolve();evidence={'worker_inputs':json.loads((root/'inputs.json').read_text())}
+    configuration=prepare(root)
+    async with bridge_session(gabs_executable(root,configuration),configuration) as bridge:
         await bridge.core('games_start',gameId=bridge.game_id);await bridge.connect()
         await bridge.call('rimworld/load_game_ready',saveName='RimBot-tribal8-baseline',readiness='visual',ignoreModCompatibility=True,timeoutMs=90000)
         await bridge.call('rimworld/set_time_speed',speed='Paused',ultraSpeedBoost=False)
@@ -95,7 +97,7 @@ async def main():
                     # This disposable fixture crosses the proximity warning for
                     # a sealed ancient ruin. Explicit test-driver acknowledgment;
                     # production still requires the player to release this hold.
-                    if (state.get('stopReason')=='external_pause'
+                    if (state.get('stopReason') in ('external_pause','letter_pause')
                             and 'Ancient danger' in state.get('stopDetail','')
                             and not evidence.get('acknowledged_ancient_warning')):
                         evidence['acknowledged_ancient_warning']=state['stopDetail']
@@ -143,7 +145,11 @@ async def main():
             print('PASS: weapon equipped, ranged attack verified, target injury observed, draft released',flush=True)
         finally:
             await rt.halt();await rt.router.close();store.close()
+            evidence['game_cleanup']=(await bridge.core('games_stop',gameId=bridge.game_id)).model_dump(mode='json')
             (root/'ranged-smoke.json').write_text(json.dumps(evidence,indent=2),encoding='utf8')
 
 
-if __name__=='__main__':asyncio.run(main())
+if __name__=='__main__':
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--prepared-root',type=Path,required=True)
+    asyncio.run(main(parser.parse_args().prepared_root))

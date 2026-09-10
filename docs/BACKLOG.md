@@ -298,13 +298,12 @@ in the checkpoint commit; do not append an implementation diary here.
   fuel/batteries, day/night load changes and hot-weather freezer failure. Add
   deterministic fixtures and isolated native runs observing illumination, cleaning,
   completed floors, actual travel, generation/refueling and maintained temperatures.
-- [ ] **B09 · Combat and rescue acceptance.** Controlled movement, equip, observed
-  melee/ranged hits, tending and owned-draft cleanup have passed scripted tests.
-  Rescue delivery tracking exists but actual carry-to-bed has not passed a live
-  scenario. Verify delivery, model-selected triage, injury interruption, real
-  hostile encounters and strategy-selected stand-down. Raid victory and autonomous
-  tactics remain open. Audit human undraft/redraft ownership ambiguity and native
-  safety/path checks before adding automatic rescue, firefighting or heat escape.
+- [ ] **B09 · Combat and rescue acceptance.** Finish exact ordinary hostile raid
+  outcome and controller-selected stand-down acceptance on the integrated source.
+  Movement, equip, melee/ranged damage, injury interruption, treatment, local-model
+  rescue selection, actual carry-to-bed and external draft-claim loss have native
+  Docker evidence. Native path eligibility permits dangerous routes; automatic
+  rescue, firefighting and heat escape require separate safe-route contracts.
 
 - [ ] **B19 · Mood and mental-break prevention.** Turn observed thoughts, needs,
   break thresholds and mood pressure into bounded corrective goals. Rank actionable

@@ -179,11 +179,23 @@ class MovePawn(Contract):
     z: int = Field(ge=0)
 
 
+class TendPawn(Contract):
+    kind: Literal['TendPawn']
+    pawn: str = Field(min_length=1, description='Exact observed doctor ID or unambiguous colonist name.')
+    patient: str = Field(min_length=1, description='Exact observed living colonist needing treatment.')
+
+
+class RescuePawn(Contract):
+    kind: Literal['RescuePawn']
+    pawn: str = Field(min_length=1, description='Exact observed rescuer ID or unambiguous colonist name.')
+    patient: str = Field(min_length=1, description='Exact observed downed living colonist to carry to a native eligible bed.')
+
+
 Command = Annotated[SetResearch | CreateGoal | ModifyResourcePolicy | SetResourceReserve | CancelGoal | CancelConstruction | RelocateConstruction | AdoptRoom | BuildRoom |
-                    PlaceBuildings | CreateZone | EditZone | SetWorkPriority | CreateBill | SetBuildingTemperature | DraftPawn | MovePawn, Field(discriminator='kind')]
+                    PlaceBuildings | CreateZone | EditZone | SetWorkPriority | CreateBill | SetBuildingTemperature | DraftPawn | MovePawn | TendPawn | RescuePawn, Field(discriminator='kind')]
 COMMAND = TypeAdapter(Command)
 COMMAND_TYPES = (SetResearch,CreateGoal,ModifyResourcePolicy,SetResourceReserve,CancelGoal,CancelConstruction,RelocateConstruction,AdoptRoom,BuildRoom,PlaceBuildings,
-                 CreateZone,EditZone,SetWorkPriority,CreateBill,SetBuildingTemperature,DraftPawn,MovePawn)
+                 CreateZone,EditZone,SetWorkPriority,CreateBill,SetBuildingTemperature,DraftPawn,MovePawn,TendPawn,RescuePawn)
 COMMAND_NAMES = {kind.__name__ for kind in COMMAND_TYPES}
 
 
@@ -222,6 +234,8 @@ def semantic_tools(resources=None):
         'SetBuildingTemperature':'Set the temperature control of one exact observed building, such as a cooler or heater. This sets the control; it does not certify actual cooling or heating.',
         'DraftPawn':'Draft or undraft a pawn for direct combat control. This does not change work assignments.',
         'MovePawn':'Order a pawn to a specific inspected position.',
+        'TendPawn':'Treat one observed living colonist after an explicit player medical request. Select the doctor and patient from fresh health/capability observations; native eligibility remains authoritative. Completion requires actual tending.',
+        'RescuePawn':'Carry one observed downed living colonist to a native eligible bed after an explicit player rescue request. Completion requires observed delivery; issuing the order is not rescue completion.',
     }
     result=[]
     for kind in COMMAND_TYPES:
@@ -458,6 +472,26 @@ async def apply_command(rt, payload, *, token, revision):
                     or len(fields) != 1 or fields[0].get('refused') is not False):
                 raise ValueError('Native building temperature control refused this setpoint')
             action = native('home/building_config', thing=request.thing, temperature=request.celsius, watch=False)
+        elif isinstance(request, (TendPawn,RescuePawn)):
+            roster=await rt.game.query('home/list_pawns',colonistsOnly=True,health=True)
+            doctor=resolve_colonist(request.pawn,roster.get('pawns',[]))
+            patient=resolve_colonist(request.patient,roster.get('pawns',[]))
+            if patient.get('dead') is not False:
+                raise ValueError('Medical commands require an observed living patient')
+            if isinstance(request,RescuePawn) and patient.get('downed') is not True:
+                raise ValueError('Rescue requires an observed downed patient')
+            if isinstance(request,TendPawn) and (patient.get('health') or {}).get('needsTend') is not True:
+                raise ValueError('Tending requires an observed patient needing treatment')
+            request.pawn,request.patient=doctor['thingId'],patient['thingId']
+            action=native('home/order',action='tend' if isinstance(request,TendPawn) else 'rescue',
+                pawn=request.pawn,target=request.patient,watch=False)
+            action['completion']='patient_tended' if isinstance(request,TendPawn) else 'patient_in_bed'
+            preview=await rt.inspect_native('home/order',dict(action['arguments'],dryRun=True))
+            if preview.get('success') is not True:
+                raise ValueError('Native medical eligibility refused the requested doctor/patient pair')
+            if (isinstance(request,TendPawn) and rt.mode=='manual' and doctor.get('drafted') is False
+                    and (preview.get('wouldIssue') or {}).get('tendPath')=='drafted'):
+                raise ValueError('Ground tending in Manual requires an already drafted doctor; Automate provides managed draft cleanup')
         elif isinstance(request, DraftPawn):
             action = native('home/order', action='draft' if request.drafted else 'undraft', pawn=request.pawn, watch=False)
             purpose = 'defense'

@@ -143,7 +143,7 @@ namespace HomeBridge.BridgeTools
         [ToolResponse("action", "string", "The action that ran, lower-cased. Echoed even on a refusal.", Always = true)]
         [ToolResponse("dryRun", "boolean", "True = nothing was written. Defaults to FALSE for this tool, unlike the other write tools: an order that quietly did not happen is what this tool exists to stop.", Always = true)]
         [ToolResponse("applied", "boolean", "True only when the game actually took a draft change or a job. False on every dry run, every refusal, and on resolve.", Always = true)]
-        [ToolResponse("pawn", "object", "The colonist being ordered: thingId, idForms[], name, position, spawned, faction, drafted, autoDrafted, autoUndrafted, downed, dead, mentalState, playerControlled, incapableOfViolence, canBeDrafted, canBeDraftedReason, weapon{}. Null only when no pawn was asked for (resolve with target alone) or none resolved.", Nullable = true)]
+        [ToolResponse("pawn", "object", "The colonist being ordered: thingId, idForms[], name, position, spawned, faction, drafted, draftOwner, autoDrafted, autoUndrafted, downed, dead, mentalState, playerControlled, incapableOfViolence, canBeDrafted, canBeDraftedReason, weapon{}. Null only when no pawn was asked for (resolve with target alone) or none resolved.", Nullable = true)]
         [ToolResponse("target", "object", "What the order acts on: thingId, idForms[], name, label, defName, kindDef, faction, isPawn, spawned, hostileToPlayer, mentalState, downed, dead, predator, position, distance, reachable, matchedBy (loadId, thingID, idNumber, defNameAtCell, name, nameSubstring or cell -- which form actually matched). Null when the action takes no target. A downed or DEAD target still resolves - dead is reported, not hidden.", Nullable = true)]
         [ToolResponse("job", "object", "The job that was issued: def, targetA, targetB, verb, mode, killIncappedTarget, draftedTend, count, expiryInterval, unforbade, jobTag, workGiver, workType, billLabel, tendPath, rescuePath, issued, verified, verifiedReason, note. tendPath is \"work\" when the ordinary undrafted WorkGiver_Tend prioritize order was used and \"drafted\" when the patient was on the ground and the drafted provider was needed; rescuePath is the same distinction for rescue. Both are set under dryRun too, so wouldIssue says which path WOULD run. Every field is the shape vanilla's own float-menu code builds, nothing added. verified is Pawn.CurJob read back AFTER the issue and compared by def and target, so a job the game silently dropped reads as false. Null on a dry run, a refusal, and on resolve/draft/undraft.", Nullable = true)]
         [ToolResponse("wouldIssue", "object", "Under dryRun, the same shape as job{} for the job that WOULD have been issued, with issued and verified false. Null on a real run and on any refusal.", Nullable = true)]
@@ -170,11 +170,12 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Permit a real ground-tend order to leave an auto-drafted doctor under caller-managed cleanup. False by default: raw calls otherwise have no reliable way to restore the doctor after the job completes. Dry runs do not require this flag.", DefaultValue = false)] bool allowPersistentDraft = false,
             [ToolParameter(Description = "Resolve everything, run every refusal check and report the job that WOULD be issued, without touching the game. Defaults to FALSE - this tool's job is to make orders land.", DefaultValue = false)] bool dryRun = false,
             [ToolParameter(Description = "Refuse a target that is not hostile to the player faction. Defaults to FALSE, because vanilla imposes no such rule and imposing it is what got a colonist killed.", DefaultValue = false)] bool requireHostile = false,
+            [ToolParameter(Description = "Attack only a target that is still standing at native dispatch. Autonomous defense uses this to refuse attacks on incapacitated targets.", DefaultValue = false)] bool requireStandingTarget = false,
             [ToolParameter(Description = "Show the order on screen: select the target and jump the camera to it, then after a short lead select the pawn so the inspect pane shows the new job. Decorative only and never opens a float menu. A dry run and a refusal show nothing.", DefaultValue = true)] bool watch = true,
             [ToolParameter(Description = "How long the watch selection stays before it is put back, 1..60.", DefaultValue = Watch.DefaultSeconds)] int watchSeconds = Watch.DefaultSeconds)
         {
             return BridgeCommon.WithUnknownArguments(
-                await OrderCore(ctx, cancellationToken, action, pawn, target, x, z, mode, draft, draftOwner, releaseOwner, allowPersistentDraft, dryRun, requireHostile, watch, watchSeconds)
+                await OrderCore(ctx, cancellationToken, action, pawn, target, x, z, mode, draft, draftOwner, releaseOwner, allowPersistentDraft, dryRun, requireHostile, requireStandingTarget, watch, watchSeconds)
                     .ConfigureAwait(false),
                 ctx, typeof(HomeOrderTools), ToolName);
         }
@@ -194,6 +195,7 @@ namespace HomeBridge.BridgeTools
             bool allowPersistentDraft,
             bool dryRun,
             bool requireHostile,
+            bool requireStandingTarget,
             bool watch,
             int watchSeconds)
         {
@@ -213,7 +215,8 @@ namespace HomeBridge.BridgeTools
                 ReleaseOwner = releaseOwner,
                 AllowPersistentDraft = allowPersistentDraft,
                 DryRun = dryRun,
-                RequireHostile = requireHostile
+                RequireHostile = requireHostile,
+                RequireStandingTarget = requireStandingTarget
             };
 
             // ---------------------------------------------------------- hop 1
@@ -345,6 +348,7 @@ namespace HomeBridge.BridgeTools
             internal bool AllowPersistentDraft;
             internal bool DryRun;
             internal bool RequireHostile;
+            internal bool RequireStandingTarget;
         }
 
         /// <summary>Everything one call resolved, every refusal it found, and
@@ -678,6 +682,11 @@ namespace HomeBridge.BridgeTools
                 return;
             }
 
+            if (plan.Request.RequireStandingTarget && BridgeCommon.Try(() => plan.TargetPawn.Downed, true))
+            {
+                plan.Refuse("target_downed", "Target is no longer standing; attack was not issued.");
+                return;
+            }
             if (plan.Request.RequireHostile && !HostileToPlayer(plan.Target))
             {
                 plan.Refuse("job_refused",

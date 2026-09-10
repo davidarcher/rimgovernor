@@ -6,7 +6,7 @@ These contracts describe admission, scope and preservation for semantic player r
 For the end-to-end path, read [plans and Hands](../explanation/plans-and-hands.md).
 
 The chat command union supports SetResearch, BuildRoom, PlaceBuildings, CreateZone, EditZone,
-SetWorkPriority, CreateBill, DraftPawn, MovePawn, CreateGoal, CancelGoal and
+SetWorkPriority, CreateBill, DraftPawn, MovePawn, TendPawn, RescuePawn, CreateGoal, CancelGoal and
 ModifyResourcePolicy and SetResourceReserve. The model receives individually named
 semantic tools and read-only native inspection/preview tools, not arbitrary native
 execution. Fresh native facts and resource-definition labels are available in Manual as
@@ -31,6 +31,14 @@ use the resolved definition and still pass through Hands and fresh research read
 Research contract discovery permits reads/previews only. Work commands accept an exact
 unambiguous colonist name or observed ID, then retain the native ID for execution and
 persistent work overrides. Current pawn jobs do not establish work-type assignments.
+
+Explicit tending and rescue resolve exact observed colonist identities, require
+current patient eligibility and pass native preview before admission. Hands waits
+for actual treatment or living-patient bed delivery. Manual ground tending requires
+an already drafted doctor; Automate provides managed draft cleanup. Native rescue
+chooses its eligible bed. Reachability permits `Danger.Deadly`, so legality does not
+certify a fire-free, cool or threat-free route. Automatic rescue, firefighting and
+heat escape are not scheduled by these commands.
 
 ## Context and native labels
 

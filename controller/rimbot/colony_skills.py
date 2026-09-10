@@ -130,15 +130,24 @@ class ColonySkills:
             status=rt.batch.native.get('status_after',{}).get('threats',{})
             predators={p['thingId'] for p in status.get('huntingPredators',[]) if p.get('preyIsOurs') is True
                 and p.get('predatorIsOurs') is False}
-            threats = await rt.game.query('home/list_pawns', includeDead=False, animals=True)
+            threats = await rt.game.query('home/list_pawns', includeDead=False, animals=True, equipment=True)
             enemies = [p for p in threats.get('pawns',[]) if (p.get('hostile') is True or p['thingId'] in predators)
                 and not p.get('dead') and not p.get('downed')]
             goal.evidence['threat_assessment']=[{k:p.get(k) for k in ('thingId','animal','predator','mentalState','animals','nearestColonistDistance')} for p in enemies]
-            if (len(enemies)!=1 or enemies[0].get('animal') is not True
-                    or not 0 < (enemies[0].get('animals') or {}).get('bodySize',0) <= 1
-                    or (enemies[0].get('mentalState') not in ('Manhunter','ManhunterPermanent')
-                        and enemies[0]['thingId'] not in predators)):
-                raise SkillBlocked('Threat exceeds the bounded single-animal defense method; danger hold retained')
+            if len(enemies)!=1:
+                raise SkillBlocked('Threat exceeds the bounded single-enemy defense method; danger hold retained')
+            enemy=enemies[0]
+            gear=enemy.get('equipment') or {}
+            tribal=(enemy.get('humanlike') is True and enemy.get('hostile') is True
+                and enemy.get('mechanoid') is False
+                and ((gear.get('armed') is False and gear.get('primary') is None)
+                    or (gear.get('armed') is True and (gear.get('primary') or {}).get('melee') is True
+                        and (gear.get('primary') or {}).get('ranged') is False)))
+            animal=(enemy.get('animal') is True
+                and 0 < (enemy.get('animals') or {}).get('bodySize',0) <= 1
+                and (enemy.get('mentalState') in ('Manhunter','ManhunterPermanent') or enemy['thingId'] in predators))
+            if not animal and not tribal:
+                raise SkillBlocked('Threat exceeds the bounded single-animal or melee-raider defense method; danger hold retained')
             target=enemies[0]['thingId']
             goal.evidence['combat_target']=target
             distant=enemies[0].get('nearestColonistDistance',1000)>40
@@ -152,11 +161,33 @@ class ColonySkills:
                 and 'Violent' not in p['bio'].get('incapableOfTags',[])]
             defenders.sort(key=lambda p:(-next((v.get('level',0) or 0 for v in p['bio'].get('skills',[])
                 if v['name']=='Melee'),0),p['thingId']))
-            if len(defenders)<2: raise SkillBlocked('Small-animal defense requires two available capable colonists')
+            count=3 if tribal else 2
+            if tribal:
+                defenders=[p for p in defenders if isinstance((p.get('health') or {}).get('summaryPct'),(int,float))
+                    and p['health']['summaryPct']>=.85 and p['health'].get('needsTend') is False]
+            if len(defenders)<count: raise SkillBlocked(f'Bounded defense requires {count} available capable healthy colonists')
             if distant:
-                return method, [native('home/order',action='draft',pawn=p['thingId'],watch=False) for p in defenders[:2]]
-            return method, [native('home/order',action='attack',mode='melee',pawn=p['thingId'],target=target,watch=False)
-                for p in defenders[:2]]
+                return method, [native('home/order',action='draft',pawn=p['thingId'],watch=False) for p in defenders[:count]]
+            actions=[native('home/order',action='attack',mode='auto' if tribal else 'melee',pawn=p['thingId'],target=target,watch=False,
+                requireStandingTarget=True,**({'requireHostile':True} if tribal else {})) for p in defenders[:count]]
+            if tribal:
+                # Native auto mode uses the equipped weapon. A rifle carrier must
+                # not be sent to club a raider merely because melee skill is high.
+                previews=[]
+                for action in actions:
+                    try:
+                        preview=await rt.inspect_native('home/order',dict(action['arguments'],dryRun=True))
+                    except Exception as error:
+                        from .bridge import BridgeError
+                        if not isinstance(error,BridgeError):raise
+                        goal.evidence['firing_solution_refusal']=str(error)
+                        return None
+                    previews.append(preview)
+                    if preview.get('success') is not True:
+                        goal.evidence['firing_solution_refusal']=preview
+                        return None
+                goal.evidence['firing_solutions']=previews
+            return method,actions
         if goal_id == 'CriticalMedical':
             if facts.get('medicalKnown') is not True:
                 raise SkillBlocked('Native medical state is unavailable; treatment and stability cannot be verified')

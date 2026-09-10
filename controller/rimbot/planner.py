@@ -115,6 +115,8 @@ class Planner:
             'Construction definition IDs come from inspect_colony_facts with the definitions section. Materials are separate from structure definitions; '
             'do not invent a definition by appending a material name or search the wiki for live definitions. '
             'Prefer SetResearch, SetWorkPriority, CreateBill, DraftPawn and MovePawn to raw tool mechanics. '
+            'For explicit medical requests, inspect current health and capabilities, then use TendPawn or RescuePawn. '
+            'Prioritize observed urgent bleeding or downed patients; do not infer treatment from a receipt. '
             'A pawn job is its current activity, not its work assignments. Use SetWorkPriority for explicit work changes '
             'even if the pawn is currently doing another job; inspect home/list_pawns with work=true when assignments are needed. '
             'BuildRoom creates a shell with an entrance; the executor verifies construction and does not claim usable shelter from a blueprint. '

@@ -126,3 +126,32 @@ production.
 
 [Choose tests](choose-tests.md) · [Test evidence explained](../explanation/testing.md) ·
 [Backlog](../BACKLOG.md)
+
+## Combat and rescue in Docker
+
+The same Docker worker command override supports:
+
+- `scripts/native_ranged_smoke.py --prepared-root /worker/run`: ordinary weapon
+  equip, native movement completion and an observed ranged wound.
+- `scripts/native_rescue_smoke.py --prepared-root /worker/run --chat`: ordinary
+  combat downs an observed Wimp patient, then the configured local model selects
+  patient and rescuer through `RescuePawn`. Require the exact carried identity,
+  living patient in a native bed and shared action completion. Without `--chat`,
+  test the deterministic semantic admission and delivery path. Both variants
+  reject new standing-only attack orders against the downed patient.
+- `scripts/native_raid_acceptance.py --prepared-root /worker/run`: a separate
+  test-only `CombatFixtures.csproj` assembly invokes an eligible native RaidEnemy
+  incident. Build against the same game/SDK references and stage its DLL under
+  the private mod's `BridgeTools/CombatFixtures`. Use an unchanged ordinary-play
+  save beyond native raid grace periods, retaining its source hash; a new colony
+  can legitimately refuse the incident. Never force eligibility or edit ticks.
+  Require ordinary enemy defeat, no incapacitated colonists, shared deterministic
+  defense and controller-selected owned stand-down. The single melee raider test
+  does not certify ranged raids, groups, or general tactics.
+
+Rescue legality includes native bed, reservation and path checks, but the native
+order path permits `Danger.Deadly`. It is not evidence of safe fire/heat traversal.
+These probes do not enable automatic rescue, firefighting or heat escape. Keep
+test incident tools outside model execution and preserve failed reports.
+
+
