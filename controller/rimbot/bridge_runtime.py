@@ -401,7 +401,24 @@ class BridgeRuntime:
     def reconcile_plan(self):
         for step in self.current_plan.spec.steps:
             progress = self.current_plan.progress[step.id]
-            if (isinstance(step.action, NativeOperation) and step.action.completion in ('pawn_equipped', 'pawn_at_position')
+            if (isinstance(step.action, NativeOperation) and step.action.completion == 'pawn_gear'
+                    and progress.state in ('waiting', 'blocked') and self.batch):
+                issued = progress.issued.get('0', {})
+                if self.batch.started_at <= issued.get('issued_at', float('inf')): continue
+                if (issued.get('load_token') != self.context_token
+                        or issued.get('player_direction') != self.current_plan.control.get('player_direction', 0)):
+                    progress.state = 'blocked'
+                    progress.failure = Failure(code='gear_context_changed', detail='Load or player direction changed; gear completion is unverified')
+                    continue
+                outcome = pawn_order_outcome(step.action, self.batch.native.get('pawns', {}).get('pawns', []))
+                if outcome == 'complete':
+                    progress.state, progress.failure = 'complete', None
+                    self.signal('plan.step_complete', {'step': step.id})
+                elif progress.state == 'waiting' and isinstance(outcome, Failure):
+                    progress.state, progress.failure = 'blocked', outcome
+                    self.signal('plan.step_blocked', {'step': step.id})
+                continue
+            if (isinstance(step.action, NativeOperation) and step.action.completion in ('pawn_gear', 'pawn_equipped', 'pawn_at_position')
                     and progress.state == 'waiting' and self.batch):
                 if self.batch.started_at <= progress.issued.get('0', {}).get('issued_at', float('inf')): continue
                 outcome = pawn_order_outcome(step.action, self.batch.native.get('pawns', {}).get('pawns', []))
@@ -914,9 +931,21 @@ class BridgeRuntime:
             if name == 'home/research' and 'expectedCurrent' in arguments and not arguments.get('dryRun', True):
                 from .research import validate_dispatch
                 await validate_dispatch(self, arguments)
-            if name == 'home/bills' and not arguments.get('dryRun', True) and (self.mode == 'automate' or explicit):
+            if name in ('home/bills', 'home/gear_upkeep') and not arguments.get('dryRun', True) and (self.mode == 'automate' or explicit):
                 from .production_policy import sync_production_policy
                 await sync_production_policy(self)
+            if name == 'home/bills' and expected_step_id:
+                step = next(s for s in self.current_plan.spec.steps if s.id == expected_step_id)
+                if step.goal_id == 'MaintainEquipment':
+                    goal = self.current_plan.colony_goals[step.goal_id]
+                    request = next((request for method, request in goal.evidence.get('procurement', {}).items()
+                        if expected_step_id in goal.evidence.get('methods', {}).get(method, [])), None)
+                    if request is None: raise ValueError('Equipment production has no retained loadout prerequisite')
+                    gear = await self.game.invoke('home/gear_upkeep', {'dryRun': True})
+                    pawn = next((p for p in gear.get('pawns', []) if p.get('pawn') == request['pawn']), None)
+                    if (gear.get('success') is not True or not pawn or pawn.get('loadout') != request['loadout']
+                            or pawn.get('blocker') or pawn.get('candidates')):
+                        raise ValueError('Gear, outfit, available replacement or pawn assignment changed; no production bill sent')
             await self.refresh_clock_events()
             if expected_revision is not None and expected_revision != self.chat_revision:
                 raise ValueError('Native interruption arrived during preparation; no command sent')

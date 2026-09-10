@@ -175,6 +175,16 @@ class ColonyController:
             if identity in plan.control.get('suppressed_goals',{}):
                 goal.cancelled, goal.status, goal.reason = True, 'blocked', 'Related player intent was cancelled'
             if goal.cancelled: continue
+            if identity == 'MaintainEquipment':
+                gear = dict(facts.get('gearUpkeep') or {})
+                gear.pop('tick', None)
+                gear_signature = fingerprint(gear)
+                if (goal.status == 'blocked' and all(plan.progress[s].state == 'complete' for s in goal.steps)
+                        and goal.evidence.get('availability') != gear_signature):
+                    goal.status, goal.reason = 'active', ''
+                    goal.evidence.pop('watchdog', None)
+                    goal.last_progress_tick = facts['tick']
+                goal.evidence['availability'] = gear_signature
             if goal.status == 'complete':
                 goal.status = 'active'
                 goal.reopen_methods()
@@ -191,6 +201,7 @@ class ColonyController:
                 'EnsureInitialShelter': ['bedCapacity', 'indoorSleepingCapacity'],
                 'EnsureCooking': ['cooking'], 'EnsureFoodStorage': ['foodStorage'],
                 'EnsureWorkAssignments': ['workCoverage'], 'EnsureBasicDefense': ['armed'],
+                'MaintainEquipment': [],
                 'CriticalMedical': ['criticalPatients'], 'ActiveCombat': ['hostiles'],
                 'EnsureTemperatureSafety': ['sleepingTemperatureMin', 'sleepingTemperatureMax'],
                 'EnsureBasicPower': ['powerHeadroom'], 'AllowStartingSupplies': ['forbiddenSupplies']}

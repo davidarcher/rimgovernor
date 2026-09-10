@@ -127,6 +127,9 @@ class Hands:
                             self.guard(rt, revision, token, direction)
                             player_direction = rt.current_plan.control.get('player_direction', 0)
                             progress.issued[key] = {'confirmed': False}
+                            if action.completion == 'pawn_gear':
+                                progress.issued[key].update(issued_at=time.time(), load_token=token,
+                                    player_direction=player_direction, issued_tick=rt.batch.summary.end_tick)
                             rt.persist()
                             result = await rt.native(action.tool, args, expected_revision=direction, expected_token=token,
                                 expected_plan_revision=revision, reconcile=False, expected_step_id=step.id)

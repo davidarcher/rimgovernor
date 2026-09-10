@@ -32,6 +32,12 @@ Local changes:
 - `ResearchTool.cs` adds exact ThingDef/RecipeDef prerequisite and availability
   reads and a main-thread expected-current guard for ordinary research selection.
   Research progress remains owned by normal native pawn work.
+- `GearUpkeepTool.cs` is original local code that calls installed native apparel
+  scoring, eligibility and ordinary Wear/Equip jobs. It adds durable weapon
+  ownership and read-only gear/production candidates to `ColonyFactsTool.cs`.
+  `scripts/fixtures/GearFixture.cs` is optional disposable setup, excluded from
+  default builds and the model gateway. Game assemblies and decompiled inspection
+  artifacts are not distributed with this source.
 - `ForecastFacts.cs` is original local read-only animal-feed, crop-work and
   medical/mood input accounting. `FoodSupplyFacts.cs` records native eater policy,
   diet and access eligibility; `ColonyFactsTool.cs` exposes these inputs.

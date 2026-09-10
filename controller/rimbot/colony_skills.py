@@ -135,6 +135,9 @@ class ColonySkills:
         if goal_id == 'EnsureResearch':
             from .research import method
             return await method(self.rt)
+        if goal_id == 'MaintainEquipment':
+            from .gear_upkeep import compile_method
+            return await compile_method(self.rt, facts)
         if goal_id.startswith('MaintainResource-'):
             from .production_policy import resource_method
             return await resource_method(self.rt, goal_id, facts)

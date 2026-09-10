@@ -122,6 +122,8 @@ def priority_nodes(facts, latches, policy):
     if not gates['storage']: nodes.append(('EnsureFoodStorage', 3))
     if not gates['defense']: nodes.append(('EnsureBasicDefense', 3))
     if wood: nodes.append(('MaintainWood', 3))
+    from .gear_upkeep import needs_upkeep
+    if needs_upkeep(facts.get('gearUpkeep')): nodes.append(('MaintainEquipment', 3))
     return nodes
 
 

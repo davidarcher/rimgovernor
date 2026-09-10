@@ -112,14 +112,14 @@ class CancelConstructionAction(Contract):
 
 class NativeOperation(Contract):
     kind: Literal['native_operation'] = 'native_operation'
-    tool: Literal['home/manage_waste', 'home/acquire_resource', 'home/production_policy', 'home/confirm_colony_names', 'home/pawn_config', 'home/building_config', 'home/bills', 'home/order',
+    tool: Literal['home/manage_waste', 'home/gear_upkeep', 'home/acquire_resource', 'home/production_policy', 'home/confirm_colony_names', 'home/pawn_config', 'home/building_config', 'home/bills', 'home/order',
         'home/zone_cells', 'home/trade', 'home/research', 'rimworld/apply_architect_designator',
         'rimworld/open_letter', 'rimworld/dismiss_letter', 'rimworld/click_screen_target',
         'home/install', 'home/dialog_text', 'rimworld/click_ui_target', 'rimworld/scroll_ui_target',
         'rimworld/open_main_tab', 'rimworld/close_main_tab']
     arguments: dict
     # Honest fallback for native operations lacking a higher-level compiler.
-    completion: Literal['waste_contained', 'native_receipt', 'patient_tended', 'patient_in_bed', 'pawn_equipped', 'pawn_at_position'] = 'native_receipt'
+    completion: Literal['waste_contained', 'pawn_gear', 'native_receipt', 'patient_tended', 'patient_in_bed', 'pawn_equipped', 'pawn_at_position'] = 'native_receipt'
 
     @model_validator(mode='after')
     def medical_completion(self):
@@ -127,6 +127,11 @@ class NativeOperation(Contract):
             if (self.tool != 'home/manage_waste' or self.completion != 'waste_contained'
                     or any(not str(self.arguments.get(k, '')).startswith('Thing_') for k in ('thingId', 'pawn'))):
                 raise ValueError('Waste hauling requires exact native item/pawn IDs and containment completion')
+        if self.tool == 'home/gear_upkeep' or self.completion == 'pawn_gear':
+            if (self.tool != 'home/gear_upkeep' or self.completion != 'pawn_gear'
+                    or any(not str(self.arguments.get(k, '')).startswith('Thing_') for k in ('pawn', 'target'))
+                    or not self.arguments.get('expectedLoadout')):
+                raise ValueError('Apparel upkeep requires exact pawn, item, loadout signature and worn postcondition')
         if self.completion in ('pawn_equipped', 'pawn_at_position'):
             required = 'equip' if self.completion == 'pawn_equipped' else 'goto'
             if self.tool != 'home/order' or self.arguments.get('action') != required or not str(self.arguments.get('pawn', '')).startswith('Thing_'):
