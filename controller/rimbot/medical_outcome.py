@@ -7,6 +7,8 @@ def pawn_order_outcome(action, pawns):
     if pawn is None or pawn.get('dead') or pawn.get('downed'):
         return Failure(code='pawn_unavailable', detail='Assigned pawn is unavailable; action not verified')
     if action.completion == 'pawn_gear':
+        if pawn.get('dead') is not False or pawn.get('downed') is not False:
+            return 'waiting'
         gear = pawn.get('equipment')
         if not isinstance(gear, dict) or not isinstance(gear.get('apparel'), list):
             return 'waiting'
@@ -14,7 +16,7 @@ def pawn_order_outcome(action, pawns):
                 or any(a.get('thingId') == action.arguments['target'] for a in gear['apparel'])):
             return 'complete'
         if pawn.get('job') not in ('Wear', 'Equip'):
-            return Failure(code='apparel_interrupted', detail='Exact apparel is not worn and the pawn is no longer dressing')
+            return Failure(code='gear_interrupted', detail='Exact gear is not worn or equipped and the pawn is no longer dressing or equipping')
     elif action.completion == 'pawn_at_position':
         if all(pawn.get('position', {}).get(k) == action.arguments[k] for k in ('x','z')): return 'complete'
         if pawn.get('job') != 'Goto': return Failure(code='movement_interrupted', detail='Pawn has not reached the destination and is no longer moving there')

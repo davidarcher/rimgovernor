@@ -22,6 +22,7 @@ async def run(args):
     prepare(root)
     store = Store(args.output/'state.sqlite')
     rt = BridgeRuntime(store, root, fresh=True, headless=True, model_factory=lambda _: NoInference())
+    NoInference.attempts = 0
     report = dict(outcome='failed', scope='Scripted native apparel replacement through shared Hands; no model inference', checks={})
     async def fixture(mode):
         value = (await rt.bridge.call('test/gear_fixture', mode=mode)).structuredContent
@@ -200,6 +201,7 @@ async def run(args):
             final_facts = await rt.game.query('home/colony_facts', planning=False)
             report['production']['final_cloth'] = final_facts['resources'].get('Cloth', 0)
             assert report['production']['final_cloth'] < report['production']['initial_cloth']
+        assert NoInference.attempts == 0 and rt.counters['model_calls'] == 0
         report['outcome'] = 'passed'
     except Exception as error:
         report.update(error=str(error), traceback=traceback.format_exc())

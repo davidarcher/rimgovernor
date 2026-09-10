@@ -43,6 +43,9 @@ def test_receipt_or_other_apparel_cannot_complete_dressing():
     assert isinstance(pawn_order_outcome(action, [pawn]), Failure)
     pawn['equipment']['apparel'] = [dict(thingId='Thing_Shirt3')]
     assert pawn_order_outcome(action, [pawn]) == 'complete'
+    pawn.pop('dead')
+    assert pawn_order_outcome(action, [pawn]) == 'waiting'
+    pawn['dead'] = False
     pawn.pop('equipment')
     assert pawn_order_outcome(action, [pawn]) == 'waiting'
 
@@ -112,3 +115,17 @@ async def test_existing_gear_precedes_any_procurement_reads():
     from rimbot.gear_upkeep import compile_method
     rt = SimpleNamespace(current_plan=ColonyPlan(colony_goals={'MaintainEquipment': ColonyGoal(priority_class=3)}))
     assert (await compile_method(rt, dict(gearUpkeep=observation())))[1][0]['tool'] == 'home/gear_upkeep'
+
+
+def test_development_scheduler_admits_observed_equipment_deficit():
+    from rimbot.colony_plan import ColonyPlan
+    from rimbot.colony_policy import ColonyPolicy
+    from rimbot.development_priorities import arbitrate, deficit
+    goal = ColonyGoal(priority_class=3)
+    plan = ColonyPlan(colony_goals={'MaintainEquipment': goal})
+    facts = dict(tick=100, gearUpkeep=observation())
+    pawn = dict(dead=False, downed=False, drafted=False, work={'applies': True})
+    _, admitted = arbitrate(plan, facts, [pawn], [('MaintainEquipment', 3)], ColonyPolicy(), context='load', direction=0)
+    assert admitted == {'MaintainEquipment'}
+    assert deficit('MaintainEquipment', goal, {}, ColonyPolicy()) is None
+    assert deficit('MaintainEquipment', goal, {'gearUpkeep': {'success': True, 'pawns': []}}, ColonyPolicy()) is None

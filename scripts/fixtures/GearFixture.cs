@@ -42,7 +42,7 @@ namespace HomeBridge.BridgeTools
                 }
                 if (mode == "production_setup") {
                     var map = subject.Map;
-                    foreach (var shirt in map.listerThings.ThingsOfDef(replacement.def).ToList()) shirt.Destroy();
+                    foreach (var item in map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).ToList()) item.Destroy();
                     var bench = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("HandTailoringBench"), ThingDefOf.WoodLog);
                     bench.SetFaction(Faction.OfPlayer);
                     var cell = GenRadial.RadialCellsAround(subject.Position, 15, false).First(c => c.InBounds(map)
@@ -53,6 +53,9 @@ namespace HomeBridge.BridgeTools
                     GenPlace.TryPlaceThing(cloth, subject.Position, map, ThingPlaceMode.Near);
                     cloth.SetForbidden(false);
                     foreach (var worker in map.mapPawns.FreeColonistsSpawned) {
+                        if (worker != subject)
+                            foreach (var worn in worker.apparel.WornApparel)
+                                worker.outfits.forcedHandler.SetForced(worn, true);
                         var tailoring = DefDatabase<WorkTypeDef>.GetNamed("Tailoring");
                         if (!worker.WorkTypeIsDisabled(tailoring)) worker.workSettings.SetPriority(tailoring, 1);
                     }

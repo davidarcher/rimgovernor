@@ -78,6 +78,9 @@ async def compile_method(rt, facts):
                     chosen.append(choice['resource'])
                     available[choice['resource']] -= choice['required']
                 if len(chosen) != len(costs) or (material and material not in chosen): continue
+                if material and any(any(c['resource'] == material for c in slot)
+                        and any(c['resource'] != material and c['resource'] in chosen for c in slot) for slot in costs):
+                    continue  # A flat native bill filter must not admit another stuff for this product.
                 arguments = dict(action='add', bench=bench['thingId'], recipe=recipe['defName'],
                     repeatMode='RepeatCount', repeatCount=1, only=','.join(sorted(set(chosen))), watch=False)
                 goal.evidence.setdefault('procurement', {})[method] = dict(pawn=pawn['pawn'], loadout=pawn['loadout'], need=need)

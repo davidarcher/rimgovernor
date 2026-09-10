@@ -50,6 +50,15 @@ def deficit(identity, goal, facts, policy):
         return (1 if queue else 0) if isinstance(queue, list) else None
     if identity == 'EnsureFoodStorage':
         return 0 if facts.get('foodStorage') is True else 1
+    if identity == 'MaintainEquipment':
+        gear = facts.get('gearUpkeep')
+        if not isinstance(gear, dict) or gear.get('success') is not True:
+            return None
+        pawns = gear.get('pawns')
+        if not isinstance(pawns, list) or not pawns or any(type(p.get('deficit')) is not bool
+                or not isinstance(p.get('candidates'), list) for p in pawns):
+            return None
+        return sum(p['deficit'] or bool(p['candidates']) for p in pawns) / len(pawns)
     if identity == 'EnsureBasicDefense':
         target, stock = min(2, facts.get('colonists', 0)), finite(facts.get('armed'))
     elif identity == 'MaintainWood':

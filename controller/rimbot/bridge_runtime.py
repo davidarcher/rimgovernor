@@ -418,7 +418,7 @@ class BridgeRuntime:
                     progress.state, progress.failure = 'blocked', outcome
                     self.signal('plan.step_blocked', {'step': step.id})
                 continue
-            if (isinstance(step.action, NativeOperation) and step.action.completion in ('pawn_gear', 'pawn_equipped', 'pawn_at_position')
+            if (isinstance(step.action, NativeOperation) and step.action.completion in ('pawn_equipped', 'pawn_at_position')
                     and progress.state == 'waiting' and self.batch):
                 if self.batch.started_at <= progress.issued.get('0', {}).get('issued_at', float('inf')): continue
                 outcome = pawn_order_outcome(step.action, self.batch.native.get('pawns', {}).get('pawns', []))

@@ -17,7 +17,10 @@ namespace HomeBridge.BridgeTools
     {
         public Dictionary<string, string> Weapons = new Dictionary<string, string>();
         public GearOwnership(Game game) { }
-        public override void ExposeData() { Scribe_Collections.Look(ref Weapons, "rimbotUpkeepWeapons", LookMode.Value, LookMode.Value); }
+        public override void ExposeData() {
+            Scribe_Collections.Look(ref Weapons, "rimbotUpkeepWeapons", LookMode.Value, LookMode.Value);
+            if (Weapons == null) Weapons = new Dictionary<string, string>();
+        }
         internal static GearOwnership State() {
             var state = Current.Game.GetComponent<GearOwnership>();
             if (state == null) { state = new GearOwnership(Current.Game); Current.Game.components.Add(state); }
@@ -36,7 +39,8 @@ namespace HomeBridge.BridgeTools
             if (filter != null) {
                 parts.Add(string.Join(",", filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d)));
                 parts.Add(string.Join(",", DefDatabase<SpecialThingFilterDef>.AllDefs.Where(d => !filter.Allows(d)).Select(d => d.defName).OrderBy(d => d)));
-                parts.Add(filter.AllowedHitPointsPercents.ToString());
+                parts.Add(filter.AllowedHitPointsPercents.min.ToString("R", System.Globalization.CultureInfo.InvariantCulture));
+                parts.Add(filter.AllowedHitPointsPercents.max.ToString("R", System.Globalization.CultureInfo.InvariantCulture));
                 parts.Add(filter.AllowedQualityLevels.ToString());
             }
             if (p.apparel != null)

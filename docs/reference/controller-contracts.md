@@ -23,7 +23,7 @@ deterministic operation can continue.
 ## Priority evaluation
 
 The priority tree evaluates combat, critical medicine, food, shelter, temperature,
-cooking, work coverage, power, storage, defense and wood. Food, wood and temperature use
+cooking, work coverage, power, storage, defense, wood and [equipment upkeep](equipment-upkeep.md). Food, wood and temperature use
 separate entry/recovery thresholds. Emergencies suspend lower priority routine goals.
 Methods, blockers, provenance and progress evidence live in the existing SQLite-backed
 ColonyPlan.
