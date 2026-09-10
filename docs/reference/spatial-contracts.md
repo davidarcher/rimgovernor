@@ -42,13 +42,22 @@ an already completed tracked room.
 
 ## Zone and facing postconditions
 
-New zone project targets retain expected patches, kind and crop. Fresh complete native
-list/grid geometry must still match before the action can satisfy dependent work. New
-building targets also retain expected facing for blueprints, frames and completed
-buildings. Native edits invalidate completion; unavailable observations hold execution
-and can recover through reads without replay. Legacy targets lacking these expectations
-retain their earlier contracts. Facing currently uses native cardinal labels;
-unrecognized localized labels remain unavailable.
+New zone project targets retain expected patches, kind, crop and native settings.
+Growing zones retain sow/cut permissions; stockpiles retain priority and exact
+ThingFilter definition/special-filter allowances and condition, quality and
+mental-break ranges. Stockpile expectations come from native previews, including
+presets; truncated display samples cannot establish the contract. Matching labels
+with conflicting settings require explicit editing. Fresh complete native list/grid
+geometry and settings must match before an action can satisfy dependent work.
+Building targets retain facing through blueprints, frames and completed buildings.
+Native Rot4 integers remain invariant across languages; older native versions can
+use recognized cardinal labels, while unavailable facing holds verification.
+Native edits invalidate completion. An explicit retry of an invalidated project
+requires fresh exact native restoration before preserving its confirmed slots and
+resuming dependencies. Unknown observations can recover through reads without replay.
+Legacy geometry/facing expectations are recovered only from a unique durable
+action owning the exact project targets. Unassociated records retain their earlier
+contracts; current map state cannot invent missing historical settings.
 
 ## Related reading
 

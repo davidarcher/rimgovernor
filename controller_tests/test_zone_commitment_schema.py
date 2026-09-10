@@ -133,16 +133,17 @@ def test_room_bounds_advertise_interior_minimum_without_restricting_zone_patches
 
 @pytest.mark.asyncio
 async def test_unknown_native_crop_is_refused_without_substitution():
+    from rimbot.hands import Blocked
     zone = Zone.model_validate(dict(action(), crop='UnknownToNative'))
     rt = SimpleNamespace(mode='automate', context_token='load', chat_revision=0, handled_revision=0,
         current_plan=SimpleNamespace(revision=0),
-        game=SimpleNamespace(query=AsyncMock(return_value={'zones': [{'label': 'Food',
+        game=SimpleNamespace(query=AsyncMock(return_value={'zones': [{'label': 'Food', 'type': 'Zone_Growing',
+            'allowSow': True, 'allowCut': True, 'plantDef': 'Plant_Rice',
             'gridCells': [{'x': x, 'z': z} for x in range(1, 4) for z in range(1, 4)]}]})),
         native=AsyncMock(side_effect=ValueError('No sowable plant matches UnknownToNative')))
-    with pytest.raises(ValueError, match='No sowable plant matches'):
+    with pytest.raises(Blocked, match='Existing zone settings differ'):
         await Hands().zone(rt, zone, SimpleNamespace(), '0', 0, 'load', 0)
-    rt.native.assert_awaited_once()
-    assert rt.native.await_args.args[1]['plant'] == 'UnknownToNative'
+    rt.native.assert_not_awaited()
 
 
 @pytest.mark.asyncio

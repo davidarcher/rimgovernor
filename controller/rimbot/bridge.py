@@ -51,9 +51,14 @@ class BridgeClient:
     def __init__(self, session: ClientSession, game_id: str = "rimbot-trial"):
         self.session = session
         self.game_id = game_id
+        self.request_lock = asyncio.Lock()
 
     async def core(self, name: str, **arguments) -> CallToolResult:
-        result = await self.session.call_tool(name, arguments)
+        # GABS publishes ownership claims while preparing calls. Concurrent reads,
+        # clock polls and writes on one session can invalidate each other's claim.
+        # Queue requests rather than retrying an ambiguous mutation.
+        async with self.request_lock:
+            result = await self.session.call_tool(name, arguments)
         if result.isError or (result.structuredContent or {}).get("success") is False:
             raise BridgeError(name, result)
         return result

@@ -20,6 +20,12 @@ Local changes:
   `ListBuildingsTool.cs` preserves unavailable aggregate watts instead of zero.
   The optional `ForecastFixture` compile flag includes only disposable test setup;
   production builds and the model gateway exclude its tools.
+- `ZoneSettingsContract.cs` reads exact native ThingFilter definition/special-filter
+  allowances and hit-point, quality and mental-break ranges without display
+  truncation. `ZoneCellsTool` includes that contract in filter previews/readbacks
+  and exposes ordinary growing-zone sow/cut settings with explicit dry runs.
+  `ZonesTool` preserves unavailable sow/cut reads as null. `ListBuildingsTool`
+  exposes invariant native Rot4 integers alongside localized facing labels.
 - `VideoStreamTool.cs` is original local presentation code. It captures the Unity
   framebuffer after rendering into a leased RGB24 shared-memory slot on Windows.
   It does not issue input, alter simulation speed or expose editor operations.

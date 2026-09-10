@@ -58,18 +58,16 @@ DLLs and stops its isolated session on completion/failure.
 
 `test_project_resource_scheduling.py` covers resource competition in ready order,
 dependency gates, uncertain writes, persisted receipts and Hands restock recovery.
-Admission still requires enough stock for all accepted commitments. B07 native
-acceptance must observe real production consumption and construction progress; the
-fixture suite does not establish pawn work or save-rewind recovery.
-`test_goal_watchdog_recovery.py` replays delayed tracked completion after a durable
-timeout hold, including shell-to-furnishing continuation, dependent chains and refusal
-under cancellation, Manual, rewind, failure or a different blocker. Native delayed labor
-and paired restart acceptance remain separate B07 checks.
+Admission requires enough stock for all accepted commitments. Native construction,
+production, delayed shell handoff, edit/rewind and paired restart probes are described
+in [Verify durable project scheduling](project-scheduling.md). Controller fixtures
+alone do not establish pawn work.
 
-`test_zone_project_postconditions.py` and `test_building_facing_postconditions.py` cover
-persisted exact zone and orientation expectations, native-shaped edit invalidation of
-dependent work, incomplete-read recovery and legacy records. These controller fixtures
-do not establish actual in-game zone or rotation editing.
+`test_goal_watchdog_recovery.py` checks delayed completion after a durable timeout
+hold and refusal under cancellation, Manual, rewind, failure or a different blocker.
+`test_zone_project_postconditions.py`, `test_building_facing_postconditions.py`,
+`test_zone_settings_postconditions.py` and `test_project_restoration_retry.py` cover
+exact settings/facing contracts, conservative migration and explicit restoration.
 
 ## Related reading
 

@@ -56,6 +56,49 @@ async def run(args):
                                    token=rt.context_token,revision=rt.chat_revision)
         await rt.execute_manual_requests()
         report.update(shell=shell,player_step=result['step'],initial_tick=rt.batch.summary.end_tick)
+        if args.restart_pending:
+            from rimbot.session_checkpoint import create_checkpoint, prepare_resume, stop_for_restart
+            from rimbot.bridge import runtime_file_read
+            roster = await rt.game.query('home/list_pawns', colonistsOnly=True, work=True)
+            assignments = [(p['thingId'], next(w['priorityStored'] if p['work'].get('manualPriorities') else
+                int(w['priority'] > 0) for w in p['work']['types'] if w['name'] == 'Construction'))
+                for p in roster['pawns'] if any(w['name'] == 'Construction' and not w['disabled'] for w in p['work']['types'])]
+            for pawn, _ in assignments:
+                await apply_command(rt, dict(kind='SetWorkPriority', pawn=pawn, work_type='Construction', priority=0),
+                    token=rt.context_token, revision=rt.chat_revision)
+                await rt.execute_manual_requests()
+            if rt.review_task and not rt.review_task.done(): await rt.review_task
+            await rt.supervisor.change('Superfast', max_ticks=600)
+            async with asyncio.timeout(60):
+                while True:
+                    clock = (await runtime_file_read(rt.bridge.call, 'home/supervised_play', op='status')).structuredContent
+                    if not clock['active']: break
+                    await asyncio.sleep(.2)
+            assert clock['pauseVerified'] and clock['stopReason'] == 'tick_budget', clock
+            async with rt.lock:
+                await rt.refresh_clock_events()
+            if rt.review_task and not rt.review_task.done(): await rt.review_task
+            before_buildings = await rt.game.query('home/list_buildings', aggregate=False, playerOnly=True)
+            checkpoint = await create_checkpoint(rt, rt.context_token)
+            expected = rt.current_plan.model_dump()
+            pending = expected['progress'][result['step']]
+            assert pending['state'] == 'waiting' and pending['issued']
+            old_token = rt.context_token
+            await stop_for_restart(rt, old_token, checkpoint['manifest_path']); await rt.stop(); store.close()
+            data, state = prepare_resume(checkpoint['manifest_path'])
+            store = Store(state/'bridge.sqlite')
+            rt = BridgeRuntime(store, root, fresh=True, headless=True, resume=checkpoint['manifest_path'], model_factory=lambda _:NoInference())
+            await ready(rt)
+            after_buildings = await rt.game.query('home/list_buildings', aggregate=False, playerOnly=True)
+            assert rt.mode == 'manual' and rt.context_token != old_token and rt.current_plan.model_dump() == expected
+            assert rt.counters['actions'] == 0 and rt.batch.summary.end_tick in (data['tick'], data['tick']+1)
+            assert {b['thingId'] for b in before_buildings['buildings']} == {b['thingId'] for b in after_buildings['buildings']}
+            report['pending_restart'] = dict(checkpoint=checkpoint, plan=expected, clock=clock, buildings=after_buildings)
+            print('PASS: delayed shell, native identities and receipts preserved across held restart', flush=True)
+            for pawn, priority in assignments:
+                await apply_command(rt, dict(kind='SetWorkPriority', pawn=pawn, work_type='Construction', priority=priority),
+                    token=rt.context_token, revision=rt.chat_revision)
+                await rt.execute_manual_requests()
         rt.current_plan.control.setdefault('policy',{})['execution_speed']='Superfast'
         await rt.set_mode('automate')
         deadline=time.monotonic()+args.seconds
@@ -108,5 +151,6 @@ if __name__=='__main__':
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--seconds',type=int,default=600)
     parser.add_argument('--services',action='store_true',help='Use a different player site and require native indoor cooking and food storage there')
+    parser.add_argument('--restart-pending',action='store_true',help='Disable ordinary construction work for 600 ticks, verify a held paired restart, then restore work and require actual shell/furnishing completion')
     args=parser.parse_args()
     raise SystemExit(0 if asyncio.run(asyncio.wait_for(run(args),args.seconds+240)) else 1)

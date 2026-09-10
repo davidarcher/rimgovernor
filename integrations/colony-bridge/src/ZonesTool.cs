@@ -893,16 +893,16 @@ namespace HomeBridge.BridgeTools
             catch { return null; }
         }
 
-        private static bool SafeAllowSow(Zone_Growing growing)
+        private static bool? SafeAllowSow(Zone_Growing growing)
         {
             try { return growing.allowSow; }
-            catch { return true; }
+            catch { return null; }
         }
 
-        private static bool SafeAllowCut(Zone_Growing growing)
+        private static bool? SafeAllowCut(Zone_Growing growing)
         {
             try { return growing.allowCut; }
-            catch { return true; }
+            catch { return null; }
         }
 
         private static string SafeThingLabel(Thing thing)

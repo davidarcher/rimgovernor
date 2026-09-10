@@ -328,7 +328,17 @@ class BridgeRuntime:
                     raise ValueError('Consultation is missing or belongs to another loaded game')
             for step_id in decision.retry_steps:
                 progress = self.current_plan.progress.get(step_id)
-                if not progress or progress.state != 'blocked' or not progress.failure or not progress.failure.retryable:
+                if not progress or progress.state != 'blocked' or not progress.failure:
+                    raise ValueError('Step is not safely retryable: '+step_id)
+                if progress.failure.code == 'plan_invalidated' and progress.project_id:
+                    await self.projects.reconcile(self.game, only_id=progress.project_id, plan=self.current_plan)
+                    row = next((p for p in self.projects.rows if p.id == progress.project_id), None)
+                    await self.sync_identity()
+                    if expected_token != self.context_token or expected_revision != self.chat_revision:
+                        raise ValueError('Colony or direction changed during retry validation')
+                    if row is None or row.state != 'complete':
+                        raise ValueError('Restore the exact native project before retrying: '+step_id)
+                elif not progress.failure.retryable:
                     raise ValueError('Step is not safely retryable: '+step_id)
             previous_ids = {step.id for step in self.current_plan.spec.steps}
             changed = self.current_plan.commit(decision, actor=actor, tick=self.batch.summary.end_tick)
@@ -500,7 +510,7 @@ class BridgeRuntime:
             if expected_token is not None and expected_token != self.context_token:
                 raise ValueError('Loaded colony changed')
             row = self.projects.upsert(spec)
-            await self.projects.reconcile(self.game)
+            await self.projects.reconcile(self.game, plan=self.current_plan)
             self.persist()
             return row.model_dump()
 
@@ -970,7 +980,7 @@ class BridgeRuntime:
                           'meaning': 'Native post-command readback. Jobs/blueprints may still need pawn work.',
                           'clock': 'paused' if self.clock.get('paused') is True else 'running' if self.clock.get('paused') is False else 'unknown'}
                 if reconcile:
-                    await self.projects.reconcile(self.game)
+                    await self.projects.reconcile(self.game, plan=self.current_plan)
                 self.persist()
             return result
 
@@ -1002,7 +1012,7 @@ class BridgeRuntime:
                 self.resume_after_review = self.mode == 'automate'
                 self.batch = await observe(self.game)
                 self.update_strategy_state()
-                await self.projects.reconcile(self.game)
+                await self.projects.reconcile(self.game, plan=self.current_plan)
                 self.reconcile_plan()
                 self.persist()
             # Inference is requested only by a new player message. Native events
@@ -1187,7 +1197,7 @@ class BridgeRuntime:
                         raise ValueError(f"Resumed native colony does not match checkpoint: expected {checkpoint['colony_id']}:{checkpoint['map_id']} at {checkpoint['tick']}, observed {self.colony} at {status.get('time', {}).get('ticksGame')}; automation remains off")
                     self.note('checkpoint_resumed', 'Checkpoint restored in Manual.',
                               saved_tick=checkpoint['tick'], loaded_tick=status['time']['ticksGame'])
-                await self.projects.reconcile(self.game)
+                await self.projects.reconcile(self.game, plan=self.current_plan)
                 self.persist()
                 self.batch = await observe(self.game)
                 self.connected, self.phase = True, 'Manual'
@@ -1209,7 +1219,7 @@ class BridgeRuntime:
                         async with self.lock:
                             if await self.sync_identity():
                                 self.batch = await observe(self.game)
-                                await self.projects.reconcile(self.game)
+                                await self.projects.reconcile(self.game, plan=self.current_plan)
                                 self.persist()
                             self.receive_clock_events()
                             status = await self.game.query('home/status', colonists=False, threats=False)
@@ -1217,7 +1227,7 @@ class BridgeRuntime:
                             if time.monotonic()-last_reconcile > 10:
                                 self.batch = await observe(self.game)
                                 self.update_strategy_state()
-                                await self.projects.reconcile(self.game)
+                                await self.projects.reconcile(self.game, plan=self.current_plan)
                                 self.reconcile_plan()
                                 if self.strategic_state.pending and self.mode == 'automate':
                                     self.wake.set()

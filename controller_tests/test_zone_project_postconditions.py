@@ -110,6 +110,7 @@ async def test_full_zone_census_is_shared_across_exact_targets():
 async def test_hands_persists_zone_contract_for_later_player_edit_detection():
     rt, census = fixture()
     census['zones'][0]['label'] = 'Food'
+    census['zones'][0].update(allowSow=True, allowCut=True)
     rt.projects = ProjectBook()
     rt.current_plan.progress['field'] = StepProgress()
     rt.mode, rt.context_token = 'automate', 'load'

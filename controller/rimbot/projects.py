@@ -1,9 +1,11 @@
 """Durable intentions with native evidence, independent of model prose."""
 import re
 import uuid
+import math
+from copy import deepcopy
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
-from .colony_plan import Rectangle
+from .colony_plan import Rectangle, Buildings, RoomShell, Zone
 
 class Target(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -19,11 +21,17 @@ class Target(BaseModel):
     zone_patches: list[Rectangle] = Field(default_factory=list, max_length=32)
     zone_type: Literal['stockpile', 'growing'] | None = None
     crop: str | None = None
+    zone_settings: dict | None = None
 
 
 def facing_matches(target, building):
     if target.expected_facing is None:
         return True  # Legacy construction targets did not record a facing contract.
+    if 'rotationInt' in building:
+        rotation = building['rotationInt']
+        if type(rotation) is not int or rotation not in range(4):
+            raise ValueError('Invariant native building facing unavailable')
+        return ('north', 'east', 'south', 'west')[rotation] == target.expected_facing
     facing = building.get('rotation')
     if not isinstance(facing, str) or facing.casefold() not in ('north', 'east', 'south', 'west'):
         # Native ToStringHuman is localized. Unknown labels cannot prove rotation.
@@ -71,7 +79,41 @@ def zone_matches(target, result):
             raise ValueError('Explicit zone crop unavailable')
         if zone['plantDef'] != target.crop:
             return False
+    if target.zone_settings is not None:
+        if zone_settings(zone) != target.zone_settings:
+            return False
     return True
+
+
+def zone_settings(zone):
+    """An exact native settings contract; display samples cannot certify a filter."""
+    if zone.get('type') == 'Zone_Growing':
+        if any(type(zone.get(k)) is not bool for k in ('allowSow', 'allowCut')):
+            raise ValueError('Native sow/cut settings unavailable')
+        return {k: zone[k] for k in ('allowSow', 'allowCut')}
+    if zone.get('type') != 'Zone_Stockpile':
+        raise ValueError('Native zone kind unavailable')
+    priority = zone.get('priority')
+    contract = (zone.get('filter') or {}).get('contract')
+    if priority not in ('Low', 'Normal', 'Preferred', 'Important', 'Critical') or not isinstance(contract, dict):
+        raise ValueError('Exact native stockpile settings unavailable')
+    if type(contract.get('version')) is not int or contract['version'] != 1:
+        raise ValueError('Exact native stockpile filter unavailable')
+    for field in ('allowedDefs', 'disallowedSpecial'):
+        names = contract.get(field)
+        if not isinstance(names, list) or any(not isinstance(n, str) or not n for n in names) or len(set(names)) != len(names):
+            raise ValueError('Complete native filter definitions unavailable')
+    for field, maximum in (('hitPoints', 1), ('quality', 6), ('mentalBreakChance', 1)):
+        bounds = contract.get(field)
+        if (not isinstance(bounds, list) or len(bounds) != 2 or
+                any(type(n) not in (int, float) or not math.isfinite(n) for n in bounds)
+                or not 0 <= bounds[0] <= bounds[1] <= maximum
+                or (field == 'quality' and any(type(n) is not int for n in bounds))):
+            raise ValueError('Native filter range unavailable')
+    contract = deepcopy(contract)
+    for field in ('allowedDefs', 'disallowedSpecial'):
+        contract[field].sort()
+    return dict(priority=priority, filter=contract)
 
 class ProjectSpec(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -130,7 +172,36 @@ class ProjectBook:
         row.state, row.evidence = 'cancelled', 'Cancelled by player; existing game orders are unchanged'
         return row
 
-    async def reconcile(self, game, *, only_id=None):
+    def ground_legacy_targets(self, plan):
+        """Recover expectations from the exact durable action, never current map state."""
+        from .spatial import room_placements
+        for row in self.rows:
+            if row.state == 'cancelled':
+                continue
+            owners = [s for s in plan.spec.steps if plan.progress[s.id].project_id == row.id]
+            if len(owners) != 1 or (row.source_step and row.source_step != owners[0].id):
+                continue
+            step = owners[0]
+            if isinstance(step.action, Zone) and len(row.targets) == 1 and row.targets[0].kind == 'zone':
+                target = row.targets[0]
+                if not target.zone_patches:
+                    target.zone_patches = [p.model_copy(deep=True) for p in step.action.patches]
+                    target.zone_type, target.crop = step.action.zone_type, step.action.crop or None
+                    row.source_step = step.id
+            elif isinstance(step.action, (Buildings, RoomShell)):
+                placements = room_placements(step.action) if isinstance(step.action, RoomShell) else step.action.placements
+                expected = {(p.def_name, p.x, p.z): p for p in placements}
+                if len(expected) != len(row.targets) or len({(t.def_name, t.x, t.z) for t in row.targets}) != len(row.targets) or any(t.kind != 'building' or
+                        (t.def_name, t.x, t.z) not in expected for t in row.targets):
+                    continue
+                for target in row.targets:
+                    if target.expected_facing is None:
+                        target.expected_facing = expected[target.def_name, target.x, target.z].rotation
+                row.source_step = step.id
+
+    async def reconcile(self, game, *, only_id=None, plan=None):
+        if plan is not None:
+            self.ground_legacy_targets(plan)
         # Queries are memoized for this pass, not persisted across changes in game state.
         cache = {}
         for row in self.rows:
@@ -139,13 +210,15 @@ class ProjectBook:
             found, pending, missing, ids = 0, 0, 0, []
             try:
                 for target in row.targets:
-                    key = ('zone', bool(target.zone_patches)) if target.kind == 'zone' else target.model_dump_json()
+                    key = ('zone', bool(target.zone_patches), target.zone_settings is not None) if target.kind == 'zone' else target.model_dump_json()
                     if key not in cache:
                         if target.kind == 'installation':
                             result = await game.invoke('home/install', {'thingId': target.thing_id, 'dryRun': True})
                             cache[key] = ('installation', result)
                         elif target.kind == 'zone':
                             args = dict(includeCells=True, includeContents=False, maxCellsPerZone=10000) if target.zone_patches else {}
+                            if target.zone_settings is not None:
+                                args['filter'] = True
                             result = await game.query('home/list_zones', **args)
                             cache[key] = ('zone', result)
                         else:

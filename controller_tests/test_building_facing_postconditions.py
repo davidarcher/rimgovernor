@@ -98,3 +98,26 @@ async def test_hands_records_facing_and_does_not_complete_wrongly_rotated_existi
     assert rt.current_plan.progress['cooler'].failure.code == 'plan_invalidated'
     assert not list(rt.current_plan.ready())
     rt.native.assert_not_awaited()
+
+
+@pytest.mark.parametrize('facing,index', [('north', 0), ('east', 1), ('south', 2), ('west', 3)])
+async def test_invariant_facing_owns_contract_across_game_languages(facing, index):
+    rt, building = fixture(facing)
+    building.update(rotation='localized display label', rotationInt=index)
+    await reconcile(rt, building)
+    assert rt.current_plan.progress['cooler'].state == 'complete'
+    building['rotationInt'] = None
+    await reconcile(rt, building)
+    assert rt.current_plan.progress['cooler'].failure.code == 'observation_unavailable'
+
+
+def test_legacy_facing_is_grounded_only_by_exact_action_targets():
+    rt, _ = fixture()
+    target = rt.projects.rows[0].targets[0]
+    target.expected_facing = None
+    target.x += 1
+    rt.projects.ground_legacy_targets(rt.current_plan)
+    assert target.expected_facing is None
+    target.x -= 1
+    rt.projects.ground_legacy_targets(rt.current_plan)
+    assert target.expected_facing == 'east'

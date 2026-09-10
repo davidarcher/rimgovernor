@@ -59,8 +59,7 @@ async def run(args):
     async def bills(bench):return await rt.game.invoke('home/bills',{'action':'list','bench':bench,'dryRun':True})
     try:
         manifest=capture_manifest(Path(__file__).resolve().parents[1],root,config,rt.router.routing.model_dump(mode='json'))
-        installed=Path('C:/Program Files (x86)/Steam/steamapps/common/RimWorld/Mods/RimBotObservations/Assemblies/RimBot.ColonyIdentity.dll')
-        manifest['identity_binary_sha256']=hashlib.sha256(installed.read_bytes()).hexdigest()
+        manifest['identity_binary_sha256']=manifest['inputs']['artifacts']['identity_dll']
         (args.output/'manifest.json').write_text(json.dumps(manifest,indent=2))
         await ready(rt)
         observed=await facts()

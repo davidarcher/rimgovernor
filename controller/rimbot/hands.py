@@ -4,6 +4,7 @@ from .colony_plan import Buildings, RoomShell, Zone, NativeOperation, ClockActio
 from .receipts import reason
 from .spatial import room_placements, GeometryConflict, validate_geometry, native_footprint
 from .shell_site import ShellSiteRefusal, ZONE_ARGUMENTS, validate_shell_zones, validate_shell_access, validate_shell_connectivity
+from .projects import zone_settings
 
 
 class Blocked(Exception):
@@ -287,11 +288,20 @@ class Hands:
 
     async def zone(self, rt, action, progress, key, revision, token, direction):
         cells = sorted({c for patch in action.patches for c in patch.cells()})
-        zones = await rt.game.query('home/list_zones', match=action.label, includeCells=True, maxCellsPerZone=10000)
+        zones = await rt.game.query('home/list_zones', match=action.label, includeCells=True, maxCellsPerZone=10000, filter=True)
         matches = [z for z in zones['zones'] if z['label']==action.label]
+        expected_settings = dict(allowSow=True, allowCut=True) if action.zone_type == 'growing' else None
         if matches:
             if len(matches)!=1 or {(c['x'],c['z']) for c in matches[0].get('gridCells', [])} != set(cells):
                 raise Blocked('zone_conflict', 'Existing zone label has different or incomplete geometry; no duplicate created')
+            if action.zone_type == 'stockpile':
+                preview_args = dict(op='filter', zone=str(matches[0]['id']), priority=action.priority, dryRun=True)
+                if action.preset:
+                    preview_args['preset'] = action.preset
+                preview = await rt.inspect_native('home/zone_cells', preview_args)
+                expected_settings = zone_settings(dict(type='Zone_Stockpile', priority=action.priority, filter=preview.get('after')))
+            if zone_settings(matches[0]) != expected_settings or (action.crop and matches[0].get('plantDef') != action.crop):
+                raise Blocked('zone_conflict', 'Existing zone settings differ from the requested intent; explicit editing is required')
         else:
             args = dict(op='create', zoneType=action.zone_type, label=action.label,
                 cells=';'.join(f'{x},{z}' for x,z in cells), priority=action.priority)
@@ -302,6 +312,8 @@ class Hands:
             preview = await rt.inspect_native('home/zone_cells', dict(args, dryRun=True))
             if preview.get('cellsAccepted') != len(cells):
                 raise Blocked('zone_cells_refused', 'Not all proposed zone cells are legal', evidence=preview)
+            if action.zone_type == 'stockpile':
+                expected_settings = zone_settings(dict(type='Zone_Stockpile', priority=action.priority, filter=preview.get('filter')))
             self.guard(rt, revision, token, direction)
             progress.issued[key] = {'confirmed': False}
             rt.persist()
@@ -309,18 +321,17 @@ class Hands:
                 expected_token=token, expected_plan_revision=revision, reconcile=False)
             if result['receipt'].get('cellsAccepted') != len(cells):
                 raise Blocked('zone_partial', 'Zone was only partially created; inspect before revising', evidence=result['receipt'])
-        if action.crop and matches:
-            self.guard(rt, revision, token, direction)
-            await rt.native('home/zone_cells', dict(op='crop', zone=action.label, plant=action.crop, dryRun=False),
-                expected_revision=direction, expected_token=token, expected_plan_revision=revision, reconcile=False)
-        observed = await rt.game.query('home/list_zones', match=action.label, includeCells=True, maxCellsPerZone=10000)
+        observed = await rt.game.query('home/list_zones', match=action.label, includeCells=True, maxCellsPerZone=10000, filter=True)
         zone = next((z for z in observed['zones'] if z['label']==action.label), None)
         if zone is None or {(c['x'], c['z']) for c in zone.get('gridCells', [])} != set(cells):
             raise Blocked('zone_readback', 'Zone geometry did not match its committed intent')
         if action.crop and zone.get('plantDef') != action.crop:
             raise Blocked('crop_readback', 'Growing zone exists but its observed crop does not match the requested crop')
-        row = rt.projects.upsert({'title': action.label, 'targets':[{'kind':'zone','zone_id':str(zone['id']),
+        if zone_settings(zone) != expected_settings:
+            raise Blocked('zone_settings_readback', 'Zone settings do not match the native preview; inspect before retrying')
+        step = next(s for s in rt.current_plan.spec.steps if rt.current_plan.progress[s.id] is progress)
+        row = rt.projects.upsert({'title': action.label, 'source_step': step.id, 'targets':[{'kind':'zone','zone_id':str(zone['id']),
             'zone_patches': [patch.model_dump() for patch in action.patches],
-            'zone_type': action.zone_type, 'crop': action.crop or None}]})
+            'zone_type': action.zone_type, 'crop': action.crop or None, 'zone_settings': expected_settings}]})
         progress.project_id = row.id
         return {'zone': action.label, 'cells': len(cells), 'crop': action.crop}

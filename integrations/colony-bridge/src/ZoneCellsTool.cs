@@ -145,7 +145,7 @@ namespace HomeBridge.BridgeTools
         public async Task<object> ZoneCells(
             IRimBridgeContext ctx,
             CancellationToken cancellationToken,
-            [ToolParameter(Description = "What to do: add, remove, create, delete, repair, filter, crop.")] string op = null,
+            [ToolParameter(Description = "What to do: add, remove, create, delete, repair, filter, crop, settings (growing-zone sow/cut toggles).")] string op = null,
             [ToolParameter(Description = "Target zone: its exact label (case-insensitive), or its numeric id as a string. Optional for op=repair (repairs every zone) and required for everything else except op=create.")] string zone = null,
             [ToolParameter(Description = "Rect origin x. Combined with z/width/height to name a block of cells.", DefaultValue = -1)] int x = -1,
             [ToolParameter(Description = "Rect origin z.", DefaultValue = -1)] int z = -1,
@@ -162,13 +162,15 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "After op=add, call Zone.CheckContiguous() when the zone has become non-contiguous. CheckContiguous DELETES the cells it cannot reach, so this is off by default: the tool reports contiguous:false and leaves the zone alone.", DefaultValue = false)] bool allowSplit = false,
             [ToolParameter(Description = "Show the write happening: select the zone, open the tab a player would use, then close it again. Decorative only.", DefaultValue = true)] bool watch = true,
             [ToolParameter(Description = "How long the menu stays open after the write, in seconds.", DefaultValue = Watch.DefaultSeconds)] int watchSeconds = Watch.DefaultSeconds,
-            [ToolParameter(Description = "TRUE by default. Plan the whole operation and return it without writing anything. Pass false to actually apply it.", DefaultValue = true)] bool dryRun = true)
+            [ToolParameter(Description = "TRUE by default. Plan the whole operation and return it without writing anything. Pass false to actually apply it.", DefaultValue = true)] bool dryRun = true,
+            [ToolParameter(Description = "For op=settings on an exact growing zone: allow sowing. Omit to preserve.")] bool? sow = null,
+            [ToolParameter(Description = "For op=settings on an exact growing zone: allow cutting. Omit to preserve.")] bool? cut = null)
         {
             return BridgeCommon.WithUnknownArguments(
                 await ZoneCellsCore(
                     ctx, cancellationToken, op, zone, x, z, width, height, cells,
                     zoneType, label, priority, preset, allow, disallow, plant,
-                    allowSplit, watch, watchSeconds, dryRun).ConfigureAwait(false),
+                    allowSplit, watch, watchSeconds, dryRun, sow, cut).ConfigureAwait(false),
                 ctx, typeof(HomeZoneCellTools), ToolName);
         }
 
@@ -192,7 +194,7 @@ namespace HomeBridge.BridgeTools
             bool allowSplit,
             bool watch,
             int watchSeconds,
-            bool dryRun)
+            bool dryRun, bool? sow, bool? cut)
         {
             if (ctx?.MainThread == null)
                 return Failure("No RimBridge main-thread dispatcher is available for this invocation.");
@@ -228,7 +230,7 @@ namespace HomeBridge.BridgeTools
                 {
                     var reply = Run(op, zone, x, z, width, height, cells, zoneType,
                                     label, priority, preset, allow, disallow, plant,
-                                    allowSplit, dryRun);
+                                    allowSplit, dryRun, sow, cut);
 
                     // op=create could not select a zone that did not exist when
                     // the menu opened, so the new one is selected here instead.
@@ -357,7 +359,7 @@ namespace HomeBridge.BridgeTools
         private static object Run(string op, string zoneSpec, int x, int z, int width, int height,
                                   string cellSpec, string zoneType, string newLabel, string priority,
                                   string preset, string allowSpec, string disallowSpec, string plantSpec,
-                                  bool allowSplit, bool dryRun)
+                                  bool allowSplit, bool dryRun, bool? sow, bool? cut)
         {
             if (!TryGetMap(out var map, out var mapError))
                 return Failure(mapError);
@@ -365,8 +367,10 @@ namespace HomeBridge.BridgeTools
             var wantOp = (op ?? string.Empty).Trim().ToLowerInvariant();
             if (wantOp != "add" && wantOp != "remove" && wantOp != "create" &&
                 wantOp != "delete" && wantOp != "repair" && wantOp != "filter" &&
-                wantOp != "crop")
-                return Failure("op must be one of: add, remove, create, delete, repair, filter, crop. Got: " + (op ?? "(null)"));
+                wantOp != "crop" && wantOp != "settings")
+                return Failure("op must be one of: add, remove, create, delete, repair, filter, crop, settings. Got: " + (op ?? "(null)"));
+            if (wantOp != "settings" && (sow.HasValue || cut.HasValue))
+                return Failure("sow and cut apply only to op=settings.");
 
             // `plant` does nothing on the other ops, so a call that sends it
             // there is refused rather than silently ignoring it.
@@ -387,6 +391,22 @@ namespace HomeBridge.BridgeTools
 
             switch (wantOp)
             {
+                case "settings":
+                {
+                    if (!TryResolveZone(zoneManager, zoneSpec, out var target, out var error))
+                        return Failure(error);
+                    if (!(target is Zone_Growing growing) || (!sow.HasValue && !cut.HasValue))
+                        return Failure("An exact growing zone and at least one sow/cut setting are required.");
+                    var before = new { allowSow = growing.allowSow, allowCut = growing.allowCut };
+                    if (!dryRun)
+                    {
+                        if (sow.HasValue) growing.allowSow = sow.Value;
+                        if (cut.HasValue) growing.allowCut = cut.Value;
+                    }
+                    return new { success = true, op = "settings", dryRun, zoneId = growing.ID,
+                        before, after = new { allowSow = dryRun ? sow ?? growing.allowSow : growing.allowSow,
+                            allowCut = dryRun ? cut ?? growing.allowCut : growing.allowCut } };
+                }
                 case "repair":
                     return Repair(map, sim, zoneSpec, dryRun);
                 case "delete":
@@ -2498,6 +2518,7 @@ namespace HomeBridge.BridgeTools
         {
             var summary = new Dictionary<string, object>(StringComparer.Ordinal)
             {
+                { "contract", ZoneSettingsContract.Read(filter) },
                 { "allowedDefCount", null },
                 { "storableDefCount", universe == null ? 0 : universe.Count },
                 { "priority", priority.HasValue ? priority.Value.ToString() : null },
