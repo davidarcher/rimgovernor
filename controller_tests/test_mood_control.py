@@ -124,10 +124,10 @@ async def test_native_preview_exception_retains_refusal_and_tries_other_need():
     from mcp.types import CallToolResult
     from rimbot.bridge import BridgeError
     p, rt = pawn(), runtime()
-    payload = dict(tool='home/relieve_need', success=False,
+    payload = dict(success=False,
                    error='Current job, carried cargo or fire prevents safe interruption.')
     rt.inspect_native.side_effect = [BridgeError('games_call_tool',
-        CallToolResult(content=[], structuredContent=payload, isError=True)), {'success': True}]
+        CallToolResult(content=[], structuredContent=payload, isError=True), native_tool='home/relieve_need'), {'success': True}]
     name, actions = await method(rt, 'EnsureMood-Thing_Human1', {'mood':assess([p], [], {})}, [p])
     assert name == 'joy' and len(actions) == 1
     assert rt.current_plan.colony_goals['EnsureMood-Thing_Human1'].evidence['need_preview_refusals']['rest'] == payload

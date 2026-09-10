@@ -88,7 +88,8 @@ async def method(rt, identity, facts, people):
             # This call is admission-only. Dispatch errors remain owned by Hands.
             preview = error.result.structuredContent or {}
             if (preview.get('success') is not False
-                    or preview.get('tool') != 'home/relieve_need'
+                    or (error.native_tool or preview.get('tool')) != 'home/relieve_need'
+                    or preview.get('tool', 'home/relieve_need') != 'home/relieve_need'
                     or error.tool not in ('home/relieve_need', 'games_call_tool')):
                 raise
             goal.evidence.setdefault('need_preview_refusals', {})[name] = preview

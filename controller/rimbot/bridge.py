@@ -19,11 +19,12 @@ from mcp.types import CallToolResult
 
 
 class BridgeError(RuntimeError):
-    def __init__(self, tool: str, result: CallToolResult):
+    def __init__(self, tool: str, result: CallToolResult, *, native_tool: str | None = None):
         payload = result.structuredContent or {}
         detail = payload.get('message') or payload.get('error') or next((getattr(c, 'text', '') for c in result.content), '')
         super().__init__(f"Bridge tool failed: {tool}: {str(detail)[:1200]}")
         self.tool = tool
+        self.native_tool = native_tool
         self.result = result
         self.detail = str(detail)
 
@@ -101,7 +102,7 @@ class BridgeClient:
             if arguments.get('tool') in ('home/observation_batch', 'home/placement_previews'):
                 timing['native_batch'] = (result.structuredContent or {}).get('timing')
             if result.isError or (result.structuredContent or {}).get("success") is False:
-                raise BridgeError(name, result)
+                raise BridgeError(name, result, native_tool=arguments.get('tool') if name == 'games_call_tool' else None)
             if name == 'games_start':
                 self.start_result = result
             if name == 'games_call_tool' and arguments.get('tool') == 'home/colony_identity':

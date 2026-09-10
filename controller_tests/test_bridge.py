@@ -35,6 +35,7 @@ async def test_native_result_and_error_are_preserved_without_retry():
     with pytest.raises(BridgeError) as caught:
         await bridge.call("rimworld/execute_gizmo", gizmoId="old")
     assert caught.value.result is failure
+    assert caught.value.native_tool == 'rimworld/execute_gizmo'
     assert session.call_tool.await_count == 1
 
 
