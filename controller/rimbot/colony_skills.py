@@ -292,14 +292,24 @@ class ColonySkills:
                         unpauseWhenYouHave=facts['colonists'], pauseWhenSatisfied='on', ingredientSearchRadius=40, watch=False)]
             return None
         if goal_id == 'EnsureTemperatureSafety':
-            if facts.get('indoorSleepingCapacity', 0) < facts['colonists']: return None
             if unused('thermal'):
-                cold = facts.get('sleepingTemperatureMin', 20) < rt.controller.policy.temperature_enter_low
-                definition = 'Campfire' if cold else 'PassiveCooler'
-                from .shelter_handoff import player_shelter,furniture_handoff
+                from .shelter_handoff import player_shelter,furniture_handoff,verified_room
                 if selection:=player_shelter(rt.current_plan):
+                    # Safe-reachability bed counts can disappear in an unsafe room.
+                    # Heating/cooling must use that room's actual temperature.
+                    observed=await verified_room(rt,selection[2])
+                    if observed is None:return None
+                    temperature=observed[0].get('temperature')
+                    if not isinstance(temperature,(int,float)):
+                        raise SkillBlocked('Selected shelter temperature is unavailable')
+                    cold=temperature < rt.controller.policy.temperature_enter_low
+                    if not cold and temperature <= rt.controller.policy.temperature_enter_high:return None
+                    definition='Campfire' if cold else 'PassiveCooler'
                     actions=await furniture_handoff(rt,selection,definition)
                     return ('thermal',actions) if actions else None
+                if facts.get('indoorSleepingCapacity', 0) < facts['colonists']: return None
+                cold = facts.get('sleepingTemperatureMin', 20) < rt.controller.policy.temperature_enter_low
+                definition = 'Campfire' if cold else 'PassiveCooler'
                 layout = await self.layout(facts)
                 if cold and facts.get('cooking'): return None  # A fueled campfire already heats the shared starter room.
                 return 'thermal', [{'kind': 'place_buildings', 'placements': [{'def_name': definition,

@@ -112,7 +112,8 @@ async def test_native_obstructions_or_insufficient_space_never_claim_handoff():
 def services():
     rt,room,facts=fixture()
     facts.update(indoorSleepingCapacity=8,sleepingTemperatureMin=30,cooking=[])
-    rt.controller=SimpleNamespace(policy=SimpleNamespace(temperature_enter_low=10))
+    room['temperature']=30
+    rt.controller=SimpleNamespace(policy=SimpleNamespace(temperature_enter_low=10,temperature_enter_high=28))
     buildings=[{'defName':'SleepingSpot','position':{'x':x,'z':z},
         'occupies':{'minX':x,'maxX':x,'minZ':z,'maxZ':z+1}} for x in (11,13,15,17) for z in (11,13)]
     async def query(name,**args):
@@ -162,8 +163,32 @@ async def test_existing_campfire_in_adopted_room_is_not_duplicated_for_heating()
     rt,room,facts,buildings=services()
     buildings.append({'defName':'Campfire','position':{'x':17,'z':17},'isBlueprint':False,'isFrame':False})
     facts['sleepingTemperatureMin']=0
+    room['temperature']=0
     rt.current_plan.colony_goals['EnsureTemperatureSafety']=ColonyGoal(priority_class=2)
     assert await ColonySkills(rt).compile('EnsureTemperatureSafety',facts,[]) is None
+    rt.inspect_native.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('temperature,expected',[(-9,'Campfire'),(35,'PassiveCooler')])
+async def test_unsafe_adopted_room_can_recover_without_safe_reachable_beds(temperature,expected):
+    rt,room,facts,buildings=services()
+    room['temperature']=temperature
+    facts.update(indoorSleepingCapacity=0,sleepingTemperatureMin=None,sleepingTemperatureMax=None)
+    rt.current_plan.colony_goals['EnsureTemperatureSafety']=ColonyGoal(priority_class=2)
+    method,actions=await ColonySkills(rt).compile('EnsureTemperatureSafety',facts,[])
+    assert actions[0]['placements'][0]['def_name']==expected
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('temperature',[20,None])
+async def test_selected_room_thermal_requires_observed_unsafe_temperature(temperature):
+    rt,room,facts,buildings=services()
+    room['temperature']=temperature
+    rt.current_plan.colony_goals['EnsureTemperatureSafety']=ColonyGoal(priority_class=2)
+    if temperature is None:
+        with pytest.raises(SkillBlocked,match='temperature'):await ColonySkills(rt).compile('EnsureTemperatureSafety',facts,[])
+    else:assert await ColonySkills(rt).compile('EnsureTemperatureSafety',facts,[]) is None
     rt.inspect_native.assert_not_awaited()
 
 

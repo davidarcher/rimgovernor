@@ -249,6 +249,11 @@ zone cells; zone edits separately require exact existing geometry. Unchanged com
 cells against later player edits. New placement still requires native previews against
 the current map, including actual buildings and cancellation hazards.
 
+Thermal handoff in the selected shelter uses its verified native room temperature.
+Unsafe temperatures can exclude beds from the safe-reachability census; this must
+not prevent heating or cooling that same room. Roof, room geometry and adoption
+context remain required before furnishing.
+
 `SetBuildingTemperature` requires one exact observed completed player building and
 a successful native temperature-control preview. It uses shared Hands and the native
 setpoint control. The accepted setpoint does not certify room temperature or power.
