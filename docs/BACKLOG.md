@@ -81,42 +81,30 @@ in the checkpoint commit; do not append an implementation diary here.
 
 ## P1 — Functional colony planning and recovery
 
-- [ ] **B06 · Spatial architecture.** Extend existing room compilation, geometry
-  checks and native preflight with long-term layout, outside/room connectivity,
-  room roles and staged construction. Shared planned-room bounds, immediate entrance
-  clearance and native footprint conflicts are validated at admission, with current
-  placement footprint checks in Hands. Verify these under native construction and
-  player edits; extend protection to observed/retired rooms and continuous corridors,
-  including projected access as blueprints become buildings. Native zone census
-  and immediate entrance access now gate shell admission and dispatch; verify live
-  enclosed-farm refusal, interrupted batches, large zones and custom definitions,
-  and measure repeated preflight/dispatch observation latency.
-  Local four-neighbor interior/entrance connectivity now gates shell admission and
-  each dispatch batch using native cells and projected room shells. Verify native
-  sealed pockets, altered interiors and map edges; extend beyond the three-cell
-  observation margin to pawn-specific routes and other projected building types.
-  Run the prepared isolated `spatial_site_acceptance.py` probe on a stable native
-  DLL set before claiming real shell/farm admission and latency acceptance.
-  Compare sites using bounded terrain, supplies, danger, fertility and travel evidence. Accept
-  ruins/nonrectangular shelters; reject sealed rooms and blocked corridors beyond
-  immediate entrances. Validate native floor/roof/area/designator coverage before adding tools.
-- [ ] **B07 · Durable project scheduling.** Extend basic building/zone/installation
-  reconciliation with maintained functional goals, resource competition and
-  production consumption. Verify dependent work, player edits, save rewinds and
-  interrupted/resumed work retain identity without duplicates. Existing plan
-  dependencies, cancellation, revision guards and event triggers are implemented.
-  Execution budgets follow deterministic ready order when stock changes, retaining
-  full remaining batches, player reserves and uncertain-write costs. Verify live
-  production consumption and competing project dispatch/restock/restart behavior;
-  controller fixtures do not establish native scheduling acceptance.
-  Watchdog-held goals can continue after newly observed tracked completion while
-  preserving methods and receipts. Verify delayed native shell-to-furnishing work
-  and dependent-chain completion across held restart; current coverage is replay.
-  Exact geometry/kind/crop and building-facing expectations now protect new project
-  dependencies from observed native edits. Verify live player edits and load/rewind
-  recovery; migrate legacy targets lacking expectations only with grounded evidence.
-  Extend zone contracts to stockpile filters/priority and sow/cut settings, and native
-  facing observations to invariant values across game languages.
+- [ ] **B06 � Spatial architecture.** Add long-term layout, functional room roles,
+  staged construction and reuse of ruins/nonrectangular shelters. Compare bounded
+  alternatives using native terrain, supplies, danger, fertility and travel evidence.
+  Extend spatial protection to observed/retired rooms, continuous corridors,
+  pawn-specific routes beyond the three-cell margin, and projected obstruction
+  from building types beyond room shells. Validate native floor/roof/area/designator
+  coverage before adding tools.
+  Run `spatial_site_acceptance.py` on a stable native DLL set for shell admission,
+  enclosed-farm refusal and latency evidence. Broaden game-level acceptance to
+  ordinary pawn construction, live player edits, interrupted batches, large zones,
+  custom definitions, sealed pockets, altered interiors and map edges. Measure
+  repeated preflight/dispatch observation cost; controller fixtures do not establish
+  native routes, construction completion or throughput.
+- [ ] **B07 � Durable project scheduling.** Extend maintained functional goals,
+  resource competition and production-consumption accounting through the shared
+  plan and Hands; coordinate ingredient-policy coverage with B04e. Verify real
+  consumption, competing project dispatch/restock, delayed shell-to-furnishing work
+  and dependent chains across held restart. Cover player edits, save rewinds and
+  interrupted/resumed work without losing identities, reservations or receipts and
+  without duplicate orders; controller replay is not native scheduling acceptance.
+  Broaden native edit/load/rewind acceptance for exact zone and building-facing
+  postconditions. Migrate legacy targets lacking expectations only with grounded
+  evidence. Extend zone contracts to stockpile filters/priority and sow/cut settings,
+  and expose invariant native facing across game languages.
 - [ ] **B08 · Native forecasts.** Audit available inputs, then add nutrition,
   diet/access/inventory-aware consumption, spoilage, harvest uncertainty, animal
   feed and labor demand. Extend medical/power/mood risk projections only from
