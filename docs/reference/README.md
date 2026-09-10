@@ -22,6 +22,7 @@ conceptual introduction, start with [the system overview](../explanation/overvie
 - [Action completion contracts](action-contracts.md)
 - [Medical care and surgery contracts](medical-care.md)
 - [Spatial contracts](spatial-contracts.md)
+- [Material extraction contracts](mining-contracts.md)
 - [Recovery and uncertain-write contracts](recovery-contracts.md)
 
 ## Session, storage and presentation contracts

@@ -84,6 +84,7 @@ async def test_unavailable_stockpile_preview_refuses_before_any_write(existing):
     from rimbot.hands import Hands
 
     action = Zone(zone_type='stockpile', label='Supplies',
+                  preset='nothing', allow=['Steel'],
                   patches=[dict(x=10, z=10, width=1, height=1)])
     zone = dict(id=7, label='Supplies', type='Zone_Stockpile',
                 gridCells=[dict(x=10, z=10)])
@@ -93,3 +94,5 @@ async def test_unavailable_stockpile_preview_refuses_before_any_write(existing):
     with pytest.raises(ValueError, match='Exact native stockpile settings unavailable'):
         await Hands().zone(rt, action, StepProgress(), '0', 0, 'load', 0)
     rt.native.assert_not_awaited()
+    preview = rt.inspect_native.await_args.args[1]
+    assert preview['preset'] == 'nothing' and preview['allow'] == 'Steel'

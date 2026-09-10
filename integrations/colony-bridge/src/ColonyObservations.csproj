@@ -21,6 +21,7 @@
     <Compile Include="../../../scripts/fixtures/HusbandryFixture.cs" Condition="'$(HusbandryFixture)' == 'true'" />
 
     <Compile Include="../../../scripts/fixtures/MedicalManagementFixture.cs" Condition="'$(MedicalManagementFixture)' == 'true'" />
+    <Compile Include="../../../scripts/fixtures/MiningFixture.cs" Condition="'$(MiningFixture)' == 'true'" />
     <Compile Include="../../../scripts/fixtures/TradeFixture.cs" Condition="'$(TradeFixture)' == 'true'" />
     <Compile Include="../../../scripts/fixtures/ScenarioStartFixture.cs" Condition="'$(ScenarioStartFixture)' == 'true'" />
     <Compile Include="../../../scripts/fixtures/ConstructionLedgerFixture.cs" Condition="'$(ConstructionLedgerFixture)' == 'true'" />

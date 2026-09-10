@@ -364,6 +364,8 @@ class Hands:
                 preview_args = dict(op='filter', zone=str(matches[0]['id']), priority=action.priority, dryRun=True)
                 if action.preset:
                     preview_args['preset'] = action.preset
+                if action.allow:
+                    preview_args['allow'] = ','.join(action.allow)
                 preview = await rt.inspect_native('home/zone_cells', preview_args)
                 expected_settings = zone_settings(dict(type='Zone_Stockpile', priority=action.priority, filter=preview.get('after')))
             if zone_settings(matches[0]) != expected_settings or (action.crop and matches[0].get('plantDef') != action.crop):
@@ -373,6 +375,8 @@ class Hands:
                 cells=';'.join(f'{x},{z}' for x,z in cells), priority=action.priority)
             if action.preset:
                 args['preset'] = action.preset
+            if action.allow:
+                args['allow'] = ','.join(action.allow)
             if action.crop:
                 args['plant'] = action.crop
             preview = await rt.inspect_native('home/zone_cells', dict(args, dryRun=True))

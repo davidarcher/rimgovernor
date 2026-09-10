@@ -88,19 +88,53 @@ async def resource_method(rt, goal_id, facts):
     if stock >= target: return None
     sources = await rt.game.invoke('home/resource_sources', {'resource': resource})
     if sources.get('success') is not True: raise SkillBlocked('Native resource sources unavailable')
-    pending = sum(s['yield'] for s in sources.get('sources', []) if s.get('designated'))
+    if any(key in sources and sources[key] != rt.identity[key] for key in ('colonyId', 'loadToken', 'mapId')):
+        raise SkillBlocked('Native resource sources unavailable: colony/load/map changed')
+    goal.evidence['acquisition_blockers'] = sources.get('blocked', [])
+    goal.evidence['extractions'] = sources.get('extractions', [])
+    goal.evidence['extraction_infrastructure'] = sources.get('infrastructure')
+    rows = sources.get('sources', [])
+    # An older companion cannot certify excavation geometry.
+    rows = [s for s in rows if s.get('method') != 'mine' or s.get('safety') == 'open_surface']
+    pending = sources.get('pendingYield', sum(s['yield'] for s in rows if s.get('designated')))
     goal.evidence['pending_acquisition'] = pending
     needed = max(0, target - stock - pending)
     selected = []
-    for source in sources.get('sources', []):
+    for source in sorted(rows, key=lambda s: (s.get('distance', 0), s['thingId'])):
         if needed <= 0 or len(selected) == 8: break
         if source.get('designated') or source.get('yield', 0) <= 0: continue
+        if source.get('method') == 'mine' and selected: break
         selected.append(source); needed -= source['yield']
+        # One excavation identity per method preserves cancellation across changing
+        # stock targets without retaining an unbounded second source ledger.
+        if source.get('method') == 'mine': break
     if selected or pending:
-        goal.evidence['work_types'] = [w for source in sources.get('sources', [])
+        goal.evidence['work_types'] = [w for source in rows
             if source in selected or source.get('designated') for w in source.get('workTypes', [])]
     if selected:
-        return 'acquire-' + fingerprint([s['thingId'] for s in selected])[:12], [native('home/acquire_resource',
+        method = 'acquire-' + fingerprint([s['thingId'] for s in selected])[:12]
+        if goal.method_seen(method):
+            raise SkillBlocked('Previously issued extraction was interrupted; explicitly renew the resource goal after inspection')
+        if any(s.get('method') == 'mine' for s in selected) and 'storage' in sources:
+            storage = sources['storage']
+            goal.evidence['material_storage'] = storage
+            if not storage.get('haulers'):
+                raise SkillBlocked('Material storage unavailable: no eligible hauler')
+            goal.evidence['work_types'].append(storage['workType'])
+            capacity_needed = sum(s['yield'] for s in selected) + pending
+            if storage['capacity'] < capacity_needed:
+                import math
+                cells = storage['candidates'][:math.ceil((capacity_needed - storage['capacity']) / storage['stackLimit'])]
+                if not cells:
+                    raise SkillBlocked('Material storage unavailable: no safe free storage space')
+                storage_method = 'material-storage-' + fingerprint({'resource': resource, 'cells': cells})[:12]
+                if goal.method_seen(storage_method):
+                    raise SkillBlocked('Material storage unavailable: previously issued storage changed; inspection required')
+                return storage_method, [{'kind': 'create_zone', 'zone_type': 'stockpile', 'label': 'RimBot ' + storage_method,
+                    'preset': 'nothing', 'allow': [resource], 'priority': 'Important',
+                    'patches': [dict(c, width=1, height=1) for c in cells]}]
+        goal.evidence['selected_sources'] = [{k: s[k] for k in ('thingId', 'resource', 'x', 'z', 'yield')} for s in selected]
+        return method, [native('home/acquire_resource',
             **{k: rt.identity[k] for k in ('colonyId', 'loadToken', 'mapId')},
             **{k: s[k] for k in ('thingId', 'resource', 'x', 'z')}) for s in selected]
     if pending: return None
@@ -142,7 +176,7 @@ async def refresh_resource_prerequisite(rt, goal_id, facts):
     goal=rt.current_plan.colony_goals[goal_id]
     if goal.cancelled or goal.status != 'blocked' or not goal.reason.startswith((
             'No available native production recipe', 'Resource stock is unavailable',
-            'Native resource sources unavailable')):
+            'Native resource sources unavailable', 'Material storage unavailable')):
         return False
     try:
         await resource_method(rt, goal_id, facts)

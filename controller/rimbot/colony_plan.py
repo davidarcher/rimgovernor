@@ -80,12 +80,15 @@ class Zone(Contract):
     patches: list[Rectangle] = Field(min_length=1, max_length=32)
     crop: str = Field(default='', description='Required and nonempty for growing zones: an observed sowable native definition. Stockpiles do not require a crop.')
     preset: str | None = None
+    allow: list[str] = Field(default_factory=list, max_length=64)
     priority: Literal['Low', 'Normal', 'Preferred', 'Important', 'Critical'] = 'Normal'
 
     @model_validator(mode='after')
     def crop_required(self):
         if self.zone_type == 'growing' and not self.crop:
             raise ValueError('A growing zone needs an observed sowable crop definition')
+        if self.zone_type == 'growing' and self.allow:
+            raise ValueError('Resource filters require a stockpile')
         return self
 
 

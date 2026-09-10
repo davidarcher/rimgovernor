@@ -58,6 +58,67 @@ async def test_pending_acquisition_bounds_new_designations_without_satisfying_ta
 
 
 @pytest.mark.asyncio
+async def test_mining_selects_nearest_safe_source_and_replenishes_from_fresh_deposit():
+    rt, identity, facts = target(quantity=1)
+    def source(name, distance, safety='open_surface'):
+        return dict(thingId=name, resource='Steel', method='mine', safety=safety,
+                    distance=distance, x=distance, z=1, yield_=10, designated=False)
+    rows = [source('unsafe', 1, 'unknown'), source('far', 9), source('near', 3)]
+    for row in rows: row['yield'] = row.pop('yield_')
+    rt.game = SimpleNamespace(invoke=AsyncMock(return_value={'success':True,'sources':rows}))
+    method, actions = await resource_method(rt, identity, facts)
+    assert actions[0]['arguments']['thingId'] == 'near'
+    goal = rt.current_plan.colony_goals[identity]
+    goal.evidence['methods'] = {method: ['issued-step']}
+    goal.target['quantity'] = 25
+    with pytest.raises(SkillBlocked, match='interrupted'):
+        await resource_method(rt, identity, facts)
+    goal.target['quantity'] = 1
+    rows.remove(rows[-1])
+    _, actions = await resource_method(rt, identity, facts)
+    assert actions[0]['arguments']['thingId'] == 'far'
+    assert goal.evidence['stock'] == 0
+
+
+@pytest.mark.asyncio
+async def test_truncated_census_accounts_for_all_pending_yield():
+    rt, identity, facts = target(quantity=100)
+    rt.game = SimpleNamespace(invoke=AsyncMock(return_value={
+        'success': True, 'sources': [], 'pendingYield': 120, 'truncated': True}))
+    assert await resource_method(rt, identity, facts) is None
+    assert rt.current_plan.colony_goals[identity].evidence['deficit'] == 100
+
+
+@pytest.mark.asyncio
+async def test_changed_load_source_observation_cannot_compile_orders():
+    rt, identity, facts = target()
+    rt.game = SimpleNamespace(invoke=AsyncMock(return_value={
+        'success':True, 'sources':[], 'loadToken':'other-load'}))
+    with pytest.raises(SkillBlocked, match='changed'):
+        await resource_method(rt, identity, facts)
+
+
+@pytest.mark.asyncio
+async def test_mining_stages_exact_resource_storage_before_designating():
+    rt, identity, facts = target(quantity=10)
+    sources = {'success': True, 'sources': [dict(thingId='ore', resource='Steel', method='mine',
+        safety='open_surface', x=10, z=10, **{'yield': 40})], 'storage': {
+        'capacity': 0, 'stackLimit': 75, 'haulers': ['hauler'], 'workType': {'name': 'Hauling'},
+        'candidates': [{'x': 2, 'z': 3}]}}
+    rt.game = SimpleNamespace(invoke=AsyncMock(return_value=sources))
+    method, actions = await resource_method(rt, identity, facts)
+    steps, _ = ColonySkills(rt).steps(identity, method, actions, facts)
+    assert steps[0].action.kind == 'create_zone'
+    assert steps[0].action.allow == ['Steel'] and steps[0].action.preset == 'nothing'
+    sources['storage']['capacity'] = 75
+    _, actions = await resource_method(rt, identity, facts)
+    assert actions[0]['tool'] == 'home/acquire_resource'
+    sources['storage']['haulers'] = []
+    with pytest.raises(SkillBlocked, match='no eligible hauler'):
+        await resource_method(rt, identity, facts)
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize('mode, existing_target, count', [('Forever',0,0),('TargetCount',100,0),('TargetCount',50,1),('RepeatCount',0,1)])
 async def test_existing_bill_capacity_must_cover_the_maintained_target(mode, existing_target, count):
     rt, identity, facts = target()
