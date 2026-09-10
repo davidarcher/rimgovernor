@@ -1,0 +1,28 @@
+# Diagnostic evidence and recorder limits
+
+[Documentation](../README.md)
+
+There are useful flight-recorder components, but no complete correlated failure bundle
+or general offline replay workflow yet:
+
+| Evidence | Available behavior and limits |
+| --- | --- |
+| Controller SQLite (`store.py`) | Persists state, events and retired action/method evidence. Event history can include diagnostics; default history excludes diagnostic kinds. |
+| `GET /api/diagnostics` | Read-only latest 100 events for the current colony, including diagnostics; not a complete run export. |
+| Tool diagnostics | Planner tool arguments/results, outcomes and timing are recorded with bounded payloads. Runtime native dispatches record tool results and receipts; this is not exhaustive coverage of background reads or failed/pre-dispatch calls. |
+| `ReviewEvidence` | Exact observations within a review, held in memory with a byte budget and eviction; not durable recording across process failure. |
+| Decision storage helpers | `Store.decision`, `finish_decision` and `read_decision` support compressed snapshots capped at 64, but currently have no runtime callers. Do not assume a run populated them. |
+| Native Docker output | Worker logs, `run/Player.log`, staging/input manifests, controller data, and any captured frames or successful paired checkpoints survive container removal. The native runner's `result.json` describes its assertions and cleanup. |
+
+For a failed Docker run, start with `result.json` and the numbered worker's
+`container.log`, then inspect native logs and retained controller evidence. A failure
+before report creation may leave only console/build output. Keep the whole output tree;
+a game crash may prevent a final paired checkpoint. Existing evidence cannot be assumed
+to reconstruct every observation or pawn transition. The correlated recorder, automatic
+failure export and reusable regression loop are unfinished B17 work in
+[BACKLOG.md](../BACKLOG.md).
+
+## Related reading
+
+[Inspect a failed run](../how-to/inspect-failure.md) · [Persistence
+contracts](persistence-contracts.md)

@@ -1,122 +1,51 @@
 # RimBot
 
-A local RimWorld colony controller using **RimBridgeServer**, the **RimBot Colony
-Bridge** companion, GABS, Python and a React dashboard. RIMAPI is no longer a
-runtime dependency or supported backend.
+A local RimWorld colony controller with a React dashboard. Deterministic systems
+handle routine colony needs; a local model interprets explicit player chat and
+offers advice. Both use one durable plan and Hands executor through
+GABS/RimBridgeServer and the RimBot colony bridge companion. RimWorld owns the
+simulation and ordinary game rules.
 
-## Launch
+## Start here
 
-Autopilot runs without a model. For interactive chat, start LM Studio's local
-server with the configured model loaded (Qwen3.5-9B by default), then run:
+| You want to… | Read |
+| --- | --- |
+| Learn the development workflow without game files | [Your first Docker test](docs/tutorials/first-docker-test.md) |
+| Set up or launch the application | [Windows setup](docs/how-to/setup.md) · [Launch a prepared colony](docs/how-to/launch.md) |
+| Understand the internals | [System overview](docs/explanation/overview.md), then [plans and Hands](docs/explanation/plans-and-hands.md) |
+| Find a command, contract or module | [How-to guides](docs/how-to/README.md) · [Technical reference](docs/reference/README.md) |
+| See remaining work | [Backlog](docs/BACKLOG.md) |
+
+The [documentation home](docs/README.md) offers a reading path through the
+internals and separates tutorials, how-to guides, reference and explanation.
+
+## Launch an existing setup
 
 ```powershell
 .\launch.cmd
 ```
 
-The dashboard opens at http://127.0.0.1:8787 in Manual mode. If RimWorld is not
-running, the launcher starts the prepared isolated eight-tribal fixture. If a
-native bridge game/controller is already running, it is reused. Enable Run in
-background in RimWorld. Automate pauses for its initial review, then resumes.
+The dashboard opens at [localhost:8787](http://127.0.0.1:8787) in Manual mode.
+The launcher starts the prepared isolated colony or reuses a running native
+bridge session. A clean checkout first needs the licensed game, native mods,
+GABS and the prepared fixture described in [setup](docs/how-to/setup.md).
+Autopilot requires no inference; player chat needs the configured local model
+loaded in LM Studio.
+
+## Work on the project
+
+Follow [AGENTS.md](AGENTS.md), then [choose checks](docs/how-to/choose-tests.md)
+for the change. To run Linux controller tests without a local project environment:
 
 ```powershell
-.\launch.cmd -FreshGame              # Require a new fixture; close existing game/controller first
-.\launch.cmd -NoGame                 # Connect to an already running bridge game
-.\launch.cmd -NoBrowser
-.\launch.cmd -Model qwen3.5-4b        # Use this model if loaded in LM Studio
+python scripts/container_checks.py --workers 1 --image rimbot-checks:my-task --output .rimbot/docker-checks-01
 ```
 
-`launch-bridge.ps1` forwards to the same launcher. There is no backend selector.
-The old NormalGame/QuickTest flags are retired; this launcher uses the prepared
-GABS profile. It does not silently alter your normal saves or mod selection.
+Use Python 3.12+, a running Linux Docker daemon and a new output directory.
+[Docker instructions](docs/how-to/docker-checks.md) cover artifacts and focused
+tests; [native Docker acceptance](docs/how-to/docker-native.md) runs actual games.
 
-## Setup
-
-Requires Python 3.12+, Node.js 22+, pnpm, RimWorld 1.6, Harmony, RimBridgeServer,
-and the compiled companion. GABS is the bridge process, not an HTTP game proxy.
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\setup.ps1
-# With RimWorld closed and the .NET SDK available:
-powershell -ExecutionPolicy Bypass -File scripts\build_observation_bridge.ps1 -Install
-```
-
-Prepare the isolated profile using `scripts/prepare_bridge_trial.py` with
-`--observations`, `--source-profile` pointing to the normal RimWorld save folder,
-and `--rimworld` pointing to the game install. This requires the checkpointed
-`RimBot-tribal8-baseline.rws` fixture. It copies the fixture and strips its retired
-mod component from the copy, never the original.
-
-The existing local installation keeps GABS v1.1.1 at
-`.rimbot/bridge/gabs/gabs-v1.1.1-windows-amd64/gabs.exe` and its configuration at
-`.rimbot/bridge/config/config.json`. These binaries and the test save are not in
-Git. A clean checkout needs those prerequisites; setup.ps1 does not download or
-create them. LM Studio defaults to http://127.0.0.1:1234/v1.
-
-## Current interface
-
-- **Colony:** resizable game snapshots, player chat and a short next-step summary.
-- **Autopilot:** live food/wood/shelter readings, verified gates, goals/blockers and editable deterministic targets.
-- **Projects:** long-term/current plan and native order receipts.
-- **Activity:** outcomes with tool details collapsed.
-
-Snapshots refresh every few seconds; this is not a continuous video stream.
-The deterministic controller owns routine operation. Player chat uses a local LLM
-as command interpreter and advisor. Both paths share persistent goals, resource
-policies, validation and Hands. Explicit chat actions can dispatch in Manual while
-time stays paused; Automate also runs routine work. Receipts do not mean pawn
-labor has finished. See [the architecture](docs/ARCHITECTURE.md).
-
-## Optional local model roles
-
-Interactive chat uses the `strategist` model role; autopilot needs no inference. To configure a generic 4B analyst, copy/edit
-`config/models.example.json`, then restart the controller with:
-
-```powershell
-.\launch.cmd -ModelsConfig config\models.example.json
-```
-
-Role names are `strategist`, `analyst`, `architect`, and `critic`. All optional roles
-can be omitted or point at the same loaded model. Consultations happen only when
-the strategist asks a specific question; there is no domain-manager fan-out.
-
-## Project documentation
-
-- [Architecture](docs/ARCHITECTURE.md): runtime pieces, ownership, contracts and data flow.
-- [Backlog](docs/BACKLOG.md): prioritized implementation, audit and gameplay acceptance work.
-- [Testing](docs/TESTING.md): test selection, local/Docker checks, native acceptance,
-  real-model probes, headless campaigns and benchmarks.
-
-Plans, projects and notes persist by saved colony identity/map. Save after identity
-attachment to retain it across game restarts. Strategy cards are available through
-planner retrieval; optional advisers remain read-only. The combined autonomous
-eight-tribal starter foothold is not yet demonstrated.
-
-## Development
-
-Choose checks with the [test selection guide](docs/TESTING.md#choose-the-test-scope).
-For Docker checks without a local project environment, game files or LM Studio:
-
-```powershell
-python scripts/container_checks.py --workers 2 --image rimbot-checks:my-task --output .rimbot/docker-checks-01
-```
-
-Start Docker with Linux containers and use Python 3.12+. The output directory must
-not already exist. Each worker runs the full controller suite; dashboard checks
-run during image build. See [Docker instructions](docs/TESTING.md#docker-controller-checks-no-game-required)
-for results, focused tests and the separate native-game runner.
-
-For an existing local setup:
-
-```powershell
-.venv\Scripts\python.exe -m pytest -q
-.venv\Scripts\python.exe scripts\generate_bridge_observation.py --check
-powershell -ExecutionPolicy Bypass -File .\build.ps1
-```
-
-Normal `python -m rimbot` starts only the bridge backend. Controller tests verify
-protocols and decisions, not sustained colony survival. Native source provenance
-is in `integrations/colony-bridge/PROVENANCE.md`; upstream license notices retained
-under `third_party` also cover inherited dashboard material. No model API calls
-or game mutations run as part of the unit test suite.
-
-For real-model and native gameplay verification, use the [testing runbook](docs/TESTING.md).
+Native receipts describe accepted orders, not completed pawn labor. The
+[testing explanation](docs/explanation/testing.md) defines the evidence boundaries.
+Source attribution and licenses remain in [THIRD_PARTY.md](THIRD_PARTY.md) and the
+integration provenance files. RIMAPI is not a supported runtime backend.

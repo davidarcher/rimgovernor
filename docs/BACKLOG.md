@@ -3,8 +3,9 @@
 This is the single queue for implementation gaps, remaining reuse audits and
 gameplay acceptance. Work top-down within each priority. Check the current code
 before adding an API; available native tools often need acceptance, not rebuilding.
-Architecture belongs in [ARCHITECTURE.md](ARCHITECTURE.md), procedures in
-[TESTING.md](TESTING.md). Remove completed items once their evidence is recorded
+Understanding belongs in [explanation](explanation/overview.md), exact contracts in
+[reference](reference/README.md), and procedures in [how-to guides](how-to/README.md).
+Use the [documentation map](README.md) to navigate. Remove completed items once their evidence is recorded
 in the checkpoint commit; do not append an implementation diary here.
 
 ## P0 — Reliable startup execution

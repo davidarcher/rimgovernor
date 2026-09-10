@@ -13,9 +13,11 @@
 
 ## Architecture and implementation
 
-- Read [architecture](docs/ARCHITECTURE.md), the [backlog](docs/BACKLOG.md) and
-  [testing runbook](docs/TESTING.md). Runtime: Python, React, GABS/RimBridgeServer
-  and `integrations/colony-bridge`.
+- Start with the [documentation map](docs/README.md), [system overview](docs/explanation/overview.md),
+  [backlog](docs/BACKLOG.md) and [test selection](docs/how-to/choose-tests.md).
+  Read the linked explanation and reference for the subsystem being changed;
+  use task-specific how-to guides for commands. Runtime: Python, React,
+  GABS/RimBridgeServer and `integrations/colony-bridge`.
 - Keep one shared goal/action system and deterministic Hands. Routine control is
   deterministic; player chat interprets explicit semantic requests. Advisers cannot
   write game orders or own colony invariants.
@@ -29,10 +31,11 @@
 
 ## Validation
 
-- Start with the [test selection guide](docs/TESTING.md#choose-the-test-scope).
-  [Docker controller checks](docs/TESTING.md#docker-controller-checks-no-game-required)
+- Start with the [test selection guide](docs/how-to/choose-tests.md).
+  [Docker controller checks](docs/how-to/docker-checks.md)
   need no game files or model server; the separate native Docker runner needs
-  licensed Linux inputs and verifies game lifecycle, not completed pawn work.
+  licensed Linux inputs. Its current assertions cover lifecycle and optional
+  rendered/input behavior; native pawn outcomes require scenario assertions.
   Use fresh output directories and task-specific image tags; retain reports and
   failures under `.rimbot/` and report the exact scope tested.
 - Use checks appropriate to the change; `build.ps1` runs controller and dashboard
@@ -47,6 +50,9 @@
 - Keep prose and code comments concise and forward-looking. Explain current
   behavior, contracts, constraints and useful rationale; no design archeology,
   chronological implementation diaries or accounts of superseded approaches.
+- Organize docs by purpose: tutorials teach through an exercise, how-to guides
+  solve a task, reference states exact contracts, and explanation develops the
+  reader's understanding. Keep the [documentation map](docs/README.md) current.
 - Keep all unfinished implementation, audit and acceptance work in
   `docs/BACKLOG.md`. Update architecture and procedures when behavior changes.
 - Put iteration evidence in commit messages and generated test artifacts. Preserve

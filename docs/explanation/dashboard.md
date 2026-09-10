@@ -1,0 +1,56 @@
+# The dashboard and game view
+
+[Documentation](../README.md) · [System overview](overview.md)
+
+The dashboard presents the controller's shared state and gives the player a way to
+direct it. It is not another planner. Its goals, blockers, policies and receipts refer
+to the same records used by automation and chat.
+
+## Presentation should survive background work
+
+The interface refreshes compact state while preserving drafts and the last good data. A
+slow or failed refresh should not erase a message being composed or replace a useful
+view with empty state. Raw identifiers and detailed tool evidence belong in diagnostics
+so the main view can explain what is happening in colony terms.
+
+The main navigation is Watch, Priorities, Work and Colony. Watch combines the game view
+and chat. Priorities explains policy and verified gates; Work shows plans and their
+progress, with activity available as a related view. These are different views of one
+controller.
+
+## Video and simulation are independent
+
+The game may run while video is paused, or the view may remain active while the
+simulation is paused. Viewer leases request native capture only while a viewer needs it.
+Pausing video does not issue a game-time command.
+
+When supported, the view receives WebRTC video from native capture through the Python
+server. The stream keeps the latest frame instead of queuing old frames. Unsupported or
+stalled streaming falls back to snapshots, retaining the last good image. Headless
+sessions cannot provide game images.
+
+This means a smooth picture and a healthy simulation are different observations. Decoded
+frame rate says something about delivery to the browser; it does not measure controller
+throughput or prove low end-to-end input latency.
+
+## Viewing does not grant control
+
+Player time controls enter Manual. A separate load-scoped lease owns dashboard player
+input. Taking control stops routine ownership before accepting that input; releasing
+control leaves a Manual hold until an explicit automation resume. Stale or competing
+viewers cannot reuse an old lease after a context change.
+
+Camera navigation and stable-ID colonist selection use discovered native contracts and
+readback. They do not imply that arbitrary clicks, dragging or modifiers are already
+supported. Those broader interaction scenarios remain in the backlog.
+
+Action follow is a separate presentation option for supported writes. It can show an
+issued order, but it does not track all subsequent pawn labor or certify that the work
+completed.
+
+The React entry point is
+[BridgeColony.tsx](../../dashboard/src/features/manager/BridgeColony.tsx). Server-side
+controls are in [dashboard_controls.py](../../controller/rimbot/dashboard_controls.py).
+See [interface contracts](../reference/interface-contracts.md) for lease, capture and
+transport details, or [dashboard acceptance](../how-to/dashboard-acceptance.md) for
+verification procedures.
