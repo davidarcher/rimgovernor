@@ -114,4 +114,7 @@ async def compile_method(rt, goal, facts, people):
     if work:
         goal.evidence['refusals'] = refusals
         raise SkillBlocked('Recovery requires reachable permitted supplies and an available native worker')
+    plan = getattr(rt, 'current_plan', None)
+    if plan and 'infrastructure' in plan.control.get('disaster_recovery', {}).get('deficits', []):
+        raise SkillBlocked('Tracked infrastructure is missing or protected; accepted rebuilding or player direction is required')
     return None

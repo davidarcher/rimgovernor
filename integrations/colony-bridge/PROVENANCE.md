@@ -14,6 +14,13 @@ RimWorld and RimBridgeServer SDK assemblies are referenced, never bundled.
 Any subsequent source modifications must be recorded here and tested in-game.
 
 Local changes:
+- `RecoveryTools.cs`, `RecoveryAreaOwnership.cs` and `identity/RecoveryAreas.cs`
+  are original local recovery observation, guarded native WorkGiver dispatch and
+  bounded allowed-area ownership code. `ColonyFactsTool.cs` adds native condition
+  identities, building service state and allowed-area-aware stock access.
+  `DisasterFixture.cs` supplies optional disposable condition, damage and crop-loss
+  inputs; normal builds and the model gateway exclude its tools. Recovery labor
+  remains native; no game source or assemblies are bundled.
 - `WasteTools.cs` is original local waste census and guarded hauling code. It
   discovers hauling WorkGivers and retains their jobs, using the same native
   scanner eligibility pattern documented in the attributed `OrderTool.cs`.
@@ -140,7 +147,8 @@ The temporary standalone overlay is replaced by the dashboard on port 8787.
   nonserialized load token. Attaches the component when bridge extension loading
   occurs after Verse has cached component types. Only controller metadata changes.
 - Python `receipts.py` copies reason/_outcome/verdict_line from upstream
-  instruments/build.py; preserves explicit native placement outcomes.
+  instruments/build.py; preserves explicit native placement outcomes and accepts
+  the native `reason` field for guarded recovery refusal diagnostics.
 - The instruments audit identifies the upstream instant gear-drop path as a
   departure from ordinary pawn labor. The model gateway rejects that operation.
 

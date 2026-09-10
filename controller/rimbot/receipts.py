@@ -12,7 +12,7 @@ def reason(r):
     """
     if not isinstance(r, dict):
         return "the bridge did not return a payload: %.200r" % (r,)
-    for key in ("message", "error", "detail"):
+    for key in ("message", "error", "detail", "reason"):
         v = r.get(key)
         if isinstance(v, str) and v.strip():
             return v.strip()

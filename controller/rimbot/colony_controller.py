@@ -141,7 +141,7 @@ class ColonyController:
         if recovery and recovery['phase'] != 'restored':
             from .service_recovery import pending
             services = pending(facts.get('recovery', {}))
-            if services or services is None or facts.get('recovery', {}).get('roofHazard'):
+            if services or services is None or facts.get('recovery', {}).get('roofHazard') or 'infrastructure' in recovery['deficits']:
                 nodes.append(('RecoverDisasterServices', 2))
         for name, value in plan.control['latches'].items():
             if old_latches.get(name) != value:

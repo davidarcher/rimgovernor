@@ -102,6 +102,7 @@ def criteria(facts, policy):
         'power': (not facts.get('powerRequired', True) or (facts.get('powerHeadroom') is not None
                                                          and facts['powerHeadroom'] >= 0))
                  and not any(b.get('powerOn') is False and not b.get('forbidden')
+                             and b.get('powerConsumer', True) and b.get('switchedOn', True)
                              for b in facts.get('recovery', {}).get('buildings', [])),
         'medical': facts.get('medicalKnown') is True and facts.get('criticalPatients') == [],
         'defense': facts.get('hostiles') == 0 and facts.get('armed', 0) >= min(2, count),

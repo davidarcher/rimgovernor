@@ -44,6 +44,10 @@ def test_refuel_requires_increase_and_power_requires_actual_service():
     value = stable()
     value['recovery'] = state(row)
     assert not criteria(value, ColonyPolicy())['power']
+    row['switchedOn'] = False
+    assert criteria(value, ColonyPolicy())['power']
+    row.update(switchedOn=True, powerConsumer=False)
+    assert criteria(value, ColonyPolicy())['power']
 
 
 def test_missing_damaged_target_and_missing_state_do_not_restore_episode():
@@ -80,3 +84,22 @@ async def test_compile_keeps_native_completion_and_exact_target():
 def test_recovery_cannot_use_receipt_only_completion():
     with pytest.raises(ValueError, match='Recovery requires'):
         NativeOperation(tool='home/recover_service', arguments={'thingId': 'Thing_Stove1', 'pawn': 'Thing_Pawn1', 'method': 'repair'})
+
+
+def test_native_recovery_refusal_reason_is_visible():
+    from rimbot.receipts import reason
+    assert reason({'success': True, 'accepted': False, 'error': None, 'reason': 'Roofed refuge inaccessible'}) == 'Roofed refuge inaccessible'
+
+
+@pytest.mark.asyncio
+async def test_live_gateway_allows_recovery_reads_but_not_recovery_writes():
+    from mcp.types import CallToolResult
+    from rimbot.bridge_game import BridgeGame
+    bridge = AsyncMock()
+    bridge.detail.return_value = CallToolResult(content=[], structuredContent={
+        'inputSchema': {'type': 'object', 'properties': {}}})
+    bridge.call.return_value = CallToolResult(content=[], structuredContent=state(building()))
+    game = BridgeGame(bridge)
+    assert (await game.query('home/recovery_state'))['buildings'][0]['hitPoints'] == 50
+    with pytest.raises(ValueError, match='approved observation'):
+        await game.query('home/recover_service')

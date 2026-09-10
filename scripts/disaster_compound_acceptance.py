@@ -43,6 +43,8 @@ async def run():
         await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
             reason='Compound native recovery acceptance', steps=steps).decision(rt.current_plan),
             actor='strategist', expected_token=rt.context_token, expected_revision=rt.chat_revision)
+        goal = rt.current_plan.colony_goals[identity]
+        goal.steps.extend(s.id for s in steps if s.id not in goal.steps)
         rt.manual_requests.extend((s.id, rt.context_token, rt.chat_revision) for s in steps)
         for _ in steps:
             await rt.execute_manual_requests()
@@ -62,7 +64,8 @@ async def run():
         except SkillBlocked as error:
             if not optional:
                 raise
-            report.setdefault('refusals', []).append(str(error))
+            report.setdefault('refusals', []).append(dict(reason=str(error),
+                native=rt.current_plan.colony_goals[identity].evidence.get('refusals', [])))
             save()
             return []
         if selected is None:
@@ -80,8 +83,15 @@ async def run():
                 if not clock['active']:
                     break
                 await asyncio.sleep(.25)
+        allowed_stop = clock['stopReason'] in ('tick_budget', 'requested_pause')
+        if clock['stopReason'] == 'letter_pause':
+            status = await rt.game.query('home/status', colonists=False, threats=True)
+            people = await rt.game.query('home/list_pawns', colonistsOnly=True, health=True)
+            allowed_stop = (status['counts']['hostileCount'] == 0 and status['counts']['huntingPredatorCount'] == 0
+                            and not any(p.get('downed') or (p.get('health') or {}).get('needsTend') for p in people['pawns']))
+            report.setdefault('letter_stops', []).append(dict(clock=clock, status=status, people=people))
         record('native_tick_window', clock['pauseVerified'] and clock['lastTick'] > clock['startTick']
-               and clock['stopReason'] in ('tick_budget', 'requested_pause'), clock=clock)
+               and allowed_stop, clock=clock)
         rt.supervisor.absorb(clock)
         rt.clock_events.extend(await rt.supervisor.poll())
         rt.receive_clock_events()
@@ -117,6 +127,11 @@ async def run():
         refusal = await rt.inspect_native('home/recovery_area', dict(pawn=setup['pawn'], areaId=setup['refuge'], dryRun=True))
         record('player_override_preserved', refusal.get('accepted') is False, refusal=refusal)
         await advance()
+        for _ in range(4):
+            if not (await rt.game.query('home/recovery_state'))['roofHazard']:
+                break
+            await advance()
+        record('native_roof_hazard_expired', not (await rt.game.query('home/recovery_state'))['roofHazard'])
         report['released_supplies'] = (await rt.bridge.call('test/disaster_supplies', available=True)).structuredContent
         stock = await sample('permitted-fuel')
         await compile_goal('RecoverDisasterServices', optional=True)
@@ -133,7 +148,7 @@ async def run():
             ready_services = (by_id[setup['wall']]['hitPoints'] == by_id[setup['wall']]['maxHitPoints']
                               and by_id[setup['generator']]['hitPoints'] == by_id[setup['generator']]['maxHitPoints']
                               and by_id[setup['generator']]['fuel'] > 0 and by_id[setup['stove']]['powerOn'] is True
-                              and by_id[setup['campfire']]['fuel'] > 0 and crops['plantedCells'] > 0)
+                              and by_id[setup['campfire']]['fuel'] > 0 and crops['plantedCells'] >= setup['cropLoss'])
             if ready_services and not conditions:
                 restored = (after, by_id, crops)
                 break
@@ -148,6 +163,10 @@ async def run():
         record('native_fuel_consumption', after['resources'].get('WoodLog', 0) < stock['resources'].get('WoodLog', 0),
                before=stock['resources'], after=after['resources'], buildings=buildings, crops=crops)
         record('normal_cooking_service', any(b['id'] == setup['stove'] and b['usable'] for b in after['cooking']))
+        record('shared_hands_recovery_dispatched', any(
+            any(a.get('tool') == 'home/recover_service' for a in method['actions'])
+            and any(p['issued'].get('0', {}).get('confirmed') for p in method['progress'].values())
+            for method in report['methods']))
         report['passed'] = True
     except BaseException as error:
         report['error'] = repr(error)

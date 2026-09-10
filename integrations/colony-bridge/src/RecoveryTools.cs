@@ -39,6 +39,8 @@ namespace HomeBridge.BridgeTools
                         fuelTarget = b.TryGetComp<CompRefuelable>()?.TargetFuelLevel,
                         fuelDefs = b.TryGetComp<CompRefuelable>()?.Props.fuelFilter.AllowedThingDefs.Select(d => d.defName).ToList(),
                         powerOn = b.TryGetComp<CompPowerTrader>() == null ? (bool?)null : b.TryGetComp<CompPowerTrader>().PowerOn,
+                        powerConsumer = b.TryGetComp<CompPowerTrader>()?.Props.PowerConsumption > 0,
+                        switchedOn = b.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true,
                         forbidden = b.IsForbidden(Faction.OfPlayer), burning = b.IsBurning()
                     }).ToList() };
         }
