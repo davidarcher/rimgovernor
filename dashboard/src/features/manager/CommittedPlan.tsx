@@ -9,6 +9,12 @@ export type Committed = {
   controller?: {
     status?: string;
     execution_hold?: string;
+    development?: {
+      capacity: number;
+      available_workers: number;
+      committed: string[];
+      goals: Record<string, {score: number; selected: boolean; reason: string; committed: boolean}>;
+    };
     facts?: {
       foodRunwayDays?: number;
       resources?: Record<string, number>;

@@ -11,6 +11,22 @@ const settings:AutopilotSettings={version:'a'.repeat(64),source:'Defaults',value
 const props={settings,sessionId:'colony-a',connected:true,mode:'automate',onSaved:vi.fn()};
 afterEach(()=>{cleanup();vi.unstubAllGlobals();vi.clearAllMocks();});
 
+it('shows capacity deferrals and saves an integer development limit through the shared settings API',async()=>{
+ const configured={...settings,values:{...settings.values,max_development_projects:2},fields:[...settings.fields,
+  {key:'max_development_projects',group:'Development',label:'Concurrent projects',unit:'projects',help:'Limit new projects.',editable:true}]};
+ const fetch=vi.fn().mockResolvedValue({ok:true,json:async()=>({...configured,values:{...configured.values,max_development_projects:1}})});
+ vi.stubGlobal('fetch',fetch);
+ render(<Autopilot {...props} settings={configured} plan={{revision:0,rationale:'',goals:[],constraints:[],risks:[],steps:[],controller:{development:{capacity:2,available_workers:3,committed:['MaintainWood'],goals:{EnsureFoodStorage:{score:100,selected:false,reason:'Development capacity committed to earlier projects',committed:false}}}}}}/>);
+ expect(screen.getByText('1 committed projects · capacity 2 · 3 available workers')).toBeTruthy();
+ expect(screen.getByText(/Development capacity committed to earlier projects/)).toBeTruthy();
+ const limit=screen.getByLabelText('Development Concurrent projects') as HTMLInputElement;
+ expect(limit.step).toBe('1');
+ fireEvent.change(limit,{target:{value:'1'}});
+ fireEvent.click(screen.getByRole('button',{name:'Save settings'}));
+ await screen.findByText('Settings saved. Autopilot will use them on its next review.');
+ expect(JSON.parse(fetch.mock.calls[0][1].body).changes).toEqual({max_development_projects:1});
+});
+
 it('preserves edited values across polling and refuses stale settings until reloaded',async()=>{
  const view=render(<Autopilot {...props}/>);
  const target=screen.getByLabelText('Food Food target') as HTMLInputElement;

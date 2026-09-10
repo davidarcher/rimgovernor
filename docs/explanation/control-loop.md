@@ -28,6 +28,12 @@ describe work that Hands can execute. Keeping these identities lets a later revi
 continue existing work instead of creating another copy whenever a need is still
 present.
 
+Optional storage, defense and resource work competes for a bounded number of new
+projects. Observed deficits, player targets and waiting time determine their order.
+Accepted work retains its identity when capacity changes, and unavailable methods
+yield to other candidates. The dashboard shows why a goal is deferred. The bound uses
+available workers as a coarse limit; it does not promise a native completion time.
+
 For example, a food shortage may lead to ordinary wild-plant acquisition. Pending
 harvest yield limits additional designations, but the food goal cannot clear until
 observations establish adequate supply. An order and its expected yield serve different

@@ -28,6 +28,33 @@ separate entry/recovery thresholds. Emergencies suspend lower priority routine g
 Methods, blockers, provenance and progress evidence live in the existing SQLite-backed
 ColonyPlan.
 
+### Development admission
+
+Priority-class 3 goals for food storage, basic equipment defense, wood and maintained
+player resource targets share a deterministic admission order. Scores combine a
+0–100 observed deficit fraction, a 100-point player-target preference, one point per
+2,500 waiting game ticks and a 20-point selection hysteresis bonus. Stable goal IDs
+break ties. These weights are policy ordering, not measured benefit or time estimates.
+Unknown resource stock cannot admit a new project. Emergencies retain precedence.
+
+`max_development_projects` defaults to two and accepts integer values from one through
+eight through the versioned player settings API. Available capacity is the smaller of
+that limit and the freshly observed undrafted, living, non-downed workers without a
+mental state whose work settings apply. This is a coarse concurrency bound, not a
+profession-specific labor forecast. Accepted player projects and unfinished development
+actions consume slots; unresolved issued actions remain counted even when blocked or
+cancelled. Completed actions release their slot. Falling capacity never deletes or
+rewrites accepted orders, and explicit player work is not rejected by this optional-work
+limit. Native admission, material reservations and Hands dispatch guards still apply.
+
+Methods that cannot produce new work yield their admission slot to the next eligible
+candidate in the same review. Waiting age advances only with native ticks and resets
+for committed work; context/direction changes and tick rewinds reset ranking history.
+The shared plan retains the ranking, observed worker count and explicit deferral reasons
+under `control.development`; the dashboard displays them. Native labor forecasts remain
+evidence with unknown completion times. This ordering does not implement comfort,
+research or expansion methods, or establish their native gameplay acceptance.
+
 ## Method compilation and work allocation
 
 Methods compile small batches of semantic construction/zone/native actions. Starter

@@ -386,12 +386,17 @@ in the checkpoint commit; do not append an implementation diary here.
   player intervention; measure native damage, stock consumption and restored service.
 - [ ] **B29 · Colony-wide development priorities.** Arbitrate comfort, research,
   production, defense and expansion through the existing deterministic priority tree
-  and shared plans. Score observed deficits and bottlenecks against labor, resource
-  commitments, lead times and risk; preserve emergency precedence and player goals.
-  Add explicit deferred reasons, hysteresis and bounded concurrent projects to avoid
-  starvation or repeated redesign. Verify progress under competing demands and
-  changing colony capacity. Advisers may suggest priorities but cannot own invariants
-  or bypass admission; do not create a second planner/executor for development.
+  and shared plans. Extend the bounded storage/defense/resource admission order to
+  comfort (B19), research (B20) and expansion (B06/B06b) as their methods become
+  available. Replace coarse worker-count capacity with native profession-specific
+  labor, bottleneck, lead-time and risk scoring alongside shared resource commitments.
+  Preserve emergency precedence, player goals and explicit deferral reasons.
+  Calibrate deficit/age/hysteresis weights and verify starvation resistance under
+  actual competing native demands, capacity loss/recovery, player interruption,
+  uncertain writes and paired restarts, then sustained B04 campaigns. Controller
+  replay establishes bounded admission and retained identities, not actual pawn
+  progress or completion-time forecasts. Advisers may suggest priorities but cannot
+  own invariants or bypass admission; do not create a second planner/executor.
 
 All B19–B29 methods require native capability discovery, durable identities,
 player-direction/load guards, uncertain-write reconciliation and observable

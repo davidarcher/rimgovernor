@@ -6,6 +6,7 @@ from .colony_policy import ColonyPolicy, allocation, criteria, derive, priority_
 from .colony_skills import ColonySkills, SkillBlocked
 from .config import ModelRole
 from .strategic_state import fingerprint
+from .development_priorities import arbitrate, release_admission
 
 
 class ColonyController:
@@ -205,8 +206,10 @@ class ColonyController:
             self.event('bootstrap_stability_reached' if stable else 'bootstrap_stability_lost', 'EstablishFoothold', criteria=gates)
         plan.control['status'] = 'FOOTHOLD_STABLE' if stable else 'ESTABLISHING_FOOTHOLD'
         plan.control['simulation_needed'] = stable
+        nodes, development_admitted = arbitrate(plan, facts, people['pawns'], nodes, self.policy,
+                                                context=token, direction=direction)
         rt.persist()
-        for identity, _ in nodes:
+        for identity, node_priority in nodes:
             goal = plan.colony_goals[identity]
             if goal.status != 'active' or goal.cancelled: continue
             if identity in player_work:
@@ -228,13 +231,17 @@ class ColonyController:
                 goal.evidence['watchdog'] = dict(tick=facts['tick'], reason=reason,
                     completed_steps=[s for s in goal.steps if s in plan.progress and plan.progress[s].state == 'complete'])
                 self.block(goal, identity, reason)
+                release_admission(plan, identity, development_admitted, reason)
                 continue
             if any(p.state in ('pending', 'executing', 'waiting') for p in existing):
                 plan.control['simulation_needed'] = True
                 continue
+            if node_priority >= 3 and identity not in development_admitted:
+                continue
             try:
                 compiled = await self.skills.compile(identity, facts, people['pawns'])
                 if compiled is None:
+                    release_admission(plan, identity, development_admitted, 'Existing method awaiting native progress')
                     existing_process = (identity=='CriticalMedical' and any(p.get('job')=='TendPatient' for p in people['pawns'])) or (identity=='EnsureFoodSupply' and any(f.get('growingCells',0)>0 for f in facts.get('farms',[]))) or (
                         identity in ('EnsureFoodSupply','MaintainWood') and any(p.get('designated') for p in facts.get('acquisition',[])))
                     if goal.evidence.get('methods') or goal.archived_methods or existing_process or identity.startswith('MaintainResource-'): plan.control['simulation_needed'] = True
@@ -271,12 +278,14 @@ class ColonyController:
                 return
             except SkillBlocked as error:
                 self.block(goal, identity, str(error))
+                release_admission(plan, identity, development_admitted, str(error))
             except ValueError as error:
                 if rt.context_token != token or rt.chat_revision != direction: return
                 # Validation failed before dispatch. Preserve all prior effects;
                 # never silently relocate a partially designated structure.
                 goal.attempts += 1
                 self.block(goal, identity, str(error))
+                release_admission(plan, identity, development_admitted, str(error))
         self.finish_review()
 
     def block(self, goal, identity, reason):

@@ -19,8 +19,11 @@ class ColonyPolicy:
     wood_reserve: int = 30
     max_method_attempts: int = 3
     blocked_after_ticks: int = 60000
+    max_development_projects: int = 2
 
     def __post_init__(self):
+        if type(self.max_development_projects) is not int or not 1 <= self.max_development_projects <= 8:
+            raise ValueError('Development project limit must be an integer from 1 through 8')
         if self.execution_speed not in ('Normal', 'Fast', 'Superfast'):
             raise ValueError('Use a normal native game speed')
         if not 0 < self.food_min_days < self.food_target_days:
