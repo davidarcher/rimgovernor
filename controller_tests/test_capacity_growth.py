@@ -28,8 +28,8 @@ def test_growth_fields_preserve_existing_zones_and_room_access_and_bound_batch()
         cells={(x,z) for x in range(p['x'],p['x']+p['width']) for z in range(p['z'],p['z']+p['height'])}
         assert not cells&selected and not cells&protected_cells(plan) and all(x<30 for x,z in cells)
         selected|=cells
-    assert len(selected)==512  # The remaining thirteen cells require another bounded batch.
-    facts['farms'][0]['usableCells']=625
+    assert len(selected)==512  # Further cells require another bounded batch.
+    facts['farms'][0]['usableCells']=1209
     assert growth_fields(plan,facts)==[]
 
 

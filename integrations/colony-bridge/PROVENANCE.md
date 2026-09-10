@@ -54,7 +54,7 @@ Local changes:
   disposable starting-state setup, excluded from production/model access; actual
   custody, care and recruitment remain normal native pawn work.
 - `scripts/fixtures/FoodObservationFixture.cs` is optional original read-only test
-  code. It observes native ingestion and stack splits and retains food references
+  code. It observes native ingestion, stack splits, harvests and recipe products and retains food references
   for rot readback after destruction. It does not spawn, age or move food, alter
   temperatures, change pawn behavior or advance time. Default builds exclude it.
 - `ForecastFacts.cs` is original local read-only animal-feed, crop-work and

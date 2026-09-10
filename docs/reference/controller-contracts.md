@@ -170,7 +170,7 @@ observations remain unknown. Future harvest, changing temperatures, job selectio
 food sharing are not guaranteed. Harvest ETA remains an optimistic lower bound.
 
 The maintained food goal budgets each crop's capacity from native daily demand and
-yield, using the larger of its growth allowance and the persisted food target.
+yield, covering consumption during its growth allowance plus the persisted food reserve.
 Capacity includes native demand from colony animals permitted to eat that crop or
 preserved product; future grazing is not credited against this budget.
 Rice, potatoes and corn are ranked by native yield, soil response and remaining

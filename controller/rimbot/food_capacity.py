@@ -43,10 +43,10 @@ def field_target(facts, target_days=7, crop=None):
            or not isfinite(v) or v <= 0 for v in values):
         return None
     demand, grow_days, nutrition, target_days = values
-    # The existing 2.5 growth allowance covers a planning cycle. A larger
-    # player reserve requires enough yield to replenish that reserve per cycle.
+    # Budget consumption during the next growth cycle as well as the requested
+    # reserve. A cycle-only yield replaces consumption but cannot build a reserve.
     return max(facts.get('colonists', 0) * 10,
-               ceil(demand * max(grow_days * 2.5, target_days) / nutrition))
+               ceil(demand * (grow_days * 2.5 + target_days) / nutrition))
 
 
 def growing_cells(facts):

@@ -33,6 +33,13 @@ For packaged Docker sources without Git metadata, add `--source-snapshot` to has
 the packaged source bytes. Unavailable Git revision and dirty flags stay unknown.
 Sustained samples retain native food stocks, holders, rot forecasts, crop labor
 and cooking bills.
+With a private `FoodObservationFixture=true` build, add `--food-observer` and
+`--food-target-days 7` to require native crop harvests at least one game day apart,
+an observed seven-day accessible stock runway, and the usual sustained foothold
+window. The requested goal and policy target must remain intact throughout.
+`food-observer.json` retains actual native harvest/recipe products and ingestion;
+`food-acceptance.json` records the separate food assertions. Projected yields do
+not satisfy them. A resumed save remains targeted checkpoint acceptance.
 
 Controller replays in `test_colony_controller.py` separately exercise deterministic
 layout variants, hysteresis, priorities, cancellation and accounting. They model labor

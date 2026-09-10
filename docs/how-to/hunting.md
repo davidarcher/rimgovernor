@@ -42,6 +42,11 @@ queues ordinary campfire deconstruction and checks the retained stack's actual
 temperature and eventual rot. It does not claim shared-ingestion acceptance;
 that requires the complete hunting/spoilage run's separate native ingestion evidence.
 
+With the same fixture, `--preservation` adds and prioritizes an ordinary native
+long-lived food recipe after butchering. Acceptance requires native recipe products
+from pawn work and an increase in accessible product stock. This checks explicit
+preservation orders; automatic rot-risk selection has separate controller tests.
+
 ## Related reading
 
 [Choose tests](choose-tests.md) · [Test evidence explained](../explanation/testing.md) ·

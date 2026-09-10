@@ -104,6 +104,40 @@ async def run(args):
             await window()
         raise AssertionError('Native spoilage not observed within the time bound')
 
+    async def observe_preservation():
+        current=await facts()
+        candidates=[(b,r,p) for b in current['cooking'] if b['usable']
+            for r in b['production'] if r['available'] for p in r['products']
+            if p['edible'] and p['rotDays'] is not None and p['rotDays']>7]
+        assert candidates,'No native long-lived edible cooking recipe'
+        bench,recipe,product=min(candidates,key=lambda v:v[1]['recipe'])
+        from math import ceil
+        target=ceil(product['nutritionDemandPerDay']*7/product['nutrition'])
+        report['preservation']={'scope':'Explicit native preservation bill and actual pawn output',
+            'bench':bench,'recipe':recipe,'target':target,'samples':[]}
+        await issue('FoodPreservationAcceptance','bill',[native('home/bills',action='add',
+            bench=bench['id'],recipe=recipe['recipe'],repeatMode='TargetCount',targetCount=target,
+            pauseWhenSatisfied='on',unpauseWhenYouHave=target//2,ingredientSearchRadius=40,watch=False)],current)
+        await issue('FoodPreservationAcceptance','priority',[native('home/bills',action='move',
+            bench=bench['id'],index=len(bench['bills']),to=0,watch=False)],await facts())
+        previous=sum(s['count'] for s in current['foodSupply']['stocks'] if s['defName']==product['defName'])
+        deadline=time.monotonic()+args.seconds
+        while time.monotonic()<deadline:
+            await window()
+            current=await facts()
+            observer=(await rt.bridge.call('test/food_observe')).structuredContent
+            outputs=[p for p in observer['production'] if p['recipe']==recipe['recipe']]
+            quantity=sum(s['count'] for s in current['foodSupply']['stocks'] if s['defName']==product['defName'])
+            report['preservation']['samples'].append(dict(tick=current['tick'],quantity=quantity,
+                outputs=outputs,stocks=current['foodSupply']['stocks'],cooking=current['cooking']))
+            save()
+            if outputs and quantity>previous:
+                report['cases'].append(dict(name='Native preservation output entered accessible stock',
+                    outputs=outputs,previous_count=previous,current_count=quantity))
+                return
+            previous=quantity
+        raise AssertionError('No actual preservation output entered stock within the time bound')
+
     async def window():
         if rt.review_task and not rt.review_task.done():await rt.review_task
         await rt.supervisor.change('Superfast',max_ticks=600)
@@ -132,7 +166,7 @@ async def run(args):
         await ready(rt)
         if rt.review_task and not rt.review_task.done():await rt.review_task
         rt.execution_task=asyncio.current_task()
-        if args.spoilage:
+        if args.spoilage or args.preservation:
             report['observer']=(await rt.bridge.call('test/food_observe')).structuredContent
         if args.observe_food_id:
             assert args.checkpoint and args.spoilage
@@ -208,6 +242,7 @@ async def run(args):
                       and s['count']>initial.get(s['defName'],0)]
                 saw_corpse=any(any(c['prey']==prey['thingId'] for c in s['corpses']) for s in report['samples'])
                 if live is None and saw_corpse and meat and not any(c['prey']==prey['thingId'] for c in current['foodCorpses']):
+                    if args.preservation:await observe_preservation()
                     if args.spoilage:await observe_spoilage(meat[0])
                     report.update(outcome='passed',produced_meat=meat)
                     break
@@ -234,6 +269,7 @@ if __name__=='__main__':
     parser.add_argument('--source-snapshot',action='store_true')
     parser.add_argument('--checkpoint',type=Path,help='Unmodified native save for targeted food acceptance')
     parser.add_argument('--spoilage',action='store_true',help='With FoodObservationFixture, forbid one ordinarily butchered stack and observe actual rot, temperature variation and shared-stock ingestion')
+    parser.add_argument('--preservation',action='store_true',help='With FoodObservationFixture, prioritize an ordinary long-lived food bill and require actual pawn output entering accessible stock')
     parser.add_argument('--observe-food-id',help='Observe an existing perishable stack in an unmodified checkpoint; skips hunting and shared-ingestion assertions')
     parser.add_argument('--vary-temperature',action='store_true',help='Queue ordinary deconstruction of the observed campfire to measure food temperature response')
     parser.add_argument('--seconds',type=int,default=900)

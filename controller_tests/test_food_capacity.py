@@ -11,13 +11,13 @@ from test_capacity_growth import fixture
 
 def test_player_target_expands_capacity_even_with_abundant_stock():
     plan, facts = fixture()
-    facts.update(foodRunwayDays=40, farms=[{'edible': True, 'crop':'Plant_Rice', 'usableCells': 625,
-                                         'growingCells': 625}])
+    facts.update(foodRunwayDays=40, farms=[{'edible': True, 'crop':'Plant_Rice', 'usableCells': 1209,
+                                         'growingCells': 1209}])
     policy = ColonyPolicy()
-    assert field_target(facts, 7) == 625
+    assert field_target(facts, 7) == 1209
     assert ('EnsureFoodSupply', 2) not in priority_nodes(facts, {}, policy)
     policy = replace(policy, food_target_days=14)
-    assert field_target(facts, 14) == 1167
+    assert field_target(facts, 14) == 1792
     assert ('EnsureFoodSupply', 2) in priority_nodes(facts, {}, policy)
     assert growth_fields(plan, facts, 7) == []
     assert growth_fields(plan, facts, 14)
@@ -36,7 +36,7 @@ def test_crop_budget_includes_native_competing_animal_demand():
     _,facts=fixture()
     original=field_target(facts)
     facts['definitions']['Plant_Rice']['nutritionDemandPerDay']=facts['nutritionPerDay']*2
-    assert field_target(facts)==original*2
+    assert original*2-1 <= field_target(facts) <= original*2
     facts['definitions']['Plant_Rice']['nutritionDemandPerDay']=None
     assert field_target(facts) is None
 
@@ -89,8 +89,8 @@ def test_mixed_crops_use_their_own_native_yields():
     from rimbot.food_capacity import field_coverage
     _,facts=fixture()
     facts['definitions']['Plant_Potato']=dict(growDays=3,harvestNutrition=.6,fertilityMin=.7)
-    facts['farms']=[dict(edible=True,crop='Plant_Rice',growingCells=625),
-                    dict(edible=True,crop='Plant_Potato',growingCells=313)]
+    facts['farms']=[dict(edible=True,crop='Plant_Rice',growingCells=1209),
+                    dict(edible=True,crop='Plant_Potato',growingCells=605)]
     assert field_coverage(facts)==pytest.approx(2)
     facts['farms'][1]['crop']=None
     assert field_coverage(facts) is None

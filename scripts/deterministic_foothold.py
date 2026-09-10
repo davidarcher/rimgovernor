@@ -106,6 +106,8 @@ async def run(args):
             if rt.phase == 'Connection failed': raise RuntimeError(rt.chat[-1] if rt.chat else rt.phase)
             await asyncio.sleep(1)
         if not rt.connected: raise RuntimeError('Colony connection timed out')
+        if getattr(args,'food_observer',False):
+            report['food_observer']=(await rt.bridge.call('test/food_observe')).structuredContent
         report['initial_game_tick']=rt.batch.summary.end_tick
         report['starting_colonists']=sorted(p.thing_id for p in rt.batch.summary.pawns if not p.dead)
         initial_token=rt.context_token
@@ -140,6 +142,24 @@ async def run(args):
                    'stability':asdict(window),
                    'goals':{k:{'status':v.status,'reason':v.reason,'method':v.method} for k,v in rt.current_plan.colony_goals.items()}}
             report['history'].append(row)
+            if getattr(args,'food_observer',False):
+                report['food_observer']=(await rt.bridge.call('test/food_observe')).structuredContent
+                (args.output/'food-observer.json').write_text(json.dumps(report['food_observer'],indent=2),encoding='utf8')
+                assert not report['food_observer']['truncated']
+                harvests=[p for p in report['food_observer']['production']
+                    if p['plant'] in ('Plant_Rice','Plant_Potato','Plant_Corn') and p['count']>0]
+                report.setdefault('food_acceptance',{'target_observations':[]})
+                acceptance=report['food_acceptance']
+                acceptance['crop_harvests']=harvests
+                if args.food_target_days is not None:
+                    assert rt.current_plan.colony_goals['EnsureFoodSupply'].target['food_days']==args.food_target_days
+                    assert rt.controller.policy.food_target_days==args.food_target_days
+                    runway=facts.get('foodRunwayDays')
+                    if runway is not None and runway>=args.food_target_days:
+                        acceptance['target_observations'].append(dict(tick=facts['tick'],runway=runway))
+                acceptance['passed']=(bool(harvests) and harvests[-1]['tick']-harvests[0]['tick']>=60000
+                    and (args.food_target_days is None or bool(acceptance['target_observations'])))
+                (args.output/'food-acceptance.json').write_text(json.dumps(acceptance,indent=2),encoding='utf8')
             if lifecycle_days is not None:
                 async with rt.lock:
                     report['lifecycle']['ledger'].append(ledger_sample(rt,args.output/'state.sqlite'))
@@ -172,7 +192,8 @@ async def run(args):
             if lifecycle_days is not None and facts.get('tick',0)-report['initial_game_tick']>=math.ceil(lifecycle_days*60000):
                 report['outcome']='LIFECYCLE_WINDOW'
                 break
-            if passed and lifecycle_days is None:
+            if passed and lifecycle_days is None and (not getattr(args,'food_observer',False)
+                    or report['food_acceptance']['passed']):
                 report['outcome']='SUSTAINED_FOOTHOLD' if window.required_ticks else 'FOOTHOLD_STABLE'
                 break
         else:
@@ -218,6 +239,7 @@ if __name__=='__main__':
     parser.add_argument('--source-root',type=Path,required=True)
     parser.add_argument('--source-snapshot',action='store_true',help='Fingerprint packaged source bytes when running in a Docker image without Git metadata')
     parser.add_argument('--food-target-days',type=float,help='Explicit persistent player food target, validated through CreateGoal')
+    parser.add_argument('--food-observer',action='store_true',help='Record actual native crop and recipe products through the optional read-only FoodObservationFixture')
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--seconds',type=int,default=1800)
     parser.add_argument('--stability-days',type=stability_days,default=2,help='Consecutive observed stable game days after bootstrap; 0 checks establishment only (default: 2)')

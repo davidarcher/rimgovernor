@@ -71,6 +71,18 @@ def test_derived_food_gate_uses_spoilage_runway_and_preserves_raw_reading():
     assert result['foodRunwayDays'] is None and not criteria(result, ColonyPolicy())['food']
 
 
+def test_urgent_crop_uses_accessible_forecast_not_raw_surplus():
+    rt=Replay()
+    rt.facts.update(foodSupply=supply(),foodRunwayDays=40,
+        foodClimate={'sowingNow':True,'growingDaysRemaining':60},
+        definitions={'Plant_Rice':dict(growDays=3,harvestNutrition=.3,fertilityMin=.7,fertilitySensitivity=1),
+                     'Plant_Potato':dict(growDays=6,harvestNutrition=.5,fertilityMin=.7,fertilitySensitivity=.4)},
+        cells=[dict(fertility=.7,walkable=True,occupied=False,zone=False,roofed=False)])
+    result=derive(rt.batch,rt.facts,ColonyPolicy())
+    assert result['rawFoodRunwayDays']==40 and result['foodRunwayDays']==1
+    assert result['foodCrop']=='Plant_Rice'
+
+
 def test_acquisition_counts_native_nutrition_and_pending_work_without_crediting_stock():
     facts = {'nutritionPerDay': 3, 'foodNutrition': 15, 'pendingFoodNutrition': 3,
              'acquisition': [{'id': str(i), 'food': True, 'nutritionYield': 2, 'designated': False}

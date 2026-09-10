@@ -48,12 +48,12 @@ def derive(batch, native, policy):
     from .native_forecasts import forecasts, power_forecast
     value['forecasts'] = forecasts(native, batch.native.get('buildings', {}))
     from .food_capacity import choose_crop
-    value['foodCrop'] = choose_crop(value)
     if 'foodSupply' in native:
         forecast = value['forecasts']['food']
         value['foodForecast'] = forecast
         value['rawFoodRunwayDays'] = native.get('foodRunwayDays')
         value['foodRunwayDays'] = forecast['runwayDays']
+    value['foodCrop'] = choose_crop(value)
     people = batch.summary.pawns
     value['medicalKnown'] = all(p.bleeding is not None and getattr(p,'needs_tend',None) is not None for p in people if not p.dead)
     value['criticalPatients'] = [p.thing_id for p in people if not p.dead and (p.downed or p.bleeding or p.needs_tend)]
