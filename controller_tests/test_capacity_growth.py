@@ -58,3 +58,18 @@ async def test_additional_fields_wait_for_missing_sleeping_capacity():
     rt.facts['indoorSleepingCapacity']=13
     method,actions=await rt.controller.skills.compile('EnsureFoodSupply',rt.facts,rt.people)
     assert method.startswith('rice-expand-') and actions[0]['kind']=='create_zone'
+
+
+@pytest.mark.asyncio
+async def test_expansion_skips_free_footprint_with_blocked_outside_entrance(monkeypatch):
+    plan,facts=fixture()
+    bad={'x':20,'z':5,'width':9,'height':9}
+    good={'x':20,'z':16,'width':9,'height':9}
+    for cell in facts['cells']:
+        if (cell['x'],cell['z'])==(24,4):cell['walkable']=False
+    monkeypatch.setattr('rimbot.capacity_growth.starter_layouts',lambda _: [{'room':bad},{'room':good}])
+    rt=SimpleNamespace(current_plan=plan,controller=SimpleNamespace(policy=SimpleNamespace(max_method_attempts=3)),
+        inspect_native=AsyncMock(return_value={'canPlace':True}))
+    _,actions=await grow_shelter(ColonySkills(rt),facts)
+    assert actions[0]['bounds']==good
+    assert plan.control['shelter_expansions']==[good]

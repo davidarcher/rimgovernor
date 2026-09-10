@@ -59,7 +59,15 @@ async def grow_shelter(skills,facts,goal_id='EnsureInitialShelter'):
         return (method,result[1]) if result else None
     protected=protected_cells(plan)
     observed=dict(facts,cells=[dict(c,occupied=True) if (c['x'],c['z']) in protected else c for c in facts.get('cells',[])])
-    for layout in starter_layouts(observed)[:rt.controller.policy.max_method_attempts]:
+    from .spatial import room_entrance
+    cells={(c['x'],c['z']):c for c in observed['cells']}
+    candidates=[]
+    for layout in starter_layouts(observed):
+        (x,z),(dx,dz)=room_entrance(RoomShell.model_validate(skills.shell(layout)))
+        if all(cells.get(p,{}).get('walkable') is True and not cells.get(p,{}).get('occupied')
+               for p in ((x-dx,z-dz),(x+dx,z+dz))):
+            candidates.append(layout)
+    for layout in candidates[:rt.controller.policy.max_method_attempts]:
         shell=skills.shell(layout)
         for p in room_placements(RoomShell.model_validate(shell)):
             preview=await rt.inspect_native('home/place_building',dict(defName=p.def_name,x=p.x,z=p.z,

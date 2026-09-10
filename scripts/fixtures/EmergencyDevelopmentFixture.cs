@@ -41,6 +41,7 @@ namespace HomeBridge.BridgeTools
                         }
                     }
                 } else if (op == "opponents") {
+                    if (actor != null) center = actor.Position;
                     for (var i=0;i<2;i++) {
                         var animal = PawnGenerator.GeneratePawn(DefDatabase<PawnKindDef>.GetNamed("Hare"));
                         var cell = GenRadial.RadialCellsAround(center,12,true).First(c => c.InBounds(map) && c.Walkable(map) && c.DistanceTo(center)>8 && !c.Fogged(map));

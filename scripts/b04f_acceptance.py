@@ -113,7 +113,7 @@ async def run(args):
                 assert rt.current_plan.progress[s.id].state in ('pending','waiting','complete'),rt.current_plan.progress[s.id]
             return [s.id for s in steps]
         async def finish_steps(ids, phase):
-            equipment=bool(ids) and all(getattr(s.action,'completion',None)=='pawn_equipped'
+            equipment=bool(ids) and all(getattr(s.action,'completion',None) in ('pawn_equipped','pawn_at_position')
                 for s in rt.current_plan.spec.steps if s.id in ids)
             while any(rt.current_plan.progress[i].state!='complete' for i in ids):
                 rt.handled_revision=rt.chat_revision;rt.wake.clear()
@@ -193,8 +193,14 @@ async def run(args):
                 actions=[dict(kind='native_operation',tool='home/order',arguments=dict(action='equip',pawn=p['thingId'],target=w,watch=False),completion='pawn_equipped')
                     for p,w in zip(crew,equipment['weapons'])]
                 await finish_steps(await issue('EnsureBasicDefense',('fixture-equipment',actions)),'native_squad_equipped')
+                facts,_=await refresh()
+                shelter=next(c for c in facts['cells'] if c.get('walkable') is True and not c.get('occupied')
+                    and 22<=abs(c['x']-facts['center']['x'])<=24 and abs(c['z']-facts['center']['z'])<=2)
+                retreat=dict(kind='native_operation',tool='home/order',arguments=dict(action='goto',pawn=patient,
+                    x=shelter['x'],z=shelter['z'],watch=False),completion='pawn_at_position')
+                await finish_steps(await issue('EnsureBasicDefense',('fixture-patient-position',[retreat])),'native_patient_positioned')
                 await setup('wound',patient)
-                await setup('opponents')
+                await setup('opponents',crew[0]['thingId'])
                 ids=await issue('ActiveCombat')
                 await issue('CriticalMedical')
                 targets=rt.current_plan.control['combat']['targets']
