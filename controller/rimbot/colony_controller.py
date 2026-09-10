@@ -1,5 +1,5 @@
 """Deterministic priority tree using ColonyPlan, native validation and Hands."""
-from .production_policy import refresh_resource_prerequisite
+from .production_policy import refresh_resource_prerequisite, refresh_resource_progress
 from dataclasses import asdict
 from .colony_plan import ColonyGoal, CommitSteps
 from .colony_policy import required_colony_work, ColonyPolicy, allocation, criteria, derive, priority_nodes, work_assignment
@@ -106,6 +106,8 @@ class ColonyController:
         resource_nodes = []
         for identity, goal in plan.colony_goals.items():
             if identity.startswith('MaintainResource-') and not goal.cancelled:
+                if await refresh_resource_progress(rt, identity):
+                    self.event('goal_resumed', identity, reason='Fresh native excavation progress observed')
                 if await refresh_resource_prerequisite(rt, identity, facts):
                     self.event('goal_resumed', identity, reason='Native resource prerequisite became available')
                 await rt.ensure_context(token)

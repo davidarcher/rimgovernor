@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using RimBridgeServer.Sdk;
 using RimWorld;
+using RimWorld.Planet;
 using Verse;
 
 namespace HomeBridge.BridgeTools
@@ -29,7 +30,18 @@ namespace HomeBridge.BridgeTools
                             if (!worker.WorkTypeIsDisabled(work)) worker.workSettings.SetPriority(work, work == selectedWork ? 1 : 0);
                     return new { success = true };
                 }
-                var pawn = map.mapPawns.FreeColonistsSpawned.First(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Mining));
+                var pawn = map.mapPawns.FreeColonistsSpawned.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Mining)
+                    && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling))
+                    .OrderByDescending(p => p.GetStatValue(StatDefOf.MiningSpeed)).ThenBy(p => p.thingIDNumber).First();
+                // A single-worker fixture isolates extraction from unrelated social fights.
+                // Keep the other baseline pawns alive in world storage, never as outcomes.
+                foreach (var other in map.mapPawns.FreeColonistsSpawned.Where(p => p != pawn).ToList()) {
+                    other.DeSpawn();
+                    Find.WorldPawns.PassToWorld(other, PawnDiscardDecideMode.KeepForever);
+                }
+                foreach (var food in map.listerThings.AllThings.Where(t => t.def.category == ThingCategory.Item
+                    && t.def.IsNutritionGivingIngestible && !t.def.IsDrug && t.Position.InHorDistOf(pawn.Position, 50)))
+                    food.SetForbidden(false, false);
                 var cells = GenRadial.RadialCellsAround(pawn.Position, 35, true).Where(c => c.InBounds(map) && c.Standable(map)
                     && GenRadial.RadialCellsAround(c, 8, true).All(q => q.InBounds(map)
                         && !(q.GetEdifice(map) is Building b && !(b is Mineable))

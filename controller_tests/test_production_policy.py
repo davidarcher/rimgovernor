@@ -119,6 +119,48 @@ async def test_mining_stages_exact_resource_storage_before_designating():
 
 
 @pytest.mark.asyncio
+async def test_slow_native_mining_progress_prevents_false_stall_without_crediting_stock():
+    rt, identity, facts = target(quantity=10)
+    row = dict(thingId='ore', resource='Steel', method='mine', safety='open_surface',
+               designated=True, hitPoints=1500, **{'yield':40})
+    census = {'success':True, 'sources':[row], 'tick':100}
+    rt.game = SimpleNamespace(invoke=AsyncMock(return_value=census))
+    goal = rt.current_plan.colony_goals[identity]
+    goal.last_progress_tick = 50
+    assert await resource_method(rt, identity, facts) is None
+    assert goal.last_progress_tick == 50
+    row['hitPoints'], census['tick'] = 1420, 200
+    assert await resource_method(rt, identity, facts) is None
+    assert goal.last_progress_tick == 200 and goal.evidence['stock'] == 0
+    census['tick'] = 500
+    await resource_method(rt, identity, facts)
+    assert goal.last_progress_tick == 200
+
+
+@pytest.mark.asyncio
+async def test_mining_watchdog_recovers_only_from_same_load_actual_work():
+    from rimbot.production_policy import refresh_resource_progress
+    rt, identity, _ = target()
+    rt.context_token, rt.chat_revision = 'context', 0
+    goal = rt.current_plan.colony_goals[identity]
+    goal.status, goal.reason = 'blocked', 'No measurable progress'
+    goal.evidence.update(mining_progress={'ore': 1500}, watchdog={'reason': goal.reason})
+    census = dict(rt.identity, success=True, tick=9000, sources=[dict(thingId='ore', method='mine',
+        designated=True, hitPoints=1420)])
+    rt.game = SimpleNamespace(invoke=AsyncMock(return_value=census))
+    census['loadToken'] = 'old'
+    assert not await refresh_resource_progress(rt, identity)
+    assert goal.status == 'blocked' and goal.last_progress_tick == 0
+    census['loadToken'] = rt.identity['loadToken']
+    assert await refresh_resource_progress(rt, identity)
+    assert goal.status == 'active' and goal.last_progress_tick == 9000
+    goal.status, goal.reason = 'blocked', 'Player interrupted extraction'
+    census['sources'][0]['hitPoints'] = 1340
+    assert not await refresh_resource_progress(rt, identity)
+    assert goal.status == 'blocked'
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize('mode, existing_target, count', [('Forever',0,0),('TargetCount',100,0),('TargetCount',50,1),('RepeatCount',0,1)])
 async def test_existing_bill_capacity_must_cover_the_maintained_target(mode, existing_target, count):
     rt, identity, facts = target()

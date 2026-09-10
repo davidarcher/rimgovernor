@@ -160,6 +160,9 @@ async def run(args):
             await window(600)
             observed = await sources()
             pending = next(e for e in observed['extractions'] if e['thingId'] == third['thingId'])
+            report['latest'] = observed
+            report['pawns'] = await rt.game.query('home/list_pawns', colonistsOnly=True, work=True)
+            (args.output / 'progress.json').write_text(json.dumps(report, indent=2))
             if pending['finished'] >= 0: break
         record('resumed_native_output', pending['finished'] >= 0 and pending['recovered'] > 0, extraction=pending)
         record('zero_inference', rt.counters.get('model_calls', 0) == 0)
@@ -178,7 +181,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source-root', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--seconds', type=int, default=240)
+    parser.add_argument('--seconds', type=int, default=900, help='Wall-time limit per pawn-outcome phase')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)
     asyncio.run(run(args))

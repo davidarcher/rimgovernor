@@ -25,6 +25,10 @@ hauling, continued stock availability or arbitrary mine safety.
 Interrupted sources cannot silently return in a differently composed batch. Explicitly
 renewing the resource goal reopens its methods; Hands still checks current native
 eligibility. Uncertain writes retain the shared execution safeguards.
+Observed reductions in a designated rock's hit points refresh the shared progress
+watchdog without crediting any stock. Unchanged health and designation receipts do
+not count as progress. A fresh native read may reopen a watchdog hold, but cannot
+reopen a player interruption or accept evidence from a different load or map.
 
 Before a new mining batch, native storage reads conservatively count reachable empty
 floor slots accepting the exact resource, with roofing for deteriorating materials.

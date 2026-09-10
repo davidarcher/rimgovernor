@@ -77,6 +77,37 @@ def required_resource_work(plan):
     return result
 
 
+def observe_mining_progress(goal, sources):
+    progress = {s['thingId']: s['hitPoints'] for s in sources.get('sources', [])
+                if s.get('method') == 'mine' and s.get('designated') and isinstance(s.get('hitPoints'), int)}
+    previous = goal.evidence.get('mining_progress', {})
+    advanced = (isinstance(sources.get('tick'), int) and sources['tick'] >= goal.last_progress_tick
+                and any(identity in previous and hp < previous[identity] for identity, hp in progress.items()))
+    if advanced: goal.last_progress_tick = sources['tick']
+    goal.evidence['mining_progress'] = progress
+    return advanced
+
+
+async def refresh_resource_progress(rt, goal_id):
+    """Read actual excavation work before the shared no-progress watchdog runs."""
+    goal = rt.current_plan.colony_goals[goal_id]
+    if not goal.evidence.get('mining_progress'): return False
+    token, direction = rt.context_token, rt.chat_revision
+    sources = await rt.game.invoke('home/resource_sources', {'resource': goal.target['resource']})
+    if (rt.context_token != token or rt.chat_revision != direction
+            or rt.current_plan.colony_goals.get(goal_id) is not goal
+            or sources.get('success') is not True
+            or any(sources.get(k) != rt.identity[k] for k in ('colonyId', 'loadToken', 'mapId'))):
+        return False
+    advanced = observe_mining_progress(goal, sources)
+    watchdog = goal.evidence.get('watchdog')
+    if advanced and goal.status == 'blocked' and watchdog and goal.reason == watchdog['reason']:
+        goal.status, goal.reason = 'active', ''
+        goal.evidence.pop('watchdog')
+        return True
+    return False
+
+
 async def resource_method(rt, goal_id, facts):
     from .colony_skills import SkillBlocked, native
     goal = rt.current_plan.colony_goals[goal_id]
@@ -94,6 +125,7 @@ async def resource_method(rt, goal_id, facts):
     goal.evidence['extractions'] = sources.get('extractions', [])
     goal.evidence['extraction_infrastructure'] = sources.get('infrastructure')
     rows = sources.get('sources', [])
+    observe_mining_progress(goal, sources)
     # An older companion cannot certify excavation geometry.
     rows = [s for s in rows if s.get('method') != 'mine' or s.get('safety') == 'open_surface']
     pending = sources.get('pendingYield', sum(s['yield'] for s in rows if s.get('designated')))
@@ -134,6 +166,8 @@ async def resource_method(rt, goal_id, facts):
                     'preset': 'nothing', 'allow': [resource], 'priority': 'Important',
                     'patches': [dict(c, width=1, height=1) for c in cells]}]
         goal.evidence['selected_sources'] = [{k: s[k] for k in ('thingId', 'resource', 'x', 'z', 'yield')} for s in selected]
+        goal.evidence['mining_progress'].update({s['thingId']: s['hitPoints'] for s in selected
+            if s.get('method') == 'mine' and isinstance(s.get('hitPoints'), int)})
         return method, [native('home/acquire_resource',
             **{k: rt.identity[k] for k in ('colonyId', 'loadToken', 'mapId')},
             **{k: s[k] for k in ('thingId', 'resource', 'x', 'z')}) for s in selected]
