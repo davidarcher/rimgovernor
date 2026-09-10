@@ -661,9 +661,12 @@ async def run():
             report['return_order'] = (await command(kind='RouteCaravan', caravan_id=caravan_id,
                 return_home=True, storage_resources=return_resources)) if shared else await read('home/caravan', **return_args, dryRun=False)
             assert report['return_order']['accepted'] is True
+            return_stacks = [i for c in report['return_order'].get('observation', {}).get('caravans', [])
+                if c['id'] == caravan_id for p in c['pawns'] for i in p['inventory'] if i['defName'] in return_resources]
+            hauled = set()
             deadline = time.monotonic() + 600
             while time.monotonic() < deadline:
-                await window(6000 if settlement_trip else 600)
+                await window(6000 if settlement_trip and any(c['id'] == caravan_id for c in world['caravans']) else 600)
                 world = await read('home/world_progression')
                 report['samples'].append(world)
                 if not any(c['id'] == caravan_id for c in world['caravans']):
@@ -672,6 +675,34 @@ async def run():
                             and (not return_resources or all(step_complete(s) for s in report['shared_steps']))):
                         report['returned'] = home
                         break
+                    returned = next((p for p in home['pawns'] if p['thingId'] == pawn and not p['dead']
+                        and not p['downed'] and not p['drafted'] and not p['mentalState']), None)
+                    if returned:
+                        for item in return_stacks:
+                            if item['thingId'] in hauled:
+                                continue
+                            location = await read('home/order', action='resolve', target=item['thingId'], dryRun=True)
+                            if (location.get('target') or {}).get('spawned') is not True:
+                                continue
+                            args = dict(action='haul', pawn=pawn, target=item['thingId'], draft=False, watch=False)
+                            preview = await read('home/order', **args, dryRun=True)
+                            if preview.get('success') is not True:
+                                continue
+                            from rimbot.colony_plan import PlanStep, NativeOperation
+                            step = PlanStep(id='world-return-haul-' + item['thingId'],
+                                title='Store the observed returned cargo', source='PLAYER', purpose='storage',
+                                action=NativeOperation(tool='home/order', arguments=dict(args, dryRun=False)),
+                                completion_criteria='Native haul issued; the return contract verifies stored goods')
+                            await rt.commit_strategy(CommitSteps(expected_revision=rt.current_plan.revision,
+                                reason='Finish storage for the explicitly returned cargo', steps=[step]).decision(rt.current_plan),
+                                actor='strategist', expected_token=rt.context_token, expected_revision=rt.chat_revision)
+                            rt.manual_requests.append((step.id, rt.context_token, rt.chat_revision))
+                            await rt.execute_manual_requests()
+                            await settle_dispatch(rt, [step])
+                            assert rt.current_plan.progress[step.id].state == 'complete'
+                            hauled.add(item['thingId'])
+                            report.setdefault('return_hauls', []).append(dict(item=item, preview=preview, step=step.id))
+                            break
             assert report.get('returned'), 'Living returning colonist not observed on home map'
             if shared:
                 report['plan'] = rt.current_plan.model_dump(mode='json')
