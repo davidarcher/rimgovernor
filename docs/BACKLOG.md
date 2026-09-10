@@ -16,8 +16,9 @@ in the checkpoint commit; do not append an implementation diary here.
   and production that replaces initial supplies. Sampled stable gates over a
   bounded window do not establish arbitrary long-term colony survival.
   Close eight-colonist startup deficits: establish crop labor and interim food before
-  initial rations run out; fit the food stockpile around service furniture; and
-  reconcile interrupted equipment/hauling and upkeep watchdogs from native outcomes.
+  initial rations run out; extend verified furniture-aware startup storage to
+  changed geometry and sustained recovery; and reconcile interrupted
+  equipment/hauling and upkeep watchdogs from native outcomes.
   Mixed hunting coverage must resolve unsafe-route holds without bypassing the
   native guard. Crop-only Peaceful trials are separate from Rough survival acceptance.
   Provide safe triage while hostiles remain when all doctors are controller-drafted;
