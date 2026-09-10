@@ -181,8 +181,10 @@ def required_colony_work(plan):
 
 def work_assignment(pawns, required_work=None, overrides=None, minimum_skills=None):
     """Greedy coverage with stable tie breaks and a load penalty for specialists."""
-    skill_for = {'Hunting': 'Shooting', 'Doctor': 'Medicine', 'Cooking': 'Cooking', 'Construction': 'Construction',
-                 'Growing': 'Plants', 'PlantCutting': 'Plants'}
+    # Native job order lets continuous cooking/hunting starve sowing. Allocate
+    # the three food roles before sharing intermittent medical/construction work.
+    skill_for = {'Growing': 'Plants', 'Cooking': 'Cooking', 'Hunting': 'Shooting',
+                 'Doctor': 'Medicine', 'Construction': 'Construction', 'PlantCutting': 'Plants'}
     skill_for.update(required_work or {})
     available = [p for p in pawns if not p.get('dead') and not p.get('downed') and not p.get('drafted') and not p.get('mentalState')
                  and (p.get('work') or {}).get('applies') is True]
@@ -204,18 +206,20 @@ def work_assignment(pawns, required_work=None, overrides=None, minimum_skills=No
             if value['level'] < (minimum_skills or {}).get(work, 0):
                 continue
             score = value['level'] + {'Minor': 2, 'Major': 4}.get(value.get('passion'), 0) - 3 * load[pawn['thingId']]
-            candidates.append((load[pawn['thingId']], -score, pawn['thingId'], -value['level']))
+            conflicts = work == 'Hunting' and owners.get('Growing') == pawn['thingId']
+            candidates.append((conflicts, load[pawn['thingId']], -score, pawn['thingId'], -value['level']))
         if candidates:
             if work == 'Construction':
                 # Native building skill prerequisites cannot be met by spreading
                 # work to a less skilled idle pawn.
-                owner = min(candidates,key=lambda row:(row[3],row[1],row[0],row[2]))[2]
+                owner = min(candidates,key=lambda row:(row[4],row[2],row[1],row[3]))[3]
             else:
-                owner = min(candidates, key=lambda row: (row[1],row[0],row[2]))[2] if work == 'Research' else min(candidates)[2]
+                owner = min(candidates, key=lambda row: (row[2],row[1],row[3]))[3] if work == 'Research' else min(candidates)[3]
             owners[work] = owner
             load[owner] += 1
     hunters = {owners['Hunting']} if 'Hunting' in owners else set()
     second_hunters = [p for p in available if p['thingId'] not in hunters
+        and p['thingId'] not in (owners.get('Growing'),owners.get('Cooking'))
         and ((p.get('equipment') or {}).get('primary') or {}).get('ranged') is True
         and any(w['name']=='Hunting' and w.get('disabled') is False for w in p['work']['types'])]
     if second_hunters:

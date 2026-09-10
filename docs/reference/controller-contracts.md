@@ -61,6 +61,11 @@ research or expansion methods, or establish their native gameplay acceptance.
 
 ## Method compilation and work allocation
 
+Work allocation separates growing, cooking and hunting before sharing intermittent
+medical and construction roles. Extra hunters exclude the primary grower and cook
+so native job order does not prevent sowing in small colonies. Capability reads,
+native checkbox/manual-priority mode and explicit player work overrides still apply.
+
 ### Environmental disruption
 
 `home/colony_facts.environment.conditions` reports current-map native condition

@@ -300,6 +300,22 @@ def test_spare_capable_pawn_supplies_second_grower_without_displacing_specialist
         assert sum(w.get(work)==1 for w in assigned.values())==1
 
 
+@pytest.mark.parametrize('manual',[False,True])
+def test_small_colony_food_roles_do_not_starve_sowing(manual):
+    people=roster(3)
+    for pawn in people:
+        pawn['equipment']={'armed':True,'primary':{'ranged':True}}
+        pawn['work']['manualPriorities']=manual
+    assigned,covered=work_assignment(people)
+    assert covered
+    food_owners=[next(p for p,w in assigned.items() if w.get(role)==1)
+                for role in ('Growing','Cooking','Hunting')]
+    assert len(set(food_owners))==3
+    assert assigned[food_owners[0]]['Hunting']!=1
+    assert assigned[food_owners[1]]['Hunting']!=1
+    assert assigned==work_assignment(list(reversed(people)))[0]
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize('distance,expected',[(20,'attack'),(60,'draft')])
 async def test_small_manhunter_method_uses_native_orders_and_owned_cleanup(distance,expected):

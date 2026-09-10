@@ -116,10 +116,10 @@ async def run(args):
         report['preservation']={'scope':'Explicit native preservation bill and actual pawn output',
             'bench':bench,'recipe':recipe,'target':target,'samples':[]}
         await issue('FoodPreservationAcceptance','bill',[native('home/bills',action='add',
-            bench=bench['id'],recipe=recipe['recipe'],repeatMode='TargetCount',targetCount=target,
+            bench=bench['id'].removeprefix('Thing_'),recipe=recipe['recipe'],repeatMode='TargetCount',targetCount=target,
             pauseWhenSatisfied='on',unpauseWhenYouHave=target//2,ingredientSearchRadius=40,watch=False)],current)
         await issue('FoodPreservationAcceptance','priority',[native('home/bills',action='move',
-            bench=bench['id'],index=len(bench['bills']),to=0,watch=False)],await facts())
+            bench=bench['id'].removeprefix('Thing_'),index=len(bench['bills']),to=0,watch=False)],await facts())
         previous=sum(s['count'] for s in current['foodSupply']['stocks'] if s['defName']==product['defName'])
         deadline=time.monotonic()+args.seconds
         while time.monotonic()<deadline:
