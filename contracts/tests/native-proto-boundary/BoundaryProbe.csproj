@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.31.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
+    <Compile Include="../../../integrations/rimgovernor-native/src/Bridge/Protocol/ProtoBoundary.cs" Link="ProtoBoundary.cs" />
+    <Compile Include="../../../integrations/rimgovernor-native/src/Runtime/Persistence/NativeControlAuthority.cs" Link="NativeControlAuthority.cs" />
+    <Compile Include="../../generated/protobuf/csharp/*.cs" />
+  </ItemGroup>
+</Project>

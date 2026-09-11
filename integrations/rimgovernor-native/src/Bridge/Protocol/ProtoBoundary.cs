@@ -144,13 +144,14 @@ namespace HomeBridge.BridgeTools
                     Detail = "The native identity component is missing or invalid." };
                 return false;
             }
-            var authority = NativeControlAuthority.ForGame(Current.Game).Status();
             context = new Common.ObservationContext
             {
                 Identity = new Common.Identity { ColonyId = identity.ColonyId, LoadToken = identity.LoadToken, MapId = map.uniqueID },
-                Tick = Find.TickManager.TicksGame,
-                NativeGeneration = authority.Generation
+                Tick = Find.TickManager.TicksGame
             };
+            NativeControlAuthority authority;
+            if (NativeControlAuthority.TryGetForGame(Current.Game, out authority))
+                context.NativeGeneration = authority.Status().Generation;
             unavailable = null;
             return true;
         }

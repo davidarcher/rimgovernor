@@ -98,6 +98,13 @@ namespace HomeBridge.BridgeTools
             return States.GetValue(game, value => new NativeControlAuthority(value, Capture, NewClock()));
         }
 
+        // Reads must not create a clock or authority owner merely to report identity.
+        public static bool TryGetForGame(Game game, out NativeControlAuthority? authority)
+        {
+            if (game == null) { authority = null; return false; }
+            return States.TryGetValue(game, out authority);
+        }
+
         internal NativeControlAuthority(Game game, Func<NativeControlIdentity?> context, Func<long> clock, ulong initialGeneration = 1)
         {
             this.game = game ?? throw new ArgumentNullException(nameof(game));
