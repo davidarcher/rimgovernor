@@ -49,23 +49,29 @@ func clockEventsPage(page *k.EventsPage, request *k.EventsRequest) error {
 	if !sameIdentity(page.Context.Identity, request.Identity) {
 		return contract("clock events page identity mismatch")
 	}
-	if page.NewestCursor == nil || page.NextCursor == nil || page.Gap == nil || page.LostCount == nil || (page.OldestCursor != nil && page.GetOldestCursor() < 1) || page.GetNewestCursor() < 0 || page.GetNextCursor() < 0 || page.GetNewestCursor() < request.GetAfterCursor() || len(page.Events) > int(request.GetLimit()) {
+	if page.NewestCursor == nil || page.NextCursor == nil || page.Gap == nil || page.LostCount == nil || (page.OldestCursor != nil && page.GetOldestCursor() < 1) || page.GetNewestCursor() < 0 || page.GetNextCursor() < request.GetAfterCursor() || page.GetNextCursor() > page.GetNewestCursor() || page.GetNewestCursor() < request.GetAfterCursor() || len(page.Events) > int(request.GetLimit()) {
 		return contract("clock events cursor presence or bounds")
 	}
 	if page.OldestCursor != nil && page.GetOldestCursor() > page.GetNewestCursor() && !(page.GetOldestCursor() == 1 && page.GetNewestCursor() == 0) {
 		return contract("clock journal retained range")
+	}
+	// Native scans cursor positions, including missing event files. Subtract
+	// validated nonnegative ordered cursors before converting to avoid overflow.
+	span := uint64(page.GetNextCursor() - request.GetAfterCursor())
+	if span > uint64(request.GetLimit()) || uint64(len(page.Events)) > span || page.GetLostCount() != span-uint64(len(page.Events)) {
+		return contract("clock events scanned span/loss mismatch")
 	}
 	previous := request.GetAfterCursor()
 	for _, event := range page.Events {
 		if err := clockEvent(event); err != nil {
 			return err
 		}
-		if event.GetCursor() <= previous || (page.OldestCursor != nil && event.GetCursor() < page.GetOldestCursor()) || event.GetCursor() > page.GetNewestCursor() {
+		if event.GetCursor() <= previous || (page.OldestCursor != nil && event.GetCursor() < page.GetOldestCursor()) || event.GetCursor() > page.GetNextCursor() {
 			return contract("clock events order/range")
 		}
 		previous = event.GetCursor()
 	}
-	if page.GetNextCursor() != previous || page.GetGap() != (page.GetLostCount() > 0) {
+	if page.GetGap() != (page.GetLostCount() > 0) {
 		return contract("clock events next cursor or loss mismatch")
 	}
 	return nil

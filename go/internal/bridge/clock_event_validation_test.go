@@ -14,6 +14,7 @@ func TestValidateClockEventsPageProfileHistory(t *testing.T) {
 	page.Events[0].Owner.Epoch = proto.Int64(99)
 	page.Events[1].Cursor = proto.Int64(5)
 	page.NewestCursor, page.NextCursor = proto.Int64(5), proto.Int64(5)
+	page.Gap, page.LostCount = proto.Bool(true), proto.Uint64(3)
 	before, query := proto.Clone(page), proto.Clone(request)
 	if err := ValidateClockEventsPage(page, request); err != nil {
 		t.Fatal(err)
@@ -23,7 +24,7 @@ func TestValidateClockEventsPageProfileHistory(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if !proto.Equal(page, before) || !proto.Equal(request, query) || page.GetGap() {
+	if !proto.Equal(page, before) || !proto.Equal(request, query) {
 		t.Fatal("validation changed evidence")
 	}
 }
@@ -91,5 +92,65 @@ func TestValidateClockEventRejectsMalformedEvidence(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+func TestValidateClockEventsScannedLoss(t *testing.T) {
+	for name, cursors := range map[string][]int64{"tail": {1}, "all lost": {}, "middle": {1, 3}} {
+		t.Run(name, func(t *testing.T) {
+			p := clockEventPage(0)
+			p.NewestCursor = proto.Int64(3)
+			p.NextCursor = proto.Int64(3)
+			for _, cursor := range cursors {
+				p.Events = append(p.Events, clockEventRow(cursor))
+			}
+			p.Gap = proto.Bool(true)
+			p.LostCount = proto.Uint64(uint64(3 - len(cursors)))
+			if err := ValidateClockEventsPage(p, clockEventsRequest()); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	for name, edit := range map[string]func(*k.EventsPage, *k.EventsRequest){
+		"unexplained holes": func(p *k.EventsPage, _ *k.EventsRequest) {
+			p.NextCursor = proto.Int64(3)
+			p.NewestCursor = proto.Int64(3)
+		},
+		"beyond limit": func(p *k.EventsPage, r *k.EventsRequest) {
+			r.Limit = proto.Uint32(1)
+			p.NextCursor = proto.Int64(2)
+			p.NewestCursor = proto.Int64(2)
+			p.Gap = proto.Bool(true)
+			p.LostCount = proto.Uint64(1)
+		},
+		"overflow loss": func(p *k.EventsPage, _ *k.EventsRequest) {
+			p.Gap = proto.Bool(true)
+			p.LostCount = proto.Uint64(math.MaxUint64)
+		},
+		"regressed next": func(p *k.EventsPage, r *k.EventsRequest) {
+			r.AfterCursor = proto.Int64(1)
+			p.NextCursor = proto.Int64(0)
+		},
+		"event beyond scanned window": func(p *k.EventsPage, _ *k.EventsRequest) {
+			p.Events[0].Cursor = proto.Int64(2)
+			p.NewestCursor = proto.Int64(2)
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			p, r := clockEventPage(1), clockEventsRequest()
+			edit(p, r)
+			if err := ValidateClockEventsPage(p, r); !errors.Is(err, ErrContract) {
+				t.Fatal(err)
+			}
+		})
+	}
+	p, r := clockEventPage(0), clockEventsRequest()
+	r.AfterCursor = proto.Int64(math.MaxInt64 - 1)
+	p.NewestCursor = proto.Int64(math.MaxInt64)
+	p.NextCursor = proto.Int64(math.MaxInt64)
+	p.Gap = proto.Bool(true)
+	p.LostCount = proto.Uint64(1)
+	if err := ValidateClockEventsPage(p, r); err != nil {
+		t.Fatal(err)
 	}
 }
