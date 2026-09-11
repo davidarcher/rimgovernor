@@ -46,6 +46,26 @@ internal static class Program
         var absent=Wire("{"+entities+",\"mode\":2}");var explicitFalse=Wire("{"+entities+",\"mode\":2,\"requireHostile\":false}");
         var presence=absent.GetType().GetProperty("HasRequireHostile")!;
         Check(!(bool)presence.GetValue(absent)! && (bool)presence.GetValue(explicitFalse)!,"Optional guard absence remains distinct in generated presence");
+        var game=AppDomain.CurrentDomain.GetAssemblies().Single(a=>a.GetName().Name=="Assembly-CSharp");
+        var job=Activator.CreateInstance(game.GetType("Verse.AI.Job",true)!)!;
+        var verb=System.Runtime.Serialization.FormatterServices.GetUninitializedObject(game.GetType("Verse.Verb_Shoot",true)!);
+        var target=System.Runtime.Serialization.FormatterServices.GetUninitializedObject(game.GetType("Verse.Pawn",true)!);
+        Call("NativeCombatOperations","ConfigureRangedJob",job,verb,target);
+        Check(ReferenceEquals(job.GetType().GetField("verbToUse")!.GetValue(job),verb),"Ranged forced job pins exact native selected verb");
+        Check((bool)job.GetType().GetField("endIfCantShootInMelee")!.GetValue(job)!,"Ranged forced job stops if unable to shoot in melee");
+        var targetA=job.GetType().GetField("targetA")!.GetValue(job)!;
+        Check(ReferenceEquals(targetA.GetType().GetProperty("Thing")!.GetValue(targetA),target),"Ranged forced job keeps exact pawn target reference");
+        Check(!(bool)job.GetType().GetField("endIfCantShootTargetFromCurPos")!.GetValue(job)!,"Forced job does not invent unrelated expiry flags");
+        Check((bool)Call("NativeCombatRecord","CausalOrderAllows",4UL,5UL,false),"Flight impact permits exactly admitted order after natural job completion");
+        Check(!(bool)Call("NativeCombatRecord","CausalOrderAllows",4UL,6UL,false),"Later order invalidates projectile attribution");
+        Check(!(bool)Call("NativeCombatRecord","CausalOrderAllows",4UL,4UL,false),"Unissued pre-order state cannot authorize a later impact");
+        Check((bool)Call("NativeCombatRecord","CausalOrderAllows",4UL,4UL,true),"Synchronous native dispatch permits pre-postfix order state");
+        Check(!(bool)Call("NativeCombatRecord","CausalOrderAllows",ulong.MaxValue,0UL,true),"Exhausted order revision cannot wrap into attribution");
+        foreach(var test in new[]{("Pending","Unknown"),("TargetDead","Unknown"),("Completed","Completed"),("Interrupted","Interrupted")}) {
+            var phase=Enum.Parse(Native("NativeCombatPhase"),test.Item1);
+            Check(Call("NativeCombatRecord","WithTrackingLoss",phase,true).ToString()==test.Item2,"Tracking loss preserves only prior terminal attribution or observed interruption: "+test.Item1);
+            Check(Call("NativeCombatRecord","WithTrackingLoss",phase,false).ToString()==test.Item1,"Intact lineage preserves native phase: "+test.Item1);
+        }
         Console.WriteLine($"{checks} compiled combat shape, progress and health guard assertions passed; no gameplay.");
     }
 }

@@ -41,9 +41,9 @@ namespace HomeBridge.BridgeTools
 
     public sealed class NativeOperationTools
     {
-        public NativeOperationTools() { NativeConstructionTracking.Install(); NativePawnControlState.Initialize(); NativeCombatCausality.Initialize(); }
+        public NativeOperationTools() { NativeConstructionTracking.Install(); NativePawnControlState.Initialize(); NativeCombatCausality.Initialize(); NativeRangedCausality.Initialize(); }
 
-        [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "Admit typed PlaceBuilding, temporary SetDrafted, MovePawn or melee AttackTarget under current native authority. Movement and combat require an existing owned draft. Exact retries return their original receipt.")]
+        [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "Admit typed PlaceBuilding, temporary SetDrafted, MovePawn or melee/direct-bullet AttackTarget under current native authority. Movement and combat require an existing owned draft. Exact retries return their original receipt.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ExecuteReply.", Always = true)]
         public async Task<object> Execute(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official operations ExecuteRequest ProtoJSON string.")] object request = null)
@@ -75,7 +75,7 @@ namespace HomeBridge.BridgeTools
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AttackTarget)
                 return NativeCombatOperations.Execute(state, request, context);
             if (request.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
-                return Refuse(Common.FailureCode.Unsupported, "This native adapter implements PlaceBuilding, temporary owned SetDrafted, exact owned MovePawn and melee AttackTarget.");
+                return Refuse(Common.FailureCode.Unsupported, "This native adapter implements PlaceBuilding, temporary owned SetDrafted, exact owned MovePawn and melee/direct-bullet AttackTarget.");
             if (!NativeConstructionTracking.Ready)
                 return Refuse(Common.FailureCode.Unavailable, "Construction transition tracking is unavailable.");
             NativeControlAuthority authority;
@@ -126,7 +126,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        [Tool("rimgovernor/operations_preview", Title = "Preview typed operation", Description = "Read ordinary construction, drafting, movement or melee attack eligibility without acquiring authority or applying effects.")]
+        [Tool("rimgovernor/operations_preview", Title = "Preview typed operation", Description = "Read ordinary construction, drafting, movement or melee/direct-bullet attack eligibility without acquiring authority or applying effects.")]
         [ToolResponse("payload", "string", "Official ProtoJSON PreviewReply.", Always = true)]
         public async Task<object> Preview(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official operations PreviewRequest ProtoJSON string.")] object request = null)
@@ -146,7 +146,7 @@ namespace HomeBridge.BridgeTools
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AttackTarget)
                     return ProtoBoundary.Encode(NativeCombatOperations.Preview(parsed.Operation.AttackTarget, context));
                 if (parsed.Operation == null || parsed.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
-                    return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements PlaceBuilding, temporary SetDrafted, exact owned MovePawn and melee AttackTarget.") });
+                    return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements PlaceBuilding, temporary SetDrafted, exact owned MovePawn and melee/direct-bullet AttackTarget.") });
                 NativeConstructionPlan plan; RimGovernor.Protocol.Placement.PlacementEvaluated preview;
                 var accepted = NativeConstructionPlan.Prepare(Find.CurrentMap, parsed.Operation.PlaceBuilding.Placement, context, out plan, out preview, out invalid);
                 if (preview == null) return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = invalid });
@@ -178,7 +178,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("rimgovernor/receipts_observe_progress", Title = "Observe admitted operation", Description = "Read causally tracked construction, draft, movement or melee outcomes; absence of an attempt never proves completion.")]
+        [Tool("rimgovernor/receipts_observe_progress", Title = "Observe admitted operation", Description = "Read causally tracked construction, draft, movement or melee/direct-bullet outcomes; absence of an attempt never proves completion.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ProgressReply.", Always = true)]
         public async Task<object> ObserveProgress(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official receipts ProgressRequest ProtoJSON string.")] object request = null)
