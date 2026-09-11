@@ -6,9 +6,22 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	"google.golang.org/protobuf/proto"
 )
+
+type serviceClockReview struct {
+	journal *store.Store
+	profile string
+}
+
+func (s serviceClockReview) Read(ctx context.Context) (store.ClockReviewState, error) {
+	return s.journal.ReadClockReview(ctx, s.profile)
+}
+func (s serviceClockReview) Acknowledge(ctx context.Context, ack store.ClockAcknowledgement) (store.ClockReviewState, error) {
+	return s.journal.AcknowledgeClockEvents(ctx, s.profile, ack)
+}
 
 type serviceClockReads interface {
 	buildingruntime.ClockWindowNative

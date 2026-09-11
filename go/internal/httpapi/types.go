@@ -36,6 +36,7 @@ type Config struct {
 	MaxResponseBytes             int
 	Presentation                 PresentationReader
 	Notifications                NotificationReader
+	ClockReview                  ClockReview
 }
 type State struct {
 	SessionID    string         `json:"sessionId"`

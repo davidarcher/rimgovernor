@@ -60,7 +60,7 @@ export class PlayerHTTPError extends Error {constructor(public status: number, m
 export function definiteRejection(error: unknown): boolean {
   return error instanceof PlayerHTTPError && (error.status === 400 && error.code === 'invalid_request' || error.status === 403 && error.code === 'player_auth' || error.status === 409 && ['conflict', 'capacity'].includes(error.code ?? ''));
 }
-async function request(path: string, signal?: AbortSignal, token?: string, body?: SubmissionRequest | DraftRequest | AcquireRequest | ManualRequest): Promise<{response: Response; value: unknown}> {
+async function request(path: string, signal?: AbortSignal, token?: string, body?: SubmissionRequest | DraftRequest | AcquireRequest | ManualRequest | ClockAcknowledgement): Promise<{response: Response; value: unknown}> {
   const response = await fetch(path, {method: body ? 'POST' : 'GET', cache: 'no-store', credentials: 'same-origin', signal,
     ...(body ? {headers: {'Content-Type': 'application/json', 'X-RimGovernor-Player': token ?? ''}, body: JSON.stringify(body)} : {})});
   const value: unknown = await response.json();
@@ -105,4 +105,29 @@ export async function submitDraft(token: string, body: DraftRequest, signal?: Ab
 }
 export async function readDraftResult(requestId: string, signal?: AbortSignal): Promise<DraftSubmission> {
   const {response, value} = await request(`/api/drafts/submission?requestId=${encodeURIComponent(requestId)}`, signal); if (!response.ok) failed(response, value); return readDraftSubmission(value);
+}
+
+export type ClockAcknowledgement = {requestId: string; expectedRevision: string; throughCursor: string};
+export type ClockReview = {revision: string; inboxCursor: string; reviewedCursor: string; acknowledgedCursor: string; holds: {kind: 'interruption' | 'gap'; fromCursor: string; throughCursor: string}[]};
+export function decodeClockReview(value: unknown): ClockReview {
+  const v = object(value, ['revision', 'inboxCursor', 'reviewedCursor', 'acknowledgedCursor', 'holds']);
+  if (!Array.isArray(v.holds) || v.holds.length > 8192) throw Error('Invalid clock holds');
+  const cursor = (value: unknown) => {const n = decimal(value); if (BigInt(n) > 9223372036854775807n) throw Error('Invalid clock cursor'); return n;};
+  const result: ClockReview = {revision: decimal(v.revision), inboxCursor: cursor(v.inboxCursor), reviewedCursor: cursor(v.reviewedCursor), acknowledgedCursor: cursor(v.acknowledgedCursor), holds: v.holds.map(item => {
+    const hold = object(item, ['kind', 'fromCursor', 'throughCursor']);
+    return {kind: choice(hold.kind, ['interruption', 'gap']), fromCursor: cursor(hold.fromCursor), throughCursor: cursor(hold.throughCursor)};
+  })};
+  if (BigInt(result.acknowledgedCursor) > BigInt(result.reviewedCursor) || BigInt(result.reviewedCursor) > BigInt(result.inboxCursor) || result.holds.some(h => BigInt(h.fromCursor) > BigInt(h.throughCursor) || BigInt(h.throughCursor) > BigInt(result.reviewedCursor))) throw Error('Inconsistent clock review');
+  return result;
+}
+export async function readClockReview(signal?: AbortSignal): Promise<ClockReview | null> {
+  const {response, value} = await request('/api/player/clock', signal);
+  if (response.status === 404) return null;
+  if (!response.ok) failed(response, value);
+  return decodeClockReview(value);
+}
+export async function acknowledgeClock(token: string, body: ClockAcknowledgement, signal?: AbortSignal): Promise<ClockReview> {
+  const {response, value} = await request('/api/player/clock/acknowledge', signal, token, body);
+  if (!response.ok) failed(response, value);
+  return decodeClockReview(value);
 }

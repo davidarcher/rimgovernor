@@ -1,4 +1,5 @@
 import {useEffect, useRef, useState} from 'react';
+import ClockReview from './ClockReview';
 import type {ObservationState} from './observationData';
 import {acquirePlan, PlayerHTTPError, definiteRejection, manualPlayer, readBuilding, readControlResult, readCurrentControl, readPlayerSession, readSubmissionResult, sameWorld, submitBuilding, type AcquireRequest, type ControlRecord, type ControlReply, type ManualRequest, type Submission, type SubmissionRequest, type World} from './playerData';
 
@@ -157,6 +158,7 @@ export default function PlayerControls({observation, observationFresh}: {observa
   const permissionFresh = currentFresh && freshWorld && (!current?.state.enabled || permissionWorldMatches);
   if (available !== true) return refreshError ? <section className="observation-panel building-controls" aria-label="Explicit player controls"><p role="alert">Player controls unavailable: {refreshError}. Retrying connection…</p></section> : null;
   return <section className="observation-panel building-controls" aria-label="Explicit player controls">
+	{token && <ClockReview key={`${token}:${worldKey}`} token={token}/>}
     <div className="building-control-heading"><h2>Player controls</h2><button type="button" onClick={() => void manual()} disabled={!token || !lastWorld.current || manualPending}>{manualPending ? 'Stopping…' : 'Manual — stop orders'}</button></div>
     <p>{permissionFresh ? current?.state.enabled ? 'Current permission: orders enabled' : 'Current permission: orders disabled' : 'Current permission unavailable or refreshing'}</p>
     <p>Submit one building, then explicitly enable its plan. Native preview and normal game rules determine whether it can be placed.</p>
