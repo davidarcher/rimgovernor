@@ -12,6 +12,7 @@ one `payload` ProtoJSON string plus host operation metadata.
 | rimgovernor/authority_control | rimgovernor.authority.v1.Authority/Control | Protocol/NativeAuthorityControlTools.cs |
 | rimgovernor/observations_read_status | rimgovernor.observations.v1.Observations/ReadStatus | Protocol/NativeObservationTools.cs |
 | rimgovernor/observations_get_cells | rimgovernor.observations.v1.Observations/GetCells | Protocol/NativeObservationTools.cs |
+| rimgovernor/observations_list_buildings | rimgovernor.observations.v1.Observations/ListBuildings | Protocol/NativeBuildingObservationTools.cs |
 | rimgovernor/operations_preview | rimgovernor.operations.v1.Operations/Preview | Protocol/NativeOperationTools.cs |
 | rimgovernor/operations_execute | rimgovernor.operations.v1.Operations/Execute | Protocol/NativeOperationTools.cs |
 | rimgovernor/receipts_lookup | rimgovernor.receipts.v1.Attempts/Lookup | Protocol/NativeOperationTools.cs |
@@ -52,7 +53,12 @@ and `home/status` remain separately exported old surfaces pending their consumer
 cutover; they are not aliases implemented by the new adapters. All other retained
 production exports keep their current source ownership entries.
 
-Current source inventory: 64 production exports, 55 fixture exports, 131 handwritten
+`Observations/ListBuildings` returns complete bounded building, blueprint and frame
+rows, including individual walls and construction work/resources. Entity CAS,
+settings, bills, inspect detail and network/service/thermal facts remain explicitly
+unsupported or incomplete. Collection and geometry limits refuse incomplete facts.
+
+Current source inventory: 65 production exports, 55 fixture exports, 132 handwritten
 C# source files and nine generated Protobuf compile inputs. Source declarations do
 not establish gameplay acceptance. Actual installed discovery must match the private
 build and prove fixture exclusion; pending native acceptance remains explicit in
