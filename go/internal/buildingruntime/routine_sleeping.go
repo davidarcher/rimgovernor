@@ -40,7 +40,7 @@ type RoutineBuildingResult struct {
 	NativeWorkTicks uint32
 }
 
-// RoutineBuildingPlanner compiles one bounded indoor building method under an
+// RoutineBuildingPlanner compiles one bounded building method under an
 // existing reviewed player direction. It creates shared pending work, never
 // acquires a lease, dispatches an action or advances the game.
 type RoutineBuildingPlanner struct {
@@ -70,13 +70,15 @@ func (r *RoutineBuildingPlanner) Step(ctx context.Context) (RoutineBuildingResul
 
 // step is also used by the scheduler already holding the same player gate.
 func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuildingResult, error) {
+	roofingOnly := false
 	if r.shelter {
 		indoor := *r
 		indoor.shelter, indoor.definition = false, "SleepingSpot"
 		result, err := indoor.step(call, epoch)
-		if err != nil || result.Reason != BuildingMethodNoSpace {
+		if err != nil || result.Reason != BuildingMethodNoSpace && result.Reason != BuildingMethodUsed {
 			return result, err
 		}
+		roofingOnly = result.Reason == BuildingMethodUsed
 	}
 	p := r.reviewer.player
 	state := p.session.State()
@@ -160,6 +162,9 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 		return result, nil
 	} else if !errors.Is(loadErr, store.ErrNotFound) {
 		return RoutineBuildingResult{}, loadErr
+	}
+	if roofingOnly {
+		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
 	prefix := "routine-sleep"

@@ -246,6 +246,8 @@ and doors; every piece needs a safe exact footprint and the complete project mus
 fit shared stock and reservations. The door's observed completion gates all walls.
 After all shell pieces complete, up to 2,500 game ticks allow ordinary automatic
 roofing; that budget derives from durable completion and cannot renew on restart.
+It remains available after furnishing until native indoor capacity recovers or
+the budget expires: roofed spot footprints alone do not prove a fully roofed room.
 Furnishing still requires observed roofed indoor space. Unfinished or cancelled
 shells grant no roofing budget. `--routine-methods` is also required to execute
 the method or advance its roofing wait. `--routine-cooking-plans` independently

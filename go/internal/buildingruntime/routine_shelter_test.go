@@ -21,6 +21,7 @@ func shelterFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *sleep
 	for _, name := range []string{"Wall", "Door"} {
 		planning.Definitions = append(planning.Definitions, &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, Available: proto.Bool(true), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
 	}
+	planning.Completeness.Matched, planning.Completeness.Returned = proto.Uint64(3), proto.Uint64(3)
 	planning.Cells.Region.Maximum = &c.Cell{X: proto.Int32(8), Z: proto.Int32(8)}
 	planning.Cells.Completeness.Matched, planning.Cells.Completeness.Returned = proto.Uint64(81), proto.Uint64(81)
 	planning.Cells.Cells = nil
@@ -256,5 +257,88 @@ func TestRoutineShelterManualCancelsWholePendingShell(t *testing.T) {
 	again, err := r.Step(ctx)
 	if err != nil || again.Reason != BuildingMethodDisabled || again.NativeWorkTicks != 0 || n.reads != reads {
 		t.Fatal(again, err, n.reads)
+	}
+}
+
+func completeRoutineBuildingMethod(t *testing.T, db *store.Store, result RoutineBuildingResult) {
+	t.Helper()
+	ctx := context.Background()
+	var plan store.PlanState
+	for _, method := range result.Decision.Goal.Methods {
+		candidate, err := db.LoadPlan(ctx, method.Plan)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if domain.GoalWorkOpen(candidate.Progress) {
+			if len(plan.Progress) != 0 {
+				t.Fatal("multiple open methods")
+			}
+			plan = candidate
+		}
+	}
+	if len(plan.Progress) == 0 {
+		t.Fatal("no pending method")
+	}
+	snapshot := result.Decision.Goal.Goal.Snapshot
+	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
+	for i, action := range plan.Spec.Actions() {
+		admission := plan.Admissions[i]
+		if admission.Action != action.ID() {
+			t.Fatal(admission)
+		}
+		if _, err := db.ReserveAndPrepare(ctx, plan.Spec.ID(), action.ID(), admission.Admission); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Dispatch(ctx, plan.Spec.ID(), action.ID(), snapshot, 7); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Observe(ctx, plan.Spec.ID(), domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: snapshot, Tick: 7, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestShelterRoofingContinuesAfterFurnishingUntilNativeCapacityRecovers(t *testing.T) {
+	r, db, n := shelterFixture(t)
+	r.reviewer.player.config.CallTimeout = 5 * time.Second
+	ctx := context.Background()
+	shell, err := r.Step(ctx)
+	if err != nil || !shell.Decision.Admitted {
+		t.Fatal(shell, err)
+	}
+	completeRoutineBuildingMethod(t, db, shell)
+	// Some of the room is now roofed and can hold spots; the native capacity
+	// census still refuses to count a room with any open roof cells.
+	for _, c := range n.reply.GetObserved().Planning.GetObserved().Cells.Cells {
+		c.Indoors = proto.Bool(true)
+		if c.Cell.GetX() >= 2 && c.Cell.GetX() <= 5 && c.Cell.GetZ() >= 2 && c.Cell.GetZ() <= 5 {
+			c.Roof = proto.String("RoofConstructed")
+			c.Issues = c.Issues[:1]
+		}
+	}
+	furnish, err := r.Step(ctx)
+	if err != nil || !furnish.Decision.Admitted {
+		t.Fatal(furnish, err)
+	}
+	completeRoutineBuildingMethod(t, db, furnish)
+	remaining, err := r.Step(ctx)
+	if err != nil || remaining.NativeWorkTicks != 2500 {
+		t.Fatal("furnishing stopped unfinished roofing", remaining, err)
+	}
+	if _, err := r.reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	remaining, err = r.Step(ctx)
+	if err != nil || remaining.NativeWorkTicks != 2500 {
+		t.Fatal("retirement lost roofing budget", remaining, err)
+	}
+	n.reply.GetObserved().IndoorSleepingCapacity = n.reply.GetObserved().ColonistCount
+	n.reply.GetObserved().BedCapacity = n.reply.GetObserved().ColonistCount
+	if _, err := r.reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	remaining, err = r.Step(ctx)
+	if err != nil || remaining.Reason != BuildingMethodNoDeficit || remaining.NativeWorkTicks != 0 {
+		t.Fatal(remaining, err)
 	}
 }
