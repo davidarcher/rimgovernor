@@ -46,15 +46,7 @@ func validateAdmission(a domain.Action, p domain.Progress, admission Admission) 
 	}
 	resources := map[string]bool{}
 	for _, cost := range admission.Costs {
-		n := 0
-		for _, r := range cost.Definition {
-			if r > 0xffff {
-				n += 2
-			} else {
-				n++
-			}
-		}
-		if !utf8.ValidString(cost.Definition) || strings.TrimSpace(cost.Definition) == "" || strings.ContainsRune(cost.Definition, 0) || n > 200 || cost.Count < 0 || resources[cost.Definition] {
+		if !utf8.ValidString(cost.Definition) || strings.TrimSpace(cost.Definition) == "" || strings.ContainsRune(cost.Definition, 0) || len(cost.Definition) > 256 || cost.Count < 0 || resources[cost.Definition] {
 			return errors.New("invalid or duplicate admission cost")
 		}
 		resources[cost.Definition] = true

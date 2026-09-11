@@ -252,7 +252,7 @@ func validAction(a domain.Action, p domain.Progress) error {
 	return nil
 }
 func validResource(r Resource) bool {
-	return utf8.ValidString(string(r)) && strings.TrimSpace(string(r)) != "" && !strings.ContainsRune(string(r), 0) && len(r) <= 800
+	return utf8.ValidString(string(r)) && strings.TrimSpace(string(r)) != "" && !strings.ContainsRune(string(r), 0) && len(r) <= 256
 }
 func validAmounts(costs []Amount) error {
 	if len(costs) > 256 {
