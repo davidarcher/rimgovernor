@@ -125,6 +125,9 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if s.handleNotifications(w, r) {
+		return
+	}
 	if s.handlePresentation(w, r) {
 		return
 	}

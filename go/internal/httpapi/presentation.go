@@ -62,6 +62,12 @@ func (s *Server) handlePresentation(w http.ResponseWriter, r *http.Request) bool
 		reply = value
 		observed = value.GetRoster().GetContext()
 	}
+	s.writePresentation(w, r, ctx, identity, reply, observed, err)
+	return true
+}
+
+func (s *Server) writePresentation(w http.ResponseWriter, r *http.Request, ctx context.Context, identity observation.Identity, reply proto.Message, observed *c.ObservationContext, err error) {
+	wire := &c.Identity{ColonyId: proto.String(string(identity.Colony)), LoadToken: proto.String(string(identity.Load)), MapId: proto.Int32(int32(identity.Map))}
 	if err == nil {
 		err = ctx.Err()
 	}
@@ -80,29 +86,29 @@ func (s *Server) handlePresentation(w http.ResponseWriter, r *http.Request) bool
 	}
 	if err != nil {
 		s.readFailure(w, r, err)
-		return true
+		return
 	}
 	// The provider validates native domain facts. Reject unrepresentable values
 	// before ProtoJSON can silently discard unknown binary fields or stringify NaN.
 	if !presentationWire(reply.ProtoReflect()) {
 		s.readFailure(w, r, errors.New("invalid presentation wire"))
-		return true
+		return
 	}
 	if proto.Size(reply) > min(s.config.MaxResponseBytes, 1<<20) {
 		s.failure(w, r, 503, "response_limit", "Presentation response exceeds its configured bound")
-		return true
+		return
 	}
 	payload, err := protojson.Marshal(reply)
 	if err != nil {
 		s.readFailure(w, r, err)
-		return true
+		return
 	}
 	if err = ctx.Err(); err != nil {
 		s.readFailure(w, r, err)
-		return true
+		return
 	}
 	s.write(w, r, 200, json.RawMessage(payload))
-	return true
+	return
 }
 func (s *Server) presentationIdentity(ctx context.Context) (observation.Identity, error) {
 	if err := ctx.Err(); err != nil {

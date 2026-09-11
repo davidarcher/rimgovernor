@@ -222,6 +222,7 @@ func TestServeFailedAnnouncementClosesStoreAndBridge(t *testing.T) {
 type servicePresentationFake struct {
 	*buildingReadFake
 	presentationCalls atomic.Int32
+	notificationCalls atomic.Int32
 }
 
 func (f *servicePresentationFake) ReadCamera(context.Context, *p.ReadRequest) (*p.CameraReply, bridge.Result, error) {
@@ -233,6 +234,11 @@ func (f *servicePresentationFake) ReadSelection(context.Context, *p.ReadRequest)
 }
 func (f *servicePresentationFake) ReadColonistRoster(context.Context, *p.ColonistRosterRequest) (*p.ColonistRosterReply, bridge.Result, error) {
 	panic("unexpected roster")
+}
+
+func (f *servicePresentationFake) ReadNotifications(context.Context, *p.NotificationsRequest) (*p.NotificationsReply, bridge.Result, error) {
+	f.notificationCalls.Add(1)
+	return &p.NotificationsReply{Outcome: &p.NotificationsReply_Notifications{Notifications: &p.NotificationsSnapshot{Context: serviceContext(), Letters: &p.LetterSection{Outcome: &p.LetterSection_Observed{Observed: &p.Letters{}}}, Messages: &p.MessageSection{Outcome: &p.MessageSection_Observed{Observed: &p.Messages{}}}, Alerts: &p.AlertSection{Outcome: &p.AlertSection_Observed{Observed: &p.Alerts{}}}}}}, bridge.Result{}, nil
 }
 
 type presentationAddressWriter chan string
@@ -296,6 +302,18 @@ func TestServePresentationUsesOptionalAttachedClient(t *testing.T) {
 				}
 				if reply.StatusCode != expected || fake.presentationCalls.Load() != calls {
 					t.Fatal(reply.StatusCode, string(body), fake.presentationCalls.Load())
+				}
+				notifications, err := client.Get(url + "/api/presentation/notifications")
+				if err != nil {
+					t.Fatal(err)
+				}
+				notificationBody, err := io.ReadAll(notifications.Body)
+				notifications.Body.Close()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if notifications.StatusCode != expected || fake.notificationCalls.Load() != calls {
+					t.Fatal(notifications.StatusCode, string(notificationBody), fake.notificationCalls.Load())
 				}
 				cancel()
 				select {

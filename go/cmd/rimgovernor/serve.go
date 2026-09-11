@@ -166,7 +166,8 @@ func serveWithBridge(ctx context.Context, config serveConfig, out io.Writer, ope
 	}
 	_ = snapshots.Refresh(ctx)
 	presentation, _ := client.(httpapi.PresentationReader)
-	server, err := httpapi.New(httpapi.Config{Presentation: presentation, AssetsDir: config.assets, ReadTimeout: 5 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, snapshots, database)
+	notifications, _ := client.(httpapi.NotificationReader)
+	server, err := httpapi.New(httpapi.Config{Notifications: notifications, Presentation: presentation, AssetsDir: config.assets, ReadTimeout: 5 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, snapshots, database)
 	if err != nil {
 		return err
 	}

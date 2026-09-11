@@ -189,7 +189,8 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	_ = reads.Refresh(lifetime)
 	presentation, _ := client.reads.(httpapi.PresentationReader)
-	server, err := httpapi.NewWithPlayer(httpapi.Config{Presentation: presentation, AssetsDir: config.assets, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
+	notifications, _ := client.reads.(httpapi.NotificationReader)
+	server, err := httpapi.NewWithPlayer(httpapi.Config{Notifications: notifications, Presentation: presentation, AssetsDir: config.assets, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
 	if err != nil {
 		return err
 	}
