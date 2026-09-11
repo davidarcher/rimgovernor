@@ -22,7 +22,7 @@ var (
 
 type Journal interface {
 	LoadPlan(context.Context, domain.PlanID) (store.PlanState, error)
-	Prepare(context.Context, domain.PlanID, domain.ActionID, domain.GenerationSnapshot, domain.Tick) (domain.Progress, error)
+	ReserveAndPrepare(context.Context, domain.PlanID, domain.ActionID, store.Admission) (domain.Progress, error)
 	Dispatch(context.Context, domain.PlanID, domain.ActionID, domain.GenerationSnapshot, domain.Tick) (domain.Progress, error)
 	RecordReceipt(context.Context, domain.PlanID, domain.ActionID, domain.AttemptID, domain.Receipt) (domain.Progress, error)
 	Observe(context.Context, domain.PlanID, domain.Observation, domain.GenerationSnapshot) (domain.Progress, error)
@@ -51,7 +51,11 @@ type Inspection struct {
 	Preview               policy.Preview
 	Stock                 policy.StockObservation
 	Held                  []policy.Reservation
+	// Held contains other-plan commitments only. Completeness must come from
+	// the runtime's accounting owner, never from an empty native response.
+	ExternalHoldsComplete bool
 	Rules                 []policy.ResourceRule
+	admission             store.Admission
 }
 
 // Placement's composite identity is the native deduplication/precondition token.
@@ -229,13 +233,11 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	if err != nil {
 		return result, err
 	}
-	if progress.View().Stage == domain.Pending {
-		progress, err = e.journal.Prepare(ctx, plan, actionID, expected, inspection.Tick)
-		if err != nil {
-			return result, err
-		}
-		result.Progress = progress
+	progress, err = e.journal.ReserveAndPrepare(ctx, plan, actionID, inspection.admission)
+	if err != nil {
+		return result, err
 	}
+	result.Progress = progress
 	// Refresh after durable preparation: resources and native safety may have
 	// changed while journaling. Prepared restart follows the same fresh admission.
 	inspection, refusals, err = e.inspect(ctx, Target{action, expected}, progress, generation)
@@ -245,6 +247,17 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if err = e.guard(ctx, expected, generation); err != nil {
 		return result, err
+	}
+	progress, err = e.journal.ReserveAndPrepare(ctx, plan, actionID, inspection.admission)
+	if err != nil {
+		return result, err
+	}
+	result.Progress = progress
+	if err = e.guard(ctx, expected, generation); err != nil {
+		return result, err
+	}
+	if !e.fresh(inspection.StartedAt, inspection.ObservedAt) {
+		return result, ErrHeld
 	}
 	progress, err = e.journal.Dispatch(ctx, plan, actionID, expected, inspection.Tick)
 	if err != nil {
@@ -288,13 +301,35 @@ func (e *Executor) inspect(ctx context.Context, target Target, progress domain.P
 	if !inspection.Current.Matches(target.Snapshot) || !e.fresh(inspection.StartedAt, inspection.ObservedAt) {
 		return inspection, nil, ErrHeld
 	}
-	input, err := policy.NewInput(policy.Request{Current: inspection.Current, CurrentTick: inspection.Tick, Bounds: inspection.Bounds, Stock: inspection.Stock, Held: inspection.Held, Rules: inspection.Rules, Candidates: []policy.Candidate{{Action: target.Action, Progress: progress, Purpose: policy.Routine, Preview: inspection.Preview}}})
+	if !inspection.ExternalHoldsComplete {
+		return inspection, nil, ErrHeld
+	}
+	state, err := e.journal.LoadPlan(ctx, target.Snapshot.Plan)
+	if err != nil {
+		return inspection, nil, err
+	}
+	held, err := persistentHolds(state, target.Action.ID(), progress)
+	if err != nil {
+		return inspection, nil, err
+	}
+	for _, external := range inspection.Held {
+		if external.Progress.View().Plan == state.Spec.ID() {
+			return inspection, nil, fmt.Errorf("%w: current-plan holds must come from the journal", ErrEvidence)
+		}
+		held = append(held, external)
+	}
+	input, err := policy.NewInput(policy.Request{Current: inspection.Current, CurrentTick: inspection.Tick, Bounds: inspection.Bounds, Stock: inspection.Stock, Held: held, Rules: inspection.Rules, Candidates: []policy.Candidate{{Action: target.Action, Progress: progress, Purpose: policy.Routine, Preview: inspection.Preview}}})
 	if err != nil {
 		return inspection, nil, fmt.Errorf("%w: %v", ErrEvidence, err)
 	}
 	decision := policy.Admit(input)
 	if len(decision.Admitted) != 1 || decision.Admitted[0].Action != target.Action {
 		return inspection, decision.Refused, ErrHeld
+	}
+	accepted := decision.Admitted[0]
+	inspection.admission = store.Admission{Snapshot: accepted.Snapshot, Tick: inspection.Tick, Footprint: append([]domain.Cell(nil), accepted.Footprint...), Costs: make([]store.MaterialCost, len(accepted.Costs))}
+	for i, cost := range accepted.Costs {
+		inspection.admission.Costs[i] = store.MaterialCost{Definition: string(cost.Resource), Count: cost.Count}
 	}
 	return inspection, nil, nil
 }
