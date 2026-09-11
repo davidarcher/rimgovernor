@@ -723,6 +723,12 @@ only intentional small, sanitized regression fixtures belong in source control.
     preserve SDK descriptor validation and independent Python observation
     projection tooling where still consumed. This cleanup does not block other
     adapters from consuming the reviewed Protobuf package.
+    - [ ] **02e.1:** decouple model-command decoding from the experimental native
+      placement generator. Owner: model agent; depends on 02b. Keep typed,
+      catalog-grounded proposals and the current interpreter interface.
+    - [ ] **02e.2:** retire unused generated outputs/compiler and their checks
+      after 02e.1 and 03b.1; preserve independently consumed Python projections.
+      Owner: integrator.
 
 - [ ] **G01.03 — Read-only transport and observation.** Owner: bridge agent.
   Port MCP process ownership, discovery, typed current observations, freshness,
@@ -736,6 +742,11 @@ only intentional small, sanitized regression fixtures belong in source control.
   - [ ] **03b:** typed current identity/status and observation facts, explicit
     unavailable values and freshness. Owner: bridge agent; depends on 03a and the
     domain fact types. Add families with policy consumers and one native read smoke.
+    - [ ] **03b.1:** fixed Protobuf identity/status/placement read adapters and
+      truthful typed observation projection. Owner: bridge agent; depends on 02b.
+      Keep owned SDK lifecycle and reject legacy aliases or arbitrary invocation.
+    - [ ] **03b.2:** native read/preview acceptance against N01's corresponding
+      adapters. Owner: integrator; depends on 03b.1 and native 02c.
 
 - [x] **G01.04 — Typed plan and fresh Go store.** Owner: state agent. Split into
   04a plan/action/progress types and 04b SQLite persistence/restart. Use a new Go
@@ -747,6 +758,8 @@ only intentional small, sanitized regression fixtures belong in source control.
   - [x] **04a:** distinct IDs/generations, plan/spec/progress and a bounded building
     action variant with legal transitions. Owner: state agent; no legacy serializers.
     Extend action families only alongside their Hands handlers.
+    - [x] **04a.1:** align opaque IDs and native definition/material bounds with
+      the shared UTF-8/no-NUL contract. Owner: integrator; depends on 02b.
   - [x] **04b:** fresh versioned SQLite store, transactions/durable intent and
     reopen/restart checks. Owner: state agent; depends on 04a.
 
@@ -839,6 +852,12 @@ only intentional small, sanitized regression fixtures belong in source control.
     cancellation. Runtime listener wiring follows with the Go service command.
   - [ ] **09b:** dashboard observation view and current player command controls;
     read-only view can land first, mutations require 06/08 authority integration.
+    - [x] **09b.1:** dashboard observation view and confined local static assets.
+      Owner: server agent; native rendering acceptance remains in 09c.
+    - [ ] **09b.2:** explicit read-only Go service command, early listener/asset
+      validation, joined shutdown and retained last-good observations. Owner:
+      service agent; depends on 09a and 09b.1. Keep observation APIs stable across
+      03b.1; real native service acceptance follows that adapter cutover.
   - [ ] **09c:** player ownership/camera, portraits/follow/video and native rendered
     acceptance. Read endpoints depend on 03/04; mutations require 06 and their
     supported 07/08 action families.

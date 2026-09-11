@@ -3,8 +3,6 @@ package domain
 import (
 	"errors"
 	"fmt"
-	"strings"
-	"unicode/utf8"
 )
 
 type Cell struct{ X, Z int32 }
@@ -51,27 +49,7 @@ func (b Building) Rotation() Rotation { return b.rotation }
 // Empty Stuff requests the native default material selection.
 func (b Building) Stuff() string { return b.stuff }
 func nativeText(s string, allowEmpty bool) bool {
-	if !utf8.ValidString(s) {
-		return false
-	}
-	if s == "" {
-		return allowEmpty
-	}
-	if strings.TrimSpace(s) == "" {
-		return false
-	}
-	n := 0
-	for _, r := range s {
-		if r > 0xffff {
-			n += 2
-		} else {
-			n++
-		}
-		if r == 0 {
-			return false
-		}
-	}
-	return n <= 200
+	return (s == "" && allowEmpty) || validID(s)
 }
 
 // Action is a closed variant. New families require constructor and handler coverage.

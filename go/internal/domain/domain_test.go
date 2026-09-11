@@ -50,6 +50,49 @@ func TestFactsPreserveUnknown(t *testing.T) {
 		t.Fatal("known tick zero lost")
 	}
 }
+
+func TestSharedIdentifierBounds(t *testing.T) {
+	for _, text := range []string{strings.Repeat("a", 256), strings.Repeat("\U0001F600", 64)} {
+		building, err := NewBuilding(text, Cell{}, North, text)
+		if err != nil {
+			t.Fatal(err)
+		}
+		action, err := NewBuildingAction(ActionID(text), building)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = NewPlan(PlanID(text), 0, []Action{action}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	building, err := NewBuilding("Wall", Cell{}, North, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, text := range []string{"a\x00b", strings.Repeat("a", 257), strings.Repeat("\U0001F600", 65), "\xff"} {
+		if _, err := NewBuildingAction(ActionID(text), building); err == nil {
+			t.Fatalf("accepted invalid action ID %q", text)
+		}
+		if _, err := NewPlan(PlanID(text), 0, nil); err == nil {
+			t.Fatalf("accepted invalid plan ID %q", text)
+		}
+		for _, snapshot := range []GenerationSnapshot{
+			{Colony: ColonyID(text), Load: "load", Plan: "plan"},
+			{Colony: "colony", Load: LoadID(text), Plan: "plan"},
+		} {
+			if err := snapshot.Validate(); err == nil {
+				t.Fatalf("accepted invalid world identity %q", text)
+			}
+		}
+		if _, err := NewBuilding(text, Cell{}, North, ""); err == nil {
+			t.Fatalf("accepted invalid definition %q", text)
+		}
+		if _, err := NewBuilding("Wall", Cell{}, North, text); err == nil {
+			t.Fatalf("accepted invalid material %q", text)
+		}
+	}
+}
+
 func TestBuildingAndPlanValidation(t *testing.T) {
 	for _, tc := range []struct {
 		name, def string
@@ -60,7 +103,7 @@ func TestBuildingAndPlanValidation(t *testing.T) {
 		{"blank", " \t", Cell{}, North, ""},
 		{"negative", "Wall", Cell{-1, 0}, North, ""},
 		{"rotation", "Wall", Cell{}, "diagonal", ""},
-		{"utf16", strings.Repeat("😀", 101), Cell{}, North, ""},
+		{"utf8 bound", strings.Repeat("\U0001F600", 65), Cell{}, North, ""},
 		{"encoding", "\xff", Cell{}, North, ""},
 		{"nul", "Wall\x00", Cell{}, North, ""},
 		{"stuff", "Wall", Cell{}, North, " "},
@@ -71,7 +114,7 @@ func TestBuildingAndPlanValidation(t *testing.T) {
 			}
 		})
 	}
-	b, err := NewBuilding(strings.Repeat("😀", 100), Cell{}, West, "Modded_Stuff")
+	b, err := NewBuilding(strings.Repeat("\U0001F600", 64), Cell{}, West, "Modded_Stuff")
 	if err != nil {
 		t.Fatal(err)
 	}

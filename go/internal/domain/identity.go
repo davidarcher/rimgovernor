@@ -51,5 +51,5 @@ func (s GenerationSnapshot) sameWorld(other GenerationSnapshot) bool {
 	return s.Colony == other.Colony && s.Map == other.Map && s.Load == other.Load
 }
 func validID(s string) bool {
-	return utf8.ValidString(s) && strings.TrimSpace(s) != "" && len(s) <= 256
+	return utf8.ValidString(s) && strings.TrimSpace(s) != "" && len(s) <= 256 && !strings.ContainsRune(s, '\x00')
 }
