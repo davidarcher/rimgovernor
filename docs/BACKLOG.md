@@ -1199,7 +1199,7 @@ only intentional small, sanitized regression fixtures belong in source control.
   Depends on 07, 08 and 09.
   - [ ] **10a:** owned supervised clock integration. Foundations may start after
     06; full service acceptance depends on the supported 07/09 controls.
-    - [ ] **10a.1:** durable clock attempts and event cursor/inbox. Owner: state
+    - [x] **10a.1:** durable clock attempts and event cursor/inbox. Owner: state
       agent; depends on 06. Journal before writes, retain original epoch and
       uncertain outcomes, and commit event evidence before cursor advancement.
       Test pending restart, duplicate delivery, gaps and bounded capacity.
@@ -1208,11 +1208,11 @@ only intentional small, sanitized regression fixtures belong in source control.
         Correlate recovered receipts with the full original command, owner and
         generation. Reuse fixed generated messages and expose pure event/status
         validation for journal replay. Persist no live lease token.
-      - [ ] **10a.1b:** fresh clock-attempt journal. Owner: state agent; depends
+      - [x] **10a.1b:** fresh clock-attempt journal. Owner: state agent; depends
         on 10a.1a. Allocate native attempt identities disjoint from plan actions,
         persist dispatch before calls, and retain immutable outcomes and original
         epochs. Fresh schema only; no service or clock enablement.
-      - [ ] **10a.1c:** profile-bound event inbox. Owner: state agent; depends on
+      - [x] **10a.1c:** profile-bound event inbox. Owner: state agent; depends on
         10a.1a and the fixed 10a.1b schema boundary. Commit typed events, page/loss
         evidence and next cursor atomically. World changes never reset this
         profile-wide cursor; regressions, gaps and capacity failure hold progress.
@@ -1221,6 +1221,20 @@ only intentional small, sanitized regression fixtures belong in source control.
       10a.1. Bind explicit start/speed/pause to current authority; retain exact
       epoch cleanup after revocation. Observe uncertain commands before retrying;
       test Manual races, foreign epochs, expiry and joined shutdown.
+      - [ ] **10a.2a:** typed command coordinator and owned-epoch obligations.
+        Owner: runtime/state agents; depends on 10a.1. Fix the local interface
+        before implementation. Share the existing Store and Control, journal
+        dispatch before calls and correlate recovered receipts. Retain exact
+        cleanup obligations; unknown start never adopts a merely same-session epoch.
+      - [ ] **10a.2b:** lease-free owned pause and Manual invalidation. Owner:
+        runtime agent; depends on 10a.2a. Cancel new commands before joining them;
+        cleanup under the Control close gate cannot call back into Control.
+        Unverified pause retains ownership; replacement evidence cannot pause
+        a replacement epoch. Test failed pause, timeout and world replacement.
+      - [ ] **10a.2c:** disabled startup and joined Session composition. Owner:
+        integrator; depends on 10a.2b. Recover obligations without permission,
+        preserve constructor publication and retain profile/transport/store
+        handles until cleanup succeeds. Renewal/interruption loops remain 10a.3.
     - [ ] **10a.3:** bounded windows and independent interruption/renewal workers.
       Owner: runtime agent; depends on 10a.2 and 07a. Fresh policy review precedes
       finite windows. Gaps, failed observation and external clock changes stop

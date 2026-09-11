@@ -2,8 +2,8 @@
 
 [Subsystem contracts](README.md) · [Canonical clock schema](../../../contracts/proto/clock.proto)
 
-The Go bridge validates clock commands and recovered evidence against the canonical
-native producer. Runtime composition, durable storage and gameplay acceptance are
+The Go bridge and store validate clock commands and recovered evidence against the
+canonical native producer. Runtime composition and gameplay acceptance are
 tracked separately in [G01.10a](../../BACKLOG.md). These validators do not enable
 the clock or restore permission after restart.
 
@@ -33,6 +33,27 @@ They do not establish freshness, current ownership or verified pause. In particu
 the original world and epoch owner and remains separate from start/renew/speed
 attempts.
 
+## Durable attempts
+
+The fresh Go schema stores start, renewal and speed intents through
+`Store.PrepareClock`. Exact request replay returns the existing native attempt.
+Each command gets a distinct action ID and attempt number one; allocation and
+ordinary plan insertion check each other's IDs in the same SQLite transaction
+because the native ledger shares one attempt-key namespace.
+
+`DispatchClock` persists dispatch once before the caller contacts native control.
+`MarkClockUncertain` retains missing replies without permitting another dispatch.
+`RecordClockReply` validates against the complete original expectation. Applied
+and refused results are immutable except for exact replay. A correlated admitted
+receipt cannot later be replaced by a pre-admission failure or deferral. A fully
+correlated recovered receipt can resolve an in-flight uncertain result.
+
+The catalog retains at most 4,096 attempts. Capacity is checked before insertion;
+existing request replay still works at the limit. Loading a catalog fails rather
+than returning an incomplete recovery set. Persisted command and reply values use
+bounded canonical encodings and are validated again on read. No live lease token
+is stored, and opening a database does not enable a coordinator.
+
 ## Profile-wide event cursors
 
 The native clock journal belongs to the game profile. A page's observation context
@@ -54,3 +75,16 @@ zero is not a valid oldest cursor for a nonempty journal.
 Valid loss evidence must be retained as a hold. Reading or storing an event does
 not acknowledge an interruption, prove that it was processed, or permit time to
 resume. The controller must persist evidence before advancing its ingestion cursor.
+
+`BindClockInbox` binds one canonical existing profile directory to the database.
+`AppendClockEvents` atomically stores the request, page, surviving immutable events
+and cursor progress. Exact retained request/page replay is a no-op. A changed stale
+page must be refetched from the stored cursor; it cannot rewrite prior evidence.
+Missing profile metadata with retained history is an error, not a new binding.
+
+`ReadClockInbox` and `LoadClockInbox` validate complete retained history and derive
+the cursor, sticky gap, loss count and catalog sizes. Storage is bounded to 4,096
+pages, 4,096 events and 16 MiB of encoded requests/pages. Duplicate event copies
+are checked against their pages. Capacity failure leaves the entire append
+uncommitted. Processing, acknowledgement and retirement of history remain separate
+runtime work; ingestion alone never clears a gap or an interruption.
