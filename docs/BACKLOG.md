@@ -1084,12 +1084,23 @@ only intentional small, sanitized regression fixtures belong in source control.
         attempt, pawn and destination/target attribution without acquiring drafts.
         - [x] **07a.3a.1:** ordinary movement preview, execute, lookup and progress.
           Use the fixed MovementAttempt boundary and existing generated messages.
-        - [ ] **07a.3a.2:** exact melee attack adapter. Ranged requires a typed
-          direct-bullet restriction before activation;
-          depends on the fixed local attack boundary. Explosive support stays gated.
+        - [x] **07a.3a.2:** exact melee preview, execute, lookup and causal progress
+          using the fixed AttackAttempt boundary. Auto and Ranged stay rejected.
+        - [ ] **07a.3a.3:** typed direct-bullet native restriction and matching Go
+          adapter. Current Ranged also accepts explosives; keep it gated until
+          scope is explicit. Coordinate canonical contract changes with N01.
       - [ ] **07a.3b:** deterministic single-opponent admission and shared move/
-        attack actions. Owner: domain/state agents; depends on 3a. Bind fresh
+        attack actions. Owner: domain/state agents; depends on 3a.1–2 for melee. Bind fresh
         facts and the prerequisite draft claim; unknown or unsupported scope holds.
+        - [ ] **07a.3b.1:** narrow typed combat pawn read with health and equipment
+          details from existing generated observations. Owner: bridge agent. Keep
+          the existing ordinary pawn read closed; unknown combat capability holds.
+        - [ ] **07a.3b.2:** shared melee action, explicit same-pawn draft prerequisite
+          and durable exact admission. Owner: domain/state agents; freeze local
+          interfaces first. Prevent generic prepare and prerequisite bypass.
+        - [ ] **07a.3b.3:** deterministic one-opponent melee admission. Owner: policy
+          agent; depends on 3b.1–2. Require complete fresh census, selected pawn
+          health and guarded native preview; preserve explicit hold reasons.
       - [ ] **07a.3c:** Hands handlers and Session/Worker composition. Owner:
         runtime agent; depends on 3b. Retain the draft through dependent actions,
         invalidate queued work on interruption and use exact owned cleanup.
@@ -1234,7 +1245,7 @@ only intentional small, sanitized regression fixtures belong in source control.
         evidence and next cursor atomically. World changes never reset this
         profile-wide cursor; regressions, gaps and capacity failure hold progress.
         Durable processing/acknowledgement belongs to 10a.2–3.
-    - [ ] **10a.2:** owned epoch coordinator. Owner: runtime agent; depends on
+    - [x] **10a.2:** owned epoch coordinator. Owner: runtime agent; depends on
       10a.1. Bind explicit start/speed/pause to current authority; retain exact
       epoch cleanup after revocation. Observe uncertain commands before retrying;
       test Manual races, foreign epochs, expiry and joined shutdown.
@@ -1251,20 +1262,20 @@ only intentional small, sanitized regression fixtures belong in source control.
           runtime agent; depends on the fixed 2a.1 interface and 10a.1 journal.
           Serialize commands, invalidate without waiting, persist before calls,
           and recover exact attempts without retrying unknown starts.
-      - [ ] **10a.2b:** lease-free owned pause and Manual invalidation. Owner:
+      - [x] **10a.2b:** lease-free owned pause and Manual invalidation. Owner:
         runtime agent; depends on 10a.2a. Cancel new commands before joining them;
         cleanup under the Control close gate cannot call back into Control.
         Stopping or unknown pause retains ownership; replacement evidence cannot pause
         a replacement epoch. Test failed pause, timeout and world replacement.
         Add durable scope retirement for uncertain starts after positive world
         replacement; preserve their outcome uncertainty without blocking a new world.
-        - [ ] **10a.2b.1:** persist scope retirement for dispatched or uncertain
+        - [x] **10a.2b.1:** persist scope retirement for dispatched or uncertain
           starts using positive replacement-world evidence. Owner: state agent.
           Keep outcome uncertainty; reject late mutations after retirement.
-        - [ ] **10a.2b.2:** serialized owned pause sweep. Owner: runtime agent;
+        - [x] **10a.2b.2:** serialized owned pause sweep. Owner: runtime agent;
           depends on the fixed 2b.1 interface. Join invalidated commands, recover
           exact receipts, then observe and fence each lease-free pause attempt.
-      - [ ] **10a.2c:** disabled startup and joined Session composition. Owner:
+      - [x] **10a.2c:** disabled startup and joined Session composition. Owner:
         integrator; depends on 10a.2b. Recover obligations without permission,
         preserve constructor publication and retain profile/transport/store
         handles until cleanup succeeds. Renewal/interruption loops remain 10a.3.
@@ -1272,6 +1283,21 @@ only intentional small, sanitized regression fixtures belong in source control.
       Owner: runtime agent; depends on 10a.2 and 07a. Fresh policy review precedes
       finite windows. Gaps, failed observation and external clock changes stop
       writes; danger requires explicit acknowledgement. Restart cannot resume.
+      - [ ] **10a.3a:** durable event review, gap holds and explicit acknowledgements.
+        Owner: state agent; depends on 10a.1–2. Freeze closed local types first.
+        Acknowledgement records inspection, never permission or safe current facts.
+      - [ ] **10a.3b:** pure finite healthy-colony window review. Owner: policy
+        agent; depends on 07a.1 and fixed 3a interface. Unknown, stale, unsafe or
+        interrupted facts hold. Combat and medical suppression await 07a facts.
+      - [ ] **10a.3c:** one bounded scheduling step. Owner: runtime agent; depends
+        on 3a–b. Bind stable durable request IDs, current authority and review
+        revision; resolve unknown starts only through exact attempt recovery.
+      - [ ] **10a.3d:** independent event polling and epoch renewal. Owner: runtime
+        agent; depends on 3c. Persist events before review, cancel on interruption,
+        and renew only the original running epoch without extending its tick budget.
+      - [ ] **10a.3e:** joined lifecycle composition and disabled restart. Owner:
+        integrator; depends on 3d. Test dispatch interruption, gaps, paused-tick
+        backoff, renewal starvation and retryable shutdown before service wiring.
     - [ ] **10a.4:** service/UI composition and actual Go clock acceptance.
       Owner: integrator with N01; depends on 10a.3 and 09. Verify ordinary work,
       real interruption, Manual pause, shutdown and disabled restart. Reuse the

@@ -63,8 +63,7 @@ queued calls; shutdown joins journal completion. Renewal and speed changes requi
 the original start's complete snapshot and a freshly observed matching running epoch.
 
 Only a prepared attempt can dispatch. Recovery reads the exact original attempt;
-unknown results never authorize replay or adoption from clock status. Session
-composition and lease-free pause execution remain separate backlog gates.
+unknown results never authorize replay or adoption from clock status.
 
 ## Owned epochs and pause cleanup
 
@@ -91,6 +90,24 @@ An inactive epoch must not be paused again merely because the player resumed tim
 Retirement and supersession do not satisfy a save or dialog operation's separate
 fresh-pause prerequisite. `Stopping` retains an obligation even when it reports a
 temporarily paused game. Terminal cleanup evidence remains immutable.
+
+## Session lifecycle
+
+The optional complete clock capability shares Session authority and profile ownership.
+Startup stays disabled and leaves recovery to explicit cleanup or later worker
+composition. Pending starts or owned epochs cannot be opened without clock recovery
+capabilities. No constructor starts time or acquires native authority.
+
+Manual invalidates commands before joining them. Cleanup runs under the Control
+gate and cannot call Control or request a lease. A new acquire drains old owned
+effects before requesting authority. Close joins writers, prioritizes clock pause
+before draft cleanup, and retains the profile, transport and store until cleanup
+succeeds. Lease-free cleanup remains usable after the command coordinator stops.
+
+A fresh positive replacement world can durably retire the scope of an unknown
+start. The attempt retains its original outcome uncertainty; retirement never
+means refusal or no effect. Its immutable proof prevents late replies from
+creating a new obligation. Same-world authority changes cannot retire that scope.
 
 ## Profile-wide event cursors
 
