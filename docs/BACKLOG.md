@@ -1001,7 +1001,7 @@ only intentional small, sanitized regression fixtures belong in source control.
         Reconcile unknown acquisition before release; never act on a replacement
         world or claim. Accept player preservation, lost replies and restart in
         isolated native games before enabling this family in the service.
-        - [ ] **2f.1:** session capabilities and worker cleanup eligibility. Owner:
+        - [x] **2f.1:** session capabilities and worker cleanup eligibility. Owner:
           runtime agent; depends on 2e. A finished standalone draft plan releases
           its claim; later defense plans may retain it only while still active.
           Use the existing writer for disabled and shutdown cleanup.
@@ -1010,14 +1010,14 @@ only intentional small, sanitized regression fixtures belong in source control.
             retire potential cleanup even when a lost reply left the claim unknown.
             Preserve the unknown original effect; never invent release or absence.
             Same-world missing ownership cannot use this transition.
-          - [ ] **2f.1b:** compose session and worker cleanup. Owner: runtime agent;
+          - [x] **2f.1b:** compose session and worker cleanup. Owner: runtime agent;
             depends on 2e.2 and 2f.1a. Keep one writer, finished-plan cleanup and
             retryable joined shutdown under the existing profile owner.
             - [x] **2f.1b.1:** retain profile ownership after uncertain shutdown
               revoke. Owner: integrator; depends on existing 06 control lifecycle.
               Failed native cleanup cannot become successful through a second
               Close call without fresh evidence. Cover a held lock and retry.
-            - [ ] **2f.1b.2:** compose draft session and worker cleanup. Owner:
+            - [x] **2f.1b.2:** compose draft session and worker cleanup. Owner:
               runtime agent; depends on 2e.2, 2f.1a and 2f.1b.1. Accept positive
               world replacement before retiring an obsolete revoke target;
               unavailable identity retains ownership. Never revoke a replacement
@@ -1026,22 +1026,43 @@ only intentional small, sanitized regression fixtures belong in source control.
                 Owner: integrator; depends on 2e.2. A complete optional draft
                 capability set selects the typed executor; expose lease-free
                 fresh world reads and serialized cleanup without enabling services.
-              - [ ] **2f.1b.2b:** positive shutdown target retirement. Owner: control
+              - [x] **2f.1b.2b:** positive shutdown target retirement. Owner: control
                 agent; depends on 2a and 2f.1b.1. A fresh different world can retire
                 the old revoke target after writers drain; unknown identity holds.
-              - [ ] **2f.1b.2c:** session composition and bounded cleanup sweep.
+              - [x] **2f.1b.2c:** session composition and bounded cleanup sweep.
                 Owner: session agent; depends on 2a and 2e.2. Join the single writer,
                 preserve retryable ownership, and reconcile known or unknown claims
                 through Manual and Close. No player/API or launcher enablement.
-              - [ ] **2f.1b.2d:** worker cleanup eligibility and fairness. Owner:
+              - [x] **2f.1b.2d:** worker cleanup eligibility and fairness. Owner:
                 worker agent; depends on 2a and 2e.2. Schedule completed standalone
                 draft cleanup and invalidated claims independently of ordinary
                 unresolved actions. Accept combined session/control behavior after
                 2b–c; retain claims needed by an active multi-action plan.
         - [ ] **2f.2:** explicit player draft submission and local API projection.
           Owner: HTTP agent; depends on 2c and 2f.1. Accept pawn intent only, resolve
-          native CAS in the handler, and expose progress and cleanup independently.
+          native CAS through fresh runtime inspection, and expose progress and
+          cleanup independently.
           Keep shared direction CAS, replay and Manual cancellation semantics.
+          - [ ] **2f.2a:** fix shared player and draft HTTP contracts. Owner:
+            integrator; depends on 2f.1. Use `/api/player/session` and
+            `/api/player/control` with acquire/manual subroutes for common control.
+            Draft intent uses `/api/drafts/plans` and request lookup uses
+            `/api/drafts/submission`. Accept request ID, expected world and
+            `draft.pawnId`; keep native tokens and ownership out of player intent.
+            Use a closed building/draft plan projection with independent cleanup.
+          - [ ] **2f.2b:** shared player draft submission. Owner: runtime agent;
+            depends on 2f.2a and the accepted draft store. Submit through the existing
+            Player gate, world validation and durable request namespace. Preserve cross-family request
+            conflicts, Manual cancellation and read-only result recovery.
+          - [ ] **2f.2c:** draft HTTP handlers and plan projection. Owner: HTTP
+            agent; depends on 2f.2a. Implement bounded intent decoding, authenticated
+            submission and lookup, and typed draft progress/cleanup projection.
+            Integrate the actual Player after 2f.2b; reuse existing common control.
+          - [ ] **2f.2d:** compose the player service. Owner: integrator; depends
+            on 2f.2b–c and 2f.3. Wire complete draft capabilities and use
+            `--player-control`; update dashboard routes and native harness launch
+            and token redaction together. Use fresh source/binary handoff for native
+            acceptance; no old route aliases or historical-state migration.
         - [ ] **2f.3:** dashboard temporary-draft intent and cleanup status. Owner:
           UI agent; depends on the fixed 2f.2 interface. Preserve drafts, exact
           request IDs and uncertain outcomes; no general undraft or ownership adoption.
