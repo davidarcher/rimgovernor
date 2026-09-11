@@ -6694,7 +6694,7 @@
   ],
   "native_surface": {
     "version": 1,
-    "source_revision": "357d0f7ae3decc1b3d5ba765c5383f6f472bfba3",
+    "source_revision": "cf3dcfdb3a2d6a21eb14432ebe3e3797f62f857a",
     "scope": "Current repository-owned native Runtime/Bridge exports, generated Protobuf compile inputs and conditional fixtures. Historical Python consumer inventory remains at its independent source_revision. Installed SDK/GABS exports require actual discovery.",
     "evidence_links": "domain_item_id reuses existing G01 owner, fixtures and native_scenarios without copying Python call-site lists. Empty local evidence lists preserve uncovered acceptance. schema_owner_chunk assigns the cross-language schema owner; native_owner_chunk owns typed conversion or fixture isolation.",
     "variant_contract": "source_baseline.exports[].declaration retains the complete exported signature, Tool/ToolParameter/ToolResponse attributes, documented string variants, optional selectors and defaults. Source fingerprints detect implementation changes. Runtime branches, aliases and payload keys still require behavioral schema and discovery acceptance.",
@@ -7901,9 +7901,9 @@
         {
           "name": "test/b04f_setup",
           "path": "scripts/fixtures/EmergencyDevelopmentFixture.cs",
-          "line": 15,
-          "declaration": "[Tool(\"test/b04f_setup\", Description = \"Disposable B04f initial conditions: stocks, two manhunters, wound, mental state or native player-order equivalent. No completed-work injection.\")]\n        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"stocks, combat-equipment, development-settings (Peaceful), opponents, wound, low-health, resting-patient, resting-injury, unavailable-doctor, external-order\")] string op,\n            [ToolParameter(Description = \"Exact colonist identity for pawn cases.\", DefaultValue = \"\")] string pawn = \"\")",
-          "source_sha256": "a70ad66d2a842073ca48c5fa15dd68d22af251f008af21e4a00e52bc76c579fb"
+          "line": 19,
+          "declaration": "[Tool(\"test/b04f_setup\", Description = \"Disposable B04f initial conditions: stocks, two manhunters, wound, mental state or native player-order equivalent. No completed-work injection.\")]\n        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"stocks, combat-equipment, development-settings (Peaceful), opponents, clear-opponents, wound, low-health, resting-patient, resting-injury, unavailable-doctor, external-order\")] string op,\n            [ToolParameter(Description = \"Exact colonist identity for pawn cases.\", DefaultValue = \"\")] string pawn = \"\")",
+          "source_sha256": "9ffed7ff73ee8c4d9d05e2f3e0ec5f49cc443aed7ebc18f792ed881bc58f85b9"
         },
         {
           "name": "test/campaign_metrics_fixture",
@@ -9626,7 +9626,9 @@
         "native_owner_chunk": "N01.07",
         "build_role": "fixture",
         "fixtures": [],
-        "native_scenarios": [],
+        "native_scenarios": [
+          "scripts/native_emergency_service_acceptance.py"
+        ],
         "status": "pending",
         "uncovered_acceptance": [
           "Capture actual SDK discovery and representative replies for this build; declarations are source evidence only.",

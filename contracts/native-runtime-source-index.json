@@ -1,6 +1,6 @@
 {
   "inventory_version": 1,
-  "source_revision": "357d0f7ae3decc1b3d5ba765c5383f6f472bfba3",
+  "source_revision": "cf3dcfdb3a2d6a21eb14432ebe3e3797f62f857a",
   "scope": "Tracked C# sources in unified native Runtime/Bridge and scripts/fixtures; lexical reference index, not an AST or proof of behavioral coverage.",
   "source_line_policy": "One-based source anchors at source_revision; static matches include methods and constructors, reflection matches include helper use and interop. Read the full source declaration before changing ownership.",
   "rows": [
@@ -3415,11 +3415,15 @@
     },
     {
       "source": "scripts/fixtures/EmergencyDevelopmentFixture.cs",
-      "source_sha256": "a70ad66d2a842073ca48c5fa15dd68d22af251f008af21e4a00e52bc76c579fb",
+      "source_sha256": "9ffed7ff73ee8c4d9d05e2f3e0ec5f49cc443aed7ebc18f792ed881bc58f85b9",
       "compilation": "fixture-only",
       "owner": "N01.01 native packaging owner",
       "migration_status": "inventoried-unmigrated",
-      "static_token_lines": [],
+      "static_token_lines": [
+        16,
+        17,
+        18
+      ],
       "reflection_boundary_lines": [],
       "patch_registration_lines": [],
       "uncovered_acceptance": "Verify compile conditions, isolated fixture artifact identity and absence from production discovery."

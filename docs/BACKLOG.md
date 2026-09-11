@@ -1292,6 +1292,12 @@ main. Native package and Go production cutover remain independent.
   handoffs, ordinary pawn completion and disabled same-database restart observation
   without reacquisition or redispatch. Service and orchestrator event traces are
   checked independently for complete attribution.
+  A paused actual Go service also holds an otherwise legal stocked wall during a
+  positively observed standing threat with a complete healthy colonist census.
+  After explicit Manual, joined shutdown and exact fixture threat removal, the same
+  database restarts disabled; a new explicit Acquire admits exactly one blueprint.
+  Full event traces distinguish emergency reads from background polls and prove
+  zero unsafe writes. This gate establishes admission, not completed pawn work.
   Native lost-reply fault injection,
   instant/replacement construction cases and remaining operation families are open.
 
