@@ -1153,6 +1153,12 @@ main. Native package and Go production cutover remain independent.
   operation-event coverage verifies identity/status calls only. Remaining families
   and frozen continuation pages remain open.
 
+  Bounded building reads include exact walls, blueprints, frames, full occupied
+  cells, materials, hit points and construction work/resources. Native acceptance
+  covers queued, frame, finished and cancelled states. Entity CAS, settings,
+  bills, inspect detail, service/thermal facts and power-network enumeration remain
+  explicit unsupported/incomplete scopes rather than fabricated defaults.
+
 - [ ] **N01.04 — Typed guarded operations.** Native operations owner with G01 Hands.
   Start with ordinary construction through admission, dry-run, receipt and observed
   pawn completion. Follow with settings/bills/zones, resources/upkeep, medical,
@@ -1172,7 +1178,9 @@ main. Native package and Go production cutover remain independent.
   without redispatch, plus Manual, cancellation, draft/order invalidation, expiry,
   conflict and replay. Required live transition patches are verified before
   admission; oversized evidence retains encodable uncertainty. Other commands
-  remain Unsupported. Native lost-reply fault injection,
+  remain Unsupported. Fresh Go restart also observes exact player cancellation
+  as terminal unsuccessful/cancelled without redispatch or simulation advancement.
+  Native lost-reply fault injection,
   instant/replacement construction cases and remaining operation families are open.
 
 - [ ] **N01.05 — Runtime and presentation ownership.** Native runtime owner.

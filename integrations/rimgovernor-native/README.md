@@ -61,6 +61,11 @@ roof, visibility and traversal, with explicit Unsupported issues for other
 requested fields. Pages are bounded single reads; frozen continuation pages and
 the remaining observation families are tracked in the backlog.
 
+Building reads return complete bounded rows for exact buildings, blueprints and
+frames, including walls, occupied cells, material, hit points and construction
+work/resources. Detailed settings, bills, CAS snapshots and network enumeration
+remain explicitly unavailable. Reads never aggregate away individual walls.
+
 Run `scripts/native_protobuf_acceptance.py` through
 `scripts/container_scenario.py` against a private production package. Its root is
 `/worker/run`; add `--rendered` for Xvfb and optionally `--go-preview-smoke` with
@@ -87,6 +92,10 @@ wall, closes its controller session, and later reopens the same SQLite state to
 observe native completion. The scenario advances bounded ticks through
 `rimgovernor.native_scenario.advance_game`. Fixture builds are never production
 packages; retain the scenario report to distinguish acceptance from compilation.
+The native scenario accepts `--go-expected-outcome cancelled` with the current Go
+smoke: a real fixture cancellation must be recovered as unsuccessful by a
+fresh Go process, without another operation or advancing the simulation. Use one
+matching smoke binary for both phases and fresh SQLite state for each run.
 
 The headless GPL-3.0 notice and both upstream provenance records remain in Notices.
 Companion provenance records the absence of an upstream redistribution license;
