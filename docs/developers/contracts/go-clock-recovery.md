@@ -171,4 +171,26 @@ match the native newest cursor, with no interruption or gap holds. Native tick
 boundaries and durable events must be known; a never-started clock may report
 durability as false. The admitted budget is finite and cannot overflow its tick
 deadline. Admission carries its snapshot and review revision for dispatch binding;
-the scheduling step and independent interruption/renewal workers remain gated.
+independent interruption/renewal workers remain gated.
+
+Window starts retain their exact profile, snapshot, tick, review revision, captured
+cursor and budget with the immutable clock intent. Durable dispatch checks the
+current review in the same transaction: its revision and captured/reviewed cursors
+must still match, with no holds. Later review does not invalidate historical
+admission needed for receipt recovery.
+
+`CommandClockWindow` carries the policy facts through the serialized coordinator.
+It checks age and authority after waiting and before dispatch and native execution;
+the fresh native status must still describe the admitted paused tick and cursor.
+The ordinary command entry point cannot dispatch a window-bearing intent without
+these checks. A dispatched attempt with uncertain effects is recovered by its
+original key, never by issuing a replacement start.
+
+The internal `ClockScheduler.Step` uses the player's cancellation and serialization
+scope for one decision. Its explicit start configuration permits colony watch mode
+without acknowledgement or medical suppression lists. It checks the shared profile,
+current plan work and complete attempt/epoch catalogs before collecting fresh native
+facts. Unchanged decision inputs retain the same request ID across repeated calls;
+an undispatched stale preparation cannot prevent a fresh decision. Disabled sessions
+perform owned cleanup and cannot start. A valid running window is left unchanged.
+This step has no polling loop and is not yet wired into the player service.

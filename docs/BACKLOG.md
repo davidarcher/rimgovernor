@@ -1306,21 +1306,32 @@ broaden checks only when the changed behavior or a failure justifies it.
       - [x] **10a.3b:** pure finite healthy-colony window review. Owner: policy
         agent; depends on 07a.1 and fixed 3a interface. Unknown, stale, unsafe or
         interrupted facts hold. Combat and medical suppression await 07a facts.
-      - [ ] **10a.3c:** one bounded scheduling step. Owner: runtime agent; depends
+      - [x] **10a.3c:** one bounded scheduling step. Owner: runtime agent; depends
         on 3a–b. Bind stable durable request IDs, current authority and review
         revision; resolve unknown starts only through exact attempt recovery.
-        - [ ] **10a.3c.1:** durable window admission and dispatch binding. Owner:
+        - [x] **10a.3c.1:** durable window admission and dispatch binding. Owner:
           state agent and integrator; freeze typed interfaces first. Persist the
           exact window decision with its request, then atomically recheck review
           revision, captured/reviewed cursors and holds at dispatch. Recheck
           authority and observation freshness before the native call.
-        - [ ] **10a.3c.2:** one scheduling step without loops. Owner: runtime agent;
+        - [x] **10a.3c.2:** one scheduling step without loops. Owner: runtime agent;
           depends on 3c.1. Gather fresh policy facts and complete obligations,
           preserve stable request identity and recover uncertain starts exactly.
           Disabled state cannot start; a running epoch is never replaced.
       - [ ] **10a.3d:** independent event polling and epoch renewal. Owner: runtime
         agent; depends on 3c. Persist events before review, cancel on interruption,
         and renew only the original running epoch without extending its tick budget.
+        - [ ] **10a.3d.1:** one event polling/review step. Owner: runtime agent.
+          Persist before review; interruption, gaps and read/persistence failures
+          disable writes without waiting for the Player gate, then run owned
+          cleanup. Never acknowledge events automatically.
+        - [ ] **10a.3d.2:** one original-epoch renewal step. Owner: runtime agent.
+          Require current enabled authority and exact retained running ownership;
+          keep the original deadline and reconcile uncertain renewals by attempt.
+        - [ ] **10a.3d.3:** independent bounded polling, renewal and scheduling
+          loops. Owner: integrator; depends on 3d.1–2. Configure renewal below the
+          lease budget and back off unchanged paused ticks. Lifecycle acceptance
+          and disabled restart remain 3e.
       - [ ] **10a.3e:** joined lifecycle composition and disabled restart. Owner:
         integrator; depends on 3d. Test dispatch interruption, gaps, paused-tick
         backoff, renewal starvation and retryable shutdown before service wiring.

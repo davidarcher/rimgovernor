@@ -190,6 +190,13 @@ later successful drain. [Native service acceptance](../docs/developers/testing/c
 verifies ordinary pawn completion and disabled same-database restart through the
 HTTP service. Supervised Go clock control remains a separate G01.10 integration.
 
+The internal clock scheduler can perform one finite healthy-colony scheduling step
+through the shared session. Its durable window admission binds current review and
+native cursor evidence to dispatch, and repeated unchanged decisions retain their
+request identity. It does not run in the player service yet; independent event
+polling, epoch renewal and actual Go clock acceptance remain gated. See the
+[clock recovery contract](../docs/developers/contracts/go-clock-recovery.md).
+
 ## Isolated building acceptance
 
 Build `./internal/buildingruntime/cmd/buildingsmoke` for the native scenario host.
