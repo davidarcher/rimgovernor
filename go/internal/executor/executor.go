@@ -51,6 +51,7 @@ type Inspection struct {
 	Bounds                domain.Fact[policy.Bounds]
 	Preview               policy.Preview
 	Stock                 policy.StockObservation
+	Emergency             policy.EmergencySnapshot
 	Held                  []policy.Reservation
 	// Held contains other-plan commitments only. Completeness must come from
 	// the runtime's accounting owner, never from an empty native response.

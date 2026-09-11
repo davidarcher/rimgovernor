@@ -109,6 +109,8 @@ const (
 	UnknownFacts       Reason = "unknown_facts"
 	StaleFacts         Reason = "stale_facts"
 	UnsafePlacement    Reason = "unsafe_placement"
+	UnsafeThreat       Reason = "unsafe_threat"
+	CriticalMedical    Reason = "critical_medical"
 	MaterialRequired   Reason = "explicit_material_required"
 	DependencyBlocked  Reason = "dependency_incomplete"
 	GeometryBlocked    Reason = "geometry_conflict"
