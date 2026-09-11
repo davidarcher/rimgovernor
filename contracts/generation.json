@@ -16,6 +16,16 @@
       "python_output": "controller/rimgovernor/generated/placement_preview_responses.py",
       "csharp_namespace": "RimGovernor.Contracts.PlacementPreview",
       "csharp_output": "contracts/generated/csharp/PlacementPreviewResponses.g.cs"
+    },
+    {
+      "schema": "contracts/schemas/colony-identity.v1.schema.json",
+      "go_package": "wire",
+      "go_output": "go/internal/observation/wire/identity.gen.go"
+    },
+    {
+      "schema": "contracts/schemas/status-clock-projection.v1.schema.json",
+      "go_package": "wire",
+      "go_output": "go/internal/observation/wire/status.gen.go"
     }
   ]
 }
