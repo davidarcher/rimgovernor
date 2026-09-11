@@ -2,9 +2,44 @@ package placementpreview
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 )
+
+func TestSharedCurrentPreviewCases(t *testing.T) {
+	data, err := os.ReadFile("../../../../contracts/fixtures/placement-response-cases.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		Cases []struct {
+			ID       string
+			JSON     string
+			Accepted bool
+		}
+	}
+	if err = json.Unmarshal(data, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range fixture.Cases {
+		t.Run(c.ID, func(t *testing.T) {
+			v, err := DecodePreviewReply([]byte(c.JSON))
+			if (err == nil) != c.Accepted {
+				t.Fatalf("accepted=%v error=%v", c.Accepted, err)
+			}
+			if err == nil {
+				encoded, e := json.Marshal(v)
+				if e != nil {
+					t.Fatal(e)
+				}
+				if _, e = DecodePreviewReply(encoded); e != nil {
+					t.Fatal(e)
+				}
+			}
+		})
+	}
+}
 
 const evaluated = `{"success":true,"canPlace":true,"madeFromStuff":true,"passability":"Impassable","isDoor":false,"researchFinished":true,"buildableByPlayer":true,"costList":[{"defName":"WoodLog","count":5}],"materials":{"unreadable":true,"rows":[{"defName":"WoodLog","available":null}]},"rotations":[{"rotation":"north","accepted":true,"reason":"","occupiedCells":[{"x":1,"z":2}],"blockingThings":[]}]}`
 

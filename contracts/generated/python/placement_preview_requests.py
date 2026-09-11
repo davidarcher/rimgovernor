@@ -5,11 +5,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, fields, is_dataclass
 import json
-from typing import cast
+from typing import cast, Literal
 
 
 class Missing:
-    """Absent optional field; JSON null is not supported by this schema subset."""
+    """Absent optional field, distinct from an explicitly nullable JSON field."""
 
 
 MISSING = Missing()
@@ -106,6 +106,25 @@ def _boolean(value: object, path: str) -> bool:
     return value
 
 
+def _boolean_const(value: object, path: str, expected: bool) -> bool:
+    result = _boolean(value, path)
+    if result is not expected:
+        raise ValueError(path + ': incorrect boolean constant')
+    return result
+
+
+def _enum(value: str, path: str, choices: list[str]) -> str:
+    if value not in choices:
+        raise ValueError(path + ': unknown string enum value')
+    return value
+
+
+def _discriminator(value: object, path: str) -> bool:
+    if not isinstance(value, dict) or 'success' not in value:
+        raise ValueError(path + ': missing success discriminator')
+    return _boolean(value['success'], path + '.success')
+
+
 def to_wire(value: object) -> object:
     """Convert generated values to JSON-compatible values, omitting absent fields.
 
@@ -117,7 +136,7 @@ def to_wire(value: object) -> object:
                 if not isinstance(getattr(value, field.name), Missing)}
     if isinstance(value, list):
         return [to_wire(item) for item in value]
-    if type(value) in (str, int, bool):
+    if value is None or type(value) in (str, int, bool):
         return value
     raise ValueError('unsupported generated wire value')
 
