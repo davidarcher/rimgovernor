@@ -16,6 +16,7 @@ type ClockIntent struct {
 	RequestID string
 	Snapshot  domain.GenerationSnapshot
 	Command   bridge.ClockCommand
+	Window    *ClockWindowAdmission
 }
 type ClockPhase string
 
