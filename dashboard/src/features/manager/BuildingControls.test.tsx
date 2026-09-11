@@ -111,3 +111,40 @@ it('allows a new explicitAcquire after fresh later Manual, retaining the frozen 
  expect(fetcher).toHaveBeenCalledWith('/api/buildings/control/acquire',expect.objectContaining({body:JSON.stringify({requestId:'request-4',expected:world,planId:'plan',revision:'1',expectedDirection:'2'})}));
  expect(screen.getByText('request-2')).toBeVisible();expect(screen.getByText(/Previous acquire request:/)).toHaveTextContent('Historical result: uncertain');
 });
+
+it.each([[409,'conflict'],[403,'player_auth']] as const)('releases submission after definite %s rejection only for a new explicit POST',async(status,code)=>{
+ let posts=0;
+ const fetcher=setup(async(url,options)=>{if(url==='/api/buildings/plans'){posts++;if(posts===1)return response({code,detail:'Not admitted'},status);const request=JSON.parse(options.body as string);return response({...request,planId:'plan',actionId:'action',revision:'1'},201);}throw Error(url);});
+ await act(async()=>{render(<BuildingControls observation={observation} observationFresh/>);});fill();
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit building plan'}));});
+ expect(posts).toBe(1);expect(screen.getByRole('button',{name:'Submit building plan'})).toBeEnabled();expect(screen.getByText(/Rejected before admission/)).toBeVisible();
+ fireEvent.change(screen.getByLabelText('Definition name'),{target:{value:'Door'}});
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit building plan'}));});
+ expect(posts).toBe(2);expect(screen.getByText('request-1')).toBeVisible();expect(screen.getByText('Plan plan · Revision 1')).toBeVisible();
+ expect(fetcher.mock.calls.filter(([,options])=>options?.method==='POST')[1][1]?.body).toContain('"requestId":"request-2"');
+});
+it('releases a no-record Acquire CAS conflict after refreshing current direction',async()=>{
+ vi.useFakeTimers();let posts=0;
+ const latest={record:{requestId:'other',kind:'manual',expected:world,planId:null,revision:'0',expectedDirection:'0',direction:'5',phase:'disabled',nativeGeneration:'0'},state,error:null};
+ let next:unknown=current;
+ const fetcher=setup(async(url)=>{if(url==='/api/buildings/plans')return response({requestId:'request-1',expected:world,building,planId:'plan',actionId:'action',revision:'1'});if(url==='/api/buildings/control/acquire'){posts++;next=latest;return response({record:null,state,error:{code:'conflict',detail:'CAS changed'}},409);}throw Error(url);},()=>next);
+ await act(async()=>{render(<BuildingControls observation={observation} observationFresh/>);});fill();await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit building plan'}));});
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Enable this plan'}));});
+ expect(posts).toBe(1);expect(screen.getByRole('button',{name:'Enable this plan'})).toBeDisabled();
+ await act(async()=>{await vi.advanceTimersByTimeAsync(1500);});expect(screen.getByRole('button',{name:'Enable this plan'})).toBeEnabled();expect(posts).toBe(1);
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Enable this plan'}));});
+ expect(fetcher.mock.calls.filter(([url])=>url==='/api/buildings/control/acquire')[1][1]?.body).toContain('"expectedDirection":"5"');
+});
+it.each(['transport','malformed','unavailable'])('keeps %s submission outcome frozen even after lookup404',async(kind)=>{
+ const fetcher=setup(async(url)=>{if(url==='/api/buildings/plans'){if(kind==='transport')throw Error('Lost reply');return kind==='malformed'?response({code:'conflict',detail:'Bad',extra:true},409):response({code:'unavailable',detail:'Check request'},503);}return response({code:'not_found',detail:'No row yet'},404);});
+ await act(async()=>{render(<BuildingControls observation={observation} observationFresh/>);});fill();await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit building plan'}));});
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Check submission result'}));});
+ expect(screen.getByRole('button',{name:'Submit building plan'})).toBeDisabled();expect(fetcher.mock.calls.filter(([,options])=>options?.method==='POST')).toHaveLength(1);
+});
+it('shows initial bootstrap failure and retries without sending a POST',async()=>{
+ vi.useFakeTimers();let calls=0;
+ const fetcher=vi.fn(async(_url:string,_options:RequestInit={})=>{calls++;return response({code:'unavailable',detail:'Service unavailable'},503);});vi.stubGlobal('fetch',fetcher);
+ await act(async()=>{render(<BuildingControls observation={observation} observationFresh/>);});
+ expect(screen.getByRole('alert')).toHaveTextContent('Building controls unavailable');
+ await act(async()=>{await vi.advanceTimersByTimeAsync(1500);});expect(calls).toBe(2);expect(fetcher.mock.calls.every(([,options])=>options?.method==='GET')).toBe(true);
+});

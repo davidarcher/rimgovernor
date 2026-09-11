@@ -23,3 +23,19 @@ it('retains a typed uncertain record on HTTP503 and sends the exact token/CAS',a
  expect(fetcher).toHaveBeenCalledWith('/api/buildings/control/acquire',expect.objectContaining({method:'POST',headers:{'Content-Type':'application/json','X-RimGovernor-Player':'secret'},body:JSON.stringify(request)}));
 });
 it('treats bootstrap404 as read-only',async()=>{vi.stubGlobal('fetch',vi.fn(async()=>new Response(JSON.stringify({code:'not_found',detail:'Missing'}),{status:404})));expect(await readPlayerSession()).toBeNull();});
+
+it('classifies only validated explicit rejection codes as non-admission',async()=>{
+ const {submitBuilding,definiteRejection}=await import('./buildingData');
+ for(const [status,value,expected] of [
+  [400,{code:'invalid_request',detail:'Invalid'},true],
+  [403,{code:'player_auth',detail:'Expired'},true],
+  [409,{code:'conflict',detail:'Changed'},true],
+  [409,{code:'capacity',detail:'Full'},true],
+  [503,{code:'unavailable',detail:'Inspect'},false],
+  [409,{code:'conflict',detail:'Changed',extra:true},false],
+  [409,{code:'other',detail:'Unknown'},false],
+ ] as const){
+  vi.stubGlobal('fetch',vi.fn(async()=>new Response(JSON.stringify(value),{status})));
+  try{await submitBuilding('secret',{requestId:'submit',expected:world,building:{...building,rotation:'north'}});throw Error('Expected rejection');}catch(error){expect(definiteRejection(error)).toBe(expected);}
+ }
+});

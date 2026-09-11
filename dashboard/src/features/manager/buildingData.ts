@@ -53,14 +53,18 @@ function readControlRecord(value: unknown): ControlRecord {
 function readFailure(value: unknown): Failure {const v = object(value, ['code', 'detail']); return {code: id(v.code), detail: text(v.detail)};}
 export function readControl(value: unknown): ControlReply {const v = object(value, ['record', 'state', 'error']); return {record: v.record === null ? null : readControlRecord(v.record), state: readPlayerState(v.state), error: v.error === null ? null : readFailure(v.error)};}
 
-export class BuildingHTTPError extends Error {constructor(public status: number, message: string) {super(message);}}
+export class BuildingHTTPError extends Error {constructor(public status: number, message: string, public code: string | null = null) {super(message);}}
+// Only explicit, validated server rejections prove that this POST was not admitted.
+export function definiteRejection(error: unknown): boolean {
+  return error instanceof BuildingHTTPError && (error.status === 400 && error.code === 'invalid_request' || error.status === 403 && error.code === 'player_auth' || error.status === 409 && ['conflict', 'capacity'].includes(error.code ?? ''));
+}
 async function request(path: string, signal?: AbortSignal, token?: string, body?: SubmissionRequest | AcquireRequest | ManualRequest): Promise<{response: Response; value: unknown}> {
   const response = await fetch(path, {method: body ? 'POST' : 'GET', cache: 'no-store', credentials: 'same-origin', signal,
     ...(body ? {headers: {'Content-Type': 'application/json', 'X-RimGovernor-Player': token ?? ''}, body: JSON.stringify(body)} : {})});
   const value: unknown = await response.json();
   return {response, value};
 }
-function failed(response: Response, value: unknown): never {let detail = `Building operation unavailable (${response.status})`; try {detail = readFailure(value).detail;} catch { /* Preserve status for authentication recovery. */ } throw new BuildingHTTPError(response.status, detail);}
+function failed(response: Response, value: unknown): never {let detail = `Building operation unavailable (${response.status})`, code: string | null = null; try {const failure = readFailure(value); detail = failure.detail; code = failure.code;} catch { /* Malformed evidence does not prove non-admission. */ } throw new BuildingHTTPError(response.status, detail, code);}
 export async function readPlayerSession(signal?: AbortSignal): Promise<string | null> {
   const {response, value} = await request('/api/buildings/session', signal);
   if (response.status === 404) return null;
@@ -77,7 +81,12 @@ async function controlRequest(path: string, signal?: AbortSignal, token?: string
   const {response, value} = await request(path, signal, token, body);
   // Error statuses can carry durable pending/uncertain evidence and actual state.
   if (!response.ok && !(isObject(value) && Object.hasOwn(value, 'state'))) failed(response, value);
-  return readControl(value);
+  const reply = readControl(value);
+  if (body && reply.record === null && reply.error) {
+    const rejection = new BuildingHTTPError(response.status, reply.error.detail, reply.error.code);
+    if (definiteRejection(rejection)) throw rejection;
+  }
+  return reply;
 }
 export function readCurrentControl(signal?: AbortSignal): Promise<ControlReply> {return controlRequest('/api/buildings/control', signal);}
 export function readControlResult(requestId: string, signal?: AbortSignal): Promise<ControlReply> {return controlRequest(`/api/buildings/control?requestId=${encodeURIComponent(requestId)}`, signal);}
