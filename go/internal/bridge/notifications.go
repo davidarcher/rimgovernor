@@ -165,8 +165,8 @@ func notificationsSnapshot(v *p.NotificationsSnapshot, q *p.NotificationsRequest
 				return contract("alerts missing")
 			}
 			rows := s.Observed.Alerts
-			if err := notificationsID(s.Observed.SnapshotFingerprint, map[string]bool{}); err != nil {
-				return err
+			if !presentationText(s.Observed.SnapshotFingerprint, 4096) {
+				return contract("invalid notification snapshot fingerprint")
 			}
 			if len(rows) > limit(q.AlertLimit, 40) {
 				return contract("alert limit exceeded")
@@ -211,7 +211,7 @@ func notificationsListing(v *p.Listing, count int) error {
 	if v.ReturnedCount != nil && int(v.GetReturnedCount()) != count || v.TotalCount != nil && uint64(v.GetTotalCount()) < uint64(count) {
 		return contract("notification listing count mismatch")
 	}
-	if v.GetComplete() && (v.GetTruncated() || v.TotalCount == nil || v.ReturnedCount == nil || v.GetTotalCount() != v.GetReturnedCount()) {
+	if v.GetComplete() && (v.GetTruncated() || (v.TotalCount != nil && uint64(v.GetTotalCount()) != uint64(count))) {
 		return contract("notification listing falsely complete")
 	}
 	if v.GetTruncated() && v.TotalCount != nil && uint64(v.GetTotalCount()) <= uint64(count) {

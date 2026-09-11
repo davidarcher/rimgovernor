@@ -173,3 +173,30 @@ func TestNotificationsRequestBoundsAndFailure(t *testing.T) {
 		t.Fatal(err, calls)
 	}
 }
+
+func TestNotificationsOptionalCountsAndFingerprint(t *testing.T) {
+	for _, listing := range []*p.Listing{{Complete: proto.Bool(true)}, {Complete: proto.Bool(true), TotalCount: proto.Uint32(0)}, {Complete: proto.Bool(true), ReturnedCount: proto.Uint32(0)}} {
+		snapshot := notificationsTestSnapshot()
+		snapshot.Alerts.GetObserved().Listing = listing
+		snapshot.Alerts.GetObserved().SnapshotFingerprint = proto.String(strings.Repeat("\u00e9", 2048))
+		client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			return pbResult(&p.NotificationsReply{Outcome: &p.NotificationsReply_Notifications{Notifications: snapshot}}), nil
+		}}, time.Second)
+		reply, _, err := client.ReadNotifications(context.Background(), &p.NotificationsRequest{Identity: pbIdentity()})
+		if err != nil || !proto.Equal(reply.GetNotifications(), snapshot) {
+			t.Fatal(reply, err)
+		}
+	}
+	for _, value := range []string{strings.Repeat("\u00e9", 2049), string([]byte{0xff})} {
+		snapshot := notificationsTestSnapshot()
+		snapshot.Alerts.GetObserved().SnapshotFingerprint = proto.String(value)
+		if err := notificationsSnapshot(snapshot, &p.NotificationsRequest{Identity: pbIdentity()}); err == nil {
+			t.Fatal("invalid fingerprint accepted")
+		}
+	}
+	for _, listing := range []*p.Listing{{Complete: proto.Bool(true), TotalCount: proto.Uint32(1)}, {Complete: proto.Bool(true), Truncated: proto.Bool(true)}, {Complete: proto.Bool(true), ReturnedCount: proto.Uint32(1)}} {
+		if err := notificationsListing(listing, 0); err == nil {
+			t.Fatal("known contradiction accepted", listing)
+		}
+	}
+}
