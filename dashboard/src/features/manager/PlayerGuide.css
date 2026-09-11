@@ -1,0 +1,57 @@
+.player-guide {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 780px);
+  gap: 28px;
+  grid-column: 1 / -1;
+  width: 100%;
+  max-width: 1100px;
+  margin: 12px auto 40px;
+  align-items: start;
+}
+.player-guide-sidebar { position: sticky; top: 24px; }
+.player-guide-sidebar > p { margin: 0 0 14px; color: var(--muted); }
+.player-guide-sidebar nav { display: grid; gap: 6px; margin: 24px 0; }
+.player-guide-sidebar nav a {
+  padding: 12px;
+  border-left: 2px solid transparent;
+  color: var(--muted);
+  text-decoration: none;
+}
+.player-guide-sidebar nav a[aria-current="page"] {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--panel);
+}
+.player-guide-source { font-size: 13px; }
+.player-guide a { color: var(--accent); text-underline-offset: 3px; }
+.player-guide a:hover { text-decoration: underline; }
+.player-guide a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.player-guide-content { padding: 28px 36px; min-width: 0; overflow-wrap: anywhere; }
+.player-guide-content:focus { outline: none; }
+.player-guide-content > :first-child { margin-top: 0; }
+.player-guide-content h2 { margin: 32px 0 12px; }
+.player-guide-content li { line-height: 1.7; margin: 8px 0; }
+.player-guide-content code { font-size: 0.9em; color: #e7cf9c; }
+.player-guide-content pre {
+  background: #161915;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow-x: auto;
+  line-height: 1.7;
+}
+.player-guide-table { overflow-x: auto; }
+.player-guide-content table { width: 100%; border-collapse: collapse; line-height: 1.6; }
+.player-guide-content th, .player-guide-content td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+@media (max-width: 760px) {
+  .player-guide { grid-template-columns: minmax(0, 1fr); gap: 18px; margin-top: 0; }
+  .player-guide-sidebar { position: static; }
+  .player-guide-sidebar nav { display: flex; flex-wrap: wrap; margin: 12px 0; gap: 4px; }
+  .player-guide-sidebar nav a { padding: 8px 10px; }
+  .player-guide-content { padding: 22px; }
+  .player-guide-content h1 { font-size: 32px; }
+}

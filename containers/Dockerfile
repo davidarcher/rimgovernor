@@ -3,6 +3,7 @@ WORKDIR /src/dashboard
 COPY dashboard/package.json dashboard/pnpm-lock.yaml ./
 RUN corepack enable && corepack prepare pnpm@10.15.1 --activate && pnpm install --frozen-lockfile
 COPY dashboard/ ./
+COPY docs/players/ /src/docs/players/
 RUN pnpm run typecheck && pnpm run test && pnpm run build
 
 FROM python:3.12-slim-bookworm AS controller-dependencies

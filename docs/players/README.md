@@ -6,6 +6,8 @@ RimGovernor helps run a colony under normal RimWorld rules. You can let Autopilo
 handle routine needs, give explicit requests through chat, or take control yourself.
 It is still a development build; setup requires a prepared game profile and save.
 
+Open **Help** in the dashboard to read this guide without leaving your colony.
+
 1. [Set up the game and controller](setup.md).
 2. [Launch your prepared colony](launch.md).
 3. [Use the dashboard and controls](controls.md).

@@ -13,10 +13,15 @@ slow or failed refresh should not erase a message being composed or replace a us
 view with empty state. Raw identifiers and detailed tool evidence belong in diagnostics
 so the main view can explain what is happening in colony terms.
 
-The main navigation is Watch, Priorities, Work and Colony. Watch combines the game view
+The main navigation is Watch, Priorities, Work, Colony and Help. Watch combines the game view
 and chat. Priorities explains policy and verified gates; Work shows plans and their
 progress, with activity available as a related view. These are different views of one
 controller.
+
+Help renders the [player Markdown files](../../players/README.md) bundled at build
+time. Update those files to change both repository and in-app guidance. Player links
+stay inside Help; developer links open the repository. Help remains available when
+the game is disconnected, and opening it preserves the chat draft.
 
 A separate [local colony directory](../local-colonies.md) discovers running
 Docker workers and opens their dashboards in separate tabs. It owns no controller

@@ -8,6 +8,7 @@
 | Priorities | Inspect colony needs, policy and stability checks. |
 | Work | Follow plans, progress and blockers. |
 | Colony | Inspect colonists, jobs, skills, gear, health and mood. |
+| Help | Read the player guide, launch options and save instructions. |
 
 ## Automate or take control
 

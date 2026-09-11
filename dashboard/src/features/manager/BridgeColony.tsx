@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import People, { type PeopleObservation } from "./People";
 import Notebook, { type Memory } from "./Notebook";
 import ProjectList, { type Project } from "./ProjectList";
@@ -19,6 +19,13 @@ import Throughput from "./Throughput";
 import VisualReviews, { type VisualReview } from "./VisualReviews";
 import GameVideo, { type PlayerOwner } from "./GameVideo";
 type Message = { id: number; kind: string; text: string; at: number };
+const PlayerGuide = lazy(() => import("./PlayerGuide"));
+function currentView() {
+  const hash = location.hash.slice(1);
+  if (hash === "help" || hash.startsWith("help/")) return "help";
+  return ["colony", "autopilot", "projects", "people", "notebook", "activity"].includes(hash)
+    ? hash : "colony";
+}
 type State = {
   visualReviews?: VisualReview[];
   cinematic?: boolean;
@@ -65,18 +72,7 @@ export default function BridgeColony() {
     [error, setError] = useState(""),
     [text, setText] = useState(""),
     [sending, setSending] = useState(false),
-    [view, setView] = useState(
-      [
-        "colony",
-        "autopilot",
-        "projects",
-        "people",
-        "notebook",
-        "activity",
-      ].includes(location.hash.slice(1))
-        ? location.hash.slice(1)
-        : "colony",
-    ),
+    [view, setView] = useState(currentView),
     [events, setEvents] = useState<Message[]>([]),
     [camera, setCamera] = useState("");
   const [videoPlaying, setVideoPlaying] = useState(true);
@@ -146,19 +142,7 @@ export default function BridgeColony() {
     };
   }, []);
   useEffect(() => {
-    const change = () =>
-      setView(
-        [
-          "colony",
-          "autopilot",
-          "projects",
-          "people",
-          "notebook",
-          "activity",
-        ].includes(location.hash.slice(1))
-          ? location.hash.slice(1)
-          : "colony",
-      );
+    const change = () => setView(currentView());
     window.addEventListener("hashchange", change);
     return () => window.removeEventListener("hashchange", change);
   }, []);
@@ -319,6 +303,7 @@ export default function BridgeColony() {
           ["autopilot", "Priorities"],
           ["projects", "Work"],
           ["people", "Colony"],
+          ["help", "Help"],
         ].map(([id, label]) => (
           <a
             key={id}
@@ -334,7 +319,7 @@ export default function BridgeColony() {
             }
           >
             <small>
-              0{["colony", "autopilot", "projects", "people"].indexOf(id) + 1}
+              0{["colony", "autopilot", "projects", "people", "help"].indexOf(id) + 1}
             </small>
             {label}
           </a>
@@ -350,6 +335,7 @@ export default function BridgeColony() {
         </div>
       )}
       <main className="bridge-main">
+        {view === "help" && <Suspense fallback={<p role="status">Opening player guide…</p>}><PlayerGuide /></Suspense>}
         <div className="watch-layout" hidden={view !== "colony"}>
           <section className="bridge-stage mgr-card" ref={surface}>
             <div className="mgr-card-title">

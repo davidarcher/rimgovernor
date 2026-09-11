@@ -13,6 +13,9 @@
 !integrations/**
 !dashboard/
 !dashboard/**
+!docs/
+!docs/players/
+!docs/players/*.md
 !containers/
 !containers/**
 **/__pycache__/**

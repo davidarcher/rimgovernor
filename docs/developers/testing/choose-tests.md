@@ -4,7 +4,7 @@
 
 | What changed / what you need to establish | Available support | Requirements and limits |
 | --- | --- | --- |
-| Gated Go module/replay tools | From `go/`: `go test ./...`, `go vet ./...`, `go mod verify`, `go mod tidy -diff`; Go CI also checks formatting and Windows/Linux builds. | Pin Go via `go/.go-version`; Linux race tests need CGO/GCC. Native control and Python-state compatibility remain separate G01 gates. See [Go checks](../../go/README.md). |
+| Gated Go module/replay tools | From `go/`: `go test ./...`, `go vet ./...`, `go mod verify`, `go mod tidy -diff`; Go CI also checks formatting and Windows/Linux builds. | Pin Go via `go/.go-version`; Linux race tests need CGO/GCC. Native control and Python-state compatibility remain separate G01 gates. See [Go checks](../../../go/README.md). |
 | Controller logic, contracts, persistence | `controller_tests/`; focused pytest or full `build.ps1` | Local Python environment; fixtures do not establish native outcomes. |
 | Dashboard behavior and build | `build.ps1` runs typecheck, Vitest and Vite build | Local Python and dashboard dependencies from setup; native UI acceptance is separate. |
 | Generated observation DTO matches its schema | `scripts/generate_bridge_observation.py --check` | Local Python environment; run explicitly, outside `build.ps1`. |
