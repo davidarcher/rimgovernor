@@ -107,6 +107,14 @@ func run(output, cross string, checkEcho bool) error {
 			}
 		}
 	}
+	if err := emitShapes(output); err != nil {
+		return err
+	}
+	if cross != "" {
+		if err := verifyShapeManifest(cross, output); err != nil {
+			return err
+		}
+	}
 	fmt.Println("Official generated Go Protobuf proof passed;", output)
 	return nil
 }

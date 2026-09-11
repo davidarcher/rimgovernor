@@ -61,3 +61,20 @@ full-family, native adapter, Mono runtime or gameplay acceptance.
 Official sources: [Go release](https://github.com/protocolbuffers/protobuf-go/releases/tag/v1.36.11),
 [Go generation](https://protobuf.dev/reference/go/go-generated/),
 [ProtoJSON](https://protobuf.dev/programming-guides/json/).
+
+## Full-package serialization shapes
+
+The proof emits `manifest.tsv` with `id`, `message`, `json`, `binary` tab-separated
+columns and a separate `coverage.json`. Generated test fixtures exercise every
+registered canonical message, each real oneof arm, enum values, and absent versus
+present defaults; message nesting is bounded to three levels. Go cases use stable
+sorted `go-shape-*` IDs. These shapes test serialization only and intentionally
+include values that ordinary domain validators must reject.
+
+Cross-language mode requires the C# `manifest.tsv`. It resolves fully qualified
+message names through the official generated registry, compares JSON and binary,
+and emits `csharp-echo-*` fixtures plus `csharp-echo-manifest.tsv`. All canonical
+packages must be imported into this proof; add new package imports when the shared
+package grows. Missing/unregistered messages fail instead of being discarded.
+The fixed handcrafted fixtures continue to exercise meaningful presence and
+correlation values separately from descriptor coverage.
