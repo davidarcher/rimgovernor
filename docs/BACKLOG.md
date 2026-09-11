@@ -913,6 +913,17 @@ only intentional small, sanitized regression fixtures belong in source control.
     - [ ] **07a.1:** complete typed threat and pawn-health reads with deterministic
       emergency holds. Depends on 06; incomplete or unknown facts hold routine
       work. Accept an unsafe-threat case with no routine writes.
+      - [ ] **07a.1a:** define immutable emergency facts and the pure hold decision.
+        Owner: integrator; depends on 06. Reuse canonical Status observations;
+        require complete pawn/threat collections and preserve unknown health.
+      - [ ] **07a.1b:** project bounded native Status into emergency facts.
+        Owner: bridge agent; depends on 07a.1a. Validate actual world, native
+        generation, collection counts and presence; no new wire schema.
+      - [ ] **07a.1c:** require fresh emergency clearance before preparation and
+        dispatch. Owner: executor agent; depends on 07a.1a–b. Held work retains
+        reservations and issued attempts remain observable. Test danger appearing
+        between inspections, stale health and restart, then accept native danger
+        with zero routine writes.
     - [ ] **07a.2:** owned draft action and exact-claim release in the shared
       plan, store and Hands system. Depends on 07a.1 and native draft claims.
       Accept player draft preservation, lost replies and restart cleanup.
@@ -992,6 +1003,14 @@ only intentional small, sanitized regression fixtures belong in source control.
   - [ ] **09c:** player ownership/camera, portraits/follow/video and native rendered
     acceptance. Read endpoints depend on 03/04; mutations require 06 and their
     supported 07/08 action families.
+  - [ ] **09d:** trusted host lifecycle admission for save/load. Owner: integrator;
+    depends on 06 and supported owned-resource cleanup. Bind the actual attached
+    instance and current player direction, join writers, complete draft/input
+    cleanup and verify native pause before typed lifecycle dispatch. Inactive
+    authority and request-supplied identity are insufficient. N01 owns typed SDK
+    save publication/results; do not create a second loader. Accept stale
+    direction, incomplete cleanup and foreign-instance refusal before enabling
+    the player endpoint.
 
 - [ ] **G01.10 — Whole-runtime integration.** Owner: integrator. Run Go as the
   sole controller in fresh disposable scenarios. Connect supported domain handlers,
