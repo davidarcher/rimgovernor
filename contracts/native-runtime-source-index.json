@@ -1,6 +1,6 @@
 {
   "inventory_version": 1,
-  "source_revision": "48ff6e22c2a6c873cbcf00ba473ad83afe5f7263",
+  "source_revision": "e8cff01680934c1ae364f8343e89fd4721c44143",
   "scope": "Tracked C# sources in unified native Runtime/Bridge and scripts/fixtures; lexical reference index, not an AST or proof of behavioral coverage.",
   "source_line_policy": "One-based source anchors at source_revision; static matches include methods and constructors, reflection matches include helper use and interop. Read the full source declaration before changing ownership.",
   "rows": [
@@ -1114,7 +1114,7 @@
     {
       "source": "integrations/rimgovernor-native/src/Bridge/NativePawnControlState.cs",
       "compilation": "production-bridge",
-      "source_sha256": "3d772c868be99a2fd98eddf97cc120621d22ef2360256f0949a83519a65b3c69",
+      "source_sha256": "fb5a31a8c8a1ccde32faba9836a18d8dd2e534f1d4e37dd3461910ac0f09edaf",
       "owner": "N01.04 native guarded construction and reconciliation owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
@@ -1922,6 +1922,62 @@
       "patch_registration_lines": []
     },
     {
+      "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeCombatCausality.cs",
+      "compilation": "production-bridge",
+      "source_sha256": "16b1320e1210b1b42a890074ec05fb00d9cadc8de5957ce33178403d04f505e7",
+      "owner": "N01.04 native guarded combat owner",
+      "migration_status": "implemented-native-acceptance-pending",
+      "uncovered_acceptance": "Verify actual melee damage attribution, terminal pawn outcomes, unrelated damage refusal, interrupted and uncertain orders. Ranged projectile lineage remains unsupported.",
+      "static_token_lines": [
+        39,
+        60,
+        61,
+        62,
+        63,
+        64,
+        71,
+        81,
+        94,
+        113
+      ],
+      "reflection_boundary_lines": [
+        61,
+        62,
+        63
+      ],
+      "patch_registration_lines": [
+        68,
+        75
+      ]
+    },
+    {
+      "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeCombatOperations.cs",
+      "compilation": "production-bridge",
+      "source_sha256": "6ce8c48607421ed6d173bf5de0d4ff567ba3bc36405fe094205ad782705df237",
+      "owner": "N01.04 native guarded combat owner",
+      "migration_status": "implemented-native-acceptance-pending",
+      "uncovered_acceptance": "Verify actual melee damage attribution, terminal pawn outcomes, unrelated damage refusal, interrupted and uncertain orders. Ranged projectile lineage remains unsupported.",
+      "static_token_lines": [
+        35,
+        106,
+        108,
+        111,
+        113,
+        119,
+        136,
+        156,
+        197,
+        209
+      ],
+      "reflection_boundary_lines": [
+        101,
+        194,
+        195,
+        207
+      ],
+      "patch_registration_lines": []
+    },
+    {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeConstruction.cs",
       "compilation": "production-bridge",
       "source_sha256": "d774dfcafcdf9f55ce992d54f00b6a33cfcaf5b092002797e6211f9eb935b366",
@@ -2135,28 +2191,28 @@
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
       "compilation": "production-bridge",
-      "source_sha256": "8313e0f4d34ede2416ff361d38b79291d05c90bfc8ff937719314c4f6f74c4d6",
+      "source_sha256": "2fe54b564b77882cb23bc9862dfd25081471a2a95d2de1cff8acf7ca3346b986",
       "owner": "N01.04 native guarded construction and reconciliation owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
       "static_token_lines": [
         17,
-        26,
-        32,
-        56,
-        221,
-        224
+        27,
+        33,
+        57,
+        229,
+        232
       ],
       "reflection_boundary_lines": [
-        90,
-        122
+        93,
+        125
       ],
       "patch_registration_lines": []
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativePawnControlObservation.cs",
       "compilation": "production-bridge",
-      "source_sha256": "cfae8cb3d5e246c73d56a5665dedd2ac970f33165fc404f5930b4232268e5352",
+      "source_sha256": "f8001fdb9c768879f25562a455acb1e3da29ef4023181caefb1b9ebc6b938e1a",
       "owner": "N01.03 native pawn control observation owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",

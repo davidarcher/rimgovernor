@@ -6694,7 +6694,7 @@
   ],
   "native_surface": {
     "version": 1,
-    "source_revision": "48ff6e22c2a6c873cbcf00ba473ad83afe5f7263",
+    "source_revision": "e8cff01680934c1ae364f8343e89fd4721c44143",
     "scope": "Current repository-owned native Runtime/Bridge exports, generated Protobuf compile inputs and conditional fixtures. Historical Python consumer inventory remains at its independent source_revision. Installed SDK/GABS exports require actual discovery.",
     "evidence_links": "domain_item_id reuses existing G01 owner, fixtures and native_scenarios without copying Python call-site lists. Empty local evidence lists preserve uncovered acceptance. schema_owner_chunk assigns the cross-language schema owner; native_owner_chunk owns typed conversion or fixture isolation.",
     "variant_contract": "source_baseline.exports[].declaration retains the complete exported signature, Tool/ToolParameter/ToolResponse attributes, documented string variants, optional selectors and defaults. Source fingerprints detect implementation changes. Runtime branches, aliases and payload keys still require behavioral schema and discovery acceptance.",
@@ -6976,6 +6976,14 @@
             },
             {
               "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockTools.cs",
+              "condition": ""
+            },
+            {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeCombatCausality.cs",
+              "condition": ""
+            },
+            {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeCombatOperations.cs",
               "condition": ""
             },
             {
@@ -7876,23 +7884,23 @@
         {
           "name": "rimgovernor/operations_execute",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
-          "line": 45,
-          "declaration": "[Tool(\"rimgovernor/operations_execute\", Title = \"Execute guarded native operation\", Description = \"Admit typed PlaceBuilding, temporary owned SetDrafted or exact MovePawn under current native authority. Movement requires an existing owned draft. Exact retries return their original receipt.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON ExecuteReply.\", Always = true)]\n        public async Task<object> Execute(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official operations ExecuteRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "8313e0f4d34ede2416ff361d38b79291d05c90bfc8ff937719314c4f6f74c4d6"
+          "line": 46,
+          "declaration": "[Tool(\"rimgovernor/operations_execute\", Title = \"Execute guarded native operation\", Description = \"Admit typed PlaceBuilding, temporary SetDrafted, MovePawn or melee AttackTarget under current native authority. Movement and combat require an existing owned draft. Exact retries return their original receipt.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON ExecuteReply.\", Always = true)]\n        public async Task<object> Execute(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official operations ExecuteRequest ProtoJSON string.\")] object request = null)",
+          "source_sha256": "2fe54b564b77882cb23bc9862dfd25081471a2a95d2de1cff8acf7ca3346b986"
         },
         {
           "name": "rimgovernor/operations_preview",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
-          "line": 126,
-          "declaration": "[Tool(\"rimgovernor/operations_preview\", Title = \"Preview typed operation\", Description = \"Read ordinary construction or pawn draft eligibility without acquiring authority or applying effects.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON PreviewReply.\", Always = true)]\n        public async Task<object> Preview(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official operations PreviewRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "8313e0f4d34ede2416ff361d38b79291d05c90bfc8ff937719314c4f6f74c4d6"
+          "line": 129,
+          "declaration": "[Tool(\"rimgovernor/operations_preview\", Title = \"Preview typed operation\", Description = \"Read ordinary construction, drafting, movement or melee attack eligibility without acquiring authority or applying effects.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON PreviewReply.\", Always = true)]\n        public async Task<object> Preview(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official operations PreviewRequest ProtoJSON string.\")] object request = null)",
+          "source_sha256": "2fe54b564b77882cb23bc9862dfd25081471a2a95d2de1cff8acf7ca3346b986"
         },
         {
           "name": "rimgovernor/operations_release_owned_draft",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
-          "line": 210,
+          "line": 218,
           "declaration": "[Tool(\"rimgovernor/operations_release_owned_draft\", Title = \"Release exact owned draft\", Description = \"Release an unchanged native draft claim under its original owner/direction, including after Manual or lease expiry. Independent of ordinary attempt capacity; never adopts or clears replacement player orders.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON ReleaseOwnedDraftReply.\", Always = true)]\n        public async Task<object> ReleaseOwnedDraft(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official operations ReleaseOwnedDraftRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "8313e0f4d34ede2416ff361d38b79291d05c90bfc8ff937719314c4f6f74c4d6"
+          "source_sha256": "2fe54b564b77882cb23bc9862dfd25081471a2a95d2de1cff8acf7ca3346b986"
         },
         {
           "name": "rimgovernor/placement_preview",
@@ -7925,16 +7933,16 @@
         {
           "name": "rimgovernor/receipts_lookup",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
-          "line": 155,
+          "line": 160,
           "declaration": "[Tool(\"rimgovernor/receipts_lookup\", Title = \"Look up admitted attempt\", Description = \"Read original admitted receipt without requiring current authority.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON LookupReply.\", Always = true)]\n        public async Task<object> Lookup(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official receipts LookupRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "8313e0f4d34ede2416ff361d38b79291d05c90bfc8ff937719314c4f6f74c4d6"
+          "source_sha256": "2fe54b564b77882cb23bc9862dfd25081471a2a95d2de1cff8acf7ca3346b986"
         },
         {
           "name": "rimgovernor/receipts_observe_progress",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
-          "line": 176,
-          "declaration": "[Tool(\"rimgovernor/receipts_observe_progress\", Title = \"Observe admitted operation\", Description = \"Read causally tracked construction or draft state; absence of an attempt never proves completion.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON ProgressReply.\", Always = true)]\n        public async Task<object> ObserveProgress(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official receipts ProgressRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "8313e0f4d34ede2416ff361d38b79291d05c90bfc8ff937719314c4f6f74c4d6"
+          "line": 181,
+          "declaration": "[Tool(\"rimgovernor/receipts_observe_progress\", Title = \"Observe admitted operation\", Description = \"Read causally tracked construction, draft, movement or melee outcomes; absence of an attempt never proves completion.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON ProgressReply.\", Always = true)]\n        public async Task<object> ObserveProgress(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official receipts ProgressRequest ProtoJSON string.\")] object request = null)",
+          "source_sha256": "2fe54b564b77882cb23bc9862dfd25081471a2a95d2de1cff8acf7ca3346b986"
         },
         {
           "name": "test/b04f_setup",
@@ -9527,7 +9535,9 @@
         "fixtures": [
           "contracts/tests/native-attempt-ledger/Program.cs",
           "contracts/tests/native-construction-causality/Program.cs",
-          "contracts/tests/native-movement-operations/Program.cs"
+          "contracts/tests/native-movement-operations/Program.cs",
+          "contracts/tests/native-combat-operations/Program.cs",
+          "contracts/tests/native-combat-causality/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_guarded_construction_acceptance.py",
@@ -9550,7 +9560,9 @@
         "fixtures": [
           "contracts/tests/native-attempt-ledger/Program.cs",
           "contracts/tests/native-construction-causality/Program.cs",
-          "contracts/tests/native-movement-operations/Program.cs"
+          "contracts/tests/native-movement-operations/Program.cs",
+          "contracts/tests/native-combat-operations/Program.cs",
+          "contracts/tests/native-combat-causality/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_guarded_construction_acceptance.py",
@@ -9689,7 +9701,9 @@
         "fixtures": [
           "contracts/tests/native-attempt-ledger/Program.cs",
           "contracts/tests/native-construction-causality/Program.cs",
-          "contracts/tests/native-movement-operations/Program.cs"
+          "contracts/tests/native-movement-operations/Program.cs",
+          "contracts/tests/native-combat-operations/Program.cs",
+          "contracts/tests/native-combat-causality/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_guarded_construction_acceptance.py",

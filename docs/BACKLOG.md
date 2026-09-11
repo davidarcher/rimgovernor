@@ -1396,6 +1396,10 @@ main. Native package and Go production cutover remain independent.
   interruption. Queued orders remain pending. Cleanup attribution survives an
   in-flight lease expiry without restoring write permission; fault-injected native
   expiry and uncertain-order recovery still require game acceptance.
+  Guarded melee `AttackTarget` and exact animal target snapshots are in integration.
+  Accept native attributed downing/death, immutable replay, player override and
+  unrelated damage refusal before landing. Ranged attacks still require projectile
+  launch lineage; complete that path with actual native hit and interruption evidence.
   Native lost-reply fault injection,
   instant/replacement construction cases and remaining operation families are open.
 

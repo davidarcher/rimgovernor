@@ -40,7 +40,7 @@ Protobuf parsing/formatting. Generated compile inputs come from
 are included in `domain-inventory.json.native_surface.source_baseline`.
 
 `Operations/Preview` and `Operations/Execute` implement ordinary `PlaceBuilding`
-and temporary `SetDrafted` plus exact `MovePawn` under an existing owned draft;
+and temporary `SetDrafted` plus exact `MovePawn` and melee `AttackTarget` under an existing owned draft;
 other command variants return unsupported. Their presence does not advertise
 the entire operations schema as implemented. `Protocol/NativeConstruction.cs`
 owns native placement and tracked construction transitions;
@@ -122,8 +122,9 @@ Headless and rendered acceptance cross-check populated indoor structures against
 native reads and preserve paused context. Populated bed, pawn and stockpile
 memberships remain acceptance gaps.
 
-Live current-map draft controllers expose opaque draft-control snapshots and
-canonical owned/unowned draft claims. Tokens cover identity, draft and successful
+Live current-map pawns expose opaque control snapshots and canonical owned/unowned
+draft claims. Animals without draft controllers expose unowned target snapshots
+and remain ineligible for drafting. Tokens cover identity, draft and successful
 ordered-job revisions, position, eligibility and current/queued job facts; they
 are not health or settings CAS. Registration installs hooks; reads do not install
 hooks or allocate authority. `SetDrafted` uses ordinary admission and causal
@@ -139,7 +140,17 @@ Player orders, changed claims and authority generations interrupt attribution.
 Causal synchronous scope tracking preserves cleanup ownership if an admitted order
 outlives its lease; it never grants another write or revives the expired lease.
 
-Current source inventory: 80 production exports, 56 fixture exports, 147 handwritten
+`AttackTarget` requires exact attacker and target snapshots, the attacker's current
+owned draft, and ordinary native violence, reach and melee-verb eligibility.
+Requested hostility, standing and colony-health predicates are checked before
+dispatch. Explicit Melee and Auto resolving to melee are supported; ranged
+attacks require projectile lineage and remain Unsupported. A receipt certifies
+the issued job. Completion requires positive native damage from that exact melee
+attack to cause death, or downing when a standing target was required. Unrelated
+death is unsuccessful; a vanished job without causal evidence remains unknown.
+Compiled callback checks do not establish native gameplay acceptance.
+
+Current source inventory: 80 production exports, 56 fixture exports, 149 handwritten
 C# source files and nine generated Protobuf compile inputs. Source declarations do
 not establish gameplay acceptance. Actual installed discovery must match the private
 build and prove fixture exclusion; pending native acceptance remains explicit in
