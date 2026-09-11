@@ -160,7 +160,7 @@ func (caller *Client) PlacementPreviews(ctx context.Context, request *p.Placemen
 func (caller *Client) protoRead(ctx context.Context, name string, request, reply proto.Message) (Result, error) {
 	switch name {
 	case "rimgovernor/presentation_camera", "rimgovernor/presentation_selection", "rimgovernor/presentation_colonists", "rimgovernor/presentation_notifications":
-	case "rimgovernor/clock_read_events", "rimgovernor/clock_read_status", "rimgovernor/clock_read_attempt", "rimgovernor/observations_list_pawns", "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress":
+	case "rimgovernor/clock_read_events", "rimgovernor/clock_read_status", "rimgovernor/clock_read_attempt", "rimgovernor/operations_preview", "rimgovernor/observations_list_pawns", "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress":
 	default:
 		return Result{}, contract("unreviewed native read")
 	}
@@ -172,7 +172,7 @@ func (caller *Client) protoRead(ctx context.Context, name string, request, reply
 func (caller *Client) protoCall(ctx context.Context, name string, request, reply proto.Message) (Result, error) {
 	switch name {
 	case "rimgovernor/presentation_camera", "rimgovernor/presentation_selection", "rimgovernor/presentation_colonists", "rimgovernor/presentation_notifications":
-	case "rimgovernor/clock_read_events", "rimgovernor/clock_read_status", "rimgovernor/clock_read_attempt", "rimgovernor/observations_list_pawns", "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress", "rimgovernor/authority_control", "rimgovernor/operations_execute", "rimgovernor/clock_start", "rimgovernor/clock_renew", "rimgovernor/clock_change_speed", "rimgovernor/clock_pause":
+	case "rimgovernor/clock_read_events", "rimgovernor/clock_read_status", "rimgovernor/clock_read_attempt", "rimgovernor/operations_preview", "rimgovernor/observations_list_pawns", "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress", "rimgovernor/authority_control", "rimgovernor/operations_release_owned_draft", "rimgovernor/operations_execute", "rimgovernor/clock_start", "rimgovernor/clock_renew", "rimgovernor/clock_change_speed", "rimgovernor/clock_pause":
 	default:
 		return Result{}, contract("unreviewed native method")
 	}
@@ -247,6 +247,10 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 		case *a.StatusReply:
 			typedFailure = r.GetFailure() != nil
 		case *a.ControlReply:
+			typedFailure = r.GetFailure() != nil
+		case *op.PreviewReply:
+			typedFailure = r.GetFailure() != nil
+		case *op.ReleaseOwnedDraftReply:
 			typedFailure = r.GetFailure() != nil
 		case *op.ExecuteReply:
 			typedFailure = r.GetFailure() != nil
