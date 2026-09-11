@@ -24,6 +24,25 @@ def test_candidate_requires_conscious_health_and_native_violence_capability():
     with pytest.raises(AssertionError):healthy_candidates([row])
 
 
+def test_ranged_candidate_requires_native_shooting_capability():
+    row = pawn()
+    row["biography"]["disabledWorkTags"] = ["Shooting"]
+    assert healthy_candidates([row]) == [row]
+    assert healthy_candidates([row], ranged=True) == []
+
+
+def test_ranged_terminal_requires_the_exact_ranged_job():
+    receipt, progress, victim = combat()
+    with pytest.raises(AssertionError):
+        terminal(progress, receipt, victim, "Hare1", ranged=True)
+    receipt["applied"]["observed"]["job"]["jobDef"] = "AttackStatic"
+    progress["completed"]["evidence"]["job"]["jobDef"] = "AttackStatic"
+    terminal(progress, receipt, victim, "Hare1", ranged=True)
+    victim["downed"] = False
+    with pytest.raises(AssertionError):
+        terminal(progress, receipt, victim, "Hare1", ranged=True)
+
+
 def test_attack_request_preserves_both_exact_cas_and_explicit_guards():
     target={"pawn":{"id":"Hare1","snapshot":{"token":"target"}}}
     request=attack_request({"mapId":0},{"context":{"nativeGeneration":"4"},"leaseId":"lease"},pawn(),target,3)

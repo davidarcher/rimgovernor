@@ -1,4 +1,4 @@
-"""Bounded actual melee outcome acceptance through container_scenario.py."""
+"""Bounded actual combat outcome acceptance through container_scenario.py."""
 from __future__ import annotations
 import argparse
 import asyncio
@@ -49,9 +49,10 @@ def observed_rows(reply, identity):
     return rows
 
 
-def healthy_candidates(rows):
+def healthy_candidates(rows, *, ranged=False):
     assert rows and all(r["dead"] is False and r["downed"] is False and r["health"]["summaryFraction"] > .5005 for r in rows)
     return [r for r in rows if r["drafted"] is False and "Violent" not in r["biography"].get("disabledWorkTags", [])
+        and (not ranged or "Shooting" not in r["biography"].get("disabledWorkTags", []))
         and not any(i["field"] == "disabled_work_tags" for i in r["biography"].get("issues", []))]
 
 
@@ -62,11 +63,11 @@ def attack_request(identity, grant, actor, victim, number, mode="ATTACK_MODE_MEL
     return request
 
 
-def terminal(progress, receipt, victim, target_id):
+def terminal(progress, receipt, victim, target_id, *, ranged=False):
     assert progress["completeInspection"] is True and "completed" in progress
     original = receipt["applied"]["observed"]["job"]
     effect = progress["completed"]["evidence"]["job"]
-    assert effect["jobId"] == original["jobId"] and effect["jobDef"] == "AttackMelee"
+    assert effect["jobId"] == original["jobId"] and effect["jobDef"] == ("AttackStatic" if ranged else "AttackMelee")
     assert effect["pawnId"] == original["pawnId"] and effect["targetA"] == {"thingId": target_id}
     assert effect["verified"] is True
     assert victim["pawn"]["id"] == target_id and (victim["dead"] is True or victim["downed"] is True)
@@ -81,11 +82,13 @@ def overridden_attack(progress, before, after, external):
     actual_order(external, after)
 
 
-async def run(root: Path, output: Path, *, headless=True):
+async def run(root: Path, output: Path, *, headless=True, ranged=False):
     output.mkdir(parents=True, exist_ok=False)
     evidence = Evidence(output)
-    report = {"passed": False, "headless": headless, "combat_tick_budget": COMBAT_WINDOWS*TICKS_PER_WINDOW,
-        "scope": "Actual attributed melee terminal outcome, player override and fresh claim, replay/ranged refusal, completed-before-Manual retention; bounded shared clock waits. No damage or completion injection."}
+    mode = "ATTACK_MODE_RANGED" if ranged else "ATTACK_MODE_MELEE"
+    job_def = "AttackStatic" if ranged else "AttackMelee"
+    report = {"passed": False, "headless": headless, "ranged": ranged, "combat_tick_budget": COMBAT_WINDOWS*TICKS_PER_WINDOW,
+        "scope": "Actual attributed combat terminal outcome, player override and fresh claim, replay, completed-before-Manual retention; bounded shared clock waits. No damage or completion injection."}
     try:
         configuration = prepare(root) if headless else prepare_rendered(root)
         game = json.loads((configuration / "config.json").read_text(encoding="utf-8"))["games"]["rimgovernor-trial"]
@@ -104,10 +107,17 @@ async def run(root: Path, output: Path, *, headless=True):
                     async def query(label, **filters):
                         return await wire(label, "observations_list_pawns", {"scope": {"expectedIdentity": identity}, "filter": filters})
                     async def read(label, pawn_id): return pawn_row(await query(label, ids=[pawn_id]), identity, pawn_id)
-                    people = healthy_candidates(observed_rows(await query("healthy-colonists", colonist=True), identity))
+                    people = healthy_candidates(observed_rows(await query("healthy-colonists", colonist=True), identity), ranged=ranged)
                     assert people, "No healthy observed violence-capable colonist"
                     actor_id = people[0]["pawn"]["id"]
-                    setup = await call("opponents", "test/b04f_setup", {"op": "opponents", "pawn": actor_id})
+                    if ranged:
+                        gear = await call("ranged-equipment", "test/b04f_setup", {"op": "ranged-equipment", "pawn": actor_id})
+                        assert gear["success"] is True and gear["completedWorkInjected"] is False and len(gear["weapons"]) == 1
+                        equipped = await read("equipped-attacker", actor_id)
+                        assert equipped["equipment"]["primaryId"] == gear["weapons"][0]
+                        assert any(item["thing"]["id"] == gear["weapons"][0] and item["thing"]["defName"] == "Gun_AssaultRifle"
+                            for item in equipped["equipment"]["equipped"])
+                    setup = await call("opponents", "test/b04f_setup", {"op": "ranged-opponents" if ranged else "opponents", "pawn": actor_id})
                     assert setup["success"] is True and setup["completedWorkInjected"] is False
                     targets = setup["opponents"]
                     assert len(targets) == len(set(targets)) == 2
@@ -122,18 +132,15 @@ async def run(root: Path, output: Path, *, headless=True):
                         "expectedGeneration": status["context"]["nativeGeneration"], "owner": OWNER, "leaseMs": 30000}}), "granted")
                     drafted = outcome(await wire("draft", "operations_execute", execute_request(identity, grant, actor, 1)), "receipt")
                     actor = await read("owned-attacker", actor_id); owned_effect(drafted, actor)
-                    ranged = attack_request(identity, grant, actor, victim, 2, "ATTACK_MODE_RANGED")
-                    assert outcome(await wire("ranged-refused", "operations_execute", ranged), "failure")["code"] == "FAILURE_CODE_UNSUPPORTED"
-                    same_control(actor, await read("ranged-unchanged", actor_id))
-                    request = attack_request(identity, grant, actor, victim, 3)
-                    preview = outcome(await wire("melee-preview", "operations_preview", {"identity": identity, "operation": request["operation"]}), "evaluated")
+                    request = attack_request(identity, grant, actor, victim, 3, mode)
+                    preview = outcome(await wire("attack-preview", "operations_preview", {"identity": identity, "operation": request["operation"]}), "evaluated")
                     assert preview["accepted"] is True
                     receipt = outcome(await wire("attack", "operations_execute", request), "receipt")
                     effect = receipt["applied"]["observed"]["job"]
-                    assert effect["issued"] is True and effect["verified"] is True and effect["jobDef"] == "AttackMelee"
+                    assert effect["issued"] is True and effect["verified"] is True and effect["jobDef"] == job_def
                     assert effect["targetA"] == {"thingId": targets[0]} and effect["pawnId"] == actor_id
                     attacking = await read("attack-job", actor_id)
-                    assert attacking["job"]["loadId"] == str(effect["jobId"]) and attacking["job"]["defName"] == "AttackMelee"
+                    assert attacking["job"]["loadId"] == str(effect["jobId"]) and attacking["job"]["defName"] == job_def
                     attempt = {"identity": identity, "attempt": request["precondition"]["attempt"]}
                     assert "pending" in outcome(await wire("attack-pending", "receipts_observe_progress", attempt), "progress")
                     assert outcome(await wire("attack-replay", "operations_execute", request), "receipt") == receipt
@@ -163,10 +170,10 @@ async def run(root: Path, output: Path, *, headless=True):
                     actor = await read("fresh-owned-attacker", actor_id); owned_effect(fresh_draft, actor)
                     assert actor["draftClaim"]["owned"]["claimId"] != attacking["draftClaim"]["owned"]["claimId"]
                     victim = await read("fresh-target-snapshot", targets[0])
-                    request = attack_request(identity, grant, actor, victim, 6)
+                    request = attack_request(identity, grant, actor, victim, 6, mode)
                     receipt = outcome(await wire("fresh-attack", "operations_execute", request), "receipt")
                     effect = receipt["applied"]["observed"]["job"]
-                    assert effect["issued"] is True and effect["verified"] is True and effect["jobDef"] == "AttackMelee"
+                    assert effect["issued"] is True and effect["verified"] is True and effect["jobDef"] == job_def
                     assert effect["targetA"] == {"thingId": targets[0]} and effect["pawnId"] == actor_id
                     attempt = {"identity": identity, "attempt": request["precondition"]["attempt"]}
                     assert "pending" in outcome(await wire("fresh-pending", "receipts_observe_progress", attempt), "progress")
@@ -182,7 +189,7 @@ async def run(root: Path, output: Path, *, headless=True):
                         victims = observed_rows(await query("target-state-"+str(window), ids=[targets[0]], includeDead=True), identity)
                         assert len(victims) == 1, "Exact native target state unavailable"
                         if "completed" in progress:
-                            terminal(progress, receipt, victims[0], targets[0]); completed = progress; break
+                            terminal(progress, receipt, victims[0], targets[0], ranged=ranged); completed = progress; break
                         assert "pending" in progress, progress
                     report["combat_windows_used"] = window+1
                     report["last_combat_progress"] = progress
@@ -216,5 +223,5 @@ async def run(root: Path, output: Path, *, headless=True):
 
 if __name__ == "__main__":
     parser=argparse.ArgumentParser(description=__doc__); parser.add_argument("--root",type=Path,required=True)
-    parser.add_argument("--output",type=Path); parser.add_argument("--rendered",action="store_true"); args=parser.parse_args()
-    raise SystemExit(0 if asyncio.run(run(args.root,args.output or args.root/"native-combat-acceptance",headless=not args.rendered)) else 1)
+    parser.add_argument("--output",type=Path); parser.add_argument("--rendered",action="store_true"); parser.add_argument("--ranged",action="store_true"); args=parser.parse_args()
+    raise SystemExit(0 if asyncio.run(run(args.root,args.output or args.root/"native-combat-acceptance",headless=not args.rendered,ranged=args.ranged)) else 1)
