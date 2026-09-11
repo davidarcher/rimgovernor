@@ -35,6 +35,7 @@ type ClockCoordinator struct {
 	native     ClockNative
 	writer     ClockWriter
 	leases     LeaseSource
+	clock      executor.Clock
 	config     ClockCoordinatorConfig
 	authority  executor.Authority
 	generation context.Context
@@ -42,12 +43,12 @@ type ClockCoordinator struct {
 	stopped    bool
 }
 
-func NewClockCoordinator(journal *store.Store, native ClockNative, writer ClockWriter, leases LeaseSource, config ClockCoordinatorConfig) (*ClockCoordinator, error) {
-	if journal == nil || native == nil || writer == nil || leases == nil || config.CallTimeout <= 0 || config.CallTimeout > time.Minute || config.JournalTimeout <= 0 || config.JournalTimeout > time.Minute {
+func NewClockCoordinator(journal *store.Store, native ClockNative, writer ClockWriter, leases LeaseSource, clock executor.Clock, config ClockCoordinatorConfig) (*ClockCoordinator, error) {
+	if journal == nil || native == nil || writer == nil || leases == nil || clock == nil || config.CallTimeout <= 0 || config.CallTimeout > time.Minute || config.JournalTimeout <= 0 || config.JournalTimeout > time.Minute {
 		return nil, errors.New("invalid clock coordinator dependencies")
 	}
 	generation, cancel := context.WithCancel(context.Background())
-	return &ClockCoordinator{gate: make(chan struct{}, 1), journal: journal, native: native, writer: writer, leases: leases, config: config, generation: generation, invalidate: cancel}, nil
+	return &ClockCoordinator{gate: make(chan struct{}, 1), journal: journal, native: native, writer: writer, leases: leases, clock: clock, config: config, generation: generation, invalidate: cancel}, nil
 }
 func (q *ClockCoordinator) UpdateAuthority(value executor.Authority) error {
 	if value.Enabled && (value.Snapshot.Validate() != nil || value.Snapshot.Native == 0 || value.Snapshot.Direction == 0 || value.Snapshot.Revision == 0) {
@@ -210,6 +211,11 @@ func (q *ClockCoordinator) inspect(ctx context.Context, v store.ClockAttempt) er
 		if status.GetRunning() != nil || status.GetStopping() != nil {
 			return executor.ErrHeld
 		}
+		if window := v.Intent.Window; window != nil {
+			if status.ActualPaused == nil || !status.GetActualPaused() || status.NativeTickBoundary == nil || !status.GetNativeTickBoundary() || status.DurableEvents == nil || (!status.GetDurableEvents() && status.GetNeverStarted() == nil) || status.Context.GetTick() != int64(window.Tick) || status.NewestCursor == nil || status.GetNewestCursor() != window.CapturedCursor {
+				return executor.ErrHeld
+			}
+		}
 		return nil
 	}
 	actual := clockCoordinatorEpoch(status)
@@ -240,6 +246,13 @@ func (q *ClockCoordinator) record(v store.ClockAttempt, reply *k.ControlReply, c
 	return saved, cause
 }
 func (q *ClockCoordinator) Command(ctx context.Context, intent store.ClockIntent) (store.ClockAttempt, error) {
+	if intent.Window != nil {
+		return store.ClockAttempt{}, executor.ErrHeld
+	}
+	return q.command(ctx, intent, nil)
+}
+
+func (q *ClockCoordinator) command(ctx context.Context, intent store.ClockIntent, check func(store.ClockIntent) error) (store.ClockAttempt, error) {
 	call, generation, done, err := q.enter(ctx)
 	if err != nil {
 		return store.ClockAttempt{}, err
@@ -247,6 +260,11 @@ func (q *ClockCoordinator) Command(ctx context.Context, intent store.ClockIntent
 	defer done()
 	if err = q.guard(call, generation, intent.Snapshot); err != nil {
 		return store.ClockAttempt{}, err
+	}
+	if check != nil {
+		if err = check(intent); err != nil {
+			return store.ClockAttempt{}, err
+		}
 	}
 	v, _, err := q.journal.PrepareClock(call, intent)
 	if err != nil {
@@ -271,12 +289,22 @@ func (q *ClockCoordinator) Command(ctx context.Context, intent store.ClockIntent
 	if err = q.guard(call, generation, v.Intent.Snapshot); err != nil {
 		return v, err
 	}
+	if check != nil {
+		if err = check(v.Intent); err != nil {
+			return v, err
+		}
+	}
 	v, err = q.journal.DispatchClock(call, v.Intent.RequestID)
 	if err != nil {
 		return v, err
 	}
 	if err = q.guard(call, generation, v.Intent.Snapshot); err != nil {
 		return q.uncertain(v, err)
+	}
+	if check != nil {
+		if err = check(v.Intent); err != nil {
+			return q.uncertain(v, err)
+		}
 	}
 	e := clockCoordinatorExpectation(v)
 	pre := &a.WritePrecondition{Identity: e.Identity, Attempt: e.Attempt, ExpectedGeneration: proto.Uint64(e.NativeGeneration), LeaseId: proto.String(lease)}

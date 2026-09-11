@@ -163,7 +163,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	var coordinator *ClockCoordinator
 	if config.Clock != nil {
-		coordinator, err = NewClockCoordinator(journal, config.Clock.Native, config.Clock.Writer, sink, ClockCoordinatorConfig{CallTimeout: config.Control.CallTimeout, JournalTimeout: config.Executor.JournalTimeout})
+		coordinator, err = NewClockCoordinator(journal, config.Clock.Native, config.Clock.Writer, sink, clock, ClockCoordinatorConfig{CallTimeout: config.Control.CallTimeout, JournalTimeout: config.Executor.JournalTimeout})
 		if err != nil {
 			return cleanup(err)
 		}

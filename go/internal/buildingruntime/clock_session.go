@@ -76,6 +76,13 @@ func (s *Session) CommandClock(ctx context.Context, intent store.ClockIntent) (s
 	return s.clock.Command(ctx, intent)
 }
 
+func (s *Session) CommandClockWindow(ctx context.Context, request ClockWindowRequest) (store.ClockAttempt, error) {
+	if s.clock == nil {
+		return store.ClockAttempt{}, ErrControl
+	}
+	return s.clock.CommandWindow(ctx, request)
+}
+
 func (s *Session) ReconcileClock(ctx context.Context, requestID string) (store.ClockAttempt, error) {
 	if s.clock == nil {
 		return store.ClockAttempt{}, ErrControl
