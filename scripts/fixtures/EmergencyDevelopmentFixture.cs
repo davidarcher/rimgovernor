@@ -82,8 +82,8 @@ namespace HomeBridge.BridgeTools
                         var explosive = op == "explosive-opponents";
                         var ranged = op == "ranged-opponents" || explosive;
                         var animal = PawnGenerator.GeneratePawn(DefDatabase<PawnKindDef>.GetNamed(ranged ? "Tortoise" : "Hare"));
-                        var cell = GenRadial.RadialCellsAround(center,explosive ? 12 : ranged ? 28 : 12,true).First(c => c.InBounds(map)
-                            && c.Walkable(map) && c.DistanceTo(center)>(explosive ? 10 : ranged ? 24 : 8) && !c.Fogged(map)
+                        var cell = GenRadial.RadialCellsAround(center,12,true).First(c => c.InBounds(map)
+                            && c.Walkable(map) && c.DistanceTo(center)>(ranged ? 10 : 8) && !c.Fogged(map)
                             && (!ranged || GenSight.LineOfSight(center,c,map))
                             && (!ranged || (SpawnedOpponents.All(p => p.Position.DistanceTo(c) >= 5)
                                 && GenRadial.RadialCellsAround(c,1.5f,true).All(n => n.InBounds(map) && !n.Fogged(map)

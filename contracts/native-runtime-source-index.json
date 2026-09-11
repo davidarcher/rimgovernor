@@ -1,6 +1,6 @@
 {
   "inventory_version": 1,
-  "source_revision": "947ed33507f08d1ba8bec7676240bc6776ecdf62",
+  "source_revision": "2826c6d1560d17267083d036d63152876878bbcf",
   "scope": "Tracked C# sources in unified native Runtime/Bridge and scripts/fixtures; lexical reference index, not an AST or proof of behavioral coverage.",
   "source_line_policy": "One-based source anchors at source_revision; static matches include methods and constructors, reflection matches include helper use and interop. Read the full source declaration before changing ownership.",
   "rows": [
@@ -3829,7 +3829,7 @@
     },
     {
       "source": "scripts/fixtures/EmergencyDevelopmentFixture.cs",
-      "source_sha256": "07b9ff61c7deb70dc1d46232fd8c8a7d2c8aaf7bf254c5cb86c0a3f8350d42f1",
+      "source_sha256": "2a31bf2f25390f35b40814ec9f948956677a77efab0441c8efb2598f42d5a40c",
       "compilation": "fixture-only",
       "owner": "N01.01 native packaging owner",
       "migration_status": "inventoried-unmigrated",
