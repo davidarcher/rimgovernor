@@ -1191,7 +1191,7 @@ only intentional small, sanitized regression fixtures belong in source control.
       agent; depends on 06. Journal before writes, retain original epoch and
       uncertain outcomes, and commit event evidence before cursor advancement.
       Test pending restart, duplicate delivery, gaps and bounded capacity.
-      - [ ] **10a.1a:** fixed local clock evidence validation. Owner: integrator
+      - [x] **10a.1a:** fixed local clock evidence validation. Owner: integrator
         and bridge agents; depends on 06 and accepted canonical clock adapters.
         Correlate recovered receipts with the full original command, owner and
         generation. Reuse fixed generated messages and expose pure event/status
