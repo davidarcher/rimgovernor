@@ -165,9 +165,36 @@ internal static class Program
         Assert(!other.Status().Available && !other.Status().Active && other.Status().Generation == 1, "New Game inherited authority or hook health");
     }
 
+    private static void ScopeAndClockBoundaries()
+    {
+        var h = new Harness(); h.Acquire();
+        using (h.State.Owned())
+        {
+            h.Time = 1000;
+            Assert(!h.State.IsOwned, "Expired scope still suppressed external hooks before Status");
+            Assert(!h.State.Status().Active, "Scope expiry did not revoke lease");
+        }
+        h = new Harness(); h.Acquire();
+        var scope = h.State.Owned();
+        var manual = h.State.Revoke(h.State.Status().Generation, NativeControlRevocationReason.Manual);
+        Assert(manual.Success && !h.State.IsOwned, "Manual revoke retained owned suppression");
+        scope.Dispose(); scope.Dispose();
+        Assert(!h.State.IsOwned, "Repeated Dispose corrupted owned scope");
+        h = new Harness(); h.Time = long.MaxValue - 999; h.State.SetHookHealth(true);
+        Error(h.State.Acquire(1, "owner", ulong.MaxValue, 1000), NativeControlError.Unavailable);
+        Assert(!h.State.Status().Active && !h.State.Status().Available, "Deadline overflow granted a shortened lease");
+        Assert(h.State.Status().Reason == NativeControlRevocationReason.ClockUnavailable, "Clock exhaustion not diagnosed");
+        h = new Harness(); h.State.SetHookHealth(true);
+        var granted = h.State.Acquire(1, "owner", ulong.MaxValue, 30000);
+        Assert(granted.Success && granted.Snapshot.Lease!.PlayerDirection == ulong.MaxValue, "Player direction lost full uint64 range");
+        h.Context = new NativeControlIdentity(h.Game, h.Map, "new-colony", "load");
+        Error(h.State.Check(granted.Snapshot.Generation, granted.Snapshot.Lease!.LeaseId, "owner"), NativeControlError.StaleGeneration);
+        Assert(!h.State.Status().Active, "Colony replacement retained old authority");
+    }
+
     private static void Main()
     {
-        LeaseAndCas(); IdentityAndHealth(); OwnedScopes(); ExhaustionAndClock(); RegistryIsolation();
+        LeaseAndCas(); IdentityAndHealth(); OwnedScopes(); ExhaustionAndClock(); RegistryIsolation(); ScopeAndClockBoundaries();
         Console.WriteLine("Native authority state passed " + assertions + " assertions (production source, injected clock/context).");
     }
 }

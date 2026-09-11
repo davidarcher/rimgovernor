@@ -143,9 +143,10 @@ namespace HomeBridge.BridgeTools
             if (playerDirection == 0) return Result(NativeControlError.InvalidDirection);
             if (!ValidDuration(leaseMs)) return Result(NativeControlError.InvalidLeaseDuration);
             if (lease != null) return Result(NativeControlError.OwnerConflict);
+            if (!TryDeadline(leaseMs, out var expires)) return Result(NativeControlError.Unavailable);
             if (!Advance()) return Result(NativeControlError.GenerationExhausted);
             lease = new NativeControlLease(Guid.NewGuid().ToString("N"), controllerSessionId, playerDirection);
-            deadline = SaturatingDeadline(leaseMs);
+            deadline = expires;
             reason = NativeControlRevocationReason.None;
             return Result(NativeControlError.None);
         }
@@ -156,7 +157,8 @@ namespace HomeBridge.BridgeTools
             var error = CheckLease(expectedGeneration, leaseId, controllerSessionId);
             if (error != NativeControlError.None) return Result(error);
             if (!ValidDuration(leaseMs)) return Result(NativeControlError.InvalidLeaseDuration);
-            deadline = SaturatingDeadline(leaseMs);
+            if (!TryDeadline(leaseMs, out var expires)) return Result(NativeControlError.Unavailable);
+            deadline = expires;
             return Result(NativeControlError.None);
         }
 
@@ -194,8 +196,15 @@ namespace HomeBridge.BridgeTools
             return new OwnedScope(this);
         }
 
-        public bool IsOwned => Thread.CurrentThread.ManagedThreadId == thread && ownedDepth > 0
-            && ownedGeneration == generation && CurrentContextMatches();
+        public bool IsOwned
+        {
+            get
+            {
+                if (Thread.CurrentThread.ManagedThreadId != thread || ownedDepth == 0) return false;
+                Refresh();
+                return Available && lease != null && ownedGeneration == generation && CurrentContextMatches();
+            }
+        }
 
         private sealed class OwnedScope : IDisposable
         {
@@ -297,7 +306,18 @@ namespace HomeBridge.BridgeTools
         }
 
         private static bool ValidDuration(int leaseMs) => leaseMs >= 1000 && leaseMs <= 30000;
-        private long SaturatingDeadline(int leaseMs) => now > long.MaxValue - leaseMs ? long.MaxValue : now + leaseMs;
+        private bool TryDeadline(int leaseMs, out long expires)
+        {
+            expires = 0;
+            if (now > long.MaxValue - leaseMs)
+            {
+                Invalidate(NativeControlRevocationReason.ClockUnavailable);
+                clockHealthy = false;
+                return false;
+            }
+            expires = checked(now + leaseMs);
+            return true;
+        }
         private NativeControlSnapshot Snapshot() => new NativeControlSnapshot(contextValid ? identity : null, generation,
             Available, lease, lease == null ? 0 : (int)Math.Min(30000, Math.Max(0, deadline - now)), reason);
         private NativeControlResult Result(NativeControlError error) => new NativeControlResult(error, Snapshot());
