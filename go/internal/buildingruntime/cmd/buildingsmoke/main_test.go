@@ -116,21 +116,21 @@ func TestReportDoesNotConflateAcceptanceCompletionOrUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if accepted("place", executor.Result{Progress: unknown, NativeCalled: true}) {
+	if accepted("place", "completed", executor.Result{Progress: unknown, NativeCalled: true}) {
 		t.Fatal("uncertainty passed")
 	}
 	progress, err = progress.RecordReceipt(1, domain.ReceiptAccepted)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !accepted("place", executor.Result{Progress: progress, NativeCalled: true}) || accepted("observe", executor.Result{Progress: progress}) {
+	if !accepted("place", "completed", executor.Result{Progress: progress, NativeCalled: true}) || accepted("observe", "completed", executor.Result{Progress: progress}) {
 		t.Fatal("receipt treated as completion")
 	}
 	progress, err = progress.Observe(domain.Observation{Action: actionID, Attempt: 1, Snapshot: snapshot, Tick: 11, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !accepted("observe", executor.Result{Progress: progress}) || accepted("place", executor.Result{Progress: progress, NativeCalled: true}) {
+	if !accepted("observe", "completed", executor.Result{Progress: progress}) || accepted("place", "completed", executor.Result{Progress: progress, NativeCalled: true}) {
 		t.Fatal("completion misclassified")
 	}
 	v := progress.View()
@@ -142,5 +142,78 @@ func TestReportDoesNotConflateAcceptanceCompletionOrUnknown(t *testing.T) {
 	}
 	if !strings.Contains(string(data), `"Attempt":"18446744073709551615"`) || !strings.Contains(string(data), `"Receipt":null`) || strings.Contains(string(data), `"Effect":{}`) {
 		t.Fatal(string(data))
+	}
+}
+
+func TestExpectedOutcomeParserAndExactTerminalObservation(t *testing.T) {
+	for _, expected := range []string{"completed", "cancelled", "interrupted"} {
+		opts, err := parse(append(argsFor(t, "observe"), "--expected-outcome", expected))
+		if err != nil || opts.expectedOutcome != expected {
+			t.Fatal(opts, err)
+		}
+		args := append(argsFor(t, "place"), "--execute", "--request", filepath.Join(t.TempDir(), "request.json"), "--expected-outcome", expected)
+		_, err = parse(args)
+		if (err == nil) != (expected == "completed") {
+			t.Fatal(expected, err)
+		}
+	}
+	if _, err := parse(append(argsFor(t, "observe"), "--expected-outcome", "failed")); err == nil {
+		t.Fatal("unknown expectation accepted")
+	}
+	spec, err := fixture([]byte(`{"defName":"Wall","x":0,"z":0,"rotation":"ROTATION_NORTH"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: planID, Revision: 1, Direction: 1, Native: 1}
+	for _, reason := range []domain.UnsuccessfulReason{domain.NativeCancelled, domain.NativeInterrupted, domain.NativeFailure, domain.NativeExpired} {
+		progress, err := domain.NewProgress(spec, actionID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		progress, err = progress.Prepare(snapshot, 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		progress, err = progress.MarkDispatched(snapshot, 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		progress, err = progress.RecordReceipt(1, domain.ReceiptUnknown)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, expected := range []string{"completed", "cancelled", "interrupted"} {
+			if accepted("observe", expected, executor.Result{Progress: progress}) {
+				t.Fatal("uncertain receipt passed")
+			}
+		}
+		progress, err = progress.Observe(domain.Observation{Action: actionID, Attempt: 1, Snapshot: snapshot, Tick: 11, Effect: domain.EffectUnsuccessful, UnsuccessfulReason: reason, Causality: domain.AfterDispatch}, snapshot)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fake := &fakeSession{result: executor.Result{Progress: progress}}
+		result, err := advance(context.Background(), "observe", fake, snapshot)
+		if err != nil || fake.acquired != 0 || fake.observed != 1 || fake.runs != 1 {
+			t.Fatal("observe crossed authority boundary", err)
+		}
+		for _, expected := range []string{"completed", "cancelled", "interrupted"} {
+			want := (expected == "cancelled" && reason == domain.NativeCancelled) || (expected == "interrupted" && reason == domain.NativeInterrupted)
+			if accepted("observe", expected, result) != want {
+				t.Fatal(expected, reason)
+			}
+			result.NativeCalled = true
+			if accepted("observe", expected, result) {
+				t.Fatal("write passed observe")
+			}
+			result.NativeCalled = false
+		}
+		bytes, err := json.Marshal(report{Mode: "observe", ExpectedOutcome: string(reason), Progress: project(progress.View())})
+		if err != nil || !strings.Contains(string(bytes), `"expectedOutcome":"`+string(reason)+`"`) {
+			t.Fatal(string(bytes), err)
+		}
+	}
+	fake := &fakeSession{err: errors.New("read failed")}
+	if _, err := advance(context.Background(), "observe", fake, snapshot); err == nil || fake.runs != 0 || fake.acquired != 0 {
+		t.Fatal("failed observation ran")
 	}
 }

@@ -32,8 +32,8 @@ const planID domain.PlanID = "go-building-smoke"
 const actionID domain.ActionID = "go-building-smoke-action"
 
 type options struct {
-	mode, gabs, config, profile, state, output, game, request string
-	execute, forceTakeover                                    bool
+	mode, gabs, config, profile, state, output, game, request, expectedOutcome string
+	execute, forceTakeover                                                     bool
 }
 type realClock struct{}
 
@@ -44,15 +44,16 @@ type callRecord struct {
 	Receipt bridge.Result
 }
 type report struct {
-	Passed       bool           `json:"passed"`
-	Mode         string         `json:"mode"`
-	Scope        string         `json:"scope"`
-	Error        string         `json:"error,omitempty"`
-	Connection   bridge.Result  `json:"connection"`
-	Identity     bridge.Result  `json:"identity"`
-	Calls        []callRecord   `json:"calls"`
-	Progress     progressReport `json:"progress"`
-	NativeCalled bool           `json:"nativeCalled"`
+	ExpectedOutcome string         `json:"expectedOutcome"`
+	Passed          bool           `json:"passed"`
+	Mode            string         `json:"mode"`
+	Scope           string         `json:"scope"`
+	Error           string         `json:"error,omitempty"`
+	Connection      bridge.Result  `json:"connection"`
+	Identity        bridge.Result  `json:"identity"`
+	Calls           []callRecord   `json:"calls"`
+	Progress        progressReport `json:"progress"`
+	NativeCalled    bool           `json:"nativeCalled"`
 }
 
 func parse(args []string) (options, error) {
@@ -60,6 +61,7 @@ func parse(args []string) (options, error) {
 	flags := flag.NewFlagSet("buildingsmoke", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	flags.StringVar(&out.mode, "mode", "", "place or observe")
+	flags.StringVar(&out.expectedOutcome, "expected-outcome", "completed", "observe: completed, cancelled, or interrupted")
 	flags.StringVar(&out.gabs, "gabs", "", "absolute GABS executable")
 	flags.StringVar(&out.config, "config", "", "absolute GABS configuration directory")
 	flags.StringVar(&out.profile, "profile", "", "shared real game profile directory")
@@ -88,6 +90,12 @@ func parse(args []string) (options, error) {
 	}
 	if out.mode == "observe" && (out.execute || out.request != "") {
 		return out, errors.New("observe does not accept execute/request")
+	}
+	if out.expectedOutcome != "completed" && out.expectedOutcome != "cancelled" && out.expectedOutcome != "interrupted" {
+		return out, errors.New("invalid expected outcome")
+	}
+	if out.mode == "place" && out.expectedOutcome != "completed" {
+		return out, errors.New("place does not accept unsuccessful outcome expectations")
 	}
 	return out, nil
 }
@@ -132,10 +140,21 @@ func advance(ctx context.Context, mode string, s session, snapshot domain.Genera
 	}
 	return s.Run(ctx, planID, actionID)
 }
-func accepted(mode string, result executor.Result) bool {
+func accepted(mode, expected string, result executor.Result) bool {
 	v := result.Progress.View()
 	if mode == "observe" {
-		return !result.NativeCalled && v.Stage == domain.Completed && !v.Unresolved
+		if result.NativeCalled || v.Unresolved {
+			return false
+		}
+		switch expected {
+		case "completed":
+			return v.Stage == domain.Completed
+		case "cancelled", "interrupted":
+			reason, known := v.UnsuccessfulReason.Value()
+			return v.Stage == domain.Unsuccessful && known && ((expected == "cancelled" && reason == domain.NativeCancelled) || (expected == "interrupted" && reason == domain.NativeInterrupted))
+		default:
+			return false
+		}
 	}
 	receipt, known := v.Receipt.Value()
 	return result.NativeCalled && known && receipt == domain.ReceiptAccepted && v.Stage == domain.AwaitingObservation && v.Unresolved
@@ -178,7 +197,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, err)
 		return 2
 	}
-	out := report{Mode: opts.mode, Scope: "One explicit fixture placement or one restart observation; no game startup, clock control, polling, or completion inferred from a receipt."}
+	out := report{ExpectedOutcome: opts.expectedOutcome, Mode: opts.mode, Scope: "One explicit fixture placement or one restart observation; no game startup, clock control, polling, or completion inferred from a receipt."}
 	err = perform(opts, &out)
 	if err != nil {
 		out.Error = err.Error()
@@ -314,7 +333,7 @@ func perform(opts options, out *report) (err error) {
 	if runErr != nil || loadErr != nil {
 		return errors.Join(runErr, loadErr)
 	}
-	out.Passed = accepted(opts.mode, result)
+	out.Passed = accepted(opts.mode, opts.expectedOutcome, result)
 	if !out.Passed {
 		return errors.New("fixture outcome not established; durable state retained")
 	}
