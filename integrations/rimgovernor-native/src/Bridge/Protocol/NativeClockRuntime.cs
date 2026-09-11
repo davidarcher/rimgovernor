@@ -197,6 +197,7 @@ namespace HomeBridge.BridgeTools
                 EnsurePatched();
                 var result = new Clock.Status { Context = context.Clone(), ActualPaused = Find.TickManager.Paused,
                     ObservedSpeed = ObservedSpeed(Find.TickManager.CurTimeSpeed), NativeTickBoundary = TypedHooksReady(),
+                    EvidenceCompleteness = new Common.PageInfo { Complete = true },
                     DurableEvents = Journal != null && _state?.StopReason != "event_journal_error" && _state?.PendingKind != "event_journal_error" };
                 if (Journal != null) result.NewestCursor = Journal.Newest;
                 var s = _state;

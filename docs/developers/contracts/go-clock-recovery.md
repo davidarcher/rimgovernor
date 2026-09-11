@@ -116,6 +116,11 @@ matches the requested current world; each event retains its original world and
 epoch. A load or map change must not reset the profile's cursor or rewrite old
 event contexts.
 
+Event reads initialize or recover that journal before any owned start. Status
+reads initialize the tick watchers so the scheduler can inspect readiness before
+requesting a window. Neither operation advances time or acquires authority;
+journal recovery and hook failures remain unavailable evidence.
+
 `ValidateClockEventsPage` checks the typed request and page together. The native
 reader scans at most the requested limit of cursor positions, including missing
 event files. Therefore `next_cursor - after_cursor` equals the number of returned

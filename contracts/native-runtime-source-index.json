@@ -1853,7 +1853,7 @@
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockRuntime.cs",
       "compilation": "production-bridge",
-      "source_sha256": "a8fe10333b590b89e67d454c6427a4cd28d7ea2ab4be5880ee14284aa1e1b9b6",
+      "source_sha256": "65bbede369c5781e4f184f632d5a9dfeeda9ecd10f4e6c767107b63ad16fed3c",
       "owner": "N01.05 native clock runtime owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private production clock discovery, exact tick budgets, revocation, safe pause and immutable event attribution in native gameplay.",
