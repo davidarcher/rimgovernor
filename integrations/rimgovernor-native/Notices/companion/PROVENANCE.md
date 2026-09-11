@@ -8,7 +8,7 @@ redistribution permission.
 
 RimGovernor extends the companion with guarded game operations, observations,
 saved identity, clock supervision and rendering. Current behavior belongs in the
-[developer docs](../../docs/developers/README.md); changes and verification belong in commits.
+[developer docs](../../../../docs/README.md); changes and verification belong in commits.
 
 RimWorld, Harmony, RimBridgeServer and Newtonsoft.Json assemblies are referenced
 from installed dependencies. Their binaries, source and game artwork are not bundled.
