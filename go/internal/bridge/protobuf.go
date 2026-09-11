@@ -283,7 +283,7 @@ func sameIdentity(a, b *c.Identity) bool {
 	return a.GetColonyId() == b.GetColonyId() && a.GetLoadToken() == b.GetLoadToken() && a.GetMapId() == b.GetMapId()
 }
 func validateUnavailable(v *c.Unavailable) error {
-	if v == nil || v.Reason == nil || v.GetReason() < 1 || v.GetReason() > 6 || !diagnostic(v.Detail) {
+	if v == nil || v.Reason == nil || v.GetReason() == c.UnavailableReason_UNAVAILABLE_REASON_UNSPECIFIED || v.GetReason().Descriptor().Values().ByNumber(v.GetReason().Number()) == nil || !diagnostic(v.Detail) {
 		return contract("invalid unavailable")
 	}
 	return nil

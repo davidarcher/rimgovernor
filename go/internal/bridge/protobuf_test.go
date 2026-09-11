@@ -161,3 +161,27 @@ func TestPlacementValidationBeforeDispatchAndCompleteFacts(t *testing.T) {
 		t.Fatal("truthful unknown materials refused", err)
 	}
 }
+
+func TestEveryCanonicalUnavailableReason(t *testing.T) {
+	for number, name := range c.UnavailableReason_name {
+		if number == 0 {
+			continue
+		}
+		t.Run(name, func(t *testing.T) {
+			reason := c.UnavailableReason(number)
+			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+				return pbResult(&l.IdentityReply{Outcome: &l.IdentityReply_Unavailable{Unavailable: &c.Unavailable{Reason: reason.Enum()}}}), nil
+			}}
+			reply, raw, err := testClient(t, s, time.Second).Identity(context.Background())
+			var unavailable *NativeUnavailable
+			if !errors.As(err, &unavailable) || reply.GetUnavailable().GetReason() != reason || len(raw.Envelope) == 0 {
+				t.Fatalf("reason %v not preserved: %v", reason, err)
+			}
+		})
+	}
+	for _, value := range []*c.Unavailable{nil, {}, {Reason: c.UnavailableReason(0).Enum()}, {Reason: c.UnavailableReason(-1).Enum()}, {Reason: c.UnavailableReason(11).Enum()}, {Reason: c.UnavailableReason(999).Enum()}} {
+		if err := validateUnavailable(value); !errors.Is(err, ErrContract) {
+			t.Fatalf("missing/unknown reason accepted: %v", value)
+		}
+	}
+}
