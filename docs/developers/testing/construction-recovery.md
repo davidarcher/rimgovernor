@@ -7,6 +7,24 @@ and retained work evidence.
 
 [Native test prerequisites](README.md#native-test-prerequisites).
 
+## Go HTTP building service
+
+Build a private native package with `-Fixture GuardedConstructionFixture`. Place
+the pinned Go service binary in the input profile as `rimgovernor-go`, then run
+`scripts/native_building_service_acceptance.py --root /worker/run --go-binary
+/inputs/profile/rimgovernor-go` through `scripts/container_scenario.py`. The harness
+checks the binary hash. The input mount path is required: worker profile staging
+copies only selected game files. Add `--rendered` with launcher `--display xvfb`
+for graphical acceptance.
+
+The scenario retains one database through three fully joined service processes.
+It verifies submission/replay without native writes, explicit authority and one
+blueprint, Manual disable, ordinary pawn construction through `advance_game`, then
+disabled restart reconciliation without reacquisition or redispatch. Complete SDK
+event sequences attribute each service phase separately from orchestrator reads
+and tick control. No forced GABS takeover is used. Inspect both the inner result
+and launcher database-integrity/cleanup evidence; an unjoined process fails the run.
+
 `scripts/construction_refinement_acceptance.py --source-root <prepared-root> --output
 <fresh-directory> --model <local-model-id>` checks policy refusal before removal,
 real-model relocation with dependent shared execution, interrupted removal, player

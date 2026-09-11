@@ -1235,6 +1235,11 @@ main. Native package and Go production cutover remain independent.
   admission; oversized evidence retains encodable uncertainty. Other commands
   remain Unsupported. Fresh Go restart also observes exact player cancellation
   as terminal unsuccessful/cancelled without redispatch or simulation advancement.
+  Actual Go HTTP service acceptance covers submit/replay without native writes,
+  explicit acquisition and one blueprint, Manual disable, joined exclusive GABS
+  handoffs, ordinary pawn completion and disabled same-database restart observation
+  without reacquisition or redispatch. Service and orchestrator event traces are
+  checked independently for complete attribution.
   Native lost-reply fault injection,
   instant/replacement construction cases and remaining operation families are open.
 
