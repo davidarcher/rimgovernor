@@ -825,7 +825,7 @@ only intentional small, sanitized regression fixtures belong in source control.
         - [x] **06b.3b.4:** trusted explicit acquisition, renewal, invalidation and
           joined shutdown under one process lock. Owner: runtime agent; depends
           on 06b.2 and the existing runtime ownership primitive.
-          - [ ] **06b.3b.4a:** clear a previously published observation target when
+          - [x] **06b.3b.4a:** clear a previously published observation target when
             native authority refresh fails, cancelling stale reconciliation while
             retaining the private cleanup target. Owner: runtime agent; depends
             on 06b.3b.4. Test failure after successful disabled target selection.
@@ -841,6 +841,9 @@ only intentional small, sanitized regression fixtures belong in source control.
           - [ ] **06b.3b.5b:** joined building worker and explicit control coordinator.
             Owner: runtime agent; depends on 5a and 06b.3b.4a. Reconcile unknown
             attempts before dispatch; renew only an existing live acquisition.
+            - [ ] **06b.3b.5b.1:** expose current control state and synchronous local
+              disable for the player coordinator. Owner: runtime agent; depends
+              only on 06b.3b.4a. Never expose lease secrets or issue native calls.
           - [ ] **06b.3b.5c:** typed player submission, Acquire and Manual HTTP
             endpoints with current-world checks and local player authentication.
             Owner: HTTP agent; depends on 5b. Read-only mode retains no writer.
