@@ -1,6 +1,6 @@
 # Go controller development
 
-The module provides local observation and explicit building services, version/help
+The module provides local observation and explicit player services, version/help
 and offline replay.
 Production launchers still use Python while the controller adapters
 are implemented. Go will start with fresh state; importing Python databases and
@@ -72,28 +72,36 @@ The dashboard displays these sections independently, retaining last-good data
 with a stale indicator during failed refreshes. A changed world or session excludes
 old results. Native notification production still requires game-level acceptance.
 
-## Guarded building components
+## Guarded player components
 
-`rimgovernor serve --building-control --profile <absolute-game-profile>` selects
-the building service. Supply the same `--gabs`, `--config`, `--game`, `--state`,
+`rimgovernor serve --player-control --profile <absolute-game-profile>` selects
+the building and temporary-draft service. Supply the same `--gabs`, `--config`, `--game`, `--state`,
 `--listen` and optional `--assets` arguments as the observation service. The profile
 must be the shared game profile, so another controller cannot acquire its process
 lock. The service starts in Manual; it never restores a live lease from SQLite.
 
-With built dashboard assets, the Building controls panel accepts a definition,
-material, map coordinates and rotation. **Submit building plan** saves the request;
-**Enable this plan** separately acquires permission. **Manual — stop orders**
-remains available while acquisition is pending. Drafts and request IDs survive
-background refreshes, and result checks only read the recorded request. The panel
-is hidden when the service runs read-only.
+With built dashboard assets, player controls accept a building definition,
+material, map coordinates and rotation, or an exact pawn ID for temporary drafting.
+Submitting stores intent; enabling its plan separately acquires permission.
+**Manual — stop orders** remains available while acquisition is pending. Both
+forms share current permission and direction CAS. Form drafts and request IDs
+survive background refreshes, and result checks only read the recorded request.
+Player controls are hidden when the service runs read-only.
 
 Submit a single building through `POST /api/buildings/plans`, then explicitly
-acquire that plan through `POST /api/buildings/control/acquire`. Manual uses
-`POST /api/buildings/control/manual` and stops local work before waiting for native
+acquire that plan through `POST /api/player/control/acquire`. Manual uses
+`POST /api/player/control/manual` and stops local work before waiting for native
 cleanup. These routes require JSON and the process token returned by
-`GET /api/buildings/session` in the `X-RimGovernor-Player` header. Tokens remain in
+`GET /api/player/session` in the `X-RimGovernor-Player` header. Tokens remain in
 memory. Requests bind exact colony/load/map identity and stable request IDs;
 acquisition also checks the current direction.
+
+Draft submission uses `POST /api/drafts/plans` with request ID, expected world and
+`draft.pawnId`. No native token or claim is accepted from a player. Its result is
+read through `GET /api/drafts/submission?requestId=...`. A completed standalone
+draft plan releases its own temporary claim; this is not a persistent draft toggle.
+Plan views show ordinary progress and cleanup status independently. See the
+[fixed player API](../docs/developers/contracts/go-player-api.md) for exact shapes.
 
 Both building admission checks require fresh, complete threat and basic pawn
 health observations. Standing hostiles, hunting predators, critical medical needs
@@ -103,7 +111,7 @@ while held; the controller does not release their reservations or invent a retry
 `bridge.Client.ReadPawns` reads 1–256 exact pawn IDs, including dead pawns, with
 optional detail families disabled. It preserves native snapshot and draft-claim
 availability. Missing pawns or unsupported claims cannot establish ownership or
-release. Draft session and service enablement remain gated by G01.07a.2.
+release. Native draft service acceptance remains tracked in G01.07a.2f.4.
 
 The owned-draft domain retains cleanup responsibility independently of ordinary
 action completion. Native adapters provide temporary drafting, attempt reads and
@@ -137,11 +145,12 @@ drafts and invalidated claims independently of ordinary action progress. An acti
 multi-action plan can retain a completed draft while its other work remains valid.
 Manual and shutdown run a bounded cleanup sweep through the same writer; unknown
 acquisition is observed before release, and an uncertain release remains retryable.
-Draft player API and service enablement remain gated by G01.07a.2.
+The explicitly selected player service supplies these complete capabilities;
+production enablement still depends on the remaining G01 acceptance work.
 
 An uncertain HTTP reply is resolved by reading its request ID through
 `GET /api/buildings/submission?requestId=...` or
-`GET /api/buildings/control?requestId=...`. Historical results are separate from
+`GET /api/player/control?requestId=...`. Historical results are separate from
 current permission. Repeating a control request never acquires another lease.
 
 The worker observes unresolved attempts after restart, renews only an existing

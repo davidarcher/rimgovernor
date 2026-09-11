@@ -10,12 +10,19 @@ and retained work evidence.
 ## Go HTTP building service
 
 Build a private native package with `-Fixture GuardedConstructionFixture`. Place
-the pinned Go service binary in the input profile as `rimgovernor-go`, then run
+the checked Go service binary in the input profile as `rimgovernor-go`, then run
 `scripts/native_building_service_acceptance.py --root /worker/run --go-binary
-/inputs/profile/rimgovernor-go` through `scripts/container_scenario.py`. The harness
-checks the binary hash. The input mount path is required: worker profile staging
+/inputs/profile/rimgovernor-go --go-source <source-commit> --go-sha256 <binary-sha256>`
+through `scripts/container_scenario.py`. Supply the exact source commit and SHA256
+from the retained Go build handoff; the harness validates their format and checks
+the copied binary before launch. The input mount path is required: worker profile staging
 copies only selected game files. Add `--rendered` with launcher `--display xvfb`
 for graphical acceptance.
+
+The emergency service harness uses the same required handoff arguments. Both
+launch `--player-control` and use shared `/api/player` control routes. Keep previous
+accepted artifacts with their original source and binary records; new trials use
+a fresh handoff and output directory.
 
 The scenario retains one database through three fully joined service processes.
 It verifies submission/replay without native writes, explicit authority and one
