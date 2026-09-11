@@ -118,6 +118,9 @@ pawn and snapshot token; progress and cleanup evidence commit atomically. Each
 cleanup request receives a durable local sequence before release. Reopening the
 database restores evidence, while dispatch still requires fresh runtime admission
 and live permission. Older Go schema versions are rejected without migration.
+Positive colony, load or map replacement can supersede an outstanding cleanup
+obligation without claiming the original draft was acquired or released. Same-world
+missing ownership cannot establish this transition.
 
 Pure draft admission requires a healthy selected colonist, known unowned and
 undrafted state, no forced or queued job, native eligibility and fresh complete

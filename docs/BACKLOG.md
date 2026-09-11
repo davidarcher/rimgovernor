@@ -994,7 +994,7 @@ only intentional small, sanitized regression fixtures belong in source control.
           runtime agent; depends on 2e. A finished standalone draft plan releases
           its claim; later defense plans may retain it only while still active.
           Use the existing writer for disabled and shutdown cleanup.
-          - [ ] **2f.1a:** atomic positive world-scope supersession. Owner: domain
+          - [x] **2f.1a:** atomic positive world-scope supersession. Owner: domain
             and state agents; depends on 2b–c. A verified replacement world can
             retire potential cleanup even when a lost reply left the claim unknown.
             Preserve the unknown original effect; never invent release or absence.
