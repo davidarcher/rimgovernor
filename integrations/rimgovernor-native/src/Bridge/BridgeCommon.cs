@@ -54,7 +54,6 @@ namespace HomeBridge.BridgeTools
         private static readonly Dictionary<string, string[]> DeclaredByToolName =
             new Dictionary<string, string[]>(StringComparer.Ordinal);
 
-        private static bool _journalProbed;
         private static PropertyInfo _journalProperty;
 
         /// <summary>
@@ -210,10 +209,9 @@ namespace HomeBridge.BridgeTools
         {
             lock (CacheGate)
             {
-                if (_journalProbed)
+                if (_journalProperty != null)
                     return _journalProperty;
 
-                _journalProbed = true;
                 try
                 {
                     var assembly = AppDomain.CurrentDomain
