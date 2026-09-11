@@ -71,6 +71,11 @@ internal static class Program
         foreach(var name in new[]{"Needs","Health","Equipment","Biography","Settings","Social","Animals"}) Check(!(bool)Get(detail,name),"explicit detail opt-out "+name);
         Check((bool)Get(detail,"VisibleHediffsOnly"),"visible-only selection retained");
         var detailsType=bridge.GetType("HomeBridge.BridgeTools.NativePawnDetails",true)!;
+        var definition=detailsType.GetMethod("DefinitionLabel",Flags)!;
+        var absentLabel=definition.Invoke(null,new object?[]{"Backstory1",null})!;
+        Check((string)Get(absentLabel,"DefName")=="Backstory1"&&!(bool)Get(absentLabel,"HasLabel"),"missing native definition label preserves exact ID and absence");
+        var title=definition.Invoke(null,new object?[]{"Backstory1","Nurse"})!;
+        Check((bool)Get(title,"HasLabel")&&(string)Get(title,"Label")=="Nurse","actual backstory title is retained");
         var core=Wire("PawnState","{\"needs\":{\"mood\":0},\"health\":{\"summaryFraction\":1}}");
         detailsType.GetMethod("Apply",Flags)!.Invoke(null,new object?[]{null,core,detail});
         Check(core.GetType().GetProperty("Needs")!.GetValue(core)==null&&core.GetType().GetProperty("Health")!.GetValue(core)==null,"explicit opt-out removes inherited status detail without native reads");
@@ -78,6 +83,10 @@ internal static class Program
         foreach(var field in new[]{"needs","health","equipment","biography","settings","social","animal_state"})
             Check(issues.Any(i=>(string)Get(i,"Field")==field&&Get(Get(i,"Unavailable"),"Reason").ToString()=="NotRequested"),"opt-out retains explicit issue "+field);
         var native=Assembly.Load("Assembly-CSharp");
+        var backstory=FormatterServices.GetUninitializedObject(native.GetType("RimWorld.BackstoryDef",true)!);
+        backstory.GetType().GetField("defName")!.SetValue(backstory,"BackstoryWithoutGenericLabel");
+        var nativeDefinition=detailsType.GetMethod("Definition",Flags)!.Invoke(null,new[]{backstory})!;
+        Check((string)Get(nativeDefinition,"DefName")=="BackstoryWithoutGenericLabel"&&!(bool)Get(nativeDefinition,"HasLabel"),"real native BackstoryDef with null generic label does not crash projection");
         var emptyPawn=FormatterServices.GetUninitializedObject(native.GetType("Verse.Pawn",true)!);
         var missingEquipment=detailsType.GetMethod("Equipment",Flags)!.Invoke(null,new[]{emptyPawn})!;
         Check(!(bool)Get(missingEquipment,"HasArmed"),"missing equipment tracker is not known unarmed");

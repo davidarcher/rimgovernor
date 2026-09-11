@@ -49,7 +49,8 @@ namespace HomeBridge.BridgeTools
                     return Encode(new Obs.ListPawnsReply { Observed = result });
                 }
                 catch (ReadLimit error) { return ProtoBoundary.Encode(new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Pawn facts could not be read completely.") }); }
+                catch (Exception error) { return ProtoBoundary.Encode(new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed,
+                    PlacementPreviewOperation.Diagnostic("Pawn facts could not be read completely: "+error)) }); }
             }, cancellationToken).ConfigureAwait(false);
         }
 

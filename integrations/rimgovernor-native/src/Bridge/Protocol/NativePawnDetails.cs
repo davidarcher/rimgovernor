@@ -77,6 +77,7 @@ namespace HomeBridge.BridgeTools
                 var item=new Obs.Hediff {Definition=Definition(h.def),Severity=Number(h.Severity),SeverityLabel=Text(h.SeverityLabel??""),
                     Visible=h.Visible,Bad=h.def.isBad,Permanent=h.IsPermanent(),LifeThreatening=h.IsCurrentlyLifeThreatening,
                     TendableNow=h.TendableNow(false),Tended=h.IsTended()};
+                if(!item.Definition.HasLabel) row.Issues.Add(Issue("hediffs.definition.label",Common.UnavailableReason.NotApplicable,"Native definition supplies no label."));
                 if(h.Part!=null) {
                     var index=pawn.RaceProps.body.AllParts.IndexOf(h.Part);
                     if(index<0) throw new InvalidOperationException("Hediff body part is not in this pawn's body.");
@@ -161,15 +162,25 @@ namespace HomeBridge.BridgeTools
             else {row.Issues.Add(Missing("biological_age_years"));row.Issues.Add(Missing("chronological_age_years"));}
             if(pawn.story==null) {row.Issues.Add(Missing("childhood"));row.Issues.Add(Missing("adulthood"));row.Issues.Add(Missing("traits"));}
             else {
-                if(pawn.story.Childhood!=null) row.Childhood=Definition(pawn.story.Childhood); else row.Issues.Add(Issue("childhood",Common.UnavailableReason.NotApplicable,"No childhood backstory."));
-                if(pawn.story.Adulthood!=null) row.Adulthood=Definition(pawn.story.Adulthood); else row.Issues.Add(Issue("adulthood",Common.UnavailableReason.NotApplicable,"No adulthood backstory."));
+                if(pawn.story.Childhood!=null) {
+                    row.Childhood=DefinitionLabel(pawn.story.Childhood.defName,pawn.story.Childhood.TitleCapFor(pawn.gender));
+                    if(!row.Childhood.HasLabel) row.Issues.Add(Issue("childhood.label",Common.UnavailableReason.NotApplicable,"Native backstory supplies no title."));
+                } else row.Issues.Add(Issue("childhood",Common.UnavailableReason.NotApplicable,"No childhood backstory."));
+                if(pawn.story.Adulthood!=null) {
+                    row.Adulthood=DefinitionLabel(pawn.story.Adulthood.defName,pawn.story.Adulthood.TitleCapFor(pawn.gender));
+                    if(!row.Adulthood.HasLabel) row.Issues.Add(Issue("adulthood.label",Common.UnavailableReason.NotApplicable,"Native backstory supplies no title."));
+                } else row.Issues.Add(Issue("adulthood",Common.UnavailableReason.NotApplicable,"No adulthood backstory."));
                 if(pawn.story.traits==null) row.Issues.Add(Missing("traits"));
                 else {Require(pawn.story.traits.allTraits.Count);foreach(var trait in pawn.story.traits.allTraits) row.Traits.Add(new Obs.Trait {DefName=Id(trait.def.defName),Degree=trait.Degree});}
             }
             if(pawn.skills==null) row.Issues.Add(Missing("skills"));
             else {
                 Require(pawn.skills.skills.Count);
-                foreach(var skill in pawn.skills.skills) row.Skills.Add(new Obs.Skill {Definition=Definition(skill.def),Level=skill.Level,StoredLevel=skill.levelInt,Passion=skill.passion.ToString(),Disabled=skill.TotallyDisabled});
+                foreach(var skill in pawn.skills.skills) {
+                    var definition=DefinitionLabel(skill.def.defName,skill.def.skillLabel);
+                    if(!definition.HasLabel) row.Issues.Add(Issue("skills.definition.label",Common.UnavailableReason.NotApplicable,"Native skill supplies no label."));
+                    row.Skills.Add(new Obs.Skill {Definition=definition,Level=skill.Level,StoredLevel=skill.levelInt,Passion=skill.passion.ToString(),Disabled=skill.TotallyDisabled});
+                }
             }
             var tags=pawn.CombinedDisabledWorkTags;
             foreach(WorkTags tag in Enum.GetValues(typeof(WorkTags))) if(tag!=WorkTags.None && ((int)tag&((int)tag-1))==0 && (tags&tag)!=0) row.DisabledWorkTags.Add(tag.ToString());
@@ -233,7 +244,12 @@ namespace HomeBridge.BridgeTools
             foreach(var field in new[]{"fertile_adult","pregnant","gestation","pen_id","contained","parent_ids","safe_to_slaughter","minimum_handling_skill"}) row.Issues.Add(Unsupported(field,"Animal reproduction, pen and handling detail is not projected."));
             return row;
         }
-        private static Obs.DefinitionRef Definition(Def def)=>new Obs.DefinitionRef {DefName=Id(def.defName),Label=Text(def.LabelCap)};
+        private static Obs.DefinitionRef Definition(Def def)=>DefinitionLabel(def.defName,def.LabelCap);
+        internal static Obs.DefinitionRef DefinitionLabel(string defName,string? label) {
+            var result=new Obs.DefinitionRef {DefName=Id(defName)};
+            if(label!=null) result.Label=Text(label);
+            return result;
+        }
         private static Obs.ReadIssue Missing(string field)=>Issue(field,Common.UnavailableReason.NativeComponentMissing,"Native component is absent or uninitialized.");
         private static Obs.ReadIssue Skipped(string field)=>Issue(field,Common.UnavailableReason.NotRequested,"Detail was explicitly disabled.");
         private static Obs.ReadIssue Unsupported(string field,string detail)=>Issue(field,Common.UnavailableReason.Unsupported,detail);
