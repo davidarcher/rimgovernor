@@ -13,13 +13,13 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const clockColumns = "request_id,native_action_id,payload,phase,reply"
+const clockColumns = "request_id,native_action_id,payload,phase,reply,scope_context"
 
 func scanClock(row interface{ Scan(...any) error }, session ControllerSessionID) (ClockAttempt, error) {
 	var id, action string
-	var payload, reply []byte
+	var payload, reply, scope []byte
 	var phase ClockPhase
-	if err := row.Scan(&id, &action, &payload, &phase, &reply); err != nil {
+	if err := row.Scan(&id, &action, &payload, &phase, &reply, &scope); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ClockAttempt{}, ErrNotFound
 		}
@@ -55,6 +55,15 @@ func scanClock(row interface{ Scan(...any) error }, session ControllerSessionID)
 		}
 	default:
 		return ClockAttempt{}, errors.New("invalid clock phase")
+	}
+	if scope != nil {
+		value.SupersededAt = &c.ObservationContext{}
+		if err = clockUnmarshal(scope, value.SupersededAt); err != nil {
+			return ClockAttempt{}, err
+		}
+		if err = validateClockScope(value, value.SupersededAt); err != nil {
+			return ClockAttempt{}, err
+		}
 	}
 	return value, nil
 }
@@ -257,6 +266,9 @@ func (s *Store) updateClock(ctx context.Context, id string, change func(ClockAtt
 	old, err := loadClock(ctx, tx, id)
 	if err != nil {
 		return ClockAttempt{}, err
+	}
+	if old.SupersededAt != nil {
+		return ClockAttempt{}, ErrConflict
 	}
 	phase, reply, err := change(old)
 	if err != nil {
