@@ -19,6 +19,7 @@ namespace HomeBridge.BridgeTools
         private readonly string load;
         internal readonly NativeAttemptLedger Ledger;
         internal readonly Dictionary<Common.AttemptKey, NativeConstructionRecord> Construction = new Dictionary<Common.AttemptKey, NativeConstructionRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeDraftRecord> Drafts = new Dictionary<Common.AttemptKey, NativeDraftRecord>();
         private NativeOperationState(Common.Identity identity)
         { colony = identity.ColonyId; load = identity.LoadToken; Ledger = new NativeAttemptLedger(identity); }
         internal static bool TryGet(Common.Identity identity, out NativeOperationState state)
@@ -40,7 +41,7 @@ namespace HomeBridge.BridgeTools
     {
         public NativeOperationTools() { NativeConstructionTracking.Install(); }
 
-        [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "Admit one typed construction attempt under current native authority. Exact retries return their original receipt.")]
+        [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "Admit typed PlaceBuilding or temporary owned SetDrafted under current native authority. Exact retries return their original receipt.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ExecuteReply.", Always = true)]
         public async Task<object> Execute(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official operations ExecuteRequest ProtoJSON string.")] object request = null)
@@ -65,8 +66,10 @@ namespace HomeBridge.BridgeTools
             var state = NativeOperationState.ForAdmission(context.Identity);
             var prior = state.Ledger.Inspect("rimgovernor.operations.v1.Operations/Execute", request);
             if (prior.Kind != NativeAttemptLedger.DecisionKind.New) return prior.Reply;
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SetDrafted)
+                return NativeDraftOperations.Execute(state, request, context);
             if (request.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
-                return Refuse(Common.FailureCode.Unsupported, "This native adapter implements PlaceBuilding.");
+                return Refuse(Common.FailureCode.Unsupported, "This native adapter implements PlaceBuilding and temporary owned SetDrafted.");
             if (!NativeConstructionTracking.Ready)
                 return Refuse(Common.FailureCode.Unavailable, "Construction transition tracking is unavailable.");
             NativeControlAuthority authority;
@@ -117,7 +120,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        [Tool("rimgovernor/operations_preview", Title = "Preview typed operation", Description = "Read ordinary construction eligibility without authority or effects.")]
+        [Tool("rimgovernor/operations_preview", Title = "Preview typed operation", Description = "Read ordinary construction or pawn draft eligibility without acquiring authority or applying effects.")]
         [ToolResponse("payload", "string", "Official ProtoJSON PreviewReply.", Always = true)]
         public async Task<object> Preview(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official operations PreviewRequest ProtoJSON string.")] object request = null)
@@ -130,6 +133,8 @@ namespace HomeBridge.BridgeTools
                 Common.ObservationContext context; Common.Failure invalid;
                 if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out context, out invalid))
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = invalid });
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SetDrafted)
+                    return ProtoBoundary.Encode(NativeDraftOperations.Preview(parsed.Operation.SetDrafted, context));
                 if (parsed.Operation == null || parsed.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements PlaceBuilding.") });
                 NativeConstructionPlan plan; RimGovernor.Protocol.Placement.PlacementEvaluated preview;
@@ -163,7 +168,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("rimgovernor/receipts_observe_progress", Title = "Observe admitted construction", Description = "Read causally tracked native construction transitions; absence of an attempt never proves completion.")]
+        [Tool("rimgovernor/receipts_observe_progress", Title = "Observe admitted operation", Description = "Read causally tracked construction or draft state; absence of an attempt never proves completion.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ProgressReply.", Always = true)]
         public async Task<object> ObserveProgress(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official receipts ProgressRequest ProtoJSON string.")] object request = null)
@@ -182,6 +187,9 @@ namespace HomeBridge.BridgeTools
                 {
                     var lookup = state.Ledger.Lookup(parsed.Attempt, context);
                     if (lookup.Failure != null) return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = lookup.Failure });
+                    NativeDraftRecord draft;
+                    if (state.Drafts.TryGetValue(parsed.Attempt, out draft))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = draft.Observe(parsed.Attempt, context) }));
                 }
                 var progress = NativeOperationState.TryGet(context.Identity, out state) && state.Construction.TryGetValue(parsed.Attempt, out record)
                     ? record.Observe(parsed.Attempt, context)
@@ -189,6 +197,17 @@ namespace HomeBridge.BridgeTools
                         Unknown = new Receipts.UnknownEffect { Reason = "No tracked construction effect is available for this attempt." } };
                 return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = progress }));
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("rimgovernor/operations_release_owned_draft", Title = "Release exact owned draft", Description = "Release an unchanged native draft claim under its original owner/direction, including after Manual or lease expiry. Independent of ordinary attempt capacity; never adopts or clears replacement player orders.")]
+        [ToolResponse("payload", "string", "Official ProtoJSON ReleaseOwnedDraftReply.", Always = true)]
+        public async Task<object> ReleaseOwnedDraft(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Official operations ReleaseOwnedDraftRequest ProtoJSON string.")] object request = null)
+        {
+            Operations.ReleaseOwnedDraftRequest parsed; Common.Failure failure;
+            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/operations_release_owned_draft", request, Operations.ReleaseOwnedDraftRequest.Parser, out parsed, out failure))
+                return ProtoBoundary.Encode(new Operations.ReleaseOwnedDraftReply { Failure = failure });
+            return await ctx.MainThread.InvokeAsync<object>(() => ProtoBoundary.Encode(NativeDraftOperations.Release(parsed)), cancellationToken).ConfigureAwait(false);
         }
 
         private static bool ValidAttempt(Common.AttemptKey value) => value != null && value.HasControllerSessionId
