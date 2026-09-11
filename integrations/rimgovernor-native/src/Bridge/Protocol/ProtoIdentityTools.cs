@@ -75,6 +75,12 @@ namespace HomeBridge.BridgeTools
                     Support = Lifecycle.CapabilitySupport.Supported,
                     Detail = "Complete bounded stock/ownership quantities, spawned-root inventories and containers. Exact filters; no frozen paging or CAS snapshots. Worn gear, orbital stock and delivered construction resources are excluded."
                 });
+                loaded.Capabilities.Add(new Lifecycle.Capability
+                {
+                    FullMethodName = "rimgovernor.observations.v1.Observations/ReadResearch",
+                    Support = Lifecycle.CapabilitySupport.Supported,
+                    Detail = "Complete bounded project and prerequisite facts with optional unlocks and map-local benches/researchers. Existing saved progress and slots are read without initialization. No frozen paging or CAS snapshot."
+                });
                 foreach (var method in new[] { "Camera", "Selection", "Colonists" })
                     loaded.Capabilities.Add(new Lifecycle.Capability
                     {

@@ -1,6 +1,6 @@
 {
   "inventory_version": 1,
-  "source_revision": "ccbd3cda129f7f1257e253d8816e58a813bf546a",
+  "source_revision": "357d0f7ae3decc1b3d5ba765c5383f6f472bfba3",
   "scope": "Tracked C# sources in unified native Runtime/Bridge and scripts/fixtures; lexical reference index, not an AST or proof of behavioral coverage.",
   "source_line_policy": "One-based source anchors at source_revision; static matches include methods and constructors, reflection matches include helper use and interop. Read the full source declaration before changing ownership.",
   "rows": [
@@ -2107,6 +2107,38 @@
       "patch_registration_lines": []
     },
     {
+      "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeResearchObservationTools.cs",
+      "compilation": "production-bridge",
+      "owner": "N01.03 native research observations owner",
+      "migration_status": "implemented-native-acceptance-pending",
+      "uncovered_acceptance": "Verify populated research benches/facilities and active Anomaly category slots in native games.",
+      "source_sha256": "6dd3bea183a9d2cc6d888bc5e24c1923f44f3c683c192614a36b9f9784b72404",
+      "static_token_lines": [
+        45,
+        56,
+        62,
+        69,
+        70,
+        77,
+        139,
+        182,
+        212,
+        218,
+        219,
+        220,
+        221,
+        227,
+        228,
+        229
+      ],
+      "reflection_boundary_lines": [
+        58,
+        90,
+        125
+      ],
+      "patch_registration_lines": []
+    },
+    {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeSuppliesObservationTools.cs",
       "compilation": "production-bridge",
       "source_sha256": "83983e4f590e3c366690771619da33901dd604303270bda26ae9538f01513343",
@@ -2185,7 +2217,7 @@
       "owner": "N01.02 native identity capability owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
-      "source_sha256": "c55a93bb4ee466410c1cfa3aa8b18f5e74817c2b285b219d1230b2018635fd67",
+      "source_sha256": "58e0a1337b7ccdeed1c30da8d36e478466ea6ac776055a2f6e5f40824ea6c68f",
       "static_token_lines": [],
       "reflection_boundary_lines": [],
       "patch_registration_lines": []
@@ -3625,6 +3657,19 @@
       "reflection_boundary_lines": [],
       "patch_registration_lines": [],
       "uncovered_acceptance": "Verify compile conditions, isolated fixture artifact identity and absence from production discovery."
+    },
+    {
+      "source": "scripts/fixtures/ResearchObservationFixture.cs",
+      "compilation": "fixture-only",
+      "owner": "N01.01 native fixture isolation owner",
+      "migration_status": "implemented-native-acceptance-pending",
+      "uncovered_acceptance": "Verify populated research benches/facilities and active Anomaly category slots in native games.",
+      "source_sha256": "90db576521257d3f3dba9c29a0868860ea4a03d5d757fa6a86f5faa8b79c311c",
+      "static_token_lines": [],
+      "reflection_boundary_lines": [
+        21
+      ],
+      "patch_registration_lines": []
     },
     {
       "source": "scripts/fixtures/ScenarioStartFixture.cs",

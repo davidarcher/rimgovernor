@@ -6694,7 +6694,7 @@
   ],
   "native_surface": {
     "version": 1,
-    "source_revision": "ccbd3cda129f7f1257e253d8816e58a813bf546a",
+    "source_revision": "357d0f7ae3decc1b3d5ba765c5383f6f472bfba3",
     "scope": "Current repository-owned native Runtime/Bridge exports, generated Protobuf compile inputs and conditional fixtures. Historical Python consumer inventory remains at its independent source_revision. Installed SDK/GABS exports require actual discovery.",
     "evidence_links": "domain_item_id reuses existing G01 owner, fixtures and native_scenarios without copying Python call-site lists. Empty local evidence lists preserve uncovered acceptance. schema_owner_chunk assigns the cross-language schema owner; native_owner_chunk owns typed conversion or fixture isolation.",
     "variant_contract": "source_baseline.exports[].declaration retains the complete exported signature, Tool/ToolParameter/ToolResponse attributes, documented string variants, optional selectors and defaults. Source fingerprints detect implementation changes. Runtime branches, aliases and payload keys still require behavioral schema and discovery acceptance.",
@@ -6703,7 +6703,7 @@
       "projects": [
         {
           "path": "integrations/rimgovernor-native/src/Bridge/RimGovernor.Bridge.csproj",
-          "source_sha256": "12f2f8de8cc0821b66e731e4537e97cc499ddeaa4aa80c13566b6abba6c77eb8",
+          "source_sha256": "8f899f2f0af9e68ea49e3d962b55663392924d60e3e24be646b77cc9b154d77b",
           "assembly": "RimGovernor.Bridge",
           "target_framework": "net472",
           "output_directory": "integrations/rimgovernor-native/BridgeTools/RimGovernor",
@@ -7011,6 +7011,10 @@
               "condition": ""
             },
             {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeResearchObservationTools.cs",
+              "condition": ""
+            },
+            {
               "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeSuppliesObservationTools.cs",
               "condition": ""
             },
@@ -7209,6 +7213,10 @@
             {
               "path": "scripts/fixtures/PopulationFixture.cs",
               "condition": "'$(PopulationFixture)' == 'true'"
+            },
+            {
+              "path": "scripts/fixtures/ResearchObservationFixture.cs",
+              "condition": "'$(ResearchObservationFixture)' == 'true'"
             },
             {
               "path": "scripts/fixtures/ScenarioStartFixture.cs",
@@ -7790,7 +7798,7 @@
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/ProtoIdentityTools.cs",
           "line": 12,
           "declaration": "[Tool(\"rimgovernor/lifecycle_read_identity\", Title = \"Read native identity\",\n            Description = \"Read the current colony, load, map and native contract capabilities.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON rimgovernor.lifecycle.v1.IdentityReply.\", Always = true)]\n        public async Task<object> ReadIdentity(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official lifecycle IdentityRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "c55a93bb4ee466410c1cfa3aa8b18f5e74817c2b285b219d1230b2018635fd67"
+          "source_sha256": "58e0a1337b7ccdeed1c30da8d36e478466ea6ac776055a2f6e5f40824ea6c68f"
         },
         {
           "name": "rimgovernor/observations_get_cells",
@@ -7819,6 +7827,13 @@
           "line": 20,
           "declaration": "[Tool(ToolName, Title = \"Read typed supply census\", Description = \"Complete bounded stock by exact native definition. Defaults haulable/ours/includeHeld. Units retain all ownership buckets; ours selects definitions with usable units. Excludes worn gear, orbital stock and delivered construction resources.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON ListSuppliesReply. No sampled item/holder/corpse collections or invented CAS snapshots.\", Always = true)]\n        public async Task<object> ListSupplies(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official ProtoJSON ListSuppliesRequest string in raw transport value.\")] object request = null!)",
           "source_sha256": "83983e4f590e3c366690771619da33901dd604303270bda26ae9538f01513343"
+        },
+        {
+          "name": "rimgovernor/observations_read_research",
+          "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeResearchObservationTools.cs",
+          "line": 21,
+          "declaration": "[Tool(ToolName, Title = \"Read typed research\", Description = \"Bounded research projects, native requirement gates and optional bench/researcher capability. Reads existing progress and slots without initializing saved research state. No research selection or UI changes.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON ResearchReply; no invented CAS snapshot or frozen cursor.\", Always = true)]\n        public async Task<object> ReadResearch(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official ProtoJSON ResearchRequest string.\")] object request = null!)",
+          "source_sha256": "6dd3bea183a9d2cc6d888bc5e24c1923f44f3c683c192614a36b9f9784b72404"
         },
         {
           "name": "rimgovernor/observations_read_status",
@@ -8169,6 +8184,13 @@
           "line": 89,
           "declaration": "[Tool(\"test/replace_lineage_wall\", Description = \"Replace one exact disposable completed wall with an identical independent wall, to test that coordinates cannot transfer construction ownership.\")]\n        public async Task<object> Replace(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Exact completed fixture wall ID.\")] string target)",
           "source_sha256": "589485f9e21e8e85575c2efa841633b98bc8544d7de68e4efb82630c56777573"
+        },
+        {
+          "name": "test/research_observation_fingerprint",
+          "path": "scripts/fixtures/ResearchObservationFixture.cs",
+          "line": 15,
+          "declaration": "[Tool(\"test/research_observation_fingerprint\", Description = \"Private read-only fixture: exact saved research backing-state evidence without progress getters, slot initialization, saves or game orders.\")]\n        public async Task<object> Fingerprint(IRimBridgeContext ctx, CancellationToken cancellationToken)",
+          "source_sha256": "90db576521257d3f3dba9c29a0868860ea4a03d5d757fa6a86f5faa8b79c311c"
         },
         {
           "name": "test/settle_caravan",
@@ -9399,6 +9421,26 @@
         "protocol_schema": "contracts/proto/observations.proto"
       },
       {
+        "name": "rimgovernor/observations_read_research",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.03",
+        "native_owner_chunk": "N01.03",
+        "build_role": "production",
+        "fixtures": [
+          "contracts/tests/native-proto-research/Program.cs"
+        ],
+        "native_scenarios": [
+          "scripts/native_research_acceptance.py"
+        ],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Verify populated research benches/facilities and active Anomaly category slots in native games.",
+          "Research CAS snapshots and frozen continuation pages are not implemented."
+        ],
+        "protocol_method": "rimgovernor.observations.v1.Observations/ReadResearch",
+        "protocol_schema": "contracts/proto/observations.proto"
+      },
+      {
         "name": "rimgovernor/observations_read_status",
         "domain_item_id": null,
         "schema_owner_chunk": "G01.03",
@@ -10196,6 +10238,23 @@
           "Capture actual SDK discovery and representative replies for this build; declarations are source evidence only.",
           "Audit every advertised/implemented argument variant, defaults, invalid values and refusal semantics; signatures retain advertised contracts but are not an exhaustive behavioral schema.",
           "Verify isolated native outcomes and relevant interruption/load/player-override behavior; linked existing scenarios are candidates, not per-tool acceptance."
+        ]
+      },
+      {
+        "name": "test/research_observation_fingerprint",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.03",
+        "native_owner_chunk": "N01.01",
+        "build_role": "fixture",
+        "fixtures": [
+          "scripts/fixtures/ResearchObservationFixture.cs"
+        ],
+        "native_scenarios": [
+          "scripts/native_research_acceptance.py"
+        ],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Verify exact populated active Anomaly backing-slot preservation; this fixture never initializes slots or writes research."
         ]
       },
       {

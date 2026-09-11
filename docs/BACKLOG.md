@@ -1258,6 +1258,14 @@ main. Native package and Go production cutover remain independent.
   paused identity/ticks. Social detail, entity CAS and draft ownership remain
   unsupported; corpse and additional populated detail fixtures remain open.
 
+  Bounded research reads cover project progress, prerequisites and ordinary native
+  eligibility, optional unlocks and map-local bench/researcher facts. Headless and
+  rendered acceptance verifies 122 projects, three researchers and populated
+  bounded unlocks, with unchanged saved progress/knowledge/slots and paused context
+  before a separate native getter audit. Populated benches/facilities, active
+  Anomaly slots, frozen paging and research CAS remain open. Global unlock expansion
+  may exceed the child bound; narrow project queries return complete collections.
+
 - [ ] **N01.04 — Typed guarded operations.** Native operations owner with G01 Hands.
   Start with ordinary construction through admission, dry-run, receipt and observed
   pawn completion. Follow with settings/bills/zones, resources/upkeep, medical,

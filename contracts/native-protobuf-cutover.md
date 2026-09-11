@@ -15,6 +15,7 @@ one `payload` ProtoJSON string plus host operation metadata.
 | rimgovernor/observations_list_buildings | rimgovernor.observations.v1.Observations/ListBuildings | Protocol/NativeBuildingObservationTools.cs |
 | rimgovernor/observations_list_pawns | rimgovernor.observations.v1.Observations/ListPawns | Protocol/NativePawnObservationTools.cs |
 | rimgovernor/observations_list_supplies | rimgovernor.observations.v1.Observations/ListSupplies | Protocol/NativeSuppliesObservationTools.cs |
+| rimgovernor/observations_read_research | rimgovernor.observations.v1.Observations/ReadResearch | Protocol/NativeResearchObservationTools.cs |
 | rimgovernor/operations_preview | rimgovernor.operations.v1.Operations/Preview | Protocol/NativeOperationTools.cs |
 | rimgovernor/operations_execute | rimgovernor.operations.v1.Operations/Execute | Protocol/NativeOperationTools.cs |
 | rimgovernor/receipts_lookup | rimgovernor.receipts.v1.Attempts/Lookup | Protocol/NativeOperationTools.cs |
@@ -99,7 +100,15 @@ equipment, biography, settings and animal details use native facts. Social, CAS,
 gear ownership/protection and additional animal management fields carry explicit
 issues. Requested detail sections never become fabricated empty tracker data.
 
-Current source inventory: 77 production exports, 55 fixture exports, 139 handwritten
+`Observations/ReadResearch` returns bounded project, progress and prerequisite
+facts without initializing saved progress dictionaries or category slots. Optional
+unlocks and map-local bench/researcher rows retain unknown optional fields. Native
+selection eligibility uses colony-wide bench requirements, which ignore power.
+Oversized collections refuse rather than truncate; no frozen paging or CAS token
+is issued. `native_research_acceptance.py` uses a private read-only fingerprint
+fixture to verify saved-state invariance before a separate native getter audit.
+
+Current source inventory: 78 production exports, 56 fixture exports, 141 handwritten
 C# source files and nine generated Protobuf compile inputs. Source declarations do
 not establish gameplay acceptance. Actual installed discovery must match the private
 build and prove fixture exclusion; pending native acceptance remains explicit in
