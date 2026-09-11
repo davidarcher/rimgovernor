@@ -3,9 +3,11 @@ module github.com/davidarcher/RimGovernor/go
 go 1.27.1
 
 require (
+	github.com/davidarcher/RimGovernor/go/internal/wire v0.0.0
 	github.com/google/jsonschema-go v0.4.3
 	github.com/modelcontextprotocol/go-sdk v1.7.0
 	golang.org/x/sys v0.47.0
+	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.58.0
 )
 
@@ -25,3 +27,5 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 )
+
+replace github.com/davidarcher/RimGovernor/go/internal/wire => ../contracts/generated/protobuf/go

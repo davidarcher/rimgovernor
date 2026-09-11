@@ -18,12 +18,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
-	wire "github.com/davidarcher/RimGovernor/go/internal/wire/placementpreview"
+	common "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	wire "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 type options struct{ gabs, config, game, requests, output string }
 type fixture struct {
-	placements wire.PlacementBatch
+	placements []*wire.PlacementCandidate
 	expected   []string
 }
 type clock struct{}
@@ -116,9 +119,11 @@ func decodeFixture(data []byte) (fixture, error) {
 	if version != 1 {
 		return fixture{}, errors.New("fixture version must be 1")
 	}
-	placements, err := wire.DecodePlacementBatch(raw)
-	if err != nil {
-		return fixture{}, err
+	request := &wire.PlacementRequest{}
+	err = protojson.Unmarshal(append(append([]byte(`{"placements":`), raw...), '}'), request)
+	placements := request.Placements
+	if err != nil || len(placements) < 1 || len(placements) > 16 {
+		return fixture{}, fmt.Errorf("invalid placement fixture count or ProtoJSON: %v", err)
 	}
 	if len(placements) != len(expected) {
 		return fixture{}, errors.New("expectation count must match placement count")
@@ -129,8 +134,11 @@ func decodeFixture(data []byte) (fixture, error) {
 		default:
 			return fixture{}, fmt.Errorf("unknown expectation %q", outcome)
 		}
-		switch placements[i].Rotation {
-		case "north", "east", "south", "west":
+		if placements[i] == nil || placements[i].DefName == nil || placements[i].X == nil || placements[i].Z == nil {
+			return fixture{}, errors.New("candidate presence")
+		}
+		switch placements[i].GetRotation() {
+		case wire.Rotation_ROTATION_NORTH, wire.Rotation_ROTATION_EAST, wire.Rotation_ROTATION_SOUTH, wire.Rotation_ROTATION_WEST:
 		default:
 			return fixture{}, errors.New("smoke requests require one exact cardinal rotation")
 		}
@@ -205,9 +213,7 @@ func takeSample(ctx context.Context, client *bridge.Client) (sample, error) {
 	if !known || !paused || !snapshot.SameTick() {
 		return result, errors.New("fixture is not paused at an unchanged tick")
 	}
-	if snapshot.After.PlacementPreviewBatchVersion != 2 {
-		return result, errors.New("native identity does not advertise placement preview v2")
-	}
+
 	return result, snapshot.CheckFresh(time.Now(), 30*time.Second, snapshot.After)
 }
 func observe(ctx context.Context, config bridge.ProcessConfig, requests fixture, result *report) (err error) {
@@ -230,17 +236,14 @@ func observe(ctx context.Context, config bridge.ProcessConfig, requests fixture,
 	if err != nil {
 		return err
 	}
-	inner, err := json.Marshal(requests.placements)
-	if err != nil {
-		return err
-	}
-	result.Preview, err = client.PlacementPreviews(ctx, wire.PlacementPreviewArguments{Placements: string(inner)})
+	identity := result.Before.After
+	request := &wire.PlacementRequest{Identity: &common.Identity{ColonyId: proto.String(string(identity.Colony)), LoadToken: proto.String(string(identity.Load)), MapId: proto.Int32(int32(identity.Map))}, Placements: requests.placements}
+	var decoded *wire.PlacementReply
+	decoded, result.Preview, err = client.PlacementPreviews(ctx, request)
 	if err != nil {
 		result.ErrorKind = "sdk_request"
 		return err
 	}
-	// Keep the raw receipt even if its generated decoder or native assertions fail.
-	decoded, decodeErr := wire.DecodePreviewReply(result.Preview.Structured)
 	result.After, err = takeSample(ctx, client)
 	if err != nil {
 		return err
@@ -248,19 +251,16 @@ func observe(ctx context.Context, config bridge.ProcessConfig, requests fixture,
 	if !result.Before.After.SameContext(result.After.After) || result.Before.Before.Tick != result.After.After.Tick {
 		return errors.New("identity or paused tick changed across preview")
 	}
-	if decodeErr != nil {
-		result.ErrorKind = "reply_contract"
-		return decodeErr
-	}
+
 	result.Actual, err = checkReply(decoded, requests, result.Before.After)
 	return err
 }
-func checkReply(reply wire.PreviewReply, requests fixture, identity observation.Identity) ([]string, error) {
-	if reply.PreviewFailure != nil {
-		return nil, fmt.Errorf("request-level native refusal: %s", reply.PreviewFailure.Error)
+func checkReply(reply *wire.PlacementReply, requests fixture, identity observation.Identity) ([]string, error) {
+	if reply.GetFailure() != nil {
+		return nil, fmt.Errorf("request-level native refusal: %s", reply.GetFailure().GetDetail())
 	}
-	b := reply.PreviewBatch
-	if b == nil || b.Version != 2 || domain.MapID(b.MapId) != identity.Map || domain.Tick(b.Tick) != identity.Tick {
+	b := reply.GetBatch()
+	if b == nil || b.Context == nil || b.Context.Identity == nil || domain.MapID(b.Context.Identity.GetMapId()) != identity.Map || domain.Tick(b.Context.GetTick()) != identity.Tick {
 		return nil, errors.New("preview version/map/tick mismatch")
 	}
 	if len(b.Results) != len(requests.placements) {
@@ -269,28 +269,28 @@ func checkReply(reply wire.PreviewReply, requests fixture, identity observation.
 	actual := make([]string, len(b.Results))
 	for i, result := range b.Results {
 		request := requests.placements[i]
-		if result.PreviewFailure != nil {
+		if result.GetFailure() != nil {
 			actual[i] = "invalid_definition"
-			if !strings.Contains(result.PreviewFailure.Error, request.DefName) {
+			if !strings.Contains(result.GetFailure().GetDetail(), request.GetDefName()) {
 				return actual, fmt.Errorf("candidate %d failure does not identify requested definition", i)
 			}
 		} else {
-			v := result.PreviewEvaluated
-			if v == nil || len(v.Rotations) != 1 || v.Rotations[0].Rotation != request.Rotation {
+			v := result.GetEvaluated()
+			if v == nil || len(v.Rotations) != 1 || v.Rotations[0].GetRotation() != request.GetRotation() {
 				return actual, fmt.Errorf("candidate %d rotation/order mismatch", i)
 			}
 			rotation := v.Rotations[0]
-			if v.CanPlace != rotation.Accepted {
+			if v.GetCanPlace() != rotation.GetAccepted() {
 				return actual, fmt.Errorf("candidate %d aggregate/rotation disagreement", i)
 			}
-			if v.CanPlace {
+			if v.GetCanPlace() {
 				actual[i] = "placeable"
 			} else {
 				actual[i] = "refused"
 			}
 			anchor := false
 			for _, cell := range rotation.OccupiedCells {
-				anchor = anchor || cell.X == request.X && cell.Z == request.Z
+				anchor = anchor || cell.GetX() == request.GetX() && cell.GetZ() == request.GetZ()
 			}
 			if !anchor {
 				return actual, fmt.Errorf("candidate %d footprint/order mismatch", i)

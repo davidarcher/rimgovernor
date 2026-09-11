@@ -8,10 +8,10 @@ import (
 )
 
 // validateOwnedStringInput recognizes the SDK's raw-object CLR binder metadata
-// for the canonical placement string wrapper. Generated outer and inner decoders are
+// for the canonical ProtoJSON request wrapper. Generated outer and inner decoders are
 // authoritative for values; this exception never applies to other native tools.
 func validateOwnedStringInput(detail json.RawMessage, field string) error {
-	if field != "placements" {
+	if field != "request" {
 		return fmt.Errorf("%w: unreviewed string wrapper", ErrContract)
 	}
 	var envelope struct {

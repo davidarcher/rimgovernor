@@ -12,6 +12,10 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -21,22 +25,25 @@ var (
 )
 
 type Identity struct {
-	Colony                       domain.ColonyID
-	Map                          domain.MapID
-	Load                         domain.LoadID
-	Tick                         domain.Tick
-	ObservationBatchVersion      int32
-	PlacementPreviewBatchVersion int32
+	Colony           domain.ColonyID
+	Map              domain.MapID
+	Load             domain.LoadID
+	Tick             domain.Tick
+	NativeGeneration domain.Fact[domain.NativeGeneration]
+	Paused           domain.Fact[bool]
 }
 
 func (i Identity) Validate() error {
 	for _, value := range []string{string(i.Colony), string(i.Load)} {
-		if !utf8.ValidString(value) || strings.TrimSpace(value) == "" || len(value) > 256 {
+		if !utf8.ValidString(value) || strings.TrimSpace(value) == "" || len(value) > 256 || strings.ContainsRune(value, 0) {
 			return fmt.Errorf("%w: colony/load identity", ErrContract)
 		}
 	}
-	if i.Map < 0 || i.Tick < 0 || i.ObservationBatchVersion < 0 || i.PlacementPreviewBatchVersion < 0 {
+	if i.Map < 0 || i.Tick < 0 {
 		return fmt.Errorf("%w: negative native identity field", ErrContract)
+	}
+	if generation, known := i.NativeGeneration.Value(); known && generation == 0 {
+		return fmt.Errorf("%w: zero native generation", ErrContract)
 	}
 	return nil
 }
@@ -71,7 +78,7 @@ type Status struct {
 
 // Snapshot brackets the status read with identity reads. Equal ticks describe
 // the observed interval; they do not turn separate native calls into an atomic read.
-// No native generation, manual authority or player direction is inferred here.
+// Native generation is an optional observed fact; Manual and player direction are not inferred.
 type Snapshot struct {
 	Before     Identity
 	After      Identity
@@ -106,8 +113,8 @@ func (s Snapshot) CheckFresh(now time.Time, maxAge time.Duration, current Identi
 // Source is implemented by bridge.Client. Typed observation code never receives
 // arbitrary call names or arguments through this interface.
 type Source interface {
-	Identity(context.Context) (bridge.Result, error)
-	Status(context.Context) (bridge.Result, error)
+	Identity(context.Context) (*l.IdentityReply, bridge.Result, error)
+	Status(context.Context, *c.Identity) (*o.StatusReply, bridge.Result, error)
 }
 type Clock interface{ Now() time.Time }
 
@@ -123,30 +130,42 @@ func Observe(ctx context.Context, source Source, clock Clock) (Reading, error) {
 	}
 	result.Snapshot.StartedAt = clock.Now()
 	var err error
-	result.Receipts[0], err = source.Identity(ctx)
+	var first, last *l.IdentityReply
+	var status *o.StatusReply
+	first, result.Receipts[0], err = source.Identity(ctx)
 	if err != nil {
 		return result, err
 	}
-	result.Snapshot.Before, err = DecodeIdentity(result.Receipts[0].Structured)
+	result.Snapshot.Before, err = DecodeIdentity(first)
 	if err != nil {
 		return result, err
 	}
-	result.Receipts[1], err = source.Status(ctx)
+	before := result.Snapshot.Before
+	expected := &c.Identity{ColonyId: proto.String(string(before.Colony)), LoadToken: proto.String(string(before.Load)), MapId: proto.Int32(int32(before.Map))}
+	status, result.Receipts[1], err = source.Status(ctx, expected)
 	if err != nil {
 		return result, err
 	}
-	result.Snapshot.Status, err = DecodeStatus(result.Receipts[1].Structured)
+	result.Snapshot.Status, err = DecodeStatus(status)
 	if err != nil {
 		return result, err
 	}
-	result.Receipts[2], err = source.Identity(ctx)
+	last, result.Receipts[2], err = source.Identity(ctx)
 	if err != nil {
 		return result, err
 	}
-	result.Snapshot.After, err = DecodeIdentity(result.Receipts[2].Structured)
+	result.Snapshot.After, err = DecodeIdentity(last)
 	if err != nil {
 		return result, err
 	}
+	statusIdentity, statusErr := contextIdentity(status.GetObserved().Context)
+	if statusErr != nil {
+		return result, statusErr
+	}
+	if !statusIdentity.SameContext(before) || statusIdentity.Tick < before.Tick || statusIdentity.Tick > result.Snapshot.After.Tick {
+		return result, ErrChanged
+	}
+	result.Snapshot.Status.Paused = result.Snapshot.After.Paused
 	result.Snapshot.ObservedAt = clock.Now()
 	if !result.Snapshot.Before.SameContext(result.Snapshot.After) || result.Snapshot.After.Tick < result.Snapshot.Before.Tick || result.Snapshot.Status.Availability != GameLoaded {
 		return result, ErrChanged

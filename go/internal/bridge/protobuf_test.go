@@ -1,0 +1,163 @@
+package bridge
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"strings"
+	"testing"
+	"time"
+)
+
+const protoSchema = `{"type":"object","properties":{"request":{"type":"object"}},"additionalProperties":false}`
+
+func pbIdentity() *c.Identity {
+	return &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}
+}
+func pbContext() *c.ObservationContext {
+	return &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(9223372036854775807), NativeGeneration: proto.Uint64(18446744073709551615)}
+}
+func pbLoaded() *l.IdentityReply {
+	return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: pbContext(), Paused: proto.Bool(false)}}}
+}
+func pbRequest() *p.PlacementRequest {
+	return &p.PlacementRequest{Identity: pbIdentity(), Placements: []*p.PlacementCandidate{{DefName: proto.String("Wall"), X: proto.Int32(0), Z: proto.Int32(0), Rotation: p.Rotation_ROTATION_NORTH.Enum()}}}
+}
+func pbBatch() *p.PlacementReply {
+	return &p.PlacementReply{Outcome: &p.PlacementReply_Batch{Batch: &p.PlacementBatch{Context: pbContext(), Results: []*p.CandidateReply{{Outcome: &p.CandidateReply_Evaluated{Evaluated: &p.PlacementEvaluated{CanPlace: proto.Bool(true), MadeFromStuff: proto.Bool(false), Passability: p.Passability_PASSABILITY_IMPASSABLE.Enum(), IsDoor: proto.Bool(false), ResearchFinished: proto.Bool(true), BuildableByPlayer: proto.Bool(true), Materials: &p.PlacementMaterials{Availability: &p.PlacementMaterials_Known{Known: &p.MaterialRows{Rows: []*p.PlacementMaterialStock{{DefName: proto.String("Steel")}, {DefName: proto.String("WoodLog"), Available: proto.Int32(0)}}}}}, Rotations: []*p.PlacementRotation{{Rotation: p.Rotation_ROTATION_NORTH.Enum(), Accepted: proto.Bool(true), OccupiedCells: []*c.Cell{{X: proto.Int32(0), Z: proto.Int32(0)}}}}}}}}}}}
+}
+func pbResult(message proto.Message) *mcp.CallToolResult {
+	inner, err := protojson.Marshal(message)
+	if err != nil {
+		panic(err)
+	}
+	outer := encode(struct {
+		Payload   string `json:"payload"`
+		Operation struct {
+			ID string `json:"id"`
+		} `json:"operation"`
+	}{Payload: string(inner)})
+	return &mcp.CallToolResult{StructuredContent: outer}
+}
+func TestOfficialReadSDKBoundary(t *testing.T) {
+	s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		var outer struct {
+			Request string `json:"request"`
+		}
+		if err := json.Unmarshal(arg.Arguments, &outer); err != nil {
+			return nil, err
+		}
+		switch arg.Tool {
+		case "rimgovernor/lifecycle_read_identity":
+			if outer.Request != "{}" {
+				t.Error("identity request not actual ProtoJSON")
+			}
+			return pbResult(pbLoaded()), nil
+		case "rimgovernor/observations_read_status":
+			q := &o.StatusRequest{}
+			if err := protojson.Unmarshal([]byte(outer.Request), q); err != nil {
+				return nil, err
+			}
+			if q.Colonists == nil || q.GetColonists() || q.Threats == nil || q.GetThreats() || !sameIdentity(q.Scope.ExpectedIdentity, pbIdentity()) {
+				t.Error("wrong status query")
+			}
+			return pbResult(&o.StatusReply{Outcome: &o.StatusReply_Observed{Observed: &o.StatusSnapshot{Context: pbContext()}}}), nil
+		case "rimgovernor/placement_preview":
+			q := &p.PlacementRequest{}
+			if err := protojson.Unmarshal([]byte(outer.Request), q); err != nil {
+				return nil, err
+			}
+			return pbResult(pbBatch()), nil
+		default:
+			t.Error("unapproved tool", arg.Tool)
+			return nil, errors.New("bad tool")
+		}
+	}}
+	client := testClient(t, s, time.Second)
+	identity, raw, err := client.Identity(context.Background())
+	if err != nil || identity.GetLoaded().Context.GetNativeGeneration() != ^uint64(0) || identity.GetLoaded().Paused == nil || identity.GetLoaded().GetPaused() || len(raw.Envelope) == 0 {
+		t.Fatalf("identity %v %v", identity, err)
+	}
+	if _, _, err = client.Status(context.Background(), pbIdentity()); err != nil {
+		t.Fatal(err)
+	}
+	reply, _, err := client.PlacementPreviews(context.Background(), pbRequest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := reply.GetBatch().Results[0].GetEvaluated().Materials.GetKnown().Rows
+	if rows[0].Available != nil || rows[1].Available == nil {
+		t.Fatal("unknown/zero material conflated")
+	}
+	for _, name := range []string{"home/colony_identity", "home/status", "home/placement_previews", "rimgovernor/operations_execute", "rimgovernor/clock_read_status"} {
+		if _, err = client.protoRead(context.Background(), name, &l.IdentityRequest{}, &l.IdentityReply{}); !errors.Is(err, ErrContract) {
+			t.Fatalf("unapproved name accepted: %s", name)
+		}
+	}
+	if len(s.calls) != 3 {
+		t.Fatal("unexpected invocation")
+	}
+}
+func TestProtoRefusalUnavailableAndWrapperFailures(t *testing.T) {
+	failureReply := &l.IdentityReply{Outcome: &l.IdentityReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_UNAVAILABLE.Enum(), Detail: proto.String("not ready")}}}
+	for _, sdkError := range []bool{false, true} {
+		s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			r := pbResult(failureReply)
+			r.IsError = sdkError
+			return r, nil
+		}}
+		reply, raw, err := testClient(t, s, time.Second).Identity(context.Background())
+		var refusal *NativeFailure
+		if !errors.As(err, &refusal) || reply.GetFailure() == nil || len(raw.Envelope) == 0 {
+			t.Fatalf("typed failure lost %v", err)
+		}
+	}
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		return pbResult(&l.IdentityReply{Outcome: &l.IdentityReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_LOADED.Enum()}}}), nil
+	}}
+	if _, _, err := testClient(t, s, time.Second).Identity(context.Background()); !errors.Is(err, ErrUnavailable) {
+		t.Fatal(err)
+	}
+	for _, raw := range []string{`{"payload":{}}`, `{"payload":null}`, `{"payload":"{}","payload":"{}"}`, `{"payload":"{}","unknownArguments":["oops"]}`, `{"payload":"{\"unknown\":1}"}`, `{"payload":"{}"}`, `{"payload":"` + strings.Repeat("x", maxProtoBytes+1) + `"}`, `{"payload":"\ud800"}`} {
+		t.Run(raw[:min(len(raw), 40)], func(t *testing.T) {
+			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) { return structured(raw), nil }}
+			reply, result, err := testClient(t, s, time.Second).Identity(context.Background())
+			if err == nil || reply != nil || len(result.Envelope) == 0 {
+				t.Fatalf("invalid wrapper accepted/lost receipt %v", err)
+			}
+		})
+	}
+}
+func TestPlacementValidationBeforeDispatchAndCompleteFacts(t *testing.T) {
+	s := &testServer{schema: protoSchema}
+	client := testClient(t, s, time.Second)
+	for _, change := range []func(*p.PlacementRequest){func(q *p.PlacementRequest) { q.Identity.MapId = nil }, func(q *p.PlacementRequest) { q.Identity.ColonyId = proto.String("a\x00b") }, func(q *p.PlacementRequest) { q.Placements[0].X = nil }, func(q *p.PlacementRequest) { q.Placements[0].Rotation = p.Rotation(99).Enum() }, func(q *p.PlacementRequest) { q.Placements[0].DefName = proto.String(strings.Repeat("界", 86)) }, func(q *p.PlacementRequest) { q.Placements = nil }} {
+		q := pbRequest()
+		change(q)
+		if _, _, err := client.PlacementPreviews(context.Background(), q); !errors.Is(err, ErrContract) {
+			t.Fatal("invalid request accepted", err)
+		}
+	}
+	if len(s.calls) != 0 {
+		t.Fatal("invalid request dispatched")
+	}
+	for _, change := range []func(*p.PlacementReply){func(r *p.PlacementReply) { r.GetBatch().Context.Identity.LoadToken = proto.String("replacement") }, func(r *p.PlacementReply) { r.GetBatch().Results[0].GetEvaluated().CanPlace = nil }, func(r *p.PlacementReply) { r.GetBatch().Results[0].GetEvaluated().Materials = &p.PlacementMaterials{} }, func(r *p.PlacementReply) { r.GetBatch().Results[0].GetEvaluated().Rotations[0].OccupiedCells = nil }, func(r *p.PlacementReply) { r.GetBatch().Results = nil }} {
+		r := pbBatch()
+		change(r)
+		if err := validatePlacementBatch(pbRequest(), r.GetBatch()); err == nil {
+			t.Fatal("incomplete placement evidence accepted")
+		}
+	}
+	r := pbBatch()
+	r.GetBatch().Results[0].GetEvaluated().Materials = &p.PlacementMaterials{Availability: &p.PlacementMaterials_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}}}
+	if err := validatePlacementBatch(pbRequest(), r.GetBatch()); err != nil {
+		t.Fatal("truthful unknown materials refused", err)
+	}
+}

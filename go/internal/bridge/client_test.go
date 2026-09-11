@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/wire/placementpreview"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -84,97 +83,11 @@ func testClient(t *testing.T, s *testServer, timeout time.Duration) *Client {
 	return client
 }
 
-func TestDiscoveryAndReadReceipt(t *testing.T) {
-	s := &testServer{}
-	client := testClient(t, s, time.Second)
-	d, err := client.Discovery()
-	if err != nil || d.ServerName != "gabs-test" || len(d.Tools) != 5 || d.ProtocolVersion == "" {
-		t.Fatalf("discovery=%+v err=%v", d, err)
-	}
-	d.Tools[0].Name = "modified"
-	d.Tools[0].InputSchema[0] = '!'
-	again, _ := client.Discovery()
-	if again.Tools[0].Name == "modified" || again.Tools[0].InputSchema[0] == '!' {
-		t.Fatal("mutable discovery cache escaped")
-	}
-	for _, read := range []func(context.Context) (Result, error){client.Identity, client.Status} {
-		result, err := read(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !strings.Contains(string(result.Structured), `"tick":0`) || !strings.Contains(string(result.Envelope), "receipt-1") {
-			t.Fatalf("lost native receipt: %+v", result)
-		}
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if len(s.calls) != 2 || s.calls[0].Tool != "home/colony_identity" || s.calls[1].Tool != "home/status" || string(s.calls[0].Arguments) != "{}" {
-		t.Fatalf("unexpected native calls: %+v", s.calls)
-	}
-}
-
-func TestReadPolicyAndPlacementRevalidation(t *testing.T) {
-	s := &testServer{schema: `{"type":"object","properties":{"placements":{"type":"string"}},"required":["placements"],"additionalProperties":false}`}
-	client := testClient(t, s, time.Second)
-	for _, name := range []string{"home/population", "home/research", "home/caravan", "home/order", "home/trade", "home/world", "home/place_building", "rimworld/set_time_speed", "home/future_read"} {
-		if _, err := client.read(context.Background(), name, json.RawMessage(`{"dryRun":true}`)); !errors.Is(err, ErrRefused) {
-			t.Fatalf("accepted %s: %v", name, err)
-		}
-		// Describing a write-capable tool is harmless and cannot invoke it.
-		if _, err := client.Describe(context.Background(), name); err != nil {
-			t.Fatal(err)
-		}
-	}
-	for _, raw := range []string{"", `[]`, `[{"defName":"Wall","x":1.0,"z":0}]`, `[{"defName":"Wall","x":0,"z":0,"godMode":true}]`} {
-		if _, err := client.PlacementPreviews(context.Background(), placementpreview.PlacementPreviewArguments{Placements: raw}); !errors.Is(err, ErrContract) {
-			t.Fatalf("accepted invalid placement %q: %v", raw, err)
-		}
-	}
-	valid := `[{"defName":"Wall","x":0,"z":0,"rotation":"North","stuff":""}]`
-	if _, err := client.PlacementPreviews(context.Background(), placementpreview.PlacementPreviewArguments{Placements: valid}); err != nil {
-		t.Fatal(err)
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if len(s.calls) != 1 || s.calls[0].Tool != "home/placement_previews" {
-		t.Fatalf("unsafe dispatches: %+v", s.calls)
-	}
-}
-
-func TestSchemaAndResultRefusals(t *testing.T) {
-	for _, schema := range []string{`{"type":"object","properties":{"apply":{"type":"boolean"}},"required":["apply"]}`, `{"type":"object","$ref":"https://invalid.example/schema"}`, `{"type":"array"}`} {
-		t.Run(schema, func(t *testing.T) {
-			s := &testServer{schema: schema}
-			client := testClient(t, s, time.Second)
-			if _, err := client.Identity(context.Background()); !errors.Is(err, ErrContract) {
-				t.Fatalf("schema accepted: %v", err)
-			}
-			if len(s.calls) != 0 {
-				t.Fatal("invalid schema dispatched")
-			}
-		})
-	}
-	for _, raw := range []string{`{"success":false}`, `{"refused":true}`, `{"unknownArguments":["oops"]}`} {
-		t.Run(raw, func(t *testing.T) {
-			s := &testServer{handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) { return structured(raw), nil }}
-			client := testClient(t, s, time.Second)
-			result, err := client.Status(context.Background())
-			var refusal *Refusal
-			if !errors.Is(err, ErrRefused) || !errors.As(err, &refusal) || len(result.Envelope) == 0 || len(refusal.Result.Envelope) == 0 {
-				t.Fatalf("lost refusal receipt: %v", err)
-			}
-		})
-	}
-	for _, result := range []*mcp.CallToolResult{{IsError: true, Content: []mcp.Content{&mcp.TextContent{Text: "native refusal"}}}, {StructuredContent: []int{1, 2}}, {StructuredContent: strings.Repeat("x", maxResponseBytes)}} {
-		if _, err := decodeResult("fixture", result); err == nil {
-			t.Fatal("accepted malformed/error result")
-		}
-	}
-	s := &testServer{handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) { return &mcp.CallToolResult{}, nil }}
-	client := testClient(t, s, time.Second)
-	if _, err := client.Identity(context.Background()); !errors.Is(err, ErrContract) {
-		t.Fatalf("missing native facts accepted: %v", err)
-	}
+// Tests below exercise MCP transport ownership independently of a domain decoder.
+func testNativeRead(client *Client, ctx context.Context) (Result, error) {
+	return client.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
+		return client.core(ctx, live, "games_call_tool", encode(nativeArgument{client.gameID, "fixture/read", json.RawMessage(`{}`)}))
+	})
 }
 
 func TestCancellationQueueAndClose(t *testing.T) {
@@ -186,11 +99,11 @@ func TestCancellationQueueAndClose(t *testing.T) {
 	}}
 	client := testClient(t, s, time.Second)
 	done := make(chan error, 1)
-	go func() { _, err := client.Identity(context.Background()); done <- err }()
+	go func() { _, err := testNativeRead(client, context.Background()); done <- err }()
 	<-entered
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
-	if _, err := client.Status(ctx); !errors.Is(err, context.DeadlineExceeded) {
+	if _, err := testNativeRead(client, ctx); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("queue cancellation: %v", err)
 	}
 	if err := client.Close(); err != nil {
@@ -204,7 +117,7 @@ func TestCancellationQueueAndClose(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("close left pending read")
 	}
-	if _, err := client.Identity(context.Background()); !errors.Is(err, ErrClosed) {
+	if _, err := testNativeRead(client, context.Background()); !errors.Is(err, ErrClosed) {
 		t.Fatalf("read after close: %v", err)
 	}
 	if err := client.Reconnect(context.Background()); !errors.Is(err, ErrClosed) {
@@ -225,7 +138,7 @@ func TestExplicitReconnectNeverRetriesRead(t *testing.T) {
 		return structured(`{"success":false}`), nil
 	}}
 	client := testClient(t, s, time.Second)
-	if _, err := client.Identity(context.Background()); !errors.Is(err, ErrRefused) {
+	if _, err := testNativeRead(client, context.Background()); !errors.Is(err, ErrRefused) {
 		t.Fatal(err)
 	}
 	if count.Load() != 1 {
@@ -237,7 +150,7 @@ func TestExplicitReconnectNeverRetriesRead(t *testing.T) {
 	if count.Load() != 1 || len(s.sessions) != 2 {
 		t.Fatal("reconnect repeated read or reused session")
 	}
-	if _, err := client.Status(context.Background()); !errors.Is(err, ErrRefused) {
+	if _, err := testNativeRead(client, context.Background()); !errors.Is(err, ErrRefused) {
 		t.Fatal(err)
 	}
 	if count.Load() != 2 {
@@ -270,7 +183,7 @@ func TestOwnedSubprocessAndFailedConnections(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = client.Identity(context.Background()); err != nil {
+	if _, err = testNativeRead(client, context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	if err = client.Close(); err != nil {
@@ -297,7 +210,7 @@ func TestRawReceiptPreservesInt64AndFutureFields(t *testing.T) {
 	wire := `{"identity":18446744073709551615,"tick":9223372036854775807,"nested":{"value":9007199254740993}}`
 	s := &testServer{handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) { return structured(wire), nil }}
 	client := testClient(t, s, time.Second)
-	result, err := client.Identity(context.Background())
+	result, err := testNativeRead(client, context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -317,13 +230,13 @@ func TestLostConnectionAndMissingCapabilities(t *testing.T) {
 	if err := s.sessions[0].Close(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := client.Identity(context.Background()); !errors.Is(err, ErrTransport) {
+	if _, err := testNativeRead(client, context.Background()); !errors.Is(err, ErrTransport) {
 		t.Fatalf("lost connection: %v", err)
 	}
 	if err := client.Reconnect(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := client.Identity(context.Background()); err != nil {
+	if _, err := testNativeRead(client, context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	server := mcp.NewServer(&mcp.Implementation{Name: "missing-capabilities", Version: "1"}, nil)
@@ -352,14 +265,14 @@ func TestReadDeadlineAndOversizedWireResult(t *testing.T) {
 		return nil, ctx.Err()
 	}}
 	client := testClient(t, s, 100*time.Millisecond)
-	if _, err := client.Status(context.Background()); !errors.Is(err, context.DeadlineExceeded) {
+	if _, err := testNativeRead(client, context.Background()); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("read deadline: %v", err)
 	}
 	large := &testServer{handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return structured(`{"payload":"` + strings.Repeat("x", maxResponseBytes) + `"}`), nil
 	}}
 	bigClient := testClient(t, large, time.Second)
-	if _, err := bigClient.Status(context.Background()); !errors.Is(err, ErrContract) {
+	if _, err := testNativeRead(bigClient, context.Background()); !errors.Is(err, ErrContract) {
 		t.Fatalf("oversized result: %v", err)
 	}
 }

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/davidarcher/RimGovernor/go/internal/wire/placementpreview"
 	"github.com/google/jsonschema-go/jsonschema"
 )
 
@@ -74,60 +73,6 @@ func (c *Client) Describe(ctx context.Context, name string) (Result, error) {
 }
 func (c *Client) describe(ctx context.Context, live *liveSession, name string) (Result, error) {
 	return c.core(ctx, live, "games_tool_detail", encode(detailArgument{c.gameID, name}))
-}
-
-func (c *Client) Identity(ctx context.Context) (Result, error) {
-	return c.read(ctx, "home/colony_identity", json.RawMessage(`{}`))
-}
-func (c *Client) Status(ctx context.Context) (Result, error) {
-	return c.read(ctx, "home/status", json.RawMessage(`{}`))
-}
-
-// PlacementPreviews validates both layers because exported Go structs can be
-// constructed without invoking a decoder. This method never applies placement.
-func (c *Client) PlacementPreviews(ctx context.Context, args placementpreview.PlacementPreviewArguments) (Result, error) {
-	raw := encode(args)
-	validated, err := placementpreview.DecodePlacementPreviewArguments(raw)
-	if err != nil {
-		return Result{}, fmt.Errorf("%w: placement arguments: %w", ErrContract, err)
-	}
-	if _, err = placementpreview.DecodePlacementBatch([]byte(validated.Placements)); err != nil {
-		return Result{}, fmt.Errorf("%w: placement batch: %w", ErrContract, err)
-	}
-	return c.read(ctx, "home/placement_previews", raw)
-}
-
-func (c *Client) read(ctx context.Context, name string, args json.RawMessage) (Result, error) {
-	// This closed set is independent of server-provided readOnlyHint annotations.
-	// Population/research/caravan/order/trade/world and blanket dryRun access are
-	// deliberately absent: their read modes need dedicated typed contracts.
-	switch name {
-	case "home/colony_identity", "home/status", "home/placement_previews":
-	default:
-		return Result{}, fmt.Errorf("%w: unreviewed read", ErrRefused)
-	}
-	return c.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
-		detail, err := c.describe(ctx, live, name)
-		if err != nil {
-			return detail, err
-		}
-		if name == "home/placement_previews" {
-			err = validateOwnedStringInput(detail.Structured, "placements")
-		} else {
-			err = validateInput(detail.Structured, args)
-		}
-		if err != nil {
-			return Result{}, err
-		}
-		result, err := c.core(ctx, live, "games_call_tool", encode(nativeArgument{c.gameID, name, args}))
-		if err != nil {
-			return result, err
-		}
-		if len(result.Structured) == 0 || string(result.Structured) == "null" {
-			return result, fmt.Errorf("%w: native structured observation missing", ErrContract)
-		}
-		return result, nil
-	})
 }
 
 func validateInput(detail, args json.RawMessage) error {
