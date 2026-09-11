@@ -37,7 +37,7 @@ namespace HomeBridge.BridgeTools
                     var colonists = source.Where(p => !p.Dead && p.IsColonist && p.Spawned).ToList();
                     var selected = new List<KeyValuePair<Pawn, Obs.PawnState>>();
                     foreach (var pawn in source) {
-                        var row = Core(pawn, colonists);
+                        var row = Core(pawn, colonists, context);
                         if (Matches(row, parsed.Filter)) selected.Add(new KeyValuePair<Pawn, Obs.PawnState>(pawn, row));
                     }
                     Require(selected.Count, parsed.Page?.HasLimit == true ? (int)parsed.Page.Limit : 256);
@@ -82,9 +82,9 @@ namespace HomeBridge.BridgeTools
                 && (!f.HasWithinColonistDistance || row.HasNearestColonistDistance && row.NearestColonistDistance<=f.WithinColonistDistance);
         }
 
-        private static Obs.PawnState Core(Pawn pawn, List<Pawn> colonists)
+        private static Obs.PawnState Core(Pawn pawn, List<Pawn> colonists, Common.ObservationContext context)
         {
-            var row=NativeObservationTools.PawnRow(pawn,false);
+            var row=NativeObservationTools.PawnRow(pawn,false,context);
             row.Pawn.Label=Text(pawn.LabelCap);
             var player=Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
             row.Tame=pawn.RaceProps.Animal && pawn.Faction==player;
@@ -105,8 +105,6 @@ namespace HomeBridge.BridgeTools
             if(pawn.MentalStateDef==null) row.Issues.Add(Issue("mental_state",Common.UnavailableReason.NotApplicable,"Pawn has no mental state."));
             if (pawn.ownership?.OwnedBed!=null) row.OwnedBedId=Id(pawn.ownership.OwnedBed.GetUniqueLoadID());
             else row.Issues.Add(Issue("owned_bed_id",Common.UnavailableReason.NotApplicable,"No owned bed."));
-            foreach (var issue in row.Issues.Where(i=>i.Field=="pawn.snapshot").ToArray()) row.Issues.Remove(issue);
-            row.Issues.Add(Issue("pawn.snapshot",Common.UnavailableReason.Unsupported,"This read does not issue entity CAS tokens."));
             if (row.Job!=null) {
                 var job=pawn.CurJob; var target=job.targetA;
                 row.Job.QueuedJobs=checked((uint)pawn.jobs.jobQueue.Count);

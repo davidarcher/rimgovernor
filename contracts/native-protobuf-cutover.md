@@ -18,6 +18,7 @@ one `payload` ProtoJSON string plus host operation metadata.
 | rimgovernor/observations_read_research | rimgovernor.observations.v1.Observations/ReadResearch | Protocol/NativeResearchObservationTools.cs |
 | rimgovernor/operations_preview | rimgovernor.operations.v1.Operations/Preview | Protocol/NativeOperationTools.cs |
 | rimgovernor/operations_execute | rimgovernor.operations.v1.Operations/Execute | Protocol/NativeOperationTools.cs |
+| rimgovernor/operations_release_owned_draft | rimgovernor.operations.v1.Operations/ReleaseOwnedDraft | Protocol/NativeOperationTools.cs |
 | rimgovernor/receipts_lookup | rimgovernor.receipts.v1.Attempts/Lookup | Protocol/NativeOperationTools.cs |
 | rimgovernor/receipts_observe_progress | rimgovernor.receipts.v1.Attempts/ObserveProgress | Protocol/NativeOperationTools.cs |
 | rimgovernor/clock_start | rimgovernor.clock.v1.Clock/Start | Protocol/NativeClockTools.cs |
@@ -38,7 +39,7 @@ Protobuf parsing/formatting. Generated compile inputs come from
 are included in `domain-inventory.json.native_surface.source_baseline`.
 
 `Operations/Preview` and `Operations/Execute` implement ordinary `PlaceBuilding`
-only; other command variants return unsupported. Their presence does not advertise
+and temporary `SetDrafted`; other command variants return unsupported. Their presence does not advertise
 the entire operations schema as implemented. `Protocol/NativeConstruction.cs`
 owns native placement and tracked construction transitions;
 `Protocol/NativeConstructionCausality.cs` checks exact factory/spawn attribution.
@@ -96,7 +97,7 @@ remain absent when not observed. Bounded collection/reply overflow refuses the r
 
 `Observations/ListPawns` provides a complete bounded map pawn census with exact
 intersecting filters and explicit optional-false semantics. Core, needs, health,
-equipment, biography, settings and animal details use native facts. Social, CAS,
+equipment, biography, settings and animal details use native facts. Social,
 gear ownership/protection and additional animal management fields carry explicit
 issues. Requested detail sections never become fabricated empty tracker data.
 
@@ -108,7 +109,17 @@ Oversized collections refuse rather than truncate; no frozen paging or CAS token
 is issued. `native_research_acceptance.py` uses a private read-only fingerprint
 fixture to verify saved-state invariance before a separate native getter audit.
 
-Current source inventory: 78 production exports, 56 fixture exports, 141 handwritten
+Live current-map draft controllers expose opaque draft-control snapshots and
+canonical owned/unowned draft claims. Tokens cover identity, draft and successful
+ordered-job revisions, position, eligibility and current/queued job facts; they
+are not health or settings CAS. Registration installs hooks; reads do not install
+hooks or allocate authority. `SetDrafted` uses ordinary admission and causal
+readback. Already-owned drafting preserves its claim without another setter.
+`ReleaseOwnedDraft` checks exact original ownership and unchanged snapshot after
+revocation and keeps its latest cleanup replay outside the ordinary attempt ledger.
+Persistent drafting remains unsupported.
+
+Current source inventory: 79 production exports, 56 fixture exports, 145 handwritten
 C# source files and nine generated Protobuf compile inputs. Source declarations do
 not establish gameplay acceptance. Actual installed discovery must match the private
 build and prove fixture exclusion; pending native acceptance remains explicit in

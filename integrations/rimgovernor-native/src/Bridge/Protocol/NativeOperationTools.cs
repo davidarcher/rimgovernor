@@ -39,7 +39,7 @@ namespace HomeBridge.BridgeTools
 
     public sealed class NativeOperationTools
     {
-        public NativeOperationTools() { NativeConstructionTracking.Install(); }
+        public NativeOperationTools() { NativeConstructionTracking.Install(); NativePawnControlState.Initialize(); }
 
         [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "Admit typed PlaceBuilding or temporary owned SetDrafted under current native authority. Exact retries return their original receipt.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ExecuteReply.", Always = true)]

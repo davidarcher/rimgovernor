@@ -18,8 +18,9 @@ namespace HomeBridge.BridgeTools
         private static readonly List<Pawn> SpawnedOpponents = new List<Pawn>();
         [Tool("test/b04f_setup", Description = "Disposable B04f initial conditions: stocks, two manhunters, wound, mental state or native player-order equivalent. No completed-work injection.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "stocks, combat-equipment, development-settings (Peaceful), opponents, clear-opponents, wound, low-health, resting-patient, resting-injury, unavailable-doctor, external-order")] string op,
-            [ToolParameter(Description = "Exact colonist identity for pawn cases.", DefaultValue = "")] string pawn = "")
+            [ToolParameter(Description = "stocks, combat-equipment, development-settings (Peaceful), opponents, clear-opponents, wound, low-health, resting-patient, resting-injury, unavailable-doctor, external-order, external-draft")] string op,
+            [ToolParameter(Description = "Exact colonist identity for pawn cases.", DefaultValue = "")] string pawn = "",
+            [ToolParameter(Description = "Desired external-draft value.", DefaultValue = false)] bool drafted = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -98,8 +99,16 @@ namespace HomeBridge.BridgeTools
                         actor.needs.food.CurLevelPercentage = .15f;
                     } else if (op == "resting-injury") {
                         actor.TakeDamage(new DamageInfo(DamageDefOf.Cut, 4, 100));
+                    } else if (op == "external-draft") {
+                        var before = actor.Drafted;
+                        actor.drafter.Drafted = drafted;
+                        return new { success=true, op, pawn, before, after=actor.Drafted,
+                            tick=Find.TickManager.TicksGame, setupOnly=true, completedWorkInjected=false };
                     } else if (op == "external-order") {
-                        actor.jobs.TryTakeOrderedJob(JobMaker.MakeJob(JobDefOf.Goto,actor.Position),JobTag.Misc);
+                        var accepted = actor.jobs.TryTakeOrderedJob(JobMaker.MakeJob(JobDefOf.Goto,actor.Position),JobTag.Misc);
+                        return new { success=true, op, pawn, accepted, jobId=actor.CurJob?.loadID,
+                            jobDef=actor.CurJob?.def.defName, tick=Find.TickManager.TicksGame,
+                            setupOnly=true, completedWorkInjected=false };
                     } else if (op == "unavailable-doctor") {
                         if (!actor.mindState.mentalStateHandler.TryStartMentalState(DefDatabase<MentalStateDef>.GetNamed("Wander_Sad"),forceWake:true))
                             throw new InvalidOperationException("Native mental-state fixture refused");

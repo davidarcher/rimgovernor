@@ -13,6 +13,7 @@ This slice supports status summary and optional need/hediff detail. Unrequested
 sections have explicit issues; missing trackers are unavailable, not healthy zero.
 Cell reads support terrain, roof, visibility and traversal only; other requested
 fields fail Unsupported. Exact selection order is retained; rectangles use z/x
-order and report their inclusive bounding rectangle. No frozen cursor support or
-CAS token issuance is claimed. Collection/reply overflow cannot truncate success.
+order and report their inclusive bounding rectangle. Frozen cursors remain unsupported.
+Pawn rows expose available draft-control CAS and claims; these request/binder checks
+do not establish native hook behavior. Collection/reply overflow cannot truncate success.
 Root integration owns capability advertisement and fresh-game acceptance.

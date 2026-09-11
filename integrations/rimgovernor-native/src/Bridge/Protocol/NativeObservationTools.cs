@@ -132,14 +132,14 @@ namespace HomeBridge.BridgeTools
             var colonists = spawned.Where(p => !p.Dead && p.IsFreeColonist).ToList();
             if (wantColonists) {
                 RequireCount(colonists.Count, limit); var snapshot = new Obs.PawnSnapshot { Context = context, Completeness = Complete(colonists.Count) };
-                foreach (var pawn in colonists) snapshot.Pawns.Add(PawnRow(pawn, request.ColonistDetail));
+                foreach (var pawn in colonists) snapshot.Pawns.Add(PawnRow(pawn, request.ColonistDetail, context));
                 result.Colonists = snapshot;
             } else result.Issues.Add(Issue("colonists", Common.UnavailableReason.NotRequested, "Colonist section not requested."));
             if (!wantThreats) { result.Issues.Add(Issue("threats", Common.UnavailableReason.NotRequested, "Threat section not requested.")); return result; }
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
             var threats = new Obs.ThreatsSnapshot(); var radius = request.HasPredatorRadius ? request.PredatorRadius : 30;
             foreach (var pawn in spawned.Where(p => !p.Dead && !p.IsColonist)) {
-                var row = PawnRow(pawn, false); var nearest = colonists.Count == 0 ? (int?)null : colonists.Min(p => Math.Max(Math.Abs(p.Position.x-pawn.Position.x),Math.Abs(p.Position.z-pawn.Position.z)));
+                var row = PawnRow(pawn, false, context); var nearest = colonists.Count == 0 ? (int?)null : colonists.Min(p => Math.Max(Math.Abs(p.Position.x-pawn.Position.x),Math.Abs(p.Position.z-pawn.Position.z)));
                 if (nearest.HasValue) row.NearestColonistDistance = nearest.Value;
                 var ours = pawn.Faction == player; var mental = pawn.MentalStateDef?.defName;
                 var hostile = mental?.IndexOf("Manhunter", StringComparison.OrdinalIgnoreCase) >= 0 || pawn.Faction != null && !ours && pawn.Faction.HostileTo(player);
@@ -162,7 +162,7 @@ namespace HomeBridge.BridgeTools
             RequireCount(count,limit); threats.Completeness=Complete(count); result.Threats=threats; return result;
         }
 
-        internal static Obs.PawnState PawnRow(Pawn pawn, bool detail)
+        internal static Obs.PawnState PawnRow(Pawn pawn, bool detail, Common.ObservationContext context)
         {
             var row = new Obs.PawnState { Pawn=Entity(pawn), KindDefName=Identifier(pawn.kindDef?.defName), Dead=pawn.Dead, Downed=pawn.Downed,
                 Drafted=pawn.drafter?.Drafted == true, InBed=RestUtility.InBed(pawn), Colonist=pawn.IsColonist, FreeColonist=pawn.IsFreeColonist,
@@ -172,8 +172,7 @@ namespace HomeBridge.BridgeTools
             if (pawn.MentalStateDef != null) row.MentalState=Identifier(pawn.MentalStateDef.defName);
             if (pawn.CurJob != null) row.Job=new Obs.JobEvidence { DefName=Identifier(pawn.CurJob.def.defName), LoadId=pawn.CurJob.loadID.ToString(System.Globalization.CultureInfo.InvariantCulture), PlayerForced=pawn.CurJob.playerForced };
             else row.Issues.Add(Issue("job",Common.UnavailableReason.NotApplicable,"Pawn has no current job."));
-            row.Issues.Add(Issue("pawn.snapshot",Common.UnavailableReason.Unsupported,"Entity CAS snapshots are not issued by status."));
-            row.DraftClaim=new Obs.DraftClaimObservation { Unavailable=Unavailable(Common.UnavailableReason.Unsupported,"Draft ownership observation is not implemented.") };
+            NativePawnControlObservation.Apply(pawn, row, context);
             var needs=new Obs.PawnNeeds(); row.Needs=needs;
             if (pawn.needs?.mood != null) needs.Mood=Finite(pawn.needs.mood.CurLevelPercentage);
             else needs.Issues.Add(Issue("mood",Common.UnavailableReason.NativeComponentMissing,"Mood tracker unavailable."));

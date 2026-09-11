@@ -54,7 +54,7 @@ namespace HomeBridge.BridgeTools
                     loaded.Capabilities.Add(new Lifecycle.Capability
                     {
                         FullMethodName = "rimgovernor.operations.v1.Operations/" + method,
-                        Support = Lifecycle.CapabilitySupport.Supported, Detail = "PlaceBuilding is implemented; other commands return unsupported."
+                        Support = Lifecycle.CapabilitySupport.Supported, Detail = "PlaceBuilding and temporary SetDrafted are implemented; persistent drafting and other commands return unsupported."
                     });
                 loaded.Capabilities.Add(new Lifecycle.Capability
                 {
@@ -92,7 +92,13 @@ namespace HomeBridge.BridgeTools
                 {
                     FullMethodName = "rimgovernor.observations.v1.Observations/ListPawns",
                     Support = Lifecycle.CapabilitySupport.Supported,
-                    Detail = "Complete bounded map pawn census with exact intersecting filters and useful detail facts. Social, CAS and additional gear/animal details carry explicit issues."
+                    Detail = "Complete bounded map pawn census with exact filters. Available draft controllers expose draft-control CAS and causal claims; other entities, social and additional gear/animal details carry explicit issues."
+                });
+                loaded.Capabilities.Add(new Lifecycle.Capability
+                {
+                    FullMethodName = "rimgovernor.operations.v1.Operations/ReleaseOwnedDraft",
+                    Support = Lifecycle.CapabilitySupport.Supported,
+                    Detail = "Exact claim, original owner and unchanged pawn cleanup after revocation, independently of ordinary attempt capacity."
                 });
                 return new Lifecycle.IdentityReply { Loaded = loaded };
             }, cancellationToken).ConfigureAwait(false);
