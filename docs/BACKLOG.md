@@ -610,12 +610,12 @@ expand these into another nested task tree; remove a row when its outcome is met
   Manual and fresh acquisition invalidate routine work without native reads.
   The clock scheduler can attach that reviewer at its paused pre-window boundary,
   after cleanup obligations drain. `serve --routine-reviews` wires this path under
-  explicit player/clock control; live service acceptance remains outstanding.
-  The clock acceptance probe's `--routine-reviews` mode checks native read attribution,
-  persisted needs and Manual invalidation; this mode still needs its live run.
+  explicit player/clock control. Targeted live service acceptance covers native
+  core/emergency facts, fourteen persisted needs, unknown food forecast, Manual
+  invalidation, joined shutdown and disabled restart. Method execution is not enabled.
   Remaining fact projection (diet/rot forecasts, further need inputs and construction
   costs), goal/reservation-history retirement,
-  live review acceptance, method selection and execution composition remain
+  method selection and execution composition remain
   open; these components do not enable orders.
 
 - [ ] **G01.07a — Finish defense and essential medical care.** Connect movement

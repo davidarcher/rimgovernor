@@ -92,14 +92,15 @@ cleanup take precedence, and a failed review prevents a new window.
 Add `--routine-reviews` to `serve --player-control --clock-control` to attach the
 reviewer to the service clock worker. It uses the default routine thresholds and
 requires typed colony observations. Startup remains disabled. This option journals
-needs; it does not select methods or issue routine orders. Live service acceptance,
-remaining fact projection, method selection and execution composition remain in G01.05.
-For native review acceptance, pass `--routine-reviews` to
-`scripts/native_go_clock_acceptance.py` through the documented container scenario
-launcher with the private construction/interruption fixtures and verified Go binary.
-It checks the SDK read trace, all fourteen durable goals, unknown food forecast,
-Manual invalidation and absence of routine methods. Evidence-validator unit tests
-do not substitute for that game run.
+needs; it does not select methods or issue routine orders. Remaining fact projection,
+method selection and execution composition remain in G01.05.
+`scripts/native_go_routine_acceptance.py`, run through the documented container
+scenario launcher with the private construction fixture and verified Go binary,
+covers the live SDK read trace, fourteen durable goals, native medical need,
+unknown food forecast, Manual invalidation, joined shutdown and disabled restart.
+It does not claim routine method execution. The separate
+`scripts/native_go_clock_acceptance.py --routine-reviews` scenario additionally
+requires a healthy colony and verifies clock advancement and construction.
 
 ## Local interpretation
 
