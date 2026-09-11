@@ -128,3 +128,59 @@ func TestPresentationMalformedProtoBoundary(t *testing.T) {
 		}
 	}
 }
+
+func TestPresentationMCPErrorPreservesOnlyTypedFailure(t *testing.T) {
+	failureValue := &c.Failure{Code: c.FailureCode_FAILURE_CODE_UNAVAILABLE.Enum()}
+	cases := []struct {
+		name            string
+		failed, success proto.Message
+		call            func(*Client) (proto.Message, Result, error)
+	}{
+		{"camera", &p.CameraReply{Outcome: &p.CameraReply_Failure{Failure: failureValue}}, &p.CameraReply{Outcome: &p.CameraReply_Camera{Camera: &p.CameraState{Context: pbContext()}}}, func(client *Client) (proto.Message, Result, error) {
+			return client.ReadCamera(context.Background(), &p.ReadRequest{Identity: pbIdentity()})
+		}},
+		{"selection", &p.SelectionReply{Outcome: &p.SelectionReply_Failure{Failure: failureValue}}, &p.SelectionReply{Outcome: &p.SelectionReply_Selection{Selection: &p.SelectionSnapshot{Context: pbContext()}}}, func(client *Client) (proto.Message, Result, error) {
+			return client.ReadSelection(context.Background(), &p.ReadRequest{Identity: pbIdentity()})
+		}},
+		{"roster", &p.ColonistRosterReply{Outcome: &p.ColonistRosterReply_Failure{Failure: failureValue}}, &p.ColonistRosterReply{Outcome: &p.ColonistRosterReply_Roster{Roster: &p.ColonistRoster{Context: pbContext()}}}, func(client *Client) (proto.Message, Result, error) {
+			return client.ReadColonistRoster(context.Background(), &p.ColonistRosterRequest{Identity: pbIdentity(), CurrentMapOnly: proto.Bool(true)})
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, variant := range []string{"typed", "malformed", "success"} {
+				t.Run(variant, func(t *testing.T) {
+					server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+						reply := pbResult(tc.failed)
+						if variant == "success" {
+							reply = pbResult(tc.success)
+						}
+						if variant == "malformed" {
+							reply = &mcp.CallToolResult{StructuredContent: encode(struct {
+								Payload string `json:"payload"`
+							}{`{"failure":`})}
+						}
+						reply.IsError = true
+						return reply, nil
+					}}
+					client := testClient(t, server, time.Second)
+					reply, raw, err := tc.call(client)
+					if !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
+						t.Fatal("error flag lost", reply, err)
+					}
+					var native *NativeFailure
+					if variant == "typed" {
+						if !errors.As(err, &native) || !proto.Equal(reply, tc.failed) || !proto.Equal(native.Value, failureValue) {
+							t.Fatal("typed failure lost", reply, err)
+						}
+					} else {
+						var generic *Refusal
+						if errors.As(err, &native) || !errors.As(err, &generic) {
+							t.Fatal("error payload became native result", reply, err)
+						}
+					}
+				})
+			}
+		})
+	}
+}
