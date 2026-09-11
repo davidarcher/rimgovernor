@@ -747,6 +747,8 @@ only intentional small, sanitized regression fixtures belong in source control.
       Keep owned SDK lifecycle and reject legacy aliases or arbitrary invocation.
     - [ ] **03b.2:** native read/preview acceptance against N01's corresponding
       adapters. Owner: integrator; depends on 03b.1 and native 02c.
+      Identity/placement passed the paused graphical native smoke; full status
+      acceptance remains pending its native observation adapter.
 
 - [x] **G01.04 — Typed plan and fresh Go store.** Owner: state agent. Split into
   04a plan/action/progress types and 04b SQLite persistence/restart. Use a new Go
@@ -792,14 +794,23 @@ only intentional small, sanitized regression fixtures belong in source control.
     Owner: executor agent; test typed boundaries before enabling native mutations.
   - [ ] **06b:** native atomic identity guards, attempt deduplication, runtime
     ownership and typed placement adapter. Coordinate with N01.
-    - [ ] **06b.1:** persist causally inspected equal-tick outcomes and typed known
+    - [x] **06b.1:** persist causally inspected equal-tick outcomes and typed known
       unsuccessful outcomes. Owner: executor agent; depends on 02b and 06a. Preserve
       exact attempt attribution and unknown-write reconciliation across restart.
+      - [ ] **06b.1a:** expose unsuccessful stage/reason through Go HTTP and the
+        dashboard. Owner: UI agent; depends on 06b.1. Preserve closed enums, null
+        unknown facts and the existing read-only controls.
     - [ ] **06b.2:** fixed typed authority and building execution/progress adapters.
       Owner: bridge agent; depends on 02b and 03b.1. Keep writes separate from
       read-only clients; enable only the first building operation.
     - [ ] **06b.3:** runtime lease ownership, explicit player admission and guarded
       building orchestration. Owner: integrator; depends on 06b.1–2 and 05.
+      - [x] **06b.3a:** project exact native building previews, complete costs and
+        material availability into policy facts. Owner: integrator; depends on
+        03b.1 and 05a. Destructive placements and unreadable materials stay held.
+      - [ ] **06b.3b:** combine observed map bounds, cross-plan commitments, leases
+        and durable attempts in the runtime. Owner: integrator; depends on 06b.2
+        and 06b.3a; prove single ownership and invalidation before enabling writes.
   - [ ] **06c:** isolated ordinary pawn construction and interruption acceptance.
 
 - [ ] **G01.07 — Routine capabilities in bounded families.** Owners: domain agents.
