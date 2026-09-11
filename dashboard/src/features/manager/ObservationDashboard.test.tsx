@@ -8,7 +8,7 @@ const state={sessionId:'load-a',connected:true,mode:'manual',status:{label:'Colo
 const plan={id:'plan-a',revision:'9007199254740993',actions:[{id:'action-a',kind:'building',building:{defName:'Wall',x:2,z:3,rotation:'north',stuff:'Granite'},progress:{stage:'awaiting_observation',attempt:'1',tick:40,unresolved:true,receipt:'accepted',effect:null,unsuccessfulReason:null}}]};
 const reply=(value:unknown)=>({ok:true,json:async()=>value});
 function stubObservationFetch(handler: (url: string, options: {signal: AbortSignal}) => Promise<unknown>) {
- vi.stubGlobal('fetch', (url: string, options: {signal: AbortSignal}) => url === '/api/buildings/session' || url.startsWith('/api/presentation/') ? Promise.resolve({ok:false,status:404,json:async()=>({code:'not_found',detail:'Not found'})}) : handler(url,options));
+ vi.stubGlobal('fetch', (url: string, options: {signal: AbortSignal}) => url === '/api/player/session' || url.startsWith('/api/presentation/') ? Promise.resolve({ok:false,status:404,json:async()=>({code:'not_found',detail:'Not found'})}) : handler(url,options));
 }
 afterEach(()=>{cleanup();vi.useRealTimers();vi.unstubAllGlobals();});
 it('renders observed native facts and typed plan with no mutation controls',async()=>{
@@ -73,4 +73,14 @@ it.each(['cancelled','unsuccessful'])('shows unsuccessful evidence in %s stage a
  expect(screen.getByText('Expected outcome not achieved')).toBeVisible();
  expect(screen.getByRole('status')).toHaveTextContent('Unsupported response value');
  expect(screen.queryByRole('button')).toBeNull();
+});
+
+it('renders temporary draft completion separately from uncertain cleanup and retains it on refresh failure',async()=>{
+ vi.useFakeTimers();let fail=false;
+ const draftPlan={...plan,actions:[{id:'draft',kind:'owned_draft',draft:{pawnId:'Pawn_42'},progress:{stage:'completed',attempt:'1',tick:44,unresolved:false,receipt:'accepted',effect:'completed',unsuccessfulReason:null,draftCleanup:{stage:'uncertain'}}}]};
+ stubObservationFetch(async(url)=>{if(fail)throw Error('Offline');return reply(url==='/api/state'?state:draftPlan);});
+ await act(async()=>{render(<ObservationDashboard/>);});
+ expect(screen.getByText('Pawn Pawn_42')).toBeVisible();expect(screen.getByText('Completion observed')).toBeVisible();expect(screen.getByText('Draft cleanup: Release outcome unknown')).toBeVisible();
+ fail=true;await act(async()=>{await vi.advanceTimersByTimeAsync(1500);});
+ expect(screen.getByText('Draft cleanup: Release outcome unknown')).toBeVisible();expect(screen.queryByRole('button')).toBeNull();
 });

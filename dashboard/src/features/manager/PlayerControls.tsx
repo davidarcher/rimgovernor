@@ -1,6 +1,8 @@
 import {useEffect, useRef, useState} from 'react';
 import type {ObservationState} from './observationData';
-import {acquireBuilding, BuildingHTTPError, definiteRejection, manualBuilding, readBuilding, readControlResult, readCurrentControl, readPlayerSession, readSubmissionResult, sameWorld, submitBuilding, type AcquireRequest, type ControlRecord, type ControlReply, type ManualRequest, type Submission, type SubmissionRequest, type World} from './buildingData';
+import {acquirePlan, PlayerHTTPError, definiteRejection, manualPlayer, readBuilding, readControlResult, readCurrentControl, readPlayerSession, readSubmissionResult, sameWorld, submitBuilding, type AcquireRequest, type ControlRecord, type ControlReply, type ManualRequest, type Submission, type SubmissionRequest, type World} from './playerData';
+
+import {readDraft, readDraftResult, submitDraft, type DraftRequest, type DraftSubmission} from './playerData';
 
 const message = (error: unknown) => error instanceof Error ? error.message : 'Building operation unavailable';
 function submissionMatches(value: Submission, request: SubmissionRequest): boolean {return value.requestId === request.requestId && sameWorld(value.expected, request.expected) && Object.entries(request.building).every(([key, item]) => Object.entries(value.building).some(([other, actual]) => key === other && item === actual));}
@@ -8,11 +10,15 @@ function recordMatches(value: ControlRecord, request: AcquireRequest | ManualReq
   return value.requestId === request.requestId && value.kind === kind && sameWorld(value.expected, request.expected) && (!('planId' in request) || value.planId === request.planId && value.revision === request.revision && value.expectedDirection === request.expectedDirection);
 }
 
-export default function BuildingControls({observation, observationFresh}: {observation: ObservationState | null; observationFresh: boolean}) {
+export default function PlayerControls({observation, observationFresh}: {observation: ObservationState | null; observationFresh: boolean}) {
   const [available, setAvailable] = useState<boolean | null>(null), [token, setToken] = useState<string | null>(null);
   const [current, setCurrent] = useState<ControlReply | null>(null), [currentFresh, setCurrentFresh] = useState(false);
   const [draft, setDraft] = useState({defName: '', stuff: '', x: '', z: '', rotation: 'north'});
   const [submission, setSubmission] = useState<Submission | null>(null), [submitIntent, setSubmitIntent] = useState<SubmissionRequest | null>(null);
+  const [pawnId, setPawnId] = useState('');
+  const [draftSubmission, setDraftSubmission] = useState<DraftSubmission | null>(null), [draftIntent, setDraftIntent] = useState<DraftRequest | null>(null);
+  const [draftSubmitting, setDraftSubmitting] = useState(false);
+  const busyDraft = useRef(false);
   const [acquireIntent, setAcquireIntent] = useState<AcquireRequest | null>(null), [manualIntent, setManualIntent] = useState<ManualRequest | null>(null);
   const [acquireRecord, setAcquireRecord] = useState<ControlRecord | null>(null), [manualRecord, setManualRecord] = useState<ControlRecord | null>(null);
   const [history, setHistory] = useState<Array<{kind: 'acquire' | 'manual'; request: AcquireRequest | ManualRequest; record: ControlRecord | null}>>([]);
@@ -56,7 +62,7 @@ export default function BuildingControls({observation, observationFresh}: {obser
   const fail = (reason: unknown, expected: number) => {
     if (!mounted.current) return;
     setError(message(reason));
-    if (expected === version.current && reason instanceof BuildingHTTPError && reason.status === 403) {setToken(null); setCurrentFresh(false); setBootstrapRetry(value => value + 1);}
+    if (expected === version.current && reason instanceof PlayerHTTPError && reason.status === 403) {setToken(null); setCurrentFresh(false); setBootstrapRetry(value => value + 1);}
   };
   const signal = () => AbortSignal.any([lifetime.current.signal, AbortSignal.timeout(10000)]);
   const showControl = (reply: ControlReply, request: AcquireRequest | ManualRequest, kind: 'acquire' | 'manual', expected: number) => {
@@ -88,14 +94,14 @@ export default function BuildingControls({observation, observationFresh}: {obser
       if (mounted.current) setSubmission(reply);
     } catch (reason) {if (mounted.current && requestId && definiteRejection(reason)) {const rejected = requestId; setRejectedRequests(previous => [...previous, rejected]);} fail(reason, expected);} finally {busySubmit.current = false; if (mounted.current) setSubmitting(false);}
   };
-  const acquire = async () => {
-    if (!canAcquire || !token || !submission || busyAcquire.current) return;
+  const acquire = async (selected: Submission | DraftSubmission) => {
+    if (!canAcquire(selected) || !token || busyAcquire.current) return;
     const expected = ++version.current;
-    const request: AcquireRequest = {requestId: crypto.randomUUID(), expected: {...submission.expected}, planId: submission.planId, revision: submission.revision, expectedDirection: current?.record?.direction ?? '0'};
+    const request: AcquireRequest = {requestId: crypto.randomUUID(), expected: {...selected.expected}, planId: selected.planId, revision: selected.revision, expectedDirection: current?.record?.direction ?? '0'};
     if (acquireIntent) setHistory(previous => [...previous, {kind: 'acquire', request: acquireIntent, record: acquireRecord}]);
     activeRequests.current.acquire = request.requestId;
     busyAcquire.current = true; setAcquiring(true); setAcquireIntent(request); setAcquireRecord(null); setCurrentFresh(false); setError('');
-    try {showControl(await acquireBuilding(token, request, signal()), request, 'acquire', expected);} catch (reason) {if (mounted.current && definiteRejection(reason)) setRejectedRequests(previous => [...previous, request.requestId]); fail(reason, expected);} finally {busyAcquire.current = false; if (mounted.current) setAcquiring(false);}
+    try {showControl(await acquirePlan(token, request, signal()), request, 'acquire', expected);} catch (reason) {if (mounted.current && definiteRejection(reason)) setRejectedRequests(previous => [...previous, request.requestId]); fail(reason, expected);} finally {busyAcquire.current = false; if (mounted.current) setAcquiring(false);}
   };
   const manual = async () => {
     if (!token || !lastWorld.current || busyManual.current) return;
@@ -103,13 +109,35 @@ export default function BuildingControls({observation, observationFresh}: {obser
     if (manualIntent) setHistory(previous => [...previous, {kind: 'manual', request: manualIntent, record: manualRecord}]);
     activeRequests.current.manual = request.requestId;
     busyManual.current = true; setManualPending(true); setManualIntent(request); setManualRecord(null); setCurrentFresh(false); setError('');
-    try {showControl(await manualBuilding(token, request, signal()), request, 'manual', expected);} catch (reason) {fail(reason, expected);} finally {busyManual.current = false; if (mounted.current) setManualPending(false);}
+    try {showControl(await manualPlayer(token, request, signal()), request, 'manual', expected);} catch (reason) {fail(reason, expected);} finally {busyManual.current = false; if (mounted.current) setManualPending(false);}
   };
   const recoverSubmission = async () => {
     if (!submitIntent || busySubmit.current) return;
     busySubmit.current = true; setSubmitting(true); const expected = version.current;
     try {const reply = await readSubmissionResult(submitIntent.requestId, signal()); if (!submissionMatches(reply, submitIntent)) throw Error('Submission result does not match this request'); if (mounted.current) {setSubmission(reply); setError('');}}
     catch (reason) {fail(reason, expected);} finally {busySubmit.current = false; if (mounted.current) setSubmitting(false);}
+  };
+  const draftMatches = (value: DraftSubmission, request: DraftRequest) => value.requestId === request.requestId && sameWorld(value.expected, request.expected) && value.draft.pawnId === request.draft.pawnId;
+  const sendDraft = async () => {
+    if (!token || !freshWorld || !observation?.identity || busyDraft.current || draftIntent && !draftSubmission && !rejectedRequests.includes(draftIntent.requestId)) return;
+    const expected = version.current; let requestId: string | null = null;
+    try {
+      const request = {requestId: crypto.randomUUID(), expected: {...observation.identity}, draft: readDraft({pawnId})};
+      requestId = request.requestId; busyDraft.current = true; setDraftSubmitting(true); setDraftIntent(request); setDraftSubmission(null); setError('');
+      const reply = await submitDraft(token, request, signal());
+      if (!draftMatches(reply, request)) throw Error('Draft submission result does not match this request');
+      if (mounted.current) setDraftSubmission(reply);
+    } catch (reason) {if (mounted.current && requestId && definiteRejection(reason)) {const rejected = requestId; setRejectedRequests(previous => [...previous, rejected]);} fail(reason, expected);}
+    finally {busyDraft.current = false; if (mounted.current) setDraftSubmitting(false);}
+  };
+  const recoverDraft = async () => {
+    if (!draftIntent || busyDraft.current) return;
+    busyDraft.current = true; setDraftSubmitting(true); const expected = version.current;
+    try {
+      const reply = await readDraftResult(draftIntent.requestId, signal());
+      if (!draftMatches(reply, draftIntent)) throw Error('Draft submission result does not match this request');
+      if (mounted.current) {setDraftSubmission(reply); setError('');}
+    } catch (reason) {fail(reason, expected);} finally {busyDraft.current = false; if (mounted.current) setDraftSubmitting(false);}
   };
   const recoverControl = async (kind: 'acquire' | 'manual', historicalRequest?: AcquireRequest | ManualRequest) => {
     const request = historicalRequest ?? (kind === 'acquire' ? acquireIntent : manualIntent); if (!request) return;
@@ -120,10 +148,10 @@ export default function BuildingControls({observation, observationFresh}: {obser
   const sameSubmissionWorld = Boolean(submission && observation?.identity && sameWorld(submission.expected, observation.identity));
   const laterManual = current?.record?.kind === 'manual' && current.record.phase === 'disabled' && !current.state.enabled && acquireIntent !== null && sameWorld(current.record.expected, acquireIntent.expected) && BigInt(current.record.direction) > BigInt(acquireRecord?.direction ?? acquireIntent.expectedDirection);
   const unresolvedAcquire = acquireIntent !== null && !rejectedRequests.includes(acquireIntent.requestId) && (!acquireRecord || ['pending', 'uncertain'].includes(acquireRecord.phase)) && !laterManual;
-  const canAcquire = Boolean(token && freshWorld && currentFresh && submission && sameSubmissionWorld && !submitting && !acquiring && !manualPending && !unresolvedAcquire);
-  if (available !== true) return refreshError ? <section className="observation-panel building-controls" aria-label="Explicit building controls"><p role="alert">Building controls unavailable: {refreshError}. Retrying connection�</p></section> : null;
-  return <section className="observation-panel building-controls" aria-label="Explicit building controls">
-    <div className="building-control-heading"><h2>Building controls</h2><button type="button" onClick={() => void manual()} disabled={!token || !lastWorld.current || manualPending}>{manualPending ? 'Stopping…' : 'Manual — stop orders'}</button></div>
+  const canAcquire = (selected: Submission | DraftSubmission) => Boolean(token && freshWorld && currentFresh && observation?.identity && sameWorld(selected.expected, observation.identity) && !submitting && !draftSubmitting && !acquiring && !manualPending && !unresolvedAcquire);
+  if (available !== true) return refreshError ? <section className="observation-panel building-controls" aria-label="Explicit player controls"><p role="alert">Player controls unavailable: {refreshError}. Retrying connection…</p></section> : null;
+  return <section className="observation-panel building-controls" aria-label="Explicit player controls">
+    <div className="building-control-heading"><h2>Player controls</h2><button type="button" onClick={() => void manual()} disabled={!token || !lastWorld.current || manualPending}>{manualPending ? 'Stopping…' : 'Manual — stop orders'}</button></div>
     <p>{currentFresh ? current?.state.enabled ? 'Current permission: orders enabled' : 'Current permission: orders disabled' : 'Current permission unavailable or refreshing'}</p>
     <p>Submit one building, then explicitly enable its plan. Native preview and normal game rules determine whether it can be placed.</p>
     <form onSubmit={event => {event.preventDefault(); void submit();}}>
@@ -131,11 +159,19 @@ export default function BuildingControls({observation, observationFresh}: {obser
         <label>Rotation<select value={draft.rotation} onChange={event => setDraft(previous => ({...previous, rotation: event.target.value}))}>{['north', 'east', 'south', 'west'].map(rotation => <option key={rotation}>{rotation}</option>)}</select></label></div>
       <button type="submit" disabled={!token || !freshWorld || submitting || Boolean(submitIntent && !submission && !rejectedRequests.includes(submitIntent.requestId))}>{submitting ? 'Submitting…' : 'Submit building plan'}</button>
     </form>
-    {submitIntent && <p>Submission request: <code>{submitIntent.requestId}</code> {rejectedRequests.includes(submitIntent.requestId) && '� Rejected before admission'} <button type="button" disabled={submitting} onClick={() => void recoverSubmission()}>Check submission result</button></p>}
-    {submission && <div><h3>Submitted building</h3><p>{submission.building.defName} · {submission.building.stuff || 'No material specified'} · ({submission.building.x}, {submission.building.z}) · {submission.building.rotation}</p><p>Plan {submission.planId} · Revision {submission.revision}</p>{!sameSubmissionWorld && <p>This submission belongs to a different observed world.</p>}<button type="button" disabled={!canAcquire} onClick={() => void acquire()}>{acquiring ? 'Acquiring…' : 'Enable this plan'}</button></div>}
+    {submitIntent && <p>Submission request: <code>{submitIntent.requestId}</code> {rejectedRequests.includes(submitIntent.requestId) && '· Rejected before admission'} <button type="button" disabled={submitting} onClick={() => void recoverSubmission()}>Check submission result</button></p>}
+    {submission && <div><h3>Submitted building</h3><p>{submission.building.defName} · {submission.building.stuff || 'No material specified'} · ({submission.building.x}, {submission.building.z}) · {submission.building.rotation}</p><p>Plan {submission.planId} · Revision {submission.revision}</p>{!sameSubmissionWorld && <p>This submission belongs to a different observed world.</p>}<button type="button" disabled={!canAcquire(submission)} onClick={() => void acquire(submission)}>{acquiring ? 'Acquiring…' : 'Enable this plan'}</button></div>}
+    <h3>Temporary draft</h3>
+    <p>Submit an exact pawn ID, then enable its plan. This standalone plan releases its owned draft when it finishes. It does not keep the pawn drafted or undraft player orders.</p>
+    <form onSubmit={event => {event.preventDefault(); void sendDraft();}}>
+      <label>Pawn ID<input value={pawnId} onChange={event => setPawnId(event.target.value)}/></label>
+      <button type="submit" disabled={!token || !freshWorld || draftSubmitting || Boolean(draftIntent && !draftSubmission && !rejectedRequests.includes(draftIntent.requestId))}>{draftSubmitting ? 'Submitting draft…' : 'Submit temporary draft plan'}</button>
+    </form>
+    {draftIntent && <p>Draft submission request: <code>{draftIntent.requestId}</code> {rejectedRequests.includes(draftIntent.requestId) && 'Rejected before admission'} <button type="button" disabled={draftSubmitting} onClick={() => void recoverDraft()}>Check draft submission result</button></p>}
+    {draftSubmission && <div><h3>Submitted temporary draft</h3><p>Pawn {draftSubmission.draft.pawnId}</p><p>Plan {draftSubmission.planId} · Revision {draftSubmission.revision}</p>{observation?.identity && !sameWorld(draftSubmission.expected, observation.identity) && <p>This draft submission belongs to a different observed world.</p>}<button type="button" disabled={!canAcquire(draftSubmission)} onClick={() => void acquire(draftSubmission)}>{acquiring ? 'Draft acquisition unavailable' : 'Enable draft plan'}</button></div>}
     {acquireIntent && <p>Acquire request: <code>{acquireIntent.requestId}</code> · Historical result: {acquireRecord?.phase ?? (acquireIntent && rejectedRequests.includes(acquireIntent.requestId) ? 'rejected before admission' : 'not yet known')} <button type="button" onClick={() => void recoverControl('acquire')}>Check acquire result</button></p>}
     {manualIntent && <p>Manual request: <code>{manualIntent.requestId}</code> · Historical result: {manualRecord?.phase ?? 'not yet known'} <button type="button" onClick={() => void recoverControl('manual')}>Check Manual result</button></p>}
-    {rejectedRequests.filter(requestId => requestId !== submitIntent?.requestId && requestId !== acquireIntent?.requestId && !history.some(item => item.request.requestId === requestId)).map(requestId => <p key={requestId}>Rejected before admission: <code>{requestId}</code>. A new explicit request is allowed.</p>)}
+    {rejectedRequests.filter(requestId => requestId !== submitIntent?.requestId && requestId !== draftIntent?.requestId && requestId !== acquireIntent?.requestId && !history.some(item => item.request.requestId === requestId)).map(requestId => <p key={requestId}>Rejected before admission: <code>{requestId}</code>. A new explicit request is allowed.</p>)}
     {history.map(item => <p key={`${item.kind}:${item.request.requestId}`}>Previous {item.kind} request: <code>{item.request.requestId}</code> · Historical result: {item.record?.phase ?? (rejectedRequests.includes(item.request.requestId) ? 'rejected before admission' : 'not yet known')} <button type="button" onClick={() => void recoverControl(item.kind, item.request)}>Check previous {item.kind} result</button></p>)}
     {(error || refreshError) && <p role="alert">{error || refreshError}. Draft and request IDs are retained; checking a result only reads it.</p>}
   </section>;

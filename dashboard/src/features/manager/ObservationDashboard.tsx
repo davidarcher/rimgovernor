@@ -1,11 +1,12 @@
 import {useEffect, useState} from 'react';
 import {readObservation, readPlan, type BuildingAction, type BuildingPlan, type ObservationState, type UnsuccessfulReason} from './observationData';
 import './ObservationDashboard.css';
-import BuildingControls from './BuildingControls';
+import PlayerControls from './PlayerControls';
 import PresentationPanel from './PresentationPanel';
 import NotificationPanel from './NotificationPanel';
 
 const stageLabels: Record<BuildingAction['progress']['stage'], string> = {pending: 'Pending', prepared: 'Prepared', dispatched: 'Order sent', awaiting_observation: 'Awaiting observation', completed: 'Completed', cancelled: 'Cancelled', unsuccessful: 'Unsuccessful'};
+const cleanupLabels = {awaiting_claim: 'Ownership not yet known', not_acquired: 'No owned draft acquired', required: 'Release required', dispatched: 'Release sent', uncertain: 'Release outcome unknown', released: 'Release observed', superseded: 'Original ownership no longer applies'};
 const reasonLabels: Record<UnsuccessfulReason, string> = {native_failure: 'Native operation failed', cancelled: 'Operation cancelled', interrupted: 'Operation interrupted', expired: 'Operation expired', target_dead: 'Target died', outcome_not_achieved: 'Expected outcome not achieved'};
 export default function ObservationDashboard() {
   const [state, setState] = useState<ObservationState | null>(null);
@@ -61,16 +62,16 @@ export default function ObservationDashboard() {
       <div><dt>Map</dt><dd>{state?.identity?.mapId ?? 'Unknown'}</dd></div>
       <div><dt>Load</dt><dd>{state?.identity?.loadToken ?? 'Unknown'}</dd></div>
     </dl></section>
-    <BuildingControls observation={state} observationFresh={!error && state !== null}/>
+    <PlayerControls observation={state} observationFresh={!error && state !== null}/>
     <PresentationPanel observation={state} observationFresh={!error && state !== null}/>
     <NotificationPanel observation={state} observationFresh={!error && state !== null}/>
-    <section className="observation-panel"><h2>Building plan</h2>
+    <section className="observation-panel"><h2>Active plan</h2>
       {!state ? <p>Waiting for plan status.</p> : state.activePlanId === null ? <p>No active plan reported.</p> : !plan ? <p>Waiting for the active plan.</p> : <>
         <p className="observation-plan-id">{plan.id} · Revision {plan.revision}</p>
-        {plan.actions.length === 0 ? <p>This plan has no building actions.</p> : <ol className="observation-actions">{plan.actions.map(action => <li key={action.id}>
-          <div><h3>{action.building.defName}</h3><p>{action.building.stuff || 'Native default material'} · ({action.building.x}, {action.building.z}) · {action.building.rotation}</p></div>
+        {plan.actions.length === 0 ? <p>This plan has no actions.</p> : <ol className="observation-actions">{plan.actions.map(action => <li key={action.id}>
+          <div>{action.kind === 'building' ? <><h3>{action.building.defName}</h3><p>{action.building.stuff || 'Native default material'} · ({action.building.x}, {action.building.z}) · {action.building.rotation}</p></> : <><h3>Temporary draft</h3><p>Pawn {action.draft.pawnId}</p></>}</div>
           <div><strong>{stageLabels[action.progress.stage]}</strong><p>{action.progress.unsuccessfulReason !== null ? reasonLabels[action.progress.unsuccessfulReason] : action.progress.unresolved ? 'Outcome requires observation' : action.progress.effect === 'completed' ? 'Completion observed' : 'Effect: ' + (action.progress.effect ?? 'unknown')}</p>
-            <p>Receipt: {action.progress.receipt ?? 'unknown'}</p></div>
+            <p>Receipt: {action.progress.receipt ?? 'unknown'}</p>{action.progress.draftCleanup && <p>Draft cleanup: {cleanupLabels[action.progress.draftCleanup.stage]}</p>}</div>
         </li>)}</ol>}
       </>}
     </section>

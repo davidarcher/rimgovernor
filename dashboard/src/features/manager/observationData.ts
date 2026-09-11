@@ -1,3 +1,4 @@
+import {readDraft} from './playerData';
 export type ObservationState = {
   sessionId: string; connected: boolean; mode: 'manual' | 'automate'; status: {label: string};
   identity: {colonyId: string; mapId: number; loadToken: string} | null;
@@ -9,8 +10,12 @@ const stages = ['pending', 'prepared', 'dispatched', 'awaiting_observation', 'co
 const effects = ['unknown', 'pending', 'completed', 'absent', 'unsuccessful'] as const;
 const unsuccessfulReasons = ['native_failure', 'cancelled', 'interrupted', 'expired', 'target_dead', 'outcome_not_achieved'] as const;
 export type UnsuccessfulReason = typeof unsuccessfulReasons[number];
-export type BuildingAction = {id: string; kind: 'building'; building: {defName: string; x: number; z: number; rotation: string; stuff: string};
-  progress: {stage: typeof stages[number]; attempt: string; tick: number; unresolved: boolean; receipt: string | null; effect: typeof effects[number] | null; unsuccessfulReason: UnsuccessfulReason | null}};
+export const cleanupStages = ['awaiting_claim', 'not_acquired', 'required', 'dispatched', 'uncertain', 'released', 'superseded'] as const;
+export type ActionProgress = {stage: typeof stages[number]; attempt: string; tick: number; unresolved: boolean; receipt: string | null; effect: typeof effects[number] | null; unsuccessfulReason: UnsuccessfulReason | null; draftCleanup?: {stage: typeof cleanupStages[number]}};
+export type BuildingAction = {id: string; progress: ActionProgress} & (
+  {kind: 'building'; building: {defName: string; x: number; z: number; rotation: string; stuff: string}} |
+  {kind: 'owned_draft'; draft: {pawnId: string}}
+);
 
 // JSON responses are untrusted at this boundary; components consume concrete DTOs.
 function object(value: unknown): Record<string, unknown> {
@@ -39,20 +44,28 @@ export function readPlan(raw: unknown): BuildingPlan {
   if (!Array.isArray(root.actions) || root.actions.length > 1024) throw Error('Invalid action list');
   const ids = new Set<string>();
   const actions = root.actions.map((value: unknown): BuildingAction => {
-    const action = object(value), building = object(action.building), progress = object(action.progress), id = text(action.id);
-    if (action.kind !== 'building' || ids.has(id)) throw Error('Unsupported or repeated action'); ids.add(id);
+    const action = object(value), progress = object(action.progress), id = text(action.id);
+    if (!['building', 'owned_draft'].includes(String(action.kind)) || ids.has(id) || Object.keys(action).length !== 4 || !Object.hasOwn(action, action.kind === 'building' ? 'building' : 'draft')) throw Error('Unsupported or repeated action'); ids.add(id);
     const stage = oneOf(progress.stage, stages), effect = optional(progress.effect, v => oneOf(v, effects));
     const unsuccessfulReason = optional(progress.unsuccessfulReason, v => oneOf(v, unsuccessfulReasons));
     const unresolved = bool(progress.unresolved);
     if ((effect === 'unsuccessful') !== (unsuccessfulReason !== null) ||
       (effect === 'unsuccessful' && (unresolved || (stage !== 'unsuccessful' && stage !== 'cancelled'))) ||
       (stage === 'unsuccessful' && effect !== 'unsuccessful')) throw Error('Inconsistent unsuccessful outcome');
+    let draftCleanup: ActionProgress['draftCleanup'];
+    if (Object.hasOwn(progress, 'draftCleanup')) {
+      if (action.kind !== 'owned_draft') throw Error('Building cannot have draft cleanup');
+      const cleanup = object(progress.draftCleanup);
+      if (Object.keys(cleanup).length !== 1) throw Error('Invalid cleanup fields');
+      draftCleanup = {stage: oneOf(cleanup.stage, cleanupStages)};
+    }
+    const parsed: ActionProgress = {stage, attempt: decimal(progress.attempt), tick: integer(progress.tick), unresolved,
+      receipt: optional(progress.receipt, v => oneOf(v, ['accepted', 'refused', 'unknown'])), effect, unsuccessfulReason,
+      ...(draftCleanup ? {draftCleanup} : {})};
+    if (action.kind === 'owned_draft') return {id, kind: 'owned_draft', draft: readDraft(action.draft), progress: parsed};
+    const building = object(action.building);
     return {id, kind: 'building', building: {defName: text(building.defName), x: integer(building.x), z: integer(building.z),
-      rotation: oneOf(building.rotation, ['north', 'east', 'south', 'west']), stuff: text(building.stuff)},
-      progress: {stage,
-        attempt: decimal(progress.attempt), tick: integer(progress.tick), unresolved,
-        receipt: optional(progress.receipt, v => oneOf(v, ['accepted', 'refused', 'unknown'])),
-        effect, unsuccessfulReason}};
+      rotation: oneOf(building.rotation, ['north', 'east', 'south', 'west']), stuff: text(building.stuff)}, progress: parsed};
   });
   return {id: text(root.id), revision: decimal(root.revision), actions};
 }
