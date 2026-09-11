@@ -728,7 +728,7 @@ only intentional small, sanitized regression fixtures belong in source control.
   read-only mode rejects write-capable tools even when requested by name. Test
   transport failures/reconnects and one native read with no writes or clock changes.
   Add generated observation families as their Go consumers need them. Depends on 02a.1.
-  - [ ] **03a:** owned MCP subprocess/session, discovery and bounded read-only
+  - [x] **03a:** owned MCP subprocess/session, discovery and bounded read-only
     calls with cancellation/cleanup; test a real in-process SDK server and failed
     connections. Owner: bridge agent. No mutation API or runtime scheduler yet.
   - [ ] **03b:** typed current identity/status and observation facts, explicit
