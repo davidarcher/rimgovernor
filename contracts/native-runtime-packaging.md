@@ -174,7 +174,7 @@ compatibility adapters remain explicit exceptions requiring boundary tests:
 Existing native candidates include `scripts/native_interruption_acceptance.py`,
 `scripts/native_autosave_acceptance.py`, `scripts/native_player_input_acceptance.py`,
 `scripts/native_render_smoke.py` and `scripts/container_native_acceptance.py`;
-domain scenarios are mapped by the [test selection guide](../docs/how-to/choose-tests.md).
+domain scenarios are mapped by the [test selection guide](../docs/developers/testing/choose-tests.md).
 No native scenario or compiled-artifact verification was run for this documentation
 slice. Source anchors/hashes establish the inspected revision only.
 

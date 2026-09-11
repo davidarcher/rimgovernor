@@ -25,7 +25,7 @@ identify code that may remain Python after the production cutover.
 Run `python scripts/check_go_coverage.py` from the repository root to validate
 cross-inventory structure and the source-specific drift checks. See the
 [rewrite sequence](../docs/BACKLOG.md#g01--go-controller-rewrite) for dependencies
-and the [test selection guide](../docs/how-to/choose-tests.md) for acceptance scope.
+and the [test selection guide](../docs/developers/testing/choose-tests.md) for acceptance scope.
 
 ## Timing baseline
 
@@ -36,7 +36,7 @@ are not attributed to controller actions; recovery and sustained outcomes remain
 separate acceptance gates. Measurements alongside another native scenario cannot
 establish an uncontended comparison.
 
-Before G01.12, use the existing [throughput procedure](../docs/how-to/measure-throughput.md)
+Before G01.12, use the existing [throughput procedure](../docs/developers/testing/measure-throughput.md)
 with isolated licensed inputs and identical game, model, storage and rendering
 settings. Retain source/image/input hashes and raw reports under `.rimgovernor/`.
 Record numeric regression budgets before examining Go results. No performance or

@@ -126,7 +126,7 @@ Existing entry points: `scripts/resumed_haul_acceptance.py` and
 
 Sources: [saved types/rebind](../integrations/colony-bridge/src/identity/MiningState.cs),
 [mining guard](../integrations/colony-bridge/src/MiningGuard.cs),
-[current contract](../docs/reference/mining-contracts.md).
+[current contract](../docs/developers/contracts/mining-contracts.md).
 
 | Field/key | Sole target owner | Reconstructible? |
 | --- | --- | --- |

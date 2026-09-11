@@ -1,11 +1,8 @@
 # RimGovernor backlog
 
-This is the single queue for implementation gaps, remaining reuse audits and
-gameplay acceptance. Work top-down within each priority. Check the current code
+This is the single queue for implementation gaps and gameplay acceptance. Work top-down within each priority. Check the current code
 before adding an API; available native tools often need acceptance, not rebuilding.
-Understanding belongs in [explanation](explanation/overview.md), exact contracts in
-[reference](reference/README.md), and procedures in [how-to guides](how-to/README.md).
-Use the [documentation map](README.md) to navigate. Remove completed items once their evidence is recorded
+Use the [player and developer docs](README.md) for current behavior and commands. Remove completed items once their evidence is recorded
 in the checkpoint commit; do not append an implementation diary here.
 
 ## P0 — Reliable startup execution
@@ -37,7 +34,7 @@ in the checkpoint commit; do not append an implementation diary here.
   this item owns their startup sequencing and the upkeep gaps between them.
 
   **Phase 1 — Finish needs and completion contracts.** Extend the
-  [native upkeep audit](reference/upkeep-contracts.md) with safe enclosure/escape
+  [native upkeep audit](developers/contracts/upkeep-contracts.md) with safe enclosure/escape
   replacement and seasonal lead-time evidence. Roof-support previews, saved
   construction lineage and guarded straight-wall replacement are available.
   Preserve unknowns. Extend the
@@ -344,8 +341,8 @@ in the checkpoint commit; do not append an implementation diary here.
   support retained throughout staged work, enclosure and functional room use,
   blocked access, interrupted mining, changed roofs/supports, revealed hazards and
   paired restart. Verify native outcomes without editor excavation or bypassing
-  ordinary roof-collapse rules. See [spatial contracts](reference/spatial-contracts.md)
-  and [mining contracts](reference/mining-contracts.md) for current boundaries.
+  ordinary roof-collapse rules. See [spatial contracts](developers/contracts/spatial-contracts.md)
+  and [mining contracts](developers/contracts/mining-contracts.md) for current boundaries.
 
 - [ ] **B29 · Colony-wide development priorities.** Arbitrate comfort, research,
   production, defense and expansion through the existing deterministic priority tree
@@ -383,7 +380,7 @@ each bounded method.
   and direction/load/plan invalidation; bridge operation completion is not pawn work.
 
 - [ ] **Paused setup through the first simulation tick.** Use the
-  [controller profiler](how-to/measure-throughput.md) to measure the complete path
+  [controller profiler](developers/testing/measure-throughput.md) to measure the complete path
   from enabling automation to the first supervised tick. Separate repeated
   validation, persistence, controller scheduling and bridge time; optimize the
   measured costs without weakening fresh write checks. Acceptance must actually
@@ -391,7 +388,7 @@ each bounded method.
   setup orders does not close this item.
 
 - [ ] **Bridge request overhead.** Use the boundary timings in
-  [throughput measurements](how-to/measure-throughput.md) to split remaining MCP
+  [throughput measurements](developers/testing/measure-throughput.md) to split remaining MCP
   session time into GABS ownership preparation, transport/decoding and native
   scheduling. Profile remaining shared observation inputs before relaxing serialization.
   Construction preflight, allocation, site searches and material alternatives
@@ -424,7 +421,7 @@ each bounded method.
   `BridgeRuntime` have no controller state to publish; add explicit observation
   adapters where needed without introducing another controller or game owner.
 
-- [ ] **Contextual and queued action extensions.** The [native capability audit](reference/player-actions.md)
+- [ ] **Contextual and queued action extensions.** The [native capability audit](developers/contracts/player-actions.md)
   identifies live menu opening that can execute an order, option execution without
   a menu-session token, and no explicit queued-job postcondition. Add guarded
   contextual/dropdown/reverse-designator requests only with exact current selection,
@@ -456,7 +453,7 @@ each bounded method.
   active maps with stale-map refusal. Two days of prepared-colony survival and
   cold-exposure readiness refusal are accepted; sustained seasonal survival and
   autonomous foothold coverage remain in B04. See the
-  [world progression procedure](how-to/world-progression.md) for exact scenario scope.
+  [world progression procedure](developers/testing/world-progression.md) for exact scenario scope.
 - [ ] **B30 · DLC gameplay systems.** Maintain an installed-content capability and
   acceptance matrix; B06b room coverage does not establish the associated gameplay.
   Discover native definitions and prerequisites, gate methods on actual colony need
@@ -588,11 +585,11 @@ Every chunk preserves these contracts:
 6. Preserve native discovery, normal pawn work, fresh placement/resource checks,
    bounded execution windows, durable recording and UI drafts/last-good data.
 
-Use the existing [controller](reference/controller-contracts.md),
-[action](reference/action-contracts.md), [recovery](reference/recovery-contracts.md),
-[persistence](reference/persistence-contracts.md),
-[session](reference/session-contracts.md) and
-[interface](reference/interface-contracts.md) contracts as behavioral requirements.
+Use the existing [controller](developers/contracts/controller-contracts.md),
+[action](developers/contracts/action-contracts.md), [recovery](developers/contracts/recovery-contracts.md),
+[persistence](developers/contracts/persistence-contracts.md),
+[session](developers/contracts/session-contracts.md) and
+[interface](developers/contracts/interface-contracts.md) contracts as behavioral requirements.
 Document deliberate corrections separately; Python output is comparison evidence,
 not an oracle that overrides those requirements.
 
@@ -866,9 +863,9 @@ impact and remaining manifest rows. Native waits use
 `rimgovernor.native_scenario.advance_game` while Python tooling remains; any Go-native
 replacement must first match its interruption and tick-budget acceptance. New
 Python script-based Docker runs use `scripts/container_scenario.py` and its dashboard
-helpers. Follow [test selection](how-to/choose-tests.md),
-[scenario launching](how-to/scenario-launcher.md) and
-[throughput measurement](how-to/measure-throughput.md).
+helpers. Follow [test selection](developers/testing/choose-tests.md),
+[scenario launching](developers/testing/scenario-launcher.md) and
+[throughput measurement](developers/testing/measure-throughput.md).
 
 Do not mark a chunk complete because code compiles, a schema generates or a native
 receipt succeeds. Complete it only when its stated behavioral gate is met. If
@@ -879,7 +876,7 @@ the independently accepted gated subchunk and keep the blocked acceptance open.
 
 This is the implementation plan for combining `integrations/headless-rim` and
 `integrations/colony-bridge` into one installable **RimGovernor** native mod and
-bringing its C# code under the [development process](how-to/development-process.md).
+bringing its C# code under the [development process](developers/development-process.md).
 The source-baseline slices below are landed; native compatibility acceptance and
 package implementation remain open. G01 owns the Go rewrite and canonical schema
 generation; N01 owns native packaging, implementation quality and game acceptance.
@@ -1186,7 +1183,7 @@ work. Later families follow consumer readiness. Refresh inventories and captured
 fixtures when concurrent gameplay fixes land; never overwrite them with an older
 copy during the move. Keep native package and Go controller cutovers independent.
 
-Follow [test selection](how-to/choose-tests.md): focused native/contract checks per
+Follow [test selection](developers/testing/choose-tests.md): focused native/contract checks per
 slice, full affected suites once before handoff; shared contract or packaging
 changes also require controller and dashboard suites. Add fast C# validator and
 state tests without licensed inputs where possible, then test real SDK wiring and
@@ -1204,7 +1201,7 @@ B-series sustained-survival gaps are not closed by packaging or refactoring.
 ## Development tooling
 
 - [ ] **DEV01 · Enforce the development standard incrementally.** Follow the
-  [development process](how-to/development-process.md). Audit existing enforcement
+  [development process](developers/development-process.md). Audit existing enforcement
   before adding checks. G01.01c owns Go formatting/vet/test/race/platform gates and
   G01.02 owns schema drift; keep those tasks there. Add scoped strict Python checking
   for retained tooling and changed typed boundaries, explicit TypeScript escape

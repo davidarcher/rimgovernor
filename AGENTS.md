@@ -13,13 +13,13 @@
 
 ## Architecture and implementation
 
-- Follow the [development process](docs/how-to/development-process.md): small verified
+- Follow the [development process](docs/developers/development-process.md): small verified
   slices, strict typed contracts and explicit component ownership. Integrate features
   through existing architecture; keep unstructured data at validated boundaries.
-- Start with the [documentation map](docs/README.md), [system overview](docs/explanation/overview.md),
-  [backlog](docs/BACKLOG.md) and [test selection](docs/how-to/choose-tests.md).
-  Read the linked explanation and reference for the subsystem being changed;
-  use task-specific how-to guides for commands. Runtime: Python, React,
+- Start with the [documentation map](docs/README.md), [system overview](docs/developers/architecture/overview.md),
+  [backlog](docs/BACKLOG.md) and [test selection](docs/developers/testing/choose-tests.md).
+  Read the component guide and contracts for the subsystem being changed;
+  use its testing page for commands. Runtime: Python, React,
   GABS/RimBridgeServer and `integrations/colony-bridge`.
 - Keep one shared goal/action system and deterministic Hands. Routine control is
   deterministic; player chat interprets explicit semantic requests. Advisers cannot
@@ -38,8 +38,8 @@
   bespoke start/poll/resume loops. Its default acknowledges inspected Ancient danger
   fixture warnings and preserves the remaining tick budget. Interruption acceptance
   passes `expected_letters=()`; unexpected stops remain failures with evidence.
-- Start with the [test selection guide](docs/how-to/choose-tests.md).
-  [Docker controller checks](docs/how-to/docker-checks.md)
+- Start with the [test selection guide](docs/developers/testing/choose-tests.md).
+  [Docker controller checks](docs/developers/testing/docker-checks.md)
   need no game files or model server; the separate native Docker runner needs
   licensed Linux inputs. Its current assertions cover lifecycle and optional
   rendered/input behavior; native pawn outcomes require scenario assertions.
@@ -58,19 +58,18 @@
   checks. Distinguish compilation/protocol checks from actual gameplay validation.
 - Never replace installed DLLs while any RimWorld instance is running, including
   another worktree's tests. Isolated tests must restore temporarily swapped DLLs.
-- Preserve source attribution in [THIRD_PARTY.md](THIRD_PARTY.md) and the integration
-  provenance files. Native changes need game-level acceptance.
+- Native changes need game-level acceptance.
 
 ## Documentation and comments
 
 - Keep prose and code comments concise and forward-looking. Explain current
   behavior, contracts, constraints and useful rationale; no design archeology,
   chronological implementation diaries or accounts of superseded approaches.
-- Organize docs by purpose: tutorials teach through an exercise, how-to guides
-  solve a task, reference states exact contracts, and explanation develops the
-  reader's understanding. Keep the [documentation map](docs/README.md) current.
+- Organize docs around players and developers. Give the reader the behavior,
+  commands or contracts needed for their task; link to detail and avoid repeating
+  shared rules. Keep the [documentation map](docs/README.md) current.
 - Keep all unfinished implementation, audit and acceptance work in
   `docs/BACKLOG.md`. Update architecture and procedures when behavior changes.
-- Put iteration evidence in commit messages and generated test artifacts. Preserve
-  required license/provenance records beside reused source.
+- Put iteration evidence in commit messages and generated test artifacts. Keep
+  applicable source and dependency notices beside retained code, without change diaries.
 - `AGENTS.md` is the source of these instructions; `CLAUDE.md` is a symlink to it.

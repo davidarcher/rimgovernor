@@ -1,81 +1,24 @@
-# RimGovernor documentation
+# RimGovernor docs
 
-RimGovernor connects a deterministic colony controller and local-model player chat to
-RimWorld. Both use the same durable plan and native execution path. Choose a starting
-point by what you want to do or understand.
+## For players
 
-| Your question | Start here |
-| --- | --- |
-| How should agents design, implement and land changes? | [Development process](how-to/development-process.md) |
-| Can I try the development workflow without installing the game? | [Tutorial: your first Docker test](tutorials/first-docker-test.md) |
-| How do I run, test or recover something? | [How-to guides](how-to/README.md) |
-| Which module, contract or artifact do I need? | [Technical reference](reference/README.md) |
-| Which names must match across an installation? | [Project identity](reference/project-identity.md) |
-| How do the internals fit together, and why? | [Explanation: the system overview](explanation/overview.md) |
-| What is unfinished? | [Project backlog](BACKLOG.md) |
-| How should agents sequence the Go rewrite? | [Go controller rewrite plan](BACKLOG.md#g01--go-controller-rewrite) |
-| How will the native mods merge and adopt strict C# contracts? | [Unified native mod plan](BACKLOG.md#n01--unified-rimgovernor-native-mod) |
-| Which Python surfaces must the Go rewrite cover? | [Migration inventories](../contracts/README.md) |
-| Which native exports, saved fields and loader boundaries must survive consolidation? | [Native compatibility inventories](../contracts/README.md#native-compatibility-baseline) |
-| How do I check the gated Go foundation? | [Go module](../go/README.md) |
+[Player guide](players/README.md): set up a colony, use the dashboard, direct
+automation and save your session.
 
-## Explore the internals
+- [Setup](players/setup.md) and [launch options](players/launch.md)
+- [Dashboard and controls](players/controls.md)
+- [Save and resume](players/save-and-resume.md)
 
-Start with the overview, then follow the topic that interests you. Each explanation
-introduces the idea before linking to the exact contracts and relevant source.
+## For developers
 
-1. [System overview](explanation/overview.md): who owns decisions, execution and simulation.
-2. [The control loop](explanation/control-loop.md): observations, priorities and verified progress.
-   [Upkeep contracts](reference/upkeep-contracts.md) cover native evidence and maintained jobs.
-3. [Plans and Hands](explanation/plans-and-hands.md): how a player request becomes ordinary game work.
-4. [Space and resources](explanation/space-and-resources.md): why valid plans need fresh native checks.
-5. [Sessions and recovery](explanation/sessions-and-recovery.md): identity, interruptions and paired saves.
-6. [The dashboard and game view](explanation/dashboard.md): colonist dossiers, presentation, video and player control.
-7. [Testing and evidence](explanation/testing.md): what each kind of test establishes.
+[Developer guide](developers/README.md): find the owner of a change, understand
+its contracts and run the relevant checks.
 
-[Needs-driven research](reference/research.md) defines queue and unlock verification.
+- [Architecture](developers/architecture/overview.md) and [source map](developers/source-map.md)
+- [Development workflow](developers/development-process.md)
+- [Testing](developers/testing/README.md) and [subsystem contracts](developers/contracts/README.md)
+- [Backlog](BACKLOG.md): unfinished features, migrations and acceptance
 
-## Find an operational guide
-
-- [Set up a Windows checkout](how-to/setup.md) and [launch a prepared colony](how-to/launch.md).
-- [Browse local development colonies](how-to/local-colonies.md) from one Docker directory dashboard.
-- [Launch an inspectable native scenario](how-to/scenario-launcher.md) with automatic dashboard ports.
-- [Choose checks](how-to/choose-tests.md), [run local checks](how-to/local-checks.md),
-  or [run focused/full Docker controller checks](how-to/docker-checks.md).
-- [Reuse a headless game between execution cases](how-to/headless-probes.md#reuse-one-game-between-execution-cases).
-- [Advance native scenario time and handle expected warnings](how-to/headless-probes.md#advance-a-native-scenario).
-- [Measure simulation, controller and local inference throughput](how-to/measure-throughput.md).
-- [Prepare/cache Linux inputs](how-to/docker-inputs.md) and [run native Docker acceptance](how-to/docker-native.md).
-- [Verify spatial construction, access and reuse](how-to/spatial-acceptance.md).
-- [Verify environmental observations and cooking fallback](how-to/docker-native.md#verify-environmental-observation-and-cooking-fallback).
-- [Verify compound disaster recovery](how-to/docker-native.md#verify-compound-disaster-recovery).
-- [Evaluate visual review and evidence recall](how-to/visual-reviews.md).
-- [Verify mood relief](how-to/mood-relief.md) against its [native recovery contracts](reference/mood-control.md).
-
-- [Verify medical care](how-to/medical-care-acceptance.md) against its [health and surgery contracts](reference/medical-care.md).
-- [Verify zone, bill and UI player actions](how-to/player-actions.md) against their [coverage contracts](reference/player-actions.md).
-- [Verify waste hauling and burial](how-to/waste-management.md) against their [containment contracts](reference/waste-management.md).
-- [Population commitments](reference/population-contracts.md) distinguish candidates, native custody and admitted colonists.
-- [Verify population outcomes in Docker](how-to/population-acceptance.md).
-- [Verify animal husbandry](how-to/husbandry-acceptance.md) against its [management contracts](reference/husbandry-contracts.md).
-- [Verify material extraction](how-to/mining-acceptance.md) against its [extraction contracts](reference/mining-contracts.md).
-- [Verify caravans, quests and survival evaluations](how-to/world-progression.md) and [understand world outcomes](explanation/world-progression.md).
-- [Save and resume](how-to/save-and-resume.md) or [inspect a failed run](how-to/inspect-failure.md).
-- [Verify policy trades](how-to/trade-acceptance.md) against actual goods and silver.
-- [Verify equipment upkeep](how-to/equipment-upkeep.md) and its [native contracts](reference/equipment-upkeep.md).
-
-The [how-to index](how-to/README.md) also covers domain acceptance, campaigns, model
-comparisons, video and persistence audits.
-
-## About these docs
-
-The structure follows [Divio's documentation
-system](https://docs.divio.com/documentation-system/): tutorials teach through a
-concrete exercise, how-to guides solve a task, reference defines current behavior, and
-explanation develops understanding. The backlog is the separate queue for unfinished
-work, not a description of available features.
-
-Contributor rules live in [AGENTS.md](../AGENTS.md). Add new material to its topic page
-and link across categories; keep procedures out of conceptual explanations and exact
-contract details out of introductory lessons. [ARCHITECTURE.md](ARCHITECTURE.md) and
-[TESTING.md](TESTING.md) remain short entry points for existing links.
+Keep docs close to the reader's task. Explain current behavior, give the commands
+or contracts they need, and link to detail. Put unfinished work in the backlog
+and implementation history in commits.

@@ -1,56 +1,40 @@
 # RimGovernor
 
-A local RimWorld colony controller with a React dashboard. Deterministic systems
-handle routine colony needs; a local model interprets explicit player chat and
-offers advice. Both use one durable plan and Hands executor through
-GABS/RimBridgeServer and the RimGovernor colony bridge companion. RimWorld owns the
-simulation and ordinary game rules.
+A local RimWorld colony controller. Autopilot handles routine colony needs;
+player chat uses a local model to turn requests into game work. The dashboard
+shows priorities, plans and colonists while RimWorld runs the simulation.
 
-## Start here
+## Play
 
-| You want to… | Read |
-| --- | --- |
-| Learn the development workflow without game files | [Your first Docker test](docs/tutorials/first-docker-test.md) |
-| Set up or launch the application | [Windows setup](docs/how-to/setup.md) · [Launch a prepared colony](docs/how-to/launch.md) |
-| Understand the internals | [System overview](docs/explanation/overview.md), then [plans and Hands](docs/explanation/plans-and-hands.md) |
-| Find a command, contract or module | [How-to guides](docs/how-to/README.md) · [Technical reference](docs/reference/README.md) |
-| See remaining work | [Backlog](docs/BACKLOG.md) |
-
-The [documentation home](docs/README.md) offers a reading path through the
-internals and separates tutorials, how-to guides, reference and explanation.
-
-## Launch an existing setup
+Start with [setup](docs/players/setup.md), then launch from the repository root:
 
 ```powershell
 .\launch.cmd
 ```
 
-The dashboard opens at [localhost:8787](http://127.0.0.1:8787) in Manual mode.
-The launcher starts the prepared isolated colony or reuses a running native
-bridge session. A clean checkout first needs the licensed game, native mods,
-GABS and the prepared fixture described in [setup](docs/how-to/setup.md).
-Autopilot requires no inference; player chat needs the configured local model
-loaded in LM Studio.
+Open [the dashboard](http://127.0.0.1:8787). It starts in Manual; choose Automate
+to enable routine control. Autopilot needs no model. Chat needs the configured
+model loaded in LM Studio.
 
-Application, mod, profile and checkpoint names must match the
-[RimGovernor deployment identity](docs/reference/project-identity.md). Use a fresh
-prepared profile when changing deployment identities; existing artifacts are not
-automatically migrated.
+This is a development setup requiring licensed RimWorld files, native mods,
+GABS and a prepared save. See the [player guide](docs/players/README.md) for
+controls, saving and troubleshooting. Broader survival coverage remains in the
+[backlog](docs/BACKLOG.md).
 
-## Work on the project
+## Develop
 
-Follow [AGENTS.md](AGENTS.md), then [choose checks](docs/how-to/choose-tests.md)
-for the change. To run Linux controller tests without a local project environment:
+Use the [developer guide](docs/developers/README.md) to find the architecture,
+source and checks for your change. Python runs the controller, React/TypeScript
+runs the dashboard, and C# supplies native game tools through GABS/RimBridgeServer.
+The Go controller and unified native mod work remain gated in the backlog.
+
+You can run checks without installing the game:
 
 ```powershell
 python scripts/container_checks.py --workers 1 --image rimgovernor-checks:my-task --output .rimgovernor/docker-checks-01
 ```
 
-Use Python 3.12+, a running Linux Docker daemon and a new output directory.
-[Docker instructions](docs/how-to/docker-checks.md) cover artifacts and focused
-tests; [native Docker acceptance](docs/how-to/docker-native.md) runs actual games.
+Requires Python 3.12+ and Linux Docker. Use a fresh output directory. See
+[Docker checks](docs/developers/testing/docker-checks.md) for focused runs and results.
 
-Native receipts describe accepted orders, not completed pawn labor. The
-[testing explanation](docs/explanation/testing.md) defines the evidence boundaries.
-Source attribution and licenses remain in [THIRD_PARTY.md](THIRD_PARTY.md) and the
-integration provenance files. RIMAPI is not a supported runtime backend.
+[All docs](docs/README.md) · [Working agreement](AGENTS.md)
