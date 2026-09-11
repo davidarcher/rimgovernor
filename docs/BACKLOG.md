@@ -811,6 +811,11 @@ only intentional small, sanitized regression fixtures belong in source control.
   check of explicit player requests. Assert zero inference for routine events.
   Transport/budget work depends on 02a.1; plan submission depends on 04/06, and each
   command family waits for its 07 handler.
+  - [ ] **08a.1:** local-only HTTP chat transport, bounded responses, streaming,
+    cancellation and explicit errors. Owner: integrator; depends on 02a.1. No
+    plan submission, provider fallback or routine-control inference.
+  - [ ] **08a.2:** prompt/context budgets and structured semantic validation.
+    Owner: model agent; depends on 08a.1 and 04a for command types.
 
 - [ ] **G01.09 — Dashboard API and presentation parity.** Owner: server agent.
   Split 09a cached HTTP/events and command endpoints, 09b player ownership/camera,
