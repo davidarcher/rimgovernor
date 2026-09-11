@@ -60,6 +60,23 @@ A failed drain requires retaining the process lock, bridge and database until a
 later successful drain. Native write acceptance and the explicit player runtime
 entry point remain tracked under G01.06.
 
+## Isolated building acceptance
+
+Build `./internal/buildingruntime/cmd/buildingsmoke` for the native scenario host.
+`--mode place --execute` requires absolute `--gabs`, `--config`, `--profile`,
+`--state`, `--request` and fresh `--output` paths plus the configured `--game`.
+The profile is the shared running game's real profile directory. The state file
+must be new. The request is one official ProtoJSON `PlacementCandidate` naming
+an observed site and material. Place performs one guarded dispatch and closes its
+lease; acceptance of a receipt does not establish completed construction.
+
+The scenario advances ordinary pawn work, then runs `--mode observe` with the same
+state/profile/game paths and a new output directory, omitting `--execute` and
+`--request`. This reopens the Go journal and observes the exact attempt without
+acquiring a write lease. It succeeds only on correlated completed construction.
+`--force-takeover` is for an explicitly coordinated GABS fixture handoff. Both
+modes retain raw call evidence and a report; neither starts a game or advances ticks.
+
 ## Optional evidence replay
 
 ```powershell
