@@ -13,6 +13,10 @@ with these arguments:
 The executable loads the actual compiled adapter and official generated messages.
 It checks request presence and parser errors, explicit evaluated refusal, material
 unavailability, complete geometry validation and oversized-response refusal.
-It creates no Game and seeds no native definitions. SDK binder/envelope checks are
-in the sibling native-proto-boundary suite; game placement, stock scans and absence
+It also invokes the actual SDK argument binder against the production method and
+its root dictionary normalizer against ProtoBoundary.Encode. Missing and malformed
+raw values must reach boundary validation without SDK coercion. The binder is not
+a full journal invocation. The sibling native-proto-boundary suite uses explicit
+journal/game seams to check parsing and identity refusal. This suite creates no
+Game and seeds no native definitions; game placement, stock scans and absence
 of clock/camera/order changes require the separate native acceptance run.

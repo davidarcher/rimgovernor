@@ -1,9 +1,11 @@
 #nullable enable
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 
 // Exercises the actual compiled production mapper and official protobuf classes.
 // No game is created, no static definition database is seeded, no native outcome claimed.
@@ -114,7 +116,38 @@ internal static class Program
         var oversized = Wire("RimGovernor.Protocol.Placement.PlacementReply", "{\"failure\":{\"code\":\"FAILURE_CODE_UNAVAILABLE\",\"detail\":\"" + new string('x', 1024 * 1024) + "\"}}");
         var bounded = mapper.GetMethod("Bounded", Members)!.Invoke(null, new[] { oversized })!;
         Assert(Get(Get(bounded, "Failure"), "Code").ToString() == "CapacityExhausted", "oversized result explicitly fails");
+        CheckSdk(directories, bounded, request(row));
         Console.WriteLine(checks + " compiled placement protocol assertions passed; no gameplay assertions.");
         return 0;
+    }
+
+    private static void CheckSdk(string[] directories, object reply, string valid)
+    {
+        var serverPath = directories.Select(d => Path.Combine(d, "RimBridgeServer.dll")).First(File.Exists);
+        var server = Assembly.LoadFrom(serverPath);
+        var provider = server.GetType("RimBridgeServer.AnnotatedExtensionCapabilityProvider", true)!;
+        var binder = provider.GetMethod("BindArguments", Members)!;
+        var method = bridge.GetType("HomeBridge.BridgeTools.PlacementPreviewsTools", true)!.GetMethod("Preview")!;
+        var newtonsoft = Assembly.Load("Newtonsoft.Json");
+        var values = new object?[] { valid, new List<object>(), new Dictionary<string, object>(),
+            Activator.CreateInstance(newtonsoft.GetType("Newtonsoft.Json.Linq.JArray", true)!),
+            Activator.CreateInstance(newtonsoft.GetType("Newtonsoft.Json.Linq.JObject", true)!), null, 17, true };
+        foreach (var value in values)
+        {
+            var arguments = new Dictionary<string, object?> { ["request"] = value };
+            var bound = (object[])binder.Invoke(null, new object?[] { method, arguments, null, CancellationToken.None })!;
+            Assert(ReferenceEquals(bound[2], value), "Actual SDK preserves raw request without coercion/exception");
+        }
+        var missing = (object[])binder.Invoke(null, new object?[] {
+            method, new Dictionary<string, object>(), null, CancellationToken.None })!;
+        Assert(missing[2] == null, "Actual SDK passes missing optional CLR request to validation");
+        var boundary = bridge.GetType("HomeBridge.BridgeTools.ProtoBoundary", true)!;
+        var envelope = boundary.GetMethod("Encode", Members)!.Invoke(null, new[] { reply })!;
+        var normalize = server.GetType("RimBridgeServer.LegacyToolExecution", true)!.GetMethod("ToDictionary", Members)!;
+        var normalized = (IDictionary)normalize.Invoke(null, new[] { envelope })!;
+        Assert(normalized.Count == 1 && normalized.Contains("payload") && normalized["payload"] is string,
+            "Actual SDK retains sole ProtoJSON payload field, no reflected generated CLR union");
+        var decoded = Wire("RimGovernor.Protocol.Placement.PlacementReply", (string)normalized["payload"]!);
+        Assert(Get(Get(decoded, "Failure"), "Code").ToString() == "CapacityExhausted", "SDK payload roundtrips with official parser");
     }
 }
