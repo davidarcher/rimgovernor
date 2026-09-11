@@ -1,4 +1,4 @@
-// Package httpapi exposes bounded local read views. It has no mutation interface.
+// Package httpapi exposes bounded local views and explicitly configured player controls.
 package httpapi
 
 import (
@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// Providers return owned snapshots and must honor request cancellation. API reads
-// do not trigger inference, native mutations, or implicit observation refreshes.
+// Snapshot providers return owned snapshots and honor request cancellation.
+// Reading a cached snapshot does not trigger inference or native refreshes.
 type SnapshotProvider interface {
 	Snapshot(context.Context) (Snapshot, error)
 }
@@ -34,6 +34,7 @@ type Config struct {
 	AssetsDir                    string
 	ReadTimeout, ShutdownTimeout time.Duration
 	MaxResponseBytes             int
+	Presentation                 PresentationReader
 }
 type State struct {
 	SessionID    string         `json:"sessionId"`

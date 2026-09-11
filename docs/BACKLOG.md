@@ -1017,6 +1017,10 @@ only intentional small, sanitized regression fixtures belong in source control.
       on 03/04. Preserve requested, unavailable and complete sections separately;
       validate bounded fixed notification replies. Reads cannot acknowledge,
       dismiss, select or resume play. Native presentation acceptance follows.
+    - [ ] **09c.3:** local HTTP camera/selection/current-map roster reads using
+      the attached service client. Owner: HTTP agent; depends on 09c.1. Bind each
+      request to a fresh known world and preserve official ProtoJSON presence.
+      Reuse local-origin and response bounds; retain no input capability.
   - [ ] **09d:** trusted host lifecycle admission for save/load. Owner: integrator;
     depends on 06 and supported owned-resource cleanup. Bind the actual attached
     instance and current player direction, join writers, complete draft/input
