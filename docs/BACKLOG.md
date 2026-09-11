@@ -1009,6 +1009,10 @@ only intentional small, sanitized regression fixtures belong in source control.
       bridge agent; depends on 03/04. Reuse fixed presentation RPCs, preserve
       optional facts and bounded listing completeness. No capture or input
       capability; transport tests do not establish rendered native acceptance.
+    - [ ] **09c.2:** typed letter/message/alert reads. Owner: bridge agent; depends
+      on 03/04. Preserve requested, unavailable and complete sections separately;
+      validate bounded fixed notification replies. Reads cannot acknowledge,
+      dismiss, select or resume play. Native presentation acceptance follows.
   - [ ] **09d:** trusted host lifecycle admission for save/load. Owner: integrator;
     depends on 06 and supported owned-resource cleanup. Bind the actual attached
     instance and current player direction, join writers, complete draft/input
