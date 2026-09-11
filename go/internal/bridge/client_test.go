@@ -363,3 +363,51 @@ func TestReadDeadlineAndOversizedWireResult(t *testing.T) {
 		t.Fatalf("oversized result: %v", err)
 	}
 }
+
+type blockedTransport struct{ entered chan struct{} }
+
+func (b blockedTransport) Connect(ctx context.Context) (mcp.Connection, error) {
+	close(b.entered)
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+func TestConcurrentReconnectHonorsContextAndClose(t *testing.T) {
+	s := &testServer{}
+	factory := s.factory(t)
+	entered := make(chan struct{})
+	count := 0
+	client, err := open(context.Background(), "fixture", time.Second, func() mcp.Transport {
+		count++
+		if count == 1 {
+			return factory()
+		}
+		return blockedTransport{entered: entered}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	done := make(chan error, 1)
+	go func() { done <- client.Reconnect(context.Background()) }()
+	<-entered
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := client.Reconnect(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("queued reconnect ignored context: %v", err)
+	}
+	if err := client.Close(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("close did not cancel reconnect: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("close left initialization running")
+	}
+	if count != 2 {
+		t.Fatal("canceled reconnect launched a process")
+	}
+}

@@ -101,7 +101,7 @@ type liveSession struct {
 // Client owns a single session. Calls are serialized; Close cancels in-flight and
 // queued work. Reconnect is explicit and never repeats a native call.
 type Client struct {
-	lifecycle  sync.Mutex
+	lifecycle  chan struct{}
 	mu         sync.Mutex
 	live       *liveSession
 	closed     bool
@@ -141,7 +141,7 @@ func open(ctx context.Context, gameID string, timeout time.Duration, factory tra
 	if timeout < time.Millisecond || timeout > 120*time.Second {
 		return nil, fmt.Errorf("%w: timeout outside 1ms..120s", ErrContract)
 	}
-	c := &Client{factory: factory, gameID: gameID, timeout: timeout, gate: make(chan struct{}, 1)}
+	c := &Client{factory: factory, gameID: gameID, timeout: timeout, gate: make(chan struct{}, 1), lifecycle: make(chan struct{}, 1)}
 	if err := c.Reconnect(ctx); err != nil {
 		return nil, err
 	}
@@ -170,14 +170,23 @@ func (c *Client) Close() error {
 		c.live.cancel()
 	}
 	c.mu.Unlock()
-	c.lifecycle.Lock()
-	defer c.lifecycle.Unlock()
+	c.lifecycle <- struct{}{}
+	defer func() { <-c.lifecycle }()
 	return c.closeLive()
 }
 
 func (c *Client) Reconnect(ctx context.Context) error {
-	c.lifecycle.Lock()
-	defer c.lifecycle.Unlock()
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+	select {
+	case c.lifecycle <- struct{}{}:
+		defer func() { <-c.lifecycle }()
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	c.mu.Lock()
 	closed := c.closed
 	c.mu.Unlock()
@@ -187,8 +196,6 @@ func (c *Client) Reconnect(ctx context.Context) error {
 	if err := c.closeLive(); err != nil {
 		return fmt.Errorf("%w: close old session: %w", ErrTransport, err)
 	}
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
