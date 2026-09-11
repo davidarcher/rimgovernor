@@ -17,9 +17,10 @@ namespace HomeBridge.BridgeTools
         internal readonly Map Map;
         internal readonly Pawn Attacker, Target;
         internal readonly Job Job;
+        internal readonly int JobId;
         internal readonly Func<bool> Guard;
         internal NativeCombatDamageRecord(Game game, Pawn attacker, Pawn target, Job job, Func<bool> guard)
-        { Game=game; Map=target.Map; Attacker=attacker; Target=target; Job=job; Guard=guard; }
+        { Game=game; Map=target.Map; Attacker=attacker; Target=target; Job=job; JobId=job.loadID; Guard=guard; }
         internal bool ObservedDamage { get; private set; }
         internal bool CausedDowning { get; private set; }
         internal bool CausedDeath { get; private set; }
@@ -102,7 +103,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var record in target.Records) {
                     if (record.CausedDeath || record.Game!=Current.Game || record.Map!=Find.CurrentMap
                         || record.Map!=victim.Map || dinfo.Instigator!=record.Attacker || record.Attacker.CurJob!=record.Job
-                        || record.Job.def!=JobDefOf.AttackMelee || record.Job.targetA.Thing!=victim) continue;
+                        || record.Job.loadID!=record.JobId || record.Job.def!=JobDefOf.AttackMelee || record.Job.targetA.Thing!=victim) continue;
                     if (!record.Guard()) continue;
                     if (__state==null) __state=new List<PendingDamage>();
                     __state.Add(new PendingDamage {Record=record,Target=target,Sequence=sequence,WasDead=victim.Dead,WasDowned=victim.Downed});
