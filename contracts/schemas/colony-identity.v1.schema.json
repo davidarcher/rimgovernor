@@ -1,0 +1,17 @@
+{
+ "$schema":"https://json-schema.org/draft/2020-12/schema",
+ "$id":"urn:rimgovernor:colony-identity:1",
+ "title":"ColonyIdentity",
+ "description":"Selected documented fields of home/colony_identity. The adapter retains the complete native receipt separately; operation metadata is not part of this projection.",
+ "type":"object","additionalProperties":false,
+ "required":["success","colonyId","loadToken","mapId","tick","observationBatchVersion","placementPreviewBatchVersion"],
+ "properties":{
+  "success":{"type":"boolean"},
+  "colonyId":{"type":"string","x-maxUTF16Length":256,"x-nonBlankDotNet":true},
+  "loadToken":{"type":"string","x-maxUTF16Length":256,"x-nonBlankDotNet":true},
+  "mapId":{"type":"integer","minimum":0,"maximum":2147483647,"x-integerToken":true},
+  "tick":{"type":"integer","minimum":0,"maximum":2147483647,"x-integerToken":true},
+  "observationBatchVersion":{"type":"integer","minimum":0,"maximum":2147483647,"x-integerToken":true},
+  "placementPreviewBatchVersion":{"type":"integer","minimum":0,"maximum":2147483647,"x-integerToken":true}
+ }
+}
