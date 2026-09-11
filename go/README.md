@@ -56,6 +56,16 @@ same resource policy as Hands and authoritative competing reservations. Actions
 remain pending until fresh Hands admission. Completed geometry yields to fresh
 native placement observations rather than permanently claiming map coordinates.
 
+`Store.ReviewRoutine` commits explicit deficit/unknown/recovered assessments and
+food, wood and temperature latch history with all maintained-goal reviews in one
+transaction. A review cursor rejects stale writers. Manual invalidates linked
+work without needing valid native facts; world/direction changes and tick rewinds
+give subsequent goals new identities while preserving old action evidence and
+player cancellations. Unknown threats suspend new routine work until observed safe.
+Manual and direction changes retain recovery targets; world replacement and tick
+rewinds reset latches. Goal and plan catalogs remain bounded; history retirement
+is still required before sustained routine operation.
+
 These components are gated prerequisites. They do not read the game, acquire
 authority or issue orders. Routine review orchestration, native fact projection,
 method selection and runtime composition remain in G01.05.

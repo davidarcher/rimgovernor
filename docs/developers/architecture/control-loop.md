@@ -50,4 +50,6 @@ The gated [Go routine components](../../../go/README.md#routine-policy-component
 persist maintained goals, method reservations and action dependencies. Building
 methods reserve all costs atomically against the shared journal; Hands rechecks
 native placement and observed predecessor completion before execution. Runtime
-review and method selection remain tracked in G01.05.
+composition and method selection remain tracked in G01.05. Go routine reviews
+persist need assessments and hysteresis together; missing facts cannot recover
+goals. Manual cancels pending work independently of observation availability.

@@ -77,9 +77,18 @@ func (g FootholdGates) Stable() bool {
 
 type RoutineLatches struct{ Food, Cold, Hot, Wood bool }
 type RoutineNeeds struct {
-	Gates   FootholdGates
-	Latches RoutineLatches
-	Goals   []DevelopmentGoal
+	Gates       FootholdGates
+	Latches     RoutineLatches
+	Goals       []DevelopmentGoal
+	Assessments []RoutineAssessment
+}
+
+// Assessments cover recovered and unknown needs as well as actionable deficits.
+// Absence from the scheduling list is never evidence of recovery.
+type RoutineAssessment struct {
+	ID       GoalID
+	Priority int
+	Need     domain.NeedState
 }
 
 func positive(v domain.Fact[bool]) bool { b, k := v.Value(); return k && b }
@@ -252,5 +261,40 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			r.Goals[len(r.Goals)-1].Deficit = domain.Known(max(0, float64(p.WoodTarget-n)/float64(p.WoodTarget)))
 		}
 	}
+	addAssessment := func(id GoalID, priority int, recovered domain.Fact[bool]) {
+		need := domain.NeedUnknown
+		if value, known := recovered.Value(); known {
+			need = domain.NeedDeficit
+			if value {
+				need = domain.NeedRecovered
+			}
+		}
+		r.Assessments = append(r.Assessments, RoutineAssessment{id, priority, need})
+	}
+	not := func(f domain.Fact[bool]) domain.Fact[bool] { return measured(f, func(v bool) bool { return !v }) }
+	// A retained latch with missing input preserves history, not fresh evidence.
+	latchRecovered := func(active bool, observed domain.Fact[float64]) domain.Fact[bool] {
+		return measured(observed, func(float64) bool { return !active })
+	}
+	addAssessment(ConfirmColonyNames, 0, not(f.ColonyNaming))
+	addAssessment(ActiveCombat, 0, measured(f.Hostiles, func(n int64) bool { return n == 0 }))
+	medicalPriority := 1
+	if positive(f.AllPatientsResting) {
+		if n, k := f.CriticalPatients.Value(); k && n > 0 {
+			medicalPriority = 2
+		}
+	}
+	addAssessment(CriticalMedicine, medicalPriority, g.Medical)
+	addAssessment(RestoreWorkers, 1, not(f.CleanupPawns))
+	addAssessment(AllowStartingSupplies, 2, not(f.ForbiddenSupplies))
+	addAssessment(EnsureWorkAssignments, 2, g.Work)
+	addAssessment(EnsureFoodSupply, 2, allFacts(g.Food, g.Production, measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 }), latchRecovered(l.Food, f.FoodDays)))
+	addAssessment(EnsureInitialShelter, 2, allFacts(g.Shelter, g.Sleeping))
+	addAssessment(EnsureTemperatureSafety, 2, allFacts(g.Temperature, latchRecovered(l.Cold, fallback(f.SleepingMin, f.OutdoorTemperature)), latchRecovered(l.Hot, fallback(f.SleepingMax, f.OutdoorTemperature))))
+	addAssessment(EnsureCooking, 2, g.Cooking)
+	addAssessment(EnsureBasicPower, 2, g.Power)
+	addAssessment(EnsureFoodStorage, 2, g.Storage)
+	addAssessment(EnsureBasicDefense, 3, g.Defense)
+	addAssessment(MaintainWood, 3, latchRecovered(l.Wood, wood))
 	return r, nil
 }

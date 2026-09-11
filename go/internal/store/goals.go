@@ -21,7 +21,8 @@ type GoalState struct {
 
 func initializeGoals(ctx context.Context, tx *sql.Tx) error {
 	_, err := tx.ExecContext(ctx, `CREATE TABLE goals(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL) STRICT;
-CREATE TABLE goal_methods(goal_id TEXT NOT NULL REFERENCES goals(id), epoch TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), PRIMARY KEY(goal_id,epoch,method_id)) STRICT;`)
+CREATE TABLE goal_methods(goal_id TEXT NOT NULL REFERENCES goals(id), epoch TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), PRIMARY KEY(goal_id,epoch,method_id)) STRICT;
+CREATE TABLE routine_review(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;`)
 	return err
 }
 
@@ -37,8 +38,18 @@ func (s *Store) CreateGoal(ctx context.Context, g domain.Goal) error {
 		return err
 	}
 	defer tx.Rollback()
+	if err = createGoal(ctx, tx, g); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func createGoal(ctx context.Context, tx *sql.Tx, g domain.Goal) error {
+	if err := g.Validate(); err != nil {
+		return err
+	}
 	var count int
-	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM goals").Scan(&count); err != nil {
+	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM goals").Scan(&count); err != nil {
 		return err
 	}
 	if count >= 256 {
@@ -51,7 +62,7 @@ func (s *Store) CreateGoal(ctx context.Context, g domain.Goal) error {
 	if _, err = tx.ExecContext(ctx, "INSERT INTO goals(id,revision,payload) VALUES(?,?,?)", g.ID, "0", data); err != nil {
 		return conflict(err)
 	}
-	return tx.Commit()
+	return nil
 }
 
 func loadGoal(ctx context.Context, tx *sql.Tx, id domain.GoalID) (GoalState, error) {
