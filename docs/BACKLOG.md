@@ -1109,6 +1109,12 @@ only intentional small, sanitized regression fixtures belong in source control.
       - [ ] **07a.3c:** Hands handlers and Session/Worker composition. Owner:
         runtime agent; depends on 3b. Retain the draft through dependent actions,
         invalidate queued work on interruption and use exact owned cleanup.
+        - [ ] **07a.3c.1:** shared Hands melee handler with original-admission
+          reconciliation and two fresh policy inspections. Owner: executor agent;
+          depends on fixed 3b.3 interface and durable 3b.2 admission.
+        - [ ] **07a.3c.2:** typed native melee boundary and complete optional Session
+          composition. Owner: integrator; depends on 3c.1 and 3b.3. Preserve the
+          shared writer, explicit prerequisite claim and joined cleanup.
       - [ ] **07a.3d:** finite defense window and composed Go native acceptance.
         Owner: integrator; depends on 3c and 10a.2. Verify causal incapacitation,
         injury interruption, player override, uncertain restart and cleanup.
