@@ -5,8 +5,12 @@ export type ObservationState = {
   activePlanId: string | null;
 };
 export type BuildingPlan = {id: string; revision: string; actions: BuildingAction[]};
+const stages = ['pending', 'prepared', 'dispatched', 'awaiting_observation', 'completed', 'cancelled', 'unsuccessful'] as const;
+const effects = ['unknown', 'pending', 'completed', 'absent', 'unsuccessful'] as const;
+const unsuccessfulReasons = ['native_failure', 'cancelled', 'interrupted', 'expired', 'target_dead', 'outcome_not_achieved'] as const;
+export type UnsuccessfulReason = typeof unsuccessfulReasons[number];
 export type BuildingAction = {id: string; kind: 'building'; building: {defName: string; x: number; z: number; rotation: string; stuff: string};
-  progress: {stage: string; attempt: string; tick: number; unresolved: boolean; receipt: string | null; effect: string | null}};
+  progress: {stage: typeof stages[number]; attempt: string; tick: number; unresolved: boolean; receipt: string | null; effect: typeof effects[number] | null; unsuccessfulReason: UnsuccessfulReason | null}};
 
 // JSON responses are untrusted at this boundary; components consume concrete DTOs.
 function object(value: unknown): Record<string, unknown> {
@@ -17,7 +21,7 @@ function text(value: unknown): string {if (typeof value !== 'string' || value.le
 function bool(value: unknown): boolean {if (typeof value !== 'boolean') throw Error('Invalid flag in response'); return value;}
 function integer(value: unknown): number {if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) throw Error('Invalid number in response'); return value;}
 function optional<T>(value: unknown, read: (value: unknown) => T): T | null {return value === null ? null : read(value);}
-function oneOf(value: unknown, values: readonly string[]): string {const result = text(value); if (!values.includes(result)) throw Error('Unsupported response value'); return result;}
+function oneOf<T extends string>(value: unknown, values: readonly T[]): T {const result = text(value); const matched = values.find(candidate => candidate === result); if (matched === undefined) throw Error('Unsupported response value'); return matched;}
 function decimal(value: unknown): string {const result = text(value); if (!/^(0|[1-9][0-9]{0,19})$/.test(result)) throw Error('Invalid revision in response'); return result;}
 export function readObservation(raw: unknown): ObservationState {
   const root = object(raw), game = object(root.game), status = object(root.status);
@@ -37,12 +41,18 @@ export function readPlan(raw: unknown): BuildingPlan {
   const actions = root.actions.map((value: unknown): BuildingAction => {
     const action = object(value), building = object(action.building), progress = object(action.progress), id = text(action.id);
     if (action.kind !== 'building' || ids.has(id)) throw Error('Unsupported or repeated action'); ids.add(id);
+    const stage = oneOf(progress.stage, stages), effect = optional(progress.effect, v => oneOf(v, effects));
+    const unsuccessfulReason = optional(progress.unsuccessfulReason, v => oneOf(v, unsuccessfulReasons));
+    const unresolved = bool(progress.unresolved);
+    if ((effect === 'unsuccessful') !== (unsuccessfulReason !== null) ||
+      (effect === 'unsuccessful' && (unresolved || (stage !== 'unsuccessful' && stage !== 'cancelled'))) ||
+      (stage === 'unsuccessful' && effect !== 'unsuccessful')) throw Error('Inconsistent unsuccessful outcome');
     return {id, kind: 'building', building: {defName: text(building.defName), x: integer(building.x), z: integer(building.z),
       rotation: oneOf(building.rotation, ['north', 'east', 'south', 'west']), stuff: text(building.stuff)},
-      progress: {stage: oneOf(progress.stage, ['pending', 'prepared', 'dispatched', 'awaiting_observation', 'completed', 'cancelled']),
-        attempt: decimal(progress.attempt), tick: integer(progress.tick), unresolved: bool(progress.unresolved),
+      progress: {stage,
+        attempt: decimal(progress.attempt), tick: integer(progress.tick), unresolved,
         receipt: optional(progress.receipt, v => oneOf(v, ['accepted', 'refused', 'unknown'])),
-        effect: optional(progress.effect, v => oneOf(v, ['unknown', 'pending', 'completed', 'absent']))}};
+        effect, unsuccessfulReason}};
   });
   return {id: text(root.id), revision: decimal(root.revision), actions};
 }

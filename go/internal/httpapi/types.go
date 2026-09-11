@@ -87,12 +87,13 @@ type Building struct {
 	Stuff    string          `json:"stuff"`
 }
 type Progress struct {
-	Stage      domain.Stage     `json:"stage"`
-	Attempt    domain.AttemptID `json:"attempt,string"`
-	Tick       domain.Tick      `json:"tick"`
-	Unresolved bool             `json:"unresolved"`
-	Receipt    *domain.Receipt  `json:"receipt"`
-	Effect     *domain.Effect   `json:"effect"`
+	Stage              domain.Stage               `json:"stage"`
+	Attempt            domain.AttemptID           `json:"attempt,string"`
+	Tick               domain.Tick                `json:"tick"`
+	Unresolved         bool                       `json:"unresolved"`
+	Receipt            *domain.Receipt            `json:"receipt"`
+	Effect             *domain.Effect             `json:"effect"`
+	UnsuccessfulReason *domain.UnsuccessfulReason `json:"unsuccessfulReason"`
 }
 type Failure struct {
 	Code   string `json:"code"`

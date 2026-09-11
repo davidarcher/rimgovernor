@@ -108,6 +108,34 @@ func TestPlanReadsRealFreshStore(t *testing.T) {
 	if status != 200 || plan.Revision != spec.Revision() || len(plan.Actions) != 1 || plan.Actions[0].Building.DefName != "Wall" || plan.Actions[0].Progress.Stage != domain.Pending || plan.Actions[0].Progress.Receipt != nil {
 		t.Fatalf("incorrect plan: %s", body)
 	}
+	if plan.Actions[0].Progress.UnsuccessfulReason != nil || !strings.Contains(string(body), `"unsuccessfulReason":null`) {
+		t.Fatalf("unknown reason lost: %s", body)
+	}
+	ctx := context.Background()
+	scope := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Direction: 1, Plan: spec.ID(), Revision: spec.Revision()}
+	if _, err := database.Prepare(ctx, spec.ID(), action.ID(), scope, 10); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Dispatch(ctx, spec.ID(), action.ID(), scope, 10); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Cancel(ctx, spec.ID(), action.ID()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.Observe(ctx, spec.ID(), domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: scope, Tick: 10, Effect: domain.EffectUnsuccessful, Causality: domain.AfterDispatch, UnsuccessfulReason: domain.OutcomeNotAchieved}, scope); err != nil {
+		t.Fatal(err)
+	}
+	status, body = get(t, server.URL+"/api/plan?id=plan")
+	if err := json.Unmarshal(body, &plan); err != nil {
+		t.Fatal(err)
+	}
+	progress := plan.Actions[0].Progress
+	if status != 200 || progress.Stage != domain.Cancelled || progress.UnsuccessfulReason == nil || *progress.UnsuccessfulReason != domain.OutcomeNotAchieved || progress.Effect == nil || *progress.Effect != domain.EffectUnsuccessful || progress.Unresolved {
+		t.Fatalf("unsuccessful observation lost: %s", body)
+	}
+	if !strings.Contains(string(body), `"revision":"1152921504606846976"`) || !strings.Contains(string(body), `"attempt":"1"`) {
+		t.Fatalf("numeric identity changed: %s", body)
+	}
 	status, _ = get(t, server.URL+"/api/plan?id=missing")
 	if status != 404 {
 		t.Fatal(status)

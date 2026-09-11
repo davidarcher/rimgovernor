@@ -293,7 +293,7 @@ func plan(stored store.PlanState) (Plan, error) {
 		if view.Action != action.ID() || view.Plan != stored.Spec.ID() || view.Revision != stored.Spec.Revision() || view.Stage == "" {
 			return Plan{}, errors.New("mismatched plan progress")
 		}
-		result.Actions = append(result.Actions, Action{ID: action.ID(), Kind: action.Kind(), Building: Building{building.Definition(), building.Cell().X, building.Cell().Z, building.Rotation(), building.Stuff()}, Progress: Progress{view.Stage, view.Attempt, view.Tick, view.Unresolved, value(view.Receipt), value(view.Effect)}})
+		result.Actions = append(result.Actions, Action{ID: action.ID(), Kind: action.Kind(), Building: Building{building.Definition(), building.Cell().X, building.Cell().Z, building.Rotation(), building.Stuff()}, Progress: Progress{Stage: view.Stage, Attempt: view.Attempt, Tick: view.Tick, Unresolved: view.Unresolved, Receipt: value(view.Receipt), Effect: value(view.Effect), UnsuccessfulReason: value(view.UnsuccessfulReason)}})
 	}
 	return result, nil
 }

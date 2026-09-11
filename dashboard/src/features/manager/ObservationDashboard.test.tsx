@@ -5,7 +5,7 @@ import {afterEach,expect,it,vi} from 'vitest';
 import ObservationDashboard from './ObservationDashboard';
 import {readObservation,readPlan} from './observationData';
 const state={sessionId:'load-a',connected:true,mode:'manual',status:{label:'Colony observed'},identity:{colonyId:'colony-a',mapId:0,loadToken:'load-a'},game:{tick:42,paused:false,observedAt:'2026-09-10T12:00:00Z',stale:false},activePlanId:'plan-a'};
-const plan={id:'plan-a',revision:'9007199254740993',actions:[{id:'action-a',kind:'building',building:{defName:'Wall',x:2,z:3,rotation:'north',stuff:'Granite'},progress:{stage:'awaiting_observation',attempt:'1',tick:40,unresolved:true,receipt:'accepted',effect:null}}]};
+const plan={id:'plan-a',revision:'9007199254740993',actions:[{id:'action-a',kind:'building',building:{defName:'Wall',x:2,z:3,rotation:'north',stuff:'Granite'},progress:{stage:'awaiting_observation',attempt:'1',tick:40,unresolved:true,receipt:'accepted',effect:null,unsuccessfulReason:null}}]};
 const reply=(value:unknown)=>({ok:true,json:async()=>value});
 afterEach(()=>{cleanup();vi.useRealTimers();vi.unstubAllGlobals();});
 it('renders observed native facts and typed plan with no mutation controls',async()=>{
@@ -43,4 +43,31 @@ it('rejects malformed wire values instead of turning unknown values into facts',
  expect(()=>readObservation({...state,game:{...state.game,tick:Number.MAX_SAFE_INTEGER+1}})).toThrow();
  expect(()=>readPlan({...plan,actions:[{...plan.actions[0],kind:'tool'}]})).toThrow();
  expect(()=>readPlan({...plan,actions:[plan.actions[0],plan.actions[0]]})).toThrow();
+});
+
+function withProgress(progress: object) {return {...plan,actions:[{...plan.actions[0],progress:{...plan.actions[0].progress,...progress}}]};}
+it('preserves null reasons and validates closed unsuccessful outcomes',()=>{
+ expect(readPlan(plan).actions[0].progress.unsuccessfulReason).toBeNull();
+ for(const reason of ['native_failure','cancelled','interrupted','expired','target_dead','outcome_not_achieved']) {
+  const result=readPlan(withProgress({stage:'unsuccessful',effect:'unsuccessful',unresolved:false,unsuccessfulReason:reason}));
+  expect(result.actions[0].progress.unsuccessfulReason).toBe(reason);
+  expect(result.revision).toBe('9007199254740993');
+ }
+ for(const patch of [
+  {stage:'unsuccessful',effect:'unsuccessful',unresolved:false,unsuccessfulReason:'invented'},
+  {stage:'unsuccessful',effect:'unsuccessful',unresolved:false,unsuccessfulReason:null},
+  {unsuccessfulReason:'target_dead'}, {unsuccessfulReason:undefined},
+ ]) expect(()=>readPlan(withProgress(patch))).toThrow();
+});
+it.each(['cancelled','unsuccessful'])('shows unsuccessful evidence in %s stage and retains it on bad refresh',async(stage)=>{
+ vi.useFakeTimers();let invalid=false;
+ vi.stubGlobal('fetch',vi.fn(async(url:string)=>reply(url==='/api/state'?state:withProgress({stage,effect:'unsuccessful',unresolved:false,unsuccessfulReason:invalid?'invented':'outcome_not_achieved'}))));
+ await act(async()=>{render(<ObservationDashboard/>);});
+ expect(screen.getByText(stage==='cancelled'?'Cancelled':'Unsuccessful')).toBeVisible();
+ expect(screen.getByText('Expected outcome not achieved')).toBeVisible();
+ expect(screen.queryByText('Completion observed')).toBeNull();
+ invalid=true;await act(async()=>{await vi.advanceTimersByTimeAsync(1500);});
+ expect(screen.getByText('Expected outcome not achieved')).toBeVisible();
+ expect(screen.getByRole('status')).toHaveTextContent('Unsupported response value');
+ expect(screen.queryByRole('button')).toBeNull();
 });
