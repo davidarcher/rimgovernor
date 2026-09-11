@@ -841,7 +841,7 @@ only intentional small, sanitized regression fixtures belong in source control.
           - [ ] **06b.3b.5b:** joined building worker and explicit control coordinator.
             Owner: runtime agent; depends on 5a and 06b.3b.4a. Reconcile unknown
             attempts before dispatch; renew only an existing live acquisition.
-            - [ ] **06b.3b.5b.1:** expose current control state and synchronous local
+            - [x] **06b.3b.5b.1:** expose current control state and synchronous local
               disable for the player coordinator. Owner: runtime agent; depends
               only on 06b.3b.4a. Never expose lease secrets or issue native calls.
           - [ ] **06b.3b.5c:** typed player submission, Acquire and Manual HTTP
