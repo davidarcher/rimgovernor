@@ -30,6 +30,8 @@ export default function PlayerControls({observation, observationFresh}: {observa
   const lastWorld = useRef<World | null>(null), lifetime = useRef(new AbortController());
   if (observation?.identity) lastWorld.current = observation.identity;
   const sessionId = observation?.sessionId ?? '';
+  const worldKey = JSON.stringify(observation?.identity ?? null);
+  useEffect(() => {version.current++; setCurrentFresh(false);}, [worldKey]);
   useEffect(() => {mounted.current = true; lifetime.current = new AbortController(); return () => {mounted.current = false; lifetime.current.abort();};}, []);
   useEffect(() => {
     if (!sessionId) return;
@@ -58,7 +60,7 @@ export default function PlayerControls({observation, observationFresh}: {observa
       finally {if (!stopped) timer = setTimeout(poll, 1500);}
     };
     void poll(); return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
-  }, [token]);
+  }, [token, worldKey]);
   const fail = (reason: unknown, expected: number) => {
     if (!mounted.current) return;
     setError(message(reason));
@@ -95,13 +97,13 @@ export default function PlayerControls({observation, observationFresh}: {observa
     } catch (reason) {if (mounted.current && requestId && definiteRejection(reason)) {const rejected = requestId; setRejectedRequests(previous => [...previous, rejected]);} fail(reason, expected);} finally {busySubmit.current = false; if (mounted.current) setSubmitting(false);}
   };
   const acquire = async (selected: Submission | DraftSubmission) => {
-    if (!canAcquire(selected) || !token || busyAcquire.current) return;
+    if (!canAcquire(selected) || !token || busyAcquire.current && acquireIntent && sameWorld(acquireIntent.expected, selected.expected)) return;
     const expected = ++version.current;
     const request: AcquireRequest = {requestId: crypto.randomUUID(), expected: {...selected.expected}, planId: selected.planId, revision: selected.revision, expectedDirection: current?.record?.direction ?? '0'};
     if (acquireIntent) setHistory(previous => [...previous, {kind: 'acquire', request: acquireIntent, record: acquireRecord}]);
     activeRequests.current.acquire = request.requestId;
     busyAcquire.current = true; setAcquiring(true); setAcquireIntent(request); setAcquireRecord(null); setCurrentFresh(false); setError('');
-    try {showControl(await acquirePlan(token, request, signal()), request, 'acquire', expected);} catch (reason) {if (mounted.current && definiteRejection(reason)) setRejectedRequests(previous => [...previous, request.requestId]); fail(reason, expected);} finally {busyAcquire.current = false; if (mounted.current) setAcquiring(false);}
+    try {showControl(await acquirePlan(token, request, signal()), request, 'acquire', expected);} catch (reason) {if (mounted.current && definiteRejection(reason)) setRejectedRequests(previous => [...previous, request.requestId]); fail(reason, expected);} finally {if (activeRequests.current.acquire === request.requestId) {busyAcquire.current = false; if (mounted.current) setAcquiring(false);}}
   };
   const manual = async () => {
     if (!token || !lastWorld.current || busyManual.current) return;
@@ -147,12 +149,16 @@ export default function PlayerControls({observation, observationFresh}: {observa
   const freshWorld = observationFresh && observation?.connected && !observation.game.stale && observation.identity !== null;
   const sameSubmissionWorld = Boolean(submission && observation?.identity && sameWorld(submission.expected, observation.identity));
   const laterManual = current?.record?.kind === 'manual' && current.record.phase === 'disabled' && !current.state.enabled && acquireIntent !== null && sameWorld(current.record.expected, acquireIntent.expected) && BigInt(current.record.direction) > BigInt(acquireRecord?.direction ?? acquireIntent.expectedDirection);
-  const unresolvedAcquire = acquireIntent !== null && !rejectedRequests.includes(acquireIntent.requestId) && (!acquireRecord || ['pending', 'uncertain'].includes(acquireRecord.phase)) && !laterManual;
-  const canAcquire = (selected: Submission | DraftSubmission) => Boolean(token && freshWorld && currentFresh && observation?.identity && sameWorld(selected.expected, observation.identity) && !submitting && !draftSubmitting && !acquiring && !manualPending && !unresolvedAcquire);
+  const acquireInWorld = Boolean(acquireIntent && observation?.identity && sameWorld(acquireIntent.expected, observation.identity));
+  const unresolvedAcquire = acquireInWorld && acquireIntent !== null && !rejectedRequests.includes(acquireIntent.requestId) && (!acquireRecord || ['pending', 'uncertain'].includes(acquireRecord.phase)) && !laterManual;
+  const canAcquire = (selected: Submission | DraftSubmission) => Boolean(token && freshWorld && currentFresh && observation?.identity && sameWorld(selected.expected, observation.identity) && !submitting && !draftSubmitting && !(acquiring && acquireInWorld) && !manualPending && !unresolvedAcquire);
+  const generation = current?.state.generation;
+  const permissionWorldMatches = Boolean(generation && observation?.identity && sameWorld({colonyId: generation.colony, mapId: generation.map, loadToken: generation.load}, observation.identity));
+  const permissionFresh = currentFresh && freshWorld && (!current?.state.enabled || permissionWorldMatches);
   if (available !== true) return refreshError ? <section className="observation-panel building-controls" aria-label="Explicit player controls"><p role="alert">Player controls unavailable: {refreshError}. Retrying connection…</p></section> : null;
   return <section className="observation-panel building-controls" aria-label="Explicit player controls">
     <div className="building-control-heading"><h2>Player controls</h2><button type="button" onClick={() => void manual()} disabled={!token || !lastWorld.current || manualPending}>{manualPending ? 'Stopping…' : 'Manual — stop orders'}</button></div>
-    <p>{currentFresh ? current?.state.enabled ? 'Current permission: orders enabled' : 'Current permission: orders disabled' : 'Current permission unavailable or refreshing'}</p>
+    <p>{permissionFresh ? current?.state.enabled ? 'Current permission: orders enabled' : 'Current permission: orders disabled' : 'Current permission unavailable or refreshing'}</p>
     <p>Submit one building, then explicitly enable its plan. Native preview and normal game rules determine whether it can be placed.</p>
     <form onSubmit={event => {event.preventDefault(); void submit();}}>
       <div className="building-fields">{(['defName', 'stuff', 'x', 'z'] as const).map(field => <label key={field}>{({defName: 'Definition name', stuff: 'Material (optional)', x: 'Map X', z: 'Map Z'})[field]}<input value={draft[field]} type={field === 'x' || field === 'z' ? 'number' : 'text'} min={field === 'x' || field === 'z' ? 0 : undefined} step={field === 'x' || field === 'z' ? 1 : undefined} onChange={event => setDraft(previous => ({...previous, [field]: event.target.value}))}/></label>)}
@@ -160,7 +166,7 @@ export default function PlayerControls({observation, observationFresh}: {observa
       <button type="submit" disabled={!token || !freshWorld || submitting || Boolean(submitIntent && !submission && !rejectedRequests.includes(submitIntent.requestId))}>{submitting ? 'Submitting…' : 'Submit building plan'}</button>
     </form>
     {submitIntent && <p>Submission request: <code>{submitIntent.requestId}</code> {rejectedRequests.includes(submitIntent.requestId) && '· Rejected before admission'} <button type="button" disabled={submitting} onClick={() => void recoverSubmission()}>Check submission result</button></p>}
-    {submission && <div><h3>Submitted building</h3><p>{submission.building.defName} · {submission.building.stuff || 'No material specified'} · ({submission.building.x}, {submission.building.z}) · {submission.building.rotation}</p><p>Plan {submission.planId} · Revision {submission.revision}</p>{!sameSubmissionWorld && <p>This submission belongs to a different observed world.</p>}<button type="button" disabled={!canAcquire(submission)} onClick={() => void acquire(submission)}>{acquiring ? 'Acquiring…' : 'Enable this plan'}</button></div>}
+    {submission && <div><h3>Submitted building</h3><p>{submission.building.defName} · {submission.building.stuff || 'No material specified'} · ({submission.building.x}, {submission.building.z}) · {submission.building.rotation}</p><p>Plan {submission.planId} · Revision {submission.revision}</p>{!sameSubmissionWorld && <p>This submission belongs to a different observed world.</p>}<button type="button" disabled={!canAcquire(submission)} onClick={() => void acquire(submission)}>{acquiring && acquireInWorld ? 'Acquiring…' : 'Enable this plan'}</button></div>}
     <h3>Temporary draft</h3>
     <p>Submit an exact pawn ID, then enable its plan. This standalone plan releases its owned draft when it finishes. It does not keep the pawn drafted or undraft player orders.</p>
     <form onSubmit={event => {event.preventDefault(); void sendDraft();}}>
@@ -168,7 +174,7 @@ export default function PlayerControls({observation, observationFresh}: {observa
       <button type="submit" disabled={!token || !freshWorld || draftSubmitting || Boolean(draftIntent && !draftSubmission && !rejectedRequests.includes(draftIntent.requestId))}>{draftSubmitting ? 'Submitting draft…' : 'Submit temporary draft plan'}</button>
     </form>
     {draftIntent && <p>Draft submission request: <code>{draftIntent.requestId}</code> {rejectedRequests.includes(draftIntent.requestId) && 'Rejected before admission'} <button type="button" disabled={draftSubmitting} onClick={() => void recoverDraft()}>Check draft submission result</button></p>}
-    {draftSubmission && <div><h3>Submitted temporary draft</h3><p>Pawn {draftSubmission.draft.pawnId}</p><p>Plan {draftSubmission.planId} · Revision {draftSubmission.revision}</p>{observation?.identity && !sameWorld(draftSubmission.expected, observation.identity) && <p>This draft submission belongs to a different observed world.</p>}<button type="button" disabled={!canAcquire(draftSubmission)} onClick={() => void acquire(draftSubmission)}>{acquiring ? 'Draft acquisition unavailable' : 'Enable draft plan'}</button></div>}
+    {draftSubmission && <div><h3>Submitted temporary draft</h3><p>Pawn {draftSubmission.draft.pawnId}</p><p>Plan {draftSubmission.planId} · Revision {draftSubmission.revision}</p>{observation?.identity && !sameWorld(draftSubmission.expected, observation.identity) && <p>This draft submission belongs to a different observed world.</p>}<button type="button" disabled={!canAcquire(draftSubmission)} onClick={() => void acquire(draftSubmission)}>{acquiring && acquireInWorld ? 'Draft acquisition unavailable' : 'Enable draft plan'}</button></div>}
     {acquireIntent && <p>Acquire request: <code>{acquireIntent.requestId}</code> · Historical result: {acquireRecord?.phase ?? (acquireIntent && rejectedRequests.includes(acquireIntent.requestId) ? 'rejected before admission' : 'not yet known')} <button type="button" onClick={() => void recoverControl('acquire')}>Check acquire result</button></p>}
     {manualIntent && <p>Manual request: <code>{manualIntent.requestId}</code> · Historical result: {manualRecord?.phase ?? 'not yet known'} <button type="button" onClick={() => void recoverControl('manual')}>Check Manual result</button></p>}
     {rejectedRequests.filter(requestId => requestId !== submitIntent?.requestId && requestId !== draftIntent?.requestId && requestId !== acquireIntent?.requestId && !history.some(item => item.request.requestId === requestId)).map(requestId => <p key={requestId}>Rejected before admission: <code>{requestId}</code>. A new explicit request is allowed.</p>)}

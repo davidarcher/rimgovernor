@@ -196,3 +196,36 @@ it.each(['building','draft'])('shares pending %s acquisition, token, Manual and 
  expect(screen.getByText(/Previous acquire request:/)).toHaveTextContent('request-3');
  expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/session')).toHaveLength(1);
 });
+
+it('invalidates same-session old-world permission and permits a new-world plan using the global direction',async()=>{
+ const replacement={...world,loadToken:'replacement'};let finish:((value:Response)=>void)|undefined;
+ let latest:unknown={record:{requestId:'prior',kind:'acquire',expected:world,planId:'prior-plan',revision:'1',expectedDirection:'0',direction:'1',phase:'granted',nativeGeneration:'2'},state:{enabled:true,observationKnown:true,generation:{colony:world.colonyId,load:world.loadToken,map:0,direction:'1',plan:'prior-plan',revision:'1',native:'2'}},error:null};
+ const fetcher=setup(async(url,options)=>{
+  const request=JSON.parse(options.body as string);
+  if(url==='/api/buildings/plans'||url==='/api/drafts/plans')return response({...request,planId:url.includes('drafts')?'new-plan':'old-plan',actionId:'a',revision:'1'});
+  if(url==='/api/player/control/acquire'&&request.planId==='old-plan')return new Promise<Response>(resolve=>{finish=resolve;});
+  if(url==='/api/player/control/acquire')return response({record:{...request,kind:'acquire',direction:'4',phase:'uncertain',nativeGeneration:'0'},state,error:{code:'uncertain',detail:'Inspect new request'}},503);
+  throw Error(url);
+ },()=>latest);
+ const view=render(<PlayerControls observation={observation} observationFresh/>);await act(async()=>{});
+ expect(screen.getByText('Current permission: orders enabled')).toBeVisible();fill();
+ fireEvent.change(screen.getByLabelText('Pawn ID'),{target:{value:'Pawn_42'}});
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit building plan'}));});
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Enable this plan'}));});
+ // A fresh global journal can still belong to the previous world. Its direction remains the CAS.
+ latest={record:{requestId:'old-manual',kind:'manual',expected:world,planId:null,revision:'0',expectedDirection:'0',direction:'3',phase:'disabled',nativeGeneration:'0'},state,error:null};
+ await act(async()=>{view.rerender(<PlayerControls observation={{...observation,identity:replacement}} observationFresh/>);});
+ expect(screen.queryByText('Current permission: orders enabled')).toBeNull();
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Submit temporary draft plan'}));});
+ expect(screen.getByRole('button',{name:'Enable draft plan'})).toBeEnabled();
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Enable draft plan'}));});
+ expect(fetcher.mock.calls.filter(([url])=>url==='/api/player/control/acquire')).toHaveLength(2);
+ const body=JSON.parse(fetcher.mock.calls.filter(([url])=>url==='/api/player/control/acquire')[1][1]?.body as string);
+ expect(body).toMatchObject({expected:replacement,expectedDirection:'3',planId:'new-plan'});
+ await act(async()=>{finish?.(response({record:{requestId:'request-2',kind:'acquire',expected:world,planId:'old-plan',revision:'1',expectedDirection:'1',direction:'2',phase:'granted',nativeGeneration:'2'},state:{enabled:true,observationKnown:true,generation:{colony:world.colonyId,load:world.loadToken,map:0,direction:'2',plan:'old-plan',revision:'1',native:'2'}},error:null}));});
+ expect(screen.queryByText('Current permission: orders enabled')).toBeNull();
+ expect(screen.getByText(/Previous acquire request:/)).toHaveTextContent('request-2');
+ expect(screen.getByLabelText('Definition name')).toHaveValue('Wall');expect(screen.getByLabelText('Pawn ID')).toHaveValue('Pawn_42');
+ expect(screen.getByText('request-1')).toBeVisible();expect(screen.getByText('request-3')).toBeVisible();
+ expect(screen.getByRole('button',{name:'Enable draft plan'})).toBeDisabled();
+});
