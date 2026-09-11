@@ -125,14 +125,14 @@ func checkedControl(ctx context.Context, tx *sql.Tx, record ControlRecord, err e
 	}
 	if record.Request.Kind == AcquireControl {
 		var id string
-		if err = tx.QueryRowContext(ctx, "SELECT request_id FROM building_submissions WHERE plan_id=?", record.Request.Plan).Scan(&id); err != nil {
+		if err = tx.QueryRowContext(ctx, "SELECT request_id FROM submissions WHERE plan_id=?", record.Request.Plan).Scan(&id); err != nil {
 			return ControlRecord{}, err
 		}
-		submitted, err := lookupSubmission(ctx, tx, id)
+		submitted, err := lookupAnySubmission(ctx, tx, id)
 		if err != nil {
 			return ControlRecord{}, err
 		}
-		if submitted.Request.World != record.Request.World || submitted.Revision != record.Request.Revision {
+		if submitted.World != record.Request.World || submitted.Revision != record.Request.Revision {
 			return ControlRecord{}, errors.New("corrupt control submission")
 		}
 	}
@@ -169,16 +169,16 @@ func (s *Store) BeginControl(ctx context.Context, q ControlRequest) (ControlReco
 			return ControlRecord{}, false, ErrConflict
 		}
 		var submissionID string
-		if err = tx.QueryRowContext(ctx, "SELECT request_id FROM building_submissions WHERE plan_id=?", q.Plan).Scan(&submissionID); errors.Is(err, sql.ErrNoRows) {
+		if err = tx.QueryRowContext(ctx, "SELECT request_id FROM submissions WHERE plan_id=?", q.Plan).Scan(&submissionID); errors.Is(err, sql.ErrNoRows) {
 			return ControlRecord{}, false, ErrNotFound
 		} else if err != nil {
 			return ControlRecord{}, false, err
 		}
-		submitted, e := lookupSubmission(ctx, tx, submissionID)
+		submitted, e := lookupAnySubmission(ctx, tx, submissionID)
 		if e != nil {
 			return ControlRecord{}, false, e
 		}
-		if submitted.Request.World != q.World || submitted.Revision != q.Revision {
+		if submitted.World != q.World || submitted.Revision != q.Revision {
 			return ControlRecord{}, false, ErrConflict
 		}
 	}

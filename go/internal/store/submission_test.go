@@ -72,7 +72,7 @@ func TestSubmissionAtomicFailure(t *testing.T) {
 	if _, _, err := s.SubmitBuilding(ctx, submissionRequest(t, "request")); err == nil {
 		t.Fatal("trigger did not fail")
 	}
-	for _, table := range []string{"plans", "actions", "building_submissions"} {
+	for _, table := range []string{"plans", "actions", "submissions", "building_submissions"} {
 		var count int
 		if err := s.db.QueryRow("SELECT count(*) FROM " + table).Scan(&count); err != nil || count != 0 {
 			t.Fatal("partial transaction", table, count, err)

@@ -88,8 +88,11 @@ func (s *Store) SubmitBuilding(ctx context.Context, request SubmissionRequest) (
 	if err = createPlan(ctx, tx, plan); err != nil {
 		return Submission{}, false, err
 	}
+	if err = insertSubmissionHeader(ctx, tx, request.RequestID, "building", request.World, result.Plan, result.Action); err != nil {
+		return Submission{}, false, err
+	}
 	b := request.Building
-	if _, err = tx.ExecContext(ctx, "INSERT INTO building_submissions(request_id,colony,load_token,map_id,definition,x,z,rotation,stuff,plan_id,action_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)", request.RequestID, request.World.Colony, request.World.Load, request.World.Map, b.Definition(), b.Cell().X, b.Cell().Z, b.Rotation(), b.Stuff(), result.Plan, result.Action); err != nil {
+	if _, err = tx.ExecContext(ctx, "INSERT INTO building_submissions(request_id,definition,x,z,rotation,stuff) VALUES(?,?,?,?,?,?)", request.RequestID, b.Definition(), b.Cell().X, b.Cell().Z, b.Rotation(), b.Stuff()); err != nil {
 		return Submission{}, false, conflict(err)
 	}
 	if err = tx.Commit(); err != nil {
@@ -116,17 +119,22 @@ func (s *Store) LookupSubmission(ctx context.Context, requestID string) (Submiss
 	return result, nil
 }
 func lookupSubmission(ctx context.Context, tx *sql.Tx, id string) (Submission, error) {
-	result := Submission{Request: SubmissionRequest{RequestID: id}, Revision: 1}
+	h, err := lookupSubmissionHeader(ctx, tx, id, "building")
+	if err != nil {
+		return Submission{}, err
+	}
+	result := Submission{Request: SubmissionRequest{RequestID: id, World: h.World}, Revision: h.Revision, Plan: h.Plan, Action: h.Action}
 	var definition, stuff string
 	var cell domain.Cell
 	var rotation domain.Rotation
-	err := tx.QueryRowContext(ctx, "SELECT colony,load_token,map_id,definition,x,z,rotation,stuff,plan_id,action_id FROM building_submissions WHERE request_id=?", id).Scan(&result.Request.World.Colony, &result.Request.World.Load, &result.Request.World.Map, &definition, &cell.X, &cell.Z, &rotation, &stuff, &result.Plan, &result.Action)
+	err = tx.QueryRowContext(ctx, "SELECT definition,x,z,rotation,stuff FROM building_submissions WHERE request_id=?", id).Scan(&definition, &cell.X, &cell.Z, &rotation, &stuff)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Submission{}, ErrNotFound
 	}
 	if err != nil {
 		return Submission{}, err
 	}
+
 	result.Request.Building, err = domain.NewBuilding(definition, cell, rotation, stuff)
 	if err != nil {
 		return Submission{}, err

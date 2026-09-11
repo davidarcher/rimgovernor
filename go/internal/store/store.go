@@ -1,4 +1,4 @@
-// Package store persists fresh Go building plans and validated domain transitions.
+// Package store persists fresh Go plans and validated domain transitions.
 package store
 
 import (
@@ -21,7 +21,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 5
+const schemaVersion = 6
 const applicationID = 0x52474f31
 
 var ErrConflict = errors.New("plan or action identity already exists")
@@ -33,9 +33,10 @@ type Store struct{ db *sql.DB }
 // It is independent of HTTP process sessions and survives controller restarts.
 type ControllerSessionID string
 type PlanState struct {
-	Spec       domain.PlanSpec
-	Progress   []domain.Progress
-	Admissions []ActionAdmission
+	Spec            domain.PlanSpec
+	Progress        []domain.Progress
+	Admissions      []ActionAdmission
+	DraftAdmissions []ActionDraftAdmission
 }
 
 // Open accepts a filesystem path, never a caller-supplied SQLite connection URI.
@@ -113,11 +114,14 @@ func (s *Store) initialize(ctx context.Context) error {
 		}
 		_, err = tx.ExecContext(ctx, `CREATE TABLE metadata(singleton INTEGER PRIMARY KEY CHECK(singleton=1), controller_session_id TEXT NOT NULL);
 CREATE TABLE plans(id TEXT PRIMARY KEY, revision TEXT NOT NULL);
-CREATE TABLE actions(id TEXT PRIMARY KEY, plan_id TEXT NOT NULL REFERENCES plans(id), ordinal INTEGER NOT NULL, definition TEXT NOT NULL, x INTEGER NOT NULL, z INTEGER NOT NULL, rotation TEXT NOT NULL, stuff TEXT NOT NULL, UNIQUE(plan_id,ordinal));
+CREATE TABLE actions(id TEXT PRIMARY KEY, plan_id TEXT NOT NULL REFERENCES plans(id), ordinal INTEGER NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('building','owned_draft')), definition TEXT, x INTEGER, z INTEGER, rotation TEXT, stuff TEXT, pawn TEXT, CHECK((kind='building' AND definition IS NOT NULL AND x IS NOT NULL AND z IS NOT NULL AND rotation IS NOT NULL AND stuff IS NOT NULL AND pawn IS NULL) OR (kind='owned_draft' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL)), UNIQUE(plan_id,ordinal)) STRICT;
 CREATE TABLE transitions(sequence INTEGER PRIMARY KEY, action_id TEXT NOT NULL REFERENCES actions(id), payload BLOB NOT NULL);
 CREATE TABLE admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL);
+CREATE TABLE draft_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
+CREATE TABLE submissions(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('building','owned_draft')), colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), action_id TEXT NOT NULL UNIQUE REFERENCES actions(id), revision TEXT NOT NULL) STRICT;
+CREATE TABLE draft_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), pawn TEXT NOT NULL) STRICT;
 CREATE INDEX action_transitions ON transitions(action_id,sequence);
-CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, definition TEXT NOT NULL, x INTEGER NOT NULL, z INTEGER NOT NULL, rotation TEXT NOT NULL, stuff TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), action_id TEXT NOT NULL UNIQUE REFERENCES actions(id));`)
+CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), definition TEXT NOT NULL, x INTEGER NOT NULL, z INTEGER NOT NULL, rotation TEXT NOT NULL, stuff TEXT NOT NULL) STRICT;`)
 		if err != nil {
 			return err
 		}
@@ -140,8 +144,15 @@ CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT N
 	} else if version != schemaVersion || app != applicationID {
 		return fmt.Errorf("incompatible database application/version: %d/%d", app, version)
 	}
+	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0", "SELECT request_id,pawn FROM draft_submissions LIMIT 0"} {
+		if version != 0 {
+			if _, err = tx.ExecContext(ctx, query); err != nil {
+				return err
+			}
+		}
+	}
 	// A matching version marker alone does not establish the expected tables.
-	if _, err = tx.ExecContext(ctx, "SELECT p.id,p.revision,a.id,a.ordinal,a.definition,a.x,a.z,a.rotation,a.stuff,t.sequence,t.payload FROM plans p LEFT JOIN actions a ON a.plan_id=p.id LEFT JOIN transitions t ON t.action_id=a.id LIMIT 0"); err != nil {
+	if _, err = tx.ExecContext(ctx, "SELECT p.id,p.revision,a.id,a.ordinal,a.kind,a.pawn,a.definition,a.x,a.z,a.rotation,a.stuff,t.sequence,t.payload FROM plans p LEFT JOIN actions a ON a.plan_id=p.id LEFT JOIN transitions t ON t.action_id=a.id LIMIT 0"); err != nil {
 		return err
 	}
 	if _, err = identity(ctx, tx); err != nil {
@@ -150,7 +161,7 @@ CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT N
 	if _, err = tx.ExecContext(ctx, "SELECT action_id,payload FROM admissions LIMIT 0"); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, "SELECT request_id,colony,load_token,map_id,definition,x,z,rotation,stuff,plan_id,action_id FROM building_submissions LIMIT 0"); err != nil {
+	if _, err = tx.ExecContext(ctx, "SELECT request_id,definition,x,z,rotation,stuff FROM building_submissions LIMIT 0"); err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, "SELECT "+controlColumns+" FROM control_intents LIMIT 0"); err != nil {
@@ -233,12 +244,8 @@ func createPlan(ctx context.Context, tx *sql.Tx, plan domain.PlanSpec) error {
 		return conflict(err)
 	}
 	for i, a := range plan.Actions() {
-		b, ok := a.Building()
-		if !ok {
-			return errors.New("unsupported persisted action")
-		}
-		if _, err := tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,definition,x,z,rotation,stuff) VALUES(?,?,?,?,?,?,?,?)", a.ID(), plan.ID(), i, b.Definition(), b.Cell().X, b.Cell().Z, b.Rotation(), b.Stuff()); err != nil {
-			return conflict(err)
+		if err := insertAction(ctx, tx, plan.ID(), i, a); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -279,34 +286,20 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 	if err != nil {
 		return PlanState{}, err
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT id,definition,x,z,rotation,stuff,ordinal FROM actions WHERE plan_id=? ORDER BY ordinal", id)
+	rows, err := tx.QueryContext(ctx, "SELECT id,kind,definition,x,z,rotation,stuff,pawn,ordinal FROM actions WHERE plan_id=? ORDER BY ordinal", id)
 	if err != nil {
 		return PlanState{}, err
 	}
 	var actions []domain.Action
 	for rows.Next() {
-		var aid domain.ActionID
-		var def, stuff string
-		var cell domain.Cell
-		var rotation domain.Rotation
-		var ordinal int
-		if err = rows.Scan(&aid, &def, &cell.X, &cell.Z, &rotation, &stuff, &ordinal); err != nil {
+		a, ordinal, e := scanAction(rows)
+		if e != nil {
 			rows.Close()
-			return PlanState{}, err
+			return PlanState{}, e
 		}
 		if ordinal != len(actions) {
 			rows.Close()
 			return PlanState{}, errors.New("noncontiguous action order")
-		}
-		b, e := domain.NewBuilding(def, cell, rotation, stuff)
-		if e != nil {
-			rows.Close()
-			return PlanState{}, e
-		}
-		a, e := domain.NewBuildingAction(aid, b)
-		if e != nil {
-			rows.Close()
-			return PlanState{}, e
 		}
 		actions = append(actions, a)
 	}
@@ -339,7 +332,15 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 			if e != nil {
 				break
 			}
-			p, e = apply(p, event)
+			if event.DraftReceipt != nil && event.DraftReceipt.Claim != nil {
+				e = checkClaimSession(ctx, tx, *event.DraftReceipt.Claim)
+			}
+			if e == nil && event.DraftObserve != nil && event.DraftObserve.Claim != nil {
+				e = checkClaimSession(ctx, tx, *event.DraftObserve.Claim)
+			}
+			if e == nil {
+				p, e = apply(p, event)
+			}
 			if e != nil {
 				break
 			}
@@ -356,6 +357,16 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		if err != nil {
 			return PlanState{}, err
 		}
+		draftAdmission, draftPresent, e := loadDraftAdmission(ctx, tx, a, p)
+		if e != nil {
+			return PlanState{}, e
+		}
+		if _, draft := a.OwnedDraft(); draft && !draftPresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
+			return PlanState{}, errors.New("draft progress lacks admission")
+		}
+		if draftPresent {
+			state.DraftAdmissions = append(state.DraftAdmissions, ActionDraftAdmission{Action: a.ID(), Admission: draftAdmission})
+		}
 		if present {
 			state.Admissions = append(state.Admissions, ActionAdmission{Action: a.ID(), Admission: admission})
 		}
@@ -365,15 +376,23 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 
 // transition is a private persistence boundary, not a second progress model.
 type transition struct {
-	Kind        string
-	Snapshot    domain.GenerationSnapshot
-	Tick        domain.Tick
-	Attempt     domain.AttemptID
-	Receipt     domain.Receipt
-	Observation domain.Observation
+	Kind                string
+	Snapshot            domain.GenerationSnapshot
+	Tick                domain.Tick
+	Attempt             domain.AttemptID
+	Receipt             domain.Receipt
+	Observation         domain.Observation
+	DraftReceipt        *draftReceiptEvent              `json:",omitempty"`
+	DraftObserve        *draftObserveEvent              `json:",omitempty"`
+	DraftBegin          *domain.DraftRelease            `json:",omitempty"`
+	DraftResult         *draftResultEvent               `json:",omitempty"`
+	DraftCleanupObserve *domain.DraftCleanupObservation `json:",omitempty"`
 }
 
 func decode(data []byte, event *transition) error {
+	if len(data) > 32768 {
+		return errors.New("transition exceeds bound")
+	}
 	d := json.NewDecoder(bytes.NewReader(data))
 	d.DisallowUnknownFields()
 	if err := d.Decode(event); err != nil {
@@ -384,6 +403,9 @@ func decode(data []byte, event *transition) error {
 	}
 	// Store records are canonical, so duplicate fields and silently defaulted fields
 	// are corruption rather than alternative input syntax.
+	if event.DraftBegin != nil && event.DraftBegin.Sequence == 0 {
+		return errors.New("missing persisted cleanup sequence")
+	}
 	canonical, err := json.Marshal(event)
 	if err != nil {
 		return err
@@ -394,7 +416,12 @@ func decode(data []byte, event *transition) error {
 	return nil
 }
 func apply(p domain.Progress, e transition) (domain.Progress, error) {
+	if err := validateDraftEvent(e); err != nil {
+		return p, err
+	}
 	switch e.Kind {
+	case "draft_receipt", "draft_observe", "draft_begin", "draft_result", "draft_cleanup_observe":
+		return applyDraft(p, e)
 	case "prepare":
 		return p.Prepare(e.Snapshot, e.Tick)
 	case "dispatch":
@@ -442,11 +469,22 @@ func (s *Store) advance(ctx context.Context, plan domain.PlanID, action domain.A
 			return domain.Progress{}, errors.New("dispatch predates latest admission observation")
 		}
 	}
+	if err = guardDraftAdvance(ctx, tx, state, action, event); err != nil {
+		return domain.Progress{}, err
+	}
 	next, err := apply(current, event)
 	if err != nil {
 		return domain.Progress{}, err
 	}
+	if event.Kind == "draft_begin" {
+		cleanup, _ := next.View().DraftCleanup.Value()
+		release, _ := cleanup.Release.Value()
+		event.DraftBegin = &release
+	}
 	data, err := json.Marshal(event)
+	if len(data) > 32768 {
+		return domain.Progress{}, errors.New("transition exceeds bound")
+	}
 	if err != nil {
 		return domain.Progress{}, err
 	}
