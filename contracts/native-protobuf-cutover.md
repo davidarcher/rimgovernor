@@ -13,6 +13,7 @@ one `payload` ProtoJSON string plus host operation metadata.
 | rimgovernor/observations_read_status | rimgovernor.observations.v1.Observations/ReadStatus | Protocol/NativeObservationTools.cs |
 | rimgovernor/observations_get_cells | rimgovernor.observations.v1.Observations/GetCells | Protocol/NativeObservationTools.cs |
 | rimgovernor/observations_list_buildings | rimgovernor.observations.v1.Observations/ListBuildings | Protocol/NativeBuildingObservationTools.cs |
+| rimgovernor/observations_list_pawns | rimgovernor.observations.v1.Observations/ListPawns | Protocol/NativePawnObservationTools.cs |
 | rimgovernor/observations_list_supplies | rimgovernor.observations.v1.Observations/ListSupplies | Protocol/NativeSuppliesObservationTools.cs |
 | rimgovernor/operations_preview | rimgovernor.operations.v1.Operations/Preview | Protocol/NativeOperationTools.cs |
 | rimgovernor/operations_execute | rimgovernor.operations.v1.Operations/Execute | Protocol/NativeOperationTools.cs |
@@ -92,7 +93,13 @@ headless mode. Selection does not enumerate gizmos or inspect tabs, issue captur
 target fingerprints, move the camera or grant input permission. Optional facts
 remain absent when not observed. Bounded collection/reply overflow refuses the read.
 
-Current source inventory: 76 production exports, 55 fixture exports, 137 handwritten
+`Observations/ListPawns` provides a complete bounded map pawn census with exact
+intersecting filters and explicit optional-false semantics. Core, needs, health,
+equipment, biography, settings and animal details use native facts. Social, CAS,
+gear ownership/protection and additional animal management fields carry explicit
+issues. Requested detail sections never become fabricated empty tracker data.
+
+Current source inventory: 77 production exports, 55 fixture exports, 139 handwritten
 C# source files and nine generated Protobuf compile inputs. Source declarations do
 not establish gameplay acceptance. Actual installed discovery must match the private
 build and prove fixture exclusion; pending native acceptance remains explicit in

@@ -6694,7 +6694,7 @@
   ],
   "native_surface": {
     "version": 1,
-    "source_revision": "ee52e9487f7806de1e94a0c18d296ca287813007",
+    "source_revision": "31a776ae3ca0034e32739f15bfa3336a30ab7047",
     "scope": "Current repository-owned native Runtime/Bridge exports, generated Protobuf compile inputs and conditional fixtures. Historical Python consumer inventory remains at its independent source_revision. Installed SDK/GABS exports require actual discovery.",
     "evidence_links": "domain_item_id reuses existing G01 owner, fixtures and native_scenarios without copying Python call-site lists. Empty local evidence lists preserve uncovered acceptance. schema_owner_chunk assigns the cross-language schema owner; native_owner_chunk owns typed conversion or fixture isolation.",
     "variant_contract": "source_baseline.exports[].declaration retains the complete exported signature, Tool/ToolParameter/ToolResponse attributes, documented string variants, optional selectors and defaults. Source fingerprints detect implementation changes. Runtime branches, aliases and payload keys still require behavioral schema and discovery acceptance.",
@@ -6996,6 +6996,14 @@
             },
             {
               "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
+              "condition": ""
+            },
+            {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativePawnDetails.cs",
+              "condition": ""
+            },
+            {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativePawnObservationTools.cs",
               "condition": ""
             },
             {
@@ -7782,14 +7790,14 @@
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/ProtoIdentityTools.cs",
           "line": 12,
           "declaration": "[Tool(\"rimgovernor/lifecycle_read_identity\", Title = \"Read native identity\",\n            Description = \"Read the current colony, load, map and native contract capabilities.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON rimgovernor.lifecycle.v1.IdentityReply.\", Always = true)]\n        public async Task<object> ReadIdentity(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official lifecycle IdentityRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "be3ce4ead027fa26b3f864d039b45b3c4da79125d29c4c131832a06f077929f3"
+          "source_sha256": "c55a93bb4ee466410c1cfa3aa8b18f5e74817c2b285b219d1230b2018635fd67"
         },
         {
           "name": "rimgovernor/observations_get_cells",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeObservationTools.cs",
           "line": 37,
           "declaration": "[Tool(\"rimgovernor/observations_get_cells\", Title = \"Read bounded map cells\",\n            Description = \"Official GetCellsRequest ProtoJSON. Exact cells or inclusive rectangle,1..256 cells. Returns native map dimensions. Absent fields select terrain/roof/visibility/traversal; explicit false skips. Other field families are unavailable until migrated.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official observations GetCellsReply ProtoJSON.\", Always = true)]\n        public async Task<object> GetCells(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Raw value must be a GetCellsRequest ProtoJSON string.\")] object? request = null)",
-          "source_sha256": "a90ebbccba5bc6d0edc8954d4c3411d1f8116f191c2dda1654ad8611812c228b"
+          "source_sha256": "4ebf06efe93703599cd9792ecae39eb2f1243f81b840c5a3208411b8f0286c30"
         },
         {
           "name": "rimgovernor/observations_list_buildings",
@@ -7797,6 +7805,13 @@
           "line": 21,
           "declaration": "[Tool(ToolName, Title = \"Read typed buildings\", Description = \"Read complete bounded building, blueprint and frame facts including walls. Exact IDs/definitions, inclusive anchor region; defaults artificial/player-only. No CAS snapshots, detailed settings, bills, inspect text or power-network enumeration yet.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON ListBuildingsReply. Unavailable replaces oversized collections; unsupported facts are explicit.\", Always = true)]\n        public async Task<object> ListBuildings(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official ProtoJSON ListBuildingsRequest string in raw transport value.\")] object request = null!)",
           "source_sha256": "64ae37dad2be2a4bed94cd2d2da068e97a789d69c527b3cff2f240d72ac1c4c7"
+        },
+        {
+          "name": "rimgovernor/observations_list_pawns",
+          "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativePawnObservationTools.cs",
+          "line": 19,
+          "declaration": "[Tool(\"rimgovernor/observations_list_pawns\", Title = \"Read map pawns\",\n            Description = \"Official ListPawnsRequest ProtoJSON. Current map spawned pawns; includeDead also includes inner pawns of spawned corpses. Filters intersect, exact IDs, case-insensitive label substring, Chebyshev distance to another live colonist. All detail families default requested; unsupported fields carry issues. Page limit1..256 is a whole-query bound, no cursors or truncation.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official observations ListPawnsReply ProtoJSON.\", Always = true)]\n        public async Task<object> ListPawns(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Raw value must be a ListPawnsRequest ProtoJSON string.\")] object? request = null)",
+          "source_sha256": "0973e2c5aa1e5d4419f258ac5f50fde0a389db4d9551e793be3c5705b92874ae"
         },
         {
           "name": "rimgovernor/observations_list_supplies",
@@ -7810,7 +7825,7 @@
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeObservationTools.cs",
           "line": 19,
           "declaration": "[Tool(\"rimgovernor/observations_read_status\", Title = \"Read colony status\",\n            Description = \"Official StatusRequest ProtoJSON. Colonists/threats default true, detail false, predator radius30. Read-only simulation facts; no clock/UI operations. Pages1..256; unavailable instead of truncation.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official observations StatusReply ProtoJSON.\", Always = true)]\n        public async Task<object> ReadStatus(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Raw value must be a StatusRequest ProtoJSON string.\")] object? request = null)",
-          "source_sha256": "a90ebbccba5bc6d0edc8954d4c3411d1f8116f191c2dda1654ad8611812c228b"
+          "source_sha256": "4ebf06efe93703599cd9792ecae39eb2f1243f81b840c5a3208411b8f0286c30"
         },
         {
           "name": "rimgovernor/operations_execute",
@@ -9340,6 +9355,24 @@
           "Verify installation blueprint observation avoids native error/pause; detailed settings/services/bills/networks, frozen paging and CAS snapshots remain unsupported."
         ],
         "protocol_method": "rimgovernor.observations.v1.Observations/ListBuildings",
+        "protocol_schema": "contracts/proto/observations.proto"
+      },
+      {
+        "name": "rimgovernor/observations_list_pawns",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.03",
+        "native_owner_chunk": "N01.03",
+        "build_role": "production",
+        "fixtures": [
+          "contracts/tests/native-pawn-observations/Program.cs",
+          "contracts/tests/native-proto-observations/Program.cs"
+        ],
+        "native_scenarios": [],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Verify actual complete scoped pawn observations and exact filters, preserving unknown facts and paused identity."
+        ],
+        "protocol_method": "rimgovernor.observations.v1.Observations/ListPawns",
         "protocol_schema": "contracts/proto/observations.proto"
       },
       {

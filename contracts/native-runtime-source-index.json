@@ -1,6 +1,6 @@
 {
   "inventory_version": 1,
-  "source_revision": "ee52e9487f7806de1e94a0c18d296ca287813007",
+  "source_revision": "31a776ae3ca0034e32739f15bfa3336a30ab7047",
   "scope": "Tracked C# sources in unified native Runtime/Bridge and scripts/fixtures; lexical reference index, not an AST or proof of behavioral coverage.",
   "source_line_policy": "One-based source anchors at source_revision; static matches include methods and constructors, reflection matches include helper use and interop. Read the full source declaration before changing ownership.",
   "rows": [
@@ -1954,7 +1954,7 @@
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeObservationTools.cs",
       "compilation": "production-bridge",
-      "source_sha256": "a90ebbccba5bc6d0edc8954d4c3411d1f8116f191c2dda1654ad8611812c228b",
+      "source_sha256": "4ebf06efe93703599cd9792ecae39eb2f1243f81b840c5a3208411b8f0286c30",
       "owner": "N01.03 native observation owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
@@ -2021,6 +2021,59 @@
         84,
         116
       ],
+      "patch_registration_lines": []
+    },
+    {
+      "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativePawnDetails.cs",
+      "compilation": "production-bridge",
+      "source_sha256": "2fa6a3369bbe73b7dd68ac07c047c50e43b4311319b34a352d2d55bd3b675491",
+      "owner": "N01.03 native pawn observations owner",
+      "migration_status": "implemented-native-acceptance-pending",
+      "uncovered_acceptance": "Verify complete scoped pawn facts, exact intersecting filters, explicit unavailable details and read invariance in fresh native games.",
+      "static_token_lines": [
+        8,
+        12,
+        14,
+        24,
+        50,
+        112,
+        140,
+        157,
+        184,
+        212,
+        236,
+        237,
+        238,
+        239
+      ],
+      "reflection_boundary_lines": [],
+      "patch_registration_lines": []
+    },
+    {
+      "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativePawnObservationTools.cs",
+      "compilation": "production-bridge",
+      "source_sha256": "0973e2c5aa1e5d4419f258ac5f50fde0a389db4d9551e793be3c5705b92874ae",
+      "owner": "N01.03 native pawn observations owner",
+      "migration_status": "implemented-native-acceptance-pending",
+      "uncovered_acceptance": "Verify complete scoped pawn facts, exact intersecting filters, explicit unavailable details and read invariance in fresh native games.",
+      "static_token_lines": [
+        56,
+        70,
+        84,
+        121,
+        122,
+        126,
+        127,
+        128,
+        132,
+        133,
+        134,
+        135,
+        136,
+        137,
+        138
+      ],
+      "reflection_boundary_lines": [],
       "patch_registration_lines": []
     },
     {
@@ -2131,7 +2184,7 @@
       "owner": "N01.02 native identity capability owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
-      "source_sha256": "be3ce4ead027fa26b3f864d039b45b3c4da79125d29c4c131832a06f077929f3",
+      "source_sha256": "c55a93bb4ee466410c1cfa3aa8b18f5e74817c2b285b219d1230b2018635fd67",
       "static_token_lines": [],
       "reflection_boundary_lines": [],
       "patch_registration_lines": []

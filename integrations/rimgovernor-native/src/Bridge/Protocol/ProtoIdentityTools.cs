@@ -82,6 +82,12 @@ namespace HomeBridge.BridgeTools
                         Support = Lifecycle.CapabilitySupport.Supported,
                         Detail = "Read-only native presentation facts. Camera/selection require graphics; roster covers spawned colonists on loaded maps."
                     });
+                loaded.Capabilities.Add(new Lifecycle.Capability
+                {
+                    FullMethodName = "rimgovernor.observations.v1.Observations/ListPawns",
+                    Support = Lifecycle.CapabilitySupport.Supported,
+                    Detail = "Complete bounded map pawn census with exact intersecting filters and useful detail facts. Social, CAS and additional gear/animal details carry explicit issues."
+                });
                 return new Lifecycle.IdentityReply { Loaded = loaded };
             }, cancellationToken).ConfigureAwait(false);
             return ProtoBoundary.Encode(reply);
