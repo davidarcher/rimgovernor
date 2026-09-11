@@ -828,7 +828,7 @@ only intentional small, sanitized regression fixtures belong in source control.
           Owner: bridge agent; depends on 02b and 06b.2. Keep speed/window control
           separate from building dispatch and preserve exact owned pause after
           revocation; runtime scheduling and native interruption acceptance follow.
-          - [ ] **06b.3b.6a:** typed bounded clock event reads with cursor-gap
+          - [x] **06b.3b.6a:** typed bounded clock event reads with cursor-gap
             evidence. Owner: bridge agent; depends on 06b.3b.6. Events report
             interruptions without granting resume or write authority.
   - [ ] **06c:** isolated ordinary pawn construction and interruption acceptance.
@@ -884,6 +884,13 @@ only intentional small, sanitized regression fixtures belong in source control.
     plan submission, provider fallback or routine-control inference.
   - [x] **08a.2:** prompt/context budgets and structured semantic validation.
     Owner: model agent; depends on 08a.1 and 04a for command types.
+  - [x] **08a.3:** one bounded real configured local-model interpretation with
+    observed catalog/material/anchor facts. Owner: model agent; depends on 08a.2.
+    No native orders or plan submission; retain exact model and typed result evidence.
+  - [ ] **08a.4:** read the configured LM Studio model's actual loaded context
+    capacity and cap prompt budgeting to it. Owner: model agent; depends on 08a.2–3.
+    Missing or ambiguous loaded instances remain unavailable; never load a model,
+    select another model or infer loaded capacity from a theoretical maximum.
 
 - [ ] **G01.09 — Dashboard API and presentation.** Owner: server agent.
   Port current player controls and observation/media behavior to typed Go services.
