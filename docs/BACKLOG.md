@@ -642,8 +642,14 @@ expand these into another nested task tree; remove a row when its outcome is met
   Typed pawn work reads feed default assignment readback into routine work coverage;
   missing availability, mode, skills or work data remain unknown. Native replay
   matches Python's complete proposals; live service acceptance verifies the work
-  deficit, Manual and disabled restart. Project-specific required-work inputs and
-  persisted player work overrides remain open; settings execution belongs to its action family.
+  deficit, Manual and disabled restart. Open selected player buildings and admitted
+  shared projects now supply native construction-skill requirements. Supplementary
+  definitions stay inside the paused bracket; unknown requirements stay unknown,
+  and unresolved cancellation retains requirements until native effects settle.
+  Native HospitalBed acceptance and Go/Python replay verify a skill-eight project
+  deficit, Manual invalidation and disabled restart. Requirements for other action
+  families and persisted player work overrides remain open; settings execution belongs
+  to its action family.
   Superseded invalidated autopilot goals now retire from active capacity while
   retaining immutable history; uncertain effects and cleanup prevent retirement.
   Completion observed after cancellation now yields historic cost/geometry holds
