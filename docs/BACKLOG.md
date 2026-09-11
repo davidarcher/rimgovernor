@@ -1361,8 +1361,9 @@ broaden checks only when the changed behavior or a failure justifies it.
         evidence exhaustion remains an explicit hold.
     - [ ] **10a.4:** service/UI composition and actual Go clock acceptance.
       Owner: integrator; depends on 10a.3 and 09. The player service can attach
-      clock workers with --clock-control; startup remains disabled. Finish player
-      review/acknowledgement presentation and native acceptance. Verify ordinary work,
+      clock workers with --clock-control; startup remains disabled. Player clock
+      review and authenticated acknowledgement are wired through the API/dashboard.
+      Finish native acceptance. Verify ordinary work,
       real interruption, Manual pause, shutdown and disabled restart. Reuse the
       native seven-method gate; test Go orchestration and native outcomes.
 

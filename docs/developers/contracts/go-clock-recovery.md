@@ -236,3 +236,12 @@ state checks namespace and allocation/retirement watermarks; the transaction
 recomputes eligibility from current rows. A bounded retained index detects missing
 pinned records without tombstones. Event/review compaction and automatic runtime
 maintenance remain required before sustained operation is enabled.
+
+With clock supervision enabled, GET /api/player/clock exposes durable review
+revision, cursors and interruption/gap holds. POST /api/player/clock/acknowledge
+requires the player session token, an explicit request ID, expectedRevision and
+throughCursor. Counters use canonical decimal strings. A changed revision returns
+a conflict; exact acknowledgement replay uses the retained request ID. This only
+acknowledges inspected evidence and never acquires authority or resumes time.
+The dashboard preserves its last review during refresh failures and offers an
+explicit retry of the same acknowledgement after an uncertain response.
