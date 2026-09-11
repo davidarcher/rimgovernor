@@ -27,6 +27,8 @@ func TestClockWorkerDisabledRestart(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			intent.RequestID = clockTestNextID(t, db)
+			var lostRenewID string
 			// Seed through the real command journal before acquiring any Session
 			// profile owner. Stopping this core joins calls but does not erase debt.
 			core, err := NewClockCoordinator(db, fake, fake, fixture.leases, boundaryClock{}, fixture.config)
@@ -47,7 +49,8 @@ func TestClockWorkerDisabledRestart(t *testing.T) {
 			}
 			fake.lost = false
 			if scenario == "historical-unknown-renew" {
-				renew := store.ClockIntent{RequestID: "lost-renew", Snapshot: intent.Snapshot, Command: bridge.ClockCommand{Renew: &bridge.ClockRenew{Original: proto.Clone(clockCoordinatorEpoch(fake.status)).(*k.Epoch), LeaseMS: 1000}}}
+				lostRenewID = clockTestNextID(t, db)
+				renew := store.ClockIntent{RequestID: lostRenewID, Snapshot: intent.Snapshot, Command: bridge.ClockCommand{Renew: &bridge.ClockRenew{Original: proto.Clone(clockCoordinatorEpoch(fake.status)).(*k.Epoch), LeaseMS: 1000}}}
 				if _, _, err = db.PrepareClock(ctx, renew); err != nil {
 					t.Fatal(err)
 				}
@@ -132,7 +135,7 @@ func TestClockWorkerDisabledRestart(t *testing.T) {
 				t.Fatal(recovered, err)
 			}
 			if scenario == "historical-unknown-renew" {
-				renew, err := db.LookupClockAttempt(ctx, "lost-renew")
+				renew, err := db.LookupClockAttempt(ctx, lostRenewID)
 				if err != nil || renew.Phase != store.ClockUncertain {
 					t.Fatal(renew, err)
 				}

@@ -126,7 +126,7 @@ func TestClockWindowCommandRequiresExactPolicyAdmission(t *testing.T) {
 		t.Fatal("replay started twice", err)
 	}
 	next := request
-	next.Intent.RequestID = "second"
+	next.Intent.RequestID = clockTestNextID(t, q.journal)
 	if _, err = q.CommandWindow(context.Background(), next); err == nil || f.writes != 1 {
 		t.Fatal("second owned start admitted", err)
 	}

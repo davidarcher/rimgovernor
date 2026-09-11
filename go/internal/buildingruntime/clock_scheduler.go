@@ -230,13 +230,36 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		return out, executor.ErrHeld
 	}
 	admission := &store.ClockWindowAdmission{Profile: s.config.Profile, Snapshot: state.Snapshot, Tick: facts.Tick, ReviewRevision: review.Revision, CapturedCursor: review.InboxCursor, MaxTicks: s.config.Start.MaxTicks}
-	id, err := clockSchedulerID(admission, fingerprint, s.config.Start)
+	key, err := clockSchedulerKey(admission, fingerprint, s.config.Start)
 	if err != nil {
 		return out, err
 	}
 	start := s.config.Start
 	start.Policy = proto.Clone(start.Policy).(*k.WatchPolicy)
-	intent := store.ClockIntent{RequestID: id, Snapshot: state.Snapshot, Command: bridge.ClockCommand{Start: &start}, Window: admission}
+	intent := store.ClockIntent{Key: key, Snapshot: state.Snapshot, Command: bridge.ClockCommand{Start: &start}, Window: admission}
+	// The store returns sequence order. Retain the latest exact logical window,
+	// including terminal refusals, rather than allocating another native attempt.
+	for i := len(attempts) - 1; i >= 0; i-- {
+		old := attempts[i].Intent
+		if old.Key != key {
+			continue
+		}
+		if old.Snapshot != intent.Snapshot || old.Window == nil || *old.Window != *admission || old.Command.Start == nil || old.Command.Renew != nil || old.Command.Speed != nil || old.Command.Start.Speed != start.Speed || old.Command.Start.LeaseMS != start.LeaseMS || old.Command.Start.MaxTicks != start.MaxTicks || !proto.Equal(old.Command.Start.Policy, start.Policy) {
+			return out, executor.ErrEvidence
+		}
+		intent.RequestID = old.RequestID
+		break
+	}
+	if intent.RequestID == "" {
+		sequence, e := s.player.journal.ReadClockSequence(call)
+		if e != nil {
+			return out, e
+		}
+		intent.RequestID, err = sequence.NextRequestID()
+		if err != nil {
+			return out, err
+		}
+	}
 	if err = s.player.current(call, epoch); err != nil {
 		return out, err
 	}
@@ -245,6 +268,9 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	}
 	attempt, err := s.session.CommandClockWindow(call, ClockWindowRequest{Intent: intent, Facts: facts, MaxAge: s.config.MaxAge})
 	out.Attempt = &attempt
+	if errors.Is(err, store.ErrConflict) {
+		return out, errors.Join(executor.ErrHeld, err)
+	}
 	return out, err
 }
 
@@ -276,7 +302,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 	}
 	return work, items, nil
 }
-func clockSchedulerID(admission *store.ClockWindowAdmission, work []clockWorkItem, start bridge.ClockStart) (string, error) {
+func clockSchedulerKey(admission *store.ClockWindowAdmission, work []clockWorkItem, start bridge.ClockStart) (string, error) {
 	policyBytes, err := (proto.MarshalOptions{Deterministic: true}).Marshal(start.Policy)
 	if err != nil {
 		return "", err

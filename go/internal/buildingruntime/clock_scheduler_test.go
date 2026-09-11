@@ -113,16 +113,17 @@ func TestClockSchedulerIdentityAndInertPrepared(t *testing.T) {
 		t.Fatal(err)
 	}
 	admission := &store.ClockWindowAdmission{Profile: s.config.Profile, Snapshot: state.Snapshot, Tick: 11, MaxTicks: s.config.Start.MaxTicks}
-	id, err := clockSchedulerID(admission, work, s.config.Start)
+	key, err := clockSchedulerKey(admission, work, s.config.Start)
 	if err != nil {
 		t.Fatal(err)
 	}
-	same, _ := clockSchedulerID(admission, work, s.config.Start)
-	if same != id {
-		t.Fatal("unstable ID")
+	same, _ := clockSchedulerKey(admission, work, s.config.Start)
+	if same != key {
+		t.Fatal("unstable logical key")
 	}
 	start := s.config.Start
-	_, _, err = s.player.journal.PrepareClock(context.Background(), store.ClockIntent{RequestID: id, Snapshot: state.Snapshot, Command: bridge.ClockCommand{Start: &start}, Window: admission})
+	id := clockTestNextID(t, s.player.journal)
+	_, _, err = s.player.journal.PrepareClock(context.Background(), store.ClockIntent{RequestID: id, Key: key, Snapshot: state.Snapshot, Command: bridge.ClockCommand{Start: &start}, Window: admission})
 	if err != nil {
 		t.Fatal(err)
 	}

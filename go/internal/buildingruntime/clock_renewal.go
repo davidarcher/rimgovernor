@@ -2,13 +2,9 @@ package buildingruntime
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
@@ -20,22 +16,6 @@ func (s *ClockScheduler) renewalHold(cause error) error {
 	ctx, cancel := context.WithTimeout(context.Background(), s.session.control.config.CallTimeout)
 	defer cancel()
 	return errors.Join(cause, disabled, s.session.CleanupClock(ctx))
-}
-
-func clockRenewalID(start string, snapshot domain.GenerationSnapshot, epoch *k.Epoch, sequence uint64) (string, error) {
-	key := struct {
-		Start    string
-		Snapshot domain.GenerationSnapshot
-		Session  string
-		Epoch    int64
-		Sequence uint64
-	}{start, snapshot, epoch.Owner.GetControllerSessionId(), epoch.Owner.GetEpoch(), sequence}
-	data, err := json.Marshal(key)
-	if err != nil {
-		return "", err
-	}
-	hash := sha256.Sum256(data)
-	return "clock-renew-" + hex.EncodeToString(hash[:]), nil
 }
 
 // RenewEpoch uses its own gate so a long player action cannot starve the native
@@ -142,13 +122,11 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 		return out, nil
 	}
 	var prepared *store.ClockAttempt
-	var count uint64
 	for _, attempt := range attempts {
 		renew := attempt.Intent.Command.Renew
 		if renew == nil || attempt.Intent.Snapshot != state.Snapshot || !clockCoordinatorSameEpoch(renew.Original, original) {
 			continue
 		}
-		count++
 		if attempt.Phase == store.ClockPrepared {
 			if prepared != nil || !proto.Equal(renew.Original, original) || renew.LeaseMS != s.config.Start.LeaseMS {
 				return out, s.renewalHold(executor.ErrHeld)
@@ -161,7 +139,11 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 	if prepared != nil {
 		intent = prepared.Intent
 	} else {
-		id, e := clockRenewalID(owned.StartRequestID, state.Snapshot, original, count+1)
+		sequence, e := s.player.journal.ReadClockSequence(call)
+		if e != nil {
+			return out, s.renewalHold(e)
+		}
+		id, e := sequence.NextRequestID()
 		if e != nil {
 			return out, s.renewalHold(e)
 		}

@@ -25,13 +25,10 @@ func TestClockRenewalSafetyReviewMustCatchUp(t *testing.T) {
 func TestClockRenewalRecoversThenValidatesCurrentRunningEpoch(t *testing.T) {
 	s, _, w, start := renewalFixture(t)
 	original := start.Reply.GetReceipt().GetApplied().GetStatus().GetRunning().Epoch
-	id, err := clockRenewalID(start.Intent.RequestID, start.Intent.Snapshot, original, 1)
-	if err != nil {
-		t.Fatal(err)
-	}
+	id := clockTestNextID(t, s.player.journal)
 	intent := store.ClockIntent{RequestID: id, Snapshot: start.Intent.Snapshot, Command: bridge.ClockCommand{Renew: &bridge.ClockRenew{Original: original, LeaseMS: s.config.Start.LeaseMS}}}
 	w.lost = true
-	if _, err = s.session.CommandClock(context.Background(), intent); err == nil {
+	if _, err := s.session.CommandClock(context.Background(), intent); err == nil {
 		t.Fatal("missing uncertainty")
 	}
 	w.lost = false
@@ -93,10 +90,7 @@ func TestClockRenewalOriginalDeadlineAndIndependentPlayerGate(t *testing.T) {
 func TestClockRenewalReusesPreparedDespiteFreshTick(t *testing.T) {
 	s, n, w, start := renewalFixture(t)
 	original := start.Reply.GetReceipt().GetApplied().GetStatus().GetRunning().Epoch
-	id, err := clockRenewalID(start.Intent.RequestID, start.Intent.Snapshot, original, 1)
-	if err != nil {
-		t.Fatal(err)
-	}
+	id := clockTestNextID(t, s.player.journal)
 	intent := store.ClockIntent{RequestID: id, Snapshot: start.Intent.Snapshot, Command: bridge.ClockCommand{Renew: &bridge.ClockRenew{Original: original, LeaseMS: s.config.Start.LeaseMS}}}
 	prepared, _, err := s.player.journal.PrepareClock(context.Background(), intent)
 	if err != nil {

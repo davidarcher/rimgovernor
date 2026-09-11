@@ -82,7 +82,7 @@ func clockCoreFixture(t *testing.T) (*ClockCoordinator, *store.Store, *clockCore
 	t.Cleanup(func() { db.Close() })
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Direction: 1, Native: 7}
 	policy := &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(), HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.2), HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)}
-	intent := store.ClockIntent{RequestID: "start", Snapshot: snapshot, Command: bridge.ClockCommand{Start: &bridge.ClockStart{Speed: k.Speed_SPEED_NORMAL, Policy: policy, LeaseMS: 1000, MaxTicks: 100}}}
+	intent := store.ClockIntent{RequestID: clockTestNextID(t, db), Snapshot: snapshot, Command: bridge.ClockCommand{Start: &bridge.ClockStart{Speed: k.Speed_SPEED_NORMAL, Policy: policy, LeaseMS: 1000, MaxTicks: 100}}}
 	fake := &clockCoreFake{status: &k.Status{Context: &c.ObservationContext{Identity: boundaryIdentity(snapshot), Tick: proto.Int64(12), NativeGeneration: proto.Uint64(7)}, State: &k.Status_NeverStarted{NeverStarted: &k.NeverStarted{}}, ActualPaused: proto.Bool(true), ObservedSpeed: k.ObservedSpeed_OBSERVED_SPEED_PAUSED.Enum(), NativeTickBoundary: proto.Bool(true), DurableEvents: proto.Bool(false), NewestCursor: proto.Int64(0), EvidenceCompleteness: &c.PageInfo{Complete: proto.Bool(true)}}}
 	q, err := NewClockCoordinator(db, fake, fake, clockCoreLease{func(domain.GenerationSnapshot) (string, error) { return "lease", nil }}, boundaryClock{}, ClockCoordinatorConfig{CallTimeout: time.Second, JournalTimeout: time.Second})
 	if err != nil {
@@ -113,7 +113,7 @@ func TestClockCoordinatorDisabledAndExactReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	next := intent
-	next.RequestID = "second"
+	next.RequestID = clockTestNextID(t, db)
 	if _, err = q.Command(context.Background(), next); !errors.Is(err, executor.ErrHeld) || f.writes != 1 {
 		t.Fatal(err, f.writes)
 	}
@@ -161,7 +161,7 @@ func TestClockCoordinatorUnknownDoesNotAdoptStatus(t *testing.T) {
 		t.Fatal("adopted status")
 	}
 	other := intent
-	other.RequestID = "other"
+	other.RequestID = clockTestNextID(t, db)
 	if _, err = q.Command(context.Background(), other); !errors.Is(err, executor.ErrHeld) || f.writes != 1 {
 		t.Fatal(err)
 	}
@@ -174,14 +174,14 @@ func TestClockCoordinatorRenewRequiresOriginalProofAndFreshSpeed(t *testing.T) {
 		t.Fatal(err)
 	}
 	epochs, _ := db.LoadClockEpochs(context.Background(), 4096)
-	renew := store.ClockIntent{RequestID: "renew", Snapshot: intent.Snapshot, Command: bridge.ClockCommand{Renew: &bridge.ClockRenew{Original: epochs[0].Epoch, LeaseMS: 1000}}}
+	renew := store.ClockIntent{RequestID: clockTestNextID(t, db), Snapshot: intent.Snapshot, Command: bridge.ClockCommand{Renew: &bridge.ClockRenew{Original: epochs[0].Epoch, LeaseMS: 1000}}}
 	f.status.GetRunning().Epoch.LastTick = proto.Int64(13)
 	f.status.Context.Tick = proto.Int64(13)
 	v, err := q.Command(context.Background(), renew)
 	if err != nil || v.Phase != store.ClockApplied {
 		t.Fatal(v.Phase, err)
 	}
-	renew.RequestID = "stale-speed"
+	renew.RequestID = clockTestNextID(t, db)
 	f.status.GetRunning().Epoch.RequestedSpeed = k.Speed_SPEED_FAST.Enum()
 	if _, err = q.Command(context.Background(), renew); !errors.Is(err, executor.ErrHeld) || f.writes != 2 {
 		t.Fatal(err, f.writes)
@@ -235,7 +235,7 @@ func TestClockCoordinatorRejectsChangedDirectionForOwnedEpoch(t *testing.T) {
 	epochs, _ := db.LoadClockEpochs(context.Background(), 4096)
 	intent.Snapshot.Direction++
 	_ = q.UpdateAuthority(executor.Authority{Snapshot: intent.Snapshot, Enabled: true})
-	speed := store.ClockIntent{RequestID: "new-direction", Snapshot: intent.Snapshot, Command: bridge.ClockCommand{Speed: &bridge.ClockSpeed{Original: epochs[0].Epoch, Speed: k.Speed_SPEED_FAST}}}
+	speed := store.ClockIntent{RequestID: clockTestNextID(t, db), Snapshot: intent.Snapshot, Command: bridge.ClockCommand{Speed: &bridge.ClockSpeed{Original: epochs[0].Epoch, Speed: k.Speed_SPEED_FAST}}}
 	if _, err := q.Command(context.Background(), speed); !errors.Is(err, executor.ErrHeld) || f.writes != 1 {
 		t.Fatal(err, f.writes)
 	}
@@ -250,8 +250,21 @@ func TestClockCoordinatorRejectsChangedPlanForOwnedEpoch(t *testing.T) {
 	epochs, _ := db.LoadClockEpochs(context.Background(), 4096)
 	intent.Snapshot.Plan = "replacement-plan"
 	_ = q.UpdateAuthority(executor.Authority{Snapshot: intent.Snapshot, Enabled: true})
-	renew := store.ClockIntent{RequestID: "new-plan", Snapshot: intent.Snapshot, Command: bridge.ClockCommand{Renew: &bridge.ClockRenew{Original: epochs[0].Epoch, LeaseMS: 1000}}}
+	renew := store.ClockIntent{RequestID: clockTestNextID(t, db), Snapshot: intent.Snapshot, Command: bridge.ClockCommand{Renew: &bridge.ClockRenew{Original: epochs[0].Epoch, LeaseMS: 1000}}}
 	if _, err := q.Command(context.Background(), renew); !errors.Is(err, executor.ErrHeld) || f.writes != 1 {
 		t.Fatal(err, f.writes)
 	}
+}
+
+func clockTestNextID(t *testing.T, db *store.Store) string {
+	t.Helper()
+	sequence, err := db.ReadClockSequence(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := sequence.NextRequestID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return id
 }
