@@ -62,6 +62,13 @@ the building service. Supply the same `--gabs`, `--config`, `--game`, `--state`,
 must be the shared game profile, so another controller cannot acquire its process
 lock. The service starts in Manual; it never restores a live lease from SQLite.
 
+With built dashboard assets, the Building controls panel accepts a definition,
+material, map coordinates and rotation. **Submit building plan** saves the request;
+**Enable this plan** separately acquires permission. **Manual — stop orders**
+remains available while acquisition is pending. Drafts and request IDs survive
+background refreshes, and result checks only read the recorded request. The panel
+is hidden when the service runs read-only.
+
 Submit a single building through `POST /api/buildings/plans`, then explicitly
 acquire that plan through `POST /api/buildings/control/acquire`. Manual uses
 `POST /api/buildings/control/manual` and stops local work before waiting for native
