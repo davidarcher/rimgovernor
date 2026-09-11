@@ -61,6 +61,7 @@ internal static class Program
         foreach (var json in new[] { "null", "{", "{\"unexpected\":1}" })
         { ctx.Arguments["request"] = json; result = (Dictionary<string, object>)Tools.Start(ctx, default, json).GetAwaiter().GetResult(); Check(Clock.ControlReply.Parser.ParseJson((string)result["payload"]).Failure != null && ctx.Invocations == 0, "malformed Start dispatched"); }
         Check(Status().Status.NeverStarted != null && Status().Status.ActualPaused, "actual never-started clock");
+        Check(Status().Status.NativeTickBoundary, "clock readiness requires an owned start");
         Check(!Directory.Exists(GenFilePaths.SaveDataFolderPath), "status initialized journal");
         var initial = Events();
         Check(initial.Page != null && initial.Page.NewestCursor == 0 && initial.Page.Events.Count == 0, "initial event read requires clock start");

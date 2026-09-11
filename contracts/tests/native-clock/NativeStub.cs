@@ -31,7 +31,8 @@ namespace HarmonyLib
     public static class Harmony
     {
         public static bool Healthy = true;
-        public static Patches GetPatchInfo(MethodInfo method) => new() { Postfixes = Healthy ? new List<Patch> { new() { PatchMethod = AccessTools.Method(typeof(HomeBridge.BridgeTools.Supervisor), method.Name == "DoSingleTick" ? "OnTick" : "OnUpdate") } } : new() };
+        public static bool Installed;
+        public static Patches GetPatchInfo(MethodInfo method) => new() { Postfixes = Healthy && Installed ? new List<Patch> { new() { PatchMethod = AccessTools.Method(typeof(HomeBridge.BridgeTools.Supervisor), method.Name == "DoSingleTick" ? "OnTick" : "OnUpdate") } } : new() };
     }
 }
 namespace HomeBridge.BridgeTools
@@ -59,7 +60,7 @@ namespace HomeBridge.BridgeTools
         internal static bool RefusePause;
         internal static string InitialStop;
         private static long NowMs() => WallTime;
-        private static void EnsurePatched() { }
+        private static void EnsurePatched() { HarmonyLib.Harmony.Installed = true; }
         private static List<string> ForcePausingWindows() => new();
         private static void EnsureJournal() { if (Journal == null) { Journal = new ClockEventJournal(); _cursor = Journal.Newest; } }
         private static object Start(string owner, TimeSpeed speed, int leaseMs, string mode, float healthDrop, float minHealth, float hostileWithin,
@@ -96,7 +97,7 @@ namespace HomeBridge.BridgeTools
             internal List<Dictionary<string, object>> BaselineAlerts = new(), SuppressedInjuries = new();
         }
         internal static void FixtureReset()
-        { _state = null; Journal = null; _epoch = _cursor = 0; RefusePause = false; InitialStop = null; _patchError = null; }
+        { _state = null; Journal = null; _epoch = _cursor = 0; RefusePause = false; InitialStop = null; _patchError = null; HarmonyLib.Harmony.Installed = false; }
         internal static void FixtureExpire() => _state.LeaseExpiresMs = LeaseNow(_state);
         internal static bool IsActiveForFixture() => _state != null && _state.Active;
         internal static void FixtureEvent(string kind, Dictionary<string, object> row) => Add(kind, "Observed", _state, row);

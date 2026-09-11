@@ -32,6 +32,17 @@ event sequences attribute each service phase separately from orchestrator reads
 and tick control. No forced GABS takeover is used. Inspect both the inner result
 and launcher database-integrity/cleanup evidence; an unjoined process fails the run.
 
+For Go-owned clock operation, use `scripts/native_go_clock_acceptance.py` with
+the same launcher and binary handoff arguments. Also compile
+`scripts/fixtures/InterruptionFixtures.csproj` against the private game/SDK inputs
+and place its DLL under `RimGovernor/BridgeTools/InterruptionFixtures` in the
+input mod package. The fixture schedules a real threat letter before handing
+exclusive bridge access to Go. The service starts with `--clock-control` and must
+stop for that letter, retain an explicit acknowledgement and its replay, pause
+on Manual, observe completed pawn construction, join shutdown and restart disabled.
+SDK operation history must attribute clock control to Go throughout each service
+phase. The harness does not advance the clock on the service's behalf.
+
 `scripts/construction_refinement_acceptance.py --source-root <prepared-root> --output
 <fresh-directory> --model <local-model-id>` checks policy refusal before removal,
 real-model relocation with dependent shared execution, interrupted removal, player

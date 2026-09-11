@@ -194,6 +194,7 @@ namespace HomeBridge.BridgeTools
         {
             lock (Gate)
             {
+                EnsurePatched();
                 var result = new Clock.Status { Context = context.Clone(), ActualPaused = Find.TickManager.Paused,
                     ObservedSpeed = ObservedSpeed(Find.TickManager.CurTimeSpeed), NativeTickBoundary = TypedHooksReady(),
                     DurableEvents = Journal != null && _state?.StopReason != "event_journal_error" && _state?.PendingKind != "event_journal_error" };
