@@ -681,7 +681,8 @@ expand these into another nested task tree; remove a row when its outcome is met
   cooking remains a deficit until a usable food bill exists. Native power-trader
   censuses now feed per-consumer-network headroom, electrical demand and disabled
   consumer recovery into routine power needs. Incomplete facts remain unknown;
-  unrelated networks cannot cover a consumer. Native power acceptance remains pending.
+  unrelated networks cannot cover a consumer. Populated native power acceptance and
+  Go/Python replay verify a durable deficit, Manual invalidation and disabled restart.
   Further need inputs,
   remaining construction costs, method selection and execution composition for
   additional routine methods remain open.

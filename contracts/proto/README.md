@@ -62,6 +62,12 @@ The native generation is optional only when no authority observation is availabl
 An identity change invalidates pending reads, pages and commands. Page cursors are
 opaque and scoped to the producing observation, never coordinate reservations.
 
+The current native colony adapter projects `DevelopmentFacts.power` only. Its
+completeness describes the power-trader census; omitted furniture and research
+remain unported, not observed empty. Power building references carry identity only,
+without operation-precondition snapshot tokens. Network IDs group one observation
+and must not be retained as stable cross-load identities.
+
 Authority acquisition is produced by the explicit player-control path. Status
 does not acquire authority, and renewal cannot resurrect an expired or revoked
 lease. Native player orders, explicit Manual, lease expiry and identity changes
