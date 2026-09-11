@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 
 import pytest
+from mcp.types import CallToolResult
 
 
 SCRIPTS = Path(__file__).parents[1] / "scripts"
@@ -38,3 +39,16 @@ def test_package_requires_both_loader_assemblies_and_rejects_mixed_install(tmp_p
     (tmp_path / "Mods/RimGovernorHeadless").mkdir()
     with pytest.raises(AssertionError, match="Mixed package"):
         acceptance.package_files(tmp_path)
+
+
+def test_protobuf_smoke_requires_successful_fixed_outcome():
+    good = CallToolResult(content=[], structuredContent={"payload": '{"batch":{"results":[]}}'})
+    assert acceptance.protobuf_outcome(good, "batch") == {"results": []}
+    for body in ({"payload": '{"failure":{"code":"FAILURE_CODE_UNAVAILABLE"}}'},
+                 {"payload": '{"batch":{},"failure":{}}'}, {"batch": {}},
+                 {"payload": {"batch": {}}}, {"payload": '[]'}):
+        with pytest.raises(AssertionError):
+            acceptance.protobuf_outcome(CallToolResult(content=[], structuredContent=body), "batch")
+    with pytest.raises(AssertionError, match="SDK refused"):
+        acceptance.protobuf_outcome(CallToolResult(content=[], isError=True,
+            structuredContent={"payload": '{"batch":{}}'}), "batch")

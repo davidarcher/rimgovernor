@@ -6694,8 +6694,8 @@
   ],
   "native_surface": {
     "version": 1,
-    "source_revision": "f08db2eb117cefbc509d735c4109303843c4431c",
-    "scope": "Repository-owned unified native Runtime/Bridge and conditional fixture C# projects. Installed RimBridgeServer/GABS exports require actual discovery and are not enumerated by this source scan.",
+    "source_revision": "4043792d0ae7d3a75dfc6474ec1884cf27a768b9",
+    "scope": "Current repository-owned native Runtime/Bridge exports, generated Protobuf compile inputs and conditional fixtures. Historical Python consumer inventory remains at its independent source_revision. Installed SDK/GABS exports require actual discovery.",
     "evidence_links": "domain_item_id reuses existing G01 owner, fixtures and native_scenarios without copying Python call-site lists. Empty local evidence lists preserve uncovered acceptance. schema_owner_chunk assigns the cross-language schema owner; native_owner_chunk owns typed conversion or fixture isolation.",
     "variant_contract": "source_baseline.exports[].declaration retains the complete exported signature, Tool/ToolParameter/ToolResponse attributes, documented string variants, optional selectors and defaults. Source fingerprints detect implementation changes. Runtime branches, aliases and payload keys still require behavioral schema and discovery acceptance.",
     "compile_exclusion_notes": [],
@@ -6703,7 +6703,7 @@
       "projects": [
         {
           "path": "integrations/rimgovernor-native/src/Bridge/RimGovernor.Bridge.csproj",
-          "source_sha256": "d4bff293104ddb891888e37f01b96757c5e4081fd402c02b77095aea228b01d5",
+          "source_sha256": "9d3e8a6ce4e077318673d3917db368e4ca35442542e66c82edc525501f4e7421",
           "assembly": "RimGovernor.Bridge",
           "target_framework": "net472",
           "output_directory": "integrations/rimgovernor-native/BridgeTools/RimGovernor",
@@ -6714,6 +6714,42 @@
             }
           ],
           "compiled_sources": [
+            {
+              "path": "contracts/generated/protobuf/csharp/Authority.cs",
+              "condition": ""
+            },
+            {
+              "path": "contracts/generated/protobuf/csharp/Clock.cs",
+              "condition": ""
+            },
+            {
+              "path": "contracts/generated/protobuf/csharp/Common.cs",
+              "condition": ""
+            },
+            {
+              "path": "contracts/generated/protobuf/csharp/Lifecycle.cs",
+              "condition": ""
+            },
+            {
+              "path": "contracts/generated/protobuf/csharp/Observations.cs",
+              "condition": ""
+            },
+            {
+              "path": "contracts/generated/protobuf/csharp/Operations.cs",
+              "condition": ""
+            },
+            {
+              "path": "contracts/generated/protobuf/csharp/Placement.cs",
+              "condition": ""
+            },
+            {
+              "path": "contracts/generated/protobuf/csharp/Presentation.cs",
+              "condition": ""
+            },
+            {
+              "path": "contracts/generated/protobuf/csharp/Receipts.cs",
+              "condition": ""
+            },
             {
               "path": "integrations/rimgovernor-native/src/Bridge/BillCommon.cs",
               "condition": ""
@@ -6887,6 +6923,10 @@
               "condition": ""
             },
             {
+              "path": "integrations/rimgovernor-native/src/Bridge/PlacementPreviewOperation.cs",
+              "condition": ""
+            },
+            {
               "path": "integrations/rimgovernor-native/src/Bridge/PlacementPreviewsTool.cs",
               "condition": ""
             },
@@ -6904,6 +6944,22 @@
             },
             {
               "path": "integrations/rimgovernor-native/src/Bridge/ProductionPolicyTool.cs",
+              "condition": ""
+            },
+            {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeAuthorityTools.cs",
+              "condition": ""
+            },
+            {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/PlacementProtocol.cs",
+              "condition": ""
+            },
+            {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/ProtoBoundary.cs",
+              "condition": ""
+            },
+            {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/ProtoIdentityTools.cs",
               "condition": ""
             },
             {
@@ -7166,6 +7222,10 @@
               "condition": ""
             },
             {
+              "path": "integrations/rimgovernor-native/src/Runtime/Persistence/NativeControlAuthority.cs",
+              "condition": ""
+            },
+            {
               "path": "integrations/rimgovernor-native/src/Runtime/Persistence/ProductionPolicyState.cs",
               "condition": ""
             },
@@ -7416,13 +7476,6 @@
           "source_sha256": "99e6eaae8b5f157f8676a6462510a2ebbef11748f49d3af49a0abb123225921a"
         },
         {
-          "name": "home/placement_previews",
-          "path": "integrations/rimgovernor-native/src/Bridge/PlacementPreviewsTool.cs",
-          "line": 16,
-          "declaration": "[Tool(\"home/placement_previews\", Title = \"Bounded placement previews\",\n            Description = \"Preview 1..16 placements in list order on one native main-thread turn. No construction, god mode, clock changes or camera changes. Every result uses ordinary placement rules; candidates are independent and do not reserve space or materials.\")]\n        public async Task<object> Preview(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"JSON list of 1..16 objects with exactly defName (string), x/z (integers), rotation (string), stuff (string; empty for default preview). No other fields. Maximum 32768 characters.\")] string placements = null)",
-          "source_sha256": "be0cb0f65dbc03a11109b26f8338460eb21019bbe2a2e548437751a8e0a0eb27"
-        },
-        {
           "name": "home/play_until_event",
           "path": "integrations/rimgovernor-native/src/Bridge/PlayUntilEventTool.cs",
           "line": 113,
@@ -7596,6 +7649,27 @@
           "line": 117,
           "declaration": "[Tool(\n            ToolName,\n            Title = \"Add, remove, create, delete or repair zone cells, set a stockpile filter, or set a growing zone's crop\",\n            Description =\n                \"Write tool for zones, with dryRun defaulting to TRUE. op=add moves cells into a zone the way the game does it \"\n                + \"(removing them from their previous owner FIRST, which is the step a direct AddCell skips and the reason zones end \"\n                + \"up claiming cells the grid gives to someone else). op=remove takes cells out. op=create makes a stockpile, dumping \"\n                + \"stockpile or growing zone and fills it, optionally already filtered. op=delete removes a whole zone. op=repair fixes \"\n                + \"a zone whose cell list and the map's zone grid disagree, by editing the list only and never the grid. op=filter sets \"\n                + \"a stockpile's storage filter and priority: preset (everything, nothing, food, perishables, nonperishables, \"\n                + \"outdoorSafe), then allow, then disallow, then priority; the reply defines every preset it used. op=crop sets a \"\n                + \"growing zone's plant with the `plant` argument (a ThingDef defName or label) and reads the crop back off the \"\n                + \"zone. Every op reports a before/after summary, and a dry run computes exactly what a real run would do.\",\n            ResultDescription =\n                \"success, dryRun, op, changed, zone (label/id/type after the op), cells[] (per-cell accepted / reason / takenFrom), \"\n                + \"before and after summaries (cell counts, or the filter summary for op=filter), presetDefinition, filter (op=create), \"\n                + \"zonesRemoved[], changes[] (English sentences), watch, notes.\")]\n        [ToolResponse(\"dryRun\", \"boolean\", \"True = nothing was written. Defaults to TRUE; a caller must pass dryRun:false deliberately.\", Always = true)]\n        [ToolResponse(\"cells\", \"array\", \"One row per requested cell: x, z, accepted, reason (empty when accepted), takenFrom (the zone it was moved out of, null otherwise).\", Always = true)]\n        [ToolResponse(\"before\", \"object\", \"listedCellCount, gridCellCount, phantomCellCount for the target zone before the op. For op=filter it is the stockpile's filter summary instead: allowedDefCount, storableDefCount, priority, categoriesFullyAllowed[], categoriesPartlyAllowed[], allowsRottable, allowedRottableCount, sampleAllowed[], sampleTruncated. For op=crop it is plantDef, plantLabel, plantDefExplicitlySet, allowSow.\", Always = true)]\n        [ToolResponse(\"after\", \"object\", \"The same block after the op - simulated when dryRun, READ BACK off the game when not. Equal cell counts with zero phantoms is the healthy state.\", Always = true)]\n        [ToolResponse(\"changed\", \"boolean\", \"Whether the op changed anything (or would, on a dry run). A filter call that re-applies what the stockpile already had reports false.\", Always = true)]\n        [ToolResponse(\"presetDefinition\", \"object\", \"One sentence per preset this call used, defining exactly which defs it covers. Empty object when no preset was named.\", Always = true)]\n        [ToolResponse(\"filter\", \"object\", \"op=create only: the new stockpile's filter summary, in the same shape as before/after. Null for a growing zone and when no zone was created.\", Nullable = true)]\n        [ToolResponse(\"watch\", \"object\", \"What was shown on screen while the write landed: shown, and either the selection/tab/camera detail or a reason it was skipped (dry run, refused, watch:false).\", Always = true)]\n        [ToolResponse(\"changes\", \"array\", \"Every mutation as an English sentence, in the order it was (or would be) applied.\", Always = true)]\n        [ToolResponse(\"unknownArguments\", \"array\", \"Every argument key the caller sent that this tool does not declare, sorted, case-sensitively. Empty array = every key was recognised. The host's own _rimBridgeTimeoutMs is never listed.\", Always = true)]\n        [ToolResponse(\"unknownArgumentsWarning\", \"string\", \"Present only when unknownArguments is non-empty, or when the caller's raw keys could not be read at all - in which case the empty unknownArguments means 'not known', not 'nothing unknown'. On a WRITE tool this matters twice over: a misspelled dryRun is the difference between a plan and a changed map.\", Nullable = true)]\n        public async Task<object> ZoneCells(\n            IRimBridgeContext ctx,\n            CancellationToken cancellationToken,\n            [ToolParameter(Description = \"What to do: add, remove, create, delete, repair, filter, crop, settings (growing-zone sow/cut toggles).\")] string op = null,\n            [ToolParameter(Description = \"Target zone: its exact label (case-insensitive), or its numeric id as a string. Optional for op=repair (repairs every zone) and required for everything else except op=create.\")] string zone = null,\n            [ToolParameter(Description = \"Rect origin x. Combined with z/width/height to name a block of cells.\", DefaultValue = -1)] int x = -1,\n            [ToolParameter(Description = \"Rect origin z.\", DefaultValue = -1)] int z = -1,\n            [ToolParameter(Description = \"Rect width in cells.\", DefaultValue = 1)] int width = 1,\n            [ToolParameter(Description = \"Rect height in cells.\", DefaultValue = 1)] int height = 1,\n            [ToolParameter(Description = \"Explicit cell list, e.g. \\\"113,145;113,144\\\". Combined with the rect if both are given; duplicates are collapsed.\")] string cells = null,\n            [ToolParameter(Description = \"For op=create: stockpile, dumping, or growing.\", DefaultValue = \"stockpile\")] string zoneType = \"stockpile\",\n            [ToolParameter(Description = \"For op=create: the label for the new zone. Null = the game's own auto-generated name.\")] string label = null,\n            [ToolParameter(Description = \"Storage priority for a stockpile (Low, Normal, Preferred, Important, Critical). Applies to op=create, op=filter and, when given, to op=add on an existing stockpile.\")] string priority = null,\n            [ToolParameter(Description = \"For op=filter and op=create: a prebuilt filter to start from. One of everything, nothing, food, perishables, nonperishables, outdoorSafe. The reply's presetDefinition says exactly what each covers.\")] string preset = null,\n            [ToolParameter(Description = \"For op=filter and op=create: extra ThingCategoryDef or ThingDef names to allow, comma-separated, applied after the preset. Use special:DEFNAME for a configurable SpecialThingFilterDef discovered in the filter summary. Unknown or nonconfigurable names refuse the whole call.\")] string allow = null,\n            [ToolParameter(Description = \"For op=filter and op=create: ThingCategoryDef or ThingDef names to disallow, comma-separated, applied last. Same matching and the same refusal.\")] string disallow = null,\n            [ToolParameter(Description = \"For op=crop or op=create with zoneType=growing: the plant to grow, as a ThingDef defName (Plant_Potato) or label (potato plant), case-insensitive. A name that matches no sowable plant refuses and lists what the zone will take.\")] string plant = null,\n            [ToolParameter(Description = \"After op=add, call Zone.CheckContiguous() when the zone has become non-contiguous. CheckContiguous DELETES the cells it cannot reach, so this is off by default: the tool reports contiguous:false and leaves the zone alone.\", DefaultValue = false)] bool allowSplit = false,\n            [ToolParameter(Description = \"Show the write happening: select the zone, open the tab a player would use, then close it again. Decorative only.\", DefaultValue = true)] bool watch = true,\n            [ToolParameter(Description = \"How long the menu stays open after the write, in seconds.\", DefaultValue = Watch.DefaultSeconds)] int watchSeconds = Watch.DefaultSeconds,\n            [ToolParameter(Description = \"TRUE by default. Plan the whole operation and return it without writing anything. Pass false to actually apply it.\", DefaultValue = true)] bool dryRun = true,\n            [ToolParameter(Description = \"For op=settings on an exact growing zone: allow sowing. Omit to preserve.\")] bool? sow = null,\n            [ToolParameter(Description = \"For op=settings on an exact growing zone: allow cutting. Omit to preserve.\")] bool? cut = null,\n            [ToolParameter(Description = \"For stockpile creation: refuse the whole operation unless every requested cell is roofed, walkable, unzoned and empty of plants, items and construction at dispatch.\", DefaultValue = false)] bool requireCoveredEmpty = false)",
           "source_sha256": "b2c7042c83bf7c2f83429b7a1f440f379f9d012adfbfe27b2fdb34344c93f50c"
+        },
+        {
+          "name": "rimgovernor/authority_read_status",
+          "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeAuthorityTools.cs",
+          "line": 16,
+          "declaration": "[Tool(ToolName, Title = \"Read native control authority\", Description = \"Read current native authority without acquiring or renewing control. request is official ProtoJSON for rimgovernor.authority.v1.StatusRequest.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON rimgovernor.authority.v1.StatusReply.\", Always = true)]\n        public async Task<object> ReadStatus(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official ProtoJSON StatusRequest with exact colony/load/map identity.\")] object? request = null)",
+          "source_sha256": "f423947899a1d171434308b1bd721d226de8e3f8bd5a5bf55209b9326d9f8a63"
+        },
+        {
+          "name": "rimgovernor/lifecycle_read_identity",
+          "path": "integrations/rimgovernor-native/src/Bridge/Protocol/ProtoIdentityTools.cs",
+          "line": 12,
+          "declaration": "[Tool(\"rimgovernor/lifecycle_read_identity\", Title = \"Read native identity\",\n            Description = \"Read the current colony, load, map and native contract capabilities.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON rimgovernor.lifecycle.v1.IdentityReply.\", Always = true)]\n        public async Task<object> ReadIdentity(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official lifecycle IdentityRequest ProtoJSON string.\")] object request = null)",
+          "source_sha256": "61cd04dbaed5dcf8f6a43d9b04f7222ff156faf24b273142955d8c6ad7e795b7"
+        },
+        {
+          "name": "rimgovernor/placement_preview",
+          "path": "integrations/rimgovernor-native/src/Bridge/PlacementPreviewsTool.cs",
+          "line": 14,
+          "declaration": "[Tool(ToolName, Title = \"Placement preview\",\n            Description = \"Read ordinary native placement facts for 1..16 ordered candidates in one main-thread turn. request is the official ProtoJSON PlacementRequest string. No orders, clock, camera or god mode effects.\")]\n        public async Task<object> Preview(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Raw transport value; must be a ProtoJSON PlacementRequest string with exact identity and 1..16 placements.\", Required = true)] object? request = null)",
+          "source_sha256": "6b7c50e1b7149e3d76fa0142bd8137a23b713b1cb68653383a944d74cf24c03d"
         },
         {
           "name": "test/b04f_setup",
@@ -7967,6 +8041,44 @@
           "line": 57,
           "declaration": "[Tool(\"test/world_incident\", Description = \"Disposable ordinary ColdSnap or AnimalInsanitySingle incident at native storyteller settings. No direct condition, temperature, pawn or health edits.\")]\n        public async Task<object> WorldIncident(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            string definition, bool dryRun = true)",
           "source_sha256": "141273044ee02ccc89e2a2b79d680a59fb181248c8ccd867bd05902a61dd05c0"
+        }
+      ],
+      "generated_protocol_sources": [
+        {
+          "path": "contracts/generated/protobuf/csharp/Authority.cs",
+          "source_sha256": "00b843dc2ca54ea198a9a2faf52ed242cde45ab35727a8d2bc6a56f9613650a7"
+        },
+        {
+          "path": "contracts/generated/protobuf/csharp/Clock.cs",
+          "source_sha256": "6fd0c8dd98016f05e856598bfd0b61a200970947a315bda2ab342804024d9861"
+        },
+        {
+          "path": "contracts/generated/protobuf/csharp/Common.cs",
+          "source_sha256": "7a63e4985117317079796b2c6275c16e0a8e57a8a16654789d7d9b496ec5e408"
+        },
+        {
+          "path": "contracts/generated/protobuf/csharp/Lifecycle.cs",
+          "source_sha256": "b39c03e8273739c1464d3d7dc3b3f55749b7a65f6d30219bd5588233f332a80a"
+        },
+        {
+          "path": "contracts/generated/protobuf/csharp/Observations.cs",
+          "source_sha256": "005b3042f08c49a56871e534459e04867c8eea661a3878a6f276a3d629e6bf10"
+        },
+        {
+          "path": "contracts/generated/protobuf/csharp/Operations.cs",
+          "source_sha256": "15099bdd064d234ff6b17a219367d0b5260328100248734173e6d8e173bb5269"
+        },
+        {
+          "path": "contracts/generated/protobuf/csharp/Placement.cs",
+          "source_sha256": "b564067af5c1487ac5d92bb9bdddbc85f93b3264b4d3f4f942e0c06f799ecac9"
+        },
+        {
+          "path": "contracts/generated/protobuf/csharp/Presentation.cs",
+          "source_sha256": "82cb891a81e664a4d93eef48f64733c3dd572ae0d3f66722a562231f407e4a7a"
+        },
+        {
+          "path": "contracts/generated/protobuf/csharp/Receipts.cs",
+          "source_sha256": "1083d3a6f116ecb95601247f2b922633cf81eeb214c7bc3febd4711136b1154e"
         }
       ]
     },
@@ -8407,21 +8519,6 @@
         ]
       },
       {
-        "name": "home/placement_previews",
-        "domain_item_id": "native-tool:home/placement_previews",
-        "schema_owner_chunk": "G01.02",
-        "native_owner_chunk": "N01.02",
-        "build_role": "production",
-        "fixtures": [],
-        "native_scenarios": [],
-        "status": "pending",
-        "uncovered_acceptance": [
-          "Capture actual SDK discovery and representative replies for this build; declarations are source evidence only.",
-          "Audit every advertised/implemented argument variant, defaults, invalid values and refusal semantics; signatures retain advertised contracts but are not an exhaustive behavioral schema.",
-          "Verify isolated native outcomes and relevant interruption/load/player-override behavior; linked existing scenarios are candidates, not per-tool acceptance."
-        ]
-      },
-      {
         "name": "home/play_until_event",
         "domain_item_id": null,
         "schema_owner_chunk": "G01.02",
@@ -8795,6 +8892,60 @@
           "Audit every advertised/implemented argument variant, defaults, invalid values and refusal semantics; signatures retain advertised contracts but are not an exhaustive behavioral schema.",
           "Verify isolated native outcomes and relevant interruption/load/player-override behavior; linked existing scenarios are candidates, not per-tool acceptance."
         ]
+      },
+      {
+        "name": "rimgovernor/authority_read_status",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.02",
+        "native_owner_chunk": "N01.02",
+        "build_role": "production",
+        "fixtures": [
+          "contracts/tests/native-proto-boundary/Program.cs"
+        ],
+        "native_scenarios": [],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Verify actual installed ProtoJSON discovery and fresh-game valid/refused/invalid requests for this source revision.",
+          "Verify unchanged identity, native ticks, camera and orders; source and compiled tests are not gameplay acceptance."
+        ],
+        "protocol_method": "rimgovernor.authority.v1.Authority/ReadStatus",
+        "protocol_schema": "contracts/proto/authority.proto"
+      },
+      {
+        "name": "rimgovernor/lifecycle_read_identity",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.02",
+        "native_owner_chunk": "N01.02",
+        "build_role": "production",
+        "fixtures": [
+          "contracts/tests/native-proto-boundary/Program.cs"
+        ],
+        "native_scenarios": [],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Verify actual installed ProtoJSON discovery and fresh-game valid/refused/invalid requests for this source revision.",
+          "Verify unchanged identity, native ticks, camera and orders; source and compiled tests are not gameplay acceptance."
+        ],
+        "protocol_method": "rimgovernor.lifecycle.v1.Lifecycle/ReadIdentity",
+        "protocol_schema": "contracts/proto/lifecycle.proto"
+      },
+      {
+        "name": "rimgovernor/placement_preview",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.02",
+        "native_owner_chunk": "N01.02",
+        "build_role": "production",
+        "fixtures": [
+          "contracts/tests/native-proto-placement/Program.cs"
+        ],
+        "native_scenarios": [],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Verify actual installed ProtoJSON discovery and fresh-game valid/refused/invalid requests for this source revision.",
+          "Verify unchanged identity, native ticks, camera and orders; source and compiled tests are not gameplay acceptance."
+        ],
+        "protocol_method": "rimgovernor.placement.v1.Placement/Preview",
+        "protocol_schema": "contracts/proto/placement.proto"
       },
       {
         "name": "test/b04f_setup",
@@ -9591,6 +9742,7 @@
           "Verify isolated native outcomes and relevant interruption/load/player-override behavior; linked existing scenarios are candidates, not per-tool acceptance."
         ]
       }
-    ]
+    ],
+    "current_protocol_cutover": "contracts/native-protobuf-cutover.md"
   }
 }

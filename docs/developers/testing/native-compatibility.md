@@ -1,5 +1,10 @@
 # Capture native compatibility
 
+This procedure describes the retained compatibility baseline. Current package
+checks use `scripts/native_package_acceptance.py` through the scenario launcher;
+see the [current Protobuf capability mapping](../../../contracts/native-protobuf-cutover.md).
+The old placement wire format below is no longer exported by the current package.
+
 Use this acceptance capture before changing native registration, contracts or saved
 component ownership. Start with [prepared private inputs](docker-inputs.md) and
 the [scenario launcher](scenario-launcher.md). Build matching production DLLs into

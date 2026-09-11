@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import json
 from pathlib import Path
+from mcp.types import CallToolResult
 
 from rimgovernor.bridge import bridge_session, gabs_executable
 from rimgovernor.headless import prepare, prepare_rendered
@@ -17,6 +18,16 @@ from native_compatibility_acceptance import (
 
 SOURCE = Path(__file__).resolve().parents[1]
 PACKAGE_ID = "davidarcher.rimgovernor.native"
+
+
+def protobuf_outcome(result: CallToolResult, case: str) -> dict[str, object]:
+    """Inspect this smoke test's expected official ProtoJSON outcome, retaining raw evidence."""
+    assert not result.isError, "SDK refused Protobuf request"
+    encoded = payload(result).get("payload")
+    assert isinstance(encoded, str) and len(encoded.encode("utf8")) <= 1024 * 1024, "Missing or oversized ProtoJSON payload"
+    message = object_value(json.loads(encoded), "ProtoJSON reply")
+    assert set(message) == {case}, f"Expected {case} reply, received {sorted(message)}"
+    return object_value(message[case], case)
 
 
 def check_startup_log(log: str, *, headless: bool) -> None:
@@ -66,19 +77,32 @@ async def run(root: Path, output: Path, *, headless: bool, timeout_seconds: int)
                         {"readiness": "visual", "pauseIfNeeded": True, "timeoutMs": 120000}))
                     await evidence.call(bridge, "pause", "rimworld/set_time_speed", {"speed": "Paused", "ultraSpeedBoost": False})
                     before = payload(await evidence.call(bridge, "status-before", "home/status", {"colonists": False, "threats": False}))
-                    identity = payload(await evidence.call(bridge, "identity", "home/colony_identity"))
+                    loaded = protobuf_outcome(await evidence.call(bridge, "identity", "rimgovernor/lifecycle_read_identity",
+                        {"request": "{}"}), "loaded")
+                    context = object_value(loaded["context"], "identity context")
+                    identity = object_value(context["identity"], "identity")
                     assert identity.get("colonyId") and identity.get("loadToken")
+                    authority = protobuf_outcome(await evidence.call(bridge, "authority", "rimgovernor/authority_read_status",
+                        {"request": json.dumps({"identity": identity})}), "status")
+                    assert "active" not in authority, "Fresh game unexpectedly grants native authority"
+                    assert object_value(authority["context"], "authority context")["identity"] == identity
                     camera_before = payload(await evidence.call(bridge, "camera-before", "rimworld/get_camera_state"))
                     building_args = {"x": 0, "z": 0, "radius": 1, "category": "all", "aggregate": False}
                     buildings_before = payload(await evidence.call(bridge, "buildings-before", "home/list_buildings", building_args))
-                    # Native semantic lookup handles this ordinary definition and
+                    # Exact native definition lookup handles this ordinary definition and
                     # edge cell. Refusal is valid; preview must not place anything.
-                    candidate = {"defName": "Wall", "x": 0, "z": 0, "rotation": "north", "stuff": ""}
-                    preview = payload(await evidence.call(bridge, "preview", "home/placement_previews", {"placements": json.dumps([candidate])}))
-                    assert preview.get("success") is True and len(preview.get("results", [])) == 1
+                    candidate = {"defName": "Wall", "x": 0, "z": 0, "rotation": "ROTATION_NORTH", "stuff": ""}
+                    preview = protobuf_outcome(await evidence.call(bridge, "preview", "rimgovernor/placement_preview",
+                        {"request": json.dumps({"identity": identity, "placements": [candidate]})}), "batch")
+                    assert len(preview.get("results", [])) == 1
+                    assert object_value(preview["context"], "preview context")["identity"] == identity
+                    candidate_reply = object_value(preview["results"][0], "candidate")
+                    assert set(candidate_reply) == {"evaluated"}, "Ordinary Wall preview could not be evaluated"
+                    assert type(object_value(candidate_reply["evaluated"], "evaluated").get("canPlace")) is bool
                     after = payload(await evidence.call(bridge, "status-after", "home/status", {"colonists": False, "threats": False}))
                     before_clock, after_clock = object_value(before["time"], "clock"), object_value(after["time"], "clock")
                     assert before_clock["ticksGame"] == after_clock["ticksGame"] and after_clock["paused"] is True
+                    assert int(object_value(preview["context"], "preview context")["tick"]) == after_clock["ticksGame"]
                     camera_after = payload(await evidence.call(bridge, "camera-after", "rimworld/get_camera_state"))
                     # SDK operation timing/IDs differ between calls; compare game
                     # camera fields only, retaining both raw envelopes for diagnosis.

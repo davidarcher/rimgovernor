@@ -19,6 +19,11 @@ from typing import Any
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
+PROTOBUF_EXPORTS = {
+    "rimgovernor/lifecycle_read_identity": ("rimgovernor.lifecycle.v1.Lifecycle/ReadIdentity", "lifecycle.proto"),
+    "rimgovernor/authority_read_status": ("rimgovernor.authority.v1.Authority/ReadStatus", "authority.proto"),
+    "rimgovernor/placement_preview": ("rimgovernor.placement.v1.Placement/Preview", "placement.proto"),
+}
 # Strings are single tokens so brackets and comments inside descriptions cannot
 # terminate an attribute or parameter. Comments never contribute declarations.
 TOKEN = re.compile(r'//[^\n]*|/\*[\s\S]*?\*/|@"(?:[^"]|"")*"|"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|[A-Za-z_]\w*|\S')
@@ -57,6 +62,8 @@ def closing(stream: list[Token], start: int, left: str, right: str) -> int:
 
 
 def exports(text: str, path: str) -> list[Export]:
+    if "[Tool" not in text:
+        return []
     stream = tokens(text)
     result: list[Export] = []
     constants = {stream[i + 2].value: json.loads(stream[i + 4].value)
@@ -92,7 +99,10 @@ def tracked_sources(root: Path) -> list[str]:
 
 def source_baseline(root: Path = ROOT) -> dict[str, Any]:
     tracked = tracked_sources(root)
-    sources = [p for p in tracked if p.endswith(".cs")]
+    native_sources = [p for p in tracked if p.endswith(".cs")]
+    generated = sorted(path.relative_to(root).as_posix()
+                       for path in (root / "contracts/generated/protobuf/csharp").glob("*.cs"))
+    sources = native_sources + generated
     projects: list[dict[str, Any]] = []
     for relative in (p for p in tracked if p.endswith(".csproj")):
         project = root / relative
@@ -130,12 +140,14 @@ def source_baseline(root: Path = ROOT) -> dict[str, Any]:
                          "compiled_sources": [{"path": p, "condition": condition}
                                               for p, condition in sorted(compiled.items())],
                          "compile_exclusions": exclusions})
-    found = [asdict(export) for p in sources
+    found = [asdict(export) for p in native_sources
              for export in exports((root / p).read_text(encoding="utf-8-sig"), p)]
     names = [row["name"] for row in found]
     if len(names) != len(set(names)):
         raise ValueError("Duplicate repository tool names require explicit registration review")
-    return {"projects": projects, "exports": sorted(found, key=lambda row: row["name"])}
+    return {"projects": projects, "exports": sorted(found, key=lambda row: row["name"]),
+            "generated_protocol_sources": [{"path": path, "source_sha256": hashlib.sha256(
+                (root / path).read_text(encoding="utf-8-sig").encode()).hexdigest()} for path in generated]}
 
 
 def baseline_errors(saved: dict[str, Any], current: dict[str, Any]) -> list[str]:
@@ -184,6 +196,14 @@ def check(root: Path = ROOT) -> list[str]:
     names = [row["name"] for row in rows]
     if len(names) != len(set(names)) or set(names) != expected:
         errors.append("Native ownership rows must cover each exported tool exactly once")
+    if "home/placement_previews" in expected:
+        errors.append("Retired placement preview export must not remain as an alias")
+    for name, (method, schema) in PROTOBUF_EXPORTS.items():
+        row = next((entry for entry in rows if entry["name"] == name), {})
+        if row.get("protocol_method") != method or row.get("protocol_schema") != "contracts/proto/" + schema:
+            errors.append(f"{name}: missing canonical Protobuf source mapping")
+        if name not in expected:
+            errors.append(f"{name}: declared Protobuf capability has no native export")
     declarations = {row["name"]: row for row in native["source_baseline"]["exports"]}
     compiled_paths = {source["path"] for project in native["source_baseline"]["projects"]
                       for source in project["compiled_sources"]}
@@ -251,6 +271,9 @@ public Task<object> Run([ToolParameter(Description = "a, b (c)")] string op = "a
     changed_signature = copy.deepcopy(baseline)
     changed_signature["exports"][0]["declaration"] += " changed"
     assert baseline_errors(changed_signature, baseline), "Changed signature accepted"
+    changed_generated = copy.deepcopy(baseline)
+    changed_generated["generated_protocol_sources"][0]["source_sha256"] = "0" * 64
+    assert baseline_errors(changed_generated, baseline), "Changed compiled Protobuf binding accepted"
     changed_compile = copy.deepcopy(baseline)
     changed_compile["projects"][0]["compiled_sources"].pop()
     assert baseline_errors(changed_compile, baseline), "Missing compiled source accepted"
