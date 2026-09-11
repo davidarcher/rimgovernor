@@ -11,9 +11,12 @@ from types import SimpleNamespace
 from native_package_acceptance import Evidence, bridge_session, check_startup_log, gabs_executable, package_files, payload, prepare, prepare_rendered
 from native_protobuf_acceptance import proto
 from native_pawn_acceptance import outcome
-from native_draft_acceptance import OWNER, pawn_row, target, execute_request, owned_effect, same_control, release_request
+from native_draft_acceptance import OWNER, pawn_row, target, execute_request, owned_effect, same_control, release_request, actual_order
 from native_typed_clock_acceptance import TypedScenarioClock, ScenarioRuntime
 from rimgovernor.native_scenario import advance_game
+
+COMBAT_WINDOWS = 20
+TICKS_PER_WINDOW = 240
 
 
 class CombatScenarioClock(TypedScenarioClock):
@@ -70,10 +73,19 @@ def terminal(progress, receipt, victim, target_id):
     assert effect["verifiedReason"].startswith("Native positive damage by this exact attacker/job caused")
 
 
+def overridden_attack(progress, before, after, external):
+    assert progress["completeInspection"] is True
+    assert progress["unsuccessful"]["reason"] == "UNSUCCESSFUL_REASON_INTERRUPTED"
+    assert after["draftClaim"] == {"unowned": {}} and after["drafted"] is True
+    assert target(before) != target(after)
+    actual_order(external, after)
+
+
 async def run(root: Path, output: Path, *, headless=True):
     output.mkdir(parents=True, exist_ok=False)
     evidence = Evidence(output)
-    report = {"passed": False, "headless": headless, "scope": "Actual melee damage attributed to exact admitted attacker/job and native target downing/death; bounded shared clock waits, replay and ranged refusal. No damage or completion injection."}
+    report = {"passed": False, "headless": headless, "combat_tick_budget": COMBAT_WINDOWS*TICKS_PER_WINDOW,
+        "scope": "Actual attributed melee terminal outcome, player override and fresh claim, replay/ranged refusal, completed-before-Manual retention; bounded shared clock waits. No damage or completion injection."}
     try:
         configuration = prepare(root) if headless else prepare_rendered(root)
         game = json.loads((configuration / "config.json").read_text(encoding="utf-8"))["games"]["rimgovernor-trial"]
@@ -127,21 +139,60 @@ async def run(root: Path, output: Path, *, headless=True):
                     assert outcome(await wire("attack-replay", "operations_execute", request), "receipt") == receipt
                     replay = await read("replay-unchanged", actor_id); same_control(attacking, replay)
                     assert replay["job"] == attacking["job"]
+                    external = await call("player-override", "test/b04f_setup", {"op": "external-order", "pawn": actor_id})
+                    player = await read("player-job", actor_id)
+                    interrupted = outcome(await wire("override-progress", "receipts_observe_progress", attempt), "progress")
+                    overridden_attack(interrupted, attacking, player, external)
+                    report["interrupted_attempt"] = deepcopy(attempt)
+                    report["interrupted_progress"] = interrupted
+                    status = outcome(await wire("override-authority", "authority_read_status", {"identity": identity}), "status")
+                    grant = outcome(await wire("unowned-acquire", "authority_control", {"acquire": {"identity": identity,
+                        "expectedGeneration": status["context"]["nativeGeneration"], "owner": OWNER, "leaseMs": 30000}}), "granted")
+                    refusal = outcome(await wire("unowned-draft-refused", "operations_execute", execute_request(identity, grant, player, 4)), "failure")
+                    assert refusal["code"] == "FAILURE_CODE_OWNER_CONFLICT"
+                    preserved = await read("player-job-preserved", actor_id)
+                    same_control(player, preserved); actual_order(external, preserved)
+                    undraft = await call("player-undraft", "test/b04f_setup", {"op": "external-draft", "pawn": actor_id, "drafted": False})
+                    assert undraft["success"] is True and undraft["after"] is False
+                    actor = await read("fresh-undrafted", actor_id)
+                    assert actor["draftClaim"] == {"unowned": {}} and actor["drafted"] is False
+                    status = outcome(await wire("fresh-authority-status", "authority_read_status", {"identity": identity}), "status")
+                    grant = outcome(await wire("fresh-acquire", "authority_control", {"acquire": {"identity": identity,
+                        "expectedGeneration": status["context"]["nativeGeneration"], "owner": OWNER, "leaseMs": 30000}}), "granted")
+                    fresh_draft = outcome(await wire("fresh-draft", "operations_execute", execute_request(identity, grant, actor, 5)), "receipt")
+                    actor = await read("fresh-owned-attacker", actor_id); owned_effect(fresh_draft, actor)
+                    assert actor["draftClaim"]["owned"]["claimId"] != attacking["draftClaim"]["owned"]["claimId"]
+                    victim = await read("fresh-target-snapshot", targets[0])
+                    request = attack_request(identity, grant, actor, victim, 6)
+                    receipt = outcome(await wire("fresh-attack", "operations_execute", request), "receipt")
+                    effect = receipt["applied"]["observed"]["job"]
+                    assert effect["issued"] is True and effect["verified"] is True and effect["jobDef"] == "AttackMelee"
+                    assert effect["targetA"] == {"thingId": targets[0]} and effect["pawnId"] == actor_id
+                    attempt = {"identity": identity, "attempt": request["precondition"]["attempt"]}
+                    assert "pending" in outcome(await wire("fresh-pending", "receipts_observe_progress", attempt), "progress")
                     supervisor = CombatScenarioClock(wire, identity, OWNER["controllerSessionId"], report, targets)
                     supervisor.grant = grant
                     runtime = ScenarioRuntime(bridge, supervisor, report)
                     runtime.current_plan = SimpleNamespace(control={"combat": {"targets": targets}})
                     completed = None
-                    for window in range(8):
+                    for window in range(COMBAT_WINDOWS):
                         await supervisor.renew_authority()
-                        await advance_game(runtime, 240, report, timeout=180, combat_targets=targets)
+                        await advance_game(runtime, TICKS_PER_WINDOW, report, timeout=180, combat_targets=targets)
                         progress = outcome(await wire("progress-"+str(window), "receipts_observe_progress", attempt), "progress")
                         victims = observed_rows(await query("target-state-"+str(window), ids=[targets[0]], includeDead=True), identity)
                         assert len(victims) == 1, "Exact native target state unavailable"
                         if "completed" in progress:
                             terminal(progress, receipt, victims[0], targets[0]); completed = progress; break
                         assert "pending" in progress, progress
-                    assert completed is not None, "Bounded combat did not produce causally verified terminal damage"
+                    report["combat_windows_used"] = window+1
+                    report["last_combat_progress"] = progress
+                    report["last_target_state"] = victims[0]
+                    assert completed is not None, f"Combat budget exhausted after {COMBAT_WINDOWS*TICKS_PER_WINDOW} ticks without causally verified terminal damage"
+                    status = outcome(await wire("manual-status", "authority_read_status", {"identity": identity}), "status")
+                    outcome(await wire("manual-after-completion", "authority_control", {"revoke": {"identity": identity,
+                        "expectedGeneration": status["context"]["nativeGeneration"], "reason": "REVOCATION_REASON_MANUAL"}}), "revoked")
+                    retained = outcome(await wire("completed-after-manual", "receipts_observe_progress", attempt), "progress")
+                    assert retained["completeInspection"] is True and retained["completed"] == completed["completed"]
                     actor = await read("cleanup-attacker", actor_id)
                     cleanup = release_request(identity, actor)
                     released = outcome(await wire("cleanup-draft", "operations_release_owned_draft", cleanup), "released")
@@ -150,7 +201,7 @@ async def run(root: Path, output: Path, *, headless=True):
                     final = outcome(await wire("identity-after", "lifecycle_read_identity", {}), "loaded")
                     assert final["paused"] is True and final["context"]["identity"] == identity
                     ticks = int(final["context"]["tick"])-int(initial["context"]["tick"])
-                    assert 0 < ticks <= 1920
+                    assert 0 < ticks <= COMBAT_WINDOWS*TICKS_PER_WINDOW
                     check_startup_log((root / ("HeadlessPlayer.log" if headless else "Player.log")).read_text(encoding="utf-8", errors="replace"), headless=headless)
                     report.update(passed=True, pawn_id=actor_id, target_ids=targets, completed=completed, ticks=ticks)
             finally:

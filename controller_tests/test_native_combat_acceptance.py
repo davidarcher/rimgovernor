@@ -5,7 +5,7 @@ import sys
 import pytest
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"scripts"))
-from native_combat_acceptance import CombatScenarioClock, healthy_candidates, attack_request, terminal
+from native_combat_acceptance import CombatScenarioClock, healthy_candidates, attack_request, terminal, overridden_attack
 from native_typed_clock_acceptance import TypedScenarioClock
 
 
@@ -69,3 +69,18 @@ def test_combat_clock_translates_only_exact_committed_targets(monkeypatch):
     translated=asyncio.run(clock.control("start",request))
     assert translated["policy"]=={"mode":"WATCH_MODE_COMBAT","healthDropFraction":.1,"acknowledgedHostileIds":["Hare1","Hare2"]}
     assert request["policy"]["mode"]=="WATCH_MODE_COLONY"
+
+
+@pytest.mark.parametrize("bad",["claim_retained","same_snapshot","wrong_job","not_interrupted"])
+def test_player_override_requires_lost_claim_new_snapshot_and_actual_player_job(bad):
+    before={"pawn":{"id":"Human1","snapshot":{"token":"before"}}}
+    after={"pawn":{"id":"Human1","snapshot":{"token":"after"}},"drafted":True,"draftClaim":{"unowned":{}},
+        "job":{"loadId":"60","defName":"Wait_Combat"}}
+    external={"success":True,"accepted":True,"jobId":60,"jobDef":"Wait_Combat"}
+    progress={"completeInspection":True,"unsuccessful":{"reason":"UNSUCCESSFUL_REASON_INTERRUPTED"}}
+    overridden_attack(progress,before,after,external)
+    if bad=="claim_retained":after["draftClaim"]={"owned":{"claimId":"old"}}
+    elif bad=="same_snapshot":after["pawn"]["snapshot"]["token"]="before"
+    elif bad=="wrong_job":after["job"]["loadId"]="61"
+    else:progress["unsuccessful"]["reason"]="UNSUCCESSFUL_REASON_TARGET_DEAD"
+    with pytest.raises(AssertionError):overridden_attack(progress,before,after,external)
