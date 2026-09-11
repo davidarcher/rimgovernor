@@ -129,6 +129,20 @@ internal static class Program
             complete=new object?[]{claimTicket,Facts(true,1),null};
             Check(Call(record,"CompleteClaim",complete).ToString()=="Ready","previously admitted transition retains cleanup claim after actual authority expiry");
             Check(!(bool)Get(Call(authority,"Status"),"Active")!,"completion never revives authority");
+            var verifiedClaim=Get(complete[2]!,"Claim")!;
+            var revokeReason=runtime.GetType("HomeBridge.BridgeTools.NativeControlRevocationReason",true)!;
+            var expiredOrder=Call(authority,"RevokeExternal",Enum.Parse(revokeReason,"ExternalOrder"));
+            Check(Get(expiredOrder,"Reason")!.ToString()=="LeaseExpired","ordered hook retains actual expiry reason");
+            var causalMethod=Type("NativePawnControlState").GetMethod("CausallyOwned",Flags)!;
+            bool causal=(bool)causalMethod.Invoke(null,new[]{nativeGame,Get(verifiedClaim,"Owner")})!;
+            Check(causal,"compiled pawn hook attributes stored owner through expiry");
+            Call(record,"Ordered",causal);
+            var moved=Facts(true,1);Set(moved,"OrderRevision",1UL);var movedSnapshot=Observe(record,moved);
+            Check(Get(Get(movedSnapshot,"Claim")!,"ClaimId")!.Equals(Get(verifiedClaim,"ClaimId")),"expiry inside admitted order preserves exact cleanup claim");
+            Check(!(bool)ownedMethod.Invoke(null,new[]{nativeGame,Owner()})!,"causal order cannot authorize next mutation");
+            inputs=new object?[]{movedSnapshot,Get(movedSnapshot,"Token"),Get(verifiedClaim,"ClaimId"),Get(verifiedClaim,"Owner"),null};
+            Check(Call(record,"PrepareRelease",inputs).ToString()=="Ready","expired-order claim remains exactly releasable");
+            Check(!(bool)causalMethod.Invoke(null,new[]{nativeGame,Owner("other")})!,"foreign request strings cannot adopt causal scope");
         }
         Console.WriteLine(count+" compiled pawn state assertions passed; no game or hook installation performed.");return 0;
     }

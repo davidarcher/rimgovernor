@@ -228,7 +228,7 @@ namespace HomeBridge.BridgeTools
         private static void Ordered(Pawn ___pawn, bool __result)
         {
             if (!__result || Current.Game == null || !Games.TryGetValue(Current.Game, out var game) || !game.Pawns.TryGetValue(___pawn, out var record)) return;
-            bool sameOwner = record.Claim != null && Owned(Current.Game, record.Claim.Owner);
+            bool sameOwner = record.Claim != null && CausallyOwned(Current.Game, record.Claim.Owner);
             try { record.Ordered(sameOwner); } catch { game.Exhausted = true; }
         }
         private static void BeforeGame(out Game? __state) => __state = Current.Game;
@@ -239,6 +239,11 @@ namespace HomeBridge.BridgeTools
         {
             if (game == null || !Games.TryGetValue(game, out var state)) return;
             if (Interlocked.Increment(ref state.ContextRevision) <= 0) state.Exhausted = true;
+        }
+        private static bool CausallyOwned(Game game, Authority.Owner owner)
+        {
+            return ValidOwner(owner) && NativeControlAuthority.TryGetForGame(game, out var authority) && authority != null
+                && authority.IsCausalScopeForOriginalOwner(owner.ControllerSessionId, owner.PlayerDirection);
         }
         private static bool Owned(Game game, Authority.Owner owner)
         {

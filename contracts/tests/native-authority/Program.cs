@@ -192,6 +192,45 @@ internal static class Program
         Assert(!h.State.Status().Active, "Colony replacement retained old authority");
     }
 
+    private static void CausalOrderExpiry()
+    {
+        var h = new Harness(); var lease = h.Acquire();
+        string owner = lease.Lease!.ControllerSessionId; ulong direction = lease.Lease.PlayerDirection;
+        using (h.State.Owned())
+        {
+            Assert(h.State.IsCausalScopeForOriginalOwner(owner,direction), "Original owner not captured");
+            Assert(!h.State.IsCausalScopeForOriginalOwner("other",direction) && !h.State.IsCausalScopeForOriginalOwner(owner,direction+1), "Foreign causal owner accepted");
+            h.Time = 1000;
+            var expired = h.State.RevokeExternal(NativeControlRevocationReason.ExternalOrder);
+            Assert(!expired.Active && expired.Generation == lease.Generation+1 && expired.Reason == NativeControlRevocationReason.LeaseExpired, "Order overwrote expiry or advanced twice");
+            Assert(h.State.IsCausalScopeForOriginalOwner(owner,direction), "Expiry lost causal owner");
+            Assert(!h.State.IsOwned, "Causal owner revived permission");
+            Error(h.State.Check(lease.Generation,lease.Lease.LeaseId,owner), NativeControlError.StaleGeneration);
+            bool refused=false; try { h.State.Owned(); } catch(InvalidOperationException) { refused=true; }
+            Assert(refused,"New owned entry permitted after expiry");
+            bool otherThread=true;var worker=new Thread(()=>otherThread=h.State.IsCausalScopeForOriginalOwner(owner,direction));worker.Start();worker.Join();
+            Assert(!otherThread,"Causal scope escaped thread");
+        }
+        Assert(!h.State.IsCausalScopeForOriginalOwner(owner,direction),"Causal scope escaped disposal");
+        Assert(h.State.RevokeExternal(NativeControlRevocationReason.ExternalOrder).Generation==lease.Generation+2,"Outside order suppressed");
+        foreach(var reason in new[]{"manual","player","context","acquire","hooks","clock"})
+        {
+            h=new Harness();h.Acquire();
+            using(h.State.Owned())
+            {
+                h.Time=1000;h.State.Status();
+                if(reason=="manual") h.State.Revoke(h.State.Status().Generation,NativeControlRevocationReason.Manual);
+                else if(reason=="player") h.State.RevokeExternal(NativeControlRevocationReason.PlayerControl);
+                else if(reason=="context") h.State.RequestContextInvalidation();
+                else if(reason=="acquire") Assert(h.State.Acquire(h.State.Status().Generation,owner,direction,1000).Success,"Reacquire failed");
+                else if(reason=="hooks") h.State.SetHookHealth(false);
+                else h.Time=-1;
+                Assert(!h.State.IsCausalScopeForOriginalOwner(owner,direction),"Causal scope survived "+reason);
+                Assert(!h.State.IsOwned,"Live scope survived "+reason);
+            }
+        }
+    }
+
     private static void Main()
     {
         var transition = new Harness();
@@ -206,7 +245,7 @@ internal static class Program
             var refreshed = transition.State.Status().Generation;
             Assert(transition.State.Status().Generation == refreshed, "Queued invalidation applied more than once");
         }
-        LeaseAndCas(); IdentityAndHealth(); OwnedScopes(); ExhaustionAndClock(); RegistryIsolation(); ScopeAndClockBoundaries();
+        LeaseAndCas(); IdentityAndHealth(); OwnedScopes(); ExhaustionAndClock(); RegistryIsolation(); ScopeAndClockBoundaries(); CausalOrderExpiry();
         Console.WriteLine("Native authority state passed " + assertions + " assertions (production source, injected clock/context).");
     }
 }

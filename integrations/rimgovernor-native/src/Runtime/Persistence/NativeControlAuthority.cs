@@ -91,6 +91,7 @@ namespace HomeBridge.BridgeTools
         private int pendingContextInvalidation;
         private NativeControlIdentity? ownedIdentity;
         private ulong ownedGeneration;
+        private NativeControlLease? originalOwnedLease;
         private NativeControlRevocationReason reason = NativeControlRevocationReason.HooksUnavailable;
 
         public static NativeControlAuthority ForGame(Game game)
@@ -193,7 +194,8 @@ namespace HomeBridge.BridgeTools
         public NativeControlSnapshot RevokeExternal(NativeControlRevocationReason revokeReason)
         {
             Refresh();
-            if (contextValid && !IsOwned) Invalidate(revokeReason);
+            if (contextValid && !IsOwned && !(revokeReason == NativeControlRevocationReason.ExternalOrder && HasCausalOwnedScope()))
+                Invalidate(revokeReason);
             return Snapshot();
         }
 
@@ -203,7 +205,7 @@ namespace HomeBridge.BridgeTools
             Refresh();
             if (!Available || lease == null) throw new InvalidOperationException("Native authority is not active");
             if (ownedDepth > 0 && !IsOwned) throw new InvalidOperationException("Native owned scope identity changed");
-            if (ownedDepth == 0) { ownedIdentity = identity; ownedGeneration = generation; }
+            if (ownedDepth == 0) { ownedIdentity = identity; ownedGeneration = generation; originalOwnedLease = lease; }
             ownedDepth = checked(ownedDepth + 1);
             return new OwnedScope(this);
         }
@@ -218,6 +220,28 @@ namespace HomeBridge.BridgeTools
             }
         }
 
+        /// <summary>
+        /// Cleanup attribution only, never write permission. A synchronous order
+        /// already admitted by Owned may finish just after its lease expires.
+        /// All other revocations, acquisitions and context changes end attribution.
+        /// </summary>
+        public bool IsCausalScopeForOriginalOwner(string controllerSessionId, ulong playerDirection)
+        {
+            if (Thread.CurrentThread.ManagedThreadId != thread || ownedDepth == 0) return false;
+            Refresh();
+            return originalOwnedLease != null && originalOwnedLease.ControllerSessionId == controllerSessionId
+                && originalOwnedLease.PlayerDirection == playerDirection && HasCausalOwnedScope();
+        }
+
+        private bool HasCausalOwnedScope()
+        {
+            if (Thread.CurrentThread.ManagedThreadId != thread || ownedDepth == 0 || originalOwnedLease == null
+                || !Available || !CurrentContextMatches()) return false;
+            return generation == ownedGeneration && ReferenceEquals(lease, originalOwnedLease)
+                || ownedGeneration < ulong.MaxValue && generation == ownedGeneration + 1 && lease == null
+                    && reason == NativeControlRevocationReason.LeaseExpired;
+        }
+
         private sealed class OwnedScope : IDisposable
         {
             private NativeControlAuthority? owner;
@@ -227,7 +251,7 @@ namespace HomeBridge.BridgeTools
                 if (owner == null) return;
                 owner.RequireThread();
                 owner.ownedDepth--;
-                if (owner.ownedDepth == 0) owner.ownedIdentity = null;
+                if (owner.ownedDepth == 0) { owner.ownedIdentity = null; owner.originalOwnedLease = null; }
                 owner = null;
             }
         }
