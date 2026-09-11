@@ -41,6 +41,9 @@ type ControlConfig struct {
 	ProfileDirectory           string
 	LeaseDuration, CallTimeout time.Duration
 	StopWrites                 func(context.Context) error
+	// Worlds reads actual native identity without entering the control gate.
+	// Without it, shutdown cannot retire a target by proving world replacement.
+	Worlds WorldSource
 }
 
 // Control owns the shared profile lock until controls and native writers drain.

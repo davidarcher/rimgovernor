@@ -1022,6 +1022,22 @@ only intentional small, sanitized regression fixtures belong in source control.
               world replacement before retiring an obsolete revoke target;
               unavailable identity retains ownership. Never revoke a replacement
               world's authority. Cover Manual, fairness and joined retryable Close.
+              - [x] **2f.1b.2a:** fixed session capabilities and cleanup entrypoint.
+                Owner: integrator; depends on 2e.2. A complete optional draft
+                capability set selects the typed executor; expose lease-free
+                fresh world reads and serialized cleanup without enabling services.
+              - [ ] **2f.1b.2b:** positive shutdown target retirement. Owner: control
+                agent; depends on 2a and 2f.1b.1. A fresh different world can retire
+                the old revoke target after writers drain; unknown identity holds.
+              - [ ] **2f.1b.2c:** session composition and bounded cleanup sweep.
+                Owner: session agent; depends on 2a and 2e.2. Join the single writer,
+                preserve retryable ownership, and reconcile known or unknown claims
+                through Manual and Close. No player/API or launcher enablement.
+              - [ ] **2f.1b.2d:** worker cleanup eligibility and fairness. Owner:
+                worker agent; depends on 2a and 2e.2. Schedule completed standalone
+                draft cleanup and invalidated claims independently of ordinary
+                unresolved actions. Accept combined session/control behavior after
+                2b–c; retain claims needed by an active multi-action plan.
         - [ ] **2f.2:** explicit player draft submission and local API projection.
           Owner: HTTP agent; depends on 2c and 2f.1. Accept pawn intent only, resolve
           native CAS in the handler, and expose progress and cleanup independently.

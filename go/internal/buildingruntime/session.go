@@ -15,6 +15,7 @@ type SessionConfig struct {
 	Control  ControlConfig
 	Executor executor.Limits
 	Rules    []policy.ResourceRule
+	Draft    *DraftCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
