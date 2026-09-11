@@ -4,7 +4,9 @@ package store
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,13 +21,17 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 1
+const schemaVersion = 2
 const applicationID = 0x52474f31
 
 var ErrConflict = errors.New("plan or action identity already exists")
 var ErrNotFound = errors.New("plan or action not found")
 
 type Store struct{ db *sql.DB }
+
+// ControllerSessionID identifies one persistent controller execution namespace.
+// It is independent of HTTP process sessions and survives controller restarts.
+type ControllerSessionID string
 type PlanState struct {
 	Spec     domain.PlanSpec
 	Progress []domain.Progress
@@ -104,11 +110,19 @@ func (s *Store) initialize(ctx context.Context) error {
 		if count != 0 {
 			return errors.New("unversioned nonempty database is incompatible")
 		}
-		_, err = tx.ExecContext(ctx, `CREATE TABLE plans(id TEXT PRIMARY KEY, revision TEXT NOT NULL);
+		_, err = tx.ExecContext(ctx, `CREATE TABLE metadata(singleton INTEGER PRIMARY KEY CHECK(singleton=1), controller_session_id TEXT NOT NULL);
+CREATE TABLE plans(id TEXT PRIMARY KEY, revision TEXT NOT NULL);
 CREATE TABLE actions(id TEXT PRIMARY KEY, plan_id TEXT NOT NULL REFERENCES plans(id), ordinal INTEGER NOT NULL, definition TEXT NOT NULL, x INTEGER NOT NULL, z INTEGER NOT NULL, rotation TEXT NOT NULL, stuff TEXT NOT NULL, UNIQUE(plan_id,ordinal));
 CREATE TABLE transitions(sequence INTEGER PRIMARY KEY, action_id TEXT NOT NULL REFERENCES actions(id), payload BLOB NOT NULL);
 CREATE INDEX action_transitions ON transitions(action_id,sequence);`)
 		if err != nil {
+			return err
+		}
+		var entropy [32]byte
+		if _, err = rand.Read(entropy[:]); err != nil {
+			return err
+		}
+		if _, err = tx.ExecContext(ctx, "INSERT INTO metadata(singleton,controller_session_id) VALUES(1,?)", hex.EncodeToString(entropy[:])); err != nil {
 			return err
 		}
 		if _, err = tx.ExecContext(ctx, fmt.Sprintf("PRAGMA user_version=%d", schemaVersion)); err != nil {
@@ -124,7 +138,54 @@ CREATE INDEX action_transitions ON transitions(action_id,sequence);`)
 	if _, err = tx.ExecContext(ctx, "SELECT p.id,p.revision,a.id,a.ordinal,a.definition,a.x,a.z,a.rotation,a.stuff,t.sequence,t.payload FROM plans p LEFT JOIN actions a ON a.plan_id=p.id LEFT JOIN transitions t ON t.action_id=a.id LIMIT 0"); err != nil {
 		return err
 	}
+	if _, err = identity(ctx, tx); err != nil {
+		return err
+	}
 	return tx.Commit()
+}
+
+// Identity never creates or repairs metadata. Missing or corrupt persistent
+// identity must not turn an uncertain old attempt into a new execution namespace.
+func (s *Store) Identity(ctx context.Context) (ControllerSessionID, error) {
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback()
+	id, err := identity(ctx, tx)
+	if err != nil {
+		return "", err
+	}
+	if err = tx.Commit(); err != nil {
+		return "", err
+	}
+	return id, nil
+}
+func identity(ctx context.Context, tx *sql.Tx) (ControllerSessionID, error) {
+	rows, err := tx.QueryContext(ctx, "SELECT singleton,controller_session_id FROM metadata")
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	var id string
+	var singleton int
+	if !rows.Next() {
+		return "", errors.Join(errors.New("controller identity metadata is missing"), rows.Err())
+	}
+	if err = rows.Scan(&singleton, &id); err != nil {
+		return "", err
+	}
+	if rows.Next() {
+		return "", errors.New("controller identity metadata has multiple rows")
+	}
+	if err = rows.Err(); err != nil {
+		return "", err
+	}
+	decoded, err := hex.DecodeString(id)
+	if singleton != 1 || err != nil || len(decoded) != 32 || hex.EncodeToString(decoded) != id {
+		return "", errors.New("corrupt controller identity metadata")
+	}
+	return ControllerSessionID(id), nil
 }
 
 // CreatePlan initializes every action atomically. IDs remain unique across plans.
