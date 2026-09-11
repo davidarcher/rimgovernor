@@ -5,7 +5,7 @@ import sys
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from native_draft_acceptance import OWNER, pawn_row, target, execute_request, release_request, same_control, owned_effect
+from native_draft_acceptance import OWNER, pawn_row, target, execute_request, release_request, same_control, owned_effect, actual_order
 
 
 def reply():
@@ -74,3 +74,19 @@ def test_no_change_must_be_verified_without_issuing_setter():
     owned_effect(receipt, pawn, "noChange", False)
     effect["issued"] = True
     with pytest.raises(AssertionError): owned_effect(receipt, pawn, "noChange", False)
+
+
+def test_completed_move_compares_actual_current_job_without_inventing_goto():
+    external = {"success": True, "accepted": True, "jobId": 58, "jobDef": "Wait_Combat"}
+    pawn = {"job": {"loadId": "58", "defName": "Wait_Combat"}}
+    actual_order(external, pawn)
+    for wrong in ({"loadId": "59", "defName": "Wait_Combat"}, {"loadId": "58", "defName": "Goto"}):
+        with pytest.raises(AssertionError): actual_order(external, {"job": wrong})
+    external["accepted"] = False
+    with pytest.raises(AssertionError): actual_order(external, pawn)
+
+
+def test_native_no_current_job_requires_absence():
+    external = {"success": True, "accepted": True, "jobId": None, "jobDef": None}
+    actual_order(external, {})
+    with pytest.raises(AssertionError): actual_order(external, {"job": {"defName": "Goto"}})

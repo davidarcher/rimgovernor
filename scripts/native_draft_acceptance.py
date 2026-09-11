@@ -65,6 +65,15 @@ def same_control(before, after):
     assert before["draftClaim"] == after["draftClaim"]
 
 
+def actual_order(external, row):
+    assert external["success"] is True and external["accepted"] is True
+    if external["jobId"] is None:
+        assert external["jobDef"] is None and "job" not in row
+    else:
+        assert row["job"]["loadId"] == str(external["jobId"])
+        assert row["job"]["defName"] == external["jobDef"]
+
+
 def owned_effect(receipt, row, case="applied", issued=True):
     effect = receipt[case]["observed"]["job"]
     claim = row["draftClaim"]["owned"]
@@ -110,10 +119,10 @@ async def run(root: Path, output: Path, *, headless=True):
                         assert row["pawn"]["snapshot"]["context"]["tick"] == initial["context"]["tick"]
                         return row
 
-                    async def acquire(label):
+                    async def acquire(label, duration=30000):
                         status = outcome(await wire(label + "-status", "authority_read_status", {"identity": identity}), "status")
                         return outcome(await wire(label, "authority_control", {"acquire": {"identity": identity,
-                            "expectedGeneration": status["context"]["nativeGeneration"], "owner": OWNER, "leaseMs": 30000}}), "granted")
+                            "expectedGeneration": status["context"]["nativeGeneration"], "owner": OWNER, "leaseMs": duration}}), "granted")
 
                     before = await read("initial-pawn")
                     assert before["drafted"] is False and before["draftClaim"] == {"unowned": {}}
@@ -160,19 +169,34 @@ async def run(root: Path, output: Path, *, headless=True):
                     same_control(undrafted, await read("cleanup-retry-unchanged", pawn_id))
                     assert outcome(await wire("replay-after-cleanup", "operations_execute", request), "receipt") == receipt
 
+                    expiring = await acquire("expiry-acquire", 1000)
+                    expiry_receipt = outcome(await wire("expiry-draft", "operations_execute", execute_request(identity, expiring, undrafted, 6)), "receipt")
+                    expiry_owned = await read("expiry-owned", pawn_id)
+                    owned_effect(expiry_receipt, expiry_owned)
+                    await asyncio.sleep(1.2)  # Monotonic lease time only; simulation remains paused.
+                    expired = outcome(await wire("expiry-status", "authority_read_status", {"identity": identity}), "status")
+                    assert expired["inactive"]["reason"] == "REVOCATION_REASON_LEASE_EXPIRED"
+                    expiry_cleanup = release_request(identity, await read("expiry-fresh-snapshot", pawn_id))
+                    expiry_release = outcome(await wire("expiry-cleanup", "operations_release_owned_draft", expiry_cleanup), "released")
+                    assert expiry_release["request"] == expiry_cleanup
+                    assert expiry_release["observed"]["verified"] is True and expiry_release["observed"]["drafted"] is False
+                    undrafted = await read("expiry-undrafted", pawn_id)
+                    assert undrafted["drafted"] is False and undrafted["draftClaim"] == {"unowned": {}}
+
                     grant = await acquire("override-acquire")
                     second = outcome(await wire("second-draft", "operations_execute", execute_request(identity, grant, undrafted, 4)), "receipt")
                     owned = await read("before-player-order", pawn_id)
                     owned_effect(second, owned)
                     obsolete_cleanup = release_request(identity, owned)
                     external = await call("external-order", "test/b04f_setup", {"op": "external-order", "pawn": pawn_id})
-                    assert external["success"] is True and external["accepted"] is True
-                    assert external["jobId"] is not None and external["jobDef"] == "Goto"
                     overridden = await read("after-player-order", pawn_id)
+                    actual_order(external, overridden)
                     assert overridden["draftClaim"] == {"unowned": {}}
                     assert target(overridden) != target(owned)
                     outcome(await wire("refuse-old-cleanup", "operations_release_owned_draft", obsolete_cleanup), "failure")
-                    same_control(overridden, await read("player-order-preserved", pawn_id))
+                    preserved = await read("player-order-preserved", pawn_id)
+                    same_control(overridden, preserved)
+                    actual_order(external, preserved)
                     player_effect = await call("player-draft", "test/b04f_setup", {"op": "external-draft", "pawn": pawn_id, "drafted": True})
                     assert player_effect["success"] is True and player_effect["after"] is True
                     player = await read("player-drafted", pawn_id)
