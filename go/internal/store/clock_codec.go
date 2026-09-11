@@ -14,6 +14,7 @@ import (
 
 type ClockIntent struct {
 	RequestID string
+	Key       string
 	Snapshot  domain.GenerationSnapshot
 	Command   bridge.ClockCommand
 	Window    *ClockWindowAdmission
