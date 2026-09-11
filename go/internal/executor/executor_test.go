@@ -33,8 +33,12 @@ func (f *environment) Inspect(_ context.Context, target Target) (Inspection, err
 	stock, tick := f.stock, f.tick
 	f.mu.Unlock()
 	building, _ := target.Action.Building()
+	clearance, err := policy.NewEmergencySnapshot(target.Snapshot, tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)})
+	if err != nil {
+		return Inspection{}, err
+	}
 	now := f.clock.Now()
-	result := Inspection{ExternalHoldsComplete: true, Current: target.Snapshot, Tick: tick, StartedAt: now, ObservedAt: now, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Preview: policy.Preview{Action: target.Action, Snapshot: target.Snapshot, Tick: tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(true), Footprint: domain.Known([]domain.Cell{building.Cell()}), Costs: domain.Known([]policy.Amount{{Resource: "WoodLog", Count: 10}})}, Stock: policy.StockObservation{Snapshot: target.Snapshot, Tick: tick, Values: []policy.Stock{{Resource: "WoodLog", Available: domain.Known(stock)}}}}
+	result := Inspection{Emergency: clearance, ExternalHoldsComplete: true, Current: target.Snapshot, Tick: tick, StartedAt: now, ObservedAt: now, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Preview: policy.Preview{Action: target.Action, Snapshot: target.Snapshot, Tick: tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(true), Footprint: domain.Known([]domain.Cell{building.Cell()}), Costs: domain.Known([]policy.Amount{{Resource: "WoodLog", Count: 10}})}, Stock: policy.StockObservation{Snapshot: target.Snapshot, Tick: tick, Values: []policy.Stock{{Resource: "WoodLog", Available: domain.Known(stock)}}}}
 	if f.onInspect != nil {
 		return f.onInspect(count, result), nil
 	}

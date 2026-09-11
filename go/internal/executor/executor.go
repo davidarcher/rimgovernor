@@ -336,6 +336,28 @@ func (e *Executor) inspect(ctx context.Context, target Target, progress domain.P
 	if !inspection.Current.Matches(target.Snapshot) || !e.fresh(inspection.StartedAt, inspection.ObservedAt) {
 		return inspection, nil, ErrHeld
 	}
+
+	emergency := policy.EvaluateEmergency(inspection.Emergency, inspection.Current, inspection.Tick)
+	if !emergency.Clear {
+		seen := map[policy.Reason]bool{}
+		refused := []policy.Refusal{}
+		for _, hold := range emergency.Holds {
+			reason := policy.UnknownFacts
+			switch hold.Reason {
+			case policy.EmergencyUnsafeThreat:
+				reason = policy.UnsafeThreat
+			case policy.EmergencyCriticalMedical:
+				reason = policy.CriticalMedical
+			case policy.EmergencyStaleFacts:
+				reason = policy.StaleFacts
+			}
+			if !seen[reason] {
+				seen[reason] = true
+				refused = append(refused, policy.Refusal{Action: target.Action.ID(), Reason: reason})
+			}
+		}
+		return inspection, refused, ErrHeld
+	}
 	if !inspection.ExternalHoldsComplete {
 		return inspection, nil, ErrHeld
 	}

@@ -14,7 +14,8 @@ import (
 // These benchmarks measure Executor.Run and its real policy/domain guards, not
 // SQLite durability, transport encoding, native work or end-to-end latency.
 // A single-action memory journal retains accounting and executes real domain
-// transitions. Reset, fixture construction and outcome checks are not timed.
+// transitions. Each inspection includes current, complete empty emergency facts
+// and the real emergency gate. Reset and outcome checks are not timed.
 type schedulingJournal struct {
 	plan      domain.PlanSpec
 	action    domain.Action
