@@ -975,6 +975,14 @@ only intentional small, sanitized regression fixtures belong in source control.
         building costs; serialize dispatch and cleanup through the same writer.
         Inspect fresh pawn CAS before journaling the exact release request.
         Late results cannot replace a newer local cleanup sequence.
+        - [ ] **2e.1:** pure exact-pawn draft admission. Owner: policy agent;
+          depends on 2b and 07a.1. Require a healthy selected colonist, known
+          unowned undrafted state, no current forced or queued job, native
+          eligibility and fresh complete emergency facts. Known threats may admit
+          this emergency action; unknown facts never do. No write authority.
+        - [ ] **2e.2:** shared executor dispatch, evidence and cleanup paths. Owner:
+          executor agent; depends on 2c–d and 2e.1. Preserve one writer and use
+          typed admissions and exact persisted cleanup requests.
       - [ ] **07a.2f:** runtime admission, invalidation and restart cleanup. Owner:
         integrator; depends on 2e. Include outstanding cleanup after ordinary action
         completion. Manual disables writes before cleanup; Close joins writers and
