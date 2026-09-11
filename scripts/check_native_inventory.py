@@ -117,8 +117,16 @@ def source_baseline(root: Path = ROOT) -> dict[str, Any]:
             else:
                 for path in matched:
                     compiled[path] = condition
+        output = tree.findtext(".//OutputPath")
+        references = [{"path": (project.parent / item.attrib["Include"]).resolve().relative_to(root).as_posix(),
+                       "private": item.findtext("Private", "")}
+                      for item in tree.findall(".//ProjectReference")]
         projects.append({"path": relative, "source_sha256": hashlib.sha256(project.read_text(encoding="utf-8-sig").encode()).hexdigest(),
                          "assembly": tree.findtext(".//AssemblyName"),
+                         "target_framework": tree.findtext(".//TargetFramework"),
+                         "output_directory": ((project.parent / output).resolve().relative_to(root).as_posix()
+                                              if output else None),
+                         "project_references": references,
                          "compiled_sources": [{"path": p, "condition": condition}
                                               for p, condition in sorted(compiled.items())],
                          "compile_exclusions": exclusions})
@@ -134,10 +142,38 @@ def baseline_errors(saved: dict[str, Any], current: dict[str, Any]) -> list[str]
     return [] if saved == current else ["Native source/compile baseline drift; inspect changes before refreshing"]
 
 
+def runtime_index_errors(index: dict[str, Any], root: Path = ROOT) -> list[str]:
+    """Keep the lexical navigation index attached to current, compiled sources."""
+    errors: list[str] = []
+    rows = index["rows"]
+    paths = [row["source"] for row in rows]
+    expected = {path for path in tracked_sources(root) if path.endswith(".cs")}
+    if len(paths) != len(set(paths)) or set(paths) != expected:
+        errors.append("Native runtime index must cover each tracked C# source exactly once")
+    for row in rows:
+        path = root / row["source"]
+        if not path.is_file():
+            errors.append(f"Native runtime index source missing: {row['source']}")
+            continue
+        text = path.read_text(encoding="utf-8-sig")
+        if row["source_sha256"] != hashlib.sha256(text.encode()).hexdigest():
+            errors.append(f"Native runtime index source changed: {row['source']}")
+        role = ("fixture-only" if row["source"].startswith("scripts/fixtures/") else
+                "production-runtime" if "/src/Runtime/" in row["source"] else "production-bridge")
+        if row["compilation"] != role:
+            errors.append(f"Native runtime index compilation differs: {row['source']}")
+        for key in ("static_token_lines", "reflection_boundary_lines", "patch_registration_lines"):
+            if any(type(line) is not int or not 1 <= line <= len(text.splitlines()) for line in row[key]):
+                errors.append(f"Native runtime index invalid {key}: {row['source']}")
+    return errors
+
+
 def check(root: Path = ROOT) -> list[str]:
     manifest = json.loads((root / "contracts/domain-inventory.json").read_text(encoding="utf-8"))
     native = manifest["native_surface"]
     errors = baseline_errors(native["source_baseline"], source_baseline(root))
+    errors.extend(runtime_index_errors(json.loads(
+        (root / "contracts/native-runtime-source-index.json").read_text(encoding="utf-8")), root))
     if native["version"] != 1:
         errors.append("Unsupported native source baseline version")
     if not re.fullmatch(r"[0-9a-f]{40}", native["source_revision"]):
@@ -215,9 +251,25 @@ public Task<object> Run([ToolParameter(Description = "a, b (c)")] string op = "a
     changed_signature = copy.deepcopy(baseline)
     changed_signature["exports"][0]["declaration"] += " changed"
     assert baseline_errors(changed_signature, baseline), "Changed signature accepted"
-    missing_exclusion = copy.deepcopy(baseline)
-    next(p for p in missing_exclusion["projects"] if p["compile_exclusions"])["compile_exclusions"].pop()
-    assert baseline_errors(missing_exclusion, baseline), "Missing compile exclusion accepted"
+    changed_compile = copy.deepcopy(baseline)
+    changed_compile["projects"][0]["compiled_sources"].pop()
+    assert baseline_errors(changed_compile, baseline), "Missing compiled source accepted"
+    changed_output = copy.deepcopy(baseline)
+    changed_output["projects"][0]["output_directory"] += "/wrong"
+    assert baseline_errors(changed_output, baseline), "Changed assembly destination accepted"
+    missing_reference = copy.deepcopy(baseline)
+    next(p for p in missing_reference["projects"] if p["project_references"])["project_references"].pop()
+    assert baseline_errors(missing_reference, baseline), "Missing runtime assembly reference accepted"
+    index = json.loads((ROOT / "contracts/native-runtime-source-index.json").read_text(encoding="utf-8"))
+    missing_source = copy.deepcopy(index)
+    missing_source["rows"].pop()
+    assert runtime_index_errors(missing_source), "Missing indexed source accepted"
+    changed_hash = copy.deepcopy(index)
+    changed_hash["rows"][0]["source_sha256"] = "0" * 64
+    assert runtime_index_errors(changed_hash), "Changed indexed source fingerprint accepted"
+    wrong_role = copy.deepcopy(index)
+    wrong_role["rows"][0]["compilation"] = "excluded"
+    assert runtime_index_errors(wrong_role), "Obsolete indexed compilation role accepted"
 
 
 def main() -> int:

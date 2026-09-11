@@ -1,11 +1,11 @@
 {
   "inventory_version": 1,
-  "source_revision": "3fea7d5c7f16c1ef91d5c95f286a575a1f0771f9",
-  "scope": "Tracked C# sources in both native integrations and scripts/fixtures; lexical reference index, not an AST or proof of coverage.",
+  "source_revision": "f08db2eb117cefbc509d735c4109303843c4431c",
+  "scope": "Tracked C# sources in unified native Runtime/Bridge and scripts/fixtures; lexical reference index, not an AST or proof of behavioral coverage.",
   "source_line_policy": "One-based source anchors at source_revision; static matches include methods and constructors, reflection matches include helper use and interop. Read the full source declaration before changing ownership.",
   "rows": [
     {
-      "source": "integrations/colony-bridge/src/BillCommon.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/BillCommon.cs",
       "source_sha256": "df19df0149eb27bb2e347455e46ab67cb00933ff6949d90f8f715cf0515e07d8",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -57,7 +57,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/BillsTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/BillsTool.cs",
       "source_sha256": "d8a71d3db394c311bfe7c9e2b06680309c34b08dea6b131f9a3d3b52e74745b3",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -110,7 +110,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/BridgeCommon.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/BridgeCommon.cs",
       "source_sha256": "69c24e493884bc7227761b2c1f93342605b66d3c1caf2120055233fdf3ebace8",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -171,7 +171,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/BuildingConfigTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/BuildingConfigTool.cs",
       "source_sha256": "46cab754bef78dda3a85efa9d93178345a85d0b6de2bb9d075db842daeb6f050",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -228,7 +228,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/CancelConstructionTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/CancelConstructionTool.cs",
       "source_sha256": "2bfdbd2efb5b4adcc9ed6508585d8ff74196700082733f15f3a0ccde637e2bb1",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -239,7 +239,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/CaravanGiftTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/CaravanGiftTool.cs",
       "source_sha256": "963fe2379e8279e2d3e153a185fdbd6ef84ea8ae83bff4c92834d4c63d502233",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -252,7 +252,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/CaravanTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/CaravanTool.cs",
       "source_sha256": "cc19d9bc3c315f241ada91ef5d852c75235e8fc79f7e7e8ead2e96e4394e75fd",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -276,7 +276,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/CellsPlusTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/CellsPlusTool.cs",
       "source_sha256": "e4c9618f36b12ad5a8f63b456dda8b89f679654a0ebbec80de566231da9125b5",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -318,7 +318,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/ClockEventJournal.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ClockEventJournal.cs",
       "source_sha256": "1c3931243ed430fef2832409699affaad4e762899481aa9d57dcd5f58bdb810a",
       "compilation": "production-bridge",
       "owner": "N01.05 native runtime owner",
@@ -332,7 +332,7 @@
       "uncovered_acceptance": "Unified repeated startup/load, patch-failure health, lease cleanup and Windows/Linux normal/batch acceptance remain open."
     },
     {
-      "source": "integrations/colony-bridge/src/ColonyFactsTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ColonyFactsTool.cs",
       "source_sha256": "8034017e44fdb331d7b994b9a8b71fd881b59d17f49a42ffc78b88b14ee4197c",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -348,7 +348,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/ColonyIdentity.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ColonyIdentity.cs",
       "source_sha256": "6652dfc482a1d0e68ffcf6fd080bad17ce32d112ffafda3a7ba0b09961978f41",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -359,7 +359,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/ColonyNamingTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ColonyNamingTool.cs",
       "source_sha256": "b59749e12f480ab409616e78f3cade4cff614ed5a42172ba7124ed37df5658bc",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -383,7 +383,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/CombatInjuryHook.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/CombatInjuryHook.cs",
       "source_sha256": "77e3abed13ebd4664210fc19a9fdfcc8d5c529efa255cceb8e4acb1f5af22a80",
       "compilation": "production-bridge",
       "owner": "N01.05 native runtime owner",
@@ -429,7 +429,7 @@
       "uncovered_acceptance": "Unified repeated startup/load, patch-failure health, lease cleanup and Windows/Linux normal/batch acceptance remain open."
     },
     {
-      "source": "integrations/colony-bridge/src/ComfortFacts.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ComfortFacts.cs",
       "source_sha256": "6d0ef5717e062d9270199803377e91e789e784c664212745e8510d4980c3abd3",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -443,7 +443,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/ConstructionLineage.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ConstructionLineage.cs",
       "source_sha256": "e7a5c71979f76508a04af2436faf85d3a9c779182a4b2f53d24eff7d094ee7e5",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -485,7 +485,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/DevelopmentFacts.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/DevelopmentFacts.cs",
       "source_sha256": "aab7c633734395d4acea27fea306233c11bd334b5ed4f6f952bb10f1511b762f",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -499,7 +499,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/DialogTextTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/DialogTextTool.cs",
       "source_sha256": "98d0d41067e7120a4bfea01d94df2ef6578b241650c2051aba48977c62058a23",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -538,7 +538,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/DraftOwnership.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/DraftOwnership.cs",
       "source_sha256": "88322156a019c11c8a9f1479e78ee2b85ec27cc9b7ac3eb2c8eec5a368338a2e",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -563,7 +563,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/DrillingGuard.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/DrillingGuard.cs",
       "source_sha256": "da842b18990fb14556208f175a32d4c5e10f3cec1314672eaefa343ade6274d0",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -606,7 +606,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/ExtractionDevelopment.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ExtractionDevelopment.cs",
       "source_sha256": "9f10174644b6ede71ed33075c90c72b227ab762b34bd0aa86bd4d83b219e7014",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -622,7 +622,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/FoodSupplyFacts.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/FoodSupplyFacts.cs",
       "source_sha256": "a31fab490056e52bff0884451d74db49e735802d9956ffdff54ba61eb7203736",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -638,7 +638,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/ForecastFacts.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ForecastFacts.cs",
       "source_sha256": "27897d1be28c44d7765f24aeb629ddf79e37867932a7ab1c33089101c161278e",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -655,7 +655,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/GearUpkeepTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/GearUpkeepTool.cs",
       "source_sha256": "970a9dbb02179309a765f508d98d3b5235e7c346dcecd77599b2c7d2926a8f26",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -681,7 +681,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/HaulTracking.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/HaulTracking.cs",
       "source_sha256": "bc3d82326b71d8e73e755e5c405167ea6fb9763958ec8b67b508005523742a10",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -729,7 +729,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/HomeCoverageTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/HomeCoverageTool.cs",
       "source_sha256": "b42ad34d51347b00262cf8df6d0307aac45448dff74036767b1fdec5b33811e4",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -767,7 +767,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/HuntingSafety.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/HuntingSafety.cs",
       "source_sha256": "2da97e6c282caf9050d4c885058b61bba88a91fd55d31b17167d7eff463d0418",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -782,7 +782,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/HusbandryTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/HusbandryTool.cs",
       "source_sha256": "c0d8696f2843179c5ed8dcee93040b6271b51099fc0184157a0d3bbf4651cb1e",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -799,7 +799,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/InstallTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/InstallTool.cs",
       "source_sha256": "d6df07ef811e83144decf925b91da786baaa72db925f47606895571116d50139",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -813,7 +813,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/LetterPauseHook.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/LetterPauseHook.cs",
       "source_sha256": "9fe6e0333b737119582d98e4015545783ff9f2656cb14201c2dff2bb1b67d9c3",
       "compilation": "production-bridge",
       "owner": "N01.05 native runtime owner",
@@ -849,7 +849,7 @@
       "uncovered_acceptance": "Unified repeated startup/load, patch-failure health, lease cleanup and Windows/Linux normal/batch acceptance remain open."
     },
     {
-      "source": "integrations/colony-bridge/src/ListBuildingsTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ListBuildingsTool.cs",
       "source_sha256": "89c2d216b8beadd6748e97579b7e108aff4601b194a73739807f4c73ff068447",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -910,7 +910,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/ListPawnsTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ListPawnsTool.cs",
       "source_sha256": "7eb2409f9e71f52802e929c139adeca03fa75b2b535f9133b1f44da7478922f2",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -972,7 +972,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/ListRoomsTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ListRoomsTool.cs",
       "source_sha256": "808e9453d1711b812e49f36b77e76cbaa6b3125aea3a0d4829afcbdbe2879d56",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1009,7 +1009,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/ListThingsTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ListThingsTool.cs",
       "source_sha256": "a75007a0620c2137f6aec5d4805b4a21dc00250324a48f56028a2ce0f9ce04fb",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1060,7 +1060,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/MedicalOperationsTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/MedicalOperationsTool.cs",
       "source_sha256": "d5e3217a241c2e374dd3278dc46d6db8c7940ec20d977397b2c06fbd07e0237d",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1071,7 +1071,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/MedicalRestSafety.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/MedicalRestSafety.cs",
       "source_sha256": "7cd40bd147c30ad1ee9f14a0a619b1ea0143bcf6f04b9fa538ead3c87319cce0",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1085,7 +1085,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/MiningGuard.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/MiningGuard.cs",
       "source_sha256": "e720f26b5a9d6dab44cd83cdeb9a8e31447b8fcb3aa71cb20679dffd5686c5ec",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1115,7 +1115,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/NeedReliefTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/NeedReliefTool.cs",
       "source_sha256": "1ae3e2e6c887d2d49a96df94141baf58034b5e96a8d1f164b73e214db58610c6",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1126,7 +1126,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/ObservationBatchTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ObservationBatchTool.cs",
       "source_sha256": "d9895b1e61c79e1a2d0e36295b6987105235bd2d05429f19f99cef86b3a91af9",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1137,7 +1137,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/OrderTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/OrderTool.cs",
       "source_sha256": "de74df3cfb457c5a09a449b708cb06259439cbc6d678054fe5118deeb1b2bb18",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1211,7 +1211,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/OrderedWorkHistory.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/OrderedWorkHistory.cs",
       "source_sha256": "965535a29661400c5697f603fc5a20cd5c6ff17d1c20bbfe9921da8e91c15164",
       "compilation": "production-bridge",
       "owner": "N01.05 native runtime owner",
@@ -1247,7 +1247,7 @@
       "uncovered_acceptance": "Unified repeated startup/load, patch-failure health, lease cleanup and Windows/Linux normal/batch acceptance remain open."
     },
     {
-      "source": "integrations/colony-bridge/src/PawnConfigTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/PawnConfigTool.cs",
       "source_sha256": "94038114a5be778b3fd7c8d7bee91bd42adf2002c7bb8b25e50c6f1153771802",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1350,7 +1350,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/PawnImageTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/PawnImageTool.cs",
       "source_sha256": "6ee31172731a552d4b415e89b6dd59c537fcb9cee5831a893ef1e3816a3b8b48",
       "compilation": "production-bridge",
       "owner": "N01.05 native runtime owner",
@@ -1390,66 +1390,7 @@
       "uncovered_acceptance": "Unified repeated startup/load, patch-failure health, lease cleanup and Windows/Linux normal/batch acceptance remain open."
     },
     {
-      "source": "integrations/colony-bridge/src/PawnSettingsRead.cs",
-      "source_sha256": "840955e992c10a7790f3ca80931445961d1c4a8f400c4dc066853f8606bfb9bb",
-      "compilation": "excluded-duplicate",
-      "owner": "N01.01 native packaging owner",
-      "migration_status": "inventoried-unmigrated",
-      "static_token_lines": [
-        15,
-        27,
-        36,
-        53,
-        66,
-        86,
-        162,
-        163,
-        164,
-        174,
-        230,
-        239,
-        250,
-        264,
-        326,
-        382,
-        425,
-        440,
-        442,
-        459,
-        468,
-        471,
-        489,
-        499,
-        507,
-        528,
-        574,
-        595,
-        720,
-        840,
-        910,
-        980,
-        987,
-        999,
-        1005,
-        1007,
-        1028,
-        1141
-      ],
-      "reflection_boundary_lines": [
-        28,
-        446,
-        448,
-        460,
-        802,
-        1000,
-        1012,
-        1015
-      ],
-      "patch_registration_lines": [],
-      "uncovered_acceptance": "Caller and fixture comparison before removal; this file is excluded by ColonyObservations.csproj."
-    },
-    {
-      "source": "integrations/colony-bridge/src/PlaceBuildingTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/PlaceBuildingTool.cs",
       "source_sha256": "99e6eaae8b5f157f8676a6462510a2ebbef11748f49d3af49a0abb123225921a",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1498,7 +1439,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/PlacementPreviewsTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/PlacementPreviewsTool.cs",
       "source_sha256": "be0cb0f65dbc03a11109b26f8338460eb21019bbe2a2e548437751a8e0a0eb27",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1509,7 +1450,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/PlayUntilEventTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/PlayUntilEventTool.cs",
       "source_sha256": "0bab847f021538150a99cab285b1083d31be76f4899ee10a532715432fa32f2e",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1598,7 +1539,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/PlayerInputTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/PlayerInputTool.cs",
       "source_sha256": "d365048797cec87629fc04b082bfe09c416b34bfd47ac49ed080acdd01dbf3a0",
       "compilation": "production-bridge",
       "owner": "N01.05 native runtime owner",
@@ -1667,7 +1608,7 @@
       "uncovered_acceptance": "Unified repeated startup/load, patch-failure health, lease cleanup and Windows/Linux normal/batch acceptance remain open."
     },
     {
-      "source": "integrations/colony-bridge/src/PopulationTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/PopulationTool.cs",
       "source_sha256": "c4d59347b9d1c3c0f81ad6ca0219b7fbab69521a05a5b9624f2e0ee333d22703",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1681,7 +1622,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/ProductionPolicyTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ProductionPolicyTool.cs",
       "source_sha256": "7d088cbc30c4b7be4528064c0d95ba86b465b80972436462a73725b0018aa19b",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1717,7 +1658,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/QuestFulfillmentTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/QuestFulfillmentTool.cs",
       "source_sha256": "273a4fd6be6c9ab1f518253e0f9a79d9a7143e12c9520146c9c7c7a2b46a55f3",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1730,7 +1671,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/QuestTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/QuestTool.cs",
       "source_sha256": "a3b5ebef748dee751ed73614245c1aa621740b1bee7296703c3d9ed8382ec6c8",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1743,7 +1684,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/RecoveryAreaOwnership.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/RecoveryAreaOwnership.cs",
       "source_sha256": "386df624f8b4ed181f1e70681806694475d74c07d2afbea67414ad4b65e2bb33",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1765,7 +1706,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/RecoveryTools.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/RecoveryTools.cs",
       "source_sha256": "faa36b9e600d8548eb2abaa69961711c6eb68c096ac42e3013221f16c0d025c0",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1779,7 +1720,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/RenderDemandTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/RenderDemandTool.cs",
       "source_sha256": "7c0b32d45fa5a7ce48fd762f69725058fcde51900578b3122c7f24cc7838989c",
       "compilation": "production-bridge",
       "owner": "N01.05 native runtime owner",
@@ -1807,7 +1748,7 @@
       "uncovered_acceptance": "Unified repeated startup/load, patch-failure health, lease cleanup and Windows/Linux normal/batch acceptance remain open."
     },
     {
-      "source": "integrations/colony-bridge/src/ResearchTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ResearchTool.cs",
       "source_sha256": "7fdde9be04abccf305082ecaa373c413eab7658b06f8d4da0a91917ff4457490",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1848,7 +1789,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/ResourceAcquisitionTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ResourceAcquisitionTool.cs",
       "source_sha256": "d506a8f36c8b586a6bd852d1ed6a627ef01e91fc03bf96e4187b726b543ee998",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1870,7 +1811,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/RoofSupportTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/RoofSupportTool.cs",
       "source_sha256": "37ebb2cba65d5b58fe0c78aa1b42f5cc63fdfa32148547e2d895fef70ce8ad3c",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1885,7 +1826,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/SpatialAccessTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/SpatialAccessTool.cs",
       "source_sha256": "bdcf2ced67ccabeaa22891a2eb2641673b28ea2c9190cb2e56fb5995e8a585ad",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1901,7 +1842,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/StatusTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/StatusTool.cs",
       "source_sha256": "57cd293afc1d6af9d01fcadd890bf2240d62bd177f1d1529ff7ef121dbe4cebb",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -1965,39 +1906,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/StockpileFilter.cs",
-      "source_sha256": "45604604a59a04869b30a1ac8b6d1c268193e5fff32d5b3600625eb8ee6481d6",
-      "compilation": "excluded-duplicate",
-      "owner": "N01.01 native packaging owner",
-      "migration_status": "inventoried-unmigrated",
-      "static_token_lines": [
-        13,
-        17,
-        27,
-        44,
-        82,
-        96,
-        103,
-        111,
-        122,
-        137,
-        184,
-        213,
-        230,
-        250,
-        263,
-        317,
-        340,
-        396,
-        408,
-        418
-      ],
-      "reflection_boundary_lines": [],
-      "patch_registration_lines": [],
-      "uncovered_acceptance": "Caller and fixture comparison before removal; this file is excluded by ColonyObservations.csproj."
-    },
-    {
-      "source": "integrations/colony-bridge/src/SupervisedPlayTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/SupervisedPlayTool.cs",
       "source_sha256": "a43c5e1aace9adc4e69b4eef91d1856ed78cc83efde9c1aa22d7214e23473cc3",
       "compilation": "production-bridge",
       "owner": "N01.05 native runtime owner",
@@ -2083,7 +1992,7 @@
       "uncovered_acceptance": "Unified repeated startup/load, patch-failure health, lease cleanup and Windows/Linux normal/batch acceptance remain open."
     },
     {
-      "source": "integrations/colony-bridge/src/ThermalSides.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ThermalSides.cs",
       "source_sha256": "a2dd6c3434be838477237f48176896608fa15726946473e158501cba4c338681",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -2099,7 +2008,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/TradeTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/TradeTool.cs",
       "source_sha256": "897ba77a711fce4700341245f39af3dca31d3eca4a7c6fc997b86662852e18a7",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -2211,7 +2120,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/UpkeepBedTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/UpkeepBedTool.cs",
       "source_sha256": "a5562a897b3e1404f4a9283e1fd0282599e2316300d88da61306c953527267eb",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -2222,7 +2131,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/UpkeepFacts.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/UpkeepFacts.cs",
       "source_sha256": "21f22d635a0b59caac10a55d9d8561d8af40355b1f7c78ccdcc611aedd716b45",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -2236,7 +2145,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/VideoStreamTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/VideoStreamTool.cs",
       "source_sha256": "f44db3a24b5bd7ecf9fea47227caa398458d9e6a43c11fcef674a495e0c88c43",
       "compilation": "production-bridge",
       "owner": "N01.05 native runtime owner",
@@ -2257,7 +2166,7 @@
       "uncovered_acceptance": "Unified repeated startup/load, patch-failure health, lease cleanup and Windows/Linux normal/batch acceptance remain open."
     },
     {
-      "source": "integrations/colony-bridge/src/WallUpgradeTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/WallUpgradeTool.cs",
       "source_sha256": "85bfdfd94763f4b69f3c4f91f77681afc69a9e8bf62ea289a956222f2ada84bb",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -2313,7 +2222,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/WasteTools.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/WasteTools.cs",
       "source_sha256": "f0764fbd707bc376c9e9a077195f4f5ee1dc05dddb3504754703884be866e7f9",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -2333,7 +2242,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/Watch.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/Watch.cs",
       "source_sha256": "7e5c722542e3f980b3e1d2dffbf8170e2263a5450716bfdab6bdc961108f68d3",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -2371,7 +2280,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/WorldProgressionTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/WorldProgressionTool.cs",
       "source_sha256": "1d78b11cc25c84984a6919c971650b36d57c9f81220568bb56d558ddb9eb8e93",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -2385,7 +2294,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/WorldTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/WorldTool.cs",
       "source_sha256": "33aecf41f6d870fe20735128992d290e5a361d0589b1c4b7ac7bebaec967b8c3",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -2419,7 +2328,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/ZoneCellsTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ZoneCellsTool.cs",
       "source_sha256": "b2c7042c83bf7c2f83429b7a1f440f379f9d012adfbfe27b2fdb34344c93f50c",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -2498,7 +2407,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/ZoneSettingsContract.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ZoneSettingsContract.cs",
       "source_sha256": "7542e7bbf9dcbb447956b97527b26d1216b7b6b74d8e82ebce66adf8091e9819",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -2512,7 +2421,7 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/ZonesTool.cs",
+      "source": "integrations/rimgovernor-native/src/Bridge/ZonesTool.cs",
       "source_sha256": "c465149a99ccd12d96afbcb570943d89d02a4bcfff1d712fd8f0056ea79fd0b9",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
@@ -2548,110 +2457,9 @@
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
     {
-      "source": "integrations/colony-bridge/src/identity/ColonyIdentity.cs",
-      "source_sha256": "48969ab32289c2ddc630bb752a74348604c76bd21afb1b58d2e68ad6b9a1951a",
-      "compilation": "identity-assembly",
-      "owner": "N01.06 native state owner with G01.04/G01.08",
-      "migration_status": "inventoried-unmigrated",
-      "static_token_lines": [],
-      "reflection_boundary_lines": [],
-      "patch_registration_lines": [],
-      "uncovered_acceptance": "Legacy-save, branch, disconnect and paired reload acceptance remains open."
-    },
-    {
-      "source": "integrations/colony-bridge/src/identity/ConstructionLineageState.cs",
-      "source_sha256": "0b285630ec67ef17f5a2dbdb1c3c618a95e45e1b392611606865763506b079ee",
-      "compilation": "identity-assembly",
-      "owner": "N01.06 native state owner with G01.04/G01.08",
-      "migration_status": "inventoried-unmigrated",
-      "static_token_lines": [],
-      "reflection_boundary_lines": [],
-      "patch_registration_lines": [],
-      "uncovered_acceptance": "Legacy-save, branch, disconnect and paired reload acceptance remains open."
-    },
-    {
-      "source": "integrations/colony-bridge/src/identity/GearOwnership.cs",
-      "source_sha256": "840efa548bd5f225a98bbde5b630c14c7a6b5224b79c4e3f531acc1905942e78",
-      "compilation": "identity-assembly",
-      "owner": "N01.06 native state owner with G01.04/G01.08",
-      "migration_status": "inventoried-unmigrated",
-      "static_token_lines": [
-        16
-      ],
-      "reflection_boundary_lines": [],
-      "patch_registration_lines": [],
-      "uncovered_acceptance": "Legacy-save, branch, disconnect and paired reload acceptance remains open."
-    },
-    {
-      "source": "integrations/colony-bridge/src/identity/HaulTrackingState.cs",
-      "source_sha256": "23d9867809fdf9a7d6d2051b3545f8ffc4d9ba4807545ed432cf7970d147859d",
-      "compilation": "identity-assembly",
-      "owner": "N01.06 native state owner with G01.04/G01.08",
-      "migration_status": "inventoried-unmigrated",
-      "static_token_lines": [],
-      "reflection_boundary_lines": [],
-      "patch_registration_lines": [],
-      "uncovered_acceptance": "Legacy-save, branch, disconnect and paired reload acceptance remains open."
-    },
-    {
-      "source": "integrations/colony-bridge/src/identity/HomeCoverageState.cs",
-      "source_sha256": "e09219e0b02dbb689d4c96170a4e326d9e336dd28ef5d0b64380ba680e3c5bbc",
-      "compilation": "identity-assembly",
-      "owner": "N01.06 native state owner with G01.04/G01.08",
-      "migration_status": "inventoried-unmigrated",
-      "static_token_lines": [],
-      "reflection_boundary_lines": [],
-      "patch_registration_lines": [],
-      "uncovered_acceptance": "Legacy-save, branch, disconnect and paired reload acceptance remains open."
-    },
-    {
-      "source": "integrations/colony-bridge/src/identity/MiningState.cs",
-      "source_sha256": "e5856f24668f54e580501ada3e355872086471af1bfcc8ded83dca198c50d523",
-      "compilation": "identity-assembly",
-      "owner": "N01.06 native state owner with G01.04/G01.08",
-      "migration_status": "inventoried-unmigrated",
-      "static_token_lines": [],
-      "reflection_boundary_lines": [],
-      "patch_registration_lines": [],
-      "uncovered_acceptance": "Legacy-save, branch, disconnect and paired reload acceptance remains open."
-    },
-    {
-      "source": "integrations/colony-bridge/src/identity/ProductionPolicyState.cs",
-      "source_sha256": "987d11b7075be270f67b3f535d71a4ed7c8c9de83be8687748c8781842925827",
-      "compilation": "identity-assembly",
-      "owner": "N01.06 native state owner with G01.04/G01.08",
-      "migration_status": "inventoried-unmigrated",
-      "static_token_lines": [],
-      "reflection_boundary_lines": [],
-      "patch_registration_lines": [],
-      "uncovered_acceptance": "Legacy-save, branch, disconnect and paired reload acceptance remains open."
-    },
-    {
-      "source": "integrations/colony-bridge/src/identity/RecoveryAreas.cs",
-      "source_sha256": "a822e2dc24e4ee185c0172d35ba021d7702b5f70926a8496e95cadad81868737",
-      "compilation": "identity-assembly",
-      "owner": "N01.06 native state owner with G01.04/G01.08",
-      "migration_status": "inventoried-unmigrated",
-      "static_token_lines": [],
-      "reflection_boundary_lines": [],
-      "patch_registration_lines": [],
-      "uncovered_acceptance": "Legacy-save, branch, disconnect and paired reload acceptance remains open."
-    },
-    {
-      "source": "integrations/colony-bridge/src/identity/WallRemovalState.cs",
-      "source_sha256": "eddd95d5413d2eed0c300985579b50f1b78affc89309a61b54b1921cc385251f",
-      "compilation": "identity-assembly",
-      "owner": "N01.06 native state owner with G01.04/G01.08",
-      "migration_status": "inventoried-unmigrated",
-      "static_token_lines": [],
-      "reflection_boundary_lines": [],
-      "patch_registration_lines": [],
-      "uncovered_acceptance": "Legacy-save, branch, disconnect and paired reload acceptance remains open."
-    },
-    {
-      "source": "integrations/headless-rim/src/HeadlessModeManager.cs",
+      "source": "integrations/rimgovernor-native/src/Runtime/Headless/HeadlessModeManager.cs",
       "source_sha256": "76b1555058cdcf8c569dfe6faf56462ccb4c6a5aa8fbd5fcbd85272d506dfdc5",
-      "compilation": "batch-gated-headless",
+      "compilation": "production-runtime",
       "owner": "N01.05 native runtime owner",
       "migration_status": "inventoried-unmigrated",
       "static_token_lines": [
@@ -2674,9 +2482,9 @@
       "uncovered_acceptance": "Unified repeated startup/load, patch-failure health, lease cleanup and Windows/Linux normal/batch acceptance remain open."
     },
     {
-      "source": "integrations/headless-rim/src/HeadlessPatches.cs",
+      "source": "integrations/rimgovernor-native/src/Runtime/Headless/HeadlessPatches.cs",
       "source_sha256": "00fedcd6829a7364237b1b4e54942a39fa6c17814d8245909ded29f7759a60b0",
-      "compilation": "batch-gated-headless",
+      "compilation": "production-runtime",
       "owner": "N01.05 native runtime owner",
       "migration_status": "inventoried-unmigrated",
       "static_token_lines": [
@@ -2730,9 +2538,9 @@
       "uncovered_acceptance": "Unified repeated startup/load, patch-failure health, lease cleanup and Windows/Linux normal/batch acceptance remain open."
     },
     {
-      "source": "integrations/headless-rim/src/Startup.cs",
+      "source": "integrations/rimgovernor-native/src/Runtime/Headless/Startup.cs",
       "source_sha256": "d9fa2ef6b739a470bf6e11212b0911eb28e9d1f03de4389f71ae024c17941cd3",
-      "compilation": "batch-gated-headless",
+      "compilation": "production-runtime",
       "owner": "N01.05 native runtime owner",
       "migration_status": "inventoried-unmigrated",
       "static_token_lines": [
@@ -2743,6 +2551,107 @@
       "reflection_boundary_lines": [],
       "patch_registration_lines": [],
       "uncovered_acceptance": "Unified repeated startup/load, patch-failure health, lease cleanup and Windows/Linux normal/batch acceptance remain open."
+    },
+    {
+      "source": "integrations/rimgovernor-native/src/Runtime/Persistence/ColonyIdentity.cs",
+      "source_sha256": "48969ab32289c2ddc630bb752a74348604c76bd21afb1b58d2e68ad6b9a1951a",
+      "compilation": "production-runtime",
+      "owner": "N01.06 native state owner with G01.04/G01.08",
+      "migration_status": "inventoried-unmigrated",
+      "static_token_lines": [],
+      "reflection_boundary_lines": [],
+      "patch_registration_lines": [],
+      "uncovered_acceptance": "Legacy-save, branch, disconnect and paired reload acceptance remains open."
+    },
+    {
+      "source": "integrations/rimgovernor-native/src/Runtime/Persistence/ConstructionLineageState.cs",
+      "source_sha256": "0b285630ec67ef17f5a2dbdb1c3c618a95e45e1b392611606865763506b079ee",
+      "compilation": "production-runtime",
+      "owner": "N01.06 native state owner with G01.04/G01.08",
+      "migration_status": "inventoried-unmigrated",
+      "static_token_lines": [],
+      "reflection_boundary_lines": [],
+      "patch_registration_lines": [],
+      "uncovered_acceptance": "Legacy-save, branch, disconnect and paired reload acceptance remains open."
+    },
+    {
+      "source": "integrations/rimgovernor-native/src/Runtime/Persistence/GearOwnership.cs",
+      "source_sha256": "840efa548bd5f225a98bbde5b630c14c7a6b5224b79c4e3f531acc1905942e78",
+      "compilation": "production-runtime",
+      "owner": "N01.06 native state owner with G01.04/G01.08",
+      "migration_status": "inventoried-unmigrated",
+      "static_token_lines": [
+        16
+      ],
+      "reflection_boundary_lines": [],
+      "patch_registration_lines": [],
+      "uncovered_acceptance": "Legacy-save, branch, disconnect and paired reload acceptance remains open."
+    },
+    {
+      "source": "integrations/rimgovernor-native/src/Runtime/Persistence/HaulTrackingState.cs",
+      "source_sha256": "23d9867809fdf9a7d6d2051b3545f8ffc4d9ba4807545ed432cf7970d147859d",
+      "compilation": "production-runtime",
+      "owner": "N01.06 native state owner with G01.04/G01.08",
+      "migration_status": "inventoried-unmigrated",
+      "static_token_lines": [],
+      "reflection_boundary_lines": [],
+      "patch_registration_lines": [],
+      "uncovered_acceptance": "Legacy-save, branch, disconnect and paired reload acceptance remains open."
+    },
+    {
+      "source": "integrations/rimgovernor-native/src/Runtime/Persistence/HomeCoverageState.cs",
+      "source_sha256": "e09219e0b02dbb689d4c96170a4e326d9e336dd28ef5d0b64380ba680e3c5bbc",
+      "compilation": "production-runtime",
+      "owner": "N01.06 native state owner with G01.04/G01.08",
+      "migration_status": "inventoried-unmigrated",
+      "static_token_lines": [],
+      "reflection_boundary_lines": [],
+      "patch_registration_lines": [],
+      "uncovered_acceptance": "Legacy-save, branch, disconnect and paired reload acceptance remains open."
+    },
+    {
+      "source": "integrations/rimgovernor-native/src/Runtime/Persistence/MiningState.cs",
+      "source_sha256": "e5856f24668f54e580501ada3e355872086471af1bfcc8ded83dca198c50d523",
+      "compilation": "production-runtime",
+      "owner": "N01.06 native state owner with G01.04/G01.08",
+      "migration_status": "inventoried-unmigrated",
+      "static_token_lines": [],
+      "reflection_boundary_lines": [],
+      "patch_registration_lines": [],
+      "uncovered_acceptance": "Legacy-save, branch, disconnect and paired reload acceptance remains open."
+    },
+    {
+      "source": "integrations/rimgovernor-native/src/Runtime/Persistence/ProductionPolicyState.cs",
+      "source_sha256": "987d11b7075be270f67b3f535d71a4ed7c8c9de83be8687748c8781842925827",
+      "compilation": "production-runtime",
+      "owner": "N01.06 native state owner with G01.04/G01.08",
+      "migration_status": "inventoried-unmigrated",
+      "static_token_lines": [],
+      "reflection_boundary_lines": [],
+      "patch_registration_lines": [],
+      "uncovered_acceptance": "Legacy-save, branch, disconnect and paired reload acceptance remains open."
+    },
+    {
+      "source": "integrations/rimgovernor-native/src/Runtime/Persistence/RecoveryAreas.cs",
+      "source_sha256": "a822e2dc24e4ee185c0172d35ba021d7702b5f70926a8496e95cadad81868737",
+      "compilation": "production-runtime",
+      "owner": "N01.06 native state owner with G01.04/G01.08",
+      "migration_status": "inventoried-unmigrated",
+      "static_token_lines": [],
+      "reflection_boundary_lines": [],
+      "patch_registration_lines": [],
+      "uncovered_acceptance": "Legacy-save, branch, disconnect and paired reload acceptance remains open."
+    },
+    {
+      "source": "integrations/rimgovernor-native/src/Runtime/Persistence/WallRemovalState.cs",
+      "source_sha256": "eddd95d5413d2eed0c300985579b50f1b78affc89309a61b54b1921cc385251f",
+      "compilation": "production-runtime",
+      "owner": "N01.06 native state owner with G01.04/G01.08",
+      "migration_status": "inventoried-unmigrated",
+      "static_token_lines": [],
+      "reflection_boundary_lines": [],
+      "patch_registration_lines": [],
+      "uncovered_acceptance": "Legacy-save, branch, disconnect and paired reload acceptance remains open."
     },
     {
       "source": "scripts/fixtures/AnimalContainmentFixture.cs",
