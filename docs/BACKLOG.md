@@ -735,7 +735,7 @@ only intentional small, sanitized regression fixtures belong in source control.
     unavailable values and freshness. Owner: bridge agent; depends on 03a and the
     domain fact types. Add families with policy consumers and one native read smoke.
 
-- [ ] **G01.04 — Typed plan and fresh Go store.** Owner: state agent. Split into
+- [x] **G01.04 — Typed plan and fresh Go store.** Owner: state agent. Split into
   04a plan/action/progress types and 04b SQLite persistence/restart. Use a new Go
   schema with explicit version checks; do not import Python databases or preserve
   old serialization signatures. Keep transactions, durable intent, deduplication,
@@ -745,7 +745,7 @@ only intentional small, sanitized regression fixtures belong in source control.
   - [x] **04a:** distinct IDs/generations, plan/spec/progress and a bounded building
     action variant with legal transitions. Owner: state agent; no legacy serializers.
     Extend action families only alongside their Hands handlers.
-  - [ ] **04b:** fresh versioned SQLite store, transactions/durable intent and
+  - [x] **04b:** fresh versioned SQLite store, transactions/durable intent and
     reopen/restart checks. Owner: state agent; depends on 04a.
 
 - [ ] **G01.05 — Deterministic planning kernel.** Owner: policy agent.
