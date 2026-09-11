@@ -21,6 +21,13 @@ currentMapOnly=false and use FreeColonistsSpawned across loaded maps. World cara
 and unspawned pawns are outside that roster. The bounded roster refuses above256.
 Whole replies refuse above1MiB rather than sampling.
 
-Native acceptance still needs graphical camera/selection comparisons and unchanged
-view/ticks, headless unavailability with a real roster, selected Thing/Zone/Plan and
-overflow cases. Compilation and protocol tests do not establish those outcomes.
+Compilation and protocol tests do not establish gameplay outcomes.
+
+The script `scripts/native_presentation_acceptance.py`, launched by
+`container_scenario.py`, verifies headless unavailability and actual colonists, or
+uses `--rendered` to compare camera, exact selected-pawn facts and rosters with the
+SDK. Selecting one observed pawn is explicit scenario setup. The subsequent read
+interval checks unchanged paused context, native camera and selection. Reports
+retain package hashes, discovery/detail and raw requests/replies, including failures.
+The fresh scenario establishes one loaded map only; it does not establish multi-map,
+selected zone/plan, overflow, camera movement, input or capture acceptance.

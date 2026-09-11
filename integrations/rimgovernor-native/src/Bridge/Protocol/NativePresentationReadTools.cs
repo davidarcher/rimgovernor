@@ -133,7 +133,7 @@ namespace HomeBridge.BridgeTools
             {
                 map = thing.Map;
                 row.Id = Id(thing.GetUniqueLoadID()); row.NativeKind = thing is Pawn ? "pawn" : "thing";
-                row.Label = Diagnostic(thing.LabelCap); row.DefName = Id(thing.def.defName);
+                row.Label = Diagnostic(thing is Pawn pawn ? pawn.Name?.ToStringShort ?? pawn.LabelShort : thing.LabelCap); row.DefName = Id(thing.def.defName);
                 if (map != null && thing.Position.InBounds(map)) row.Position = Cell(thing.Position);
             }
             else if (value is Zone zone)
