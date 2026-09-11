@@ -106,7 +106,20 @@ func (s *Session) Acquire(ctx context.Context, requested domain.GenerationSnapsh
 	}
 	return s.control.Acquire(ctx, requested)
 }
-func (s *Session) Renew(ctx context.Context) error   { return s.control.Renew(ctx) }
+func (s *Session) Renew(ctx context.Context) error { return s.control.Renew(ctx) }
+
+// ObserveTarget attaches only read reconciliation to a durable plan. It cannot
+// obtain a lease, even if native status reports an active owner for this namespace.
+func (s *Session) ObserveTarget(ctx context.Context, requested domain.GenerationSnapshot) error {
+	state, err := s.journal.LoadPlan(ctx, requested.Plan)
+	if err != nil {
+		return err
+	}
+	if state.Spec.Revision() != requested.Revision {
+		return executor.ErrAuthority
+	}
+	return s.control.ObserveTarget(ctx, requested)
+}
 func (s *Session) Refresh(ctx context.Context) error { return s.control.Refresh(ctx) }
 func (s *Session) Manual(ctx context.Context) error  { return s.control.Manual(ctx) }
 func (s *Session) Run(ctx context.Context, plan domain.PlanID, action domain.ActionID) (executor.Result, error) {
