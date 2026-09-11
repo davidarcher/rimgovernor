@@ -33,6 +33,13 @@ on assumed resources. Reply size is at most1MiB; reject oversized read results
 explicitly. Placement operations use the normal game's resource rules regardless
 of a preceding preview.
 
+Available material is net stock: eligible spawned stacks minus forbidden stock
+and the complete native census of remaining blueprint/frame material deficits,
+clamped to zero. It is not gross inventory. Go additionally reserves unissued or
+unverifiable shared work. A complete correlated pending-construction inspection
+lets stock from a later tick replace that action's historical material hold;
+its footprint remains reserved until outcome reconciliation permits release.
+
 Sources: `integrations/rimgovernor-native/src/Bridge/PlacementPreviewsTool.cs`,
 `PlaceBuildingTool.cs`, and the typed `PlacementPreviewOperation` workstream
 implementation; consumers are Go placement/domain transport and controller

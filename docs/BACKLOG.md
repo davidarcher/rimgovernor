@@ -690,8 +690,10 @@ expand these into another nested task tree; remove a row when its outcome is met
   construction orders, with Manual invalidation and disabled restart. Pending
   construction now records complete attempt-correlated inspection proof; later-tick
   native net stock can replace its original cost hold while geometry remains pinned.
-  Unknown effects restore the conservative hold. Fast checks cover replay, causality
-  and competing budgets; targeted two-project native acceptance remains pending.
+  Unknown effects restore the conservative hold. Native acceptance verifies two
+  five-wood walls under a 290-wood reserve from 300 available wood: the second is
+  admitted while the first is unfinished, both complete with one attempt each,
+  and Manual/disabled restart preserve authority and accounting evidence.
   Further need inputs, method selection and execution composition for
   additional routine methods remain open.
 
