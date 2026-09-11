@@ -43,6 +43,19 @@ namespace HomeBridge.BridgeTools
                     FullMethodName = "rimgovernor.authority.v1.Authority/ReadStatus",
                     Support = Lifecycle.CapabilitySupport.Supported
                 });
+                foreach (var method in new[] {
+                    "rimgovernor.authority.v1.Authority/Control",
+                    "rimgovernor.observations.v1.Observations/ReadStatus",
+                    "rimgovernor.observations.v1.Observations/GetCells",
+                    "rimgovernor.receipts.v1.Attempts/Lookup",
+                    "rimgovernor.receipts.v1.Attempts/ObserveProgress" })
+                    loaded.Capabilities.Add(new Lifecycle.Capability { FullMethodName = method, Support = Lifecycle.CapabilitySupport.Supported });
+                foreach (var method in new[] { "Preview", "Execute" })
+                    loaded.Capabilities.Add(new Lifecycle.Capability
+                    {
+                        FullMethodName = "rimgovernor.operations.v1.Operations/" + method,
+                        Support = Lifecycle.CapabilitySupport.Supported, Detail = "PlaceBuilding is implemented; other commands return unsupported."
+                    });
                 return new Lifecycle.IdentityReply { Loaded = loaded };
             }, cancellationToken).ConfigureAwait(false);
             return ProtoBoundary.Encode(reply);
