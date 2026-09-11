@@ -579,19 +579,10 @@ in main by fast-forward, without pushes; reuse checks when relevant code is unch
 
 ### Remaining work
 
-The list is ordered for delivery: finish the current clock path, complete routine
-planning and action families, connect chat and player services, then switch and
+The list is ordered for delivery: complete routine planning and action families,
+connect chat and player services, then switch and
 remove Python. Existing G01 IDs remain useful for inventory references. Do not
 expand these into another nested task tree; remove a row when its outcome is met.
-
-- [ ] **G01.10a — Finish supervised clock operation.** History maintenance now
-  retains unresolved writes, active ownership, unreviewed events and unacknowledged
-  interruptions/gaps while compacting reviewed history and preserving replay.
-  Use the actual
-  Go player service to verify ordinary pawn work, a real interruption, explicit
-  acknowledgement, Manual pause, joined shutdown and disabled restart. The
-  scheduler, workers, service option and review API/dashboard are already wired.
-  Reuse the native protocol gate; it does not prove Go orchestration.
 
 - [ ] **G01.05 — Complete routine planning.** Port deficit detection, method
   selection, priorities, resource accounting, dependencies, hysteresis and spatial

@@ -42,6 +42,9 @@ stop for that letter, retain an explicit acknowledgement and its replay, pause
 on Manual, observe completed pawn construction, join shutdown and restart disabled.
 SDK operation history must attribute clock control to Go throughout each service
 phase. The harness does not advance the clock on the service's behalf.
+The generated colony must permit healthy-colony play. Inspect the retained
+prepared-colony observations if native hostiles or medical needs prevent the
+first window; use a fresh disposable colony without relaxing safety policy.
 
 `scripts/construction_refinement_acceptance.py --source-root <prepared-root> --output
 <fresh-directory> --model <local-model-id>` checks policy refusal before removal,

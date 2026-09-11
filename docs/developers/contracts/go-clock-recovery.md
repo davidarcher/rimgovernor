@@ -3,9 +3,10 @@
 [Subsystem contracts](README.md) · [Canonical clock schema](../../../contracts/proto/clock.proto)
 
 The Go bridge and store validate clock commands and recovered evidence against the
-canonical native producer. Runtime composition and gameplay acceptance are
-tracked separately in [G01.10a](../../BACKLOG.md). These validators do not enable
-the clock or restore permission after restart.
+canonical native producer. The player service composes the scheduler and workers
+behind `--clock-control`; validation never restores permission after restart.
+See [native service acceptance](../testing/construction-recovery.md#go-http-building-service)
+for the game-level verification procedure.
 
 ## Original command correlation
 
@@ -224,7 +225,7 @@ joins the loops and their cancellation handler before releasing native handles,
 the journal or profile owner. Concurrent Stop calls serialize, successful cleanup
 is cached, and failed cleanup remains retryable. Worker intervals and call budgets
 are bounded below the native lease duration; unchanged scheduling decisions back
-off. The player service opts in with --clock-control. Actual Go native acceptance remains pending.
+off. The player service opts in with `--clock-control`.
 
 A fresh worker over reopened state remains disabled while recovering original
 attempts and pausing retained ownership; it does not acquire authority or issue a
