@@ -1,0 +1,75 @@
+using System;
+using System.Threading;
+using HarmonyLib;
+using HomeBridge.BridgeTools;
+using RimWorld;
+using Verse;
+using Verse.AI;
+
+internal static class Program
+{
+    private static int checks;
+    private static void Assert(bool condition, string text) { checks++; if (!condition) throw new Exception(text); }
+    private static NativeControlAuthority State = null!;
+    private static void Acquire()
+    {
+        if (State.Status().Active) State.Revoke(State.Status().Generation, NativeControlRevocationReason.Manual);
+        Assert(State.Acquire(State.Status().Generation, "controller", 1, 30000).Success, "acquire");
+    }
+    private static void Invalidates(Action action, string label)
+    {
+        Acquire(); var before = State.Status(); action(); var after = State.Status();
+        Assert(!after.Active && after.Generation > before.Generation, label);
+    }
+    private static void Preserves(Action action, string label)
+    {
+        Acquire(); var before = State.Status(); action(); var after = State.Status();
+        Assert(after.Active && after.Generation == before.Generation, label);
+    }
+    public static void Main()
+    {
+        _ = UnityData.IsInMainThread;
+        Assert(NativeAuthorityHooks.Health.Ready && NativeAuthorityHooks.Health.VerifiedTargets == 10, "all exact patches installed");
+        Assert(NativeAuthorityHooks.InitializeForCurrentGame() == null, "no game initializes nothing");
+        var game = new Game { CurrentMap = new Map { uniqueID = 1 } }; Current.Game = game;
+        Assert(!NativeControlAuthority.TryGetForGame(game, out _), "setter allocated state");
+        game.UpdatePlay(); Assert(NativeControlAuthority.TryGetForGame(game, out var state), "poll initialized state"); State = state!;
+        Assert(State.Status().Available && !State.Status().Active, "poll granted authority");
+        var jobs = new Pawn_JobTracker();
+        Invalidates(() => jobs.TryTakeOrderedJob(new Job()), "successful job");
+        Preserves(() => jobs.TryTakeOrderedJob(new Job { Accepted = false }), "failed job");
+        var draft = new Pawn_DraftController();
+        Invalidates(() => draft.Drafted = true, "draft change");
+        Preserves(() => draft.Drafted = true, "draft noop");
+        Invalidates(() => draft.Drafted = false, "undraft change");
+        Action build = () => GenConstruct.PlaceBlueprintForBuild(new(), default, game.CurrentMap!, default, Faction.OfPlayer, new());
+        Invalidates(build, "build");
+        Invalidates(() => GenConstruct.PlaceBlueprintForInstall(new(), default, game.CurrentMap!, default, Faction.OfPlayer), "install");
+        Invalidates(() => GenConstruct.PlaceBlueprintForReinstall(new(), default, game.CurrentMap!, default, Faction.OfPlayer), "reinstall");
+        Preserves(() => GenConstruct.PlaceBlueprintForBuild(new(), default, game.CurrentMap!, default, new Faction(), new()), "nonplayer build");
+        var cancel = new Designator_Cancel();
+        Invalidates(() => cancel.DesignateThing(new Blueprint_Build()), "cancel blueprint");
+        Preserves(() => cancel.DesignateThing(new Thing()), "cancel noop");
+        game.CurrentMap!.designationManager.Cell.Add(new Designation());
+        Invalidates(() => cancel.DesignateSingleCell(default), "cancel cell designation");
+        Preserves(() => cancel.DesignateSingleCell(default), "cancel empty cell");
+        game.CurrentMap.designationManager.Thing.Add(new Designation());
+        Invalidates(() => cancel.DesignateThing(new Thing()), "cancel thing designation");
+        Preserves(() => { using (State.Owned()) using (State.Owned()) { build(); jobs.TryTakeOrderedJob(new Job()); draft.Drafted = true; } }, "owned work");
+        Invalidates(() => { try { using (State.Owned()) throw new Exception(); } catch { } build(); }, "exception disposes suppression");
+        var map = game.CurrentMap;
+        Invalidates(() => { game.CurrentMap = new Map { uniqueID = 2 }; game.CurrentMap = map; }, "map away and back");
+        Preserves(() => game.CurrentMap = map, "same map");
+        Invalidates(() => { using (State.Owned()) { game.CurrentMap = null; game.CurrentMap = map; Assert(!State.IsOwned, "context bypassed owned scope"); } }, "owned context invalidation");
+        Invalidates(() => { var worker = new Thread(() => { Current.Game = null; Current.Game = game; }); worker.Start(); worker.Join(); }, "loader game away and back");
+        Preserves(() => game.UpdatePlay(), "ordinary poll not Manual");
+        var replacement = new Game { CurrentMap = map }; Current.Game = replacement; replacement.UpdatePlay();
+        Assert(NativeControlAuthority.TryGetForGame(replacement, out var next) && !ReferenceEquals(next, State) && !next!.Status().Active, "new game leaked authority");
+        Current.Game = game; game.UpdatePlay(); Acquire();
+        new Harmony("rimgovernor.native.authority").Unpatch(AccessTools.Method(typeof(Pawn_JobTracker), "TryTakeOrderedJob"), HarmonyPatchType.Postfix, "rimgovernor.native.authority");
+        Assert(!NativeAuthorityHooks.Health.Ready, "unpatch not detected");
+        NativeAuthorityHooks.InitializeForCurrentGame();
+        Assert(!State.Status().Available && !State.Status().Active && State.Status().Reason == NativeControlRevocationReason.HooksUnavailable, "hook loss did not fail closed");
+        Console.WriteLine($"Native authority hooks: {checks} checks (actual Harmony, controlled native-shaped fixtures).");
+    }
+}

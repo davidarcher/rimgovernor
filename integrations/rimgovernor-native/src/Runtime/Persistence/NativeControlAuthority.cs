@@ -88,6 +88,7 @@ namespace HomeBridge.BridgeTools
         private bool contextLost;
         private bool exhausted;
         private int ownedDepth;
+        private int pendingContextInvalidation;
         private NativeControlIdentity? ownedIdentity;
         private ulong ownedGeneration;
         private NativeControlRevocationReason reason = NativeControlRevocationReason.HooksUnavailable;
@@ -132,6 +133,10 @@ namespace HomeBridge.BridgeTools
         }
 
         public NativeControlSnapshot Status() { Refresh(); return Snapshot(); }
+
+        // Game replacement may run on the loading thread. Consume before any CAS,
+        // even when an away-and-back transition leaves the final identity unchanged.
+        public void RequestContextInvalidation() => Interlocked.Exchange(ref pendingContextInvalidation, 1);
 
         public NativeControlSnapshot SetHookHealth(bool ready)
         {
@@ -246,6 +251,8 @@ namespace HomeBridge.BridgeTools
         private void Refresh()
         {
             RequireThread();
+            if (Interlocked.Exchange(ref pendingContextInvalidation, 0) != 0)
+                Invalidate(NativeControlRevocationReason.IdentityChanged);
             try
             {
                 var next = clock();

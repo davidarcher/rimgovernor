@@ -194,6 +194,18 @@ internal static class Program
 
     private static void Main()
     {
+        var transition = new Harness();
+        var granted = transition.Acquire();
+        using (transition.State.Owned())
+        {
+            var loader = new Thread(transition.State.RequestContextInvalidation);
+            loader.Start(); loader.Join();
+            Assert(!transition.State.IsOwned, "Queued context replacement retained owned suppression");
+            Error(transition.State.Check(granted.Generation, granted.Lease!.LeaseId, "persistent-controller/α"), NativeControlError.StaleGeneration);
+            Assert(transition.State.Status().Reason == NativeControlRevocationReason.IdentityChanged, "Queued transition lost its reason");
+            var refreshed = transition.State.Status().Generation;
+            Assert(transition.State.Status().Generation == refreshed, "Queued invalidation applied more than once");
+        }
         LeaseAndCas(); IdentityAndHealth(); OwnedScopes(); ExhaustionAndClock(); RegistryIsolation(); ScopeAndClockBoundaries();
         Console.WriteLine("Native authority state passed " + assertions + " assertions (production source, injected clock/context).");
     }
