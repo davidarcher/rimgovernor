@@ -236,17 +236,27 @@ func ValidateSchema(root *Schema) error {
 		}
 	}
 	active := map[*Schema]bool{}
+	completed := map[*Schema]bool{}
 	var visit func(*Schema, bool) error
 	visit = func(node *Schema, named bool) error {
 		if node == nil || active[node] {
 			return fmt.Errorf("missing or cyclic schema")
 		}
+		if node.Type == "object" && !named {
+			return fmt.Errorf("inline objects must use a named definition reference")
+		}
+		if completed[node] {
+			return nil
+		}
 		active[node] = true
 		defer delete(active, node)
-		if node != root && (node.Dialect != "" || node.ID != "" || len(node.Definitions) != 0) {
+		if node != root && (node.Dialect != "" || node.ID != "" || node.Definitions != nil) {
 			return fmt.Errorf("schema metadata and definitions must be at root")
 		}
 		if node.Ref != "" {
+			if node.Properties != nil || node.Required != nil || node.Definitions != nil {
+				return fmt.Errorf("$ref validation siblings are unsupported")
+			}
 			copy := *node
 			copy.Ref, copy.Title, copy.Description, copy.SourceSHA256 = "", "", "", ""
 			encoded, _ := json.Marshal(copy)
@@ -258,9 +268,13 @@ func ValidateSchema(root *Schema) error {
 				return fmt.Errorf("only local $defs references are supported")
 			}
 			target := root.Definitions[strings.TrimPrefix(node.Ref, prefix)]
-			return visit(target, true)
+			if err := visit(target, true); err != nil {
+				return err
+			}
+			completed[node] = true
+			return nil
 		}
-		if node.Type != "object" && (len(node.Properties) != 0 || len(node.Required) != 0 || node.AdditionalProperties != nil) {
+		if node.Type != "object" && (node.Properties != nil || node.Required != nil || node.AdditionalProperties != nil) {
 			return fmt.Errorf("object keywords on %s", node.Type)
 		}
 		if node.Type != "array" && (node.Items != nil || node.MinItems != nil || node.MaxItems != nil) {
@@ -274,7 +288,7 @@ func ValidateSchema(root *Schema) error {
 		}
 		switch node.Type {
 		case "object":
-			if !named || node.AdditionalProperties == nil || *node.AdditionalProperties {
+			if !named || node.Required == nil || node.Properties == nil || node.AdditionalProperties == nil || *node.AdditionalProperties {
 				return fmt.Errorf("objects must be named and declare additionalProperties:false")
 			}
 			required := map[string]bool{}
@@ -298,7 +312,9 @@ func ValidateSchema(root *Schema) error {
 			if node.MinItems == nil || node.MaxItems == nil || *node.MinItems < 0 || *node.MaxItems < *node.MinItems || *node.MaxItems > 65536 {
 				return fmt.Errorf("arrays require ordered bounds within 0..65536")
 			}
-			return visit(node.Items, false)
+			if err := visit(node.Items, false); err != nil {
+				return err
+			}
 		case "integer":
 			if node.IntegerToken == nil || !*node.IntegerToken || node.Minimum == nil || node.Maximum == nil ||
 				*node.Minimum < -2147483648 || *node.Maximum > 2147483647 || *node.Minimum > *node.Maximum {
@@ -312,6 +328,7 @@ func ValidateSchema(root *Schema) error {
 		default:
 			return fmt.Errorf("unsupported type %q (nullable schemas are deferred)", node.Type)
 		}
+		completed[node] = true
 		return nil
 	}
 	if err := visit(root, true); err != nil {
