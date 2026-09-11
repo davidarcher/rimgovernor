@@ -133,7 +133,7 @@ namespace RimGovernor.InterruptionFixtures
 
         [Tool("test/interruption_letter", Description = "Disposable letter delivery through the real LetterStack callback; no pawn or simulation edits.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            string definition = "ThreatBig", string after = "none", string label = "Interruption acceptance")
+            string definition = "ThreatBig", string after = "none", string label = "Interruption acceptance", int delayTicks = 0)
         {
             return await ctx.MainThread.InvokeAsync(() =>
             {
@@ -141,6 +141,16 @@ namespace RimGovernor.InterruptionFixtures
                 if (!new[] { "none", "pause", "speed", "modal", "raid" }.Contains(after)) throw new ArgumentException("Unknown after action");
                 var def = DefDatabase<LetterDef>.GetNamed(definition);
                 var letter = LetterMaker.MakeLetter(label, "Disposable native attribution case.", def);
+                if (delayTicks != 0)
+                {
+                    if (delayTicks < 1 || delayTicks > 600 || after != "none" || !Find.TickManager.Paused)
+                        throw new ArgumentException("Schedule 1..600 ticks from a paused game with after=none");
+                    var scheduled = Current.Game.GetComponent<ScheduledInterruptionLetter>();
+                    if (scheduled == null) { scheduled = new ScheduledInterruptionLetter(Current.Game); Current.Game.components.Add(scheduled); }
+                    scheduled.Schedule(letter, checked(Find.TickManager.TicksGame + delayTicks));
+                    return (object)new { success = true, letterId = letter.GetUniqueLoadID(), definition, delayTicks,
+                        scheduledTick = scheduled.DueTick, tick = Find.TickManager.TicksGame };
+                }
                 var before = Find.TickManager.CurTimeSpeed;
                 Find.LetterStack.ReceiveLetter(letter, null, 0, false);
                 var delivered = Find.TickManager.CurTimeSpeed;
@@ -161,6 +171,26 @@ namespace RimGovernor.InterruptionFixtures
                     speed = Find.TickManager.CurTimeSpeed.ToString(),
                     tick = Find.TickManager.TicksGame, automaticPauseMode = Prefs.AutomaticPauseMode.ToString() };
             }, cancellationToken);
+        }
+    }
+
+    // Test-only, in-memory delivery after an exclusive controller handoff. The
+    // ordinary game tick invokes the real LetterStack; no controller drives time.
+    public sealed class ScheduledInterruptionLetter : GameComponent
+    {
+        private Letter pending;
+        public int DueTick { get; private set; }
+        public ScheduledInterruptionLetter(Game game) { }
+        public void Schedule(Letter letter, int tick)
+        {
+            if (pending != null) throw new InvalidOperationException("An interruption is already scheduled");
+            pending = letter; DueTick = tick;
+        }
+        public override void GameComponentTick()
+        {
+            if (pending == null || Find.TickManager.TicksGame < DueTick) return;
+            var letter = pending; pending = null;
+            Find.LetterStack.ReceiveLetter(letter, null, 0, false);
         }
     }
 }

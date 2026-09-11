@@ -3989,7 +3989,7 @@
     },
     {
       "source": "scripts/fixtures/InterruptionFixture.cs",
-      "source_sha256": "141273044ee02ccc89e2a2b79d680a59fb181248c8ccd867bd05902a61dd05c0",
+      "source_sha256": "6eecb86476c3d22e0202f7d8efe7cde23e95935dadd59e69b16c7f4821a550c9",
       "compilation": "fixture-only",
       "owner": "N01.01 native packaging owner",
       "migration_status": "inventoried-unmigrated",
