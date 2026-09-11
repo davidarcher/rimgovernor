@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -190,5 +191,54 @@ func TestPawnsTypedFailuresAndEmptyQuery(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// NativeObservationTools.JobRow(null, 0) reports known idle control facts,
+// while current-job identity stays absent and explicitly not applicable.
+func TestPawnsIdleNativeJobAndEmergencyProjection(t *testing.T) {
+	job := &o.JobEvidence{PlayerForced: proto.Bool(false), QueuedJobs: proto.Uint32(0), Issues: []*o.ReadIssue{{Field: proto.String("current_job"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum(), Detail: proto.String("Pawn has no current job.")}}}}
+	snapshot := pawnsTestSnapshot()
+	snapshot.Pawns[0].Job = job
+	status := emergencyFixture()
+	status.Colonists.Pawns = []*o.PawnState{emergencyRow("pawn-1")}
+	status.Colonists.Pawns[0].Job = proto.Clone(job).(*o.JobEvidence)
+	status.Colonists.Completeness = emergencyCounts(1)
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		switch arg.Tool {
+		case "rimgovernor/observations_list_pawns":
+			return pbResult(&o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: snapshot}}), nil
+		case "rimgovernor/observations_read_status":
+			return pbResult(&o.StatusReply{Outcome: &o.StatusReply_Observed{Observed: status}}), nil
+		default:
+			t.Fatalf("unexpected method %s", arg.Tool)
+			return nil, nil
+		}
+	}}, time.Second)
+	reply, _, err := client.ReadPawns(context.Background(), pbIdentity(), []string{"pawn-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := reply.GetObserved().Pawns[0].Job
+	if !proto.Equal(got, job) || got.DefName != nil || got.LoadId != nil || got.PlayerForced == nil || got.GetPlayerForced() || got.QueuedJobs == nil || got.GetQueuedJobs() != 0 {
+		t.Fatal("idle presence lost", got)
+	}
+	emergency, _, err := client.ReadEmergency(context.Background(), pbIdentity())
+	if err != nil {
+		t.Fatal(err)
+	}
+	complete, known := emergency.Facts.ColonistsComplete.Value()
+	if !known || !complete {
+		t.Fatal("idle job obscured complete emergency census")
+	}
+	if len(emergency.Facts.Colonists) != 1 {
+		t.Fatal("idle pawn missing")
+	}
+	pawn := emergency.Facts.Colonists[0]
+	for _, fact := range []domain.Fact[bool]{pawn.Dead, pawn.Downed, pawn.Bleeding, pawn.NeedsTend} {
+		value, known := fact.Value()
+		if !known || value {
+			t.Fatal("idle job obscured healthy facts")
+		}
 	}
 }
