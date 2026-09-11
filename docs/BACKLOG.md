@@ -881,6 +881,8 @@ only intentional small, sanitized regression fixtures belong in source control.
           - [x] **06b.3b.6a:** typed bounded clock event reads with cursor-gap
             evidence. Owner: bridge agent; depends on 06b.3b.6. Events report
             interruptions without granting resume or write authority.
+          Go clock scheduling and integrated interruption acceptance are tracked
+          in 10a; the explicit building vertical slice does not advance time.
   - [x] **06c:** isolated ordinary pawn construction and interruption acceptance.
     - [x] **06c.1:** explicit Go fixture placement and read-only restart observation
       command. Owner: bridge agent; depends on 06b.3b.3–4. The native scenario
@@ -1017,6 +1019,24 @@ only intentional small, sanitized regression fixtures belong in source control.
   model chat, dashboard, interruption and restart; account for implementation gaps
   in the inventory. Test current behavior, not exact Python decision recordings.
   Depends on 07, 08 and 09.
+  - [ ] **10a:** owned supervised clock integration. Foundations may start after
+    06; full service acceptance depends on the supported 07/09 controls.
+    - [ ] **10a.1:** durable clock attempts and event cursor/inbox. Owner: state
+      agent; depends on 06. Journal before writes, retain original epoch and
+      uncertain outcomes, and commit event evidence before cursor advancement.
+      Test pending restart, duplicate delivery, gaps and bounded capacity.
+    - [ ] **10a.2:** owned epoch coordinator. Owner: runtime agent; depends on
+      10a.1. Bind explicit start/speed/pause to current authority; retain exact
+      epoch cleanup after revocation. Observe uncertain commands before retrying;
+      test Manual races, foreign epochs, expiry and joined shutdown.
+    - [ ] **10a.3:** bounded windows and independent interruption/renewal workers.
+      Owner: runtime agent; depends on 10a.2 and 07a. Fresh policy review precedes
+      finite windows. Gaps, failed observation and external clock changes stop
+      writes; danger requires explicit acknowledgement. Restart cannot resume.
+    - [ ] **10a.4:** service/UI composition and actual Go clock acceptance.
+      Owner: integrator with N01; depends on 10a.3 and 09. Verify ordinary work,
+      real interruption, Manual pause, shutdown and disabled restart. Reuse the
+      native seven-method gate; test Go orchestration and native outcomes.
 
 - [ ] **G01.11 — Go packaging and launch.** Owner: integrator. Update Windows and
   Docker launch/build paths and scenario adapters to run the Go process. Keep private
