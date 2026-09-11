@@ -1013,7 +1013,7 @@ only intentional small, sanitized regression fixtures belong in source control.
           - [ ] **2f.1b:** compose session and worker cleanup. Owner: runtime agent;
             depends on 2e.2 and 2f.1a. Keep one writer, finished-plan cleanup and
             retryable joined shutdown under the existing profile owner.
-            - [ ] **2f.1b.1:** retain profile ownership after uncertain shutdown
+            - [x] **2f.1b.1:** retain profile ownership after uncertain shutdown
               revoke. Owner: integrator; depends on existing 06 control lifecycle.
               Failed native cleanup cannot become successful through a second
               Close call without fresh evidence. Cover a held lock and retry.

@@ -386,6 +386,21 @@ func TestPlayerActualSessionCleansPriorOwnedLeaseAndRejectsForeignOwner(t *testi
 	if err == nil || got.Phase != store.UncertainControl || authority.revokes.Load() != 1 || authority.acquires.Load() != 2 || p.State().Enabled {
 		t.Fatal(got, err)
 	}
+	if err := p.Close(ctx); err == nil {
+		t.Fatal("foreign authority was treated as confirmed shutdown")
+	}
+	requireProfileHeld(t, dir)
+	// The foreign owner independently leaves; shutdown can now observe inactivity.
+	authority.mu.Lock()
+	authority.owner = nil
+	authority.generation++
+	authority.mu.Unlock()
+	if err := p.Close(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if authority.revokes.Load() != 1 || authority.acquires.Load() != 2 {
+		t.Fatal("shutdown changed foreign authority")
+	}
 }
 
 func TestPlayerCloseDrainsBeforeSessionCloseAndRetriesFailure(t *testing.T) {
