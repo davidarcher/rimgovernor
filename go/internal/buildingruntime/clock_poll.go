@@ -43,6 +43,9 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	if err = s.maintainClockAttempts(call); err != nil {
 		return fail(err)
 	}
+	if _, err = s.player.journal.CompactClockHistory(call, s.config.Profile); err != nil {
+		return fail(err)
+	}
 	identity, _, err := s.native.Identity(call)
 	if err != nil {
 		return fail(err)

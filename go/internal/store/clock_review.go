@@ -68,7 +68,7 @@ func clockReviewDecode(data []byte, value any) error {
 	return nil
 }
 func clockReviewBoundary(inbox ClockInbox, cursor int64) bool {
-	if cursor == 0 {
+	if cursor == inbox.checkpoint.Cursor {
 		return true
 	}
 	for _, p := range inbox.Pages {
@@ -142,6 +142,10 @@ func loadClockReview(ctx context.Context, tx *sql.Tx, profile string) (clockRevi
 		return replay, err
 	}
 	replay.inbox = inbox
+	replay.head = inbox.checkpoint.Review
+	if !clockReviewBoundary(inbox, replay.head.Reviewed) || !clockReviewBoundary(inbox, inbox.checkpoint.ReviewInboxCursor) {
+		return replay, errors.New("clock checkpoint lacks inbox boundary")
+	}
 	var count int
 	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM clock_review").Scan(&count); err != nil {
 		return replay, err
@@ -169,7 +173,7 @@ func loadClockReview(ctx context.Context, tx *sql.Tx, profile string) (clockRevi
 	}
 	defer rows.Close()
 	seen := make(map[string]bool)
-	var previousInbox int64
+	previousInbox := inbox.checkpoint.ReviewInboxCursor
 	for rows.Next() {
 		var sequence int
 		var data []byte
@@ -282,6 +286,13 @@ func (s *Store) AcknowledgeClockEvents(ctx context.Context, profile string, ack 
 	replay, err := loadClockReview(ctx, tx, path)
 	if err != nil {
 		return ClockReviewState{}, err
+	}
+	archived, found, err := loadClockAcknowledgement(ctx, tx, ack, replay)
+	if err != nil {
+		return ClockReviewState{}, err
+	}
+	if found {
+		return archived, tx.Commit()
 	}
 	for i, entry := range replay.entries {
 		if entry.Kind == "ack" && entry.RequestID == ack.RequestID {

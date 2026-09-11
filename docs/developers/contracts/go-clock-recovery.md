@@ -142,8 +142,8 @@ the cursor, sticky gap, loss count and catalog sizes. Storage is bounded to 4,09
 pages, 4,096 events and 16 MiB of encoded requests/pages. Duplicate event copies
 are checked against their pages. Capacity failure leaves the entire append
 uncommitted. Review and acknowledgement use separate durable operations;
-ingestion alone never clears a gap or an interruption. History retirement remains
-a separate runtime gate.
+ingestion alone never clears a gap or an interruption. Polling compacts eligible
+reviewed history before ingesting another page.
 
 ## Review and acknowledgement
 
@@ -159,9 +159,10 @@ Consumers must read current review state before making a new policy decision and
 require the reviewed cursor to match the current captured cursor. Acknowledgement
 records inspection only; current unsafe facts and missing native events still hold.
 
-The bounded review log validates its canonical head against complete operation and
-inbox provenance on every load. Capacity refusal leaves state unchanged. Event
-retention remains a separate runtime gate.
+The bounded review log validates its canonical head against its checkpoint,
+retained operations and inbox provenance on every load. Capacity refusal leaves
+state unchanged. Compaction preserves exact acknowledgement results in an indexed
+archive, queried only by request ID; later events cannot change those results.
 
 ## Finite window admission
 
@@ -227,7 +228,7 @@ and owned cleanup joins. Renewal does not wait for ordinary player work.
 Clock request IDs bind the journal namespace and a positive monotonic sequence.
 The scheduler stores its logical decision key separately and reuses retained exact
 intents. Retirement never resets allocation: removed requests return ErrRetired,
-and a missing retained row is corruption. Fresh schema 12 requires disposable state.
+and a missing retained row is corruption. Fresh schema 13 requires disposable state.
 
 RetireClockHistory atomically removes eligible attempts and terminal epochs while
 preserving unresolved writes, nonterminal ownership, retained commands' Start
@@ -239,7 +240,15 @@ pinned records without tombstones. Event polling invokes retirement after each
 pinned evidence. A concurrent allocation defers retirement until the next poll;
 other maintenance failures disable control and invoke owned cleanup. Maintenance
 does not take the player gate, acknowledge events or restore authority.
-Event/review compaction remains required for sustained operation.
+Event/review maintenance checkpoints the validated review head and retires a
+contiguous reviewed prefix, retaining eight recent pages and every unreviewed or
+unacknowledged interruption/gap. Captured/reviewed/acknowledged cursors, revision,
+profile binding and cumulative loss evidence survive compaction and restart.
+Deletion, checkpoint advancement and acknowledgement archival commit atomically.
+Maintenance runs at 128 active reviews/pages, 256 events or half the byte budget.
+Unresolved holds can still fill the bounded inbox and fail closed; they are never
+discarded to make space. The acknowledgement archive grows on disk with explicit
+player acknowledgements, while ordinary windows keep bounded active history.
 
 With clock supervision enabled, GET /api/player/clock exposes durable review
 revision, cursors and interruption/gap holds. POST /api/player/clock/acknowledge

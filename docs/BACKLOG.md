@@ -584,11 +584,10 @@ planning and action families, connect chat and player services, then switch and
 remove Python. Existing G01 IDs remain useful for inventory references. Do not
 expand these into another nested task tree; remove a row when its outcome is met.
 
-- [ ] **G01.10a — Finish supervised clock operation.** Complete event/review
-  history maintenance so repeated windows do not eventually exhaust capacity;
-  attempt/epoch retirement now runs during event polling. Retain
-  unresolved writes, active ownership, unreviewed events and unacknowledged
-  interruptions/gaps; preserve cursors and acknowledgement replay. Use the actual
+- [ ] **G01.10a — Finish supervised clock operation.** History maintenance now
+  retains unresolved writes, active ownership, unreviewed events and unacknowledged
+  interruptions/gaps while compacting reviewed history and preserving replay.
+  Use the actual
   Go player service to verify ordinary pawn work, a real interruption, explicit
   acknowledgement, Manual pause, joined shutdown and disabled restart. The
   scheduler, workers, service option and review API/dashboard are already wired.

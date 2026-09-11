@@ -31,8 +31,9 @@ type ClockEventPage struct {
 	Page    *k.EventsPage
 }
 type ClockInbox struct {
-	State ClockInboxState
-	Pages []ClockEventPage
+	State      ClockInboxState
+	Pages      []ClockEventPage
+	checkpoint clockHistoryCheckpoint
 }
 
 func initializeClockInbox(ctx context.Context, tx *sql.Tx) error {
@@ -88,11 +89,18 @@ func (s *Store) BindClockInbox(ctx context.Context, profile string) (ClockInboxS
 	err = tx.QueryRowContext(ctx, "SELECT profile FROM clock_inbox WHERE singleton=1").Scan(&saved)
 	if errors.Is(err, sql.ErrNoRows) {
 		var retained int
-		if err = tx.QueryRowContext(ctx, "SELECT (SELECT count(*) FROM clock_event_pages)+(SELECT count(*) FROM clock_inbox_events)").Scan(&retained); err != nil {
+		if err = tx.QueryRowContext(ctx, "SELECT (SELECT count(*) FROM clock_event_pages)+(SELECT count(*) FROM clock_inbox_events)+(SELECT count(*) FROM clock_review_log)+(SELECT count(*) FROM clock_acknowledgements)").Scan(&retained); err != nil {
 			return ClockInboxState{}, err
 		}
 		if retained != 0 {
 			return ClockInboxState{}, errors.New("clock history has no profile binding")
+		}
+		checkpoint, e := loadClockCheckpoint(ctx, tx)
+		if e != nil {
+			return ClockInboxState{}, e
+		}
+		if checkpoint != (clockHistoryCheckpoint{}) {
+			return ClockInboxState{}, errors.New("clock checkpoint has no profile binding")
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO clock_inbox(singleton,profile) VALUES(1,?)", path)
 	} else if err == nil && !sameClockProfile(saved, path) {
@@ -189,7 +197,7 @@ func (s *Store) AppendClockEvents(ctx context.Context, profile string, request *
 	if inbox.State.PageCount == clockInboxCapacity || inbox.State.EventCount+len(page.Events) > clockInboxCapacity || int64(len(rb))+int64(len(pb)) > clockInboxBytes-size {
 		return ClockInboxState{}, false, ErrCapacity
 	}
-	sequence := inbox.State.PageCount + 1
+	sequence := inbox.checkpoint.Pages + int64(inbox.State.PageCount) + 1
 	if _, err = tx.ExecContext(ctx, "INSERT INTO clock_event_pages(sequence,after_cursor,next_cursor,request,page) VALUES(?,?,?,?,?)", sequence, request.GetAfterCursor(), page.GetNextCursor(), rb, pb); err != nil {
 		return ClockInboxState{}, false, err
 	}
@@ -225,6 +233,14 @@ func loadClockInbox(ctx context.Context, tx *sql.Tx, profile string, limit int) 
 	if !sameClockProfile(inbox.State.Profile, profile) {
 		return inbox, 0, ErrConflict
 	}
+	checkpoint, err := loadClockCheckpoint(ctx, tx)
+	if err != nil {
+		return inbox, 0, err
+	}
+	inbox.checkpoint = checkpoint
+	inbox.State.Cursor = checkpoint.Cursor
+	inbox.State.LostCount = checkpoint.LostCount
+	inbox.State.Gap = checkpoint.LostCount != 0
 	var pages, events int
 	var size, eventBytes int64
 	if err := tx.QueryRowContext(ctx, "SELECT count(*),coalesce(sum(length(request)+length(page)),0) FROM clock_event_pages").Scan(&pages, &size); err != nil {
@@ -260,7 +276,7 @@ func loadClockInbox(ctx context.Context, tx *sql.Tx, profile string, limit int) 
 		}
 		cr, _ := canonicalClockBytes(request)
 		cp, _ := canonicalClockBytes(page)
-		if !bytes.Equal(rb, cr) || !bytes.Equal(pb, cp) || seq != int64(len(inbox.Pages)+1) || after != inbox.State.Cursor || after != request.GetAfterCursor() || next != page.GetNextCursor() || next <= after {
+		if !bytes.Equal(rb, cr) || !bytes.Equal(pb, cp) || seq != checkpoint.Pages+int64(len(inbox.Pages)+1) || after != inbox.State.Cursor || after != request.GetAfterCursor() || next != page.GetNextCursor() || next <= after {
 			rows.Close()
 			return inbox, 0, errors.New("invalid clock inbox replay")
 		}
@@ -295,7 +311,7 @@ func loadClockInbox(ctx context.Context, tx *sql.Tx, profile string, limit int) 
 				return inbox, 0, err
 			}
 			expected, _ := canonicalClockBytes(event)
-			if cursor != event.GetCursor() || sequence != int64(i+1) || !bytes.Equal(payload, expected) {
+			if cursor != event.GetCursor() || sequence != checkpoint.Pages+int64(i+1) || !bytes.Equal(payload, expected) {
 				return inbox, 0, fmt.Errorf("invalid clock inbox event %d", cursor)
 			}
 		}

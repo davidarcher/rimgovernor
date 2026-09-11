@@ -87,3 +87,25 @@ func TestClockMaintenanceFailureDisablesAndRollsBack(t *testing.T) {
 		t.Fatal("failed maintenance partially committed", head, err)
 	}
 }
+
+func TestClockPollCompactsReviewedEventsAndFailsClosed(t *testing.T) {
+	s, f, db := clockPollFixture(t)
+	ctx := context.Background()
+	for i := range 130 {
+		result, err := s.PollEvents(ctx, &clockPollNative{page: clockPollPage(f, int64(i), "benign")}, 128)
+		if err != nil || result.Interrupted || result.Review.ReviewedCursor != int64(i+1) {
+			t.Fatal(i, result, err)
+		}
+	}
+	inbox, err := s.player.journal.ReadClockInbox(ctx, s.config.Profile)
+	if err != nil || inbox.PageCount != 10 || inbox.Cursor != 130 {
+		t.Fatal(inbox, err)
+	}
+	if _, err = db.Exec("DELETE FROM clock_history_checkpoint"); err != nil {
+		t.Fatal(err)
+	}
+	result, err := s.PollEvents(ctx, &clockPollNative{page: clockPollPage(f, 130, "empty")}, 128)
+	if err == nil || !result.Interrupted || s.session.State().Enabled {
+		t.Fatal(result, err)
+	}
+}
