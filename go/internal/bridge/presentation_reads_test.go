@@ -1,0 +1,130 @@
+package bridge
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	p "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"math"
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestPresentationReadsExactAndPartial(t *testing.T) {
+	calls := 0
+	server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		calls++
+		var outer struct {
+			Request string `json:"request"`
+		}
+		if e := json.Unmarshal(arg.Arguments, &outer); e != nil {
+			t.Fatal(e)
+		}
+		switch arg.Tool {
+		case "rimgovernor/presentation_camera":
+			q := &p.ReadRequest{}
+			if e := protojson.Unmarshal([]byte(outer.Request), q); e != nil || !proto.Equal(q.Identity, pbIdentity()) {
+				t.Fatal(q, e)
+			}
+			return pbResult(&p.CameraReply{Outcome: &p.CameraReply_Camera{Camera: &p.CameraState{Context: pbContext(), MapPosition: &p.MapPoint{X: proto.Float64(-1)}, ViewRect: &p.MapRect{MinX: proto.Int32(-3), MaxX: proto.Int32(2)}}}}), nil
+		case "rimgovernor/presentation_selection":
+			return pbResult(&p.SelectionReply{Outcome: &p.SelectionReply_Selection{Selection: &p.SelectionSnapshot{Context: pbContext(), SelectedObjects: []*p.SelectedObject{{Label: proto.String("unknown object")}}, Listing: &p.Listing{ReturnedCount: proto.Uint32(1), Complete: proto.Bool(false)}}}}), nil
+		case "rimgovernor/presentation_colonists":
+			q := &p.ColonistRosterRequest{}
+			if e := protojson.Unmarshal([]byte(outer.Request), q); e != nil || q.CurrentMapOnly == nil || q.GetCurrentMapOnly() {
+				t.Fatal(q, e)
+			}
+			return pbResult(&p.ColonistRosterReply{Outcome: &p.ColonistRosterReply_Roster{Roster: &p.ColonistRoster{Context: pbContext(), Colonists: []*p.ColonistReference{{Spawned: proto.Bool(false)}}}}}), nil
+		default:
+			t.Fatal(arg.Tool)
+			return nil, errors.New("unexpected")
+		}
+	}}
+	client := testClient(t, server, time.Second)
+	camera, _, e := client.ReadCamera(context.Background(), &p.ReadRequest{Identity: pbIdentity()})
+	if e != nil || camera.GetCamera().RootSize != nil || camera.GetCamera().MapPosition.Z != nil {
+		t.Fatal(camera, e)
+	}
+	selection, _, e := client.ReadSelection(context.Background(), &p.ReadRequest{Identity: pbIdentity()})
+	if e != nil || selection.GetSelection().SelectedObjects[0].Id != nil {
+		t.Fatal(selection, e)
+	}
+	roster, _, e := client.ReadColonistRoster(context.Background(), &p.ColonistRosterRequest{Identity: pbIdentity(), CurrentMapOnly: proto.Bool(false)})
+	if e != nil || roster.GetRoster().Colonists[0].PawnId != nil || roster.GetRoster().Colonists[0].Spawned == nil {
+		t.Fatal(roster, e)
+	}
+	if _, _, e = client.ReadColonistRoster(context.Background(), &p.ColonistRosterRequest{Identity: pbIdentity()}); e == nil || calls != 3 {
+		t.Fatal("missing bool dispatched", calls, e)
+	}
+}
+func TestPresentationReadInvalidAndRefused(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		reply   proto.Message
+		refused bool
+	}{
+		{"empty", &p.CameraReply{}, false},
+		{"missingContext", &p.CameraReply{Outcome: &p.CameraReply_Camera{Camera: &p.CameraState{}}}, false},
+		{"nan", &p.CameraReply{Outcome: &p.CameraReply_Camera{Camera: &p.CameraState{Context: pbContext(), RootSize: proto.Float64(math.NaN())}}}, false},
+		{"negativeSize", &p.CameraReply{Outcome: &p.CameraReply_Camera{Camera: &p.CameraState{Context: pbContext(), RootSize: proto.Float64(-1)}}}, false},
+		{"inverted", &p.CameraReply{Outcome: &p.CameraReply_Camera{Camera: &p.CameraState{Context: pbContext(), ViewRect: &p.MapRect{MinX: proto.Int32(3), MaxX: proto.Int32(1)}}}}, false},
+		{"refused", &p.CameraReply{Outcome: &p.CameraReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_UNAVAILABLE.Enum()}}}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) { return pbResult(tc.reply), nil }}, time.Second)
+			v, raw, e := client.ReadCamera(context.Background(), &p.ReadRequest{Identity: pbIdentity()})
+			if e == nil || len(raw.Envelope) == 0 {
+				t.Fatal(v, e)
+			}
+			if tc.refused && (!errors.Is(e, ErrRefused) || v == nil) {
+				t.Fatal(v, e)
+			}
+		})
+	}
+}
+func TestPresentationFactValidation(t *testing.T) {
+	id := pbIdentity()
+	q := &p.ColonistRosterRequest{Identity: id, CurrentMapOnly: proto.Bool(true)}
+	for _, change := range []func(*p.SelectionSnapshot){func(v *p.SelectionSnapshot) { v.Context.Identity.LoadToken = proto.String("other") }, func(v *p.SelectionSnapshot) {
+		v.SelectedObjects = []*p.SelectedObject{{Id: proto.String("x")}, {Id: proto.String("x")}}
+	}, func(v *p.SelectionSnapshot) { v.Listing = &p.Listing{ReturnedCount: proto.Uint32(math.MaxUint32)} }, func(v *p.SelectionSnapshot) {
+		v.Listing = &p.Listing{TotalCount: proto.Uint32(1), Complete: proto.Bool(true)}
+	}, func(v *p.SelectionSnapshot) { v.Fingerprint = proto.String(strings.Repeat("x", 4097)) }, func(v *p.SelectionSnapshot) {
+		v.SelectedObjects = []*p.SelectedObject{{Position: &c.Cell{X: proto.Int32(-1)}}}
+	}} {
+		v := &p.SelectionSnapshot{Context: pbContext()}
+		change(v)
+		if e := validateSelection(v, id); e == nil {
+			t.Fatal(v)
+		}
+	}
+	for _, v := range []*p.ColonistRoster{{Context: pbContext(), Colonists: []*p.ColonistReference{{PawnId: proto.String("p")}, {PawnId: proto.String("p")}}}, {Context: pbContext(), Colonists: []*p.ColonistReference{{MapId: proto.Int32(1)}}}, {Context: pbContext(), Listing: &p.Listing{Complete: proto.Bool(true), Truncated: proto.Bool(true)}}} {
+		if e := validateRoster(v, q); e == nil {
+			t.Fatal(v)
+		}
+	}
+	if e := validateRoster(&p.ColonistRoster{Context: pbContext()}, q); e != nil {
+		t.Fatal(e)
+	}
+	if e := validateSelection(&p.SelectionSnapshot{Context: pbContext(), Listing: &p.Listing{TotalCount: proto.Uint32(0), ReturnedCount: proto.Uint32(0), Complete: proto.Bool(true), Truncated: proto.Bool(false)}}, id); e != nil {
+		t.Fatal(e)
+	}
+}
+
+func TestPresentationMalformedProtoBoundary(t *testing.T) {
+	for _, payload := range []string{`{"camera":{"context":null}}`, `{"camera":{"context":{"identity":{"colonyId":"colony","loadToken":"load","mapId":0},"tick":"1"},"rootSize":1,"rootSize":2}}`, `{"camera":{"context":{"identity":{"colonyId":"colony","loadToken":"load","mapId":2147483648},"tick":"1"}}}`} {
+		client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			return &mcp.CallToolResult{StructuredContent: encode(struct {
+				Payload string `json:"payload"`
+			}{payload})}, nil
+		}}, time.Second)
+		if _, _, err := client.ReadCamera(context.Background(), &p.ReadRequest{Identity: pbIdentity()}); err == nil {
+			t.Fatal("malformed response accepted")
+		}
+	}
+}
