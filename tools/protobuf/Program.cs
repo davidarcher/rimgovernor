@@ -121,6 +121,10 @@ internal static class Program
 
     private static void Emit(IMessage message, string id, string output)
     {
+        Require(!string.IsNullOrEmpty(id) && id.All(c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+            || (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.'), "Safe fixture identifier");
+        Require(!File.Exists(Path.Combine(output, id + ".json")) && !File.Exists(Path.Combine(output, id + ".bin")),
+            "Fixture identifier does not overwrite an independent sample: " + id);
         var json = JsonFormatter.Default.Format(message);
         var binary = message.ToByteArray();
         Require(message.Equals(message.Descriptor.Parser.ParseJson(json)), id + " reflected ProtoJSON round trip");
@@ -220,7 +224,6 @@ internal static class Program
         var lines = File.ReadAllLines(path);
         Require(lines.Length > 1 && lines[0] == "id\tmessage\tjson\tbinary", "Cross-language manifest header");
         var ids = new HashSet<string>(StringComparer.Ordinal);
-        int index = 0;
         foreach (var line in lines.Skip(1))
         {
             var parts = line.Split('\t');
@@ -230,7 +233,7 @@ internal static class Program
             var json = descriptor.Parser.ParseJson(File.ReadAllText(FixturePath(incoming, parts[2])));
             var binary = descriptor.Parser.ParseFrom(File.ReadAllBytes(FixturePath(incoming, parts[3])));
             Require(json.Equals(binary), "Go ProtoJSON/binary agree: " + parts[0]);
-            Emit(json, "go-echo-shape-" + (++index).ToString("D5"), output);
+            Emit(json, "go-echo-" + parts[0], output);
         }
     }
 
