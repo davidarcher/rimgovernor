@@ -99,6 +99,13 @@ namespace HomeBridge.BridgeTools
                         actor.needs.food.CurLevelPercentage = .15f;
                     } else if (op == "resting-injury") {
                         actor.TakeDamage(new DamageInfo(DamageDefOf.Cut, 4, 100));
+                    } else if (op == "idle-pawn") {
+                        actor.jobs.ClearQueuedJobs();
+                        actor.jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
+                        if (actor.CurJob != null || actor.jobs.jobQueue.Count != 0)
+                            throw new InvalidOperationException("Exact idle pawn fixture did not become idle.");
+                        return new { success=true, op, pawn, currentJobAbsent=true, queuedJobs=0,
+                            tick=Find.TickManager.TicksGame, setupOnly=true, completedWorkInjected=false };
                     } else if (op == "external-draft") {
                         var before = actor.Drafted;
                         actor.drafter.Drafted = drafted;

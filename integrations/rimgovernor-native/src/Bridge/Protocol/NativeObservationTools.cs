@@ -162,6 +162,18 @@ namespace HomeBridge.BridgeTools
             RequireCount(count,limit); threats.Completeness=Complete(count); result.Threats=threats; return result;
         }
 
+        internal static Obs.JobEvidence JobRow(Verse.AI.Job? job, int queuedJobs)
+        {
+            if (queuedJobs < 0) throw new InvalidOperationException("Negative native queued job count.");
+            RequireCount(queuedJobs, 256);
+            var row = new Obs.JobEvidence { PlayerForced = job?.playerForced ?? false, QueuedJobs = (uint)queuedJobs };
+            if (job != null) {
+                row.DefName = Identifier(job.def.defName);
+                row.LoadId = job.loadID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            } else row.Issues.Add(Issue("current_job", Common.UnavailableReason.NotApplicable, "Pawn has no current job."));
+            return row;
+        }
+
         internal static Obs.PawnState PawnRow(Pawn pawn, bool detail, Common.ObservationContext context)
         {
             var row = new Obs.PawnState { Pawn=Entity(pawn), KindDefName=Identifier(pawn.kindDef?.defName), Dead=pawn.Dead, Downed=pawn.Downed,
@@ -170,8 +182,8 @@ namespace HomeBridge.BridgeTools
                 Predator=pawn.RaceProps.predator, ManhunterOnDamageChance=Finite(pawn.RaceProps.manhunterOnDamageChance) };
             if (pawn.Faction != null) row.FactionId=Identifier(pawn.Faction.GetUniqueLoadID());
             if (pawn.MentalStateDef != null) row.MentalState=Identifier(pawn.MentalStateDef.defName);
-            if (pawn.CurJob != null) row.Job=new Obs.JobEvidence { DefName=Identifier(pawn.CurJob.def.defName), LoadId=pawn.CurJob.loadID.ToString(System.Globalization.CultureInfo.InvariantCulture), PlayerForced=pawn.CurJob.playerForced };
-            else row.Issues.Add(Issue("job",Common.UnavailableReason.NotApplicable,"Pawn has no current job."));
+            if (pawn.jobs?.jobQueue != null) row.Job=JobRow(pawn.CurJob, pawn.jobs.jobQueue.Count);
+            else row.Issues.Add(Issue("job",Common.UnavailableReason.NativeComponentMissing,"Pawn job tracker or queue is unavailable."));
             NativePawnControlObservation.Apply(pawn, row, context);
             var needs=new Obs.PawnNeeds(); row.Needs=needs;
             if (pawn.needs?.mood != null) needs.Mood=Finite(pawn.needs.mood.CurLevelPercentage);

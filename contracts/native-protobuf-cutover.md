@@ -100,6 +100,9 @@ intersecting filters and explicit optional-false semantics. Core, needs, health,
 equipment, biography, settings and animal details use native facts. Social,
 gear ownership/protection and additional animal management fields carry explicit
 issues. Requested detail sections never become fabricated empty tracker data.
+Readable idle job trackers report explicit `playerForced=false` and the actual
+queued-job count, with absent current-job identity. Missing trackers remain
+unavailable; an absent current job never hides queued orders.
 
 `Observations/ReadResearch` returns bounded project, progress and prerequisite
 facts without initializing saved progress dictionaries or category slots. Optional

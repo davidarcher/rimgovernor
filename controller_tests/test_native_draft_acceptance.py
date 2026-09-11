@@ -88,5 +88,6 @@ def test_completed_move_compares_actual_current_job_without_inventing_goto():
 
 def test_native_no_current_job_requires_absence():
     external = {"success": True, "accepted": True, "jobId": None, "jobDef": None}
-    actual_order(external, {})
+    actual_order(external, {"job": {"playerForced": False, "queuedJobs": 0}})
+    with pytest.raises(AssertionError): actual_order(external, {"job": {"playerForced": True}})
     with pytest.raises(AssertionError): actual_order(external, {"job": {"defName": "Goto"}})

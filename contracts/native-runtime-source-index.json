@@ -1,6 +1,6 @@
 {
   "inventory_version": 1,
-  "source_revision": "a00e18d907317ae411b50e14e0cd8eeee535f7f5",
+  "source_revision": "c8d0f3f6e61f7b12e27312db0027060024bb3775",
   "scope": "Tracked C# sources in unified native Runtime/Bridge and scripts/fixtures; lexical reference index, not an AST or proof of behavioral coverage.",
   "source_line_policy": "One-based source anchors at source_revision; static matches include methods and constructors, reflection matches include helper use and interop. Read the full source declaration before changing ownership.",
   "rows": [
@@ -2056,7 +2056,7 @@
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeObservationTools.cs",
       "compilation": "production-bridge",
-      "source_sha256": "4fa19bccffa7c0a2c2ebac10f177463d7a70cca1b23429d5e4c286326bd5a452",
+      "source_sha256": "92c852b6f49b3a32520d5562200f216e61f0465dbb68c66da18d95f667a7eea5",
       "owner": "N01.03 native observation owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
@@ -2070,16 +2070,17 @@
         116,
         121,
         165,
-        205,
-        211,
-        212,
-        213,
-        214,
-        215,
-        216,
+        177,
         217,
-        218,
-        219
+        223,
+        224,
+        225,
+        226,
+        227,
+        228,
+        229,
+        230,
+        231
       ],
       "reflection_boundary_lines": [],
       "patch_registration_lines": []
@@ -2169,7 +2170,7 @@
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativePawnObservationTools.cs",
       "compilation": "production-bridge",
-      "source_sha256": "caa1b1fde8fdd99d237b11e66160cc171d58e2bcc953b440829722794cef4a8a",
+      "source_sha256": "1a8fc75ae54b15fd3390f46369213a3e2d22ade81bd6334b4011c0f1191576dd",
       "owner": "N01.03 native pawn observations owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify complete scoped pawn facts, exact intersecting filters, explicit unavailable details and read invariance in fresh native games.",
@@ -2177,18 +2178,18 @@
         57,
         71,
         85,
+        119,
         120,
-        121,
+        124,
         125,
         126,
-        127,
+        130,
         131,
         132,
         133,
         134,
         135,
-        136,
-        137
+        136
       ],
       "reflection_boundary_lines": [],
       "patch_registration_lines": []
@@ -3531,7 +3532,7 @@
     },
     {
       "source": "scripts/fixtures/EmergencyDevelopmentFixture.cs",
-      "source_sha256": "4c73b9aefd07b9156b162a08d69ae13223e3c9cb647d3a9a3bec5def16307489",
+      "source_sha256": "ce4eeaf0790738d1f6e732dba58eeb7359c01243041eee3aa002ff67cb24edab",
       "compilation": "fixture-only",
       "owner": "N01.01 native packaging owner",
       "migration_status": "inventoried-unmigrated",

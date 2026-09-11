@@ -105,9 +105,8 @@ namespace HomeBridge.BridgeTools
             if(pawn.MentalStateDef==null) row.Issues.Add(Issue("mental_state",Common.UnavailableReason.NotApplicable,"Pawn has no mental state."));
             if (pawn.ownership?.OwnedBed!=null) row.OwnedBedId=Id(pawn.ownership.OwnedBed.GetUniqueLoadID());
             else row.Issues.Add(Issue("owned_bed_id",Common.UnavailableReason.NotApplicable,"No owned bed."));
-            if (row.Job!=null) {
+            if (row.Job!=null && pawn.CurJob!=null) {
                 var job=pawn.CurJob; var target=job.targetA;
-                row.Job.QueuedJobs=checked((uint)pawn.jobs.jobQueue.Count);
                 if (target.HasThing) row.Job.TargetA=new Obs.TargetRef { Entity=Entity(target.Thing) };
                 else if (target.IsValid) row.Job.TargetA=new Obs.TargetRef { Cell=Cell(target.Cell) };
                 else row.Job.TargetA=new Obs.TargetRef { Unavailable=Unavailable(Common.UnavailableReason.NotApplicable,"Job has no target A.") };

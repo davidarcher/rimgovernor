@@ -6694,7 +6694,7 @@
   ],
   "native_surface": {
     "version": 1,
-    "source_revision": "a00e18d907317ae411b50e14e0cd8eeee535f7f5",
+    "source_revision": "c8d0f3f6e61f7b12e27312db0027060024bb3775",
     "scope": "Current repository-owned native Runtime/Bridge exports, generated Protobuf compile inputs and conditional fixtures. Historical Python consumer inventory remains at its independent source_revision. Installed SDK/GABS exports require actual discovery.",
     "evidence_links": "domain_item_id reuses existing G01 owner, fixtures and native_scenarios without copying Python call-site lists. Empty local evidence lists preserve uncovered acceptance. schema_owner_chunk assigns the cross-language schema owner; native_owner_chunk owns typed conversion or fixture isolation.",
     "variant_contract": "source_baseline.exports[].declaration retains the complete exported signature, Tool/ToolParameter/ToolResponse attributes, documented string variants, optional selectors and defaults. Source fingerprints detect implementation changes. Runtime branches, aliases and payload keys still require behavioral schema and discovery acceptance.",
@@ -7821,7 +7821,7 @@
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeObservationTools.cs",
           "line": 37,
           "declaration": "[Tool(\"rimgovernor/observations_get_cells\", Title = \"Read bounded map cells\",\n            Description = \"Official GetCellsRequest ProtoJSON. Exact cells or inclusive rectangle,1..256 cells. Returns native map dimensions. Absent fields select terrain/roof/visibility/traversal; explicit false skips. Other field families are unavailable until migrated.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official observations GetCellsReply ProtoJSON.\", Always = true)]\n        public async Task<object> GetCells(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Raw value must be a GetCellsRequest ProtoJSON string.\")] object? request = null)",
-          "source_sha256": "4fa19bccffa7c0a2c2ebac10f177463d7a70cca1b23429d5e4c286326bd5a452"
+          "source_sha256": "92c852b6f49b3a32520d5562200f216e61f0465dbb68c66da18d95f667a7eea5"
         },
         {
           "name": "rimgovernor/observations_list_buildings",
@@ -7835,7 +7835,7 @@
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativePawnObservationTools.cs",
           "line": 19,
           "declaration": "[Tool(\"rimgovernor/observations_list_pawns\", Title = \"Read map pawns\",\n            Description = \"Official ListPawnsRequest ProtoJSON. Current map spawned pawns; includeDead also includes inner pawns of spawned corpses. Filters intersect, exact IDs, case-insensitive label substring, Chebyshev distance to another live colonist. All detail families default requested; unsupported fields carry issues. Page limit1..256 is a whole-query bound, no cursors or truncation.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official observations ListPawnsReply ProtoJSON.\", Always = true)]\n        public async Task<object> ListPawns(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Raw value must be a ListPawnsRequest ProtoJSON string.\")] object? request = null)",
-          "source_sha256": "caa1b1fde8fdd99d237b11e66160cc171d58e2bcc953b440829722794cef4a8a"
+          "source_sha256": "1a8fc75ae54b15fd3390f46369213a3e2d22ade81bd6334b4011c0f1191576dd"
         },
         {
           "name": "rimgovernor/observations_list_supplies",
@@ -7856,7 +7856,7 @@
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeObservationTools.cs",
           "line": 19,
           "declaration": "[Tool(\"rimgovernor/observations_read_status\", Title = \"Read colony status\",\n            Description = \"Official StatusRequest ProtoJSON. Colonists/threats default true, detail false, predator radius30. Read-only simulation facts; no clock/UI operations. Pages1..256; unavailable instead of truncation.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official observations StatusReply ProtoJSON.\", Always = true)]\n        public async Task<object> ReadStatus(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Raw value must be a StatusRequest ProtoJSON string.\")] object? request = null)",
-          "source_sha256": "4fa19bccffa7c0a2c2ebac10f177463d7a70cca1b23429d5e4c286326bd5a452"
+          "source_sha256": "92c852b6f49b3a32520d5562200f216e61f0465dbb68c66da18d95f667a7eea5"
         },
         {
           "name": "rimgovernor/operations_execute",
@@ -7926,7 +7926,7 @@
           "path": "scripts/fixtures/EmergencyDevelopmentFixture.cs",
           "line": 19,
           "declaration": "[Tool(\"test/b04f_setup\", Description = \"Disposable B04f initial conditions: stocks, two manhunters, wound, mental state or native player-order equivalent. No completed-work injection.\")]\n        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"stocks, combat-equipment, development-settings (Peaceful), opponents, clear-opponents, wound, low-health, resting-patient, resting-injury, unavailable-doctor, external-order, external-draft\")] string op,\n            [ToolParameter(Description = \"Exact colonist identity for pawn cases.\", DefaultValue = \"\")] string pawn = \"\",\n            [ToolParameter(Description = \"Desired external-draft value.\", DefaultValue = false)] bool drafted = false)",
-          "source_sha256": "4c73b9aefd07b9156b162a08d69ae13223e3c9cb647d3a9a3bec5def16307489"
+          "source_sha256": "ce4eeaf0790738d1f6e732dba58eeb7359c01243041eee3aa002ff67cb24edab"
         },
         {
           "name": "test/campaign_metrics_fixture",

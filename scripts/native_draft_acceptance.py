@@ -68,7 +68,8 @@ def same_control(before, after):
 def actual_order(external, row):
     assert external["success"] is True and external["accepted"] is True
     if external["jobId"] is None:
-        assert external["jobDef"] is None and "job" not in row
+        assert external["jobDef"] is None and "loadId" not in row["job"] and "defName" not in row["job"]
+        assert row["job"]["playerForced"] is False
     else:
         assert row["job"]["loadId"] == str(external["jobId"])
         assert row["job"]["defName"] == external["jobDef"]
@@ -127,6 +128,11 @@ async def run(root: Path, output: Path, *, headless=True):
                     before = await read("initial-pawn")
                     assert before["drafted"] is False and before["draftClaim"] == {"unowned": {}}
                     pawn_id = before["pawn"]["id"]
+                    idle = await call("idle-fixture", "test/b04f_setup", {"op": "idle-pawn", "pawn": pawn_id})
+                    assert idle["success"] is True and idle["currentJobAbsent"] is True and idle["queuedJobs"] == 0
+                    before = await read("idle-pawn", pawn_id)
+                    assert before["job"]["playerForced"] is False and before["job"]["queuedJobs"] == 0
+                    assert "defName" not in before["job"] and "loadId" not in before["job"]
                     grant = await acquire("acquire")
                     request = execute_request(identity, grant, before, 1)
                     receipt = outcome(await wire("draft", "operations_execute", request), "receipt")
