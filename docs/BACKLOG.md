@@ -651,7 +651,8 @@ expand these into another nested task tree; remove a row when its outcome is met
   preferences now persist with revision checks and authenticated replace/read APIs.
   Updates invalidate old reviews and methods atomically; new reviews consume the
   saved revision, reject stale inputs and preserve unknown native capabilities.
-  Native preference update/restart acceptance remains pending. Requirements for
+  Native acceptance verifies preference updates, clear/replay, revisioned work
+  reviews, Manual and disabled restart; Go/Python native replay agrees. Requirements for
   other action families remain open; settings execution belongs to its action family.
   Superseded invalidated autopilot goals now retire from active capacity while
   retaining immutable history; uncertain effects and cleanup prevent retirement.
