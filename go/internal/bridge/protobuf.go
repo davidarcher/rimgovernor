@@ -157,7 +157,7 @@ func (caller *Client) PlacementPreviews(ctx context.Context, request *p.Placemen
 }
 func (caller *Client) protoRead(ctx context.Context, name string, request, reply proto.Message) (Result, error) {
 	switch name {
-	case "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress":
+	case "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress":
 	default:
 		return Result{}, contract("unreviewed native read")
 	}
@@ -168,7 +168,7 @@ func (caller *Client) protoRead(ctx context.Context, name string, request, reply
 // validate request semantics and apply their own read or explicit write capability.
 func (caller *Client) protoCall(ctx context.Context, name string, request, reply proto.Message) (Result, error) {
 	switch name {
-	case "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress", "rimgovernor/authority_control", "rimgovernor/operations_execute":
+	case "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress", "rimgovernor/authority_control", "rimgovernor/operations_execute":
 	default:
 		return Result{}, contract("unreviewed native method")
 	}
@@ -215,6 +215,8 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 		typedFailure := false
 		switch r := reply.(type) {
 		case *l.IdentityReply:
+			typedFailure = r.GetFailure() != nil
+		case *o.GetCellsReply:
 			typedFailure = r.GetFailure() != nil
 		case *o.StatusReply:
 			typedFailure = r.GetFailure() != nil
