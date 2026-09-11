@@ -793,6 +793,10 @@ only intentional small, sanitized regression fixtures belong in source control.
   guards. Depends on 03, 04b and 05.
   - [x] **06a:** single-writer execution and durable unknown-outcome reconciliation.
     Owner: executor agent; test typed boundaries before enabling native mutations.
+    - [ ] **06a.1:** measure guarded scheduling/admission and reconciliation with
+      in-memory native boundaries. Owner: executor agent; depends on 06a. Retain
+      benchmark environment and allocations; this does not measure native pawn
+      throughput or claim an improvement over Python.
   - [ ] **06b:** native atomic identity guards, attempt deduplication, runtime
     ownership and typed placement adapter. Coordinate with N01.
     - [x] **06b.1:** persist causally inspected equal-tick outcomes and typed known
