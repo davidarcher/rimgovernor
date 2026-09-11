@@ -102,6 +102,8 @@ type Executor struct {
 	journal      Journal
 	draftJournal DraftJournal
 	draft        DraftBoundary
+	meleeJournal MeleeJournal
+	melee        MeleeBoundary
 	boundary     Boundary
 	clock        Clock
 	limits       Limits
@@ -246,6 +248,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.OwnedDraftAction && e.draft != nil {
 		return e.runDraft(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.MeleeAttackAction && e.melee != nil {
+		return e.runMelee(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() != domain.BuildingAction {
 		return Result{}, errors.New("missing or unsupported building action")
