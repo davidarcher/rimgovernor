@@ -1,0 +1,113 @@
+package policy
+
+import "github.com/davidarcher/RimGovernor/go/internal/domain"
+
+type DraftPawnFacts struct {
+	Pawn                                         domain.PawnID
+	Drafted, Unowned, PlayerForced, NativeCanTry domain.Fact[bool]
+	QueuedJobs                                   domain.Fact[uint32]
+}
+type DraftRequest struct {
+	Action    domain.Action
+	Progress  domain.Progress
+	Current   domain.GenerationSnapshot
+	Tick      domain.Tick
+	Pawn      DraftPawnFacts
+	Emergency EmergencySnapshot
+}
+type DraftDecision struct {
+	Admitted bool
+	Refused  []Refusal
+}
+
+const (
+	PlayerOrder      Reason = "player_order"
+	DraftOwnership   Reason = "draft_ownership"
+	NativeIneligible Reason = "native_ineligible"
+)
+
+// EvaluateOwnedDraft admits only this exact healthy pawn. It does not grant a
+// lease, exempt other action families, or replace fresh native CAS validation.
+func EvaluateOwnedDraft(request DraftRequest) DraftDecision {
+	refuse := func(reason Reason) DraftDecision {
+		return DraftDecision{Refused: []Refusal{{Action: request.Action.ID(), Reason: reason}}}
+	}
+	draft, ok := request.Action.OwnedDraft()
+	if !ok {
+		return refuse(NotReady)
+	}
+	canonical, err := domain.NewOwnedDraftAction(request.Action.ID(), draft)
+	if err != nil || canonical != request.Action {
+		return refuse(NotReady)
+	}
+	view := request.Progress.View()
+	if request.Current.Validate() != nil || request.Current.Native == 0 || request.Current.Direction == 0 || request.Tick < 0 {
+		return refuse(StaleFacts)
+	}
+	if request.Progress.Action() != request.Action || view.Action != request.Action.ID() || view.Plan != request.Current.Plan || view.Revision != request.Current.Revision || view.Unresolved || (view.Stage != domain.Pending && view.Stage != domain.Prepared) {
+		return refuse(NotReady)
+	}
+	if request.Tick < view.Tick || view.Stage == domain.Prepared && !view.Snapshot.Matches(request.Current) {
+		return refuse(StaleFacts)
+	}
+	if view.Attempt > 0 && (view.Snapshot.Colony != request.Current.Colony || view.Snapshot.Map != request.Current.Map || view.Snapshot.Load != request.Current.Load) {
+		return refuse(StaleFacts)
+	}
+	if cleanup, known := view.DraftCleanup.Value(); known && cleanup.Stage != domain.DraftNotAcquired && cleanup.Stage != domain.DraftReleased && cleanup.Stage != domain.DraftSuperseded {
+		return refuse(NotReady)
+	}
+	if request.Pawn.Pawn != draft.Pawn() {
+		return refuse(UnknownFacts)
+	}
+	clearance := EvaluateEmergency(request.Emergency, request.Current, request.Tick)
+	for _, hold := range clearance.Holds {
+		switch hold.Reason {
+		case EmergencyStaleFacts:
+			return refuse(StaleFacts)
+		case EmergencyUnknownFacts:
+			return refuse(UnknownFacts)
+		}
+	}
+	found := false
+	for _, pawn := range request.Emergency.facts.Colonists {
+		if domain.PawnID(pawn.ID) != draft.Pawn() {
+			continue
+		}
+		found = true
+		for _, fact := range []domain.Fact[bool]{pawn.Dead, pawn.Downed, pawn.Bleeding, pawn.NeedsTend} {
+			bad, known := fact.Value()
+			if !known {
+				return refuse(UnknownFacts)
+			}
+			if bad {
+				return refuse(CriticalMedical)
+			}
+		}
+	}
+	if !found {
+		return refuse(UnknownFacts)
+	}
+	for _, fact := range []domain.Fact[bool]{request.Pawn.Drafted, request.Pawn.Unowned, request.Pawn.PlayerForced, request.Pawn.NativeCanTry} {
+		if _, known := fact.Value(); !known {
+			return refuse(UnknownFacts)
+		}
+	}
+	queued, known := request.Pawn.QueuedJobs.Value()
+	if !known {
+		return refuse(UnknownFacts)
+	}
+	drafted, _ := request.Pawn.Drafted.Value()
+	unowned, _ := request.Pawn.Unowned.Value()
+	forced, _ := request.Pawn.PlayerForced.Value()
+	eligible, _ := request.Pawn.NativeCanTry.Value()
+	if drafted || !unowned {
+		return refuse(DraftOwnership)
+	}
+	if forced || queued != 0 {
+		return refuse(PlayerOrder)
+	}
+	if !eligible {
+		return refuse(NativeIneligible)
+	}
+	return DraftDecision{Admitted: true}
+}
