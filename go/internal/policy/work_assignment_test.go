@@ -103,4 +103,7 @@ func TestWorkAssignmentRequirementsOverridesAndUnknown(t *testing.T) {
 	if _, err = AssignWork(workTeam(true), nil, []WorkOverride{{Pawn: "builder", Work: "Cooking", Priority: 0}, {Pawn: "builder", Work: "Cooking", Priority: 1}}); err == nil {
 		t.Fatal("duplicate override")
 	}
+	if _, err = AssignWork(workTeam(true), nil, []WorkOverride{{Pawn: "builder", Work: "MissingWork", Priority: 1}}); err == nil {
+		t.Fatal("unavailable override ignored")
+	}
 }

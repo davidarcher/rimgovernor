@@ -137,6 +137,15 @@ func AssignWork(pawns []WorkPawn, required []WorkRequirement, overrides []WorkOv
 			}
 			w.work[value.Work] = value
 		}
+		for key, priority := range custom {
+			if key.pawn != pawn.ID {
+				continue
+			}
+			entry, exists := w.work[key.work]
+			if !exists || entry.Disabled && priority > 0 {
+				return WorkDecision{}, errors.New("override requires unavailable work")
+			}
+		}
 		workers = append(workers, w)
 	}
 	if !known {
