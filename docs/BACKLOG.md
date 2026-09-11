@@ -1347,6 +1347,8 @@ main. Native package and Go production cutover remain independent.
   instant/replacement construction cases and remaining operation families are open.
 
 - [ ] **N01.05 — Runtime and presentation ownership.** Native runtime owner.
+  Recover partial draft-hook initialization without requiring a game restart;
+  failed initialization currently keeps snapshots and mutations unavailable.
   Consolidate startup/patch health, supervisor/journal ownership, render leases,
   camera/input cleanup and platform adapters. Make initialization/shutdown bounded
   and idempotent. Required guard failure disables affected automation. Address the
