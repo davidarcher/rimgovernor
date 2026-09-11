@@ -54,6 +54,14 @@ orders. Interrupting the process cancels and joins polling before closing its SD
 database and asset handles. Native read acceptance is tracked separately in G01.03;
 this command does not switch the production launcher from Python.
 
+The presentation read interface uses `GET /api/presentation/camera`,
+`/api/presentation/selection` and `/api/presentation/colonists`, without query
+parameters or request bodies. The roster is limited to the current map. Successful
+responses use the canonical presentation reply's ProtoJSON shape, including
+optional presence and decimal strings for 64-bit integers. A service without the
+provider returns 404; unavailable or stale observations use the local API's
+sanitized error shape. These reads cannot select, move the camera or send input.
+
 ## Guarded building components
 
 `rimgovernor serve --building-control --profile <absolute-game-profile>` selects
