@@ -1459,7 +1459,7 @@ main. Native package and Go production cutover remain independent.
   flight at interruption.
   Ordinary injury-only explosive projectiles retain exact projectile-to-explosion
   lineage across ticks. Native frag-grenade acceptance verifies attributed target
-  downing across ordinary deep water, player override, fresh ownership, replay and
+  downing and death across ordinary deep water, player override, fresh ownership, replay and
   completed-before-Manual cleanup. Compiled checks cover delayed damage, nested
   factories, notification damage, shield detonation, lost tracking and hook repair.
   Ambiguous factory prefixes and damage prefixes that can replace identity-bearing
