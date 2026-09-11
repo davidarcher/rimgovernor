@@ -8,6 +8,11 @@
       "python_output": "contracts/generated/python/placement_preview_requests.py",
       "csharp_namespace": "RimGovernor.Contracts.PlacementPreview",
       "csharp_output": "contracts/generated/csharp/PlacementPreviewRequests.g.cs"
+    },
+    {
+      "schema": "contracts/schemas/placement-previews-response.v2.schema.json",
+      "go_package": "placementpreview",
+      "go_output": "go/internal/wire/placementpreview/response.gen.go"
     }
   ]
 }

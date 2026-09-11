@@ -196,7 +196,7 @@ func (g *goGenerator) decoder(node *Schema) {
 		return
 	}
 	if node.Nullable {
-		fmt.Fprintf(&g.out, "var raw json.RawMessage;if err:=d.Decode(&raw);err!=nil{return nil,err};if bytes.Equal(bytes.TrimSpace(raw),[]byte(\"null\")){return nil,nil};nested,err:=newContractDecoder(raw);if err!=nil{return nil,err};v,err:=readInteger(nested,%d,%d);if err!=nil{return nil,err};return %s(&v),nil}\n", *node.Minimum, *node.Maximum, typ)
+		fmt.Fprintf(&g.out, "var raw json.RawMessage;if err:=d.Decode(&raw);err!=nil{return nil,err};if bytes.Equal(bytes.TrimSpace(raw),[]byte(\"null\")){return nil,nil};nested,err:=newContractDecoder(raw);if err!=nil{return nil,err};v,err:=readInteger(nested,%d,%d);if err!=nil{return nil,err};return (%s)(&v),nil}\n", *node.Minimum, *node.Maximum, typ)
 		return
 	}
 	switch node.Type {
