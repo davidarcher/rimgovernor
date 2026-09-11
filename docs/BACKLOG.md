@@ -797,10 +797,10 @@ only intentional small, sanitized regression fixtures belong in source control.
     - [x] **06b.1:** persist causally inspected equal-tick outcomes and typed known
       unsuccessful outcomes. Owner: executor agent; depends on 02b and 06a. Preserve
       exact attempt attribution and unknown-write reconciliation across restart.
-      - [ ] **06b.1a:** expose unsuccessful stage/reason through Go HTTP and the
+      - [x] **06b.1a:** expose unsuccessful stage/reason through Go HTTP and the
         dashboard. Owner: UI agent; depends on 06b.1. Preserve closed enums, null
         unknown facts and the existing read-only controls.
-    - [ ] **06b.2:** fixed typed authority and building execution/progress adapters.
+    - [x] **06b.2:** fixed typed authority and building execution/progress adapters.
       Owner: bridge agent; depends on 02b and 03b.1. Keep writes separate from
       read-only clients; enable only the first building operation.
     - [ ] **06b.3:** runtime lease ownership, explicit player admission and guarded
@@ -811,6 +811,19 @@ only intentional small, sanitized regression fixtures belong in source control.
       - [ ] **06b.3b:** combine observed map bounds, cross-plan commitments, leases
         and durable attempts in the runtime. Owner: integrator; depends on 06b.2
         and 06b.3a; prove single ownership and invalidation before enabling writes.
+        - [ ] **06b.3b.1:** exact-cell map bounds read using the existing typed
+          observation contract. Owner: bridge agent; depends on 03b.1.
+        - [x] **06b.3b.2:** complete durable cross-plan reservation recovery.
+          Owner: integrator; depends on 04b and 06a.
+        - [ ] **06b.3b.3:** bind native preview, lease, receipt lookup and observed
+          progress to the executor boundary. Owner: bridge agent; depends on
+          06b.2, 06b.3a and 06b.3b.1–2.
+        - [ ] **06b.3b.4:** trusted explicit acquisition, renewal, invalidation and
+          joined shutdown under one process lock. Owner: runtime agent; depends
+          on 06b.2 and the existing runtime ownership primitive.
+        - [ ] **06b.3b.5:** wire an explicit player-only entry point and runtime
+          worker; keep model proposals separate from authority acquisition.
+          Owner: integrator; depends on 06b.3b.3–4 and native guarded adapters.
   - [ ] **06c:** isolated ordinary pawn construction and interruption acceptance.
 
 - [ ] **G01.07 — Routine capabilities in bounded families.** Owners: domain agents.
