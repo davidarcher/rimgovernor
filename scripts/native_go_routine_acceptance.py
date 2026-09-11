@@ -95,8 +95,8 @@ async def wait_review(database, after_revision=0):
             await asyncio.sleep(.05)
 
 
-async def wait_building_method(http, database, definition, count):
-    async with asyncio.timeout(180):
+async def wait_building_method(http, database, definition, count, *, shell=False):
+    async with asyncio.timeout(600 if shell else 180):
         while True:
             with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
                 rows = db.execute("SELECT DISTINCT m.plan_id FROM goal_methods m JOIN actions a ON a.plan_id=m.plan_id WHERE a.definition=?", (definition,)).fetchall()
@@ -104,11 +104,29 @@ async def wait_building_method(http, database, definition, count):
             if rows:
                 plan = await http("GET", "/api/plan?id=" + rows[0][0])
                 assert len(plan["actions"]) == count
-                assert all(a["building"]["defName"] == definition for a in plan["actions"])
+                if shell:
+                    assert sum(a['building']['defName'] == 'Wall' for a in plan['actions']) == 31
+                    assert sum(a['building']['defName'] == 'Door' for a in plan['actions']) == 1
+                else:
+                    assert all(a["building"]["defName"] == definition for a in plan["actions"])
                 if all(a["progress"]["stage"] == "completed" for a in plan["actions"]):
                     assert all(a["progress"]["effect"] == "completed" and not a["progress"]["unresolved"] and a["progress"]["attempt"] == "1" for a in plan["actions"])
                     return plan
             await asyncio.sleep(.2)
+
+
+def shell_geometry(plan):
+    buildings = [a['building'] for a in plan['actions']]
+    assert len(buildings) == 32
+    cells = {(b['x'], b['z']) for b in buildings}
+    assert len(cells) == 32
+    x, z = min(c[0] for c in cells), min(c[1] for c in cells)
+    assert cells == {(i, j) for i in range(x, x+9) for j in range(z, z+9)
+                     if i in (x, x+8) or j in (z, z+8)}
+    for b in buildings:
+        assert b['stuff'] == 'WoodLog'
+        assert b['defName'] == ('Door' if (b['x'], b['z']) == (x+4, z) else 'Wall')
+    return {(i, j) for i in range(x+1, x+8) for j in range(z+1, z+8)}
 
 
 def audit_sleeping(report, database):
@@ -119,32 +137,49 @@ def audit_sleeping(report, database):
         assert report["cooking_plan"]["actions"][0]["building"]["defName"] == "Campfire"
         assert report["manual_routine"]["goals"]["EnsureCooking"]["Need"] == "deficit"
     interior = {(c["x"], c["z"]) for c in report["sleeping_setup"]["interior"]}
+    shell = report.get('shelter_plan')
+    if shell:
+        assert report['sleeping_setup']['outdoorSite']
+        assert report['sleeping_setup']['shellPiecesCreated'] == report['sleeping_setup']['roofCellsCreated'] == 0
+        interior = shell_geometry(shell)
     assert len(plan["actions"]) == report["sleeping_setup"]["colonists"]
     with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
-        methods = [plan] + ([report["cooking_plan"]] if "cooking_plan" in report else [])
+        methods = [plan] + ([report["cooking_plan"]] if "cooking_plan" in report else []) + ([shell] if shell else [])
+        door_completed = None
+        if shell:
+            door = next(a for a in shell['actions'] if a['building']['defName'] == 'Door')
+            dependencies = db.execute('SELECT action_id,requires_id FROM action_dependencies WHERE plan_id=?', (shell['id'],)).fetchall()
+            assert set(dependencies) == {(a['id'], door['id']) for a in shell['actions'] if a != door}
+            door_events = [json.loads(r[0]) for r in db.execute('SELECT payload FROM transitions WHERE action_id=? ORDER BY sequence', (door['id'],))]
+            door_completed = next(r['Observation']['Tick'] for r in door_events if r['Kind'] == 'observe' and r['Observation']['Effect'] == 'completed')
         for action in [a for method in methods for a in method["actions"]]:
             progress = action["progress"]
             assert progress["stage"] == progress["effect"] == "completed" and progress["attempt"] == "1" and not progress["unresolved"]
             admission = json.loads(db.execute("SELECT payload FROM admissions WHERE action_id=?", (action["id"],)).fetchone()[0])
-            assert all((c["X"], c["Z"]) in interior for c in admission["Footprint"])
+            if action['building']['defName'] not in {'Wall', 'Door'}:
+                assert all((c["X"], c["Z"]) in interior for c in admission["Footprint"])
             transitions = [json.loads(r[0]) for r in db.execute("SELECT payload FROM transitions WHERE action_id=? ORDER BY sequence", (action["id"],))]
             dispatched = [r for r in transitions if r["Kind"] == "dispatch"]
             assert len(dispatched) == 1
+            if shell and action['building']['defName'] == 'Wall':
+                assert dispatched[0]['Tick'] >= door_completed
             scope = dict(dispatched[0]["Snapshot"])
             assert scope["Plan"] in {method["id"] for method in methods}
             scope["Plan"], scope["Revision"] = root["Plan"], root["Revision"]
             assert scope == root, "Routine method changed player direction or native authority"
     assert report["traces"]["operate"].count(EXECUTE) == 1 + sum(len(method["actions"]) for method in methods)
-    return {"completed_spots": len(plan["actions"]), "completed_cooking_buildings": len(report.get("cooking_plan", {}).get("actions", [])), "single_attempts": True, "indoor_footprints": True, "shared_player_authority": True}
+    return {"completed_spots": len(plan["actions"]), "completed_shell_pieces": len(shell['actions']) if shell else 0, "completed_cooking_buildings": len(report.get("cooking_plan", {}).get("actions", [])), "single_attempts": True, "indoor_footprints": True, "shared_player_authority": True}
 
 
-async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False, work_project=False, work_overrides=False, power_fixture=False, resource_rules=()):
+async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False, work_project=False, work_overrides=False, power_fixture=False, resource_rules=(), shelter_methods=False):
     assert Path("/.dockerenv").is_file(), "Use the isolated scenario launcher"
     output.mkdir(parents=True, exist_ok=False)
     report = {"passed": False, "source": go_source,
               "scope": "Native core/emergency facts reach fourteen durable Go needs; Manual invalidates them; disabled restart neither acquires authority nor reads routine facts. No routine method execution claim."}
     if sleeping_methods:
         report["scope"] = "Reviewed indoor sleeping deficit compiles and executes through shared Hands, with native completion, Manual invalidation and disabled restart. Private fixture supplies only an empty room and healthy starting colonists."
+    if shelter_methods:
+        report["scope"] = "From an empty outdoor site, shared Go Hands constructs a starter shell, normal pawn work roofs it, and the same maintained goal furnishes indoor sleeping capacity. Door completion gates walls; all native outcomes, Manual and disabled restart are verified."
     if cooking_methods:
         report["scope"] = "Reviewed sleeping and cooking deficits execute ordinary building methods through shared Hands; native completion, shared authority, Manual and disabled restart. Campfire construction does not certify cooking bills or food production."
     evidence = Evidence(output)
@@ -169,8 +204,16 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             request = {"limit": 5000, "includeDiagnostics": True}
             if baseline is not None:
                 request["afterSequence"] = baseline
-            rows = payload(await evidence.call(bridge, label + "-events", "rimbridge/list_operation_events", request))["events"]
-            assert rows and len(rows) < 5000
+            rows = []
+            for page in range(20):
+                batch = payload(await evidence.call(bridge, label + f"-events-{page}", "rimbridge/list_operation_events", request))["events"]
+                rows.extend(batch)
+                if len(batch) < 5000:
+                    break
+                request['afterSequence'] = max(r['Sequence'] for r in batch)
+            else:
+                raise AssertionError('Operation audit exceeds bounded pagination')
+            assert rows
             if baseline is not None:
                 report.setdefault("traces", {})[label] = audit_routine(rows, baseline, caps, restart=restart)
             return max(r["Sequence"] for r in rows)
@@ -191,7 +234,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 report['power_setup'] = payload(await evidence.call(bridge, 'power-setup', 'test/routine_power_setup', {}))
                 assert report['power_setup']['success']
             if sleeping_methods or resource_rules:
-                report["sleeping_setup"] = payload(await evidence.call(bridge, "sleeping-setup", "test/routine_sleeping_prepare", {}))
+                report["sleeping_setup"] = payload(await evidence.call(bridge, "sleeping-setup", "test/routine_sleeping_prepare", {"outdoorSite": shelter_methods}))
                 assert report["sleeping_setup"]["success"] and report["sleeping_setup"]["sleepingSpotsCreated"] == 0
             report["initial_colony"] = await wire(bridge, "initial-colony", "observations_read_status", {
                 "scope": {"expectedIdentity": identity}, "colonists": True, "threats": True, "colonistDetail": False, "page": {"limit": 256}})
@@ -249,7 +292,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             expected_food = 'deficit' if food['readable'] and food['runwayDays'] is not None and food['runwayDays'] < 3 else 'unknown'
             baseline = await capture(bridge, "setup")
 
-        async with service(private, gabs, configuration, profile, database, output / "operate", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods, routine_cooking=cooking_methods or bool(resource_rules), resource_rules=resource_rules) as http:
+        async with service(private, gabs, configuration, profile, database, output / "operate", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods, routine_cooking=cooking_methods or bool(resource_rules), routine_shelter=shelter_methods, resource_rules=resource_rules) as http:
             await poll(http, "/api/state", lambda v: v.get("connected") and not v.get("game", {}).get("stale", True))
             assert not (await http("GET", "/api/player/control"))["state"]["enabled"]
             building = http_building(prepared['sites'][0])
@@ -307,6 +350,8 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 await wait_review(database, after_clear['review']['Revision'])
                 assert routine_evidence(database, identity, enabled=True, expected_food_need=expected_food)['goals']['EnsureWorkAssignments']['Need'] == 'deficit'
                 report['work_preference_clear_and_replay'] = True
+            if shelter_methods:
+                report["shelter_plan"] = await wait_building_method(http, database, "Wall", 32, shell=True)
             if sleeping_methods:
                 report["sleeping_plan"] = await wait_building_method(http, database, "SleepingSpot", report["sleeping_setup"]["colonists"])
             if cooking_methods:
@@ -325,8 +370,12 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 report['resource_policy_no_orders'] = True
             final = outcome(await wire(bridge, "after-manual", "lifecycle_read_identity", {}), "loaded")
             assert final["paused"] and final["context"]["identity"] == identity
+            if shelter_methods:
+                native = outcome(await wire(bridge, 'shelter-outcome', 'observations_read_colony_facts', {'scope': {'expectedIdentity': identity}, 'planning': True}), 'observed')
+                assert int(native['indoorSleepingCapacity']) >= report['sleeping_setup']['colonists']
+                report['shelter_outcome'] = native
             baseline = await capture(bridge, "restart-baseline")
-        async with service(private, gabs, configuration, profile, database, output / "restart", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods, routine_cooking=cooking_methods or bool(resource_rules), resource_rules=resource_rules) as http:
+        async with service(private, gabs, configuration, profile, database, output / "restart", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods, routine_cooking=cooking_methods or bool(resource_rules), routine_shelter=shelter_methods, resource_rules=resource_rules) as http:
             await poll(http, "/api/state", lambda v: v.get("connected") and not v.get("game", {}).get("stale", True))
             await asyncio.sleep(2)
             assert not (await http("GET", "/api/player/control"))["state"]["enabled"]
@@ -368,10 +417,11 @@ if __name__ == "__main__":
     add_handoff_arguments(parser)
     parser.add_argument("--sleeping-methods", action="store_true")
     parser.add_argument("--cooking-methods", action="store_true")
+    parser.add_argument("--shelter-methods", action="store_true")
     parser.add_argument("--work-project", action="store_true")
     parser.add_argument("--work-overrides", action="store_true")
     parser.add_argument("--power-fixture", action="store_true")
     parser.add_argument("--resource-rule", action="append", default=[])
     args = parser.parse_args()
     raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-go-routine-acceptance", args.go_binary,
-        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods, cooking_methods=args.cooking_methods, work_project=args.work_project, work_overrides=args.work_overrides, power_fixture=args.power_fixture, resource_rules=args.resource_rule)) else 1)
+        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods or args.shelter_methods, shelter_methods=args.shelter_methods, cooking_methods=args.cooking_methods, work_project=args.work_project, work_overrides=args.work_overrides, power_fixture=args.power_fixture, resource_rules=args.resource_rule)) else 1)

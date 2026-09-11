@@ -43,6 +43,9 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		if missing > 64 {
 			return 0, "", BuildingMethodNoSpace
 		}
+		if r.shelter {
+			return 32, "starter-shell", ""
+		}
 		return missing, domain.MethodID(fmt.Sprintf("indoor-sleeping-%d-%d", count, missing)), ""
 	case policy.EnsureCooking:
 		ready, known := facts.Facts.Cooking.Value()

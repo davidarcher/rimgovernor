@@ -139,7 +139,7 @@ async def joined_shutdown(process, record, timeout=30):
 
 
 @asynccontextmanager
-async def service(binary, gabs, configuration, profile, state, directory, report, *, clock_control=False, routine_reviews=False, routine_methods=False, routine_cooking=False, resource_rules=()):
+async def service(binary, gabs, configuration, profile, state, directory, report, *, clock_control=False, routine_reviews=False, routine_methods=False, routine_cooking=False, routine_shelter=False, resource_rules=()):
     directory.mkdir()
     record = {"phase": directory.name, "argv": service_argv(binary, gabs, configuration, profile, state), "joined": False}
     for rule in resource_rules:
@@ -151,7 +151,8 @@ async def service(binary, gabs, configuration, profile, state, directory, report
         record["argv"].append("--routine-reviews")
     if routine_methods:
         assert routine_reviews
-        record["argv"].extend(["--routine-sleeping-plans", "--routine-methods"])
+        record["argv"].extend(["--routine-shelter-plans" if routine_shelter else "--routine-sleeping-plans", "--routine-methods"])
+    assert not routine_shelter or routine_methods
     if routine_cooking:
         assert routine_reviews
         record["argv"].append("--routine-cooking-plans")

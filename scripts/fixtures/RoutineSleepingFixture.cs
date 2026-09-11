@@ -11,8 +11,8 @@ namespace HomeBridge.BridgeTools
     // Private setup only: the controller must place and observe all sleeping spots.
     public sealed class RoutineSleepingFixture
     {
-        [Tool("test/routine_sleeping_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: create an empty roofed room near existing colonists and remove starting injuries. Never creates sleeping spots or edits controller results.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        [Tool("test/routine_sleeping_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: clear an outdoor starter site or create an empty roofed room near existing colonists; remove starting injuries. Outdoor mode creates no buildings or roofs. Never creates sleeping spots or edits controller results.")]
+        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool outdoorSite = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -21,19 +21,21 @@ namespace HomeBridge.BridgeTools
                 if (people.Count < 1 || people.Count > 8) throw new InvalidOperationException("Require 1..8 colonists.");
                 var center = new IntVec3((int)people.Average(p => p.Position.x), 0, (int)people.Average(p => p.Position.z));
                 var candidates = GenRadial.RadialCellsAround(center, 14, true).Where(c => c.DistanceToSquared(center) >= 36);
-                var room = candidates.Select(c => new CellRect(c.x - 3, c.z - 3, 7, 7)).FirstOrDefault(r => r.Cells.All(c =>
+                var size = outdoorSite ? 9 : 7;
+                var room = candidates.Select(c => new CellRect(c.x - size / 2, c.z - size / 2, size, size)).FirstOrDefault(r => r.Cells.All(c =>
                     c.InBounds(map) && !c.Fogged(map) && c.Standable(map) && map.zoneManager.ZoneAt(c) == null &&
+                    (!outdoorSite || c.GetRoof(map) == null && c.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Light)) &&
                     c.GetThingList(map).All(t => t is Plant)));
-                if (room.Width != 7) throw new InvalidOperationException("No clear bounded room site.");
+                if (room.Width != size) throw new InvalidOperationException("No clear bounded room site.");
                 foreach (var cell in room.Cells) {
                     foreach (var plant in cell.GetThingList(map).OfType<Plant>().ToList()) plant.Destroy(DestroyMode.Vanish);
-                    if (cell.x == room.minX || cell.x == room.maxX || cell.z == room.minZ || cell.z == room.maxZ) {
+                    if (!outdoorSite && (cell.x == room.minX || cell.x == room.maxX || cell.z == room.minZ || cell.z == room.maxZ)) {
                         var definition = cell.x == room.CenterCell.x && cell.z == room.minZ ? ThingDefOf.Door : ThingDefOf.Wall;
                         var building = ThingMaker.MakeThing(definition, ThingDefOf.WoodLog);
                         building.SetFaction(Faction.OfPlayer);
                         GenSpawn.Spawn(building, cell, map);
                     }
-                    map.roofGrid.SetRoof(cell, RoofDefOf.RoofConstructed);
+                    if (!outdoorSite) map.roofGrid.SetRoof(cell, RoofDefOf.RoofConstructed);
                 }
                 foreach (var pawn in people)
                     foreach (var injury in pawn.health.hediffSet.hediffs.OfType<Hediff_Injury>().ToList()) pawn.health.RemoveHediff(injury);
@@ -41,7 +43,7 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, tick = Find.TickManager.TicksGame, colonists = people.Count,
                     center = new { x = room.CenterCell.x, z = room.CenterCell.z },
                     interior = room.ContractedBy(1).Cells.Select(c => new { x = c.x, z = c.z }).ToArray(),
-                    sleepingSpotsCreated = 0 };
+                    sleepingSpotsCreated = 0, outdoorSite, shellPiecesCreated = outdoorSite ? 0 : 24, roofCellsCreated = outdoorSite ? 0 : 49 };
             }, cancellationToken).ConfigureAwait(false);
         }
     }

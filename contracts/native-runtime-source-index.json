@@ -4134,7 +4134,7 @@
     {
       "source": "scripts/fixtures/RoutineSleepingFixture.cs",
       "compilation": "fixture-only",
-      "source_sha256": "b004927ea3bff307a4b09da5be290faea1a5486b18574a042eb1b9b3e78291ef",
+      "source_sha256": "54dc7837d6b40ea1805dfbff4eda84a6636ab93f93a37634567d66b791e9fb71",
       "owner": "N01.01 native fixture isolation owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",

@@ -278,6 +278,11 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		}
 	}
 	clockState := policy.ClockWindowState("")
+	start := s.config.Start
+	if !work && s.config.RoutineMethods && out.Sleeping != nil && out.Sleeping.NativeWorkTicks > 0 {
+		work = true
+		start.MaxTicks = min(start.MaxTicks, out.Sleeping.NativeWorkTicks)
+	}
 	if status.GetNeverStarted() != nil {
 		clockState = policy.ClockNeverStarted
 	}
@@ -288,16 +293,15 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	if status.NewestCursor != nil {
 		facts.Status.NewestCursor = domain.Known(status.GetNewestCursor())
 	}
-	out.Decision = policy.EvaluateClockWindow(facts, policy.ClockWindowLimits{Now: s.clock.Now(), MaxAge: s.config.MaxAge, MaxTicks: s.config.Start.MaxTicks})
+	out.Decision = policy.EvaluateClockWindow(facts, policy.ClockWindowLimits{Now: s.clock.Now(), MaxAge: s.config.MaxAge, MaxTicks: start.MaxTicks})
 	if !out.Decision.Admitted {
 		return out, executor.ErrHeld
 	}
-	admission := &store.ClockWindowAdmission{Profile: s.config.Profile, Snapshot: state.Snapshot, Tick: facts.Tick, ReviewRevision: review.Revision, CapturedCursor: review.InboxCursor, MaxTicks: s.config.Start.MaxTicks}
-	key, err := clockSchedulerKey(admission, fingerprint, s.config.Start)
+	admission := &store.ClockWindowAdmission{Profile: s.config.Profile, Snapshot: state.Snapshot, Tick: facts.Tick, ReviewRevision: review.Revision, CapturedCursor: review.InboxCursor, MaxTicks: start.MaxTicks}
+	key, err := clockSchedulerKey(admission, fingerprint, start)
 	if err != nil {
 		return out, err
 	}
-	start := s.config.Start
 	start.Policy = proto.Clone(start.Policy).(*k.WatchPolicy)
 	intent := store.ClockIntent{Key: key, Snapshot: state.Snapshot, Command: bridge.ClockCommand{Start: &start}, Window: admission}
 	// The store returns sequence order. Retain the latest exact logical window,

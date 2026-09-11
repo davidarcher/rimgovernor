@@ -125,6 +125,22 @@ func TestSleepingPlansRequireRoutineReviews(t *testing.T) {
 	}
 }
 
+func TestShelterPlansRequireReviewsAndOptInExecution(t *testing.T) {
+	dir := t.TempDir()
+	base := []string{"--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "game", "--state", filepath.Join(dir, "state.db"), "--player-control", "--profile", dir, "--clock-control", "--routine-shelter-plans"}
+	if _, err := parseServe(base, io.Discard); err == nil {
+		t.Fatal("unreviewed shelter accepted")
+	}
+	config, err := parseServe(append(base, "--routine-reviews"), io.Discard)
+	if err != nil || !config.routineShelterPlans || config.routineMethods {
+		t.Fatal(config, err)
+	}
+	config, err = parseServe(append(base, "--routine-reviews", "--routine-methods"), io.Discard)
+	if err != nil || !config.routineMethods {
+		t.Fatal(config, err)
+	}
+}
+
 func TestRoutineServeRequiresClockControl(t *testing.T) {
 	dir := t.TempDir()
 	base := []string{"--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "game", "--state", filepath.Join(dir, "state.db"), "--player-control", "--profile", dir, "--routine-reviews"}

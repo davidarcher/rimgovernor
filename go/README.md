@@ -239,7 +239,16 @@ requires typed colony observations. Startup remains disabled. This option journa
 needs. Add `--routine-sleeping-plans` to compile eligible shelter deficits into pending
 methods at that same paused boundary. It requires routine reviews and uses the same
 player gate; a failed preview prevents a new clock window. Startup remains disabled
-and this option does not execute methods. `--routine-cooking-plans` independently
+and this option does not execute methods. `--routine-shelter-plans` includes indoor
+furnishing and falls back to a bounded 9×9 starter shell when the whole sleeping
+method lacks verified space. Native definitions must support one-cell wood walls
+and doors; every piece needs a safe exact footprint and the complete project must
+fit shared stock and reservations. The door's observed completion gates all walls.
+After all shell pieces complete, up to 2,500 game ticks allow ordinary automatic
+roofing; that budget derives from durable completion and cannot renew on restart.
+Furnishing still requires observed roofed indoor space. Unfinished or cancelled
+shells grant no roofing budget. `--routine-methods` is also required to execute
+the method or advance its roofing wait. `--routine-cooking-plans` independently
 enables campfire compilation at the same boundary. Add `--routine-methods` to let the shared
 Hands worker execute reviewed building methods under the existing player direction.
 Each dispatch rechecks the journal binding, active known deficit, epoch, world and

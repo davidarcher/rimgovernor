@@ -703,6 +703,11 @@ expand these into another nested task tree; remove a row when its outcome is met
   accepted player's occupied slot, deficit ranking, Manual clearing and disabled
   restart. Fast checks cover aging/restart, unknowns, cancelled uncertain projects,
   corrupt history and player admission between review and method commit.
+  The starter shelter compiler now prefers existing indoor space, then admits a
+  whole native-grounded wood wall-and-door shell with observed door dependencies.
+  A bounded post-construction clock allowance waits for normal roofing; furnishing
+  requires fresh roofed indoor facts. Fast validation and targeted native acceptance
+  of shell-to-sleeping composition are in progress.
   Further need inputs, method selection and execution composition for
   additional routine methods remain open.
 

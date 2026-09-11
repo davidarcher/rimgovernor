@@ -11,6 +11,22 @@ finally:
     sys.path.pop(0)
 
 
+def test_shell_geometry_requires_complete_perimeter_and_south_door():
+    plan = {'actions': [{'building': {'x': x, 'z': z, 'stuff': 'WoodLog',
+                                      'defName': 'Door' if (x, z) == (14, 20) else 'Wall'}}
+                        for x in range(10, 19) for z in range(20, 29)
+                        if x in (10, 18) or z in (20, 28)]}
+    assert probe.shell_geometry(plan) == {(x, z) for x in range(11, 18) for z in range(21, 28)}
+    for mutation in ['missing', 'duplicate', 'interior', 'door', 'stuff']:
+        changed = copy.deepcopy(plan)
+        if mutation == 'missing': changed['actions'].pop()
+        if mutation == 'duplicate': changed['actions'][-1] = changed['actions'][0]
+        if mutation == 'interior': changed['actions'][0]['building'].update(x=14, z=24)
+        if mutation == 'door': changed['actions'][0]['building']['defName'] = 'Door'
+        if mutation == 'stuff': changed['actions'][0]['building']['stuff'] = 'Steel'
+        with pytest.raises(AssertionError): probe.shell_geometry(changed)
+
+
 def test_routine_medical_evidence_preserves_care_and_unknowns():
     pawn = {"dead": False, "downed": False, "health": {"bleeding": False, "needsTend": True}}
     reply = {"observed": {"colonists": {"pawns": [pawn], "completeness": {

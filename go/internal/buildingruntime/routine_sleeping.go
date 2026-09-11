@@ -35,6 +35,9 @@ const (
 type RoutineBuildingResult struct {
 	Reason   RoutineBuildingReason
 	Decision store.BuildingMethodDecision
+	// NativeWorkTicks bounds ordinary roofing time after an observed shell.
+	// It neither asserts roof completion nor grants native authority.
+	NativeWorkTicks uint32
 }
 
 // RoutineBuildingPlanner compiles one bounded indoor building method under an
@@ -45,6 +48,7 @@ type RoutineBuildingPlanner struct {
 	native     RoutineBuildingSource
 	goal       policy.GoalID
 	definition string
+	shelter    bool
 }
 
 func NewRoutineSleepingPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
@@ -66,6 +70,14 @@ func (r *RoutineBuildingPlanner) Step(ctx context.Context) (RoutineBuildingResul
 
 // step is also used by the scheduler already holding the same player gate.
 func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuildingResult, error) {
+	if r.shelter {
+		indoor := *r
+		indoor.shelter, indoor.definition = false, "SleepingSpot"
+		result, err := indoor.step(call, epoch)
+		if err != nil || result.Reason != BuildingMethodNoSpace {
+			return result, err
+		}
+	}
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -114,7 +126,11 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		return RoutineBuildingResult{}, ErrControl
 	}
-	reading, err := observation.ObserveColony(call, r.native, r.reviewer.clock, expected, r.reviewer.maxAge, true, []string{r.definition})
+	definitions := []string{r.definition}
+	if r.shelter {
+		definitions = []string{"Wall", "Door"}
+	}
+	reading, err := observation.ObserveColony(call, r.native, r.reviewer.clock, expected, r.reviewer.maxAge, true, definitions)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -123,27 +139,35 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 	if reason != "" {
 		return RoutineBuildingResult{Reason: reason}, nil
 	}
-	available := false
-	for _, def := range facts.Definitions {
-		if def.Name != r.definition {
-			continue
-		}
-		ready, known := def.Available.Value()
-		skill, skillKnown := def.ConstructionSkill.Value()
-		available = known && ready && skillKnown && skill == 0
-	}
-	if !available {
+	if !routineDefinitionsAvailable(facts, definitions, r.shelter) {
 		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
 	}
-	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
-	} else if !errors.Is(err, store.ErrNotFound) {
-		return RoutineBuildingResult{}, err
+	if existing, loadErr := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); loadErr == nil {
+		result := RoutineBuildingResult{Reason: BuildingMethodUsed}
+		if r.shelter {
+			plan, err := p.journal.LoadPlan(call, existing.Plan)
+			if err != nil {
+				return RoutineBuildingResult{}, err
+			}
+			if err := p.current(call, epoch); err != nil {
+				return RoutineBuildingResult{}, err
+			}
+			if p.session.State() != state {
+				return RoutineBuildingResult{}, ErrControl
+			}
+			result.NativeWorkTicks = shelterNativeWorkTicks(plan, state.Snapshot, facts.Identity.Tick)
+		}
+		return result, nil
+	} else if !errors.Is(loadErr, store.ErrNotFound) {
+		return RoutineBuildingResult{}, loadErr
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
 	prefix := "routine-sleep"
 	if r.goal == policy.EnsureCooking {
 		prefix = "routine-cook"
+	}
+	if r.shelter {
+		prefix = "routine-shell"
 	}
 	planID := domain.PlanID(fmt.Sprintf("%s-%x", prefix, digest[:16]))
 	snapshot := state.Snapshot
@@ -178,97 +202,18 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 		}
 		protected = append(protected, h.Footprint...)
 	}
-	var cells []policy.SiteCell
-	for _, c := range facts.Cells {
-		if roofed, known := c.Roofed.Value(); known && roofed {
-			cells = append(cells, c)
-		}
-	}
-	searchRequest := policy.PlacementSearchRequest{Snapshot: snapshot, Tick: facts.Identity.Tick, Bounds: facts.Bounds, Center: facts.Center, Cells: cells, Protected: protected, Environment: policy.PlacementIndoors, Radius: 22, Limit: 64}
-	search, err := policy.NewPlacementSearch(searchRequest)
-	if err != nil {
-		return RoutineBuildingResult{}, err
-	}
-	var selected []policy.Preview
-	usedCells := map[domain.Cell]bool{}
-	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
-	resources := map[policy.Resource]domain.Fact[int64]{}
-	for i, c := range search.Candidates() {
-		if err = p.current(call, epoch); err != nil {
-			return RoutineBuildingResult{}, err
+	check := func() error {
+		if err := p.current(call, epoch); err != nil {
+			return err
 		}
 		if p.session.State() != state {
-			return RoutineBuildingResult{}, ErrControl
+			return ErrControl
 		}
-		b, err := domain.NewBuilding(r.definition, c, domain.North, "")
-		if err != nil {
-			return RoutineBuildingResult{}, err
-		}
-		a, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", planID, i)), b)
-		if err != nil {
-			return RoutineBuildingResult{}, err
-		}
-		preview, _, err := r.native.PreviewBuilding(call, a, snapshot)
-		if err != nil {
-			return RoutineBuildingResult{}, err
-		}
-		if err = p.current(call, epoch); err != nil {
-			return RoutineBuildingResult{}, err
-		}
-		if preview.Preview.Action != a || !preview.Stock.Snapshot.Matches(snapshot) || preview.Stock.Tick != facts.Identity.Tick {
-			return RoutineBuildingResult{}, ErrControl
-		}
-		made, known := preview.Preview.MadeFromStuff.Value()
-		if !known || made {
-			return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
-		}
-		choice, ok, err := search.Select(r.definition, "", []policy.Preview{preview.Preview})
-		if err != nil {
-			return RoutineBuildingResult{}, err
-		}
-		if !ok {
-			continue
-		}
-		footprint, _ := choice.Footprint.Value()
-		overlaps := false
-		for _, c := range footprint {
-			overlaps = overlaps || usedCells[c]
-		}
-		if overlaps {
-			continue
-		}
-		selected = append(selected, choice)
-		if len(selected) == 1 {
-			stock.NativeConstruction = preview.Stock.NativeConstruction
-		} else {
-			stock.NativeConstruction = stock.NativeConstruction && preview.Stock.NativeConstruction
-		}
-		for _, c := range footprint {
-			usedCells[c] = true
-		}
-		if len(preview.Stock.Values) > 256 {
-			return RoutineBuildingResult{}, ErrControl
-		}
-		seenResources := map[policy.Resource]bool{}
-		for _, v := range preview.Stock.Values {
-			if seenResources[v.Resource] {
-				return RoutineBuildingResult{}, ErrControl
-			}
-			seenResources[v.Resource] = true
-			if old, exists := resources[v.Resource]; exists && old != v.Available {
-				return RoutineBuildingResult{}, ErrControl
-			}
-			if _, exists := resources[v.Resource]; !exists {
-				stock.Values = append(stock.Values, v)
-				resources[v.Resource] = v.Available
-			}
-		}
-		if int64(len(selected)) == missing {
-			break
-		}
+		return nil
 	}
-	if int64(len(selected)) != missing {
-		return RoutineBuildingResult{Reason: BuildingMethodNoSpace}, nil
+	selected, stock, reason, err := r.previewMethod(call, snapshot, facts, protected, missing, check)
+	if err != nil || reason != "" {
+		return RoutineBuildingResult{Reason: reason}, err
 	}
 	last, _, err := r.native.Identity(call)
 	if err != nil {
@@ -282,11 +227,8 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 	if now.Before(reading.StartedAt) || now.Sub(reading.StartedAt) > r.reviewer.maxAge {
 		return RoutineBuildingResult{}, observation.ErrStale
 	}
-	if err = p.current(call, epoch); err != nil {
+	if err = check(); err != nil {
 		return RoutineBuildingResult{}, err
-	}
-	if p.session.State() != state {
-		return RoutineBuildingResult{}, ErrControl
 	}
 	latest, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -296,10 +238,14 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 		return RoutineBuildingResult{}, ErrControl
 	}
 	actions := make([]domain.Action, len(selected))
+	var dependencies []domain.ActionDependency
 	for i, v := range selected {
 		actions[i] = v.Action
+		if r.shelter && i > 0 {
+			dependencies = append(dependencies, domain.ActionDependency{Action: v.Action.ID(), Requires: selected[0].Action.ID()})
+		}
 	}
-	plan, err := domain.NewPlan(planID, 1, actions)
+	plan, err := domain.NewPlan(planID, 1, actions, dependencies...)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -312,6 +258,82 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 		reason = BuildingMethodAdmitted
 	}
 	return RoutineBuildingResult{Reason: reason, Decision: decision}, nil
+}
+
+func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, missing int64, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+	if r.shelter {
+		return r.previewShell(call, snapshot, facts, protected, check)
+	}
+	var cells []policy.SiteCell
+	for _, c := range facts.Cells {
+		if roofed, known := c.Roofed.Value(); known && roofed {
+			cells = append(cells, c)
+		}
+	}
+	searchRequest := policy.PlacementSearchRequest{Snapshot: snapshot, Tick: facts.Identity.Tick, Bounds: facts.Bounds, Center: facts.Center, Cells: cells, Protected: protected, Environment: policy.PlacementIndoors, Radius: 22, Limit: 64}
+	search, err := policy.NewPlacementSearch(searchRequest)
+	if err != nil {
+		return nil, policy.StockObservation{}, "", err
+	}
+	var selected []policy.Preview
+	usedCells := map[domain.Cell]bool{}
+	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
+	for i, c := range search.Candidates() {
+		if err = check(); err != nil {
+			return nil, policy.StockObservation{}, "", err
+		}
+		b, err := domain.NewBuilding(r.definition, c, domain.North, "")
+		if err != nil {
+			return nil, policy.StockObservation{}, "", err
+		}
+		a, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), b)
+		if err != nil {
+			return nil, policy.StockObservation{}, "", err
+		}
+		preview, _, err := r.native.PreviewBuilding(call, a, snapshot)
+		if err != nil {
+			return nil, policy.StockObservation{}, "", err
+		}
+		if err = check(); err != nil {
+			return nil, policy.StockObservation{}, "", err
+		}
+		if preview.Preview.Action != a || !preview.Stock.Snapshot.Matches(snapshot) || preview.Stock.Tick != facts.Identity.Tick {
+			return nil, policy.StockObservation{}, "", ErrControl
+		}
+		made, known := preview.Preview.MadeFromStuff.Value()
+		if !known || made {
+			return nil, policy.StockObservation{}, BuildingMethodUnknown, nil
+		}
+		choice, ok, err := search.Select(r.definition, "", []policy.Preview{preview.Preview})
+		if err != nil {
+			return nil, policy.StockObservation{}, "", err
+		}
+		if !ok {
+			continue
+		}
+		footprint, _ := choice.Footprint.Value()
+		overlaps := false
+		for _, c := range footprint {
+			overlaps = overlaps || usedCells[c]
+		}
+		if overlaps {
+			continue
+		}
+		selected = append(selected, choice)
+		if err := mergeRoutineStock(&stock, preview.Stock, len(selected) == 1); err != nil {
+			return nil, policy.StockObservation{}, "", err
+		}
+		for _, c := range footprint {
+			usedCells[c] = true
+		}
+		if int64(len(selected)) == missing {
+			break
+		}
+	}
+	if int64(len(selected)) != missing {
+		return nil, policy.StockObservation{}, BuildingMethodNoSpace, nil
+	}
+	return selected, stock, "", nil
 }
 
 func routineBuildingBoundary(actual observation.Identity, expected domain.GenerationSnapshot, tick domain.Tick) bool {
