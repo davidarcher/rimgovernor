@@ -1226,10 +1226,18 @@ only intentional small, sanitized regression fixtures belong in source control.
         before implementation. Share the existing Store and Control, journal
         dispatch before calls and correlate recovered receipts. Retain exact
         cleanup obligations; unknown start never adopts a merely same-session epoch.
+        - [ ] **10a.2a.1:** atomic owned-epoch journal and pure cleanup evidence.
+          Owner: state/bridge agents; depends on 10a.1. Applied start receipts
+          create an exact obligation atomically. Fence pause completion by local
+          sequence; distinguish verified pause, inactive epoch and replacement.
+        - [ ] **10a.2a.2:** explicit command and recovery coordinator. Owner:
+          runtime agent; depends on the fixed 2a.1 interface and 10a.1 journal.
+          Serialize commands, invalidate without waiting, persist before calls,
+          and recover exact attempts without retrying unknown starts.
       - [ ] **10a.2b:** lease-free owned pause and Manual invalidation. Owner:
         runtime agent; depends on 10a.2a. Cancel new commands before joining them;
         cleanup under the Control close gate cannot call back into Control.
-        Unverified pause retains ownership; replacement evidence cannot pause
+        Stopping or unknown pause retains ownership; replacement evidence cannot pause
         a replacement epoch. Test failed pause, timeout and world replacement.
       - [ ] **10a.2c:** disabled startup and joined Session composition. Owner:
         integrator; depends on 10a.2b. Recover obligations without permission,
