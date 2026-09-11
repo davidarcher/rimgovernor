@@ -22,6 +22,29 @@ func TestClockRenewalSafetyReviewMustCatchUp(t *testing.T) {
 	}
 }
 
+func TestClockRenewalDefersCompletedBudgetToScheduler(t *testing.T) {
+	for _, unsafe := range []bool{false, true} {
+		t.Run(map[bool]string{false: "budget", true: "interruption"}[unsafe], func(t *testing.T) {
+			s, n, w, start := renewalFixture(t)
+			epoch := proto.Clone(start.Reply.GetReceipt().GetApplied().GetStatus().GetRunning().Epoch).(*k.Epoch)
+			epoch.LastTick = proto.Int64(epoch.GetTickDeadline())
+			epoch.LeaseRemainingMs = proto.Uint32(0)
+			reason := k.StopReason_STOP_REASON_TICK_BUDGET
+			if unsafe {
+				reason = k.StopReason_STOP_REASON_EXTERNAL_PAUSE
+			}
+			n.status.State = &k.Status_Stopped{Stopped: &k.Stopped{Epoch: epoch, Reason: reason.Enum(), StoppedAtUnixMs: proto.Int64(100), ActualPaused: proto.Bool(true), PauseRequested: proto.Bool(true), PauseVerified: proto.Bool(true)}}
+			n.status.ActualPaused = proto.Bool(true)
+			n.status.Context.Tick = proto.Int64(epoch.GetTickDeadline())
+			n.status.NewestCursor = proto.Int64(1) // The poller has not captured the stop yet.
+			r, err := s.RenewEpoch(context.Background())
+			if w.renews != 0 || r.Renewed || (err != nil) != unsafe || s.session.State().Enabled == unsafe {
+				t.Fatal(r, err, w.renews, s.session.State())
+			}
+		})
+	}
+}
+
 func TestClockRenewalRecoversThenValidatesCurrentRunningEpoch(t *testing.T) {
 	s, _, w, start := renewalFixture(t)
 	original := start.Reply.GetReceipt().GetApplied().GetStatus().GetRunning().Epoch

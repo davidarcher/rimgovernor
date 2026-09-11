@@ -100,6 +100,14 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 	if _, err = boundaryContext(status.Context, state.Snapshot); err != nil {
 		return out, s.renewalHold(err)
 	}
+	// A completed finite window needs event review and scheduler cleanup, not a
+	// renewal. Those paths retain the stop evidence before admitting another window.
+	if stopped := status.GetStopped(); stopped != nil && stopped.GetReason() == k.StopReason_STOP_REASON_TICK_BUDGET && status.GetActualPaused() && stopped.GetPauseVerified() {
+		actual := stopped.GetEpoch()
+		if clockCoordinatorSameEpoch(original, actual) && actual.GetRequestedSpeed() == original.GetRequestedSpeed() && actual.GetLastTick() == original.GetTickDeadline() && status.Context.GetTick() >= current.GetTick() && status.Context.GetTick() >= actual.GetLastTick() {
+			return out, nil
+		}
+	}
 	actual := status.GetRunning().GetEpoch()
 	if actual == nil || !clockCoordinatorSameEpoch(original, actual) || actual.GetRequestedSpeed() != original.GetRequestedSpeed() || actual.GetLastTick() < original.GetLastTick() || status.Context.GetTick() < current.GetTick() {
 		return out, s.renewalHold(executor.ErrHeld)
