@@ -15,7 +15,7 @@ from rimgovernor.bridge import bridge_session
 from rimgovernor.bridge_game import BridgeGame
 from rimgovernor.bridge_runtime import BridgeRuntime
 from rimgovernor.campaign_manifest import capture_manifest
-from rimgovernor.headless import isolated_root, prepare_rendered, rendered_headless_mismatch
+from rimgovernor.headless import isolated_root, prepare_rendered
 from rimgovernor.store import Store
 
 
@@ -39,7 +39,7 @@ async def run(args):
                 async def load():
                     await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                         readiness='visual', timeoutMs=90000,
-                        ignoreModCompatibility=rendered_headless_mismatch(root))
+                        ignoreModCompatibility=False)
                     await rt.sync_identity()
                     await rt.supervisor.change('Paused')
                 await load()

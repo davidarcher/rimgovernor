@@ -17,7 +17,7 @@ from fastapi import FastAPI
 from websockets.asyncio.client import connect
 from rimgovernor.bridge import bridge_session, gabs_executable
 from rimgovernor.clock_control import PlayClock
-from rimgovernor.headless import isolated_root, prepare_rendered, rendered_headless_mismatch
+from rimgovernor.headless import isolated_root, prepare_rendered
 from rimgovernor.video_stream import VideoHub, router
 
 
@@ -35,7 +35,7 @@ async def run(args):
                 await bridge.connect()
                 await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                                   readiness='visual', timeoutMs=90000,
-                                  ignoreModCompatibility=rendered_headless_mismatch(root))
+                                  ignoreModCompatibility=False)
                 await PlayClock(bridge).change('Paused')
                 report['input_contracts'] = {}
                 for tool in ('rimworld/click_cell', 'rimworld/drag_cell', 'rimworld/set_hover_target',

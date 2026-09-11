@@ -11,7 +11,7 @@ import time
 from rimgovernor.bridge import bridge_session
 from rimgovernor.clock_control import PlayClock
 from rimgovernor.campaign_manifest import capture_manifest
-from rimgovernor.headless import isolated_root, prepare, prepare_rendered, rendered_headless_mismatch
+from rimgovernor.headless import isolated_root, prepare, prepare_rendered
 
 
 async def run(args):
@@ -19,7 +19,7 @@ async def run(args):
     root = isolated_root(args.source_root, args.output/'bridge')
     config = prepare_rendered(root) if args.rendered else prepare(root)
     game_config = json.loads((config/'config.json').read_text())['games']['rimgovernor-trial']
-    dll = Path(game_config['workingDir'])/'Mods/RimGovernorObservations/BridgeTools/Observations/RimGovernor.Observations.BridgeTools.dll'
+    dll = Path(game_config['workingDir'])/'Mods/RimGovernor/BridgeTools/RimGovernor/RimGovernor.Bridge.dll'
     report = {'outcome': 'failed', 'cases': [], 'started': time.time(),
               'revision': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
               'native_sha256': hashlib.sha256(dll.read_bytes()).hexdigest(),
@@ -46,14 +46,14 @@ async def run(args):
                 await bridge.connect()
                 await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                                   readiness='visual', timeoutMs=90000,
-                                  ignoreModCompatibility=args.rendered and rendered_headless_mismatch(root))
+                                  ignoreModCompatibility=False)
                 clock = PlayClock(bridge)
                 await clock.change('Paused')
                 for speed in ('Normal', 'Fast', 'Superfast'):
                     for budget in (1, 37, 600):
                         await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                                           readiness='visual', timeoutMs=90000,
-                                          ignoreModCompatibility=args.rendered and rendered_headless_mismatch(root))
+                                          ignoreModCompatibility=False)
                         clock = PlayClock(bridge)
                         await clock.change('Paused')
                         start = await clock.change(speed, max_ticks=budget)
@@ -109,7 +109,7 @@ async def run(args):
                                   hostileWithin=40, injuryStopCooldownMs=0)
                 await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                                   readiness='visual', timeoutMs=90000,
-                                  ignoreModCompatibility=args.rendered and rendered_headless_mismatch(root))
+                                  ignoreModCompatibility=False)
                 changed = await stopped()
                 assert changed['stopReason'] == 'session_changed', changed
                 report['cases'].append({'load_change': changed})

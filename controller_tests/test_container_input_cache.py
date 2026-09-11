@@ -25,7 +25,7 @@ def bundle(sources):
 
 def test_content_key_detects_same_size_same_mtime_and_removed_inputs(tmp_path):
     sources = inputs(tmp_path)
-    file = sources[1]/'RimGovernorHeadless/Assemblies/HeadlessRimPatch.dll'
+    file = sources[1]/'RimGovernor/Assemblies/RimGovernor.Runtime.dll'
     before = file.stat()
     original, _ = bundle(sources)
     file.write_bytes(b'other')
@@ -59,9 +59,9 @@ def test_cached_workers_remain_private_and_profile_stays_fresh(tmp_path):
     for name in ('a', 'b'):
         roots.append(stage(snapshot/'game', snapshot/'mods', sources[2], snapshot/'gabs/gabs',
                            tmp_path/name, cache_key=digest(manifest)))
-    dll = 'Mods/RimGovernorHeadless/Assemblies/HeadlessRimPatch.dll'
+    dll = 'Mods/RimGovernor/Assemblies/RimGovernor.Runtime.dll'
     (roots[0]/'game'/dll).write_bytes(b'worker mutation')
-    (sources[1]/'RimGovernorHeadless/Assemblies/HeadlessRimPatch.dll').write_bytes(b'new build')
+    (sources[1]/'RimGovernor/Assemblies/RimGovernor.Runtime.dll').write_bytes(b'new build')
     assert (roots[1]/'game'/dll).read_bytes() == b'first'
     verify(snapshot, digest(manifest))
     (sources[2]/'Saves/RimGovernor-tribal8-baseline.rws').write_bytes(b'new save')

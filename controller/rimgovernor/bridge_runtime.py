@@ -6,7 +6,6 @@ from copy import deepcopy
 from pathlib import Path
 
 from .bridge import bridge_session, gabs_executable
-from .headless import rendered_headless_mismatch
 from .clock_control import PlayClock, HOLD_REASONS
 from .bridge_game import BridgeGame, WRITES, is_write
 from .bridge_observation import observe
@@ -1479,7 +1478,7 @@ class BridgeRuntime:
                 if self.resume and self.fresh:
                     await bridge.call('rimworld/load_game_ready', saveName=checkpoint['save_name'], readiness='visual', timeoutMs=90000, ignoreModCompatibility=False)
                 elif self.fresh:
-                    await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline', readiness='visual', timeoutMs=90000, ignoreModCompatibility=self.headless or rendered_headless_mismatch(self.root))
+                    await bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline', readiness='visual', timeoutMs=90000, ignoreModCompatibility=False)
                 if not self.resume or self.fresh:
                     await bridge.call('rimworld/set_time_speed', speed='Paused', ultraSpeedBoost=False)
                 self.game = BridgeGame(bridge)

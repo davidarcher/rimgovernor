@@ -7,7 +7,7 @@ from pathlib import Path
 
 from rimgovernor.bridge import bridge_session, gabs_executable, runtime_file_read
 from rimgovernor.clock_control import PlayClock
-from rimgovernor.headless import isolated_root, prepare_rendered, rendered_headless_mismatch
+from rimgovernor.headless import isolated_root, prepare_rendered
 
 
 async def run(args):
@@ -44,7 +44,7 @@ async def run(args):
                 await bridge.connect()
                 await read('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                            readiness='visual', timeoutMs=90000,
-                           ignoreModCompatibility=rendered_headless_mismatch(root))
+                           ignoreModCompatibility=False)
                 clock = PlayClock(bridge)
                 await clock.change('Paused')
                 identity = await read('home/colony_identity')

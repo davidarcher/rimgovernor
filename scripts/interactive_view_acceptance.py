@@ -13,7 +13,6 @@ from pathlib import Path
 from fastapi import Request
 import uvicorn
 from rimgovernor.bridge_server import create_app
-from rimgovernor.headless import rendered_headless_mismatch
 
 
 def main():
@@ -112,7 +111,7 @@ def main():
         async with rt.lock:
             result = (await rt.bridge.call('rimworld/load_game_ready', saveName='RimGovernor-tribal8-baseline',
                 readiness='visual', timeoutMs=90000,
-                ignoreModCompatibility=rendered_headless_mismatch(Path(os.environ['RIMGOVERNOR_BRIDGE_ROOT'])))).structuredContent
+                ignoreModCompatibility=False)).structuredContent
             await rt.sync_identity()
         record({'load': result, 'session': rt.context_token})
         return {'session': rt.context_token}

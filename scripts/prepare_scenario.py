@@ -18,7 +18,7 @@ async def run(args):
         'scenario':args.scenario,'count':args.count,'seed':args.seed,'biome':args.biome,
         'difficulty':args.difficulty}}
     installation=Path(json.loads((config/'config.json').read_text())['games']['rimgovernor-trial']['workingDir'])
-    dll=installation/'Mods/RimGovernorObservations/BridgeTools/Observations/RimGovernor.Observations.BridgeTools.dll'
+    dll=installation/'Mods/RimGovernor/BridgeTools/RimGovernor/RimGovernor.Bridge.dll'
     report['fixture_dll_sha256']=hashlib.sha256(dll.read_bytes()).hexdigest()
     async with bridge_session(gabs_executable(root,config),config) as bridge:
         try:

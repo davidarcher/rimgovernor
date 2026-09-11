@@ -30,7 +30,7 @@ async def run(args):
     if args.alternate_save:
         report['alternate_save_sha256'] = hashlib.sha256(args.alternate_save.read_bytes()).hexdigest()
     installed = Path(json.loads((config / 'config.json').read_text())['games']['rimgovernor-trial']['workingDir'])
-    fixture = installed / 'Mods/RimGovernorObservations/BridgeTools/InterruptionFixtures/RimGovernor.InterruptionFixtures.BridgeTools.dll'
+    fixture = installed / 'Mods/RimGovernor/BridgeTools/InterruptionFixtures/RimGovernor.InterruptionFixtures.BridgeTools.dll'
     report['fixture_sha256'] = hashlib.sha256(fixture.read_bytes()).hexdigest()
     def save():
         (args.output / 'result.json').write_text(json.dumps(report, indent=2))

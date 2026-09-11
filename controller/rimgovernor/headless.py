@@ -4,6 +4,43 @@ import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+NATIVE_PACKAGE = 'davidarcher.rimgovernor.native'
+LEGACY_PACKAGES = frozenset(('davidarcher.rimgovernor.observations', 'redeyedev.headlessrim'))
+
+
+def require_native_package(mods: Path) -> None:
+    """Check the complete unified package before preparing a private worker."""
+    package = mods/'RimGovernor'
+    for relative in ('About/About.xml', 'Assemblies/RimGovernor.Runtime.dll',
+                     'BridgeTools/RimGovernor/RimGovernor.Bridge.dll'):
+        if not (package/relative).is_file():
+            raise ValueError('Missing unified native input: '+str(package/relative))
+    if (ET.parse(package/'About/About.xml').getroot().findtext('packageId') or '').casefold() != NATIVE_PACKAGE:
+        raise ValueError('RimGovernor package metadata does not identify the unified native mod')
+    unified = 0
+    for metadata in mods.glob('*/About/About.xml'):
+        identity = (ET.parse(metadata).getroot().findtext('packageId') or '').casefold()
+        unified += identity == NATIVE_PACKAGE
+        if identity in LEGACY_PACKAGES:
+            raise ValueError('Remove split native packages from fresh worker inputs: '+str(metadata.parent.parent))
+    if unified != 1:
+        raise ValueError('Fresh worker inputs require exactly one unified native package')
+
+
+def prepare_native_mod_config(path: Path) -> None:
+    """Enable the same package in normal and batch profiles, without split mods."""
+    mods = ET.parse(path)
+    active = mods.getroot().find('activeMods')
+    if active is None:
+        raise ValueError('Native profile is missing activeMods')
+    required = ('brrainz.harmony', 'brrainz.rimbridgeserver', NATIVE_PACKAGE)
+    for item in list(active):
+        if (item.text or '').casefold() in LEGACY_PACKAGES | set(required):
+            active.remove(item)
+    for identity in required:
+        ET.SubElement(active, 'li').text = identity
+    mods.write(path, encoding='utf8', xml_declaration=True)
+
 
 def _require_owned_launch(game):
     if game.get('launchMode') != 'DirectPath':
@@ -37,19 +74,15 @@ def isolated_root(source, destination):
 
 
 def prepare_rendered(root):
-    """Launch the disposable profile visibly, without headless patches or flags."""
+    """Launch the unified native package without batch-mode flags."""
     root = Path(root).resolve()
     configuration = root/'config'
     config = json.loads((configuration/'config.json').read_text(encoding='utf8'))
     game = config['games']['rimgovernor-trial']
     _require_owned_launch(game)
+    require_native_package(Path(game['workingDir'])/'Mods')
     profile = root/'profile'
-    mods = ET.parse(profile/'Config/ModsConfig.xml')
-    active = mods.getroot().find('activeMods')
-    for item in list(active):
-        if (item.text or '').lower() == 'redeyedev.headlessrim':
-            active.remove(item)
-    mods.write(profile/'Config/ModsConfig.xml', encoding='utf8', xml_declaration=True)
+    prepare_native_mod_config(profile/'Config/ModsConfig.xml')
     game['args'] = ['-savedatafolder='+str(profile), '-logFile', str(root/'Player.log'),
                     '-screen-fullscreen', '0', '-screen-width', '1280', '-screen-height', '720', '-rimgovernor-pause-on-load']
     (configuration/'config.json').write_text(json.dumps(config,indent=2),encoding='utf8')
@@ -61,19 +94,13 @@ def prepare(root):
     config=json.loads((root/'config/config.json').read_text(encoding='utf8'))
     game=config['games']['rimgovernor-trial']
     _require_owned_launch(game)
-    installed=Path(game['workingDir'])/'Mods/RimGovernorHeadless/Assemblies/HeadlessRimPatch.dll'
-    if not installed.is_file():
-        raise ValueError('Build/install the headless test mod with scripts/build_headless.ps1 -Install first')
+    require_native_package(Path(game['workingDir'])/'Mods')
     profile=root/'headless-profile'
     (profile/'Config').mkdir(parents=True,exist_ok=True)
     (profile/'Saves').mkdir(exist_ok=True)
     for name in ('Prefs.xml','ModsConfig.xml'):
         shutil.copy2(root/'profile/Config'/name,profile/'Config'/name)
-    mods=ET.parse(profile/'Config/ModsConfig.xml')
-    active=mods.getroot().find('activeMods')
-    if not any((item.text or '').lower()=='redeyedev.headlessrim' for item in active):
-        ET.SubElement(active,'li').text='redeyedev.headlessrim'
-    mods.write(profile/'Config/ModsConfig.xml',encoding='utf8',xml_declaration=True)
+    prepare_native_mod_config(profile/'Config/ModsConfig.xml')
     baseline='RimGovernor-tribal8-baseline.rws'
     shutil.copy2(root/'profile/Saves'/baseline,profile/'Saves'/baseline)
     game['args']=['-savedatafolder='+str(profile),'-logFile',str(root/'HeadlessPlayer.log'),'-batchmode','-nographics','-rimgovernor-pause-on-load']
@@ -81,16 +108,3 @@ def prepare(root):
     destination.mkdir(exist_ok=True)
     (destination/'config.json').write_text(json.dumps(config,indent=2),encoding='utf8')
     return destination
-
-
-def rendered_headless_mismatch(root):
-    """Allow only the known render-only mod difference in our prepared baseline."""
-    root=Path(root)
-    try:
-        saved=ET.parse(root/'profile/Saves/RimGovernor-tribal8-baseline.rws').getroot()
-        active=ET.parse(root/'profile/Config/ModsConfig.xml').getroot()
-        required={n.text.casefold() for n in saved.findall('./meta/modIds/li') if n.text}
-        enabled={n.text.casefold() for n in active.findall('./activeMods/li') if n.text}
-        return bool(required) and required-enabled=={'redeyedev.headlessrim'}
-    except (OSError,ET.ParseError):
-        return False

@@ -49,7 +49,7 @@ async def run(args):
     try:
         manifest=capture_manifest(Path(__file__).resolve().parents[1],root,config,rt.router.routing.model_dump(mode='json'),
             profile=root/'profile' if rendered else None)
-        manifest['identity_binary_sha256']=manifest['inputs']['artifacts']['identity_dll']
+        manifest['runtime_binary_sha256']=manifest['inputs']['artifacts']['runtime_dll']
         (args.output/'manifest.json').write_text(json.dumps(manifest,indent=2))
         await ready(rt)
         from native_scenario_support import allow_starting_supplies, settle_dispatch

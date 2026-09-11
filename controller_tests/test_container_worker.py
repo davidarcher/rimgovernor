@@ -10,9 +10,10 @@ def inputs(tmp_path):
     game, mods, profile = [tmp_path/name for name in ('game', 'mods', 'profile')]
     for root, name, content in [
         (game, 'RimWorldLinux', b'linux'),
-        (mods, 'RimGovernorHeadless/Assemblies/HeadlessRimPatch.dll', b'first'),
+        (mods, 'RimGovernor/Assemblies/RimGovernor.Runtime.dll', b'first'),
         (mods, 'RimBridgeServer/About/About.xml', b'<ModMetaData/>'),
-        (mods, 'RimGovernorObservations/About/About.xml', b'<ModMetaData/>'),
+        (mods, 'RimGovernor/About/About.xml', b'<ModMetaData><packageId>davidarcher.rimgovernor.native</packageId></ModMetaData>'),
+        (mods, 'RimGovernor/BridgeTools/RimGovernor/RimGovernor.Bridge.dll', b'bridge'),
         (profile, 'Config/Prefs.xml', b'<Prefs/>'),
         (profile, 'Config/ModsConfig.xml', b'<ModsConfigData><activeMods><li>ludeon.rimworld</li></activeMods></ModsConfigData>'),
         (profile, 'Saves/RimGovernor-tribal8-baseline.rws', b'unchanged save'),
@@ -28,8 +29,8 @@ def inputs(tmp_path):
 def test_workers_snapshot_binaries_profiles_and_claims(tmp_path):
     sources = inputs(tmp_path)
     a, b = [stage(*sources, tmp_path/name) for name in ('a', 'b')]
-    dll = Path('game/Mods/RimGovernorHeadless/Assemblies/HeadlessRimPatch.dll')
-    (sources[1]/'RimGovernorHeadless/Assemblies/HeadlessRimPatch.dll').write_bytes(b'next build')
+    dll = Path('game/Mods/RimGovernor/Assemblies/RimGovernor.Runtime.dll')
+    (sources[1]/'RimGovernor/Assemblies/RimGovernor.Runtime.dll').write_bytes(b'next build')
     assert (a/dll).read_bytes() == (b/dll).read_bytes() == b'first'
     (a/dll).write_bytes(b'worker change')
     assert (b/dll).read_bytes() == b'first'
@@ -118,7 +119,6 @@ def test_gc_mitigation_changes_only_private_boot_config(tmp_path):
 def test_rendered_worker_preserves_sources_and_uses_private_display(tmp_path):
     from rimgovernor.virtual_display import DisplaySettings
     sources = inputs(tmp_path)
-    (sources[1]/'RimGovernorHeadless/Assemblies/HeadlessRimPatch.dll').unlink()
     original = (sources[2]/'Config/ModsConfig.xml').read_bytes()
     root = stage(*sources, tmp_path/'rendered', display=DisplaySettings.parse('1600x900'))
     args = json.loads((root/'config/config.json').read_text())['games']['rimgovernor-trial']['args']

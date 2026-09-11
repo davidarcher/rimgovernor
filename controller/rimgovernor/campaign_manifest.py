@@ -79,16 +79,16 @@ def capture_manifest(source, worker_root, configuration, routing, *, profile=Non
     game_root = Path(game['workingDir'])
     if not game_root.is_absolute():
         game_root = (configuration/game_root).resolve()
-    about = ET.parse(source/'integrations/colony-bridge/About/About.xml').getroot()
+    about = ET.parse(source/'integrations/rimgovernor-native/About/About.xml').getroot()
     package = about.findtext('packageId')
-    assembly = ET.parse(source/'integrations/colony-bridge/src/ColonyObservations.csproj').getroot().findtext('PropertyGroup/AssemblyName')
+    assembly = ET.parse(source/'integrations/rimgovernor-native/src/Bridge/RimGovernor.Bridge.csproj').getroot().findtext('PropertyGroup/AssemblyName')
     if not package or not assembly:
-        raise ValueError('Observation package/assembly identity is unavailable')
+        raise ValueError('Unified package/bridge assembly identity is unavailable')
     candidates = []
-    identity_candidates = []
-    identity_assembly = ET.parse(source/'integrations/colony-bridge/src/identity/ColonyIdentity.csproj').getroot().findtext('PropertyGroup/AssemblyName')
-    if not identity_assembly:
-        raise ValueError('Colony identity assembly name is unavailable')
+    runtime_candidates = []
+    runtime_assembly = ET.parse(source/'integrations/rimgovernor-native/src/Runtime/RimGovernor.Runtime.csproj').getroot().findtext('PropertyGroup/AssemblyName')
+    if not runtime_assembly:
+        raise ValueError('Unified runtime assembly name is unavailable')
     for metadata in (game_root/'Mods').glob('*/About/About.xml'):
         try:
             installed_package = ET.parse(metadata).getroot().findtext('packageId')
@@ -96,25 +96,23 @@ def capture_manifest(source, worker_root, configuration, routing, *, profile=Non
             continue
         if installed_package and installed_package.casefold() == package.casefold():
             candidates.extend(metadata.parent.parent.rglob(assembly+'.dll'))
-            identity_candidates.extend(metadata.parent.parent.rglob(identity_assembly+'.dll'))
+            runtime_candidates.extend(metadata.parent.parent.rglob(runtime_assembly+'.dll'))
     if len(candidates) != 1:
-        raise ValueError('Expected one installed production observation assembly, found '+str(len(candidates)))
+        raise ValueError('Expected one installed unified bridge assembly, found '+str(len(candidates)))
     profile = Path(profile) if profile is not None else root/'headless-profile'
-    if len(identity_candidates) != 1:
-        raise ValueError('Expected one installed colony identity assembly')
+    if len(runtime_candidates) != 1:
+        raise ValueError('Expected one installed unified runtime assembly')
     paths = {
         'baseline_save': profile/'Saves/RimGovernor-tribal8-baseline.rws',
         'profile_preferences': profile/'Config/Prefs.xml',
         'profile_mods': profile/'Config/ModsConfig.xml',
         'gabs': gabs_executable(root, configuration),
-        'observations_dll': candidates[0],
-        'identity_dll': identity_candidates[0],
+        'bridge_dll': candidates[0],
+        'runtime_dll': runtime_candidates[0],
     }
-    if '-nographics' in game.get('args',[]):
-        paths['headless_dll']=game_root/'Mods/RimGovernorHeadless/Assemblies/HeadlessRimPatch.dll'
-    inputs = dict(version=3, source=snapshot_source(source) if source_snapshot else tracked_source(source), inference=routing,
-                  observations_package=package, observations_assembly=assembly,
+    inputs = dict(version=4, source=snapshot_source(source) if source_snapshot else tracked_source(source), inference=routing,
+                  native_package=package, bridge_assembly=assembly, runtime_assembly=runtime_assembly,
                   artifacts={key: file_hash(path) for key, path in paths.items()})
     return dict(fingerprint=_digest(inputs), inputs=inputs,
                 locations={key: str(path.resolve()) for key, path in paths.items()},
-                scope='Tracked working-tree bytes and listed untracked code, effective inference configuration, prepared fixture/profile, GABS, installed observation and colony identity assemblies, and headless assembly for no-graphics launches. Model weight bytes and other installed mods are not fingerprinted.')
+                scope='Tracked working-tree bytes and listed untracked code, effective inference configuration, prepared fixture/profile, GABS and unified bridge/runtime assemblies. The runtime contains identity and batch-gated headless behavior. Model weight bytes and other installed mods are not fingerprinted.')

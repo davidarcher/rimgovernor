@@ -26,7 +26,7 @@ def run(args):
         baseline = args.profile.resolve() / 'Saves/RimGovernor-tribal8-baseline.rws'
         if baseline.is_file():
             report['baseline'] = dict(path=str(baseline), sha256=hashlib.sha256(baseline.read_bytes()).hexdigest())
-        required = ['RimGovernor.Observations.BridgeTools.dll', 'RimGovernor.ColonyIdentity.dll', 'HeadlessRimPatch.dll']
+        required = ['RimGovernor.Bridge.dll', 'RimGovernor.Runtime.dll']
         if args.quests or args.matrix or args.emergency or args.multimap or args.quest_trade or args.expired or args.failed:
             required.append('RimGovernor.InterruptionFixtures.BridgeTools.dll')
         report['assemblies'] = {}

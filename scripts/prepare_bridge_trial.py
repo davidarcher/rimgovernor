@@ -5,11 +5,10 @@ Does not edit the normal game profile, download software, or install mods.
 import argparse
 import hashlib
 import json
+import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
-
-BASELINE_SHA256 = "e9402197cb5c7213367c7f6a2a6121294eb419d964f46ded256dc7a1da65388c"
-
+from rimgovernor.headless import NATIVE_PACKAGE, require_native_package
 
 def prepare(source: Path, game: Path, root: Path, observations: bool = False):
     source, game, root = source.resolve(), game.resolve(), root.resolve()
@@ -21,8 +20,6 @@ def prepare(source: Path, game: Path, root: Path, observations: bool = False):
         raise ValueError("Install RimBridgeServer in the specified RimWorld Mods folder first")
     save = source / "Saves/RimGovernor-tribal8-baseline.rws"
     original = save.read_bytes()
-    if hashlib.sha256(original).hexdigest() != BASELINE_SHA256:
-        raise ValueError("Baseline differs from the checkpointed eight-tribal fixture")
     for directory in [profile / "Config", profile / "Saves", root / "config"]:
         directory.mkdir(parents=True, exist_ok=True)
     mods = ET.parse(source / "Config/ModsConfig.xml")
@@ -33,9 +30,8 @@ def prepare(source: Path, game: Path, root: Path, observations: bool = False):
             active.remove(item)
     ET.SubElement(active, "li").text = "brrainz.rimbridgeserver"
     if observations:
-        if not (game / "Mods/RimGovernorObservations/About/About.xml").is_file():
-            raise ValueError("Install the built observation companion before enabling it")
-        ET.SubElement(active, "li").text = "davidarcher.rimgovernor.observations"
+        require_native_package(game/'Mods')
+        ET.SubElement(active, "li").text = NATIVE_PACKAGE
     mods.write(profile / "Config/ModsConfig.xml", encoding="utf8", xml_declaration=True)
     prefs = ET.parse(source / "Config/Prefs.xml")
     for name, value in [("runInBackground", "True"), ("devMode", "False")]:
@@ -44,27 +40,13 @@ def prepare(source: Path, game: Path, root: Path, observations: bool = False):
             element = ET.SubElement(prefs.getroot(), name)
         element.text = value
     prefs.write(profile / "Config/Prefs.xml", encoding="utf8", xml_declaration=True)
-    tree = ET.fromstring(original)
-    removed = []
-    for parent in tree.iter():
-        for child in list(parent):
-            if child.get("Class") == "RIMAPI.RIMAPI_GameComponent":
-                parent.remove(child)
-                removed.append("RIMAPI.RIMAPI_GameComponent")
-    for tag in ["modIds", "modNames"]:
-        parent = tree.find("meta/" + tag)
-        if parent is not None:
-            for child in list(parent):
-                if "rimapi" in (child.text or "").lower():
-                    parent.remove(child)
-    ET.ElementTree(tree).write(profile / "Saves" / save.name, encoding="utf8", xml_declaration=True)
+    shutil.copy2(save, profile / "Saves" / save.name)
     config = {"version": "1.0", "games": {"rimgovernor-trial": {
         "id": "rimgovernor-trial", "name": "RimGovernor bridge trial", "launchMode": "DirectPath",
         "target": str(executable), "workingDir": str(game),
         "args": ["-savedatafolder=" + str(profile), "-logFile", str(root / "Player.log")]}}}
     (root / "config/config.json").write_text(json.dumps(config, indent=2), encoding="utf8")
-    (root / "fixture.json").write_text(json.dumps({"source_sha256": BASELINE_SHA256,
-        "removed_components": removed, "profile": str(profile)}, indent=2), encoding="utf8")
+    (root / "fixture.json").write_text(json.dumps({"source_sha256": hashlib.sha256(original).hexdigest(), "profile": str(profile)}, indent=2), encoding="utf8")
     print(f"Prepared {profile}; normal profile untouched.")
 
 

@@ -9,7 +9,7 @@ import time
 import re
 import xml.etree.ElementTree as ET
 
-from .headless import prepare, prepare_rendered
+from .headless import prepare, prepare_rendered, require_native_package
 from .virtual_display import DisplaySettings, run_display
 
 
@@ -26,15 +26,14 @@ def stage(game, mods, profile, gabs, root, game_root=None, unity_gc_time_slice=N
             raise ValueError('Worker output must be separate from every input')
     required = [game/'RimWorldLinux', gabs, profile/'Config/Prefs.xml',
                 profile/'Config/ModsConfig.xml', profile/'Saves/RimGovernor-tribal8-baseline.rws',
-                mods/'RimBridgeServer/About/About.xml', mods/'RimGovernorObservations/About/About.xml']
-    if display is None:
-        required.append(mods/'RimGovernorHeadless/Assemblies/HeadlessRimPatch.dll')
+                mods/'RimBridgeServer/About/About.xml']
     boot_config = game/'RimWorldLinux_Data/boot.config'
     if unity_gc_time_slice is not None:
         required.append(boot_config)
     for path in required:
         if not path.is_file():
             raise ValueError(f'Missing Linux worker input: {path}')
+    require_native_package(mods)
     original_boot = boot_config.read_bytes() if boot_config.is_file() else None
     if unity_gc_time_slice is not None and not re.search(rb'^gc-max-time-slice=\d+\r?$', original_boot, re.M):
         raise ValueError('Expected an existing Unity gc-max-time-slice setting')

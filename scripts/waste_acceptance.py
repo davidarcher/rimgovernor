@@ -21,7 +21,7 @@ async def run():
     source = Path(__file__).resolve().parents[1]
     report['source_sha256'] = {str(p.relative_to(source)): hashlib.sha256(p.read_bytes()).hexdigest()
         for p in [*sorted((source/'controller/rimgovernor').rglob('*.py')),
-                  *sorted((source/'integrations/colony-bridge/src').rglob('*.cs')), Path(__file__)]}
+                  *sorted((source/'integrations/rimgovernor-native/src').rglob('*.cs')), Path(__file__)]}
     def record(name, passed, **evidence):
         report['cases'].append(dict(name=name, passed=bool(passed), **evidence))
         (root/'waste-result.json').write_text(json.dumps(report, indent=2))

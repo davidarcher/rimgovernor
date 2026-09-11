@@ -19,10 +19,10 @@ def fixture(tmp_path):
     source, root, game = tmp_path/'source', tmp_path/'worker', tmp_path/'configured-game'
     write(source/'controller/example.py', 'original')
     metadata = '<ModMetaData><packageId>test.observations</packageId></ModMetaData>'
-    write(source/'integrations/colony-bridge/About/About.xml', metadata)
-    write(source/'integrations/colony-bridge/src/ColonyObservations.csproj',
+    write(source/'integrations/rimgovernor-native/About/About.xml', metadata)
+    write(source/'integrations/rimgovernor-native/src/Bridge/RimGovernor.Bridge.csproj',
           '<Project><PropertyGroup><AssemblyName>Test.Observations</AssemblyName></PropertyGroup></Project>')
-    write(source/'integrations/colony-bridge/src/identity/ColonyIdentity.csproj',
+    write(source/'integrations/rimgovernor-native/src/Runtime/RimGovernor.Runtime.csproj',
           '<Project><PropertyGroup><AssemblyName>Test.Identity</AssemblyName></PropertyGroup></Project>')
     for args in (['init', '-q'], ['add', '.'],
                  ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'fixture']):
@@ -65,7 +65,7 @@ def test_packaged_source_tracks_bytes_without_claiming_git_revision(tmp_path):
     assert snapshot_source(tmp_path)['content_sha256']!=before['content_sha256']
 
 
-@pytest.mark.parametrize('changed', ['source', 'baseline_save', 'observations_dll', 'identity_dll', 'gabs',
+@pytest.mark.parametrize('changed', ['source', 'baseline_save', 'bridge_dll', 'runtime_dll', 'gabs',
                                     'profile_preferences', 'profile_mods', 'temperature'])
 def test_input_changes_break_manifest_identity(tmp_path, changed):
     source, root, config, routing = fixture(tmp_path)
@@ -88,8 +88,8 @@ def test_input_changes_break_manifest_identity(tmp_path, changed):
 def test_missing_native_input_cannot_produce_manifest(tmp_path):
     source, root, config, routing = fixture(tmp_path)
     manifest = capture_manifest(source, root, config, routing)
-    Path(manifest['locations']['observations_dll']).unlink()
-    with pytest.raises(ValueError, match='production observation assembly'):
+    Path(manifest['locations']['bridge_dll']).unlink()
+    with pytest.raises(ValueError, match='unified bridge assembly'):
         capture_manifest(source, root, config, routing)
 
 
@@ -106,14 +106,14 @@ def test_tracked_deletion_changes_source_hash_but_ignored_outputs_do_not(tmp_pat
 def test_identity_assembly_must_be_unique_and_present(tmp_path):
     source, root, config, routing = fixture(tmp_path)
     manifest = capture_manifest(source, root, config, routing)
-    dll = Path(manifest['locations']['identity_dll'])
+    dll = Path(manifest['locations']['runtime_dll'])
     duplicate = dll.parent/'duplicate'/dll.name
     write(duplicate, 'another identity build')
-    with pytest.raises(ValueError, match='one installed colony identity'):
+    with pytest.raises(ValueError, match='one installed unified runtime'):
         capture_manifest(source, root, config, routing)
     duplicate.unlink()
     dll.unlink()
-    with pytest.raises(ValueError, match='one installed colony identity'):
+    with pytest.raises(ValueError, match='one installed unified runtime'):
         capture_manifest(source, root, config, routing)
 
 
@@ -126,19 +126,23 @@ def test_untracked_executable_source_changes_manifest(tmp_path):
     assert after['content_sha256']!=before['content_sha256']
 
 
-def test_headless_binary_is_required_and_changes_campaign_identity(tmp_path):
+@pytest.mark.parametrize('batch', [False, True])
+def test_runtime_binary_is_required_for_normal_and_batch_campaigns(tmp_path, batch):
     source,root,config,routing=fixture(tmp_path)
     data=json.loads((config/'config.json').read_text())
-    data['games']['rimgovernor-trial']['args']=['-batchmode','-nographics']
+    data['games']['rimgovernor-trial']['args']=['-batchmode','-nographics'] if batch else []
     write(config/'config.json',json.dumps(data))
-    with pytest.raises(FileNotFoundError):capture_manifest(source,root,config,routing)
-    dll=Path(data['games']['rimgovernor-trial']['workingDir'])/'Mods/RimGovernorHeadless/Assemblies/HeadlessRimPatch.dll'
-    write(dll,'old headless binary')
     before=capture_manifest(source,root,config,routing)
-    write(dll,'current headless binary')
+    dll=Path(before['locations']['runtime_dll'])
+    write(dll,'current unified runtime')
     after=capture_manifest(source,root,config,routing)
-    assert before['inputs']['artifacts']['headless_dll']!=after['inputs']['artifacts']['headless_dll']
+    assert before['inputs']['artifacts']['runtime_dll']!=after['inputs']['artifacts']['runtime_dll']
     assert before['fingerprint']!=after['fingerprint']
+    assert 'headless_dll' not in after['inputs']['artifacts']
+    assert after['inputs']['version']==4
+    dll.unlink()
+    with pytest.raises(ValueError, match='one installed unified runtime'):
+        capture_manifest(source,root,config,routing)
 
 
 def test_container_manifest_hashes_actual_packaged_source_without_git(tmp_path,monkeypatch):
