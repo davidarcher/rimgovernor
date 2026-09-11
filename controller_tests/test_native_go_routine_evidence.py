@@ -27,6 +27,16 @@ def test_shell_geometry_requires_complete_perimeter_and_south_door():
         with pytest.raises(AssertionError): probe.shell_geometry(changed)
 
 
+def test_operation_retention_rejects_history_loss_and_duplicate_pages():
+    history = []
+    probe.append_operation_history(history, [{'Sequence': 24}, {'Sequence': 25}], 23)
+    probe.append_operation_history(history, [], 23)
+    probe.append_operation_history(history, [{'Sequence': 26}], 23)
+    for batch in [[{'Sequence': 26}], [{'Sequence': 28}], [{'Sequence': 28}, {'Sequence': 27}]]:
+        with pytest.raises(AssertionError): probe.append_operation_history(history, batch, 23)
+        assert [r['Sequence'] for r in history] == [24, 25, 26]
+
+
 def test_routine_medical_evidence_preserves_care_and_unknowns():
     pawn = {"dead": False, "downed": False, "health": {"bleeding": False, "needsTend": True}}
     reply = {"observed": {"colonists": {"pawns": [pawn], "completeness": {

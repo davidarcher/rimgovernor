@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -225,5 +226,35 @@ func TestShelterRoofingBudgetRequiresObservedCompletionAndDoesNotRenew(t *testin
 	current.Direction++
 	if shelterNativeWorkTicks(plan, current, 100) != 0 {
 		t.Fatal("old direction renewed roofing budget")
+	}
+}
+
+func TestRoutineShelterManualCancelsWholePendingShell(t *testing.T) {
+	r, db, n := shelterFixture(t)
+	// This case journals cancellation of 32 dependent actions under race detection.
+	r.reviewer.player.config.CallTimeout = 5 * time.Second
+	r.reviewer.player.config.JournalTimeout = 5 * time.Second
+	ctx := context.Background()
+	result, err := r.Step(ctx)
+	if err != nil || !result.Decision.Admitted {
+		t.Fatal(result, err)
+	}
+	request := store.ControlRequest{RequestID: "manual-shell", Kind: store.ManualControl, World: playerWorld(result.Decision.Goal.Goal.Snapshot)}
+	if _, err := r.reviewer.player.Manual(ctx, request); err != nil {
+		t.Fatal(err)
+	}
+	plan, err := db.LoadPlan(ctx, result.Decision.Goal.Methods[0].Plan)
+	if err != nil || len(plan.Progress) != 32 {
+		t.Fatal(plan, err)
+	}
+	for _, p := range plan.Progress {
+		if p.View().Stage != domain.Cancelled || p.View().Attempt != 0 {
+			t.Fatal(p)
+		}
+	}
+	reads := n.reads
+	again, err := r.Step(ctx)
+	if err != nil || again.Reason != BuildingMethodDisabled || again.NativeWorkTicks != 0 || n.reads != reads {
+		t.Fatal(again, err, n.reads)
 	}
 }

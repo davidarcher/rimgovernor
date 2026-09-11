@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from contextlib import asynccontextmanager
 import hashlib
 import json
 import math
@@ -59,6 +60,50 @@ def audit_routine(events, baseline, capabilities, *, restart):
     if not restart:
         assert "rimgovernor/observations_read_colony_facts" in names
     return names
+
+
+def append_operation_history(history, batch, baseline):
+    cursor = history[-1]['Sequence'] if history else baseline
+    assert len(history) + len(batch) <= 100000, 'Operation history exceeds scenario bound'
+    assert [r['Sequence'] for r in batch] == list(range(cursor + 1, cursor + 1 + len(batch))), 'Operation history gap or duplicate'
+    history.extend(batch)
+
+
+@asynccontextmanager
+async def retain_operation_history(gabs, configuration, evidence, baseline, *, enabled):
+    history = []
+    if not enabled:
+        yield history
+        return
+    async with bridge_session(gabs, configuration) as bridge:
+        await bridge.connect()
+        stop = asyncio.Event()
+
+        async def drain():
+            for _ in range(20):
+                cursor = history[-1]['Sequence'] if history else baseline
+                batch = payload(await evidence.call(bridge, f'live-events-{cursor}', 'rimbridge/list_operation_events', {
+                    'afterSequence': cursor, 'limit': 5000, 'includeDiagnostics': True}))['events']
+                append_operation_history(history, batch, baseline)
+                if len(batch) < 5000:
+                    return
+            raise AssertionError('Operation history drain exceeds bounded pagination')
+
+        async def collect():
+            while not stop.is_set():
+                await drain()
+                try:
+                    await asyncio.wait_for(stop.wait(), 10)
+                except TimeoutError:
+                    pass
+
+        task = asyncio.create_task(collect())
+        try:
+            yield history
+        finally:
+            stop.set()
+            await task
+            await drain()
 
 
 def audit_resource_rules(plan, names):
@@ -197,14 +242,14 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
         async def wire(bridge, label, name, request):
             return proto(payload(await evidence.call(bridge, label, "rimgovernor/" + name, {"request": json.dumps(request)})))
 
-        async def capture(bridge, label, baseline=None, restart=False):
+        async def capture(bridge, label, baseline=None, restart=False, retained=()):
             catalog = payload(await evidence.call(bridge, label + "-capabilities", "rimbridge/list_capabilities", {"limit": 10000, "includeParameters": False}))
             assert catalog["success"] and not catalog["truncated"]
             caps = {r["id"]: set(r["aliases"]) for r in catalog["capabilities"]}
             request = {"limit": 5000, "includeDiagnostics": True}
             if baseline is not None:
-                request["afterSequence"] = baseline
-            rows = []
+                request["afterSequence"] = retained[-1]['Sequence'] if retained else baseline
+            rows = list(retained)
             for page in range(20):
                 batch = payload(await evidence.call(bridge, label + f"-events-{page}", "rimbridge/list_operation_events", request))["events"]
                 rows.extend(batch)
@@ -292,7 +337,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             expected_food = 'deficit' if food['readable'] and food['runwayDays'] is not None and food['runwayDays'] < 3 else 'unknown'
             baseline = await capture(bridge, "setup")
 
-        async with service(private, gabs, configuration, profile, database, output / "operate", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods, routine_cooking=cooking_methods or bool(resource_rules), routine_shelter=shelter_methods, resource_rules=resource_rules) as http:
+        async with retain_operation_history(gabs, configuration, evidence, baseline, enabled=shelter_methods) as retained, service(private, gabs, configuration, profile, database, output / "operate", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods, routine_cooking=cooking_methods or bool(resource_rules), routine_shelter=shelter_methods, resource_rules=resource_rules) as http:
             await poll(http, "/api/state", lambda v: v.get("connected") and not v.get("game", {}).get("stale", True))
             assert not (await http("GET", "/api/player/control"))["state"]["enabled"]
             building = http_building(prepared['sites'][0])
@@ -364,7 +409,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
 
         async with bridge_session(gabs, configuration) as bridge:
             await bridge.connect()
-            await capture(bridge, "operate", baseline)
+            await capture(bridge, "operate", baseline, retained=retained)
             if resource_rules:
                 audit_resource_rules(report['resource_policy_pending_plan'], report['traces']['operate'])
                 report['resource_policy_no_orders'] = True
