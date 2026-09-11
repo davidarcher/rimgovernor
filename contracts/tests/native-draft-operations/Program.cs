@@ -28,6 +28,8 @@ internal static class Program
     private static object Snapshot(bool drafted,object? owner=null) {
         var facts=Construct("NativePawnFacts");
         Field(facts,"PawnId","Human1");Field(facts,"Drafted",drafted);Field(facts,"Spawned",true);Field(facts,"PlayerControlled",true);
+        Field(facts,"Drafter",System.Runtime.Serialization.FormatterServices.GetUninitializedObject(
+            AppDomain.CurrentDomain.GetAssemblies().Single(a=>a.GetName().Name=="Assembly-CSharp").GetType("RimWorld.Pawn_DraftController",true)!));
         var claim=owner==null?null:Construct("NativeDraftClaim","claim-1",owner);
         return Construct("NativePawnSnapshot","native-token",facts,claim);
     }

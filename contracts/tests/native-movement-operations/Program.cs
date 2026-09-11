@@ -27,6 +27,8 @@ internal static class Program
         var owner=Wire("Authority.Owner","{\"controllerSessionId\":\"owner\",\"playerDirection\":\"1\"}");
         var other=Wire("Authority.Owner","{\"controllerSessionId\":\"owner\",\"playerDirection\":\"2\"}");
         var facts=New("NativePawnFacts");Field(facts,"Spawned",true);Field(facts,"PlayerControlled",true);Field(facts,"Drafted",true);
+        Field(facts,"Drafter",System.Runtime.Serialization.FormatterServices.GetUninitializedObject(
+            AppDomain.CurrentDomain.GetAssemblies().Single(a=>a.GetName().Name=="Assembly-CSharp").GetType("RimWorld.Pawn_DraftController",true)!));
         var claim=New("NativeDraftClaim","claim",owner);var snapshot=New("NativePawnSnapshot","token",facts,claim);
         Check((bool)Call("NativeMovementOperations","Owns",snapshot,owner),"Exact eligible owner accepted");
         Check(!(bool)Call("NativeMovementOperations","Owns",snapshot,other),"New direction cannot adopt prior claim");

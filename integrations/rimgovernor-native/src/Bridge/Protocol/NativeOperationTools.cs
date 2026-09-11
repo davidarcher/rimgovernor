@@ -21,6 +21,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeConstructionRecord> Construction = new Dictionary<Common.AttemptKey, NativeConstructionRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeDraftRecord> Drafts = new Dictionary<Common.AttemptKey, NativeDraftRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeMovementRecord> Movements = new Dictionary<Common.AttemptKey, NativeMovementRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeCombatRecord> Combat = new Dictionary<Common.AttemptKey, NativeCombatRecord>();
         private NativeOperationState(Common.Identity identity)
         { colony = identity.ColonyId; load = identity.LoadToken; Ledger = new NativeAttemptLedger(identity); }
         internal static bool TryGet(Common.Identity identity, out NativeOperationState state)
@@ -40,7 +41,7 @@ namespace HomeBridge.BridgeTools
 
     public sealed class NativeOperationTools
     {
-        public NativeOperationTools() { NativeConstructionTracking.Install(); NativePawnControlState.Initialize(); }
+        public NativeOperationTools() { NativeConstructionTracking.Install(); NativePawnControlState.Initialize(); NativeCombatCausality.Initialize(); }
 
         [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "Admit typed PlaceBuilding, temporary owned SetDrafted or exact MovePawn under current native authority. Movement requires an existing owned draft. Exact retries return their original receipt.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ExecuteReply.", Always = true)]
@@ -71,6 +72,8 @@ namespace HomeBridge.BridgeTools
                 return NativeDraftOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.MovePawn)
                 return NativeMovementOperations.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AttackTarget)
+                return NativeCombatOperations.Execute(state, request, context);
             if (request.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
                 return Refuse(Common.FailureCode.Unsupported, "This native adapter implements PlaceBuilding, temporary owned SetDrafted and exact owned MovePawn.");
             if (!NativeConstructionTracking.Ready)
@@ -140,6 +143,8 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeDraftOperations.Preview(parsed.Operation.SetDrafted, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.MovePawn)
                     return ProtoBoundary.Encode(NativeMovementOperations.Preview(parsed.Operation.MovePawn, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AttackTarget)
+                    return ProtoBoundary.Encode(NativeCombatOperations.Preview(parsed.Operation.AttackTarget, context));
                 if (parsed.Operation == null || parsed.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements PlaceBuilding, temporary SetDrafted and exact owned MovePawn.") });
                 NativeConstructionPlan plan; RimGovernor.Protocol.Placement.PlacementEvaluated preview;
@@ -192,6 +197,9 @@ namespace HomeBridge.BridgeTools
                 {
                     var lookup = state.Ledger.Lookup(parsed.Attempt, context);
                     if (lookup.Failure != null) return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = lookup.Failure });
+                    NativeCombatRecord combat;
+                    if (state.Combat.TryGetValue(parsed.Attempt, out combat))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = combat.Observe(parsed.Attempt, context) }));
                     NativeMovementRecord movement;
                     if (state.Movements.TryGetValue(parsed.Attempt, out movement))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = movement.Observe(parsed.Attempt, context) }));
