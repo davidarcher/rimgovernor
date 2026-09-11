@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
@@ -38,56 +37,56 @@ func TestClockJournalReopenAndImmutableEvidence(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "clock.db")
 	s := open(t, path)
-	input := clockIntent("start")
+	input := clockIntent(clockTestID(t, s, "start"))
 	v, created, err := s.PrepareClock(ctx, input)
 	if err != nil || !created || v.Phase != ClockPrepared {
 		t.Fatal(v, created, err)
 	}
 	input.Command.Start.Policy.AcknowledgedHostileIds = []string{"mutated"}
-	replay, created, err := s.PrepareClock(ctx, clockIntent("start"))
+	replay, created, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "start")))
 	if err != nil || created || !proto.Equal(v.NativeAttempt, replay.NativeAttempt) {
 		t.Fatal(replay, err)
 	}
 	if _, _, err = s.PrepareClock(ctx, input); !errors.Is(err, ErrConflict) {
 		t.Fatal(err)
 	}
-	if _, err = s.RecordClockReply(ctx, "start", clockApplied(v)); err == nil {
+	if _, err = s.RecordClockReply(ctx, clockTestID(t, s, "start"), clockApplied(v)); err == nil {
 		t.Fatal("reply before dispatch")
 	}
-	if v, err = s.DispatchClock(ctx, "start"); err != nil {
+	if v, err = s.DispatchClock(ctx, clockTestID(t, s, "start")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.DispatchClock(ctx, "start"); !errors.Is(err, ErrConflict) {
+	if _, err = s.DispatchClock(ctx, clockTestID(t, s, "start")); !errors.Is(err, ErrConflict) {
 		t.Fatal("dispatch replay authorized", err)
 	}
-	if _, err = s.MarkClockUncertain(ctx, "start"); err != nil {
+	if _, err = s.MarkClockUncertain(ctx, clockTestID(t, s, "start")); err != nil {
 		t.Fatal(err)
 	}
 	if err = s.Close(); err != nil {
 		t.Fatal(err)
 	}
 	s = open(t, path)
-	v, err = s.LookupClockAttempt(ctx, "start")
+	v, err = s.LookupClockAttempt(ctx, clockTestID(t, s, "start"))
 	if err != nil || v.Phase != ClockUncertain || v.Reply != nil {
 		t.Fatal(v, err)
 	}
 	reply := clockApplied(v)
-	saved, err := s.RecordClockReply(ctx, "start", reply)
+	saved, err := s.RecordClockReply(ctx, clockTestID(t, s, "start"), reply)
 	if err != nil || saved.Phase != ClockApplied {
 		t.Fatal(saved, err)
 	}
 	reply.GetReceipt().Attempt.ActionId = proto.String("foreign")
-	current, err := s.LookupClockAttempt(ctx, "start")
+	current, err := s.LookupClockAttempt(ctx, clockTestID(t, s, "start"))
 	if err != nil || !proto.Equal(saved.Reply, current.Reply) {
 		t.Fatal(current, err)
 	}
-	if _, err = s.RecordClockReply(ctx, "start", current.Reply); err != nil {
+	if _, err = s.RecordClockReply(ctx, clockTestID(t, s, "start"), current.Reply); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.MarkClockUncertain(ctx, "start"); !errors.Is(err, ErrConflict) {
+	if _, err = s.MarkClockUncertain(ctx, clockTestID(t, s, "start")); !errors.Is(err, ErrConflict) {
 		t.Fatal(err)
 	}
-	if _, err = s.RecordClockReply(ctx, "start", reply); err == nil {
+	if _, err = s.RecordClockReply(ctx, clockTestID(t, s, "start"), reply); err == nil {
 		t.Fatal("conflicting terminal overwritten")
 	}
 }
@@ -103,30 +102,30 @@ func TestClockReplyClassificationAndOriginalEpoch(t *testing.T) {
 		{"conflict", &k.ControlReply{Outcome: &k.ControlReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT.Enum()}}}, ClockUncertain},
 		{"pending", &k.ControlReply{Outcome: &k.ControlReply_LongEventPending{LongEventPending: &k.LongEventPending{}}}, ClockRefused},
 	} {
-		if _, _, err := s.PrepareClock(ctx, clockIntent(test.id)); err != nil {
+		if _, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, test.id))); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := s.DispatchClock(ctx, test.id); err != nil {
+		if _, err := s.DispatchClock(ctx, clockTestID(t, s, test.id)); err != nil {
 			t.Fatal(err)
 		}
-		got, err := s.RecordClockReply(ctx, test.id, test.reply)
+		got, err := s.RecordClockReply(ctx, clockTestID(t, s, test.id), test.reply)
 		if err != nil || got.Phase != test.phase {
 			t.Fatal(got, err)
 		}
 		if test.phase == ClockUncertain {
-			got, err = s.MarkClockUncertain(ctx, test.id)
+			got, err = s.MarkClockUncertain(ctx, clockTestID(t, s, test.id))
 			if err != nil || !proto.Equal(got.Reply, test.reply) {
 				t.Fatal(got, err)
 			}
 		}
 	}
-	start, _, err := s.PrepareClock(ctx, clockIntent("original"))
+	start, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "original")))
 	if err != nil {
 		t.Fatal(err)
 	}
 	epoch := clockApplied(start).GetReceipt().GetApplied().GetStatus().GetRunning().Epoch
 	for _, kind := range []string{"renew", "speed"} {
-		intent := clockIntent(kind)
+		intent := clockIntent(clockTestID(t, s, kind))
 		intent.Command = bridge.ClockCommand{}
 		if kind == "renew" {
 			intent.Command.Renew = &bridge.ClockRenew{Original: epoch, LeaseMS: 2000}
@@ -137,10 +136,10 @@ func TestClockReplyClassificationAndOriginalEpoch(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err = s.DispatchClock(ctx, kind); err != nil {
+		if _, err = s.DispatchClock(ctx, clockTestID(t, s, kind)); err != nil {
 			t.Fatal(err)
 		}
-		if _, err = s.RecordClockReply(ctx, kind, clockApplied(v)); err != nil {
+		if _, err = s.RecordClockReply(ctx, clockTestID(t, s, kind), clockApplied(v)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -148,7 +147,7 @@ func TestClockReplyClassificationAndOriginalEpoch(t *testing.T) {
 func TestClockNamespaceBoundsAndRollback(t *testing.T) {
 	ctx := context.Background()
 	s, _ := fixture(t)
-	v, _, err := s.PrepareClock(ctx, clockIntent("z"))
+	v, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "z")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,23 +165,23 @@ func TestClockNamespaceBoundsAndRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 	tx.Rollback()
-	if _, _, err = s.PrepareClock(ctx, clockIntent("a")); err != nil {
+	if _, _, err = s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "a"))); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.LoadClockAttempts(ctx, 1); err == nil {
 		t.Fatal("catalog silently truncated")
 	}
 	all, err := s.LoadClockAttempts(ctx, 2)
-	if err != nil || len(all) != 2 || all[0].Intent.RequestID != "a" {
+	if err != nil || len(all) != 2 || all[0].Intent.RequestID != clockTestID(t, s, "z") {
 		t.Fatal(all, err)
 	}
 	if _, err = s.db.Exec("CREATE TRIGGER clock_fail BEFORE UPDATE ON clock_attempts BEGIN SELECT RAISE(ABORT,'failure'); END"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.DispatchClock(ctx, "a"); err == nil {
+	if _, err = s.DispatchClock(ctx, clockTestID(t, s, "a")); err == nil {
 		t.Fatal("transaction failure ignored")
 	}
-	got, err := s.LookupClockAttempt(ctx, "a")
+	got, err := s.LookupClockAttempt(ctx, clockTestID(t, s, "a"))
 	if err != nil || got.Phase != ClockPrepared {
 		t.Fatal(got, err)
 	}
@@ -190,24 +189,25 @@ func TestClockNamespaceBoundsAndRollback(t *testing.T) {
 func TestClockMalformedPersistedEvidenceAndCancelledContention(t *testing.T) {
 	ctx := context.Background()
 	s, path := fixture(t)
-	if _, _, err := s.PrepareClock(ctx, clockIntent("one")); err != nil {
+	if _, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "one"))); err != nil {
 		t.Fatal(err)
 	}
 	other := open(t, path)
+	blockedID := clockTestID(t, s, "blocked")
 	tx, err := s.begin(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	cancelled, cancel := context.WithTimeout(ctx, 30*time.Millisecond)
 	defer cancel()
-	if _, _, err = other.PrepareClock(cancelled, clockIntent("blocked")); err == nil {
+	if _, _, err = other.PrepareClock(cancelled, clockIntent(blockedID)); err == nil {
 		t.Fatal("contention ignored cancellation")
 	}
 	tx.Rollback()
-	if _, err = s.db.Exec("UPDATE clock_attempts SET payload=? WHERE request_id='one'", []byte(`{}`)); err != nil {
+	if _, err = s.db.Exec("UPDATE clock_attempts SET payload=? WHERE request_id=?", []byte(`{}`), clockTestID(t, s, "one")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.LookupClockAttempt(ctx, "one"); err == nil {
+	if _, err = s.LookupClockAttempt(ctx, clockTestID(t, s, "one")); err == nil {
 		t.Fatal("malformed intent accepted")
 	}
 	if _, err = s.LoadClockAttempts(ctx, 10); err == nil {
@@ -218,16 +218,16 @@ func TestClockMalformedPersistedEvidenceAndCancelledContention(t *testing.T) {
 func TestClockAdmissionEvidenceSurvivesLaterFailures(t *testing.T) {
 	ctx := context.Background()
 	s, _ := fixture(t)
-	v, _, err := s.PrepareClock(ctx, clockIntent("admitted"))
+	v, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "admitted")))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.DispatchClock(ctx, "admitted"); err != nil {
+	if _, err = s.DispatchClock(ctx, clockTestID(t, s, "admitted")); err != nil {
 		t.Fatal(err)
 	}
 	uncertain := clockApplied(v)
 	uncertain.GetReceipt().Outcome = &k.ControlReceipt_Uncertain{Uncertain: &k.UncertainControl{Detail: proto.String("in flight")}}
-	if _, err = s.RecordClockReply(ctx, "admitted", uncertain); err != nil {
+	if _, err = s.RecordClockReply(ctx, clockTestID(t, s, "admitted"), uncertain); err != nil {
 		t.Fatal(err)
 	}
 	for _, reply := range []*k.ControlReply{
@@ -235,10 +235,10 @@ func TestClockAdmissionEvidenceSurvivesLaterFailures(t *testing.T) {
 		{Outcome: &k.ControlReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_AUTHORITY_REQUIRED.Enum()}}},
 		{Outcome: &k.ControlReply_LongEventPending{LongEventPending: &k.LongEventPending{}}},
 	} {
-		if _, err = s.RecordClockReply(ctx, "admitted", reply); !errors.Is(err, ErrConflict) {
+		if _, err = s.RecordClockReply(ctx, clockTestID(t, s, "admitted"), reply); !errors.Is(err, ErrConflict) {
 			t.Fatal(err)
 		}
-		got, e := s.LookupClockAttempt(ctx, "admitted")
+		got, e := s.LookupClockAttempt(ctx, clockTestID(t, s, "admitted"))
 		if e != nil || got.Phase != ClockUncertain || !proto.Equal(got.Reply, uncertain) {
 			t.Fatal(got, e)
 		}
@@ -246,23 +246,23 @@ func TestClockAdmissionEvidenceSurvivesLaterFailures(t *testing.T) {
 	if _, err = s.db.Exec("CREATE TRIGGER clock_no_write BEFORE UPDATE ON clock_attempts BEGIN SELECT RAISE(ABORT,'failure'); END"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.MarkClockUncertain(ctx, "admitted"); err != nil {
+	if _, err = s.MarkClockUncertain(ctx, clockTestID(t, s, "admitted")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.RecordClockReply(ctx, "admitted", uncertain); err != nil {
+	if _, err = s.RecordClockReply(ctx, clockTestID(t, s, "admitted"), uncertain); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.db.Exec("DROP TRIGGER clock_no_write"); err != nil {
 		t.Fatal(err)
 	}
 	applied := clockApplied(v)
-	if _, err = s.RecordClockReply(ctx, "admitted", applied); err != nil {
+	if _, err = s.RecordClockReply(ctx, clockTestID(t, s, "admitted"), applied); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.db.Exec("CREATE TRIGGER clock_no_write BEFORE UPDATE ON clock_attempts BEGIN SELECT RAISE(ABORT,'failure'); END"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.RecordClockReply(ctx, "admitted", applied); err != nil {
+	if _, err = s.RecordClockReply(ctx, clockTestID(t, s, "admitted"), applied); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -270,7 +270,7 @@ func TestClockAdmissionEvidenceSurvivesLaterFailures(t *testing.T) {
 func TestClockAttemptCapacityPreservesReplay(t *testing.T) {
 	ctx := context.Background()
 	s, _ := fixture(t)
-	v, _, err := s.PrepareClock(ctx, clockIntent("first"))
+	v, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "first")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,22 +283,27 @@ func TestClockAttemptCapacityPreservesReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer tx.Rollback()
+	head := clockSequenceHead{LastAllocated: 4096, Retained: []uint64{1}}
 	for i := 1; i < 4096; i++ {
-		id := fmt.Sprintf("capacity-%d", i)
+		id, _ := ClockRequestID(ControllerSessionID(v.NativeAttempt.GetControllerSessionId()), uint64(i+1))
+		head.Retained = append(head.Retained, uint64(i+1))
 		if _, err = tx.ExecContext(ctx, "INSERT INTO clock_attempts(request_id,native_action_id,payload,phase) VALUES(?,?,?,?)", id, id, payload, ClockPrepared); err != nil {
 			t.Fatal(err)
 		}
 	}
+	if err = saveClockSequence(ctx, tx, head); err != nil {
+		t.Fatal(err)
+	}
 	if err = tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err = s.PrepareClock(ctx, clockIntent("overflow")); !errors.Is(err, ErrCapacity) {
+	if _, _, err = s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "overflow"))); !errors.Is(err, ErrCapacity) {
 		t.Fatal(err)
 	}
-	if _, err = s.LookupClockAttempt(ctx, "overflow"); !errors.Is(err, ErrNotFound) {
+	if _, err = s.LookupClockAttempt(ctx, clockTestID(t, s, "overflow")); !errors.Is(err, ErrNotFound) {
 		t.Fatal(err)
 	}
-	if _, created, e := s.PrepareClock(ctx, clockIntent("first")); e != nil || created {
+	if _, created, e := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "first"))); e != nil || created {
 		t.Fatal(created, e)
 	}
 	all, err := s.LoadClockAttempts(ctx, 4096)
@@ -310,26 +315,26 @@ func TestClockAttemptCapacityPreservesReplay(t *testing.T) {
 func TestClockAttemptConflictRequiresReceiptResolution(t *testing.T) {
 	ctx := context.Background()
 	s, _ := fixture(t)
-	v, _, err := s.PrepareClock(ctx, clockIntent("conflict"))
+	v, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "conflict")))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.DispatchClock(ctx, "conflict"); err != nil {
+	if _, err = s.DispatchClock(ctx, clockTestID(t, s, "conflict")); err != nil {
 		t.Fatal(err)
 	}
 	conflictReply := &k.ControlReply{Outcome: &k.ControlReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT.Enum()}}}
-	if _, err = s.RecordClockReply(ctx, "conflict", conflictReply); err != nil {
+	if _, err = s.RecordClockReply(ctx, clockTestID(t, s, "conflict"), conflictReply); err != nil {
 		t.Fatal(err)
 	}
 	refusal := &k.ControlReply{Outcome: &k.ControlReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_AUTHORITY_REQUIRED.Enum()}}}
-	if _, err = s.RecordClockReply(ctx, "conflict", refusal); !errors.Is(err, ErrConflict) {
+	if _, err = s.RecordClockReply(ctx, clockTestID(t, s, "conflict"), refusal); !errors.Is(err, ErrConflict) {
 		t.Fatal(err)
 	}
-	got, err := s.RecordClockReply(ctx, "conflict", conflictReply)
+	got, err := s.RecordClockReply(ctx, clockTestID(t, s, "conflict"), conflictReply)
 	if err != nil || got.Phase != ClockUncertain || !proto.Equal(got.Reply, conflictReply) {
 		t.Fatal(got, err)
 	}
-	got, err = s.RecordClockReply(ctx, "conflict", clockApplied(v))
+	got, err = s.RecordClockReply(ctx, clockTestID(t, s, "conflict"), clockApplied(v))
 	if err != nil || got.Phase != ClockApplied {
 		t.Fatal(got, err)
 	}

@@ -19,7 +19,7 @@ func windowStoreFixture(t *testing.T) (*Store, string, string, ClockIntent) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	intent := clockIntent("window")
+	intent := clockIntent(clockTestID(t, s, "window"))
 	intent.Window = &ClockWindowAdmission{Profile: inbox.Profile, Snapshot: intent.Snapshot, Tick: 10, MaxTicks: intent.Command.Start.MaxTicks}
 	return s, path, profile, intent
 }
@@ -193,10 +193,10 @@ func TestClockWindowStoreCorruptionAndRollback(t *testing.T) {
 func TestClockWindowStorePlainStartStillExplicit(t *testing.T) {
 	s, _, _, _ := windowStoreFixture(t)
 	ctx := context.Background()
-	if _, _, err := s.PrepareClock(ctx, clockIntent("explicit")); err != nil {
+	if _, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "explicit"))); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.DispatchClock(ctx, "explicit"); err != nil {
+	if _, err := s.DispatchClock(ctx, clockTestID(t, s, "explicit")); err != nil {
 		t.Fatal(err)
 	}
 }

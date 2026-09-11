@@ -68,10 +68,33 @@ func scanClock(row interface{ Scan(...any) error }, session ControllerSessionID)
 	return value, nil
 }
 func loadClock(ctx context.Context, tx *sql.Tx, id string) (ClockAttempt, error) {
-	session, err := identity(ctx, tx)
+	session, head, err := loadClockSequence(ctx, tx)
 	if err != nil {
 		return ClockAttempt{}, err
 	}
+	n, err := parseClockRequestID(session, id)
+	if err != nil {
+		return ClockAttempt{}, err
+	}
+	found := false
+	for _, v := range head.Retained {
+		if v == n {
+			found = true
+			break
+		}
+	}
+	if !found {
+		if n <= head.RetiredThrough {
+			return ClockAttempt{}, ErrRetired
+		}
+		if n <= head.LastAllocated {
+			return ClockAttempt{}, errors.New("missing allocated clock request")
+		}
+		return ClockAttempt{}, ErrNotFound
+	}
+	return loadClockUnchecked(ctx, tx, id, session)
+}
+func loadClockUnchecked(ctx context.Context, tx *sql.Tx, id string, session ControllerSessionID) (ClockAttempt, error) {
 	value, err := scanClock(tx.QueryRowContext(ctx, "SELECT "+clockColumns+" FROM clock_attempts WHERE request_id=?", id), session)
 	if err != nil {
 		return ClockAttempt{}, err
@@ -106,7 +129,11 @@ func (s *Store) PrepareClock(ctx context.Context, intent ClockIntent) (ClockAtte
 		return ClockAttempt{}, false, err
 	}
 	defer tx.Rollback()
-	session, err := identity(ctx, tx)
+	session, head, err := loadClockSequence(ctx, tx)
+	if err != nil {
+		return ClockAttempt{}, false, err
+	}
+	sequence, err := parseClockRequestID(session, intent.RequestID)
 	if err != nil {
 		return ClockAttempt{}, false, err
 	}
@@ -139,6 +166,9 @@ func (s *Store) PrepareClock(ctx context.Context, intent ClockIntent) (ClockAtte
 	if !errors.Is(err, ErrNotFound) {
 		return ClockAttempt{}, false, err
 	}
+	if head.LastAllocated == ^uint64(0) || sequence != head.LastAllocated+1 {
+		return ClockAttempt{}, false, ErrConflict
+	}
 	if err = clockActionAvailable(ctx, tx, candidate.NativeAttempt.GetActionId()); err != nil {
 		return ClockAttempt{}, false, err
 	}
@@ -151,6 +181,11 @@ func (s *Store) PrepareClock(ctx context.Context, intent ClockIntent) (ClockAtte
 	}
 	if _, err = tx.ExecContext(ctx, "INSERT INTO clock_attempts(request_id,native_action_id,payload,phase) VALUES(?,?,?,?)", intent.RequestID, candidate.NativeAttempt.GetActionId(), payload, ClockPrepared); err != nil {
 		return ClockAttempt{}, false, conflict(err)
+	}
+	head.LastAllocated = sequence
+	head.Retained = append(head.Retained, sequence)
+	if err = saveClockSequence(ctx, tx, head); err != nil {
+		return ClockAttempt{}, false, err
 	}
 	saved, err := loadClock(ctx, tx, intent.RequestID)
 	if err != nil {
@@ -185,29 +220,17 @@ func (s *Store) LoadClockAttempts(ctx context.Context, limit int) ([]ClockAttemp
 		return nil, err
 	}
 	defer tx.Rollback()
-	rows, err := tx.QueryContext(ctx, "SELECT request_id FROM clock_attempts ORDER BY request_id LIMIT ?", limit+1)
+	session, head, err := loadClockSequence(ctx, tx)
 	if err != nil {
 		return nil, err
 	}
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err = rows.Scan(&id); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		ids = append(ids, id)
+	if len(head.Retained) > limit {
+		return nil, ErrCapacity
 	}
-	err = errors.Join(rows.Err(), rows.Close())
-	if err != nil {
-		return nil, err
-	}
-	if len(ids) > limit {
-		return nil, errors.New("clock attempt catalog exceeds limit")
-	}
-	out := make([]ClockAttempt, 0, len(ids))
-	for _, id := range ids {
-		v, e := loadClock(ctx, tx, id)
+	out := make([]ClockAttempt, 0, len(head.Retained))
+	for _, sequence := range head.Retained {
+		id, _ := ClockRequestID(session, sequence)
+		v, e := loadClockUnchecked(ctx, tx, id, session)
 		if e != nil {
 			return nil, e
 		}

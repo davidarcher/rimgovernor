@@ -15,15 +15,15 @@ func epochStoreFixture(t *testing.T) (*Store, string, *k.Status) {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "epoch.db")
 	s := open(t, path)
-	attempt, _, err := s.PrepareClock(context.Background(), clockIntent("start"))
+	attempt, _, err := s.PrepareClock(context.Background(), clockIntent(clockTestID(t, s, "start")))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.DispatchClock(context.Background(), "start"); err != nil {
+	if _, err = s.DispatchClock(context.Background(), clockTestID(t, s, "start")); err != nil {
 		t.Fatal(err)
 	}
 	reply := clockApplied(attempt)
-	if _, err = s.RecordClockReply(context.Background(), "start", reply); err != nil {
+	if _, err = s.RecordClockReply(context.Background(), clockTestID(t, s, "start"), reply); err != nil {
 		t.Fatal(err)
 	}
 	return s, path, proto.Clone(reply.GetReceipt().GetApplied().GetStatus()).(*k.Status)
@@ -41,7 +41,7 @@ func epochStopped(status *k.Status, verified bool) *k.Status {
 func TestClockEpochAtomicCreationAndReopen(t *testing.T) {
 	ctx := context.Background()
 	s, path, status := epochStoreFixture(t)
-	initial, err := s.LookupClockEpoch(ctx, "start")
+	initial, err := s.LookupClockEpoch(ctx, clockTestID(t, s, "start"))
 	if err != nil || initial.Stage != ClockEpochRequired || initial.Sequence != 0 || !proto.Equal(initial.Epoch, status.GetRunning().Epoch) {
 		t.Fatal(initial, err)
 	}
@@ -49,13 +49,13 @@ func TestClockEpochAtomicCreationAndReopen(t *testing.T) {
 		t.Fatal(err)
 	}
 	s = open(t, path)
-	reopened, err := s.LookupClockEpoch(ctx, "start")
+	reopened, err := s.LookupClockEpoch(ctx, clockTestID(t, s, "start"))
 	if err != nil || reopened.Stage != ClockEpochRequired || !proto.Equal(reopened.Epoch, initial.Epoch) {
 		t.Fatal(reopened, err)
 	}
 	// Returned ownership evidence cannot mutate the durable original epoch.
 	reopened.Epoch.Owner.ControllerSessionId = proto.String("foreign")
-	again, err := s.LookupClockEpoch(ctx, "start")
+	again, err := s.LookupClockEpoch(ctx, clockTestID(t, s, "start"))
 	if err != nil || !proto.Equal(again.Epoch, initial.Epoch) {
 		t.Fatal(again, err)
 	}
@@ -70,44 +70,44 @@ func TestClockEpochAtomicCreationAndReopen(t *testing.T) {
 func TestClockEpochObligationInsertFailureRollsBackAppliedReceipt(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "epoch.db"))
-	attempt, _, err := s.PrepareClock(ctx, clockIntent("start"))
+	attempt, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "start")))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.DispatchClock(ctx, "start"); err != nil {
+	if _, err = s.DispatchClock(ctx, clockTestID(t, s, "start")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.db.Exec("CREATE TRIGGER fail_epoch BEFORE INSERT ON clock_epochs BEGIN SELECT RAISE(ABORT,'injected'); END"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.RecordClockReply(ctx, "start", clockApplied(attempt)); err == nil {
+	if _, err = s.RecordClockReply(ctx, clockTestID(t, s, "start"), clockApplied(attempt)); err == nil {
 		t.Fatal("failed obligation committed receipt")
 	}
-	stored, err := s.LookupClockAttempt(ctx, "start")
+	stored, err := s.LookupClockAttempt(ctx, clockTestID(t, s, "start"))
 	if err != nil || stored.Phase != ClockDispatched || stored.Reply != nil {
 		t.Fatal(stored, err)
 	}
-	if _, err = s.LookupClockEpoch(ctx, "start"); !errors.Is(err, ErrNotFound) {
+	if _, err = s.LookupClockEpoch(ctx, clockTestID(t, s, "start")); !errors.Is(err, ErrNotFound) {
 		t.Fatal(err)
 	}
 }
 func TestClockEpochPauseSequenceRequiresFreshObservation(t *testing.T) {
 	ctx := context.Background()
 	s, _, status := epochStoreFixture(t)
-	first, err := s.BeginClockPause(ctx, "start", 0)
+	first, err := s.BeginClockPause(ctx, clockTestID(t, s, "start"), 0)
 	if err != nil || first.Stage != ClockEpochPausing || first.Sequence != 1 {
 		t.Fatal(first, err)
 	}
-	if _, err = s.BeginClockPause(ctx, "start", 1); err == nil {
+	if _, err = s.BeginClockPause(ctx, clockTestID(t, s, "start"), 1); err == nil {
 		t.Fatal("blind second dispatch")
 	}
-	if _, err = s.MarkClockPauseUncertain(ctx, "start", 0); err == nil {
+	if _, err = s.MarkClockPauseUncertain(ctx, clockTestID(t, s, "start"), 0); err == nil {
 		t.Fatal("old result accepted")
 	}
-	if _, err = s.MarkClockPauseUncertain(ctx, "start", 1); err != nil {
+	if _, err = s.MarkClockPauseUncertain(ctx, clockTestID(t, s, "start"), 1); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.BeginClockPause(ctx, "start", 1); err == nil {
+	if _, err = s.BeginClockPause(ctx, clockTestID(t, s, "start"), 1); err == nil {
 		t.Fatal("uncertain pause retried without observation")
 	}
 	running := proto.Clone(status).(*k.Status)
@@ -116,26 +116,26 @@ func TestClockEpochPauseSequenceRequiresFreshObservation(t *testing.T) {
 	running.GetRunning().Epoch.RequestedSpeed = k.Speed_SPEED_FAST.Enum()
 	running.ObservedSpeed = k.ObservedSpeed_OBSERVED_SPEED_FAST.Enum()
 	running.Context.Tick = proto.Int64(13)
-	observed, err := s.ObserveClockEpoch(ctx, "start", 1, running.Context, running)
+	observed, err := s.ObserveClockEpoch(ctx, clockTestID(t, s, "start"), 1, running.Context, running)
 	if err != nil || observed.Stage != ClockEpochRequired {
 		t.Fatal(observed, err)
 	}
-	second, err := s.BeginClockPause(ctx, "start", 1)
+	second, err := s.BeginClockPause(ctx, clockTestID(t, s, "start"), 1)
 	if err != nil || second.Sequence != 2 {
 		t.Fatal(second, err)
 	}
 	stopped := epochStopped(running, true)
-	if _, err = s.ObserveClockEpoch(ctx, "start", 1, stopped.Context, stopped); err == nil {
+	if _, err = s.ObserveClockEpoch(ctx, clockTestID(t, s, "start"), 1, stopped.Context, stopped); err == nil {
 		t.Fatal("late sequence completed new pause")
 	}
-	done, err := s.ObserveClockEpoch(ctx, "start", 2, stopped.Context, stopped)
+	done, err := s.ObserveClockEpoch(ctx, clockTestID(t, s, "start"), 2, stopped.Context, stopped)
 	if err != nil || done.Stage != ClockEpochPaused {
 		t.Fatal(done, err)
 	}
-	if _, err = s.ObserveClockEpoch(ctx, "start", 2, stopped.Context, stopped); err != nil {
+	if _, err = s.ObserveClockEpoch(ctx, clockTestID(t, s, "start"), 2, stopped.Context, stopped); err != nil {
 		t.Fatal("exact terminal evidence replay", err)
 	}
-	if _, err = s.ObserveClockEpoch(ctx, "start", 2, running.Context, running); err == nil {
+	if _, err = s.ObserveClockEpoch(ctx, clockTestID(t, s, "start"), 2, running.Context, running); err == nil {
 		t.Fatal("terminal cleanup reactivated")
 	}
 }
@@ -162,7 +162,7 @@ func TestClockEpochImmutableMismatchAndPositiveRetirement(t *testing.T) {
 				status = epochStopped(status, false)
 				want = ClockEpochRetired
 			}
-			got, err := s.ObserveClockEpoch(ctx, "start", 0, status.Context, status)
+			got, err := s.ObserveClockEpoch(ctx, clockTestID(t, s, "start"), 0, status.Context, status)
 			if kind == "policy" || kind == "deadline" {
 				if err == nil {
 					t.Fatal("immutable epoch changed")
@@ -188,7 +188,7 @@ func TestClockEpochUnknownStatesNeverAcquireOrRetireOwnership(t *testing.T) {
 			case "stopping":
 				status.State = &k.Status_Stopping{Stopping: &k.Stopping{Epoch: status.GetRunning().Epoch, PendingReason: k.StopReason_STOP_REASON_REQUESTED_PAUSE.Enum(), ActualPaused: proto.Bool(false)}}
 			}
-			got, err := s.ObserveClockEpoch(ctx, "start", 0, status.Context, status)
+			got, err := s.ObserveClockEpoch(ctx, clockTestID(t, s, "start"), 0, status.Context, status)
 			if err != nil || got.Stage != ClockEpochUncertain {
 				t.Fatal(got, err)
 			}
@@ -198,32 +198,32 @@ func TestClockEpochUnknownStatesNeverAcquireOrRetireOwnership(t *testing.T) {
 func TestClockEpochNeverAdoptsUncertainStatusAndMissingAppliedRowIsCorrupt(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "epoch.db"))
-	attempt, _, err := s.PrepareClock(ctx, clockIntent("start"))
+	attempt, _, err := s.PrepareClock(ctx, clockIntent(clockTestID(t, s, "start")))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.DispatchClock(ctx, "start"); err != nil {
+	if _, err = s.DispatchClock(ctx, clockTestID(t, s, "start")); err != nil {
 		t.Fatal(err)
 	}
 	applied := clockApplied(attempt)
 	uncertain := proto.Clone(applied).(*k.ControlReply)
 	uncertain.GetReceipt().Outcome = &k.ControlReceipt_Uncertain{Uncertain: &k.UncertainControl{LastObserved: applied.GetReceipt().GetApplied().GetStatus(), Detail: proto.String("lost outcome")}}
-	if _, err = s.RecordClockReply(ctx, "start", uncertain); err != nil {
+	if _, err = s.RecordClockReply(ctx, clockTestID(t, s, "start"), uncertain); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.LookupClockEpoch(ctx, "start"); !errors.Is(err, ErrNotFound) {
+	if _, err = s.LookupClockEpoch(ctx, clockTestID(t, s, "start")); !errors.Is(err, ErrNotFound) {
 		t.Fatal("uncertain status adopted", err)
 	}
-	if _, err = s.RecordClockReply(ctx, "start", applied); err != nil {
+	if _, err = s.RecordClockReply(ctx, clockTestID(t, s, "start"), applied); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.db.Exec("DELETE FROM clock_epochs WHERE start_request_id='start'"); err != nil {
+	if _, err = s.db.Exec("DELETE FROM clock_epochs WHERE start_request_id=?", clockTestID(t, s, "start")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.LookupClockEpoch(ctx, "start"); err == nil || errors.Is(err, ErrNotFound) {
+	if _, err = s.LookupClockEpoch(ctx, clockTestID(t, s, "start")); err == nil || errors.Is(err, ErrNotFound) {
 		t.Fatal("missing applied obligation hidden", err)
 	}
-	if _, err = s.RecordClockReply(ctx, "start", applied); err == nil {
+	if _, err = s.RecordClockReply(ctx, clockTestID(t, s, "start"), applied); err == nil {
 		t.Fatal("missing obligation repaired")
 	}
 }
@@ -233,37 +233,37 @@ func TestClockEpochPauseRetainsObservationWatermarkAcrossRestart(t *testing.T) {
 	s, path, status := epochStoreFixture(t)
 	status.Context.Tick = proto.Int64(50)
 	status.GetRunning().Epoch.LastTick = proto.Int64(50)
-	if _, err := s.ObserveClockEpoch(ctx, "start", 0, status.Context, status); err != nil {
+	if _, err := s.ObserveClockEpoch(ctx, clockTestID(t, s, "start"), 0, status.Context, status); err != nil {
 		t.Fatal(err)
 	}
-	first, err := s.BeginClockPause(ctx, "start", 0)
+	first, err := s.BeginClockPause(ctx, clockTestID(t, s, "start"), 0)
 	if err != nil || first.Sequence != 1 {
 		t.Fatal(first, err)
 	}
 	stale := proto.Clone(status).(*k.Status)
 	stale.Context.Tick = proto.Int64(20)
 	stale.GetRunning().Epoch.LastTick = proto.Int64(20)
-	if _, err = s.ObserveClockEpoch(ctx, "start", 1, stale.Context, stale); err == nil {
+	if _, err = s.ObserveClockEpoch(ctx, clockTestID(t, s, "start"), 1, stale.Context, stale); err == nil {
 		t.Fatal("pause dispatch erased the observation watermark")
 	}
-	if _, err = s.MarkClockPauseUncertain(ctx, "start", 1); err != nil {
+	if _, err = s.MarkClockPauseUncertain(ctx, clockTestID(t, s, "start"), 1); err != nil {
 		t.Fatal(err)
 	}
 	if err = s.Close(); err != nil {
 		t.Fatal(err)
 	}
 	s = open(t, path)
-	if _, err = s.ObserveClockEpoch(ctx, "start", 1, stale.Context, stale); err == nil {
+	if _, err = s.ObserveClockEpoch(ctx, clockTestID(t, s, "start"), 1, stale.Context, stale); err == nil {
 		t.Fatal("reopened uncertain pause accepted stale evidence")
 	}
-	retained, err := s.LookupClockEpoch(ctx, "start")
+	retained, err := s.LookupClockEpoch(ctx, clockTestID(t, s, "start"))
 	if err != nil || retained.Stage != ClockEpochUncertain || retained.Sequence != 1 || retained.Context.GetTick() != 50 {
 		t.Fatal(retained, err)
 	}
-	if _, err = s.ObserveClockEpoch(ctx, "start", 1, status.Context, status); err != nil {
+	if _, err = s.ObserveClockEpoch(ctx, clockTestID(t, s, "start"), 1, status.Context, status); err != nil {
 		t.Fatal(err)
 	}
-	second, err := s.BeginClockPause(ctx, "start", 1)
+	second, err := s.BeginClockPause(ctx, clockTestID(t, s, "start"), 1)
 	if err != nil || second.Sequence != 2 || second.Stage != ClockEpochPausing {
 		t.Fatal(second, err)
 	}
@@ -275,7 +275,7 @@ func TestClockEpochRetainsGenerationWatermarkAcrossPauseAndRestart(t *testing.T)
 	for _, generation := range []*uint64{nil, proto.Uint64(6)} {
 		stale := epochStopped(proto.Clone(status).(*k.Status), true)
 		stale.Context.NativeGeneration = generation
-		if _, err := s.ObserveClockEpoch(ctx, "start", 0, stale.Context, stale); !errors.Is(err, ErrConflict) {
+		if _, err := s.ObserveClockEpoch(ctx, clockTestID(t, s, "start"), 0, stale.Context, stale); !errors.Is(err, ErrConflict) {
 			t.Fatal("initial original generation floor lost", err)
 		}
 		contextBytes, err := clockBinary(stale.Context)
@@ -289,7 +289,7 @@ func TestClockEpochRetainsGenerationWatermarkAcrossPauseAndRestart(t *testing.T)
 		if _, err = s.db.Exec("UPDATE clock_epochs SET stage='paused',context=?,status=?", contextBytes, statusBytes); err != nil {
 			t.Fatal(err)
 		}
-		if _, err = s.LookupClockEpoch(ctx, "start"); err == nil {
+		if _, err = s.LookupClockEpoch(ctx, clockTestID(t, s, "start")); err == nil {
 			t.Fatal("persisted original generation regression accepted")
 		}
 		if _, err = s.db.Exec("UPDATE clock_epochs SET stage='required',context=NULL,status=NULL"); err != nil {
@@ -297,10 +297,10 @@ func TestClockEpochRetainsGenerationWatermarkAcrossPauseAndRestart(t *testing.T)
 		}
 	}
 	status.Context.NativeGeneration = proto.Uint64(10)
-	if _, err := s.ObserveClockEpoch(ctx, "start", 0, status.Context, status); err != nil {
+	if _, err := s.ObserveClockEpoch(ctx, clockTestID(t, s, "start"), 0, status.Context, status); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.BeginClockPause(ctx, "start", 0); err != nil {
+	if _, err := s.BeginClockPause(ctx, clockTestID(t, s, "start"), 0); err != nil {
 		t.Fatal(err)
 	}
 	check := func() {
@@ -312,14 +312,14 @@ func TestClockEpochRetainsGenerationWatermarkAcrossPauseAndRestart(t *testing.T)
 					proof = epochStopped(proof, true)
 				}
 				proof.Context.NativeGeneration = generation
-				if _, err := s.ObserveClockEpoch(ctx, "start", 1, proof.Context, proof); !errors.Is(err, ErrConflict) {
+				if _, err := s.ObserveClockEpoch(ctx, clockTestID(t, s, "start"), 1, proof.Context, proof); !errors.Is(err, ErrConflict) {
 					t.Fatal("same-tick missing/regressed generation accepted", stopped, generation, err)
 				}
 			}
 		}
 	}
 	check()
-	if _, err := s.MarkClockPauseUncertain(ctx, "start", 1); err != nil {
+	if _, err := s.MarkClockPauseUncertain(ctx, clockTestID(t, s, "start"), 1); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Close(); err != nil {
@@ -327,15 +327,15 @@ func TestClockEpochRetainsGenerationWatermarkAcrossPauseAndRestart(t *testing.T)
 	}
 	s = open(t, path)
 	check()
-	retained, err := s.LookupClockEpoch(ctx, "start")
+	retained, err := s.LookupClockEpoch(ctx, clockTestID(t, s, "start"))
 	if err != nil || retained.Stage != ClockEpochUncertain || retained.Sequence != 1 || retained.Context.GetNativeGeneration() != 10 {
 		t.Fatal(retained, err)
 	}
 	status.Context.NativeGeneration = proto.Uint64(11)
-	if _, err = s.ObserveClockEpoch(ctx, "start", 1, status.Context, status); err != nil {
+	if _, err = s.ObserveClockEpoch(ctx, clockTestID(t, s, "start"), 1, status.Context, status); err != nil {
 		t.Fatal(err)
 	}
-	if next, err := s.BeginClockPause(ctx, "start", 1); err != nil || next.Sequence != 2 || next.Context.GetNativeGeneration() != 11 {
+	if next, err := s.BeginClockPause(ctx, clockTestID(t, s, "start"), 1); err != nil || next.Sequence != 2 || next.Context.GetNativeGeneration() != 11 {
 		t.Fatal(next, err)
 	}
 	// A positively replaced world has its own generation and tick history.
@@ -343,7 +343,7 @@ func TestClockEpochRetainsGenerationWatermarkAcrossPauseAndRestart(t *testing.T)
 	replacement.Identity.LoadToken = proto.String("replacement")
 	replacement.NativeGeneration = nil
 	replacement.Tick = proto.Int64(0)
-	if next, err := s.ObserveClockEpoch(ctx, "start", 2, replacement, nil); err != nil || next.Stage != ClockEpochSuperseded {
+	if next, err := s.ObserveClockEpoch(ctx, clockTestID(t, s, "start"), 2, replacement, nil); err != nil || next.Stage != ClockEpochSuperseded {
 		t.Fatal(next, err)
 	}
 }

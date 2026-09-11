@@ -43,6 +43,7 @@ const clockRecordLimit = 1 << 20
 // The closed discriminator carries only lease-free intent. Nested native values
 // use official deterministic binary encoding, retaining optional field presence.
 type clockIntentRecord struct {
+	Key               string
 	Snapshot          domain.GenerationSnapshot
 	Kind              string
 	Speed             int32
@@ -57,7 +58,12 @@ func clockExpectation(v ClockAttempt) bridge.ClockExpectation {
 }
 func validateClockIntent(v ClockAttempt) error {
 	s := v.Intent.Snapshot
-	if err := submissionID(v.Intent.RequestID); err != nil {
+	if v.Intent.Key != "" {
+		if err := submissionID(v.Intent.Key); err != nil {
+			return err
+		}
+	}
+	if _, err := parseClockRequestID(ControllerSessionID(v.NativeAttempt.GetControllerSessionId()), v.Intent.RequestID); err != nil {
 		return err
 	}
 	if s.Validate() != nil || s.Direction == 0 || s.Native == 0 || s.Revision == 0 {
@@ -101,7 +107,7 @@ func encodeClockIntent(v ClockAttempt) ([]byte, error) {
 	if err := validateClockIntent(v); err != nil {
 		return nil, err
 	}
-	record := clockIntentRecord{Snapshot: v.Intent.Snapshot, Window: v.Intent.Window}
+	record := clockIntentRecord{Key: v.Intent.Key, Snapshot: v.Intent.Snapshot, Window: v.Intent.Window}
 	var err error
 	switch command := v.Intent.Command; {
 	case command.Start != nil:
@@ -142,7 +148,7 @@ func decodeClockIntent(id string, attempt *c.AttemptKey, b []byte) (ClockIntent,
 	if err != nil || !bytes.Equal(b, canonical) {
 		return ClockIntent{}, errors.New("noncanonical clock intent")
 	}
-	intent := ClockIntent{RequestID: id, Snapshot: record.Snapshot, Window: record.Window}
+	intent := ClockIntent{RequestID: id, Key: record.Key, Snapshot: record.Snapshot, Window: record.Window}
 	switch record.Kind {
 	case "start":
 		policy := &k.WatchPolicy{}
