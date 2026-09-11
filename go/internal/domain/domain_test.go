@@ -118,7 +118,7 @@ func TestReceiptNeverCompletesOrUnlocksRetry(t *testing.T) {
 	for _, receipt := range []Receipt{ReceiptAccepted, ReceiptRefused, ReceiptUnknown} {
 		t.Run(string(receipt), func(t *testing.T) {
 			p, s := dispatched(t)
-			p, err := p.RecordReceipt(receipt)
+			p, err := p.RecordReceipt(p.View().Attempt, receipt)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -128,21 +128,21 @@ func TestReceiptNeverCompletesOrUnlocksRetry(t *testing.T) {
 			if _, err = p.Prepare(s, 11); err == nil {
 				t.Fatal("receipt unlocked retry")
 			}
-			p, err = p.Observe(Observation{"a1", s, 11, EffectUnknown}, s)
+			p, err = p.Observe(Observation{"a1", 1, s, 11, EffectUnknown}, s)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if !p.View().Unresolved {
 				t.Fatal("unknown cleared dispatch")
 			}
-			p, err = p.Observe(Observation{"a1", s, 12, EffectPending}, s)
+			p, err = p.Observe(Observation{"a1", 1, s, 12, EffectPending}, s)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if !p.View().Unresolved {
 				t.Fatal("pending cleared dispatch")
 			}
-			p, err = p.Observe(Observation{"a1", s, 13, EffectCompleted}, s)
+			p, err = p.Observe(Observation{"a1", 1, s, 13, EffectCompleted}, s)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -157,7 +157,7 @@ func TestReceiptNeverCompletesOrUnlocksRetry(t *testing.T) {
 }
 func TestCompleteAbsenceAllowsSameActionRetry(t *testing.T) {
 	p, s := dispatched(t)
-	p, err := p.Observe(Observation{"a1", s, 11, EffectAbsent}, s)
+	p, err := p.Observe(Observation{"a1", 1, s, 11, EffectAbsent}, s)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,12 +187,12 @@ func TestCancellationRetainsUncertaintyAndNeverReactivates(t *testing.T) {
 			if !p.View().Unresolved {
 				t.Fatal("cancel lost dispatch")
 			}
-			p, err = p.RecordReceipt(ReceiptUnknown)
+			p, err = p.RecordReceipt(p.View().Attempt, ReceiptUnknown)
 			if err != nil {
 				t.Fatal(err)
 			}
 			s.Direction++
-			p, err = p.Observe(Observation{"a1", s, 11, effect}, s)
+			p, err = p.Observe(Observation{"a1", 1, s, 11, effect}, s)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -226,7 +226,7 @@ func TestStaleEvidenceAndAuthorityPreserveProgress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, o := range []Observation{{"a1", s, 10, EffectAbsent}, {"other", s, 11, EffectAbsent}, {"a1", s, 11, "invalid"}} {
+	for _, o := range []Observation{{"a1", 1, s, 10, EffectAbsent}, {"other", 1, s, 11, EffectAbsent}, {"a1", 1, s, 11, "invalid"}} {
 		got, err := p.Observe(o, s)
 		if err == nil || !reflect.DeepEqual(got, p) {
 			t.Fatal("bad observation changed progress")
@@ -235,14 +235,14 @@ func TestStaleEvidenceAndAuthorityPreserveProgress(t *testing.T) {
 	for _, change := range []func(*GenerationSnapshot){func(s *GenerationSnapshot) { s.Colony = "other" }, func(s *GenerationSnapshot) { s.Map++ }, func(s *GenerationSnapshot) { s.Load = "other" }} {
 		other := s
 		change(&other)
-		got, err := p.Observe(Observation{"a1", other, 11, EffectCompleted}, other)
+		got, err := p.Observe(Observation{"a1", 1, other, 11, EffectCompleted}, other)
 		if err == nil || !reflect.DeepEqual(got, p) {
 			t.Fatal("cross-world attribution accepted")
 		}
 	}
 	changed := s
 	changed.Direction++
-	p, err = p.Observe(Observation{"a1", changed, 11, EffectAbsent}, changed)
+	p, err = p.Observe(Observation{"a1", 1, changed, 11, EffectAbsent}, changed)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,10 +255,10 @@ func TestIllegalTransitions(t *testing.T) {
 	if _, err := p.MarkDispatched(s, 0); err == nil {
 		t.Fatal("unprepared dispatch")
 	}
-	if _, err := p.RecordReceipt(ReceiptAccepted); err == nil {
+	if _, err := p.RecordReceipt(p.View().Attempt, ReceiptAccepted); err == nil {
 		t.Fatal("unissued receipt")
 	}
-	if _, err := p.Observe(Observation{"a1", s, 1, EffectCompleted}, s); err == nil {
+	if _, err := p.Observe(Observation{"a1", 1, s, 1, EffectCompleted}, s); err == nil {
 		t.Fatal("unissued observation")
 	}
 	if _, err := p.Prepare(s, -1); err == nil {
@@ -269,17 +269,91 @@ func TestIllegalTransitions(t *testing.T) {
 		t.Fatal("wrong plan")
 	}
 	p, s = dispatched(t)
-	if _, err := p.RecordReceipt("invalid"); err == nil {
+	if _, err := p.RecordReceipt(p.View().Attempt, "invalid"); err == nil {
 		t.Fatal("invalid receipt")
 	}
-	p, err := p.RecordReceipt(ReceiptAccepted)
+	p, err := p.RecordReceipt(p.View().Attempt, ReceiptAccepted)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = p.RecordReceipt(ReceiptRefused); err == nil {
+	if _, err = p.RecordReceipt(p.View().Attempt, ReceiptRefused); err == nil {
 		t.Fatal("overwritten receipt")
 	}
 	if _, err = (Progress{}).Cancel(); err == nil {
 		t.Fatal("zero progress cancelled")
+	}
+}
+
+func TestRetryRejectsLateEvidenceFromPreviousAttempt(t *testing.T) {
+	p, s := dispatched(t)
+	first := p.View().Attempt
+	if first != 1 {
+		t.Fatal("first dispatch identity", first)
+	}
+	p, err := p.RecordReceipt(first, ReceiptUnknown)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err = p.Observe(Observation{"a1", first, s, 11, EffectUnknown}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = p.Prepare(s, 12); err == nil {
+		t.Fatal("partial observation unlocked retry")
+	}
+	p, err = p.Observe(Observation{"a1", first, s, 12, EffectAbsent}, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err = p.Prepare(s, 12)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err = p.MarkDispatched(s, 12)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second := p.View().Attempt
+	if second != first+1 {
+		t.Fatal("retry reused attempt identity")
+	}
+	for _, attempt := range []AttemptID{0, first, second + 1} {
+		got, err := p.RecordReceipt(attempt, ReceiptAccepted)
+		if err == nil || !reflect.DeepEqual(got, p) {
+			t.Fatal("late receipt changed current dispatch")
+		}
+		for _, effect := range []Effect{EffectAbsent, EffectCompleted, EffectUnknown} {
+			got, err = p.Observe(Observation{"a1", attempt, s, 13, effect}, s)
+			if err == nil || !reflect.DeepEqual(got, p) {
+				t.Fatal("late observation changed current dispatch")
+			}
+		}
+	}
+	if !p.View().Unresolved {
+		t.Fatal("retry uncertainty lost")
+	}
+	if _, known := p.View().Receipt.Value(); known {
+		t.Fatal("late receipt retained")
+	}
+	p, err = p.RecordReceipt(second, ReceiptAccepted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err = p.Observe(Observation{"a1", second, s, 13, EffectCompleted}, s)
+	if err != nil || p.View().Stage != Completed {
+		t.Fatal("current attempt cannot complete", err)
+	}
+}
+
+func TestAttemptIdentityOverflowPreservesPreparedProgress(t *testing.T) {
+	p, s := fixture(t)
+	p, err := p.Prepare(s, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.view.Attempt = ^AttemptID(0)
+	got, err := p.MarkDispatched(s, 10)
+	if err == nil || !reflect.DeepEqual(got, p) {
+		t.Fatal("attempt counter wrapped or mutated progress")
 	}
 }

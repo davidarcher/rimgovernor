@@ -34,12 +34,14 @@ const (
 
 type Observation struct {
 	Action   ActionID
+	Attempt  AttemptID
 	Snapshot GenerationSnapshot
 	Tick     Tick
 	Effect   Effect
 }
 type ProgressView struct {
 	Action     ActionID
+	Attempt    AttemptID
 	Plan       PlanID
 	Revision   PlanRevision
 	Stage      Stage
@@ -81,11 +83,18 @@ func (p Progress) MarkDispatched(current GenerationSnapshot, tick Tick) (Progres
 	if p.view.Stage != Prepared || !p.view.Snapshot.Matches(current) || tick < p.view.Tick {
 		return p, errors.New("dispatch requires current prepared authority")
 	}
+	if p.view.Attempt == ^AttemptID(0) {
+		return p, errors.New("dispatch attempt identity exhausted")
+	}
+	p.view.Attempt++
 	p.view.Stage, p.view.Unresolved, p.view.Tick = Dispatched, true, tick
 	p.view.Receipt, p.view.Effect = Unknown[Receipt](), Unknown[Effect]()
 	return p, nil
 }
-func (p Progress) RecordReceipt(receipt Receipt) (Progress, error) {
+func (p Progress) RecordReceipt(attempt AttemptID, receipt Receipt) (Progress, error) {
+	if attempt == 0 || attempt != p.view.Attempt {
+		return p, errors.New("receipt belongs to a different dispatch attempt")
+	}
 	if p.view.Stage != Dispatched && !(p.view.Stage == Cancelled && p.view.Unresolved) {
 		return p, errors.New("receipt requires dispatched action")
 	}
@@ -120,7 +129,7 @@ func (p Progress) Observe(observation Observation, current GenerationSnapshot) (
 	if err := current.Validate(); err != nil {
 		return p, err
 	}
-	if observation.Action != p.view.Action || !observation.Snapshot.Matches(current) || !p.view.Snapshot.sameWorld(current) || observation.Tick <= p.view.Tick {
+	if observation.Action != p.view.Action || observation.Attempt == 0 || observation.Attempt != p.view.Attempt || !observation.Snapshot.Matches(current) || !p.view.Snapshot.sameWorld(current) || observation.Tick <= p.view.Tick {
 		return p, errors.New("stale or differently scoped observation")
 	}
 	switch observation.Effect {

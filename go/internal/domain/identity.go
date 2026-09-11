@@ -11,6 +11,9 @@ type ColonyID string
 type MapID int32
 type LoadID string
 type ActionID string
+
+// AttemptID is monotonic within one action; zero means no dispatch yet.
+type AttemptID uint64
 type PlanID string
 type DirectionID uint64
 type PlanRevision uint64
