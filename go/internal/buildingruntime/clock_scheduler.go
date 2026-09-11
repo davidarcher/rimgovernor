@@ -170,7 +170,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 				}
 			}
 		}
-		if status.GetStopping() != nil && obligations {
+		if (status.GetStopping() != nil || !ownedCurrent) && obligations {
 			out.Cleaned = true
 			return out, s.session.CleanupClock(call)
 		}
