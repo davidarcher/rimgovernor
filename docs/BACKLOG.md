@@ -1043,13 +1043,15 @@ only intentional small, sanitized regression fixtures belong in source control.
           native CAS through fresh runtime inspection, and expose progress and
           cleanup independently.
           Keep shared direction CAS, replay and Manual cancellation semantics.
-          - [ ] **2f.2a:** fix shared player and draft HTTP contracts. Owner:
+          - [x] **2f.2a:** fix shared player and draft HTTP contracts. Owner:
             integrator; depends on 2f.1. Use `/api/player/session` and
             `/api/player/control` with acquire/manual subroutes for common control.
             Draft intent uses `/api/drafts/plans` and request lookup uses
             `/api/drafts/submission`. Accept request ID, expected world and
             `draft.pawnId`; keep native tokens and ownership out of player intent.
             Use a closed building/draft plan projection with independent cleanup.
+            The [Go player API contract](developers/contracts/go-player-api.md)
+            fixes routes, payloads and shared dashboard coordination.
           - [ ] **2f.2b:** shared player draft submission. Owner: runtime agent;
             depends on 2f.2a and the accepted draft store. Submit through the existing
             Player gate, world validation and durable request namespace. Preserve cross-family request

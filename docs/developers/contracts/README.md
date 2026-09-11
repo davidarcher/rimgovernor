@@ -13,6 +13,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Native forecast contracts](forecast-contracts.md)
 - [Animal husbandry contracts](husbandry-contracts.md)
 - [Dashboard and video contracts](interface-contracts.md)
+- [Go player API](go-player-api.md)
 - [Medical care contracts](medical-care.md)
 - [Material extraction contracts](mining-contracts.md)
 - [Mood relief contracts](mood-control.md)
