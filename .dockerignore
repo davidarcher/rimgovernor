@@ -7,6 +7,8 @@
 !controller_tests/**
 !scripts/
 !scripts/**
+!contracts/
+!contracts/**
 !integrations/
 !integrations/**
 !dashboard/

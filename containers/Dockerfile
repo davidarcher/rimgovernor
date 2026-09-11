@@ -17,6 +17,7 @@ COPY third_party/ third_party/
 COPY controller/ controller/
 COPY controller_tests/ controller_tests/
 COPY scripts/ scripts/
+COPY contracts/ contracts/
 COPY integrations/ integrations/
 RUN pip install --no-cache-dir --no-deps --no-build-isolation .
 CMD ["python", "-m", "pytest", "-q"]
