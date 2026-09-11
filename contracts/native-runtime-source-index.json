@@ -1,6 +1,6 @@
 {
   "inventory_version": 1,
-  "source_revision": "e8cff01680934c1ae364f8343e89fd4721c44143",
+  "source_revision": "7bb6efd7ae0bcb9cbf9b64f28af808b19f48bb71",
   "scope": "Tracked C# sources in unified native Runtime/Bridge and scripts/fixtures; lexical reference index, not an AST or proof of behavioral coverage.",
   "source_line_policy": "One-based source anchors at source_revision; static matches include methods and constructors, reflection matches include helper use and interop. Read the full source declaration before changing ownership.",
   "rows": [
@@ -1924,30 +1924,51 @@
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeCombatCausality.cs",
       "compilation": "production-bridge",
-      "source_sha256": "16b1320e1210b1b42a890074ec05fb00d9cadc8de5957ce33178403d04f505e7",
+      "source_sha256": "6d1b64bd83c7d8a472221f588e4bec4190df6c7a3cda7317af6ea76015f184de",
       "owner": "N01.04 native guarded combat owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify actual melee damage attribution, terminal pawn outcomes, unrelated damage refusal, interrupted and uncertain orders. Ranged projectile lineage remains unsupported.",
       "static_token_lines": [
         39,
-        60,
-        61,
-        62,
-        63,
-        64,
-        71,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
         81,
-        94,
-        113
+        82,
+        83,
+        103,
+        105,
+        119,
+        132,
+        145,
+        151,
+        157,
+        178
       ],
       "reflection_boundary_lines": [
-        61,
-        62,
-        63
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82
       ],
       "patch_registration_lines": [
-        68,
-        75
+        88,
+        89,
+        94,
+        95,
+        99,
+        103,
+        104,
+        109,
+        110
       ]
     },
     {

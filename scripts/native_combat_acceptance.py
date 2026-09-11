@@ -76,7 +76,7 @@ async def run(root: Path, output: Path, *, headless=True):
     report = {"passed": False, "headless": headless, "scope": "Actual melee damage attributed to exact admitted attacker/job and native target downing/death; bounded shared clock waits, replay and ranged refusal. No damage or completion injection."}
     try:
         configuration = prepare(root) if headless else prepare_rendered(root)
-        game = json.loads((configuration / "config.json").read_text())["games"]["rimgovernor-trial"]
+        game = json.loads((configuration / "config.json").read_text(encoding="utf-8"))["games"]["rimgovernor-trial"]
         report["package_files"] = package_files(Path(game["workingDir"]))
         async with bridge_session(gabs_executable(root, configuration), configuration) as bridge:
             async def call(label, method, arguments=None): return payload(await evidence.call(bridge, label, method, arguments))
@@ -151,7 +151,7 @@ async def run(root: Path, output: Path, *, headless=True):
                     assert final["paused"] is True and final["context"]["identity"] == identity
                     ticks = int(final["context"]["tick"])-int(initial["context"]["tick"])
                     assert 0 < ticks <= 1920
-                    check_startup_log((root / ("HeadlessPlayer.log" if headless else "Player.log")).read_text(errors="replace"), headless=headless)
+                    check_startup_log((root / ("HeadlessPlayer.log" if headless else "Player.log")).read_text(encoding="utf-8", errors="replace"), headless=headless)
                     report.update(passed=True, pawn_id=actor_id, target_ids=targets, completed=completed, ticks=ticks)
             finally:
                 async with asyncio.timeout(60): report["stop"] = (await bridge.core("games_stop", gameId=bridge.game_id)).model_dump(mode="json")

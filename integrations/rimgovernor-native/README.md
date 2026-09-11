@@ -40,21 +40,31 @@ A standalone Mono proof needs the standard netstandard framework facade; install
 game loading and round trips require the fresh native acceptance run.
 
 The implemented [fixed Protobuf methods](../../contracts/native-protobuf-cutover.md)
-cover identity, authority, placement previews, basic status/cells and guarded
-construction with receipt lookup and progress. Each accepts one `request`
+cover identity, authority, clock control, bounded observations, placement previews
+and guarded construction/draft/movement/melee operations with receipt lookup and
+progress. The method map states each implemented subset. Each accepts one `request`
 ProtoJSON string and returns one `payload` ProtoJSON string inside the SDK envelope.
 Reads do not initialize game components or authority. Native lifecycle hooks
 initialize inactive authority; only the trusted host's explicit control path can
 acquire it. Model interpretation receives no control or execution capability.
 
-Construction currently implements `PlaceBuilding`. Other operation commands
-return Unsupported. Admission checks current identity, generation, lease and
+Operations implement `PlaceBuilding`, temporary `SetDrafted`, exact owned
+`MovePawn` and melee `AttackTarget`. Other command variants return Unsupported.
+Admission checks current identity, generation, lease and
 ordinary native placement rules on the game thread. One unsaved per-load ledger
 retains up to 4096 attempts without eviction. Exact retries return the original
 receipt after revocation; changed requests conflict. Applied records an observed
 blueprint, frame or instant building. Pawn completion requires a separate progress
 read following the exact native object transitions. Lost transition evidence
 remains unknown. New loads start without authority or attempt history.
+
+Movement and combat require an existing canonical owned draft and exact pawn
+snapshots. Animals without draft controllers have target snapshots but cannot be
+drafted. Movement completion follows the issued job to its exact destination.
+Melee completion requires native positive damage from that exact attack to cause
+target death or requested standing-target downing. Ranged projectile attribution
+remains unavailable. `ReleaseOwnedDraft` permits exact original-owner cleanup
+after Manual or lease expiry without acquiring new authority.
 
 Status does not issue entity mutation snapshots. Cell reads support terrain,
 roof, visibility and traversal, with explicit Unsupported issues for other

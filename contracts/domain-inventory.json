@@ -6694,7 +6694,7 @@
   ],
   "native_surface": {
     "version": 1,
-    "source_revision": "e8cff01680934c1ae364f8343e89fd4721c44143",
+    "source_revision": "7bb6efd7ae0bcb9cbf9b64f28af808b19f48bb71",
     "scope": "Current repository-owned native Runtime/Bridge exports, generated Protobuf compile inputs and conditional fixtures. Historical Python consumer inventory remains at its independent source_revision. Installed SDK/GABS exports require actual discovery.",
     "evidence_links": "domain_item_id reuses existing G01 owner, fixtures and native_scenarios without copying Python call-site lists. Empty local evidence lists preserve uncovered acceptance. schema_owner_chunk assigns the cross-language schema owner; native_owner_chunk owns typed conversion or fixture isolation.",
     "variant_contract": "source_baseline.exports[].declaration retains the complete exported signature, Tool/ToolParameter/ToolResponse attributes, documented string variants, optional selectors and defaults. Source fingerprints detect implementation changes. Runtime branches, aliases and payload keys still require behavioral schema and discovery acceptance.",
@@ -9541,7 +9541,8 @@
         ],
         "native_scenarios": [
           "scripts/native_guarded_construction_acceptance.py",
-          "scripts/native_movement_acceptance.py"
+          "scripts/native_movement_acceptance.py",
+          "scripts/native_combat_acceptance.py"
         ],
         "status": "pending",
         "uncovered_acceptance": [
@@ -9566,7 +9567,8 @@
         ],
         "native_scenarios": [
           "scripts/native_guarded_construction_acceptance.py",
-          "scripts/native_movement_acceptance.py"
+          "scripts/native_movement_acceptance.py",
+          "scripts/native_combat_acceptance.py"
         ],
         "status": "pending",
         "uncovered_acceptance": [
@@ -9707,7 +9709,8 @@
         ],
         "native_scenarios": [
           "scripts/native_guarded_construction_acceptance.py",
-          "scripts/native_movement_acceptance.py"
+          "scripts/native_movement_acceptance.py",
+          "scripts/native_combat_acceptance.py"
         ],
         "status": "pending",
         "uncovered_acceptance": [
