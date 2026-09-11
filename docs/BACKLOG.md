@@ -983,6 +983,17 @@ only intentional small, sanitized regression fixtures belong in source control.
         - [ ] **2e.2:** shared executor dispatch, evidence and cleanup paths. Owner:
           executor agent; depends on 2c–d and 2e.1. Preserve one writer and use
           typed admissions and exact persisted cleanup requests.
+          - [x] **2e.2a:** fixed typed executor and native boundary interface. Owner:
+            integrator; depends on 2c–d, 2e.1 and 2f.1a. Separate live draft admission,
+            original-attempt observations and lease-free exact-claim cleanup.
+          - [ ] **2e.2b:** shared writer implementation. Owner: executor agent;
+            depends on 2e.2a. Extend Run with the closed draft kind and expose
+            serialized cleanup after ordinary Stop. Persist uncertainty and
+            validate exact cleanup sequence before accepting late results.
+          - [ ] **2e.2c:** native evidence boundary. Owner: runtime adapter agent;
+            depends on 2e.2a. Pair original attempt evidence with fresh full-owner
+            pawn observations. Cleanup reads cannot enter the control gate or
+            acquire a lease. No session or service enablement in this slice.
       - [ ] **07a.2f:** runtime admission, invalidation and restart cleanup. Owner:
         integrator; depends on 2e. Include outstanding cleanup after ordinary action
         completion. Manual disables writes before cleanup; Close joins writers and
