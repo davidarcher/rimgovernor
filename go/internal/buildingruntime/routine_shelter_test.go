@@ -219,7 +219,7 @@ func TestShelterRoofingBudgetRequiresObservedCompletionAndDoesNotRenew(t *testin
 	for _, test := range []struct {
 		tick domain.Tick
 		want uint32
-	}{{99, 0}, {100, 2500}, {101, 2499}, {2599, 1}, {2600, 0}, {3000, 0}} {
+	}{{99, 0}, {100, 10000}, {101, 9999}, {10099, 1}, {10100, 0}, {11000, 0}} {
 		if got := shelterNativeWorkTicks(plan, current, test.tick); got != test.want {
 			t.Fatal(test, got)
 		}
@@ -322,14 +322,14 @@ func TestShelterRoofingContinuesAfterFurnishingUntilNativeCapacityRecovers(t *te
 	}
 	completeRoutineBuildingMethod(t, db, furnish)
 	remaining, err := r.Step(ctx)
-	if err != nil || remaining.NativeWorkTicks != 2500 {
+	if err != nil || remaining.NativeWorkTicks != 10000 {
 		t.Fatal("furnishing stopped unfinished roofing", remaining, err)
 	}
 	if _, err := r.reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
 	remaining, err = r.Step(ctx)
-	if err != nil || remaining.NativeWorkTicks != 2500 {
+	if err != nil || remaining.NativeWorkTicks != 10000 {
 		t.Fatal("retirement lost roofing budget", remaining, err)
 	}
 	n.reply.GetObserved().IndoorSleepingCapacity = n.reply.GetObserved().ColonistCount

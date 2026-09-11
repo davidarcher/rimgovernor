@@ -371,7 +371,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             if sleeping_methods:
                 report["sleeping_plan"] = await wait_building_method(http, database, "SleepingSpot", report["sleeping_setup"]["colonists"])
             if shelter_methods:
-                async with asyncio.timeout(60):
+                async with asyncio.timeout(300):
                     while True:
                         recovered = routine_evidence(database, identity, enabled=True, expected_food_need=expected_food, allow_methods=True)
                         if recovered['goals']['EnsureInitialShelter']['Need'] == 'recovered':
@@ -431,6 +431,16 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
         if launched and all(p.get("joined") for p in report.get("service_phases", [])):
             try:
                 async with bridge_session(gabs, configuration) as bridge:
+                    if not report['passed'] and shelter_methods and 'shelter_plan' in report:
+                        try:
+                            await bridge.connect()
+                            report['failure_colony'] = await wire(bridge, 'failure-colony', 'observations_read_colony_facts', {'scope': {'expectedIdentity': identity}, 'planning': True})
+                            buildings = [a['building'] for a in report['shelter_plan']['actions']]
+                            report['failure_roof_cells'] = payload(await evidence.call(bridge, 'failure-roof-cells', 'home/get_cells_plus', {
+                                'x': min(b['x'] for b in buildings), 'z': min(b['z'] for b in buildings),
+                                'width': 9, 'height': 9, 'fields': 'roof,areas,things,designations'}))
+                        except BaseException as diagnostic_error:
+                            report['diagnostic_error'] = repr(diagnostic_error)
                     report["stop"] = (await bridge.core("games_stop", gameId=bridge.game_id)).model_dump(mode="json")
             except BaseException as error:
                 report.update(passed=False, cleanup_error=repr(error))

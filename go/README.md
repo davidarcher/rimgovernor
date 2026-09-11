@@ -244,7 +244,7 @@ furnishing and falls back to a bounded 9×9 starter shell when the whole sleepin
 method lacks verified space. Native definitions must support one-cell wood walls
 and doors; every piece needs a safe exact footprint and the complete project must
 fit shared stock and reservations. The door's observed completion gates all walls.
-After all shell pieces complete, up to 2,500 game ticks allow ordinary automatic
+After all shell pieces complete, up to 10,000 game ticks allow ordinary automatic
 roofing; that budget derives from durable completion and cannot renew on restart.
 It remains available after furnishing until native indoor capacity recovers or
 the budget expires: roofed spot footprints alone do not prove a fully roofed room.

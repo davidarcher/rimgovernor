@@ -20,7 +20,7 @@ func NewRoutineShelterPlanner(reviewer *RoutineReviewer, native RoutineBuildingS
 }
 
 // A completed starter shell may trigger RimWorld's normal automatic roofing.
-// Give that work at most one in-game hour from the durable completion tick.
+// Give that work at most four in-game hours from the durable completion tick.
 // Polling, restarting or cancelling cannot renew this budget.
 func shelterNativeWorkTicks(plan store.PlanState, current domain.GenerationSnapshot, tick domain.Tick) uint32 {
 	if len(plan.Progress) != 32 {
@@ -36,7 +36,7 @@ func shelterNativeWorkTicks(plan store.PlanState, current domain.GenerationSnaps
 		}
 		completed = max(completed, v.Tick)
 	}
-	const budget domain.Tick = 2500
+	const budget domain.Tick = 10000
 	if tick-completed >= budget {
 		return 0
 	}
