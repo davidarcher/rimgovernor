@@ -10,10 +10,13 @@ Build `NativeCombatCausalityTests.csproj`, then run its net472 executable with:
 
 The executable loads the actual compiled Bridge, SDK, game and Harmony assemblies.
 It exercises damage-result transitions and invokes the actual private prefix and
-postfix against explicitly constructed native object state. It checks exact
+postfix/finalizers against explicitly constructed native object state. It checks exact
 attacker/job/target/context identity, immutable job load IDs, main-thread refusal,
-preexisting versus new downing, positive and invalid damage totals, nested damage
-invalidation, and removal/restoration of the live required Harmony postfix.
+preexisting versus new downing, positive and invalid damage totals, concrete melee
+verb scope, nested damage rejection, and exception-safe scope/depth restoration.
+An active attack job alone supplies no attribution. Each of the five required
+Harmony registrations is removed and restored; exact owner/method counts must
+remain one, with a positive callback after each repair.
 
 This is a standalone callback-state test, not game simulation. Uninitialized game,
 map, pawn, health and job objects receive only the fields needed by these callbacks.

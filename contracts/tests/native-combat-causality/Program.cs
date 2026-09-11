@@ -24,13 +24,16 @@ internal static class Program
     static object? Call(Type t,object? o,string n,params object?[] a)=>t.GetMethod(n,F)!.Invoke(o,a);
     static void Check(bool b,string why){if(!b)throw new Exception(why);checks++;}
     static bool Flag(object o,string n)=>(bool)Get(o,n)!;
-    sealed class Fixture
+    static Fixture? activeFixture;
+    sealed class Fixture : IDisposable
     {
         internal object Game=Raw("Verse.Game"), Map=Raw("Verse.Map"), Attacker=Raw("Verse.Pawn"), Target=Raw("Verse.Pawn"), Job=Raw("Verse.AI.Job");
         internal object Record=null!;
+        internal object? Scope;
         internal bool Allowed=true;
-        internal Fixture()
+        internal Fixture(bool scope=true)
         {
+        activeFixture?.Dispose();activeFixture=this;
             var maps=(IList)Activator.CreateInstance(typeof(System.Collections.Generic.List<>).MakeGenericType(Native("Verse.Map")))!;maps.Add(Map);
             Set(Game,"maps",maps);Set(Game,"currentMapIndex",(sbyte)0);var tm=Raw("Verse.TickManager");Set(tm,"ticksGameInt",123);Set(Game,"tickManager",tm);
             Static("Verse.Current","gameInt",Game);
@@ -40,10 +43,26 @@ internal static class Program
             var targetInfo=Activator.CreateInstance(Native("Verse.LocalTargetInfo"),Target)!;Set(Job,"targetA",targetInfo);
             var jobs=Raw("Verse.AI.Pawn_JobTracker");Set(jobs,"curJob",Job);Set(Attacker,"jobs",jobs);
             Record=Call(Hook,null,"Track",Game,Attacker,Target,Job,new Func<bool>(()=>Allowed))!;
+            if(scope)Scope=Open();
         }
         internal object Info(object? instigator=null){var d=Activator.CreateInstance(Native("Verse.DamageInfo"))!;Set(d,"instigatorInt",instigator??Attacker);return d;}
         internal object? Before(object? info=null,object? victim=null){object?[] a={victim??Target,info??Info(),null};Call(Hook,null,"BeforeDamage",a);return a[2];}
-        internal void After(object? pending,float amount=1,object? info=null){var result=Raw("Verse.DamageWorker+DamageResult");Set(result,"totalDamageDealt",amount);Call(Hook,null,"AfterDamage",info??Info(),result,pending);}
+        internal object? Open(object? caster=null,object? target=null)
+        {
+            var verb=Raw("RimWorld.Verb_MeleeAttackDamage");Set(verb,"caster",caster??Attacker);
+            object?[] a={verb,Activator.CreateInstance(Native("Verse.LocalTargetInfo"),target??Target),null};
+            Call(Hook,null,"BeforeMelee",a);return a[2];
+        }
+        internal object? Close(object? scope,Exception? error=null)=>Call(Hook,null,"EndMelee",error,scope);
+        internal object? End(object? frame,Exception? error=null)=>Call(Hook,null,"EndDamage",error,frame);
+        internal void After(object? pending,float amount=1,object? info=null)
+        {
+            try { var result=Raw("Verse.DamageWorker+DamageResult");Set(result,"totalDamageDealt",amount);Call(Hook,null,"AfterDamage",info??Info(),result,pending); }
+            finally { End(pending); }
+        }
+        internal void Refused(string label,object? info=null,object? victim=null) {After(Before(info,victim),info:info);Check(!Flag(Record,"ObservedDamage"),label);}
+        public void Dispose(){if(Scope!=null){Close(Scope);Scope=null;}}
+
         internal void Health(string state)=>Set(Get(Target,"health")!,"healthState",Enum.Parse(Native("Verse.PawnHealthState"),state));
     }
     static object Record()=>Raw(RecordType);
@@ -66,34 +85,58 @@ internal static class Program
         Static("Verse.UnityDataInitializer","initializing",true); // Test process has no Unity engine; avoid its startup warning ECall.
         Static("Verse.UnityData","mainThreadId",Thread.CurrentThread.ManagedThreadId);
         Call(Hook,null,"Initialize");Check((bool)Hook.GetProperty("IsReady",F)!.GetValue(null)!,"actual Harmony prefix and postfix installed");
-        var f=new Fixture();var pending=f.Before();Check(pending!=null,"exact live job captures prefix");f.Health("Down");f.After(pending);Check(Flag(f.Record,"CausedDowning"),"exact callback records new downing");
-        f=new Fixture();Check((int)Get(f.Record,"JobId")! ==41,"job load identity captured at tracking");Set(f.Job,"loadID",42);Check((int)Get(f.Record,"JobId")! ==41 && f.Before()==null,"pooled job reference with new load identity cannot inherit attribution");
-        f=new Fixture();Set(f.Job,"def",Raw("Verse.JobDef"));Check(f.Before()==null,"different native job definition rejected");
-        f=new Fixture();object? background=null;var worker=new Thread(()=>background=f.Before());worker.Start();worker.Join();Check(background==null,"worker thread cannot capture damage attribution");
-        f=new Fixture();Check(f.Before(f.Info(Raw("Verse.Pawn")))==null,"wrong instigator rejected");
-        Set(Get(f.Attacker,"jobs")!,"curJob",Raw("Verse.AI.Job"));Check(f.Before()==null,"wrong current job rejected");
-        f=new Fixture();Set(f.Job,"targetA",Activator.CreateInstance(Native("Verse.LocalTargetInfo"),f.Attacker)!);Check(f.Before()==null,"wrong job target rejected");
-        f=new Fixture();f.Allowed=false;Check(f.Before()==null,"ownership guard rejected");
-        f=new Fixture();f.Health("Dead");Check(f.Before()==null,"predead target rejected by prefix");
+        var f=new Fixture(false);f.Refused("exact melee job without concrete verb scope cannot earn credit");
+        f=new Fixture();var pending=f.Before();f.Health("Down");f.After(pending);Check(Flag(f.Record,"CausedDowning"),"matching concrete melee scope attributes new downing");
+        f=new Fixture();Check((int)Get(f.Record,"JobId")! ==41,"immutable job load identity captured");Set(f.Job,"loadID",42);f.Refused("pooled job reuse rejected within captured scope");
+        f=new Fixture(false);Set(f.Job,"loadID",42);f.Scope=f.Open();f.Refused("pooled job reuse rejected before scope");
+        f=new Fixture();Set(f.Job,"def",Raw("Verse.JobDef"));f.Refused("changed job definition rejected");
+        f=new Fixture();var worker=new Thread(()=>f.After(f.Before()));worker.Start();worker.Join();Check(!Flag(f.Record,"ObservedDamage"),"worker thread cannot capture attribution");
+        f=new Fixture();f.Refused("wrong damage instigator rejected",f.Info(Raw("Verse.Pawn")));
+        Set(Get(f.Attacker,"jobs")!,"curJob",Raw("Verse.AI.Job"));f.Refused("wrong current job rejected");
+        f=new Fixture();Set(f.Job,"targetA",Activator.CreateInstance(Native("Verse.LocalTargetInfo"),f.Attacker)!);f.Refused("wrong job target rejected");
+        f=new Fixture();f.Allowed=false;f.Refused("ownership guard rejected");
+        f=new Fixture();f.Health("Dead");f.Refused("predead target rejected");
         f=new Fixture();pending=f.Before();Static("Verse.Current","gameInt",Raw("Verse.Game"));f.After(pending);Check(!Flag(f.Record,"ObservedDamage"),"changed game after prefix rejected");
         f=new Fixture();pending=f.Before();Set(f.Game,"currentMapIndex",(sbyte)-1);f.After(pending);Check(!Flag(f.Record,"ObservedDamage"),"changed map after prefix rejected");
-        f=new Fixture();pending=f.Before();f.Before(f.Info(Raw("Verse.Pawn")));f.Health("Dead");f.After(pending);Check(!Flag(f.Record,"ObservedDamage"),"nested unattributed damage invalidates outer attribution");
-        f=new Fixture();pending=f.Before();var nested=f.Before();f.Health("Down");f.After(nested);Check(Flag(f.Record,"CausedDowning"),"nested exact callback owns transition");f.Health("Dead");f.After(pending);Check(!Flag(f.Record,"CausedDeath"),"outer callback cannot adopt later transition");
-        foreach(var amount in new[]{0f,-1f,float.NaN,float.PositiveInfinity,float.NegativeInfinity}) { f=new Fixture();pending=f.Before();f.Health("Dead");f.After(pending,amount);Check(!Flag(f.Record,"ObservedDamage")&&!Flag(f.Record,"CausedDeath"),"invalid actual result cannot prove death"); }
-        f=new Fixture();f.Health("Down");pending=f.Before();f.After(pending);Check(Flag(f.Record,"ObservedDamage")&&!Flag(f.Record,"CausedDowning"),"callback preserves preexisting downing distinction");
+        f=new Fixture();pending=f.Before();var nested=f.Before();f.Health("Down");f.After(nested);Check(!Flag(f.Record,"ObservedDamage"),"nested same-instigator damage never earns credit");f.Health("Dead");f.After(pending);Check(!Flag(f.Record,"ObservedDamage"),"nested damage invalidates outer transition attribution");
+        f=new Fixture();pending=f.Before();nested=f.Before(f.Info(Raw("Verse.Pawn")));f.After(nested,info:f.Info(Raw("Verse.Pawn")));f.Health("Dead");f.After(pending);Check(!Flag(f.Record,"ObservedDamage"),"nested wrong-instigator damage invalidates outer attribution");
+        foreach(var amount in new[]{0f,-1f,float.NaN,float.PositiveInfinity,float.NegativeInfinity}) {f=new Fixture();pending=f.Before();f.Health("Dead");f.After(pending,amount);Check(!Flag(f.Record,"ObservedDamage")&&!Flag(f.Record,"CausedDeath"),"invalid damage total cannot prove death");}
+        f=new Fixture();f.Health("Down");pending=f.Before();f.After(pending);Check(Flag(f.Record,"ObservedDamage")&&!Flag(f.Record,"CausedDowning"),"prior downing not newly attributed");
         f=new Fixture();pending=f.Before();f.After(pending,1,f.Info(Raw("Verse.Pawn")));Check(!Flag(f.Record,"ObservedDamage"),"changed result instigator rejected");
-        f=new Fixture();Check(f.Before(victim:f.Attacker)==null,"untracked victim rejected");
-        f=new Fixture();Set(f.Game,"currentMapIndex",(sbyte)-1);Check(f.Before()==null,"changed map before damage rejected");
-        f=new Fixture();pending=f.Before();
+        f=new Fixture();f.Refused("untracked victim rejected",victim:f.Attacker);
+        f=new Fixture();Set(f.Game,"currentMapIndex",(sbyte)-1);f.Refused("changed map before prefix rejected");
+        f=new Fixture(false);f.Scope=f.Open(caster:f.Target);f.Refused("wrong concrete verb caster rejected");
+        f=new Fixture(false);f.Scope=f.Open(target:f.Attacker);f.Refused("wrong concrete verb target rejected");
+        f=new Fixture();var inner=f.Open(target:f.Attacker);f.Refused("nested wrong-target verb masks outer matching scope");f.Close(inner);f.After(f.Before());Check(Flag(f.Record,"ObservedDamage"),"outer matching scope restored after nested verb");
+        f=new Fixture();inner=f.Open();var error=new InvalidOperationException("original native failure");Check(ReferenceEquals(f.Close(inner,error),error),"melee finalizer preserves original exception");f.After(f.Before());Check(Flag(f.Record,"ObservedDamage"),"nested exception restores outer scope");
+        f=new Fixture();Check(ReferenceEquals(f.Close(f.Scope,error),error),"outer exception preserved");f.Scope=null;f.Refused("outer exception clears scope");
+        f=new Fixture();pending=f.Before();Check(ReferenceEquals(f.End(pending,error),error),"damage finalizer preserves original exception");f.After(f.Before());Check(Flag(f.Record,"ObservedDamage"),"damage exception restores depth for next sequential hit");
+        f=new Fixture();pending=f.Before();inner=f.Open();nested=f.Before();f.Health("Dead");f.After(nested);f.Close(inner);f.After(pending);Check(!Flag(f.Record,"ObservedDamage"),"nested melee verb during damage cannot acquire attribution");
+        f=new Fixture();pending=f.Before();nested=f.Before();f.End(nested,error);f.End(pending,error);f.After(f.Before());Check(Flag(f.Record,"ObservedDamage"),"nested damage exceptions restore depth");
         var harmonyType=AppDomain.CurrentDomain.GetAssemblies().Single(a=>a.GetName().Name=="0Harmony").GetType("HarmonyLib.Harmony",true)!;
         var harmony=Activator.CreateInstance(harmonyType,"rimgovernor.combat-causality")!;
-        var target=(MethodInfo)Hook.GetField("Target",F)!.GetValue(null)!;
-        var postfix=(MethodInfo)Hook.GetField("Postfix",F)!.GetValue(null)!;
-        harmonyType.GetMethod("Unpatch",new[]{typeof(MethodBase),typeof(MethodInfo)})!.Invoke(harmony,new object[]{target,postfix});
-        Check(!(bool)Hook.GetProperty("IsReady",F)!.GetValue(null)!,"removed required postfix detected despite installed prefix");
-        f.After(pending);Check(!Flag(f.Record,"ObservedDamage"),"hook removal between callbacks cannot produce evidence");
-        Check(f.Before()==null,"missing live hook refuses prefix capture");
-        Call(Hook,null,"Initialize");Check((bool)Hook.GetProperty("IsReady",F)!.GetValue(null)!,"exact postfix restored");
+        foreach(var pair in new[]{new[]{"Target","Postfix"},new[]{"Target","Prefix"},new[]{"Target","DamageFinalizer"},new[]{"MeleeTarget","MeleePrefix"},new[]{"MeleeTarget","MeleeFinalizer"}})
+        {
+            f=new Fixture();pending=f.Before();
+            var target=(MethodInfo)Hook.GetField(pair[0],F)!.GetValue(null)!;
+            var callback=(MethodInfo)Hook.GetField(pair[1],F)!.GetValue(null)!;
+            harmonyType.GetMethod("Unpatch",new[]{typeof(MethodBase),typeof(MethodInfo)})!.Invoke(harmony,new object[]{target,callback});
+            Check(!(bool)Hook.GetProperty("IsReady",F)!.GetValue(null)!,"removed required "+pair[1]+" detected");
+            f.After(pending);Check(!Flag(f.Record,"ObservedDamage"),"patch loss cannot produce evidence");
+            f.Refused("missing required hook refuses capture");
+            Call(Hook,null,"Initialize");Check((bool)Hook.GetProperty("IsReady",F)!.GetValue(null)!,"exact hook restored");
+            foreach(var registration in new[]{new[]{"Target","Prefixes","Prefix"},new[]{"Target","Postfixes","Postfix"},new[]{"Target","Finalizers","DamageFinalizer"},new[]{"MeleeTarget","Prefixes","MeleePrefix"},new[]{"MeleeTarget","Finalizers","MeleeFinalizer"}})
+            {
+                var patched=(MethodInfo)Hook.GetField(registration[0],F)!.GetValue(null)!;
+                var expected=(MethodInfo)Hook.GetField(registration[2],F)!.GetValue(null)!;
+                var info=harmonyType.GetMethod("GetPatchInfo",F)!.Invoke(null,new object[]{patched})!;
+                var registrations=((IEnumerable)Get(info,registration[1])!).Cast<object>().Count(row=>(string)Get(row,"owner")! =="rimgovernor.combat-causality" && Equals(Get(row,"PatchMethod"),expected));
+                Check(registrations==1,"exactly one owner/method registration after repair: "+registration[2]+" count="+registrations);
+            }
+            f.Dispose();f.Scope=f.Open();f.After(f.Before());Check(Flag(f.Record,"ObservedDamage"),"positive concrete melee callback works after repair");
+        }
+        activeFixture?.Dispose();
+        Check(Hook.GetField("meleeScope",F)!.GetValue(null)==null && (int)Hook.GetField("damageDepth",F)!.GetValue(null)! ==0,"all scope and damage depth cleaned up");
         Console.WriteLine(checks+" actual-assembly causality checks passed; simulated callback state, not gameplay damage acceptance.");
     }
 }
