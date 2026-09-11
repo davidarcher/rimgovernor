@@ -1,10 +1,10 @@
-// Projection tests link production state/projection and official DTOs. SDK parsing
-// and main-thread transport are not exercised by these deliberately throwing stubs.
+#nullable enable
+// Substitute only SDK argument extraction/main-thread transport. Production
+// ProtoBoundary parsing, identity admission, authority lookup and projection run unchanged.
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Protobuf;
-using Common = RimGovernor.Protocol.Common;
 namespace RimBridgeServer.Sdk
 {
     [AttributeUsage(AttributeTargets.Method)]
@@ -22,18 +22,21 @@ namespace RimBridgeServer.Sdk
     }
     [AttributeUsage(AttributeTargets.Parameter)]
     internal sealed class ToolParameterAttribute : Attribute { public string? Description { get; set; } }
-    public interface IRimBridgeContext { IMainThread MainThread { get; } }
+    public interface IRimBridgeContext
+    {
+        IMainThread MainThread { get; }
+        Dictionary<string, object>? Arguments { get; }
+    }
     public interface IMainThread { Task<T> InvokeAsync<T>(Func<T> action, CancellationToken token); }
 }
 namespace HomeBridge.BridgeTools
 {
-    internal static class ProtoBoundary
+    internal static class BridgeCommon
     {
-        internal static bool TryParse<T>(RimBridgeServer.Sdk.IRimBridgeContext ctx, string name, object request,
-            MessageParser<T> parser, out T result, out Common.Failure failure) where T : IMessage<T>
-            => throw new NotSupportedException("Projection test must not exercise a substituted parser.");
-        internal static object Encode(IMessage reply) => throw new NotSupportedException();
-        internal static bool ValidateIdentity(Common.Identity expected, Verse.Map? map,
-            out Common.ObservationContext context, out Common.Failure failure) => throw new NotSupportedException();
+        internal static Dictionary<string, object>? RawArguments(RimBridgeServer.Sdk.IRimBridgeContext ctx, out string? unavailable)
+        {
+            unavailable = ctx.Arguments == null ? "Raw SDK arguments unavailable" : null;
+            return ctx.Arguments;
+        }
     }
 }

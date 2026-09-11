@@ -2,14 +2,17 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
+    <Nullable>disable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NativeSourceRoot Condition="'$(NativeSourceRoot)' == ''">$(MSBuildThisFileDirectory)../../../integrations/rimgovernor-native/src</NativeSourceRoot>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Google.Protobuf" Version="3.31.1" />
-    <Compile Include="../../../integrations/rimgovernor-native/src/Runtime/Persistence/NativeControlAuthority.cs" Link="NativeControlAuthority.cs" />
-    <Compile Include="../../../integrations/rimgovernor-native/src/Bridge/Protocol/NativeAuthorityTools.cs" Link="NativeAuthorityTools.cs" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <Compile Include="$(NativeSourceRoot)/Runtime/Persistence/NativeControlAuthority.cs" Link="NativeControlAuthority.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAuthorityTools.cs" Link="NativeAuthorityTools.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/ProtoBoundary.cs" Link="ProtoBoundary.cs" />
     <Compile Include="../../generated/protobuf/csharp/Common.cs" Link="Common.cs" />
     <Compile Include="../../generated/protobuf/csharp/Authority.cs" Link="Authority.cs" />
     <Compile Include="../native-authority/NativeContextStub.cs" Link="NativeContextStub.cs" />

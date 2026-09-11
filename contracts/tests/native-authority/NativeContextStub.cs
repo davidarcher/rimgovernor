@@ -1,3 +1,4 @@
+#nullable enable
 // Only the game identity access seam is substituted. Tests compile the production
 // authority state unchanged and supply its injected context and monotonic clock.
 namespace Verse
@@ -9,7 +10,8 @@ namespace Verse
     }
     public sealed class Map { public int uniqueID; }
     public static class Current { public static Game? Game; }
-    public static class Find { public static Map? CurrentMap; }
+    public sealed class TickManager { public int TicksGame; }
+    public static class Find { public static Map? CurrentMap; public static TickManager? TickManager; }
 }
 namespace HomeBridge.BridgeTools
 {

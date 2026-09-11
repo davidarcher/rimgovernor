@@ -1,4 +1,8 @@
+#nullable enable
 using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Google.Protobuf;
 using HomeBridge.BridgeTools;
 using Verse;
@@ -25,6 +29,65 @@ internal static class Program
         Check(status.Context.HasTick && status.Context.Tick == 0 && status.Context.Identity.HasMapId,
             "Projection lost known tick/map zero");
         return status;
+    }
+    private sealed class ContextStub : RimBridgeServer.Sdk.IRimBridgeContext, RimBridgeServer.Sdk.IMainThread
+    {
+        public Dictionary<string, object>? Arguments { get; set; } = new Dictionary<string, object>();
+        public RimBridgeServer.Sdk.IMainThread MainThread => this;
+        public int Invocations;
+        public Task<T> InvokeAsync<T>(Func<T> action, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            Invocations++;
+            return Task.FromResult(action());
+        }
+    }
+    private static Wire.StatusReply Decode(object envelope)
+    {
+        var fields = (Dictionary<string, object>)envelope;
+        Check(fields.Count == 1 && fields["payload"] is string, "Exact typed payload envelope");
+        return Wire.StatusReply.Parser.ParseJson((string)fields["payload"]);
+    }
+    private static void EndpointAdmission()
+    {
+        var game = new Game(); Current.Game = game; Find.CurrentMap = new Map { uniqueID = 0 };
+        Find.TickManager = new TickManager { TicksGame = 0 };
+        var endpoint = new NativeAuthorityTools(); var ctx = new ContextStub();
+        var missing = Decode(endpoint.ReadStatus(ctx, CancellationToken.None).GetAwaiter().GetResult());
+        Check(missing.OutcomeCase == Wire.StatusReply.OutcomeOneofCase.Failure
+            && missing.Failure.Code == Common.FailureCode.InvalidRequest, "Missing request reaches typed failure");
+        Check(ctx.Invocations == 0, "Missing request entered game dispatcher");
+        Check(!NativeControlAuthority.TryGetForGame(game, out _), "Missing request allocated authority");
+        ctx.Arguments!["request"] = 42;
+        var nonString = Decode(endpoint.ReadStatus(ctx, CancellationToken.None, 42).GetAwaiter().GetResult());
+        Check(nonString.Failure.Code == Common.FailureCode.InvalidRequest && ctx.Invocations == 0, "Non-string request was admitted");
+        var request = JsonFormatter.Default.Format(new Wire.StatusRequest { Identity = Context.Identity.Clone() });
+        ctx.Arguments["request"] = request;
+        ctx.Arguments["extra"] = true;
+        Check(Decode(endpoint.ReadStatus(ctx, CancellationToken.None, request).GetAwaiter().GetResult()).Failure.Code
+            == Common.FailureCode.InvalidRequest && ctx.Invocations == 0, "Unknown outer argument was admitted");
+        ctx.Arguments.Remove("extra");
+        for (int i = 0; i < 2; i++)
+        {
+            var absent = Decode(endpoint.ReadStatus(ctx, CancellationToken.None, request).GetAwaiter().GetResult());
+            Check(absent.Status.StateCase == Wire.Status.StateOneofCase.Unavailable
+                && absent.Status.Unavailable.Reason == Common.UnavailableReason.NotObserved, "Missing state did not report unavailable");
+            Check(!absent.Status.Context.HasNativeGeneration, "Missing state fabricated authority generation");
+            Check(!NativeControlAuthority.TryGetForGame(game, out _), "Read allocated native authority");
+        }
+        Check(ctx.Invocations == 2, "Valid reads did not dispatch exactly once each");
+        var staleRequest = JsonFormatter.Default.Format(new Wire.StatusRequest { Identity = new Common.Identity
+            { ColonyId = "colony", LoadToken = "stale", MapId = 0 } });
+        ctx.Arguments["request"] = staleRequest;
+        var stale = Decode(endpoint.ReadStatus(ctx, CancellationToken.None, staleRequest).GetAwaiter().GetResult());
+        Check(stale.Failure.Code == Common.FailureCode.StaleIdentity, "Stale identity accepted");
+        Check(!NativeControlAuthority.TryGetForGame(game, out _), "Stale read allocated authority");
+        var existing = NativeControlAuthority.ForGame(game);
+        ctx.Arguments["request"] = request;
+        var known = Decode(endpoint.ReadStatus(ctx, CancellationToken.None, request).GetAwaiter().GetResult());
+        Check(known.Status.Context.HasNativeGeneration && known.Status.Context.NativeGeneration == 1, "Existing generation omitted");
+        Check(known.Status.StateCase == Wire.Status.StateOneofCase.Unavailable
+            && !existing.Status().Available && !existing.Status().Active, "Read enabled unverified authority");
     }
     private static void Main()
     {
@@ -63,6 +126,7 @@ internal static class Program
         Check(exhausted.Unavailable.Reason == Common.UnavailableReason.LimitExceeded, "Generation exhaustion unavailable");
         var unknown = Project(new NativeControlSnapshot(identity, 7, true, null, 0, (NativeControlRevocationReason)999));
         Check(unknown.StateCase == Wire.Status.StateOneofCase.Unavailable, "Unknown internal enum leaked onto wire");
-        Console.WriteLine("Native authority status projection passed " + checks + " assertions; SDK dispatch/gameplay not simulated.");
+        EndpointAdmission();
+        Console.WriteLine("Native authority status passed " + checks + " projection and endpoint-boundary assertions; SDK transport/native gameplay remain separate.");
     }
 }
