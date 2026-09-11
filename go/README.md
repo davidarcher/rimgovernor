@@ -105,6 +105,13 @@ optional detail families disabled. It preserves native snapshot and draft-claim
 availability. Missing pawns or unsupported claims cannot establish ownership or
 release. Draft execution and durable cleanup remain gated by G01.07a.2.
 
+The owned-draft domain retains cleanup responsibility independently of ordinary
+action completion. Native adapters provide temporary drafting, attempt reads and
+exact-claim release as separate capabilities. Attempt reads carry original owner
+and generation evidence without retaining a lease. Runtime integration must pair
+progress with fresh full-owner pawn observations before binding or completing a
+claim; a cleanup call uses the exact journaled pawn token and original claim.
+
 An uncertain HTTP reply is resolved by reading its request ID through
 `GET /api/buildings/submission?requestId=...` or
 `GET /api/buildings/control?requestId=...`. Historical results are separate from
