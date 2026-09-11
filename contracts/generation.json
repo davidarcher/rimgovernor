@@ -26,6 +26,13 @@
       "schema": "contracts/schemas/status-clock-projection.v1.schema.json",
       "go_package": "wire",
       "go_output": "go/internal/observation/wire/status.gen.go"
+    },
+    {
+      "schema": "contracts/schemas/guarded-placement.v1.schema.json",
+      "go_package": "guardedplacement",
+      "go_output": "go/internal/wire/guardedplacement/guard.gen.go",
+      "csharp_namespace": "RimGovernor.Contracts.GuardedPlacement",
+      "csharp_output": "contracts/generated/csharp/GuardedPlacement.g.cs"
     }
   ]
 }

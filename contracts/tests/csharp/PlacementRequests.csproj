@@ -13,8 +13,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Program.cs" />
-    <Compile Include="../../generated/csharp/PlacementPreviewRequests.g.cs" />
-    <Compile Include="../../generated/csharp/PlacementPreviewResponses.g.cs" />
+    <Compile Include="../../generated/csharp/*.g.cs" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" Condition="'$(TargetFramework)' == 'net472'" />
   </ItemGroup>
