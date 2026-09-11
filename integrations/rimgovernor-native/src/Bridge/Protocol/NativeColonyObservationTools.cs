@@ -98,7 +98,7 @@ namespace HomeBridge.BridgeTools
                         && !t.def.IsDrug && t.IngestibleNow && (t.Faction == null || t.Faction.IsPlayer)).ToList())) },
                 Forecast = new Obs.ForecastSection { Observed = Forecast(ForecastFacts.Read(map, people, things)) },
                 Upkeep = new Obs.UpkeepSection { Unavailable = Unsupported("Upkeep facts are not yet projected.") },
-                Development = new Obs.DevelopmentSection { Unavailable = Unsupported("Development facts are not yet projected.") }
+                Development = new Obs.DevelopmentSection { Observed = ReadPower(map, limit) }
             };
             if (demand > 0) result.FoodRunwayDays = Finite(nutrition / demand);
             else result.Issues.Add(Issue("food_runway_days", Common.UnavailableReason.NotApplicable, "No observed nutrition demand."));
@@ -127,6 +127,24 @@ namespace HomeBridge.BridgeTools
                 result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Section is not yet projected."));
             result.Planning = request.Planning ? new Obs.PlanningSection { Observed = Planning(map, center, request, context, limit) }
                 : new Obs.PlanningSection { Unavailable = Unavailable(Common.UnavailableReason.NotRequested, "Planning was not requested.") };
+            return result;
+        }
+
+        private static Obs.DevelopmentFacts ReadPower(Map map, int limit)
+        {
+            var traders = map.listerBuildings.allBuildingsColonist.Select(b => b.TryGetComp<CompPowerTrader>())
+                .Where(p => p != null).OrderBy(p => p.parent.thingIDNumber).ToList();
+            Bound(traders.Count, limit);
+            var result = new Obs.DevelopmentFacts { Completeness = Complete(traders.Count) };
+            foreach (var power in traders) {
+                var building = power.parent;
+                var service = new Obs.BuildingServiceState { Connected = power.PowerNet != null, PowerOn = power.PowerOn,
+                    PowerOutputW = Finite(power.PowerOutput), SwitchedOn = building.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true };
+                if (power.PowerNet != null) service.PowerNetId = power.PowerNet.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture);
+                result.Power.Add(new Obs.DevelopmentPower { BaseW = Finite(-power.Props.PowerConsumption),
+                    Building = new Obs.BuildingState { Building = new Obs.EntityRef { Id = building.GetUniqueLoadID(), MapId = map.uniqueID },
+                        Service = service, Settings = new Obs.BuildingSettings { Forbidden = building.IsForbidden(Faction.OfPlayer) } } });
+            }
             return result;
         }
 

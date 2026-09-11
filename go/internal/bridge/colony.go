@@ -173,10 +173,17 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 	} else if err := validateUnavailable(v.GetForecast().GetUnavailable()); err != nil {
 		return err
 	}
-	for _, unavailable := range []*c.Unavailable{v.GetUpkeep().GetUnavailable(), v.GetDevelopment().GetUnavailable()} {
+	for _, unavailable := range []*c.Unavailable{v.GetUpkeep().GetUnavailable()} {
 		if err := validateUnavailable(unavailable); err != nil {
 			return err
 		}
+	}
+	if power := v.GetDevelopment().GetObserved(); power != nil {
+		if err := validateColonyPower(power, identity); err != nil {
+			return err
+		}
+	} else if err := validateUnavailable(v.GetDevelopment().GetUnavailable()); err != nil {
+		return err
 	}
 	if v.Planning == nil {
 		return contract("missing planning availability")

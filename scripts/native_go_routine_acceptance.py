@@ -113,7 +113,7 @@ def audit_sleeping(report, database):
     return {"completed_spots": len(plan["actions"]), "completed_cooking_buildings": len(report.get("cooking_plan", {}).get("actions", [])), "single_attempts": True, "indoor_footprints": True, "shared_player_authority": True}
 
 
-async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False, work_project=False, work_overrides=False):
+async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False, work_project=False, work_overrides=False, power_fixture=False):
     assert Path("/.dockerenv").is_file(), "Use the isolated scenario launcher"
     output.mkdir(parents=True, exist_ok=False)
     report = {"passed": False, "source": go_source,
@@ -162,6 +162,9 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             prepared = payload(await evidence.call(bridge, "prepare", "test/guarded_construction_prepare", {"siteCount": 1}))
             assert prepared["success"] and all(prepared[k] == identity[k] for k in identity)
             report["prepared"] = prepared
+            if power_fixture:
+                report['power_setup'] = payload(await evidence.call(bridge, 'power-setup', 'test/forecast_setup', {}))
+                assert report['power_setup']['success']
             if sleeping_methods:
                 report["sleeping_setup"] = payload(await evidence.call(bridge, "sleeping-setup", "test/routine_sleeping_prepare", {}))
                 assert report["sleeping_setup"]["success"] and report["sleeping_setup"]["sleepingSpotsCreated"] == 0
@@ -204,6 +207,18 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                                 'work-status': report['initial_colony'], 'work-reference': report['initial_work']}.items():
                 (output / (name + '.json')).write_text(json.dumps(value), encoding='utf8')
             facts = payload(await evidence.call(bridge, "initial-food", "home/colony_facts", {"planning": False}))
+            if power_fixture:
+                recovery = payload(await evidence.call(bridge, 'power-recovery', 'home/recovery_state', {}))
+                assert recovery['success'] and int(recovery['tick']) == tick
+                power = facts['development']['power']
+                consumers = [p for p in power if p['baseW'] < 0]
+                assert consumers
+                headroom = min((sum(p['outputW'] for p in power if p['net'] == consumer['net'])
+                               if consumer['net'] is not None and consumer['powered'] else -1 for consumer in consumers), default=0)
+                disabled = any(b.get('powerOn') is False and not b.get('forbidden') and b.get('powerConsumer', True)
+                               and b.get('switchedOn', True) for b in recovery['buildings'])
+                report['power_reference'] = {'required': bool(consumers), 'headroom': headroom, 'disabled': disabled}
+                (output / 'power-reference.json').write_text(json.dumps(report['power_reference']), encoding='utf8')
             food = food_forecast(facts['nativeForecastInputs']['combinedFoodSupply'], consumer_ids=[r['id'] for r in facts['foodSupply']['consumers']])
             report['initial_food_forecast'] = food
             expected_food = 'deficit' if food['readable'] and food['runwayDays'] is not None and food['runwayDays'] < 3 else 'unknown'
@@ -238,6 +253,9 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             report['work_need'] = active['goals']['EnsureWorkAssignments']['Need']
             assert report['work_need'] == ('recovered' if report['initial_work']['matches'] else 'deficit'), 'Native work readback did not reach routine need'
             report["active_routine"] = active
+            if power_fixture:
+                report['power_need'] = active['goals']['EnsureBasicPower']['Need']
+                assert report['power_need'] == ('deficit' if headroom < 0 or disabled else 'recovered')
             if work_overrides:
                 assert active['review']['WorkPreferenceRevision'] == 1
                 cleared = await http('POST', '/api/player/work-preferences/replace', body=preference_request | {
@@ -313,6 +331,7 @@ if __name__ == "__main__":
     parser.add_argument("--cooking-methods", action="store_true")
     parser.add_argument("--work-project", action="store_true")
     parser.add_argument("--work-overrides", action="store_true")
+    parser.add_argument("--power-fixture", action="store_true")
     args = parser.parse_args()
     raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-go-routine-acceptance", args.go_binary,
-        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods, cooking_methods=args.cooking_methods, work_project=args.work_project, work_overrides=args.work_overrides)) else 1)
+        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods, cooking_methods=args.cooking_methods, work_project=args.work_project, work_overrides=args.work_overrides, power_fixture=args.power_fixture)) else 1)
