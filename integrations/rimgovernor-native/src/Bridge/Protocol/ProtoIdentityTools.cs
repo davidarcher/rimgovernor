@@ -11,6 +11,7 @@ namespace HomeBridge.BridgeTools
     {
         [Tool("rimgovernor/lifecycle_read_identity", Title = "Read native identity",
             Description = "Read the current colony, load, map and native contract capabilities.")]
+        [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.IdentityReply.", Always = true)]
         public async Task<object> ReadIdentity(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official lifecycle IdentityRequest ProtoJSON string.")] object request = null)
         {

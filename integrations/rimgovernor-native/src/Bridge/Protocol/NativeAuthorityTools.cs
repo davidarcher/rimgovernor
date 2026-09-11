@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
         [Tool(ToolName, Title = "Read native control authority", Description = "Read current native authority without acquiring or renewing control. request is official ProtoJSON for rimgovernor.authority.v1.StatusRequest.")]
         [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.authority.v1.StatusReply.", Always = true)]
         public async Task<object> ReadStatus(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official ProtoJSON StatusRequest with exact colony/load/map identity.")] object request)
+            [ToolParameter(Description = "Official ProtoJSON StatusRequest with exact colony/load/map identity.")] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request, Authority.StatusRequest.Parser,
                 out var parsed, out var failure))
@@ -32,7 +32,14 @@ namespace HomeBridge.BridgeTools
                     {
                         Code = Common.FailureCode.Unavailable, Detail = "No game is loaded."
                     } });
-                var snapshot = NativeControlAuthority.ForGame(game).Status();
+                if (!NativeControlAuthority.TryGetForGame(game, out var state) || state == null)
+                    return ProtoBoundary.Encode(new Authority.StatusReply { Status = new Authority.Status
+                    {
+                        Context = context,
+                        Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotObserved,
+                            Detail = "Native control hooks and trusted admission have not been initialized." }
+                    } });
+                var snapshot = state.Status();
                 return ProtoBoundary.Encode(new Authority.StatusReply { Status = Project(snapshot, context) });
             }, cancellationToken);
         }
