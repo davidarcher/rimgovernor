@@ -10,6 +10,17 @@ The SDK-facing request declares one argument, `request`, whose value is a string
 
 The response contains a `payload` string holding official ProtoJSON for the exact reply type, alongside ordinary SDK metadata. SDK envelopes, text summaries and discovery descriptors are not domain effects or receipt evidence. Consumers parse `payload` with the registered generated reply parser and retain its typed outcome/identity/correlation. No `Struct`, `Any`, raw argument bag, arbitrary method/tool selector or string-based native dispatch is permitted inside a request.
 
+The installed SDK's string binder can throw before the adapter inspects malformed
+outer values. Native adapters therefore receive `request` as CLR `object`, inspect
+the original outer arguments, require its actual value to be a string, and then
+invoke the official parser. This SDK parameter may advertise `type: object` in
+discovery. Go permits that single documented descriptor exception only for the
+fixed owned methods below and the sole `request` property; it still sends and
+requires an actual string. A canonical string descriptor is also valid when the
+SDK can supply one. No object-valued request, broader unknown schema or generic
+raw-object fallback is accepted. This is an SDK boundary constraint, not a second
+wire format or an alias for historical tools.
+
 Each adapter advertises support for a fixed descriptor method identity and its request/reply types. Unsupported methods report unavailable support; they never fall back to a similarly named historical tool. Original `home/*`, `rimworld/*` and `games_*` names belong to the source capability inventory. This active-development protocol requires no compatibility aliases. GABS remains the existing external discovery/transport/process owner; these descriptors do not create another server or process manager.
 
 ## Authorization boundaries

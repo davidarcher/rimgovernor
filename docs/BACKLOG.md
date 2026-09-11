@@ -698,14 +698,14 @@ only intentional small, sanitized regression fixtures belong in source control.
   message families, semantic constraints and source/consumer coverage before either
   team expands adapters. Use official protoc and language generators. Existing
   saves and experimental wire formats have no compatibility obligation.
-  - [ ] **02a:** pin official C#/Go toolchains, reproducible generation and drift
+  - [x] **02a:** pin official C#/Go toolchains, reproducible generation and drift
     checks. Compile every schema and generated binding under net472 and Go.
-    - [ ] **02a.1:** official Go plugin/runtime and generated output integration.
-    - [ ] **02a.2:** official C# runtime and full binary/ProtoJSON exchange proofs,
+    - [x] **02a.1:** official Go plugin/runtime and generated output integration.
+    - [x] **02a.2:** official C# runtime and full binary/ProtoJSON exchange proofs,
       preserving independent producer fixtures in both directions.
-    - [ ] **02a.3:** CI generation checks, runtime notices and removal of the custom
-      wire generator once its current consumers use the official bindings.
-  - [ ] **02b:** cohesive identity, authority, clock/lifecycle, observations,
+    - [x] **02a.3:** CI generation checks and pinned toolchain provenance. Runtime
+      distribution notices follow the native package integration gate.
+  - [x] **02b:** cohesive identity, authority, clock/lifecycle, observations,
     operations/receipts and explicit player presentation/input contracts. Include
     consumed upstream SDK capabilities, unknown/empty facts, collection bounds,
     concurrency preconditions, uncertain effects and observed outcome attribution.
@@ -717,13 +717,19 @@ only intentional small, sanitized regression fixtures belong in source control.
   - [ ] **02d:** one fresh isolated valid/refused/invalid invocation with no preview
     effects. Owner: native implementer; depends on 02c. Subsequent adapter slices
     consume the reviewed package independently and retain native outcome gates.
+  - [ ] **02e:** remove the experimental custom wire generator, schema tree,
+    generated outputs and old drift checks as their current consumers cut over.
+    Replace the interpreter's placement import and native adapters together;
+    preserve SDK descriptor validation and independent Python observation
+    projection tooling where still consumed. This cleanup does not block other
+    adapters from consuming the reviewed Protobuf package.
 
 - [ ] **G01.03 — Read-only transport and observation.** Owner: bridge agent.
   Port MCP process ownership, discovery, typed current observations, freshness,
   identity checks and bounded/cancellable calls. Define read versus mutation APIs;
   read-only mode rejects write-capable tools even when requested by name. Test
   transport failures/reconnects and one native read with no writes or clock changes.
-  Add generated observation families as their Go consumers need them. Depends on 02a.1.
+  Consume the reviewed Protobuf observation families. Depends on 02a–b.
   - [x] **03a:** owned MCP subprocess/session, discovery and bounded read-only
     calls with cancellation/cleanup; test a real in-process SDK server and failed
     connections. Owner: bridge agent. No mutation API or runtime scheduler yet.
@@ -960,15 +966,16 @@ main. Native package and Go production cutover remain independent.
   55 native tools, fixture isolation, component census and preview invariance.
 
 - [ ] **N01.02 — First strict native contract.** Native contract owner with G01.02.
-  Complete the shared Go/native Protobuf contracts before resuming the two teams'
-  adapter work. Use official protoc, C# and Go generators; replace the custom
-  JSON Schema generator without preserving its experimental wire format. Cover
-  identity/lifecycle, observations, authority, ordinary commands, receipts and
-  errors against the native source inventory and current consumer requirements.
-  Verify generated C#/Go builds, presence/variant semantics and bidirectional
-  JSON/binary fixtures before handing off the complete contract package. Keep
-  game-rule and application-limit validation explicit; no custom compiler or
-  validation language. Then migrate placement previews through generated DTOs, validated SDK
+  - [x] Shared contract handoff: nine canonical Protobuf families, all97 boundary
+    inventory rows/55 native exports mapped,78 fixed MCP methods, official C#/Go
+    outputs and complete Windows/Linux serialization exchange. Both teams reviewed
+    contract joins and semantic constraints; adapters consume this package.
+  - [ ] First native adapter and fresh-game acceptance below.
+
+  Consume the reviewed [contract package](../contracts/proto/README.md) and fixed
+  method mapping independently in Go/native adapters. Keep game-rule and
+  application-limit validation explicit; no custom compiler or validation language.
+  Migrate placement previews through generated DTOs, validated SDK
   boundary and typed operation. Reject unknown outer arguments before binder loss;
   fail closed when required raw validation is unavailable. Test missing/null,
   overflow, malformed grammar, variants and SDK failures using shared generated
@@ -980,7 +987,11 @@ main. Native package and Go production cutover remain independent.
   identity/status and batch envelope, then pawns/health, supplies/buildings,
   rooms/zones/cells and remaining facts in bounded slices. Preserve unavailable
   information, section freshness and modded definitions. Check actual SDK decoding,
-  invalid identities and read-only native behavior. Depends on 02.
+  invalid identities and read-only native behavior. Produce exact scoped snapshot
+  tokens for all mutation targets, health/census/production policy, complete wall
+  geometry and drill lifecycle, trade-line/cargo-group identities and architect
+  catalogs. Stable pages bind frozen query/context; initialization belongs load
+  hooks rather than read calls. Depends on 02's verified first adapter.
 
 - [ ] **N01.04 — Typed guarded operations.** Native operations owner with G01 Hands.
   Start with ordinary construction through admission, dry-run, receipt and observed
@@ -988,6 +999,11 @@ main. Native package and Go production cutover remain independent.
   animals/population, trade/world and explicit player operations. Keep editor/cheat
   tools outside automation. Accept refusal/dry-run without effects, stale commands,
   lost reply followed by observation and player override per migrated family.
+  Implement the unsaved bounded admission ledger, actual effect attribution and
+  causally fresh same-tick readbacks. Exact owned draft cleanup remains possible
+  after revocation and ordinary-ledger exhaustion. Honor production replacement
+  presence, per-setting-entry outcomes, actual trade transfer and unsuccessful
+  progress without inferring completion from vanished jobs/bills.
   Depends on 02 and its required observations, not the entire Go port.
 
 - [ ] **N01.05 — Runtime and presentation ownership.** Native runtime owner.
@@ -998,6 +1014,11 @@ main. Native package and Go production cutover remain independent.
   pawn images on destruction, render restoration after player edits and combat
   arms lacking game identity. Verify disconnect/lease expiry, load/map changes,
   repeated initialization, patch failure, batch pawn work and graphical rendering.
+  Replace UTC-based lease expiry with monotonic duration checks while journal
+  diagnostics retain Unix timestamps. Implement typed clock/lifecycle attempt
+  lookups, superseded loads, verified pause states and correlated uncertain UI
+  results. Stage the pinned Protobuf runtime closure and required notices; Mono
+  compilation proofs do not replace actual Unity/game loading acceptance.
   Depends on relevant typed status/clock contracts; fix independently reproducible
   defects as bounded prerequisites.
 
