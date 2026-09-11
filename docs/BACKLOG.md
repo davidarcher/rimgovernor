@@ -773,7 +773,7 @@ only intentional small, sanitized regression fixtures belong in source control.
   changes, partial placement, resource loss and restart, followed by actual pawn
   construction in an isolated scenario. Benchmark scheduling without weakening
   guards. Depends on 03, 04b and 05.
-  - [ ] **06a:** single-writer execution and durable unknown-outcome reconciliation.
+  - [x] **06a:** single-writer execution and durable unknown-outcome reconciliation.
     Owner: executor agent; test typed boundaries before enabling native mutations.
   - [ ] **06b:** native atomic identity guards, attempt deduplication, runtime
     ownership and typed placement adapter. Coordinate with N01.
@@ -781,7 +781,7 @@ only intentional small, sanitized regression fixtures belong in source control.
 
 - [ ] **G01.07 — Routine capabilities in bounded families.** Owners: domain agents.
   Each subchunk includes policy/method compilation, typed native arguments, Hands
-  handler, postcondition reconciliation, restoration and native scenario parity.
+  handler, postcondition reconciliation, restoration and native outcome acceptance.
   Use `colony_controller.py`, `colony_skills.py` and the manifest's domain modules;
   do not copy their large dispatch functions. Contracts/handler registration are
   integrated serially, then independent family implementations may proceed in
@@ -826,18 +826,20 @@ only intentional small, sanitized regression fixtures belong in source control.
   - [x] **08a.2:** prompt/context budgets and structured semantic validation.
     Owner: model agent; depends on 08a.1 and 04a for command types.
 
-- [ ] **G01.09 — Dashboard API and presentation parity.** Owner: server agent.
-  Split 09a cached HTTP/events and command endpoints, 09b player ownership/camera,
-  and 09c portraits/follow/video. Port `bridge_server.py`, dashboard controls,
-  scenario dashboard and presentation modules using an endpoint-by-endpoint
-  compatibility manifest. Preserve status/error envelopes, event cursors, request
-  IDs, drafts/last-good state, loopback defaults and player lease semantics. Keep
-  privileged UI/editor actions outside model execution. Choose and validate media
-  dependencies here; preserve documented optional modes and explicit unavailable
-  states. Accept unchanged dashboard typecheck/tests/build, API fixture comparison,
-  reconnects, two-viewer ownership conflicts, stale commands and rendered native
-  camera/video acceptance. No production Python media service remains. 09a read
-  endpoints depend on 03/04; mutations and media require 06 and relevant 07/08 work.
+- [ ] **G01.09 � Dashboard API and presentation.** Owner: server agent.
+  Port current player controls and observation/media behavior to typed Go services.
+  Preserve drafts and last-good data, loopback access and player ownership. Keep
+  privileged editor actions outside model execution. Choose media dependencies
+  when their consumers land; no production Python media service remains. Validate
+  current dashboard behavior, reconnects, competing viewers, stale commands and
+  rendered native camera/video outcomes; historical API parity is not a gate.
+  - [x] **09a:** typed health/state/plan HTTP reads, explicit unknown facts and
+    cancellation. Runtime listener wiring follows with the Go service command.
+  - [ ] **09b:** dashboard observation view and current player command controls;
+    read-only view can land first, mutations require 06/08 authority integration.
+  - [ ] **09c:** player ownership/camera, portraits/follow/video and native rendered
+    acceptance. Read endpoints depend on 03/04; mutations require 06 and their
+    supported 07/08 action families.
 
 - [ ] **G01.10 — Whole-runtime integration.** Owner: integrator. Run Go as the
   sole controller in fresh disposable scenarios. Connect supported domain handlers,
