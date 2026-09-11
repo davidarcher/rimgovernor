@@ -835,7 +835,7 @@ only intentional small, sanitized regression fixtures belong in source control.
           - [x] **06b.3b.5a.1:** atomically persist one-building player submissions
             with exact request replay/conflict detection and bounded catalog
             capacity. Owner: state agent; depends on 04b. No native admission.
-          - [ ] **06b.3b.5a.2:** persist monotonic player direction and control
+          - [x] **06b.3b.5a.2:** persist monotonic player direction and control
             request outcomes. Owner: integrator; depends on 5a.1. Restart never
             restores a live lease or repeats an uncertain acquisition.
           - [ ] **06b.3b.5b:** joined building worker and explicit control coordinator.
@@ -874,6 +874,15 @@ only intentional small, sanitized regression fixtures belong in source control.
       owns startup, observed placement selection, tick advancement and cleanup.
     - [ ] **06c.2:** ordinary pawn completion and interruption acceptance against
       native guarded adapters. Owner: integrator with N01; depends on 06c.1.
+      - [x] **06c.2a:** Go placement followed by ordinary pawn completion and
+        fresh-process SQLite reconciliation, without reacquisition or replacement.
+        Graphical and headless native runs passed.
+      - [ ] **06c.2b:** extend the isolated Go observation command to assert an
+        exact cancelled or interrupted native outcome. Owner: bridge agent;
+        depends on 06c.1. This does not prove the actual interruption by itself.
+      - [ ] **06c.2c:** run actual Go interruption and reconciliation acceptance.
+        Owner: integrator with N01; depends on 06c.2b. Preserve uncertain outcomes
+        and verify no replacement order or reacquisition during observation.
 
 - [ ] **G01.07 — Routine capabilities in bounded families.** Owners: domain agents.
   Each subchunk includes policy/method compilation, typed native arguments, Hands
