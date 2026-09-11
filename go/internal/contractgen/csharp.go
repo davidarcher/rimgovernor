@@ -39,7 +39,9 @@ func GenerateCSharp(schema *Schema, options CSharpOptions) ([]byte, error) {
 	occupied := map[string]bool{g.boundary: true}
 	for _, node := range named {
 		name := g.names[node]
-		if occupied[name] || csharpReservedType(name) {
+		if occupied[name] || csharpReservedType(name) || name == "Decode" ||
+			(node.Type != "object" && node.Type != "array" && name == "Value") ||
+			(node.Type == "array" && (name == "Values" || name == "Count" || name == "GetEnumerator" || name == "Item")) {
 			return nil, fmt.Errorf("C# generated type collision: %s", name)
 		}
 		occupied[name] = true

@@ -58,7 +58,7 @@ func TestCSharpRejectsInvalidTargetsAndNameCollisions(t *testing.T) {
 }
 
 func TestCSharpNamedScalarAndReferenceWireShape(t *testing.T) {
-	schema, err := ParseSchema([]byte(`{"title":"Request","type":"object","additionalProperties":false,"properties":{},"$defs":{"Alias":{"$ref":"#/$defs/Label"},"Label":{"type":"string","x-maxUTF16Length":9}}}`))
+	schema, err := ParseSchema([]byte(`{"title":"Request","type":"object","additionalProperties":false,"required":[],"properties":{},"$defs":{"Alias":{"$ref":"#/$defs/Label"},"Label":{"type":"string","x-maxUTF16Length":9}}}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,5 +70,35 @@ func TestCSharpNamedScalarAndReferenceWireShape(t *testing.T) {
 		if !bytes.Contains(data, []byte(expected)) {
 			t.Errorf("missing %s", expected)
 		}
+	}
+}
+
+func TestCSharpRejectsNamesMatchingGeneratedMembers(t *testing.T) {
+	shapes := []struct{ name, body string }{
+		{"Decode", `"type":"object","additionalProperties":false,"required":[],"properties":{}`},
+		{"Value", `"type":"string","x-maxUTF16Length":9`},
+		{"Value", `"$ref":"#/$defs/Label"`},
+		{"Values", `"type":"array","minItems":0,"maxItems":1,"items":{"type":"boolean"}`},
+		{"Count", `"type":"array","minItems":0,"maxItems":1,"items":{"type":"boolean"}`},
+		{"GetEnumerator", `"type":"array","minItems":0,"maxItems":1,"items":{"type":"boolean"}`},
+		{"Item", `"type":"array","minItems":0,"maxItems":1,"items":{"type":"boolean"}`},
+	}
+	for _, shape := range shapes {
+		input := `{"title":"Request","type":"object","additionalProperties":false,"required":[],"properties":{},"$defs":{"Label":{"type":"string","x-maxUTF16Length":9},"` + shape.name + `":{` + shape.body + `}}}`
+		schema, err := ParseSchema([]byte(input))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := GenerateCSharp(schema, CSharpOptions{Namespace: "Example", SchemaPath: "schema.json"}); err == nil {
+			t.Errorf("accepted generated member collision %s", shape.name)
+		}
+	}
+	// Names are shape-specific: an object can safely expose no member called Value.
+	schema, err := ParseSchema([]byte(`{"title":"Value","type":"object","additionalProperties":false,"required":[],"properties":{}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := GenerateCSharp(schema, CSharpOptions{Namespace: "Example", SchemaPath: "schema.json"}); err != nil {
+		t.Fatal(err)
 	}
 }
