@@ -246,7 +246,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 func workerEligible(plan store.PlanState, v domain.ProgressView, scope ControlState, world store.World) bool {
 	supported := false
 	for _, action := range plan.Spec.Actions() {
-		if action.ID() == v.Action && (action.Kind() == domain.BuildingAction || action.Kind() == domain.OwnedDraftAction) {
+		if action.ID() == v.Action && (action.Kind() == domain.BuildingAction || action.Kind() == domain.OwnedDraftAction || action.Kind() == domain.MeleeAttackAction) {
 			supported = true
 			break
 		}

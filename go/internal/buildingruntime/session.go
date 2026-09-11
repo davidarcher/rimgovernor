@@ -17,6 +17,7 @@ type SessionConfig struct {
 	Rules    []policy.ResourceRule
 	Draft    *DraftCapabilities
 	Clock    *ClockCapabilities
+	Melee    *MeleeCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
@@ -91,6 +92,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.Draft != nil && (config.Draft.Native == nil || config.Draft.Writer == nil || config.Draft.Cleanup == nil) {
 		return nil, errors.New("complete draft capabilities required")
 	}
+	if config.Melee != nil && (config.Melee.Native == nil || config.Melee.Writer == nil || config.Draft == nil) {
+		return nil, errors.New("complete melee and draft capabilities required")
+	}
 	if config.Clock != nil && (config.Clock.Native == nil || config.Clock.Writer == nil) {
 		return nil, errors.New("complete clock capabilities required")
 	}
@@ -135,8 +139,17 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if err != nil {
 		return cleanup(err)
 	}
+	var melee *MeleeBoundary
+	if config.Melee != nil {
+		melee, err = NewMeleeBoundary(config.Melee.Native, config.Melee.Writer, sink, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+	}
 	var worker *executor.Executor
-	if draft != nil {
+	if melee != nil {
+		worker, err = executor.NewWithMelee(journal, boundary, draft, melee, clock, config.Executor)
+	} else if draft != nil {
 		worker, err = executor.NewWithDraft(journal, boundary, draft, clock, config.Executor)
 	} else {
 		worker, err = executor.New(journal, boundary, clock, config.Executor)
