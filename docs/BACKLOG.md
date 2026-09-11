@@ -692,35 +692,31 @@ only intentional small, sanitized regression fixtures belong in source control.
     tests and Windows/Linux build CI; clean platform validation and evidence.
     Owner: integrator. Depends on 01b.
 
-- [ ] **G01.02 — Schema generation and first native contract.** Owner: integrator
-  and native N01.02 implementer. Land the generator, then a bounded typed current
-  request/reply and real native invocation. Expand schemas with actual consumers.
-  Existing Python models are optional test helpers, not a compatibility obligation.
-  Depends on 01; 03/04 and model transport can proceed after the tested Go
-  generation API in 02a.1 while remaining platform checks run.
-  - [x] **02a:** pinned repository-owned Go generator and a documented, closed
-    schema subset; required/null/unknown and integer-token/UTF-16 validation,
-    deterministic output manifest and drift checks. Owner: integrator with generator
-    agents. Exercise the placement request as the first concrete input; native
-    consumer changes and complete reply decoding remain gated by 02b–d.
-    - [x] **02a.1:** canonical request schema, generator input/validation model and
-      Go output with positive/negative generation checks. Owner: generator agent;
-      integrator owns canonical schema, manifest and CI integration.
-    - [x] **02a.2:** C# and transitional Python outputs from the same schema/model,
-      with cross-language boundary fixtures. Owners: C# and Python generator agents;
-      depends on the 02a.1 generator API. Unsupported schema features fail explicitly.
-    - [x] **02a.3:** generation drift CI, reproducibility and full affected checks.
-      Owner: integrator; depends on 02a.1–2.
-  - [x] **02b:** define the complete typed reply needed by the first migrated
-    preview operation, including success/refusal and unknown facts. Owner: contracts
-    integrator with native implementer; depends on 02a. Do not replicate every
-    historical optional field when the current consumer does not need it.
+- [ ] **G01.02 — Shared Protobuf contracts before adapters.** Native N01 owns
+  the canonical native boundary package; the Go team supplies one consolidated
+  consumer inventory and reviews generated Go bindings. Complete all production
+  message families, semantic constraints and source/consumer coverage before either
+  team expands adapters. Use official protoc and language generators. Existing
+  saves and experimental wire formats have no compatibility obligation.
+  - [ ] **02a:** pin official C#/Go toolchains, reproducible generation and drift
+    checks. Compile every schema and generated binding under net472 and Go.
+    - [ ] **02a.1:** official Go plugin/runtime and generated output integration.
+    - [ ] **02a.2:** official C# runtime and full binary/ProtoJSON exchange proofs,
+      preserving independent producer fixtures in both directions.
+    - [ ] **02a.3:** CI generation checks, runtime notices and removal of the custom
+      wire generator once its current consumers use the official bindings.
+  - [ ] **02b:** cohesive identity, authority, clock/lifecycle, observations,
+    operations/receipts and explicit player presentation/input contracts. Include
+    consumed upstream SDK capabilities, unknown/empty facts, collection bounds,
+    concurrency preconditions, uncertain effects and observed outcome attribution.
+    Audit every current native boundary against a typed family or explicit
+    retirement; both teams review this package before adapter implementation.
   - [ ] **02c:** wire generated native request validation and typed preview reply
     through the real SDK to Go. Owner: native N01.02 implementer; depends on 02b.
     Coordinate with the unified native package paths. Native rules remain unchanged.
   - [ ] **02d:** one fresh isolated valid/refused/invalid invocation with no preview
-    effects. Owner: native implementer; depends on 02c. This runs alongside 03/04;
-    those chunks depend on the generation foundation, not historical parity.
+    effects. Owner: native implementer; depends on 02c. Subsequent adapter slices
+    consume the reviewed package independently and retain native outcome gates.
 
 - [ ] **G01.03 — Read-only transport and observation.** Owner: bridge agent.
   Port MCP process ownership, discovery, typed current observations, freshness,

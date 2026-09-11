@@ -33,8 +33,8 @@ message ActiveAuthority {
 }
 message Status {
   rimgovernor.common.v1.ObservationContext context = 1;
-  optional bool available = 2;
   oneof state {
+    rimgovernor.common.v1.Unavailable unavailable = 2;
     InactiveAuthority inactive = 3;
     ActiveAuthority active = 4;
   }
@@ -77,13 +77,18 @@ message ControlRequest {
   }
 }
 message Granted {
-  Status status = 1;
-  optional string lease_id = 2;
+  rimgovernor.common.v1.ObservationContext context = 1;
+  ActiveAuthority authority = 2;
+  optional string lease_id = 3;
+}
+message Revoked {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  InactiveAuthority authority = 2;
 }
 message ControlReply {
   oneof outcome {
     Granted granted = 1;
-    Status revoked = 2;
+    Revoked revoked = 2;
     rimgovernor.common.v1.Failure failure = 3;
   }
 }

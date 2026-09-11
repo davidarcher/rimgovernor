@@ -3,6 +3,8 @@ using System.IO;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
 using RimGovernor.Protocol.Placement;
+using Shared = RimGovernor.Protocol.Common;
+using Control = RimGovernor.Protocol.Authority;
 
 internal static class Program
 {
@@ -89,6 +91,24 @@ internal static class Program
         var maximum = new UInt64Value { Value = ulong.MaxValue };
         Require(JsonFormatter.Default.Format(maximum) == "\"18446744073709551615\"", "ProtoJSON uint64 is exact decimal string");
         RoundTrip(maximum, UInt64Value.Parser, "csharp-u64", output);
+        var context = new Shared.ObservationContext {
+            Identity = new Shared.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 },
+            Tick = long.MaxValue, NativeGeneration = ulong.MaxValue };
+        RoundTrip(context, Shared.ObservationContext.Parser, "csharp-context", output);
+        Require(context.Identity.HasMapId && context.HasTick && context.HasNativeGeneration,
+            "Context preserves map zero and full-width generation/tick presence");
+        var authority = new Control.Status { Context = context,
+            Inactive = new Control.InactiveAuthority { Reason = Control.RevocationReason.Manual } };
+        RoundTrip(authority, Control.Status.Parser, "csharp-authority-inactive", output);
+        authority.Active = new Control.ActiveAuthority {
+            Owner = new Control.Owner { ControllerSessionId = "controller", PlayerDirection = 1 },
+            RemainingLeaseMs = 1000 };
+        Require(authority.Inactive == null && authority.StateCase == Control.Status.StateOneofCase.Active,
+            "Authority state cannot retain active and inactive variants together");
+        RoundTrip(authority, Control.Status.Parser, "csharp-authority-active", output);
+        var acquire = new Control.ControlRequest { Acquire = new Control.Acquire {
+            Identity = context.Identity, ExpectedGeneration = 1, Owner = authority.Active.Owner, LeaseMs = 1000 } };
+        RoundTrip(acquire, Control.ControlRequest.Parser, "csharp-authority-acquire", output);
         if (args.Length == 2)
         {
             var incoming = args[1];
@@ -98,12 +118,18 @@ internal static class Program
             var goReply = PlacementReply.Parser.ParseJson(File.ReadAllText(Path.Combine(incoming, "go-reply.json")));
             Require(goReply.Equals(PlacementReply.Parser.ParseFrom(File.ReadAllBytes(Path.Combine(incoming, "go-reply.bin")))),
                 "Official Go reply ProtoJSON and binary agree in C#");
-            RoundTrip(goRequest, PlacementRequest.Parser, "csharp-request", output);
-            RoundTrip(goReply, PlacementReply.Parser, "csharp-reply", output);
+            RoundTrip(goRequest, PlacementRequest.Parser, "go-echo-request", output);
+            RoundTrip(goReply, PlacementReply.Parser, "go-echo-reply", output);
             var goU64 = UInt64Value.Parser.ParseJson(File.ReadAllText(Path.Combine(incoming, "go-u64.json")));
             Require(goU64.Equals(UInt64Value.Parser.ParseFrom(File.ReadAllBytes(Path.Combine(incoming, "go-u64.bin"))))
                 && goU64.Value == ulong.MaxValue, "Official Go uint64 preserves all 64 bits in C#");
-            RoundTrip(goU64, UInt64Value.Parser, "csharp-u64", output);
+            RoundTrip(goU64, UInt64Value.Parser, "go-echo-u64", output);
+            var goContext = Shared.ObservationContext.Parser.ParseJson(File.ReadAllText(Path.Combine(incoming, "go-context.json")));
+            Require(goContext.Equals(Shared.ObservationContext.Parser.ParseFrom(File.ReadAllBytes(Path.Combine(incoming, "go-context.bin"))))
+                && goContext.NativeGeneration == ulong.MaxValue && goContext.Tick == long.MaxValue
+                && goContext.Identity.HasMapId && goContext.Identity.MapId == 0,
+                "Official Go native context preserves identity presence and numeric extremes in C#");
+            RoundTrip(goContext, Shared.ObservationContext.Parser, "go-echo-context", output);
         }
         Console.WriteLine("Official Protobuf net472 proof passed: " + checks + " checks; artifacts " + output);
     }
