@@ -1,0 +1,238 @@
+syntax = "proto3";
+package rimgovernor.operations.v1;
+option csharp_namespace = "RimGovernor.Protocol.Operations";
+option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb;operationspb";
+import "common.proto";
+import "authority.proto";
+import "placement.proto";
+import "receipts.proto";
+
+// Exactly one operation per attempt. See operation-coverage.md for semantic bounds.
+message ExecuteRequest {
+  rimgovernor.authority.v1.WritePrecondition precondition = 1;
+  Operation operation = 2;
+}
+message ExecuteReply {
+  oneof outcome {
+    rimgovernor.receipts.v1.Receipt receipt = 1;
+    rimgovernor.common.v1.Failure failure = 2;
+  }
+}
+message PreviewRequest {
+  rimgovernor.common.v1.Identity identity = 1;
+  Operation operation = 2;
+}
+message PreviewReply {
+  oneof outcome {
+    PreviewEvaluation evaluated = 1;
+    rimgovernor.common.v1.Failure failure = 2;
+  }
+}
+message PreviewEvaluation {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  optional bool accepted = 2;
+  optional string reason = 3;
+  // Proposed facts only; no native attempt/effect identifiers are fabricated.
+  rimgovernor.receipts.v1.EffectEvidence projected = 4;
+  oneof preparation {
+    CaravanPreparation caravan = 5;
+    SurgeryPreparation surgery = 6;
+    TradePreparation trade = 7;
+    rimgovernor.placement.v1.PlacementEvaluated placement = 8;
+  }
+}
+message StockAvailability { optional string def_name = 1; optional int32 available = 2; }
+message RoutePreparation { optional bool reachable = 1; optional int64 estimated_ticks = 2; optional float food_days = 3; optional float food_rot_days = 4; optional int32 destination_tile = 5; optional float temperature = 6; }
+message CaravanPreparation { optional float mass_usage = 1; optional float mass_capacity = 2; repeated DefCount selected_cargo = 3; repeated DefCount carried_cargo = 4; repeated StockAvailability materials = 5; repeated string home_pawn_ids = 6; optional int32 home_doctors = 7; RoutePreparation route = 8; optional string return_storage_snapshot_token = 9; }
+message SurgeryPreparation { optional string recipe_def = 1; optional int32 part_index = 2; repeated string practitioner_ids = 3; repeated DefCount missing_ingredients = 4; optional bool requires_medicine = 5; optional bool has_permitted_medicine = 6; optional string medical_catalog_snapshot_token = 7; }
+message TradePreparation { optional string session_id = 1; optional string deal_signature = 2; optional string sheet_snapshot_token = 3; optional int32 available_silver = 4; optional int32 goodwill = 5; optional int32 expected_goodwill_gain = 6; optional string resource_def = 7; optional int32 required_count = 8; optional int32 available_count = 9; optional string settlement_id = 10; }
+message Operation {
+  oneof command {
+    PlaceBuilding place_building = 1;
+    CancelConstruction cancel_construction = 2;
+    InstallBuilding install_building = 3;
+    AcquireResource acquire_resource = 4;
+    DesignateThing designate_thing = 5;
+    PatchBuilding patch_building = 6;
+    PatchPawn patch_pawn = 7;
+    AddBill add_bill = 8;
+    PatchBill patch_bill = 9;
+    DeleteBill delete_bill = 10;
+    MoveBill move_bill = 11;
+    SelectResearch select_research = 12;
+    SetProductionPolicy set_production_policy = 13;
+    CreateZone create_zone = 14;
+    DeleteZone delete_zone = 15;
+    EditZoneCells edit_zone_cells = 16;
+    RepairZone repair_zone = 17;
+    PatchStockpile patch_stockpile = 18;
+    PatchGrowing patch_growing = 19;
+    ExtendHome extend_home = 20;
+    AssignBed assign_bed = 21;
+    RemoveWall remove_wall = 22;
+    ReleaseWallRemovals release_wall_removals = 23;
+    RecoveryArea recovery_area = 24;
+    RecoverService recover_service = 25;
+    ManageWaste manage_waste = 26;
+    RelieveNeed relieve_need = 27;
+    ImproveGear improve_gear = 28;
+    QueueSurgery queue_surgery = 29;
+    SetAnimalTraining set_animal_training = 30;
+    SlaughterAnimal slaughter_animal = 31;
+    SetPrisonerInteraction set_prisoner_interaction = 32;
+    SetDrafted set_drafted = 33;
+    MovePawn move_pawn = 34;
+    AttackTarget attack_target = 35;
+    PawnTargetOrder pawn_target_order = 36;
+    OpenTrade open_trade = 37;
+    SetTradeLines set_trade_lines = 38;
+    AcceptTrade accept_trade = 39;
+    EndTrade end_trade = 40;
+    FormCaravan form_caravan = 41;
+    TravelCaravan travel_caravan = 42;
+    GiftCaravanSilver gift_caravan_silver = 43;
+    AcceptQuest accept_quest = 44;
+    FulfillQuest fulfill_quest = 45;
+  }
+}
+
+// Tokens are opaque native snapshots scoped to request identity and exact entity.
+message EntityPrecondition { optional string entity_id = 1; optional string expected_snapshot_token = 2; }
+message Clear {}
+message Assignment { oneof value { string entity_id = 1; Clear clear = 2; } }
+message DefCount { optional string def_name = 1; optional int32 count = 2; }
+message CellList { repeated rimgovernor.common.v1.Cell cells = 1; }
+message Rectangle { rimgovernor.common.v1.Cell origin = 1; optional int32 width = 2; optional int32 height = 3; }
+message Cells { oneof selection { CellList explicit_cells = 1; Rectangle rectangle = 2; } }
+message PlaceBuilding { rimgovernor.placement.v1.PlacementCandidate placement = 1; }
+message CancelConstruction { EntityPrecondition target = 1; optional string expected_def_name = 2; rimgovernor.common.v1.Cell cell = 3; optional string expected_stuff = 4; }
+message InstallBuilding { EntityPrecondition packed_or_inner = 1; rimgovernor.common.v1.Cell destination = 2; optional rimgovernor.placement.v1.Rotation rotation = 3; }
+message AcquireResource { EntityPrecondition source = 1; optional string resource_def_name = 2; rimgovernor.common.v1.Cell cell = 3; }
+enum ThingDesignation {
+  THING_DESIGNATION_UNSPECIFIED = 0;
+  THING_DESIGNATION_ALLOW = 1;
+  THING_DESIGNATION_FORBID = 2;
+  THING_DESIGNATION_HUNT = 3;
+  THING_DESIGNATION_HARVEST_PLANT = 4;
+  THING_DESIGNATION_DECONSTRUCT = 5;
+}
+message DesignateThing { EntityPrecondition target = 1; optional ThingDesignation designation = 2; }
+enum PowerSetting { POWER_SETTING_UNSPECIFIED = 0; POWER_SETTING_ON = 1; POWER_SETTING_OFF = 2; }
+message PatchBuilding {
+  EntityPrecondition building = 1;
+  optional bool forbidden = 2;
+  optional PowerSetting power = 3;
+  optional float target_temperature = 4;
+  optional bool medical = 5;
+  Assignment owner = 6;
+  optional bool for_prisoners = 7;
+}
+enum MedicalCare {
+  MEDICAL_CARE_UNSPECIFIED = 0; MEDICAL_CARE_NO_CARE = 1; MEDICAL_CARE_NO_MEDICINE = 2;
+  MEDICAL_CARE_HERBAL_OR_WORSE = 3; MEDICAL_CARE_NORMAL_OR_WORSE = 4; MEDICAL_CARE_BEST = 5;
+}
+enum HostilityResponse { HOSTILITY_RESPONSE_UNSPECIFIED = 0; HOSTILITY_RESPONSE_IGNORE = 1; HOSTILITY_RESPONSE_ATTACK = 2; HOSTILITY_RESPONSE_FLEE = 3; }
+message WorkPriority { optional string work_type_def = 1; optional int32 priority = 2; }
+message Schedule { repeated string assignment_defs = 1; }
+message Training { optional string trainable_def = 1; optional bool wanted = 2; }
+message PatchPawn {
+  EntityPrecondition pawn = 1;
+  repeated WorkPriority work = 2;
+  Schedule schedule = 3;
+  optional MedicalCare medical_care = 4;
+  optional HostilityResponse hostility_response = 5;
+  optional bool self_tend = 6;
+  optional bool follow_drafted = 7;
+  optional bool follow_fieldwork = 8;
+  Assignment allowed_area = 9;
+  Assignment master = 10;
+  repeated Training training = 11;
+  optional bool slaughter = 12;
+  optional bool release_to_wild = 13;
+}
+message FilterSelector { oneof definition { string thing_def = 1; string category_def = 2; string special_filter_def = 3; } }
+message SelectorList { repeated FilterSelector selectors = 1; }
+message FilterPatch {
+  // Absent replacement preserves existing membership; present empty denies all.
+  SelectorList replace = 1;
+  repeated FilterSelector allow = 2;
+  repeated FilterSelector disallow = 3;
+}
+enum RepeatMode { REPEAT_MODE_UNSPECIFIED = 0; REPEAT_MODE_FOREVER = 1; REPEAT_MODE_COUNT = 2; REPEAT_MODE_TARGET = 3; }
+enum StoreMode { STORE_MODE_UNSPECIFIED = 0; STORE_MODE_BEST_STOCKPILE = 1; STORE_MODE_DROP_ON_FLOOR = 2; }
+message BillStore { oneof destination { StoreMode mode = 1; string zone_id = 2; } }
+message BillSettings {
+  optional RepeatMode repeat_mode = 1;
+  optional int32 repeat_count = 2;
+  optional int32 target_count = 3;
+  optional int32 unpause_threshold = 4;
+  optional bool pause_when_satisfied = 5;
+  optional bool suspended = 6;
+  optional float ingredient_search_radius = 7;
+  optional int32 skill_min = 8;
+  optional int32 skill_max = 9;
+  Assignment worker = 10;
+  BillStore store = 11;
+  FilterPatch ingredients = 12;
+}
+message AddBill { EntityPrecondition bench = 1; optional string recipe_def = 2; BillSettings settings = 3; }
+message BillPrecondition { EntityPrecondition bench = 1; optional string bill_id = 2; }
+message PatchBill { BillPrecondition bill = 1; BillSettings settings = 2; }
+message DeleteBill { BillPrecondition bill = 1; }
+message MoveBill { BillPrecondition bill = 1; optional int32 destination_index = 2; }
+message SelectResearch { optional string project_def = 1; optional string expected_snapshot_token = 2; }
+message DrillPolicy { optional string building_def = 1; rimgovernor.common.v1.Cell cell = 2; optional string resource_def = 3; optional int32 stock_target = 4; }
+message SetProductionPolicy { optional string expected_snapshot_token = 1; repeated DefCount floors = 2; repeated DefCount commitments = 3; repeated string stopped_defs = 4; repeated DrillPolicy drills = 5; }
+enum ZoneType { ZONE_TYPE_UNSPECIFIED = 0; ZONE_TYPE_STOCKPILE = 1; ZONE_TYPE_DUMPING = 2; ZONE_TYPE_GROWING = 3; }
+enum StoragePriority { STORAGE_PRIORITY_UNSPECIFIED = 0; STORAGE_PRIORITY_LOW = 1; STORAGE_PRIORITY_NORMAL = 2; STORAGE_PRIORITY_PREFERRED = 3; STORAGE_PRIORITY_IMPORTANT = 4; STORAGE_PRIORITY_CRITICAL = 5; }
+enum FilterPreset { FILTER_PRESET_UNSPECIFIED = 0; FILTER_PRESET_EVERYTHING = 1; FILTER_PRESET_NOTHING = 2; FILTER_PRESET_FOOD = 3; FILTER_PRESET_PERISHABLES = 4; FILTER_PRESET_NONPERISHABLES = 5; FILTER_PRESET_OUTDOOR_SAFE = 6; }
+message StockpileSettings { optional StoragePriority priority = 1; optional FilterPreset preset = 2; FilterPatch filter = 3; }
+message GrowingSettings { optional string plant_def = 1; optional bool allow_sow = 2; optional bool allow_cut = 3; }
+message CreateZone { optional string expected_map_snapshot_token = 1; optional ZoneType type = 2; optional string label = 3; Cells cells = 4; StockpileSettings stockpile = 5; GrowingSettings growing = 6; optional bool require_covered_empty = 7; }
+message DeleteZone { EntityPrecondition zone = 1; }
+enum CellEdit { CELL_EDIT_UNSPECIFIED = 0; CELL_EDIT_ADD = 1; CELL_EDIT_REMOVE = 2; }
+message EditZoneCells { EntityPrecondition zone = 1; optional CellEdit edit = 2; Cells cells = 3; optional bool allow_split = 4; optional bool require_covered_empty = 5; }
+message RepairZone { EntityPrecondition zone = 1; }
+message PatchStockpile { EntityPrecondition zone = 1; StockpileSettings settings = 2; }
+message PatchGrowing { EntityPrecondition zone = 1; GrowingSettings settings = 2; }
+message ExtendHome { EntityPrecondition target = 1; optional string shape_token = 2; optional int64 revision = 3; }
+message AssignBed { EntityPrecondition pawn = 1; EntityPrecondition bed = 2; Assignment expected_previous_bed = 3; }
+message RemoveWall { EntityPrecondition wall = 1; optional string expected_site_snapshot_token = 2; }
+message ReleaseWallRemovals { optional string expected_snapshot_token = 1; }
+message RecoveryArea { EntityPrecondition pawn = 1; EntityPrecondition area = 2; }
+enum ServiceMethod { SERVICE_METHOD_UNSPECIFIED = 0; SERVICE_METHOD_REPAIR = 1; SERVICE_METHOD_BREAKDOWN = 2; SERVICE_METHOD_REFUEL = 3; }
+message RecoverService { EntityPrecondition target = 1; EntityPrecondition pawn = 2; optional ServiceMethod method = 3; }
+message ManageWaste { EntityPrecondition target = 1; EntityPrecondition pawn = 2; repeated string unwanted_ids = 3; repeated string bury_ids = 4; }
+enum Need { NEED_UNSPECIFIED = 0; NEED_FOOD = 1; NEED_REST = 2; NEED_JOY = 3; }
+message ExpectedJob { oneof state { int32 job_id = 1; Clear idle = 2; } }
+message RelieveNeed { EntityPrecondition pawn = 1; optional Need need = 2; ExpectedJob expected_job = 3; optional string expected_schedule_def = 4; }
+message ImproveGear { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional string expected_loadout_token = 3; }
+message QueueSurgery { EntityPrecondition patient = 1; optional string recipe_def = 2; optional int32 part_index = 3; optional string expected_health_token = 4; optional MedicalCare expected_care = 5; }
+message SetAnimalTraining { EntityPrecondition animal = 1; optional string expected_census_token = 2; optional string trainable_def = 3; }
+message SlaughterAnimal { EntityPrecondition animal = 1; optional string expected_census_token = 2; }
+enum PrisonerInteraction { PRISONER_INTERACTION_UNSPECIFIED = 0; PRISONER_INTERACTION_ATTEMPT_RECRUIT = 1; PRISONER_INTERACTION_MAINTAIN_ONLY = 2; }
+message SetPrisonerInteraction { EntityPrecondition pawn = 1; optional PrisonerInteraction interaction = 2; }
+message SetDrafted { EntityPrecondition pawn = 1; optional bool drafted = 2; optional string expected_draft_owner = 3; optional bool allow_persistent_draft = 4; }
+message MovePawn { EntityPrecondition pawn = 1; rimgovernor.common.v1.Cell destination = 2; }
+enum AttackMode { ATTACK_MODE_UNSPECIFIED = 0; ATTACK_MODE_AUTO = 1; ATTACK_MODE_MELEE = 2; ATTACK_MODE_RANGED = 3; }
+message AttackTarget { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional AttackMode mode = 3; optional bool require_hostile = 4; optional bool require_standing = 5; optional bool require_combat_health = 6; }
+enum PawnOrderKind { PAWN_ORDER_KIND_UNSPECIFIED = 0; PAWN_ORDER_KIND_EQUIP = 1; PAWN_ORDER_KIND_RESCUE = 2; PAWN_ORDER_KIND_CAPTURE = 3; PAWN_ORDER_KIND_TEND = 4; PAWN_ORDER_KIND_HAUL = 5; PAWN_ORDER_KIND_WORK = 6; PAWN_ORDER_KIND_REPAIR = 7; PAWN_ORDER_KIND_CLEAN = 8; }
+message PawnTargetOrder { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional PawnOrderKind kind = 3; optional bool require_safe_storage = 4; }
+message OpenTrade { EntityPrecondition trader = 1; EntityPrecondition negotiator = 2; optional bool gift_mode = 3; }
+message TradeLine { optional string line_id = 1; optional int32 absolute_count = 2; }
+message SetTradeLines { EntityPrecondition session = 1; repeated TradeLine lines = 2; optional bool allow_pawns = 3; }
+message AcceptTrade { EntityPrecondition session = 1; optional string expected_deal_signature = 2; repeated DefCount economic_floors = 3; optional bool allow_empty = 4; optional bool receive_quest = 5; }
+enum EndTradeKind { END_TRADE_KIND_UNSPECIFIED = 0; END_TRADE_KIND_CANCEL = 1; END_TRADE_KIND_CLOSE_DIALOG = 2; }
+message EndTrade { EntityPrecondition session = 1; optional EndTradeKind kind = 2; optional bool receive_quest = 3; }
+message CargoSelection { optional string group_id = 1; optional int32 count = 2; }
+message FormCaravan { optional string expected_catalog_token = 1; repeated string pawn_ids = 2; repeated CargoSelection cargo = 3; optional int32 destination_tile = 4; }
+enum TravelKind { TRAVEL_KIND_UNSPECIFIED = 0; TRAVEL_KIND_MOVE = 1; TRAVEL_KIND_VISIT = 2; TRAVEL_KIND_RETURN_HOME = 3; TRAVEL_KIND_STOP = 4; }
+message TravelCaravan { EntityPrecondition caravan = 1; optional TravelKind kind = 2; optional int32 destination_tile = 3; }
+message GiftCaravanSilver { EntityPrecondition caravan = 1; EntityPrecondition faction = 2; repeated string expected_pawn_ids = 3; optional int32 silver = 4; }
+message AcceptQuest { EntityPrecondition quest = 1; optional string accepter_pawn_id = 2; optional int32 reward_choice = 3; }
+message FulfillQuest { EntityPrecondition quest = 1; EntityPrecondition caravan = 2; repeated string expected_pawn_ids = 3; }
+
+service Operations {
+  rpc Preview(PreviewRequest) returns (PreviewReply);
+  rpc Execute(ExecuteRequest) returns (ExecuteReply);
+}

@@ -1,0 +1,171 @@
+syntax = "proto3";
+package rimgovernor.receipts.v1;
+option csharp_namespace = "RimGovernor.Protocol.Receipts";
+option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb;receiptspb";
+import "common.proto";
+import "authority.proto";
+
+message Receipt {
+  rimgovernor.common.v1.AttemptKey attempt = 1;
+  rimgovernor.common.v1.ObservationContext admitted_context = 2;
+  rimgovernor.authority.v1.Owner authorizing_owner = 3;
+  oneof outcome {
+    NoChange no_change = 4;
+    Applied applied = 5;
+    Uncertain uncertain = 6;
+  }
+}
+message NoChange { EffectEvidence observed = 1; optional string detail = 2; }
+message Applied { EffectEvidence observed = 1; }
+message Uncertain {
+  // Only facts actually observed. Missing effects do not assert absence.
+  EffectEvidence last_observed = 1;
+  optional string detail = 2;
+}
+// The admitted operation is recovered from the immutable request for this attempt.
+// Every evidence branch is concrete; none permits arbitrary named properties.
+message EffectEvidence {
+  oneof effect {
+    ConstructionEffect construction = 1;
+    InstallationEffect installation = 2;
+    DesignationEffect designation = 3;
+    SettingsEffect settings = 4;
+    BillEffect bill = 5;
+    ResearchEffect research = 6;
+    ProductionPolicyEffect production_policy = 7;
+    ZoneEffect zone = 8;
+    HomeEffect home = 9;
+    BedEffect bed = 10;
+    WallEffect wall = 11;
+    AreaEffect area = 12;
+    JobEffect job = 13;
+    SurgeryEffect surgery = 14;
+    AnimalEffect animal = 15;
+    PrisonerEffect prisoner = 16;
+    TradeEffect trade = 17;
+    CaravanEffect caravan = 18;
+    QuestEffect quest = 19;
+  }
+}
+message SnapshotEvidence {
+  optional string entity_id = 1;
+  optional string before_token = 2;
+  optional string after_token = 3;
+}
+enum ConstructionStage { CONSTRUCTION_STAGE_UNSPECIFIED = 0; CONSTRUCTION_STAGE_BLUEPRINT = 1; CONSTRUCTION_STAGE_FRAME = 2; CONSTRUCTION_STAGE_BUILDING = 3; CONSTRUCTION_STAGE_CANCELLED = 4; }
+message ConstructionEffect {
+  optional string origin_thing_id = 1;
+  optional string current_thing_id = 2;
+  optional string def_name = 3;
+  optional string stuff = 4;
+  rimgovernor.common.v1.Cell cell = 5;
+  optional int32 rotation = 6;
+  optional ConstructionStage stage = 7;
+  optional bool present = 8;
+  optional bool started = 9;
+  optional bool failed = 10;
+  optional string blocker = 11;
+  repeated string cancelled_frame_ids = 12;
+  repeated string wiped_thing_ids = 13;
+}
+enum InstallationStage { INSTALLATION_STAGE_UNSPECIFIED = 0; INSTALLATION_STAGE_PACKED = 1; INSTALLATION_STAGE_PLACEABLE = 2; INSTALLATION_STAGE_QUEUED = 3; INSTALLATION_STAGE_INSTALLED = 4; INSTALLATION_STAGE_UNVERIFIED = 5; }
+message InstallationEffect { optional string inner_thing_id = 1; optional string packed_thing_id = 2; optional string blueprint_id = 3; optional string def_name = 4; optional string stuff = 5; rimgovernor.common.v1.Cell cell = 6; optional int32 rotation = 7; optional InstallationStage stage = 8; }
+message DesignationEffect { optional string thing_id = 1; optional string designation_def = 2; optional bool present = 3; optional string resource_def = 4; rimgovernor.common.v1.Cell cell = 5; }
+enum SettingsField {
+  SETTINGS_FIELD_UNSPECIFIED = 0; SETTINGS_FIELD_FORBIDDEN = 1; SETTINGS_FIELD_POWER = 2;
+  SETTINGS_FIELD_TEMPERATURE = 3; SETTINGS_FIELD_MEDICAL_BED = 4; SETTINGS_FIELD_OWNER = 5;
+  SETTINGS_FIELD_PRISONER_BED = 6; SETTINGS_FIELD_WORK = 7; SETTINGS_FIELD_SCHEDULE = 8;
+  SETTINGS_FIELD_MEDICAL_CARE = 9; SETTINGS_FIELD_HOSTILITY = 10; SETTINGS_FIELD_SELF_TEND = 11;
+  SETTINGS_FIELD_FOLLOW_DRAFTED = 12; SETTINGS_FIELD_FOLLOW_FIELDWORK = 13; SETTINGS_FIELD_ALLOWED_AREA = 14;
+  SETTINGS_FIELD_MASTER = 15; SETTINGS_FIELD_TRAINING = 16; SETTINGS_FIELD_SLAUGHTER = 17; SETTINGS_FIELD_RELEASE = 18;
+}
+enum FieldOutcome { FIELD_OUTCOME_UNSPECIFIED = 0; FIELD_OUTCOME_UNCHANGED = 1; FIELD_OUTCOME_APPLIED = 2; FIELD_OUTCOME_REFUSED = 3; FIELD_OUTCOME_UNKNOWN = 4; }
+message FieldResult { optional SettingsField field = 1; optional FieldOutcome outcome = 2; optional string reason = 3; }
+message SettingsEffect { SnapshotEvidence snapshot = 1; repeated FieldResult fields = 2; }
+message BillEffect { SnapshotEvidence stack = 1; optional string bill_id = 2; optional string recipe_def = 3; optional bool present = 4; optional int32 index = 5; repeated string ordered_bill_ids = 6; }
+message ResearchEffect { optional string previous_project_def = 1; optional string current_project_def = 2; SnapshotEvidence snapshot = 3; }
+message ProductionPolicyEffect { SnapshotEvidence snapshot = 1; optional bool changed = 2; repeated string interrupted_pawn_ids = 3; }
+message CellResult { rimgovernor.common.v1.Cell cell = 1; optional bool accepted = 2; optional string reason = 3; optional string taken_from_zone_id = 4; }
+message ZoneEffect { SnapshotEvidence snapshot = 1; optional string zone_id = 2; optional bool present = 3; optional int32 changed_cells = 4; repeated CellResult cells = 5; optional int32 listed_cell_count = 6; optional int32 grid_cell_count = 7; optional int32 phantom_cell_count = 8; }
+message HomeEffect { SnapshotEvidence snapshot = 1; optional string shape_token = 2; optional int64 revision = 3; optional int32 changed_cells = 4; optional bool covered = 5; }
+message BedEffect { optional string pawn_id = 1; optional string bed_id = 2; optional string previous_bed_id = 3; optional bool assigned = 4; optional bool sleeping = 5; }
+message WallEffect { optional string target_id = 1; optional string removal_id = 2; repeated string worker_ids = 3; optional int32 released_count = 4; optional bool demolition_observed = 5; SnapshotEvidence site = 6; }
+message AreaEffect { optional string pawn_id = 1; optional string area_id = 2; optional string previous_area_id = 3; optional int64 expires_tick = 4; SnapshotEvidence snapshot = 5; }
+message JobTarget { oneof target { string thing_id = 1; rimgovernor.common.v1.Cell cell = 2; } }
+message JobEffect {
+  optional string pawn_id = 1;
+  optional int32 job_id = 2;
+  optional string job_def = 3;
+  JobTarget target_a = 4;
+  JobTarget target_b = 5;
+  optional string work_giver_def = 6;
+  optional string work_type_def = 7;
+  optional int32 count = 8;
+  optional bool issued = 9;
+  optional bool verified = 10;
+  optional string verified_reason = 11;
+  optional bool drafted = 12;
+  optional string draft_owner = 13;
+  optional bool auto_drafted = 14;
+  optional bool auto_undrafted = 15;
+  optional string supply_thing_id = 16;
+  optional int32 hit_points = 17;
+  optional float fuel = 18;
+  optional float need_before = 19;
+  optional bool can_try = 20;
+  optional string resulting_snapshot_token = 21;
+}
+message SurgeryEffect { optional string patient_id = 1; optional string recipe_def = 2; optional int32 part_index = 3; optional string bill_id = 4; optional bool queued = 5; optional string health_token = 6; SnapshotEvidence bill_stack = 7; }
+message AnimalEffect { SnapshotEvidence animal = 1; optional string census_token = 2; optional string trainable_def = 3; optional bool wanted = 4; optional bool slaughter_designated = 5; }
+message PrisonerEffect { SnapshotEvidence pawn = 1; optional string interaction_def = 2; }
+message TradeLineEffect { optional string line_id = 1; optional int32 before_count = 2; optional int32 after_count = 3; }
+message TradeEffect {
+  optional string session_id = 1;
+  optional string deal_signature = 2;
+  repeated TradeLineEffect lines = 3;
+  optional bool executed = 4;
+  optional bool closed = 5;
+  optional int32 before_silver = 6;
+  optional int32 after_silver = 7;
+  optional int32 before_goodwill = 8;
+  optional int32 after_goodwill = 9;
+  optional string faction_id = 10;
+  repeated string received_quest_ids = 11;
+  SnapshotEvidence snapshot = 12;
+}
+message CaravanEffect { optional string caravan_id = 1; optional bool assembly_started = 2; optional bool path_started = 3; optional bool stopped = 4; optional int32 destination_tile = 5; repeated string pawn_ids = 6; SnapshotEvidence snapshot = 7; }
+message QuestEffect { optional string quest_id = 1; optional bool accepted = 2; optional bool request_active = 3; optional string state = 4; optional int64 acceptance_tick = 5; SnapshotEvidence snapshot = 6; }
+
+message LookupRequest { rimgovernor.common.v1.Identity identity = 1; rimgovernor.common.v1.AttemptKey attempt = 2; }
+message UnknownAttempt { rimgovernor.common.v1.ObservationContext context = 1; }
+message InFlight { rimgovernor.common.v1.AttemptKey attempt = 1; rimgovernor.common.v1.ObservationContext admitted_context = 2; }
+message LookupReply {
+  oneof outcome {
+    Receipt receipt = 1;
+    InFlight in_flight = 2;
+    UnknownAttempt unknown = 3;
+    rimgovernor.common.v1.Failure failure = 4;
+  }
+}
+message ProgressRequest { rimgovernor.common.v1.Identity identity = 1; rimgovernor.common.v1.AttemptKey attempt = 2; }
+message PendingEffect { EffectEvidence evidence = 1; }
+message CompletedEffect { EffectEvidence evidence = 1; }
+message AbsentEffect { optional string inspection_token = 1; }
+message UnknownEffect { optional string reason = 1; }
+message Progress {
+  rimgovernor.common.v1.AttemptKey attempt = 1;
+  rimgovernor.common.v1.ObservationContext context = 2;
+  // Required true for absence/completion. Not inferred from empty result arrays.
+  optional bool complete_inspection = 3;
+  oneof effect {
+    UnknownEffect unknown = 4;
+    PendingEffect pending = 5;
+    CompletedEffect completed = 6;
+    AbsentEffect absent = 7;
+  }
+}
+message ProgressReply { oneof outcome { Progress progress = 1; rimgovernor.common.v1.Failure failure = 2; } }
+service Attempts {
+  rpc Lookup(LookupRequest) returns (LookupReply);
+  rpc ObserveProgress(ProgressRequest) returns (ProgressReply);
+}
