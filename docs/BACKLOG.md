@@ -1013,6 +1013,15 @@ only intentional small, sanitized regression fixtures belong in source control.
           - [ ] **2f.1b:** compose session and worker cleanup. Owner: runtime agent;
             depends on 2e.2 and 2f.1a. Keep one writer, finished-plan cleanup and
             retryable joined shutdown under the existing profile owner.
+            - [ ] **2f.1b.1:** retain profile ownership after uncertain shutdown
+              revoke. Owner: integrator; depends on existing 06 control lifecycle.
+              Failed native cleanup cannot become successful through a second
+              Close call without fresh evidence. Cover a held lock and retry.
+            - [ ] **2f.1b.2:** compose draft session and worker cleanup. Owner:
+              runtime agent; depends on 2e.2, 2f.1a and 2f.1b.1. Accept positive
+              world replacement before retiring an obsolete revoke target;
+              unavailable identity retains ownership. Never revoke a replacement
+              world's authority. Cover Manual, fairness and joined retryable Close.
         - [ ] **2f.2:** explicit player draft submission and local API projection.
           Owner: HTTP agent; depends on 2c and 2f.1. Accept pawn intent only, resolve
           native CAS in the handler, and expose progress and cleanup independently.
