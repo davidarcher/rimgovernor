@@ -11,6 +11,30 @@
   unless requested.
 - Keep generated builds, logs, saves, databases and temporary scripts out of commits.
 
+## Delivery speed and coordination
+
+- Define a bounded completion criterion and the smallest sufficient checks. Once
+  they pass, commit and deliver; put unrelated discoveries in the backlog.
+- Default to one agent. Use requested teams for independent, bounded work. Agree
+  once on file/component ownership, shared contracts and one integration owner,
+  then work independently. Do not narrate edits to peers or ask for speculative
+  conflict checks before each change or merge.
+- Communicate only actual ownership overlap, contract changes, blockers needing
+  a decision, or a ready handoff. Batch questions; hand off a commit, affected
+  paths and concise verification evidence. No acknowledgment loops, status
+  polling, relay chains or coordination-only agents without a concrete need.
+- When landing is authorized, stream small verified commits into main as they
+  become ready. Assume main is continuously updated: validate the task and merge;
+  do not chase each new HEAD with a rebase/retest cycle. Do not wait for unrelated
+  teams or require a global quiet period.
+  Check the target checkout and diff locally; coordinate only actual overlap or
+  an actively edited target. Resolve routine integration locally.
+- Test evidence follows relevant code, dependencies, inputs and environment, not
+  the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases do
+  not invalidate passing results. Rerun only checks affected by changed behavior,
+  dependencies or conflict resolution. Reuse other agents' applicable evidence.
+
+
 ## Architecture and implementation
 
 - Follow the [development process](docs/developers/development-process.md): small verified
@@ -34,6 +58,17 @@
 
 ## Validation
 
+- Follow the testing pyramid: many fast unit tests, fewer integration tests and
+  a small set of targeted game acceptance scenarios. Keep the edit/test loop fast.
+  Use fixtures, replay and contract tests for most migration parity; parameterize
+  biome and colony policy variants where simulation is unnecessary.
+- Before a slow check, identify the changed behavior or unresolved failure it
+  verifies and why cheaper checks are insufficient. Run targeted game acceptance
+  at relevant feature milestones, not after every edit. Broad scenario matrices
+  and sustained campaigns are separate scheduled or explicitly requested work.
+- After an acceptance failure, add a fast regression test where feasible and
+  rerun the affected scenario. Do not restart a whole campaign without a specific
+  reason. Do not duplicate tests or reviews already supported by applicable evidence.
 - Native scenario tick waits use `rimgovernor.native_scenario.advance_game` instead of
   bespoke start/poll/resume loops. Its default acknowledges inspected Ancient danger
   fixture warnings and preserves the remaining tick budget. Interruption acceptance
@@ -50,7 +85,8 @@
   `require_dashboard_image` helpers so scenarios publish automatic loopback
   dashboard ports. Rebuild old images; do not silently omit observation support.
 - During iteration, run affected test files and their contract neighbors. Run the
-  full affected suite once before handoff; avoid repeating it on an unchanged revision.
+  full affected suite once before handoff; reuse results while relevant inputs
+  remain unchanged, even when main advances.
   Use one Docker check worker by default: extra workers repeat, not shard, tests.
   Use `--controller-only --test controller_tests/test_NAME.py` for focused Docker
   controller checks; omit `--test` for the full controller suite.
@@ -58,7 +94,9 @@
   checks. Distinguish compilation/protocol checks from actual gameplay validation.
 - Never replace installed DLLs while any RimWorld instance is running, including
   another worktree's tests. Isolated tests must restore temporarily swapped DLLs.
-- Native changes need game-level acceptance.
+- Native behavior changes need targeted game-level acceptance before completion.
+  Documentation-only edits need no game session. The full affected suite means
+  the applicable automated suite, not the entire gameplay scenario matrix.
 
 ## Documentation and comments
 

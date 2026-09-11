@@ -2,6 +2,30 @@
 
 [Documentation](../../README.md)
 
+## Testing budget and evidence reuse
+
+Follow the testing pyramid: many fast unit tests, fewer boundary integration tests
+and a small set of targeted game acceptance scenarios. Keep focused unit tests in
+the edit loop. Before a slow check, identify the changed behavior or unresolved
+failure it verifies and why cheaper checks cannot establish it.
+
+Use fixtures, replay and contract tests for most Python-to-Go migration parity.
+Parameterize biome and colony policy variants where simulation is unnecessary.
+Run native acceptance at relevant feature milestones. Broad scenario matrices and
+sustained campaigns are separate scheduled or explicitly requested work. After an
+acceptance failure, add a fast regression test where feasible and rerun the affected
+scenario; expand only when changed behavior or the failure justifies it.
+
+Passing evidence follows relevant code, dependencies, inputs and environment, not
+the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases do not
+invalidate it. Inspect the relevant diff and reuse applicable results across agents.
+Conflict resolution or dependency changes require only the checks they affect.
+The full affected suite below means the applicable automated suite, not every
+gameplay scenario. Finish when agreed completion criteria and relevant checks pass;
+put unrelated discoveries in the backlog.
+
+## Available checks
+
 | What changed / what you need to establish | Available support | Requirements and limits |
 | --- | --- | --- |
 | Gated Go module/replay tools | From `go/`: `go test ./...`, `go vet ./...`, `go mod verify`, `go mod tidy -diff`; Go CI also checks formatting and Windows/Linux builds. | Pin Go via `go/.go-version`; Linux race tests need CGO/GCC. Native control and fresh Go-session recovery have separate behavioral checks. See [Go checks](../../../go/README.md). |
@@ -21,7 +45,8 @@ For agents: inspect the affected tests and choose the smallest relevant check, t
 the full affected suite once before handoff. Controller-only changes need the full
 controller suite; dashboard-only changes need typecheck, Vitest and build. Changes to
 shared contracts, packaging or test infrastructure need both. Reuse a successful run
-on the same revision/environment when no relevant source has changed; do not repeat
+when relevant code, dependencies, inputs and environment are unchanged, even if main
+has advanced; do not repeat
 full suites after documentation-only follow-ups. Additional Docker workers repeat the
 suite rather than divide it, so use one unless testing isolation or repetition.
 Report commands, exit status, skips,

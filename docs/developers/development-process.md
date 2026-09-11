@@ -7,10 +7,20 @@
 Read the [architecture](architecture/overview.md), [source map](source-map.md),
 affected contracts and [backlog](../BACKLOG.md). Identify the outcome, owning
 component, changed contracts and acceptance cases. A few sentences suffice for
-a small fix. Keep incomplete capabilities gated and record remaining work in the backlog.
+a small fix. Define a bounded completion criterion and the smallest sufficient
+checks. Once they pass, commit and deliver. Keep incomplete capabilities gated and
+record unrelated discoveries and remaining work in the backlog.
 
 Check Git status before editing. Use a separate task worktree and `codex/` branch
 when peers may be active. Coordinate shared interfaces and integration.
+
+Follow the [delivery and coordination rules](../../AGENTS.md#delivery-speed-and-coordination).
+Default to one agent. For requested teams, establish ownership and an integration
+owner once, then work independently. Communicate actual overlaps, contract changes,
+blockers and ready handoffs; do not narrate edits or seek speculative conflict checks.
+When landing is authorized, stream verified commits into main without waiting for
+unrelated teams. Inspect actual diffs and preserve applicable test evidence across
+clean integration; a new main HEAD alone is not a reason to rerun tests.
 
 ## Follow the existing execution path
 
@@ -52,7 +62,8 @@ escapes inside a documented adapter with a boundary test; no blanket suppression
 
 ## Verify and commit
 
-Use [test selection](testing/choose-tests.md). During iteration, run affected files and
+Use the [testing pyramid and evidence rules](testing/choose-tests.md#testing-budget-and-evidence-reuse).
+During iteration, run affected files and
 contract neighbors. Before handoff, run the full affected suite once. Reuse
 successful results when the relevant source and environment are unchanged.
 
