@@ -176,8 +176,10 @@ async def run(root, output, binary, *, go_source, go_sha256):
             second = await http("POST", "/api/buildings/plans", body={"requestId": "clock-wall-2", "expected": identity,
                 "building": http_building(prepared["sites"][1])}, expected=201)
             report["second_submission"] = second
-            await acquire(http, second, "clock-acquire-shutdown")
-            report["shutdown_running_state"] = await state(http, paused=False)
+            running = await state(http, paused=False)
+            report["shutdown_running_state"] = await poll(http, "/api/state", lambda v: v.get("connected")
+                and not v.get("game", {}).get("stale", True) and not v["game"]["paused"]
+                and v["game"]["tick"] > running["game"]["tick"])
         # The Go process must join and pause before the orchestrator reattaches.
         async with bridge_session(gabs, configuration) as bridge:
             await bridge.connect()
