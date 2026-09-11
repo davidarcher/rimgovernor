@@ -116,6 +116,14 @@ func TestMeleeBoundaryInspectAndExactDispatch(t *testing.T) {
 		t.Fatal(receipt, err, f.command)
 	}
 }
+func TestMeleeBoundaryRejectsNegativeAdmissionTick(t *testing.T) {
+	b, f, d := meleeFixtureBoundary(t)
+	d.Admission.Tick = -1
+	if _, err := b.AttackMelee(context.Background(), d); err == nil || f.leases != 0 || f.writes != 0 {
+		t.Fatal("invalid admission reached native dispatch", err, f.leases, f.writes)
+	}
+}
+
 func TestMeleeBoundaryInspectMissingAndChangedFacts(t *testing.T) {
 	for _, kind := range []string{"generation", "pawn CAS", "target CAS", "preview past", "emergency past", "claim direction", "violent", "missing health", "missing equipment"} {
 		t.Run(kind, func(t *testing.T) {

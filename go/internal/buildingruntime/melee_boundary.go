@@ -191,7 +191,7 @@ func (b *MeleeBoundary) attempt(dispatch executor.MeleeDispatch) (bridge.AttackA
 		return bridge.AttackAttempt{}, err
 	}
 	m, _ := p.Action.MeleeAttack()
-	if p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Pawn != m.Pawn() || admission.Target != m.Target() || admission.Tick > p.Tick || !boundaryID(admission.PawnSnapshotToken) || !boundaryID(admission.TargetSnapshotToken) {
+	if p.Attempt == 0 || p.Tick < 0 || admission.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Pawn != m.Pawn() || admission.Target != m.Target() || admission.Tick > p.Tick || !boundaryID(admission.PawnSnapshotToken) || !boundaryID(admission.TargetSnapshotToken) {
 		return bridge.AttackAttempt{}, executor.ErrEvidence
 	}
 	return bridge.AttackAttempt{Identity: boundaryIdentity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), Owner: &a.Owner{ControllerSessionId: proto.String(b.session), PlayerDirection: proto.Uint64(uint64(p.Snapshot.Direction))}, PawnID: string(m.Pawn()), TargetID: string(m.Target()), Mode: o.AttackMode_ATTACK_MODE_MELEE, RequireHostile: true, RequireStanding: true, RequireCombatHealth: true}, nil
