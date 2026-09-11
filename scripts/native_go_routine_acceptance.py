@@ -60,12 +60,12 @@ def audit_routine(events, baseline, capabilities, *, restart):
     return names
 
 
-async def wait_review(database):
+async def wait_review(database, after_revision=0):
     async with asyncio.timeout(60):
         while True:
             with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
                 row = db.execute("SELECT payload FROM routine_review WHERE singleton=1").fetchone()
-            if row and json.loads(row[0])["Enabled"]:
+            if row and json.loads(row[0])["Enabled"] and json.loads(row[0])["Revision"] > after_revision:
                 return
             await asyncio.sleep(.05)
 
@@ -113,7 +113,7 @@ def audit_sleeping(report, database):
     return {"completed_spots": len(plan["actions"]), "completed_cooking_buildings": len(report.get("cooking_plan", {}).get("actions", [])), "single_attempts": True, "indoor_footprints": True, "shared_player_authority": True}
 
 
-async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False, work_project=False):
+async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False, work_project=False, work_overrides=False):
     assert Path("/.dockerenv").is_file(), "Use the isolated scenario launcher"
     output.mkdir(parents=True, exist_ok=False)
     report = {"passed": False, "source": go_source,
@@ -193,7 +193,12 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 assert minimum_construction > 0
                 report['work_project'] = {'definition': 'HospitalBed', 'minimum_construction': minimum_construction}
                 (output / 'work-project-definition.json').write_text(json.dumps(project_facts), encoding='utf8')
-            report['initial_work'] = work_reference(legacy_work['pawns'], minimum_construction)
+            overrides = []
+            if work_overrides:
+                overrides = [{'pawn': p['thingId'], 'work': 'Construction', 'priority': 0} for p in legacy_work['pawns']
+                             if any(w['name'] == 'Construction' for w in p['work']['types'])]
+                assert overrides
+            report['initial_work'] = work_reference(legacy_work['pawns'], minimum_construction, overrides)
             work_colony = await wire(bridge, "work-colony", "observations_read_colony_facts", {"scope": {"expectedIdentity": identity}, "planning": True})
             for name, value in {'work-pawns': {'observed': detailed}, 'work-colony': work_colony,
                                 'work-status': report['initial_colony'], 'work-reference': report['initial_work']}.items():
@@ -212,6 +217,14 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 building.update(defName='HospitalBed', stuff='')
             submission = await http("POST", "/api/buildings/plans", body={"requestId": "routine-context", "expected": identity,
                 "building": building}, expected=201)
+            if work_overrides:
+                preference_path = '/api/player/work-preferences?planId=' + submission['planId']
+                initial = await http('GET', preference_path)
+                assert initial['revision'] == '0' and initial['overrides'] == []
+                preference_request = {'requestId': 'work-preferences', 'planId': submission['planId'], 'expected': identity,
+                                      'expectedRevision': '0', 'overrides': overrides}
+                report['work_preferences'] = await http('POST', '/api/player/work-preferences/replace', body=preference_request)
+                assert report['work_preferences']['revision'] == '1' and report['work_preferences']['overrides'] == overrides
             granted = await http("POST", "/api/player/control/acquire", body={"requestId": "routine-acquire", "expected": identity,
                 "planId": submission["planId"], "revision": submission["revision"], "expectedDirection": "0"})
             assert granted["record"]["phase"] == "granted"
@@ -225,6 +238,23 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             report['work_need'] = active['goals']['EnsureWorkAssignments']['Need']
             assert report['work_need'] == ('recovered' if report['initial_work']['matches'] else 'deficit'), 'Native work readback did not reach routine need'
             report["active_routine"] = active
+            if work_overrides:
+                assert active['review']['WorkPreferenceRevision'] == 1
+                cleared = await http('POST', '/api/player/work-preferences/replace', body=preference_request | {
+                    'requestId': 'clear-work', 'expectedRevision': '1', 'overrides': []})
+                assert cleared['revision'] == '2' and cleared['overrides'] == []
+                await wait_review(database, active['review']['Revision'])
+                after_clear = routine_evidence(database, identity, enabled=True, expected_food_need=expected_food)
+                assert after_clear['review']['WorkPreferenceRevision'] == 2
+                default_work = work_reference(legacy_work['pawns'], minimum_construction)
+                assert after_clear['goals']['EnsureWorkAssignments']['Need'] == ('recovered' if default_work['matches'] else 'deficit')
+                replay = await http('POST', '/api/player/work-preferences/replace', body=preference_request)
+                assert replay == report['work_preferences'] and await http('GET', preference_path) == cleared
+                report['work_preferences'] = await http('POST', '/api/player/work-preferences/replace', body=preference_request | {
+                    'requestId': 'restore-work', 'expectedRevision': '2'})
+                await wait_review(database, after_clear['review']['Revision'])
+                assert routine_evidence(database, identity, enabled=True, expected_food_need=expected_food)['goals']['EnsureWorkAssignments']['Need'] == 'deficit'
+                report['work_preference_clear_and_replay'] = True
             if sleeping_methods:
                 report["sleeping_plan"] = await wait_building_method(http, database, "SleepingSpot", report["sleeping_setup"]["colonists"])
             if cooking_methods:
@@ -244,6 +274,12 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             await asyncio.sleep(2)
             assert not (await http("GET", "/api/player/control"))["state"]["enabled"]
             assert routine_evidence(database, identity, enabled=False, expected_food_need=expected_food, allow_methods=sleeping_methods) == report["manual_routine"]
+            if work_overrides:
+                assert await http('GET', preference_path) == report['work_preferences']
+                stale = preference_request | {'requestId': 'stale-work'}
+                await http('POST', '/api/player/work-preferences/replace', body=stale, expected=409)
+                assert await http('GET', preference_path) == report['work_preferences']
+                report['work_preference_restart'] = True
         async with bridge_session(gabs, configuration) as bridge:
             await bridge.connect()
             await capture(bridge, "restart", baseline, restart=True)
@@ -276,6 +312,7 @@ if __name__ == "__main__":
     parser.add_argument("--sleeping-methods", action="store_true")
     parser.add_argument("--cooking-methods", action="store_true")
     parser.add_argument("--work-project", action="store_true")
+    parser.add_argument("--work-overrides", action="store_true")
     args = parser.parse_args()
     raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-go-routine-acceptance", args.go_binary,
-        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods, cooking_methods=args.cooking_methods, work_project=args.work_project)) else 1)
+        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods, cooking_methods=args.cooking_methods, work_project=args.work_project, work_overrides=args.work_overrides)) else 1)

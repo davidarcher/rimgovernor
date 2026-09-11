@@ -190,8 +190,8 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	path := r.URL.Path
-	read := path == "/api/player/session" || path == "/api/player/control" || (path == "/api/buildings/submission" || path == "/api/drafts/submission") || path == "/api/player/clock"
-	write := path == "/api/drafts/plans" || path == "/api/buildings/plans" || path == "/api/player/control/acquire" || path == "/api/player/control/manual" || path == "/api/player/clock/acknowledge"
+	read := path == "/api/player/session" || path == "/api/player/control" || (path == "/api/buildings/submission" || path == "/api/drafts/submission") || path == "/api/player/clock" || path == "/api/player/work-preferences"
+	write := path == "/api/drafts/plans" || path == "/api/buildings/plans" || path == "/api/player/control/acquire" || path == "/api/player/control/manual" || path == "/api/player/clock/acknowledge" || path == "/api/player/work-preferences/replace"
 	if !read && !write {
 		return false
 	}
@@ -234,6 +234,10 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), s.config.ReadTimeout)
 	defer cancel()
+	if path == "/api/player/work-preferences" || path == "/api/player/work-preferences/replace" {
+		s.handleWorkPreferences(ctx, w, r, query, write)
+		return true
+	}
 	if path == "/api/player/clock" || path == "/api/player/clock/acknowledge" {
 		if len(query) != 0 || r.URL.ForceQuery {
 			s.failure(w, r, 400, "invalid_request", "Clock review accepts no query")

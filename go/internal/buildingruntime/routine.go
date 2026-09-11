@@ -67,6 +67,13 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context) (store.RoutineReviewR
 		return store.RoutineReviewResult{}, err
 	}
 	definitions := routineProjectDefinitions(plans, state.Snapshot)
+	preferences, err := p.journal.LoadWorkPreferences(ctx, state.Snapshot.Plan)
+	if err != nil {
+		return store.RoutineReviewResult{}, err
+	}
+	if preferences.World != (store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}) {
+		return store.RoutineReviewResult{}, ErrControl
+	}
 	reading, err := observation.ObserveRoutine(ctx, r.native, r.clock, expected, r.maxAge, definitions...)
 	if err != nil {
 		return store.RoutineReviewResult{}, err
@@ -89,11 +96,10 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context) (store.RoutineReviewR
 	if pawns, known := reading.Projection.WorkPawns.Value(); known {
 		required, known := routineProjectWork(definitions, reading.Projection.Definitions).Value()
 		if known {
-			work, err := policy.AssignWork(pawns, required, nil)
-			if err != nil {
-				return store.RoutineReviewResult{}, err
+			work, err := policy.AssignWork(pawns, required, preferences.Overrides)
+			if err == nil {
+				reading.Projection.Facts.WorkCoverage = work.Matches
 			}
-			reading.Projection.Facts.WorkCoverage = work.Matches
 		}
 	}
 	if err = p.current(ctx, epoch); err != nil {
@@ -104,7 +110,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context) (store.RoutineReviewR
 	}
 	// Manual cancels ctx before waiting for this gate, then invalidates any
 	// completed review before returning. Never hold the local stop mutex for SQL.
-	return p.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: previous.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts})
+	return p.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: previous.Revision, WorkPreferenceRevision: preferences.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts})
 }
 
 // Caller holds the player gate. Invalidating existing work needs no native read,

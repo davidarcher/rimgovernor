@@ -22,21 +22,23 @@ type RoutineGoal struct {
 // RoutineReview is the durable review cursor and hysteresis history. Goal
 // bindings retain semantic needs while old executable plans keep their identity.
 type RoutineReview struct {
-	Revision uint64
-	Snapshot domain.GenerationSnapshot
-	Tick     domain.Tick
-	Enabled  bool
-	Latches  policy.RoutineLatches
-	Goals    []RoutineGoal
+	Revision               uint64
+	WorkPreferenceRevision uint64
+	Snapshot               domain.GenerationSnapshot
+	Tick                   domain.Tick
+	Enabled                bool
+	Latches                policy.RoutineLatches
+	Goals                  []RoutineGoal
 }
 
 type RoutineReviewRequest struct {
-	Revision uint64
-	Current  domain.GenerationSnapshot
-	Tick     domain.Tick
-	Enabled  bool
-	Policy   policy.RoutinePolicy
-	Facts    policy.RoutineFacts
+	Revision               uint64
+	WorkPreferenceRevision uint64
+	Current                domain.GenerationSnapshot
+	Tick                   domain.Tick
+	Enabled                bool
+	Policy                 policy.RoutinePolicy
+	Facts                  policy.RoutineFacts
 }
 
 type RoutineReviewResult struct {
@@ -116,6 +118,26 @@ func (s *Store) ReviewRoutine(ctx context.Context, request RoutineReviewRequest)
 		return RoutineReviewResult{}, err
 	}
 	defer tx.Rollback()
+	result, err := reviewRoutineTx(ctx, tx, request)
+	if err != nil {
+		return RoutineReviewResult{}, err
+	}
+	if err = tx.Commit(); err != nil {
+		return RoutineReviewResult{}, err
+	}
+	return result, nil
+}
+
+func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewRequest) (RoutineReviewResult, error) {
+	if request.Enabled {
+		preferences, err := loadWorkPreferences(ctx, tx, request.Current.Plan)
+		if err != nil && !errors.Is(err, ErrNotFound) {
+			return RoutineReviewResult{}, err
+		}
+		if preferences.Revision != request.WorkPreferenceRevision {
+			return RoutineReviewResult{}, ErrConflict
+		}
+	}
 	previous, err := loadRoutine(ctx, tx)
 	if err != nil {
 		return RoutineReviewResult{}, err
@@ -180,9 +202,10 @@ func (s *Store) ReviewRoutine(ctx context.Context, request RoutineReviewRequest)
 	if err = retireRoutineGoals(ctx, tx, retained); err != nil {
 		return RoutineReviewResult{}, err
 	}
-	r := RoutineReview{Revision: previous.Revision + 1, Snapshot: b, Tick: request.Tick, Enabled: request.Enabled, Latches: needs.Latches}
+	r := RoutineReview{Revision: previous.Revision + 1, WorkPreferenceRevision: request.WorkPreferenceRevision, Snapshot: b, Tick: request.Tick, Enabled: request.Enabled, Latches: needs.Latches}
 	result := RoutineReviewResult{Needs: needs}
 	if !request.Enabled {
+		r.WorkPreferenceRevision = previous.WorkPreferenceRevision
 		r.Goals = previous.Goals
 		r.Latches = latches
 		for _, binding := range r.Goals {
@@ -234,9 +257,6 @@ func (s *Store) ReviewRoutine(ctx context.Context, request RoutineReviewRequest)
 		return RoutineReviewResult{}, err
 	}
 	if _, err = tx.ExecContext(ctx, "INSERT INTO routine_review(singleton,payload) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", data); err != nil {
-		return RoutineReviewResult{}, err
-	}
-	if err = tx.Commit(); err != nil {
 		return RoutineReviewResult{}, err
 	}
 	result.Review = r
