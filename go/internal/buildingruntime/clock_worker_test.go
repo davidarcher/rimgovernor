@@ -3,6 +3,8 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -11,7 +13,7 @@ import (
 func clockLoopFixture(t *testing.T) *ClockWorker {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
-	w := &ClockWorker{ctx: ctx, cancel: cancel, config: ClockWorkerConfig{PollInterval: 5 * time.Millisecond, RenewInterval: 5 * time.Millisecond, StepInterval: 5 * time.Millisecond, MaxBackoff: 80 * time.Millisecond, CallTimeout: 20 * time.Millisecond}, done: make(chan struct{}), ready: make(chan struct{}), disable: func() error { return nil }, cleanup: func(context.Context) error { return nil }, poll: func(context.Context) (ClockPollResult, error) { return ClockPollResult{}, nil }, renew: func(context.Context) (ClockRenewResult, error) { return ClockRenewResult{}, nil }, step: func(context.Context) (ClockSchedulerResult, error) { return ClockSchedulerResult{}, nil }}
+	w := &ClockWorker{ctx: ctx, cancel: cancel, config: ClockWorkerConfig{PollInterval: 5 * time.Millisecond, RenewInterval: 5 * time.Millisecond, StepInterval: 5 * time.Millisecond, MaxBackoff: 80 * time.Millisecond, CallTimeout: 20 * time.Millisecond}, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: func() error { return nil }, cleanup: func(context.Context) error { return nil }, poll: func(context.Context) (ClockPollResult, error) { return ClockPollResult{}, nil }, renew: func(context.Context) (ClockRenewResult, error) { return ClockRenewResult{}, nil }, step: func(context.Context) (ClockSchedulerResult, error) { return ClockSchedulerResult{}, nil }}
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
@@ -20,6 +22,36 @@ func clockLoopFixture(t *testing.T) *ClockWorker {
 		}
 	})
 	return w
+}
+
+type clockWorkerEventUnavailable struct{}
+
+func (clockWorkerEventUnavailable) ReadClockEvents(context.Context, *k.EventsRequest) (*k.EventsReply, bridge.Result, error) {
+	return nil, bridge.Result{}, errors.New("unavailable")
+}
+func TestClockWorkerConstructorRejectsInvalidAndCancelledWithoutAttachment(t *testing.T) {
+	s, _ := schedulerFixture(t)
+	cfg := ClockWorkerConfig{PollInterval: 10 * time.Millisecond, RenewInterval: 10 * time.Millisecond, StepInterval: 10 * time.Millisecond, MaxBackoff: time.Second, CallTimeout: 20 * time.Millisecond, PageLimit: 128}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := NewClockWorker(ctx, s, clockWorkerEventUnavailable{}, cfg); !errors.Is(err, context.Canceled) {
+		t.Fatal(err)
+	}
+	bad := cfg
+	bad.RenewInterval = time.Second
+	if _, err := NewClockWorker(context.Background(), s, clockWorkerEventUnavailable{}, bad); err == nil {
+		t.Fatal("unsafe renewal cadence")
+	}
+	w, err := NewClockWorker(context.Background(), s, clockWorkerEventUnavailable{}, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = NewClockWorker(context.Background(), s, clockWorkerEventUnavailable{}, cfg); err == nil {
+		t.Fatal("duplicate attachment")
+	}
+	if err = w.Stop(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 }
 func TestClockWorkerPollBarrierAndIndependentLoops(t *testing.T) {
 	w := clockLoopFixture(t)
@@ -100,5 +132,38 @@ func TestClockWorkerUnchangedDecisionBacksOff(t *testing.T) {
 	time.Sleep(120 * time.Millisecond)
 	if n := steps.Load(); n < 3 || n > 7 {
 		t.Fatal("unchanged decision failed bounded backoff", n)
+	}
+}
+
+func TestClockWorkerConcurrentStopCachesSuccessfulCleanup(t *testing.T) {
+	w := clockLoopFixture(t)
+	entered, release := make(chan struct{}), make(chan struct{})
+	var calls atomic.Int32
+	w.cleanup = func(context.Context) error {
+		if calls.Add(1) == 1 {
+			close(entered)
+		}
+		<-release
+		return nil
+	}
+	w.start()
+	first, second := make(chan error, 1), make(chan error, 1)
+	go func() { first <- w.Stop(context.Background()) }()
+	<-entered
+	go func() { second <- w.Stop(context.Background()) }()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	if err := w.Stop(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatal(err)
+	}
+	close(release)
+	if err := <-first; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-second; err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Stop(context.Background()); err != nil || calls.Load() != 1 {
+		t.Fatal(err, calls.Load())
 	}
 }

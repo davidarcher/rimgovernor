@@ -11,18 +11,19 @@ import (
 // ClockWorker owns only its three loops. Session retains native capabilities,
 // the profile lock and journal until Stop has joined and cleanup succeeds.
 type ClockWorker struct {
-	ctx         context.Context
-	cancel      context.CancelFunc
-	config      ClockWorkerConfig
-	done        chan struct{}
-	ready       chan struct{}
-	disable     func() error
-	cleanup     func(context.Context) error
-	poll        func(context.Context) (ClockPollResult, error)
-	renew       func(context.Context) (ClockRenewResult, error)
-	step        func(context.Context) (ClockSchedulerResult, error)
-	stopParent  func() bool
-	stopContext func() bool
+	ctx        context.Context
+	cancel     context.CancelFunc
+	config     ClockWorkerConfig
+	done       chan struct{}
+	ready      chan struct{}
+	stopGate   chan struct{}
+	stopped    bool
+	disable    func() error
+	cleanup    func(context.Context) error
+	poll       func(context.Context) (ClockPollResult, error)
+	renew      func(context.Context) (ClockRenewResult, error)
+	step       func(context.Context) (ClockSchedulerResult, error)
+	stopParent func() bool
 }
 
 func NewClockWorker(ctx context.Context, scheduler *ClockScheduler, nativeEvents ClockEventNative, config ClockWorkerConfig) (*ClockWorker, error) {
@@ -37,24 +38,32 @@ func NewClockWorker(ctx context.Context, scheduler *ClockScheduler, nativeEvents
 		return nil, ErrControl
 	}
 	lifetime, cancel := context.WithCancel(ctx)
-	w := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), disable: scheduler.session.disableClockWorker, cleanup: scheduler.session.CleanupClock, step: scheduler.Step, renew: scheduler.RenewEpoch}
+	w := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: scheduler.session.disableClockWorker, cleanup: scheduler.session.CleanupClock, step: scheduler.Step, renew: scheduler.RenewEpoch}
 	w.poll = func(ctx context.Context) (ClockPollResult, error) {
 		return scheduler.PollEvents(ctx, nativeEvents, config.PageLimit)
 	}
-	if err := scheduler.session.attachClockWorker(w); err != nil {
+	w.stopParent = context.AfterFunc(scheduler.player.lifetime, cancel)
+	if err := errors.Join(ctx.Err(), scheduler.player.lifetime.Err()); err != nil {
 		cancel()
+		w.stopParent()
 		close(w.done)
 		return nil, err
 	}
-	w.stopParent = context.AfterFunc(scheduler.player.lifetime, func() { cancel(); _ = w.disable() })
-	w.stopContext = context.AfterFunc(lifetime, func() { _ = w.disable() })
+	if err := scheduler.session.attachClockWorker(w); err != nil {
+		cancel()
+		w.stopParent()
+		close(w.done)
+		return nil, err
+	}
 	w.start()
 	return w, nil
 }
 
 func (w *ClockWorker) start() {
 	var joined sync.WaitGroup
-	joined.Add(3)
+	joined.Add(4)
+	// Join cancellation invalidation too, so it cannot touch Session after Stop.
+	go func() { defer joined.Done(); <-w.ctx.Done(); _ = w.disable() }()
 	go func() { defer joined.Done(); w.pollLoop() }()
 	go func() { defer joined.Done(); w.renewLoop() }()
 	go func() { defer joined.Done(); w.stepLoop() }()
@@ -65,6 +74,15 @@ func (w *ClockWorker) start() {
 // Player gate or close Player, and never releases a resource still used by a loop.
 func (w *ClockWorker) Stop(ctx context.Context) error {
 	w.cancel()
+	select {
+	case w.stopGate <- struct{}{}:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	defer func() { <-w.stopGate }()
+	if w.stopped {
+		return nil
+	}
 	disabled := w.disable()
 	select {
 	case <-w.done:
@@ -74,10 +92,11 @@ func (w *ClockWorker) Stop(ctx context.Context) error {
 	if w.stopParent != nil {
 		w.stopParent()
 	}
-	if w.stopContext != nil {
-		w.stopContext()
+	err := errors.Join(disabled, w.cleanup(ctx))
+	if err == nil {
+		w.stopped = true
 	}
-	return errors.Join(disabled, w.cleanup(ctx))
+	return err
 }
 
 func (w *ClockWorker) wait(delay time.Duration) bool {
