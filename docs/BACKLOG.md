@@ -859,7 +859,7 @@ only intentional small, sanitized regression fixtures belong in source control.
             - [x] **06b.3b.5c.1:** bounded strict decoding into typed submission
               and control requests. Owner: HTTP agent; depends on 5a. Reject
               duplicate/unknown fields and preserve required numeric presence.
-            - [ ] **06b.3b.5c.2:** authenticated routes backed by the explicit
+            - [x] **06b.3b.5c.2:** authenticated routes backed by the explicit
               coordinator. Owner: HTTP agent; depends on 5c.1 and 5b.2. Add reads
               for historical request results separately from current permission.
           - [ ] **06b.3b.5d:** opt-in building service composition and minimal player
