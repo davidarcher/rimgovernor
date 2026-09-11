@@ -874,345 +874,142 @@ the independently accepted gated subchunk and keep the blocked acceptance open.
 
 ## N01 — Unified RimGovernor native mod
 
-This is the implementation plan for combining `integrations/headless-rim` and
-`integrations/colony-bridge` into one installable **RimGovernor** native mod and
-bringing its C# code under the [development process](developers/development-process.md).
-The source-baseline slices below are landed; native compatibility acceptance and
-package implementation remain open. G01 owns the Go rewrite and canonical schema
-generation; N01 owns native packaging, implementation quality and game acceptance.
-The current deployment remains supported until the replacement passes its gates.
+Combine `integrations/headless-rim` and `integrations/colony-bridge` into one
+installable native mod, with typed contracts and clear runtime ownership. G01 owns
+canonical schema generation and the controller rewrite; N01 owns C# implementation,
+packaging and native acceptance.
 
-### Outcome and scope
+### Active development scope
 
-Ship one repository-owned package at `integrations/rimgovernor-native/`, installed
-as `Mods/RimGovernor`, with proposed package ID `davidarcher.rimgovernor.native`.
-It provides colony observations, guarded operations, persisted native identity,
-supervised execution, player/render controls and optional headless presentation.
-Keep Harmony, RimBridgeServer and GABS as dependencies; this does not absorb their
-implementations or replace transport. Keep policy, plans and automated Hands in
-the controller, ordinary rules and simulation in RimWorld, and native eligibility
-and execution guards in this mod. No new gameplay capabilities are part of the merge.
+Game state is disposable. Do not build legacy save importers, preserve old CLR or
+assembly identities for saves, require reverse compatibility, or run exhaustive
+legacy parity campaigns. Fresh game and controller state are valid migration inputs.
+Historical inventories and captures are reference material, not release gates.
+Keep required third-party source/license notices; local development does not settle
+unresolved redistribution rights.
 
-One mod means one About manifest, release and installation path, not necessarily
-one DLL. Preserve the early-loaded `RimGovernor.ColonyIdentity` assembly and its
-saved type names initially. The current bridge extension loads separately under
-`BridgeTools/Observations`; moving saved components there would break Verse's early
-type discovery. Place bootstrap/headless code in an early-loaded assembly and
-retain the SDK-discovered tool assembly until loader acceptance justifies changing
-it. These retained types are migration compatibility, not a commitment to keep
-controller bookkeeping in native saves. Remove obsolete components after their
-state ownership and migration gates pass; cosmetic renames must not force an
-unverified save migration.
+This does not waive current-session correctness. Ordinary game rules, one automated
+writer, stale-work invalidation, uncertain-write reconciliation, bounded shutdown
+and native outcome checks still apply. Do not remove a live resource/safety guard
+until its replacement protects already-admitted work.
 
-### State ownership: SQLite first
+### Target ownership
 
-The controller's SQLite store is the sole authority for goals, plans, action
-history, completion tracking, ownership intent and recovery decisions. RimWorld
-owns actual pawns, buildings, bills, designations and other simulation state.
-Do not maintain a second authoritative copy of controller bookkeeping in C#
-GameComponents or MapComponents. Native observations are evidence for reconciling
-SQLite records, not a competing plan/progress database. The mod does not open the
-controller database directly; the controller remains its single writer.
+Ship `integrations/rimgovernor-native/` as `Mods/RimGovernor`, package ID
+`davidarcher.rimgovernor.native`, with one About manifest and build entry point.
+Keep Harmony, RimBridgeServer and GABS as dependencies. Use an early-loaded
+`RimGovernor.Runtime` assembly for native state/bootstrap and a separately discovered
+`RimGovernor.Bridge` tool assembly. Source folders are `src/Runtime/Persistence`,
+`src/Runtime/Headless` and `src/Bridge`; split further by actual responsibilities as
+families migrate. Keep bootstrap batch-gated so normal startup remains renderable.
 
-N01.00 must classify every existing saved field, including construction/haul
-lineage, mining/drilling records, wall replacement, production limits, equipment
-claims, recovery areas and Home exclusions. For each record specify its sole
-owner, whether native game state can reconstruct it, its disconnected behavior,
-and its save/load migration. Default controller metadata to SQLite. A field may
-remain in the native save only with a concrete need, a minimal representation,
-and an acceptance case demonstrating why reconstruction or controller storage is
-insufficient. Existing placement in the identity assembly is not justification.
+SQLite owns goals, plans, action history, ownership intent and recovery decisions.
+RimWorld owns simulation objects. Move controller bookkeeping out of saved native
+components in bounded families when the consumer is wired; start fresh rather than
+import old records. Retain only native guards, cleanup obligations and bounded
+transition evidence needed for correct running jobs and disconnect behavior. A new
+load invalidates pending authority and requires fresh admission.
 
-| State | Target persistence and recovery |
-| --- | --- |
-| Controller intent, progress and ownership history | SQLite; reconcile against fresh native evidence before restoring any authority. |
-| Actual game objects and settings | Ordinary RimWorld saves; do not shadow them as authoritative controller state. |
-| Native execution guards | Prefer per-load, leased configuration installed by the controller. Define safe disconnect/load behavior per guard; never silently remove a resource limit while already-admitted pawn work can still consume resources. Retain minimal native state only where the safety contract requires it. |
-| Blueprint/frame/building and item split/merge transitions | Typed native events consumed durably into SQLite. Prefer reconstructible evidence; retain only a bounded delivery journal if missed transitions cannot be recovered safely. This journal is delivery evidence, not a second action ledger. |
-| Colony and save timeline identity | Minimal save marker sufficient to associate a loaded snapshot with controller history; a colony ID, tick count or transient load token alone cannot distinguish branched saves. Define snapshot/branch association and ordinary save/load behavior with G01.04/G01.08. |
-
-Event contracts must specify stable IDs, colony/save lineage, ordering, duplicate
-delivery, durable acknowledgement, replay and retention. Acknowledge only after
-the SQLite transaction commits. Define crash windows, disconnected operation,
-journal overflow and missing ranges; lost evidence must create an explicit hold
-or safe reconciliation, never fabricated completion or blind retry. Do not assume
-an in-memory queue or polling preserves every identity transition.
-
-Loading an older or branched game save must not apply newer SQLite progress or
-ownership claims. Paired checkpoints are the preferred exact recovery path, but
-ordinary player saves, autosaves and loads must also be detected. Reconnect in
-Manual, invalidate pending authority, match the saved timeline and reconcile or
-require an explicit recovery choice when association is ambiguous. Preserve newer
-history separately rather than overwrite it. A save without controller history
-must remain playable; automation requires fresh admission and must not reclaim
-old ownership. Native state removal must preserve these guarantees, not merely
-reduce the number of serialized fields.
-
-### Current pressure points and intended boundaries
-
-The inspected baseline is `fcdbea1a`; refresh affected sources and G01 status before
-implementation. These examples identify migration seams, not a completed audit.
-
-| Current surface | Intended owner and change |
-| --- | --- |
-| `headless-rim/src/Startup.cs`, `HeadlessModeManager.cs`, `HeadlessPatches.cs` | Bootstrap owns validated startup mode and ordered, idempotent Harmony installation. Preserve early icon/atlas patches, late presentation patches and Linux-safe initialization timing. Missing required targets must make the mode unavailable rather than report successful startup. |
-| `colony-bridge/src/RenderDemandTool.cs`, video, portraits and player input | Presentation owns render leases, camera restoration and platform adapters. Batch headless cannot become renderable through a lease; rendered Linux/Xvfb and Windows remain distinct supported modes. |
-| `BridgeCommon.cs` | The SDK adapter owns raw argument recovery and SDK reflection. Its journal lookup exists because the binder drops unknown keys; generated DTOs alone cannot fix that loss. Validate before information is discarded, or refuse guarded writes when raw validation is unavailable. |
-| `ObservationBatchTool.cs` and observation tools | Typed observation services return concrete section DTOs and explicit unavailable evidence. Preserve sequential section reads, before/after ticks, timings and identity checks; do not relabel the batch an atomic snapshot. |
-| Gameplay `*Tool.cs` and guard helpers | Thin SDK entry points call typed capability operations. Keep resolution, eligibility, dry-run and actual native mutation together within the correct main-thread admission boundary. |
-| `src/identity/`, clock journal, draft and policy ownership | Move controller bookkeeping to SQLite; justify minimal save metadata and delivery journals field by field. Keep transient authority per load and preserve recovery evidence through explicit migration. |
-| Two build scripts, profile staging and artifact checks | One native build/release manifest owns output paths, versions, dependency/input hashes and production versus fixture artifacts. |
-
-Use coherent folders for bootstrap, generated contracts, SDK/platform adapters,
-observations, capability operations, persistence, supervision and presentation.
-These are responsibility boundaries, not a requirement for a framework or an
-assembly per folder. Extract only code with a real caller and a clear dependency
-direction. Tool adapters depend on typed operations; operations do not call other
-exported tools or pass the whole bridge context around as a service locator.
-
-### Native typing and wire agreement
-
-- Consume the versioned schemas and pinned generation manifest from **G01.02**.
-  Do not invent an independent C# schema tree or freeze today's anonymous JSON as
-  the permanent API. Keep existing `home/*` names and compatible wire behavior
-  during packaging; coordinate any breaking change with the G01 contract owner.
-- Generate concrete C# request/response DTOs, then validate and convert to owned
-  operation types. Use distinct colony, map, load, action and direction IDs,
-  integer ticks, explicit operation/result variants and validated bounds. Discover
-  modded definition names from the game; they are not closed compile-time enums.
-- Specify missing versus null versus known zero/false, discriminator and enum
-  encoding, numeric overflow, collection limits and unknown-field policy per
-  schema. Unsupported mutations and failed authority validation fail closed.
-  Refusal, unavailable evidence, accepted order and observed completion are
-  distinct results. Preserve uncertain dispatch in the controller on lost replies.
-- Configure the actual SDK/JSON serializer explicitly: field names, defaults,
-  nulls, numbers and enum encoding. Test the serialized SDK response, not only a
-  DTO round trip. Preserve exact legacy signature bytes where hashes/identities
-  depend on them; never rehash a saved action into new work.
-- No `dynamic`, dictionary-shaped domain state, anonymous public payloads or
-  unchecked casts in migrated code. If the SDK requires `Task<object>`, box a
-  concrete DTO only at that adapter. Restrict `JObject`, `JToken`, object maps and
-  reflection to validated transport, retained evidence or named compatibility
-  adapters with tests and reasons. Do not ban Harmony's necessary game reflection
-  by disguising it in generic helpers.
-- Keep `net472` and installed Unity/Mono compatibility. Pin compiler/dependency
-  inputs; enable nullable analysis on migrated surfaces using a compatible
-  compiler, warnings as errors and scoped analyzer rules. Do not add unsupported
-  runtime libraries, blanket suppressions or `!` to conceal missing facts. Verify
-  generated code and annotations on the actual native runtime.
-- One main-thread owner admits native mutations. Capture identities before
-  queuing, revalidate inside the callback immediately before effects, and reject
-  stale work after Manual, direction, map/load or ownership changes. Cancellation
-  after dispatch cannot undo an order. Bound queues and shutdown; explicitly
-  restore only owned camera, speed and draft state, never later player changes.
+Consume G01.02 schemas and generated DTOs rather than creating a second schema tree.
+Use concrete request/result and operation types, explicit missing/null/error states,
+int32 bounds, distinct identities and validated variants. Keep JSON/reflection at
+named SDK boundaries; no anonymous public payloads, dynamic domain state or blanket
+typing suppressions in migrated code. Use net472 and actual Unity/Mono-compatible
+compiler/runtime features. Ratchet nullable analysis and warnings as errors as each
+surface migrates. Mutations execute through a main-thread owner that revalidates
+context immediately before effects.
 
 ### Sequenced landing units
 
-Split a row further if it exceeds a small verified slice. Each subchunk names its
-owner, affected paths, dependencies, concrete acceptance and remaining coverage.
-Commit accepted increments without enabling incomplete behavior by default.
+Each slice is committed after relevant checks, then rebased and fast-forwarded into
+main. Native package and Go production cutover remain independent.
 
-- [ ] **N01.00 — Native inventory and compatibility baseline.** Owner: native
-  integrator. Inventory all exported tools and variants, patch targets, static
-  state, saved types/keys, reflection escapes, excluded duplicate helpers, build
-  flags, dependencies and deployment consumers. Extend the existing `contracts/`
-  inventories with the G01 owner rather than duplicate their call-site lists;
-  include native tools not called by Python. Map each to schema owner, fixtures,
-  native scenarios and migration status. Capture actual discovery/replies and
-  copied save/reload fixtures with provenance. Audit upstream GPL-3.0 headless
-  source and companion license obligations against `THIRD_PARTY.md`; retain
-  notices, pinned revisions and corresponding source in the unified distribution.
-  Accept when every entry has an owner and explicit uncovered acceptance; identify
-  source files excluded from compilation before deleting apparent duplicates.
-  Deliver the field-level state ownership audit above with G01.04/G01.08, including
-  removal targets, justified native exceptions and disconnected/save-branch tests.
-  Dependencies: none; refresh against G01.00 and intervening gameplay fixes.
+- [x] **N01.00 — Working source inventory.** Export/build declarations, saved fields,
+  operation variants, static state and package consumers are inventoried under
+  `contracts/native-*` and the shared domain inventory. Existing legacy captures
+  remain available as diagnostic examples. Additional legacy save, standalone
+  fixture and exhaustive parity captures are out of scope.
 
-  Landed baseline slices (source findings do not close native acceptance):
+- [ ] **N01.01 — One active native package.** Native source/build owners. Consolidate
+  sources into the target root and two loader-appropriate assemblies. Remove
+  excluded duplicate helpers, retain source notices, declare dependencies/load order
+  and provide one build/staging command with explicit compiler/game/SDK inputs and
+  production/fixture output identification. Accept fresh-game startup and production
+  discovery in batch and graphical modes, no fixture leakage or duplicate runtime
+  components, and batch-only presentation suppression. No old-save acceptance gate.
+  Companion redistribution permission remains a public release concern, not a gate
+  on local source consolidation.
 
-  - [x] **N01.00a — Export and build-source baseline.** Native surface owner:
-    [shared domain inventory](../contracts/domain-inventory.json) now records
-    108 exports (55 production, 53 fixture), five projects, exact advertised
-    declarations/defaults and three compile exclusions. Existing G01 call-site
-    rows remain unchanged. `scripts/check_native_inventory.py` checks source
-    drift and rejects omitted exports, altered signatures and omitted exclusions;
-    the shared coverage command runs it.
-  - [x] **N01.00b — Saved-field source audit.** Native state owner:
-    [state ownership inventory](../contracts/native-state-ownership.md) maps
-    all 88 serialized field/key pairs across nine components and seven records
-    to proposed sole owners, reconstruction limits and migration/disconnect
-    requirements. Native exceptions are proposals awaiting G01 agreement and
-    acceptance, not authorization to remove existing protections.
-  - [x] **N01.00c — Runtime/package source audit.** Native packaging owner:
-    [runtime inventory](../contracts/native-runtime-packaging.md) and its
-    source index cover 117 native/fixture files, patch targets, lexical
-    static/reflection anchors, dependencies, fixture flags, deployment consumers
-    and repository provenance gaps.
-  - [x] **N01.00d — Retained reply comparison seed.** Native integrator:
-    [three actual SDK pairs](../contracts/fixtures/native-replies-baseline.json)
-    preserve identity, placement preview and spatial refusal from the retained
-    Linux baseline with line/file and input hashes. Exact text/structured payload
-    parity was checked; this is historical evidence, not fresh discovery.
-  - [ ] **N01.00e — Compatibility baseline closeout.** Native integrator with
-    G01.02/04/08. Completed bounded evidence:
-    - [x] [Implemented variants](../contracts/native-operation-variants.md) for all
-      55 production exports and [static lifecycle ownership](../contracts/native-static-state.md)
-      for 131 default static field declarations, including mutable readonly containers.
-    - [x] [Fresh legacy baseline](../contracts/native-compatibility-baseline.json):
-      production batch and graphical startup each discover 180 unique exports
-      (55 owned, 125 external), with complete detail replies and no fixtures.
-      Aggregate fixture build discovers the expected additional 47 exports.
-      Copied saves retain eight GameComponent owners and one HomeCoverageState per
-      map across in-process and fresh-process reload, with stable colony identity,
-      rotated load tokens and at most one reload boundary tick.
-    - [x] Capture actual preview and malformed request replies. Unknown outer keys
-      are reported but accepted; strict boundary validation remains N01.02 work.
-    - [ ] Capture six standalone combat/interruption fixture exports. Retain saves
-      populated with each native state family and exercise field-level recovery.
-      Agree exceptions, timeline and delivery contracts with G01 owners, including
-      branched saves, disconnect and journal recovery.
-    - [ ] Reproduce and resolve static lifetime hazards under the owning migration
-      slice: early missing-journal caching; delayed Watch cleanup across game/map/UI
-      changes; Trade cleanup after gate release; pending pawn image completion on
-      destruction; render setting restoration after player changes; combat arms
-      lacking game identity. The source audit does not claim reproduced failures.
-    - [ ] Resolve companion source/distribution permission and verify headless
-      corresponding-source/notices packaging. Refresh inventories after native edits.
-    Close N01.00 only when these gaps have evidence and per-entry ownership;
-    N01.01 package migration remains gated by this closeout.
+- [ ] **N01.02 — First strict native contract.** Native contract owner with G01.02.
+  Migrate placement previews through generated request/response DTOs, validated SDK
+  boundary and typed operation. Reject unknown outer arguments before binder loss;
+  fail closed when required raw validation is unavailable. Test missing/null,
+  overflow, malformed grammar, variants and SDK failures using shared generated
+  cases and fresh native invocation. Verify ordinary placement rules and no preview
+  side effects. Breaking contract changes are allowed when current consumers move
+  together; no historical byte-parity gate.
 
-- [ ] **N01.01 — Unified package without behavioral refactoring.** Owner: native
-  integrator. Move sources/provenance under the target root, preserve loader paths
-  and saved identities, and provide one reproducible build/package entry point.
-  Move headless initialization into the package with the existing batch-only gate;
-  normal interactive startup must not install presentation suppression. Declare
-  dependencies/load order explicitly. Reject simultaneous old/new packages before
-  duplicate component or patch registration. Build into fresh staging output;
-  fixture flags must produce separately identified non-production artifacts.
-  Accept one discovery registration per tool, one component instance per saved
-  owner, normal and batch startup/load, and production discovery with no fixture
-  tools. Keep default launchers on the old package until N01.07. Depends on 00.
+- [ ] **N01.03 — Typed observations.** Native observations owner with G01.03. Migrate
+  identity/status and batch envelope, then pawns/health, supplies/buildings,
+  rooms/zones/cells and remaining facts in bounded slices. Preserve unavailable
+  information, section freshness and modded definitions. Check actual SDK decoding,
+  invalid identities and read-only native behavior. Depends on 02.
 
-- [ ] **N01.02 — First strict C# vertical contract.** Owner: native contract
-  implementer, coordinated with G01.02. Use G01's selected first surface (placement
-  previews if that remains its choice): schema -> generated DTO -> validated
-  request -> typed operation -> real SDK response -> Python/Go decoding. Solve
-  raw unknown-argument validation at the SDK boundary and test binder behavior.
-  Add generation drift, serializer and invalid/missing/null/overflow/variant tests,
-  including SDK adapter failure. Accept cross-language fixtures and an isolated
-  native invocation with unchanged preview/refusal behavior. Packaging is not a
-  dependency: this may land in the old path and move with 01. A bounded read-only
-  preview increment depends on 00's applicable source inventory and live preview
-  discovery/binder fixtures, plus G01.02's generation foundation. Unrelated saved
-  state and distribution closeout may remain open in 00e; this does not close 00e
-  or authorize package cutover. Contributes its native acceptance to G01.02.
+- [ ] **N01.04 — Typed guarded operations.** Native operations owner with G01 Hands.
+  Start with ordinary construction through admission, dry-run, receipt and observed
+  pawn completion. Follow with settings/bills/zones, resources/upkeep, medical,
+  animals/population, trade/world and explicit player operations. Keep editor/cheat
+  tools outside automation. Accept refusal/dry-run without effects, stale commands,
+  lost reply followed by observation and player override per migrated family.
+  Depends on 02 and its required observations, not the entire Go port.
 
-- [ ] **N01.03 — Typed observation families.** Owner: native observations
-  implementer; coordinate with G01.03. Migrate identity/status and the batch
-  envelope first, then pawns/health, supplies/buildings, rooms/zones/cells and
-  remaining facts in separately tracked slices. Replace anonymous objects/maps
-  with typed results behind existing entry points. Keep partial unavailability,
-  section freshness and modded definitions visible. Accept producer/consumer
-  fixtures, batched/legacy parity, invalid identities and read-only native probes
-  with no clock, selection or game-state changes. Depends on 02; requires 01 only
-  when accepting the unified artifact.
+- [ ] **N01.05 — Runtime and presentation ownership.** Native runtime owner.
+  Consolidate startup/patch health, supervisor/journal ownership, render leases,
+  camera/input cleanup and platform adapters. Make initialization/shutdown bounded
+  and idempotent. Required guard failure disables affected automation. Address the
+  source-audited early missing-journal cache, delayed Watch/Trade cleanup, pending
+  pawn images on destruction, render restoration after player edits and combat
+  arms lacking game identity. Verify disconnect/lease expiry, load/map changes,
+  repeated initialization, patch failure, batch pawn work and graphical rendering.
+  Depends on relevant typed status/clock contracts; fix independently reproducible
+  defects as bounded prerequisites.
 
-- [ ] **N01.04 — Typed guarded mutation families.** Owner: native operations
-  implementer; coordinate with G01.06/G01.07 Hands slices. Start with one ordinary
-  construction order through admission, dry-run, receipt and completed pawn work.
-  Follow with separately inventoried settings/bills/zones, resource and upkeep,
-  medical/animal/population, trade/world and explicit player operations. Use typed
-  variants and registration-coverage checks, shared validated resolvers and narrow
-  guard inputs. Keep editor/cheat capabilities outside production automation.
-  Accept refusal without effects, dry-run without effects, stale queued commands,
-  lost reply followed by observation, player override and actual native outcomes
-  for each family. Depends on 02 and the required 03 observations; do not wait for
-  the entire Go port when the compatible Python consumer can exercise the slice.
+- [ ] **N01.06 — Single persistence owner.** Native state owner with G01 store/Hands.
+  Move controller metadata to SQLite by family and delete obsolete native writers,
+  serialization and components. No legacy importers or old-format readers. Preserve
+  minimal current-session guards/cleanup and sufficient transition evidence for
+  split/merge/construction changes; lost evidence creates a hold, not completion.
+  Verify fresh-state save/load and disconnected running jobs, invalidation on load,
+  player override, duplicate/lost events and acknowledgement crash windows where
+  applicable. Close when every retained native field has a concrete runtime need
+  and the controller is the sole owner of its bookkeeping.
 
-- [ ] **N01.05 — Lifecycle, patch and presentation ownership.** Owner: native
-  runtime implementer. Consolidate startup configuration, patch registration,
-  supervisor/journal ownership and render/input lifecycle. Track required versus
-  optional patch failures in typed capability health; loss of a required guard
-  disables affected automation and safely ends supervised execution. Make startup
-  and cleanup idempotent, bound background resources and isolate Windows APIs.
-  Accept lease expiry, lost controller, forced pause, map/load change, repeated
-  game reuse, shutdown and injected patch/journal failures. Verify native long
-  events/autosaves and normal pawn work in batch mode, visible-window rendering,
-  Linux/Xvfb frames/input, and camera restoration without simulation changes.
-  Depends on 01–02 and relevant typed status/clock contracts.
+- [ ] **N01.07 — Use the unified package everywhere.** Integrator with launcher owner.
+  Update setup/build scripts, private profiles, headless/container staging, artifact
+  fingerprints and fixture/scenario launchers. Remove old source roots, duplicate
+  builders and obsolete adapters. Reject mixed packages/stale artifacts. Never
+  replace installed DLLs while a game runs. Accept fresh installation and isolated
+  native runs on supported platforms; no copied-profile upgrade or rollback gate.
+  Can land with 01 while typed families continue, using current supported consumers.
 
-- [ ] **N01.06 — Consolidate persistence and verify save recovery.** Owner: native
-  state implementer with G01.04/G01.08 store/recovery owners. Implement the 00
-  field-level decisions in bounded families: first timeline association and event
-  delivery, then migrate controller records to SQLite and remove obsolete native
-  writers/components. Define precedence for conflicting legacy records; do not
-  merge contradictory progress into success. Make legacy imports versioned and
-  idempotent, retaining provenance and recovery evidence. Keep compatibility
-  readers/types only as long as supported old saves require them.
-  Accept old-package save -> unified load -> save -> fresh reload with stable
-  colony identity, rotated load token, preserved evidence and no duplicate orders.
-  Verify normal saves/autosaves, older and branched saves against newer SQLite,
-  missing databases, disconnected pawn work, player overrides, duplicate/lost
-  events, queue overflow and crashes before/after durable event acknowledgement.
-  Verify each retained native guard's safe disconnect/load behavior and require
-  fresh authority before recovery writes. Test paired Python and available Go
-  checkpoint recovery; a consumer lacking the new persistence contract remains
-  on compatible artifacts until its migration lands. Test reverse compatibility
-  rather than assume it; rollback uses the retained old package plus pre-migration
-  save and controller checkpoint when new state is unreadable. Depends on 01,
-  relevant 02 contracts and the owning consumer/store slices; complete before
-  changing defaults. Close only when every saved field has one authoritative
-  owner and each remaining native persistence exception has acceptance evidence.
+- [ ] **N01.08 — Enforce the native standard.** Native integrator with DEV01. Expand
+  compiler/nullability/boundary checks across migrated production code; record
+  temporary exclusions here. Check generation drift, registration coverage and
+  representative invalid payload/result variants. Remove unused helpers and
+  suppressions after caller checks. Accept reproducible builds and the native
+  behavior matrix covering the supported package and typed families. Depends on
+  03–07; enforcement starts with 02.
 
-- [ ] **N01.07 — Deployment cutover and legacy removal.** Owner: integrator,
-  coordinated with G01 launcher/release owner. Update setup/build scripts, private
-  profiles, `headless.py`, `container_worker.py`, `campaign_manifest.py`, input
-  caches, Docker builds, scenario DLL checks and fixture launchers from the 00
-  inventory. Stage a complete versioned package and validate hashes/dependencies
-  before activating it; never replace DLLs while any RimWorld instance runs.
-  Reject mixed generations and stale cached artifacts with actionable errors.
-  Accept fresh install, copied-profile upgrade, rollback and isolated peer survival
-  on Windows and Linux. Verify the default Python consumer and the current gated
-  Go consumer with negotiated supported contract versions. Remove old directories,
-  duplicate builders and transition adapters only after their inventory rows are
-  closed. Update project identity, source map, setup and provenance docs. Depends
-  on 01–06 and compatible consumers; does not authorize Go production cutover.
+### Verification
 
-- [ ] **N01.08 — Enforce and close the native standard.** Owner: native integrator
-  with DEV01. Ratchet compiler/nullability/analyzer and boundary-escape checks over
-  the migrated production surface, keeping explicit temporary exclusions in this
-  backlog. Test representative forbidden payloads and invalid result variants so
-  enforcement is demonstrable. Close all tool, patch, persistence and packaging
-  inventory rows; retain documented third-party adapter exceptions with boundary
-  tests. Remove dead helpers and obsolete suppressions only after caller/fixture
-  verification. Accept a clean reproducible release, contract drift checks and
-  the full affected native acceptance matrix. Depends on 03–07; enforcement starts
-  in 02 rather than waiting for this final audit.
-
-### Integration and release evidence
-
-G01's integrator owns canonical schema/generator changes; the native integrator
-owns native implementation and packaging. Agree each schema version and consumer
-readiness before changing public contracts. N01.00/01 can proceed while Go contracts
-land; N01.02 joins G01.02 rather than waiting for G01.02 to finish the same native
-work. Later families follow consumer readiness. Refresh inventories and captured
-fixtures when concurrent gameplay fixes land; never overwrite them with an older
-copy during the move. Keep native package and Go controller cutovers independent.
-
-Follow [test selection](developers/testing/choose-tests.md): focused native/contract checks per
-slice, full affected suites once before handoff; shared contract or packaging
-changes also require controller and dashboard suites. Add fast C# validator and
-state tests without licensed inputs where possible, then test real SDK wiring and
-packaged assemblies against licensed game inputs. Compilation and serialization
-are not pawn-work acceptance. Performance claims require isolated measurements
-with matching inputs/render modes and budgets agreed before results are examined.
-
-Native scenarios use `scripts/container_scenario.py`, its dashboard helpers and
-`rimgovernor.native_scenario.advance_game`; interruption acceptance passes
-`expected_letters=()`. Retain fresh task-tagged images, reports and failures under
-`.rimgovernor/`. Report exact source/artifact/schema versions, commands, exit codes,
-skips and platform coverage. Unavailable native evidence leaves its checkbox open.
-B-series sustained-survival gaps are not closed by packaging or refactoring.
+Use [test selection](developers/testing/choose-tests.md): focused checks during
+iteration, full affected suites once before handoff. Shared packaging/contracts
+also require dashboard checks. Native runs use `scripts/container_scenario.py`,
+private inputs and fresh task-specific outputs/images. Supervised tick waits use
+`rimgovernor.native_scenario.advance_game`; interruption tests use
+`expected_letters=()`. Retain failures and concise build/input/report evidence under
+`.rimgovernor/`. Compilation and receipts do not establish pawn work. Check current
+behavior with disposable new games; do not recreate dropped compatibility gates.
 
 ## Development tooling
 
