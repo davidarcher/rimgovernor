@@ -116,3 +116,26 @@ func TestWorkPreferencesRejectMalformedOverrides(t *testing.T) {
 		}
 	}
 }
+
+func TestWorkPreferencesRollbackWhenReviewInvalidationFails(t *testing.T) {
+	ctx := context.Background()
+	s := open(t, filepath.Join(t.TempDir(), "work.db"))
+	sub, _, err := s.SubmitBuilding(ctx, submissionRequest(t, "building"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.db.ExecContext(ctx, "INSERT INTO routine_review(singleton,payload) VALUES(1,?)", []byte("{}")); err != nil {
+		t.Fatal(err)
+	}
+	q := WorkPreferenceRequest{RequestID: "work", Plan: sub.Plan, World: sub.Request.World, Overrides: []policy.WorkOverride{{Pawn: "pawn", Work: "Cooking", Priority: 0}}}
+	if _, err = s.SetWorkPreferences(ctx, q); err == nil {
+		t.Fatal("invalid review accepted")
+	}
+	preferences, err := s.LoadWorkPreferences(ctx, sub.Plan)
+	if err != nil || preferences.Revision != 0 || len(preferences.Overrides) != 0 {
+		t.Fatal(preferences, err)
+	}
+	if _, err = s.LookupWorkPreference(ctx, q.RequestID); !errors.Is(err, ErrNotFound) {
+		t.Fatal(err)
+	}
+}

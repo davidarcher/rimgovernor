@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -68,6 +69,11 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context) (store.RoutineReviewR
 	}
 	definitions := routineProjectDefinitions(plans, state.Snapshot)
 	preferences, err := p.journal.LoadWorkPreferences(ctx, state.Snapshot.Plan)
+	if errors.Is(err, store.ErrNotFound) {
+		// Directly created plans have no player submission or saved overrides.
+		preferences = store.WorkPreferences{Plan: state.Snapshot.Plan, World: store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}, Overrides: []policy.WorkOverride{}}
+		err = nil
+	}
 	if err != nil {
 		return store.RoutineReviewResult{}, err
 	}
