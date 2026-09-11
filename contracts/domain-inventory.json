@@ -6694,7 +6694,7 @@
   ],
   "native_surface": {
     "version": 1,
-    "source_revision": "e3b72d0d6b146062e4504870c6dffda91abb6343",
+    "source_revision": "e355ef766c60f0c83239eb0a65c15c28c036ed4f",
     "scope": "Current repository-owned native Runtime/Bridge exports, generated Protobuf compile inputs and conditional fixtures. Historical Python consumer inventory remains at its independent source_revision. Installed SDK/GABS exports require actual discovery.",
     "evidence_links": "domain_item_id reuses existing G01 owner, fixtures and native_scenarios without copying Python call-site lists. Empty local evidence lists preserve uncovered acceptance. schema_owner_chunk assigns the cross-language schema owner; native_owner_chunk owns typed conversion or fixture isolation.",
     "variant_contract": "source_baseline.exports[].declaration retains the complete exported signature, Tool/ToolParameter/ToolResponse attributes, documented string variants, optional selectors and defaults. Source fingerprints detect implementation changes. Runtime branches, aliases and payload keys still require behavioral schema and discovery acceptance.",
@@ -6960,6 +6960,18 @@
             },
             {
               "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeBuildingObservationTools.cs",
+              "condition": ""
+            },
+            {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockEventProjection.cs",
+              "condition": ""
+            },
+            {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockRuntime.cs",
+              "condition": ""
+            },
+            {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockTools.cs",
               "condition": ""
             },
             {
@@ -7622,7 +7634,7 @@
           "path": "integrations/rimgovernor-native/src/Bridge/SupervisedPlayTool.cs",
           "line": 21,
           "declaration": "[Tool(ToolName, Title = \"Supervised nonblocking play\",\n            Description = \"Start, pause, renew or inspect a persistent in-game safety watcher. Start returns immediately; the watcher pauses independently on danger or lease expiry.\")]\n        [ToolResponse(\"unknownArguments\", \"array\", \"Every argument key the caller sent that this tool does not declare, sorted case-sensitively. Empty means the call was clean.\", Always = true)]\n        [ToolResponse(\"unknownArgumentsWarning\", \"string\", \"Present when unknown arguments were supplied or raw argument inspection was unavailable.\", Nullable = true)]\n        public async Task<object> SupervisedPlay(\n            IRimBridgeContext ctx,\n            CancellationToken cancellationToken,\n            [ToolParameter(Description = \"start, pause, speed, status, heartbeat, or events.\")] string op,\n            [ToolParameter(Description = \"Caller identity used with epoch to reject stale control.\", DefaultValue = \"agent\")] string owner = \"agent\",\n            [ToolParameter(Description = \"Epoch returned by start; required for heartbeat and pause.\", DefaultValue = 0L)] long epoch = 0L,\n            [ToolParameter(Description = \"Renewable watchdog lease, clamped to 1000..30000 ms.\", DefaultValue = 15000)] int leaseMs = 15000,\n            [ToolParameter(Description = \"Normal, Fast, Superfast or Ultrafast.\", DefaultValue = \"Superfast\")] string speed = \"Superfast\",\n            [ToolParameter(Description = \"colony stops on any new/worsened injury; combat records ordinary wounds and stops only at configured health thresholds.\", DefaultValue = \"colony\")] string mode = \"colony\",\n            [ToolParameter(Description = \"Combat mode: stop when summary health drops this fraction from start, clamped 0.01..1.\", DefaultValue = 0.15f)] float healthDropFraction = 0.15f,\n            [ToolParameter(Description = \"Combat mode: stop when summary health reaches this fraction, clamped 0.01..1.\", DefaultValue = 0.5f)] float minHealthFraction = 0.5f,\n            [ToolParameter(Description = \"Accepted and ignored: alerts never stop play.\", DefaultValue = \"\")] string ignoredAlertLabels = \"\",\n            [ToolParameter(Description = \"Pause for hostiles within this many cells of a colonist; distant cave occupants alone do not stop play.\", DefaultValue = 40f)] float hostileWithin = 40f,\n            [ToolParameter(Description = \"Stable IDs of explicitly acknowledged hostiles or nearby hunting predators, comma-separated.\", DefaultValue = \"\")] string ignoredHostileIds = \"\",\n            [ToolParameter(Description = \"Stable IDs of explicitly acknowledged downed colonists, comma-separated.\", DefaultValue = \"\")] string ignoredDownedColonistIds = \"\",\n            [ToolParameter(Description = \"Stable IDs of colonists whose non-severe injuries are acknowledged; they never stop the clock in this epoch, comma-separated.\", DefaultValue = \"\")] string ignoredInjuredColonistIds = \"\",\n            [ToolParameter(Description = \"After a colonist_injury stop, that colonist non-severe injuries do not stop the clock again for this many real milliseconds, across restarts. Clamped 0..1800000; 0 disables.\", DefaultValue = 180000)] int injuryStopCooldownMs = 180000,\n            [ToolParameter(Description = \"For events, return rows strictly after this cursor.\", DefaultValue = 0L)] long afterCursor = 0L,\n            [ToolParameter(Description = \"For events, maximum rows, clamped to 1..128.\", DefaultValue = 64)] int limit = 64,\n            [ToolParameter(Description = \"Start only: pause after exactly this many ordinary game ticks, independently of controller polling and heartbeat renewal. 0 leaves tick duration unbounded; otherwise 1..1800000.\", DefaultValue = 0)] int maxTicks = 0,\n            [ToolParameter(Description = \"Tracked surgical patient IDs. Only permits downing while alive, anesthetized, in bed, not bleeding or dangerously ill, and above half health. Rechecked every safety sweep; no injury or death guard is disabled.\", DefaultValue = \"\")] string surgicalRecoveryIds = \"\",\n            [ToolParameter(Description = \"Disposable acceptance only: enable native boost for a bounded Ultrafast epoch, with safety probes at most 30 game ticks apart. Restores the prior boost on stop; does not suppress native forced slowdown.\", DefaultValue = false)] bool testAcceleration = false,\n            [ToolParameter(Description = \"Observed stable resting patient IDs, requiring maxTicks 1..600. Native sweeps require alive, downed, in bed, above half health, no bleeding, tending need, anesthesia or life-threatening condition. Injury and death still stop play.\", DefaultValue = \"\")] string medicalRestIds = \"\")",
-          "source_sha256": "a43c5e1aace9adc4e69b4eef91d1856ed78cc83efde9c1aa22d7214e23473cc3"
+          "source_sha256": "5de3f7cc8d555492e636fab4c129b1691aa5cabb9b44c60e8f8789c4b319b480"
         },
         {
           "name": "home/trade",
@@ -7709,11 +7721,60 @@
           "source_sha256": "f423947899a1d171434308b1bd721d226de8e3f8bd5a5bf55209b9326d9f8a63"
         },
         {
+          "name": "rimgovernor/clock_change_speed",
+          "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockTools.cs",
+          "line": 57,
+          "declaration": "[Tool(\"rimgovernor/clock_change_speed\", Title = \"Change owned clock speed\", Description = \"Change one live owned epoch to an ordinary speed under current authority without extending its tick budget.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official clock ControlReply ProtoJSON.\", Always = true)]\n        public Task<object> ChangeSpeed(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official clock SpeedRequest ProtoJSON string.\")] object request = null)",
+          "source_sha256": "ac6ac7661c42e8fc9717b12baa4895f12b2930a2e7c19cb182619f3d5964f634"
+        },
+        {
+          "name": "rimgovernor/clock_pause",
+          "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockTools.cs",
+          "line": 66,
+          "declaration": "[Tool(\"rimgovernor/clock_pause\", Title = \"Pause exact owned clock\", Description = \"Safe cleanup of the exact current identity/controller/epoch, including after authority revocation. Never pauses a replacement epoch.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official clock StatusReply ProtoJSON.\", Always = true)]\n        public Task<object> Pause(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official clock OwnedRequest ProtoJSON string.\")] object request = null)",
+          "source_sha256": "ac6ac7661c42e8fc9717b12baa4895f12b2930a2e7c19cb182619f3d5964f634"
+        },
+        {
+          "name": "rimgovernor/clock_read_attempt",
+          "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockTools.cs",
+          "line": 80,
+          "declaration": "[Tool(\"rimgovernor/clock_read_attempt\", Title = \"Read admitted clock attempt\", Description = \"Read original clock admission after revocation without granting authority; unknown does not prove no effect.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official clock AttemptReply ProtoJSON.\", Always = true)]\n        public Task<object> ReadAttempt(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official clock AttemptRequest ProtoJSON string.\")] object request = null)",
+          "source_sha256": "ac6ac7661c42e8fc9717b12baa4895f12b2930a2e7c19cb182619f3d5964f634"
+        },
+        {
+          "name": "rimgovernor/clock_read_events",
+          "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockTools.cs",
+          "line": 27,
+          "declaration": "[Tool(\"rimgovernor/clock_read_events\", Title = \"Read owned clock events\", Description = \"Read immutable event ownership/context using an explicit nonnegative cursor and limit1..128; legacy or incomplete history is unavailable.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official clock EventsReply ProtoJSON.\", Always = true)]\n        public Task<object> ReadEvents(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official clock EventsRequest ProtoJSON string.\")] object request = null)",
+          "source_sha256": "ac6ac7661c42e8fc9717b12baa4895f12b2930a2e7c19cb182619f3d5964f634"
+        },
+        {
+          "name": "rimgovernor/clock_read_status",
+          "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockTools.cs",
+          "line": 16,
+          "declaration": "[Tool(\"rimgovernor/clock_read_status\", Title = \"Read owned clock\", Description = \"Read actual native pause/speed and canonical owned epoch status without renewing or resuming play.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official clock StatusReply ProtoJSON.\", Always = true)]\n        public Task<object> ReadStatus(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official clock StatusRequest ProtoJSON string.\")] object request = null)",
+          "source_sha256": "ac6ac7661c42e8fc9717b12baa4895f12b2930a2e7c19cb182619f3d5964f634"
+        },
+        {
+          "name": "rimgovernor/clock_renew",
+          "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockTools.cs",
+          "line": 48,
+          "declaration": "[Tool(\"rimgovernor/clock_renew\", Title = \"Renew owned clock lease\", Description = \"Renew only a live exact owned epoch under current authority; retain original tick deadline and replay admitted attempts.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official clock ControlReply ProtoJSON.\", Always = true)]\n        public Task<object> Renew(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official clock RenewRequest ProtoJSON string.\")] object request = null)",
+          "source_sha256": "ac6ac7661c42e8fc9717b12baa4895f12b2930a2e7c19cb182619f3d5964f634"
+        },
+        {
+          "name": "rimgovernor/clock_start",
+          "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockTools.cs",
+          "line": 40,
+          "declaration": "[Tool(\"rimgovernor/clock_start\", Title = \"Start guarded owned clock\", Description = \"Admit one ordinary supervised epoch under current authority, a bounded tick budget and monotonic lease. Exact attempts replay; never reacquires authority.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official clock ControlReply ProtoJSON.\", Always = true)]\n        public Task<object> Start(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official clock StartRequest ProtoJSON string.\")] object request = null)",
+          "source_sha256": "ac6ac7661c42e8fc9717b12baa4895f12b2930a2e7c19cb182619f3d5964f634"
+        },
+        {
           "name": "rimgovernor/lifecycle_read_identity",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/ProtoIdentityTools.cs",
           "line": 12,
           "declaration": "[Tool(\"rimgovernor/lifecycle_read_identity\", Title = \"Read native identity\",\n            Description = \"Read the current colony, load, map and native contract capabilities.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON rimgovernor.lifecycle.v1.IdentityReply.\", Always = true)]\n        public async Task<object> ReadIdentity(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official lifecycle IdentityRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "dbaadb02bcca970dd3c7a1e50a5ba505f06b2728ce74055f4cf44470e1f420b5"
+          "source_sha256": "508f488f5c696777f7baf92bac9a25027aeaeb1bf50224e0b9eeb687c98c57f1"
         },
         {
           "name": "rimgovernor/observations_get_cells",
@@ -9046,6 +9107,146 @@
         ],
         "protocol_method": "rimgovernor.authority.v1.Authority/ReadStatus",
         "protocol_schema": "contracts/proto/authority.proto"
+      },
+      {
+        "name": "rimgovernor/clock_change_speed",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.06a",
+        "native_owner_chunk": "N01.05",
+        "build_role": "production",
+        "fixtures": [
+          "contracts/tests/native-clock/Program.cs",
+          "contracts/tests/native-attempt-ledger/ClockLedgerChecks.cs"
+        ],
+        "native_scenarios": [
+          "scripts/native_typed_clock_acceptance.py"
+        ],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Verify private installed discovery and actual bounded native ticks, ownership, revocation, replay and immutable event continuity."
+        ],
+        "protocol_method": "rimgovernor.clock.v1.Clock/ChangeSpeed",
+        "protocol_schema": "contracts/proto/clock.proto"
+      },
+      {
+        "name": "rimgovernor/clock_pause",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.06a",
+        "native_owner_chunk": "N01.05",
+        "build_role": "production",
+        "fixtures": [
+          "contracts/tests/native-clock/Program.cs",
+          "contracts/tests/native-attempt-ledger/ClockLedgerChecks.cs"
+        ],
+        "native_scenarios": [
+          "scripts/native_typed_clock_acceptance.py"
+        ],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Verify private installed discovery and actual bounded native ticks, ownership, revocation, replay and immutable event continuity."
+        ],
+        "protocol_method": "rimgovernor.clock.v1.Clock/Pause",
+        "protocol_schema": "contracts/proto/clock.proto"
+      },
+      {
+        "name": "rimgovernor/clock_read_attempt",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.06a",
+        "native_owner_chunk": "N01.05",
+        "build_role": "production",
+        "fixtures": [
+          "contracts/tests/native-clock/Program.cs",
+          "contracts/tests/native-attempt-ledger/ClockLedgerChecks.cs"
+        ],
+        "native_scenarios": [
+          "scripts/native_typed_clock_acceptance.py"
+        ],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Verify private installed discovery and actual bounded native ticks, ownership, revocation, replay and immutable event continuity."
+        ],
+        "protocol_method": "rimgovernor.clock.v1.Clock/ReadAttempt",
+        "protocol_schema": "contracts/proto/clock.proto"
+      },
+      {
+        "name": "rimgovernor/clock_read_events",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.06a",
+        "native_owner_chunk": "N01.05",
+        "build_role": "production",
+        "fixtures": [
+          "contracts/tests/native-clock/Program.cs",
+          "contracts/tests/native-attempt-ledger/ClockLedgerChecks.cs"
+        ],
+        "native_scenarios": [
+          "scripts/native_typed_clock_acceptance.py"
+        ],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Verify private installed discovery and actual bounded native ticks, ownership, revocation, replay and immutable event continuity."
+        ],
+        "protocol_method": "rimgovernor.clock.v1.Clock/ReadEvents",
+        "protocol_schema": "contracts/proto/clock.proto"
+      },
+      {
+        "name": "rimgovernor/clock_read_status",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.06a",
+        "native_owner_chunk": "N01.05",
+        "build_role": "production",
+        "fixtures": [
+          "contracts/tests/native-clock/Program.cs",
+          "contracts/tests/native-attempt-ledger/ClockLedgerChecks.cs"
+        ],
+        "native_scenarios": [
+          "scripts/native_typed_clock_acceptance.py"
+        ],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Verify private installed discovery and actual bounded native ticks, ownership, revocation, replay and immutable event continuity."
+        ],
+        "protocol_method": "rimgovernor.clock.v1.Clock/ReadStatus",
+        "protocol_schema": "contracts/proto/clock.proto"
+      },
+      {
+        "name": "rimgovernor/clock_renew",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.06a",
+        "native_owner_chunk": "N01.05",
+        "build_role": "production",
+        "fixtures": [
+          "contracts/tests/native-clock/Program.cs",
+          "contracts/tests/native-attempt-ledger/ClockLedgerChecks.cs"
+        ],
+        "native_scenarios": [
+          "scripts/native_typed_clock_acceptance.py"
+        ],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Verify private installed discovery and actual bounded native ticks, ownership, revocation, replay and immutable event continuity."
+        ],
+        "protocol_method": "rimgovernor.clock.v1.Clock/Renew",
+        "protocol_schema": "contracts/proto/clock.proto"
+      },
+      {
+        "name": "rimgovernor/clock_start",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.06a",
+        "native_owner_chunk": "N01.05",
+        "build_role": "production",
+        "fixtures": [
+          "contracts/tests/native-clock/Program.cs",
+          "contracts/tests/native-attempt-ledger/ClockLedgerChecks.cs"
+        ],
+        "native_scenarios": [
+          "scripts/native_typed_clock_acceptance.py"
+        ],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Verify private installed discovery and actual bounded native ticks, ownership, revocation, replay and immutable event continuity."
+        ],
+        "protocol_method": "rimgovernor.clock.v1.Clock/Start",
+        "protocol_schema": "contracts/proto/clock.proto"
       },
       {
         "name": "rimgovernor/lifecycle_read_identity",

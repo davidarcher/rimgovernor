@@ -62,6 +62,13 @@ namespace HomeBridge.BridgeTools
                     Support = Lifecycle.CapabilitySupport.Supported,
                     Detail = "Complete bounded core building/blueprint/frame facts and construction resources. Exact filters; no frozen paging, CAS snapshots, settings, services, bills, inspect text or power networks."
                 });
+                foreach (var method in new[] { "Start", "Renew", "ChangeSpeed", "Pause", "ReadStatus", "ReadEvents", "ReadAttempt" })
+                    loaded.Capabilities.Add(new Lifecycle.Capability
+                    {
+                        FullMethodName = "rimgovernor.clock.v1.Clock/" + method,
+                        Support = Lifecycle.CapabilitySupport.Supported,
+                        Detail = "Canonical owned epochs, monotonic leases and immutable observed events. Missing historical evidence is explicit."
+                    });
                 return new Lifecycle.IdentityReply { Loaded = loaded };
             }, cancellationToken).ConfigureAwait(false);
             return ProtoBoundary.Encode(reply);

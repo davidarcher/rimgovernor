@@ -17,6 +17,13 @@ one `payload` ProtoJSON string plus host operation metadata.
 | rimgovernor/operations_execute | rimgovernor.operations.v1.Operations/Execute | Protocol/NativeOperationTools.cs |
 | rimgovernor/receipts_lookup | rimgovernor.receipts.v1.Attempts/Lookup | Protocol/NativeOperationTools.cs |
 | rimgovernor/receipts_observe_progress | rimgovernor.receipts.v1.Attempts/ObserveProgress | Protocol/NativeOperationTools.cs |
+| rimgovernor/clock_start | rimgovernor.clock.v1.Clock/Start | Protocol/NativeClockTools.cs |
+| rimgovernor/clock_renew | rimgovernor.clock.v1.Clock/Renew | Protocol/NativeClockTools.cs |
+| rimgovernor/clock_change_speed | rimgovernor.clock.v1.Clock/ChangeSpeed | Protocol/NativeClockTools.cs |
+| rimgovernor/clock_pause | rimgovernor.clock.v1.Clock/Pause | Protocol/NativeClockTools.cs |
+| rimgovernor/clock_read_status | rimgovernor.clock.v1.Clock/ReadStatus | Protocol/NativeClockTools.cs |
+| rimgovernor/clock_read_events | rimgovernor.clock.v1.Clock/ReadEvents | Protocol/NativeClockTools.cs |
+| rimgovernor/clock_read_attempt | rimgovernor.clock.v1.Clock/ReadAttempt | Protocol/NativeClockTools.cs |
 
 Paths are under `integrations/rimgovernor-native/src/Bridge`. The shared
 `Protocol/ProtoBoundary.cs` validates original outer arguments and uses official
@@ -58,7 +65,14 @@ rows, including individual walls and construction work/resources. Entity CAS,
 settings, bills, inspect detail and network/service/thermal facts remain explicitly
 unsupported or incomplete. Collection and geometry limits refuse incomplete facts.
 
-Current source inventory: 65 production exports, 55 fixture exports, 132 handwritten
+Typed clock controls use the shared per-load attempt ledger and capture the original
+authority grant, epoch owner and observation context before the initial safety probe.
+Leases use monotonic time. Exact-owner pause remains available for cleanup after
+revocation. Event reads expose immutable observed context and explicit history gaps;
+missing evidence never becomes an empty successful observation. Existing untyped
+epochs and journal rows cannot supply canonical ownership evidence.
+
+Current source inventory: 72 production exports, 55 fixture exports, 135 handwritten
 C# source files and nine generated Protobuf compile inputs. Source declarations do
 not establish gameplay acceptance. Actual installed discovery must match the private
 build and prove fixture exclusion; pending native acceptance remains explicit in
