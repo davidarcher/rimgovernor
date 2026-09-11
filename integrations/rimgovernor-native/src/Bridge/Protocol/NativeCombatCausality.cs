@@ -57,15 +57,38 @@ namespace HomeBridge.BridgeTools
             internal long Sequence;
             internal bool WasDead, WasDowned;
         }
+        private sealed class MeleeScope
+        {
+            internal MeleeScope? Previous;
+            internal Pawn? Caster;
+            internal Thing? Victim;
+            internal Job? Job;
+            internal int JobId;
+        }
+        private sealed class DamageFrame
+        {
+            internal int PreviousDepth;
+            internal readonly List<PendingDamage> Pending=new List<PendingDamage>();
+        }
+        [ThreadStatic] private static MeleeScope? meleeScope;
+        [ThreadStatic] private static int damageDepth;
         private static readonly ConditionalWeakTable<Game,GameState> Games=new ConditionalWeakTable<Game,GameState>();
         private static readonly MethodInfo Target=AccessTools.Method(typeof(Thing),nameof(Thing.TakeDamage),new[]{typeof(DamageInfo)});
         private static readonly MethodInfo Prefix=AccessTools.Method(typeof(NativeCombatCausality),nameof(BeforeDamage));
         private static readonly MethodInfo Postfix=AccessTools.Method(typeof(NativeCombatCausality),nameof(AfterDamage));
+        private static readonly MethodInfo DamageFinalizer=AccessTools.Method(typeof(NativeCombatCausality),nameof(EndDamage));
+        private static readonly MethodInfo MeleeTarget=AccessTools.DeclaredMethod(typeof(Verb_MeleeAttackDamage),"ApplyMeleeDamageToTarget",new[]{typeof(LocalTargetInfo)});
+        private static readonly MethodInfo MeleePrefix=AccessTools.Method(typeof(NativeCombatCausality),nameof(BeforeMelee));
+        private static readonly MethodInfo MeleeFinalizer=AccessTools.Method(typeof(NativeCombatCausality),nameof(EndMelee));
         internal static void Initialize()
         {
             if (IsReady) return;
-            if (Target==null || Prefix==null || Postfix==null) return;
-            try { new Harmony(Owner).Patch(Target,new HarmonyMethod(Prefix),new HarmonyMethod(Postfix)); }
+            if (Target==null || Prefix==null || Postfix==null || DamageFinalizer==null || MeleeTarget==null || MeleePrefix==null || MeleeFinalizer==null) return;
+            try {
+                var harmony=new Harmony(Owner);
+                harmony.Patch(Target,new HarmonyMethod(Prefix),new HarmonyMethod(Postfix),finalizer:new HarmonyMethod(DamageFinalizer));
+                harmony.Patch(MeleeTarget,new HarmonyMethod(MeleePrefix),finalizer:new HarmonyMethod(MeleeFinalizer));
+            }
             catch { /* Missing live hooks keep admission unavailable. */ }
         }
         internal static bool IsReady
@@ -73,8 +96,12 @@ namespace HomeBridge.BridgeTools
             get {
                 try {
                     var hooks=Target==null?null:Harmony.GetPatchInfo(Target);
-                    return hooks!=null && hooks.Prefixes.Any(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,Prefix))
-                        && hooks.Postfixes.Any(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,Postfix));
+                    var melee=MeleeTarget==null?null:Harmony.GetPatchInfo(MeleeTarget);
+                    return hooks!=null && melee!=null && hooks.Prefixes.Any(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,Prefix))
+                        && hooks.Postfixes.Any(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,Postfix))
+                        && hooks.Finalizers.Any(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,DamageFinalizer))
+                        && melee.Prefixes.Any(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,MeleePrefix))
+                        && melee.Finalizers.Any(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,MeleeFinalizer));
                 } catch { return false; }
             }
         }
@@ -91,33 +118,60 @@ namespace HomeBridge.BridgeTools
             tracked.Records.Add(record); state.Count++;
             return record;
         }
-        private static void BeforeDamage(Thing __instance,DamageInfo dinfo,out List<PendingDamage>? __state)
+        private static void BeforeMelee(Verb_MeleeAttackDamage __instance,LocalTargetInfo target,out MeleeScope? __state)
         {
             __state=null;
             try {
+                __state=new MeleeScope {Previous=meleeScope};
+                meleeScope=__state;
+                if (!UnityData.IsInMainThread || !IsReady || damageDepth!=0) return;
+                var caster=__instance.CasterPawn;
+                var job=caster?.CurJob;
+                if (caster==null || job==null || job.def!=JobDefOf.AttackMelee || job.targetA.Thing!=target.Thing) return;
+                __state.Caster=caster; __state.Victim=target.Thing; __state.Job=job; __state.JobId=job.loadID;
+            } catch { if (__state!=null) __state.Caster=null; }
+        }
+        private static Exception? EndMelee(Exception? __exception,MeleeScope? __state)
+        {
+            try { if (__state!=null) meleeScope=__state.Previous; }
+            catch { meleeScope=null; }
+            return __exception;
+        }
+        private static Exception? EndDamage(Exception? __exception,DamageFrame? __state)
+        {
+            try { if (__state!=null) damageDepth=__state.PreviousDepth; }
+            catch { damageDepth=0; }
+            return __exception;
+        }
+        private static void BeforeDamage(Thing __instance,DamageInfo dinfo,out DamageFrame? __state)
+        {
+            __state=null;
+            try {
+                __state=new DamageFrame {PreviousDepth=damageDepth};
+                damageDepth=checked(damageDepth+1);
                 if (!UnityData.IsInMainThread || Current.Game==null || !(__instance is Pawn victim)
                     || !Games.TryGetValue(Current.Game,out var game) || !game.Targets.TryGetValue(victim,out var target)) return;
                 if (target.Exhausted || target.Sequence==long.MaxValue) { target.Exhausted=true; return; }
                 var sequence=++target.Sequence;
-                if (!IsReady || victim.Dead) return;
+                var scope=meleeScope;
+                if (__state.PreviousDepth!=0 || scope==null || scope.Caster==null || scope.Victim!=victim || !IsReady || victim.Dead) return;
                 foreach (var record in target.Records) {
-                    if (record.CausedDeath || record.Game!=Current.Game || record.Map!=Find.CurrentMap
+                    if (scope.Caster!=record.Attacker || scope.Job!=record.Job || scope.JobId!=record.JobId || record.CausedDeath || record.Game!=Current.Game || record.Map!=Find.CurrentMap
                         || record.Map!=victim.Map || dinfo.Instigator!=record.Attacker || record.Attacker.CurJob!=record.Job
                         || record.Job.loadID!=record.JobId || record.Job.def!=JobDefOf.AttackMelee || record.Job.targetA.Thing!=victim) continue;
                     if (!record.Guard()) continue;
-                    if (__state==null) __state=new List<PendingDamage>();
-                    __state.Add(new PendingDamage {Record=record,Target=target,Sequence=sequence,WasDead=victim.Dead,WasDowned=victim.Downed});
+                    __state.Pending.Add(new PendingDamage {Record=record,Target=target,Sequence=sequence,WasDead=victim.Dead,WasDowned=victim.Downed});
                 }
-            } catch { __state=null; }
+            } catch { if (__state!=null) __state.Pending.Clear(); }
         }
-        private static void AfterDamage(DamageInfo dinfo,DamageWorker.DamageResult __result,List<PendingDamage>? __state)
+        private static void AfterDamage(DamageInfo dinfo,DamageWorker.DamageResult __result,DamageFrame? __state)
         {
             if (__state==null || __result==null) return;
             try {
-                foreach (var pending in __state) {
+                foreach (var pending in __state.Pending) {
                     var record=pending.Record;
-                    // Nested damage invalidates the outer call's attribution; the
-                    // nested call can certify its own exact instigator independently.
+                    // Nested damage to this target makes the outer outcome ambiguous;
+                    // nested calls never acquire their own melee attribution.
                     if (pending.Target.Exhausted || pending.Target.Sequence!=pending.Sequence || !IsReady
                         || dinfo.Instigator!=record.Attacker || record.Game!=Current.Game || record.Map!=Find.CurrentMap || Find.TickManager==null) continue;
                     record.Record(__result.totalDamageDealt,pending.WasDead,pending.WasDowned,
