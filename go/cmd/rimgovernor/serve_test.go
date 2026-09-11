@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 	commonpb "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	lifecyclepb "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	observationspb "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	p "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -214,5 +216,100 @@ func TestServeFailedAnnouncementClosesStoreAndBridge(t *testing.T) {
 	}
 	if err := os.Remove(cfg.state); err != nil {
 		t.Fatalf("store remained open: %v", err)
+	}
+}
+
+type servicePresentationFake struct {
+	*buildingReadFake
+	presentationCalls atomic.Int32
+}
+
+func (f *servicePresentationFake) ReadCamera(context.Context, *p.ReadRequest) (*p.CameraReply, bridge.Result, error) {
+	f.presentationCalls.Add(1)
+	return &p.CameraReply{Outcome: &p.CameraReply_Camera{Camera: &p.CameraState{Context: serviceContext()}}}, bridge.Result{}, nil
+}
+func (f *servicePresentationFake) ReadSelection(context.Context, *p.ReadRequest) (*p.SelectionReply, bridge.Result, error) {
+	panic("unexpected selection")
+}
+func (f *servicePresentationFake) ReadColonistRoster(context.Context, *p.ColonistRosterRequest) (*p.ColonistRosterReply, bridge.Result, error) {
+	panic("unexpected roster")
+}
+
+type presentationAddressWriter chan string
+
+func (w presentationAddressWriter) Write(data []byte) (int, error) {
+	text := string(data)
+	index := strings.Index(text, "http://")
+	if index >= 0 {
+		w <- strings.TrimSpace(text[index:])
+	}
+	return len(data), nil
+}
+func TestServePresentationUsesOptionalAttachedClient(t *testing.T) {
+	for _, building := range []bool{false, true} {
+		for _, available := range []bool{false, true} {
+			t.Run(fmt.Sprintf("building=%v/presentation=%v", building, available), func(t *testing.T) {
+				dir := t.TempDir()
+				fake := &servicePresentationFake{buildingReadFake: &buildingReadFake{serviceFake: serviceFake{entered: make(chan struct{}, 1)}}}
+				var reads serviceBridge = fake.buildingReadFake
+				if available {
+					reads = fake
+				}
+				config := serveConfig{buildingControl: building, profile: dir, state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", refresh: time.Second, bridge: bridge.ProcessConfig{Timeout: time.Second}}
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				address := make(presentationAddressWriter, 1)
+				done := make(chan error, 1)
+				go func() {
+					if building {
+						caps := unusedBuildingCapabilities{}
+						done <- serveBuildingWithBridge(ctx, config, address, func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error) {
+							return buildingServiceBridge{reads, caps, caps, caps}, nil
+						})
+					} else {
+						done <- serveWithBridge(ctx, config, address, func(context.Context, bridge.ProcessConfig) (serviceBridge, error) { return reads, nil })
+					}
+				}()
+				var url string
+				select {
+				case url = <-address:
+				case err := <-done:
+					t.Fatal(err)
+				case <-time.After(3 * time.Second):
+					t.Fatal("startup timeout")
+				}
+				client := http.Client{Timeout: time.Second}
+				reply, err := client.Get(url + "/api/presentation/camera")
+				if err != nil {
+					t.Fatal(err)
+				}
+				body, err := io.ReadAll(reply.Body)
+				reply.Body.Close()
+				if err != nil {
+					t.Fatal(err)
+				}
+				expected := 404
+				calls := int32(0)
+				if available {
+					expected = 200
+					calls = 1
+				}
+				if reply.StatusCode != expected || fake.presentationCalls.Load() != calls {
+					t.Fatal(reply.StatusCode, string(body), fake.presentationCalls.Load())
+				}
+				cancel()
+				select {
+				case err := <-done:
+					if err != nil {
+						t.Fatal(err)
+					}
+				case <-time.After(3 * time.Second):
+					t.Fatal("shutdown timeout")
+				}
+				if !fake.closed.Load() {
+					t.Fatal("attached client was not closed")
+				}
+			})
+		}
 	}
 }
