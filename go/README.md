@@ -131,8 +131,7 @@ definition with no construction-skill prerequisite, roofed indoor cells, disjoin
 safe native previews and shared resource admission. Existing admitted footprints
 remain protected. Method identity survives retries; observed recovery opens a new
 epoch. Every preview stays under the player gate, and Manual cancels compilation.
-The compiler stores pending actions only. Targeted
-native indoor-sleeping acceptance remains open.
+The compiler stores pending actions only; the shared worker owns execution.
 
 Add `--routine-reviews` to `serve --player-control --clock-control` to attach the
 reviewer to the service clock worker. It uses the default routine thresholds and
@@ -151,7 +150,10 @@ method selection and execution composition remain in G01.05.
 scenario launcher with the private construction fixture and verified Go binary,
 covers the live SDK read trace, fourteen durable goals, native medical need,
 unknown food forecast, Manual invalidation, joined shutdown and disabled restart.
-It does not claim routine method execution. The separate
+Its `--sleeping-methods` variant also uses `RoutineSleepingFixture` to provide an
+empty roofed room and healthy starting colonists. It verifies one complete sleeping
+method, native observed completion, single attempts, indoor footprints and unchanged
+player authority through the shared worker. The separate
 `scripts/native_go_clock_acceptance.py --routine-reviews` scenario additionally
 requires a healthy colony and verifies clock advancement and construction.
 

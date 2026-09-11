@@ -86,11 +86,35 @@ async def wait_sleeping(http, database, count):
             await asyncio.sleep(.2)
 
 
+def audit_sleeping(report, database):
+    root = report["active_routine"]["review"]["Snapshot"]
+    plan = report["sleeping_plan"]
+    interior = {(c["x"], c["z"]) for c in report["sleeping_setup"]["interior"]}
+    assert len(plan["actions"]) == report["sleeping_setup"]["colonists"]
+    with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
+        for action in plan["actions"]:
+            progress = action["progress"]
+            assert progress["stage"] == progress["effect"] == "completed" and progress["attempt"] == "1" and not progress["unresolved"]
+            admission = json.loads(db.execute("SELECT payload FROM admissions WHERE action_id=?", (action["id"],)).fetchone()[0])
+            assert all((c["X"], c["Z"]) in interior for c in admission["Footprint"])
+            transitions = [json.loads(r[0]) for r in db.execute("SELECT payload FROM transitions WHERE action_id=? ORDER BY sequence", (action["id"],))]
+            dispatched = [r for r in transitions if r["Kind"] == "dispatch"]
+            assert len(dispatched) == 1
+            scope = dict(dispatched[0]["Snapshot"])
+            assert scope["Plan"] == plan["id"]
+            scope["Plan"], scope["Revision"] = root["Plan"], root["Revision"]
+            assert scope == root, "Routine method changed player direction or native authority"
+    assert report["traces"]["operate"].count(EXECUTE) == 1 + len(plan["actions"])
+    return {"completed_spots": len(plan["actions"]), "single_attempts": True, "indoor_footprints": True, "shared_player_authority": True}
+
+
 async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False):
     assert Path("/.dockerenv").is_file(), "Use the isolated scenario launcher"
     output.mkdir(parents=True, exist_ok=False)
     report = {"passed": False, "source": go_source,
               "scope": "Native core/emergency facts reach fourteen durable Go needs; Manual invalidates them; disabled restart neither acquires authority nor reads routine facts. No routine method execution claim."}
+    if sleeping_methods:
+        report["scope"] = "Reviewed indoor sleeping deficit compiles and executes through shared Hands, with native completion, Manual invalidation and disabled restart. Private fixture supplies only an empty room and healthy starting colonists."
     evidence = Evidence(output)
     launched = False
     try:
@@ -177,6 +201,8 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             await capture(bridge, "restart", baseline, restart=True)
             after = outcome(await wire(bridge, "final", "lifecycle_read_identity", {}), "loaded")
             assert after["paused"] and after["context"]["tick"] == final["context"]["tick"]
+        if sleeping_methods:
+            report["sleeping_audit"] = audit_sleeping(report, database)
         report["passed"] = True
     except BaseException as error:
         report.update(error=repr(error), traceback=traceback.format_exc())

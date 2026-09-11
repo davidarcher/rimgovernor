@@ -357,8 +357,8 @@ func Admit(input Input) Decision {
 		}
 		v := h.Progress.View()
 		effect, observed := v.Effect.Value()
-		// Cancellation preserves intent history even when the issued work later
-		// completes. Fresh native facts then replace its historic reservation.
+		// Settled outcomes preserve history. Fresh native facts replace old
+		// reservations, accounting for actual remaining stock and placement.
 		terminalStockFresh := observed && (effect == domain.EffectCompleted || effect == domain.EffectUnsuccessful) && !v.Unresolved && stockFresh && r.Stock.Tick >= v.Tick && sameWorld(v.Snapshot, r.Current)
 		if terminalStockFresh {
 			continue

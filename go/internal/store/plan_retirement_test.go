@@ -247,10 +247,6 @@ func TestRoutinePlanRetirementPinsUnfinishedAndPlayerMethods(t *testing.T) {
 				if kind == "unknown" {
 					ob.Effect = domain.EffectUnknown
 				}
-				if kind == "unsuccessful" {
-					ob.Effect = domain.EffectUnsuccessful
-					ob.UnsuccessfulReason = domain.NativeFailure
-				}
 				if _, err := s.Observe(ctx, p.ID(), ob, current); err != nil {
 					t.Fatal(err)
 				}

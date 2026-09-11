@@ -615,7 +615,7 @@ expand these into another nested task tree; remove a row when its outcome is met
   after cleanup obligations drain. `serve --routine-reviews` wires this path under
   explicit player/clock control. Targeted live service acceptance covers native
   core/emergency facts, fourteen persisted needs, unknown food forecast, Manual
-  invalidation, joined shutdown and disabled restart. Method execution is not enabled.
+  invalidation, joined shutdown and disabled restart.
   The deterministic food forecast now accounts for diet/access, holder-owned stock,
   competing demand and rot deadlines. Typed native human food inputs have populated
   stock parity and Go/Python forecast replay. The combined native census now feeds
@@ -639,12 +639,11 @@ expand these into another nested task tree; remove a row when its outcome is met
   to the paused service review boundary; startup stays disabled and preview failures
   block new clock windows. `--routine-methods` connects eligible building methods to
   shared Hands under the existing player direction, with journal rechecks and pending
-  player work taking priority. Targeted native
-  indoor-sleeping acceptance remain open.
-  Remaining fact projection (further need inputs and construction
-  costs),
-  method selection and execution composition remain
-  open; these components do not enable orders.
+  player work taking priority. Targeted native acceptance verifies three indoor
+  sleeping spots completed through shared Hands with one attempt each, unchanged
+  player authority, Manual invalidation and disabled restart. Further need inputs,
+  remaining construction costs, method selection and execution composition for
+  additional routine methods remain open.
 
 - [ ] **G01.07a — Finish defense and essential medical care.** Connect movement
   and melee to complete defense plans using the existing owned-draft lifecycle;

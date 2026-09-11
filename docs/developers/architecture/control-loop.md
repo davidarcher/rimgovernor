@@ -50,6 +50,14 @@ The gated [Go routine components](../../../go/README.md#routine-policy-component
 persist maintained goals, method reservations and action dependencies. Building
 methods reserve all costs atomically against the shared journal; Hands rechecks
 native placement and observed predecessor completion before execution. Runtime
-composition and method selection remain tracked in G01.05. Go routine reviews
+composition for additional methods and method selection remain tracked in G01.05. Go routine reviews
 persist need assessments and hysteresis together; missing facts cannot recover
 goals. Manual cancels pending work independently of observation availability.
+
+The opt-in Go routine building worker shares the selected player's direction and
+native lease. Its journal verifies each method's current review, goal, epoch and
+world before dispatch; it cannot run arbitrary plans or acquire authority. Pending
+player work takes priority. Routine building work can keep finite clock windows
+eligible after the selected player plan settles. Uncertain effects still reconcile
+after cancellation, while observed terminal building outcomes yield accounting to
+fresh native stock and placement facts.

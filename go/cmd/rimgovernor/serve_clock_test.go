@@ -112,6 +112,13 @@ func TestSleepingPlansRequireRoutineReviews(t *testing.T) {
 	if err != nil || !config.routineSleepingPlans {
 		t.Fatal(config, err)
 	}
+	if config.routineMethods {
+		t.Fatal("compilation enabled execution implicitly")
+	}
+	config, err = parseServe(append(base, "--routine-reviews", "--routine-methods"), io.Discard)
+	if err != nil || !config.routineMethods {
+		t.Fatal(config, err)
+	}
 }
 
 func TestRoutineServeRequiresClockControl(t *testing.T) {
