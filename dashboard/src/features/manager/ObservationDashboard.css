@@ -17,4 +17,8 @@
 .observation-actions {list-style:none;margin:0;padding:0}.observation-actions li {display:flex;justify-content:space-between;gap:24px;border-top:1px solid #3c3d34;padding:20px 0}
 .observation-actions h3 {margin:0;font-size:17px;font-weight:600}.observation-actions p {margin:5px 0}.observation-actions strong {color:#ddb975;font-weight:500}
 .observation-plan-id {overflow-wrap:anywhere}
+.building-control-heading {display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.building-control-heading h2{margin:0}
+.building-fields {display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px;margin:20px 0}.building-fields label{display:flex;flex-direction:column;gap:6px;color:#a8a697;font-size:13px}
+.building-controls input,.building-controls select{min-width:0;background:#161915;border:1px solid #77745c;border-radius:4px;padding:9px;color:#e9e6d9;font:inherit}
+.building-controls button{background:#343d2d;color:#e9e6d9;border:1px solid #8caa75;border-radius:4px;padding:8px 12px;font:inherit;cursor:pointer}.building-controls button:disabled{opacity:.5;cursor:default}.building-controls button:focus-visible,.building-controls input:focus-visible,.building-controls select:focus-visible{outline:2px solid #ddb975;outline-offset:2px}.building-controls code{overflow-wrap:anywhere}.building-controls [role=alert]{color:#ddb975}
 @media(max-width:700px){.observation-shell{padding:24px 16px}.observation-grid,.observation-identity{grid-template-columns:1fr}.observation-actions li{flex-direction:column;gap:10px}.observation-header h1{font-size:36px}}

@@ -7,9 +7,12 @@ import {readObservation,readPlan} from './observationData';
 const state={sessionId:'load-a',connected:true,mode:'manual',status:{label:'Colony observed'},identity:{colonyId:'colony-a',mapId:0,loadToken:'load-a'},game:{tick:42,paused:false,observedAt:'2026-09-10T12:00:00Z',stale:false},activePlanId:'plan-a'};
 const plan={id:'plan-a',revision:'9007199254740993',actions:[{id:'action-a',kind:'building',building:{defName:'Wall',x:2,z:3,rotation:'north',stuff:'Granite'},progress:{stage:'awaiting_observation',attempt:'1',tick:40,unresolved:true,receipt:'accepted',effect:null,unsuccessfulReason:null}}]};
 const reply=(value:unknown)=>({ok:true,json:async()=>value});
+function stubObservationFetch(handler: (url: string, options: {signal: AbortSignal}) => Promise<unknown>) {
+ vi.stubGlobal('fetch', (url: string, options: {signal: AbortSignal}) => url === '/api/buildings/session' ? Promise.resolve({ok:false,status:404,json:async()=>({code:'not_found',detail:'Not found'})}) : handler(url,options));
+}
 afterEach(()=>{cleanup();vi.useRealTimers();vi.unstubAllGlobals();});
 it('renders observed native facts and typed plan with no mutation controls',async()=>{
- const fetcher=vi.fn(async(url:string)=>reply(url==='/api/state'?state:plan));vi.stubGlobal('fetch',fetcher);
+ const fetcher=vi.fn(async(url:string)=>reply(url==='/api/state'?state:plan));stubObservationFetch(fetcher);
  await act(async()=>{render(<ObservationDashboard/>);});
  expect(screen.getByText('RimGovernor')).toBeVisible();expect(screen.getByText('Observation mode')).toBeVisible();expect(screen.getByText('Running')).toBeVisible();
  expect(screen.getByText('colony-a')).toBeVisible();expect(screen.getByText('Wall')).toBeVisible();expect(screen.getByText('Outcome requires observation')).toBeVisible();
@@ -18,7 +21,7 @@ it('renders observed native facts and typed plan with no mutation controls',asyn
 });
 it('keeps last good readings and plan on refresh errors',async()=>{
  vi.useFakeTimers();let fail=false;
- vi.stubGlobal('fetch',vi.fn(async(url:string)=>{if(fail)throw Error('Offline');return reply(url==='/api/state'?state:plan);}));
+ stubObservationFetch(vi.fn(async(url:string)=>{if(fail)throw Error('Offline');return reply(url==='/api/state'?state:plan);}));
  await act(async()=>{render(<ObservationDashboard/>);});fail=true;
  await act(async()=>{await vi.advanceTimersByTimeAsync(1500);});
  expect(screen.getByText('Wall')).toBeVisible();expect(screen.getByText('Tick 42')).toBeVisible();expect(screen.getByRole('status')).toHaveTextContent('Offline');
@@ -26,14 +29,14 @@ it('keeps last good readings and plan on refresh errors',async()=>{
 });
 it('clears a previous plan when native identity changes before a failed plan refresh',async()=>{
  vi.useFakeTimers();let changed=false;
- vi.stubGlobal('fetch',vi.fn(async(url:string)=>{if(url==='/api/state')return reply(changed?{...state,sessionId:'load-b',identity:{...state.identity,loadToken:'load-b'}}:state);if(changed)throw Error('Plan unavailable');return reply(plan);}));
+ stubObservationFetch(vi.fn(async(url:string)=>{if(url==='/api/state')return reply(changed?{...state,sessionId:'load-b',identity:{...state.identity,loadToken:'load-b'}}:state);if(changed)throw Error('Plan unavailable');return reply(plan);}));
  await act(async()=>{render(<ObservationDashboard/>);});changed=true;
  await act(async()=>{await vi.advanceTimersByTimeAsync(1500);});
  expect(screen.queryByText('Wall')).toBeNull();expect(screen.getByText('load-b')).toBeVisible();expect(screen.getByText('Waiting for the active plan.')).toBeVisible();
 });
 it('shows unknown observations explicitly and cancels its requests on unmount',async()=>{
  let signal:AbortSignal|undefined;
- vi.stubGlobal('fetch',vi.fn(async(_url:string,options:{signal:AbortSignal})=>{signal=options.signal;return reply({...state,identity:null,activePlanId:null,game:{tick:null,paused:null,observedAt:null,stale:true}});}));
+ stubObservationFetch(vi.fn(async(_url:string,options:{signal:AbortSignal})=>{signal=options.signal;return reply({...state,identity:null,activePlanId:null,game:{tick:null,paused:null,observedAt:null,stale:true}});}));
  let view:ReturnType<typeof render>|undefined;await act(async()=>{view=render(<ObservationDashboard/>);});
  expect(screen.getByText('Tick unknown')).toBeVisible();expect(screen.getAllByText('Unknown').length).toBeGreaterThan(1);expect(screen.getByText('No active plan reported.')).toBeVisible();
  view?.unmount();expect(signal?.aborted).toBe(true);
@@ -61,7 +64,7 @@ it('preserves null reasons and validates closed unsuccessful outcomes',()=>{
 });
 it.each(['cancelled','unsuccessful'])('shows unsuccessful evidence in %s stage and retains it on bad refresh',async(stage)=>{
  vi.useFakeTimers();let invalid=false;
- vi.stubGlobal('fetch',vi.fn(async(url:string)=>reply(url==='/api/state'?state:withProgress({stage,effect:'unsuccessful',unresolved:false,unsuccessfulReason:invalid?'invented':'outcome_not_achieved'}))));
+ stubObservationFetch(vi.fn(async(url:string)=>reply(url==='/api/state'?state:withProgress({stage,effect:'unsuccessful',unresolved:false,unsuccessfulReason:invalid?'invented':'outcome_not_achieved'}))));
  await act(async()=>{render(<ObservationDashboard/>);});
  expect(screen.getByText(stage==='cancelled'?'Cancelled':'Unsuccessful')).toBeVisible();
  expect(screen.getByText('Expected outcome not achieved')).toBeVisible();
