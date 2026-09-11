@@ -86,5 +86,7 @@ exhaustive implemented argument variants.
   [source index](native-runtime-source-index.json) retains lexical anchors and
   normalized hashes for all inspected native and fixture sources.
 
-Unfinished native discovery, save/reload, migration and distribution work stays in
-N01.00e and the subsequent N01 chunks. These audits authorize no package cutover.
+The unified package now has fresh-game batch and graphical acceptance through
+`scripts/native_package_acceptance.py`. Legacy captures are optional diagnostic
+references, not compatibility gates. Remaining typed/native ownership and platform
+work stays in N01; all development state may start fresh.

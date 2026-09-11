@@ -940,7 +940,7 @@ main. Native package and Go production cutover remain independent.
   remain available as diagnostic examples. Additional legacy save, standalone
   fixture and exhaustive parity captures are out of scope.
 
-- [ ] **N01.01 — One active native package.** Native source/build owners. Consolidate
+- [x] **N01.01 — One active native package.** Native source/build owners. Consolidate
   sources into the target root and two loader-appropriate assemblies. Remove
   excluded duplicate helpers, retain source notices, declare dependencies/load order
   and provide one build/staging command with explicit compiler/game/SDK inputs and
@@ -948,7 +948,9 @@ main. Native package and Go production cutover remain independent.
   discovery in batch and graphical modes, no fixture leakage or duplicate runtime
   components, and batch-only presentation suppression. No old-save acceptance gate.
   Companion redistribution permission remains a public release concern, not a gate
-  on local source consolidation.
+  on local source consolidation. Production and fixture builds pass; the same
+  production artifact passes fresh Linux batch and graphical/Xvfb startup, all
+  55 native tools, fixture isolation, component census and preview invariance.
 
 - [ ] **N01.02 — First strict native contract.** Native contract owner with G01.02.
   Migrate placement previews through generated request/response DTOs, validated SDK
@@ -1001,6 +1003,8 @@ main. Native package and Go production cutover remain independent.
   replace installed DLLs while a game runs. Accept fresh installation and isolated
   native runs on supported platforms; no copied-profile upgrade or rollback gate.
   Can land with 01 while typed families continue, using current supported consumers.
+  Unified build/staging, source paths and current consumers are implemented and
+  verified in Linux workers. Fresh installed Windows startup remains to verify.
 
 - [ ] **N01.08 — Enforce the native standard.** Native integrator with DEV01. Expand
   compiler/nullability/boundary checks across migrated production code; record
