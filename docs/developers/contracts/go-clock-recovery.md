@@ -214,6 +214,10 @@ unchanged deadline and speed, and caught-up reviewed event evidence. Uncertain
 renewals are read by their original attempt. All clock requests use a namespace-bound
 monotonic sequence allocated atomically with the intent. A retired epoch's
 historical uncertainty cannot authorize or block renewal in a replacement scope.
+Renewal waits without extending the lease when event capture or review is behind;
+the poller invalidates permission for interruptions. A verified tick-budget stop
+defers to event review and scheduler cleanup, preserving permission for the next
+eligible window.
 
 The session attaches one clock worker before its loops start. Close cancels and
 joins the loops and their cancellation handler before releasing native handles,

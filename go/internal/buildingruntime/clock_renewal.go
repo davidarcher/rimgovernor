@@ -119,8 +119,14 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 	if err != nil {
 		return out, s.renewalHold(err)
 	}
-	if status.NewestCursor == nil || status.GetNewestCursor() != review.InboxCursor || review.ReviewedCursor != review.InboxCursor || len(review.Holds) != 0 {
+	if status.NewestCursor == nil || status.GetNewestCursor() < review.InboxCursor || review.ReviewedCursor > review.InboxCursor || len(review.Holds) != 0 {
 		return out, s.renewalHold(executor.ErrHeld)
+	}
+	if status.GetNewestCursor() > review.InboxCursor || review.ReviewedCursor < review.InboxCursor {
+		// Do not extend the native lease until the independent poller catches up.
+		// The poller owns interruption invalidation; fresh benign events need no
+		// new player acquisition merely because renewal observed them first.
+		return out, executor.ErrHeld
 	}
 	ended := s.clock.Now()
 	if started.IsZero() || ended.Before(started) || ended.Sub(started) > s.config.MaxAge || call.Err() != nil || s.session.State() != state {

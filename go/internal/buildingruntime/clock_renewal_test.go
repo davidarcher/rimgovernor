@@ -17,7 +17,7 @@ import (
 func TestClockRenewalSafetyReviewMustCatchUp(t *testing.T) {
 	s, n, w, _ := renewalFixture(t)
 	n.status.NewestCursor = proto.Int64(1)
-	if _, err := s.RenewEpoch(context.Background()); err == nil || w.renews != 0 || s.session.State().Enabled {
+	if _, err := s.RenewEpoch(context.Background()); err == nil || w.renews != 0 || !s.session.State().Enabled {
 		t.Fatal(err, w.renews)
 	}
 }
