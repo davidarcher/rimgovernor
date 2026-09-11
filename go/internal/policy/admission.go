@@ -5,6 +5,7 @@ package policy
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"sort"
 	"strings"
@@ -175,7 +176,7 @@ func NewInput(r Request) (Input, error) {
 			c.Preview.Costs = domain.Known(copyAmounts(costs))
 		}
 		if cells, known := c.Preview.Footprint.Value(); known {
-			if len(cells) > 16384 {
+			if len(cells) > 4096 {
 				return Input{}, errors.New("footprint exceeds native cell bound")
 			}
 			c.Preview.Footprint = domain.Known(append([]domain.Cell(nil), cells...))
@@ -208,7 +209,7 @@ func NewInput(r Request) (Input, error) {
 		if err := validAmounts(h.Costs); err != nil {
 			return Input{}, err
 		}
-		if len(h.Footprint) > 16384 {
+		if len(h.Footprint) > 4096 {
 			return Input{}, errors.New("held footprint too large")
 		}
 		r.Held[i] = copyReservation(h)
@@ -338,7 +339,7 @@ func Admit(input Input) Decision {
 		rules[rule.Resource] = rule
 	}
 	used := map[Resource]int64{}
-	occupied := map[domain.Cell]bool{}
+	occupied := map[domain.Cell]int{}
 	heldIDs := map[domain.ActionID]bool{}
 	heldProblem := Reason("")
 	heldInvalid, heldOverflow := false, false
@@ -353,7 +354,7 @@ func Admit(input Input) Decision {
 			continue
 		}
 		for _, c := range h.Footprint {
-			occupied[c] = true
+			occupied[c]++
 		}
 		v := h.Progress.View()
 		completionStockFresh := v.Stage == domain.Completed && !v.Unresolved && stockFresh && r.Stock.Tick >= v.Tick && sameWorld(v.Snapshot, r.Current)
@@ -377,10 +378,39 @@ func Admit(input Input) Decision {
 	}
 	sort.Slice(result.Held, func(i, j int) bool { return result.Held[i].Action.ID() < result.Held[j].Action.ID() })
 	for _, c := range candidates {
-		reason, resource := assess(c, r, bounds, boundsKnown, stockFresh, stock, rules, used, occupied, heldIDs, heldProblem)
+		budget, space, identities := used, occupied, heldIDs
+		replace := -1
+		if heldProblem == "" {
+			for i, h := range result.Held {
+				cv, hv := c.Progress.View(), h.Progress.View()
+				if c.Action == h.Action && cv.Stage == domain.Prepared && cv.Snapshot.Matches(r.Current) &&
+					cv.Attempt == 0 && !cv.Unresolved && (hv.Stage == domain.Pending || hv.Stage == domain.Prepared) &&
+					hv.Attempt == 0 && !hv.Unresolved && h.Snapshot.Matches(r.Current) {
+					// Replace the hold only if fresh revalidation succeeds. Failed
+					// admission must not expose its resources or geometry to rivals.
+					replace = i
+					budget = maps.Clone(used)
+					space = maps.Clone(occupied)
+					identities = maps.Clone(heldIDs)
+					for _, cost := range h.Costs {
+						budget[cost.Resource] -= cost.Count
+					}
+					for _, cell := range h.Footprint {
+						space[cell]--
+					}
+					delete(identities, h.Action.ID())
+					break
+				}
+			}
+		}
+		reason, resource := assess(c, r, bounds, boundsKnown, stockFresh, stock, rules, budget, space, identities, heldProblem)
 		if reason != "" {
 			result.Refused = append(result.Refused, Refusal{c.Action.ID(), reason, resource})
 			continue
+		}
+		used, occupied, heldIDs = budget, space, identities
+		if replace >= 0 {
+			result.Held = append(result.Held[:replace], result.Held[replace+1:]...)
 		}
 		costs, _ := c.Preview.Costs.Value()
 		cells, _ := c.Preview.Footprint.Value()
@@ -388,15 +418,16 @@ func Admit(input Input) Decision {
 			used[cost.Resource] += cost.Count
 		}
 		for _, cell := range cells {
-			occupied[cell] = true
+			occupied[cell]++
 		}
 		result.Admitted = append(result.Admitted, copyReservation(Reservation{c.Action, c.Progress, r.Current, costs, cells}))
 	}
 	return result
 }
-func assess(c Candidate, r Request, bounds Bounds, boundsKnown, stockFresh bool, stock map[Resource]domain.Fact[int64], rules map[Resource]ResourceRule, used map[Resource]int64, occupied map[domain.Cell]bool, heldIDs map[domain.ActionID]bool, heldProblem Reason) (Reason, Resource) {
+func assess(c Candidate, r Request, bounds Bounds, boundsKnown, stockFresh bool, stock map[Resource]domain.Fact[int64], rules map[Resource]ResourceRule, used map[Resource]int64, occupied map[domain.Cell]int, heldIDs map[domain.ActionID]bool, heldProblem Reason) (Reason, Resource) {
 	v := c.Progress.View()
-	if v.Stage != domain.Pending || v.Unresolved {
+	if (v.Stage != domain.Pending && v.Stage != domain.Prepared) || v.Unresolved || v.Tick > r.CurrentTick ||
+		v.Stage == domain.Prepared && !v.Snapshot.Matches(r.Current) {
 		return NotReady, ""
 	}
 	if heldIDs[c.Action.ID()] {
@@ -440,7 +471,7 @@ func assess(c Candidate, r Request, bounds Bounds, boundsKnown, stockFresh bool,
 		return GeometryBlocked, ""
 	}
 	for _, cell := range cells {
-		if occupied[cell] {
+		if occupied[cell] > 0 {
 			return GeometryBlocked, ""
 		}
 	}

@@ -250,14 +250,16 @@ func TestHeldOrderingAndOtherPlanReservations(t *testing.T) {
 	}
 }
 
-func TestOnlyPendingIntentIsAdmissible(t *testing.T) {
+func TestCompletedAndCancelledIntentIsNotAdmissible(t *testing.T) {
 	c := candidate(t, "a", 1, 10)
 	p, err := c.Progress.Prepare(current(), 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 	c.Progress = p
-	reason(t, request(c), NotReady)
+	if len(decide(t, request(c)).Admitted) != 1 {
+		t.Fatal("prepared action failed fresh admission")
+	}
 	c.Progress, err = c.Progress.Cancel()
 	if err != nil {
 		t.Fatal(err)
@@ -269,6 +271,62 @@ func TestOnlyPendingIntentIsAdmissible(t *testing.T) {
 		t.Fatal(err)
 	}
 	reason(t, request(c), NotReady)
+}
+
+func TestPreparedRestartRevalidatesWithoutDoubleReservation(t *testing.T) {
+	c := candidate(t, "a", 1, 80)
+	old := hold(c)
+	p, err := c.Progress.Prepare(current(), 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Progress = p
+	r := request(c)
+	r.Held = []Reservation{old, hold(candidate(t, "competing", 2, 20))}
+	d := decide(t, r)
+	if len(d.Admitted) != 1 || len(d.Held) != 1 || d.Held[0].Action.ID() != "competing" {
+		t.Fatal("prepared reservation double counted", d)
+	}
+	if d.Admitted[0].Progress.View().Stage != domain.Prepared {
+		t.Fatal("revalidation rewrote durable progress")
+	}
+	r.Held[1].Costs[0].Count = 21
+	reason(t, r, InsufficientStock)
+	for _, change := range []func(*Request){
+		func(r *Request) {
+			r.Current.Direction++
+			r.Stock.Snapshot = r.Current
+			r.Candidates[0].Preview.Snapshot = r.Current
+		},
+		func(r *Request) {
+			r.Current.Native++
+			r.Stock.Snapshot = r.Current
+			r.Candidates[0].Preview.Snapshot = r.Current
+		},
+	} {
+		stale := request(c)
+		change(&stale)
+		reason(t, stale, NotReady)
+	}
+	r = request(c)
+	r.Candidates[0].Preview.SafeToPlace = domain.Known(false)
+	r.Held = []Reservation{old}
+	r.Candidates = append(r.Candidates, candidate(t, "b", 2, 21))
+	d = decide(t, r)
+	if len(d.Admitted) != 0 || len(d.Held) != 1 || len(d.Refused) != 2 || d.Refused[0].Reason != UnsafePlacement || d.Refused[1].Reason != InsufficientStock {
+		t.Fatal("failed revalidation released held work", d)
+	}
+	r = request(c)
+	r.Candidates[0].Preview.Tick--
+	reason(t, r, StaleFacts)
+	r = request(c)
+	r.Candidates[0].Dependencies = []Dependency{{Action: "dependency", Completed: domain.Known(false), Snapshot: current(), Tick: 20}}
+	reason(t, r, DependencyBlocked)
+	r = request(c)
+	r.Candidates[0].Preview.Footprint = domain.Known(make([]domain.Cell, 4097))
+	if _, err = NewInput(r); err == nil {
+		t.Fatal("footprint exceeded canonical selected-rotation bound")
+	}
 }
 func TestValidationCopiesAndOverflow(t *testing.T) {
 	r := request(candidate(t, "a", 1, 10))
