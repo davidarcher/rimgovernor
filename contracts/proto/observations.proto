@@ -3,13 +3,15 @@ package rimgovernor.observations.v1;
 option csharp_namespace = "RimGovernor.Protocol.Observations";
 option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb;observationspb";
 import "common.proto";
+import "authority.proto";
 
 // All requests are read-only; previews/admission and UI/media have other owners.
 // Validators require context, selected outcome, finite numbers and exact IDs.
 // Default/max page size 256; cell geometry max 4096; whole reply max 1 MiB.
 // Never silently sample: paginate a stable snapshot or return unavailable.
 // Native definition/enum names remain open strings, resolved by the game.
-message ReadScope { rimgovernor.common.v1.ObservationContext expected_context = 1; }
+// Reconciliation survives tick advancement and authority revocation.
+message ReadScope { rimgovernor.common.v1.Identity expected_identity = 1; }
 message SnapshotRef {
   rimgovernor.common.v1.ObservationContext context = 1;
   optional string entity_id = 2;
@@ -33,6 +35,7 @@ message EntityRef {
   optional string label = 3;
   optional int32 map_id = 4;
   rimgovernor.common.v1.Cell position = 5;
+  SnapshotRef snapshot = 6; // Required when usable as an operation EntityPrecondition.
 }
 message TargetRef { oneof target { EntityRef entity = 1; rimgovernor.common.v1.Cell cell = 2; rimgovernor.common.v1.Unavailable unavailable = 3; } }
 message Quantity { optional string def_name = 1; optional int64 units = 2; }
@@ -73,6 +76,7 @@ message PawnHealth {
   optional uint32 hidden_hediffs = 12; optional bool stable_rest_eligible = 13; optional bool should_seek_medical_rest = 14;
   optional bool urgent_medical_rest = 15; optional string bed_id = 16; repeated SurgeryBill surgery_bills = 17;
   repeated ReadIssue issues = 18;
+  SnapshotRef snapshot = 19;
 }
 message GearItem {
   EntityRef thing = 1; optional string stuff = 2; optional string quality = 3; optional int32 hit_points = 4; optional int32 max_hit_points = 5;
@@ -124,6 +128,22 @@ message PawnState {
   PawnSettings settings = 26; PawnSocial social = 27; AnimalState animal_state = 28;
   optional bool predator = 29; optional double manhunter_on_damage_chance = 30; EntityRef nearest_colonist = 31;
   optional double nearest_colonist_distance = 32; repeated ReadIssue issues = 33;
+  DraftClaimObservation draft_claim = 34;
+  optional string owned_bed_id = 35;
+}
+message NoOwnedDraftClaim {}
+message OwnedDraftClaim {
+  optional string claim_id = 1;
+  rimgovernor.authority.v1.Owner owner = 2;
+  SnapshotRef pawn_snapshot = 3;
+}
+// A drafted pawn may have no controller claim. Missing owner is not ours.
+message DraftClaimObservation {
+  oneof state {
+    OwnedDraftClaim owned = 1;
+    NoOwnedDraftClaim unowned = 2;
+    rimgovernor.common.v1.Unavailable unavailable = 3;
+  }
 }
 message PawnFilter {
   repeated string ids = 1; optional string name_contains = 2; optional bool colonist = 3; optional bool prisoner = 4;
@@ -244,7 +264,7 @@ message CellState {
   optional bool storage_empty = 15; optional bool supports_light = 16; repeated ReadIssue issues = 17;
 }
 message CellFields { optional bool terrain = 1; optional bool roof = 2; optional bool visibility = 3; optional bool traversal = 4; optional bool zone = 5; optional bool areas = 6; optional bool things = 7; optional bool designations = 8; optional bool room = 9; optional bool growth = 10; }
-message CellsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2; Rectangle region = 3; repeated CellState cells = 4; Completeness completeness = 5; CellFields applied_fields = 6; }
+message CellsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2; Rectangle region = 3; repeated CellState cells = 4; Completeness completeness = 5; CellFields applied_fields = 6; SnapshotRef map_snapshot = 7; }
 message GetCellsRequest { ReadScope scope = 1; oneof selection { Rectangle rectangle = 2; CellSelection exact_cells = 3; } CellFields fields = 4; rimgovernor.common.v1.PageRequest page = 5; }
 message CellSelection { repeated rimgovernor.common.v1.Cell cells = 1; }
 message GetCellsReply { oneof outcome { CellsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
@@ -275,7 +295,18 @@ message RoofSupportCell { rimgovernor.common.v1.Cell cell = 1; optional string r
 message RoofSupportSnapshot { rimgovernor.common.v1.ObservationContext context = 1; EntityRef target = 2; repeated RoofSupportCell roofs = 3; Completeness completeness = 4; }
 message RoofSupportRequest { ReadScope scope = 1; optional string target_id = 2; }
 message RoofSupportReply { oneof outcome { RoofSupportSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message WallUpgradeSite { EntityRef target = 1; optional bool target_present = 2; optional bool player_owned = 3; repeated rimgovernor.common.v1.Cell backup_cells = 4; repeated Quantity costs = 5; repeated ResourceStock materials = 6; repeated EntityRef workers = 7; optional string blocker = 8; optional bool designated = 9; optional string removal_id = 10; optional int64 completed_tick = 11; }
+message WallMaterialOption { optional string stuff = 1; repeated Quantity costs = 2; }
+message WallUpgradeSite {
+  EntityRef target = 1; optional bool target_present = 2; optional bool player_owned = 3;
+  repeated rimgovernor.common.v1.Cell backup_cells = 4; repeated Quantity costs = 5;
+  repeated ResourceStock materials = 6; repeated EntityRef workers = 7; optional string blocker = 8;
+  optional bool designated = 9; optional string removal_id = 10; optional int64 completed_tick = 11;
+  SnapshotRef snapshot = 12; rimgovernor.common.v1.Cell normal = 13;
+  BuildingState original = 14; BuildingState left_support = 15; BuildingState right_support = 16;
+  repeated BuildingState completed_backups = 17; BuildingState replacement = 18;
+  repeated WallMaterialOption replacement_materials = 19;
+  CellsSnapshot geometry = 20; RoofSupportSnapshot roof_support = 21;
+}
 message WallUpgradeSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated WallUpgradeSite sites = 2; Completeness completeness = 3; }
 message WallUpgradeSitesRequest { ReadScope scope = 1; optional string target_id = 2; rimgovernor.common.v1.PageRequest page = 3; }
 message WallUpgradeSitesReply { oneof outcome { WallUpgradeSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
@@ -285,12 +316,16 @@ message ResourceSource {
   optional double distance = 9; optional bool depleted = 10; optional int64 remaining = 11; optional int64 pending_yield = 12;
 }
 message StorageCapacity { optional string resource = 1; optional int64 capacity = 2; optional int64 stored = 3; optional int32 stack_limit = 4; repeated EntityRef haulers = 5; repeated string blockers = 6; repeated ReadIssue issues = 7; }
-message ExtractionDevelopment { repeated BuildingState scanners = 1; repeated BuildingState drills = 2; repeated ResourceSource deposits = 3; repeated DefinitionRef definitions = 4; repeated Quantity costs = 5; repeated string research = 6; Completeness completeness = 7; }
+message ExtractionWorkType { DefinitionRef definition = 1; repeated DefinitionRef work_givers = 2; }
+message ExtractionSite { SnapshotRef snapshot = 1; optional string def_name = 2; rimgovernor.common.v1.Cell cell = 3; optional string rotation = 4; optional string resource = 5; optional bool eligible = 6; optional double power_w = 7; optional double spare_power_w = 8; repeated ExtractionWorkType work_types = 9; }
+message OwnedDrill { SnapshotRef snapshot = 1; optional string def_name = 2; optional string thing_id = 3; optional string pending_id = 4; rimgovernor.common.v1.Cell cell = 5; optional string resource = 6; optional int64 recovered = 7; optional int64 stock_target = 8; optional bool missing = 9; optional bool depleted = 10; }
+message DrillObservation { BuildingState building = 1; optional string resource = 2; optional bool available = 3; optional bool flick_designated = 4; repeated string flick_worker_ids = 5; optional double progress_fraction = 6; }
+message ExtractionDevelopment { repeated BuildingState scanners = 1; repeated BuildingState drills = 2; repeated ResourceSource deposits = 3; repeated DefinitionRef definitions = 4; repeated Quantity costs = 5; repeated string research = 6; Completeness completeness = 7; repeated ExtractionSite sites = 8; repeated OwnedDrill owned = 9; repeated DrillObservation drill_state = 10; optional bool scanners_active = 11; ExtractionWorkType flick_work_type = 12; }
 message ResourceSourcesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; optional string resource = 2; repeated ResourceSource sources = 3; StorageCapacity storage = 4; ExtractionDevelopment development = 5; Completeness completeness = 6; }
 message ResourceSourcesRequest { ReadScope scope = 1; optional string resource = 2; optional bool include_development = 3; rimgovernor.common.v1.PageRequest page = 4; }
 message ResourceSourcesReply { oneof outcome { ResourceSourcesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message HandlerState { EntityRef pawn = 1; optional int32 skill = 2; optional int32 priority = 3; optional bool eligible = 4; optional string reason = 5; }
-message HusbandryAnimal { PawnState pawn = 1; SnapshotRef settings_snapshot = 2; AnimalState animal = 3; repeated HandlerState handlers = 4; }
+message HusbandryAnimal { PawnState pawn = 1; SnapshotRef settings_snapshot = 2; AnimalState animal = 3; repeated HandlerState handlers = 4; SnapshotRef census_snapshot = 5; }
 message HusbandrySnapshot { rimgovernor.common.v1.ObservationContext context = 1; SnapshotRef census = 2; repeated HusbandryAnimal animals = 3; Completeness completeness = 4; }
 message HusbandryRequest { ReadScope scope = 1; rimgovernor.common.v1.PageRequest page = 2; }
 message HusbandryReply { oneof outcome { HusbandrySnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
@@ -300,7 +335,7 @@ message WasteSnapshot { rimgovernor.common.v1.ObservationContext context = 1; re
 message WasteRequest { ReadScope scope = 1; repeated string unwanted_ids = 2; repeated string bury_ids = 3; rimgovernor.common.v1.PageRequest page = 4; }
 message WasteReply { oneof outcome { WasteSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message RecoveryRestriction { EntityRef pawn = 1; optional string area_id = 2; optional bool leased = 3; optional int64 until_tick = 4; }
-message RecoveryArea { optional string id = 1; repeated rimgovernor.common.v1.Cell cells = 2; optional bool roofed = 3; Completeness completeness = 4; }
+message RecoveryArea { optional string id = 1; repeated rimgovernor.common.v1.Cell cells = 2; optional bool roofed = 3; Completeness completeness = 4; SnapshotRef snapshot = 5; }
 message RecoverySnapshot { rimgovernor.common.v1.ObservationContext context = 1; optional bool roof_hazard = 2; repeated RecoveryArea areas = 3; repeated RecoveryRestriction restrictions = 4; repeated BuildingState buildings = 5; Completeness completeness = 6; }
 message RecoveryRequest { ReadScope scope = 1; rimgovernor.common.v1.PageRequest page = 2; }
 message RecoveryReply { oneof outcome { RecoverySnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
@@ -308,7 +343,7 @@ message PopulationPerson { PawnState pawn = 1; optional bool admitted = 2; optio
 message PopulationSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PopulationPerson persons = 2; repeated DefinitionRef supported_interactions = 3; Completeness completeness = 4; }
 message PopulationRequest { ReadScope scope = 1; rimgovernor.common.v1.PageRequest page = 2; }
 message PopulationReply { oneof outcome { PopulationSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message Settlement { optional string id = 1; optional string label = 2; optional string faction_id = 3; optional string faction_def_name = 4; optional string relation = 5; optional int32 goodwill = 6; optional int32 tile = 7; optional double distance_tiles = 8; optional bool player = 9; }
+message Settlement { optional string id = 1; optional string label = 2; optional string faction_id = 3; optional string faction_def_name = 4; optional string relation = 5; optional int32 goodwill = 6; optional int32 tile = 7; optional double distance_tiles = 8; optional bool player = 9; SnapshotRef snapshot = 10; SnapshotRef faction_snapshot = 11; }
 message WorldTile {
   optional int32 tile = 1; DefinitionRef biome = 2; optional string hilliness = 3; optional double elevation = 4;
   optional double latitude = 5; optional double longitude = 6; optional double rainfall = 7; optional double swampiness = 8;
@@ -328,8 +363,8 @@ message CaravanState {
 }
 message QuestTradeRequest { optional string resource = 1; optional int64 count = 2; optional int32 destination = 3; }
 message QuestReward { optional uint32 choice_index = 1; optional string kind = 2; optional string label = 3; repeated Quantity items = 4; }
-message QuestState { optional string id = 1; optional string label = 2; optional string description = 3; optional string state = 4; optional int64 accepted_tick = 5; optional int64 expires_in_ticks = 6; optional bool requires_accepter = 7; optional bool can_accept = 8; repeated EntityRef eligible_pawns = 9; repeated QuestTradeRequest trade_requests = 10; repeated QuestReward rewards = 11; repeated ReadIssue issues = 12; }
-message FactionState { optional string id = 1; optional string label = 2; optional bool player = 3; optional bool hostile = 4; optional int32 goodwill = 5; optional string relation = 6; }
+message QuestState { optional string id = 1; optional string label = 2; optional string description = 3; optional string state = 4; optional int64 accepted_tick = 5; optional int64 expires_in_ticks = 6; optional bool requires_accepter = 7; optional bool can_accept = 8; repeated EntityRef eligible_pawns = 9; repeated QuestTradeRequest trade_requests = 10; repeated QuestReward rewards = 11; repeated ReadIssue issues = 12; SnapshotRef snapshot = 13; }
+message FactionState { optional string id = 1; optional string label = 2; optional bool player = 3; optional bool hostile = 4; optional int32 goodwill = 5; optional string relation = 6; SnapshotRef snapshot = 7; }
 message WorldMap { optional int32 id = 1; optional int32 tile = 2; optional bool home = 3; optional string label = 4; repeated PawnState pawns = 5; repeated ResourceStock stored_items = 6; Completeness completeness = 7; }
 message CaravanAssembly { optional string id = 1; optional int32 map_id = 2; optional string status = 3; optional bool gathering_items = 4; repeated EntityRef pawns = 5; }
 message WorldProgressionSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated WorldMap maps = 2; repeated FactionState factions = 3; repeated CaravanState caravans = 4; repeated CaravanAssembly assemblies = 5; repeated QuestState quests = 6; Completeness completeness = 7; }
@@ -350,7 +385,7 @@ message PawnSettingsReply { oneof outcome { PawnSettings observed = 1; rimgovern
 message ResolveTargetSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated TargetRef candidates = 2; optional bool unique = 3; Completeness completeness = 4; }
 message ResolveTargetRequest { ReadScope scope = 1; oneof query { string entity_id = 2; string exact_name = 3; rimgovernor.common.v1.Cell cell = 4; } }
 message ResolveTargetReply { oneof outcome { ResolveTargetSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message PackedFurnitureState { rimgovernor.common.v1.ObservationContext context = 1; optional string inner_thing_id = 2; optional string packed_thing_id = 3; optional string def_name = 4; optional string stuff = 5; optional string state = 6; rimgovernor.common.v1.Cell position = 7; optional string rotation = 8; EntityRef install_blueprint = 9; optional string reason = 10; }
+message PackedFurnitureState { rimgovernor.common.v1.ObservationContext context = 1; optional string inner_thing_id = 2; optional string packed_thing_id = 3; optional string def_name = 4; optional string stuff = 5; optional string state = 6; rimgovernor.common.v1.Cell position = 7; optional string rotation = 8; EntityRef install_blueprint = 9; optional string reason = 10; SnapshotRef inner_snapshot = 11; SnapshotRef packed_snapshot = 12; }
 message InstallStatusRequest { ReadScope scope = 1; optional string thing_id = 2; }
 message InstallStatusReply { oneof outcome { PackedFurnitureState observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message GearCandidate { GearItem item = 1; optional double gain = 2; optional string reason = 3; optional string blocker = 4; }
@@ -367,15 +402,16 @@ message Trader { EntityRef trader = 1; optional string kind = 2; optional string
 message TradersSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated Trader traders = 2; repeated EntityRef negotiators = 3; repeated BuildingState comms_consoles = 4; Completeness completeness = 5; }
 message TradersRequest { ReadScope scope = 1; rimgovernor.common.v1.PageRequest page = 2; }
 message TradersReply { oneof outcome { TradersSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message TradeLine { optional uint32 index = 1; DefinitionRef definition = 2; optional string stuff = 3; optional string category = 4; optional int64 colony_count = 5; optional int64 trader_count = 6; optional double buy_price = 7; optional double sell_price = 8; optional string buy_price_type = 9; optional string sell_price_type = 10; optional double market_value = 11; optional bool trader_will_trade = 12; optional bool currency = 13; optional bool pawn = 14; optional string pawn_description = 15; optional int64 transfer_count = 16; optional int64 minimum_count = 17; optional int64 maximum_count = 18; optional bool protected_export = 19; repeated string cannot_sell_reasons = 20; }
-message TradeSheet { SnapshotRef snapshot = 1; optional string session_id = 2; EntityRef trader = 3; EntityRef negotiator = 4; optional bool gift_mode = 5; optional bool negotiator_adjacent = 6; optional bool can_trade_now = 7; optional double balance = 8; optional bool colony_can_afford = 9; optional bool trader_has_enough_silver = 10; repeated TradeLine lines = 11; Completeness completeness = 12; }
+message TradeLine { optional uint32 index = 1; DefinitionRef definition = 2; optional string stuff = 3; optional string category = 4; optional int64 colony_count = 5; optional int64 trader_count = 6; optional double buy_price = 7; optional double sell_price = 8; optional string buy_price_type = 9; optional string sell_price_type = 10; optional double market_value = 11; optional bool trader_will_trade = 12; optional bool currency = 13; optional bool pawn = 14; optional string pawn_description = 15; optional int64 transfer_count = 16; optional int64 minimum_count = 17; optional int64 maximum_count = 18; optional bool protected_export = 19; repeated string cannot_sell_reasons = 20; optional string line_id = 21; }
+message TradeSheet { SnapshotRef snapshot = 1; optional string session_id = 2; EntityRef trader = 3; EntityRef negotiator = 4; optional bool gift_mode = 5; optional bool negotiator_adjacent = 6; optional bool can_trade_now = 7; optional double balance = 8; optional bool colony_can_afford = 9; optional bool trader_has_enough_silver = 10; repeated TradeLine lines = 11; Completeness completeness = 12; optional string deal_signature = 13; }
 message TradeSheetRequest { ReadScope scope = 1; optional string session_id = 2; optional bool include_untradeable = 3; optional bool only_changed = 4; optional string name_contains = 5; rimgovernor.common.v1.PageRequest page = 6; }
 message TradeSheetReply { oneof outcome { TradeSheet observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message TradeStatus { rimgovernor.common.v1.ObservationContext context = 1; optional string session_id = 2; optional bool active = 3; optional bool departed = 4; optional bool trade_dialog_open = 5; optional int64 opened_at_tick = 6; }
+message TradeStatus { rimgovernor.common.v1.ObservationContext context = 1; optional string session_id = 2; optional bool active = 3; optional bool departed = 4; optional bool trade_dialog_open = 5; optional int64 opened_at_tick = 6; SnapshotRef snapshot = 7; }
 message TradeStatusRequest { ReadScope scope = 1; optional string session_id = 2; }
 message TradeStatusReply { oneof outcome { TradeStatus observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message CaravanPawnEligibility { PawnState pawn = 1; optional bool available = 2; optional string reason = 3; }
-message CaravanCatalog { SnapshotRef snapshot = 1; repeated CaravanPawnEligibility pawns = 2; repeated ResourceStock cargo = 3; repeated WorldRoute routes = 4; repeated Settlement settlements = 5; repeated StorageCapacity return_storage = 6; Completeness completeness = 7; }
+message CargoGroup { optional string group_id = 1; repeated EntityRef items = 2; optional string def_name = 3; optional int64 count = 4; optional double mass = 5; }
+message CaravanCatalog { SnapshotRef snapshot = 1; repeated CaravanPawnEligibility pawns = 2; repeated ResourceStock cargo = 3; repeated WorldRoute routes = 4; repeated Settlement settlements = 5; repeated StorageCapacity return_storage = 6; Completeness completeness = 7; repeated CargoGroup cargo_groups = 8; SnapshotRef return_storage_snapshot = 9; }
 message CaravanCatalogRequest { ReadScope scope = 1; optional int32 destination = 2; rimgovernor.common.v1.PageRequest page = 3; }
 message CaravanCatalogReply { oneof outcome { CaravanCatalog observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
@@ -428,9 +464,9 @@ message HaulRecord { optional string id = 1; optional string source_id = 2; opti
 message HaulingFacts { repeated HaulRecord records = 1; Completeness completeness = 2; }
 message HaulingSection { oneof outcome { HaulingFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message WallRemovalRecord { optional string id = 1; optional string target_id = 2; optional bool complete = 3; optional int64 completed_tick = 4; optional string blocker = 5; optional bool player_owned = 6; optional bool retired = 7; optional bool target_present = 8; optional bool designated = 9; }
-message WallRemovalFacts { repeated WallRemovalRecord records = 1; Completeness completeness = 2; }
+message WallRemovalFacts { repeated WallRemovalRecord records = 1; Completeness completeness = 2; SnapshotRef snapshot = 3; }
 message WallRemovalSection { oneof outcome { WallRemovalFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
-message HomeCoverageTarget { optional string id = 1; optional string shape_token = 2; optional uint32 missing_cells = 3; optional uint32 excluded_cells = 4; optional string blocker = 5; repeated rimgovernor.common.v1.Cell cells = 6; }
+message HomeCoverageTarget { optional string id = 1; optional string shape_token = 2; optional uint32 missing_cells = 3; optional uint32 excluded_cells = 4; optional string blocker = 5; repeated rimgovernor.common.v1.Cell cells = 6; SnapshotRef snapshot = 7; }
 message HomeCoverageFacts { optional int64 revision = 1; repeated HomeCoverageTarget targets = 2; Completeness completeness = 3; }
 message HomeCoverageSection { oneof outcome { HomeCoverageFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message UpkeepFacts {
@@ -472,7 +508,36 @@ message ObservationBatchSnapshot {
 message ObservationBatchRequest { ReadScope scope = 1; StatusRequest status = 2; ListPawnsRequest pawns = 3; ListSuppliesRequest supplies = 4; ListBuildingsRequest buildings = 5; ListRoomsRequest rooms = 6; ListZonesRequest zones = 7; }
 message ObservationBatchReply { oneof outcome { ObservationBatchSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
+// New read producer required: existing Policy(...) is a replacement command.
+message ProductionPolicySnapshot {
+  SnapshotRef snapshot = 1;
+  repeated Quantity floors = 2;
+  repeated Quantity commitments = 3;
+  repeated string stopped_defs = 4;
+  repeated OwnedDrill drills = 5;
+  optional bool commitments_active = 6;
+  Completeness completeness = 7;
+}
+message ProductionPolicyRequest { ReadScope scope = 1; rimgovernor.common.v1.PageRequest page = 2; }
+message ProductionPolicyReply { oneof outcome { ProductionPolicySnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
+message ArchitectCategory { optional string id = 1; optional string label = 2; optional bool visible = 3; optional bool enabled = 4; optional uint32 designator_count = 5; }
+message ArchitectDesignator {
+  optional string id = 1; optional string category_id = 2; optional string label = 3;
+  optional string buildable_def_name = 4; optional string buildable_label = 5;
+  optional string application_kind = 6; optional bool supports_cell = 7; optional bool supports_rectangle = 8;
+  optional bool visible = 9; optional bool enabled = 10; optional string disabled_reason = 11;
+}
+message ArchitectCategoriesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated ArchitectCategory categories = 2; Completeness completeness = 3; }
+message ArchitectCategoriesRequest { ReadScope scope = 1; optional bool include_empty = 2; optional bool include_hidden = 3; rimgovernor.common.v1.PageRequest page = 4; }
+message ArchitectCategoriesReply { oneof outcome { ArchitectCategoriesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
+message ArchitectDesignatorsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated ArchitectDesignator designators = 2; Completeness completeness = 3; }
+message ArchitectDesignatorsRequest { ReadScope scope = 1; optional string category_id = 2; optional bool include_hidden = 3; rimgovernor.common.v1.PageRequest page = 4; }
+message ArchitectDesignatorsReply { oneof outcome { ArchitectDesignatorsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
+
 service Observations {
+  rpc ReadProductionPolicy(ProductionPolicyRequest) returns (ProductionPolicyReply);
+  rpc ListArchitectCategories(ArchitectCategoriesRequest) returns (ArchitectCategoriesReply);
+  rpc ListArchitectDesignators(ArchitectDesignatorsRequest) returns (ArchitectDesignatorsReply);
   rpc ReadStatus(StatusRequest) returns (StatusReply);
   rpc ReadObservationBatch(ObservationBatchRequest) returns (ObservationBatchReply);
   rpc ListPawns(ListPawnsRequest) returns (ListPawnsReply);

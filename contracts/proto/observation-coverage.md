@@ -15,8 +15,9 @@ not output-type authority. The Go team's consolidated consumer requirements cove
 ## Required semantic validation
 
 - Every reply selects exactly one observed, unavailable, or request failure case.
-  Observed snapshots have actual identity/tick context. Expected scope is checked
-  before reading; mismatch is stale, never silently rebound to the current map.
+  Observed snapshots have actual identity/tick/generation context. ReadScope checks
+  expected identity only; advancing ticks or revoked authority never blocks
+  reconciliation reads. Identity mismatch is stale, never silently rebound.
 - Optional facts distinguish unavailable from observed zero/false. An omitted
   requested fact or repeated section requires a `ReadIssue` naming its proto field
   path. Omitted unrequested detail is not an empty observed section. Known-empty
@@ -29,7 +30,8 @@ not output-type authority. The Go team's consolidated consumer requirements cove
   stock count, candidate, or diagnostic target can claim completeness.
 - A whole serialized reply is at most 1 MiB. Overflow returns explicit unavailable,
   never success containing silently removed fields. Text follows common bounds.
-  Counts are nonnegative; ratios and all measurements are finite. Units are named
+  Stock/count quantities are nonnegative; trade transfer/minimum/maximum counts
+  are signed (negative sells). Ratios and all measurements are finite. Units are named
   on facts; a percentage/fraction conversion is an adapter responsibility.
 - Completeness is scoped to the exact query. `matched`, `returned`, `filtered`, and
   `unreadable` have distinct meanings. `complete=true` requires every matched row,
@@ -144,9 +146,15 @@ their own narrow typed receipts, without an import cycle.
   output schemas. Target details use the corresponding entity read after resolution.
 - get_camera_state, get_selection_semantics, list_selected_gizmos,
   get_screen_targets, get_ui_state, get_ui_layout, list_main_tabs,
-  list_inspect_tabs, list_architect_categories, list_architect_designators,
+  list_inspect_tabs,
   list_letters, list_messages, list_alerts, take_screenshot are presentation-owned.
   Its schema covers exact selected IDs, targets and capture context for readback.
+- list_architect_categories and list_architect_designators map to this package's
+  ListArchitectCategories/ListArchitectDesignators. bridge_game.py:137-151 consumes
+  exact designator ID, category, buildable definition/label, application kind and
+  cell/rectangle support. Visibility/availability are explicit optional facts.
+  Empty SDK output schemas still require producer verification; no generic
+  architect execution capability is introduced.
 - games_status/names/detail/start/stop/connect and save/load are lifecycle/host
   ownership; no second process manager. Clock journal readback is clock-owned.
 - Legacy aggregate rows, sparse-default encodings, room-grid indexes, CSV geometry,
@@ -187,3 +195,79 @@ not permission to substitute generic payloads:
 
 Validation for this slice is official protoc 30 descriptor/C# generation and
 net472 generated-source compilation, not adapter or gameplay acceptance.
+
+## Obtainable operation preconditions
+
+Every `EntityRef.snapshot` used for a write is required, context-scoped and bound
+to the exact ID. Lightweight label references may omit it, but then cannot supply
+an EntityPrecondition. Missing producer support yields unavailable; tokens are
+never fabricated from a label, position, tick alone, or public protobuf bytes.
+Tokens cover the relevant native facts and domain-specific settings, not authority.
+
+| Operations precondition | Read path |
+|---|---|
+| CancelConstruction.target | ListBuildings.building.snapshot or GetCells.thing.snapshot |
+| InstallBuilding.packed_or_inner | ReadInstallStatus.packed_snapshot or inner_snapshot, matched to selected ID |
+| AcquireResource.source | ListResourceSources.source.snapshot |
+| DesignateThing.target | GetCells.thing.snapshot / ListPawns.pawn.snapshot / ListBuildings.building.snapshot |
+| PatchBuilding.building | ReadBuildingSettings.snapshot (same building ID) |
+| PatchPawn.pawn | ReadPawnSettings.snapshot (same pawn ID) |
+| AddBill.bench; Patch/Delete/MoveBill.bill | ReadBills.bench.snapshot and BillState.id; whole ordered stack token |
+| SelectResearch.expected_snapshot_token | ReadResearch.snapshot |
+| SetProductionPolicy.expected_snapshot_token | ReadProductionPolicy.snapshot |
+| CreateZone.expected_map_snapshot_token | GetCells.map_snapshot, bound to exact inspected map/geometry query |
+| DeleteZone/EditZoneCells/RepairZone/PatchStockpile/PatchGrowing.zone | ListZones.zone.snapshot |
+| ExtendHome.target/shape/revision | ReadColonyFacts.upkeep.home_coverage.target.snapshot/shape_token and revision |
+| AssignBed.pawn/bed/expected_previous_bed | ListPawns.pawn.snapshot; ListBuildings.building.snapshot; pawn settings/owned bed readback |
+| RemoveWall.wall/expected_site_snapshot_token | ListWallUpgradeSites.target.snapshot and site.snapshot, exact geometry below |
+| ReleaseWallRemovals.expected_snapshot_token | ReadColonyFacts.upkeep.wall_removal.snapshot |
+| RecoveryArea.pawn/area | ListPawns.pawn.snapshot; ReadRecovery.area.snapshot |
+| RecoverService.target/pawn | ReadRecovery.building.snapshot; ListPawns.pawn.snapshot |
+| ManageWaste.target/pawn | ReadWaste.thing.snapshot; ListPawns.pawn.snapshot |
+| RelieveNeed.pawn/job/schedule | ListPawns.pawn.snapshot, JobEvidence, PawnSettings.schedule |
+| ImproveGear.pawn/target/loadout | ReadGear.pawn.snapshot, candidate.item.thing.snapshot, GearLoadout.snapshot |
+| QueueSurgery.patient/health/care | ListPawns.pawn.snapshot, PawnHealth.snapshot, PawnSettings.medical_care; ReadMedicalCatalog snapshot for preparation |
+| SetAnimalTraining/SlaughterAnimal.animal/census | ReadHusbandry.pawn.snapshot, animal.census_snapshot; settings snapshot separate |
+| SetPrisonerInteraction.pawn | ReadPopulation.pawn.snapshot and current interaction |
+| SetDrafted/MovePawn/AttackTarget/PawnTargetOrder | ListPawns.pawn.snapshot; exact target snapshot from ResolveTarget/GetCells/entity reads |
+| OpenTrade.trader/negotiator | ListTraders.trader.snapshot/negotiator.snapshot |
+| SetTradeLines/AcceptTrade/EndTrade.session | ReadTradeSheet.snapshot or ReadTradeStatus.snapshot; exact session ID |
+| SetTradeLines.line_id | ReadTradeSheet.lines.line_id, scoped to frozen sheet; not an inferred DefName/index |
+| FormCaravan.catalog/pawns/cargo | ReadCaravanCatalog.snapshot; pawn IDs; cargo_groups.group_id |
+| TravelCaravan/GiftCaravanSilver/FulfillQuest.caravan | ReadWorldProgression.caravan.snapshot |
+| GiftCaravanSilver.faction | ReadWorldProgression.faction.snapshot or ReadWorld.settlement.faction_snapshot |
+| AcceptQuest/FulfillQuest.quest | ReadWorldProgression.quest.snapshot; exact eligible accepter/reward choice |
+| ReleaseOwnedDraft | ListPawns.draft_claim.owned claim_id/Owner and pawn_snapshot; known unowned differs from unavailable |
+
+PlaceBuilding uses its placement preview and write authority precondition; it has
+no separate EntityPrecondition. Preview preparation return-storage/catalog tokens
+are also available from CaravanCatalog.return_storage_snapshot/MedicalCatalog.
+
+New producer obligations are explicit:
+
+- ProductionPolicyState.cs stores map-scoped Floors, Commitments and Stopped;
+  MiningState.cs:61-74 stores DrillingRecord definition/resource/IDs/cell/recovered/
+  Target. ReadProductionPolicy reads these without invoking the replacement
+  Policy command or lazily creating state. Snapshot covers all four replacement
+  collections; commitments_active reflects native supervision semantics.
+- ExtractionDevelopment.cs:57-60 provides site definition/cell/rotation/resource,
+  power/spare power and work types. ResourceAcquisitionTool.cs:83-89 and
+  MiningState.cs supply owned/pending/current drill IDs, recovered units, target,
+  missing/depleted state. ExtractionDevelopment now carries these concrete facts;
+  existing native eight-site/40-deposit caps need explicit paging.
+- WallUpgradeTool.cs:232-262 provides wall anchor/normal/left/right supports and
+  backup cells, plus allowed replacement material costs. Site snapshots must also
+  expose original/support/backups/replacement BuildingState (old/new stuff and
+  exact occupied cells), cell terrain/roof/enclosure and RoofSupportSnapshot.
+  Some of these facts are currently private admission checks; the new read producer
+  must project them, never substitute a token alone for verifiable geometry.
+- Existing DraftOwnership supplies an opaque claim but not typed owner/direction.
+  The new native authority-aware claim producer must record and expose exact
+  claim_id, original Owner(controller session, player direction), and pawn scope.
+  Boolean drafted does not prove ownership; unowned and unavailable are distinct.
+  Cleanup compares the unchanged claim even after authority is revoked.
+- The existing trade/catalog producers use positional rows and transferable groups.
+  The new snapshot producer allocates opaque sheet-scoped line IDs and catalog-scoped
+  group IDs attached to exact native rows. IDs cannot be derived from labels or
+  definition names. Entity and map snapshot production is likewise new adapter
+  work backed by actual native facts, not claimed existing wire behavior.
