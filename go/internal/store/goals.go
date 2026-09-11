@@ -17,10 +17,12 @@ type GoalState struct {
 	Goal     domain.Goal
 	Revision uint64
 	Methods  []domain.GoalMethod
+	Retired  bool
 }
 
 func initializeGoals(ctx context.Context, tx *sql.Tx) error {
-	_, err := tx.ExecContext(ctx, `CREATE TABLE goals(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL) STRICT;
+	_, err := tx.ExecContext(ctx, `CREATE TABLE goals(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1))) STRICT;
+CREATE INDEX active_goals ON goals(id) WHERE retired=0;
 CREATE TABLE goal_methods(goal_id TEXT NOT NULL REFERENCES goals(id), epoch TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), PRIMARY KEY(goal_id,epoch,method_id)) STRICT;
 CREATE TABLE routine_review(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;`)
 	return err
@@ -49,7 +51,7 @@ func createGoal(ctx context.Context, tx *sql.Tx, g domain.Goal) error {
 		return err
 	}
 	var count int
-	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM goals").Scan(&count); err != nil {
+	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM goals WHERE retired=0").Scan(&count); err != nil {
 		return err
 	}
 	if count >= 256 {
@@ -69,7 +71,7 @@ func loadGoal(ctx context.Context, tx *sql.Tx, id domain.GoalID) (GoalState, err
 	var out GoalState
 	var data []byte
 	var revision string
-	if err := tx.QueryRowContext(ctx, "SELECT revision,payload FROM goals WHERE id=?", id).Scan(&revision, &data); err != nil {
+	if err := tx.QueryRowContext(ctx, "SELECT revision,payload,retired FROM goals WHERE id=?", id).Scan(&revision, &data, &out.Retired); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			err = ErrNotFound
 		}
@@ -94,6 +96,9 @@ func loadGoal(ctx context.Context, tx *sql.Tx, id domain.GoalID) (GoalState, err
 	}
 	if out.Goal.ID != id {
 		return GoalState{}, errors.New("goal identity mismatch")
+	}
+	if out.Retired && (out.Goal.Source != domain.AutopilotGoal || out.Goal.Status != domain.GoalInvalidated) {
+		return GoalState{}, errors.New("invalid retired goal")
 	}
 	out.Revision = n
 	rows, err := tx.QueryContext(ctx, "SELECT epoch,method_id,plan_id FROM goal_methods WHERE goal_id=? ORDER BY length(epoch),epoch,method_id", id)
@@ -137,6 +142,9 @@ func (s *Store) LoadGoal(ctx context.Context, id domain.GoalID) (GoalState, erro
 }
 
 func saveGoal(ctx context.Context, tx *sql.Tx, previous GoalState, g domain.Goal) (GoalState, error) {
+	if previous.Retired {
+		return GoalState{}, errors.New("retired goal is read-only")
+	}
 	if g == previous.Goal {
 		return previous, nil
 	}

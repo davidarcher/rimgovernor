@@ -164,6 +164,17 @@ func (s *Store) ReviewRoutine(ctx context.Context, request RoutineReviewRequest)
 		}
 		old[binding.Need] = g
 	}
+	// Keep disabled bindings available for review. An enabled review replaces
+	// invalidated bindings, so their clean history can leave active capacity.
+	retained := map[domain.GoalID]bool{}
+	for _, g := range old {
+		if !request.Enabled || g.Goal.Status != domain.GoalInvalidated {
+			retained[g.Goal.ID] = true
+		}
+	}
+	if err = retireRoutineGoals(ctx, tx, retained); err != nil {
+		return RoutineReviewResult{}, err
+	}
 	r := RoutineReview{Revision: previous.Revision + 1, Snapshot: b, Tick: request.Tick, Enabled: request.Enabled, Latches: needs.Latches}
 	result := RoutineReviewResult{Needs: needs}
 	if !request.Enabled {

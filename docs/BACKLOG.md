@@ -619,8 +619,10 @@ expand these into another nested task tree; remove a row when its outcome is met
   routine FoodDays with animal competition; populated native replay reaches a durable
   food deficit. Crop/patient forecast fields have typed parity, but populated crop-work
   acceptance and further use of these fields remain open.
+  Superseded invalidated autopilot goals now retire from active capacity while
+  retaining immutable history; uncertain effects and cleanup prevent retirement.
   Remaining fact projection (further need inputs and construction
-  costs), goal/reservation-history retirement,
+  costs), plan/method/reservation-history retirement,
   method selection and execution composition remain
   open; these components do not enable orders.
 

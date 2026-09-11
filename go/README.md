@@ -63,8 +63,12 @@ work without needing valid native facts; world/direction changes and tick rewind
 give subsequent goals new identities while preserving old action evidence and
 player cancellations. Unknown threats suspend new routine work until observed safe.
 Manual and direction changes retain recovery targets; world replacement and tick
-rewinds reset latches. Goal and plan catalogs remain bounded; history retirement
-is still required before sustained routine operation.
+rewinds reset latches. Superseded invalidated autopilot goals leave the bounded
+active catalog only after all linked work is observed and cleanup is settled.
+Retired goals remain readable with their original IDs, methods and receipts, and
+cannot be modified or reused. Disabled bindings and player cancellations remain
+retained. Plan and method-history retirement is still required before sustained
+routine execution.
 
 `bridge.ReadColonyFacts` and `observation.DecodeColony` consume the typed native
 core and planning geometry. Missing optional fields remain unknown, and a changed
