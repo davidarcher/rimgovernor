@@ -104,6 +104,9 @@ async def run(root, output, binary, *, go_source, go_sha256):
             assert prepared["success"] and len(prepared["sites"]) == 2
             assert all(prepared[key] == identity[key] for key in identity)
             report["prepared"] = prepared
+            report["prepared_colony"] = await wire(bridge, "prepared-colony", "observations_read_status", {
+                "scope": {"expectedIdentity": identity}, "colonists": True, "threats": True,
+                "colonistDetail": False, "page": {"limit": 256}})
             letter = payload(await evidence.call(bridge, "schedule-letter", "test/interruption_letter", {
                 "definition": "ThreatBig", "after": "none", "label": "Go clock acceptance", "delayTicks": 60}))
             assert letter["success"] and letter["scheduledTick"] == tick + 60
@@ -223,6 +226,9 @@ async def run(root, output, binary, *, go_source, go_sha256):
                     if not report["passed"]:
                         await bridge.connect()
                         await evidence.call(bridge, "failure-operations", "rimbridge/list_operation_events", {"limit": 5000, "includeDiagnostics": True})
+                        await wire(bridge, "failure-clock", "clock_read_status", {"identity": identity})
+                        await wire(bridge, "failure-colony", "observations_read_status", {"scope": {"expectedIdentity": identity},
+                            "colonists": True, "threats": True, "colonistDetail": False, "page": {"limit": 256}})
                     report["stop"] = (await bridge.core("games_stop", gameId=bridge.game_id)).model_dump(mode="json")
             except BaseException as error:
                 report.update(passed=False, cleanup_error=repr(error))
