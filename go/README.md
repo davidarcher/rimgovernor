@@ -112,6 +112,18 @@ and generation evidence without retaining a lease. Runtime integration must pair
 progress with fresh full-owner pawn observations before binding or completing a
 claim; a cleanup call uses the exact journaled pawn token and original claim.
 
+The fresh Go schema stores building and owned-draft submissions under shared
+request headers with separate typed payloads. Draft admission records the exact
+pawn and snapshot token; progress and cleanup evidence commit atomically. Each
+cleanup request receives a durable local sequence before release. Reopening the
+database restores evidence, while dispatch still requires fresh runtime admission
+and live permission. Older Go schema versions are rejected without migration.
+
+Pure draft admission requires a healthy selected colonist, known unowned and
+undrafted state, no forced or queued job, native eligibility and fresh complete
+emergency observations. Known threats can admit this emergency action; unknown
+facts hold it. The executor and service draft paths remain gated by G01.07a.2.
+
 An uncertain HTTP reply is resolved by reading its request ID through
 `GET /api/buildings/submission?requestId=...` or
 `GET /api/buildings/control?requestId=...`. Historical results are separate from

@@ -960,7 +960,7 @@ only intentional small, sanitized regression fixtures belong in source control.
         cleanup responsibility; receipt/lookup binds the immutable original claim.
         Completion and cancellation retain that responsibility. Distinguish a
         proven claim never acquired from a claim released or positively superseded.
-      - [ ] **07a.2c:** fresh typed storage and player submission. Owner: state
+      - [x] **07a.2c:** fresh typed storage and player submission. Owner: state
         agent; depends on 2b. Generalize submitted-plan headers and closed payloads;
         no Python import or schema migration. Journal claim evidence atomically
         with progress. Persist each exact cleanup request, pawn CAS and journal-
@@ -975,7 +975,7 @@ only intentional small, sanitized regression fixtures belong in source control.
         building costs; serialize dispatch and cleanup through the same writer.
         Inspect fresh pawn CAS before journaling the exact release request.
         Late results cannot replace a newer local cleanup sequence.
-        - [ ] **2e.1:** pure exact-pawn draft admission. Owner: policy agent;
+        - [x] **2e.1:** pure exact-pawn draft admission. Owner: policy agent;
           depends on 2b and 07a.1. Require a healthy selected colonist, known
           unowned undrafted state, no current forced or queued job, native
           eligibility and fresh complete emergency facts. Known threats may admit
