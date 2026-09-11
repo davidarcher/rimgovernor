@@ -1,6 +1,6 @@
 {
   "inventory_version": 1,
-  "source_revision": "31a776ae3ca0034e32739f15bfa3336a30ab7047",
+  "source_revision": "ccbd3cda129f7f1257e253d8816e58a813bf546a",
   "scope": "Tracked C# sources in unified native Runtime/Bridge and scripts/fixtures; lexical reference index, not an AST or proof of behavioral coverage.",
   "source_line_policy": "One-based source anchors at source_revision; static matches include methods and constructors, reflection matches include helper use and interop. Read the full source declaration before changing ownership.",
   "rows": [
@@ -2026,7 +2026,7 @@
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativePawnDetails.cs",
       "compilation": "production-bridge",
-      "source_sha256": "2fa6a3369bbe73b7dd68ac07c047c50e43b4311319b34a352d2d55bd3b675491",
+      "source_sha256": "e06298f1dd6f3fddcfe4bbfbaf3bb800c64f4a9c15215c25e0b62bd4229c1381",
       "owner": "N01.03 native pawn observations owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify complete scoped pawn facts, exact intersecting filters, explicit unavailable details and read invariance in fresh native games.",
@@ -2036,15 +2036,16 @@
         14,
         24,
         50,
-        112,
-        140,
-        157,
-        184,
-        212,
-        236,
-        237,
-        238,
-        239
+        113,
+        141,
+        158,
+        195,
+        223,
+        247,
+        248,
+        253,
+        254,
+        255
       ],
       "reflection_boundary_lines": [],
       "patch_registration_lines": []
@@ -2052,26 +2053,26 @@
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativePawnObservationTools.cs",
       "compilation": "production-bridge",
-      "source_sha256": "0973e2c5aa1e5d4419f258ac5f50fde0a389db4d9551e793be3c5705b92874ae",
+      "source_sha256": "65013c9c7b7d7d35d2b5850eeefdf46223247de13f824ea1e9997b6ecc572a52",
       "owner": "N01.03 native pawn observations owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify complete scoped pawn facts, exact intersecting filters, explicit unavailable details and read invariance in fresh native games.",
       "static_token_lines": [
-        56,
-        70,
-        84,
-        121,
+        57,
+        71,
+        85,
         122,
-        126,
+        123,
         127,
         128,
-        132,
+        129,
         133,
         134,
         135,
         136,
         137,
-        138
+        138,
+        139
       ],
       "reflection_boundary_lines": [],
       "patch_registration_lines": []

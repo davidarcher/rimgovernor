@@ -1243,6 +1243,13 @@ main. Native package and Go production cutover remain independent.
   trader stock and delivered construction materials; they do not prove trading or
   production availability beyond the stated census scope.
 
+  Bounded pawn reads cover exact intersecting filters, known false values and
+  explicit detail availability for health, needs, gear, biography, work, schedules
+  and animal training/production. Headless and rendered acceptance compares complete
+  colonist/animal censuses and native details, verifies refusal bounds, and preserves
+  paused identity/ticks. Social detail, entity CAS and draft ownership remain
+  unsupported; corpse and additional populated detail fixtures remain open.
+
 - [ ] **N01.04 — Typed guarded operations.** Native operations owner with G01 Hands.
   Start with ordinary construction through admission, dry-run, receipt and observed
   pawn completion. Follow with settings/bills/zones, resources/upkeep, medical,

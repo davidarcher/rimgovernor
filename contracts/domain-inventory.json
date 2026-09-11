@@ -6694,7 +6694,7 @@
   ],
   "native_surface": {
     "version": 1,
-    "source_revision": "31a776ae3ca0034e32739f15bfa3336a30ab7047",
+    "source_revision": "ccbd3cda129f7f1257e253d8816e58a813bf546a",
     "scope": "Current repository-owned native Runtime/Bridge exports, generated Protobuf compile inputs and conditional fixtures. Historical Python consumer inventory remains at its independent source_revision. Installed SDK/GABS exports require actual discovery.",
     "evidence_links": "domain_item_id reuses existing G01 owner, fixtures and native_scenarios without copying Python call-site lists. Empty local evidence lists preserve uncovered acceptance. schema_owner_chunk assigns the cross-language schema owner; native_owner_chunk owns typed conversion or fixture isolation.",
     "variant_contract": "source_baseline.exports[].declaration retains the complete exported signature, Tool/ToolParameter/ToolResponse attributes, documented string variants, optional selectors and defaults. Source fingerprints detect implementation changes. Runtime branches, aliases and payload keys still require behavioral schema and discovery acceptance.",
@@ -7811,7 +7811,7 @@
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativePawnObservationTools.cs",
           "line": 19,
           "declaration": "[Tool(\"rimgovernor/observations_list_pawns\", Title = \"Read map pawns\",\n            Description = \"Official ListPawnsRequest ProtoJSON. Current map spawned pawns; includeDead also includes inner pawns of spawned corpses. Filters intersect, exact IDs, case-insensitive label substring, Chebyshev distance to another live colonist. All detail families default requested; unsupported fields carry issues. Page limit1..256 is a whole-query bound, no cursors or truncation.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official observations ListPawnsReply ProtoJSON.\", Always = true)]\n        public async Task<object> ListPawns(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Raw value must be a ListPawnsRequest ProtoJSON string.\")] object? request = null)",
-          "source_sha256": "0973e2c5aa1e5d4419f258ac5f50fde0a389db4d9551e793be3c5705b92874ae"
+          "source_sha256": "65013c9c7b7d7d35d2b5850eeefdf46223247de13f824ea1e9997b6ecc572a52"
         },
         {
           "name": "rimgovernor/observations_list_supplies",
@@ -9367,7 +9367,9 @@
           "contracts/tests/native-pawn-observations/Program.cs",
           "contracts/tests/native-proto-observations/Program.cs"
         ],
-        "native_scenarios": [],
+        "native_scenarios": [
+          "scripts/native_pawn_acceptance.py"
+        ],
         "status": "pending",
         "uncovered_acceptance": [
           "Verify actual complete scoped pawn observations and exact filters, preserving unknown facts and paused identity."
