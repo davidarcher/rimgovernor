@@ -22,6 +22,50 @@ def outcome(reply, case):
     return reply[case]
 
 
+def identifier(value):
+    assert isinstance(value, str) and value.strip() and "\0" not in value
+    try:
+        assert len(value.encode("utf8")) <= 256
+    except UnicodeEncodeError as error:
+        raise AssertionError("Identifier contains invalid Unicode") from error
+
+
+def draft_control(row, context):
+    pawn = row["pawn"]
+    identifier(pawn["id"])
+    claim = row["draftClaim"]
+    assert len(claim) == 1 and next(iter(claim)) in {"owned", "unowned", "unavailable"}, row
+    reference = pawn.get("snapshot")
+    # This fresh-game gate requires the integrated live colonist producer to work;
+    # an explicit failure is evidence, but cannot silently pass as implementation.
+    live_colonist = row["colonist"] is True and row["dead"] is False and pawn["mapId"] == context["identity"]["mapId"]
+    if "unavailable" in claim:
+        assert "snapshot" not in pawn and not live_colonist, row
+        unavailable = claim["unavailable"]
+        assert unavailable["reason"] in {"UNAVAILABLE_REASON_NOT_APPLICABLE", "UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING"}, row
+        if row["animal"] is True:
+            assert unavailable["reason"] == "UNAVAILABLE_REASON_NOT_APPLICABLE", row
+        assert any(issue["field"] == "pawn.snapshot" and issue["unavailable"] == unavailable for issue in row["issues"]), row
+    else:
+        assert isinstance(reference, dict) and set(reference) == {"context", "entityId", "token"}, row
+        assert reference["entityId"] == pawn["id"] and reference["context"] == context, row
+        identifier(reference["token"])
+        assert not any(issue["field"] == "pawn.snapshot" for issue in row.get("issues", [])), row
+        if "owned" in claim:
+            owned = claim["owned"]
+            identifier(owned["claimId"])
+            assert owned["pawnSnapshot"] == reference and row["drafted"] is True, row
+            owner = owned["owner"]
+            identifier(owner["controllerSessionId"])
+            direction = owner["playerDirection"]
+            assert isinstance(direction, str) and direction.isascii() and direction.isdecimal()
+            assert not direction.startswith("0") and 1 <= int(direction) <= 18446744073709551615
+        else:
+            assert claim["unowned"] == {}, row
+    for section in ("health", "settings"):
+        assert "snapshot" not in row.get(section, {}), row
+
+
 def rows(snapshot, expected_context=None):
     if expected_context is not None:
         assert snapshot["context"] == expected_context
@@ -33,8 +77,7 @@ def rows(snapshot, expected_context=None):
     assert int(counts["matched"]) == int(counts["returned"]) == len(result), counts
     assert int(counts["unreadable"]) == 0 and int(counts["filtered"]) >= 0, counts
     for row in result:
-        assert "snapshot" not in row["pawn"], row
-        assert row["draftClaim"]["unavailable"]["reason"] == "UNAVAILABLE_REASON_UNSUPPORTED", row
+        draft_control(row, snapshot["context"])
     return result
 
 
@@ -78,7 +121,7 @@ def compare_details(typed, legacy):
 async def run(root: Path, output: Path, *, headless=True):
     output.mkdir(parents=True, exist_ok=False)
     evidence, report = Evidence(output), {"passed": False, "headless": headless,
-        "scope": "Fresh native pawn read facts, exact filters, explicit detail presence, bounded refusals and paused identity/tick invariance. No pawn operations or CAS capability claim."}
+        "scope": "Fresh native pawn read facts, exact filters, explicit detail presence, bounded refusals and paused identity/tick invariance. Draft-control snapshot/claim read validation only; no pawn operation or health/settings CAS acceptance."}
     try:
         configuration = prepare(root) if headless else prepare_rendered(root)
         game = json.loads((configuration / "config.json").read_text())["games"]["rimgovernor-trial"]
