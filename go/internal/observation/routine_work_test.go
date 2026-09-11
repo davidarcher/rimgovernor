@@ -61,19 +61,20 @@ func TestNativeRoutineWorkParity(t *testing.T) {
 	if !known {
 		t.Fatal("native workers unknown")
 	}
-	d, err := policy.AssignWork(workers, nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
 	var expected struct {
-		Assignments       map[string]map[string]int
-		Capacity, Matches bool
+		Assignments         map[string]map[string]int
+		Capacity, Matches   bool
+		MinimumConstruction int `json:"minimum_construction"`
 	}
 	data, err := os.ReadFile(filepath.Join(directory, "work-reference.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = json.Unmarshal(data, &expected); err != nil {
+		t.Fatal(err)
+	}
+	d, err := policy.AssignWork(workers, []policy.WorkRequirement{{Work: "Construction", Skill: "Construction", Minimum: expected.MinimumConstruction}}, nil)
+	if err != nil {
 		t.Fatal(err)
 	}
 	actual := map[string]map[string]int{}

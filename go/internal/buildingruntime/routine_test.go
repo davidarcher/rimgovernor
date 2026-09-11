@@ -40,11 +40,28 @@ func (n *routineNative) ReadEmergency(ctx context.Context, _ *c.Identity) (bridg
 func (n *routineNative) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {
 	return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Paused: proto.Bool(true)}}}, bridge.Result{}, ctx.Err()
 }
-func (n *routineNative) ReadColonyFacts(ctx context.Context, _ *c.Identity, planning bool, _ []string) (*o.ColonyFactsReply, bridge.Result, error) {
+func (n *routineNative) ReadColonyFacts(ctx context.Context, _ *c.Identity, planning bool, definitions []string) (*o.ColonyFactsReply, bridge.Result, error) {
 	n.reads++
 	n.planning = planning
 	if n.onRead != nil {
 		n.onRead(ctx)
+	}
+	if len(definitions) > 0 {
+		reply := proto.Clone(n.reply).(*o.ColonyFactsReply)
+		p := reply.GetObserved().Planning.GetObserved()
+		p.Definitions = nil
+		for _, name := range definitions {
+			row := &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}}
+			for _, existing := range n.reply.GetObserved().Planning.GetObserved().Definitions {
+				if existing.Definition.GetDefName() == name {
+					row = proto.Clone(existing).(*o.PlanningDefinition)
+				}
+			}
+			p.Definitions = append(p.Definitions, row)
+		}
+		p.Completeness.Matched = proto.Uint64(uint64(len(definitions)))
+		p.Completeness.Returned = proto.Uint64(uint64(len(definitions)))
+		return reply, bridge.Result{}, nil
 	}
 	return n.reply, bridge.Result{}, nil // A late transport may ignore cancellation.
 }

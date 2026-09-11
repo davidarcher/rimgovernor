@@ -19,19 +19,23 @@ type RoutineSource interface {
 
 type RoutineReading struct {
 	ColonyReading
-	Emergency        policy.EmergencyFacts
-	EmergencyReceipt bridge.Result
-	PawnReceipt      bridge.Result
+	Emergency         policy.EmergencyFacts
+	EmergencyReceipt  bridge.Result
+	PawnReceipt       bridge.Result
+	DefinitionReceipt bridge.Result
 }
 
 type routineBracket struct {
 	RoutineSource
-	expected    Identity
-	emergency   bridge.EmergencyObservation
-	receipt     bridge.Result
-	pawnReceipt bridge.Result
-	armed       domain.Fact[int64]
-	work        domain.Fact[[]policy.WorkPawn]
+	expected          Identity
+	emergency         bridge.EmergencyObservation
+	receipt           bridge.Result
+	pawnReceipt       bridge.Result
+	armed             domain.Fact[int64]
+	work              domain.Fact[[]policy.WorkPawn]
+	definitions       []string
+	extraDefinitions  []PlanningDefinition
+	definitionReceipt bridge.Result
 }
 
 // Read the emergency census inside ObserveColony's identity brackets.
@@ -39,6 +43,9 @@ func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, pl
 	colony, receipt, err := s.RoutineSource.ReadColonyFacts(ctx, id, planning, defs)
 	if err != nil {
 		return colony, receipt, err
+	}
+	if err := s.readProjectDefinitions(ctx, id, colony); err != nil {
+		return nil, receipt, err
 	}
 	s.emergency, s.receipt, err = s.ReadEmergency(ctx, id)
 	if err != nil {
@@ -84,16 +91,71 @@ func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, pl
 	return colony, receipt, nil
 }
 
-func ObserveRoutine(ctx context.Context, source RoutineSource, clock Clock, expected Identity, maxAge time.Duration) (RoutineReading, error) {
+func ObserveRoutine(ctx context.Context, source RoutineSource, clock Clock, expected Identity, maxAge time.Duration, definitions ...string) (RoutineReading, error) {
 	if source == nil {
 		return RoutineReading{}, ErrContract
 	}
-	bracket := &routineBracket{RoutineSource: source, expected: expected}
+	bracket := &routineBracket{RoutineSource: source, expected: expected, definitions: append([]string(nil), definitions...)}
 	reading, err := ObserveColony(ctx, bracket, clock, expected, maxAge, true, nil)
 	if err != nil {
 		return RoutineReading{}, err
 	}
 	reading.Projection.Facts.Armed = bracket.armed
 	reading.Projection.WorkPawns = bracket.work
-	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, EmergencyReceipt: bracket.receipt, PawnReceipt: bracket.pawnReceipt}, nil
+	reading.Projection.Definitions = append(reading.Projection.Definitions, bracket.extraDefinitions...)
+	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, EmergencyReceipt: bracket.receipt, PawnReceipt: bracket.pawnReceipt, DefinitionReceipt: bracket.definitionReceipt}, nil
+}
+
+// Request only project definitions absent from the default planning census. Both
+// reads stay inside the same paused identity and freshness bracket; crop inputs
+// from the default census are retained.
+func (s *routineBracket) readProjectDefinitions(ctx context.Context, id *c.Identity, colony *o.ColonyFactsReply) error {
+	if len(s.definitions) == 0 {
+		return nil
+	}
+	if len(s.definitions) > 256 {
+		return ErrContract
+	}
+	base, err := DecodeColony(colony, s.expected)
+	if err != nil {
+		return err
+	}
+	seen := map[string]bool{}
+	for _, d := range base.Definitions {
+		seen[d.Name] = true
+	}
+	missing := []string{}
+	for _, name := range s.definitions {
+		if !seen[name] {
+			missing = append(missing, name)
+			seen[name] = true
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	reply, receipt, err := s.RoutineSource.ReadColonyFacts(ctx, id, true, missing)
+	s.definitionReceipt = receipt
+	if err != nil {
+		return err
+	}
+	extra, err := DecodeColony(reply, s.expected)
+	if err != nil {
+		return err
+	}
+	extra.Identity.Paused = s.expected.Paused
+	if !sameColonyBoundary(extra.Identity, s.expected) {
+		return ErrChanged
+	}
+	wanted := map[string]bool{}
+	for _, name := range missing {
+		wanted[name] = true
+	}
+	for _, d := range extra.Definitions {
+		if !wanted[d.Name] {
+			return ErrContract
+		}
+		s.extraDefinitions = append(s.extraDefinitions, d)
+	}
+	return nil
 }

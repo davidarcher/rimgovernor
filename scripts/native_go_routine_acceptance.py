@@ -113,7 +113,7 @@ def audit_sleeping(report, database):
     return {"completed_spots": len(plan["actions"]), "completed_cooking_buildings": len(report.get("cooking_plan", {}).get("actions", [])), "single_attempts": True, "indoor_footprints": True, "shared_player_authority": True}
 
 
-async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False):
+async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False, work_project=False):
     assert Path("/.dockerenv").is_file(), "Use the isolated scenario launcher"
     output.mkdir(parents=True, exist_ok=False)
     report = {"passed": False, "source": go_source,
@@ -181,7 +181,19 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             from native_work_readback import work_reference
             legacy_work = payload(await evidence.call(bridge, "initial-work", "home/list_pawns", {"colonistsOnly": True, "work": True, "bio": True, "equipment": True}))
             assert legacy_work['success'] and {p['thingId'] for p in legacy_work['pawns']} == set(pawn_ids)
-            report['initial_work'] = work_reference(legacy_work['pawns'])
+            minimum_construction = 0
+            if work_project:
+                project_facts = await wire(bridge, 'work-project-definition', 'observations_read_colony_facts', {
+                    'scope': {'expectedIdentity': identity}, 'planning': True, 'requestedDefinitionNames': ['HospitalBed']})
+                project = outcome(project_facts, 'observed')
+                assert project['context'] == detailed['context']
+                definitions = project['planning']['observed']['definitions']
+                assert len(definitions) == 1 and definitions[0]['definition']['defName'] == 'HospitalBed'
+                minimum_construction = definitions[0]['constructionSkill']
+                assert minimum_construction > 0
+                report['work_project'] = {'definition': 'HospitalBed', 'minimum_construction': minimum_construction}
+                (output / 'work-project-definition.json').write_text(json.dumps(project_facts), encoding='utf8')
+            report['initial_work'] = work_reference(legacy_work['pawns'], minimum_construction)
             work_colony = await wire(bridge, "work-colony", "observations_read_colony_facts", {"scope": {"expectedIdentity": identity}, "planning": True})
             for name, value in {'work-pawns': {'observed': detailed}, 'work-colony': work_colony,
                                 'work-status': report['initial_colony'], 'work-reference': report['initial_work']}.items():
@@ -195,8 +207,11 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
         async with service(private, gabs, configuration, profile, database, output / "operate", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods, routine_cooking=cooking_methods) as http:
             await poll(http, "/api/state", lambda v: v.get("connected") and not v.get("game", {}).get("stale", True))
             assert not (await http("GET", "/api/player/control"))["state"]["enabled"]
+            building = http_building(prepared['sites'][0])
+            if work_project:
+                building.update(defName='HospitalBed', stuff='')
             submission = await http("POST", "/api/buildings/plans", body={"requestId": "routine-context", "expected": identity,
-                "building": http_building(prepared["sites"][0])}, expected=201)
+                "building": building}, expected=201)
             granted = await http("POST", "/api/player/control/acquire", body={"requestId": "routine-acquire", "expected": identity,
                 "planId": submission["planId"], "revision": submission["revision"], "expectedDirection": "0"})
             assert granted["record"]["phase"] == "granted"
@@ -260,6 +275,7 @@ if __name__ == "__main__":
     add_handoff_arguments(parser)
     parser.add_argument("--sleeping-methods", action="store_true")
     parser.add_argument("--cooking-methods", action="store_true")
+    parser.add_argument("--work-project", action="store_true")
     args = parser.parse_args()
     raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-go-routine-acceptance", args.go_binary,
-        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods, cooking_methods=args.cooking_methods)) else 1)
+        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods, cooking_methods=args.cooking_methods, work_project=args.work_project)) else 1)

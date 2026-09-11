@@ -62,7 +62,12 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context) (store.RoutineReviewR
 	if expected.Colony != state.Snapshot.Colony || expected.Load != state.Snapshot.Load || expected.Map != state.Snapshot.Map || !known || native != state.Snapshot.Native {
 		return store.RoutineReviewResult{}, ErrControl
 	}
-	reading, err := observation.ObserveRoutine(ctx, r.native, r.clock, expected, r.maxAge)
+	plans, err := p.journal.LoadPlans(ctx, 256)
+	if err != nil {
+		return store.RoutineReviewResult{}, err
+	}
+	definitions := routineProjectDefinitions(plans, state.Snapshot)
+	reading, err := observation.ObserveRoutine(ctx, r.native, r.clock, expected, r.maxAge, definitions...)
 	if err != nil {
 		return store.RoutineReviewResult{}, err
 	}
@@ -73,10 +78,6 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context) (store.RoutineReviewR
 	reading.Projection.Facts.Hostiles, reading.Projection.Facts.CriticalPatients = policy.EmergencyNeeds(emergency, state.Snapshot, expected.Tick)
 	// Owned drafts belong to this persistent controller's shared journal.
 	// Use the same complete catalog and cleanup predicate as the release sweep.
-	plans, err := p.journal.LoadPlans(ctx, 256)
-	if err != nil {
-		return store.RoutineReviewResult{}, err
-	}
 	cleanup := false
 	for _, plan := range plans {
 		for _, progress := range plan.Progress {
@@ -86,11 +87,14 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context) (store.RoutineReviewR
 	reading.Projection.Facts.CleanupPawns = domain.Known(cleanup)
 	reading.Projection.ApplyFieldBudget(r.policy.FoodTargetDays)
 	if pawns, known := reading.Projection.WorkPawns.Value(); known {
-		work, err := policy.AssignWork(pawns, nil, nil)
-		if err != nil {
-			return store.RoutineReviewResult{}, err
+		required, known := routineProjectWork(definitions, reading.Projection.Definitions).Value()
+		if known {
+			work, err := policy.AssignWork(pawns, required, nil)
+			if err != nil {
+				return store.RoutineReviewResult{}, err
+			}
+			reading.Projection.Facts.WorkCoverage = work.Matches
 		}
-		reading.Projection.Facts.WorkCoverage = work.Matches
 	}
 	if err = p.current(ctx, epoch); err != nil {
 		return store.RoutineReviewResult{}, err
