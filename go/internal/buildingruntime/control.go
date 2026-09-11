@@ -257,7 +257,7 @@ func (control *Control) Close(ctx context.Context) error {
 	if drainErr := control.config.StopWrites(call); drainErr != nil {
 		return errors.Join(err, drainErr)
 	}
-	revokeErr := control.revoke(call, a.RevocationReason_REVOCATION_REASON_SHUTDOWN)
+	revokeErr := control.shutdownTarget(call)
 	control.mu.Lock()
 	defer control.mu.Unlock()
 	if err != nil || revokeErr != nil {
@@ -269,6 +269,34 @@ func (control *Control) Close(ctx context.Context) error {
 		control.stopLifetime()
 	}
 	return closeErr
+}
+
+// shutdownTarget runs under the control gate after writers have drained. A
+// positively observed replacement retires only the old revoke target; it never
+// adopts or writes authority in the replacement world.
+func (control *Control) shutdownTarget(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	control.mu.Lock()
+	snapshot, known := control.snapshot, control.haveTarget
+	control.mu.Unlock()
+	if known && control.config.Worlds != nil {
+		actual, err := control.config.Worlds.ReadWorld(ctx)
+		if err != nil {
+			return err
+		}
+		if err = ctx.Err(); err != nil {
+			return err
+		}
+		if err = actual.Validate(); err != nil {
+			return err
+		}
+		if actual != playerWorld(snapshot) {
+			return nil
+		}
+	}
+	return control.revoke(ctx, a.RevocationReason_REVOCATION_REASON_SHUTDOWN)
 }
 
 func (control *Control) invalidateLocked() error {
