@@ -376,17 +376,18 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 
 // transition is a private persistence boundary, not a second progress model.
 type transition struct {
-	Kind                string
-	Snapshot            domain.GenerationSnapshot
-	Tick                domain.Tick
-	Attempt             domain.AttemptID
-	Receipt             domain.Receipt
-	Observation         domain.Observation
-	DraftReceipt        *draftReceiptEvent              `json:",omitempty"`
-	DraftObserve        *draftObserveEvent              `json:",omitempty"`
-	DraftBegin          *domain.DraftRelease            `json:",omitempty"`
-	DraftResult         *draftResultEvent               `json:",omitempty"`
-	DraftCleanupObserve *domain.DraftCleanupObservation `json:",omitempty"`
+	Kind                   string
+	Snapshot               domain.GenerationSnapshot
+	Tick                   domain.Tick
+	Attempt                domain.AttemptID
+	Receipt                domain.Receipt
+	Observation            domain.Observation
+	DraftReceipt           *draftReceiptEvent              `json:",omitempty"`
+	DraftObserve           *draftObserveEvent              `json:",omitempty"`
+	DraftBegin             *domain.DraftRelease            `json:",omitempty"`
+	DraftResult            *draftResultEvent               `json:",omitempty"`
+	DraftCleanupObserve    *domain.DraftCleanupObservation `json:",omitempty"`
+	DraftScopeSupersession *domain.DraftScopeSupersession  `json:",omitempty"`
 }
 
 func decode(data []byte, event *transition) error {
@@ -420,7 +421,7 @@ func apply(p domain.Progress, e transition) (domain.Progress, error) {
 		return p, err
 	}
 	switch e.Kind {
-	case "draft_receipt", "draft_observe", "draft_begin", "draft_result", "draft_cleanup_observe":
+	case "draft_receipt", "draft_observe", "draft_begin", "draft_result", "draft_cleanup_observe", "draft_scope_supersession":
 		return applyDraft(p, e)
 	case "prepare":
 		return p.Prepare(e.Snapshot, e.Tick)

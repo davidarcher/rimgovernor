@@ -49,14 +49,14 @@ func checkClaimSession(ctx context.Context, tx *sql.Tx, c domain.DraftClaim) err
 
 func validateDraftEvent(e transition) error {
 	count := 0
-	for _, present := range []bool{e.DraftReceipt != nil, e.DraftObserve != nil, e.DraftBegin != nil, e.DraftResult != nil, e.DraftCleanupObserve != nil} {
+	for _, present := range []bool{e.DraftReceipt != nil, e.DraftObserve != nil, e.DraftBegin != nil, e.DraftResult != nil, e.DraftCleanupObserve != nil, e.DraftScopeSupersession != nil} {
 		if present {
 			count++
 		}
 	}
-	match := e.Kind == "draft_receipt" && e.DraftReceipt != nil || e.Kind == "draft_observe" && e.DraftObserve != nil || e.Kind == "draft_begin" && e.DraftBegin != nil || e.Kind == "draft_result" && e.DraftResult != nil || e.Kind == "draft_cleanup_observe" && e.DraftCleanupObserve != nil
+	match := e.Kind == "draft_receipt" && e.DraftReceipt != nil || e.Kind == "draft_observe" && e.DraftObserve != nil || e.Kind == "draft_begin" && e.DraftBegin != nil || e.Kind == "draft_result" && e.DraftResult != nil || e.Kind == "draft_cleanup_observe" && e.DraftCleanupObserve != nil || e.Kind == "draft_scope_supersession" && e.DraftScopeSupersession != nil
 	if count == 0 {
-		if e.Kind == "draft_receipt" || e.Kind == "draft_observe" || e.Kind == "draft_begin" || e.Kind == "draft_result" || e.Kind == "draft_cleanup_observe" {
+		if e.Kind == "draft_receipt" || e.Kind == "draft_observe" || e.Kind == "draft_begin" || e.Kind == "draft_result" || e.Kind == "draft_cleanup_observe" || e.Kind == "draft_scope_supersession" {
 			return errors.New("draft event payload missing")
 		}
 		return nil
@@ -87,6 +87,8 @@ func applyDraft(p domain.Progress, e transition) (domain.Progress, error) {
 		return next, nil
 	case "draft_result":
 		return p.RecordDraftCleanup(e.DraftResult.Release, e.DraftResult.Outcome)
+	case "draft_scope_supersession":
+		return p.ObserveDraftScopeSupersession(*e.DraftScopeSupersession)
 	case "draft_cleanup_observe":
 		return p.ObserveDraftCleanup(*e.DraftCleanupObserve)
 	}
@@ -141,4 +143,10 @@ func (s *Store) RecordDraftCleanup(ctx context.Context, plan domain.PlanID, acti
 }
 func (s *Store) ObserveDraftCleanup(ctx context.Context, plan domain.PlanID, action domain.ActionID, observation domain.DraftCleanupObservation) (domain.Progress, error) {
 	return s.advance(ctx, plan, action, transition{Kind: "draft_cleanup_observe", DraftCleanupObserve: &observation})
+}
+
+// ObserveDraftScopeSupersession records positive world replacement without
+// claiming an unknown draft was acquired or released.
+func (s *Store) ObserveDraftScopeSupersession(ctx context.Context, plan domain.PlanID, observation domain.DraftScopeSupersession) (domain.Progress, error) {
+	return s.advance(ctx, plan, observation.Action, transition{Kind: "draft_scope_supersession", DraftScopeSupersession: &observation})
 }
