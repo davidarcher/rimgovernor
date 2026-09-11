@@ -64,12 +64,12 @@ namespace HomeBridge.BridgeTools
                 var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
                 if (people.Count < 1 || people.Count > 8) throw new InvalidOperationException("Require 1..8 colonists.");
                 var center = new IntVec3((int)people.Average(p => p.Position.x), 0, (int)people.Average(p => p.Position.z));
-                var candidates = GenRadial.RadialCellsAround(center, 14, true).Where(c => c.DistanceToSquared(center) >= 36);
+                var candidates = GenRadial.RadialCellsAround(center, outdoorSite ? 18 : 14, true).Where(c => c.DistanceToSquared(center) >= 36);
                 var size = outdoorSite ? 9 : 7;
                 var room = candidates.Select(c => new CellRect(c.x - size / 2, c.z - size / 2, size, size)).FirstOrDefault(r => r.Cells.All(c =>
-                    c.InBounds(map) && !c.Fogged(map) && c.Standable(map) && map.zoneManager.ZoneAt(c) == null &&
+                    c.InBounds(map) && !c.Fogged(map) && (outdoorSite ? c.GetTerrain(map).passability != Traversability.Impassable : c.Standable(map)) && map.zoneManager.ZoneAt(c) == null &&
                     (!outdoorSite || c.GetRoof(map) == null && c.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Light)) &&
-                    c.GetThingList(map).All(t => t is Plant)));
+                    c.GetThingList(map).All(t => t is Plant || outdoorSite && (t is Pawn || t.def.category == ThingCategory.Item))));
                 if (room.Width != size) throw new InvalidOperationException("No clear bounded room site.");
                 if (outdoorSite) StartHistory();
                 foreach (var cell in room.Cells) {
