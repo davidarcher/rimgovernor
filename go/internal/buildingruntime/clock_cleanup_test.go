@@ -174,3 +174,35 @@ func TestClockCleanupCancellationPersistsAndJoins(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// The independent identity read is a generation watermark even at a paused tick.
+type clockCleanupFreshIdentity struct {
+	*clockCoreFake
+	generation uint64
+}
+
+func (f clockCleanupFreshIdentity) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {
+	reply, raw, err := f.clockCoreFake.Identity(ctx)
+	if err == nil {
+		reply.GetLoaded().Context.NativeGeneration = proto.Uint64(f.generation)
+	}
+	return reply, raw, err
+}
+func TestClockCleanupRejectsStatusGenerationBehindIdentity(t *testing.T) {
+	for _, missing := range []bool{false, true} {
+		t.Run(map[bool]string{false: "regressed", true: "unknown"}[missing], func(t *testing.T) {
+			q, db, f, intent := clockCleanupStart(t)
+			q.native = clockCleanupFreshIdentity{f, 8}
+			if missing {
+				f.status.Context.NativeGeneration = nil
+			}
+			if err := q.Cleanup(context.Background()); err == nil {
+				t.Fatal("stale status admitted")
+			}
+			epoch, err := db.LookupClockEpoch(context.Background(), intent.RequestID)
+			if err != nil || epoch.Stage != store.ClockEpochRequired || epoch.Sequence != 0 || epoch.Context != nil || f.pauses != 0 {
+				t.Fatal(epoch, err, f.pauses)
+			}
+		})
+	}
+}

@@ -120,7 +120,8 @@ func (q *ClockCoordinator) cleanupEpoch(ctx context.Context, v store.ClockEpochO
 		if err = bridge.ValidateClockStatus(status, current.Identity); err != nil {
 			return err
 		}
-		if status.Context.GetTick() < current.GetTick() {
+		if status.Context.GetTick() < current.GetTick() || current.NativeGeneration != nil &&
+			(status.Context.NativeGeneration == nil || status.Context.GetNativeGeneration() < current.GetNativeGeneration()) {
 			return bridge.ErrContract
 		}
 		current = status.Context
