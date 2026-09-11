@@ -1092,7 +1092,8 @@ main. Native package and Go production cutover remain independent.
     adapters. Fresh Linux graphical and batch games pass SDK refusal controls,
     ordinary placement previews and Go round trips with unchanged paused
     identity/ticks, camera and nearby buildings. Authority reads do not initialize
-    state; authority acquisition remains gated on N01.05 hooks and trusted admission.
+    state. Lifecycle hooks initialize inactive authority; acquisition requires the
+    trusted host control capability and verified native invalidation hooks.
 
   Consume the reviewed [contract package](../contracts/proto/README.md) and fixed
   method mapping independently in Go/native adapters. Keep game-rule and
@@ -1113,6 +1114,12 @@ main. Native package and Go production cutover remain independent.
   catalogs. Stable pages bind frozen query/context; initialization belongs load
   hooks rather than read calls. Depends on 02's verified first adapter.
 
+  Basic typed status and bounded cell reads are implemented. Explicit all-false
+  cell fields support map-bound discovery; terrain, roof, visibility and traversal
+  are available, while other requested fields report Unsupported. Status does not
+  issue entity CAS snapshots. Remaining families, frozen continuation pages and
+  full Go service observation acceptance remain open.
+
 - [ ] **N01.04 — Typed guarded operations.** Native operations owner with G01 Hands.
   Start with ordinary construction through admission, dry-run, receipt and observed
   pawn completion. Follow with settings/bills/zones, resources/upkeep, medical,
@@ -1125,6 +1132,15 @@ main. Native package and Go production cutover remain independent.
   presence, per-setting-entry outcomes, actual trade transfer and unsuccessful
   progress without inferring completion from vanished jobs/bills.
   Depends on 02 and its required observations, not the entire Go port.
+
+  Guarded `PlaceBuilding`, operation preview, immutable attempt receipts and
+  causally tracked construction progress are implemented. The fresh graphical
+  acceptance proves normal pawn-built walls and Go SQLite restart observation
+  without redispatch, plus Manual, cancellation, draft/order invalidation, expiry,
+  conflict and replay. Required live transition patches are verified before
+  admission; oversized evidence retains encodable uncertainty. Other commands
+  remain Unsupported. Batch outcome acceptance, native lost-reply fault injection,
+  instant/replacement construction cases and remaining operation families are open.
 
 - [ ] **N01.05 — Runtime and presentation ownership.** Native runtime owner.
   Consolidate startup/patch health, supervisor/journal ownership, render leases,
@@ -1139,8 +1155,11 @@ main. Native package and Go production cutover remain independent.
   lookups, superseded loads, verified pause states and correlated uncertain UI
   results. The early missing-journal cache now retries after delayed SDK loading;
   its isolated regression passes. The pinned Protobuf runtime closure and notices
-  load in fresh graphical and batch games. Unsaved monotonic authority state is
-  tested, but verified native hooks and trusted player-direction admission remain.
+  load in fresh graphical and batch games. Unsaved monotonic authority and trusted
+  control admission have verified native invalidation hooks. Actual graphical
+  cancellation, draft/order changes and expiry revoke authority; ordinary pause
+  preserves it. Game-level load/map transitions, disconnect integration and the
+  remaining clock/lifecycle/presentation owners remain open.
   Depends on relevant typed status/clock contracts; fix independently reproducible
   defects as bounded prerequisites.
 
