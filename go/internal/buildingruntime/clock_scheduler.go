@@ -37,11 +37,12 @@ type ClockSchedulerResult struct {
 	Running, Reconciled, Cleaned bool
 }
 type ClockScheduler struct {
-	player  *Player
-	session *Session
-	native  ClockWindowNative
-	config  ClockSchedulerConfig
-	clock   executor.Clock
+	player              *Player
+	session             *Session
+	native              ClockWindowNative
+	config              ClockSchedulerConfig
+	clock               executor.Clock
+	pollGate, renewGate chan struct{}
 }
 
 func NewClockScheduler(player *Player, session *Session, native ClockWindowNative, config ClockSchedulerConfig, clock executor.Clock) (*ClockScheduler, error) {
@@ -80,7 +81,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, err
 	}
 	config.Profile = inbox.Profile
-	return &ClockScheduler{player, session, native, config, clock}, nil
+	return &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1)}, nil
 }
 
 // Step performs at most one scheduling decision. It never acquires authority,
