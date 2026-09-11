@@ -442,6 +442,63 @@ func TestControlObserveTargetFailureDoesNotPublishRequestedGeneration(t *testing
 	}
 }
 
+func TestControlFailedObservationClearsSeededTargetButRetainsCleanup(t *testing.T) {
+	for _, operation := range []string{"refresh", "retarget", "malformed", "timeout"} {
+		t.Run(operation, func(t *testing.T) {
+			control, native, sink, _ := controlFixture(t, nil)
+			requested := controlScope()
+			if err := control.ObserveTarget(context.Background(), requested); err != nil {
+				t.Fatal(err)
+			}
+			original := control.snapshot
+			native.onRead = func(ctx context.Context) error {
+				if operation == "timeout" {
+					<-ctx.Done()
+					return ctx.Err()
+				}
+				return errors.New("native read failed")
+			}
+			if operation == "malformed" {
+				native.onRead = nil
+				native.generation = 0
+			}
+			call, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+			defer cancel()
+			var err error
+			if operation == "retarget" {
+				requested.Load = "replacement"
+				err = control.ObserveTarget(call, requested)
+			} else {
+				err = control.Refresh(call)
+			}
+			if err == nil {
+				t.Fatal("failed observation accepted")
+			}
+			sink.mu.Lock()
+			value := sink.value
+			sink.mu.Unlock()
+			if value != (executor.Authority{}) || !control.haveTarget || control.snapshot != original {
+				t.Fatal("stale publication or lost cleanup identity", value, control.snapshot)
+			}
+			native.onRead = nil
+			native.generation = uint64(original.Native)
+			native.owner = control.controlOwner(original)
+			if err = control.Manual(context.Background()); err != nil {
+				t.Fatal("cleanup retry failed", err)
+			}
+			if native.revokes.Load() != 1 || control.snapshot.Load != original.Load {
+				t.Fatal("cleanup did not retain original scope")
+			}
+			sink.mu.Lock()
+			value = sink.value
+			sink.mu.Unlock()
+			if value.Enabled || value.Snapshot.Native != original.Native+1 || value.Snapshot.Load != original.Load {
+				t.Fatal("fresh revoke observation missing", value)
+			}
+		})
+	}
+}
+
 func TestControlAcquireSupersedesBlockedObserveTarget(t *testing.T) {
 	control, n, sink, _ := controlFixture(t, nil)
 	entered := make(chan struct{})
