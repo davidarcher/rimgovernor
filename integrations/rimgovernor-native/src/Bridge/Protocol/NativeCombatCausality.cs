@@ -86,22 +86,33 @@ namespace HomeBridge.BridgeTools
             if (Target==null || Prefix==null || Postfix==null || DamageFinalizer==null || MeleeTarget==null || MeleePrefix==null || MeleeFinalizer==null) return;
             try {
                 var harmony=new Harmony(Owner);
-                harmony.Patch(Target,new HarmonyMethod(Prefix),new HarmonyMethod(Postfix),finalizer:new HarmonyMethod(DamageFinalizer));
-                harmony.Patch(MeleeTarget,new HarmonyMethod(MeleePrefix),finalizer:new HarmonyMethod(MeleeFinalizer));
+                var damage=Harmony.GetPatchInfo(Target);
+                var damagePrefix=Missing(damage?.Prefixes,Prefix);
+                var damagePostfix=Missing(damage?.Postfixes,Postfix);
+                var damageFinalizer=Missing(damage?.Finalizers,DamageFinalizer);
+                if (damagePrefix!=null || damagePostfix!=null || damageFinalizer!=null)
+                    harmony.Patch(Target,damagePrefix,damagePostfix,finalizer:damageFinalizer);
+                var melee=Harmony.GetPatchInfo(MeleeTarget);
+                var meleePrefix=Missing(melee?.Prefixes,MeleePrefix);
+                var meleeFinalizer=Missing(melee?.Finalizers,MeleeFinalizer);
+                if (meleePrefix!=null || meleeFinalizer!=null)
+                    harmony.Patch(MeleeTarget,meleePrefix,finalizer:meleeFinalizer);
             }
             catch { /* Missing live hooks keep admission unavailable. */ }
         }
+        private static HarmonyMethod? Missing(IEnumerable<Patch>? hooks,MethodInfo method)
+            => hooks!=null && hooks.Any(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,method)) ? null : new HarmonyMethod(method);
         internal static bool IsReady
         {
             get {
                 try {
                     var hooks=Target==null?null:Harmony.GetPatchInfo(Target);
                     var melee=MeleeTarget==null?null:Harmony.GetPatchInfo(MeleeTarget);
-                    return hooks!=null && melee!=null && hooks.Prefixes.Any(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,Prefix))
-                        && hooks.Postfixes.Any(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,Postfix))
-                        && hooks.Finalizers.Any(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,DamageFinalizer))
-                        && melee.Prefixes.Any(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,MeleePrefix))
-                        && melee.Finalizers.Any(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,MeleeFinalizer));
+                    return hooks!=null && melee!=null && hooks.Prefixes.Count(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,Prefix))==1
+                        && hooks.Postfixes.Count(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,Postfix))==1
+                        && hooks.Finalizers.Count(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,DamageFinalizer))==1
+                        && melee.Prefixes.Count(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,MeleePrefix))==1
+                        && melee.Finalizers.Count(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,MeleeFinalizer))==1;
                 } catch { return false; }
             }
         }
