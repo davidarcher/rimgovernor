@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>RimGovernor</name>
+  <author>RimGovernor; companion sources by Snowstar38; headless sources by RedEyeDev</author>
+  <packageId>davidarcher.rimgovernor.native</packageId>
+  <supportedVersions><li>1.6</li></supportedVersions>
+  <modDependencies>
+    <li><packageId>brrainz.harmony</packageId><displayName>Harmony</displayName></li>
+    <li><packageId>brrainz.rimbridgeserver</packageId><displayName>RimBridgeServer</displayName></li>
+  </modDependencies>
+  <loadAfter><li>brrainz.harmony</li><li>brrainz.rimbridgeserver</li></loadAfter>
+  <description>Native observations, guarded gameplay operations and batch-only headless presentation support for the local RimGovernor controller.</description>
+</ModMetaData>
