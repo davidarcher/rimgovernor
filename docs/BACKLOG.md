@@ -1068,9 +1068,14 @@ only intentional small, sanitized regression fixtures belong in source control.
         - [x] **2f.3:** dashboard temporary-draft intent and cleanup status. Owner:
           UI agent; depends on the fixed 2f.2 interface. Preserve drafts, exact
           request IDs and uncertain outcomes; no general undraft or ownership adoption.
-        - [ ] **2f.4:** isolated Go service draft acceptance. Owner: integrator with
+        - [x] **2f.4:** isolated Go service draft acceptance. Owner: integrator with
           N01; depends on 2f.1–3. Verify ordinary claim creation and release, player
           overrides, lost replies and same-database restart without reacquisition.
+          Native acceptance verifies exact claim/release evidence, player setter
+          override, HTTP response-body loss with lookup recovery, and a successful
+          native Execute reply replaced by an explicit transport error. Each case
+          survives a joined same-database disabled restart with no reacquisition or
+          Execute. These faults do not establish timeout or EOF recovery.
     - [ ] **07a.3:** bounded defense with exact pawn/target observations and
       correlated job outcomes. Depends on 07a.2. Begin with one supported
       opponent; verify incapacitation, injury interruption and owned cleanup.
