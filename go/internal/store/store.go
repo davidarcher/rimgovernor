@@ -21,7 +21,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 6
+const schemaVersion = 7
 const applicationID = 0x52474f31
 
 var ErrConflict = errors.New("plan or action identity already exists")
@@ -118,6 +118,7 @@ CREATE TABLE actions(id TEXT PRIMARY KEY, plan_id TEXT NOT NULL REFERENCES plans
 CREATE TABLE transitions(sequence INTEGER PRIMARY KEY, action_id TEXT NOT NULL REFERENCES actions(id), payload BLOB NOT NULL);
 CREATE TABLE admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL);
 CREATE TABLE draft_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
+CREATE TABLE clock_attempts(request_id TEXT PRIMARY KEY, native_action_id TEXT NOT NULL UNIQUE, payload BLOB NOT NULL, phase TEXT NOT NULL CHECK(phase IN ('prepared','dispatched','uncertain','applied','refused')), reply BLOB) STRICT;
 CREATE TABLE submissions(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('building','owned_draft')), colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), action_id TEXT NOT NULL UNIQUE REFERENCES actions(id), revision TEXT NOT NULL) STRICT;
 CREATE TABLE draft_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), pawn TEXT NOT NULL) STRICT;
 CREATE INDEX action_transitions ON transitions(action_id,sequence);
@@ -152,6 +153,9 @@ CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY REFERENCES submiss
 		}
 	}
 	// A matching version marker alone does not establish the expected tables.
+	if _, err = tx.ExecContext(ctx, "SELECT request_id,native_action_id,payload,phase,reply FROM clock_attempts LIMIT 0"); err != nil {
+		return err
+	}
 	if _, err = tx.ExecContext(ctx, "SELECT p.id,p.revision,a.id,a.ordinal,a.kind,a.pawn,a.definition,a.x,a.z,a.rotation,a.stuff,t.sequence,t.payload FROM plans p LEFT JOIN actions a ON a.plan_id=p.id LEFT JOIN transitions t ON t.action_id=a.id LIMIT 0"); err != nil {
 		return err
 	}
