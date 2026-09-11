@@ -101,6 +101,7 @@ func NewProgress(plan PlanSpec, action ActionID) (Progress, error) {
 	return Progress{}, errors.New("action is not in plan")
 }
 func (p Progress) View() ProgressView { return p.view }
+func (p Progress) Action() Action     { return p.action }
 func (p Progress) Prepare(snapshot GenerationSnapshot, tick Tick) (Progress, error) {
 	if p.view.Stage != Pending || p.view.Unresolved || p.draftCleanupOutstanding() {
 		return p, errors.New("action is not ready")
