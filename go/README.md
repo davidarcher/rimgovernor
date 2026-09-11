@@ -100,6 +100,11 @@ health observations. Standing hostiles, hunting predators, critical medical need
 and unknown facts hold new orders. Previously issued attempts remain observable
 while held; the controller does not release their reservations or invent a retry.
 
+`bridge.Client.ReadPawns` reads 1–256 exact pawn IDs, including dead pawns, with
+optional detail families disabled. It preserves native snapshot and draft-claim
+availability. Missing pawns or unsupported claims cannot establish ownership or
+release. Draft execution and durable cleanup remain gated by G01.07a.2.
+
 An uncertain HTTP reply is resolved by reading its request ID through
 `GET /api/buildings/submission?requestId=...` or
 `GET /api/buildings/control?requestId=...`. Historical results are separate from
