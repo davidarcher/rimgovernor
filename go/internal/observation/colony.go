@@ -19,6 +19,7 @@ type PlanningDefinition struct {
 	GrowDays, FertilityMin, FertilitySensitivity, HarvestNutrition, NutritionDemandPerDay domain.Fact[float64]
 }
 type ColonyProjection struct {
+	CookingBenches     domain.Fact[[]CookingBench]
 	Identity           Identity
 	Facts              policy.RoutineFacts
 	Workers            domain.Fact[int]
@@ -28,6 +29,11 @@ type ColonyProjection struct {
 	Definitions        []PlanningDefinition
 	FoodSupply         domain.Fact[policy.FoodSupply]
 	CombinedFoodSupply domain.Fact[policy.FoodSupply]
+}
+
+type CookingBench struct {
+	Definition string
+	Usable     domain.Fact[bool]
 }
 
 func optional[T any](p *T) domain.Fact[T] {
@@ -97,6 +103,13 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	r := ColonyProjection{Identity: identity, Bounds: policy.Bounds{Width: int32(v.MapSize.GetWidth()), Height: int32(v.MapSize.GetHeight())}, Center: domain.Cell{X: v.Center.GetX(), Z: v.Center.GetZ()}}
 	r.Facts = policy.RoutineFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC), FoodStorage: optional(v.FoodStorage)}
 	colonyProduction(v, &r.Facts)
+	if !hasIssue(v.Issues, "cooking") {
+		benches := []CookingBench{}
+		for _, bench := range v.Cooking {
+			benches = append(benches, CookingBench{Definition: bench.Bench.GetDefName(), Usable: optional(bench.Usable)})
+		}
+		r.CookingBenches = domain.Known(benches)
+	}
 	if food := v.GetFoodSupply().GetObserved(); food != nil {
 		supply, err := DecodeFoodSupply(food)
 		if err != nil {

@@ -644,7 +644,11 @@ expand these into another nested task tree; remove a row when its outcome is met
   shared Hands under the existing player direction, with journal rechecks and pending
   player work taking priority. Targeted native acceptance verifies three indoor
   sleeping spots completed through shared Hands with one attempt each, unchanged
-  player authority, Manual invalidation and disabled restart. Further need inputs,
+  player authority, Manual invalidation and disabled restart. The shared compiler
+  also selects a single campfire for known cooking deficits, waits for existing
+  facilities/projects, and respects player resource reservations. The opt-in cooking
+  service path is implemented; targeted native campfire acceptance remains open.
+  Further need inputs,
   remaining construction costs, method selection and execution composition for
   additional routine methods remain open.
 

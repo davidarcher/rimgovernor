@@ -33,7 +33,7 @@ func (n *sleepingNative) PreviewBuilding(ctx context.Context, a domain.Action, s
 	return v, bridge.Result{}, nil
 }
 
-func sleepingFixture(t *testing.T) (*RoutineSleepingPlanner, *store.Store, *playerFakeSession, store.ControlRequest, *sleepingNative) {
+func sleepingFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *playerFakeSession, store.ControlRequest, *sleepingNative) {
 	t.Helper()
 	r, db, session, request, n := routineFixture(t)
 	v := n.reply.GetObserved()
@@ -65,7 +65,7 @@ func TestRoutineSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.
 	r, db, session, request, n := sleepingFixture(t)
 	before := session.acquires.Load()
 	result, err := r.Step(context.Background())
-	if err != nil || result.Reason != SleepingAdmitted || !result.Decision.Admitted {
+	if err != nil || result.Reason != BuildingMethodAdmitted || !result.Decision.Admitted {
 		t.Fatal(result, err)
 	}
 	g := result.Decision.Goal
@@ -81,7 +81,7 @@ func TestRoutineSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.
 			t.Fatal("compiler dispatched", progress)
 		}
 	}
-	if next, err := r.Step(context.Background()); err != nil || next.Reason != SleepingExistingWork || n.previews != 2 {
+	if next, err := r.Step(context.Background()); err != nil || next.Reason != BuildingMethodExistingWork || n.previews != 2 {
 		t.Fatal(next, err)
 	}
 	request.Kind, request.RequestID = store.ManualControl, "manual-sleep"
@@ -98,7 +98,7 @@ func TestRoutineSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.
 			t.Fatal(progress)
 		}
 	}
-	if next, err := r.Step(context.Background()); err != nil || next.Reason != SleepingDisabled {
+	if next, err := r.Step(context.Background()); err != nil || next.Reason != BuildingMethodDisabled {
 		t.Fatal(next, err)
 	}
 }
@@ -138,7 +138,7 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 				}
 			}
 			result, err := r.Step(context.Background())
-			if err == nil && result.Reason == SleepingAdmitted {
+			if err == nil && result.Reason == BuildingMethodAdmitted {
 				t.Fatal("invalid method admitted", change)
 			}
 			plans, err := db.LoadPlans(context.Background(), 256)
@@ -152,7 +152,7 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 func TestRoutineSleepingRetainsMethodIdentityUntilObservedRecovery(t *testing.T) {
 	r, db, _, _, n := sleepingFixture(t)
 	first, err := r.Step(context.Background())
-	if err != nil || first.Reason != SleepingAdmitted {
+	if err != nil || first.Reason != BuildingMethodAdmitted {
 		t.Fatal(first, err)
 	}
 	g := first.Decision.Goal
@@ -165,7 +165,7 @@ func TestRoutineSleepingRetainsMethodIdentityUntilObservedRecovery(t *testing.T)
 			t.Fatal(err)
 		}
 	}
-	if next, err := r.Step(context.Background()); err != nil || next.Reason != SleepingMethodUsed {
+	if next, err := r.Step(context.Background()); err != nil || next.Reason != BuildingMethodUsed {
 		t.Fatal(next, err)
 	}
 	n.reply.GetObserved().IndoorSleepingCapacity = proto.Uint32(3)
@@ -179,7 +179,7 @@ func TestRoutineSleepingRetainsMethodIdentityUntilObservedRecovery(t *testing.T)
 		t.Fatal(err)
 	}
 	next, err := r.Step(context.Background())
-	if err != nil || next.Reason != SleepingAdmitted || next.Decision.Goal.Goal.Epoch != g.Goal.Epoch+1 || next.Decision.Goal.Methods[0].Plan == p.Spec.ID() {
+	if err != nil || next.Reason != BuildingMethodAdmitted || next.Decision.Goal.Goal.Epoch != g.Goal.Epoch+1 || next.Decision.Goal.Methods[0].Plan == p.Spec.ID() {
 		t.Fatal(next, err)
 	}
 }
@@ -220,7 +220,7 @@ func TestRoutineSleepingProtectsOtherAdmittedFootprints(t *testing.T) {
 		t.Fatal(admitted, err)
 	}
 	result, err := r.Step(ctx)
-	if err != nil || result.Reason != SleepingAdmitted {
+	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
 	compiled, err := db.LoadPlan(ctx, result.Decision.Goal.Methods[0].Plan)

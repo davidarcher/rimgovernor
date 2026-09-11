@@ -70,16 +70,16 @@ async def wait_review(database):
             await asyncio.sleep(.05)
 
 
-async def wait_sleeping(http, database, count):
+async def wait_building_method(http, database, definition, count):
     async with asyncio.timeout(180):
         while True:
             with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
-                rows = db.execute("SELECT DISTINCT m.plan_id FROM goal_methods m JOIN actions a ON a.plan_id=m.plan_id WHERE a.definition='SleepingSpot'").fetchall()
-            assert len(rows) <= 1, "Duplicate sleeping methods"
+                rows = db.execute("SELECT DISTINCT m.plan_id FROM goal_methods m JOIN actions a ON a.plan_id=m.plan_id WHERE a.definition=?", (definition,)).fetchall()
+            assert len(rows) <= 1, "Duplicate building methods"
             if rows:
                 plan = await http("GET", "/api/plan?id=" + rows[0][0])
                 assert len(plan["actions"]) == count
-                assert all(a["building"]["defName"] == "SleepingSpot" for a in plan["actions"])
+                assert all(a["building"]["defName"] == definition for a in plan["actions"])
                 if all(a["progress"]["stage"] == "completed" for a in plan["actions"]):
                     assert all(a["progress"]["effect"] == "completed" and not a["progress"]["unresolved"] and a["progress"]["attempt"] == "1" for a in plan["actions"])
                     return plan
@@ -89,10 +89,15 @@ async def wait_sleeping(http, database, count):
 def audit_sleeping(report, database):
     root = report["active_routine"]["review"]["Snapshot"]
     plan = report["sleeping_plan"]
+    if "cooking_plan" in report:
+        assert len(report["cooking_plan"]["actions"]) == 1
+        assert report["cooking_plan"]["actions"][0]["building"]["defName"] == "Campfire"
+        assert report["manual_routine"]["goals"]["EnsureCooking"]["Need"] == "deficit"
     interior = {(c["x"], c["z"]) for c in report["sleeping_setup"]["interior"]}
     assert len(plan["actions"]) == report["sleeping_setup"]["colonists"]
     with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
-        for action in plan["actions"]:
+        methods = [plan] + ([report["cooking_plan"]] if "cooking_plan" in report else [])
+        for action in [a for method in methods for a in method["actions"]]:
             progress = action["progress"]
             assert progress["stage"] == progress["effect"] == "completed" and progress["attempt"] == "1" and not progress["unresolved"]
             admission = json.loads(db.execute("SELECT payload FROM admissions WHERE action_id=?", (action["id"],)).fetchone()[0])
@@ -101,20 +106,22 @@ def audit_sleeping(report, database):
             dispatched = [r for r in transitions if r["Kind"] == "dispatch"]
             assert len(dispatched) == 1
             scope = dict(dispatched[0]["Snapshot"])
-            assert scope["Plan"] == plan["id"]
+            assert scope["Plan"] in {method["id"] for method in methods}
             scope["Plan"], scope["Revision"] = root["Plan"], root["Revision"]
             assert scope == root, "Routine method changed player direction or native authority"
-    assert report["traces"]["operate"].count(EXECUTE) == 1 + len(plan["actions"])
-    return {"completed_spots": len(plan["actions"]), "single_attempts": True, "indoor_footprints": True, "shared_player_authority": True}
+    assert report["traces"]["operate"].count(EXECUTE) == 1 + sum(len(method["actions"]) for method in methods)
+    return {"completed_spots": len(plan["actions"]), "completed_cooking_buildings": len(report.get("cooking_plan", {}).get("actions", [])), "single_attempts": True, "indoor_footprints": True, "shared_player_authority": True}
 
 
-async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False):
+async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False):
     assert Path("/.dockerenv").is_file(), "Use the isolated scenario launcher"
     output.mkdir(parents=True, exist_ok=False)
     report = {"passed": False, "source": go_source,
               "scope": "Native core/emergency facts reach fourteen durable Go needs; Manual invalidates them; disabled restart neither acquires authority nor reads routine facts. No routine method execution claim."}
     if sleeping_methods:
         report["scope"] = "Reviewed indoor sleeping deficit compiles and executes through shared Hands, with native completion, Manual invalidation and disabled restart. Private fixture supplies only an empty room and healthy starting colonists."
+    if cooking_methods:
+        report["scope"] = "Reviewed sleeping and cooking deficits execute ordinary building methods through shared Hands; native completion, shared authority, Manual and disabled restart. Campfire construction does not certify cooking bills or food production."
     evidence = Evidence(output)
     launched = False
     try:
@@ -166,7 +173,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             expected_food = 'deficit' if food['readable'] and food['runwayDays'] is not None and food['runwayDays'] < 3 else 'unknown'
             baseline = await capture(bridge, "setup")
 
-        async with service(private, gabs, configuration, profile, database, output / "operate", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods) as http:
+        async with service(private, gabs, configuration, profile, database, output / "operate", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods, routine_cooking=cooking_methods) as http:
             await poll(http, "/api/state", lambda v: v.get("connected") and not v.get("game", {}).get("stale", True))
             assert not (await http("GET", "/api/player/control"))["state"]["enabled"]
             submission = await http("POST", "/api/buildings/plans", body={"requestId": "routine-context", "expected": identity,
@@ -180,7 +187,9 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             assert active["goals"]["CriticalMedical"]["Need"] == medical_need(report["initial_colony"])
             report["active_routine"] = active
             if sleeping_methods:
-                report["sleeping_plan"] = await wait_sleeping(http, database, report["sleeping_setup"]["colonists"])
+                report["sleeping_plan"] = await wait_building_method(http, database, "SleepingSpot", report["sleeping_setup"]["colonists"])
+            if cooking_methods:
+                report["cooking_plan"] = await wait_building_method(http, database, "Campfire", 1)
             manual = await http("POST", "/api/player/control/manual", body={"requestId": "routine-manual", "expected": identity})
             assert manual["record"]["phase"] == "disabled" and not manual["state"]["enabled"]
             report["manual_routine"] = routine_evidence(database, identity, enabled=False, expected_food_need=expected_food, allow_methods=sleeping_methods)
@@ -191,7 +200,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             final = outcome(await wire(bridge, "after-manual", "lifecycle_read_identity", {}), "loaded")
             assert final["paused"] and final["context"]["identity"] == identity
             baseline = await capture(bridge, "restart-baseline")
-        async with service(private, gabs, configuration, profile, database, output / "restart", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods) as http:
+        async with service(private, gabs, configuration, profile, database, output / "restart", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods, routine_cooking=cooking_methods) as http:
             await poll(http, "/api/state", lambda v: v.get("connected") and not v.get("game", {}).get("stale", True))
             await asyncio.sleep(2)
             assert not (await http("GET", "/api/player/control"))["state"]["enabled"]
@@ -226,6 +235,7 @@ if __name__ == "__main__":
     parser.add_argument("--go-binary", type=Path, required=True)
     add_handoff_arguments(parser)
     parser.add_argument("--sleeping-methods", action="store_true")
+    parser.add_argument("--cooking-methods", action="store_true")
     args = parser.parse_args()
     raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-go-routine-acceptance", args.go_binary,
-        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods)) else 1)
+        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods, cooking_methods=args.cooking_methods)) else 1)

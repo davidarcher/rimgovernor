@@ -34,6 +34,7 @@ type serveConfig struct {
 	clockControl          bool
 	routineReviews        bool
 	routineSleepingPlans  bool
+	routineCookingPlans   bool
 	routineMethods        bool
 	refresh               time.Duration
 }
@@ -47,6 +48,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.clockControl, "clock-control", false, "supervise finite game-clock windows for enabled player work")
 	flags.BoolVar(&c.routineReviews, "routine-reviews", false, "review routine needs at paused clock boundaries")
 	flags.BoolVar(&c.routineSleepingPlans, "routine-sleeping-plans", false, "compile reviewed indoor sleeping needs into pending shared plans")
+	flags.BoolVar(&c.routineCookingPlans, "routine-cooking-plans", false, "compile reviewed cooking deficits into pending campfire plans")
 	flags.BoolVar(&c.routineMethods, "routine-methods", false, "execute reviewed routine building methods under the current player direction")
 	flags.StringVar(&c.profile, "profile", "", "absolute shared game profile directory for player control")
 	flags.StringVar(&c.bridge.Executable, "gabs", "", "absolute GABS executable")
@@ -69,11 +71,11 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if c.routineReviews && !c.clockControl {
 		return c, errors.New("--routine-reviews requires --clock-control")
 	}
-	if c.routineSleepingPlans && !c.routineReviews {
-		return c, errors.New("--routine-sleeping-plans requires --routine-reviews")
+	if (c.routineSleepingPlans || c.routineCookingPlans) && !c.routineReviews {
+		return c, errors.New("routine building plans require --routine-reviews")
 	}
-	if c.routineMethods && !c.routineSleepingPlans {
-		return c, errors.New("--routine-methods requires --routine-sleeping-plans")
+	if c.routineMethods && !c.routineSleepingPlans && !c.routineCookingPlans {
+		return c, errors.New("--routine-methods requires a routine building planner")
 	}
 	if c.playerControl && !filepath.IsAbs(c.profile) || !c.playerControl && c.profile != "" {
 		return c, errors.New("--player-control requires an absolute --profile; read-only mode takes no profile")

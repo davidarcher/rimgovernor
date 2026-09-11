@@ -32,14 +32,16 @@ type ClockSchedulerConfig struct {
 	MaxAge  time.Duration
 	// Routine is reviewed only after owned clock obligations have drained.
 	Routine        *RoutineReviewer
-	Sleeping       *RoutineSleepingPlanner
+	Sleeping       *RoutineBuildingPlanner
+	Cooking        *RoutineBuildingPlanner
 	RoutineMethods bool
 }
 type ClockSchedulerResult struct {
 	Attempt                      *store.ClockAttempt
 	Decision                     policy.ClockWindowDecision
 	Routine                      *store.RoutineReviewResult
-	Sleeping                     *SleepingMethodResult
+	Sleeping                     *RoutineBuildingResult
+	Cooking                      *RoutineBuildingResult
 	Running, Reconciled, Cleaned bool
 }
 type ClockScheduler struct {
@@ -61,7 +63,10 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.Routine != nil && config.Routine.player != player {
 		return nil, ErrControl
 	}
-	if config.Sleeping != nil && (config.Routine == nil || config.Sleeping.reviewer != config.Routine) {
+	if config.Sleeping != nil && (config.Routine == nil || config.Sleeping.reviewer != config.Routine || config.Sleeping.goal != policy.EnsureInitialShelter) {
+		return nil, ErrControl
+	}
+	if config.Cooking != nil && (config.Routine == nil || config.Cooking.reviewer != config.Routine || config.Cooking.goal != policy.EnsureCooking) {
 		return nil, ErrControl
 	}
 	if config.RoutineMethods && (config.Routine == nil || !session.routineMethods) {
@@ -219,6 +224,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, methodErr
 		}
 		out.Sleeping = &method
+	}
+	if s.config.Cooking != nil {
+		method, methodErr := s.config.Cooking.step(call, epoch)
+		if methodErr != nil {
+			return out, methodErr
+		}
+		out.Cooking = &method
 	}
 	emergency, _, err := s.native.ReadEmergency(call, loaded.Context.Identity)
 	if err != nil {

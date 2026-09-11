@@ -134,7 +134,7 @@ Protobuf acceptance scenario supports `--routine-production` with the private
 is injected. Retained captures can be replayed with
 `RIMGOVERNOR_NATIVE_PRODUCTION_REFERENCE` alongside the colony capture.
 
-`RoutineSleepingPlanner.Step` compiles an active reviewed shelter deficit into
+`NewRoutineSleepingPlanner` configures the shared `RoutineBuildingPlanner` to compile an active reviewed shelter deficit into
 one complete method of ordinary indoor sleeping spots. It requires a known native
 definition with no construction-skill prerequisite, roofed indoor cells, disjoint
 safe native previews and shared resource admission. Existing admitted footprints
@@ -142,13 +142,20 @@ remain protected. Method identity survives retries; observed recovery opens a ne
 epoch. Every preview stays under the player gate, and Manual cancels compilation.
 The compiler stores pending actions only; the shared worker owns execution.
 
+`NewRoutineCookingPlanner` uses the same compiler for one ordinary campfire. It
+requires a known cooking deficit and waits for usable benches, existing campfires
+or already committed campfire work. Native previews and shared reservations decide
+geometry and cost. Building the campfire does not certify a food bill or cooked
+food; bill/upkeep methods remain separate action-family work.
+
 Add `--routine-reviews` to `serve --player-control --clock-control` to attach the
 reviewer to the service clock worker. It uses the default routine thresholds and
 requires typed colony observations. Startup remains disabled. This option journals
 needs. Add `--routine-sleeping-plans` to compile eligible shelter deficits into pending
 methods at that same paused boundary. It requires routine reviews and uses the same
 player gate; a failed preview prevents a new clock window. Startup remains disabled
-and this option does not execute methods. Add `--routine-methods` to let the shared
+and this option does not execute methods. `--routine-cooking-plans` independently
+enables campfire compilation at the same boundary. Add `--routine-methods` to let the shared
 Hands worker execute reviewed building methods under the existing player direction.
 Each dispatch rechecks the journal binding, active known deficit, epoch, world and
 native generation. Pending player work takes priority; Manual stops routine writes
@@ -162,7 +169,9 @@ unknown food forecast, Manual invalidation, joined shutdown and disabled restart
 Its `--sleeping-methods` variant also uses `RoutineSleepingFixture` to provide an
 empty roofed room and healthy starting colonists. It verifies one complete sleeping
 method, native observed completion, single attempts, indoor footprints and unchanged
-player authority through the shared worker. The separate
+player authority through the shared worker. `--cooking-methods` adds campfire
+construction and verifies that cooking still needs a bill after the building
+completes. The separate
 `scripts/native_go_clock_acceptance.py --routine-reviews` scenario additionally
 requires a healthy colony and verifies clock advancement and construction.
 

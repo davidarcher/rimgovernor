@@ -71,7 +71,7 @@ func TestClockServiceDisabledStartupPollsAndJoins(t *testing.T) {
 	reads := &buildingReadFake{serviceFake: serviceFake{entered: make(chan struct{}, 2)}}
 	clock := &clockServiceFake{reads: reads, polled: make(chan struct{}, 1)}
 	caps := unusedBuildingCapabilities{}
-	config := serveConfig{playerControl: true, clockControl: true, routineReviews: true, routineSleepingPlans: true, profile: dir, state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", refresh: time.Second, bridge: bridge.ProcessConfig{Timeout: time.Second}}
+	config := serveConfig{playerControl: true, clockControl: true, routineReviews: true, routineSleepingPlans: true, routineCookingPlans: true, routineMethods: true, profile: dir, state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", refresh: time.Second, bridge: bridge.ProcessConfig{Timeout: time.Second}}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	addresses := make(buildingAddressWriter, 1)
@@ -129,6 +129,22 @@ func TestRoutineServeRequiresClockControl(t *testing.T) {
 	}
 	config, err := parseServe(append(base, "--clock-control"), io.Discard)
 	if err != nil || !config.routineReviews {
+		t.Fatal(config, err)
+	}
+}
+
+func TestCookingPlansRequireReviewsAndOptInExecution(t *testing.T) {
+	dir := t.TempDir()
+	base := []string{"--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "game", "--state", filepath.Join(dir, "state.db"), "--player-control", "--profile", dir, "--clock-control", "--routine-cooking-plans"}
+	if _, err := parseServe(base, io.Discard); err == nil {
+		t.Fatal("unreviewed cooking accepted")
+	}
+	config, err := parseServe(append(base, "--routine-reviews"), io.Discard)
+	if err != nil || !config.routineCookingPlans || config.routineMethods || config.routineSleepingPlans {
+		t.Fatal(config, err)
+	}
+	config, err = parseServe(append(base, "--routine-reviews", "--routine-methods"), io.Discard)
+	if err != nil || !config.routineMethods {
 		t.Fatal(config, err)
 	}
 }
