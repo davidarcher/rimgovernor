@@ -1,0 +1,116 @@
+package observation
+
+import (
+	"context"
+	"errors"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/testkit"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+)
+
+type colonySource struct {
+	*source
+	reply  *o.ColonyFactsReply
+	onRead func()
+	reads  int
+}
+
+func (s *colonySource) ReadColonyFacts(ctx context.Context, id *c.Identity, planning bool, definitions []string) (*o.ColonyFactsReply, bridge.Result, error) {
+	s.reads++
+	if s.onRead != nil {
+		s.onRead()
+	}
+	return s.reply, bridge.Result{}, ctx.Err()
+}
+
+func TestObserveColonyRejectsUnstableReviewBoundary(t *testing.T) {
+	for _, scenario := range []struct {
+		name   string
+		change func(*colonySource, *Identity, *testkit.ManualClock, context.CancelFunc)
+		want   error
+	}{
+		{"stable", nil, nil},
+		{"initial running", func(s *colonySource, _ *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
+			s.ids[0].GetLoaded().Paused = proto.Bool(false)
+		}, ErrChanged},
+		{"final running", func(s *colonySource, _ *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
+			s.ids[1].GetLoaded().Paused = proto.Bool(false)
+		}, ErrChanged},
+		{"unknown pause", func(s *colonySource, _ *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
+			s.ids[1].GetLoaded().Paused = nil
+		}, ErrChanged},
+		{"tick advanced", func(s *colonySource, _ *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
+			s.ids[1].GetLoaded().Context.Tick = proto.Int64(8)
+		}, ErrChanged},
+		{"load changed", func(s *colonySource, _ *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
+			s.ids[1].GetLoaded().Context.Identity.LoadToken = proto.String("new")
+		}, ErrChanged},
+		{"generation changed", func(s *colonySource, _ *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
+			s.ids[1].GetLoaded().Context.NativeGeneration = proto.Uint64(2)
+		}, ErrChanged},
+		{"generation missing", func(s *colonySource, _ *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
+			s.reply.GetObserved().Context.NativeGeneration = nil
+			s.reply.GetObserved().Planning.GetObserved().Cells.Context.NativeGeneration = nil
+		}, ErrChanged},
+		{"slow read", func(s *colonySource, _ *Identity, clock *testkit.ManualClock, _ context.CancelFunc) {
+			s.onRead = func() { clock.Advance(2 * time.Second) }
+		}, ErrStale},
+		{"clock rewound", func(s *colonySource, _ *Identity, clock *testkit.ManualClock, _ context.CancelFunc) {
+			s.onRead = func() { clock.Advance(-time.Second) }
+		}, ErrStale},
+		{"expected generation unknown", func(_ *colonySource, i *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
+			i.NativeGeneration = domain.Unknown[domain.NativeGeneration]()
+		}, ErrChanged},
+		{"cancel during read", func(s *colonySource, _ *Identity, _ *testkit.ManualClock, cancel context.CancelFunc) {
+			s.onRead = cancel
+		}, context.Canceled},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
+			if err != nil {
+				t.Fatal(err)
+			}
+			r := &o.ColonyFactsReply{}
+			if err = protojson.Unmarshal(data, r); err != nil {
+				t.Fatal(err)
+			}
+			identity := func() *l.IdentityReply {
+				return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: proto.Clone(r.GetObserved().Context).(*c.ObservationContext), Paused: proto.Bool(true)}}}
+			}
+			s := &colonySource{source: &source{ids: []*l.IdentityReply{identity(), identity()}}, reply: r}
+			expected, err := DecodeIdentity(s.ids[0])
+			if err != nil {
+				t.Fatal(err)
+			}
+			clock := testkit.NewManualClock(time.Now())
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if scenario.change != nil {
+				scenario.change(s, &expected, clock, cancel)
+			}
+			got, err := ObserveColony(ctx, s, clock, expected, time.Second, true, nil)
+			if !errors.Is(err, scenario.want) {
+				t.Fatalf("got %v, want %v", err, scenario.want)
+			}
+			if err == nil {
+				if wood, known := got.Projection.Facts.Wood.Value(); !known || wood != 40 {
+					t.Fatal("lost validated facts")
+				}
+				if s.index != 2 || s.reads != 1 {
+					t.Fatal("missing read brackets")
+				}
+			} else if got.Projection.Identity.Colony != "" {
+				t.Fatal("failed read published facts")
+			}
+		})
+	}
+}

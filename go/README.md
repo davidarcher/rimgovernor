@@ -68,8 +68,11 @@ is still required before sustained routine operation.
 
 `bridge.ReadColonyFacts` and `observation.DecodeColony` consume the typed native
 core and planning geometry. Missing optional fields remain unknown, and a changed
-tick/world is refused. Raw food runway never becomes policy `FoodDays`. Native
-acceptance compares the core and every selected cell against existing native
+tick/world is refused. Raw food runway never becomes policy `FoodDays`.
+`observation.ObserveColony` brackets this read with paused identities at the same
+tick and known native generation, rejects expired/cancelled reads, and publishes
+no projection on failure. Callers must separately validate player direction.
+Native acceptance compares the core and every selected cell against existing native
 reads. To replay a retained official payload through Go and durable review, set
 `RIMGOVERNOR_NATIVE_COLONY_CAPTURE` and run
 `go test ./internal/observation -run TestColonyNativeCapture -v`.

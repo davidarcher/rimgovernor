@@ -602,6 +602,8 @@ expand these into another nested task tree; remove a row when its outcome is met
   updates, including Manual/context invalidation and cancellation preservation. Typed
   native core/planning reads now feed Go projections; paused native parity covers
   counts, stock, sleeping/temperature/storage, definitions and selected cells.
+  A paused Go read bracket requires matching ticks and known native generations
+  and rejects expired/cancelled reads before publishing facts.
   Remaining fact projection (diet/rot forecasts, further need inputs and construction
   costs), goal/reservation-history retirement,
   routine review orchestration, method selection and runtime composition remain
