@@ -742,7 +742,7 @@ only intentional small, sanitized regression fixtures belong in source control.
   unknown-write reconciliation and action identities correct within new sessions.
   Test rollback, reopen/restart and connection closure with real temporary SQLite.
   Depends on 02a.1; extend variants with their actual handlers.
-  - [ ] **04a:** distinct IDs/generations, plan/spec/progress and a bounded building
+  - [x] **04a:** distinct IDs/generations, plan/spec/progress and a bounded building
     action variant with legal transitions. Owner: state agent; no legacy serializers.
     Extend action families only alongside their Hands handlers.
   - [ ] **04b:** fresh versioned SQLite store, transactions/durable intent and
