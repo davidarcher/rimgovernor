@@ -1134,12 +1134,12 @@ main. Native package and Go production cutover remain independent.
   Depends on 02 and its required observations, not the entire Go port.
 
   Guarded `PlaceBuilding`, operation preview, immutable attempt receipts and
-  causally tracked construction progress are implemented. The fresh graphical
+  causally tracked construction progress are implemented. Fresh graphical and batch
   acceptance proves normal pawn-built walls and Go SQLite restart observation
   without redispatch, plus Manual, cancellation, draft/order invalidation, expiry,
   conflict and replay. Required live transition patches are verified before
   admission; oversized evidence retains encodable uncertainty. Other commands
-  remain Unsupported. Batch outcome acceptance, native lost-reply fault injection,
+  remain Unsupported. Native lost-reply fault injection,
   instant/replacement construction cases and remaining operation families are open.
 
 - [ ] **N01.05 — Runtime and presentation ownership.** Native runtime owner.
@@ -1157,7 +1157,7 @@ main. Native package and Go production cutover remain independent.
   its isolated regression passes. The pinned Protobuf runtime closure and notices
   load in fresh graphical and batch games. Unsaved monotonic authority and trusted
   control admission have verified native invalidation hooks. Actual graphical
-  cancellation, draft/order changes and expiry revoke authority; ordinary pause
+  and batch cancellation, draft/order changes and expiry revoke authority; ordinary pause
   preserves it. Game-level load/map transitions, disconnect integration and the
   remaining clock/lifecycle/presentation owners remain open.
   Depends on relevant typed status/clock contracts; fix independently reproducible

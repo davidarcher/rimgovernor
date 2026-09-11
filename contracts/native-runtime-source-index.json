@@ -1,6 +1,6 @@
 {
   "inventory_version": 1,
-  "source_revision": "629f108cfe03059c3991b7e4a809ea90da18feb5",
+  "source_revision": "8c0cee720ed9bfdc97468d969108686c76fcd39e",
   "scope": "Tracked C# sources in unified native Runtime/Bridge and scripts/fixtures; lexical reference index, not an AST or proof of behavioral coverage.",
   "source_line_policy": "One-based source anchors at source_revision; static matches include methods and constructors, reflection matches include helper use and interop. Read the full source declaration before changing ownership.",
   "rows": [
