@@ -146,8 +146,9 @@ namespace HomeBridge.BridgeTools
                 return record==null || record.TrackingLost;
             } catch { return true; }
         }
-        private static Tracked? PrepareLaunch(Projectile projectile,Thing launcher,LocalTargetInfo intendedTarget,Thing equipment,Verb_LaunchProjectile verb)
+        private static Tracked? PrepareLaunch(Projectile projectile,Thing launcher,LocalTargetInfo intendedTarget,Thing equipment,Verb_LaunchProjectile verb,out bool admissible)
         {
+            admissible=false;
             Tracked? record=null;
             try {
                 if (!UnityData.IsInMainThread || Current.Game==null || !Games.TryGetValue(Current.Game,out var state)) return null;
@@ -161,17 +162,18 @@ namespace HomeBridge.BridgeTools
                     || state.Flights.Count>=FlightLimit || state.Flights.ContainsKey(projectile)
                     || e.JobId!=e.Job.loadID || e.Job.def!=JobDefOf.AttackStatic || e.Job.targetA.Thing!=e.Target || e.Job.verbToUse!=verb
                     || !CurrentIdentity(record) || !record.LaunchGuard()) record.TrackingLost=true;
+                else admissible=true;
             } catch { if (record!=null) record.TrackingLost=true; }
             return record;
         }
         private static void LaunchBullet(Projectile projectile,Thing launcher,Vector3 origin,LocalTargetInfo usedTarget,LocalTargetInfo intendedTarget,
             ProjectileHitFlags hitFlags,bool preventFriendlyFire,Thing equipment,ThingDef targetCoverDef,Verb_LaunchProjectile verb)
         {
-            var record=PrepareLaunch(projectile,launcher,intendedTarget,equipment,verb);
+            var record=PrepareLaunch(projectile,launcher,intendedTarget,equipment,verb,out var admissible);
             // Forward the exact native call even if observation is unavailable.
             try { projectile.Launch(launcher,origin,usedTarget,intendedTarget,hitFlags,preventFriendlyFire,equipment,targetCoverDef); }
             catch { if (record!=null) record.TrackingLost=true; throw; }
-            if (record==null || record.TrackingLost) return;
+            if (record==null || !admissible) return;
             try {
                 if (!IsReady || !CurrentIdentity(record) || projectile.Launcher!=launcher
                     || projectile.intendedTarget!=intendedTarget || projectile.usedTarget!=usedTarget || projectile.Map!=record.Identity.Map
