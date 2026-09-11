@@ -118,7 +118,12 @@ namespace HomeBridge.BridgeTools
             Bound(forbidden.Count, limit);
             foreach (var cell in forbidden) result.ForbiddenSupplies.Add(Cell(cell));
             ReadProduction(result, map, people, things, reachable, humanFood, limit);
-            foreach (var field in new[] { "naming", "policy_resources", "pending_food_nutrition", "environment", "food_climate", "acquisition", "butchering", "food_corpses", "recovery", "waste" })
+            var naming = ColonyNamingTools.Pending();
+            if (naming != null) result.Naming = new Obs.ColonyNaming { WindowId = naming.ID };
+            else if (Find.WindowStack == null || Find.WindowStack.Windows.OfType<Dialog_NamePlayerFactionAndSettlement>().Any())
+                result.Issues.Add(Issue("naming", Common.UnavailableReason.Unsupported, "Naming window census is unavailable or obstructed by another paused dialog."));
+            else result.Issues.Add(Issue("naming", Common.UnavailableReason.NotApplicable, "No pending colony naming dialog."));
+            foreach (var field in new[] { "policy_resources", "pending_food_nutrition", "environment", "food_climate", "acquisition", "butchering", "food_corpses", "recovery", "waste" })
                 result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Section is not yet projected."));
             result.Planning = request.Planning ? new Obs.PlanningSection { Observed = Planning(map, center, request, context, limit) }
                 : new Obs.PlanningSection { Unavailable = Unavailable(Common.UnavailableReason.NotRequested, "Planning was not requested.") };

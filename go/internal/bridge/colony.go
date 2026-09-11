@@ -143,7 +143,17 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 		}
 		seen[key] = true
 	}
-	if v.Naming != nil || len(v.PolicyResources) != 0 || len(v.Environment) != 0 || v.FoodClimate != nil || len(v.Acquisition) != 0 || len(v.Butchering) != 0 || len(v.FoodCorpses) != 0 || v.Recovery != nil || v.Waste != nil {
+	if v.Naming != nil {
+		if v.Naming.WindowId == nil || v.Naming.GetWindowId() < 0 || !proto.Equal(v.Naming, &o.ColonyNaming{WindowId: v.Naming.WindowId}) {
+			return contract("invalid naming window census")
+		}
+		for _, issue := range v.Issues {
+			if issue.GetField() == "naming" {
+				return contract("unavailable naming window contains observation")
+			}
+		}
+	}
+	if len(v.PolicyResources) != 0 || len(v.Environment) != 0 || v.FoodClimate != nil || len(v.Acquisition) != 0 || len(v.Butchering) != 0 || len(v.FoodCorpses) != 0 || v.Recovery != nil || v.Waste != nil {
 		return contract("unreviewed colony section")
 	}
 	if err := validateColonyProduction(v); err != nil {

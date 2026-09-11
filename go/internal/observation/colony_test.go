@@ -195,6 +195,19 @@ func TestColonyNativeCaptureReachesRoutineReview(t *testing.T) {
 		t.Fatal("native facts did not reach maintained goals")
 	}
 	for _, assessment := range out.Needs.Assessments {
+		if assessment.ID == policy.ConfirmColonyNames {
+			if expected := os.Getenv("RIMGOVERNOR_NATIVE_NAMING"); expected != "" {
+				naming, known := p.Facts.ColonyNaming.Value()
+				want := domain.NeedRecovered
+				if expected == "present" {
+					want = domain.NeedDeficit
+				}
+				if !known || naming != (expected == "present") || assessment.Need != want {
+					t.Fatal("native naming did not reach durable review", p.Facts.ColonyNaming, assessment)
+				}
+				t.Logf("Native naming %s reaches durable need %s", expected, want)
+			}
+		}
 		if assessment.ID == policy.EnsureCooking {
 			if ready, known := p.Facts.Cooking.Value(); known {
 				want := domain.NeedDeficit

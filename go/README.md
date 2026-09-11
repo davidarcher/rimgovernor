@@ -138,6 +138,13 @@ Protobuf acceptance scenario supports `--routine-production` with the private
 is injected. Retained captures can be replayed with
 `RIMGOVERNOR_NATIVE_PRODUCTION_REFERENCE` alongside the colony capture.
 
+Routine naming needs use the exact pending native dialog ID. Explicit absence
+recovers the need; missing or obstructed observations remain unknown. The read
+does not confirm names. Native Protobuf acceptance uses `--routine-naming` with
+the private `ModalFixture` to verify absence, presence and unrelated replacement.
+Replay its captures with `RIMGOVERNOR_NATIVE_NAMING=present` or `absent` alongside
+`RIMGOVERNOR_NATIVE_COLONY_CAPTURE` to check the durable need.
+
 `NewRoutineSleepingPlanner` configures the shared `RoutineBuildingPlanner` to compile an active reviewed shelter deficit into
 one complete method of ordinary indoor sleeping spots. It requires a known native
 definition with no construction-skill prerequisite, roofed indoor cells, disjoint

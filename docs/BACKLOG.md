@@ -629,6 +629,9 @@ expand these into another nested task tree; remove a row when its outcome is met
   censuses feed edible growing-cell capacity and usable, unsuspended food-bill needs.
   Unknown counts or availability remain unknown. Populated native replay verifies
   thirty growing rice cells and a cooking recovery in the durable Go review.
+  The native naming-window census now supplies naming deficits and explicit absence;
+  unavailable or obstructed observations remain unknown. Native dialog/replacement
+  acceptance and durable replay verify need changes without confirming names.
   Superseded invalidated autopilot goals now retire from active capacity while
   retaining immutable history; uncertain effects and cleanup prevent retirement.
   Completion observed after cancellation now yields historic cost/geometry holds

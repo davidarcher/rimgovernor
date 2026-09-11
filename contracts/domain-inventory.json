@@ -7892,7 +7892,7 @@
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeColonyObservationTools.cs",
           "line": 28,
           "declaration": "[Tool(ToolName, Title = \"Read typed routine colony facts\", Description = \"Native colony, accessible stock, sleeping capacity, temperature and storage facts. Optional bounded starter geometry/definitions. Raw food runway is not a diet/rot forecast. Unported sections are explicitly unavailable. Read-only; no authority or orders.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ColonyFactsReply ProtoJSON, bounded to1MiB.\", Always = true)]\n        public async Task<object> ReadColonyFacts(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Raw ColonyFactsRequest ProtoJSON string.\")] object? request = null)",
-          "source_sha256": "07640a26fc2706e0e9d0107ded1b65b0bb6acc66b02eed1cde8b9ab3f51a4e8d"
+          "source_sha256": "892798a9390495c7662ec611f81e41f68e04298d3dbe3fc51ea45b3e4aacff0e"
         },
         {
           "name": "rimgovernor/observations_read_research",

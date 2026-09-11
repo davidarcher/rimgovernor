@@ -69,7 +69,7 @@ async def run_go_preview(binary: Path, root: Path, output: Path, configuration: 
 
 
 
-async def run(root: Path, output: Path, *, headless: bool, timeout_seconds: int, go_preview_smoke: Path | None = None, routine_production: bool = False) -> bool:
+async def run(root: Path, output: Path, *, headless: bool, timeout_seconds: int, go_preview_smoke: Path | None = None, routine_production: bool = False, routine_naming: bool = False) -> bool:
     output.mkdir(parents=True, exist_ok=False)
     evidence = Evidence(output)
     report: dict[str, object] = {"passed": False, "headless": headless,
@@ -97,7 +97,7 @@ async def run(root: Path, output: Path, *, headless: bool, timeout_seconds: int,
                     assert expected <= set(names), f"Missing Protobuf tools: {expected - set(names)}"
                     assert "home/placement_previews" not in names, "Obsolete placement alias is still exported"
                     fixture_names = {name for name in names if name.startswith("test/") or "fixture" in name.casefold()}
-                    assert fixture_names == ({"test/routine_production_prepare"} if routine_production else set())
+                    assert fixture_names == (({"test/routine_production_prepare"} if routine_production else set()) | ({"test/modal_fixture"} if routine_naming else set()))
                     report["protobuf_tools"] = sorted(expected)
                     await call("new-game", "rimworld/start_debug_game_ready",
                         {"readiness": "visual", "pauseIfNeeded": True, "timeoutMs": 120000}, startup=True)
@@ -201,6 +201,9 @@ async def run(root: Path, output: Path, *, headless: bool, timeout_seconds: int,
                     unchanged(camera, await call("camera-after", "rimworld/get_camera_state"), "camera")
                     unchanged(buildings, await call("buildings-after", "home/list_buildings", building_args), "buildings/blueprints/frames")
                     unchanged(status, await call("status-after", "home/status", status_args), "paused native status")
+                    if routine_naming:
+                        from native_routine_naming_checks import verify_naming
+                        report['naming'] = await verify_naming(wire, call, identity, output)
                     check_startup_log((root / ("HeadlessPlayer.log" if headless else "Player.log")).read_text(
                         encoding="utf8", errors="replace"), headless=headless)
                     report.update(passed=True, structural_refusals=len(cases), candidates=len(candidates), context=context)
@@ -227,6 +230,7 @@ if __name__ == "__main__":
     parser.add_argument("--timeout-seconds", type=int, default=600)
     parser.add_argument("--go-preview-smoke", type=Path)
     parser.add_argument("--routine-production", action="store_true")
+    parser.add_argument("--routine-naming", action="store_true")
     args = parser.parse_args()
     raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-protobuf-acceptance",
-        headless=not args.rendered, timeout_seconds=args.timeout_seconds, go_preview_smoke=args.go_preview_smoke, routine_production=args.routine_production)) else 1)
+        headless=not args.rendered, timeout_seconds=args.timeout_seconds, go_preview_smoke=args.go_preview_smoke, routine_production=args.routine_production, routine_naming=args.routine_naming)) else 1)
