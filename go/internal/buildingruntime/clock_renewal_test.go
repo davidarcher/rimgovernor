@@ -110,7 +110,7 @@ func TestClockRenewalReusesPreparedDespiteFreshTick(t *testing.T) {
 	}
 }
 
-func TestClockRenewalUnknownRecoversWithoutRetryWhileDisabled(t *testing.T) {
+func TestClockRenewalTerminalUnknownIsIdleWhileDisabled(t *testing.T) {
 	s, _, w, _ := renewalFixture(t)
 	w.lost = true
 	first, err := s.RenewEpoch(context.Background())
@@ -118,8 +118,49 @@ func TestClockRenewalUnknownRecoversWithoutRetryWhileDisabled(t *testing.T) {
 		t.Fatal(first, err)
 	}
 	second, err := s.RenewEpoch(context.Background())
-	if err == nil || !second.Reconciled || second.Attempt == nil || second.Attempt.Intent.RequestID != first.Attempt.Intent.RequestID || second.Attempt.Phase != store.ClockApplied || w.renews != 1 {
+	if err != nil || second.Reconciled || second.Attempt != nil || w.renews != 1 {
 		t.Fatal(second, err, w.renews)
+	}
+	old, err := s.player.journal.LookupClockAttempt(context.Background(), first.Attempt.Intent.RequestID)
+	if err != nil || old.Phase != store.ClockUncertain {
+		t.Fatal(old, err)
+	}
+	reads, pauses := w.reads, w.pauses
+	w.identityError = errors.New("idle must not read native")
+	defer func() { w.identityError = nil }()
+	if _, err = s.RenewEpoch(context.Background()); err != nil || w.reads != reads || w.pauses != pauses {
+		t.Fatal("idle cleanup repeated", err)
+	}
+}
+
+func TestClockRenewalOldTerminalUncertaintyDoesNotBlockNewEpoch(t *testing.T) {
+	s, n, w, start := renewalFixture(t)
+	w.lost = true
+	old, err := s.RenewEpoch(context.Background())
+	if err == nil || old.Attempt == nil || old.Attempt.Phase != store.ClockUncertain {
+		t.Fatal(old, err)
+	}
+	w.lost = false
+	if err = s.session.Manual(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	current, err := s.session.Acquire(context.Background(), start.Intent.Snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n.status.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
+	n.status.DurableEvents = proto.Bool(true)
+	next, err := s.Step(context.Background())
+	if err != nil || next.Attempt == nil || next.Attempt.Phase != store.ClockApplied {
+		t.Fatal(next, err)
+	}
+	renewed, err := s.RenewEpoch(context.Background())
+	if err != nil || !renewed.Renewed || renewed.Reconciled || renewed.Attempt.Intent.Snapshot != current || w.renews != 2 {
+		t.Fatal(renewed, err, w.renews)
+	}
+	retained, err := s.player.journal.LookupClockAttempt(context.Background(), old.Attempt.Intent.RequestID)
+	if err != nil || retained.Phase != store.ClockUncertain {
+		t.Fatal("old uncertainty overwritten", retained, err)
 	}
 }
 

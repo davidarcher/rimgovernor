@@ -54,29 +54,11 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 		return out, err
 	}
 	state := s.session.State()
-	attempts, err := s.player.journal.LoadClockAttempts(call, 4096)
+	epochs, err := s.player.journal.LoadClockEpochs(call, 4096)
 	if err != nil {
 		return out, s.renewalHold(err)
 	}
-	// Resolve the original command before considering another renewal identity.
-	for _, attempt := range attempts {
-		if attempt.Intent.Command.Renew != nil && (attempt.Phase == store.ClockDispatched || attempt.Phase == store.ClockUncertain) {
-			recovered, e := s.session.ReconcileClock(call, attempt.Intent.RequestID)
-			out.Attempt = &recovered
-			out.Reconciled = true
-			if e != nil || recovered.Phase != store.ClockApplied {
-				return out, s.renewalHold(errors.Join(e, executor.ErrHeld))
-			}
-			if !state.Enabled || !state.ObservationKnown || state.Snapshot != attempt.Intent.Snapshot {
-				return out, s.renewalHold(executor.ErrAuthority)
-			}
-			break
-		}
-	}
-	if !state.Enabled || !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 || state.Snapshot.Direction == 0 || state.Snapshot.Revision == 0 {
-		return out, s.renewalHold(executor.ErrAuthority)
-	}
-	epochs, err := s.player.journal.LoadClockEpochs(call, 4096)
+	attempts, err := s.player.journal.LoadClockAttempts(call, 4096)
 	if err != nil {
 		return out, s.renewalHold(err)
 	}
@@ -92,6 +74,9 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 	}
 	if owned == nil {
 		return out, nil
+	}
+	if !state.Enabled || !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 || state.Snapshot.Direction == 0 || state.Snapshot.Revision == 0 {
+		return out, s.renewalHold(executor.ErrAuthority)
 	}
 	if owned.Stage != store.ClockEpochRequired {
 		return out, s.renewalHold(executor.ErrHeld)
@@ -109,6 +94,20 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 	current := identity.GetLoaded().GetContext()
 	if _, err = boundaryContext(current, state.Snapshot); err != nil {
 		return out, s.renewalHold(err)
+	}
+	// Only the currently retained nonterminal epoch can block renewal recovery.
+	// Terminal epoch uncertainty remains historical evidence, not live work.
+	for _, attempt := range attempts {
+		renew := attempt.Intent.Command.Renew
+		if renew == nil || !clockCoordinatorSameEpoch(renew.Original, original) || attempt.Intent.Snapshot != start.Intent.Snapshot || (attempt.Phase != store.ClockDispatched && attempt.Phase != store.ClockUncertain) {
+			continue
+		}
+		recovered, e := s.session.ReconcileClock(call, attempt.Intent.RequestID)
+		out.Attempt, out.Reconciled = &recovered, true
+		if e != nil || recovered.Phase != store.ClockApplied {
+			return out, s.renewalHold(errors.Join(e, executor.ErrHeld))
+		}
+		break
 	}
 	reply, _, err := s.native.ReadClockStatus(call, current.Identity)
 	if err != nil {
