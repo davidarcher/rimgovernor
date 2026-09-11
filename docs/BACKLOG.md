@@ -1140,8 +1140,11 @@ main. Native package and Go production cutover remain independent.
   Basic typed status and bounded cell reads are implemented. Explicit all-false
   cell fields support map-bound discovery; terrain, roof, visibility and traversal
   are available, while other requested fields report Unsupported. Status does not
-  issue entity CAS snapshots. Remaining families, frozen continuation pages and
-  full Go service observation acceptance remain open.
+  issue entity CAS snapshots. Go read-only service polling is accepted against
+  the actual native status adapter: two fresh HTTP observations, unchanged paused
+  identity/tick/generation, exclusive GABS handoff and joined shutdown. Complete
+  operation-event coverage verifies identity/status calls only. Remaining families
+  and frozen continuation pages remain open.
 
 - [ ] **N01.04 — Typed guarded operations.** Native operations owner with G01 Hands.
   Start with ordinary construction through admission, dry-run, receipt and observed

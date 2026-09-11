@@ -70,6 +70,14 @@ The focused C# projects under `contracts/tests/native-proto-*` and
 `contracts/tests/native-authority*` test parsing, SDK binding and authority
 semantics separately from this game run.
 
+Use `scripts/native_go_service_acceptance.py --root /worker/run --go-service
+/inputs/profile/rimgovernor-go` through the scenario launcher with a private
+production package to check the Go read-only service. It joins the first GABS
+process before starting Go, checks two refreshed HTTP observations, joins Go on
+SIGTERM and reconnects without force takeover. A contiguous native operation-event
+trace proves the service invoked only identity/status reads. Paused tick, identity
+and native generation must remain unchanged across the handoff.
+
 For guarded construction acceptance, build a private package with
 `-Fixture GuardedConstructionFixture` and run
 `scripts/native_guarded_construction_acceptance.py` through the same launcher.
