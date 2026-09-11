@@ -70,6 +70,9 @@ func loadClock(ctx context.Context, tx *sql.Tx, id string) (ClockAttempt, error)
 	if err = clockActionAvailable(ctx, tx, value.NativeAttempt.GetActionId()); err != nil {
 		return ClockAttempt{}, err
 	}
+	if _, err = checkClockEpoch(ctx, tx, value); err != nil {
+		return ClockAttempt{}, err
+	}
 	return value, nil
 }
 func clockActionAvailable(ctx context.Context, tx *sql.Tx, action string) error {
@@ -271,6 +274,11 @@ func (s *Store) updateClock(ctx context.Context, id string, change func(ClockAtt
 	}
 	if _, err = tx.ExecContext(ctx, "UPDATE clock_attempts SET phase=?,reply=? WHERE request_id=?", phase, data, id); err != nil {
 		return ClockAttempt{}, err
+	}
+	if phase == ClockApplied && old.Intent.Command.Start != nil {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO clock_epochs(start_request_id,stage,sequence) VALUES(?,'required','0')", id); err != nil {
+			return ClockAttempt{}, err
+		}
 	}
 	saved, err := loadClock(ctx, tx, id)
 	if err != nil {
