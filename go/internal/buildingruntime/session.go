@@ -16,6 +16,7 @@ type SessionConfig struct {
 	Executor executor.Limits
 	Rules    []policy.ResourceRule
 	Draft    *DraftCapabilities
+	Clock    *ClockCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
@@ -26,6 +27,7 @@ type Session struct {
 	executor *executor.Executor
 	journal  *store.Store
 	drafts   *draftSweep
+	clock    *ClockCoordinator
 }
 
 type sessionSink struct {
@@ -33,6 +35,7 @@ type sessionSink struct {
 	executor *executor.Executor
 	control  *Control
 	drafts   *draftSweep
+	clock    *ClockCoordinator
 }
 
 func (s *sessionSink) UpdateAuthority(value executor.Authority) error {
@@ -44,23 +47,35 @@ func (s *sessionSink) UpdateAuthority(value executor.Authority) error {
 		}
 		return nil
 	}
-	return s.executor.UpdateAuthority(value)
+	err := s.executor.UpdateAuthority(value)
+	if s.clock != nil {
+		err = errors.Join(err, s.clock.UpdateAuthority(value))
+	}
+	return err
 }
 func (s *sessionSink) stop(ctx context.Context) error {
 	s.mu.Lock()
 	e := s.executor
 	drafts := s.drafts
+	clock := s.clock
 	s.mu.Unlock()
 	if e == nil {
 		return nil
 	}
-	if err := e.Stop(ctx); err != nil {
+	err := e.Stop(ctx)
+	if clock != nil {
+		err = errors.Join(err, clock.Stop(ctx))
+	}
+	if err != nil {
 		return err
 	}
-	if drafts != nil {
-		return drafts.run(ctx)
+	if clock != nil {
+		err = clock.Cleanup(ctx)
 	}
-	return nil
+	if drafts != nil {
+		err = errors.Join(err, drafts.run(ctx))
+	}
+	return err
 }
 
 type sessionHolds struct{ journal *store.Store }
@@ -75,6 +90,14 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.Draft != nil && (config.Draft.Native == nil || config.Draft.Writer == nil || config.Draft.Cleanup == nil) {
 		return nil, errors.New("complete draft capabilities required")
+	}
+	if config.Clock != nil && (config.Clock.Native == nil || config.Clock.Writer == nil) {
+		return nil, errors.New("complete clock capabilities required")
+	}
+	if config.Clock == nil {
+		if err := requireNoClockObligations(ctx, journal); err != nil {
+			return nil, err
+		}
 	}
 	sink := &sessionSink{}
 	namespace, err := journal.Identity(ctx)
@@ -92,6 +115,10 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 	}
 	config.Control.StopWrites = sink.stop
+	config.Control.CleanupWrites = sink.cleanup
+	if config.Control.Worlds == nil && config.Clock != nil {
+		config.Control.Worlds = clockWorldSource{config.Clock.Native}
+	}
 	control, err := NewControl(ctx, config.Control, journal, authority, sink)
 	if err != nil {
 		return nil, err
@@ -121,15 +148,25 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if draft != nil {
 		drafts = &draftSweep{journal: journal, executor: worker, gate: make(chan struct{}, 1), timeout: config.Control.CallTimeout}
 	}
-	if err = sink.attach(ctx, worker, drafts); err != nil {
+	var coordinator *ClockCoordinator
+	if config.Clock != nil {
+		coordinator, err = NewClockCoordinator(journal, config.Clock.Native, config.Clock.Writer, sink, ClockCoordinatorConfig{CallTimeout: config.Control.CallTimeout, JournalTimeout: config.Executor.JournalTimeout})
+		if err != nil {
+			return cleanup(err)
+		}
+	}
+	if err = sink.attach(ctx, worker, drafts, coordinator); err != nil {
+		if coordinator != nil {
+			_ = coordinator.Stop(context.Background())
+		}
 		return cleanup(err)
 	}
-	return &Session{control: control, executor: worker, journal: journal, drafts: drafts}, nil
+	return &Session{control: control, executor: worker, journal: journal, drafts: drafts, clock: coordinator}, nil
 }
 
 // Publish only after the final fallible construction check. Until publication,
 // failure cleanup releases the owner without draining unrelated durable work.
-func (s *sessionSink) attach(ctx context.Context, worker *executor.Executor, drafts *draftSweep) error {
+func (s *sessionSink) attach(ctx context.Context, worker *executor.Executor, drafts *draftSweep, clock *ClockCoordinator) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := ctx.Err(); err != nil {
@@ -137,6 +174,7 @@ func (s *sessionSink) attach(ctx context.Context, worker *executor.Executor, dra
 	}
 	s.executor = worker
 	s.drafts = drafts
+	s.clock = clock
 	return nil
 }
 
@@ -170,11 +208,7 @@ func (s *Session) ObserveTarget(ctx context.Context, requested domain.Generation
 }
 func (s *Session) Refresh(ctx context.Context) error { return s.control.Refresh(ctx) }
 func (s *Session) Manual(ctx context.Context) error {
-	err := s.control.Manual(ctx)
-	if s.drafts != nil {
-		return errors.Join(err, s.drafts.run(ctx))
-	}
-	return err
+	return s.control.Manual(ctx)
 }
 func (s *Session) Run(ctx context.Context, plan domain.PlanID, action domain.ActionID) (executor.Result, error) {
 	return s.executor.Run(ctx, plan, action)

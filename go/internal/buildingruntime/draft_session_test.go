@@ -189,7 +189,7 @@ func TestCancelledSessionAttachmentDoesNotStrandOwnerOnExistingDraft(t *testing.
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err = sink.attach(ctx, session.executor, session.drafts); !errors.Is(err, context.Canceled) {
+	if err = sink.attach(ctx, session.executor, session.drafts, session.clock); !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
 	}
 	if err = control.Close(context.Background()); err != nil {

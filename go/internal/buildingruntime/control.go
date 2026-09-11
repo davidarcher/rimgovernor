@@ -41,6 +41,9 @@ type ControlConfig struct {
 	ProfileDirectory           string
 	LeaseDuration, CallTimeout time.Duration
 	StopWrites                 func(context.Context) error
+	// CleanupWrites joins invalidated commands and drains owned effects under
+	// the control gate. It must not call back into Control or acquire a lease.
+	CleanupWrites func(context.Context) error
 	// Worlds reads actual native identity without entering the control gate.
 	// Without it, shutdown cannot retire a target by proving world replacement.
 	Worlds WorldSource
@@ -125,6 +128,11 @@ func (control *Control) Acquire(ctx context.Context, requested domain.Generation
 		return domain.GenerationSnapshot{}, err
 	}
 	defer done()
+	if control.config.CleanupWrites != nil {
+		if err = control.config.CleanupWrites(call); err != nil {
+			return domain.GenerationSnapshot{}, err
+		}
+	}
 	status, _, err := control.native.ReadAuthority(call, controlIdentity(requested))
 	if err != nil {
 		return domain.GenerationSnapshot{}, control.failedObservation(epoch, err)
@@ -222,7 +230,11 @@ func (control *Control) Manual(ctx context.Context) error {
 		return errors.Join(err, enterErr)
 	}
 	defer done()
-	return errors.Join(err, control.revoke(call, a.RevocationReason_REVOCATION_REASON_MANUAL))
+	err = errors.Join(err, control.revoke(call, a.RevocationReason_REVOCATION_REASON_MANUAL))
+	if control.config.CleanupWrites != nil {
+		err = errors.Join(err, control.config.CleanupWrites(call))
+	}
+	return err
 }
 
 // Close is retryable when writer drain or native revoke fails. Authority stays
