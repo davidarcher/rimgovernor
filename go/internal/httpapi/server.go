@@ -21,12 +21,15 @@ import (
 )
 
 type Server struct {
-	config    Config
-	snapshots SnapshotProvider
-	plans     PlanReader
-	assets    *os.Root
-	closeOnce sync.Once
-	closeErr  error
+	player      PlayerBuildings
+	controls    ControlReader
+	playerToken string
+	config      Config
+	snapshots   SnapshotProvider
+	plans       PlanReader
+	assets      *os.Root
+	closeOnce   sync.Once
+	closeErr    error
 }
 
 func New(config Config, snapshots SnapshotProvider, plans PlanReader) (*Server, error) {
@@ -121,6 +124,9 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 			s.failure(w, r, 403, "cross_origin", "Origin must match this local controller")
 			return
 		}
+	}
+	if s.handlePlayer(w, r) {
+		return
 	}
 	known := r.URL.Path == "/api/state" || r.URL.Path == "/api/health" || r.URL.Path == "/api/plan"
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
