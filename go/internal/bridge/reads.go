@@ -33,15 +33,39 @@ type nativeArgument struct {
 // ConnectGame attaches GABS to an already-running game. It does not start, load,
 // stop or advance the game. There is no implicit reconnect or retry.
 func (c *Client) ConnectGame(ctx context.Context) (Result, error) {
+	return c.connectGame(ctx, false)
+}
+
+// ConnectGameWithTakeover explicitly transfers an existing GABS attachment.
+// Callers must own the external session handoff; normal runtime uses ConnectGame.
+func (c *Client) ConnectGameWithTakeover(ctx context.Context) (Result, error) {
+	return c.connectGame(ctx, true)
+}
+
+func (c *Client) connectGame(ctx context.Context, force bool) (Result, error) {
 	return c.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
 		args := struct {
-			GameID  string `json:"gameId"`
-			Timeout int    `json:"timeout"`
-		}{c.gameID, int(c.timeout.Seconds())}
+			GameID        string `json:"gameId"`
+			Timeout       int    `json:"timeout"`
+			ForceTakeover bool   `json:"forceTakeover,omitempty"`
+		}{c.gameID, int(c.timeout.Seconds()), force}
 		if args.Timeout < 1 {
 			args.Timeout = 1
 		}
-		return c.core(ctx, live, "games_connect", encode(args))
+		result, err := c.core(ctx, live, "games_connect", encode(args))
+		if err != nil {
+			return result, err
+		}
+		var ownership struct {
+			ForeignOwner bool `json:"foreignOwner"`
+		}
+		if json.Unmarshal(result.Structured, &ownership) != nil {
+			return result, contract("invalid connection reply")
+		}
+		if ownership.ForeignOwner {
+			return result, &Refusal{Tool: "games_connect", Result: result}
+		}
+		return result, nil
 	})
 }
 func (c *Client) GameStatus(ctx context.Context) (Result, error) {

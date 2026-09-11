@@ -25,7 +25,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type options struct{ gabs, config, game, requests, output string }
+type options struct {
+	gabs, config, game, requests, output string
+	forceTakeover                        bool
+}
 type fixture struct {
 	placements []*wire.PlacementCandidate
 	expected   []string
@@ -52,6 +55,7 @@ func parseOptions(args []string) (options, error) {
 	var o options
 	flags := flag.NewFlagSet("previewsmoke", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
+	flags.BoolVar(&o.forceTakeover, "force-takeover", false, "explicitly transfer GABS ownership for a coordinated fixture handoff")
 	flags.StringVar(&o.gabs, "gabs", "", "absolute GABS executable")
 	flags.StringVar(&o.config, "config", "", "absolute configuration directory")
 	flags.StringVar(&o.game, "game", "rimgovernor-trial", "configured game ID")
@@ -178,7 +182,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	result := report{Scope: "Read-only generated placement previews in an existing paused native game; no placement, clock control, game startup or shutdown.", Expected: requests.expected}
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	err = observe(ctx, bridge.ProcessConfig{Executable: o.gabs, ConfigDir: o.config, GameID: o.game, Timeout: 30 * time.Second}, requests, &result)
+	err = observe(ctx, bridge.ProcessConfig{Executable: o.gabs, ConfigDir: o.config, GameID: o.game, Timeout: 30 * time.Second}, requests, &result, o.forceTakeover)
 	cancel()
 	if err != nil {
 		result.Error = err.Error()
@@ -237,7 +241,7 @@ func takeSample(ctx context.Context, client identitySource) (sample, error) {
 	}
 	return result, nil
 }
-func observe(ctx context.Context, config bridge.ProcessConfig, requests fixture, result *report) (err error) {
+func observe(ctx context.Context, config bridge.ProcessConfig, requests fixture, result *report, forceTakeover bool) (err error) {
 	client, err := bridge.Open(ctx, config)
 	if err != nil {
 		result.ErrorKind = "sdk_connection"
@@ -248,7 +252,11 @@ func observe(ctx context.Context, config bridge.ProcessConfig, requests fixture,
 			err = closeErr
 		}
 	}()
-	result.Connection, err = client.ConnectGame(ctx)
+	if forceTakeover {
+		result.Connection, err = client.ConnectGameWithTakeover(ctx)
+	} else {
+		result.Connection, err = client.ConnectGame(ctx)
+	}
 	if err != nil {
 		result.ErrorKind = "sdk_connection"
 		return err

@@ -168,6 +168,7 @@ func (caller *Client) protoRead(ctx context.Context, name string, request, reply
 	args := encode(struct {
 		Request string `json:"request"`
 	}{string(inner)})
+	invoked := false
 	result, err := caller.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
 		detail, err := caller.describe(ctx, live, name)
 		if err != nil {
@@ -176,17 +177,24 @@ func (caller *Client) protoRead(ctx context.Context, name string, request, reply
 		if err = validateOwnedStringInput(detail.Structured, "request"); err != nil {
 			return Result{}, err
 		}
+		invoked = true
 		return caller.core(ctx, live, "games_call_tool", encode(nativeArgument{caller.gameID, name, args}))
 	})
 	callErr := err
-	if err != nil && !errors.Is(err, ErrRefused) {
+	if err != nil && (!errors.Is(err, ErrRefused) || !invoked) {
 		return result, err
 	}
 	payload, err := decodePayload(result.Structured)
 	if err != nil {
+		if callErr != nil {
+			return result, callErr
+		}
 		return result, err
 	}
 	if err = (protojson.UnmarshalOptions{DiscardUnknown: false, RecursionLimit: 64}).Unmarshal(payload, reply); err != nil {
+		if callErr != nil {
+			return result, callErr
+		}
 		return result, contract("reply parsing: %v", err)
 	}
 	if callErr != nil {
@@ -270,6 +278,9 @@ func diagnostic(value *string) bool {
 func ValidateIdentity(value *c.Identity) error {
 	if value == nil || value.ColonyId == nil || value.LoadToken == nil || value.MapId == nil || value.GetMapId() < 0 {
 		return contract("identity presence or map")
+	}
+	if len(value.ProtoReflect().GetUnknown()) != 0 {
+		return contract("unknown identity fields")
 	}
 	return errors.Join(validID(value.GetColonyId()), validID(value.GetLoadToken()))
 }

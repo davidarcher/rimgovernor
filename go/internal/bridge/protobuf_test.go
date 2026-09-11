@@ -185,3 +185,53 @@ func TestEveryCanonicalUnavailableReason(t *testing.T) {
 		}
 	}
 }
+
+func TestSDKRefusalPreservedWithoutCanonicalFailure(t *testing.T) {
+	for _, atDetail := range []bool{false, true} {
+		for _, raw := range []string{`{"refused":true}`, `{"payload":"invalid"}`, `{"unknownArguments":["request"]}`} {
+			result := structured(raw)
+			result.IsError = true
+			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) { return result, nil }}
+			if atDetail {
+				s.detailResult = result
+			}
+			reply, receipt, err := testClient(t, s, time.Second).Identity(context.Background())
+			var refusal *Refusal
+			if !errors.As(err, &refusal) || errors.Is(err, ErrContract) || reply != nil || len(receipt.Envelope) == 0 {
+				t.Fatalf("detail=%v raw=%s err=%v", atDetail, raw, err)
+			}
+			if atDetail && len(s.calls) != 0 {
+				t.Fatal("called after description refusal")
+			}
+		}
+	}
+}
+func TestStatusRejectsUnknownBinaryIdentityBeforeDispatch(t *testing.T) {
+	identity := pbIdentity()
+	identity.ProtoReflect().SetUnknown([]byte{0x20, 0x01})
+	s := &testServer{schema: protoSchema}
+	if reply, _, err := testClient(t, s, time.Second).Status(context.Background(), identity); !errors.Is(err, ErrContract) || reply != nil {
+		t.Fatalf("unknown fields discarded: %v", err)
+	}
+	if len(s.calls) != 0 {
+		t.Fatal("invalid identity dispatched")
+	}
+}
+
+func TestConnectRefusesForeignOwnerAndExplicitTakeover(t *testing.T) {
+	s := &testServer{connectResult: structured(`{"foreignOwner":true,"ownerPID":24}`)}
+	client := testClient(t, s, time.Second)
+	if raw, err := client.ConnectGame(context.Background()); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
+		t.Fatalf("foreign ownership accepted: %v", err)
+	}
+	if strings.Contains(string(s.connectArgs), "forceTakeover") {
+		t.Fatal("implicit takeover")
+	}
+	s.connectResult = structured(`{"success":true}`)
+	if _, err := client.ConnectGameWithTakeover(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(s.connectArgs), `"forceTakeover":true`) {
+		t.Fatalf("explicit takeover missing: %s", s.connectArgs)
+	}
+}

@@ -19,11 +19,14 @@ import (
 const emptySchema = `{"type":"object","properties":{},"additionalProperties":false}`
 
 type testServer struct {
-	mu       sync.Mutex
-	calls    []nativeArgument
-	handler  func(context.Context, nativeArgument) (*mcp.CallToolResult, error)
-	schema   string
-	sessions []*mcp.ServerSession
+	mu            sync.Mutex
+	calls         []nativeArgument
+	handler       func(context.Context, nativeArgument) (*mcp.CallToolResult, error)
+	connectResult *mcp.CallToolResult
+	connectArgs   json.RawMessage
+	detailResult  *mcp.CallToolResult
+	schema        string
+	sessions      []*mcp.ServerSession
 }
 
 func structured(raw string) *mcp.CallToolResult {
@@ -34,7 +37,16 @@ func (s *testServer) server() *mcp.Server {
 	for _, name := range []string{"games_call_tool", "games_tool_detail", "games_tool_names", "games_status", "games_connect"} {
 		server.AddTool(&mcp.Tool{Name: name, InputSchema: json.RawMessage(`{"type":"object"}`)}, func(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			switch request.Params.Name {
+			case "games_connect":
+				s.connectArgs = append(json.RawMessage(nil), request.Params.Arguments...)
+				if s.connectResult != nil {
+					return s.connectResult, nil
+				}
+				return structured(`{"success":true}`), nil
 			case "games_tool_detail":
+				if s.detailResult != nil {
+					return s.detailResult, nil
+				}
 				schema := s.schema
 				if schema == "" {
 					schema = emptySchema
