@@ -925,7 +925,7 @@ only intentional small, sanitized regression fixtures belong in source control.
       - [x] **07a.1a:** define immutable emergency facts and the pure hold decision.
         Owner: integrator; depends on 06. Reuse canonical Status observations;
         require complete pawn/threat collections and preserve unknown health.
-      - [ ] **07a.1b:** project bounded native Status into emergency facts.
+      - [x] **07a.1b:** project bounded native Status into emergency facts.
         Owner: bridge agent; depends on 07a.1a. Validate actual world, native
         generation, collection counts and presence; no new wire schema.
       - [ ] **07a.1c:** require fresh emergency clearance before preparation and
@@ -933,10 +933,10 @@ only intentional small, sanitized regression fixtures belong in source control.
         reservations and issued attempts remain observable. Test danger appearing
         between inspections, stale health and restart, then accept native danger
         with zero routine writes.
-        - [ ] **07a.1c.1:** executor clearance gate and typed refusal reasons.
+        - [x] **07a.1c.1:** executor clearance gate and typed refusal reasons.
           Owner: executor agent; depends on 07a.1a. Missing evidence holds; both
           admission passes check it and reconciliation remains independent.
-        - [ ] **07a.1c.2:** populate clearance from actual native observations in
+        - [x] **07a.1c.2:** populate clearance from actual native observations in
           the building boundary. Owner: integrator; depends on 07a.1b and c.1.
           Validate world/native generation and monotonic read ticks, then bind
           the captured controller direction/plan. No synthesized native facts.
@@ -1030,11 +1030,11 @@ only intentional small, sanitized regression fixtures belong in source control.
       on 03/04. Preserve requested, unavailable and complete sections separately;
       validate bounded fixed notification replies. Reads cannot acknowledge,
       dismiss, select or resume play. Native presentation acceptance follows.
-    - [ ] **09c.3:** local HTTP camera/selection/current-map roster reads using
+    - [x] **09c.3:** local HTTP camera/selection/current-map roster reads using
       the attached service client. Owner: HTTP agent; depends on 09c.1. Bind each
       request to a fresh known world and preserve official ProtoJSON presence.
       Reuse local-origin and response bounds; retain no input capability.
-    - [ ] **09c.4:** dashboard camera, selection and roster observations. Owner:
+    - [x] **09c.4:** dashboard camera, selection and roster observations. Owner:
       UI agent; depends on 09c.1 and 09b.1, with the fixed 09c.3 HTTP contract.
       Preserve optional facts, last-good data and visible stale/world identity;
       no camera/input mutations. Integrated native rendered acceptance follows.

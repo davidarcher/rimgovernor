@@ -85,6 +85,11 @@ cleanup. These routes require JSON and the process token returned by
 memory. Requests bind exact colony/load/map identity and stable request IDs;
 acquisition also checks the current direction.
 
+Both building admission checks require fresh, complete threat and basic pawn
+health observations. Standing hostiles, hunting predators, critical medical needs
+and unknown facts hold new orders. Previously issued attempts remain observable
+while held; the controller does not release their reservations or invent a retry.
+
 An uncertain HTTP reply is resolved by reading its request ID through
 `GET /api/buildings/submission?requestId=...` or
 `GET /api/buildings/control?requestId=...`. Historical results are separate from
