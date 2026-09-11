@@ -723,7 +723,7 @@ only intentional small, sanitized regression fixtures belong in source control.
     preserve SDK descriptor validation and independent Python observation
     projection tooling where still consumed. This cleanup does not block other
     adapters from consuming the reviewed Protobuf package.
-    - [ ] **02e.1:** decouple model-command decoding from the experimental native
+    - [x] **02e.1:** decouple model-command decoding from the experimental native
       placement generator. Owner: model agent; depends on 02b. Keep typed,
       catalog-grounded proposals and the current interpreter interface.
     - [ ] **02e.2:** retire unused generated outputs/compiler and their checks
@@ -854,7 +854,7 @@ only intentional small, sanitized regression fixtures belong in source control.
     read-only view can land first, mutations require 06/08 authority integration.
     - [x] **09b.1:** dashboard observation view and confined local static assets.
       Owner: server agent; native rendering acceptance remains in 09c.
-    - [ ] **09b.2:** explicit read-only Go service command, early listener/asset
+    - [x] **09b.2:** explicit read-only Go service command, early listener/asset
       validation, joined shutdown and retained last-good observations. Owner:
       service agent; depends on 09a and 09b.1. Keep observation APIs stable across
       03b.1; real native service acceptance follows that adapter cutover.

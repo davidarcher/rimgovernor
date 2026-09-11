@@ -1,7 +1,7 @@
 # Go controller development
 
-The module currently provides version/help, offline replay and shared wire-contract
-generation. Production launchers still use Python while the controller adapters
+The module provides a read-only local service, version/help and offline replay.
+Production launchers still use Python while the controller adapters
 are implemented. Go will start with fresh state; importing Python databases and
 matching historical save formats are not rewrite gates.
 
@@ -12,24 +12,39 @@ $env:GOTOOLCHAIN = 'go1.27.1'
 $env:CGO_ENABLED = '0'
 go test ./...
 go vet ./...
-go run ./cmd/contractgen -root .. -check contracts/generation.json
 go build -o ../.rimgovernor/go/rimgovernor.exe ./cmd/rimgovernor
 ```
 
-Python 3.12+ runs the generated Python boundary tests. CI also builds generated C#
-with .NET SDK 8.0.424 and locked NuGet packages; its shared request cases run on
-.NET Framework (Windows) and .NET 8. Linux Go race checks use CGO/GCC. Windows
+The shared Protobuf checks compile generated C# with .NET SDK 8.0.424 and locked
+NuGet packages; binary/ProtoJSON exchanges run on .NET Framework and Linux Mono.
+Linux Go race checks use CGO/GCC. Windows
 race checks are not claimed without a compatible C compiler.
 
-[Canonical schemas and generation](../contracts/schema-generation.md) own the
-Go/C#/Python request models. Required/null/unknown fields, integer spellings,
-UTF-16 bounds and malformed JSON are checked before returning typed values.
-Native consumer wiring and observed game effects remain separate work.
+[Canonical schemas and generation](../contracts/schema-generation.md) use official
+Protobuf tools. The generated Go wire module and its proof module have separate
+checks documented in [the Go generation guide](../tools/protobuf/go/README.md).
+Generated parsing preserves transport presence; domain validation enforces bounds,
+scope and authority. Native adapters and observed game effects need separate tests.
 
 Module dependencies and checksums are pinned in `go.mod`/`go.sum`; see the
 [source notices](../THIRD_PARTY.md). The MCP and pure-Go SQLite adapters are
 exercised with real SDK sessions and temporary databases as their slices land.
 Media dependencies are selected with their actual presentation consumers.
+
+## Read-only service
+
+Build the executable above, then use `rimgovernor serve --read-only` with absolute
+`--gabs`, `--config` and `--state` paths plus the configured `--game` ID. It attaches
+through GABS to the running game and opens a fresh Go SQLite database. An optional
+absolute `--assets` directory serves a built dashboard containing `index.html`.
+`--listen` defaults to `127.0.0.1:0`; startup prints the selected local URL. Only
+loopback IP addresses and numeric ports are accepted.
+
+The service exposes health/state/plan reads and retains last-good observations
+when refresh fails, marking them stale. It starts in Manual and cannot issue game
+orders. Interrupting the process cancels and joins polling before closing its SDK,
+database and asset handles. Native read acceptance is tracked separately in G01.03;
+this command does not switch the production launcher from Python.
 
 ## Optional evidence replay
 
