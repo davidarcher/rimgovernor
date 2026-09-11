@@ -45,4 +45,6 @@ jobs:
         if: runner.os == 'Linux'
         env:
           CGO_ENABLED: '1'
+          # Ownership tests exercise a one-second subprocess shutdown deadline.
+          GORACE: 'atexit_sleep_ms=0'
         run: go test -race ./...
