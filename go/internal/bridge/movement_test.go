@@ -173,3 +173,39 @@ func TestMovementLookupUnknownInflightAndRefusal(t *testing.T) {
 		})
 	}
 }
+
+func TestMovementUncertainWithoutReadbackCompletes(t *testing.T) {
+	admitted := movementTestReceipt(false)
+	admitted.Outcome = &r.Receipt_Uncertain{Uncertain: &r.Uncertain{Detail: proto.String("post-write readback unavailable")}}
+	for _, bad := range []string{"", "destination", "key", "generation", "original owner", "missing receipt"} {
+		t.Run(bad, func(t *testing.T) {
+			original := proto.Clone(admitted).(*r.Receipt)
+			progress := movementTestProgress(false)
+			switch bad {
+			case "destination":
+				progress.GetCompleted().Evidence.GetJob().TargetA.GetCell().X = proto.Int32(12)
+			case "key":
+				progress.Attempt.ActionId = proto.String("wrong")
+			case "generation":
+				progress.Context.NativeGeneration = proto.Uint64(7)
+			case "original owner":
+				original.AuthorizingOwner.PlayerDirection = proto.Uint64(777)
+			case "missing receipt":
+				original = nil
+			}
+			calls := 0
+			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, _ nativeArgument) (*mcp.CallToolResult, error) {
+				calls++
+				return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: progress}}), nil
+			}}, time.Second)
+			reply, _, err := client.ObserveMovementProgress(context.Background(), movementTestAttempt(), original)
+			if bad == "" {
+				if err != nil || reply.GetProgress().GetCompleted() == nil || calls != 1 {
+					t.Fatal(reply, calls, err)
+				}
+			} else if !errors.Is(err, ErrContract) {
+				t.Fatal(bad, err)
+			}
+		})
+	}
+}

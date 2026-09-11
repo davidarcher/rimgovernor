@@ -83,6 +83,11 @@ func movementProgress(v *r.Progress, expected MovementAttempt, admitted *r.Recei
 	if err := buildingContext(v.Context, expected.Identity, 0, false); err != nil {
 		return err
 	}
+	if admitted != nil {
+		if err := movementReceipt(admitted, expected); err != nil {
+			return err
+		}
+	}
 	if admitted != nil && v.Context.GetTick() < admitted.AdmittedContext.GetTick() {
 		return contract("movement progress predates admission")
 	}
@@ -138,7 +143,9 @@ func movementProgress(v *r.Progress, expected MovementAttempt, admitted *r.Recei
 		return contract("movement progress cannot issue a job")
 	}
 	original := draftObserved(admitted)
-	if completed && (original == nil || original.DraftClaimId == nil || !proto.Equal(original.TargetA, job.TargetA) || (original.JobId == nil) != (job.JobId == nil) || original.GetJobId() != job.GetJobId() || original.GetJobDef() != job.GetJobDef()) {
+	// The immutable receipt may retain no post-write readback. Native progress
+	// still correlates the admitted attempt; compare only original facts retained.
+	if completed && original != nil && (!proto.Equal(original.TargetA, job.TargetA) || original.JobId != nil && (job.JobId == nil || original.GetJobId() != job.GetJobId()) || original.JobDef != nil && original.GetJobDef() != job.GetJobDef() || admitted.GetNoChange() != nil && job.JobId != nil) {
 		return contract("movement completion lacks original job correlation")
 	}
 	if original != nil && original.JobId != nil && (job.JobId == nil || original.GetJobId() != job.GetJobId()) {
