@@ -205,8 +205,8 @@ acknowledged. Cleanup uses the original owned epoch independently of live author
 
 Renewal requires the exact retained epoch and complete current authority snapshot,
 unchanged deadline and speed, and caught-up reviewed event evidence. Uncertain
-renewals are read by their original attempt. Renewal IDs use a durable retained
-sequence; history retirement must preserve its watermark. A retired epoch's
+renewals are read by their original attempt. All clock requests use a namespace-bound
+monotonic sequence allocated atomically with the intent. A retired epoch's
 historical uncertainty cannot authorize or block renewal in a replacement scope.
 
 The session attaches one clock worker before its loops start. Close cancels and
@@ -221,3 +221,18 @@ attempts and pausing retained ownership; it does not acquire authority or issue 
 new Start or Renew. A native reply that ignores cancellation keeps shutdown
 retryable and the profile locked until the call returns, its receipt is persisted
 and owned cleanup joins. Renewal does not wait for ordinary player work.
+
+## Clock history retirement
+
+Clock request IDs bind the journal namespace and a positive monotonic sequence.
+The scheduler stores its logical decision key separately and reuses retained exact
+intents. Retirement never resets allocation: removed requests return ErrRetired,
+and a missing retained row is corruption. Fresh schema 12 requires disposable state.
+
+RetireClockHistory atomically removes eligible attempts and terminal epochs while
+preserving unresolved writes, nonterminal ownership, retained commands' Start
+provenance, the latest scheduling window and a bounded recent tail. Its expected
+state checks namespace and allocation/retirement watermarks; the transaction
+recomputes eligibility from current rows. A bounded retained index detects missing
+pinned records without tombstones. Event/review compaction and automatic runtime
+maintenance remain required before sustained operation is enabled.
