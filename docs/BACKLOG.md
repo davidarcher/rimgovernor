@@ -1082,9 +1082,10 @@ only intentional small, sanitized regression fixtures belong in source control.
       - [ ] **07a.3a:** exact combat bridge adapters. Owner: bridge agent;
         depends on 07a.2 and accepted native contracts. Preserve original owner,
         attempt, pawn and destination/target attribution without acquiring drafts.
-        - [ ] **07a.3a.1:** ordinary movement preview, execute, lookup and progress.
+        - [x] **07a.3a.1:** ordinary movement preview, execute, lookup and progress.
           Use the fixed MovementAttempt boundary and existing generated messages.
-        - [ ] **07a.3a.2:** exact melee and ordinary direct-bullet attack adapters;
+        - [ ] **07a.3a.2:** exact melee attack adapter. Ranged requires a typed
+          direct-bullet restriction before activation;
           depends on the fixed local attack boundary. Explosive support stays gated.
       - [ ] **07a.3b:** deterministic single-opponent admission and shared move/
         attack actions. Owner: domain/state agents; depends on 3a. Bind fresh
@@ -1237,16 +1238,16 @@ only intentional small, sanitized regression fixtures belong in source control.
       10a.1. Bind explicit start/speed/pause to current authority; retain exact
       epoch cleanup after revocation. Observe uncertain commands before retrying;
       test Manual races, foreign epochs, expiry and joined shutdown.
-      - [ ] **10a.2a:** typed command coordinator and owned-epoch obligations.
+      - [x] **10a.2a:** typed command coordinator and owned-epoch obligations.
         Owner: runtime/state agents; depends on 10a.1. Fix the local interface
         before implementation. Share the existing Store and Control, journal
         dispatch before calls and correlate recovered receipts. Retain exact
         cleanup obligations; unknown start never adopts a merely same-session epoch.
-        - [ ] **10a.2a.1:** atomic owned-epoch journal and pure cleanup evidence.
+        - [x] **10a.2a.1:** atomic owned-epoch journal and pure cleanup evidence.
           Owner: state/bridge agents; depends on 10a.1. Applied start receipts
           create an exact obligation atomically. Fence pause completion by local
           sequence; distinguish verified pause, inactive epoch and replacement.
-        - [ ] **10a.2a.2:** explicit command and recovery coordinator. Owner:
+        - [x] **10a.2a.2:** explicit command and recovery coordinator. Owner:
           runtime agent; depends on the fixed 2a.1 interface and 10a.1 journal.
           Serialize commands, invalidate without waiting, persist before calls,
           and recover exact attempts without retrying unknown starts.
@@ -1255,6 +1256,8 @@ only intentional small, sanitized regression fixtures belong in source control.
         cleanup under the Control close gate cannot call back into Control.
         Stopping or unknown pause retains ownership; replacement evidence cannot pause
         a replacement epoch. Test failed pause, timeout and world replacement.
+        Add durable scope retirement for uncertain starts after positive world
+        replacement; preserve their outcome uncertainty without blocking a new world.
       - [ ] **10a.2c:** disabled startup and joined Session composition. Owner:
         integrator; depends on 10a.2b. Recover obligations without permission,
         preserve constructor publication and retain profile/transport/store

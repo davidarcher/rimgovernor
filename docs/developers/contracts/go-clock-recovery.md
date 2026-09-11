@@ -54,6 +54,44 @@ than returning an incomplete recovery set. Persisted command and reply values us
 bounded canonical encodings and are validated again on read. No live lease token
 is stored, and opening a database does not enable a coordinator.
 
+## Explicit command coordinator
+
+The gated runtime coordinator serializes commands and receipt recovery. It starts
+disabled, binds each command to the complete current authority snapshot and obtains
+a fresh lease immediately before dispatch. Authority changes cancel active and
+queued calls; shutdown joins journal completion. Renewal and speed changes require
+the original start's complete snapshot and a freshly observed matching running epoch.
+
+Only a prepared attempt can dispatch. Recovery reads the exact original attempt;
+unknown results never authorize replay or adoption from clock status. Session
+composition and lease-free pause execution remain separate backlog gates.
+
+## Owned epochs and pause cleanup
+
+An applied start and its required cleanup obligation are stored in one transaction.
+The obligation's original epoch is derived from the immutable start receipt.
+Uncertain status observations cannot establish ownership, and a missing obligation
+for an applied start is an error rather than something replay can repair.
+
+`BeginClockPause` increments a local sequence and records dispatch before a pause
+call. Completion must match that sequence. After an uncertain call, fresh evidence
+must establish a running owned epoch before another pause can be dispatched.
+This sequence is not a native attempt key; owned pause has no native attempt key.
+
+`AssessClockEpoch` compares immutable owner, origin, policy and tick bounds. Speed,
+remaining lease and observed tick may change normally. It distinguishes:
+
+- **required:** the original epoch is still running;
+- **uncertain:** pause is still armed, or current state is unavailable or unknown;
+- **paused:** the original epoch is stopped and current pause is verified;
+- **retired:** the original epoch is explicitly inactive, without claiming current pause;
+- **superseded:** a positive world or epoch replacement ends the old obligation.
+
+An inactive epoch must not be paused again merely because the player resumed time.
+Retirement and supersession do not satisfy a save or dialog operation's separate
+fresh-pause prerequisite. `Stopping` retains an obligation even when it reports a
+temporarily paused game. Terminal cleanup evidence remains immutable.
+
 ## Profile-wide event cursors
 
 The native clock journal belongs to the game profile. A page's observation context
