@@ -143,3 +143,14 @@ def test_receipt_rejects_competing_outcome(branch):
     value["receipt"][branch] = {}
     reply["result"]["structuredContent"]["payload"] = json.dumps(value)
     with pytest.raises(AssertionError): probe.issued_claim(reply)
+
+
+def test_candidate_selection_requires_explicit_health_even_at_full_summary():
+    row = {"dead": False, "downed": False, "drafted": False,
+        "health": {"summaryFraction": 1, "bleeding": False, "needsTend": False},
+        "draftClaim": {"unowned": {}}, "job": {"playerForced": False, "queuedJobs": 0}}
+    assert probe.healthy_draft_candidates([row]) == [row]
+    row["health"]["needsTend"] = True
+    assert probe.healthy_draft_candidates([row]) == []
+    del row["health"]["needsTend"]
+    assert probe.healthy_draft_candidates([row]) == []

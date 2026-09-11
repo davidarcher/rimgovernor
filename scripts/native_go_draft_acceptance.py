@@ -23,6 +23,15 @@ FIXTURE = "test/guarded_construction_control"
 MODES = ("ordinary", "lost_execute", "override")
 
 
+def healthy_draft_candidates(rows: list[dict]) -> list[dict]:
+    return [row for row in rows
+        if all(row.get(key) is False for key in ("dead", "downed", "drafted"))
+        and all(row.get("health", {}).get(key) is False for key in ("bleeding", "needsTend"))
+        and row.get("draftClaim") == {"unowned": {}}
+        and row.get("job", {}).get("playerForced") is False
+        and row.get("job", {}).get("queuedJobs") == 0]
+
+
 def progress(plan: dict, submission: dict) -> dict:
     assert plan["id"] == submission["planId"] and plan["revision"] == submission["revision"]
     assert len(plan["actions"]) == 1
@@ -275,7 +284,13 @@ async def run(root: Path, output: Path, binary: Path, *, go_source: str, go_sha2
             loaded = await identity_read(bridge, "initial"); identity = loaded["context"]["identity"]; tick = int(loaded["context"]["tick"])
             prepared = payload(await evidence.call(bridge, "prepare", "test/guarded_construction_prepare", {"siteCount": 1}))
             assert prepared["success"] is True and all(prepared[key] == identity[key] for key in identity)
-            pawn_id = prepared["pawnId"]; report["prepared"] = prepared
+            report["prepared"] = prepared
+            census = outcome(await wire(bridge, "draft-candidate-census", "observations_list_pawns", {
+                "scope": {"expectedIdentity": identity}, "filter": {"colonist": True}, "page": {"limit": 256}}), "observed")
+            assert census["context"]["identity"] == identity and census["completeness"]["page"]["complete"] is True
+            candidates = healthy_draft_candidates(census["pawns"])
+            assert candidates, "No observed healthy, unowned pawn without a player order for ordinary draft acceptance"
+            pawn_id = candidates[0]["pawn"]["id"]; report["selected_pawn"] = pawn_id
             before = await read_pawn(bridge, "initial-pawn"); assert before["drafted"] is False and before["draftClaim"] == {"unowned": {}}
         fixture = {"operation": "draft", **identity, "pawnId": pawn_id}
         async def ready(http):
