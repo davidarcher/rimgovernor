@@ -18,6 +18,7 @@ const (
 type ActionKind string
 
 const BuildingAction ActionKind = "building"
+const OwnedDraftAction ActionKind = "owned_draft"
 
 // Building is one resolved placement. Native discovery owns definition existence,
 // footprint, map bounds, costs and placement legality; these are not inferred here.
@@ -57,6 +58,7 @@ type Action struct {
 	id       ActionID
 	kind     ActionKind
 	building Building
+	draft    OwnedDraft
 }
 
 func NewBuildingAction(id ActionID, building Building) (Action, error) {
@@ -66,16 +68,16 @@ func NewBuildingAction(id ActionID, building Building) (Action, error) {
 	if _, err := NewBuilding(building.definition, building.cell, building.rotation, building.stuff); err != nil {
 		return Action{}, err
 	}
-	return Action{id, BuildingAction, building}, nil
+	return Action{id: id, kind: BuildingAction, building: building}, nil
 }
 func (a Action) ID() ActionID               { return a.id }
 func (a Action) Kind() ActionKind           { return a.kind }
 func (a Action) Building() (Building, bool) { return a.building, a.kind == BuildingAction }
-func SupportedActionKinds() []ActionKind    { return []ActionKind{BuildingAction} }
+func SupportedActionKinds() []ActionKind    { return []ActionKind{BuildingAction, OwnedDraftAction} }
 func ValidateHandlerCoverage(kinds []ActionKind) error {
 	seen := make(map[ActionKind]bool)
 	for _, kind := range kinds {
-		if kind != BuildingAction || seen[kind] {
+		if (kind != BuildingAction && kind != OwnedDraftAction) || seen[kind] {
 			return fmt.Errorf("unknown or duplicate action handler %q", kind)
 		}
 		seen[kind] = true
@@ -100,11 +102,21 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action) (PlanSpec, erro
 	}
 	seen := make(map[ActionID]bool)
 	for _, a := range actions {
-		if a.kind != BuildingAction {
+		var canonical Action
+		var err error
+		switch a.kind {
+		case BuildingAction:
+			canonical, err = NewBuildingAction(a.id, a.building)
+		case OwnedDraftAction:
+			canonical, err = NewOwnedDraftAction(a.id, a.draft)
+		default:
 			return PlanSpec{}, errors.New("unsupported action variant")
 		}
-		if _, err := NewBuildingAction(a.id, a.building); err != nil {
+		if err != nil {
 			return PlanSpec{}, err
+		}
+		if canonical != a {
+			return PlanSpec{}, errors.New("mixed action variants")
 		}
 		if seen[a.id] {
 			return PlanSpec{}, fmt.Errorf("duplicate action identity %q", a.id)

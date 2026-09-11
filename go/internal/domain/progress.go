@@ -81,24 +81,28 @@ type ProgressView struct {
 	Receipt            Fact[Receipt]
 	Effect             Fact[Effect]
 	UnsuccessfulReason Fact[UnsuccessfulReason]
+	DraftCleanup       Fact[DraftCleanup]
 }
 
 // Progress transitions return a new value; failed transitions preserve the original.
 // One orchestrator owns each action and durably records Prepared and Dispatched
 // before invoking a native mutation. This package does not perform persistence.
-type Progress struct{ view ProgressView }
+type Progress struct {
+	view   ProgressView
+	action Action
+}
 
 func NewProgress(plan PlanSpec, action ActionID) (Progress, error) {
 	for _, a := range plan.actions {
 		if a.id == action {
-			return Progress{ProgressView{Action: action, Plan: plan.id, Revision: plan.revision, Stage: Pending}}, nil
+			return Progress{view: ProgressView{Action: action, Plan: plan.id, Revision: plan.revision, Stage: Pending}, action: a}, nil
 		}
 	}
 	return Progress{}, errors.New("action is not in plan")
 }
 func (p Progress) View() ProgressView { return p.view }
 func (p Progress) Prepare(snapshot GenerationSnapshot, tick Tick) (Progress, error) {
-	if p.view.Stage != Pending || p.view.Unresolved {
+	if p.view.Stage != Pending || p.view.Unresolved || p.draftCleanupOutstanding() {
 		return p, errors.New("action is not ready")
 	}
 	if err := snapshot.Validate(); err != nil {
@@ -117,13 +121,28 @@ func (p Progress) MarkDispatched(current GenerationSnapshot, tick Tick) (Progres
 	if p.view.Attempt == ^AttemptID(0) {
 		return p, errors.New("dispatch attempt identity exhausted")
 	}
+	if p.draftCleanupOutstanding() {
+		return p, errors.New("draft cleanup remains outstanding")
+	}
+	if p.action.kind == OwnedDraftAction && (current.Native == 0 || current.Direction == 0) {
+		return p, errors.New("draft dispatch requires native generation and player direction")
+	}
 	p.view.Attempt++
 	p.view.Stage, p.view.Unresolved, p.view.Tick = Dispatched, true, tick
 	p.view.Receipt, p.view.Effect = Unknown[Receipt](), Unknown[Effect]()
 	p.view.UnsuccessfulReason = Unknown[UnsuccessfulReason]()
+	if p.action.kind == OwnedDraftAction {
+		p.view.DraftCleanup = Known(DraftCleanup{Stage: DraftAwaitingClaim})
+	}
 	return p, nil
 }
 func (p Progress) RecordReceipt(attempt AttemptID, receipt Receipt) (Progress, error) {
+	if p.action.kind == OwnedDraftAction {
+		return p, errors.New("draft receipt requires typed claim transition")
+	}
+	return p.recordReceipt(attempt, receipt)
+}
+func (p Progress) recordReceipt(attempt AttemptID, receipt Receipt) (Progress, error) {
 	if attempt == 0 || attempt != p.view.Attempt {
 		return p, errors.New("receipt belongs to a different dispatch attempt")
 	}
@@ -165,6 +184,12 @@ func (p Progress) Cancel() (Progress, error) {
 // Terminal evidence must come from a complete native attempt-correlated inspection;
 // the executor validates that boundary evidence regardless of tick distance.
 func (p Progress) Observe(observation Observation, current GenerationSnapshot) (Progress, error) {
+	if p.action.kind == OwnedDraftAction {
+		return p, errors.New("draft observation requires typed claim transition")
+	}
+	return p.observe(observation, current)
+}
+func (p Progress) observe(observation Observation, current GenerationSnapshot) (Progress, error) {
 	if !p.view.Unresolved {
 		return p, errors.New("no dispatched effect to observe")
 	}
