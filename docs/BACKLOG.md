@@ -694,6 +694,13 @@ expand these into another nested task tree; remove a row when its outcome is met
   five-wood walls under a 290-wood reserve from 300 available wood: the second is
   admitted while the first is unfinished, both complete with one attempt each,
   and Manual/disabled restart preserve authority and accounting evidence.
+  Routine reviews now persist optional development ranking, known worker capacity,
+  deficit fractions, game-tick waiting age and selection history. Shared player
+  projects and unresolved optional methods consume capacity; method admission
+  rechecks current commitments atomically. Manual clears selection, and changed
+  direction/world or rewound ticks reset age. `--routine-project-limit` bounds new
+  optional projects. Fast checks cover restart, unknowns and late player admission;
+  native development-review acceptance remains pending.
   Further need inputs, method selection and execution composition for
   additional routine methods remain open.
 

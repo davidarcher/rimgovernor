@@ -36,6 +36,7 @@ type serveConfig struct {
 	routineSleepingPlans  bool
 	routineCookingPlans   bool
 	routineMethods        bool
+	routineProjectLimit   int
 	resourceRules         resourceRuleFlags
 	refresh               time.Duration
 }
@@ -48,6 +49,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.playerControl, "player-control", false, "enable explicit player building and draft controls; never acquire on startup")
 	flags.BoolVar(&c.clockControl, "clock-control", false, "supervise finite game-clock windows for enabled player work")
 	flags.BoolVar(&c.routineReviews, "routine-reviews", false, "review routine needs at paused clock boundaries")
+	flags.IntVar(&c.routineProjectLimit, "routine-project-limit", 2, "maximum concurrent optional projects, also bounded by observed workers (1..8)")
 	flags.BoolVar(&c.routineSleepingPlans, "routine-sleeping-plans", false, "compile reviewed indoor sleeping needs into pending shared plans")
 	flags.BoolVar(&c.routineCookingPlans, "routine-cooking-plans", false, "compile reviewed cooking deficits into pending campfire plans")
 	flags.BoolVar(&c.routineMethods, "routine-methods", false, "execute reviewed routine building methods under the current player direction")
@@ -66,6 +68,11 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if flags.NArg() != 0 || *readOnly == c.playerControl {
 		return c, errors.New("serve requires exactly one of --read-only or --player-control")
+	}
+	projectLimitExplicit := false
+	flags.Visit(func(f *flag.Flag) { projectLimitExplicit = projectLimitExplicit || f.Name == "routine-project-limit" })
+	if c.routineProjectLimit < 1 || c.routineProjectLimit > 8 || projectLimitExplicit && !c.routineReviews {
+		return c, errors.New("--routine-project-limit requires --routine-reviews and a value from 1 through 8")
 	}
 	if len(c.resourceRules) > 0 && !c.playerControl {
 		return c, errors.New("--resource-rule requires --player-control")

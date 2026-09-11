@@ -105,6 +105,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context) (store.RoutineReviewR
 	reading.Projection.Facts.CleanupPawns = domain.Known(cleanup)
 	reading.Projection.ApplyFieldBudget(r.policy.FoodTargetDays)
 	if pawns, known := reading.Projection.WorkPawns.Value(); known {
+		reading.Projection.Facts.Workers = policy.RoutineWorkers(pawns)
 		required, known := routineProjectWork(definitions, reading.Projection.Definitions).Value()
 		if known {
 			work, err := policy.AssignWork(pawns, required, preferences.Overrides)

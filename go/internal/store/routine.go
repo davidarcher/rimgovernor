@@ -29,6 +29,7 @@ type RoutineReview struct {
 	Enabled                bool
 	Latches                policy.RoutineLatches
 	Goals                  []RoutineGoal
+	Development            RoutineDevelopment
 }
 
 type RoutineReviewRequest struct {
@@ -56,7 +57,7 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		return RoutineReview{}, err
 	}
 	var r RoutineReview
-	if len(data) > 16384 {
+	if len(data) > 65536 {
 		return r, ErrCapacity
 	}
 	if err := json.Unmarshal(data, &r); err != nil {
@@ -66,10 +67,28 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 32 {
 		return RoutineReview{}, errors.New("invalid routine review history")
 	}
+	if r.Enabled {
+		if r.Development.Snapshot != r.Snapshot || r.Development.Tick != r.Tick || policy.ValidateDevelopmentState(r.Development.state()) != nil {
+			return RoutineReview{}, errors.New("invalid routine development history")
+		}
+	} else {
+		actual, _ := json.Marshal(r.Development)
+		empty, _ := json.Marshal(RoutineDevelopment{})
+		if !bytes.Equal(actual, empty) {
+			return RoutineReview{}, errors.New("disabled routine retains development selection")
+		}
+	}
 	known, _ := policy.DetectRoutine(policy.RoutineFacts{}, policy.RoutineLatches{}, policy.DefaultRoutinePolicy())
 	allowed := map[domain.GoalID]bool{}
+	optional := map[domain.GoalID]bool{}
 	for _, n := range known.Assessments {
 		allowed[n.ID] = true
+		optional[n.ID] = n.Priority >= 3
+	}
+	for _, row := range r.Development.Rows {
+		if !optional[row.Goal] {
+			return RoutineReview{}, errors.New("unknown optional routine goal")
+		}
 	}
 	if (r.Enabled || len(r.Goals) != 0) && len(r.Goals) != len(allowed) {
 		return RoutineReview{}, errors.New("incomplete routine goal bindings")
@@ -251,6 +270,14 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			r.Goals = append(r.Goals, RoutineGoal{n.ID, g.Goal.ID})
 			result.Goals = append(result.Goals, g)
 		}
+	}
+	if request.Enabled {
+		var development policy.DevelopmentState
+		development, err = rankRoutineDevelopment(ctx, tx, request, needs, result.Goals, previous.Development.state())
+		if err != nil {
+			return RoutineReviewResult{}, err
+		}
+		r.Development = developmentRecord(development)
 	}
 	data, err := json.Marshal(r)
 	if err != nil {

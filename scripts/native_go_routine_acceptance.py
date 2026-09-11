@@ -5,6 +5,7 @@ import argparse
 import asyncio
 import hashlib
 import json
+import math
 from pathlib import Path
 import shutil
 import sqlite3
@@ -65,6 +66,23 @@ def audit_resource_rules(plan, names):
     assert all(a['progress']['stage'] == 'pending' and a['progress']['attempt'] == '0' for a in plan['actions'])
     assert EXECUTE not in names
     assert names.count('rimgovernor/placement_preview') >= 2
+
+
+def audit_development(review, workers):
+    development = review['Development']
+    assert development['Snapshot'] == review['Snapshot'] and development['Tick'] == review['Tick']
+    assert development['Workers'] == workers and development['Capacity'] == min(2, workers)
+    assert len(development['Committed']) == 1, 'Accepted player project must consume optional capacity'
+    rows = development['Rows'] or []
+    assert len({r['Goal'] for r in rows}) == len(rows)
+    for row in rows:
+        assert row['Goal'] in {'MaintainWood', 'EnsureBasicDefense'}
+        assert row['Deficit'] is None or 0 <= row['Deficit'] <= 1
+        assert math.isfinite(row['Score']) and 0 <= row['WaitingSince'] <= review['Tick']
+        if row['Selected']:
+            assert row['Deficit'] is not None and not row['Reason'] and not row['Committed']
+    assert sum(r['Selected'] for r in rows) <= max(0, development['Capacity'] - 1)
+    return development
 
 
 async def wait_review(database, after_revision=0):
@@ -260,6 +278,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             report['work_need'] = active['goals']['EnsureWorkAssignments']['Need']
             assert report['work_need'] == ('recovered' if report['initial_work']['matches'] else 'deficit'), 'Native work readback did not reach routine need'
             report["active_routine"] = active
+            report['development'] = audit_development(active['review'], len(report['initial_work']['assignments']))
             if resource_rules:
                 await wait_review(database, active['review']['Revision'])
                 active = routine_evidence(database, identity, enabled=True, expected_food_need=expected_food)
@@ -295,6 +314,8 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             manual = await http("POST", "/api/player/control/manual", body={"requestId": "routine-manual", "expected": identity})
             assert manual["record"]["phase"] == "disabled" and not manual["state"]["enabled"]
             report["manual_routine"] = routine_evidence(database, identity, enabled=False, expected_food_need=expected_food, allow_methods=sleeping_methods)
+            assert not report['manual_routine']['review']['Development']['Rows']
+            assert report['manual_routine']['review']['Development']['Workers'] is None
 
         async with bridge_session(gabs, configuration) as bridge:
             await bridge.connect()

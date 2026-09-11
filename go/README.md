@@ -42,6 +42,17 @@ Unavailable methods can yield their slot within the same review. `StarterLayouts
 proposes bounded shelter and disjoint crop patches while respecting observed
 geometry and player exclusions; proposals still require native preflight.
 
+Routine reviews persist development scores, waiting age, known worker counts and
+selection history alongside need assessments. Current wood and defense deficits
+use bounded native deficit fractions. Accepted player projects and unresolved
+optional methods consume capacity across shared plans; admission rechecks new
+commitments in the same transaction as the method. Manual clears selections;
+world/direction changes or tick rewinds reset age. Unknown worker counts admit no
+optional work. Configure `serve --routine-reviews --routine-project-limit 1` to
+limit optional concurrency (1–8, default 2), also bounded by observed workers.
+Accepted work remains tracked when capacity falls. Persisted ranking does not
+create missing action families or replace native resource/placement admission.
+
 `NewPlacementSearch` ports general development placement: up to 64 nearby observed
 anchors, ordered by distance and coordinates, with explicit indoor/outdoor facts
 and protected geometry. `Select` accepts an exact definition/stuff preview only

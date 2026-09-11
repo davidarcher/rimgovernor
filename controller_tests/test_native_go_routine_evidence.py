@@ -53,3 +53,21 @@ def test_resource_rule_audit_allows_clock_but_rejects_construction():
                     {'actions': [{'progress': {'stage': 'completed', 'attempt': '0'}}]}]:
         with pytest.raises(AssertionError):
             probe.audit_resource_rules(changed, names)
+
+
+def test_development_audit_keeps_player_capacity_and_known_deficits():
+    review = {'Snapshot': {'Plan': 'root'}, 'Tick': 10, 'Development': {
+        'Snapshot': {'Plan': 'root'}, 'Tick': 10, 'Workers': 3, 'Capacity': 2,
+        'Committed': ['player-project'], 'Rows': [
+            {'Goal': 'EnsureBasicDefense', 'Deficit': 1.0, 'Score': 100.0,
+             'WaitingSince': 10, 'Selected': True, 'Committed': False, 'Reason': ''}]}}
+    assert probe.audit_development(review, 3) == review['Development']
+    for field, value in [('Workers', None), ('Committed', []), ('Capacity', 3)]:
+        changed = copy.deepcopy(review)
+        changed['Development'][field] = value
+        with pytest.raises(AssertionError):
+            probe.audit_development(changed, 3)
+    changed = copy.deepcopy(review)
+    changed['Development']['Rows'][0]['Deficit'] = None
+    with pytest.raises(AssertionError):
+        probe.audit_development(changed, 3)

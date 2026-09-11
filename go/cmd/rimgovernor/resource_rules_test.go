@@ -38,3 +38,20 @@ func TestServeResourceRulesRequirePlayerControl(t *testing.T) {
 		t.Fatal(config, err)
 	}
 }
+
+func TestServeRoutineProjectLimit(t *testing.T) {
+	dir := t.TempDir()
+	base := []string{"--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "game", "--state", filepath.Join(dir, "state.db"), "--player-control", "--profile", dir, "--clock-control"}
+	if _, err := parseServe(append(append([]string(nil), base...), "--routine-project-limit", "2"), io.Discard); err == nil {
+		t.Fatal("limit without routine reviews accepted")
+	}
+	for _, value := range []string{"0", "9", "-1", "two"} {
+		if _, err := parseServe(append(append([]string(nil), base...), "--routine-reviews", "--routine-project-limit", value), io.Discard); err == nil {
+			t.Fatal(value)
+		}
+	}
+	c, err := parseServe(append(base, "--routine-reviews", "--routine-project-limit", "1"), io.Discard)
+	if err != nil || c.routineProjectLimit != 1 {
+		t.Fatal(c, err)
+	}
+}

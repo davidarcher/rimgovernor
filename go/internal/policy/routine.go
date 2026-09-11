@@ -25,17 +25,21 @@ const (
 )
 
 type RoutinePolicy struct {
+	MaxDevelopmentProjects                        int
 	FoodMinDays, FoodTargetDays, FootholdFoodDays float64
 	ColdEnter, ColdExit, HotExit, HotEnter        float64
 	WoodMin, WoodTarget, WoodMax                  int64
 }
 
 func DefaultRoutinePolicy() RoutinePolicy {
-	return RoutinePolicy{FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
+	return RoutinePolicy{MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
 		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500}
 }
 
 func (p RoutinePolicy) Validate() error {
+	if p.MaxDevelopmentProjects < 1 || p.MaxDevelopmentProjects > 8 {
+		return errors.New("invalid development project limit")
+	}
 	for _, n := range []float64{p.FoodMinDays, p.FoodTargetDays, p.FootholdFoodDays, p.ColdEnter, p.ColdExit, p.HotExit, p.HotEnter} {
 		if math.IsNaN(n) || math.IsInf(n, 0) {
 			return errors.New("nonfinite routine threshold")
@@ -53,6 +57,7 @@ func (p RoutinePolicy) Validate() error {
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the
 // separate native crop-capacity forecast; it never increases FoodDays.
 type RoutineFacts struct {
+	Workers                                                                    domain.Fact[int]
 	Colonists, HousingTarget, BedCapacity, IndoorCapacity, GrowingCells, Armed domain.Fact[int64]
 	FoodDays, PopulationFoodDays, FieldCoverage                                domain.Fact[float64]
 	SleepingMin, SleepingMax, OutdoorTemperature, PowerHeadroom                domain.Fact[float64]
@@ -203,7 +208,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	}
 	r := RoutineNeeds{Gates: g, Latches: l}
 	addGoal := func(id GoalID, priority int) {
-		r.Goals = append(r.Goals, DevelopmentGoal{ID: id, Source: AutopilotGoal, Priority: priority})
+		r.Goals = append(r.Goals, DevelopmentGoal{ID: id, Source: AutopilotGoal, Priority: priority, Deficit: RoutineDevelopmentDeficit(id, f, p)})
 	}
 	if positive(f.ColonyNaming) {
 		addGoal(ConfirmColonyNames, 0)
