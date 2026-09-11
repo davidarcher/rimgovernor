@@ -1262,6 +1262,14 @@ main. Native package and Go production cutover remain independent.
   and corrupt journal rows. Native acceptance covers bounded ticks, owned controls,
   replay, cross-family conflicts and Manual revocation. Additional native load/map
   replacement, hook/journal fault injection and injury/presentation cases remain open.
+  Lifecycle Save/Load admission belongs to the Go/GABS session owner: current
+  instance/direction, Manual, joined writers, draft/input cleanup and verified pause.
+  Native authority inactivity does not establish that admission. Reuse SDK save/load
+  dispatch and add exact native publication/new-Game evidence. Save acceptance must
+  distinguish an observed overwrite from an old complete file after a swallowed
+  native save error; load acceptance must correlate readiness to its own new Game.
+  Cover identical-content overwrite, failed publication, replay, timeout, supersession
+  and instance-lifetime request lookup across map replacement before advertising support.
   Depends on relevant typed status/clock contracts; fix independently reproducible
   defects as bounded prerequisites.
 
