@@ -742,7 +742,7 @@ only intentional small, sanitized regression fixtures belong in source control.
   - [ ] **03b:** typed current identity/status and observation facts, explicit
     unavailable values and freshness. Owner: bridge agent; depends on 03a and the
     domain fact types. Add families with policy consumers and one native read smoke.
-    - [ ] **03b.1:** fixed Protobuf identity/status/placement read adapters and
+    - [x] **03b.1:** fixed Protobuf identity/status/placement read adapters and
       truthful typed observation projection. Owner: bridge agent; depends on 02b.
       Keep owned SDK lifecycle and reject legacy aliases or arbitrary invocation.
     - [ ] **03b.2:** native read/preview acceptance against N01's corresponding
