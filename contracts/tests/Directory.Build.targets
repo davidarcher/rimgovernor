@@ -1,5 +1,0 @@
-<Project>
-  <Target Name="VerifyContractCompiler" BeforeTargets="PrepareForBuild">
-    <Error Condition="'$(NETCoreSdkVersion)' != '8.0.424'" Text="Contract checks require .NET SDK 8.0.424." />
-  </Target>
-</Project>

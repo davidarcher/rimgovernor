@@ -16,19 +16,12 @@ jobs:
     env:
       GOTOOLCHAIN: go1.27.1
       CGO_ENABLED: '0'
-      RIMGOVERNOR_CONTRACT_PYTHON: python
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: go/go.mod
           cache-dependency-path: go/go.sum
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.424'
       - name: Verify pinned toolchain and formatting
         run: |
           if ((go env GOVERSION) -ne ('go' + (Get-Content .go-version).Trim())) {
@@ -44,19 +37,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Module integrity failed' }
           go mod tidy -diff
           if ($LASTEXITCODE -ne 0) { throw 'Module graph needs tidy' }
-      - name: Check generated wire contract drift
-        run: go run ./cmd/contractgen -root .. -check contracts/generation.json
-      - name: Check generated C# boundaries
-        run: |
-          $output = [IO.Path]::GetFullPath('../.rimgovernor/contract-checks')
-          dotnet build ../contracts/tests/csharp/PlacementRequests.csproj -c Release -p:RestoreLockedMode=true "-p:BaseOutputPath=$output/bin/" "-p:BaseIntermediateOutputPath=$output/obj/"
-          if ($LASTEXITCODE -ne 0) { throw 'C# contract build failed' }
-          dotnet "$output/bin/Release/net8.0/PlacementRequests.dll" ../contracts/fixtures/placement-request-cases.json ../contracts/fixtures/placement-response-cases.json
-          if ($LASTEXITCODE -ne 0) { throw '.NET 8 contract checks failed' }
-          if ($IsWindows) {
-            & "$output/bin/Release/net472/PlacementRequests.exe" ../contracts/fixtures/placement-request-cases.json ../contracts/fixtures/placement-response-cases.json
-            if ($LASTEXITCODE -ne 0) { throw '.NET Framework contract checks failed' }
-          }
       - run: go vet ./...
       - run: go test ./...
       - name: Build gated command

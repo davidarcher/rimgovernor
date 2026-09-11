@@ -30,9 +30,3 @@ and distribution notice checks remain in N01 adapter/package acceptance.
 - [Headless adapter source notice](integrations/rimgovernor-native/Notices/headless/PROVENANCE.md) and GPL-3.0 license
 
 Game files, artwork, GABS and installed SDK assemblies are supplied separately.
-
-The offline `contracts/tests/parser/PlacementParserProbe.cs` retains native
-validation under the colony bridge source notice. Standalone contract tests
-reference Newtonsoft.Json 13.0.4 (the net45 assembly matches the native parser
-baseline) and Microsoft.NETFramework.ReferenceAssemblies.net472 1.0.3 from NuGet.
-These test references do not bundle game assemblies.

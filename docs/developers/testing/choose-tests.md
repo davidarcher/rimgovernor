@@ -6,7 +6,6 @@
 | --- | --- | --- |
 | Gated Go module/replay tools | From `go/`: `go test ./...`, `go vet ./...`, `go mod verify`, `go mod tidy -diff`; Go CI also checks formatting and Windows/Linux builds. | Pin Go via `go/.go-version`; Linux race tests need CGO/GCC. Native control and fresh Go-session recovery have separate behavioral checks. See [Go checks](../../../go/README.md). |
 | Shared Protobuf contracts | Official C#/Go generation `--check`, both Go wire/proof modules, net472 binary/ProtoJSON exchange and reciprocal fixture verification. | [Generation commands](../../../contracts/schema-generation.md); Protobuf CI covers Windows and Linux/Mono. Native adapters additionally need gameplay acceptance. |
-| Existing experimental placement consumers | Existing contractgen and Python placement checks while those consumers remain. | Remove these checks with their adapter cutover; add no new families to the custom generator. |
 | Controller logic, contracts, persistence | `controller_tests/`; focused pytest or full `build.ps1` | Local Python environment; fixtures do not establish native outcomes. |
 | Dashboard behavior and build | `build.ps1` runs typecheck, Vitest and Vite build | Local Python and dashboard dependencies from setup; native UI acceptance is separate. |
 | Generated observation DTO matches its schema | `scripts/generate_bridge_observation.py --check` | Local Python environment; run explicitly, outside `build.ps1`. |
