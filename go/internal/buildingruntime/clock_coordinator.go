@@ -10,16 +10,19 @@ import (
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	"google.golang.org/protobuf/proto"
 	"sync"
 	"time"
 )
 
 type ClockNative interface {
+	Identity(context.Context) (*l.IdentityReply, bridge.Result, error)
 	ReadClockStatus(context.Context, *c.Identity) (*k.StatusReply, bridge.Result, error)
 	ReadClockAttempt(context.Context, *k.AttemptRequest) (*k.AttemptReply, bridge.Result, error)
 }
 type ClockWriter interface {
+	OwnedPause(context.Context, *k.OwnedRequest) (*k.StatusReply, bridge.Result, error)
 	Start(context.Context, *k.StartRequest, *a.Owner) (*k.ControlReply, bridge.Result, error)
 	Renew(context.Context, *k.RenewRequest, *k.Epoch, *a.Owner) (*k.ControlReply, bridge.Result, error)
 	ChangeSpeed(context.Context, *k.SpeedRequest, *k.Epoch, *a.Owner) (*k.ControlReply, bridge.Result, error)
@@ -153,7 +156,7 @@ func (q *ClockCoordinator) inspect(ctx context.Context, v store.ClockAttempt) er
 			return err
 		}
 		for _, other := range attempts {
-			if other.Intent.RequestID != v.Intent.RequestID && other.Intent.Command.Start != nil && (other.Phase == store.ClockDispatched || other.Phase == store.ClockUncertain) {
+			if other.SupersededAt == nil && other.Intent.RequestID != v.Intent.RequestID && other.Intent.Command.Start != nil && (other.Phase == store.ClockDispatched || other.Phase == store.ClockUncertain) {
 				return executor.ErrHeld
 			}
 		}
@@ -299,11 +302,15 @@ func (q *ClockCoordinator) Reconcile(ctx context.Context, id string) (store.Cloc
 		return store.ClockAttempt{}, err
 	}
 	defer done()
+	return q.reconcileLocked(call, id)
+}
+
+func (q *ClockCoordinator) reconcileLocked(call context.Context, id string) (store.ClockAttempt, error) {
 	v, err := q.journal.LookupClockAttempt(call, id)
 	if err != nil {
 		return v, err
 	}
-	if v.Phase != store.ClockDispatched && v.Phase != store.ClockUncertain {
+	if v.SupersededAt != nil || v.Phase != store.ClockDispatched && v.Phase != store.ClockUncertain {
 		return v, nil
 	}
 	reply, _, err := q.native.ReadClockAttempt(call, &k.AttemptRequest{Identity: boundaryIdentity(v.Intent.Snapshot), Attempt: v.NativeAttempt})

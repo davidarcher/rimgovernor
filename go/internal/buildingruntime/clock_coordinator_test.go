@@ -18,6 +18,9 @@ import (
 
 type clockCoreFake struct {
 	status                 *k.Status
+	identityError          error
+	pauses                 int
+	pause                  func(context.Context) error
 	receipt                *k.ControlReceipt
 	writes, reads, lookups int
 	write                  func(context.Context)
