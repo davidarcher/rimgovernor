@@ -227,3 +227,44 @@ func TestClockEpochNeverAdoptsUncertainStatusAndMissingAppliedRowIsCorrupt(t *te
 		t.Fatal("missing obligation repaired")
 	}
 }
+
+func TestClockEpochPauseRetainsObservationWatermarkAcrossRestart(t *testing.T) {
+	ctx := context.Background()
+	s, path, status := epochStoreFixture(t)
+	status.Context.Tick = proto.Int64(50)
+	status.GetRunning().Epoch.LastTick = proto.Int64(50)
+	if _, err := s.ObserveClockEpoch(ctx, "start", 0, status.Context, status); err != nil {
+		t.Fatal(err)
+	}
+	first, err := s.BeginClockPause(ctx, "start", 0)
+	if err != nil || first.Sequence != 1 {
+		t.Fatal(first, err)
+	}
+	stale := proto.Clone(status).(*k.Status)
+	stale.Context.Tick = proto.Int64(20)
+	stale.GetRunning().Epoch.LastTick = proto.Int64(20)
+	if _, err = s.ObserveClockEpoch(ctx, "start", 1, stale.Context, stale); err == nil {
+		t.Fatal("pause dispatch erased the observation watermark")
+	}
+	if _, err = s.MarkClockPauseUncertain(ctx, "start", 1); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s = open(t, path)
+	if _, err = s.ObserveClockEpoch(ctx, "start", 1, stale.Context, stale); err == nil {
+		t.Fatal("reopened uncertain pause accepted stale evidence")
+	}
+	retained, err := s.LookupClockEpoch(ctx, "start")
+	if err != nil || retained.Stage != ClockEpochUncertain || retained.Sequence != 1 || retained.Context.GetTick() != 50 {
+		t.Fatal(retained, err)
+	}
+	if _, err = s.ObserveClockEpoch(ctx, "start", 1, status.Context, status); err != nil {
+		t.Fatal(err)
+	}
+	second, err := s.BeginClockPause(ctx, "start", 1)
+	if err != nil || second.Sequence != 2 || second.Stage != ClockEpochPausing {
+		t.Fatal(second, err)
+	}
+}
