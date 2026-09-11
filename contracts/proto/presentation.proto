@@ -272,8 +272,16 @@ message InputState {
   optional uint32 channel_capacity_bytes = 14;
 }
 message InputLeaseGranted { InputLeaseReference lease = 1; InputState state = 2; }
+// Pause/draft cleanup or native acquisition may have started before confirmation failed.
+message InputLeaseUncertain {
+  InputLeaseRequest request = 1; optional string detail = 2;
+  InputState last_observed = 3; InputLeaseReference acquired_lease = 4;
+}
 message InputLeaseReply {
-  oneof outcome { InputLeaseGranted granted = 1; InputState released = 2; rimgovernor.common.v1.Failure failure = 3; }
+  oneof outcome {
+    InputLeaseGranted granted = 1; InputState released = 2;
+    rimgovernor.common.v1.Failure refusal = 3; InputLeaseUncertain uncertain = 4;
+  }
 }
 message InputStateReply {
   oneof outcome { InputState state = 1; rimgovernor.common.v1.Failure failure = 2; }
@@ -291,8 +299,15 @@ message InputEvent {
     PointerWheel wheel = 7; KeyEvent key_down = 8; KeyEvent key_up = 9;
   }
 }
+// Carries the exact immutable lease/frame/order; never replay this event blindly.
+message InputEventUncertain {
+  InputEvent request = 1; optional string detail = 2; InputState last_observed = 3;
+}
 message InputEventReply {
-  oneof outcome { InputState acknowledged = 1; rimgovernor.common.v1.Failure refusal = 2; }
+  oneof outcome {
+    InputState acknowledged = 1; rimgovernor.common.v1.Failure refusal = 2;
+    InputEventUncertain uncertain = 3;
+  }
 }
 
 message PlayerPrecondition { InputLeaseReference lease = 1; CaptureIdentity captured = 2; }
@@ -346,8 +361,21 @@ message PlayerApplied {
   optional bool target_consumed = 7; NamingSnapshot names = 8;
   DialogTextChange text_change = 9; WorldViewResult world_view = 10;
 }
+message PlayerObserved {
+  CaptureIdentity capture = 1; CameraState camera = 2;
+  SelectionSnapshot selection = 3; UiSnapshot ui = 4; DialogSnapshot dialog = 5;
+  NamingSnapshot names = 6; WorldViewResult world_view = 7;
+}
+// A native exception or failed readback after possible effect is an application
+// outcome, even when transport completed successfully. It is not a safe refusal.
+message PlayerCommandUncertain {
+  PlayerCommand request = 1; optional string detail = 2; PlayerObserved last_observed = 3;
+}
 message PlayerCommandReply {
-  oneof outcome { PlayerApplied applied = 1; rimgovernor.common.v1.Failure refusal = 2; }
+  oneof outcome {
+    PlayerApplied applied = 1; rimgovernor.common.v1.Failure refusal = 2;
+    PlayerCommandUncertain uncertain = 3;
+  }
 }
 
 message RenderStatus {
@@ -374,6 +402,7 @@ message MediaFrame {
   optional uint32 width = 3; optional uint32 height = 4;
   optional MediaEncoding encoding = 5; optional CaptureMethod capture_method = 6;
   optional int64 captured_unix_ms = 7; optional double readback_ms = 8;
+  // Body <=32 MiB; the dedicated media ProtoJSON envelope is <=48 MiB.
   optional bytes data = 9;
 }
 message VideoState {

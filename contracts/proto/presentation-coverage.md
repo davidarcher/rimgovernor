@@ -52,7 +52,11 @@ Generated service names and caller-supplied viewer/direction values do not grant
 it. Deny its RPCs to advisers and automated Hands. Taking control must first
 invalidate prior player direction and automation authority, enter Manual, pause
 through the clock owner, release only current-load controller-owned drafts, and
-verify actual native pause. `InputLeaseGranted` follows those checks. Renew cannot
+verify actual native pause. `InputLeaseGranted` follows those checks. If pause,
+draft cleanup or native acquisition has begun but confirmation fails, return
+`InputLeaseUncertain` with the exact request, any known acquired lease and optional
+last observed input state. A refusal requires proof that no admission effect began;
+an incomplete handoff never acknowledges player readiness. Renew cannot
 resurrect an expired lease; release/expiry/disconnect/load/map changes clear held
 keys/buttons independently of controller cancellation and never resume play.
 
@@ -69,9 +73,14 @@ Consume captured actionable targets on every attempted click/scroll, including
 failed/uncertain dispatch; require new capture/readback before another action.
 `PlayerApplied` carries current observed state, not pawn completion. `Failure`
 means a proven pre-effect refusal. A timeout, transport loss or native exception
-possibly after effect remains uncertain outside that branch; do not convert it
-into a safe-to-retry failure. Relative moves, wheel events and clicks are never
-replayed blindly. An acknowledgement matches exact source/frame or lease/order;
+possibly after effect remains uncertain; do not convert it into a safe-to-retry
+failure. `InputEventUncertain` retains the exact immutable lease/source/frame/order
+request and optional last observed input state. `PlayerCommandUncertain` retains
+the exact command/capture precondition and optional `PlayerObserved` readback.
+These are explicit application outcomes even when the transport succeeded;
+transport loss can independently create uncertainty. Last observed fields are
+partial evidence, not certification of no effect or permission to retry. Relative
+moves, wheel events and clicks are never replayed blindly. An acknowledgement matches exact source/frame or lease/order;
 these sequences are separate from durable colony operation attempts.
 
 Only `PreviewNaming` and `PreviewDialogText` describe the existing native dry
@@ -90,10 +99,11 @@ whitelist; there is no arbitrary keyboard command string. Every numeric screen,
 scroll, camera, age and duration value must be finite.
 
 - Input owners/viewers/lease tokens: 1..100 characters, no NUL; source IDs 1..200.
-  Other opaque IDs use the common 256 UTF-8-byte/no-NUL rule. Field names and native
-  names are bounded to 256 UTF-8 bytes; general display/error text to 4096 UTF-8
-  bytes per field. Native dialog text additionally obeys its observed native
-  maximum length, retaining explicit empty text as a clear operation.
+  Other opaque IDs use the common 256 UTF-8-byte/no-NUL rule. Shared diagnostic
+  text, including every uncertain detail, uses the common 4096 Unicode-scalar
+  bound. Display text and native field/definition names obey the consolidated
+  message-size bound; no separate guessed UTF-8 field limit is introduced. Native
+  dialog text additionally obeys its observed native maximum length, retaining explicit empty text as a clear operation.
 - Pointer coordinates are within the captured frame, maximum 3840x2160. Buttons
   are left/middle/right. Wheel delta is exactly -1 or +1; key code length is at most
   30 characters and must be accepted by the native whitelist. Input order starts
@@ -110,9 +120,12 @@ scroll, camera, age and duration value must be finite.
   4 seconds. UI capture/click/scroll timeout defaults to 2000 ms; the new facade
   must enforce a maximum of 5000 ms. World view watch duration is 1..60 seconds.
 - Media dimensions are 1..3840 by 1..2160. Raw frames contain exactly width*height*4
-  bytes with the declared channel order/orientation. Encoded frames have a proposed
-  32-MiB byte cap, with dimensions verified after decode. No unbounded base64 field
-  or fabricated blank image. Capture/render unavailable is explicit. Pixel reads
+  bytes with the declared channel order/orientation and a 32-MiB body ceiling.
+  Encoded frames have the same 32-MiB body cap, with dimensions verified after
+  decode. The dedicated media ProtoJSON envelope has a separate 48-MiB limit,
+  including base64 expansion and metadata; the 1-MiB control/observation reply
+  limit does not apply to that envelope. No unbounded base64 field or fabricated
+  blank image. Capture/render unavailable is explicit. Pixel reads
   and encoded viewer frames remain distinguished by `MediaEncoding`.
 - Exactly one unacknowledged frame per viewer/source. Ack must match that sequence;
   old source, duplicate or out-of-order acknowledgement refuses. Existing consumer
@@ -120,17 +133,17 @@ scroll, camera, age and duration value must be finite.
   selection effect latency is 0..2000 ms; display/capture times are Unix ms, and
   readback is milliseconds. Input and frame ownership are invalidated together
   when a controlling viewer disconnects.
-- Notifications default limits are 40 letters, 12 messages, 40 alerts; proposed
+- Notifications default limits are 40 letters, 12 messages, 40 alerts; the
   per-section hard ceiling is 256. Existing status reads cap messages at16,
   choices at8, windows at20 and alert targets at8; upstream notifications cap
   targets at12. Preserve actual counts/omissions. Choice index is one-based in
   current producers. Unavailable or unrequested sections are distinct from an
   observed complete empty list. Inclusion defaults true; an explicit false omits
-  that section, while a requested failed read has an unavailable arm. A transient message can expire in real time while
-  game ticks remain paused.
-- Proposed facade ceilings: 256 windows/surfaces/tabs, 4096 elements/targets/gizmos/
-  selected IDs per capture and 2 MiB of non-media structured payload. A capped read
-  reports incomplete counts; it cannot authorize input. If full exact selection
+  that section, while a requested failed read has an unavailable arm. A transient
+  message can expire in real time while game ticks remain paused.
+- Facade ceilings: 256 windows/surfaces/tabs, 4096 elements/targets/gizmos/
+  selected IDs per capture and 1 MiB per control/observation reply, measured on the
+  encoded wire message. A capped read reports incomplete counts; it cannot authorize input. If full exact selection
   identity cannot fit, refuse a control capture rather than sample executable
   ownership. Snapshot reads do not promise stable pagination absent native support.
 
@@ -157,9 +170,9 @@ scroll, camera, age and duration value must be finite.
    correlation, capture/frame identity and pause/draft admission facts require
    adapter implementation and native acceptance. This contract does not claim
    those facts already exist in the SDK.
-5. The new finite UI/media/text ceilings above need consolidated contract review
-   and overflow/refusal tests. Producer defaults and caps are distinguished from
-   proposed facade ceilings; no current unlimited result is silently declared
+5. The ratified finite UI/media/diagnostic ceilings above require adapter
+   enforcement and overflow/refusal tests. Producer defaults and caps are
+   distinguished from facade requirements; no current unlimited result is silently declared
    complete. Current SDK screenshot and UI capture cannot establish atomic game
    snapshot timing; capture context must state the actual sampled tick and refuse
    stale control use.
