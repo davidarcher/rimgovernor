@@ -68,6 +68,10 @@ responses preserve the canonical `NotificationsReply` sections, including a
 section's explicit unavailable outcome. Viewing a notification does not
 acknowledge it, dismiss it or resume play.
 
+The dashboard displays these sections independently, retaining last-good data
+with a stale indicator during failed refreshes. A changed world or session excludes
+old results. Native notification production still requires game-level acceptance.
+
 ## Guarded building components
 
 `rimgovernor serve --building-control --profile <absolute-game-profile>` selects

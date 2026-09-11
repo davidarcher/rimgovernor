@@ -1038,11 +1038,11 @@ only intentional small, sanitized regression fixtures belong in source control.
       UI agent; depends on 09c.1 and 09b.1, with the fixed 09c.3 HTTP contract.
       Preserve optional facts, last-good data and visible stale/world identity;
       no camera/input mutations. Integrated native rendered acceptance follows.
-    - [ ] **09c.5:** local HTTP notification observations. Owner: HTTP agent;
+    - [x] **09c.5:** local HTTP notification observations. Owner: HTTP agent;
       depends on 09c.2 and 09c.3. Fixed current-world GET returns canonical
       ProtoJSON sections with unavailable/partial evidence; no acknowledgement,
       dismissal or resume capability. Use the existing attached client.
-    - [ ] **09c.6:** dashboard letter/message/alert observations. Owner: UI agent;
+    - [x] **09c.6:** dashboard letter/message/alert observations. Owner: UI agent;
       depends on 09c.2 and 09c.4, with the fixed 09c.5 HTTP contract. Preserve
       section availability, partial lists and last-good current-world data.
       Display observations only; no acknowledgement or action controls.
