@@ -72,15 +72,16 @@ func (f *Failure) Unwrap() error                  { return f.Cause }
 func fail(kind FailureKind, message string) error { return &Failure{kind, errors.New(message)} }
 
 type Interpreter struct {
-	config Config
-	model  Completer
+	config   Config
+	model    Completer
+	capacity *model.Client
 }
 
 func New(config Config, client Completer) (*Interpreter, error) {
 	if client == nil || config.ContextTokens < 4096 || config.ContextTokens > 1<<24 || config.MaxOutputTokens < 1 || config.MaxOutputTokens >= config.ContextTokens-2048 || config.MaxActions < 1 || config.MaxActions > 16 {
 		return nil, fail(InvalidInput, "invalid model context/output/action limits")
 	}
-	return &Interpreter{config, client}, nil
+	return &Interpreter{config: config, model: client}, nil
 }
 
 // Interpret never submits its plan. The consumer must compare Generation against
@@ -105,7 +106,18 @@ func (i *Interpreter) Interpret(ctx context.Context, input Input) (Proposal, err
 	for n := range input.Facts.Definitions {
 		input.Facts.Definitions[n].Stuff = append([]string(nil), input.Facts.Definitions[n].Stuff...)
 	}
-	request, budget, err := i.prompt(input)
+	budgeter := *i
+	if i.capacity != nil {
+		capacity, err := i.capacity.LoadedCapacity(ctx)
+		if err != nil {
+			return proposal, &Failure{ModelFailure, err}
+		}
+		budgeter.config.ContextTokens = min(i.config.ContextTokens, capacity.ContextTokens)
+		if _, err := New(budgeter.config, i.model); err != nil {
+			return proposal, fail(BudgetExceeded, "loaded model context cannot reserve configured output")
+		}
+	}
+	request, budget, err := budgeter.prompt(input)
 	proposal.Budget = budget
 	if err != nil {
 		return proposal, err
