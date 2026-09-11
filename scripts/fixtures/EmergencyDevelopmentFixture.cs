@@ -85,16 +85,16 @@ namespace HomeBridge.BridgeTools
                         var cell = GenRadial.RadialCellsAround(center,explosive ? 12 : ranged ? 28 : 12,true).First(c => c.InBounds(map)
                             && c.Walkable(map) && c.DistanceTo(center)>(explosive ? 10 : ranged ? 24 : 8) && !c.Fogged(map)
                             && (!ranged || GenSight.LineOfSight(center,c,map))
-                            && (!explosive || (SpawnedOpponents.All(p => p.Position.DistanceTo(c) >= 5)
+                            && (!ranged || (SpawnedOpponents.All(p => p.Position.DistanceTo(c) >= 5)
                                 && GenRadial.RadialCellsAround(c,1.5f,true).All(n => n.InBounds(map) && !n.Fogged(map)
                                     && n.GetThingList(map).All(t => t.def.category == ThingCategory.Plant)
                                     && n.GetTerrain(map).defName != "Bridge"))));
-                        if (explosive) {
-                            // An ordinary island keeps the target in blast range without altering pawn stats or grenade rules.
+                        if (ranged) {
+                            // An ordinary island keeps targets separated and reachable by projectiles without altering pawn or weapon rules.
                             foreach (var neighbor in GenRadial.RadialCellsAround(cell,1.5f,false))
                                 map.terrainGrid.SetTerrain(neighbor,DefDatabase<TerrainDef>.GetNamed("WaterDeep"));
                             if (GenRadial.RadialCellsAround(cell,1.5f,false).Any(n => n.Walkable(map)))
-                                throw new InvalidOperationException("Initial grenade island moat is not impassable");
+                                throw new InvalidOperationException("Initial ranged island moat is not impassable");
                         }
                         GenSpawn.Spawn(animal,cell,map);
                         SpawnedOpponents.Add(animal);
