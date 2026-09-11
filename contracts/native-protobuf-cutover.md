@@ -25,6 +25,9 @@ one `payload` ProtoJSON string plus host operation metadata.
 | rimgovernor/clock_read_status | rimgovernor.clock.v1.Clock/ReadStatus | Protocol/NativeClockTools.cs |
 | rimgovernor/clock_read_events | rimgovernor.clock.v1.Clock/ReadEvents | Protocol/NativeClockTools.cs |
 | rimgovernor/clock_read_attempt | rimgovernor.clock.v1.Clock/ReadAttempt | Protocol/NativeClockTools.cs |
+| rimgovernor/presentation_camera | rimgovernor.presentation.v1.PresentationReads/Camera | Protocol/NativePresentationReadTools.cs |
+| rimgovernor/presentation_selection | rimgovernor.presentation.v1.PresentationReads/Selection | Protocol/NativePresentationReadTools.cs |
+| rimgovernor/presentation_colonists | rimgovernor.presentation.v1.PresentationReads/Colonists | Protocol/NativePresentationReadTools.cs |
 
 Paths are under `integrations/rimgovernor-native/src/Bridge`. The shared
 `Protocol/ProtoBoundary.cs` validates original outer arguments and uses official
@@ -83,7 +86,13 @@ revocation. Event reads expose immutable observed context and explicit history g
 missing evidence never becomes an empty successful observation. Existing untyped
 epochs and journal rows cannot supply canonical ownership evidence.
 
-Current source inventory: 73 production exports, 55 fixture exports, 136 handwritten
+Presentation reads expose native graphical camera/selection facts and spawned
+colonists on loaded maps. Camera and selection are explicitly unavailable in
+headless mode. Selection does not enumerate gizmos or inspect tabs, issue captured
+target fingerprints, move the camera or grant input permission. Optional facts
+remain absent when not observed. Bounded collection/reply overflow refuses the read.
+
+Current source inventory: 76 production exports, 55 fixture exports, 137 handwritten
 C# source files and nine generated Protobuf compile inputs. Source declarations do
 not establish gameplay acceptance. Actual installed discovery must match the private
 build and prove fixture exclusion; pending native acceptance remains explicit in

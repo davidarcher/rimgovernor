@@ -6694,7 +6694,7 @@
   ],
   "native_surface": {
     "version": 1,
-    "source_revision": "3158573e6fdfc4e05b0de9a8830b42045f704da5",
+    "source_revision": "6518dfb415503c68f63f97771571c9c2b42f2c60",
     "scope": "Current repository-owned native Runtime/Bridge exports, generated Protobuf compile inputs and conditional fixtures. Historical Python consumer inventory remains at its independent source_revision. Installed SDK/GABS exports require actual discovery.",
     "evidence_links": "domain_item_id reuses existing G01 owner, fixtures and native_scenarios without copying Python call-site lists. Empty local evidence lists preserve uncovered acceptance. schema_owner_chunk assigns the cross-language schema owner; native_owner_chunk owns typed conversion or fixture isolation.",
     "variant_contract": "source_baseline.exports[].declaration retains the complete exported signature, Tool/ToolParameter/ToolResponse attributes, documented string variants, optional selectors and defaults. Source fingerprints detect implementation changes. Runtime branches, aliases and payload keys still require behavioral schema and discovery acceptance.",
@@ -6996,6 +6996,10 @@
             },
             {
               "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
+              "condition": ""
+            },
+            {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativePresentationReadTools.cs",
               "condition": ""
             },
             {
@@ -7778,7 +7782,7 @@
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/ProtoIdentityTools.cs",
           "line": 12,
           "declaration": "[Tool(\"rimgovernor/lifecycle_read_identity\", Title = \"Read native identity\",\n            Description = \"Read the current colony, load, map and native contract capabilities.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON rimgovernor.lifecycle.v1.IdentityReply.\", Always = true)]\n        public async Task<object> ReadIdentity(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official lifecycle IdentityRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "b9925d677b87821ce28a78dbe9de96516ae53cb8169ada4bcfafc390442f58f9"
+          "source_sha256": "be3ce4ead027fa26b3f864d039b45b3c4da79125d29c4c131832a06f077929f3"
         },
         {
           "name": "rimgovernor/observations_get_cells",
@@ -7828,6 +7832,27 @@
           "line": 14,
           "declaration": "[Tool(ToolName, Title = \"Placement preview\",\n            Description = \"Read ordinary native placement facts for 1..16 ordered candidates in one main-thread turn. request is the official ProtoJSON PlacementRequest string. No orders, clock, camera or god mode effects.\")]\n        public async Task<object> Preview(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Raw transport value; must be a ProtoJSON PlacementRequest string with exact identity and 1..16 placements.\", Required = true)] object? request = null)",
           "source_sha256": "6b7c50e1b7149e3d76fa0142bd8137a23b713b1cb68653383a944d74cf24c03d"
+        },
+        {
+          "name": "rimgovernor/presentation_camera",
+          "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativePresentationReadTools.cs",
+          "line": 20,
+          "declaration": "[Tool(\"rimgovernor/presentation_camera\", Title = \"Read native camera\", Description = \"Graphical camera facts only; no camera movement or rendering demand. Headless camera is unavailable.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON CameraReply.\", Always = true)]\n        public async Task<object> Camera(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official ProtoJSON ReadRequest string in raw transport value.\")] object request = null!)",
+          "source_sha256": "c46fcca80778a9552b93e01e45928dc28f0b5237146fdd6aedd2e598f4eda1b1"
+        },
+        {
+          "name": "rimgovernor/presentation_colonists",
+          "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativePresentationReadTools.cs",
+          "line": 82,
+          "declaration": "[Tool(\"rimgovernor/presentation_colonists\", Title = \"Read native colonist roster\", Description = \"Complete bounded FreeColonistsSpawned roster. Default includes all loaded maps; currentMapOnly narrows it. No world caravan, prisoner, slave or unspawned-pawn claim.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON ColonistRosterReply; usable in headless and graphical games.\", Always = true)]\n        public async Task<object> Colonists(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official ProtoJSON ColonistRosterRequest string in raw transport value.\")] object request = null!)",
+          "source_sha256": "c46fcca80778a9552b93e01e45928dc28f0b5237146fdd6aedd2e598f4eda1b1"
+        },
+        {
+          "name": "rimgovernor/presentation_selection",
+          "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativePresentationReadTools.cs",
+          "line": 55,
+          "declaration": "[Tool(\"rimgovernor/presentation_selection\", Title = \"Read native selection\", Description = \"Complete bounded graphical selection IDs from native things, zones and plans. No inspect strings, gizmo enumeration, selection changes or capture authority.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON SelectionReply; unproven optional fingerprint/gizmo facts are omitted.\", Always = true)]\n        public async Task<object> Selection(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official ProtoJSON ReadRequest string in raw transport value.\")] object request = null!)",
+          "source_sha256": "c46fcca80778a9552b93e01e45928dc28f0b5237146fdd6aedd2e598f4eda1b1"
         },
         {
           "name": "rimgovernor/receipts_lookup",
@@ -9417,6 +9442,57 @@
         ],
         "protocol_method": "rimgovernor.placement.v1.Placement/Preview",
         "protocol_schema": "contracts/proto/placement.proto"
+      },
+      {
+        "name": "rimgovernor/presentation_camera",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.09",
+        "native_owner_chunk": "N01.05",
+        "build_role": "production",
+        "fixtures": [
+          "contracts/tests/native-proto-presentation/Program.cs"
+        ],
+        "native_scenarios": [],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Verify graphical camera/selection and loaded-map colonist facts, explicit headless unavailability and read invariance."
+        ],
+        "protocol_method": "rimgovernor.presentation.v1.PresentationReads/Camera",
+        "protocol_schema": "contracts/proto/presentation.proto"
+      },
+      {
+        "name": "rimgovernor/presentation_colonists",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.09",
+        "native_owner_chunk": "N01.05",
+        "build_role": "production",
+        "fixtures": [
+          "contracts/tests/native-proto-presentation/Program.cs"
+        ],
+        "native_scenarios": [],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Verify graphical camera/selection and loaded-map colonist facts, explicit headless unavailability and read invariance."
+        ],
+        "protocol_method": "rimgovernor.presentation.v1.PresentationReads/Colonists",
+        "protocol_schema": "contracts/proto/presentation.proto"
+      },
+      {
+        "name": "rimgovernor/presentation_selection",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.09",
+        "native_owner_chunk": "N01.05",
+        "build_role": "production",
+        "fixtures": [
+          "contracts/tests/native-proto-presentation/Program.cs"
+        ],
+        "native_scenarios": [],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Verify graphical camera/selection and loaded-map colonist facts, explicit headless unavailability and read invariance."
+        ],
+        "protocol_method": "rimgovernor.presentation.v1.PresentationReads/Selection",
+        "protocol_schema": "contracts/proto/presentation.proto"
       },
       {
         "name": "rimgovernor/receipts_lookup",

@@ -1,6 +1,6 @@
 {
   "inventory_version": 1,
-  "source_revision": "3158573e6fdfc4e05b0de9a8830b42045f704da5",
+  "source_revision": "6518dfb415503c68f63f97771571c9c2b42f2c60",
   "scope": "Tracked C# sources in unified native Runtime/Bridge and scripts/fixtures; lexical reference index, not an AST or proof of behavioral coverage.",
   "source_line_policy": "One-based source anchors at source_revision; static matches include methods and constructors, reflection matches include helper use and interop. Read the full source declaration before changing ownership.",
   "rows": [
@@ -2024,6 +2024,35 @@
       "patch_registration_lines": []
     },
     {
+      "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativePresentationReadTools.cs",
+      "compilation": "production-bridge",
+      "source_sha256": "c46fcca80778a9552b93e01e45928dc28f0b5237146fdd6aedd2e598f4eda1b1",
+      "owner": "N01.05 native presentation reads owner",
+      "migration_status": "implemented-native-acceptance-pending",
+      "uncovered_acceptance": "Verify graphical camera/selection and loaded-map colonist facts, explicit headless unavailability and read invariance.",
+      "static_token_lines": [
+        113,
+        115,
+        118,
+        128,
+        154,
+        155,
+        156,
+        157,
+        158,
+        159,
+        160,
+        161,
+        162,
+        167
+      ],
+      "reflection_boundary_lines": [
+        121,
+        130
+      ],
+      "patch_registration_lines": []
+    },
+    {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeSuppliesObservationTools.cs",
       "compilation": "production-bridge",
       "source_sha256": "83983e4f590e3c366690771619da33901dd604303270bda26ae9538f01513343",
@@ -2102,7 +2131,7 @@
       "owner": "N01.02 native identity capability owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
-      "source_sha256": "b9925d677b87821ce28a78dbe9de96516ae53cb8169ada4bcfafc390442f58f9",
+      "source_sha256": "be3ce4ead027fa26b3f864d039b45b3c4da79125d29c4c131832a06f077929f3",
       "static_token_lines": [],
       "reflection_boundary_lines": [],
       "patch_registration_lines": []

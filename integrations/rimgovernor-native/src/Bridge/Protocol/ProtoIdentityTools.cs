@@ -75,6 +75,13 @@ namespace HomeBridge.BridgeTools
                     Support = Lifecycle.CapabilitySupport.Supported,
                     Detail = "Complete bounded stock/ownership quantities, spawned-root inventories and containers. Exact filters; no frozen paging or CAS snapshots. Worn gear, orbital stock and delivered construction resources are excluded."
                 });
+                foreach (var method in new[] { "Camera", "Selection", "Colonists" })
+                    loaded.Capabilities.Add(new Lifecycle.Capability
+                    {
+                        FullMethodName = "rimgovernor.presentation.v1.PresentationReads/" + method,
+                        Support = Lifecycle.CapabilitySupport.Supported,
+                        Detail = "Read-only native presentation facts. Camera/selection require graphics; roster covers spawned colonists on loaded maps."
+                    });
                 return new Lifecycle.IdentityReply { Loaded = loaded };
             }, cancellationToken).ConfigureAwait(false);
             return ProtoBoundary.Encode(reply);

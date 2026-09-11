@@ -20,6 +20,9 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 PROTOBUF_EXPORTS = {
+    "rimgovernor/presentation_camera": ("rimgovernor.presentation.v1.PresentationReads/Camera", "presentation.proto"),
+    "rimgovernor/presentation_selection": ("rimgovernor.presentation.v1.PresentationReads/Selection", "presentation.proto"),
+    "rimgovernor/presentation_colonists": ("rimgovernor.presentation.v1.PresentationReads/Colonists", "presentation.proto"),
     "rimgovernor/observations_list_supplies": ("rimgovernor.observations.v1.Observations/ListSupplies", "observations.proto"),
     "rimgovernor/clock_start": ("rimgovernor.clock.v1.Clock/Start", "clock.proto"),
     "rimgovernor/clock_renew": ("rimgovernor.clock.v1.Clock/Renew", "clock.proto"),
