@@ -124,7 +124,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		if v.SupersededAt == nil && v.Intent.Command.Start != nil && (v.Phase == store.ClockDispatched || v.Phase == store.ClockUncertain) {
 			if !state.Enabled || !boundaryWorld(v.Intent.Snapshot, world) {
 				out.Cleaned = true
-				return out, s.session.CleanupClock(call)
+				return out, errors.Join(s.session.Disable(), s.session.CleanupClock(call))
 			}
 			recovered, e := s.session.ReconcileClock(call, v.Intent.RequestID)
 			out.Attempt = &recovered
@@ -141,24 +141,42 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	}
 	statusReply, _, err := s.native.ReadClockStatus(call, loaded.Context.Identity)
 	if err != nil {
-		return out, err
+		return out, errors.Join(err, s.session.Disable())
 	}
 	status := statusReply.GetStatus()
 	if err = bridge.ValidateClockStatus(status, loaded.Context.Identity); err != nil {
-		return out, err
+		return out, errors.Join(err, s.session.Disable())
 	}
 	if _, err = boundaryContext(status.Context, state.Snapshot); err != nil {
-		return out, err
+		return out, errors.Join(err, s.session.Disable())
 	}
 	if status.Context.GetTick() < loaded.Context.GetTick() {
-		return out, executor.ErrEvidence
+		return out, errors.Join(executor.ErrEvidence, s.session.Disable())
 	}
 	if status.GetRunning() != nil || status.GetStopping() != nil {
 		var actual *k.Epoch
-		if status.GetRunning()!=nil { actual=status.GetRunning().Epoch } else { actual=status.GetStopping().Epoch }
-		ownedCurrent:=false
-		for _,owned:=range epochs {if !clockCoordinatorTerminal(owned.Stage) && actual!=nil && proto.Equal(owned.Epoch.Owner,actual.Owner) && proto.Equal(owned.Epoch.Origin,actual.Origin) && actual.Origin.GetNativeGeneration()==uint64(state.Snapshot.Native) { ownedCurrent=true }}
-		if !state.Enabled || !ownedCurrent { return out,executor.ErrHeld }
+		if status.GetRunning() != nil {
+			actual = status.GetRunning().Epoch
+		} else {
+			actual = status.GetStopping().Epoch
+		}
+		ownedCurrent := false
+		for _, owned := range epochs {
+			if !clockCoordinatorTerminal(owned.Stage) && clockCoordinatorSameEpoch(owned.Epoch, actual) {
+				for _, attempt := range attempts {
+					if attempt.Intent.RequestID == owned.StartRequestID && attempt.Intent.Snapshot == state.Snapshot {
+						ownedCurrent = true
+					}
+				}
+			}
+		}
+		if status.GetStopping() != nil && obligations {
+			out.Cleaned = true
+			return out, s.session.CleanupClock(call)
+		}
+		if !state.Enabled || !ownedCurrent {
+			return out, executor.ErrHeld
+		}
 		out.Running = true
 		return out, nil
 	}
@@ -238,7 +256,7 @@ type clockWorkItem struct {
 }
 
 func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot) (bool, []clockWorkItem, error) {
-	if plan.Plan.ID() != current.Plan || plan.Plan.Revision() != current.Revision || len(plan.Progress) != len(plan.Plan.Actions()) {
+	if plan.Spec.ID() != current.Plan || plan.Spec.Revision() != current.Revision || len(plan.Progress) != len(plan.Spec.Actions()) {
 		return false, nil, executor.ErrEvidence
 	}
 	work := false
@@ -246,7 +264,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 	for _, p := range plan.Progress {
 		v := p.View()
 		items = append(items, clockWorkItem{v.Action, p.Action().Kind(), v.Stage, v.Attempt, v.Unresolved})
-		if !v.Unresolved && (v.Stage == domain.Completed || v.Stage == domain.Cancelled || v.Stage == domain.Unsuccessful) {
+		if v.Stage == domain.Cancelled || v.Stage == domain.Unsuccessful || !v.Unresolved && v.Stage == domain.Completed {
 			continue
 		}
 		// Only ordinary building work can justify this healthy-colony clock window.
