@@ -151,7 +151,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	defer func() { result = errors.Join(result, database.Close()) }()
 	callTimeout := min(config.bridge.Timeout, 10*time.Second)
 	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{
-		Control:  buildingruntime.ControlConfig{ProfileDirectory: config.profile, LeaseDuration: 30 * time.Second, CallTimeout: callTimeout},
+		Control:  buildingruntime.ControlConfig{ProfileDirectory: config.profile, LeaseDuration: 30 * time.Second, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
 		Executor: executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {
