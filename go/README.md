@@ -193,8 +193,9 @@ HTTP service. Supervised Go clock control remains a separate G01.10 integration.
 The internal clock scheduler can perform one finite healthy-colony scheduling step
 through the shared session. Its durable window admission binds current review and
 native cursor evidence to dispatch, and repeated unchanged decisions retain their
-request identity. It does not run in the player service yet; independent event
-polling, epoch renewal and actual Go clock acceptance remain gated. See the
+request identity. An optional attached clock worker runs event polling, epoch
+renewal and scheduling independently, with joined retryable shutdown. Player-service
+wiring and actual Go clock acceptance remain gated. See the
 [clock recovery contract](../docs/developers/contracts/go-clock-recovery.md).
 
 ## Isolated building acceptance

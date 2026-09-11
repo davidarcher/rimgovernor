@@ -141,8 +141,9 @@ Missing profile metadata with retained history is an error, not a new binding.
 the cursor, sticky gap, loss count and catalog sizes. Storage is bounded to 4,096
 pages, 4,096 events and 16 MiB of encoded requests/pages. Duplicate event copies
 are checked against their pages. Capacity failure leaves the entire append
-uncommitted. Processing, acknowledgement and retirement of history remain separate
-runtime work; ingestion alone never clears a gap or an interruption.
+uncommitted. Review and acknowledgement use separate durable operations;
+ingestion alone never clears a gap or an interruption. History retirement remains
+a separate runtime gate.
 
 ## Review and acknowledgement
 
@@ -160,7 +161,7 @@ records inspection only; current unsafe facts and missing native events still ho
 
 The bounded review log validates its canonical head against complete operation and
 inbox provenance on every load. Capacity refusal leaves state unchanged. Event
-polling and retention are separate runtime gates.
+retention remains a separate runtime gate.
 
 ## Finite window admission
 
@@ -170,8 +171,7 @@ no outstanding owned epoch or unknown start. Reviewed and captured cursors must
 match the native newest cursor, with no interruption or gap holds. Native tick
 boundaries and durable events must be known; a never-started clock may report
 durability as false. The admitted budget is finite and cannot overflow its tick
-deadline. Admission carries its snapshot and review revision for dispatch binding;
-independent interruption/renewal workers remain gated.
+deadline. Admission carries its snapshot and review revision for dispatch binding.
 
 Window starts retain their exact profile, snapshot, tick, review revision, captured
 cursor and budget with the immutable clock intent. Durable dispatch checks the
@@ -193,4 +193,25 @@ current plan work and complete attempt/epoch catalogs before collecting fresh na
 facts. Unchanged decision inputs retain the same request ID across repeated calls;
 an undispatched stale preparation cannot prevent a fresh decision. Disabled sessions
 perform owned cleanup and cannot start. A valid running window is left unchanged.
-This step has no polling loop and is not yet wired into the player service.
+The step itself has no polling loop and is not yet wired into the player service.
+
+## Independent clock workers
+
+`ClockWorker` runs event polling, renewal and scheduling separately. Scheduling waits
+for a successful initial poll. Polling never takes the Player gate: observed
+interruptions invalidate permission before persistence, and read or persistence
+failures also disable writes. Pages commit before review; no event is automatically
+acknowledged. Cleanup uses the original owned epoch independently of live authority.
+
+Renewal requires the exact retained epoch and complete current authority snapshot,
+unchanged deadline and speed, and caught-up reviewed event evidence. Uncertain
+renewals are read by their original attempt. Renewal IDs use a durable retained
+sequence; history retirement must preserve its watermark. A retired epoch's
+historical uncertainty cannot authorize or block renewal in a replacement scope.
+
+The session attaches one clock worker before its loops start. Close cancels and
+joins the loops and their cancellation handler before releasing native handles,
+the journal or profile owner. Concurrent Stop calls serialize, successful cleanup
+is cached, and failed cleanup remains retryable. Worker intervals and call budgets
+are bounded below the native lease duration; unchanged scheduling decisions back
+off. Service wiring and actual Go native acceptance remain separate gates.

@@ -1318,27 +1318,37 @@ broaden checks only when the changed behavior or a failure justifies it.
           depends on 3c.1. Gather fresh policy facts and complete obligations,
           preserve stable request identity and recover uncertain starts exactly.
           Disabled state cannot start; a running epoch is never replaced.
-      - [ ] **10a.3d:** independent event polling and epoch renewal. Owner: runtime
+      - [x] **10a.3d:** independent event polling and epoch renewal. Owner: runtime
         agent; depends on 3c. Persist events before review, cancel on interruption,
         and renew only the original running epoch without extending its tick budget.
-        - [ ] **10a.3d.1:** one event polling/review step. Owner: runtime agent.
+        - [x] **10a.3d.1:** one event polling/review step. Owner: runtime agent.
           Persist before review; interruption, gaps and read/persistence failures
           disable writes without waiting for the Player gate, then run owned
           cleanup. Never acknowledge events automatically.
-        - [ ] **10a.3d.2:** one original-epoch renewal step. Owner: runtime agent.
+        - [x] **10a.3d.2:** one original-epoch renewal step. Owner: runtime agent.
           Require current enabled authority and exact retained running ownership;
           keep the original deadline and reconcile uncertain renewals by attempt.
-        - [ ] **10a.3d.3:** independent bounded polling, renewal and scheduling
+        - [x] **10a.3d.3:** independent bounded polling, renewal and scheduling
           loops. Owner: integrator; depends on 3d.1–2. Configure renewal below the
           lease budget and back off unchanged paused ticks. Lifecycle acceptance
           and disabled restart remain 3e.
       - [ ] **10a.3e:** joined lifecycle composition and disabled restart. Owner:
         integrator; depends on 3d. Test dispatch interruption, gaps, paused-tick
         backoff, renewal starvation and retryable shutdown before service wiring.
+        - [x] **10a.3e.1:** composed worker/session interruption and joined close.
+          Owner: integrator. Use synchronized native fixtures to verify start,
+          durable event interruption outside the Player gate, owned pause and
+          profile release only after worker cleanup joins.
+        - [ ] **10a.3e.2:** composed disabled restart and blocked native transport.
+          Owner: integrator; depends on 3e.1. Verify no restart acquisition/start,
+          exact uncertain recovery, renewal starvation and retryable close while
+          a dispatched native call remains blocked.
       - [ ] **10a.3f:** bounded evidence retirement for sustained operation. Owner:
         state/runtime agents; depends on 3e. Preserve unresolved attempts, owned
         epochs, unacknowledged events and gaps while retiring completed history;
         capacity refusal remains a hold and cannot silently discard evidence.
+        Preserve the renewal sequence watermark before retiring renewal records;
+        retained-history counts currently supply their next request identity.
     - [ ] **10a.4:** service/UI composition and actual Go clock acceptance.
       Owner: integrator with N01; depends on 10a.3 and 09. Verify ordinary work,
       real interruption, Manual pause, shutdown and disabled restart. Reuse the
