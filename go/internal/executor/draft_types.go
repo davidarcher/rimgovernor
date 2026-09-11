@@ -43,8 +43,11 @@ type DraftReceipt struct {
 	Claim   domain.Fact[domain.DraftClaim]
 }
 
-// Claim must correlate the original native attempt with fresh full-owner pawn
-// evidence. A matching pawn, session or drafted flag alone is insufficient.
+// Claim must correlate the original native attempt with ownership evidence.
+// Completion requires fresh matching full-owner pawn evidence. A verified receipt
+// carrying the original full owner may also bind its historical claim after fresh
+// positive ownership replacement; that cannot establish completion or permission.
+// A matching pawn, session or drafted flag alone is insufficient.
 type DraftEvidence struct {
 	Observation           domain.Observation
 	StartedAt, ObservedAt time.Time
