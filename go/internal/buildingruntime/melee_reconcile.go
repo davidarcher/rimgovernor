@@ -110,7 +110,9 @@ func (b *MeleeBoundary) checkReceipt(receipt *r.Receipt, dispatch executor.Melee
 	if err := boundaryAdmission(receipt, p, b.session); err != nil {
 		return err
 	}
-	if receipt.AdmittedContext.GetTick() < int64(p.Tick) {
+	// The receipt is immutable; p.Tick advances with subsequent observations.
+	// Its lower bound is the saved admission, not that moving progress watermark.
+	if receipt.AdmittedContext.GetTick() < int64(dispatch.Admission.Tick) {
 		return executor.ErrEvidence
 	}
 	job := draftReceiptJob(receipt)
