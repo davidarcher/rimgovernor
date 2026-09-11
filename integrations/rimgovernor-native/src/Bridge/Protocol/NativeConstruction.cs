@@ -243,7 +243,8 @@ namespace HomeBridge.BridgeTools
             if (mode != DestroyMode.Cancel || __exception != null || !__instance.Destroyed) return;
             // Base Destroy may succeed before a derived override or component
             // throws. Only the outermost concrete virtual implementation confirms.
-            if (AccessTools.Method(__instance.GetType(), nameof(Thing.Destroy), new[] { typeof(DestroyMode) }) != __originalMethod) return;
+            if (!NativeConstructionHookSet.SameMethod(
+                AccessTools.Method(__instance.GetType(), nameof(Thing.Destroy), new[] { typeof(DestroyMode) }), __originalMethod)) return;
             NativeConstructionRecord record;
             if (Tracked.TryGetValue(__instance, out record) && ReferenceEquals(record.Current, __instance))
                 record.Cancelled = true;

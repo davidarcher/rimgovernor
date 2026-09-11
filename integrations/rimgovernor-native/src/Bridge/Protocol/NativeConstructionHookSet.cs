@@ -11,6 +11,10 @@ namespace HomeBridge.BridgeTools
         private readonly string owner;
         private readonly List<Func<bool>> checks = new List<Func<bool>>();
         internal NativeConstructionHookSet(string owner) { this.owner = owner; }
+        // Inherited MethodInfo values may differ only by ReflectedType. Identify
+        // the actual declared implementation, not the type used to look it up.
+        internal static bool SameMethod(MethodBase left, MethodBase right) => left != null && right != null
+            && left.DeclaringType == right.DeclaringType && left.Module == right.Module && left.MetadataToken == right.MetadataToken;
         internal void Add(MethodBase target, MethodInfo prefix = null, MethodInfo postfix = null, MethodInfo finalizer = null)
         {
             checks.Add(() =>

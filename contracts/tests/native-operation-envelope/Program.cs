@@ -67,6 +67,13 @@ internal static class Program
             { Context = Context, Attempt = request.Precondition.Attempt, CompleteInspection = true, Completed = new Receipts.CompletedEffect { Evidence = oversized } } });
         Check(progress.Failure?.Code == Common.FailureCode.CapacityExhausted && NativeOperationEnvelope.Fits(progress), "oversized progress cannot claim truncated completion");
         HookChecks();
+        var inherited = AccessTools.Method(typeof(InheritsDestroy), nameof(DeclaresDestroy.Destroy));
+        var declared = AccessTools.DeclaredMethod(typeof(DeclaresDestroy), nameof(DeclaresDestroy.Destroy));
+        Check(inherited.ReflectedType != declared.ReflectedType, "fixture reproduces distinct inherited reflection views");
+        Check(inherited != declared, "raw method comparison rejects inherited implementation");
+        Check(NativeConstructionHookSet.SameMethod(inherited, declared), "inherited outermost implementation matches native hook metadata");
+        Check(!NativeConstructionHookSet.SameMethod(AccessTools.Method(typeof(OverridesDestroy), nameof(DeclaresDestroy.Destroy)), declared), "derived override cannot be confirmed by successful base callback");
+        Check(!NativeConstructionHookSet.SameMethod(null, declared), "missing method cannot establish cancellation");
         Console.WriteLine("Operation envelope and live hook metadata passed " + checks + " assertions; no gameplay.");
     }
 
@@ -99,4 +106,7 @@ internal static class Program
     private static void Before() { }
     private static void After() { }
     private static void Wrong() { }
+    private class DeclaresDestroy { public virtual void Destroy() { } }
+    private sealed class InheritsDestroy : DeclaresDestroy { }
+    private sealed class OverridesDestroy : DeclaresDestroy { public override void Destroy() { base.Destroy(); throw new Exception(); } }
 }
