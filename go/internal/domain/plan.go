@@ -19,6 +19,7 @@ type ActionKind string
 
 const BuildingAction ActionKind = "building"
 const OwnedDraftAction ActionKind = "owned_draft"
+const MeleeAttackAction ActionKind = "melee_attack"
 
 // Building is one resolved placement. Native discovery owns definition existence,
 // footprint, map bounds, costs and placement legality; these are not inferred here.
@@ -59,6 +60,7 @@ type Action struct {
 	kind     ActionKind
 	building Building
 	draft    OwnedDraft
+	melee    MeleeAttack
 }
 
 func NewBuildingAction(id ActionID, building Building) (Action, error) {
@@ -73,11 +75,13 @@ func NewBuildingAction(id ActionID, building Building) (Action, error) {
 func (a Action) ID() ActionID               { return a.id }
 func (a Action) Kind() ActionKind           { return a.kind }
 func (a Action) Building() (Building, bool) { return a.building, a.kind == BuildingAction }
-func SupportedActionKinds() []ActionKind    { return []ActionKind{BuildingAction, OwnedDraftAction} }
+func SupportedActionKinds() []ActionKind {
+	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction}
+}
 func ValidateHandlerCoverage(kinds []ActionKind) error {
 	seen := make(map[ActionKind]bool)
 	for _, kind := range kinds {
-		if (kind != BuildingAction && kind != OwnedDraftAction) || seen[kind] {
+		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction) || seen[kind] {
 			return fmt.Errorf("unknown or duplicate action handler %q", kind)
 		}
 		seen[kind] = true
@@ -100,7 +104,7 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action) (PlanSpec, erro
 	if !validID(string(id)) {
 		return PlanSpec{}, errors.New("invalid plan identity")
 	}
-	seen := make(map[ActionID]bool)
+	seen := make(map[ActionID]Action)
 	for _, a := range actions {
 		var canonical Action
 		var err error
@@ -109,6 +113,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action) (PlanSpec, erro
 			canonical, err = NewBuildingAction(a.id, a.building)
 		case OwnedDraftAction:
 			canonical, err = NewOwnedDraftAction(a.id, a.draft)
+		case MeleeAttackAction:
+			canonical, err = NewMeleeAttackAction(a.id, a.melee)
 		default:
 			return PlanSpec{}, errors.New("unsupported action variant")
 		}
@@ -118,10 +124,16 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action) (PlanSpec, erro
 		if canonical != a {
 			return PlanSpec{}, errors.New("mixed action variants")
 		}
-		if seen[a.id] {
+		if _, exists := seen[a.id]; exists {
 			return PlanSpec{}, fmt.Errorf("duplicate action identity %q", a.id)
 		}
-		seen[a.id] = true
+		if a.kind == MeleeAttackAction {
+			prerequisite, exists := seen[a.melee.draftAction]
+			if !exists || prerequisite.kind != OwnedDraftAction || prerequisite.draft.pawn != a.melee.pawn {
+				return PlanSpec{}, errors.New("melee attack requires its preceding owned draft for the same pawn")
+			}
+		}
+		seen[a.id] = a
 	}
 	return PlanSpec{id, revision, append([]Action(nil), actions...)}, nil
 }
