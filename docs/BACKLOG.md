@@ -678,7 +678,11 @@ expand these into another nested task tree; remove a row when its outcome is met
   facilities/projects, and respects player resource reservations. The opt-in cooking
   service path has targeted native acceptance alongside sleeping construction:
   one campfire completes with one attempt under shared player authority, while
-  cooking remains a deficit until a usable food bill exists. Further need inputs,
+  cooking remains a deficit until a usable food bill exists. Native power-trader
+  censuses now feed per-consumer-network headroom, electrical demand and disabled
+  consumer recovery into routine power needs. Incomplete facts remain unknown;
+  unrelated networks cannot cover a consumer. Native power acceptance remains pending.
+  Further need inputs,
   remaining construction costs, method selection and execution composition for
   additional routine methods remain open.
 

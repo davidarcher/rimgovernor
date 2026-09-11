@@ -15,6 +15,34 @@ namespace HomeBridge.BridgeTools
         private static Thing battery;
         private static Thing rice;
 
+        [Tool("test/routine_power_setup", Description = "Spawn an unfueled generator and electrical consumer in a disposable paused colony. Power observation only; no construction acceptance.")]
+        public async Task<object> RoutinePower(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required");
+                var center = map.mapPawns.FreeColonistsSpawned.First().Position;
+                var ids = new System.Collections.Generic.List<string>();
+                foreach (var name in new[] { "WoodFiredGenerator", "StandingLamp" }) {
+                    var def = ThingDef.Named(name);
+                    var candidates = GenRadial.RadialCellsAround(center, 40, true).Where(c =>
+                        GenAdj.OccupiedRect(c, Rot4.North, def.size).Cells.All(p => p.InBounds(map)
+                            && !p.Fogged(map) && p.Standable(map) && p.GetEdifice(map) == null
+                            && !p.GetThingList(map).Any(t => t is Pawn)
+                            && p.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy))).Take(1).ToList();
+                    if (candidates.Count != 1) throw new InvalidOperationException("No native power fixture footprint for " + name);
+                    var thing = ThingMaker.MakeThing(def);
+                    thing.SetFaction(Faction.OfPlayer);
+                    GenSpawn.Spawn(thing, candidates[0], map);
+                    thing.SetForbidden(false, false);
+                    var fuel = thing.TryGetComp<CompRefuelable>();
+                    if (fuel != null) fuel.ConsumeFuel(fuel.Fuel);
+                    ids.Add(thing.GetUniqueLoadID());
+                }
+                return new { success = true, buildings = ids, setupOnly = true };
+            }, cancellationToken);
+        }
+
         [Tool("test/forecast_setup", Description = "Create a disposable power/food forecast fixture. Test builds only; no construction acceptance.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {

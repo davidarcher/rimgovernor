@@ -8072,23 +8072,23 @@
         {
           "name": "test/forecast_refuel",
           "path": "scripts/fixtures/ForecastFixture.cs",
-          "line": 84,
+          "line": 112,
           "declaration": "[Tool(\"test/forecast_refuel\", Description = \"Supply the disposable test generator; test builds only. Subsequent charging is native simulation.\")]\n        public async Task<object> Refuel(IRimBridgeContext ctx, CancellationToken cancellationToken)",
-          "source_sha256": "c481d67c5828dcc13cf55a1786bb8132ee7ddde241770ae9f5cf7f47ec4c5c79"
+          "source_sha256": "46f2f00a2b123f4b9685d6da383580f07f0379269b26bb57530e2eda580c48ac"
         },
         {
           "name": "test/forecast_setup",
           "path": "scripts/fixtures/ForecastFixture.cs",
-          "line": 18,
+          "line": 46,
           "declaration": "[Tool(\"test/forecast_setup\", Description = \"Create a disposable power/food forecast fixture. Test builds only; no construction acceptance.\")]\n        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken)",
-          "source_sha256": "c481d67c5828dcc13cf55a1786bb8132ee7ddde241770ae9f5cf7f47ec4c5c79"
+          "source_sha256": "46f2f00a2b123f4b9685d6da383580f07f0379269b26bb57530e2eda580c48ac"
         },
         {
           "name": "test/forecast_state",
           "path": "scripts/fixtures/ForecastFixture.cs",
-          "line": 73,
+          "line": 101,
           "declaration": "[Tool(\"test/forecast_state\", Description = \"Read retained fixture rot state even after native destruction. Test builds only.\")]\n        public async Task<object> State(IRimBridgeContext ctx, CancellationToken cancellationToken)",
-          "source_sha256": "c481d67c5828dcc13cf55a1786bb8132ee7ddde241770ae9f5cf7f47ec4c5c79"
+          "source_sha256": "46f2f00a2b123f4b9685d6da383580f07f0379269b26bb57530e2eda580c48ac"
         },
         {
           "name": "test/gear_fixture",
@@ -8264,6 +8264,13 @@
           "line": 15,
           "declaration": "[Tool(\"test/research_observation_fingerprint\", Description = \"Private read-only fixture: exact saved research backing-state evidence without progress getters, slot initialization, saves or game orders.\")]\n        public async Task<object> Fingerprint(IRimBridgeContext ctx, CancellationToken cancellationToken)",
           "source_sha256": "90db576521257d3f3dba9c29a0868860ea4a03d5d757fa6a86f5faa8b79c311c"
+        },
+        {
+          "name": "test/routine_power_setup",
+          "path": "scripts/fixtures/ForecastFixture.cs",
+          "line": 18,
+          "declaration": "[Tool(\"test/routine_power_setup\", Description = \"Spawn an unfueled generator and electrical consumer in a disposable paused colony. Power observation only; no construction acceptance.\")]\n        public async Task<object> RoutinePower(IRimBridgeContext ctx, CancellationToken cancellationToken)",
+          "source_sha256": "46f2f00a2b123f4b9685d6da383580f07f0379269b26bb57530e2eda580c48ac"
         },
         {
           "name": "test/routine_production_prepare",
@@ -10428,6 +10435,21 @@
         "status": "pending",
         "uncovered_acceptance": [
           "Verify exact populated active Anomaly backing-slot preservation; this fixture never initializes slots or writes research."
+        ]
+      },
+      {
+        "name": "test/routine_power_setup",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.02",
+        "native_owner_chunk": "N01.07",
+        "build_role": "fixture",
+        "fixtures": [],
+        "native_scenarios": [],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Capture actual SDK discovery and representative replies for this build; declarations are source evidence only.",
+          "Audit every advertised/implemented argument variant, defaults, invalid values and refusal semantics; signatures retain advertised contracts but are not an exhaustive behavioral schema.",
+          "Verify isolated native outcomes and relevant interruption/load/player-override behavior; linked existing scenarios are candidates, not per-tool acceptance."
         ]
       },
       {

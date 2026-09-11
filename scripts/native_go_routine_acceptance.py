@@ -163,7 +163,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             assert prepared["success"] and all(prepared[k] == identity[k] for k in identity)
             report["prepared"] = prepared
             if power_fixture:
-                report['power_setup'] = payload(await evidence.call(bridge, 'power-setup', 'test/forecast_setup', {}))
+                report['power_setup'] = payload(await evidence.call(bridge, 'power-setup', 'test/routine_power_setup', {}))
                 assert report['power_setup']['success']
             if sleeping_methods:
                 report["sleeping_setup"] = payload(await evidence.call(bridge, "sleeping-setup", "test/routine_sleeping_prepare", {}))

@@ -151,6 +151,13 @@ colonists count. Missing gear or inconsistent colony/pawn censuses leave readine
 unknown; tick or generation changes reject the review. This supplies the maintained
 defense need without issuing equipment or combat orders.
 
+The colony development section supplies a complete, bounded power-trader census.
+Routine power coverage uses each consumer's own native network and output watts;
+generation on unrelated networks does not cover a deficit. Disconnected or unpowered
+consumers remain deficits, while no consumers means no electrical requirement.
+Enabled, unforbidden consumers without power also remain recovery targets. Missing
+census or service facts preserve unknown coverage. These reads issue no power orders.
+
 `ReadRoutinePawns` adds the work-only detail selection to the same exact-ID read.
 It preserves native work applicability and numbered/checkbox mode. `AssignWork`
 selects specialists with stable ties, construction skill precedence and shared labor,
