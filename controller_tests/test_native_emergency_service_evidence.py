@@ -1,5 +1,6 @@
 """Pure evidence tests; no game, subprocess, network or HTTP listeners."""
 import copy
+import asyncio
 import importlib.util
 from pathlib import Path
 import sys
@@ -18,6 +19,14 @@ finally:
 CAPS = {name: {value} for name, value in {"identity": "rimgovernor/lifecycle_read_identity", "status": probe.STATUS,
     "control": probe.CONTROL, "execute": probe.EXECUTE, "preview": "rimgovernor/placement_preview",
     "fixture": "test/b04f_setup", "clock": "rimgovernor/clock_run_for"}.items()}
+
+
+def test_emergency_requires_explicit_canonical_handoff_before_game_setup(tmp_path):
+    with pytest.raises(TypeError):
+        asyncio.run(probe.run(tmp_path, tmp_path / "out", tmp_path / "binary"))
+    with pytest.raises(ValueError):
+        asyncio.run(probe.run(tmp_path, tmp_path / "out", tmp_path / "binary", go_source="old", go_sha256="0" * 64))
+    assert not (tmp_path / "out").exists()
 
 
 def events(*names):

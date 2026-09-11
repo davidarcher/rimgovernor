@@ -19,8 +19,6 @@ from native_package_acceptance import package_files
 from native_compatibility_acceptance import discovery, validate_discovery
 from rimgovernor.native_scenario import advance_game
 
-BINARY_SHA256 = "d9147dc84c0ad075f3381aa43ec1a73ba5958e3d653f8e9fd65fc2ff869c1b65"
-SOURCE = "842f9d1e7cb929f40527cb9bc0a1376dd3a32c71"
 READS = {"rimgovernor/" + name for name in ("lifecycle_read_identity", "observations_read_status",
     "observations_get_cells", "observations_list_buildings", "authority_read_status", "receipts_lookup", "receipts_observe_progress")}
 DIAGNOSTICS = {"rimbridge/list_operation_events", "rimbridge/list_capabilities"}
@@ -85,8 +83,39 @@ def verify_progress(plan: dict, submission: dict, completed: bool) -> None:
         assert progress["effect"] == "completed"
 
 
+def canonical_handoff_hex(value: str, length: int) -> str:
+    if len(value) != length or any(char not in "0123456789abcdef" for char in value):
+        raise ValueError(f"Handoff must be exactly {length} lowercase hexadecimal characters")
+    return value
+
+
+def validate_go_handoff(go_source: str, go_sha256: str) -> None:
+    canonical_handoff_hex(go_source, 40)
+    canonical_handoff_hex(go_sha256, 64)
+
+
+def add_handoff_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--go-source", required=True, type=lambda value: canonical_handoff_hex(value, 40))
+    parser.add_argument("--go-sha256", required=True, type=lambda value: canonical_handoff_hex(value, 64))
+
+
+def verify_go_binary(binary: Path, *, go_source: str, go_sha256: str) -> str:
+    validate_go_handoff(go_source, go_sha256)
+    actual = hashlib.sha256(binary.read_bytes()).hexdigest()
+    if actual != go_sha256:
+        raise ValueError("Go service differs from supplied immutable handoff")
+    return actual
+
+
+def redact_http_value(path: str, value: dict) -> dict:
+    recorded = dict(value)
+    if path == "/api/player/session" and "token" in recorded:
+        recorded["token"] = "[redacted]"
+    return recorded
+
+
 def service_argv(binary, gabs, configuration, profile, state):
-    return [str(binary.resolve()), "serve", "--building-control", "--profile", str(profile.resolve()),
+    return [str(binary.resolve()), "serve", "--player-control", "--profile", str(profile.resolve()),
         "--gabs", str(gabs.resolve()), "--config", str(configuration.resolve()), "--game", "rimgovernor-trial",
         "--state", str(state.resolve()), "--listen", "127.0.0.1:0", "--refresh", "1s", "--timeout", "15s"]
 
@@ -121,8 +150,8 @@ async def service(binary, gabs, configuration, profile, state, directory, report
             async with asyncio.timeout(120):
                 line = await process.stdout.readline()
             stdout.write(line); stdout.flush()
-            prefix = "RimGovernor Go building service: "
-            assert line.decode().startswith(prefix), "Missing building-service address"
+            prefix = "RimGovernor Go player service: "
+            assert line.decode().startswith(prefix), "Missing player-service address"
             url = line.decode().strip()[len(prefix):]
             parsed = urlsplit(url)
             assert parsed.scheme == "http" and parsed.hostname == "127.0.0.1" and parsed.port and not parsed.username
@@ -140,9 +169,7 @@ async def service(binary, gabs, configuration, profile, state, directory, report
                     nonlocal counter
                     response = await client.request(method, path, json=body) if body is not None else await client.request(method, path)
                     value = response.json()
-                    recorded = dict(value)
-                    if path == "/api/buildings/session" and "token" in recorded:
-                        recorded["token"] = "[redacted]"
+                    recorded = redact_http_value(path, value)
                     counter += 1
                     (directory / f"http-{counter:04d}.json").write_text(json.dumps({"method": method, "path": path,
                         "request": body, "status": response.status_code, "response": recorded}, indent=2), encoding="utf8")
@@ -151,7 +178,7 @@ async def service(binary, gabs, configuration, profile, state, directory, report
 
                 health = await http("GET", "/api/health")
                 assert health["backend"] == "go" and health["service"] == "rimgovernor" and health["pid"] == process.pid
-                bootstrap = await http("GET", "/api/buildings/session")
+                bootstrap = await http("GET", "/api/player/session")
                 assert bootstrap["mode"] == "explicit-player" and bootstrap["token"]
                 client.headers["X-RimGovernor-Player"] = bootstrap["token"]
                 yield http
@@ -174,10 +201,11 @@ async def poll(http, path, predicate, timeout=45):
             await asyncio.sleep(.25)
 
 
-async def run(root: Path, output: Path, binary: Path, *, headless=True) -> bool:
+async def run(root: Path, output: Path, binary: Path, *, go_source: str, go_sha256: str, headless=True) -> bool:
+    validate_go_handoff(go_source, go_sha256)
     assert Path("/.dockerenv").is_file(), "Run network/game processes only in container_scenario.py Docker worker"
     output.mkdir(parents=True, exist_ok=False)
-    report = {"passed": False, "source": SOURCE, "scope": "Explicit HTTP building admission, joined exclusive handoffs, ordinary pawn completion and disabled same-DB restart reconciliation."}
+    report = {"passed": False, "source": go_source, "expected_binary_sha256": go_sha256, "scope": "Explicit HTTP building admission, joined exclusive handoffs, ordinary pawn completion and disabled same-DB restart reconciliation."}
     evidence = Evidence(output)
     launched = False
     try:
@@ -188,8 +216,7 @@ async def run(root: Path, output: Path, binary: Path, *, headless=True) -> bool:
         profile = root / ("headless-profile" if headless else "profile")
         private = output / "rimgovernor-go"
         shutil.copyfile(binary, private); private.chmod(0o700)
-        report["binary_sha256"] = hashlib.sha256(private.read_bytes()).hexdigest()
-        assert report["binary_sha256"] == BINARY_SHA256, "Go service differs from immutable handoff"
+        report["binary_sha256"] = verify_go_binary(private, go_source=go_source, go_sha256=go_sha256)
         database = output / "service.sqlite"
         assert not database.exists()
 
@@ -264,7 +291,7 @@ async def run(root: Path, output: Path, binary: Path, *, headless=True) -> bool:
             assert submission["requestId"] == body["requestId"] and submission["expected"] == identity and submission["building"] == building
             assert await http("GET", "/api/buildings/submission?requestId=fixture-submit-1") == submission
             assert await http("POST", "/api/buildings/plans", body=body) == submission
-            assert (await http("GET", "/api/buildings/control"))["state"]["enabled"] is False
+            assert (await http("GET", "/api/player/control"))["state"]["enabled"] is False
             assert action(await http("GET", "/api/plan?id=" + submission["planId"]), submission)["receipt"] is None
             await ready(http, tick)
             report["submission"] = submission
@@ -278,8 +305,8 @@ async def run(root: Path, output: Path, binary: Path, *, headless=True) -> bool:
 
         async with service(private, gabs, configuration, profile, database, output / "execute", report) as http:
             await ready(http, tick)
-            assert (await http("GET", "/api/buildings/control"))["state"]["enabled"] is False
-            granted = await http("POST", "/api/buildings/control/acquire", body={"requestId": "fixture-acquire-1", "expected": identity,
+            assert (await http("GET", "/api/player/control"))["state"]["enabled"] is False
+            granted = await http("POST", "/api/player/control/acquire", body={"requestId": "fixture-acquire-1", "expected": identity,
                 "planId": submission["planId"], "revision": submission["revision"], "expectedDirection": "0"})
             assert granted["record"]["phase"] == "granted" and granted["record"]["direction"] == "1"
             assert int(granted["record"]["nativeGeneration"]) > 0 and granted["state"]["enabled"] is True and granted["state"]["observationKnown"] is True
@@ -287,9 +314,9 @@ async def run(root: Path, output: Path, binary: Path, *, headless=True) -> bool:
             plan = await poll(http, "/api/plan?id=" + submission["planId"], lambda value: action(value, submission)["stage"] == "awaiting_observation")
             verify_progress(plan, submission, False); report["admitted_plan"] = plan
             await ready(http, tick)
-            manual = await http("POST", "/api/buildings/control/manual", body={"requestId": "fixture-manual-1", "expected": identity})
+            manual = await http("POST", "/api/player/control/manual", body={"requestId": "fixture-manual-1", "expected": identity})
             assert manual["record"]["phase"] == "disabled" and manual["record"]["nativeGeneration"] == "0" and manual["state"]["enabled"] is False
-            assert (await http("GET", "/api/buildings/control"))["record"]["requestId"] == "fixture-manual-1"
+            assert (await http("GET", "/api/player/control"))["record"]["requestId"] == "fixture-manual-1"
             verify_progress(await http("GET", "/api/plan?id=" + submission["planId"]), submission, False)
         async with bridge_session(gabs, configuration) as bridge:
             await bridge.connect()
@@ -314,10 +341,10 @@ async def run(root: Path, output: Path, binary: Path, *, headless=True) -> bool:
             baseline = await capture(bridge, "pawn-orchestrator", baseline, "orchestrator")
         async with service(private, gabs, configuration, profile, database, output / "restart", report) as http:
             await ready(http, final_tick)
-            assert (await http("GET", "/api/buildings/control"))["state"]["enabled"] is False
+            assert (await http("GET", "/api/player/control"))["state"]["enabled"] is False
             plan = await poll(http, "/api/plan?id=" + submission["planId"], lambda value: action(value, submission)["stage"] == "completed")
             verify_progress(plan, submission, True); report["completed_plan"] = plan
-            assert (await http("GET", "/api/buildings/control"))["state"]["enabled"] is False
+            assert (await http("GET", "/api/player/control"))["state"]["enabled"] is False
             await ready(http, final_tick)
         async with bridge_session(gabs, configuration) as bridge:
             await bridge.connect()
@@ -347,6 +374,7 @@ if __name__ == "__main__":
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--go-binary", type=Path, required=True)
+    add_handoff_arguments(parser)
     parser.add_argument("--rendered", action="store_true")
     args = parser.parse_args()
-    raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-building-service-acceptance", args.go_binary, headless=not args.rendered)) else 1)
+    raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-building-service-acceptance", args.go_binary, go_source=args.go_source, go_sha256=args.go_sha256, headless=not args.rendered)) else 1)

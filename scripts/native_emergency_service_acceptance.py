@@ -8,10 +8,8 @@ from pathlib import Path
 import shutil
 from native_building_service_acceptance import (Evidence, bridge_session, gabs_executable, payload, prepare, prepare_rendered,
     package_files, proto, outcome, discovery, validate_discovery, service, poll, http_building, action, verify_progress,
-    READS, DIAGNOSTICS, CONTROL, EXECUTE)
+    READS, DIAGNOSTICS, CONTROL, EXECUTE, add_handoff_arguments, validate_go_handoff, verify_go_binary)
 
-BINARY_SHA256 = "9f32f8c9b2dc3bb92a419c829d96d44d19bc39644043e8395043b87164b16543"
-SOURCE = "7d011c5d58238083e6f959d0ba21ae6bb6c071d5"
 STATUS = "rimgovernor/observations_read_status"
 PREVIEWS = {"rimgovernor/placement_preview", "rimgovernor/operations_preview"}
 
@@ -108,10 +106,11 @@ def audit(events: list[dict], baseline: int, capabilities: dict[str, set[str]], 
     return names
 
 
-async def run(root: Path, output: Path, binary: Path, *, headless=True) -> bool:
+async def run(root: Path, output: Path, binary: Path, *, go_source: str, go_sha256: str, headless=True) -> bool:
+    validate_go_handoff(go_source, go_sha256)
     assert Path("/.dockerenv").is_file(), "Run network/game processes only in container_scenario.py Docker worker"
     output.mkdir(parents=True, exist_ok=False)
-    report = {"passed": False, "source": SOURCE, "scope": "Paused unsafe-threat hold then safe admission via explicit Go controls; no pawn completion or simulation advance claim."}
+    report = {"passed": False, "source": go_source, "expected_binary_sha256": go_sha256, "scope": "Paused unsafe-threat hold then safe admission via explicit Go controls; no pawn completion or simulation advance claim."}
     evidence = Evidence(output)
     launched = False
     try:
@@ -122,8 +121,7 @@ async def run(root: Path, output: Path, binary: Path, *, headless=True) -> bool:
         profile = root / ("headless-profile" if headless else "profile")
         private = output / "rimgovernor-go"
         shutil.copyfile(binary, private); private.chmod(0o700)
-        report["binary_sha256"] = hashlib.sha256(private.read_bytes()).hexdigest()
-        assert report["binary_sha256"] == BINARY_SHA256, "Go service differs from immutable handoff"
+        report["binary_sha256"] = verify_go_binary(private, go_source=go_source, go_sha256=go_sha256)
         database = output / "service.sqlite"
         assert not database.exists()
 
@@ -217,15 +215,15 @@ async def run(root: Path, output: Path, binary: Path, *, headless=True) -> bool:
             return value
 
         async def manual(http, request_id):
-            value = await http("POST", "/api/buildings/control/manual", body={"requestId": request_id, "expected": identity})
+            value = await http("POST", "/api/player/control/manual", body={"requestId": request_id, "expected": identity})
             assert value["record"]["phase"] == "disabled" and value["state"]["enabled"] is False
-            current = await http("GET", "/api/buildings/control")
+            current = await http("GET", "/api/player/control")
             assert current["record"]["requestId"] == request_id and current["state"]["enabled"] is False
             return current["record"]["direction"]
 
         async with service(private, gabs, configuration, profile, database, output / "unsafe", report) as http:
             await ready(http, tick)
-            assert (await http("GET", "/api/buildings/control"))["state"]["enabled"] is False
+            assert (await http("GET", "/api/player/control"))["state"]["enabled"] is False
             building = http_building(site)
             body = {"requestId": "emergency-submit-1", "expected": identity, "building": building}
             submission = await http("POST", "/api/buildings/plans", body=body, expected=201)
@@ -233,7 +231,7 @@ async def run(root: Path, output: Path, binary: Path, *, headless=True) -> bool:
             assert await http("GET", "/api/buildings/submission?requestId=emergency-submit-1") == submission
             report["submission"] = submission
             pending(await http("GET", "/api/plan?id=" + submission["planId"]), submission)
-            grant = await http("POST", "/api/buildings/control/acquire", body={"requestId": "emergency-acquire-1", "expected": identity,
+            grant = await http("POST", "/api/player/control/acquire", body={"requestId": "emergency-acquire-1", "expected": identity,
                 "planId": submission["planId"], "revision": submission["revision"], "expectedDirection": "0"})
             assert grant["record"]["phase"] == "granted" and grant["state"]["enabled"] is True and grant["state"]["observationKnown"] is True
             started = asyncio.get_running_loop().time(); observations = 0
@@ -258,11 +256,11 @@ async def run(root: Path, output: Path, binary: Path, *, headless=True) -> bool:
             baseline = await capture(bridge, "clear-orchestrator", baseline, "orchestrator")
         async with service(private, gabs, configuration, profile, database, output / "safe", report) as http:
             await ready(http, tick)
-            disabled = await http("GET", "/api/buildings/control")
+            disabled = await http("GET", "/api/player/control")
             assert disabled["state"]["enabled"] is False and disabled["record"]["direction"] == direction
             assert await http("GET", "/api/buildings/submission?requestId=emergency-submit-1") == submission
             pending(await http("GET", "/api/plan?id=" + submission["planId"]), submission)
-            grant = await http("POST", "/api/buildings/control/acquire", body={"requestId": "emergency-acquire-2", "expected": identity,
+            grant = await http("POST", "/api/player/control/acquire", body={"requestId": "emergency-acquire-2", "expected": identity,
                 "planId": submission["planId"], "revision": submission["revision"], "expectedDirection": disabled["record"]["direction"]})
             assert grant["record"]["phase"] == "granted" and grant["state"]["enabled"] is True and grant["state"]["observationKnown"] is True
             plan = await poll(http, "/api/plan?id=" + submission["planId"], lambda value: action(value, submission)["stage"] == "awaiting_observation")
@@ -300,6 +298,7 @@ if __name__ == "__main__":
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--go-binary", type=Path, required=True)
+    add_handoff_arguments(parser)
     parser.add_argument("--rendered", action="store_true")
     args = parser.parse_args()
-    raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-emergency-service-acceptance", args.go_binary, headless=not args.rendered)) else 1)
+    raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-emergency-service-acceptance", args.go_binary, go_source=args.go_source, go_sha256=args.go_sha256, headless=not args.rendered)) else 1)

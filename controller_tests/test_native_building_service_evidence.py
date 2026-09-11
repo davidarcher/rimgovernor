@@ -1,5 +1,7 @@
 """Evidence checks use no game process, HTTP listener or network connection."""
 import asyncio
+import argparse
+import hashlib
 import copy
 import importlib.util
 from pathlib import Path
@@ -128,7 +130,7 @@ def test_service_argv_keeps_same_database_without_takeover(tmp_path):
     argv = probe.service_argv(*(tmp_path / name for name in ("binary", "gabs", "config", "profile", "state")))
     assert argv[argv.index("--state") + 1] == str((tmp_path / "state").resolve())
     assert argv[argv.index("--profile") + 1] == str((tmp_path / "profile").resolve())
-    assert "--building-control" in argv and argv[argv.index("--listen") + 1] == "127.0.0.1:0"
+    assert "--player-control" in argv and argv[argv.index("--listen") + 1] == "127.0.0.1:0"
     assert not any("takeover" in argument.lower() for argument in argv)
 
 
@@ -166,3 +168,38 @@ def test_failed_drain_retains_resources_without_force_kill():
 def test_nonzero_service_exit_cannot_pass():
     with pytest.raises(AssertionError):
         asyncio.run(probe.joined_shutdown(Process(code=1), {}))
+
+
+def test_explicit_handoff_verifies_copied_binary(tmp_path):
+    binary = tmp_path / "private-go"
+    binary.write_bytes(b"exact supplied executable")
+    digest = hashlib.sha256(binary.read_bytes()).hexdigest()
+    assert probe.verify_go_binary(binary, go_source="a" * 40, go_sha256=digest) == digest
+    binary.write_bytes(b"different executable")
+    with pytest.raises(ValueError, match="differs"):
+        probe.verify_go_binary(binary, go_source="a" * 40, go_sha256=digest)
+
+
+@pytest.mark.parametrize("source,digest", [("", "0" * 64), ("a" * 39, "0" * 64), ("A" * 40, "0" * 64),
+    ("a" * 40, "B" * 64), ("a" * 40, "0" * 63), ("a" * 40, "0" * 64 + "\n")])
+def test_handoff_rejects_noncanonical_input_before_any_run(tmp_path, source, digest):
+    with pytest.raises(ValueError):
+        asyncio.run(probe.run(tmp_path, tmp_path / "out", tmp_path / "binary", go_source=source, go_sha256=digest))
+    assert not (tmp_path / "out").exists()
+
+
+def test_handoff_cli_requires_both_values():
+    parser = argparse.ArgumentParser()
+    probe.add_handoff_arguments(parser)
+    for args in ([], ["--go-source", "a" * 40], ["--go-sha256", "b" * 64], ["--go-source", "A" * 40, "--go-sha256", "b" * 64]):
+        with pytest.raises(SystemExit):
+            parser.parse_args(args)
+    args = parser.parse_args(["--go-source", "a" * 40, "--go-sha256", "b" * 64])
+    assert args.go_source == "a" * 40 and args.go_sha256 == "b" * 64
+
+
+def test_player_bootstrap_token_redaction_preserves_live_response():
+    value = {"token": "private process token", "mode": "explicit-player"}
+    assert probe.redact_http_value("/api/player/session", value) == {"token": "[redacted]", "mode": "explicit-player"}
+    assert value["token"] == "private process token"
+    assert probe.redact_http_value("/api/player/control", {"state": {"enabled": False}}) == {"state": {"enabled": False}}
