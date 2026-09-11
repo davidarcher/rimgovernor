@@ -125,6 +125,15 @@ attach the same player's reviewer through `ClockSchedulerConfig.Routine`; it run
 after clock obligations drain and before a new window decision. Running epochs and
 cleanup take precedence, and a failed review prevents a new window.
 
+Native farm and cooking censuses also feed routine assessments. Production counts
+only actively growing edible plants; cooking requires a usable bench with an
+unsuspended recipe-matching food bill. Unknown fields cannot certify recovery, and
+neither crops nor a cooking bill add credit to stored food runway. The native
+Protobuf acceptance scenario supports `--routine-production` with the private
+`RoutineProductionFixture` for populated read parity; no harvested or cooked food
+is injected. Retained captures can be replayed with
+`RIMGOVERNOR_NATIVE_PRODUCTION_REFERENCE` alongside the colony capture.
+
 `RoutineSleepingPlanner.Step` compiles an active reviewed shelter deficit into
 one complete method of ordinary indoor sleeping spots. It requires a known native
 definition with no construction-skill prerequisite, roofed indoor cells, disjoint

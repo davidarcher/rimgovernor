@@ -620,8 +620,11 @@ expand these into another nested task tree; remove a row when its outcome is met
   competing demand and rot deadlines. Typed native human food inputs have populated
   stock parity and Go/Python forecast replay. The combined native census now feeds
   routine FoodDays with animal competition; populated native replay reaches a durable
-  food deficit. Crop/patient forecast fields have typed parity, but populated crop-work
-  acceptance and further use of these fields remain open.
+  food deficit. Populated crop forecast observations now have native parity; further
+  use of crop/patient forecast fields remains open. Complete native farm and cooking
+  censuses feed edible growing-cell capacity and usable, unsuspended food-bill needs.
+  Unknown counts or availability remain unknown. Populated native replay verifies
+  thirty growing rice cells and a cooking recovery in the durable Go review.
   Superseded invalidated autopilot goals now retire from active capacity while
   retaining immutable history; uncertain effects and cleanup prevent retirement.
   Completion observed after cancellation now yields historic cost/geometry holds

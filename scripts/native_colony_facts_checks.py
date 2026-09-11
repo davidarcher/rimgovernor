@@ -141,8 +141,35 @@ async def verify_colony_facts(wire, call, identity, context):
     assert refused['failure']['code'] == 'FAILURE_CODE_STALE_IDENTITY'
     plain = await wire('colony-no-planning', 'observations_read_colony_facts', {'scope': {'expectedIdentity': identity}})
     assert plain['observed']['planning']['unavailable']['reason'] == 'UNAVAILABLE_REASON_NOT_REQUESTED'
-    return {'cells_compared': len(actual), 'definitions_compared': len(names),
+    production = verify_production(facts, legacy)
+    return {**production, 'cells_compared': len(actual), 'definitions_compared': len(names),
             'food_consumers_compared': len(consumers), 'food_stocks_compared': len(stocks),
             'combined_consumers_compared': len(combined_consumers), 'combined_stocks_compared': len(combined_stocks),
             'animals_compared': len(forecast.get('animalIds', [])), 'patients_compared': len(forecast.get('patients', [])),
             'structural_refusals': 6, 'stale_identity_refused': True, 'core_parity': True}
+
+
+def verify_production(facts, legacy):
+    farms = {f['zoneId']: f for f in facts.get('farms', [])}
+    assert set(farms) == {str(f['id']) for f in legacy['farms']}
+    for old in legacy['farms']:
+        row = farms[str(old['id'])]
+        assert row['crop'] == old['crop'] and row['edibleCrop'] == old['edible']
+        for field in ('usableCells', 'plantedCells', 'growingCells'):
+            assert int(row[field]) == old[field]
+        for field in ('harvestLowerBoundDays', 'nutritionPerHarvestCell'):
+            if old.get(field) is None:
+                assert field not in row
+            else:
+                assert math.isclose(row[field], old[field], rel_tol=1e-6, abs_tol=1e-6)
+    benches = {b['bench']['id']: b for b in facts.get('cooking', [])}
+    assert set(benches) == {b['id'] for b in legacy['cooking']}
+    for old in legacy['cooking']:
+        row = benches[old['id']]
+        assert row['bench']['defName'] == old['defName'] and row['bench']['position'] == old['position']
+        assert row['usable'] == old['usable']
+        assert {r['recipe']['defName'] for r in row.get('recipes', [])} == set(old['recipes'])
+        assert [(b['recipe']['defName'], b['suspended']) for b in row.get('bills', [])] == [(b['recipe'], b['suspended']) for b in old['bills']]
+    ready = any(b['usable'] and any(not bill['suspended'] and bill['recipe'] in b['recipes'] for bill in b['bills']) for b in legacy['cooking'])
+    growing = sum(f['growingCells'] for f in legacy['farms'] if f['edible'])
+    return {'farms_compared': len(farms), 'cooking_compared': len(benches), 'growing_cells': growing, 'cooking_ready': ready}

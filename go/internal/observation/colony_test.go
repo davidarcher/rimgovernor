@@ -101,6 +101,28 @@ func TestColonyNativeCaptureReachesRoutineReview(t *testing.T) {
 	if len(p.Cells) == 0 || len(p.Definitions) == 0 {
 		t.Fatal("missing native planning data")
 	}
+	if reference := os.Getenv("RIMGOVERNOR_NATIVE_PRODUCTION_REFERENCE"); reference != "" {
+		data, err := os.ReadFile(reference)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var want struct {
+			GrowingCells int64 `json:"growing_cells"`
+			CookingReady bool  `json:"cooking_ready"`
+		}
+		if err = json.Unmarshal(data, &want); err != nil {
+			t.Fatal(err)
+		}
+		growing, known := p.Facts.GrowingCells.Value()
+		if !known || growing != want.GrowingCells {
+			t.Fatal("native growing-cell parity", p.Facts.GrowingCells, want)
+		}
+		cooking, known := p.Facts.Cooking.Value()
+		if !known || cooking != want.CookingReady {
+			t.Fatal("native cooking parity", p.Facts.Cooking, want)
+		}
+		t.Logf("Native production reaches routine facts: %d growing cells, cooking ready=%v", growing, cooking)
+	}
 	if reference := os.Getenv("RIMGOVERNOR_NATIVE_FOOD_FORECAST"); reference != "" {
 		food, known := p.FoodSupply.Value()
 		if !known {
@@ -164,6 +186,17 @@ func TestColonyNativeCaptureReachesRoutineReview(t *testing.T) {
 		t.Fatal("native facts did not reach maintained goals")
 	}
 	for _, assessment := range out.Needs.Assessments {
+		if assessment.ID == policy.EnsureCooking {
+			if ready, known := p.Facts.Cooking.Value(); known {
+				want := domain.NeedDeficit
+				if ready {
+					want = domain.NeedRecovered
+				}
+				if assessment.Need != want {
+					t.Fatal("native cooking did not reach durable need", assessment)
+				}
+			}
+		}
 		if assessment.ID == policy.EnsureFoodSupply {
 			days, known := p.Facts.FoodDays.Value()
 			if !known && assessment.Need != domain.NeedUnknown {

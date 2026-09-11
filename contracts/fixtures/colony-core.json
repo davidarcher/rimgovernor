@@ -8,6 +8,7 @@
     "bedCapacity": 2, "indoorSleepingCapacity": 1,
     "sleepingTemperatureMinC": 10, "sleepingTemperatureMaxC": 15,
     "outdoorTemperatureC": -10, "foodStorage": false,
+    "issues": [{"field": "farms", "unavailable": {"reason": "UNAVAILABLE_REASON_UNSUPPORTED"}}, {"field": "cooking", "unavailable": {"reason": "UNAVAILABLE_REASON_UNSUPPORTED"}}],
     "foodSupply": {"unavailable": {"reason": "UNAVAILABLE_REASON_UNSUPPORTED"}},
     "forecast": {"unavailable": {"reason": "UNAVAILABLE_REASON_UNSUPPORTED"}},
     "upkeep": {"unavailable": {"reason": "UNAVAILABLE_REASON_UNSUPPORTED"}},

@@ -117,11 +117,49 @@ namespace HomeBridge.BridgeTools
                 && t.IsForbidden(player) && t.Position.DistanceTo(center) <= 20 && reachable(t)).Select(t => t.Position).Distinct().OrderBy(c => c.z).ThenBy(c => c.x).ToList();
             Bound(forbidden.Count, limit);
             foreach (var cell in forbidden) result.ForbiddenSupplies.Add(Cell(cell));
-            foreach (var field in new[] { "naming", "policy_resources", "pending_food_nutrition", "environment", "food_climate", "farms", "cooking", "acquisition", "butchering", "food_corpses", "recovery", "waste" })
+            ReadProduction(result, map, people, things, reachable, humanFood, limit);
+            foreach (var field in new[] { "naming", "policy_resources", "pending_food_nutrition", "environment", "food_climate", "acquisition", "butchering", "food_corpses", "recovery", "waste" })
                 result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Section is not yet projected."));
             result.Planning = request.Planning ? new Obs.PlanningSection { Observed = Planning(map, center, request, context, limit) }
                 : new Obs.PlanningSection { Unavailable = Unavailable(Common.UnavailableReason.NotRequested, "Planning was not requested.") };
             return result;
+        }
+
+        private static void ReadProduction(Obs.ColonyFactsSnapshot result, Map map, List<Pawn> people,
+            List<Thing> things, Func<Thing, bool> reachable, Func<ThingDef, bool> humanFood, int limit)
+        {
+            var farms = map.zoneManager.AllZones.OfType<Zone_Growing>().OrderBy(z => z.ID).ToList();
+            Bound(farms.Count, limit);
+            var cropField = BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow");
+            if (farms.Count > 0 && cropField == null) throw new InvalidOperationException("Native growing crop schema unavailable.");
+            foreach (var zone in farms) {
+                var crop = cropField!.GetValue(zone) as ThingDef;
+                if (crop?.plant == null) throw new InvalidOperationException("Native growing crop unavailable.");
+                var cells = map.AllCells.Where(c => map.zoneManager.ZoneAt(c) == zone && !c.Fogged(map)).ToList();
+                var plants = cells.Select(c => c.GetPlant(map)).Where(p => p != null && p.def == crop).ToList();
+                var product = crop.plant.harvestedThingDef;
+                var edible = product != null && humanFood(product);
+                var row = new Obs.FarmFacts { ZoneId = zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture), Crop = crop.defName,
+                    UsableCells = (uint)cells.Count(c => map.fertilityGrid.FertilityAt(c) >= crop.plant.fertilityMin),
+                    PlantedCells = (uint)plants.Count, GrowingCells = (uint)plants.Count(p => p.GrowthRateFactor_Temperature > 0 && p.GrowthRateFactor_Fertility > 0),
+                    EdibleCrop = edible, NutritionPerHarvestCell = edible ? Finite(crop.plant.harvestYield * product.GetStatValueAbstract(StatDefOf.Nutrition)) : 0 };
+                if (plants.Count > 0) row.HarvestLowerBoundDays = Finite(plants.Min(p => (1f - p.Growth) * crop.plant.growDays / Math.Max(.01f, p.GrowthRateFactor_Fertility)));
+                result.Farms.Add(row);
+            }
+            var benches = things.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayer && reachable(b)
+                && b.def.AllRecipes.Any(r => r.products.Any(p => humanFood(p.thingDef)))).OrderBy(b => b.thingIDNumber).ToList();
+            Bound(benches.Count, limit);
+            foreach (var bench in benches) {
+                var row = new Obs.CookingFacts { Bench = new Obs.EntityRef { Id = bench.GetUniqueLoadID(), DefName = bench.def.defName,
+                    MapId = map.uniqueID, Position = Cell(bench.Position) },
+                    Usable = !bench.IsBurning() && (bench.TryGetComp<CompPowerTrader>() == null || bench.TryGetComp<CompPowerTrader>().PowerOn)
+                        && (bench.TryGetComp<CompRefuelable>() == null || bench.TryGetComp<CompRefuelable>().HasFuel) };
+                var recipes = bench.def.AllRecipes.Where(r => r.products.Any(p => humanFood(p.thingDef))).OrderBy(r => r.defName).ToList();
+                Bound(recipes.Count, limit); Bound(bench.BillStack.Bills.Count, limit);
+                foreach (var recipe in recipes) row.Recipes.Add(new Obs.RecipeState { Recipe = new Obs.DefinitionRef { DefName = recipe.defName } });
+                foreach (var bill in bench.BillStack.Bills) row.Bills.Add(new Obs.BillState { Recipe = new Obs.DefinitionRef { DefName = bill.recipe.defName }, Suspended = bill.suspended });
+                result.Cooking.Add(row);
+            }
         }
 
         private static Obs.PlanningFacts Planning(Map map, IntVec3 center, Obs.ColonyFactsRequest request, Common.ObservationContext context, int limit)

@@ -69,7 +69,7 @@ async def run_go_preview(binary: Path, root: Path, output: Path, configuration: 
 
 
 
-async def run(root: Path, output: Path, *, headless: bool, timeout_seconds: int, go_preview_smoke: Path | None = None) -> bool:
+async def run(root: Path, output: Path, *, headless: bool, timeout_seconds: int, go_preview_smoke: Path | None = None, routine_production: bool = False) -> bool:
     output.mkdir(parents=True, exist_ok=False)
     evidence = Evidence(output)
     report: dict[str, object] = {"passed": False, "headless": headless,
@@ -96,13 +96,17 @@ async def run(root: Path, output: Path, *, headless: bool, timeout_seconds: int,
                     expected = {PREFIX + name for name in ("lifecycle_read_identity", "authority_read_status", "placement_preview")}
                     assert expected <= set(names), f"Missing Protobuf tools: {expected - set(names)}"
                     assert "home/placement_previews" not in names, "Obsolete placement alias is still exported"
-                    assert not any(name.startswith("test/") or "fixture" in name.casefold() for name in names)
+                    fixture_names = {name for name in names if name.startswith("test/") or "fixture" in name.casefold()}
+                    assert fixture_names == ({"test/routine_production_prepare"} if routine_production else set())
                     report["protobuf_tools"] = sorted(expected)
                     await call("new-game", "rimworld/start_debug_game_ready",
                         {"readiness": "visual", "pauseIfNeeded": True, "timeoutMs": 120000}, startup=True)
                     await call("pause", "rimworld/set_time_speed", {"speed": "Paused", "ultraSpeedBoost": False})
                     from native_colony_facts_checks import prepare_food_stock
                     report['food_setup'] = await prepare_food_stock(call)
+                    if routine_production:
+                        report['production_setup'] = await call('production-setup', 'test/routine_production_prepare', {})
+                        assert report['production_setup']['success'] and report['production_setup']['foodCreated'] == 0
                     identity_before = await wire("identity-before", "lifecycle_read_identity", {})
                     loaded = object_value(identity_before.get("loaded"), "loaded identity")
                     context = object_value(loaded.get("context"), "context")
@@ -161,6 +165,9 @@ async def run(root: Path, output: Path, *, headless: bool, timeout_seconds: int,
                     assert "active" not in authority_status
                     from native_colony_facts_checks import verify_colony_facts
                     report['colony_facts'] = await verify_colony_facts(wire, call, identity, context)
+                    if routine_production:
+                        assert report['colony_facts']['farms_compared'] > 0 and report['colony_facts']['cooking_compared'] > 0
+                        assert report['colony_facts']['cooking_ready'] is True
                     if go_preview_smoke is not None:
                         chosen = candidates[0] if results[0].get("evaluated", {}).get("canPlace") is True else None
                         if chosen is None:
@@ -219,6 +226,7 @@ if __name__ == "__main__":
     parser.add_argument("--rendered", action="store_true")
     parser.add_argument("--timeout-seconds", type=int, default=600)
     parser.add_argument("--go-preview-smoke", type=Path)
+    parser.add_argument("--routine-production", action="store_true")
     args = parser.parse_args()
     raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-protobuf-acceptance",
-        headless=not args.rendered, timeout_seconds=args.timeout_seconds, go_preview_smoke=args.go_preview_smoke)) else 1)
+        headless=not args.rendered, timeout_seconds=args.timeout_seconds, go_preview_smoke=args.go_preview_smoke, routine_production=args.routine_production)) else 1)

@@ -1923,7 +1923,7 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeColonyObservationTools.cs",
-      "source_sha256": "39bdd3ff166f283116c42bbf9bdb5d1ed55a175dc01c96315949d729ba717a6a",
+      "source_sha256": "637a35cb96b2df4264e29080d05ad3367eeb7f7b8ea9660f78d8cd4a64ecdc1f",
       "compilation": "production-bridge",
       "owner": "N01.03 native observation owner",
       "migration_status": "typed-core-planning",
@@ -1931,19 +1931,22 @@
         21,
         49,
         61,
-        127,
-        186,
-        187,
-        188,
-        189,
-        190,
-        220,
-        238,
-        239,
-        240,
-        241
+        128,
+        165,
+        224,
+        225,
+        226,
+        227,
+        228,
+        258,
+        276,
+        277,
+        278,
+        279
       ],
-      "reflection_boundary_lines": [],
+      "reflection_boundary_lines": [
+        133
+      ],
       "patch_registration_lines": [],
       "uncovered_acceptance": "Diet/rot forecasts and remaining colony observation sections remain unported."
     },
@@ -4113,6 +4116,17 @@
       "reflection_boundary_lines": [
         21
       ],
+      "patch_registration_lines": []
+    },
+    {
+      "source": "scripts/fixtures/RoutineProductionFixture.cs",
+      "compilation": "fixture-only",
+      "source_sha256": "350396c1a3b479e6288d41b485db3f5c540e6c0c05174d7071c3a2f95bb96ff3",
+      "owner": "N01.01 native fixture isolation owner",
+      "migration_status": "implemented-native-acceptance-pending",
+      "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
+      "static_token_lines": [],
+      "reflection_boundary_lines": [],
       "patch_registration_lines": []
     },
     {
