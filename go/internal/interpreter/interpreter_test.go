@@ -137,7 +137,7 @@ func TestRefusesUnresolvedOrMalformedCommands(t *testing.T) {
 		{"case", strings.Replace(valid, `"defName"`, `"DefName"`, 1), InvalidCommand},
 		{"null", strings.Replace(valid, `"stuff":"Granite"`, `"stuff":null`, 1), InvalidCommand},
 		{"fraction", strings.Replace(valid, `"x":2`, `"x":2.0`, 1), InvalidCommand},
-		{"invalid scalar", strings.Replace(valid, "Wall", `\ud800`, 1), InvalidCommand},
+		{"unobserved replacement text", strings.Replace(valid, "Wall", `\ud800`, 1), UnknownFacts},
 		{"unknown definition", strings.Replace(valid, "Wall", "Invented", 1), UnknownFacts},
 		{"unknown material", strings.Replace(valid, "Granite", "Steel", 1), UnknownFacts},
 		{"default material", strings.Replace(valid, "Granite", "", 1), UnknownFacts},

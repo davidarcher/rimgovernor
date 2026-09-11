@@ -3,12 +3,13 @@ package interpreter
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/davidarcher/RimGovernor/go/internal/wire/placementpreview"
 	"io"
 	"unicode/utf8"
 )
 
-type wireBuilding struct {
+// modelBuilding is an untrusted proposal, separate from native transport types.
+// Pointers distinguish required fields from absent or null values.
+type modelBuilding struct {
 	DefName  *string `json:"defName"`
 	X        *int32  `json:"x"`
 	Z        *int32  `json:"z"`
@@ -16,7 +17,7 @@ type wireBuilding struct {
 	Stuff    *string `json:"stuff"`
 }
 
-func decode(text string, limit int) ([]wireBuilding, error) {
+func decode(text string, limit int) ([]modelBuilding, error) {
 	if len(text) > 65536 || !utf8.ValidString(text) {
 		return nil, fail(InvalidCommand, "invalid or oversized JSON response")
 	}
@@ -32,27 +33,26 @@ func decode(text string, limit int) ([]wireBuilding, error) {
 	if err := json.Unmarshal([]byte(text), &fields); err != nil || fields == nil {
 		return nil, fail(InvalidCommand, "expected command object")
 	}
-	var command string
-	if err := json.Unmarshal(fields["command"], &command); err != nil {
+	var command *string
+	if err := json.Unmarshal(fields["command"], &command); err != nil || command == nil {
 		return nil, fail(InvalidCommand, "missing command")
 	}
-	if command != "build" {
+	if *command != "build" {
 		return nil, fail(UnsupportedCommand, "only building proposals are supported")
 	}
 	if len(fields) != 2 || fields["buildings"] == nil {
 		return nil, fail(InvalidCommand, "unexpected command fields")
 	}
-	// Reuse the native placement wire contract for scalar Unicode, lexical
-	// integers, required fields and definition-text bounds before domain work.
-	if _, err := placementpreview.DecodePlacementBatch(fields["buildings"]); err != nil {
-		return nil, fail(InvalidCommand, "invalid placement wire contract")
-	}
-	var buildings []map[string]json.RawMessage
+	var buildings []json.RawMessage
 	if err := json.Unmarshal(fields["buildings"], &buildings); err != nil || len(buildings) == 0 || len(buildings) > limit {
 		return nil, fail(InvalidCommand, "expected bounded nonempty building list")
 	}
-	result := make([]wireBuilding, 0, len(buildings))
-	for _, fields := range buildings {
+	result := make([]modelBuilding, 0, len(buildings))
+	for _, raw := range buildings {
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &fields); err != nil {
+			return nil, fail(InvalidCommand, "expected building object")
+		}
 		if len(fields) != 5 {
 			return nil, fail(InvalidCommand, "building requires five exact fields")
 		}
@@ -61,8 +61,7 @@ func decode(text string, limit int) ([]wireBuilding, error) {
 				return nil, fail(InvalidCommand, "missing or null building field")
 			}
 		}
-		raw, _ := json.Marshal(fields)
-		var b wireBuilding
+		var b modelBuilding
 		if err := json.Unmarshal(raw, &b); err != nil {
 			return nil, fail(InvalidCommand, "invalid building field type")
 		}
