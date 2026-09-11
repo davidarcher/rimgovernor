@@ -696,7 +696,8 @@ only intentional small, sanitized regression fixtures belong in source control.
   and native N01.02 implementer. Land the generator, then a bounded typed current
   request/reply and real native invocation. Expand schemas with actual consumers.
   Existing Python models are optional test helpers, not a compatibility obligation.
-  Depends on 01; 03/04 and model transport can proceed after 02a.
+  Depends on 01; 03/04 and model transport can proceed after the tested Go
+  generation API in 02a.1 while remaining platform checks run.
   - [ ] **02a:** pinned repository-owned Go generator and a documented, closed
     schema subset; required/null/unknown and integer-token/UTF-16 validation,
     deterministic output manifest and drift checks. Owner: integrator with generator
@@ -726,7 +727,13 @@ only intentional small, sanitized regression fixtures belong in source control.
   identity checks and bounded/cancellable calls. Define read versus mutation APIs;
   read-only mode rejects write-capable tools even when requested by name. Test
   transport failures/reconnects and one native read with no writes or clock changes.
-  Add generated observation families as their Go consumers need them. Depends on 02a.
+  Add generated observation families as their Go consumers need them. Depends on 02a.1.
+  - [ ] **03a:** owned MCP subprocess/session, discovery and bounded read-only
+    calls with cancellation/cleanup; test a real in-process SDK server and failed
+    connections. Owner: bridge agent. No mutation API or runtime scheduler yet.
+  - [ ] **03b:** typed current identity/status and observation facts, explicit
+    unavailable values and freshness. Owner: bridge agent; depends on 03a and the
+    domain fact types. Add families with policy consumers and one native read smoke.
 
 - [ ] **G01.04 — Typed plan and fresh Go store.** Owner: state agent. Split into
   04a plan/action/progress types and 04b SQLite persistence/restart. Use a new Go
@@ -734,7 +741,12 @@ only intentional small, sanitized regression fixtures belong in source control.
   old serialization signatures. Keep transactions, durable intent, deduplication,
   unknown-write reconciliation and action identities correct within new sessions.
   Test rollback, reopen/restart and connection closure with real temporary SQLite.
-  Depends on 02a; extend variants with their actual handlers.
+  Depends on 02a.1; extend variants with their actual handlers.
+  - [ ] **04a:** distinct IDs/generations, plan/spec/progress and a bounded building
+    action variant with legal transitions. Owner: state agent; no legacy serializers.
+    Extend action families only alongside their Hands handlers.
+  - [ ] **04b:** fresh versioned SQLite store, transactions/durable intent and
+    reopen/restart checks. Owner: state agent; depends on 04a.
 
 - [ ] **G01.05 — Deterministic planning kernel.** Owner: policy agent.
   Port plan readiness/dependencies, resource accounting, priority admission,
@@ -797,7 +809,7 @@ only intentional small, sanitized regression fixtures belong in source control.
   explicitly; advisers have no mutation interface. Accept scripted invalid replies,
   deduplicated chat submissions, cancelled streams and a real configured-model
   check of explicit player requests. Assert zero inference for routine events.
-  Transport/budget work depends on 02a; plan submission depends on 04/06, and each
+  Transport/budget work depends on 02a.1; plan submission depends on 04/06, and each
   command family waits for its 07 handler.
 
 - [ ] **G01.09 — Dashboard API and presentation parity.** Owner: server agent.
