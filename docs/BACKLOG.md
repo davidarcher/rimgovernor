@@ -647,8 +647,9 @@ expand these into another nested task tree; remove a row when its outcome is met
   player authority, Manual invalidation and disabled restart. The shared compiler
   also selects a single campfire for known cooking deficits, waits for existing
   facilities/projects, and respects player resource reservations. The opt-in cooking
-  service path is implemented; targeted native campfire acceptance remains open.
-  Further need inputs,
+  service path has targeted native acceptance alongside sleeping construction:
+  one campfire completes with one attempt under shared player authority, while
+  cooking remains a deficit until a usable food bill exists. Further need inputs,
   remaining construction costs, method selection and execution composition for
   additional routine methods remain open.
 
