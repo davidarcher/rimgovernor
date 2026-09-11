@@ -590,6 +590,11 @@ expand these into another nested task tree; remove a row when its outcome is met
   shared plans and Hands as their action families become available. Cover unknown
   facts, competing projects, player priorities, renewed deficits and cancellation.
   Routine events must make no model calls.
+  Go pure policy now covers common foothold gates, food/temperature/wood latches,
+  development ranking and bounded starter-site/fragmented-field proposals. Shared
+  action progress retains committed capacity through uncertain cancellation.
+  Native fact projection, maintained-goal persistence/review, method selection and
+  runtime composition remain open; these policy components do not enable orders.
 
 - [ ] **G01.07a — Finish defense and essential medical care.** Connect movement
   and melee to complete defense plans using the existing owned-draft lifecycle;

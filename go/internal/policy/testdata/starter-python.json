@@ -1,0 +1,482 @@
+[
+  {
+    "room": {
+      "x": 16,
+      "z": 16,
+      "width": 9,
+      "height": 9
+    },
+    "farm": {
+      "x": 20,
+      "z": 26,
+      "width": 4,
+      "height": 4
+    },
+    "farms": [
+      {
+        "x": 20,
+        "z": 26,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 26,
+        "z": 20,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 16,
+        "z": 26,
+        "width": 4,
+        "height": 4
+      }
+    ],
+    "storage": {
+      "x": 19,
+      "z": 21,
+      "width": 3,
+      "height": 3
+    }
+  },
+  {
+    "room": {
+      "x": 15,
+      "z": 16,
+      "width": 9,
+      "height": 9
+    },
+    "farm": {
+      "x": 19,
+      "z": 26,
+      "width": 4,
+      "height": 4
+    },
+    "farms": [
+      {
+        "x": 19,
+        "z": 26,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 25,
+        "z": 20,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 15,
+        "z": 26,
+        "width": 4,
+        "height": 4
+      }
+    ],
+    "storage": {
+      "x": 18,
+      "z": 21,
+      "width": 3,
+      "height": 3
+    }
+  },
+  {
+    "room": {
+      "x": 16,
+      "z": 15,
+      "width": 9,
+      "height": 9
+    },
+    "farm": {
+      "x": 20,
+      "z": 25,
+      "width": 4,
+      "height": 4
+    },
+    "farms": [
+      {
+        "x": 20,
+        "z": 25,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 26,
+        "z": 19,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 16,
+        "z": 25,
+        "width": 4,
+        "height": 4
+      }
+    ],
+    "storage": {
+      "x": 19,
+      "z": 20,
+      "width": 3,
+      "height": 3
+    }
+  },
+  {
+    "room": {
+      "x": 16,
+      "z": 17,
+      "width": 9,
+      "height": 9
+    },
+    "farm": {
+      "x": 20,
+      "z": 27,
+      "width": 4,
+      "height": 4
+    },
+    "farms": [
+      {
+        "x": 20,
+        "z": 27,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 26,
+        "z": 21,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 16,
+        "z": 27,
+        "width": 4,
+        "height": 4
+      }
+    ],
+    "storage": {
+      "x": 19,
+      "z": 22,
+      "width": 3,
+      "height": 3
+    }
+  },
+  {
+    "room": {
+      "x": 17,
+      "z": 16,
+      "width": 9,
+      "height": 9
+    },
+    "farm": {
+      "x": 21,
+      "z": 26,
+      "width": 4,
+      "height": 4
+    },
+    "farms": [
+      {
+        "x": 21,
+        "z": 26,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 27,
+        "z": 20,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 17,
+        "z": 26,
+        "width": 4,
+        "height": 4
+      }
+    ],
+    "storage": {
+      "x": 20,
+      "z": 21,
+      "width": 3,
+      "height": 3
+    }
+  },
+  {
+    "room": {
+      "x": 15,
+      "z": 15,
+      "width": 9,
+      "height": 9
+    },
+    "farm": {
+      "x": 19,
+      "z": 25,
+      "width": 4,
+      "height": 4
+    },
+    "farms": [
+      {
+        "x": 19,
+        "z": 25,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 25,
+        "z": 19,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 15,
+        "z": 25,
+        "width": 4,
+        "height": 4
+      }
+    ],
+    "storage": {
+      "x": 18,
+      "z": 20,
+      "width": 3,
+      "height": 3
+    }
+  },
+  {
+    "room": {
+      "x": 15,
+      "z": 17,
+      "width": 9,
+      "height": 9
+    },
+    "farm": {
+      "x": 19,
+      "z": 27,
+      "width": 4,
+      "height": 4
+    },
+    "farms": [
+      {
+        "x": 19,
+        "z": 27,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 25,
+        "z": 21,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 15,
+        "z": 27,
+        "width": 4,
+        "height": 4
+      }
+    ],
+    "storage": {
+      "x": 18,
+      "z": 22,
+      "width": 3,
+      "height": 3
+    }
+  },
+  {
+    "room": {
+      "x": 17,
+      "z": 15,
+      "width": 9,
+      "height": 9
+    },
+    "farm": {
+      "x": 21,
+      "z": 25,
+      "width": 4,
+      "height": 4
+    },
+    "farms": [
+      {
+        "x": 21,
+        "z": 25,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 27,
+        "z": 19,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 17,
+        "z": 25,
+        "width": 4,
+        "height": 4
+      }
+    ],
+    "storage": {
+      "x": 20,
+      "z": 20,
+      "width": 3,
+      "height": 3
+    }
+  },
+  {
+    "room": {
+      "x": 17,
+      "z": 17,
+      "width": 9,
+      "height": 9
+    },
+    "farm": {
+      "x": 21,
+      "z": 27,
+      "width": 4,
+      "height": 4
+    },
+    "farms": [
+      {
+        "x": 21,
+        "z": 27,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 27,
+        "z": 21,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 17,
+        "z": 27,
+        "width": 4,
+        "height": 4
+      }
+    ],
+    "storage": {
+      "x": 20,
+      "z": 22,
+      "width": 3,
+      "height": 3
+    }
+  },
+  {
+    "room": {
+      "x": 14,
+      "z": 16,
+      "width": 9,
+      "height": 9
+    },
+    "farm": {
+      "x": 18,
+      "z": 26,
+      "width": 4,
+      "height": 4
+    },
+    "farms": [
+      {
+        "x": 18,
+        "z": 26,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 24,
+        "z": 20,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 14,
+        "z": 26,
+        "width": 4,
+        "height": 4
+      }
+    ],
+    "storage": {
+      "x": 17,
+      "z": 21,
+      "width": 3,
+      "height": 3
+    }
+  },
+  {
+    "room": {
+      "x": 16,
+      "z": 14,
+      "width": 9,
+      "height": 9
+    },
+    "farm": {
+      "x": 20,
+      "z": 24,
+      "width": 4,
+      "height": 4
+    },
+    "farms": [
+      {
+        "x": 20,
+        "z": 24,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 26,
+        "z": 18,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 16,
+        "z": 24,
+        "width": 4,
+        "height": 4
+      }
+    ],
+    "storage": {
+      "x": 19,
+      "z": 19,
+      "width": 3,
+      "height": 3
+    }
+  },
+  {
+    "room": {
+      "x": 16,
+      "z": 18,
+      "width": 9,
+      "height": 9
+    },
+    "farm": {
+      "x": 20,
+      "z": 28,
+      "width": 4,
+      "height": 4
+    },
+    "farms": [
+      {
+        "x": 20,
+        "z": 28,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 26,
+        "z": 22,
+        "width": 4,
+        "height": 4
+      },
+      {
+        "x": 16,
+        "z": 28,
+        "width": 4,
+        "height": 4
+      }
+    ],
+    "storage": {
+      "x": 19,
+      "z": 23,
+      "width": 3,
+      "height": 3
+    }
+  }
+]

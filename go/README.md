@@ -32,6 +32,20 @@ Module dependencies and checksums are pinned in `go.mod`/`go.sum`; see the
 exercised with real SDK sessions and temporary databases as their slices land.
 Media dependencies are selected with their actual presentation consumers.
 
+## Routine policy components
+
+`policy.DetectRoutine` evaluates typed survival facts and separate recovery
+thresholds. Missing facts cannot certify foothold stability or clear active risk.
+`RankDevelopment` preserves accepted shared-action commitments while ranking new
+projects by deficit, player preference, native-tick age and selection hysteresis.
+Unavailable methods can yield their slot within the same review. `StarterLayouts`
+proposes bounded shelter and disjoint crop patches while respecting observed
+geometry and player exclusions; proposals still require native preflight.
+
+These pure components are gated prerequisites. They do not read the game, persist
+goals, acquire authority or issue orders. The remaining review, method and runtime
+composition work is tracked in G01.05.
+
 ## Local interpretation
 
 `interpreter.NewLocal` checks the configured LM Studio instance before each
