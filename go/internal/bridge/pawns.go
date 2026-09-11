@@ -13,6 +13,9 @@ import (
 // ReadPawns observes exact IDs including dead pawns. Missing rows, CAS tokens and
 // draft claims never imply death, write permission or controller ownership.
 func (client *Client) ReadPawns(ctx context.Context, identity *c.Identity, ids []string) (*o.ListPawnsReply, Result, error) {
+	return client.readPawns(ctx, identity, ids, false)
+}
+func (client *Client) readPawns(ctx context.Context, identity *c.Identity, ids []string, combat bool) (*o.ListPawnsReply, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, Result{}, err
 	}
@@ -30,7 +33,7 @@ func (client *Client) ReadPawns(ctx context.Context, identity *c.Identity, ids [
 		}
 		requested[id] = true
 	}
-	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.PawnFilter{Ids: copied, IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(false), Equipment: proto.Bool(false), Biography: proto.Bool(false), Settings: proto.Bool(false), Social: proto.Bool(false), Animals: proto.Bool(false)}, Page: &c.PageRequest{Limit: proto.Uint32(uint32(len(copied)))}}
+	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.PawnFilter{Ids: copied, IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(combat), Equipment: proto.Bool(combat), Biography: proto.Bool(combat), Settings: proto.Bool(false), Social: proto.Bool(false), Animals: proto.Bool(false)}, Page: &c.PageRequest{Limit: proto.Uint32(uint32(len(copied)))}}
 	reply := &o.ListPawnsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_pawns", request, reply)
 	if err != nil {
@@ -45,13 +48,16 @@ func (client *Client) ReadPawns(ctx context.Context, identity *c.Identity, ids [
 	case *o.ListPawnsReply_Unavailable:
 		err = unavailable(v.Unavailable, raw)
 	case *o.ListPawnsReply_Observed:
-		err = pawnsSnapshot(v.Observed, request.Scope.ExpectedIdentity, requested)
+		err = pawnsSnapshotDetails(v.Observed, request.Scope.ExpectedIdentity, requested, combat)
 	default:
 		err = contract("pawn read outcome missing")
 	}
 	return reply, raw, err
 }
 func pawnsSnapshot(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool) error {
+	return pawnsSnapshotDetails(v, id, requested, false)
+}
+func pawnsSnapshotDetails(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool, combat bool) error {
 	if v == nil {
 		return contract("pawn snapshot missing")
 	}
@@ -81,8 +87,13 @@ func pawnsSnapshot(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool)
 		if err := pawnsEntity(row.Pawn, v.Context); err != nil {
 			return err
 		}
-		if row.Needs != nil || row.Health != nil || row.Equipment != nil || row.Biography != nil || row.Settings != nil || row.Social != nil || row.AnimalState != nil {
+		if row.Needs != nil || !combat && (row.Health != nil || row.Equipment != nil || row.Biography != nil) || row.Settings != nil || row.Social != nil || row.AnimalState != nil {
 			return contract("unrequested pawn detail")
+		}
+		if combat {
+			if err := combatDetails(row, v.Context); err != nil {
+				return err
+			}
 		}
 		for _, value := range []*string{row.KindDefName, row.FactionId, row.MentalState, row.OwnedBedId} {
 			if value != nil {
