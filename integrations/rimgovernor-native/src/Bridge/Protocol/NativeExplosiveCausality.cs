@@ -52,7 +52,10 @@ namespace HomeBridge.BridgeTools
                 return IsReady && explodeShape && startShape && explosionDamageShape
                     && Count(Harmony.GetPatchInfo(ExplodeTarget)?.Transpilers,ExplodeTranspiler)==1
                     && Count(factory?.Transpilers,StartTranspiler)==1
-                    && Count(factory?.Prefixes,DoExplosionPrefix)==1 && Count(factory?.Finalizers,DoExplosionFinalizer)==1
+                    // An earlier foreign prefix could enter the factory before our
+                    // nesting callback and consume the outer ticket. No ordering guess.
+                    && factory!=null && factory.Prefixes.Count==1
+                    && Count(factory.Prefixes,DoExplosionPrefix)==1 && Count(factory.Finalizers,DoExplosionFinalizer)==1
                     && Count(Harmony.GetPatchInfo(ExplosionDamageTarget)?.Transpilers,ExplosionDamageTranspiler)==1
                     && Count(Harmony.GetPatchInfo(ExplosionCellTarget)?.Finalizers,CellFinalizer)==1;
             } catch { return false; } }
@@ -205,6 +208,13 @@ namespace HomeBridge.BridgeTools
                 }
             } catch { if (blast!=null) blast.Flight.Record.TrackingLost=true; }
         }
+        private static void MarkUnhealthyExplosion(Explosion explosion)
+        {
+            try {
+                if (!ExplosiveIsReady && Current.Game!=null && Games.TryGetValue(Current.Game,out var state)
+                    && state.Explosions.TryGetValue(explosion,out var blast)) blast.Flight.Record.TrackingLost=true;
+            } catch { /* Unreadable hook state cannot certify an impact. */ }
+        }
         private static PendingImpact? PrepareExplosionImpact(Explosion explosion,DamageWorker worker,Thing victim,DamageInfo damage)
         {
             try {
@@ -222,10 +232,12 @@ namespace HomeBridge.BridgeTools
         }
         private static DamageWorker.DamageResult ApplyExplosionDamage(Thing victim,DamageInfo damage,Explosion explosion,DamageWorker worker)
         {
+            MarkUnhealthyExplosion(explosion);
             var pending=PrepareExplosionImpact(explosion,worker,victim,damage);
             DamageWorker.DamageResult result;
             try { result=victim.TakeDamage(damage); }
             catch { if (pending!=null) pending.Flight.Record.TrackingLost=true; throw; }
+            MarkUnhealthyExplosion(explosion);
             try {
                 if (pending!=null && result!=null && !exhausted && damageDepth==0 && damageSequence==pending.Sequence && ExplosiveIsReady
                     && CurrentIdentity(pending.Flight.Record) && pending.Flight.Record.ImpactGuard() && Find.TickManager!=null) {

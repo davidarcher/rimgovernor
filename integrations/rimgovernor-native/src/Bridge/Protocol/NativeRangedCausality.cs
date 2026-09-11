@@ -68,8 +68,26 @@ namespace HomeBridge.BridgeTools
             get { try {
                 var launch=Harmony.GetPatchInfo(LaunchTarget);var impact=Harmony.GetPatchInfo(ImpactTarget);var damage=Harmony.GetPatchInfo(DamageTarget);
                 return launchShape && impactShape && Count(launch?.Transpilers,LaunchTranspiler)==1 && Count(impact?.Transpilers,ImpactTranspiler)==1
-                    && Count(damage?.Prefixes,DamagePrefix)==1 && Count(damage?.Finalizers,DamageFinalizer)==1;
+                    && Count(damage?.Prefixes,DamagePrefix)==1 && Count(damage?.Finalizers,DamageFinalizer)==1
+                    && DamagePrefixArgumentsSafe(damage?.Prefixes);
             } catch { return false; } }
+        }
+        private static bool DamagePrefixArgumentsSafe(IEnumerable<Patch>? prefixes)
+        {
+            // Wrappers retain the original struct. Reject hooks able to replace
+            // effective damage identity instead of guessing their execution order.
+            return prefixes!=null && prefixes.All(p=>p.PatchMethod.GetParameters().All(parameter=>
+                parameter.Name!="__args" && parameter.ParameterType!=typeof(object[])
+                && parameter.ParameterType!=typeof(object[]).MakeByRefType()
+                && parameter.ParameterType!=typeof(DamageInfo).MakeByRefType()
+                && parameter.ParameterType!=typeof(Thing).MakeByRefType()));
+        }
+        private static void MarkUnhealthyFlight(Projectile projectile)
+        {
+            try {
+                if (!IsReady && Current.Game!=null && Games.TryGetValue(Current.Game,out var state)
+                    && state.Flights.TryGetValue(projectile,out var flight)) flight.Record.TrackingLost=true;
+            } catch { /* Unreadable hook state cannot certify an impact. */ }
         }
         internal static void Initialize()
         {
@@ -219,9 +237,11 @@ namespace HomeBridge.BridgeTools
         }
         private static DamageWorker.DamageResult ApplyBulletDamage(Thing victim,DamageInfo damage,Bullet projectile,bool blockedByShield)
         {
+            MarkUnhealthyFlight(projectile);
             var pending=PrepareImpact(projectile,victim,damage,blockedByShield);
             // The wrapper is installed only at Bullet.Impact's two native damage calls.
             var result=victim.TakeDamage(damage);
+            MarkUnhealthyFlight(projectile);
             try {
                 if (pending!=null && result!=null && !exhausted && damageDepth==0 && damageSequence==pending.Sequence && IsReady
                     && CurrentIdentity(pending.Flight.Record) && pending.Flight.Record.ImpactGuard() && Find.TickManager!=null) {
