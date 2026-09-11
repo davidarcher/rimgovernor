@@ -142,6 +142,15 @@ func (e *Executor) observeDraft(ctx context.Context, result Result, evidence Dra
 	if !ok || evidence.Pawn != wanted.Pawn() || o.Action != v.Action || o.Attempt != v.Attempt || !e.fresh(evidence.StartedAt, evidence.ObservedAt) {
 		return result, ErrEvidence
 	}
+	if o.Effect == domain.EffectUnsuccessful {
+		switch o.UnsuccessfulReason {
+		case domain.NativeFailure, domain.NativeCancelled, domain.NativeInterrupted, domain.NativeExpired, domain.TargetDead, domain.OutcomeNotAchieved:
+		default:
+			return result, ErrEvidence
+		}
+	} else if o.UnsuccessfulReason != "" {
+		return result, ErrEvidence
+	}
 	switch o.Effect {
 	case domain.EffectCompleted:
 		drafted, known := evidence.Drafted.Value()
@@ -159,8 +168,13 @@ func (e *Executor) observeDraft(ctx context.Context, result Result, evidence Dra
 	}
 	// A terminal action can still owe cleanup for an initially unknown claim.
 	// Keep its ordinary outcome while binding fully validated later acquisition.
-	if cleanup, known := v.DraftCleanup.Value(); !v.Unresolved && known && cleanup.Stage == domain.DraftAwaitingClaim && o.Effect == domain.EffectCompleted {
+	_, claimKnown := evidence.Claim.Value()
+	if cleanup, known := v.DraftCleanup.Value(); !v.Unresolved && known && cleanup.Stage == domain.DraftAwaitingClaim && claimKnown {
+		if !evidence.Complete {
+			return result, ErrEvidence
+		}
 		o.Effect = domain.EffectUnknown
+		o.UnsuccessfulReason = ""
 	}
 	next, err := e.draftJournal.ObserveDraft(ctx, v.Plan, o, o.Snapshot, evidence.Claim)
 	if err == nil {
