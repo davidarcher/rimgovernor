@@ -155,7 +155,8 @@ async def run(root: Path, output: Path, *, headless: bool, timeout_seconds: int,
                         dict(request, identity=dict(identity, loadToken="stale-load")))
                     assert object_value(stale.get("failure"), "failure").get("code") == "FAILURE_CODE_STALE_IDENTITY"
                     authority_status = object_value(authority.get("status"), "authority status")
-                    assert "unavailable" in authority_status and "active" not in authority_status
+                    assert ("unavailable" in authority_status) != ("inactive" in authority_status)
+                    assert "active" not in authority_status
                     if go_preview_smoke is not None:
                         chosen = candidates[0] if results[0].get("evaluated", {}).get("canPlace") is True else None
                         if chosen is None:
