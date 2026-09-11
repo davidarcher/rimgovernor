@@ -21,7 +21,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 9
+const schemaVersion = 10
 const applicationID = 0x52474f31
 
 var ErrConflict = errors.New("plan or action identity already exists")
@@ -129,6 +129,9 @@ CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY REFERENCES submiss
 		if err != nil {
 			return err
 		}
+		if err = initializeClockReview(ctx, tx); err != nil {
+			return err
+		}
 		if err = initializeClockInbox(ctx, tx); err != nil {
 			return err
 		}
@@ -157,6 +160,9 @@ CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY REFERENCES submiss
 				return err
 			}
 		}
+	}
+	if err = checkClockReviewSchema(ctx, tx); err != nil {
+		return err
 	}
 	if err = checkClockInboxSchema(ctx, tx); err != nil {
 		return err
