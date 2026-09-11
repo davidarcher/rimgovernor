@@ -31,10 +31,11 @@ func unavailablePlan(context.Context, domain.PlanID) (store.PlanState, error) {
 }
 func newTestAPI(t *testing.T, provider SnapshotProvider, reader PlanReader) *Server {
 	t.Helper()
-	s, err := New(Config{time.Second, time.Second, 1 << 20}, provider, reader)
+	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20}, provider, reader)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { s.Close() })
 	return s
 }
 func testHTTP(t *testing.T, api *Server) *httptest.Server {

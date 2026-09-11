@@ -13,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -23,19 +24,38 @@ type Server struct {
 	config    Config
 	snapshots SnapshotProvider
 	plans     PlanReader
+	assets    *os.Root
+	closeOnce sync.Once
+	closeErr  error
 }
 
 func New(config Config, snapshots SnapshotProvider, plans PlanReader) (*Server, error) {
 	if config.ReadTimeout <= 0 || config.ShutdownTimeout <= 0 || config.MaxResponseBytes < 256 || config.MaxResponseBytes > 16<<20 || snapshots == nil || plans == nil {
 		return nil, errors.New("read timeout, shutdown timeout, response bound and read providers required")
 	}
-	return &Server{config, snapshots, plans}, nil
+	assets, err := openAssets(config.AssetsDir)
+	if err != nil {
+		return nil, err
+	}
+	return &Server{config: config, snapshots: snapshots, plans: plans, assets: assets}, nil
+}
+
+// Close releases owned asset directory handles; provider/store ownership remains
+// with the caller. Concurrent calls are safe and return the same result.
+func (s *Server) Close() error {
+	s.closeOnce.Do(func() {
+		if s.assets != nil {
+			s.closeErr = s.assets.Close()
+		}
+	})
+	return s.closeErr
 }
 func (s *Server) Handler() http.Handler { return http.HandlerFunc(s.handle) }
 
 // Serve owns the supplied loopback TCP listener until shutdown. Cancellation
 // reaches active providers before graceful shutdown; no dependency is closed.
 func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
+	defer s.Close()
 	address, ok := listener.Addr().(*net.TCPAddr)
 	if !ok || !address.IP.IsLoopback() {
 		return errors.New("HTTP API requires a loopback TCP listener")
@@ -115,6 +135,10 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !known {
+		if !strings.HasPrefix(r.URL.Path, "/api/") && r.URL.Path != "/api" && s.assets != nil {
+			s.serveAsset(w, r)
+			return
+		}
 		s.failure(w, r, 404, "not_found", "Route not found")
 		return
 	}
