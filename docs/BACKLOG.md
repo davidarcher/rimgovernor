@@ -944,8 +944,13 @@ only intentional small, sanitized regression fixtures belong in source control.
           integrator with N01; depends on c.2. Verify zero routine writes with
           observed danger and retain unknown-attempt reconciliation coverage.
     - [ ] **07a.2:** owned draft action and exact-claim release in the shared
-      plan, store and Hands system. Depends on 07a.1 and native draft claims.
+      plan, store and Hands system. Execution depends on 07a.1 and native draft claims.
       Accept player draft preservation, lost replies and restart cleanup.
+      - [ ] **07a.2a:** bounded exact-ID pawn observation adapter. Owner: bridge
+        agent; read-only prerequisite depends on 03 and the shared observation
+        contract. Include dead pawns for cleanup inspection; preserve optional
+        CAS tokens and owned/unowned/unavailable claim evidence. Missing rows or
+        unsupported tokens never establish death, ownership or release. No writes.
     - [ ] **07a.3:** bounded defense with exact pawn/target observations and
       correlated job outcomes. Depends on 07a.2. Begin with one supported
       opponent; verify incapacitation, injury interruption and owned cleanup.
