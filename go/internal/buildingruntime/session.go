@@ -117,16 +117,27 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if err != nil {
 		return cleanup(err)
 	}
-	sink.mu.Lock()
-	sink.executor = worker
+	var drafts *draftSweep
 	if draft != nil {
-		sink.drafts = &draftSweep{journal: journal, executor: worker, gate: make(chan struct{}, 1), timeout: config.Control.CallTimeout}
+		drafts = &draftSweep{journal: journal, executor: worker, gate: make(chan struct{}, 1), timeout: config.Control.CallTimeout}
 	}
-	sink.mu.Unlock()
-	if err = ctx.Err(); err != nil {
+	if err = sink.attach(ctx, worker, drafts); err != nil {
 		return cleanup(err)
 	}
-	return &Session{control: control, executor: worker, journal: journal, drafts: sink.drafts}, nil
+	return &Session{control: control, executor: worker, journal: journal, drafts: drafts}, nil
+}
+
+// Publish only after the final fallible construction check. Until publication,
+// failure cleanup releases the owner without draining unrelated durable work.
+func (s *sessionSink) attach(ctx context.Context, worker *executor.Executor, drafts *draftSweep) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.executor = worker
+	s.drafts = drafts
+	return nil
 }
 
 // Acquire binds explicit intent to the exact durable plan revision. A proposal

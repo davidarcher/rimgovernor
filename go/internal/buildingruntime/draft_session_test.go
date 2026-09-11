@@ -177,3 +177,35 @@ func TestDraftSessionConcurrentSweepsDoNotRepeatRelease(t *testing.T) {
 		t.Fatal(native.releases)
 	}
 }
+
+func TestCancelledSessionAttachmentDoesNotStrandOwnerOnExistingDraft(t *testing.T) {
+	session, native, journal, _ := draftSessionFixture(t, true)
+	native.readErr = errors.New("native unavailable during construction")
+	dir := t.TempDir()
+	sink := &sessionSink{}
+	control, err := NewControl(context.Background(), ControlConfig{ProfileDirectory: dir, LeaseDuration: time.Second, CallTimeout: time.Second, StopWrites: sink.stop}, journal, &controlNative{generation: 2}, sink)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err = sink.attach(ctx, session.executor, session.drafts); !errors.Is(err, context.Canceled) {
+		t.Fatal(err)
+	}
+	if err = control.Close(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	owner, err := runtimeowner.Acquire(context.Background(), dir)
+	if err != nil {
+		t.Fatal("unreachable construction retained owner", err)
+	}
+	_ = owner.Close()
+	state, err := journal.LoadPlan(context.Background(), "plan")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cleanup, _ := state.Progress[0].View().DraftCleanup.Value()
+	if cleanup.Stage != domain.DraftAwaitingClaim || native.identities != 0 || native.releases != 0 {
+		t.Fatal("construction drained existing work", cleanup)
+	}
+}
