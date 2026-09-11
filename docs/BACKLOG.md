@@ -717,16 +717,16 @@ only intentional small, sanitized regression fixtures belong in source control.
   - [ ] **02d:** one fresh isolated valid/refused/invalid invocation with no preview
     effects. Owner: native implementer; depends on 02c. Subsequent adapter slices
     consume the reviewed package independently and retain native outcome gates.
-  - [ ] **02e:** remove the experimental custom wire generator, schema tree,
+  - [x] **02e:** remove the experimental custom wire generator, schema tree,
     generated outputs and old drift checks as their current consumers cut over.
-    Replace the interpreter's placement import and native adapters together;
+    The interpreter and current native read consumers use their replacement decoders;
     preserve SDK descriptor validation and independent Python observation
     projection tooling where still consumed. This cleanup does not block other
     adapters from consuming the reviewed Protobuf package.
     - [x] **02e.1:** decouple model-command decoding from the experimental native
       placement generator. Owner: model agent; depends on 02b. Keep typed,
       catalog-grounded proposals and the current interpreter interface.
-    - [ ] **02e.2:** retire unused generated outputs/compiler and their checks
+    - [x] **02e.2:** retire unused generated outputs/compiler and their checks
       after 02e.1 and 03b.1; preserve independently consumed Python projections.
       Owner: integrator.
 
@@ -792,6 +792,14 @@ only intentional small, sanitized regression fixtures belong in source control.
     Owner: executor agent; test typed boundaries before enabling native mutations.
   - [ ] **06b:** native atomic identity guards, attempt deduplication, runtime
     ownership and typed placement adapter. Coordinate with N01.
+    - [ ] **06b.1:** persist causally inspected equal-tick outcomes and typed known
+      unsuccessful outcomes. Owner: executor agent; depends on 02b and 06a. Preserve
+      exact attempt attribution and unknown-write reconciliation across restart.
+    - [ ] **06b.2:** fixed typed authority and building execution/progress adapters.
+      Owner: bridge agent; depends on 02b and 03b.1. Keep writes separate from
+      read-only clients; enable only the first building operation.
+    - [ ] **06b.3:** runtime lease ownership, explicit player admission and guarded
+      building orchestration. Owner: integrator; depends on 06b.1–2 and 05.
   - [ ] **06c:** isolated ordinary pawn construction and interruption acceptance.
 
 - [ ] **G01.07 — Routine capabilities in bounded families.** Owners: domain agents.
