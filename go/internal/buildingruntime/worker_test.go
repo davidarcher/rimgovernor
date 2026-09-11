@@ -20,10 +20,11 @@ import (
 
 type workerFake struct {
 	*playerFakeSession
-	run                    func(context.Context, domain.PlanID, domain.ActionID) (executor.Result, error)
-	observe                func(context.Context, domain.GenerationSnapshot) error
-	renew                  func(context.Context) error
-	runs, observes, renews atomic.Int32
+	cleanup                          func(context.Context, domain.PlanID, domain.ActionID) (executor.Result, error)
+	run                              func(context.Context, domain.PlanID, domain.ActionID) (executor.Result, error)
+	observe                          func(context.Context, domain.GenerationSnapshot) error
+	renew                            func(context.Context) error
+	runs, observes, renews, cleanups atomic.Int32
 }
 
 func (f *workerFake) Run(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
@@ -507,4 +508,12 @@ func TestWorkerIdentityLossImmediatelyDisablesDispatchAndRenewal(t *testing.T) {
 			}
 		})
 	}
+}
+
+func (f *workerFake) CleanupDraft(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
+	f.cleanups.Add(1)
+	if f.cleanup != nil {
+		return f.cleanup(ctx, p, a)
+	}
+	return executor.Result{}, executor.ErrHeld
 }

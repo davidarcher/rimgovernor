@@ -19,6 +19,7 @@ type WorkerConfig struct {
 type workerSession interface {
 	playerSession
 	Run(context.Context, domain.PlanID, domain.ActionID) (executor.Result, error)
+	CleanupDraft(context.Context, domain.PlanID, domain.ActionID) (executor.Result, error)
 	ObserveTarget(context.Context, domain.GenerationSnapshot) error
 	Renew(context.Context) error
 }
@@ -39,11 +40,17 @@ type Worker struct {
 	cursor domain.ActionID
 }
 
+type workerCandidate struct {
+	view    domain.ProgressView
+	cleanup bool
+}
+
 type workerWait struct {
-	view  domain.ProgressView
-	scope ControlState
-	delay time.Duration
-	until time.Time
+	cleanup bool
+	view    domain.ProgressView
+	scope   ControlState
+	delay   time.Duration
+	until   time.Time
 }
 
 func NewWorker(ctx context.Context, config WorkerConfig, player *Player, session *Session) (*Worker, error) {
@@ -143,12 +150,14 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		return err
 	}
 	defer done()
-	world, err := w.player.worlds.ReadWorld(call)
-	if err != nil {
-		return errors.Join(err, w.session.Disable())
+	world, worldErr := w.player.worlds.ReadWorld(call)
+	if worldErr == nil {
+		worldErr = world.Validate()
 	}
-	if err = world.Validate(); err != nil {
-		return errors.Join(err, w.session.Disable())
+	if worldErr != nil {
+		if err = w.session.Disable(); err != nil {
+			return errors.Join(worldErr, err)
+		}
 	}
 	if err = w.player.current(call, epoch); err != nil {
 		return err
@@ -168,13 +177,14 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		return err
 	}
 	live := make(map[domain.ActionID]bool)
-	var candidates []domain.ProgressView
+	var candidates []workerCandidate
 	for _, plan := range plans {
 		for _, progress := range plan.Progress {
 			v := progress.View()
-			live[v.Action] = true
-			if workerEligible(plan, v, scope, world) {
-				candidates = append(candidates, v)
+			cleanup := workerCleanupEligible(plan, v, scope, world)
+			if cleanup || worldErr == nil && workerEligible(plan, v, scope, world) {
+				live[v.Action] = true
+				candidates = append(candidates, workerCandidate{view: v, cleanup: cleanup})
 			}
 		}
 	}
@@ -187,22 +197,23 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	// failed reads, so an unavailable attempt cannot monopolize reconciliation.
 	start := 0
 	for i, v := range candidates {
-		if v.Action == w.cursor {
+		if v.view.Action == w.cursor {
 			start = (i + 1) % len(candidates)
 			break
 		}
 	}
 	for n := 0; n < len(candidates); n++ {
-		v := candidates[(start+n)%len(candidates)]
+		candidate := candidates[(start+n)%len(candidates)]
+		v := candidate.view
 		wait := w.waits[v.Action]
-		if wait.view == v && wait.scope == workerScope(scope) && now.Before(wait.until) {
+		if wait.view == v && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup && now.Before(wait.until) {
 			continue
 		}
 		w.cursor = v.Action
 		if err = w.player.current(call, epoch); err != nil {
 			return err
 		}
-		if !scope.Enabled {
+		if !candidate.cleanup && !scope.Enabled {
 			err = w.session.ObserveTarget(call, v.Snapshot)
 		}
 		if err == nil {
@@ -210,33 +221,40 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		}
 		var result executor.Result
 		if err == nil {
-			result, err = w.session.Run(call, v.Plan, v.Action)
+			if candidate.cleanup {
+				result, err = w.session.CleanupDraft(call, v.Plan, v.Action)
+			} else {
+				result, err = w.session.Run(call, v.Plan, v.Action)
+			}
 		}
 		after := v
 		if result.Progress.View().Action == v.Action {
 			after = result.Progress.View()
 		}
 		delay := w.config.StepInterval
-		if after == v && wait.view == v && wait.scope == workerScope(scope) {
+		if after == v && wait.view == v && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup {
 			delay = wait.delay * 2
 			if delay > w.config.MaxBackoff {
 				delay = w.config.MaxBackoff
 			}
 		}
-		w.waits[v.Action] = workerWait{view: after, scope: workerScope(w.session.State()), delay: delay, until: now.Add(delay)}
-		return err
+		w.waits[v.Action] = workerWait{cleanup: candidate.cleanup, view: after, scope: workerScope(w.session.State()), delay: delay, until: now.Add(delay)}
+		return errors.Join(worldErr, err)
 	}
-	return nil
+	return worldErr
 }
 func workerEligible(plan store.PlanState, v domain.ProgressView, scope ControlState, world store.World) bool {
-	building := false
+	supported := false
 	for _, action := range plan.Spec.Actions() {
-		if action.ID() == v.Action && action.Kind() == domain.BuildingAction {
-			building = true
+		if action.ID() == v.Action && (action.Kind() == domain.BuildingAction || action.Kind() == domain.OwnedDraftAction) {
+			supported = true
 			break
 		}
 	}
-	if !building {
+	if !supported {
+		return false
+	}
+	if cleanup, known := v.DraftCleanup.Value(); known && (cleanup.Stage == domain.DraftReleased || cleanup.Stage == domain.DraftSuperseded) {
 		return false
 	}
 	if scope.Enabled {
@@ -271,4 +289,51 @@ func workerScope(scope ControlState) ControlState {
 		scope.Snapshot.Direction = 0
 	}
 	return scope
+}
+
+// Draft ownership outlives ordinary progress. Completed drafts remain useful only
+// while their original active plan still has unfinished, nonfailed work.
+func workerCleanupEligible(plan store.PlanState, v domain.ProgressView, scope ControlState, world store.World) bool {
+	cleanup, known := v.DraftCleanup.Value()
+	if !known || v.Attempt == 0 {
+		return false
+	}
+	switch cleanup.Stage {
+	case domain.DraftAwaitingClaim, domain.DraftCleanupRequired, domain.DraftCleanupDispatched, domain.DraftCleanupUncertain:
+	default:
+		return false
+	}
+	draft := false
+	for _, a := range plan.Spec.Actions() {
+		if a.ID() == v.Action {
+			_, draft = a.OwnedDraft()
+			break
+		}
+	}
+	if !draft {
+		return false
+	}
+	if !scope.Enabled || !scope.ObservationKnown || playerWorld(scope.Snapshot) != world || scope.Snapshot != v.Snapshot {
+		return true
+	}
+	if v.Stage == domain.Cancelled || v.Stage == domain.Unsuccessful {
+		return true
+	}
+	if v.Stage != domain.Completed {
+		return false
+	}
+	unfinished := false
+	for _, p := range plan.Progress {
+		other := p.View()
+		if other.Action == v.Action {
+			continue
+		}
+		switch other.Stage {
+		case domain.Cancelled, domain.Unsuccessful:
+			return true
+		case domain.Pending, domain.Prepared, domain.Dispatched, domain.AwaitingObservation:
+			unfinished = true
+		}
+	}
+	return !unfinished
 }
