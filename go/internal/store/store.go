@@ -37,6 +37,7 @@ type PlanState struct {
 	Progress        []domain.Progress
 	Admissions      []ActionAdmission
 	DraftAdmissions []ActionDraftAdmission
+	MeleeAdmissions []ActionMeleeAdmission
 }
 
 // Open accepts a filesystem path, never a caller-supplied SQLite connection URI.
@@ -114,10 +115,11 @@ func (s *Store) initialize(ctx context.Context) error {
 		}
 		_, err = tx.ExecContext(ctx, `CREATE TABLE metadata(singleton INTEGER PRIMARY KEY CHECK(singleton=1), controller_session_id TEXT NOT NULL);
 CREATE TABLE plans(id TEXT PRIMARY KEY, revision TEXT NOT NULL);
-CREATE TABLE actions(id TEXT PRIMARY KEY, plan_id TEXT NOT NULL REFERENCES plans(id), ordinal INTEGER NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('building','owned_draft')), definition TEXT, x INTEGER, z INTEGER, rotation TEXT, stuff TEXT, pawn TEXT, CHECK((kind='building' AND definition IS NOT NULL AND x IS NOT NULL AND z IS NOT NULL AND rotation IS NOT NULL AND stuff IS NOT NULL AND pawn IS NULL) OR (kind='owned_draft' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL)), UNIQUE(plan_id,ordinal)) STRICT;
+CREATE TABLE actions(id TEXT PRIMARY KEY, plan_id TEXT NOT NULL REFERENCES plans(id), ordinal INTEGER NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('building','owned_draft','melee_attack')), definition TEXT, x INTEGER, z INTEGER, rotation TEXT, stuff TEXT, pawn TEXT, target TEXT, draft_action TEXT REFERENCES actions(id), CHECK((kind='building' AND definition IS NOT NULL AND x IS NOT NULL AND z IS NOT NULL AND rotation IS NOT NULL AND stuff IS NOT NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='owned_draft' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NULL AND draft_action IS NULL) OR (kind='melee_attack' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NOT NULL)), UNIQUE(plan_id,ordinal)) STRICT;
 CREATE TABLE transitions(sequence INTEGER PRIMARY KEY, action_id TEXT NOT NULL REFERENCES actions(id), payload BLOB NOT NULL);
 CREATE TABLE admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL);
 CREATE TABLE draft_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
+CREATE TABLE melee_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE clock_attempts(request_id TEXT PRIMARY KEY, native_action_id TEXT NOT NULL UNIQUE, payload BLOB NOT NULL, phase TEXT NOT NULL CHECK(phase IN ('prepared','dispatched','uncertain','applied','refused')), reply BLOB, scope_context BLOB) STRICT;
 CREATE TABLE clock_epochs(start_request_id TEXT PRIMARY KEY REFERENCES clock_attempts(request_id), stage TEXT NOT NULL CHECK(stage IN ('required','pausing','uncertain','paused','retired','superseded')), sequence TEXT NOT NULL, context BLOB, status BLOB) STRICT;
 CREATE TABLE submissions(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('building','owned_draft')), colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), action_id TEXT NOT NULL UNIQUE REFERENCES actions(id), revision TEXT NOT NULL) STRICT;
@@ -149,7 +151,7 @@ CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY REFERENCES submiss
 	} else if version != schemaVersion || app != applicationID {
 		return fmt.Errorf("incompatible database application/version: %d/%d", app, version)
 	}
-	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0", "SELECT request_id,pawn FROM draft_submissions LIMIT 0"} {
+	for _, query := range []string{"SELECT action_id,payload FROM draft_admissions LIMIT 0", "SELECT action_id,payload FROM melee_admissions LIMIT 0", "SELECT request_id,kind,colony,load_token,map_id,plan_id,action_id,revision FROM submissions LIMIT 0", "SELECT request_id,pawn FROM draft_submissions LIMIT 0"} {
 		if version != 0 {
 			if _, err = tx.ExecContext(ctx, query); err != nil {
 				return err
@@ -166,7 +168,7 @@ CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY REFERENCES submiss
 	if _, err = tx.ExecContext(ctx, "SELECT start_request_id,stage,sequence,context,status FROM clock_epochs LIMIT 0"); err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, "SELECT p.id,p.revision,a.id,a.ordinal,a.kind,a.pawn,a.definition,a.x,a.z,a.rotation,a.stuff,t.sequence,t.payload FROM plans p LEFT JOIN actions a ON a.plan_id=p.id LEFT JOIN transitions t ON t.action_id=a.id LIMIT 0"); err != nil {
+	if _, err = tx.ExecContext(ctx, "SELECT p.id,p.revision,a.id,a.ordinal,a.kind,a.pawn,a.target,a.draft_action,a.definition,a.x,a.z,a.rotation,a.stuff,t.sequence,t.payload FROM plans p LEFT JOIN actions a ON a.plan_id=p.id LEFT JOIN transitions t ON t.action_id=a.id LIMIT 0"); err != nil {
 		return err
 	}
 	if _, err = identity(ctx, tx); err != nil {
@@ -300,7 +302,7 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 	if err != nil {
 		return PlanState{}, err
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT id,kind,definition,x,z,rotation,stuff,pawn,ordinal FROM actions WHERE plan_id=? ORDER BY ordinal", id)
+	rows, err := tx.QueryContext(ctx, "SELECT id,kind,definition,x,z,rotation,stuff,pawn,target,draft_action,ordinal FROM actions WHERE plan_id=? ORDER BY ordinal", id)
 	if err != nil {
 		return PlanState{}, err
 	}
@@ -383,6 +385,21 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 		}
 		if present {
 			state.Admissions = append(state.Admissions, ActionAdmission{Action: a.ID(), Admission: admission})
+		}
+		meleeAdmission, meleePresent, e := loadMeleeAdmission(ctx, tx, a, p)
+		if e != nil {
+			return PlanState{}, e
+		}
+		if a.Kind() == domain.MeleeAttackAction && !meleePresent && (p.View().Stage == domain.Prepared || p.View().Attempt > 0) {
+			return PlanState{}, errors.New("melee progress lacks admission")
+		}
+		if meleePresent {
+			state.MeleeAdmissions = append(state.MeleeAdmissions, ActionMeleeAdmission{Action: a.ID(), Admission: meleeAdmission})
+		}
+	}
+	for _, record := range state.MeleeAdmissions {
+		if err := validateMeleePrerequisite(ctx, tx, state, record.Action, record.Admission, false); err != nil {
+			return PlanState{}, err
 		}
 	}
 	return state, nil
@@ -485,6 +502,9 @@ func (s *Store) advance(ctx context.Context, plan domain.PlanID, action domain.A
 		}
 	}
 	if err = guardDraftAdvance(ctx, tx, state, action, event); err != nil {
+		return domain.Progress{}, err
+	}
+	if err = guardMeleeAdvance(ctx, tx, state, action, event); err != nil {
 		return domain.Progress{}, err
 	}
 	next, err := apply(current, event)

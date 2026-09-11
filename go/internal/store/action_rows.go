@@ -21,6 +21,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,x,z,rotation,stuff) VALUES(?,?,?,'building',?,?,?,?,?)", a.ID(), plan, ordinal, b.Definition(), b.Cell().X, b.Cell().Z, b.Rotation(), b.Stuff())
 	} else if d, ok := a.OwnedDraft(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn) VALUES(?,?,?,'owned_draft',?)", a.ID(), plan, ordinal, d.Pawn())
+	} else if m, ok := a.MeleeAttack(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,draft_action) VALUES(?,?,?,'melee_attack',?,?,?)", a.ID(), plan, ordinal, m.Pawn(), m.Target(), m.DraftAction())
 	} else {
 		return errors.New("unsupported persisted action")
 	}
@@ -30,12 +32,12 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	var id domain.ActionID
 	var kind string
 	var ordinal int
-	var def, rotation, stuff, pawn sql.NullString
+	var def, rotation, stuff, pawn, target, draftAction sql.NullString
 	var x, z sql.NullInt64
-	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &ordinal); err != nil {
+	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &ordinal); err != nil {
 		return domain.Action{}, 0, err
 	}
-	if kind == "owned_draft" && pawn.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
+	if kind == "owned_draft" && pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		d, e := domain.NewOwnedDraft(domain.PawnID(pawn.String))
 		if e != nil {
 			return domain.Action{}, 0, e
@@ -43,7 +45,15 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, e := domain.NewOwnedDraftAction(id, d)
 		return a, ordinal, e
 	}
-	if kind == "building" && !pawn.Valid && def.Valid && x.Valid && z.Valid && rotation.Valid && stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
+	if kind == "melee_attack" && pawn.Valid && target.Valid && draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
+		m, err := domain.NewMeleeAttack(domain.PawnID(pawn.String), domain.PawnID(target.String), domain.ActionID(draftAction.String))
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewMeleeAttackAction(id, m)
+		return a, ordinal, err
+	}
+	if kind == "building" && !pawn.Valid && !target.Valid && !draftAction.Valid && def.Valid && x.Valid && z.Valid && rotation.Valid && stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
 		b, e := domain.NewBuilding(def.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)}, domain.Rotation(rotation.String), stuff.String)
 		if e != nil {
 			return domain.Action{}, 0, e
