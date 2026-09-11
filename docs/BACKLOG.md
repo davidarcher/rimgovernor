@@ -811,7 +811,7 @@ only intentional small, sanitized regression fixtures belong in source control.
       - [ ] **06b.3b:** combine observed map bounds, cross-plan commitments, leases
         and durable attempts in the runtime. Owner: integrator; depends on 06b.2
         and 06b.3a; prove single ownership and invalidation before enabling writes.
-        - [ ] **06b.3b.1:** exact-cell map bounds read using the existing typed
+        - [x] **06b.3b.1:** exact-cell map bounds read using the existing typed
           observation contract. Owner: bridge agent; depends on 03b.1.
         - [x] **06b.3b.2:** complete durable cross-plan reservation recovery.
           Owner: integrator; depends on 04b and 06a.
@@ -824,6 +824,10 @@ only intentional small, sanitized regression fixtures belong in source control.
         - [ ] **06b.3b.5:** wire an explicit player-only entry point and runtime
           worker; keep model proposals separate from authority acquisition.
           Owner: integrator; depends on 06b.3b.3–4 and native guarded adapters.
+        - [ ] **06b.3b.6:** typed owned clock capability and epoch/attempt reads.
+          Owner: bridge agent; depends on 02b and 06b.2. Keep speed/window control
+          separate from building dispatch and preserve exact owned pause after
+          revocation; runtime scheduling and native interruption acceptance follow.
   - [ ] **06c:** isolated ordinary pawn construction and interruption acceptance.
 
 - [ ] **G01.07 — Routine capabilities in bounded families.** Owners: domain agents.
