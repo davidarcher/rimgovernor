@@ -28,6 +28,9 @@ only; other command variants return unsupported. Their presence does not adverti
 the entire operations schema as implemented. `Protocol/NativeConstruction.cs`
 owns native placement and tracked construction transitions;
 `Protocol/NativeConstructionCausality.cs` checks exact factory/spawn attribution.
+`Protocol/NativeConstructionHookSet.cs` verifies each required live patch before
+admission. `Protocol/NativeOperationEnvelope.cs` checks receipt size before
+immutable finalization; unrepresentable evidence produces bounded uncertainty.
 `Protocol/NativeAttemptLedger.cs` owns the unsaved per-load attempt ledger, replay
 and uncertainty. Receipt admission is distinct from observed pawn completion.
 
@@ -49,7 +52,7 @@ and `home/status` remain separately exported old surfaces pending their consumer
 cutover; they are not aliases implemented by the new adapters. All other retained
 production exports keep their current source ownership entries.
 
-Current source inventory: 64 production exports, 55 fixture exports, 129 handwritten
+Current source inventory: 64 production exports, 55 fixture exports, 131 handwritten
 C# source files and nine generated Protobuf compile inputs. Source declarations do
 not establish gameplay acceptance. Actual installed discovery must match the private
 build and prove fixture exclusion; pending native acceptance remains explicit in

@@ -11,7 +11,7 @@ from pathlib import Path
 from native_package_acceptance import (Evidence, bridge_session, check_startup_log,
     gabs_executable, object_value, package_files, payload, prepare, prepare_rendered)
 from native_protobuf_acceptance import proto
-from native_compatibility_acceptance import discovery
+from native_compatibility_acceptance import discovery, validate_discovery
 from rimgovernor.bridge_game import BridgeGame
 from rimgovernor.clock_control import PlayClock
 from rimgovernor.native_scenario import advance_game
@@ -91,8 +91,8 @@ async def run(root: Path, output: Path, binary: Path, *, headless=True, timeout_
 
             async def reconnect(label):
                 async with asyncio.timeout(60):
-                    result = await bridge.core("games_connect", gameId=bridge.game_id, forceTakeover=True)
-                    await evidence.record(label, {"tool": "games_connect", "forceTakeover": True}, result)
+                    await evidence.record(label, {"tool": "games_connect", "forceTakeover": True},
+                        bridge.core("games_connect", gameId=bridge.game_id, forceTakeover=True))
 
             try:
                 async with asyncio.timeout(timeout_seconds):
@@ -100,7 +100,12 @@ async def run(root: Path, output: Path, binary: Path, *, headless=True, timeout_
                     await bridge.connect()
                     names = await discovery(bridge, evidence)
                     fixtures = {"test/guarded_construction_prepare", "test/guarded_construction_control"}
-                    assert {name for name in names if name.startswith("test/")} == fixtures
+                    inventory = json.loads((Path(__file__).resolve().parents[1] / "contracts/domain-inventory.json").read_text())
+                    rows = inventory["native_surface"]["tools"]
+                    production = {row["name"] for row in rows if row["build_role"] == "production"}
+                    all_fixtures = {row["name"] for row in rows if row["build_role"] == "fixture"}
+                    validate_discovery(names, production, all_fixtures, fixtures)
+                    report["discovery"] = {"production": len(production), "fixtures": len(fixtures), "names": names}
                     await call("new-game", "rimworld/start_debug_game_ready",
                         {"readiness": "visual", "pauseIfNeeded": True, "timeoutMs": 120000}, timeout=180)
                     await call("pause", "rimworld/set_time_speed", {"speed": "Paused", "ultraSpeedBoost": False})
@@ -112,6 +117,23 @@ async def run(root: Path, output: Path, binary: Path, *, headless=True, timeout_
                     sites = prepared["sites"]
                     report["prepared"] = prepared
                     session = "python-guarded-acceptance"
+                    observed = outcome(await wire("typed-status", "observations_read_status",
+                        {"scope": {"expectedIdentity": identity}, "colonists": False, "threats": False}), "observed")
+                    assert observed["context"]["identity"] == identity and observed["context"]["tick"] == tick
+                    fields = {key: False for key in ("terrain", "roof", "visibility", "traversal", "zone",
+                        "areas", "things", "designations", "room", "growth")}
+                    cells = outcome(await wire("typed-cells", "observations_get_cells",
+                        {"scope": {"expectedIdentity": identity}, "exactCells": {"cells": [
+                            {"x": sites[0]["x"], "z": sites[0]["z"]}]}, "fields": fields, "page": {"limit": 1}}), "observed")
+                    assert cells["appliedFields"] == fields and len(cells["cells"]) == 1
+                    assert cells["mapSize"]["width"] > sites[0]["x"] and cells["mapSize"]["height"] > sites[0]["z"]
+                    building_args = {"x": sites[1]["x"], "z": sites[1]["z"], "radius": 1, "category": "all", "aggregate": False}
+                    before = await call("before-preview", "home/list_buildings", building_args)
+                    preview = outcome(await wire("operation-preview", "operations_preview", {"identity": identity,
+                        "operation": {"placeBuilding": {"placement": sites[1]}}}), "evaluated")
+                    assert preview["accepted"] is True
+                    after = await call("after-preview", "home/list_buildings", building_args)
+                    assert {k:v for k,v in before.items() if k != "operation"} == {k:v for k,v in after.items() if k != "operation"}
 
                     async def status(label):
                         value = outcome(await wire(label, "authority_read_status", {"identity": identity}), "status")
@@ -135,6 +157,9 @@ async def run(root: Path, output: Path, binary: Path, *, headless=True, timeout_
                         assert failure.get("code") == code, failure
 
                     grant = await acquire("acquire")
+                    await call("ordinary-pause", "rimworld/set_time_speed", {"speed": "Paused", "ultraSpeedBoost": False})
+                    paused_authority = await status("pause-preserves-authority")
+                    assert "active" in paused_authority and paused_authority["context"]["nativeGeneration"] == grant["context"]["nativeGeneration"]
                     renewed = outcome(await wire("renew", "authority_control", {"renew": {"identity": identity,
                         "expectedGeneration": grant["context"]["nativeGeneration"], "leaseId": grant["leaseId"],
                         "controllerSessionId": session, "leaseMs": 30000}}), "granted")
@@ -143,26 +168,36 @@ async def run(root: Path, output: Path, binary: Path, *, headless=True, timeout_
                     receipt = outcome(await wire("place-cancel-site", "operations_execute", request), "receipt")
                     construction = receipt["applied"]["observed"]["construction"]
                     assert construction["stage"] == "CONSTRUCTION_STAGE_BLUEPRINT"
+                    attempt = {"identity": identity, "attempt": request["precondition"]["attempt"]}
+                    pending = outcome(await wire("initial-progress", "receipts_observe_progress", attempt), "progress")
+                    assert "pending" in pending and pending["completeInspection"] is True
                     assert outcome(await wire("replay", "operations_execute", request), "receipt") == receipt
                     conflict = execute(renewed, 1, sites[2])
                     await refuse("attempt-conflict", conflict, "FAILURE_CODE_ATTEMPT_CONFLICT")
                     outcome(await wire("manual", "authority_control", {"revoke": {"identity": identity,
                         "expectedGeneration": renewed["context"]["nativeGeneration"], "reason": "REVOCATION_REASON_MANUAL"}}), "revoked")
                     assert outcome(await wire("replay-after-manual", "operations_execute", request), "receipt") == receipt
+                    assert outcome(await wire("lookup-after-manual", "receipts_lookup", attempt), "receipt") == receipt
                     await refuse("manual-blocks-new", execute(renewed, 2, sites[2]))
+                    outcome(await wire("refusal-not-admitted", "receipts_lookup", {"identity": identity,
+                        "attempt": execute(renewed, 2, sites[2])["precondition"]["attempt"]}), "unknown")
                     grant = await acquire("cancel-authority")
                     control = dict(identity, operation="cancel", blueprintId=construction["currentThingId"])
                     assert (await call("external-cancel", "test/guarded_construction_control", control))["success"] is True
-                    assert "inactive" in await status("cancel-revoked")
+                    assert (await status("cancel-revoked"))["inactive"]["reason"] == "REVOCATION_REASON_EXTERNAL_ORDER"
                     progress = outcome(await wire("cancel-progress", "receipts_observe_progress",
                         {"identity": identity, "attempt": request["precondition"]["attempt"]}), "progress")
                     assert progress.get("completeInspection") is True and "unsuccessful" in progress
                     grant = await acquire("draft-authority")
                     control = dict(identity, operation="draft", pawnId=prepared["pawnId"])
                     assert (await call("external-draft", "test/guarded_construction_control", control))["drafted"] is True
-                    assert "inactive" in await status("draft-revoked")
+                    assert (await status("draft-revoked"))["inactive"]["reason"] == "REVOCATION_REASON_PLAYER_CONTROL"
                     await refuse("draft-blocks-new", execute(grant, 3, sites[2]))
                     assert (await call("undraft", "test/guarded_construction_control", control))["drafted"] is False
+                    grant = await acquire("ordered-job-authority")
+                    move = dict(identity, operation="move", pawnId=prepared["pawnId"], **prepared["pawnCell"])
+                    assert (await call("external-ordered-job", "test/guarded_construction_control", move))["success"] is True
+                    assert (await status("ordered-job-revoked"))["inactive"]["reason"] == "REVOCATION_REASON_EXTERNAL_ORDER"
                     grant = await acquire("expiry-authority", 1000)
                     await asyncio.sleep(1.2)  # Wall-clock lease expiry; no simulation ticks.
                     expired = await status("expired")

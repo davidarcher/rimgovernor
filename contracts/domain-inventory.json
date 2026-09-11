@@ -6694,7 +6694,7 @@
   ],
   "native_surface": {
     "version": 1,
-    "source_revision": "f20aa02fb1e3f244618277e34dddb5a1b7dfa9b1",
+    "source_revision": "629f108cfe03059c3991b7e4a809ea90da18feb5",
     "scope": "Current repository-owned native Runtime/Bridge exports, generated Protobuf compile inputs and conditional fixtures. Historical Python consumer inventory remains at its independent source_revision. Installed SDK/GABS exports require actual discovery.",
     "evidence_links": "domain_item_id reuses existing G01 owner, fixtures and native_scenarios without copying Python call-site lists. Empty local evidence lists preserve uncovered acceptance. schema_owner_chunk assigns the cross-language schema owner; native_owner_chunk owns typed conversion or fixture isolation.",
     "variant_contract": "source_baseline.exports[].declaration retains the complete exported signature, Tool/ToolParameter/ToolResponse attributes, documented string variants, optional selectors and defaults. Source fingerprints detect implementation changes. Runtime branches, aliases and payload keys still require behavioral schema and discovery acceptance.",
@@ -6967,7 +6967,15 @@
               "condition": ""
             },
             {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeConstructionHookSet.cs",
+              "condition": ""
+            },
+            {
               "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeObservationTools.cs",
+              "condition": ""
+            },
+            {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationEnvelope.cs",
               "condition": ""
             },
             {
@@ -7722,14 +7730,14 @@
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
           "line": 43,
           "declaration": "[Tool(\"rimgovernor/operations_execute\", Title = \"Execute guarded native operation\", Description = \"Admit one typed construction attempt under current native authority. Exact retries return their original receipt.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON ExecuteReply.\", Always = true)]\n        public async Task<object> Execute(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official operations ExecuteRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "6e25fd9cf32b8efb05852e67c56cca62bbccb13d8bbe275e81bbc16561f0d452"
+          "source_sha256": "755ec14646c2c557a8dd691fa1fea9d1d87bd920f2d01882ebe4918f4e6a1bf4"
         },
         {
           "name": "rimgovernor/operations_preview",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
-          "line": 118,
+          "line": 120,
           "declaration": "[Tool(\"rimgovernor/operations_preview\", Title = \"Preview typed operation\", Description = \"Read ordinary construction eligibility without authority or effects.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON PreviewReply.\", Always = true)]\n        public async Task<object> Preview(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official operations PreviewRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "6e25fd9cf32b8efb05852e67c56cca62bbccb13d8bbe275e81bbc16561f0d452"
+          "source_sha256": "755ec14646c2c557a8dd691fa1fea9d1d87bd920f2d01882ebe4918f4e6a1bf4"
         },
         {
           "name": "rimgovernor/placement_preview",
@@ -7741,16 +7749,16 @@
         {
           "name": "rimgovernor/receipts_lookup",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
-          "line": 143,
+          "line": 145,
           "declaration": "[Tool(\"rimgovernor/receipts_lookup\", Title = \"Look up admitted attempt\", Description = \"Read original admitted receipt without requiring current authority.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON LookupReply.\", Always = true)]\n        public async Task<object> Lookup(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official receipts LookupRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "6e25fd9cf32b8efb05852e67c56cca62bbccb13d8bbe275e81bbc16561f0d452"
+          "source_sha256": "755ec14646c2c557a8dd691fa1fea9d1d87bd920f2d01882ebe4918f4e6a1bf4"
         },
         {
           "name": "rimgovernor/receipts_observe_progress",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
-          "line": 164,
+          "line": 166,
           "declaration": "[Tool(\"rimgovernor/receipts_observe_progress\", Title = \"Observe admitted construction\", Description = \"Read causally tracked native construction transitions; absence of an attempt never proves completion.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON ProgressReply.\", Always = true)]\n        public async Task<object> ObserveProgress(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official receipts ProgressRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "6e25fd9cf32b8efb05852e67c56cca62bbccb13d8bbe275e81bbc16561f0d452"
+          "source_sha256": "755ec14646c2c557a8dd691fa1fea9d1d87bd920f2d01882ebe4918f4e6a1bf4"
         },
         {
           "name": "test/b04f_setup",
@@ -7883,14 +7891,14 @@
           "path": "scripts/fixtures/GuardedConstructionFixture.cs",
           "line": 79,
           "declaration": "[Tool(\"test/guarded_construction_control\", Description = \"UNSAFE FOR MODEL EXECUTION. Private prepared-fixture controls: cancel one exact WoodLog Wall blueprint on a returned site using Designator_Cancel; toggle the prepared pawn's actual drafted state; or issue a native ordered Goto. No suppression of game methods or authority hooks.\")]\n        public async Task<object> Control(IRimBridgeContext ctx,CancellationToken cancellationToken,string operation,\n            string colonyId,string loadToken,int mapId,string pawnId=null,string blueprintId=null,int x=0,int z=0)",
-          "source_sha256": "09f9ee9e3e56c4da01e8245bf7d30afde22eee4c64224666bceaa4639ec459cc"
+          "source_sha256": "4a95ef4c0f9fa9ddac249bf1b8b40d85c0cee93bca91388b14c64f6649144c2b"
         },
         {
           "name": "test/guarded_construction_prepare",
           "path": "scripts/fixtures/GuardedConstructionFixture.cs",
           "line": 21,
           "declaration": "[Tool(\"test/guarded_construction_prepare\", Description = \"UNSAFE FOR MODEL EXECUTION. Private disposable fixture: un-forbid existing starting wood, set one capable colonist's normal Construct/Haul priorities and Work timetable, return bounded legal WoodLog Wall sites. No spawned resources, skill changes, game tick changes or placement.\")]\n        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, int siteCount = 3)",
-          "source_sha256": "09f9ee9e3e56c4da01e8245bf7d30afde22eee4c64224666bceaa4639ec459cc"
+          "source_sha256": "4a95ef4c0f9fa9ddac249bf1b8b40d85c0cee93bca91388b14c64f6649144c2b"
         },
         {
           "name": "test/haul_quantity_contract",

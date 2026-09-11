@@ -39,13 +39,27 @@ script and your installed game/SDK/Harmony dependencies. Native restore is locke
 A standalone Mono proof needs the standard netstandard framework facade; installed
 game loading and round trips require the fresh native acceptance run.
 
-The first implemented [fixed Protobuf methods](../../contracts/proto/mcp-tools.md)
-are `rimgovernor/lifecycle_read_identity`, `rimgovernor/authority_read_status`,
-and `rimgovernor/placement_preview`. Each accepts one `request` ProtoJSON string
-and returns one `payload` ProtoJSON string inside the SDK envelope. Identity and
-status reads do not initialize game components or authority. Authority reports
-unavailable until native hooks and trusted admission initialize it. Placement
-uses exact native definitions and ordinary rules; it never places anything.
+The implemented [fixed Protobuf methods](../../contracts/native-protobuf-cutover.md)
+cover identity, authority, placement previews, basic status/cells and guarded
+construction with receipt lookup and progress. Each accepts one `request`
+ProtoJSON string and returns one `payload` ProtoJSON string inside the SDK envelope.
+Reads do not initialize game components or authority. Native lifecycle hooks
+initialize inactive authority; only the trusted host's explicit control path can
+acquire it. Model interpretation receives no control or execution capability.
+
+Construction currently implements `PlaceBuilding`. Other operation commands
+return Unsupported. Admission checks current identity, generation, lease and
+ordinary native placement rules on the game thread. One unsaved per-load ledger
+retains up to 4096 attempts without eviction. Exact retries return the original
+receipt after revocation; changed requests conflict. Applied records an observed
+blueprint, frame or instant building. Pawn completion requires a separate progress
+read following the exact native object transitions. Lost transition evidence
+remains unknown. New loads start without authority or attempt history.
+
+Status does not issue entity mutation snapshots. Cell reads support terrain,
+roof, visibility and traversal, with explicit Unsupported issues for other
+requested fields. Pages are bounded single reads; frozen continuation pages and
+the remaining observation families are tracked in the backlog.
 
 Run `scripts/native_protobuf_acceptance.py` through
 `scripts/container_scenario.py` against a private production package. Its root is
@@ -55,6 +69,16 @@ own scenario's GABS connection and returns it for final native read checks.
 The focused C# projects under `contracts/tests/native-proto-*` and
 `contracts/tests/native-authority*` test parsing, SDK binding and authority
 semantics separately from this game run.
+
+For guarded construction acceptance, build a private package with
+`-Fixture GuardedConstructionFixture` and run
+`scripts/native_guarded_construction_acceptance.py` through the same launcher.
+The fixture selects an existing capable colonist and existing wood, sets ordinary
+work priorities and returns legal wall sites. The Go building smoke places one
+wall, closes its controller session, and later reopens the same SQLite state to
+observe native completion. The scenario advances bounded ticks through
+`rimgovernor.native_scenario.advance_game`. Fixture builds are never production
+packages; retain the scenario report to distinguish acceptance from compilation.
 
 The headless GPL-3.0 notice and both upstream provenance records remain in Notices.
 Companion provenance records the absence of an upstream redistribution license;
