@@ -40,7 +40,7 @@ func TestCSharpRejectsInvalidTargetsAndNameCollisions(t *testing.T) {
 			t.Fatalf("accepted %#v", options)
 		}
 	}
-	for _, name := range []string{"request", "decode"} {
+	for _, name := range []string{"request", "decode", "getType", "equals", "toString"} {
 		input := strings.ReplaceAll(smallSchema, "enabled", name)
 		parsed, err := ParseSchema([]byte(input))
 		if err != nil {

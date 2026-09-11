@@ -55,7 +55,7 @@ func GenerateCSharp(schema *Schema, options CSharpOptions) ([]byte, error) {
 		}
 		for key := range node.Properties {
 			property := fieldName(key)
-			if property == name || property == "Decode" {
+			if property == name || property == "Decode" || property == "GetType" || property == "GetHashCode" || property == "ToString" || property == "Equals" || property == "ReferenceEquals" || property == "MemberwiseClone" || property == "Finalize" {
 				return nil, fmt.Errorf("C# property collision: %s", property)
 			}
 		}
@@ -92,7 +92,7 @@ func csharpKeyword(name string) bool {
 }
 
 func csharpReservedType(name string) bool {
-	for _, word := range strings.Fields("JToken JObject JArray JTokenType JsonConverter JsonReader JsonWriter JsonSerializer JsonTextReader JsonLoadSettings JsonException JsonObject JsonArray JsonProperty JsonIgnore JsonConverterAttribute FormatException StringComparison Array IReadOnlyList IEnumerator IEnumerable") {
+	for _, word := range strings.Fields("System Type List DateParseHandling FloatParseHandling DuplicatePropertyNameHandling LineInfoHandling NullValueHandling MemberSerialization JsonSerializationException NotSupportedException JToken JObject JArray JTokenType JsonConverter JsonReader JsonWriter JsonSerializer JsonTextReader JsonLoadSettings JsonException JsonObject JsonArray JsonProperty JsonIgnore JsonConverterAttribute FormatException StringComparison Array IReadOnlyList IEnumerator IEnumerable") {
 		if word == name {
 			return true
 		}
