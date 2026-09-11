@@ -56,7 +56,9 @@ def wire_response(response: dict) -> dict:
 
 
 def issued_claim(response: dict) -> dict:
-    job = outcome(outcome(wire_response(response), "receipt"), "applied")["observed"]["job"]
+    receipt = outcome(wire_response(response), "receipt")
+    assert set(receipt) == {"attempt", "admittedContext", "authorizingOwner", "applied"}, receipt
+    job = outcome(receipt["applied"]["observed"], "job")
     assert job["drafted"] is True and job["issued"] is True and job["verified"] is True
     assert job["draftClaimId"] and job["draftOwner"] and job["resultingSnapshotToken"]
     return job

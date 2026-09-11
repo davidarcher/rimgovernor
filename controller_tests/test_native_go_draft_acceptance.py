@@ -90,7 +90,9 @@ def test_current_diagnostic_can_be_inflight():
 
 
 def response():
-    return {"jsonrpc": "2.0", "id": 4, "result": {"content": [], "structuredContent": {"payload": json.dumps({"receipt": {"applied": {"observed": {"job": {
+    return {"jsonrpc": "2.0", "id": 4, "result": {"content": [], "structuredContent": {"payload": json.dumps({"receipt": {"attempt": {"controllerSessionId": "owner", "actionId": "draft-action", "attemptId": "1"},
+        "admittedContext": {"identity": {"colonyId": "colony", "loadToken": "load", "mapId": 0}, "tick": "19", "nativeGeneration": "2"},
+        "authorizingOwner": {"controllerSessionId": "owner", "playerDirection": "1"}, "applied": {"observed": {"job": {
         "pawnId": "pawn", "drafted": True, "issued": True, "verified": True, "draftClaimId": "claim", "draftOwner": "owner", "resultingSnapshotToken": "token"}}}}})}, "isError": False}}
 
 
@@ -132,3 +134,12 @@ def test_proxy_launcher_has_only_narrow_mode_and_exact_fixture(tmp_path):
     text = wrapper.read_text(encoding="utf8")
     assert "--proxy-real" in text and "--proxy-mode override" in text and '"$@"' in text
     assert json.loads((wrapper.parent / "fixture.json").read_text(encoding="utf8")) == {"pawnId": "pawn"}
+
+
+@pytest.mark.parametrize("branch", ["noChange", "uncertain"])
+def test_receipt_rejects_competing_outcome(branch):
+    reply = response()
+    value = json.loads(reply["result"]["structuredContent"]["payload"])
+    value["receipt"][branch] = {}
+    reply["result"]["structuredContent"]["payload"] = json.dumps(value)
+    with pytest.raises(AssertionError): probe.issued_claim(reply)
