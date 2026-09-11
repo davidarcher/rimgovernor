@@ -698,7 +698,7 @@ only intentional small, sanitized regression fixtures belong in source control.
   Existing Python models are optional test helpers, not a compatibility obligation.
   Depends on 01; 03/04 and model transport can proceed after the tested Go
   generation API in 02a.1 while remaining platform checks run.
-  - [ ] **02a:** pinned repository-owned Go generator and a documented, closed
+  - [x] **02a:** pinned repository-owned Go generator and a documented, closed
     schema subset; required/null/unknown and integer-token/UTF-16 validation,
     deterministic output manifest and drift checks. Owner: integrator with generator
     agents. Exercise the placement request as the first concrete input; native
@@ -709,7 +709,7 @@ only intentional small, sanitized regression fixtures belong in source control.
     - [x] **02a.2:** C# and transitional Python outputs from the same schema/model,
       with cross-language boundary fixtures. Owners: C# and Python generator agents;
       depends on the 02a.1 generator API. Unsupported schema features fail explicitly.
-    - [ ] **02a.3:** generation drift CI, reproducibility and full affected checks.
+    - [x] **02a.3:** generation drift CI, reproducibility and full affected checks.
       Owner: integrator; depends on 02a.1–2.
   - [ ] **02b:** define the complete typed reply needed by the first migrated
     preview operation, including success/refusal and unknown facts. Owner: contracts
