@@ -38,3 +38,18 @@ def test_routine_trace_requires_attributed_native_reads():
         changed = copy.deepcopy(caps)
         changed["0"] = {forbidden}
         with pytest.raises(AssertionError): probe.audit_routine(rows, 0, changed, restart=True)
+
+
+def test_resource_rule_audit_allows_clock_but_rejects_construction():
+    plan = {'actions': [{'progress': {'stage': 'pending', 'attempt': '0'}}]}
+    names = ['rimgovernor/placement_preview', 'rimgovernor/clock_start',
+             'rimgovernor/placement_preview', 'rimgovernor/clock_renew']
+    probe.audit_resource_rules(plan, names)
+    with pytest.raises(AssertionError):
+        probe.audit_resource_rules(plan, names + [probe.EXECUTE])
+    with pytest.raises(AssertionError):
+        probe.audit_resource_rules(plan, names[:2])
+    for changed in [{'actions': []}, {'actions': [{'progress': {'stage': 'pending', 'attempt': '1'}}]},
+                    {'actions': [{'progress': {'stage': 'completed', 'attempt': '0'}}]}]:
+        with pytest.raises(AssertionError):
+            probe.audit_resource_rules(changed, names)

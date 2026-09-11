@@ -60,6 +60,13 @@ def audit_routine(events, baseline, capabilities, *, restart):
     return names
 
 
+def audit_resource_rules(plan, names):
+    assert plan['actions']
+    assert all(a['progress']['stage'] == 'pending' and a['progress']['attempt'] == '0' for a in plan['actions'])
+    assert EXECUTE not in names
+    assert names.count('rimgovernor/placement_preview') >= 2
+
+
 async def wait_review(database, after_revision=0):
     async with asyncio.timeout(60):
         while True:
@@ -293,8 +300,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             await bridge.connect()
             await capture(bridge, "operate", baseline)
             if resource_rules:
-                assert EXECUTE not in report['traces']['operate'] and 'rimgovernor/clock_start' not in report['traces']['operate']
-                assert report['traces']['operate'].count('rimgovernor/placement_preview') >= 2
+                audit_resource_rules(report['resource_policy_pending_plan'], report['traces']['operate'])
                 report['resource_policy_no_orders'] = True
             final = outcome(await wire(bridge, "after-manual", "lifecycle_read_identity", {}), "loaded")
             assert final["paused"] and final["context"]["identity"] == identity
