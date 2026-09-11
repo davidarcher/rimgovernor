@@ -19,10 +19,18 @@ import (
 )
 
 type routineNative struct {
-	reply    *o.ColonyFactsReply
-	onRead   func(context.Context)
-	reads    int
-	planning bool
+	reply     *o.ColonyFactsReply
+	onRead    func(context.Context)
+	reads     int
+	planning  bool
+	pawnReply *o.ListPawnsReply
+}
+
+func (n *routineNative) ReadCombatPawns(ctx context.Context, _ *c.Identity, _ []string) (*o.ListPawnsReply, bridge.Result, error) {
+	if n.pawnReply != nil {
+		return n.pawnReply, bridge.Result{}, ctx.Err()
+	}
+	return &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(0), Returned: proto.Uint64(0), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}, bridge.Result{}, ctx.Err()
 }
 
 func (n *routineNative) ReadEmergency(ctx context.Context, _ *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {

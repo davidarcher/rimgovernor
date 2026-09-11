@@ -145,6 +145,12 @@ the private `ModalFixture` to verify absence, presence and unrelated replacement
 Replay its captures with `RIMGOVERNOR_NATIVE_NAMING=present` or `absent` alongside
 `RIMGOVERNOR_NATIVE_COLONY_CAPTURE` to check the durable need.
 
+Routine defense readiness reads equipment for the complete emergency census's exact
+pawn IDs inside the same paused observation bracket. Only living, standing armed
+colonists count. Missing gear or inconsistent colony/pawn censuses leave readiness
+unknown; tick or generation changes reject the review. This supplies the maintained
+defense need without issuing equipment or combat orders.
+
 `NewRoutineSleepingPlanner` configures the shared `RoutineBuildingPlanner` to compile an active reviewed shelter deficit into
 one complete method of ordinary indoor sleeping spots. It requires a known native
 definition with no construction-skill prerequisite, roofed indoor cells, disjoint

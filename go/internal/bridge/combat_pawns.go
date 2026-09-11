@@ -12,6 +12,27 @@ import (
 func (client *Client) ReadCombatPawns(ctx context.Context, identity *c.Identity, ids []string) (*o.ListPawnsReply, Result, error) {
 	return client.readPawns(ctx, identity, ids, true)
 }
+
+// ValidateCombatPawnSnapshot shares exact-ID validation with ReadCombatPawns.
+func ValidateCombatPawnSnapshot(snapshot *o.PawnSnapshot, identity *c.Identity, ids []string) error {
+	if err := ValidateIdentity(identity); err != nil {
+		return err
+	}
+	if len(ids) < 1 || len(ids) > 256 {
+		return contract("pawn IDs outside 1..256")
+	}
+	requested := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		if validID(id) != nil || requested[id] {
+			return contract("invalid or duplicate requested pawn")
+		}
+		requested[id] = true
+	}
+	if err := buildingUnknown(snapshot); err != nil {
+		return err
+	}
+	return pawnsSnapshotDetails(snapshot, identity, requested, true)
+}
 func combatNumber(v *float64, nonnegative bool) bool {
 	return v == nil || !math.IsNaN(*v) && !math.IsInf(*v, 0) && (!nonnegative || *v >= 0)
 }

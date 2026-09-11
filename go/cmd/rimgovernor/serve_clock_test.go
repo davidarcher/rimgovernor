@@ -50,6 +50,10 @@ func (f *clockServiceFake) ReadColonyFacts(context.Context, *c.Identity, bool, [
 	return nil, bridge.Result{}, errors.New("colony read unavailable")
 }
 
+func (f *clockServiceFake) ReadCombatPawns(context.Context, *c.Identity, []string) (*o.ListPawnsReply, bridge.Result, error) {
+	return nil, bridge.Result{}, errors.New("pawn read unavailable")
+}
+
 func (f *clockServiceFake) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {
 	return f.reads.Identity(ctx)
 }

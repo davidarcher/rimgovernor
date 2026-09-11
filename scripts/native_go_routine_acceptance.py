@@ -167,6 +167,17 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 assert report["sleeping_setup"]["success"] and report["sleeping_setup"]["sleepingSpotsCreated"] == 0
             report["initial_colony"] = await wire(bridge, "initial-colony", "observations_read_status", {
                 "scope": {"expectedIdentity": identity}, "colonists": True, "threats": True, "colonistDetail": False, "page": {"limit": 256}})
+            colonists = outcome(report["initial_colony"], "observed")["colonists"]["pawns"]
+            pawn_ids = [p["pawn"]["id"] for p in colonists]
+            detailed = outcome(await wire(bridge, "initial-equipment", "observations_list_pawns", {
+                "scope": {"expectedIdentity": identity}, "filter": {"ids": pawn_ids, "includeDead": True},
+                "details": {"needs": False, "health": True, "equipment": True, "biography": True,
+                            "settings": False, "social": False, "animals": False}, "page": {"limit": len(pawn_ids)}}), "observed")
+            assert detailed["context"] == outcome(report["initial_colony"], "observed")["context"]
+            assert {p["pawn"]["id"] for p in detailed["pawns"]} == set(pawn_ids)
+            assert all(type(p.get("dead")) is bool and type(p.get("downed")) is bool
+                       and type(p.get("equipment", {}).get("armed")) is bool for p in detailed["pawns"])
+            report["initial_armed"] = sum(not p["dead"] and not p["downed"] and p["equipment"]["armed"] for p in detailed["pawns"])
             facts = payload(await evidence.call(bridge, "initial-food", "home/colony_facts", {"planning": False}))
             food = food_forecast(facts['nativeForecastInputs']['combinedFoodSupply'], consumer_ids=[r['id'] for r in facts['foodSupply']['consumers']])
             report['initial_food_forecast'] = food
@@ -185,6 +196,9 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             active = routine_evidence(database, identity, enabled=True, expected_food_need=expected_food, allow_methods=sleeping_methods)
             assert active["review"]["Tick"] == tick, "Review did not use the initial paused boundary"
             assert active["goals"]["CriticalMedical"]["Need"] == medical_need(report["initial_colony"])
+            if report["initial_armed"] < min(2, len(pawn_ids)):
+                assert active["goals"]["EnsureBasicDefense"]["Need"] == "deficit", "Native equipment shortage did not reach routine defense need"
+            report["defense_need"] = active["goals"]["EnsureBasicDefense"]["Need"]
             report["active_routine"] = active
             if sleeping_methods:
                 report["sleeping_plan"] = await wait_building_method(http, database, "SleepingSpot", report["sleeping_setup"]["colonists"])
