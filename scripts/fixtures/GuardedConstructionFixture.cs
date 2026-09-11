@@ -88,7 +88,7 @@ namespace HomeBridge.BridgeTools
                     var blueprint=map.listerThings.ThingsInGroup(ThingRequestGroup.Blueprint).OfType<Blueprint>()
                         .SingleOrDefault(b=>b.GetUniqueLoadID()==blueprintId);
                     if(blueprint==null||blueprint is Blueprint_Install||blueprint.def.entityDefToBuild!=ThingDefOf.Wall
-                        ||blueprint.Stuff!=ThingDefOf.WoodLog||!PreparedSites.Contains(blueprint.Position))return Refuse("Exact prepared WoodLog Wall blueprint unavailable.");
+                        ||!(blueprint is Blueprint_Build build)||build.EntityToBuildStuff()!=ThingDefOf.WoodLog||!PreparedSites.Contains(blueprint.Position))return Refuse("Exact prepared WoodLog Wall blueprint unavailable.");
                     var cancel=new Designator_Cancel(); if(!cancel.CanDesignateThing(blueprint).Accepted)return Refuse("Native cancellation refused.");
                     cancel.DesignateThing(blueprint);
                     return new { success=blueprint.Destroyed,operation,blueprintId,tick=Find.TickManager.TicksGame };
