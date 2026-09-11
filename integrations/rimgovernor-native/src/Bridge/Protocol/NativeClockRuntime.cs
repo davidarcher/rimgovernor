@@ -231,10 +231,10 @@ namespace HomeBridge.BridgeTools
         {
             lock (Gate)
             {
-                if (Journal == null) return new Clock.EventsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Clock journal has not been initialized by an owned start.") };
-                if (request.AfterCursor > Journal.Newest) return new Clock.EventsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cursor exceeds the retained native journal.") };
                 try
                 {
+                    EnsureJournal();
+                    if (request.AfterCursor > Journal.Newest) return new Clock.EventsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cursor exceeds the retained native journal.") };
                     var window = Journal.ReadWindow(request.AfterCursor, (int)request.Limit);
                     var page = new Clock.EventsPage { Context = context.Clone(), NewestCursor = Journal.Newest,
                         NextCursor = window.Next, Gap = window.Lost != 0, LostCount = window.Lost };

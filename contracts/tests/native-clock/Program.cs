@@ -62,7 +62,9 @@ internal static class Program
         { ctx.Arguments["request"] = json; result = (Dictionary<string, object>)Tools.Start(ctx, default, json).GetAwaiter().GetResult(); Check(Clock.ControlReply.Parser.ParseJson((string)result["payload"]).Failure != null && ctx.Invocations == 0, "malformed Start dispatched"); }
         Check(Status().Status.NeverStarted != null && Status().Status.ActualPaused, "actual never-started clock");
         Check(!Directory.Exists(GenFilePaths.SaveDataFolderPath), "status initialized journal");
-        Check(Events().Failure.Code == Common.FailureCode.Unavailable && !Directory.Exists(GenFilePaths.SaveDataFolderPath), "event read created history");
+        var initial = Events();
+        Check(initial.Page != null && initial.Page.NewestCursor == 0 && initial.Page.Events.Count == 0, "initial event read requires clock start");
+        Check(Status().Status.NeverStarted != null && Find.TickManager.Paused && authority.Status().Generation == lease.Generation, "initial event read changed clock or authority");
         foreach (var pair in new[] { (-1L, 1u), (0L, 0u), (0L, 129u), (long.MaxValue, 128u) }) Check(Events(pair.Item1, pair.Item2).Failure != null, "invalid/unavailable cursor admitted");
         foreach (Action<Clock.StartRequest> mutation in new Action<Clock.StartRequest>[] { r => r.Speed = Clock.Speed.Unspecified, r => r.LeaseMs = 999,
             r => r.LeaseMs = 30001, r => r.MaxTicks = 0, r => r.Policy = null, r => r.Policy.HealthDropFraction = float.NaN,
@@ -224,9 +226,21 @@ internal static class Program
                 "semantic-invalid stored event published a partial or fabricated page");
         }
     }
+    private static void ReadRecoveredHistoryBeforeStart()
+    {
+        Reset(); var epoch = Start(Request()).Receipt.Applied.Status.Running.Epoch;
+        Pause(new Clock.OwnedRequest { Identity = Identity, Owner = epoch.Owner.Clone() });
+        var recorded = Events().Page;
+        Supervisor.FixtureReset();
+        var recovered = Events().Page;
+        Check(recovered != null && recovered.Events.SequenceEqual(recorded.Events) && recovered.NewestCursor == recorded.NewestCursor,
+            "read before start failed to recover durable history");
+        Check(Status().Status.NeverStarted != null && Find.TickManager.Paused && authority.Status().Generation == lease.Generation,
+            "history recovery changed clock or authority");
+    }
     public static void Main()
     {
-        Boundaries(); OwnedLifecycle(); StopsAndContext(); EventProjection(); ReplacementGrantCannotAdoptEpoch(); LostHooksCannotExtendEpoch(); CorruptStoredEvents();
+        Boundaries(); OwnedLifecycle(); StopsAndContext(); EventProjection(); ReplacementGrantCannotAdoptEpoch(); LostHooksCannotExtendEpoch(); CorruptStoredEvents(); ReadRecoveredHistoryBeforeStart();
         Console.WriteLine($"Native clock: {checks} checks; production typed runtime/adapter/ledger/journal, controlled native watcher and SDK seams.");
     }
 }
