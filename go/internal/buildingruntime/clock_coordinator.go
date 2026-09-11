@@ -307,6 +307,9 @@ func (q *ClockCoordinator) command(ctx context.Context, intent store.ClockIntent
 		}
 	}
 	e := clockCoordinatorExpectation(v)
+	if err = q.guard(call, generation, v.Intent.Snapshot); err != nil {
+		return q.uncertain(v, err)
+	}
 	pre := &a.WritePrecondition{Identity: e.Identity, Attempt: e.Attempt, ExpectedGeneration: proto.Uint64(e.NativeGeneration), LeaseId: proto.String(lease)}
 	var reply *k.ControlReply
 	switch command := v.Intent.Command; {

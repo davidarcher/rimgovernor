@@ -17,16 +17,59 @@ import (
 )
 
 type clockWindowDispatchClock struct {
-	clock *testkit.ManualClock
-	reads int
+	clock       *testkit.ManualClock
+	reads       int
+	beforeWrite func()
 }
 
 func (c *clockWindowDispatchClock) Now() time.Time {
 	c.reads++
 	if c.reads == 3 {
-		c.clock.Advance(2 * time.Second)
+		if c.beforeWrite != nil {
+			c.beforeWrite()
+		} else {
+			c.clock.Advance(2 * time.Second)
+		}
 	}
 	return c.clock.Now()
+}
+
+func TestClockWindowRejectsWeakenedWatchBeforePreparation(t *testing.T) {
+	mutations := []func(*k.WatchPolicy){
+		func(p *k.WatchPolicy) { p.Mode = k.WatchMode_WATCH_MODE_COMBAT.Enum() },
+		func(p *k.WatchPolicy) { p.AcknowledgedHostileIds = []string{"pawn"} },
+		func(p *k.WatchPolicy) { p.AcknowledgedDownedColonistIds = []string{"pawn"} },
+		func(p *k.WatchPolicy) { p.AcknowledgedInjuredColonistIds = []string{"pawn"} },
+		func(p *k.WatchPolicy) { p.SurgicalRecoveryIds = []string{"pawn"} },
+		func(p *k.WatchPolicy) { p.MedicalRestIds = []string{"pawn"} },
+		func(p *k.WatchPolicy) { p.InjuryStopCooldownMs = proto.Uint32(1) },
+	}
+	for i, mutate := range mutations {
+		q, db, f, _, request := clockWindowFixture(t)
+		mutate(request.Intent.Command.Start.Policy)
+		if _, err := q.CommandWindow(context.Background(), request); !errors.Is(err, executor.ErrHeld) {
+			t.Fatal(i, err)
+		}
+		if _, err := db.LookupClockAttempt(context.Background(), request.Intent.RequestID); !errors.Is(err, store.ErrNotFound) || f.reads != 0 || f.writes != 0 {
+			t.Fatal(i, err, f.reads, f.writes)
+		}
+	}
+}
+
+func TestClockWindowFinalClockReadCannotSurviveManual(t *testing.T) {
+	q, db, f, clock, request := clockWindowFixture(t)
+	q.clock = &clockWindowDispatchClock{clock: clock, beforeWrite: func() {
+		if err := q.UpdateAuthority(executor.Authority{Snapshot: request.Intent.Snapshot}); err != nil {
+			t.Fatal(err)
+		}
+	}}
+	if _, err := q.CommandWindow(context.Background(), request); err == nil || f.writes != 0 {
+		t.Fatal(err, f.writes)
+	}
+	v, err := db.LookupClockAttempt(context.Background(), request.Intent.RequestID)
+	if err != nil || v.Phase != store.ClockUncertain {
+		t.Fatal(v, err)
+	}
 }
 
 func TestClockWindowExpiryAfterDispatchRetainsUncertainty(t *testing.T) {

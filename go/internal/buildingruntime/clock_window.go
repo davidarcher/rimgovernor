@@ -17,6 +17,10 @@ func (q *ClockCoordinator) CommandWindow(ctx context.Context, request ClockWindo
 	if intent.Window == nil || intent.Command.Start == nil || intent.Command.Renew != nil || intent.Command.Speed != nil {
 		return store.ClockAttempt{}, executor.ErrHeld
 	}
+	p := intent.Command.Start.Policy
+	if p == nil || p.GetMode() != k.WatchMode_WATCH_MODE_COLONY || len(p.AcknowledgedHostileIds)+len(p.AcknowledgedDownedColonistIds)+len(p.AcknowledgedInjuredColonistIds)+len(p.SurgicalRecoveryIds)+len(p.MedicalRestIds) != 0 || p.GetInjuryStopCooldownMs() != 0 {
+		return store.ClockAttempt{}, executor.ErrHeld
+	}
 	window, start := *intent.Window, *intent.Command.Start
 	intent.Window, intent.Command.Start = &window, &start
 	if start.Policy != nil {
