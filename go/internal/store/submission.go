@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 

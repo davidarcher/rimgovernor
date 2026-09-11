@@ -815,7 +815,7 @@ only intentional small, sanitized regression fixtures belong in source control.
           observation contract. Owner: bridge agent; depends on 03b.1.
         - [x] **06b.3b.2:** complete durable cross-plan reservation recovery.
           Owner: integrator; depends on 04b and 06a.
-          - [ ] **06b.3b.2a:** exercise two real stored plans through Session and
+          - [x] **06b.3b.2a:** exercise two real stored plans through Session and
             restart, proving an uncertain first placement retains costs that hold
             the second plan under the same native owner. Owner: runtime agent;
             depends on 06b.3b.2 and Session assembly.
@@ -832,7 +832,7 @@ only intentional small, sanitized regression fixtures belong in source control.
         - [ ] **06b.3b.5:** wire an explicit player-only entry point and runtime
           worker; keep model proposals separate from authority acquisition.
           Owner: integrator; depends on 06b.3b.3–4 and native guarded adapters.
-          - [ ] **06b.3b.5a.1:** atomically persist one-building player submissions
+          - [x] **06b.3b.5a.1:** atomically persist one-building player submissions
             with exact request replay/conflict detection and bounded catalog
             capacity. Owner: state agent; depends on 04b. No native admission.
           - [ ] **06b.3b.5a.2:** persist monotonic player direction and control
