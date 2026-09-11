@@ -14,7 +14,9 @@ import (
 
 	_ "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	_ "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
+	_ "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	_ "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
+	_ "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb"
 	_ "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"

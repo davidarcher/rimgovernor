@@ -109,34 +109,46 @@ func (FailureCode) EnumDescriptor() ([]byte, []int) {
 type UnavailableReason int32
 
 const (
-	UnavailableReason_UNAVAILABLE_REASON_UNSPECIFIED    UnavailableReason = 0
-	UnavailableReason_UNAVAILABLE_REASON_NOT_LOADED     UnavailableReason = 1
-	UnavailableReason_UNAVAILABLE_REASON_NOT_OBSERVED   UnavailableReason = 2
-	UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED    UnavailableReason = 3
-	UnavailableReason_UNAVAILABLE_REASON_READ_FAILED    UnavailableReason = 4
-	UnavailableReason_UNAVAILABLE_REASON_STALE          UnavailableReason = 5
-	UnavailableReason_UNAVAILABLE_REASON_LIMIT_EXCEEDED UnavailableReason = 6
+	UnavailableReason_UNAVAILABLE_REASON_UNSPECIFIED              UnavailableReason = 0
+	UnavailableReason_UNAVAILABLE_REASON_NOT_LOADED               UnavailableReason = 1
+	UnavailableReason_UNAVAILABLE_REASON_NOT_OBSERVED             UnavailableReason = 2
+	UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED              UnavailableReason = 3
+	UnavailableReason_UNAVAILABLE_REASON_READ_FAILED              UnavailableReason = 4
+	UnavailableReason_UNAVAILABLE_REASON_STALE                    UnavailableReason = 5
+	UnavailableReason_UNAVAILABLE_REASON_LIMIT_EXCEEDED           UnavailableReason = 6
+	UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED            UnavailableReason = 7
+	UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE           UnavailableReason = 8
+	UnavailableReason_UNAVAILABLE_REASON_HIDDEN                   UnavailableReason = 9
+	UnavailableReason_UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING UnavailableReason = 10
 )
 
 // Enum value maps for UnavailableReason.
 var (
 	UnavailableReason_name = map[int32]string{
-		0: "UNAVAILABLE_REASON_UNSPECIFIED",
-		1: "UNAVAILABLE_REASON_NOT_LOADED",
-		2: "UNAVAILABLE_REASON_NOT_OBSERVED",
-		3: "UNAVAILABLE_REASON_UNSUPPORTED",
-		4: "UNAVAILABLE_REASON_READ_FAILED",
-		5: "UNAVAILABLE_REASON_STALE",
-		6: "UNAVAILABLE_REASON_LIMIT_EXCEEDED",
+		0:  "UNAVAILABLE_REASON_UNSPECIFIED",
+		1:  "UNAVAILABLE_REASON_NOT_LOADED",
+		2:  "UNAVAILABLE_REASON_NOT_OBSERVED",
+		3:  "UNAVAILABLE_REASON_UNSUPPORTED",
+		4:  "UNAVAILABLE_REASON_READ_FAILED",
+		5:  "UNAVAILABLE_REASON_STALE",
+		6:  "UNAVAILABLE_REASON_LIMIT_EXCEEDED",
+		7:  "UNAVAILABLE_REASON_NOT_REQUESTED",
+		8:  "UNAVAILABLE_REASON_NOT_APPLICABLE",
+		9:  "UNAVAILABLE_REASON_HIDDEN",
+		10: "UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING",
 	}
 	UnavailableReason_value = map[string]int32{
-		"UNAVAILABLE_REASON_UNSPECIFIED":    0,
-		"UNAVAILABLE_REASON_NOT_LOADED":     1,
-		"UNAVAILABLE_REASON_NOT_OBSERVED":   2,
-		"UNAVAILABLE_REASON_UNSUPPORTED":    3,
-		"UNAVAILABLE_REASON_READ_FAILED":    4,
-		"UNAVAILABLE_REASON_STALE":          5,
-		"UNAVAILABLE_REASON_LIMIT_EXCEEDED": 6,
+		"UNAVAILABLE_REASON_UNSPECIFIED":              0,
+		"UNAVAILABLE_REASON_NOT_LOADED":               1,
+		"UNAVAILABLE_REASON_NOT_OBSERVED":             2,
+		"UNAVAILABLE_REASON_UNSUPPORTED":              3,
+		"UNAVAILABLE_REASON_READ_FAILED":              4,
+		"UNAVAILABLE_REASON_STALE":                    5,
+		"UNAVAILABLE_REASON_LIMIT_EXCEEDED":           6,
+		"UNAVAILABLE_REASON_NOT_REQUESTED":            7,
+		"UNAVAILABLE_REASON_NOT_APPLICABLE":           8,
+		"UNAVAILABLE_REASON_HIDDEN":                   9,
+		"UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING": 10,
 	}
 )
 
@@ -692,7 +704,7 @@ const file_common_proto_rawDesc = "" +
 	"\x18FAILURE_CODE_UNSUPPORTED\x10\v\x12\x1f\n" +
 	"\x1bFAILURE_CODE_NATIVE_FAILURE\x10\f\x12\x1a\n" +
 	"\x16FAILURE_CODE_CANCELLED\x10\r\x12\"\n" +
-	"\x1eFAILURE_CODE_DEADLINE_EXCEEDED\x10\x0e*\x8c\x02\n" +
+	"\x1eFAILURE_CODE_DEADLINE_EXCEEDED\x10\x0e*\xa9\x03\n" +
 	"\x11UnavailableReason\x12\"\n" +
 	"\x1eUNAVAILABLE_REASON_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dUNAVAILABLE_REASON_NOT_LOADED\x10\x01\x12#\n" +
@@ -700,7 +712,12 @@ const file_common_proto_rawDesc = "" +
 	"\x1eUNAVAILABLE_REASON_UNSUPPORTED\x10\x03\x12\"\n" +
 	"\x1eUNAVAILABLE_REASON_READ_FAILED\x10\x04\x12\x1c\n" +
 	"\x18UNAVAILABLE_REASON_STALE\x10\x05\x12%\n" +
-	"!UNAVAILABLE_REASON_LIMIT_EXCEEDED\x10\x06BeZEgithub.com/davidarcher/RimGovernor/go/internal/wire/commonpb;commonpb\xaa\x02\x1bRimGovernor.Protocol.Commonb\x06proto3"
+	"!UNAVAILABLE_REASON_LIMIT_EXCEEDED\x10\x06\x12$\n" +
+	" UNAVAILABLE_REASON_NOT_REQUESTED\x10\a\x12%\n" +
+	"!UNAVAILABLE_REASON_NOT_APPLICABLE\x10\b\x12\x1d\n" +
+	"\x19UNAVAILABLE_REASON_HIDDEN\x10\t\x12/\n" +
+	"+UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING\x10\n" +
+	"BeZEgithub.com/davidarcher/RimGovernor/go/internal/wire/commonpb;commonpb\xaa\x02\x1bRimGovernor.Protocol.Commonb\x06proto3"
 
 var (
 	file_common_proto_rawDescOnce sync.Once
