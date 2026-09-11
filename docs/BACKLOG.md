@@ -614,8 +614,9 @@ expand these into another nested task tree; remove a row when its outcome is met
   core/emergency facts, fourteen persisted needs, unknown food forecast, Manual
   invalidation, joined shutdown and disabled restart. Method execution is not enabled.
   The deterministic food forecast now accounts for diet/access, holder-owned stock,
-  competing demand and rot deadlines, but its native input projection is unfinished.
-  Remaining fact projection (food/forecast inputs, further need inputs and construction
+  competing demand and rot deadlines. Typed native human food inputs have populated
+  stock parity and Go/Python forecast replay; combined animal demand remains unported.
+  Remaining fact projection (combined forecast inputs, further need inputs and construction
   costs), goal/reservation-history retirement,
   method selection and execution composition remain
   open; these components do not enable orders.

@@ -620,7 +620,7 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/FoodSupplyFacts.cs",
-      "source_sha256": "a31fab490056e52bff0884451d74db49e735802d9956ffdff54ba61eb7203736",
+      "source_sha256": "7ed5a5955d2b8825d5e2f0783da181e9c55ea2121ffb49ddcf1fee019d0eeaf5",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
       "migration_status": "inventoried-unmigrated",
@@ -1923,7 +1923,7 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeColonyObservationTools.cs",
-      "source_sha256": "b4bfd2ee377c1e3fbf54154c659ba45d738bd01a6a6acc17bffb47d71d9307f5",
+      "source_sha256": "e7af9ff9ee5ea45f9b679a99cdf5efa5d8660e2a44748fe3bef016f35152257f",
       "compilation": "production-bridge",
       "owner": "N01.03 native observation owner",
       "migration_status": "typed-core-planning",
@@ -1931,15 +1931,16 @@
         21,
         49,
         61,
-        125,
-        184,
-        185,
+        127,
         186,
         187,
         188,
         189,
         190,
-        191
+        208,
+        209,
+        210,
+        211
       ],
       "reflection_boundary_lines": [],
       "patch_registration_lines": [],

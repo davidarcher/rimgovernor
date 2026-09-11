@@ -101,6 +101,8 @@ async def run(root: Path, output: Path, *, headless: bool, timeout_seconds: int,
                     await call("new-game", "rimworld/start_debug_game_ready",
                         {"readiness": "visual", "pauseIfNeeded": True, "timeoutMs": 120000}, startup=True)
                     await call("pause", "rimworld/set_time_speed", {"speed": "Paused", "ultraSpeedBoost": False})
+                    from native_colony_facts_checks import prepare_food_stock
+                    report['food_setup'] = await prepare_food_stock(call)
                     identity_before = await wire("identity-before", "lifecycle_read_identity", {})
                     loaded = object_value(identity_before.get("loaded"), "loaded identity")
                     context = object_value(loaded.get("context"), "context")

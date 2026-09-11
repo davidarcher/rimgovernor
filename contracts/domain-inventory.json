@@ -7884,7 +7884,7 @@
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeColonyObservationTools.cs",
           "line": 28,
           "declaration": "[Tool(ToolName, Title = \"Read typed routine colony facts\", Description = \"Native colony, accessible stock, sleeping capacity, temperature and storage facts. Optional bounded starter geometry/definitions. Raw food runway is not a diet/rot forecast. Unported sections are explicitly unavailable. Read-only; no authority or orders.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ColonyFactsReply ProtoJSON, bounded to1MiB.\", Always = true)]\n        public async Task<object> ReadColonyFacts(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Raw ColonyFactsRequest ProtoJSON string.\")] object? request = null)",
-          "source_sha256": "b4bfd2ee377c1e3fbf54154c659ba45d738bd01a6a6acc17bffb47d71d9307f5"
+          "source_sha256": "e7af9ff9ee5ea45f9b679a99cdf5efa5d8660e2a44748fe3bef016f35152257f"
         },
         {
           "name": "rimgovernor/observations_read_research",
@@ -9513,14 +9513,16 @@
         "build_role": "production",
         "fixtures": [
           "go/internal/bridge/colony_test.go",
-          "go/internal/observation/colony_test.go"
+          "go/internal/observation/colony_test.go",
+          "go/internal/bridge/food_supply_test.go",
+          "go/internal/observation/food_supply_test.go"
         ],
         "native_scenarios": [
           "scripts/native_protobuf_acceptance.py"
         ],
         "status": "pending",
         "uncovered_acceptance": [
-          "Diet/rot forecasts, upkeep/development, naming and further routine fact sections remain unported.",
+          "Combined human/animal forecast inputs, upkeep/development, naming and further routine fact sections remain unported.",
           "Bounded core/planning reads do not prove routine execution or pawn-work completion."
         ],
         "protocol_method": "rimgovernor.observations.v1.Observations/ReadColonyFacts",

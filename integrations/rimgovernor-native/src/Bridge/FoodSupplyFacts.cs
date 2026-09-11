@@ -10,11 +10,11 @@ namespace HomeBridge.BridgeTools
     /// Read-only food accounting; inventory belongs to its holder until hauled.
     internal static class FoodSupplyFacts
     {
-        internal static object Read(List<Pawn> people, List<Thing> shared)
+        internal static Snapshot Read(List<Pawn> people, List<Thing> shared)
         {
-            var stocks = new List<object>();
+            var stocks = new List<StockFacts>();
             var seen = new HashSet<int>();
-            var consumers = people.Where(p => p.needs?.food != null).Select(p => new {
+            var consumers = people.Where(p => p.needs?.food != null).Select(p => new ConsumerFacts {
                 id = p.GetUniqueLoadID(),
                 nutritionPerDay = p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f
             }).ToList();
@@ -41,7 +41,7 @@ namespace HomeBridge.BridgeTools
                         stocks.Add(Stock(thing, new List<Pawn> { pawn }, pawn.GetUniqueLoadID()));
                 }
             }
-            return new { readable = true, consumers, stocks,
+            return new Snapshot { readable = true, consumers = consumers, stocks = stocks,
                 assumptions = new[] {
                     "Stock is apportioned only among observed eligible eaters by fed demand. Downed consumers need assistance; held food feeds only its holder.",
                     "Rot deadlines assume the current native ambient temperature; frozen food can thaw. Future harvest, animal feed and future access are not guaranteed.",
@@ -53,16 +53,40 @@ namespace HomeBridge.BridgeTools
             return pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn)?.filter.Allows(food) != false;
         }
 
-        private static object Stock(Thing thing, List<Pawn> eaters, string holder)
+        private static StockFacts Stock(Thing thing, List<Pawn> eaters, string holder)
         {
             var rot = thing.TryGetComp<CompRottable>();
             var perishable = rot != null && rot.Active;
-            return new { id = thing.GetUniqueLoadID(), defName = thing.def.defName, count = thing.stackCount,
-                holder, nutrition = thing.stackCount * eaters.Min(p => FoodUtility.NutritionForEater(p, thing)),
+            return new StockFacts { id = thing.GetUniqueLoadID(), defName = thing.def.defName, count = thing.stackCount,
+                holder = holder, nutrition = thing.stackCount * eaters.Min(p => FoodUtility.NutritionForEater(p, thing)),
                 eaters = eaters.Select(p => p.GetUniqueLoadID()).ToList(),
-                perishable, rotTicks = perishable ? (int?)Math.Max(0, rot.TicksUntilRotAtCurrentTemp) : null,
+                perishable = perishable, rotTicks = perishable ? (int?)Math.Max(0, rot.TicksUntilRotAtCurrentTemp) : null,
                 temperature = thing.AmbientTemperature,
                 roofed = thing.Spawned ? (bool?)thing.Position.Roofed(thing.Map) : null };
+        }
+
+        // Shared typed source for the compatibility JSON and protobuf projections.
+        internal sealed class Snapshot {
+            public bool readable { get; set; }
+            public List<ConsumerFacts> consumers { get; set; }
+            public List<StockFacts> stocks { get; set; }
+            public string[] assumptions { get; set; }
+        }
+        internal sealed class ConsumerFacts {
+            public string id { get; set; }
+            public float nutritionPerDay { get; set; }
+        }
+        internal sealed class StockFacts {
+            public string id { get; set; }
+            public string defName { get; set; }
+            public int count { get; set; }
+            public string holder { get; set; }
+            public float nutrition { get; set; }
+            public List<string> eaters { get; set; }
+            public bool perishable { get; set; }
+            public int? rotTicks { get; set; }
+            public float temperature { get; set; }
+            public bool? roofed { get; set; }
         }
     }
 }

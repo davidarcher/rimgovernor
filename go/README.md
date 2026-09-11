@@ -80,8 +80,10 @@ reads. To replay a retained official payload through Go and durable review, set
 `policy.ForecastFood` ports per-consumer food allocation under observed diet/access,
 private inventory, shared animal demand and native rot deadlines. It consumes the
 earliest-expiring allocation first and reports usable and at-risk nutrition. Unknown
-ownership, eligibility, quantities or deadlines cannot certify runway. Native food
-input projection and connection to routine `FoodDays` remain unfinished.
+ownership, eligibility, quantities or deadlines cannot certify runway. Native human
+food supply is projected through `DecodeFoodSupply`, including holder ownership and
+eligible eaters; paused native parity and Go/Python replay cover populated stock.
+Combined animal demand and connection to routine `FoodDays` remain unfinished.
 
 `buildingruntime.RoutineReviewer.Step` serializes observation and durable review
 through the existing player gate, rechecks authority after the read, and retains

@@ -146,7 +146,14 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 	if v.Naming != nil || len(v.PolicyResources) != 0 || len(v.Environment) != 0 || v.FoodClimate != nil || len(v.Farms) != 0 || len(v.Cooking) != 0 || len(v.Acquisition) != 0 || len(v.Butchering) != 0 || len(v.FoodCorpses) != 0 || v.Recovery != nil || v.Waste != nil {
 		return contract("unreviewed colony section")
 	}
-	for _, unavailable := range []*c.Unavailable{v.GetFoodSupply().GetUnavailable(), v.GetForecast().GetUnavailable(), v.GetUpkeep().GetUnavailable(), v.GetDevelopment().GetUnavailable()} {
+	if food := v.GetFoodSupply().GetObserved(); food != nil {
+		if err := ValidateFoodSupply(food); err != nil {
+			return err
+		}
+	} else if err := validateUnavailable(v.GetFoodSupply().GetUnavailable()); err != nil {
+		return err
+	}
+	for _, unavailable := range []*c.Unavailable{v.GetForecast().GetUnavailable(), v.GetUpkeep().GetUnavailable(), v.GetDevelopment().GetUnavailable()} {
 		if err := validateUnavailable(unavailable); err != nil {
 			return err
 		}

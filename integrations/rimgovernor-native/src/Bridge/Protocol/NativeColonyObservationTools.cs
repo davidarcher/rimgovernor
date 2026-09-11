@@ -93,7 +93,9 @@ namespace HomeBridge.BridgeTools
                 BedCapacity = checked((uint)beds.Sum(b => b.SleepingSlotsCount)), IndoorSleepingCapacity = checked((uint)indoorBeds.Sum(b => b.SleepingSlotsCount)),
                 FoodNutrition = Finite(nutrition), NutritionPerDay = Finite(demand), OutdoorTemperatureC = Finite(map.mapTemperature.OutdoorTemp),
                 Completeness = Complete(1),
-                FoodSupply = new Obs.FoodSupplySection { Unavailable = Unsupported("Diet/rot/holder food inputs are not yet projected.") },
+                FoodSupply = new Obs.FoodSupplySection { Observed = Food(FoodSupplyFacts.Read(people,
+                    things.Where(t => t.def.category == ThingCategory.Item && t.def.IsNutritionGivingIngestible
+                        && !t.def.IsDrug && t.IngestibleNow && (t.Faction == null || t.Faction.IsPlayer)).ToList())) },
                 Forecast = new Obs.ForecastSection { Unavailable = Unsupported("Forecast inputs are not yet projected.") },
                 Upkeep = new Obs.UpkeepSection { Unavailable = Unsupported("Upkeep facts are not yet projected.") },
                 Development = new Obs.DevelopmentSection { Unavailable = Unsupported("Development facts are not yet projected.") }
@@ -185,6 +187,24 @@ namespace HomeBridge.BridgeTools
         private static Obs.MapSize Size(Map map) => new Obs.MapSize { Width = (uint)map.Size.x, Height = (uint)map.Size.z };
         private static double Finite(double v) => double.IsNaN(v) || double.IsInfinity(v) ? throw new InvalidOperationException("Nonfinite fact.") : v;
         private static void Bound(int count, int limit) { if (count > limit) throw new ReadLimit("Complete collection exceeds requested bound; frozen paging is unavailable."); }
+        private static Obs.FoodSupplyFacts Food(FoodSupplyFacts.Snapshot source)
+        {
+            Bound(source.consumers.Count, 256); Bound(source.stocks.Count, 4096);
+            var result = new Obs.FoodSupplyFacts { Completeness = Complete(source.consumers.Count + source.stocks.Count) };
+            foreach (var consumer in source.consumers)
+                result.Consumers.Add(new Obs.FoodConsumer { PawnId = consumer.id, NutritionPerDay = Finite(consumer.nutritionPerDay) });
+            foreach (var stock in source.stocks) {
+                var row = new Obs.FoodStock { Item = new Obs.EntityRef { Id = stock.id, DefName = stock.defName },
+                    Count = stock.count, Nutrition = Finite(stock.nutrition), Perishable = stock.perishable,
+                    TemperatureC = Finite(stock.temperature) };
+                row.EaterIds.Add(stock.eaters);
+                if (stock.holder != null) row.HolderId = stock.holder;
+                if (stock.rotTicks.HasValue) row.RotTicks = stock.rotTicks.Value;
+                if (stock.roofed.HasValue) row.Roofed = stock.roofed.Value;
+                result.Stocks.Add(row);
+            }
+            return result;
+        }
         private static Obs.Completeness Complete(int count, int filtered = 0) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = (ulong)filtered, Unreadable = 0 };
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Common.Unavailable Unsupported(string detail) => Unavailable(Common.UnavailableReason.Unsupported, detail);

@@ -1,0 +1,11 @@
+{
+  "consumers": [
+    {"pawnId": "a", "nutritionPerDay": 2},
+    {"pawnId": "b", "nutritionPerDay": 1}
+  ],
+  "stocks": [
+    {"item": {"id": "rice", "defName": "RawRice"}, "count": "100", "nutrition": 9, "eaterIds": ["a", "b"], "perishable": true, "rotTicks": "60000", "temperatureC": 21, "roofed": false},
+    {"item": {"id": "pack", "defName": "Pemmican"}, "count": "10", "holderId": "a", "nutrition": 4, "eaterIds": ["a"], "perishable": false, "temperatureC": 21}
+  ],
+  "completeness": {"page": {"complete": true}, "matched": "4", "returned": "4", "filtered": "0", "unreadable": "0"}
+}

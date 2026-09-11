@@ -2,12 +2,14 @@ package observation
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -87,6 +89,37 @@ func TestColonyNativeCaptureReachesRoutineReview(t *testing.T) {
 	}
 	if len(p.Cells) == 0 || len(p.Definitions) == 0 {
 		t.Fatal("missing native planning data")
+	}
+	if reference := os.Getenv("RIMGOVERNOR_NATIVE_FOOD_FORECAST"); reference != "" {
+		food, known := p.FoodSupply.Value()
+		if !known {
+			t.Fatal("native food supply missing")
+		}
+		forecast, err := policy.ForecastFood(food, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, err := os.ReadFile(reference)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var want struct {
+			Readable                                                         bool
+			RunwayDays, UsableNutrition, AtRiskNutrition, InventoryNutrition float64
+		}
+		if err = json.Unmarshal(data, &want); err != nil || !want.Readable {
+			t.Fatal("invalid native reference forecast", err)
+		}
+		days, known := forecast.RunwayDays.Value()
+		if !known {
+			t.Fatal("missing native food runway")
+		}
+		for _, pair := range [][2]float64{{days, want.RunwayDays}, {forecast.UsableNutrition, want.UsableNutrition}, {forecast.AtRiskNutrition, want.AtRiskNutrition}, {forecast.InventoryNutrition, want.InventoryNutrition}} {
+			if math.Abs(pair[0]-pair[1]) > 1e-6*math.Max(1, math.Abs(pair[1])) {
+				t.Fatal("Go/Python native food forecast mismatch", pair)
+			}
+		}
+		t.Logf("Native food forecast matches Python: runway %.9g days", days)
 	}
 	s, err := store.Open(context.Background(), filepath.Join(t.TempDir(), "native-review.db"))
 	if err != nil {

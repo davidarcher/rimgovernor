@@ -26,6 +26,7 @@ type ColonyProjection struct {
 	Center      domain.Cell
 	Cells       []policy.SiteCell
 	Definitions []PlanningDefinition
+	FoodSupply  domain.Fact[policy.FoodSupply]
 }
 
 func optional[T any](p *T) domain.Fact[T] {
@@ -94,6 +95,13 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	}
 	r := ColonyProjection{Identity: identity, Bounds: policy.Bounds{Width: int32(v.MapSize.GetWidth()), Height: int32(v.MapSize.GetHeight())}, Center: domain.Cell{X: v.Center.GetX(), Z: v.Center.GetZ()}}
 	r.Facts = policy.RoutineFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC), FoodStorage: optional(v.FoodStorage)}
+	if food := v.GetFoodSupply().GetObserved(); food != nil {
+		supply, err := DecodeFoodSupply(food)
+		if err != nil {
+			return ColonyProjection{}, err
+		}
+		r.FoodSupply = domain.Known(supply)
+	}
 	if v.WorkerCount != nil {
 		r.Workers = domain.Known(int(v.GetWorkerCount()))
 	}
