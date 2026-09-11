@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	"google.golang.org/protobuf/proto"
@@ -40,8 +43,20 @@ func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration) error {
-	scheduler, err := buildingruntime.NewClockScheduler(player, session, reads, serviceClockConfig(profile), wallClock{})
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration, routine bool) error {
+	config := serviceClockConfig(profile)
+	if routine {
+		native, ok := reads.(observation.ColonySource)
+		if !ok {
+			return errors.New("routine reviews require typed colony observations")
+		}
+		reviewer, err := buildingruntime.NewRoutineReviewer(player, native, wallClock{}, policy.DefaultRoutinePolicy(), config.MaxAge)
+		if err != nil {
+			return err
+		}
+		config.Routine = reviewer
+	}
+	scheduler, err := buildingruntime.NewClockScheduler(player, session, reads, config, wallClock{})
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
 func TestClockServeRequiresPlayerControl(t *testing.T) {
@@ -31,8 +33,14 @@ type clockServiceFake struct {
 	buildingruntime.ClockNative
 	buildingruntime.ClockWriter
 	buildingruntime.ClockWindowNative
-	reads  *buildingReadFake
-	polled chan struct{}
+	reads       *buildingReadFake
+	polled      chan struct{}
+	colonyReads atomic.Int32
+}
+
+func (f *clockServiceFake) ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error) {
+	f.colonyReads.Add(1)
+	return nil, bridge.Result{}, errors.New("colony read unavailable")
 }
 
 func (f *clockServiceFake) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {
@@ -56,7 +64,7 @@ func TestClockServiceDisabledStartupPollsAndJoins(t *testing.T) {
 	reads := &buildingReadFake{serviceFake: serviceFake{entered: make(chan struct{}, 2)}}
 	clock := &clockServiceFake{reads: reads, polled: make(chan struct{}, 1)}
 	caps := unusedBuildingCapabilities{}
-	config := serveConfig{playerControl: true, clockControl: true, profile: dir, state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", refresh: time.Second, bridge: bridge.ProcessConfig{Timeout: time.Second}}
+	config := serveConfig{playerControl: true, clockControl: true, routineReviews: true, profile: dir, state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", refresh: time.Second, bridge: bridge.ProcessConfig{Timeout: time.Second}}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	addresses := make(buildingAddressWriter, 1)
@@ -81,5 +89,20 @@ func TestClockServiceDisabledStartupPollsAndJoins(t *testing.T) {
 	}
 	if !reads.closed.Load() || reads.closeWhileReading.Load() {
 		t.Fatal("read connection closed before readers joined")
+	}
+	if clock.colonyReads.Load() != 0 {
+		t.Fatal("disabled startup read routine facts")
+	}
+}
+
+func TestRoutineServeRequiresClockControl(t *testing.T) {
+	dir := t.TempDir()
+	base := []string{"--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "game", "--state", filepath.Join(dir, "state.db"), "--player-control", "--profile", dir, "--routine-reviews"}
+	if _, err := parseServe(base, io.Discard); err == nil {
+		t.Fatal("routine reviews without clock accepted")
+	}
+	config, err := parseServe(append(base, "--clock-control"), io.Discard)
+	if err != nil || !config.routineReviews {
+		t.Fatal(config, err)
 	}
 }

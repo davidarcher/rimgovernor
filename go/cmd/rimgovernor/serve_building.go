@@ -199,7 +199,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	owner = player
 	if config.clockControl {
-		if err = startServiceClock(lifetime, player, session, client.clockReads, config.profile, callTimeout); err != nil {
+		if err = startServiceClock(lifetime, player, session, client.clockReads, config.profile, callTimeout, config.routineReviews); err != nil {
 			return err
 		}
 	}

@@ -86,9 +86,11 @@ attach the same player's reviewer through `ClockSchedulerConfig.Routine`; it run
 after clock obligations drain and before a new window decision. Running epochs and
 cleanup take precedence, and a failed review prevents a new window.
 
-These components remain gated prerequisites. The typed read observes the game;
-routine scheduling, remaining fact projection, method selection and runtime
-composition remain in G01.05. Routine reviews do not acquire authority or issue orders.
+Add `--routine-reviews` to `serve --player-control --clock-control` to attach the
+reviewer to the service clock worker. It uses the default routine thresholds and
+requires typed colony observations. Startup remains disabled. This option journals
+needs; it does not select methods or issue routine orders. Live service acceptance,
+remaining fact projection, method selection and execution composition remain in G01.05.
 
 ## Local interpretation
 
