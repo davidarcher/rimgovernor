@@ -194,8 +194,7 @@ The internal clock scheduler can perform one finite healthy-colony scheduling st
 through the shared session. Its durable window admission binds current review and
 native cursor evidence to dispatch, and repeated unchanged decisions retain their
 request identity. An optional attached clock worker runs event polling, epoch
-renewal and scheduling independently, with joined retryable shutdown. Player-service
-wiring and actual Go clock acceptance remain gated. See the
+renewal and scheduling independently, with joined retryable shutdown. Add `--clock-control` to `serve --player-control` to attach this worker. It uses normal speed, 600-tick windows and a 30-second owned lease; startup remains disabled. Interruptions hold execution without automatic acknowledgement. Event-history maintenance, player acknowledgement UI and actual Go clock acceptance remain pending. See the
 [clock recovery contract](../docs/developers/contracts/go-clock-recovery.md).
 
 ## Isolated building acceptance

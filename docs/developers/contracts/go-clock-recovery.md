@@ -193,7 +193,7 @@ current plan work and complete attempt/epoch catalogs before collecting fresh na
 facts. Unchanged decision inputs retain the same request ID across repeated calls;
 an undispatched stale preparation cannot prevent a fresh decision. Disabled sessions
 perform owned cleanup and cannot start. A valid running window is left unchanged.
-The step itself has no polling loop and is not yet wired into the player service.
+The step itself has no polling loop; the player service attaches ClockWorker with --clock-control.
 
 ## Independent clock workers
 
@@ -214,7 +214,7 @@ joins the loops and their cancellation handler before releasing native handles,
 the journal or profile owner. Concurrent Stop calls serialize, successful cleanup
 is cached, and failed cleanup remains retryable. Worker intervals and call budgets
 are bounded below the native lease duration; unchanged scheduling decisions back
-off. Service wiring and actual Go native acceptance remain separate gates.
+off. The player service opts in with --clock-control. Actual Go native acceptance remains pending.
 
 A fresh worker over reopened state remains disabled while recovering original
 attempts and pausing retained ownership; it does not acquire authority or issue a
