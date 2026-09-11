@@ -106,7 +106,7 @@ namespace HomeBridge.BridgeTools
             { "success", false }, { "tool", ToolName }, { "message", message } }; }
     }
 
-    internal static class Supervisor
+    internal static partial class Supervisor
     {
         private const int Capacity = 128;
         private const int AcceleratedProbeTicks = 30;
@@ -224,6 +224,7 @@ namespace HomeBridge.BridgeTools
                     IgnoredInjured = PawnIds(ignoredInjured),
                     InjuryStopCooldownMs = Clamp(injuryStopCooldownMs, 0, 1800000)
                 };
+                AttachTypedEpoch(s);
                 // Pawn IDs belong to a save; another colony must not inherit
                 // this one's injury-stop memory.
                 if (!ReferenceEquals(_injuryStopsSession, Current.Game))
@@ -278,8 +279,9 @@ namespace HomeBridge.BridgeTools
             lock (Gate)
             {
                 var s = _state;
+                if (s != null && s.Typed != null) return Failure("Canonical clock epochs require the typed renewal capability.");
                 if (!Owns(s, owner, epoch)) return Failure("Owner/epoch mismatch or no active supervisor.");
-                s.LeaseExpiresMs = NowMs() + Clamp(leaseMs, 1000, 30000);
+                s.LeaseExpiresMs = LeaseNow(s) + Clamp(leaseMs, 1000, 30000);
                 return Snapshot(s, true);
             }
         }
@@ -289,6 +291,7 @@ namespace HomeBridge.BridgeTools
             lock (Gate)
             {
                 var s = _state;
+                if (s != null && s.Typed != null && !typedSpeedCall) return Failure("Canonical clock epochs require the typed speed capability.");
                 if (!Owns(s, owner, epoch)) return Failure("Owner/epoch mismatch or no active supervisor.");
                 // Update expectation and game speed in the same main-thread
                 // critical section, so our own change cannot look external.
@@ -313,6 +316,7 @@ namespace HomeBridge.BridgeTools
             lock (Gate)
             {
                 var s = _state;
+                if (s != null && s.Typed != null) return Failure("Canonical clock epochs require the typed owned cleanup capability.");
                 if (!Owns(s, owner, epoch)) return Failure("Owner/epoch mismatch or no active supervisor.");
                 Stop(s, "requested_pause", "Paused by the supervisor owner.", true, null);
                 return Snapshot(s, s.PauseVerified == true);
@@ -361,6 +365,8 @@ namespace HomeBridge.BridgeTools
                 if (tm.TicksGame < s.LastTick)
                 { Stop(s, "session_changed", "Game clock rewound.", true, null); return; }
                 s.LastTick = tm.TicksGame;
+                CaptureTypedContext(s);
+                if (StopInvalidTypedAuthority(s)) return;
                 // Preserve player and letter attribution if the final tick also
                 // changed the clock. The frame watcher handles those stops.
                 if (tm.CurTimeSpeed != s.RequestedSpeed) return;
@@ -386,11 +392,13 @@ namespace HomeBridge.BridgeTools
                     if (tm == null) { Stop(s, "unavailable", "Tick manager disappeared.", false, null); return; }
                     if (tm.TicksGame < s.LastTick) { Stop(s, "session_changed", "Game clock rewound.", true, null); return; }
                     s.LastTick = tm.TicksGame;
+                    CaptureTypedContext(s);
                     if (s.PendingKind != null)
                     {
                         Stop(s, s.PendingKind, s.PendingDetail, true, s.PendingPayload);
                         return;
                     }
+                    if (StopInvalidTypedAuthority(s)) return;
                     // A force pause is checked BEFORE the paused/speed tests: it is
                     // the more specific diagnosis, and a long event can hold the
                     // clock without ever touching CurTimeSpeed.
@@ -405,7 +413,7 @@ namespace HomeBridge.BridgeTools
                     if (tm.CurTimeSpeed != s.RequestedSpeed) { Stop(s, "external_speed_changed", "Speed changed outside the supervisor.", true,
                         new Dictionary<string, object> { { "expectedSpeed", s.RequestedSpeed.ToString() },
                             { "actualSpeed", tm.CurTimeSpeed.ToString() } }); return; }
-                    if (NowMs() >= s.LeaseExpiresMs) { Stop(s, "lease_expired", "Heartbeat lease expired.", true, null); return; }
+                    if (LeaseNow(s) >= s.LeaseExpiresMs) { Stop(s, "lease_expired", "Heartbeat lease expired.", true, null); return; }
                     if (NowMs() - s.LastProbeMs < 100
                         && (!s.TestAcceleration || tm.TicksGame - s.LastProbeTick < AcceleratedProbeTicks)) return;
                     s.MaxProbeTickGap = Math.Max(s.MaxProbeTickGap, tm.TicksGame - s.LastProbeTick);
@@ -893,9 +901,12 @@ namespace HomeBridge.BridgeTools
             Dictionary<string, object> payload)
         {
             if (!ReferenceEquals(s, _state) || !s.Active) return;
+            if (s.Typed != null) s.Typed.PauseRequested = pause;
             if (pause && Find.TickManager != null && Find.TickManager.CurTimeSpeed != TimeSpeed.Paused) Find.TickManager.Pause();
             s.PausedAtStop = Find.TickManager != null && Find.TickManager.CurTimeSpeed == TimeSpeed.Paused;
             s.PauseVerified = !pause || s.PausedAtStop;
+            if (s.Typed != null) s.Typed.StopPauseVerified = ReferenceEquals(Current.Game, s.Session)
+                && ReferenceEquals(Find.CurrentMap, s.Map) && s.PausedAtStop;
             if (pause && !s.PausedAtStop)
             {
                 // Stay armed and retry on the next frame. Going inactive here
@@ -928,13 +939,23 @@ namespace HomeBridge.BridgeTools
                 { "kind", kind }, { "detail", detail }, { "event", payload },
                 { "colonyId", identity?.ColonyId }, { "loadToken", identity?.LoadToken }, { "mapId", s.Map.uniqueID },
                 { "tick", Find.TickManager != null ? Find.TickManager.TicksGame : s.LastTick }, { "atMs", NowMs() } };
-            try { Journal.Append(row); _cursor = Journal.Newest; }
+            try { AttachTypedEvent(row, kind, detail, s, payload); Journal.Append(row); _cursor = Journal.Newest; }
             catch
             {
-                if (ReferenceEquals(Current.Game, s.Session) && Find.TickManager != null)
+                var sameContext = ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map);
+                if (sameContext && Find.TickManager != null)
                     Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
                 RestoreBoost(s);
                 s.Active = false; s.StopReason = "event_journal_error";
+                if (s.Typed != null)
+                {
+                    s.Typed.PauseRequested = sameContext;
+                    s.PausedAtStop = sameContext && Find.TickManager != null && Find.TickManager.CurTimeSpeed == TimeSpeed.Paused;
+                    s.PauseVerified = s.PausedAtStop;
+                    s.Typed.StopPauseVerified = s.PausedAtStop;
+                    s.StopAtMs = NowMs(); s.StopDetail = "Canonical event publication failed.";
+                    if (sameContext && !s.PausedAtStop) { s.Active = true; s.PendingKind = "event_journal_error"; s.PendingDetail = s.StopDetail; }
+                }
                 throw;
             }
         }
@@ -968,7 +989,7 @@ namespace HomeBridge.BridgeTools
                 { "forcePauseKind", s != null ? s.ForcePauseKind : null },
                 { "pauseVerified", s != null ? (object)s.PauseVerified : null },
                 { "sessionChanged", s != null && s.StopReason == "session_changed" },
-                { "leaseExpiresAtMs", s != null ? s.LeaseExpiresMs : 0 }, { "leaseRemainingMs", s != null ? Math.Max(0, s.LeaseExpiresMs - NowMs()) : 0 },
+                { "leaseExpiresAtMs", s != null ? NowMs() + Math.Max(0, s.LeaseExpiresMs - LeaseNow(s)) : 0 }, { "leaseRemainingMs", s != null ? Math.Max(0, s.LeaseExpiresMs - LeaseNow(s)) : 0 },
                 { "stopReason", s != null ? s.StopReason : null }, { "stopDetail", s != null ? s.StopDetail : null },
                 { "newestCursor", _cursor }, { "patchError", _patchError } };
         }
@@ -1014,6 +1035,7 @@ namespace HomeBridge.BridgeTools
 
         private sealed class State
         {
+            public TypedEpoch Typed;
             public bool Active; public long Epoch; public string Owner; public object Session; public Map Map; public TimeSpeed RequestedSpeed;
             public string Mode; public float HostileWithin; public float HealthDropFraction; public float MinHealthFraction;
             public long LeaseExpiresMs; public long LastProbeMs; public int LastTick; public bool PausedAtStop;

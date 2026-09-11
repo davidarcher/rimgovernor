@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><Nullable>disable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.31.1" /><PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <Compile Include="../../generated/protobuf/csharp/*.cs" />
+    <Compile Include="../../../integrations/rimgovernor-native/src/Bridge/Protocol/NativeClock*.cs" />
+    <Compile Include="../../../integrations/rimgovernor-native/src/Bridge/Protocol/NativeAttemptLedger.cs" />
+    <Compile Include="../../../integrations/rimgovernor-native/src/Bridge/Protocol/ProtoBoundary.cs" />
+    <Compile Include="../../../integrations/rimgovernor-native/src/Bridge/ClockEventJournal.cs" />
+    <Compile Include="../../../integrations/rimgovernor-native/src/Runtime/Persistence/NativeControlAuthority.cs" />
+    <Compile Include="../native-authority-status/BoundaryStub.cs" />
+  </ItemGroup>
+</Project>
