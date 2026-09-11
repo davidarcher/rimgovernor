@@ -84,6 +84,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context) (store.RoutineReviewR
 		}
 	}
 	reading.Projection.Facts.CleanupPawns = domain.Known(cleanup)
+	reading.Projection.ApplyFieldBudget(r.policy.FoodTargetDays)
 	if err = p.current(ctx, epoch); err != nil {
 		return store.RoutineReviewResult{}, err
 	}

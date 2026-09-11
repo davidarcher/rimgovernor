@@ -126,6 +126,10 @@ after clock obligations drain and before a new window decision. Running epochs a
 cleanup take precedence, and a failed review prevents a new window.
 
 Native farm and cooking censuses also feed routine assessments. Production counts
+and crop definitions supply field coverage: each crop budgets consumption through
+its growth cycle plus the configured food reserve, including animals that can eat
+its product. Routine reads include planning definitions; unknown yields or demand
+remain unknown capacity. Coverage never credits food inventory. Production counts
 only actively growing edible plants; cooking requires a usable bench with an
 unsuspended recipe-matching food bill. Unknown fields cannot certify recovery, and
 neither crops nor a cooking bill add credit to stored food runway. The native

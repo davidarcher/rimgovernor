@@ -6,6 +6,31 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
+func colonyFieldCrops(v *o.ColonyFactsSnapshot, definitions []PlanningDefinition) domain.Fact[[]policy.FieldCrop] {
+	if hasIssue(v.Issues, "farms") {
+		return domain.Unknown[[]policy.FieldCrop]()
+	}
+	rows := make([]policy.FieldCrop, 0, len(v.Farms))
+	for _, farm := range v.Farms {
+		row := policy.FieldCrop{Edible: optional(farm.EdibleCrop), GrowingCells: countFact(farm.GrowingCells)}
+		for _, definition := range definitions {
+			if farm.Crop != nil && definition.Name == farm.GetCrop() {
+				row.GrowDays = definition.GrowDays
+				row.HarvestNutrition = definition.HarvestNutrition
+				row.Demand = definition.NutritionDemandPerDay
+				break
+			}
+		}
+		rows = append(rows, row)
+	}
+	return domain.Known(rows)
+}
+
+// ApplyFieldBudget uses the configured reserve target at the review boundary.
+func (p *ColonyProjection) ApplyFieldBudget(reserveDays float64) {
+	p.Facts.FieldCoverage = policy.FieldCoverage(p.Facts.Colonists, p.FieldCrops, reserveDays)
+}
+
 func colonyProduction(v *o.ColonyFactsSnapshot, facts *policy.RoutineFacts) {
 	if !hasIssue(v.Issues, "farms") {
 		var growing int64

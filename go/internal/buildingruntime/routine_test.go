@@ -19,9 +19,10 @@ import (
 )
 
 type routineNative struct {
-	reply  *o.ColonyFactsReply
-	onRead func(context.Context)
-	reads  int
+	reply    *o.ColonyFactsReply
+	onRead   func(context.Context)
+	reads    int
+	planning bool
 }
 
 func (n *routineNative) ReadEmergency(ctx context.Context, _ *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
@@ -31,12 +32,46 @@ func (n *routineNative) ReadEmergency(ctx context.Context, _ *c.Identity) (bridg
 func (n *routineNative) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {
 	return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Paused: proto.Bool(true)}}}, bridge.Result{}, ctx.Err()
 }
-func (n *routineNative) ReadColonyFacts(ctx context.Context, _ *c.Identity, _ bool, _ []string) (*o.ColonyFactsReply, bridge.Result, error) {
+func (n *routineNative) ReadColonyFacts(ctx context.Context, _ *c.Identity, planning bool, _ []string) (*o.ColonyFactsReply, bridge.Result, error) {
 	n.reads++
+	n.planning = planning
 	if n.onRead != nil {
 		n.onRead(ctx)
 	}
 	return n.reply, bridge.Result{}, nil // A late transport may ignore cancellation.
+}
+
+func TestRoutineReviewerUsesConfiguredFieldReserve(t *testing.T) {
+	r, db, _, _, n := routineFixture(t)
+	v := n.reply.GetObserved()
+	v.Issues = v.Issues[1:] // Complete native farm census replaces its unavailable issue.
+	v.Farms = []*o.FarmFacts{{ZoneId: proto.String("farm"), Crop: proto.String("Plant_Rice"), EdibleCrop: proto.Bool(true), GrowingCells: proto.Uint32(73), PlantedCells: proto.Uint32(73), UsableCells: proto.Uint32(73)}}
+	d := v.Planning.GetObserved().Definitions[0]
+	d.Definition.DefName = proto.String("Plant_Rice")
+	d.GrowDays, d.HarvestNutrition, d.NutritionDemandPerDay = proto.Float64(3), proto.Float64(1), proto.Float64(5)
+	for _, reserve := range []float64{7, 14, 7} {
+		r.policy.FoodTargetDays = reserve
+		out, err := r.Step(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !n.planning {
+			t.Fatal("routine did not request crop definitions")
+		}
+		want := domain.NeedUnknown // Stored-food forecast remains unknown.
+		if reserve == 14 {
+			want = domain.NeedDeficit
+		}
+		for _, binding := range out.Review.Goals {
+			if binding.Need != policy.EnsureFoodSupply {
+				continue
+			}
+			g, err := db.LoadGoal(context.Background(), binding.Goal)
+			if err != nil || g.Goal.Need != want {
+				t.Fatal("field budget did not reach durable food need", reserve, g, err)
+			}
+		}
+	}
 }
 func routineFixture(t *testing.T) (*RoutineReviewer, *store.Store, *playerFakeSession, store.ControlRequest, *routineNative) {
 	t.Helper()

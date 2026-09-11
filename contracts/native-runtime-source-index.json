@@ -1923,7 +1923,7 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeColonyObservationTools.cs",
-      "source_sha256": "637a35cb96b2df4264e29080d05ad3367eeb7f7b8ea9660f78d8cd4a64ecdc1f",
+      "source_sha256": "07640a26fc2706e0e9d0107ded1b65b0bb6acc66b02eed1cde8b9ab3f51a4e8d",
       "compilation": "production-bridge",
       "owner": "N01.03 native observation owner",
       "migration_status": "typed-core-planning",
@@ -1933,16 +1933,16 @@
         61,
         128,
         165,
-        224,
-        225,
-        226,
-        227,
-        228,
-        258,
-        276,
-        277,
-        278,
-        279
+        235,
+        236,
+        237,
+        238,
+        239,
+        269,
+        287,
+        288,
+        289,
+        290
       ],
       "reflection_boundary_lines": [
         133

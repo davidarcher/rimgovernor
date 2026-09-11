@@ -109,6 +109,9 @@ async def verify_colony_facts(wire, call, identity, context):
         assert row.get('stuff') == old.get('stuff')
         assert {q['defName']: int(q['units']) for q in row.get('costs', [])} == old['costs']
         assert row['size'] == {'width': old['width'], 'height': old['height']}
+        if old.get('growDays') is not None:
+            for field in ('growDays', 'harvestNutrition', 'nutritionDemandPerDay'):
+                assert math.isclose(row[field], old[field], rel_tol=1e-6, abs_tol=1e-6), field
     assert definitions[names[-1]]['available'] is False
     assert {issue['field'] for issue in definitions[names[-1]]['issues']} == {'costs', 'size'}
     cells = planning['cells']

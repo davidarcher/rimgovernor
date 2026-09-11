@@ -54,7 +54,7 @@ func ObserveRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		return RoutineReading{}, ErrContract
 	}
 	bracket := &routineBracket{RoutineSource: source, expected: expected}
-	reading, err := ObserveColony(ctx, bracket, clock, expected, maxAge, false, nil)
+	reading, err := ObserveColony(ctx, bracket, clock, expected, maxAge, true, nil)
 	if err != nil {
 		return RoutineReading{}, err
 	}

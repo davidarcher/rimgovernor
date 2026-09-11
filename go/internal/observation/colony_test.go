@@ -102,18 +102,27 @@ func TestColonyNativeCaptureReachesRoutineReview(t *testing.T) {
 		t.Fatal("missing native planning data")
 	}
 	if reference := os.Getenv("RIMGOVERNOR_NATIVE_PRODUCTION_REFERENCE"); reference != "" {
+		p.ApplyFieldBudget(policy.DefaultRoutinePolicy().FoodTargetDays)
 		data, err := os.ReadFile(reference)
 		if err != nil {
 			t.Fatal(err)
 		}
 		var want struct {
-			GrowingCells int64 `json:"growing_cells"`
-			CookingReady bool  `json:"cooking_ready"`
+			GrowingCells  int64    `json:"growing_cells"`
+			CookingReady  bool     `json:"cooking_ready"`
+			FieldCoverage *float64 `json:"field_coverage"`
 		}
 		if err = json.Unmarshal(data, &want); err != nil {
 			t.Fatal(err)
 		}
 		growing, known := p.Facts.GrowingCells.Value()
+		if want.FieldCoverage != nil {
+			coverage, known := p.Facts.FieldCoverage.Value()
+			if !known || math.Abs(coverage-*want.FieldCoverage) > 1e-9 {
+				t.Fatal("native field coverage parity", p.Facts.FieldCoverage, *want.FieldCoverage)
+			}
+			t.Logf("Native field coverage matches Python: %.9g", coverage)
+		}
 		if !known || growing != want.GrowingCells {
 			t.Fatal("native growing-cell parity", p.Facts.GrowingCells, want)
 		}

@@ -167,6 +167,11 @@ namespace HomeBridge.BridgeTools
             var names = request.RequestedDefinitionNames.Count == 0 ? StarterDefinitions : request.RequestedDefinitionNames.ToArray();
             Bound(names.Length, limit);
             var result = new Obs.PlanningFacts { Completeness = Complete(names.Length) };
+            var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
+            var demand = people.Sum(p => p.needs?.food == null ? 0f : p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);
+            var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
+                && p.Faction == Faction.OfPlayerSilentFail && p.needs?.food != null).ToList();
+            Bound(animals.Count, limit);
             foreach (var name in names.OrderBy(n => n, StringComparer.Ordinal)) {
                 var row = new Obs.PlanningDefinition { Definition = new Obs.DefinitionRef { DefName = name } };
                 result.Definitions.Add(row);
@@ -194,7 +199,13 @@ namespace HomeBridge.BridgeTools
                 }
                 if (def.plant != null) {
                     row.GrowDays = Finite(def.plant.growDays); row.FertilityMin = Finite(def.plant.fertilityMin); row.FertilitySensitivity = Finite(def.plant.fertilitySensitivity);
-                    row.Issues.Add(Issue("nutrition_demand_per_day", Common.UnavailableReason.Unsupported, "Competing-animal demand is not yet projected."));
+                    var product = def.plant.harvestedThingDef;
+                    if (product != null) {
+                        row.HarvestNutrition = Finite(def.plant.harvestYield * product.GetStatValueAbstract(StatDefOf.Nutrition));
+                        row.NutritionDemandPerDay = Finite(demand + animals.Where(p => p.RaceProps.CanEverEat(product)
+                            && p.foodRestriction?.GetCurrentRespectedRestriction(p)?.filter.Allows(product) != false)
+                            .Sum(p => p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f));
+                    }
                 }
             }
             var min = new IntVec3(Math.Max(0, center.x - 22), 0, Math.Max(0, center.z - 22));
