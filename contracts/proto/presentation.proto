@@ -1,0 +1,445 @@
+syntax = "proto3";
+package rimgovernor.presentation.v1;
+option csharp_namespace = "RimGovernor.Protocol.Presentation";
+option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb;presentationpb";
+import "common.proto";
+
+// Contract-only: capabilities must deny all player-control RPCs to automation.
+// Every optional fact requires Has* checks. Bounds/admission live in normal code.
+message ReadRequest { rimgovernor.common.v1.Identity identity = 1; }
+message Listing {
+  optional uint32 total_count = 1;
+  optional uint32 returned_count = 2;
+  optional bool complete = 3;
+  optional bool truncated = 4;
+}
+message ScreenPoint { optional int32 x = 1; optional int32 y = 2; }
+message ScreenRect {
+  optional double x = 1; optional double y = 2;
+  optional double width = 3; optional double height = 4;
+}
+message MapPoint { optional double x = 1; optional double z = 2; }
+message MapRect {
+  optional int32 min_x = 1; optional int32 min_z = 2;
+  optional int32 max_x = 3; optional int32 max_z = 4;
+}
+message CameraState {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  MapPoint map_position = 2;
+  optional double root_size = 3;
+  optional double zoom_root_size = 4;
+  optional double minimum_root_size = 5;
+  optional double maximum_root_size = 6;
+  optional string native_zoom_range = 7;
+  optional bool zoom_extension_enabled = 8;
+  MapRect view_rect = 9;
+}
+message CameraReply {
+  oneof outcome { CameraState camera = 1; rimgovernor.common.v1.Failure failure = 2; }
+}
+
+// Open native object kinds/DefNames remain strings. IDs never derive from labels.
+message SelectedObject {
+  optional string id = 1; optional string native_kind = 2;
+  optional string native_type = 3; optional string label = 4;
+  optional string def_name = 5; optional int32 map_id = 6;
+  rimgovernor.common.v1.Cell position = 7;
+  optional string inspect_label = 8;
+  optional string inspect_text = 9;
+}
+message SelectionSnapshot {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  optional string fingerprint = 2;
+  repeated SelectedObject selected_objects = 3;
+  Listing listing = 4;
+  optional uint32 visible_gizmo_count = 5;
+}
+message SelectionReply {
+  oneof outcome { SelectionSnapshot selection = 1; rimgovernor.common.v1.Failure failure = 2; }
+}
+message ColonistRosterRequest {
+  rimgovernor.common.v1.Identity identity = 1;
+  optional bool current_map_only = 2;
+}
+message ColonistReference {
+  optional string pawn_id = 1; optional string name = 2;
+  optional int32 map_id = 3; optional bool spawned = 4;
+  rimgovernor.common.v1.Cell position = 5;
+}
+message ColonistRoster {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  repeated ColonistReference colonists = 2; Listing listing = 3;
+}
+message ColonistRosterReply {
+  oneof outcome { ColonistRoster roster = 1; rimgovernor.common.v1.Failure failure = 2; }
+}
+
+// Capture handles bind server-retained exact selection/window/camera state.
+// Fingerprints alone, and an incomplete list of selected objects, cannot admit input.
+message CaptureIdentity {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  optional uint64 player_direction = 2;
+  optional string capture_id = 3;
+  optional uint64 ui_revision = 4;
+  optional string selection_fingerprint = 5;
+  repeated SelectedObject selected_objects = 6;
+  optional bool selection_complete = 7;
+  repeated WindowIdentity windows = 8;
+}
+message WindowIdentity { optional int32 window_id = 1; optional string native_type = 2; }
+message UiWindow {
+  WindowIdentity identity = 1; optional string title = 2;
+  optional string native_layer = 3; ScreenRect screen_rect = 4;
+  optional bool force_pause = 5; optional bool absorb_input_around_window = 6;
+  optional bool focused = 7; optional bool topmost = 8;
+  optional bool close_on_accept = 9; optional bool close_on_cancel = 10;
+}
+message UiState {
+  optional string native_program_state = 1; optional bool entry_scene = 2;
+  optional bool game_loaded = 3; optional bool float_menu_open = 4;
+  optional bool dialog_open = 5; optional bool main_tab_open = 6;
+  optional string open_main_tab_id = 7; optional string open_main_tab_type = 8;
+  repeated UiWindow windows = 9; Listing listing = 10;
+}
+message UiScroll {
+  optional double offset_x = 1; optional double offset_y = 2;
+  optional double maximum_offset_x = 3; optional double maximum_offset_y = 4;
+  optional bool can_scroll_x = 5; optional bool can_scroll_y = 6;
+  optional bool at_left = 7; optional bool at_right = 8;
+  optional bool at_top = 9; optional bool at_bottom = 10;
+  ScreenRect viewport_rect = 11; ScreenRect viewport_screen_rect = 12;
+  ScreenRect content_rect = 13;
+}
+message UiElement {
+  optional string target_id = 1; optional uint32 element_index = 2;
+  optional string native_kind = 3; optional string source = 4;
+  optional string label = 5; optional string value_text = 6;
+  optional bool actionable = 7; optional bool clip_capable = 8;
+  optional bool checked = 9; optional bool disabled = 10;
+  optional uint32 depth = 11; optional string parent_target_id = 12;
+  ScreenRect rect = 13; ScreenRect screen_rect = 14; UiScroll scroll = 15;
+}
+message UiSurface {
+  optional string surface_id = 1; optional string capture_target_id = 2;
+  optional uint32 surface_index = 3; optional string native_kind = 4;
+  optional string native_type = 5; optional string title = 6;
+  optional string label = 7; optional string semantic_kind = 8;
+  ScreenRect rect = 9; ScreenRect screen_rect = 10;
+  repeated UiElement elements = 11; Listing listing = 12;
+  // SDK semanticDetails is heterogeneous; no opaque passthrough is permitted.
+  rimgovernor.common.v1.Unavailable semantic_details_unavailable = 13;
+}
+message UiSnapshot {
+  CaptureIdentity capture = 1; UiState state = 2;
+  repeated UiSurface surfaces = 3; Listing listing = 4;
+  optional int64 captured_unix_ms = 5; optional uint64 captured_frame = 6;
+}
+message UiReadRequest {
+  rimgovernor.common.v1.Identity identity = 1;
+  optional string surface_id = 2; optional uint32 timeout_ms = 3;
+}
+message UiReply {
+  oneof outcome { UiSnapshot ui = 1; rimgovernor.common.v1.Failure failure = 2; }
+}
+message ScreenTarget {
+  optional string target_id = 1; optional string native_kind = 2;
+  optional string label = 3; optional bool actionable = 4;
+  optional bool disabled = 5; ScreenRect screen_rect = 6;
+  WindowIdentity window = 7;
+}
+message ScreenTargets {
+  CaptureIdentity capture = 1; repeated ScreenTarget targets = 2; Listing listing = 3;
+}
+message ScreenTargetsReply {
+  oneof outcome { ScreenTargets targets = 1; rimgovernor.common.v1.Failure failure = 2; }
+}
+message TabsRequest {
+  rimgovernor.common.v1.Identity identity = 1; optional bool include_hidden = 2;
+}
+message Tab {
+  optional string id = 1; optional string native_type = 2; optional string label = 3;
+  optional bool visible = 4; optional bool open = 5;
+  optional string def_name = 6; optional double order = 7;
+  optional bool disabled = 8; optional bool valid_without_map = 9;
+  optional bool minimized = 10; ScreenRect rect = 11;
+  optional uint32 ordinal = 12; optional string selection_fingerprint = 13;
+  optional string short_type = 14; optional string label_key = 15;
+  optional string tutor_tag = 16; optional bool hidden = 17;
+}
+message TabsSnapshot { CaptureIdentity capture = 1; repeated Tab tabs = 2; Listing listing = 3; }
+message TabsReply {
+  oneof outcome { TabsSnapshot tabs = 1; rimgovernor.common.v1.Failure failure = 2; }
+}
+message Gizmo {
+  optional string id = 1; optional string native_type = 2;
+  optional string label = 3; optional string description = 4;
+  optional bool disabled = 5; optional string disabled_reason = 6;
+  optional bool visible = 7; optional string selection_fingerprint = 8;
+  optional uint32 ordinal = 9; optional string description_postfix = 10;
+  optional string top_right_label = 11; optional double order = 12;
+  optional uint32 group_size = 13; repeated SelectedObject owners = 14;
+  Listing owner_listing = 15; optional string hot_key_def = 16;
+  optional string hot_key = 17; optional bool supports_right_click = 18;
+  optional bool reverse_designator = 19;
+}
+message GizmosSnapshot { CaptureIdentity capture = 1; repeated Gizmo gizmos = 2; Listing listing = 3; }
+message GizmosReply {
+  oneof outcome { GizmosSnapshot gizmos = 1; rimgovernor.common.v1.Failure failure = 2; }
+}
+message DialogField { optional string name = 1; optional string value = 2; optional uint32 maximum_length = 3; }
+message DialogSnapshot { CaptureIdentity capture = 1; WindowIdentity window = 2; repeated DialogField fields = 3; }
+message DialogReply {
+  oneof outcome { DialogSnapshot dialog = 1; rimgovernor.common.v1.Failure failure = 2; }
+}
+
+message LookTarget {
+  optional string native_kind = 1; optional string id = 2;
+  optional string native_type = 3; optional string label = 4;
+  optional string def_name = 5; optional int32 map_id = 6;
+  rimgovernor.common.v1.Cell position = 7;
+  // Native PlanetTile textual ID can include a layer; do not parse a guessed int.
+  optional string world_tile_id = 8;
+}
+message LookTargets { optional bool valid = 1; LookTarget primary = 2; repeated LookTarget targets = 3; Listing listing = 4; }
+message LetterChoice {
+  optional uint32 index = 1; optional string text = 2;
+  optional bool disabled = 3; optional string disabled_reason = 4;
+  optional bool closes_dialog = 5; optional bool has_action = 6; optional bool has_link = 7;
+}
+message Letter {
+  optional string id = 1; optional string native_type = 2; optional string def_name = 3;
+  optional string label = 4; optional string text = 5; optional int64 arrival_tick = 6;
+  optional int64 age_ticks = 7; optional bool dismissible = 8;
+  optional bool automatically_opens = 9; optional string related_faction_label = 10;
+  LookTargets look_targets = 11; repeated LetterChoice choices = 12; Listing choices_listing = 13;
+}
+message TransientMessage {
+  optional string id = 1; optional string text = 2; optional string message_def_name = 3;
+  optional double alpha = 4; optional bool expired = 5; optional int64 starting_tick = 6;
+  optional uint64 starting_frame = 7; optional int64 age_ticks = 8;
+  optional bool has_quest = 9; LookTargets look_targets = 10; optional double age_seconds = 11;
+}
+message Alert {
+  optional string id = 1; optional uint32 ordinal = 2; optional string native_type = 3;
+  optional string native_priority = 4; optional string label = 5; optional string explanation = 6;
+  optional string jump_to_targets_text = 7; optional bool active = 8;
+  optional bool enabled_with_active_expansions = 9; optional bool any_culprit_valid = 10;
+  repeated LookTarget targets = 11; Listing listing = 12;
+  optional bool activatable = 13; rimgovernor.common.v1.Unavailable read_issue = 14;
+}
+message Letters { repeated Letter letters = 1; Listing listing = 2; }
+message Messages { repeated TransientMessage messages = 1; Listing listing = 2; }
+message Alerts { repeated Alert alerts = 1; Listing listing = 2; optional string snapshot_fingerprint = 3; }
+message LetterSection { oneof outcome { Letters observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
+message MessageSection { oneof outcome { Messages observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
+message AlertSection { oneof outcome { Alerts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
+// An absent section was not requested; a present unavailable arm records a failed read.
+message NotificationsSnapshot {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  LetterSection letters = 2; MessageSection messages = 3; AlertSection alerts = 4;
+}
+message NotificationsRequest {
+  rimgovernor.common.v1.Identity identity = 1;
+  optional uint32 letter_limit = 2; optional uint32 message_limit = 3; optional uint32 alert_limit = 4;
+  // Inclusion defaults true; explicit false omits that section.
+  optional bool include_letters = 5; optional bool include_messages = 6; optional bool include_alerts = 7;
+}
+message NotificationsReply {
+  oneof outcome { NotificationsSnapshot notifications = 1; rimgovernor.common.v1.Failure failure = 2; }
+}
+
+// An input lease is separate from native simulation-write and clock leases.
+// Claimed direction/viewer fields never authenticate their own authority.
+message PlayerIdentity {
+  rimgovernor.common.v1.Identity identity = 1;
+  optional uint64 player_direction = 2; optional string viewer_id = 3;
+}
+message InputLeaseReference { PlayerIdentity player = 1; optional string lease_id = 2; }
+message InputTake { PlayerIdentity player = 1; }
+message InputRenew { InputLeaseReference lease = 1; }
+message InputRelease { InputLeaseReference lease = 1; }
+message InputLeaseRequest {
+  oneof operation { InputTake take = 1; InputRenew renew = 2; InputRelease release = 3; }
+}
+message InputState {
+  PlayerIdentity player = 1; optional bool active = 2; optional bool ready = 3;
+  optional bool direct_input = 4; optional uint32 remaining_lease_ms = 5;
+  optional uint64 last_order = 6; optional uint32 held_buttons = 7;
+  optional uint32 held_keys = 8; optional bool released = 9;
+  optional bool pause_verified = 10; optional bool owned_drafts_released = 11;
+  // Native mailbox acknowledgement facts, without filesystem channel names.
+  optional uint64 sent_sequence = 12; optional uint64 received_sequence = 13;
+  optional uint32 channel_capacity_bytes = 14;
+}
+message InputLeaseGranted { InputLeaseReference lease = 1; InputState state = 2; }
+message InputLeaseReply {
+  oneof outcome { InputLeaseGranted granted = 1; InputState released = 2; rimgovernor.common.v1.Failure failure = 3; }
+}
+message InputStateReply {
+  oneof outcome { InputState state = 1; rimgovernor.common.v1.Failure failure = 2; }
+}
+message FrameReference { optional string source_id = 1; optional uint64 sequence = 2; }
+enum PointerButton { POINTER_BUTTON_UNSPECIFIED = 0; POINTER_BUTTON_LEFT = 1; POINTER_BUTTON_MIDDLE = 2; POINTER_BUTTON_RIGHT = 3; }
+message PointerMove { ScreenPoint position = 1; }
+message PointerButtonEvent { ScreenPoint position = 1; optional PointerButton button = 2; }
+message PointerWheel { ScreenPoint position = 1; optional int32 delta = 2; }
+message KeyEvent { ScreenPoint position = 1; optional string code = 2; }
+message InputEvent {
+  InputLeaseReference lease = 1; FrameReference frame = 2; optional uint64 order = 3;
+  oneof event {
+    PointerMove move = 4; PointerButtonEvent down = 5; PointerButtonEvent up = 6;
+    PointerWheel wheel = 7; KeyEvent key_down = 8; KeyEvent key_up = 9;
+  }
+}
+message InputEventReply {
+  oneof outcome { InputState acknowledged = 1; rimgovernor.common.v1.Failure refusal = 2; }
+}
+
+message PlayerPrecondition { InputLeaseReference lease = 1; CaptureIdentity captured = 2; }
+message MoveCamera { optional double delta_x = 1; optional double delta_z = 2; }
+message SetCameraZoom { optional double root_size = 1; }
+message SelectPawn { optional string pawn_id = 1; optional bool append = 2; }
+message ClearSelection {}
+message CapturedTarget { optional string target_id = 1; optional uint32 timeout_ms = 2; }
+message ScrollAxis {
+  oneof adjustment { double delta = 1; double target = 2; }
+}
+message ScrollTarget {
+  optional string target_id = 1; ScrollAxis horizontal = 2; ScrollAxis vertical = 3;
+  optional uint32 timeout_ms = 4;
+}
+message MainTab { optional string tab_id = 1; }
+message CloseMainTab { optional string expected_tab_id = 1; }
+message LetterTarget { optional string letter_id = 1; }
+message SetDialogText { WindowIdentity window = 1; optional string field_name = 2; optional string text = 3; }
+message ConfirmColonyNames {
+  WindowIdentity window = 1; optional string faction_name = 2; optional string settlement_name = 3;
+}
+message NamingSnapshot {
+  WindowIdentity window = 1; optional string faction_name = 2; optional string settlement_name = 3;
+  optional bool window_closed = 4;
+}
+message NamingPreviewRequest { CaptureIdentity captured = 1; ConfirmColonyNames names = 2; }
+message NamingPreview { NamingSnapshot names = 1; optional bool acceptable = 2; }
+message NamingPreviewReply { oneof outcome { NamingPreview preview = 1; rimgovernor.common.v1.Failure refusal = 2; } }
+message DialogTextChange { WindowIdentity window = 1; optional string field_name = 2; optional string before = 3; optional string after = 4; }
+message DialogTextPreviewRequest { CaptureIdentity captured = 1; SetDialogText edit = 2; }
+message DialogTextPreviewReply { oneof outcome { DialogTextChange preview = 1; rimgovernor.common.v1.Failure refusal = 2; } }
+message ShowWorld { optional int32 tile = 1; optional uint32 watch_seconds = 2; }
+message WorldViewResult { optional bool shown = 1; optional string native_mode = 2; optional uint32 watch_seconds = 3; optional bool hidden = 4; optional string reason = 5; }
+message PlayerCommand {
+  PlayerPrecondition precondition = 1;
+  oneof operation {
+    MoveCamera move_camera = 2; SetCameraZoom set_camera_zoom = 3;
+    SelectPawn select_pawn = 4; ClearSelection clear_selection = 5;
+    CapturedTarget click_screen_target = 6; CapturedTarget click_ui_target = 7;
+    ScrollTarget scroll_ui_target = 8; MainTab open_main_tab = 9;
+    CloseMainTab close_main_tab = 10; LetterTarget open_letter = 11;
+    LetterTarget dismiss_letter = 12; SetDialogText set_dialog_text = 13;
+    ConfirmColonyNames confirm_colony_names = 14; ShowWorld show_world = 15;
+  }
+}
+message PlayerApplied {
+  optional bool applied = 1; CaptureIdentity after = 2;
+  CameraState camera = 3; SelectionSnapshot selection = 4;
+  UiSnapshot ui = 5; DialogSnapshot dialog = 6;
+  optional bool target_consumed = 7; NamingSnapshot names = 8;
+  DialogTextChange text_change = 9; WorldViewResult world_view = 10;
+}
+message PlayerCommandReply {
+  oneof outcome { PlayerApplied applied = 1; rimgovernor.common.v1.Failure refusal = 2; }
+}
+
+message RenderStatus {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  optional bool supported = 2; optional bool suspended = 3;
+  optional bool window_visible = 4; optional uint32 remaining_lease_ms = 5;
+  rimgovernor.common.v1.Unavailable unavailable = 6;
+}
+message RenderDemand { PlayerIdentity viewer = 1; optional uint32 lease_seconds = 2; }
+message RenderReply {
+  oneof outcome { RenderStatus status = 1; rimgovernor.common.v1.Failure failure = 2; }
+}
+enum MediaEncoding {
+  MEDIA_ENCODING_UNSPECIFIED = 0; MEDIA_ENCODING_PNG = 1; MEDIA_ENCODING_JPEG = 2;
+  MEDIA_ENCODING_H264 = 3; MEDIA_ENCODING_RGBA32_BOTTOM_UP = 4; MEDIA_ENCODING_BGRA32_TOP_DOWN = 5;
+}
+enum CaptureMethod {
+  CAPTURE_METHOD_UNSPECIFIED = 0; CAPTURE_METHOD_PRIVATE_PRESENTED_WINDOW = 1;
+  CAPTURE_METHOD_ASYNC_GPU = 2; CAPTURE_METHOD_READ_PIXELS = 3;
+  CAPTURE_METHOD_PORTRAIT = 4; CAPTURE_METHOD_OFFSCREEN_FOLLOW = 5;
+}
+message MediaFrame {
+  FrameReference frame = 1; CaptureIdentity captured = 2;
+  optional uint32 width = 3; optional uint32 height = 4;
+  optional MediaEncoding encoding = 5; optional CaptureMethod capture_method = 6;
+  optional int64 captured_unix_ms = 7; optional double readback_ms = 8;
+  optional bytes data = 9;
+}
+message VideoState {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  optional bool supported = 2; optional bool active = 3; optional string source_id = 4;
+  optional uint32 remaining_lease_ms = 5; optional uint64 captured_frames = 6;
+  optional double frames_per_second = 7; optional MediaEncoding pixel_format = 8;
+  optional CaptureMethod capture_method = 9; optional bool async_readback_supported = 10;
+  optional string renderer = 11; optional bool focused = 12;
+  optional int32 target_frame_rate = 13; optional double frame_seconds = 14;
+  optional int32 vsync_count = 15; optional double refresh_rate = 16;
+  optional uint64 working_set_bytes = 17; optional double process_cpu_seconds = 18;
+  rimgovernor.common.v1.Unavailable unavailable = 19;
+}
+message VideoStart { PlayerIdentity viewer = 1; optional uint32 lease_seconds = 2; }
+message VideoStop { PlayerIdentity viewer = 1; optional string source_id = 2; }
+message VideoLeaseRequest { oneof operation { VideoStart start = 1; VideoStop stop = 2; } }
+message VideoReply { oneof outcome { VideoState state = 1; rimgovernor.common.v1.Failure failure = 2; } }
+message FrameRequest { PlayerIdentity viewer = 1; optional string source_id = 2; }
+message FrameReply { oneof outcome { MediaFrame frame = 1; rimgovernor.common.v1.Failure failure = 2; } }
+message FrameAcknowledgement {
+  PlayerIdentity viewer = 1; FrameReference frame = 2;
+  optional int64 displayed_unix_ms = 3; optional double selection_effect_ms = 4;
+}
+message FrameAcknowledged { FrameReference frame = 1; }
+message FrameAcknowledgementReply { oneof outcome { FrameAcknowledged acknowledged = 1; rimgovernor.common.v1.Failure refusal = 2; } }
+enum PawnView { PAWN_VIEW_UNSPECIFIED = 0; PAWN_VIEW_PORTRAIT = 1; PAWN_VIEW_FOLLOW = 2; }
+message PawnImageRequest {
+  rimgovernor.common.v1.Identity identity = 1; optional string pawn_id = 2; optional PawnView view = 3;
+}
+message PawnImage { optional string pawn_id = 1; optional PawnView view = 2; MediaFrame frame = 3; }
+message PawnImageReply { oneof outcome { PawnImage image = 1; rimgovernor.common.v1.Failure failure = 2; } }
+message ScreenshotRequest {
+  CaptureIdentity captured = 1; optional string clip_target_id = 2;
+  optional uint32 clip_padding = 3; optional bool include_targets = 4;
+}
+message Screenshot { MediaFrame frame = 1; ScreenTargets targets = 2; ScreenRect clip_rect = 3; }
+message ScreenshotReply { oneof outcome { Screenshot screenshot = 1; rimgovernor.common.v1.Failure failure = 2; } }
+
+service PresentationReads {
+  rpc Camera(ReadRequest) returns (CameraReply);
+  rpc Selection(ReadRequest) returns (SelectionReply);
+  rpc Colonists(ColonistRosterRequest) returns (ColonistRosterReply);
+  rpc CaptureUi(UiReadRequest) returns (UiReply);
+  rpc ScreenTargetsRead(ReadRequest) returns (ScreenTargetsReply);
+  rpc MainTabs(TabsRequest) returns (TabsReply);
+  rpc InspectTabs(TabsRequest) returns (TabsReply);
+  rpc Gizmos(ReadRequest) returns (GizmosReply);
+  rpc DialogFields(ReadRequest) returns (DialogReply);
+  rpc PreviewDialogText(DialogTextPreviewRequest) returns (DialogTextPreviewReply);
+  rpc PreviewNaming(NamingPreviewRequest) returns (NamingPreviewReply);
+  rpc Notifications(NotificationsRequest) returns (NotificationsReply);
+  rpc RenderState(ReadRequest) returns (RenderReply);
+  rpc InputStateRead(ReadRequest) returns (InputStateReply);
+}
+// Explicit player controls only; cannot be admitted by an adviser or automatic fallback.
+service PlayerPresentation {
+  rpc LeaseInput(InputLeaseRequest) returns (InputLeaseReply);
+  rpc SendInput(InputEvent) returns (InputEventReply);
+  rpc Apply(PlayerCommand) returns (PlayerCommandReply);
+}
+service PresentationMedia {
+  rpc DemandRendering(RenderDemand) returns (RenderReply);
+  rpc LeaseVideo(VideoLeaseRequest) returns (VideoReply);
+  rpc ReadFrame(FrameRequest) returns (FrameReply);
+  rpc AcknowledgeFrame(FrameAcknowledgement) returns (FrameAcknowledgementReply);
+  rpc CapturePawn(PawnImageRequest) returns (PawnImageReply);
+  rpc CaptureScreenshot(ScreenshotRequest) returns (ScreenshotReply);
+}
