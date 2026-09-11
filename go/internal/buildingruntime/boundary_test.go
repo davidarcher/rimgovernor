@@ -167,3 +167,41 @@ func TestBoundaryRestartReadsWithoutLeaseAndChecksCompletion(t *testing.T) {
 		}
 	}
 }
+
+func TestRepeatedPendingAndRestartKeepImmutableAdmissionTick(t *testing.T) {
+	b, f := newBoundaryFixture(t)
+	completed := proto.Clone(f.progress).(*r.Progress)
+	f.progress.Effect = &r.Progress_Pending{Pending: &r.PendingEffect{Evidence: completed.GetCompleted().Evidence}}
+	f.progress.Context.Tick = proto.Int64(11)
+	first, err := b.Observe(context.Background(), f.placement, f.placement.Snapshot)
+	if err != nil || first.Observation.Effect != domain.EffectPending {
+		t.Fatal(err)
+	}
+	f.placement.Tick = first.Observation.Tick
+	f.progress.Context.Tick = proto.Int64(12)
+	second, err := b.Observe(context.Background(), f.placement, f.placement.Snapshot)
+	if err != nil || second.Observation.Effect != domain.EffectPending {
+		t.Fatal("second pending lost admission", err)
+	}
+	// Recreate the boundary, as after restart, with only the journal's latest tick.
+	f.placement.Tick = second.Observation.Tick
+	b, err = NewBoundary(f, f, f, f, boundaryClock{}, "session", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.progress = completed
+	f.progress.Context.Tick = proto.Int64(13)
+	final, err := b.Observe(context.Background(), f.placement, f.placement.Snapshot)
+	if err != nil || final.Observation.Effect != domain.EffectCompleted || f.receipt.AdmittedContext.GetTick() != 10 {
+		t.Fatal("restart completion lost immutable receipt", err)
+	}
+	f.progress.Context.Tick = proto.Int64(11)
+	if _, err = b.Observe(context.Background(), f.placement, f.placement.Snapshot); err == nil {
+		t.Fatal("regressing observation accepted")
+	}
+	// Initial dispatch still cannot accept an admission predating its inspection.
+	f.placement.Tick = 11
+	if _, err = b.Place(context.Background(), f.placement); err == nil {
+		t.Fatal("old admission accepted for initial placement")
+	}
+}

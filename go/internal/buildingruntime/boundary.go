@@ -128,6 +128,9 @@ func (b *Boundary) Place(ctx context.Context, placement executor.Placement) (exe
 	if err = boundaryAdmission(admitted, placement, b.session); err != nil {
 		return out, err
 	}
+	if admitted.AdmittedContext.GetTick() < int64(placement.Tick) {
+		return out, executor.ErrEvidence
+	}
 	switch admitted.Outcome.(type) {
 	case *r.Receipt_Applied:
 		out.Kind = domain.ReceiptAccepted
@@ -282,9 +285,6 @@ func boundaryAdmission(receipt *r.Receipt, placement executor.Placement, session
 	}
 	if _, err := boundaryContext(receipt.AdmittedContext, placement.Snapshot); err != nil {
 		return err
-	}
-	if receipt.AdmittedContext.GetTick() < int64(placement.Tick) {
-		return executor.ErrEvidence
 	}
 	owner := receipt.AuthorizingOwner
 	if owner == nil || owner.ControllerSessionId == nil || owner.PlayerDirection == nil || owner.GetControllerSessionId() != session || owner.GetPlayerDirection() != uint64(placement.Snapshot.Direction) {
