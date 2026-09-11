@@ -79,8 +79,8 @@ namespace HomeBridge.BridgeTools
                     opponentGame = Current.Game; opponentMap = map; SpawnedOpponents.Clear();
                     if (actor != null) center = actor.Position;
                     for (var i=0;i<2;i++) {
-                        var animal = PawnGenerator.GeneratePawn(DefDatabase<PawnKindDef>.GetNamed("Hare"));
                         var ranged = op == "ranged-opponents";
+                        var animal = PawnGenerator.GeneratePawn(DefDatabase<PawnKindDef>.GetNamed(ranged ? "Tortoise" : "Hare"));
                         var cell = GenRadial.RadialCellsAround(center,ranged ? 28 : 12,true).First(c => c.InBounds(map)
                             && c.Walkable(map) && c.DistanceTo(center)>(ranged ? 24 : 8) && !c.Fogged(map)
                             && (!ranged || GenSight.LineOfSight(center,c,map)));

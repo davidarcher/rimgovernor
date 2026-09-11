@@ -1,6 +1,6 @@
 {
   "inventory_version": 1,
-  "source_revision": "7bb6efd7ae0bcb9cbf9b64f28af808b19f48bb71",
+  "source_revision": "f98d67aa314883052cb6d33c5f52d3cc67296ce5",
   "scope": "Tracked C# sources in unified native Runtime/Bridge and scripts/fixtures; lexical reference index, not an AST or proof of behavioral coverage.",
   "source_line_policy": "One-based source anchors at source_revision; static matches include methods and constructors, reflection matches include helper use and interop. Read the full source declaration before changing ownership.",
   "rows": [
@@ -1924,7 +1924,7 @@
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeCombatCausality.cs",
       "compilation": "production-bridge",
-      "source_sha256": "6d1b64bd83c7d8a472221f588e4bec4190df6c7a3cda7317af6ea76015f184de",
+      "source_sha256": "74cf17b23fcbe50cff7d90442db181c3de8a9256e230838d5a40db3847bc77ba",
       "owner": "N01.04 native guarded combat owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify actual melee damage attribution, terminal pawn outcomes, unrelated damage refusal, interrupted and uncertain orders. Ranged projectile lineage remains unsupported.",
@@ -1945,10 +1945,10 @@
         105,
         119,
         132,
-        145,
         151,
         157,
-        178
+        163,
+        186
       ],
       "reflection_boundary_lines": [
         76,
@@ -1968,33 +1968,39 @@
         103,
         104,
         109,
-        110
+        110,
+        136,
+        167
       ]
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeCombatOperations.cs",
       "compilation": "production-bridge",
-      "source_sha256": "6ce8c48607421ed6d173bf5de0d4ff567ba3bc36405fe094205ad782705df237",
+      "source_sha256": "2d0cd9f2e015f3d7cfa2527e9f63750531b7e67be4adfe5290ce3e832bca067c",
       "owner": "N01.04 native guarded combat owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify actual melee damage attribution, terminal pawn outcomes, unrelated damage refusal, interrupted and uncertain orders. Ranged projectile lineage remains unsupported.",
       "static_token_lines": [
-        35,
-        106,
-        108,
-        111,
-        113,
-        119,
-        136,
-        156,
-        197,
-        209
+        39,
+        48,
+        54,
+        122,
+        124,
+        127,
+        129,
+        135,
+        140,
+        142,
+        165,
+        187,
+        229,
+        241
       ],
       "reflection_boundary_lines": [
-        101,
-        194,
-        195,
-        207
+        117,
+        226,
+        227,
+        239
       ],
       "patch_registration_lines": []
     },
@@ -2212,7 +2218,7 @@
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
       "compilation": "production-bridge",
-      "source_sha256": "2fe54b564b77882cb23bc9862dfd25081471a2a95d2de1cff8acf7ca3346b986",
+      "source_sha256": "36f6a8ec6ac71a6db5c495f7862f603e2325d28e8f1456183d6866fd095a2205",
       "owner": "N01.04 native guarded construction and reconciliation owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
@@ -2326,6 +2332,76 @@
         130
       ],
       "patch_registration_lines": []
+    },
+    {
+      "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeRangedCausality.cs",
+      "compilation": "production-bridge",
+      "source_sha256": "207c9cf45e24b50651290334a2c141f12c7fe16df8f2343109d9d6df0228c230",
+      "owner": "N01.04 native guarded combat owner",
+      "migration_status": "implemented-native-acceptance-pending",
+      "uncovered_acceptance": "Verify exact native direct-bullet launch and hit outcomes, callback exclusion, interrupted and incomplete tracking. Explosive and custom projectile lineage remains pending.",
+      "static_token_lines": [
+        18,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        73,
+        85,
+        87,
+        89,
+        109,
+        120,
+        135,
+        141,
+        149,
+        169,
+        188,
+        200,
+        206,
+        218
+      ],
+      "reflection_boundary_lines": [
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        113,
+        159,
+        212
+      ],
+      "patch_registration_lines": [
+        64,
+        68,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        195
+      ]
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeResearchObservationTools.cs",
@@ -3665,7 +3741,7 @@
     },
     {
       "source": "scripts/fixtures/EmergencyDevelopmentFixture.cs",
-      "source_sha256": "ce4eeaf0790738d1f6e732dba58eeb7359c01243041eee3aa002ff67cb24edab",
+      "source_sha256": "1d20db38cefa0354d1463d2b17a4955f20202eed8bcba1f1baf568af77608beb",
       "compilation": "fixture-only",
       "owner": "N01.01 native packaging owner",
       "migration_status": "inventoried-unmigrated",

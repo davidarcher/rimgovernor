@@ -1448,9 +1448,14 @@ main. Native package and Go production cutover remain independent.
   Completed-before-Manual evidence remains observable. Compiled checks cover
   unrelated/nested damage refusal and exact live melee-hook repair. Extend game
   acceptance to attributed downing, unrelated damage and uncertain dispatch.
-  Ranged attacks require retained projectile launch/impact lineage; ordinary bullet
-  impact notifications must not acquire direct-hit attribution. Explosions require
-  separate retained explosion lineage across simulation ticks.
+  Ordinary direct-bullet ranged attacks have headless native acceptance for exact
+  projectile-attributed target death, player override, refused draft adoption,
+  fresh owned recovery, replay and completed-before-Manual cleanup. Compiled
+  actual-Harmony checks cover notification side damage, shields, misses, nested
+  damage, tracking loss, job pooling and individual melee/ranged hook repair.
+  Extend native acceptance to those refusal cases and projectiles already in
+  flight at interruption. Explosive, overhead, beam and custom projectile paths
+  remain unsupported; explosions need separate retained object lineage across ticks.
   Native lost-reply fault injection,
   instant/replacement construction cases and remaining operation families are open.
 

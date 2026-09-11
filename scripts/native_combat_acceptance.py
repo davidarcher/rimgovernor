@@ -123,7 +123,7 @@ async def run(root: Path, output: Path, *, headless=True, ranged=False):
                     assert len(targets) == len(set(targets)) == 2
                     targets_before = observed_rows(await query("observed-opponents", ids=targets), identity)
                     assert {r["pawn"]["id"] for r in targets_before} == set(targets)
-                    assert all(r["pawn"]["defName"] == "Hare" and r["animal"] is True and r["hostile"] is True
+                    assert all(r["pawn"]["defName"] == ("Tortoise" if ranged else "Hare") and r["animal"] is True and r["hostile"] is True
                         and r["dead"] is False and r["downed"] is False for r in targets_before)
                     actor = await read("attacker-before", actor_id)
                     victim = await read("target-before", targets[0])
@@ -188,6 +188,9 @@ async def run(root: Path, output: Path, *, headless=True, ranged=False):
                         progress = outcome(await wire("progress-"+str(window), "receipts_observe_progress", attempt), "progress")
                         victims = observed_rows(await query("target-state-"+str(window), ids=[targets[0]], includeDead=True), identity)
                         assert len(victims) == 1, "Exact native target state unavailable"
+                        report["last_attacker"] = await read("attacker-state-"+str(window), actor_id)
+                        report["last_progress"] = progress
+                        report["last_target"] = victims[0]
                         if "completed" in progress:
                             terminal(progress, receipt, victims[0], targets[0], ranged=ranged); completed = progress; break
                         assert "pending" in progress, progress

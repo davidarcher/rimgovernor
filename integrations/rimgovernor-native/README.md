@@ -49,7 +49,7 @@ initialize inactive authority; only the trusted host's explicit control path can
 acquire it. Model interpretation receives no control or execution capability.
 
 Operations implement `PlaceBuilding`, temporary `SetDrafted`, exact owned
-`MovePawn` and melee `AttackTarget`. Other command variants return Unsupported.
+`MovePawn` and guarded `AttackTarget`. Other command variants return Unsupported.
 Admission checks current identity, generation, lease and
 ordinary native placement rules on the game thread. One unsaved per-load ledger
 retains up to 4096 attempts without eviction. Exact retries return the original
@@ -62,8 +62,9 @@ Movement and combat require an existing canonical owned draft and exact pawn
 snapshots. Animals without draft controllers have target snapshots but cannot be
 drafted. Movement completion follows the issued job to its exact destination.
 Melee completion requires native positive damage from that exact attack to cause
-target death or requested standing-target downing. Ranged projectile attribution
-remains unavailable. `ReleaseOwnedDraft` permits exact original-owner cleanup
+target death or requested standing-target downing. Ordinary direct bullets retain
+exact launch/impact lineage; explosive and custom projectile paths remain unavailable.
+`ReleaseOwnedDraft` permits exact original-owner cleanup
 after Manual or lease expiry without acquiring new authority.
 
 Status does not issue entity mutation snapshots. Cell reads support terrain,

@@ -40,7 +40,7 @@ Protobuf parsing/formatting. Generated compile inputs come from
 are included in `domain-inventory.json.native_surface.source_baseline`.
 
 `Operations/Preview` and `Operations/Execute` implement ordinary `PlaceBuilding`
-and temporary `SetDrafted` plus exact `MovePawn` and melee `AttackTarget` under an existing owned draft;
+and temporary `SetDrafted` plus exact `MovePawn` and guarded `AttackTarget` under an existing owned draft;
 other command variants return unsupported. Their presence does not advertise
 the entire operations schema as implemented. `Protocol/NativeConstruction.cs`
 owns native placement and tracked construction transitions;
@@ -143,8 +143,9 @@ outlives its lease; it never grants another write or revives the expired lease.
 `AttackTarget` requires exact attacker and target snapshots, the attacker's current
 owned draft, and ordinary native violence, reach and melee-verb eligibility.
 Requested hostility, standing and colony-health predicates are checked before
-dispatch. Explicit Melee and Auto resolving to melee are supported; ranged
-attacks require projectile lineage and remain Unsupported. A receipt certifies
+dispatch. Melee and ordinary native direct-bullet ranged attacks are supported;
+Auto resolves through the native weapon choice. Explosive, overhead, beam and
+custom projectile/verb paths remain Unsupported. A receipt certifies
 the issued job. Completion requires positive native damage from that exact melee
 attack to cause death, or downing when a standing target was required. Unrelated
 death is unsuccessful; a vanished job without causal evidence remains unknown.
@@ -153,7 +154,19 @@ fresh owned recovery, immutable replay and completed-before-Manual retention.
 Compiled checks cover unrelated/nested damage refusal and repair of each required
 live hook; their callback states do not replace game acceptance of those cases.
 
-Current source inventory: 80 production exports, 56 fixture exports, 149 handwritten
+Direct bullets retain exact projectile and originating attack identity at each
+native launch. Only the native direct damage calls in `Bullet.Impact` acquire
+attribution; notification callbacks, shields, misses and other targets do not.
+Impact requires the original control/claim state, while ordinary job completion
+after launch does not erase the projectile identity. Late hits after Manual do
+not acquire completion evidence. Lost tracking is explicit uncertainty; later
+independently tracked hits can still prove terminal outcomes. Headless native
+acceptance verifies an ordinary assault rifle's attributed target death, player
+override, fresh owned recovery and completed-before-Manual cleanup. Native shield,
+callback side-damage, tracking-capacity and late-flight interruption scenarios
+remain separate acceptance work; compiled tests cover their attribution guards.
+
+Current source inventory: 80 production exports, 56 fixture exports, 150 handwritten
 C# source files and nine generated Protobuf compile inputs. Source declarations do
 not establish gameplay acceptance. Actual installed discovery must match the private
 build and prove fixture exclusion; pending native acceptance remains explicit in
