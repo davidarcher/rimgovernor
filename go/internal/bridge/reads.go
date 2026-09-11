@@ -111,7 +111,12 @@ func (c *Client) read(ctx context.Context, name string, args json.RawMessage) (R
 		if err != nil {
 			return detail, err
 		}
-		if err = validateInput(detail.Structured, args); err != nil {
+		if name == "home/placement_previews" {
+			err = validateOwnedStringInput(detail.Structured, "placements")
+		} else {
+			err = validateInput(detail.Structured, args)
+		}
+		if err != nil {
 			return Result{}, err
 		}
 		result, err := c.core(ctx, live, "games_call_tool", encode(nativeArgument{c.gameID, name, args}))

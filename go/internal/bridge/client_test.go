@@ -114,7 +114,7 @@ func TestDiscoveryAndReadReceipt(t *testing.T) {
 }
 
 func TestReadPolicyAndPlacementRevalidation(t *testing.T) {
-	s := &testServer{schema: `{"type":"object","properties":{"placements":{"type":"string"}},"required":["placements"]}`}
+	s := &testServer{schema: `{"type":"object","properties":{"placements":{"type":"string"}},"required":["placements"],"additionalProperties":false}`}
 	client := testClient(t, s, time.Second)
 	for _, name := range []string{"home/population", "home/research", "home/caravan", "home/order", "home/trade", "home/world", "home/place_building", "rimworld/set_time_speed", "home/future_read"} {
 		if _, err := client.read(context.Background(), name, json.RawMessage(`{"dryRun":true}`)); !errors.Is(err, ErrRefused) {
