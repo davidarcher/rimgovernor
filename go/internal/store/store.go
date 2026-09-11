@@ -21,7 +21,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 3
+const schemaVersion = 4
 const applicationID = 0x52474f31
 
 var ErrConflict = errors.New("plan or action identity already exists")
@@ -116,7 +116,8 @@ CREATE TABLE plans(id TEXT PRIMARY KEY, revision TEXT NOT NULL);
 CREATE TABLE actions(id TEXT PRIMARY KEY, plan_id TEXT NOT NULL REFERENCES plans(id), ordinal INTEGER NOT NULL, definition TEXT NOT NULL, x INTEGER NOT NULL, z INTEGER NOT NULL, rotation TEXT NOT NULL, stuff TEXT NOT NULL, UNIQUE(plan_id,ordinal));
 CREATE TABLE transitions(sequence INTEGER PRIMARY KEY, action_id TEXT NOT NULL REFERENCES actions(id), payload BLOB NOT NULL);
 CREATE TABLE admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL);
-CREATE INDEX action_transitions ON transitions(action_id,sequence);`)
+CREATE INDEX action_transitions ON transitions(action_id,sequence);
+CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, definition TEXT NOT NULL, x INTEGER NOT NULL, z INTEGER NOT NULL, rotation TEXT NOT NULL, stuff TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), action_id TEXT NOT NULL UNIQUE REFERENCES actions(id));`)
 		if err != nil {
 			return err
 		}
@@ -144,6 +145,9 @@ CREATE INDEX action_transitions ON transitions(action_id,sequence);`)
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, "SELECT action_id,payload FROM admissions LIMIT 0"); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, "SELECT request_id,colony,load_token,map_id,definition,x,z,rotation,stuff,plan_id,action_id FROM building_submissions LIMIT 0"); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -203,7 +207,20 @@ func (s *Store) CreatePlan(ctx context.Context, plan domain.PlanSpec) error {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err = tx.ExecContext(ctx, "INSERT INTO plans(id,revision) VALUES(?,?)", plan.ID(), strconv.FormatUint(uint64(plan.Revision()), 10)); err != nil {
+	if err = createPlan(ctx, tx, plan); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+func createPlan(ctx context.Context, tx *sql.Tx, plan domain.PlanSpec) error {
+	var count int
+	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM plans").Scan(&count); err != nil {
+		return err
+	}
+	if count >= 256 {
+		return ErrCapacity
+	}
+	if _, err := tx.ExecContext(ctx, "INSERT INTO plans(id,revision) VALUES(?,?)", plan.ID(), strconv.FormatUint(uint64(plan.Revision()), 10)); err != nil {
 		return conflict(err)
 	}
 	for i, a := range plan.Actions() {
@@ -211,12 +228,13 @@ func (s *Store) CreatePlan(ctx context.Context, plan domain.PlanSpec) error {
 		if !ok {
 			return errors.New("unsupported persisted action")
 		}
-		if _, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,definition,x,z,rotation,stuff) VALUES(?,?,?,?,?,?,?,?)", a.ID(), plan.ID(), i, b.Definition(), b.Cell().X, b.Cell().Z, b.Rotation(), b.Stuff()); err != nil {
+		if _, err := tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,definition,x,z,rotation,stuff) VALUES(?,?,?,?,?,?,?,?)", a.ID(), plan.ID(), i, b.Definition(), b.Cell().X, b.Cell().Z, b.Rotation(), b.Stuff()); err != nil {
 			return conflict(err)
 		}
 	}
-	return tx.Commit()
+	return nil
 }
+
 func conflict(err error) error {
 	var e *sqlite.Error
 	if errors.As(err, &e) && e.Code()&255 == 19 {
