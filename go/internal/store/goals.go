@@ -16,7 +16,7 @@ import (
 type GoalState struct {
 	Goal     domain.Goal
 	Revision uint64
-	Methods  []domain.GoalMethod
+	Methods  []domain.GoalMethod // Active plans; retired methods remain in LoadGoalMethod.
 	Retired  bool
 }
 
@@ -101,7 +101,7 @@ func loadGoal(ctx context.Context, tx *sql.Tx, id domain.GoalID) (GoalState, err
 		return GoalState{}, errors.New("invalid retired goal")
 	}
 	out.Revision = n
-	rows, err := tx.QueryContext(ctx, "SELECT epoch,method_id,plan_id FROM goal_methods WHERE goal_id=? ORDER BY length(epoch),epoch,method_id", id)
+	rows, err := tx.QueryContext(ctx, "SELECT m.epoch,m.method_id,m.plan_id FROM plans p INDEXED BY active_plans CROSS JOIN goal_methods m ON m.plan_id=p.id WHERE p.retired=0 AND m.goal_id=? ORDER BY length(m.epoch),m.epoch,m.method_id", id)
 	if err != nil {
 		return GoalState{}, err
 	}
@@ -334,6 +334,19 @@ func cancelGoalMethods(ctx context.Context, tx *sql.Tx, state GoalState) error {
 }
 
 func guardGoalWork(ctx context.Context, tx *sql.Tx, plan domain.PlanID, current domain.GenerationSnapshot, tick domain.Tick) error {
+	var retired bool
+	if err := tx.QueryRowContext(ctx, "SELECT retired FROM plans WHERE id=?", plan).Scan(&retired); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
+	if retired {
+		return errors.New("retired plan does not admit work")
+	}
+	if err := guardRetirementFloor(ctx, tx, current, tick); err != nil {
+		return err
+	}
 	var id domain.GoalID
 	var epoch string
 	err := tx.QueryRowContext(ctx, "SELECT goal_id,epoch FROM goal_methods WHERE plan_id=?", plan).Scan(&id, &epoch)

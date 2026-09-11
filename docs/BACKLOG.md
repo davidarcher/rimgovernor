@@ -623,8 +623,12 @@ expand these into another nested task tree; remove a row when its outcome is met
   retaining immutable history; uncertain effects and cleanup prevent retirement.
   Completion observed after cancellation now yields historic cost/geometry holds
   to fresh native stock and placement facts without reviving cancelled intent.
+  Settled autopilot method plans now retire from active capacity with retained
+  exact history and per-world observation floors; stale admission/dispatch stays
+  blocked after restart. Current plans, unfinished dependencies, uncertain effects,
+  cleanup and unsuccessful outcomes remain pinned.
   Remaining fact projection (further need inputs and construction
-  costs), plan/method/reservation-history retirement,
+  costs), unsuccessful-plan resource release,
   method selection and execution composition remain
   open; these components do not enable orders.
 

@@ -144,6 +144,11 @@ func (s *Store) ReviewRoutine(ctx context.Context, request RoutineReviewRequest)
 		}
 	}
 	old := map[domain.GoalID]GoalState{}
+	if request.Enabled {
+		if err = retireRoutinePlans(ctx, tx, request.Current, request.Tick); err != nil {
+			return RoutineReviewResult{}, err
+		}
+	}
 	for _, binding := range previous.Goals {
 		g, err := loadGoal(ctx, tx, binding.Goal)
 		if err != nil {

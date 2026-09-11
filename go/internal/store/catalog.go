@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// LoadPlans returns one complete, deterministically ordered catalog snapshot.
+// LoadPlans returns one complete, deterministically ordered active catalog snapshot.
 // The limit is an acceptance bound, never pagination: exceeding it returns no
 // plans, so callers cannot mistake a partial catalog for complete accounting.
 func (s *Store) LoadPlans(ctx context.Context, limit int) ([]PlanState, error) {
@@ -32,7 +32,7 @@ func (s *Store) LoadPlans(ctx context.Context, limit int) ([]PlanState, error) {
 }
 
 func loadPlans(ctx context.Context, tx *sql.Tx, limit int) ([]PlanState, error) {
-	rows, err := tx.QueryContext(ctx, "SELECT id FROM plans ORDER BY id LIMIT ?", limit+1)
+	rows, err := tx.QueryContext(ctx, "SELECT id FROM plans WHERE retired=0 ORDER BY id LIMIT ?", limit+1)
 	if err != nil {
 		return nil, err
 	}

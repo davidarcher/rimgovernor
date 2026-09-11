@@ -13,9 +13,10 @@ func persistentHolds(state store.PlanState, target domain.ActionID, expected dom
 	return planHolds(state, target, &expected)
 }
 
-// PlanCatalog must return a complete atomic catalog or an error at the limit.
+// PlanCatalog must return a complete atomic active catalog or an error at the limit.
 // Store.LoadPlans supplies this guarantee; partial pagination cannot establish
-// that another plan has no commitments.
+// that another plan has no commitments. Retired completions retain store-level
+// observation floors checked again at preparation and dispatch.
 type PlanCatalog interface {
 	LoadPlans(context.Context, int) ([]store.PlanState, error)
 }

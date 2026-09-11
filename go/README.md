@@ -70,8 +70,17 @@ rewinds reset latches. Superseded invalidated autopilot goals leave the bounded
 active catalog only after all linked work is observed and cleanup is settled.
 Retired goals remain readable with their original IDs, methods and receipts, and
 cannot be modified or reused. Disabled bindings and player cancellations remain
-retained. Plan and method-history retirement is still required before sustained
-routine execution.
+retained. Enabled reviews also retire settled autopilot method plans from active
+capacity. `GoalState.Methods` lists active bindings; `LoadGoalMethod` reads an exact
+historical binding, and `LoadPlan` preserves its progress and admissions. Plan and
+method IDs remain reserved. Current plans, unfinished dependencies, uncertain effects,
+owned-draft cleanup and unsuccessful outcomes stay pinned.
+
+Completed plan retirement retains a per-world observation-tick floor. Method
+admission, preparation and dispatch reject older observations, including after a
+restart or tick rewind in the same load. A different colony/load/map has its own
+floor. Retirement and the floor commit with the routine review; neither issues
+orders or releases unresolved work. Unsuccessful-plan resource release remains open.
 
 `bridge.ReadColonyFacts` and `observation.DecodeColony` consume the typed native
 core and planning geometry. Missing optional fields remain unknown, and a changed

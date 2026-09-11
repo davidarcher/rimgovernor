@@ -57,6 +57,9 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 		return BuildingMethodDecision{}, err
 	}
 	defer tx.Rollback()
+	if err = guardRetirementFloor(ctx, tx, r.Current, r.Tick); err != nil {
+		return BuildingMethodDecision{}, err
+	}
 	goal, err := loadGoal(ctx, tx, r.Goal)
 	if err != nil {
 		return BuildingMethodDecision{}, err

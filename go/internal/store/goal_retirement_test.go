@@ -67,6 +67,7 @@ func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
 		t.Fatal(err)
 	}
 	r.Current.Direction--
+	r.Current.Plan = "other"
 	reviewRoutine(t, s, &r)
 	before, err := s.LoadGoal(ctx, g.Goal.ID)
 	if err != nil || before.Retired {
@@ -77,8 +78,11 @@ func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
 	}
 	reviewRoutine(t, s, &r)
 	after, err := s.LoadGoal(ctx, g.Goal.ID)
-	if err != nil || !after.Retired || len(after.Methods) != 1 {
+	if err != nil || !after.Retired || len(after.Methods) != 0 {
 		t.Fatal(after, err)
+	}
+	if method, err := s.LoadGoalMethod(ctx, g.Goal.ID, g.Goal.Epoch, "wood"); err != nil || method.Plan != "p" {
+		t.Fatal(method, err)
 	}
 	p, err := s.LoadPlan(ctx, "p")
 	if err != nil || p.Progress[0].View().Unresolved {
@@ -141,9 +145,14 @@ func TestRoutineGoalRetirementRetainsCompletedOwnedDraft(t *testing.T) {
 		t.Fatal(progress, err)
 	}
 	r.Current.Direction--
+	r.Current.Plan = "other"
 	reviewRoutine(t, s, &r)
 	g, err = s.LoadGoal(ctx, g.Goal.ID)
 	if err != nil || g.Retired || g.Goal.Status != domain.GoalInvalidated {
 		t.Fatal("owned draft cleanup lost", g, err)
+	}
+	retained, err := s.LoadPlan(ctx, "p")
+	if err != nil || retained.Retired {
+		t.Fatal("owned draft plan retired", retained, err)
 	}
 }
