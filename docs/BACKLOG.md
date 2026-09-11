@@ -621,6 +621,8 @@ expand these into another nested task tree; remove a row when its outcome is met
   acceptance and further use of these fields remain open.
   Superseded invalidated autopilot goals now retire from active capacity while
   retaining immutable history; uncertain effects and cleanup prevent retirement.
+  Completion observed after cancellation now yields historic cost/geometry holds
+  to fresh native stock and placement facts without reviving cancelled intent.
   Remaining fact projection (further need inputs and construction
   costs), plan/method/reservation-history retirement,
   method selection and execution composition remain

@@ -55,6 +55,9 @@ costs and footprints with its goal link and plan in one transaction, using the
 same resource policy as Hands and authoritative competing reservations. Actions
 remain pending until fresh Hands admission. Completed geometry yields to fresh
 native placement observations rather than permanently claiming map coordinates.
+This also applies when completion is observed after cancellation: fresh stock
+replaces the historic cost hold while the action remains cancelled. Unknown effects
+and observations predating completion cannot release the reservation.
 
 `Store.ReviewRoutine` commits explicit deficit/unknown/recovered assessments and
 food, wood and temperature latch history with all maintained-goal reviews in one

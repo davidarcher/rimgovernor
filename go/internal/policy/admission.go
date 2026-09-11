@@ -356,7 +356,10 @@ func Admit(input Input) Decision {
 			continue
 		}
 		v := h.Progress.View()
-		completionStockFresh := v.Stage == domain.Completed && !v.Unresolved && stockFresh && r.Stock.Tick >= v.Tick && sameWorld(v.Snapshot, r.Current)
+		effect, observed := v.Effect.Value()
+		// Cancellation preserves intent history even when the issued work later
+		// completes. Fresh native facts then replace its historic reservation.
+		completionStockFresh := observed && effect == domain.EffectCompleted && !v.Unresolved && stockFresh && r.Stock.Tick >= v.Tick && sameWorld(v.Snapshot, r.Current)
 		if completionStockFresh {
 			continue
 		}

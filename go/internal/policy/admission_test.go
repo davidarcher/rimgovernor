@@ -201,32 +201,51 @@ func TestCancellationRetainsUncertainReservation(t *testing.T) {
 	}
 }
 func TestCompletedWorkYieldsToFreshNativePlacement(t *testing.T) {
-	old := issue(t, candidate(t, "old", 1, 100))
-	p, err := old.Progress.Observe(domain.Observation{Action: "old", Attempt: 1, Snapshot: current(), Tick: 15, Effect: domain.EffectCompleted}, current())
-	if err != nil {
-		t.Fatal(err)
+	for _, cancelled := range []bool{false, true} {
+		t.Run(fmt.Sprintf("cancelled=%v", cancelled), func(t *testing.T) {
+			old := issue(t, candidate(t, "old", 1, 100))
+			if cancelled {
+				var err error
+				old.Progress, err = old.Progress.Cancel()
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			p, err := old.Progress.Observe(domain.Observation{Action: "old", Attempt: 1, Snapshot: current(), Tick: 15, Effect: domain.EffectCompleted}, current())
+			if err != nil {
+				t.Fatal(err)
+			}
+			old.Progress = p
+			if cancelled && p.View().Stage != domain.Cancelled {
+				t.Fatal("completion changed cancelled intent")
+			}
+			r := request(candidate(t, "new", 2, 100))
+			r.Held = []Reservation{hold(old)}
+			d := decide(t, r)
+			if len(d.Admitted) != 1 || len(d.Held) != 1 || d.Held[0].Costs[0].Count != 100 {
+				t.Fatal("completed budget not released or evidence lost", d)
+			}
+			r.Candidates = []Candidate{candidate(t, "new", 1, 1)}
+			if len(decide(t, r).Admitted) != 1 {
+				t.Fatal("historic completion permanently reserved geometry")
+			}
+			r.Candidates[0].Preview.SafeToPlace = domain.Known(false)
+			reason(t, r, UnsafePlacement)
+			r.Candidates = []Candidate{candidate(t, "new", 2, 1)}
+			r.Stock.Tick = 14
+			reason(t, r, StaleFacts)
+			r.CurrentTick = 14
+			r.Candidates[0].Preview.Tick = 14
+			reason(t, r, InsufficientStock)
+			r.CurrentTick = 20
+			r.Candidates[0].Preview.Tick = 20
+			r.Stock.Tick = 20
+			r.Current.Load = "other"
+			r.Stock.Snapshot = r.Current
+			r.Candidates[0].Preview.Snapshot = r.Current
+			reason(t, r, InvalidHeld)
+		})
 	}
-	old.Progress = p
-	r := request(candidate(t, "new", 2, 100))
-	r.Held = []Reservation{hold(old)}
-	d := decide(t, r)
-	if len(d.Admitted) != 1 || len(d.Held) != 1 || d.Held[0].Costs[0].Count != 100 {
-		t.Fatal("completed budget not released or evidence lost", d)
-	}
-	r.Candidates = []Candidate{candidate(t, "new", 1, 1)}
-	if len(decide(t, r).Admitted) != 1 {
-		t.Fatal("historic completion permanently reserved geometry")
-	}
-	r.Candidates[0].Preview.SafeToPlace = domain.Known(false)
-	reason(t, r, UnsafePlacement)
-	r.Candidates = []Candidate{candidate(t, "new", 2, 1)}
-	r.Stock.Tick = 14
-	reason(t, r, StaleFacts)
-	r.Stock.Tick = 20
-	r.Current.Load = "other"
-	r.Stock.Snapshot = r.Current
-	r.Candidates[0].Preview.Snapshot = r.Current
-	reason(t, r, InvalidHeld)
 }
 
 func TestHeldOrderingAndOtherPlanReservations(t *testing.T) {
