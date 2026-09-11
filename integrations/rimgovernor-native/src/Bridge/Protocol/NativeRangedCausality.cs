@@ -24,6 +24,7 @@ namespace HomeBridge.BridgeTools
             internal NativeCombatDamageRecord Evidence=null!;
             internal NativeControlIdentity Identity=null!;
             internal Func<bool> LaunchGuard=null!, ImpactGuard=null!;
+            internal bool TrackingLost;
         }
         private sealed class Flight
         {
@@ -125,7 +126,7 @@ namespace HomeBridge.BridgeTools
                 throw new InvalidOperationException("Exact native direct-bullet tracking prerequisites are unavailable.");
             var identity=authority.Status().Identity!;
             var state=Games.GetOrCreateValue(game);
-            if (state.Records.Count>=RecordLimit || state.Flights.Count>=FlightLimit || state.Records.Any(r=>ReferenceEquals(r.Evidence.Job,job)))
+            if (state.Records.Count>=RecordLimit || state.Flights.Count>=FlightLimit || state.Records.Any(r=>ReferenceEquals(r.Evidence.Job,job) && r.Evidence.JobId==job.loadID))
                 throw new InvalidOperationException("Direct-bullet tracking capacity or unique job identity is unavailable.");
             var evidence=new NativeCombatDamageRecord(game,attacker,target,job,impactGuard);
             state.Records.Add(new Tracked {Evidence=evidence,Identity=identity,LaunchGuard=launchGuard,ImpactGuard=impactGuard});
@@ -137,35 +138,50 @@ namespace HomeBridge.BridgeTools
                 && NativeControlAuthority.TryGetForGame(Current.Game,out var authority) && authority!=null
                 && authority.Status().Identity is NativeControlIdentity identity && NativePawnFacts.SameIdentity(record.Identity,identity);
         }
-        private static Tracked? PrepareLaunch(Projectile projectile,Thing launcher,LocalTargetInfo intendedTarget,Thing equipment,Verb_LaunchProjectile verb)
+        internal static bool HasTrackingLoss(NativeCombatDamageRecord evidence)
         {
             try {
-                if (!UnityData.IsInMainThread || !IsReady || exhausted || damageDepth!=0 || projectile.GetType()!=typeof(Bullet)
-                    || !(launcher is Pawn attacker) || !(intendedTarget.Thing is Pawn victim) || !Supports(verb,attacker,victim)
+                if (!Games.TryGetValue(evidence.Game,out var state)) return true;
+                var record=state.Records.FirstOrDefault(r=>ReferenceEquals(r.Evidence,evidence));
+                return record==null || record.TrackingLost;
+            } catch { return true; }
+        }
+        private static Tracked? PrepareLaunch(Projectile projectile,Thing launcher,LocalTargetInfo intendedTarget,Thing equipment,Verb_LaunchProjectile verb)
+        {
+            Tracked? record=null;
+            try {
+                if (!UnityData.IsInMainThread || Current.Game==null || !Games.TryGetValue(Current.Game,out var state)) return null;
+                var attacker=verb.CasterPawn;
+                record=state.Records.FirstOrDefault(r=>r.Evidence.Attacker==attacker && r.Evidence.Job==attacker.CurJob && r.Evidence.JobId==r.Evidence.Job.loadID);
+                if (record==null) return null;
+                var e=record.Evidence;
+                if (!IsReady || exhausted || damageDepth!=0 || projectile.GetType()!=typeof(Bullet)
+                    || launcher!=attacker || intendedTarget.Thing!=e.Target || !Supports(verb,attacker,e.Target)
                     || equipment!=verb.EquipmentSource || projectile.def!=verb.Projectile || projectile.Map!=Find.CurrentMap
-                    || !Games.TryGetValue(Current.Game,out var state) || state.Flights.Count>=FlightLimit || state.Flights.ContainsKey(projectile)) return null;
-                foreach (var record in state.Records) {
-                    var e=record.Evidence;
-                    if (e.Attacker==attacker && e.Target==victim && e.Job==attacker.CurJob && e.JobId==e.Job.loadID
-                        && e.Job.def==JobDefOf.AttackStatic && e.Job.targetA.Thing==victim && e.Job.verbToUse==verb
-                        && CurrentIdentity(record) && record.LaunchGuard()) return record;
-                }
-            } catch { /* Unreadable launch creates no lineage. */ }
-            return null;
+                    || state.Flights.Count>=FlightLimit || state.Flights.ContainsKey(projectile)
+                    || e.JobId!=e.Job.loadID || e.Job.def!=JobDefOf.AttackStatic || e.Job.targetA.Thing!=e.Target || e.Job.verbToUse!=verb
+                    || !CurrentIdentity(record) || !record.LaunchGuard()) record.TrackingLost=true;
+            } catch { if (record!=null) record.TrackingLost=true; }
+            return record;
         }
         private static void LaunchBullet(Projectile projectile,Thing launcher,Vector3 origin,LocalTargetInfo usedTarget,LocalTargetInfo intendedTarget,
             ProjectileHitFlags hitFlags,bool preventFriendlyFire,Thing equipment,ThingDef targetCoverDef,Verb_LaunchProjectile verb)
         {
             var record=PrepareLaunch(projectile,launcher,intendedTarget,equipment,verb);
             // Forward the exact native call even if observation is unavailable.
-            projectile.Launch(launcher,origin,usedTarget,intendedTarget,hitFlags,preventFriendlyFire,equipment,targetCoverDef);
+            try { projectile.Launch(launcher,origin,usedTarget,intendedTarget,hitFlags,preventFriendlyFire,equipment,targetCoverDef); }
+            catch { if (record!=null) record.TrackingLost=true; throw; }
+            if (record==null || record.TrackingLost) return;
             try {
-                if (record==null || !IsReady || !CurrentIdentity(record) || projectile.Launcher!=launcher
-                    || projectile.intendedTarget!=intendedTarget || projectile.usedTarget!=usedTarget || projectile.Map!=record.Identity.Map) return;
+                if (!IsReady || !CurrentIdentity(record) || projectile.Launcher!=launcher
+                    || projectile.intendedTarget!=intendedTarget || projectile.usedTarget!=usedTarget || projectile.Map!=record.Identity.Map
+                    || projectile.thingIDNumber<0 || projectile.def!=verb.Projectile || !projectile.Spawned) {
+                    record.TrackingLost=true;return;
+                }
                 var state=Games.GetOrCreateValue(record.Identity.Game);
-                if (state.Flights.Count>=FlightLimit || state.Flights.ContainsKey(projectile)) return;
+                if (state.Flights.Count>=FlightLimit || state.Flights.ContainsKey(projectile)) {record.TrackingLost=true;return;}
                 state.Flights.Add(projectile,new Flight {Record=record,Projectile=projectile,ProjectileId=projectile.thingIDNumber,Definition=projectile.def});
-            } catch { /* Partial native launch is not completion evidence. */ }
+            } catch { record.TrackingLost=true; }
         }
         private static void BeforeAnyDamage(out DamageFrame? __state)
         {
