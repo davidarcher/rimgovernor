@@ -21,7 +21,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 2
+const schemaVersion = 3
 const applicationID = 0x52474f31
 
 var ErrConflict = errors.New("plan or action identity already exists")
@@ -33,8 +33,9 @@ type Store struct{ db *sql.DB }
 // It is independent of HTTP process sessions and survives controller restarts.
 type ControllerSessionID string
 type PlanState struct {
-	Spec     domain.PlanSpec
-	Progress []domain.Progress
+	Spec       domain.PlanSpec
+	Progress   []domain.Progress
+	Admissions []ActionAdmission
 }
 
 // Open accepts a filesystem path, never a caller-supplied SQLite connection URI.
@@ -114,6 +115,7 @@ func (s *Store) initialize(ctx context.Context) error {
 CREATE TABLE plans(id TEXT PRIMARY KEY, revision TEXT NOT NULL);
 CREATE TABLE actions(id TEXT PRIMARY KEY, plan_id TEXT NOT NULL REFERENCES plans(id), ordinal INTEGER NOT NULL, definition TEXT NOT NULL, x INTEGER NOT NULL, z INTEGER NOT NULL, rotation TEXT NOT NULL, stuff TEXT NOT NULL, UNIQUE(plan_id,ordinal));
 CREATE TABLE transitions(sequence INTEGER PRIMARY KEY, action_id TEXT NOT NULL REFERENCES actions(id), payload BLOB NOT NULL);
+CREATE TABLE admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL);
 CREATE INDEX action_transitions ON transitions(action_id,sequence);`)
 		if err != nil {
 			return err
@@ -139,6 +141,9 @@ CREATE INDEX action_transitions ON transitions(action_id,sequence);`)
 		return err
 	}
 	if _, err = identity(ctx, tx); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, "SELECT action_id,payload FROM admissions LIMIT 0"); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -320,6 +325,13 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 			return PlanState{}, fmt.Errorf("invalid action %q history: %w", a.ID(), e)
 		}
 		state.Progress = append(state.Progress, p)
+		admission, present, err := loadAdmission(ctx, tx, a, p)
+		if err != nil {
+			return PlanState{}, err
+		}
+		if present {
+			state.Admissions = append(state.Admissions, ActionAdmission{Action: a.ID(), Admission: admission})
+		}
 	}
 	return state, nil
 }
@@ -391,6 +403,17 @@ func (s *Store) advance(ctx context.Context, plan domain.PlanID, action domain.A
 	}
 	if !found {
 		return domain.Progress{}, ErrNotFound
+	}
+	for _, record := range state.Admissions {
+		if record.Action != action {
+			continue
+		}
+		if event.Kind == "prepare" {
+			return domain.Progress{}, errors.New("accounted work requires ReserveAndPrepare")
+		}
+		if event.Kind == "dispatch" && event.Tick < record.Admission.Tick {
+			return domain.Progress{}, errors.New("dispatch predates latest admission observation")
+		}
 	}
 	next, err := apply(current, event)
 	if err != nil {
