@@ -4,6 +4,7 @@ option csharp_namespace = "RimGovernor.Protocol.Receipts";
 option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb;receiptspb";
 import "common.proto";
 import "authority.proto";
+import "placement.proto";
 
 message Receipt {
   rimgovernor.common.v1.AttemptKey attempt = 1;
@@ -59,7 +60,7 @@ message ConstructionEffect {
   optional string def_name = 3;
   optional string stuff = 4;
   rimgovernor.common.v1.Cell cell = 5;
-  optional int32 rotation = 6;
+  optional rimgovernor.placement.v1.Rotation rotation = 6;
   optional ConstructionStage stage = 7;
   optional bool present = 8;
   optional bool started = 9;
@@ -69,7 +70,7 @@ message ConstructionEffect {
   repeated string wiped_thing_ids = 13;
 }
 enum InstallationStage { INSTALLATION_STAGE_UNSPECIFIED = 0; INSTALLATION_STAGE_PACKED = 1; INSTALLATION_STAGE_PLACEABLE = 2; INSTALLATION_STAGE_QUEUED = 3; INSTALLATION_STAGE_INSTALLED = 4; INSTALLATION_STAGE_UNVERIFIED = 5; }
-message InstallationEffect { optional string inner_thing_id = 1; optional string packed_thing_id = 2; optional string blueprint_id = 3; optional string def_name = 4; optional string stuff = 5; rimgovernor.common.v1.Cell cell = 6; optional int32 rotation = 7; optional InstallationStage stage = 8; }
+message InstallationEffect { optional string inner_thing_id = 1; optional string packed_thing_id = 2; optional string blueprint_id = 3; optional string def_name = 4; optional string stuff = 5; rimgovernor.common.v1.Cell cell = 6; optional rimgovernor.placement.v1.Rotation rotation = 7; optional InstallationStage stage = 8; }
 message DesignationEffect { optional string thing_id = 1; optional string designation_def = 2; optional bool present = 3; optional string resource_def = 4; rimgovernor.common.v1.Cell cell = 5; }
 enum SettingsField {
   SETTINGS_FIELD_UNSPECIFIED = 0; SETTINGS_FIELD_FORBIDDEN = 1; SETTINGS_FIELD_POWER = 2;
