@@ -79,7 +79,9 @@ func validateClockEpochRecord(v ClockEpochObligation) error {
 		if err != nil {
 			return err
 		}
-		if ClockEpochStage(state) != v.Stage {
+		// A dispatch retains its last pre-call observation as a freshness floor.
+		pending := v.Sequence > 0 && (v.Stage == ClockEpochPausing || v.Stage == ClockEpochUncertain)
+		if ClockEpochStage(state) != v.Stage && !(pending && state == bridge.ClockEpochRequired) {
 			return errors.New("clock epoch stage contradicts evidence")
 		}
 		return nil
@@ -237,7 +239,7 @@ func (s *Store) BeginClockPause(ctx context.Context, id string, sequence uint64)
 			return ClockEpochObligation{}, ErrCapacity
 		}
 		v.Sequence++
-		v.Stage, v.Context, v.Status = ClockEpochPausing, nil, nil
+		v.Stage = ClockEpochPausing
 		return v, nil
 	})
 }
