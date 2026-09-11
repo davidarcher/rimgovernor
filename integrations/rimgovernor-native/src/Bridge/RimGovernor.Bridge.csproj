@@ -5,7 +5,8 @@
     <AssemblyName>RimGovernor.Bridge</AssemblyName>
     <OutputPath>../../BridgeTools/RimGovernor/</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <DefineConstants Condition="'$(ThroughputFixture)' == 'true'">$(DefineConstants);THROUGHPUT_FIXTURE</DefineConstants>
     <DebugType>none</DebugType>
@@ -14,6 +15,8 @@
     <RimBridgeSdkDir Condition="'$(RimBridgeSdkDir)' == ''">C:/Program Files (x86)/Steam/steamapps/common/RimWorld/Mods/RimBridgeServer/1.6/Assemblies</RimBridgeSdkDir>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../../../contracts/generated/protobuf/csharp/*.cs" />
+    <PackageReference Include="Google.Protobuf" Version="3.31.1" />
     <Compile Include="../../../../scripts/fixtures/ThroughputFixture.cs" Condition="'$(ThroughputFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/WasteFixture.cs" Condition="'$(WasteFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/DisasterFixture.cs" Condition="'$(DisasterFixture)' == 'true'" />
@@ -56,4 +59,9 @@
     <Reference Include="UnityEngine.ScreenCaptureModule"><HintPath>$(RimWorldManagedDir)/UnityEngine.ScreenCaptureModule.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine.IMGUIModule"><HintPath>$(RimWorldManagedDir)/UnityEngine.IMGUIModule.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
+  <Target Name="RecordNativeRuntimeDependencies" AfterTargets="Build">
+    <WriteLinesToFile File="$(OutputPath)runtime-dependencies.tsv"
+      Lines="@(ReferenceCopyLocalPaths->WithMetadataValue('Extension', '.dll')->'%(NuGetPackageId)|%(NuGetPackageVersion)|%(Filename)%(Extension)')"
+      Overwrite="true" />
+  </Target>
 </Project>

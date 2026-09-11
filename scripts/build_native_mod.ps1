@@ -57,9 +57,23 @@ foreach ($taskDirectory in @('src', 'About', 'Notices')) {
         Copy-Item -LiteralPath $taskFile.FullName -Destination $taskTo
     }
 }
+# Canonical Protobuf sources and official generator inputs travel with the build.
+# No experimental JSON generator or second contract tree participates.
+foreach ($taskContractDirectory in @('contracts/proto', 'contracts/generated/protobuf/csharp', 'tools/protobuf')) {
+    $taskFrom = Join-Path $taskRepo $taskContractDirectory
+    foreach ($taskFile in Get-ChildItem -LiteralPath $taskFrom -Recurse -File | Where-Object {
+        $_.FullName -notmatch '[\\/](obj|bin)[\\/]' -and $_.Extension -notin @('.dll', '.pdb', '.exe')
+    }) {
+        $taskRelative = $taskFile.FullName.Substring($taskRepo.Length + 1)
+        $taskTo = Join-Path $taskCopyRoot $taskRelative
+        New-Item -ItemType Directory -Path (Split-Path $taskTo -Parent) -Force | Out-Null
+        Copy-Item -LiteralPath $taskFile.FullName -Destination $taskTo
+    }
+}
 $taskScripts = Join-Path $taskCopyRoot 'scripts'
 New-Item -ItemType Directory -Path $taskScripts -Force | Out-Null
 Copy-Item -LiteralPath $PSCommandPath -Destination $taskScripts
+Copy-Item -LiteralPath (Join-Path $taskRepo 'scripts/generate_protobuf.py') -Destination $taskScripts
 $taskFixtureSource = Join-Path $taskRepo 'scripts/fixtures'
 foreach ($taskFile in Get-ChildItem -LiteralPath $taskFixtureSource -Recurse -File | Where-Object {
     $_.Extension -in @('.cs', '.csproj') -and $_.FullName -notmatch '[\\/](obj|bin)[\\/]'
@@ -71,7 +85,7 @@ foreach ($taskFile in Get-ChildItem -LiteralPath $taskFixtureSource -Recurse -Fi
 Copy-Item -LiteralPath (Join-Path $taskRepo 'THIRD_PARTY.md') -Destination $taskCopyRoot
 Copy-Item -LiteralPath (Join-Path $taskSource 'README.md') -Destination $taskCopyNative
 $taskArgs = @('build', (Join-Path $taskCopyNative 'src/Bridge/RimGovernor.Bridge.csproj'),
-    '-c', 'Release', '-v', 'minimal', "-p:OutputPath=$taskCompiled/",
+    '-c', 'Release', '-v', 'minimal', '-p:RestoreLockedMode=true', "-p:OutputPath=$taskCompiled/",
     "-p:RimWorldManagedDir=$RimWorldManagedDir", "-p:HarmonyAssembly=$HarmonyAssembly",
     "-p:RimBridgeSdkDir=$RimBridgeSdkDir")
 foreach ($taskFlag in $taskFixtures) { $taskArgs += "-p:${taskFlag}=true" }
@@ -86,6 +100,18 @@ foreach ($taskItem in @(
     $taskDestination = Join-Path $taskPackage $taskItem.Directory
     New-Item -ItemType Directory -Path $taskDestination -Force | Out-Null
     Copy-Item -LiteralPath $taskDll -Destination $taskDestination
+}
+# Only resolved NuGet runtime DLLs are redistributed, beside their requesting
+# Bridge assembly where RimBridgeServer's scoped resolver searches first.
+$taskRuntimeDependencies = @()
+foreach ($taskLine in Get-Content -LiteralPath (Join-Path $taskCompiled 'runtime-dependencies.tsv')) {
+    $taskFields = $taskLine.Split('|')
+    if ($taskFields.Count -ne 3 -or -not $taskFields[0]) { throw "Unidentified runtime dependency: $taskLine" }
+    $taskNotice = Join-Path $taskCopyNative ('Notices/protobuf/' + $taskFields[0].ToLowerInvariant() + '/' + $taskFields[1])
+    if (-not (Test-Path -LiteralPath (Join-Path $taskNotice 'LICENSE'))) { throw "Missing runtime dependency notice: $taskLine" }
+    $taskDll = Join-Path $taskCompiled $taskFields[2]
+    Copy-Item -LiteralPath $taskDll -Destination (Join-Path $taskPackage 'BridgeTools/RimGovernor')
+    $taskRuntimeDependencies += [ordered]@{ package = $taskFields[0]; version = $taskFields[1]; file = $taskFields[2] }
 }
 Copy-Item -LiteralPath (Join-Path $taskCopyNative 'About'), (Join-Path $taskCopyNative 'Notices') -Destination $taskPackage -Recurse
 Copy-Item -LiteralPath (Join-Path $taskCopyNative 'README.md') -Destination $taskPackage
@@ -105,6 +131,7 @@ $taskManifest = [ordered]@{
     packageId = 'davidarcher.rimgovernor.native'
     role = $taskRole
     fixtures = $taskFixtures
+    runtimeDependencies = $taskRuntimeDependencies
     sourceRevision = (& git -C $taskRepo rev-parse HEAD)
     sourceDirty = [bool](& git -C $taskRepo status --porcelain)
     dotnetSdk = $taskSdkVersion

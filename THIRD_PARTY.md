@@ -22,8 +22,10 @@ google.golang.org/protobuf1.36.11 in its own go.mod/go.sum. Protobuf runtimes us
 BSD-3-Clause; the Grpc.Tools build package declares Apache-2.0. Runtime distribution must include their upstream notices
 and notices for the .NET runtime dependencies; compiler/reference packages are
 build inputs. See [toolchain provenance](tools/protobuf/README.md) and
-[Go generator provenance](tools/protobuf/go/README.md). Native runtime staging
-and distribution notice checks remain in N01 adapter/package acceptance.
+[Go generator provenance](tools/protobuf/go/README.md). Native runtime staging uses the Bridge project's own lock and retains
+[the runtime closure notices](integrations/rimgovernor-native/Notices/protobuf/PROVENANCE.md).
+The build manifest records bundled runtime dependency versions and file hashes;
+actual native loading remains part of N01 package acceptance.
 
 - [Colony bridge source notice](integrations/rimgovernor-native/Notices/companion/PROVENANCE.md)
 - [UI formatter source notice](controller/rimgovernor/vendor/PROVENANCE.md)
