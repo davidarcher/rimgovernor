@@ -6,6 +6,10 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
+  <!-- Keep the Windows restore graph stable across SDK versions and preserve output paths. -->
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <UseRidGraph>true</UseRidGraph>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../../integrations/rimgovernor-native/src/Bridge/BridgeCommon.cs" Link="BridgeCommon.cs" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
