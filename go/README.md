@@ -77,6 +77,12 @@ reads. To replay a retained official payload through Go and durable review, set
 `RIMGOVERNOR_NATIVE_COLONY_CAPTURE` and run
 `go test ./internal/observation -run TestColonyNativeCapture -v`.
 
+`buildingruntime.RoutineReviewer.Step` serializes observation and durable review
+through the existing player gate, rechecks authority after the read, and retains
+unknown needs. Manual and fresh acquisition invalidate previous routine reviews
+without a native read. A disabled reviewer retires existing work without acquiring
+authority. The reviewer has no independent background loop.
+
 These components remain gated prerequisites. The typed read observes the game;
 routine scheduling, remaining fact projection, method selection and runtime
 composition remain in G01.05. Routine reviews do not acquire authority or issue orders.

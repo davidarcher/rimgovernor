@@ -604,9 +604,11 @@ expand these into another nested task tree; remove a row when its outcome is met
   counts, stock, sleeping/temperature/storage, definitions and selected cells.
   A paused Go read bracket requires matching ticks and known native generations
   and rejects expired/cancelled reads before publishing facts.
+  The player-gated reviewer now commits native needs with authority rechecks;
+  Manual and fresh acquisition invalidate routine work without native reads.
   Remaining fact projection (diet/rot forecasts, further need inputs and construction
   costs), goal/reservation-history retirement,
-  routine review orchestration, method selection and runtime composition remain
+  automatic review scheduling, method selection and runtime composition remain
   open; these components do not enable orders.
 
 - [ ] **G01.07a — Finish defense and essential medical care.** Connect movement

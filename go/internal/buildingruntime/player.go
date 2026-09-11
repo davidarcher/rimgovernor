@@ -199,6 +199,9 @@ func (p *Player) Acquire(ctx context.Context, request store.ControlRequest) (sto
 	if err = p.session.Disable(); err != nil {
 		return store.ControlRecord{}, err
 	}
+	if _, err = p.stopRoutine(call); err != nil {
+		return store.ControlRecord{}, err
+	}
 	if err = p.world(call, request.World); err != nil {
 		return store.ControlRecord{}, err
 	}
@@ -253,6 +256,9 @@ func (p *Player) Manual(ctx context.Context, request store.ControlRequest) (stor
 		return store.ControlRecord{}, err
 	}
 	defer done()
+	if _, err = p.stopRoutine(call); err != nil {
+		return store.ControlRecord{}, err
+	}
 	if request.Kind != store.ManualControl {
 		return store.ControlRecord{}, store.ErrConflict
 	}
