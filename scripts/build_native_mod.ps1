@@ -5,7 +5,7 @@ param(
     [Parameter(Mandatory = $true)][string]$RimBridgeSdkDir,
     [string]$DotNet = 'dotnet',
     [string]$OutputRoot = '',
-    [ValidateSet('GuardedConstructionFixture', 'ThroughputFixture', 'WasteFixture', 'DisasterFixture', 'GearFixture',
+    [ValidateSet('ResearchObservationFixture', 'GuardedConstructionFixture', 'ThroughputFixture', 'WasteFixture', 'DisasterFixture', 'GearFixture',
         'MoodFixture', 'PopulationFixture', 'HusbandryFixture', 'MedicalManagementFixture',
         'MiningFixture', 'FoodObservationFixture', 'UpkeepFixture', 'TradeFixture',
         'ScenarioStartFixture', 'ConstructionLedgerFixture', 'EmergencyDevelopmentFixture',

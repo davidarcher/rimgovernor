@@ -120,8 +120,12 @@ namespace HomeBridge.BridgeTools
                 if (request.IncludeUnlocks)
                 {
                     var unlocks = def.UnlockedDefs; Bound(unlocks.Count);
-                    foreach (var unlocked in unlocks) row.Unlocks.Add(new Obs.ResearchUnlock { DefName = Id(unlocked.defName),
-                        NativeType = Id(unlocked.GetType().Name), Label = PlacementPreviewOperation.Diagnostic(unlocked.label ?? unlocked.defName) });
+                    foreach (var unlocked in unlocks)
+                    {
+                        var item = new Obs.ResearchUnlock { DefName = Id(unlocked.defName), NativeType = Id(unlocked.GetType().Name) };
+                        if (unlocked.label != null) item.Label = PlacementPreviewOperation.Diagnostic(unlocked.label);
+                        row.Unlocks.Add(item);
+                    }
                     row.UnlocksCompleteness = Complete(unlocks.Count, 0);
                 }
                 snapshot.Projects.Add(row);
@@ -214,7 +218,12 @@ namespace HomeBridge.BridgeTools
         private static void Number(double value) { if (double.IsNaN(value) || double.IsInfinity(value) || value < 0) throw new InvalidOperationException("Invalid research quantity."); }
         private static void Bound(int count) { if (count > 256) throw new ReadLimit("Research child collection exceeds 256."); }
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid research identifier.");
-        private static Obs.DefinitionRef Definition(Def def) => new Obs.DefinitionRef { DefName = Id(def.defName), Label = PlacementPreviewOperation.Diagnostic(def.label ?? def.defName) };
+        private static Obs.DefinitionRef Definition(Def def)
+        {
+            var value = new Obs.DefinitionRef { DefName = Id(def.defName) };
+            if (def.label != null) value.Label = PlacementPreviewOperation.Diagnostic(def.label);
+            return value;
+        }
         private static Common.Unavailable Missing(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private static Obs.ReadIssue Issue(string field, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Missing(Common.UnavailableReason.ReadFailed, detail) };
         private static Obs.Completeness Complete(int count, int filtered) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = (ulong)filtered, Unreadable = 0 };

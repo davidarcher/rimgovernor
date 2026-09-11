@@ -52,6 +52,11 @@ internal static class Program
         var native = Assembly.Load("Assembly-CSharp");
         var defType = native.GetType("Verse.ResearchProjectDef", true)!;
         var def = FormatterServices.GetUninitializedObject(defType);
+        defType.GetField("defName")!.SetValue(def, "Modded_Research");
+        var unnamed = Call("Definition", def);
+        Check(!(bool)Get(unnamed, "HasLabel") && (string)Get(unnamed, "DefName") == "Modded_Research", "Missing native label stays absent");
+        defType.GetField("label")!.SetValue(def, "");
+        Check((bool)Get(Call("Definition", def), "HasLabel"), "Explicit native empty label stays present");
         var dictionaryType = typeof(Dictionary<,>).MakeGenericType(defType, typeof(float));
         var progress = (IDictionary)Activator.CreateInstance(dictionaryType)!;
         var knowledge = (IDictionary)Activator.CreateInstance(dictionaryType)!;
