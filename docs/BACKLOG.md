@@ -615,8 +615,11 @@ expand these into another nested task tree; remove a row when its outcome is met
   invalidation, joined shutdown and disabled restart. Method execution is not enabled.
   The deterministic food forecast now accounts for diet/access, holder-owned stock,
   competing demand and rot deadlines. Typed native human food inputs have populated
-  stock parity and Go/Python forecast replay; combined animal demand remains unported.
-  Remaining fact projection (combined forecast inputs, further need inputs and construction
+  stock parity and Go/Python forecast replay. The combined native census now feeds
+  routine FoodDays with animal competition; populated native replay reaches a durable
+  food deficit. Crop/patient forecast fields have typed parity, but populated crop-work
+  acceptance and further use of these fields remain open.
+  Remaining fact projection (further need inputs and construction
   costs), goal/reservation-history retirement,
   method selection and execution composition remain
   open; these components do not enable orders.

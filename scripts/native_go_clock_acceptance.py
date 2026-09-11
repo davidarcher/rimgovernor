@@ -72,7 +72,7 @@ def require_healthy_colonists(reply):
         assert not blocked, f"Healthy-clock fixture prerequisite failed for {pawn['pawn']['id']}: {blocked}"
 
 
-def routine_evidence(database, identity, *, enabled):
+def routine_evidence(database, identity, *, enabled, expected_food_need=None):
     with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
         db.execute("BEGIN")
         row = db.execute("SELECT payload FROM routine_review WHERE singleton=1").fetchone()
@@ -96,7 +96,8 @@ def routine_evidence(database, identity, *, enabled):
             if not enabled:
                 assert goal["Status"] in {"invalidated", "cancelled"}
             goals[binding["Need"]] = goal
-        assert goals["EnsureFoodSupply"]["Need"] == "unknown", "Raw food runway became policy forecast"
+        if expected_food_need is not None:
+            assert goals["EnsureFoodSupply"]["Need"] == expected_food_need, "Food need differs from reference forecast"
         assert db.execute("SELECT count(*) FROM goal_methods").fetchone()[0] == 0, "Review unexpectedly created methods"
         return {"review": review, "goals": goals}
 

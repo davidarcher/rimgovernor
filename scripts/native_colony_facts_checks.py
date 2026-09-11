@@ -67,7 +67,38 @@ async def verify_colony_facts(wire, call, identity, context):
     census = food['completeness']
     assert census['page']['complete'] and int(census['returned']) == int(census['matched']) == len(consumers) + len(stocks)
     assert int(census['filtered']) == int(census['unreadable']) == 0
-    for section in ('forecast', 'upkeep', 'development'):
+    forecast, old_forecast = facts['forecast']['observed'], legacy['nativeForecastInputs']
+    assert set(forecast.get('animalIds', [])) == set(old_forecast['animalIds'])
+    combined = forecast['combinedFoodSupply']
+    combined_consumers = {r['pawnId']: r['nutritionPerDay'] for r in combined.get('consumers', [])}
+    assert set(combined_consumers) == {r['id'] for r in old_forecast['combinedFoodSupply']['consumers']}
+    for old in old_forecast['combinedFoodSupply']['consumers']:
+        assert math.isclose(combined_consumers[old['id']], old['nutritionPerDay'], rel_tol=1e-6, abs_tol=1e-6)
+    combined_stocks = {r['item']['id']: r for r in combined.get('stocks', [])}
+    assert set(combined_stocks) == {r['id'] for r in old_forecast['combinedFoodSupply']['stocks']}
+    for old in old_forecast['combinedFoodSupply']['stocks']:
+        row = combined_stocks[old['id']]
+        assert row.get('holderId') == old['holder'] and set(row['eaterIds']) == set(old['eaters'])
+        assert row['item']['defName'] == old['defName'] and int(row['count']) == old['count']
+        assert row['perishable'] == old['perishable'] and row.get('roofed') == old.get('roofed')
+        assert (int(row['rotTicks']) if 'rotTicks' in row else None) == old['rotTicks']
+        for new, previous in [('nutrition', 'nutrition'), ('temperatureC', 'temperature')]:
+            assert math.isclose(row[new], old[previous], rel_tol=1e-6, abs_tol=1e-6)
+    for section, identifier, fields in [
+        ('crops', 'zoneId', [('crop','crop'),('sowWork','sowWork'),('harvestWork','harvestWork'),('maturePlants','maturePlants'),('stalledPlants','stalledPlants'),('standingYield','standingYield'),('product','product')]),
+        ('patients', 'pawnId', [('bleedRatePerDay','bleedRatePerDay'),('hoursUntilDeathFromBloodLoss','hoursUntilDeathFromBloodLoss'),('mood','mood'),('moodTarget','moodTarget'),('minorBreakThreshold','minorBreakThreshold'),('majorBreakThreshold','majorBreakThreshold'),('extremeBreakThreshold','extremeBreakThreshold')]),
+    ]:
+        rows = {r[identifier]: r for r in forecast.get(section, [])}
+        assert set(rows) == {str(r['id']) for r in old_forecast[section]}
+        for old in old_forecast[section]:
+            row = rows[str(old['id'])]
+            for new, previous in fields:
+                expected = old.get(previous)
+                if type(expected) in (int, float):
+                    assert math.isclose(row[new], expected, rel_tol=1e-6, abs_tol=1e-6)
+                else:
+                    assert row.get(new) == expected
+    for section in ('upkeep', 'development'):
         assert facts[section]['unavailable']['reason'] == 'UNAVAILABLE_REASON_UNSUPPORTED'
     planning = facts['planning']['observed']
     definitions = {row['definition']['defName']: row for row in planning['definitions']}
@@ -112,4 +143,6 @@ async def verify_colony_facts(wire, call, identity, context):
     assert plain['observed']['planning']['unavailable']['reason'] == 'UNAVAILABLE_REASON_NOT_REQUESTED'
     return {'cells_compared': len(actual), 'definitions_compared': len(names),
             'food_consumers_compared': len(consumers), 'food_stocks_compared': len(stocks),
+            'combined_consumers_compared': len(combined_consumers), 'combined_stocks_compared': len(combined_stocks),
+            'animals_compared': len(forecast.get('animalIds', [])), 'patients_compared': len(forecast.get('patients', [])),
             'structural_refusals': 6, 'stale_identity_refused': True, 'core_parity': True}

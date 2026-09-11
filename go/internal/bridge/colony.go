@@ -153,7 +153,14 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 	} else if err := validateUnavailable(v.GetFoodSupply().GetUnavailable()); err != nil {
 		return err
 	}
-	for _, unavailable := range []*c.Unavailable{v.GetForecast().GetUnavailable(), v.GetUpkeep().GetUnavailable(), v.GetDevelopment().GetUnavailable()} {
+	if forecast := v.GetForecast().GetObserved(); forecast != nil {
+		if err := ValidateForecast(forecast, v.GetFoodSupply().GetObserved()); err != nil {
+			return err
+		}
+	} else if err := validateUnavailable(v.GetForecast().GetUnavailable()); err != nil {
+		return err
+	}
+	for _, unavailable := range []*c.Unavailable{v.GetUpkeep().GetUnavailable(), v.GetDevelopment().GetUnavailable()} {
 		if err := validateUnavailable(unavailable); err != nil {
 			return err
 		}

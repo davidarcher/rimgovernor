@@ -636,14 +636,14 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/ForecastFacts.cs",
-      "source_sha256": "27897d1be28c44d7765f24aeb629ddf79e37867932a7ab1c33089101c161278e",
+      "source_sha256": "e5f3f284b4c0cb79bdd4c8510a8e44c3d1ca9223f0d5445eefd97ef4d626bdad",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
       "migration_status": "inventoried-unmigrated",
       "static_token_lines": [
         10,
         12,
-        65
+        95
       ],
       "reflection_boundary_lines": [
         22
@@ -1923,7 +1923,7 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeColonyObservationTools.cs",
-      "source_sha256": "e7af9ff9ee5ea45f9b679a99cdf5efa5d8660e2a44748fe3bef016f35152257f",
+      "source_sha256": "39bdd3ff166f283116c42bbf9bdb5d1ed55a175dc01c96315949d729ba717a6a",
       "compilation": "production-bridge",
       "owner": "N01.03 native observation owner",
       "migration_status": "typed-core-planning",
@@ -1937,10 +1937,11 @@
         188,
         189,
         190,
-        208,
-        209,
-        210,
-        211
+        220,
+        238,
+        239,
+        240,
+        241
       ],
       "reflection_boundary_lines": [],
       "patch_registration_lines": [],

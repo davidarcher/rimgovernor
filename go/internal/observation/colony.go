@@ -19,14 +19,15 @@ type PlanningDefinition struct {
 	GrowDays, FertilityMin, FertilitySensitivity, HarvestNutrition, NutritionDemandPerDay domain.Fact[float64]
 }
 type ColonyProjection struct {
-	Identity    Identity
-	Facts       policy.RoutineFacts
-	Workers     domain.Fact[int]
-	Bounds      policy.Bounds
-	Center      domain.Cell
-	Cells       []policy.SiteCell
-	Definitions []PlanningDefinition
-	FoodSupply  domain.Fact[policy.FoodSupply]
+	Identity           Identity
+	Facts              policy.RoutineFacts
+	Workers            domain.Fact[int]
+	Bounds             policy.Bounds
+	Center             domain.Cell
+	Cells              []policy.SiteCell
+	Definitions        []PlanningDefinition
+	FoodSupply         domain.Fact[policy.FoodSupply]
+	CombinedFoodSupply domain.Fact[policy.FoodSupply]
 }
 
 func optional[T any](p *T) domain.Fact[T] {
@@ -101,6 +102,22 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 			return ColonyProjection{}, err
 		}
 		r.FoodSupply = domain.Known(supply)
+	}
+	if forecast := v.GetForecast().GetObserved(); forecast != nil {
+		combined, err := DecodeFoodSupply(forecast.CombinedFoodSupply)
+		if err != nil {
+			return ColonyProjection{}, err
+		}
+		r.CombinedFoodSupply = domain.Known(combined)
+		if human, known := r.FoodSupply.Value(); known && len(human.Consumers) > 0 {
+			selected := make([]policy.PawnID, 0, len(human.Consumers))
+			for _, consumer := range human.Consumers {
+				selected = append(selected, consumer.ID)
+			}
+			if food, err := policy.ForecastFood(combined, selected); err == nil {
+				r.Facts.FoodDays = food.RunwayDays
+			}
+		}
 	}
 	if v.WorkerCount != nil {
 		r.Workers = domain.Known(int(v.GetWorkerCount()))

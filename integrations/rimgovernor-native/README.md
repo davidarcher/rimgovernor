@@ -84,8 +84,12 @@ explicit native edifice/blueprint/frame fact. The human food-supply section shar
 its typed native collector with compatibility JSON, preserving inventory ownership,
 eligible eaters, nutrition and rot deadlines. Its completeness counts consumer and
 stock rows together; food item references carry identity/definition only.
-Raw runway remains separate from diet/rot forecasts. Combined forecast inputs,
-upkeep, development and other unported sections remain explicitly unavailable.
+Raw runway remains separate from diet/rot forecasts. Forecast inputs include the
+combined human/animal food census, crop work and patient quantities from the same
+native compatibility collector. Optional unknown quantities remain absent; crop
+yield is not a promise of available food. Forecast completeness counts the combined
+supply section once plus animal, crop and patient rows. Upkeep, development and
+other unported sections remain explicitly unavailable.
 Oversized collections/replies return unavailable.
 
 Run `scripts/native_protobuf_acceptance.py` through

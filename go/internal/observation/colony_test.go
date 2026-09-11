@@ -121,6 +121,24 @@ func TestColonyNativeCaptureReachesRoutineReview(t *testing.T) {
 		}
 		t.Logf("Native food forecast matches Python: runway %.9g days", days)
 	}
+	if reference := os.Getenv("RIMGOVERNOR_NATIVE_COMBINED_FOOD_FORECAST"); reference != "" {
+		data, err := os.ReadFile(reference)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var want struct {
+			Readable   bool
+			RunwayDays float64
+		}
+		if err = json.Unmarshal(data, &want); err != nil || !want.Readable {
+			t.Fatal("invalid combined reference", err)
+		}
+		days, known := p.Facts.FoodDays.Value()
+		if !known || math.Abs(days-want.RunwayDays) > 1e-6*math.Max(1, math.Abs(want.RunwayDays)) {
+			t.Fatal("combined forecast did not reach routine facts", p.Facts.FoodDays, want)
+		}
+		t.Logf("Native combined forecast reaches routine FoodDays: %.9g", days)
+	}
 	s, err := store.Open(context.Background(), filepath.Join(t.TempDir(), "native-review.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -135,8 +153,14 @@ func TestColonyNativeCaptureReachesRoutineReview(t *testing.T) {
 		t.Fatal("native facts did not reach maintained goals")
 	}
 	for _, assessment := range out.Needs.Assessments {
-		if assessment.ID == policy.EnsureFoodSupply && assessment.Need != domain.NeedUnknown {
-			t.Fatal("raw native runway certified food need", assessment)
+		if assessment.ID == policy.EnsureFoodSupply {
+			days, known := p.Facts.FoodDays.Value()
+			if !known && assessment.Need != domain.NeedUnknown {
+				t.Fatal("raw native runway certified food need", assessment)
+			}
+			if known && days < policy.DefaultRoutinePolicy().FoodMinDays && assessment.Need != domain.NeedDeficit {
+				t.Fatal("forecast shortage did not create deficit", assessment)
+			}
 		}
 	}
 	t.Logf("Native core and %d cells/%d definitions reached durable routine review", len(p.Cells), len(p.Definitions))

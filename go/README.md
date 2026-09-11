@@ -83,7 +83,11 @@ earliest-expiring allocation first and reports usable and at-risk nutrition. Unk
 ownership, eligibility, quantities or deadlines cannot certify runway. Native human
 food supply is projected through `DecodeFoodSupply`, including holder ownership and
 eligible eaters; paused native parity and Go/Python replay cover populated stock.
-Combined animal demand and connection to routine `FoodDays` remain unfinished.
+The combined census includes animal competition and supplies routine `FoodDays`
+for the selected human consumers. Cross-section census and demand conflicts are
+rejected; incomplete quantities retain unknown runway. Native replay compares
+both forecasts with Python using `RIMGOVERNOR_NATIVE_FOOD_FORECAST` and
+`RIMGOVERNOR_NATIVE_COMBINED_FOOD_FORECAST` reference files.
 
 `buildingruntime.RoutineReviewer.Step` serializes observation and durable review
 through the existing player gate, rechecks authority after the read, and retains

@@ -16,6 +16,7 @@ from native_building_service_acceptance import (
     EXECUTE, add_handoff_arguments, verify_go_binary,
 )
 from native_go_clock_acceptance import routine_evidence
+from rimgovernor.food_forecast import food_forecast
 
 
 def medical_need(reply):
@@ -116,6 +117,10 @@ async def run(root, output, binary, *, go_source, go_sha256):
             report["prepared"] = prepared
             report["initial_colony"] = await wire(bridge, "initial-colony", "observations_read_status", {
                 "scope": {"expectedIdentity": identity}, "colonists": True, "threats": True, "colonistDetail": False, "page": {"limit": 256}})
+            facts = payload(await evidence.call(bridge, "initial-food", "home/colony_facts", {"planning": False}))
+            food = food_forecast(facts['nativeForecastInputs']['combinedFoodSupply'], consumer_ids=[r['id'] for r in facts['foodSupply']['consumers']])
+            report['initial_food_forecast'] = food
+            expected_food = 'deficit' if food['readable'] and food['runwayDays'] is not None and food['runwayDays'] < 3 else 'unknown'
             baseline = await capture(bridge, "setup")
 
         async with service(private, gabs, configuration, profile, database, output / "operate", report, clock_control=True, routine_reviews=True) as http:
@@ -127,13 +132,13 @@ async def run(root, output, binary, *, go_source, go_sha256):
                 "planId": submission["planId"], "revision": submission["revision"], "expectedDirection": "0"})
             assert granted["record"]["phase"] == "granted"
             await wait_review(database)
-            active = routine_evidence(database, identity, enabled=True)
+            active = routine_evidence(database, identity, enabled=True, expected_food_need=expected_food)
             assert active["review"]["Tick"] == tick, "Review did not use the initial paused boundary"
             assert active["goals"]["CriticalMedical"]["Need"] == medical_need(report["initial_colony"])
             report["active_routine"] = active
             manual = await http("POST", "/api/player/control/manual", body={"requestId": "routine-manual", "expected": identity})
             assert manual["record"]["phase"] == "disabled" and not manual["state"]["enabled"]
-            report["manual_routine"] = routine_evidence(database, identity, enabled=False)
+            report["manual_routine"] = routine_evidence(database, identity, enabled=False, expected_food_need=expected_food)
 
         async with bridge_session(gabs, configuration) as bridge:
             await bridge.connect()
@@ -145,7 +150,7 @@ async def run(root, output, binary, *, go_source, go_sha256):
             await poll(http, "/api/state", lambda v: v.get("connected") and not v.get("game", {}).get("stale", True))
             await asyncio.sleep(2)
             assert not (await http("GET", "/api/player/control"))["state"]["enabled"]
-            assert routine_evidence(database, identity, enabled=False) == report["manual_routine"]
+            assert routine_evidence(database, identity, enabled=False, expected_food_need=expected_food) == report["manual_routine"]
         async with bridge_session(gabs, configuration) as bridge:
             await bridge.connect()
             await capture(bridge, "restart", baseline, restart=True)

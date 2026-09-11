@@ -99,6 +99,6 @@ def test_routine_evidence_requires_native_scope_unknown_forecast_and_manual_reti
         if fault == "method": db.execute("INSERT INTO goal_methods VALUES(1)")
     identity = {"colonyId": "colony", "loadToken": "load", "mapId": 0}
     if fault:
-        with pytest.raises(AssertionError): probe.routine_evidence(path, identity, enabled=False)
+        with pytest.raises(AssertionError): probe.routine_evidence(path, identity, enabled=False, expected_food_need="unknown")
     else:
-        assert len(probe.routine_evidence(path, identity, enabled=False)["goals"]) == 14
+        assert len(probe.routine_evidence(path, identity, enabled=False, expected_food_need="unknown")["goals"]) == 14

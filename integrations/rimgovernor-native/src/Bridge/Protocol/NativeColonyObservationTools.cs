@@ -96,7 +96,7 @@ namespace HomeBridge.BridgeTools
                 FoodSupply = new Obs.FoodSupplySection { Observed = Food(FoodSupplyFacts.Read(people,
                     things.Where(t => t.def.category == ThingCategory.Item && t.def.IsNutritionGivingIngestible
                         && !t.def.IsDrug && t.IngestibleNow && (t.Faction == null || t.Faction.IsPlayer)).ToList())) },
-                Forecast = new Obs.ForecastSection { Unavailable = Unsupported("Forecast inputs are not yet projected.") },
+                Forecast = new Obs.ForecastSection { Observed = Forecast(ForecastFacts.Read(map, people, things)) },
                 Upkeep = new Obs.UpkeepSection { Unavailable = Unsupported("Upkeep facts are not yet projected.") },
                 Development = new Obs.DevelopmentSection { Unavailable = Unsupported("Development facts are not yet projected.") }
             };
@@ -187,6 +187,36 @@ namespace HomeBridge.BridgeTools
         private static Obs.MapSize Size(Map map) => new Obs.MapSize { Width = (uint)map.Size.x, Height = (uint)map.Size.z };
         private static double Finite(double v) => double.IsNaN(v) || double.IsInfinity(v) ? throw new InvalidOperationException("Nonfinite fact.") : v;
         private static void Bound(int count, int limit) { if (count > limit) throw new ReadLimit("Complete collection exceeds requested bound; frozen paging is unavailable."); }
+        private static Obs.ForecastFacts Forecast(ForecastFacts.Snapshot source)
+        {
+            Bound(source.animalIds.Count, 256); Bound(source.crops.Count, 256); Bound(source.patients.Count, 256);
+            var result = new Obs.ForecastFacts { CombinedFoodSupply = Food(source.combinedFoodSupply),
+                Completeness = Complete(1 + source.animalIds.Count + source.crops.Count + source.patients.Count) };
+            result.AnimalIds.Add(source.animalIds);
+            foreach (var crop in source.crops) {
+                var row = new Obs.CropForecast { ZoneId = crop.id.ToString(System.Globalization.CultureInfo.InvariantCulture) };
+                if (crop.crop != null) row.Crop = crop.crop;
+                if (crop.sowWork.HasValue) row.SowWork = Finite(crop.sowWork.Value);
+                if (crop.harvestWork.HasValue) row.HarvestWork = Finite(crop.harvestWork.Value);
+                if (crop.maturePlants.HasValue) row.MaturePlants = checked((uint)crop.maturePlants.Value);
+                if (crop.stalledPlants.HasValue) row.StalledPlants = checked((uint)crop.stalledPlants.Value);
+                if (crop.standingYield.HasValue) row.StandingYield = Finite(crop.standingYield.Value);
+                if (crop.product != null) row.Product = crop.product;
+                result.Crops.Add(row);
+            }
+            foreach (var patient in source.patients) {
+                var row = new Obs.PatientForecast { PawnId = patient.id };
+                if (patient.bleedRatePerDay.HasValue) row.BleedRatePerDay = Finite(patient.bleedRatePerDay.Value);
+                if (patient.hoursUntilDeathFromBloodLoss.HasValue) row.HoursUntilDeathFromBloodLoss = Finite(patient.hoursUntilDeathFromBloodLoss.Value);
+                if (patient.mood.HasValue) row.Mood = Finite(patient.mood.Value);
+                if (patient.moodTarget.HasValue) row.MoodTarget = Finite(patient.moodTarget.Value);
+                if (patient.minorBreakThreshold.HasValue) row.MinorBreakThreshold = Finite(patient.minorBreakThreshold.Value);
+                if (patient.majorBreakThreshold.HasValue) row.MajorBreakThreshold = Finite(patient.majorBreakThreshold.Value);
+                if (patient.extremeBreakThreshold.HasValue) row.ExtremeBreakThreshold = Finite(patient.extremeBreakThreshold.Value);
+                result.Patients.Add(row);
+            }
+            return result;
+        }
         private static Obs.FoodSupplyFacts Food(FoodSupplyFacts.Snapshot source)
         {
             Bound(source.consumers.Count, 256); Bound(source.stocks.Count, 4096);
