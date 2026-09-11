@@ -61,6 +61,21 @@ def test_routine_trace_requires_read_and_rejects_it_on_disabled_restart():
         probe.audit(rows, 0, caps, restart=True, routine_reviews=True)
 
 
+@pytest.mark.parametrize("field", [None, "dead", "downed", "bleeding", "needsTend", "unknown"])
+def test_clock_fixture_reports_medical_prerequisite_before_running(field):
+    pawn = {"pawn": {"id": "pawn"}, "dead": False, "downed": False,
+            "health": {"bleeding": False, "needsTend": False}}
+    if field in {"dead", "downed"}: pawn[field] = True
+    elif field in {"bleeding", "needsTend"}: pawn["health"][field] = True
+    elif field == "unknown": del pawn["health"]["needsTend"]
+    reply = {"observed": {"colonists": {"pawns": [pawn], "completeness": {
+        "page": {"complete": True}, "matched": "1", "returned": "1", "filtered": "0", "unreadable": "0"}}}}
+    if field:
+        with pytest.raises(AssertionError, match="prerequisite.*pawn"):
+            probe.require_healthy_colonists(reply)
+    else: probe.require_healthy_colonists(reply)
+
+
 @pytest.mark.parametrize("fault", [None, "food", "world", "missing", "active", "method"])
 def test_routine_evidence_requires_native_scope_unknown_forecast_and_manual_retirement(tmp_path, fault):
     path = tmp_path / "review.sqlite"

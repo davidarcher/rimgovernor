@@ -59,6 +59,19 @@ def interrupted_by_letter(events, letter_id):
     return matching[0]
 
 
+def require_healthy_colonists(reply):
+    colony = outcome(reply, "observed")["colonists"]
+    complete = colony["completeness"]
+    assert complete["page"]["complete"] and int(complete.get("filtered", -1)) == 0 and int(complete.get("unreadable", -1)) == 0
+    pawns = colony.get("pawns", [])
+    assert pawns and len(pawns) == int(complete["returned"]) == int(complete["matched"])
+    for pawn in pawns:
+        health = pawn.get("health", {})
+        blocked = [name for name, value in (("dead", pawn.get("dead")), ("downed", pawn.get("downed")),
+                   ("bleeding", health.get("bleeding")), ("needsTend", health.get("needsTend"))) if value is not False]
+        assert not blocked, f"Healthy-clock fixture prerequisite failed for {pawn['pawn']['id']}: {blocked}"
+
+
 def routine_evidence(database, identity, *, enabled):
     with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
         db.execute("BEGIN")
@@ -141,6 +154,7 @@ async def run(root, output, binary, *, go_source, go_sha256, routine_reviews=Fal
             report["prepared_colony"] = await wire(bridge, "prepared-colony", "observations_read_status", {
                 "scope": {"expectedIdentity": identity}, "colonists": True, "threats": True,
                 "colonistDetail": False, "page": {"limit": 256}})
+            require_healthy_colonists(report["prepared_colony"])
             letter = payload(await evidence.call(bridge, "schedule-letter", "test/interruption_letter", {
                 "definition": "ThreatBig", "after": "none", "label": "Go clock acceptance", "delayTicks": 60}))
             assert letter["success"] and letter["scheduledTick"] == tick + 60
