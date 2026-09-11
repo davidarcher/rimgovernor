@@ -1200,7 +1200,13 @@ main. Native package and Go production cutover remain independent.
   control admission have verified native invalidation hooks. Actual graphical
   and batch cancellation, draft/order changes and expiry revoke authority; ordinary pause
   preserves it. Game-level load/map transitions, disconnect integration and the
-  remaining clock/lifecycle/presentation owners remain open.
+  remaining lifecycle/presentation owners remain open.
+  All seven typed clock methods use original-grant ownership, monotonic leases,
+  the shared bounded attempt ledger and immutable observed event context. Runtime
+  checks cover same-thread revoke/reacquire refusal, failed pause, missing hooks
+  and corrupt journal rows. Native acceptance covers bounded ticks, owned controls,
+  replay, cross-family conflicts and Manual revocation. Additional native load/map
+  replacement, hook/journal fault injection and injury/presentation cases remain open.
   Depends on relevant typed status/clock contracts; fix independently reproducible
   defects as bounded prerequisites.
 

@@ -6694,7 +6694,7 @@
   ],
   "native_surface": {
     "version": 1,
-    "source_revision": "e355ef766c60f0c83239eb0a65c15c28c036ed4f",
+    "source_revision": "ffd869086660751d7ad5ecae79ace74a6b2572a8",
     "scope": "Current repository-owned native Runtime/Bridge exports, generated Protobuf compile inputs and conditional fixtures. Historical Python consumer inventory remains at its independent source_revision. Installed SDK/GABS exports require actual discovery.",
     "evidence_links": "domain_item_id reuses existing G01 owner, fixtures and native_scenarios without copying Python call-site lists. Empty local evidence lists preserve uncovered acceptance. schema_owner_chunk assigns the cross-language schema owner; native_owner_chunk owns typed conversion or fixture isolation.",
     "variant_contract": "source_baseline.exports[].declaration retains the complete exported signature, Tool/ToolParameter/ToolResponse attributes, documented string variants, optional selectors and defaults. Source fingerprints detect implementation changes. Runtime branches, aliases and payload keys still require behavioral schema and discovery acceptance.",
@@ -7725,49 +7725,49 @@
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockTools.cs",
           "line": 57,
           "declaration": "[Tool(\"rimgovernor/clock_change_speed\", Title = \"Change owned clock speed\", Description = \"Change one live owned epoch to an ordinary speed under current authority without extending its tick budget.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official clock ControlReply ProtoJSON.\", Always = true)]\n        public Task<object> ChangeSpeed(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official clock SpeedRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "ac6ac7661c42e8fc9717b12baa4895f12b2930a2e7c19cb182619f3d5964f634"
+          "source_sha256": "73cae16597e4401840c6e18618dd0bfd66dd356f1d6b7d3815090ec09011f1cd"
         },
         {
           "name": "rimgovernor/clock_pause",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockTools.cs",
           "line": 66,
           "declaration": "[Tool(\"rimgovernor/clock_pause\", Title = \"Pause exact owned clock\", Description = \"Safe cleanup of the exact current identity/controller/epoch, including after authority revocation. Never pauses a replacement epoch.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official clock StatusReply ProtoJSON.\", Always = true)]\n        public Task<object> Pause(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official clock OwnedRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "ac6ac7661c42e8fc9717b12baa4895f12b2930a2e7c19cb182619f3d5964f634"
+          "source_sha256": "73cae16597e4401840c6e18618dd0bfd66dd356f1d6b7d3815090ec09011f1cd"
         },
         {
           "name": "rimgovernor/clock_read_attempt",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockTools.cs",
           "line": 80,
           "declaration": "[Tool(\"rimgovernor/clock_read_attempt\", Title = \"Read admitted clock attempt\", Description = \"Read original clock admission after revocation without granting authority; unknown does not prove no effect.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official clock AttemptReply ProtoJSON.\", Always = true)]\n        public Task<object> ReadAttempt(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official clock AttemptRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "ac6ac7661c42e8fc9717b12baa4895f12b2930a2e7c19cb182619f3d5964f634"
+          "source_sha256": "73cae16597e4401840c6e18618dd0bfd66dd356f1d6b7d3815090ec09011f1cd"
         },
         {
           "name": "rimgovernor/clock_read_events",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockTools.cs",
           "line": 27,
           "declaration": "[Tool(\"rimgovernor/clock_read_events\", Title = \"Read owned clock events\", Description = \"Read immutable event ownership/context using an explicit nonnegative cursor and limit1..128; legacy or incomplete history is unavailable.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official clock EventsReply ProtoJSON.\", Always = true)]\n        public Task<object> ReadEvents(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official clock EventsRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "ac6ac7661c42e8fc9717b12baa4895f12b2930a2e7c19cb182619f3d5964f634"
+          "source_sha256": "73cae16597e4401840c6e18618dd0bfd66dd356f1d6b7d3815090ec09011f1cd"
         },
         {
           "name": "rimgovernor/clock_read_status",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockTools.cs",
           "line": 16,
           "declaration": "[Tool(\"rimgovernor/clock_read_status\", Title = \"Read owned clock\", Description = \"Read actual native pause/speed and canonical owned epoch status without renewing or resuming play.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official clock StatusReply ProtoJSON.\", Always = true)]\n        public Task<object> ReadStatus(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official clock StatusRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "ac6ac7661c42e8fc9717b12baa4895f12b2930a2e7c19cb182619f3d5964f634"
+          "source_sha256": "73cae16597e4401840c6e18618dd0bfd66dd356f1d6b7d3815090ec09011f1cd"
         },
         {
           "name": "rimgovernor/clock_renew",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockTools.cs",
           "line": 48,
           "declaration": "[Tool(\"rimgovernor/clock_renew\", Title = \"Renew owned clock lease\", Description = \"Renew only a live exact owned epoch under current authority; retain original tick deadline and replay admitted attempts.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official clock ControlReply ProtoJSON.\", Always = true)]\n        public Task<object> Renew(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official clock RenewRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "ac6ac7661c42e8fc9717b12baa4895f12b2930a2e7c19cb182619f3d5964f634"
+          "source_sha256": "73cae16597e4401840c6e18618dd0bfd66dd356f1d6b7d3815090ec09011f1cd"
         },
         {
           "name": "rimgovernor/clock_start",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockTools.cs",
           "line": 40,
           "declaration": "[Tool(\"rimgovernor/clock_start\", Title = \"Start guarded owned clock\", Description = \"Admit one ordinary supervised epoch under current authority, a bounded tick budget and monotonic lease. Exact attempts replay; never reacquires authority.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official clock ControlReply ProtoJSON.\", Always = true)]\n        public Task<object> Start(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official clock StartRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "ac6ac7661c42e8fc9717b12baa4895f12b2930a2e7c19cb182619f3d5964f634"
+          "source_sha256": "73cae16597e4401840c6e18618dd0bfd66dd356f1d6b7d3815090ec09011f1cd"
         },
         {
           "name": "rimgovernor/lifecycle_read_identity",

@@ -1,6 +1,6 @@
 {
   "inventory_version": 1,
-  "source_revision": "e355ef766c60f0c83239eb0a65c15c28c036ed4f",
+  "source_revision": "ffd869086660751d7ad5ecae79ace74a6b2572a8",
   "scope": "Tracked C# sources in unified native Runtime/Bridge and scripts/fixtures; lexical reference index, not an AST or proof of behavioral coverage.",
   "source_line_policy": "One-based source anchors at source_revision; static matches include methods and constructors, reflection matches include helper use and interop. Read the full source declaration before changing ownership.",
   "rows": [
@@ -1803,7 +1803,7 @@
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockRuntime.cs",
       "compilation": "production-bridge",
-      "source_sha256": "02b7338765daa2b9626c39c8e25ede7f9d597bc30bdc967999f4e137f9bfd2ac",
+      "source_sha256": "55161be176a9f694a4a034286de5b2f6cb055a4cfcf87e2238e133c082c16c1b",
       "owner": "N01.05 native clock runtime owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private production clock discovery, exact tick budgets, revocation, safe pause and immutable event attribution in native gameplay.",
@@ -1821,50 +1821,53 @@
         113,
         129,
         139,
-        155,
-        168,
-        201,
-        205,
-        235,
-        280,
-        281,
-        282,
-        283,
-        284,
-        293,
-        295,
-        296,
+        157,
+        180,
+        193,
+        226,
+        230,
+        260,
         305,
-        306,
-        307,
-        308
+        324,
+        326,
+        327,
+        328,
+        329,
+        330,
+        339,
+        341,
+        342,
+        351,
+        352,
+        353,
+        354
       ],
       "reflection_boundary_lines": [
-        288,
-        289
+        334,
+        335
       ],
       "patch_registration_lines": [
-        290
+        336
       ]
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeClockTools.cs",
       "compilation": "production-bridge",
-      "source_sha256": "ac6ac7661c42e8fc9717b12baa4895f12b2930a2e7c19cb182619f3d5964f634",
+      "source_sha256": "73cae16597e4401840c6e18618dd0bfd66dd356f1d6b7d3815090ec09011f1cd",
       "owner": "N01.05 native clock runtime owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private production clock discovery, exact tick budgets, revocation, safe pause and immutable event attribution in native gameplay.",
       "static_token_lines": [
         94,
         104,
-        152,
-        162,
+        153,
         163,
         164,
-        167
+        165,
+        168
       ],
       "reflection_boundary_lines": [
-        149
+        150
       ],
       "patch_registration_lines": []
     },

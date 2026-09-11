@@ -7,6 +7,21 @@ boundaries.
 
 [Native test prerequisites](README.md#native-test-prerequisites).
 
+## Canonical owned clock
+
+Run `scripts/native_typed_clock_acceptance.py --root /worker/run` through
+`scripts/container_scenario.py` with a fresh production native package and profile.
+Use `--rendered` with the launcher's `--display xvfb` for graphical acceptance.
+The scenario requires no fixture tools. It advances a bounded tick budget through
+`advance_game`, checks renew/speed/pause ownership, exact receipt replay and
+cross-family attempt conflicts, then verifies authority revocation interrupts play.
+Raw ProtoJSON exchanges and immutable event history are retained under
+`native-typed-clock-acceptance/`; inspect `result.json` as well as launcher cleanup.
+
+`contracts/tests/native-clock` exercises the production typed runtime against
+controlled game/SDK seams. These checks cover fault cases without establishing
+actual Harmony hook behavior or native simulation acceptance.
+
 `scripts/native_player_input_acceptance.py --source-root <prepared-root> --output
 <fresh-directory>` runs a visible isolated game. After each `ready.json` update, send
 the requested Space or number-row 2 key through the actual window input path. The probe
