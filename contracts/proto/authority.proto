@@ -1,0 +1,103 @@
+syntax = "proto3";
+package rimgovernor.authority.v1;
+option csharp_namespace = "RimGovernor.Protocol.Authority";
+option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb;authoritypb";
+import "common.proto";
+
+message Owner {
+  optional string controller_session_id = 1;
+  optional uint64 player_direction = 2;
+}
+
+enum RevocationReason {
+  REVOCATION_REASON_UNSPECIFIED = 0;
+  REVOCATION_REASON_NONE = 1;
+  REVOCATION_REASON_MANUAL = 2;
+  REVOCATION_REASON_PLAYER_DIRECTION = 3;
+  REVOCATION_REASON_EXTERNAL_ORDER = 4;
+  REVOCATION_REASON_PLAYER_CONTROL = 5;
+  REVOCATION_REASON_LEASE_EXPIRED = 6;
+  REVOCATION_REASON_IDENTITY_CHANGED = 7;
+  REVOCATION_REASON_DISCONNECT = 8;
+  REVOCATION_REASON_SHUTDOWN = 9;
+  REVOCATION_REASON_HOOKS_UNAVAILABLE = 10;
+  REVOCATION_REASON_GENERATION_EXHAUSTED = 11;
+}
+
+message InactiveAuthority {
+  optional RevocationReason reason = 1;
+}
+message ActiveAuthority {
+  Owner owner = 1;
+  optional uint32 remaining_lease_ms = 2;
+}
+message Status {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  optional bool available = 2;
+  oneof state {
+    InactiveAuthority inactive = 3;
+    ActiveAuthority active = 4;
+  }
+}
+
+message StatusRequest {
+  rimgovernor.common.v1.Identity identity = 1;
+}
+message StatusReply {
+  oneof outcome {
+    Status status = 1;
+    rimgovernor.common.v1.Failure failure = 2;
+  }
+}
+
+// Acquisition is produced only by the explicit player-control path.
+message Acquire {
+  rimgovernor.common.v1.Identity identity = 1;
+  optional uint64 expected_generation = 2;
+  Owner owner = 3;
+  optional uint32 lease_ms = 4;
+}
+message Renew {
+  rimgovernor.common.v1.Identity identity = 1;
+  optional uint64 expected_generation = 2;
+  optional string controller_session_id = 3;
+  optional string lease_id = 4;
+  optional uint32 lease_ms = 5;
+}
+message Revoke {
+  rimgovernor.common.v1.Identity identity = 1;
+  optional uint64 expected_generation = 2;
+  optional RevocationReason reason = 3;
+}
+message ControlRequest {
+  oneof operation {
+    Acquire acquire = 1;
+    Renew renew = 2;
+    Revoke revoke = 3;
+  }
+}
+message Granted {
+  Status status = 1;
+  optional string lease_id = 2;
+}
+message ControlReply {
+  oneof outcome {
+    Granted granted = 1;
+    Status revoked = 2;
+    rimgovernor.common.v1.Failure failure = 3;
+  }
+}
+
+// A new write requires all these preconditions atomically on the game thread.
+message WritePrecondition {
+  rimgovernor.common.v1.Identity identity = 1;
+  optional uint64 expected_generation = 2;
+  optional string lease_id = 3;
+  rimgovernor.common.v1.AttemptKey attempt = 4;
+}
+
+// Read methods remain separate from mutation methods for capability isolation.
+service Authority {
+  rpc ReadStatus(StatusRequest) returns (StatusReply);
+  rpc Control(ControlRequest) returns (ControlReply);
+}

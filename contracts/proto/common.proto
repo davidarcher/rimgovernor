@@ -1,0 +1,79 @@
+syntax = "proto3";
+package rimgovernor.common.v1;
+option csharp_namespace = "RimGovernor.Protocol.Common";
+option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb;commonpb";
+
+// Presence is significant: map zero and tick zero are valid observations.
+message Identity {
+  optional string colony_id = 1;
+  optional string load_token = 2;
+  optional int32 map_id = 3;
+}
+
+message ObservationContext {
+  Identity identity = 1;
+  optional int64 tick = 2;
+  optional uint64 native_generation = 3;
+}
+
+// Attempts are allocated per action, within a durable controller namespace.
+message AttemptKey {
+  optional string controller_session_id = 1;
+  optional string action_id = 2;
+  optional uint64 attempt_id = 3;
+}
+
+message Cell {
+  optional int32 x = 1;
+  optional int32 z = 2;
+}
+
+enum FailureCode {
+  FAILURE_CODE_UNSPECIFIED = 0;
+  FAILURE_CODE_INVALID_REQUEST = 1;
+  FAILURE_CODE_UNAVAILABLE = 2;
+  FAILURE_CODE_STALE_IDENTITY = 3;
+  FAILURE_CODE_STALE_GENERATION = 4;
+  FAILURE_CODE_AUTHORITY_REQUIRED = 5;
+  FAILURE_CODE_LEASE_EXPIRED = 6;
+  FAILURE_CODE_OWNER_CONFLICT = 7;
+  FAILURE_CODE_ATTEMPT_CONFLICT = 8;
+  FAILURE_CODE_CAPACITY_EXHAUSTED = 9;
+  FAILURE_CODE_NOT_FOUND = 10;
+  FAILURE_CODE_UNSUPPORTED = 11;
+  FAILURE_CODE_NATIVE_FAILURE = 12;
+  FAILURE_CODE_CANCELLED = 13;
+  FAILURE_CODE_DEADLINE_EXCEEDED = 14;
+}
+
+// Used before command admission. An uncertain admitted write requires a receipt.
+message Failure {
+  optional FailureCode code = 1;
+  optional string detail = 2;
+  ObservationContext observed_context = 3;
+}
+
+enum UnavailableReason {
+  UNAVAILABLE_REASON_UNSPECIFIED = 0;
+  UNAVAILABLE_REASON_NOT_LOADED = 1;
+  UNAVAILABLE_REASON_NOT_OBSERVED = 2;
+  UNAVAILABLE_REASON_UNSUPPORTED = 3;
+  UNAVAILABLE_REASON_READ_FAILED = 4;
+  UNAVAILABLE_REASON_STALE = 5;
+  UNAVAILABLE_REASON_LIMIT_EXCEEDED = 6;
+}
+
+message Unavailable {
+  optional UnavailableReason reason = 1;
+  optional string detail = 2;
+}
+
+// Pagination is scoped to an observation context, not an arbitrary map position.
+message PageRequest {
+  optional uint32 limit = 1;
+  optional string cursor = 2;
+}
+message PageInfo {
+  optional bool complete = 1;
+  optional string next_cursor = 2;
+}

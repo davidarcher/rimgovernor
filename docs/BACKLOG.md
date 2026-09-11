@@ -826,7 +826,7 @@ only intentional small, sanitized regression fixtures belong in source control.
   - [x] **08a.2:** prompt/context budgets and structured semantic validation.
     Owner: model agent; depends on 08a.1 and 04a for command types.
 
-- [ ] **G01.09 � Dashboard API and presentation.** Owner: server agent.
+- [ ] **G01.09 — Dashboard API and presentation.** Owner: server agent.
   Port current player controls and observation/media behavior to typed Go services.
   Preserve drafts and last-good data, loopback access and player ownership. Keep
   privileged editor actions outside model execution. Choose media dependencies
@@ -964,7 +964,15 @@ main. Native package and Go production cutover remain independent.
   55 native tools, fixture isolation, component census and preview invariance.
 
 - [ ] **N01.02 — First strict native contract.** Native contract owner with G01.02.
-  Migrate placement previews through generated request/response DTOs, validated SDK
+  Complete the shared Go/native Protobuf contracts before resuming the two teams'
+  adapter work. Use official protoc, C# and Go generators; replace the custom
+  JSON Schema generator without preserving its experimental wire format. Cover
+  identity/lifecycle, observations, authority, ordinary commands, receipts and
+  errors against the native source inventory and current consumer requirements.
+  Verify generated C#/Go builds, presence/variant semantics and bidirectional
+  JSON/binary fixtures before handing off the complete contract package. Keep
+  game-rule and application-limit validation explicit; no custom compiler or
+  validation language. Then migrate placement previews through generated DTOs, validated SDK
   boundary and typed operation. Reject unknown outer arguments before binder loss;
   fail closed when required raw validation is unavailable. Test missing/null,
   overflow, malformed grammar, variants and SDK failures using shared generated
