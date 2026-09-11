@@ -368,16 +368,95 @@ each bounded method.
 
 ## P2 — Coverage, inspection and evaluation scale
 
-- [ ] **Native event delivery and scheduling throughput.** Python work scheduling
-  wakes on direction, review completion and budget-limited Hands completion,
-  independently of dashboard refreshes. Compare fixed-input setup-to-pawn-work
-  timings under uncontended native execution. Reuse RimBridgeServer's existing
-  GABP event transport for native notifications: pinned GABS currently consumes
-  attention subscriptions internally without forwarding general events to MCP,
-  and the companion's clock events are durable journal reads. Add forwarding and
-  clock publication through that transport, retaining journal cursors for reconnect,
-  gaps and duplicate delivery. Keep lease renewal, fresh write guards, idle backoff
-  and direction/load/plan invalidation; bridge operation completion is not pawn work.
+- [ ] **Reactive native control and maximum-speed play.** Let players watch the AI
+  play at superhuman simulation speeds without avoidable polling, fixed-window
+  waits or controller idle time. Relevant native changes must stop time when a
+  decision is needed, wake the controller immediately, and resume ordinary pawn
+  work as soon as the decision is ready. Separately support uncapped headless
+  execution ("ULTRAULTRA fast") so long-run playtests run as quickly as hardware
+  and the simulation permit. Preserve normal game rules and simulation ticks;
+  speed must not come from skipped work, fabricated outcomes or weaker checks.
+
+  **Ownership and baseline.** Implement through the shared Go goal/Hands executor,
+  native operation evidence and existing clock/session owner; coordinate G01/N01
+  contracts without adding a second planner, transport or production Python
+  subsystem. Python already wakes on direction and controller-task completion,
+  but native observations and journal delivery remain polled. Measure current
+  Python and gated Go paths separately: unchanged reads, bytes, native scan time,
+  bridge round trips, lock waits, persistence, setup-to-first-tick latency and
+  completion-to-next-action latency. Reuse the
+  [throughput profiler](developers/testing/measure-throughput.md) and adjacent
+  setup/bridge workstreams; quantify savings rather than inferring them from timers.
+
+  - [ ] **Typed event delivery and recovery.** Reuse RimBridgeServer's GABP event
+    transport. Pinned GABS consumes attention subscriptions internally without
+    forwarding general events to MCP; add forwarding and native publication.
+    Extend the clock journal/cursor pattern to supported operation outcomes,
+    authority/context changes, safety interruptions and relevant observation
+    invalidations. Carry exact world/load/map, tick, sequence and action/attempt
+    identities where applicable. Subscribe with a snapshot/cursor handoff that
+    cannot lose changes between initial observation and live delivery. Persist
+    consumer progress consistently with applied evidence; handle reconnect,
+    replay, duplicates, gaps, overflow and context replacement explicitly.
+    Bound buffers and retention, coalesce routine changes, and keep transport or
+    disk backpressure off the simulation thread. Lost evidence must cause a hold
+    and reconciliation, never fabricated completion or an automatic uncertain write.
+
+  - [ ] **Native action watches and clock stops.** Arm bounded typed watches before
+    dispatch/clock advancement, including synchronous completion during dispatch.
+    Use existing causal hooks for exact construction and pawn-job outcomes;
+    accepted operations and vanished jobs are not completion. Latch terminal or
+    decision-relevant changes in native code and pause at the first safe tick
+    boundary before another simulation tick is admitted, including within an
+    accelerated frame batch. Publish evidence after establishing the stop; network
+    delivery and controller processing must not be on the pause-critical path.
+    Support selected-attempt any/all conditions, cancellation/interruption,
+    safety triggers and maximum game-tick deadlines under the existing clock
+    authority. Record observed event and actual pause ticks, including unavoidable
+    within-tick ordering. Detect stalls with tick-based progress deadlines and
+    supported progress measures; distinguish no progress, known blockers and
+    unknown causes. Do not pause for every irrelevant world change.
+
+  - [ ] **Reactive reconciliation and scheduling.** Wake the existing executor on
+    events and player direction, consume authoritative correlated evidence, and
+    refresh only affected facts when an event supplies invalidation rather than
+    a complete outcome. Replace routine unchanged action/status/full-colony reads
+    and arbitrary execution-window waits as coverage lands. Retain initial and
+    reconnect snapshots, targeted uncertainty/gap recovery, low-frequency
+    consistency checks, lease renewal and atomic fresh native write guards.
+    Plan/direction/load changes invalidate watches and queued decisions. Batch
+    independent ready work and resume promptly after durable reconciliation;
+    model inference remains limited to explicit semantic requests/advice.
+
+  - [ ] **Player speed and uncapped headless execution.** Expose deliberate player
+    speed selection with live observation, responsive Manual/pause and clear stop
+    reasons. Decouple rendering/dashboard cadence from simulation and decision
+    cadence so watching does not require a full colony scan per frame. Add an
+    explicit isolated-test uncapped mode that removes artificial wall-clock/FPS
+    pacing and fixed tick-window round trips while running ordinary ticks at
+    maximum sustainable throughput. Keep finite scenario budgets, native safety
+    stops, authority expiry and external player changes effective inside large
+    tick batches. Audit frame/wall-clock-dependent guards and mod behavior; do
+    not silently bypass forced slowdown or advertise unsupported acceleration.
+    Restore owned speed/boost/render state on stop, failure and context changes.
+
+  - [ ] **Verified slices and acceptance.** Start with one wall: subscribe before
+    dispatch, observe normal construction lineage, pause natively on completion
+    or exact cancellation, and wake/reconcile without progress polling. Add fast
+    contract/replay tests for ordering, duplicate/gap delivery, snapshot races,
+    lost replies, immediate outcomes, backpressure and invalidation. Then run
+    targeted native headless and rendered acceptance for completion, interruption,
+    stalls, Manual, disconnect/lease expiry and load/map replacement at high
+    speed. Assert event-to-pause tick gaps and retained uncertainty; a fast receipt
+    is not pawn completion. Expand watches by supported operation/observation
+    family. Compare matched finite scenarios at normal, player-fast and uncapped
+    headless speeds using actual pawn outcomes, survival invariants, game days per
+    wall minute, end-to-end scenario duration, controller pause time, event/reaction
+    latency and native calls/bytes. Require no missed relevant transitions or
+    duplicate effects; do not require identical stochastic trajectories. Finish
+    with explicitly scheduled bounded long-run campaigns demonstrating faster
+    playtests and sustained player-visible play, with measured remaining polling
+    and explicit limits for unsupported event families.
 
 - [ ] **Paused setup through the first simulation tick.** Use the
   [controller profiler](developers/testing/measure-throughput.md) to measure the complete path
