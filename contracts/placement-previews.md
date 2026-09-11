@@ -8,7 +8,7 @@ Reply DTOs, native integration and game-level acceptance remain separate G01.02
 steps in the [backlog](../docs/BACKLOG.md#g01--go-controller-rewrite).
 
 The existing implementation is
-[PlacementPreviewsTool.cs](../integrations/colony-bridge/src/PlacementPreviewsTool.cs).
+[PlacementPreviewsTool.cs](../integrations/rimgovernor-native/src/Bridge/PlacementPreviewsTool.cs).
 [placement_previews.py](../controller/rimgovernor/placement_previews.py) constructs
 the nested JSON string and preserves candidate order. No new endpoint, game order
 or change to placement rules is introduced by this request contract.

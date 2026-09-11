@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 
-def test_trial_uses_process_identity_without_executable_name_fallback(tmp_path, monkeypatch):
+def test_trial_uses_process_identity_without_executable_name_fallback(tmp_path):
     script=Path(__file__).resolve().parents[1]/'scripts/prepare_bridge_trial.py'
     spec=importlib.util.spec_from_file_location('prepare_bridge_trial',script)
     module=importlib.util.module_from_spec(spec)
@@ -21,7 +21,6 @@ def test_trial_uses_process_identity_without_executable_name_fallback(tmp_path, 
     baseline=b'<savegame><meta><modIds/><modNames/></meta></savegame>'
     save=source/'Saves/RimGovernor-tribal8-baseline.rws'
     save.write_bytes(baseline)
-    monkeypatch.setattr(module,'BASELINE_SHA256',hashlib.sha256(baseline).hexdigest())
 
     module.prepare(source,game,root)
 
@@ -31,3 +30,5 @@ def test_trial_uses_process_identity_without_executable_name_fallback(tmp_path, 
     assert 'stopProcessName' not in config
     assert config['args'][0]=='-savedatafolder='+str(root/'profile')
     assert save.read_bytes()==baseline
+    assert (root/"profile/Saves"/save.name).read_bytes()==baseline
+    assert json.loads((root/"fixture.json").read_text())["source_sha256"]==hashlib.sha256(baseline).hexdigest()
