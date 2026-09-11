@@ -17,6 +17,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
+	pr "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -217,6 +218,14 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	if callErr != nil {
 		typedFailure := false
 		switch r := reply.(type) {
+		case *pr.CameraReply:
+			typedFailure = r.GetFailure() != nil
+		case *pr.SelectionReply:
+			typedFailure = r.GetFailure() != nil
+		case *pr.ColonistRosterReply:
+			typedFailure = r.GetFailure() != nil
+		case *pr.NotificationsReply:
+			typedFailure = r.GetFailure() != nil
 		case *k.EventsReply:
 			typedFailure = r.GetFailure() != nil
 		case *k.StatusReply:
