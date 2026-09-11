@@ -21,7 +21,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 14
+const schemaVersion = 15
 const applicationID = 0x52474f31
 
 var ErrConflict = errors.New("plan or action identity already exists")
@@ -117,6 +117,7 @@ func (s *Store) initialize(ctx context.Context) error {
 CREATE TABLE plans(id TEXT PRIMARY KEY, revision TEXT NOT NULL);
 CREATE TABLE actions(id TEXT PRIMARY KEY, plan_id TEXT NOT NULL REFERENCES plans(id), ordinal INTEGER NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('building','owned_draft','melee_attack')), definition TEXT, x INTEGER, z INTEGER, rotation TEXT, stuff TEXT, pawn TEXT, target TEXT, draft_action TEXT REFERENCES actions(id), CHECK((kind='building' AND definition IS NOT NULL AND x IS NOT NULL AND z IS NOT NULL AND rotation IS NOT NULL AND stuff IS NOT NULL AND pawn IS NULL AND target IS NULL AND draft_action IS NULL) OR (kind='owned_draft' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NULL AND draft_action IS NULL) OR (kind='melee_attack' AND definition IS NULL AND x IS NULL AND z IS NULL AND rotation IS NULL AND stuff IS NULL AND pawn IS NOT NULL AND target IS NOT NULL AND draft_action IS NOT NULL)), UNIQUE(plan_id,ordinal)) STRICT;
 CREATE TABLE transitions(sequence INTEGER PRIMARY KEY, action_id TEXT NOT NULL REFERENCES actions(id), payload BLOB NOT NULL);
+CREATE TABLE action_dependencies(plan_id TEXT NOT NULL REFERENCES plans(id), action_id TEXT NOT NULL REFERENCES actions(id), requires_id TEXT NOT NULL REFERENCES actions(id), PRIMARY KEY(plan_id,action_id,requires_id)) STRICT;
 CREATE TABLE admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL);
 CREATE TABLE draft_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
 CREATE TABLE melee_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
@@ -256,7 +257,7 @@ func identity(ctx context.Context, tx *sql.Tx) (ControllerSessionID, error) {
 
 // CreatePlan initializes every action atomically. IDs remain unique across plans.
 func (s *Store) CreatePlan(ctx context.Context, plan domain.PlanSpec) error {
-	if _, err := domain.NewPlan(plan.ID(), plan.Revision(), plan.Actions()); err != nil {
+	if err := plan.Validate(); err != nil {
 		return err
 	}
 	tx, err := s.begin(ctx)
@@ -270,6 +271,9 @@ func (s *Store) CreatePlan(ctx context.Context, plan domain.PlanSpec) error {
 	return tx.Commit()
 }
 func createPlan(ctx context.Context, tx *sql.Tx, plan domain.PlanSpec) error {
+	if err := plan.Validate(); err != nil {
+		return err
+	}
 	var count int
 	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM plans").Scan(&count); err != nil {
 		return err
@@ -283,6 +287,11 @@ func createPlan(ctx context.Context, tx *sql.Tx, plan domain.PlanSpec) error {
 	for i, a := range plan.Actions() {
 		if err := insertAction(ctx, tx, plan.ID(), i, a); err != nil {
 			return err
+		}
+	}
+	for _, d := range plan.Dependencies() {
+		if _, err := tx.ExecContext(ctx, "INSERT INTO action_dependencies(plan_id,action_id,requires_id) VALUES(?,?,?)", plan.ID(), d.Action, d.Requires); err != nil {
+			return conflict(err)
 		}
 	}
 	return nil
@@ -345,7 +354,11 @@ func load(ctx context.Context, tx *sql.Tx, id domain.PlanID) (PlanState, error) 
 	if err != nil {
 		return PlanState{}, err
 	}
-	plan, err := domain.NewPlan(id, domain.PlanRevision(r), actions)
+	dependencies, err := loadDependencies(ctx, tx, id)
+	if err != nil {
+		return PlanState{}, err
+	}
+	plan, err := domain.NewPlan(id, domain.PlanRevision(r), actions, dependencies...)
 	if err != nil {
 		return PlanState{}, err
 	}
@@ -514,6 +527,11 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 	state, err := load(ctx, tx, plan)
 	if err != nil {
 		return domain.Progress{}, err
+	}
+	if event.Kind == "prepare" || event.Kind == "dispatch" {
+		if err = state.Spec.CheckDependencies(action, state.Progress, event.Snapshot, event.Tick); err != nil {
+			return domain.Progress{}, err
+		}
 	}
 	var current domain.Progress
 	found := false

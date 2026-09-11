@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"fmt"
+	"sort"
 )
 
 type Cell struct{ X, Z int32 }
@@ -95,12 +96,18 @@ func ValidateHandlerCoverage(kinds []ActionKind) error {
 }
 
 type PlanSpec struct {
-	id       PlanID
-	revision PlanRevision
-	actions  []Action
+	id           PlanID
+	revision     PlanRevision
+	actions      []Action
+	dependencies []ActionDependency
 }
 
-func NewPlan(id PlanID, revision PlanRevision, actions []Action) (PlanSpec, error) {
+// ActionDependency requires observed completion of another action in this plan.
+// It orders work; current native legality and colony invariants are still checked
+// at dispatch. It does not assert that an old completed object still exists.
+type ActionDependency struct{ Action, Requires ActionID }
+
+func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ...ActionDependency) (PlanSpec, error) {
 	if !validID(string(id)) {
 		return PlanSpec{}, errors.New("invalid plan identity")
 	}
@@ -135,8 +142,107 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action) (PlanSpec, erro
 		}
 		seen[a.id] = a
 	}
-	return PlanSpec{id, revision, append([]Action(nil), actions...)}, nil
+	deps, err := validateDependencies(seen, dependencies)
+	if err != nil {
+		return PlanSpec{}, err
+	}
+	return PlanSpec{id, revision, append([]Action(nil), actions...), deps}, nil
 }
 func (p PlanSpec) ID() PlanID             { return p.id }
 func (p PlanSpec) Revision() PlanRevision { return p.revision }
 func (p PlanSpec) Actions() []Action      { return append([]Action(nil), p.actions...) }
+func (p PlanSpec) Dependencies() []ActionDependency {
+	return append([]ActionDependency(nil), p.dependencies...)
+}
+func (p PlanSpec) Validate() error {
+	_, err := NewPlan(p.id, p.revision, p.actions, p.dependencies...)
+	return err
+}
+
+func validateDependencies(actions map[ActionID]Action, dependencies []ActionDependency) ([]ActionDependency, error) {
+	if len(dependencies) > 4096 {
+		return nil, errors.New("too many action dependencies")
+	}
+	deps := append([]ActionDependency(nil), dependencies...)
+	sort.Slice(deps, func(i, j int) bool {
+		if deps[i].Action != deps[j].Action {
+			return deps[i].Action < deps[j].Action
+		}
+		return deps[i].Requires < deps[j].Requires
+	})
+	graph := map[ActionID][]ActionID{}
+	for i, d := range deps {
+		_, hasAction := actions[d.Action]
+		_, hasRequired := actions[d.Requires]
+		if !hasAction || !hasRequired || d.Action == d.Requires || i > 0 && d == deps[i-1] {
+			return nil, errors.New("invalid or duplicate dependency")
+		}
+		graph[d.Action] = append(graph[d.Action], d.Requires)
+	}
+	// Melee already has a mandatory draft prerequisite. Include it in cycle
+	// detection without changing that family's exact owned-claim checks.
+	for id, a := range actions {
+		if melee, k := a.MeleeAttack(); k {
+			graph[id] = append(graph[id], melee.DraftAction())
+		}
+	}
+	visiting, done := map[ActionID]bool{}, map[ActionID]bool{}
+	var visit func(ActionID) bool
+	visit = func(id ActionID) bool {
+		if visiting[id] {
+			return false
+		}
+		if done[id] {
+			return true
+		}
+		visiting[id] = true
+		for _, required := range graph[id] {
+			if !visit(required) {
+				return false
+			}
+		}
+		visiting[id] = false
+		done[id] = true
+		return true
+	}
+	for id := range graph {
+		if !visit(id) {
+			return nil, errors.New("cyclic action dependency")
+		}
+	}
+	return deps, nil
+}
+
+var ErrDependency = errors.New("action prerequisite has not completed in the current world")
+
+func (p PlanSpec) CheckDependencies(action ActionID, progress []Progress, current GenerationSnapshot, tick Tick) error {
+	if current.Validate() != nil || current.Plan != p.id || current.Revision != p.revision || tick < 0 {
+		return ErrDependency
+	}
+	known := false
+	for _, a := range p.actions {
+		known = known || a.id == action
+	}
+	if !known {
+		return ErrDependency
+	}
+	byID := map[ActionID]Progress{}
+	for _, v := range progress {
+		if _, duplicate := byID[v.View().Action]; duplicate {
+			return ErrDependency
+		}
+		byID[v.View().Action] = v
+	}
+	for _, d := range p.dependencies {
+		if d.Action != action {
+			continue
+		}
+		v, exists := byID[d.Requires]
+		s := v.View()
+		effect, k := s.Effect.Value()
+		if !exists || s.Plan != p.id || s.Revision != p.revision || s.Stage != Completed || s.Unresolved || !k || effect != EffectCompleted || !s.Snapshot.sameWorld(current) || s.Tick > tick {
+			return ErrDependency
+		}
+	}
+	return nil
+}

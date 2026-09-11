@@ -595,7 +595,10 @@ expand these into another nested task tree; remove a row when its outcome is met
   action progress retains committed capacity through uncertain cancellation.
   Maintained goal/method records now link to shared plans in fresh Go SQLite state.
   Reviews retain unknown effects, reopen recovered deficits and atomically cancel
-  linked actions on cancellation or context invalidation. Native fact projection,
+  linked actions on cancellation or context invalidation. Persisted dependencies
+  gate Hands on observed completion; building-method admission atomically reserves
+  whole-project costs and footprints against competing shared plans. Native fact
+  projection (including remaining construction costs), reservation-history retirement,
   routine review orchestration, method selection and runtime composition remain
   open; these components do not enable orders.
 

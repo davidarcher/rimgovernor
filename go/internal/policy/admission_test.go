@@ -200,7 +200,7 @@ func TestCancellationRetainsUncertainReservation(t *testing.T) {
 		t.Fatal("unissued cancellation not released")
 	}
 }
-func TestCompletedBudgetReleaseKeepsGeometry(t *testing.T) {
+func TestCompletedWorkYieldsToFreshNativePlacement(t *testing.T) {
 	old := issue(t, candidate(t, "old", 1, 100))
 	p, err := old.Progress.Observe(domain.Observation{Action: "old", Attempt: 1, Snapshot: current(), Tick: 15, Effect: domain.EffectCompleted}, current())
 	if err != nil {
@@ -214,7 +214,11 @@ func TestCompletedBudgetReleaseKeepsGeometry(t *testing.T) {
 		t.Fatal("completed budget not released or evidence lost", d)
 	}
 	r.Candidates = []Candidate{candidate(t, "new", 1, 1)}
-	reason(t, r, GeometryBlocked)
+	if len(decide(t, r).Admitted) != 1 {
+		t.Fatal("historic completion permanently reserved geometry")
+	}
+	r.Candidates[0].Preview.SafeToPlace = domain.Known(false)
+	reason(t, r, UnsafePlacement)
 	r.Candidates = []Candidate{candidate(t, "new", 2, 1)}
 	r.Stock.Tick = 14
 	reason(t, r, StaleFacts)

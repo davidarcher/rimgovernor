@@ -288,7 +288,7 @@ func state(snapshot Snapshot) (State, error) {
 	return result, nil
 }
 func plan(stored store.PlanState) (Plan, error) {
-	if _, err := domain.NewPlan(stored.Spec.ID(), stored.Spec.Revision(), stored.Spec.Actions()); err != nil {
+	if err := stored.Spec.Validate(); err != nil {
 		return Plan{}, err
 	}
 	actions := stored.Spec.Actions()

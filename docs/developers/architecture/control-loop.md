@@ -46,3 +46,8 @@ Sustained coverage belongs in [campaigns](../testing/campaigns.md) and the
 
 Implementation: `colony_controller.py`, `colony_policy.py`, `colony_skills.py` and
 `bridge_runtime.py` under [controller/rimgovernor](../../../controller/rimgovernor).
+The gated [Go routine components](../../../go/README.md#routine-policy-components)
+persist maintained goals, method reservations and action dependencies. Building
+methods reserve all costs atomically against the shared journal; Hands rechecks
+native placement and observed predecessor completion before execution. Runtime
+review and method selection remain tracked in G01.05.

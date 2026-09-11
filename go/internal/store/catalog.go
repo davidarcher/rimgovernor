@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
@@ -20,6 +21,17 @@ func (s *Store) LoadPlans(ctx context.Context, limit int) ([]PlanState, error) {
 		return nil, err
 	}
 	defer tx.Rollback()
+	states, err := loadPlans(ctx, tx, limit)
+	if err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return states, nil
+}
+
+func loadPlans(ctx context.Context, tx *sql.Tx, limit int) ([]PlanState, error) {
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM plans ORDER BY id LIMIT ?", limit+1)
 	if err != nil {
 		return nil, err
@@ -48,9 +60,6 @@ func (s *Store) LoadPlans(ctx context.Context, limit int) ([]PlanState, error) {
 			return nil, err
 		}
 		states = append(states, state)
-	}
-	if err = tx.Commit(); err != nil {
-		return nil, err
 	}
 	return states, nil
 }

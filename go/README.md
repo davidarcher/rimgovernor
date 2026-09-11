@@ -48,6 +48,14 @@ observed recovery, preserving older plans and receipts. Cancellation and context
 invalidation journal linked action cancellations atomically. Uncertain effects
 remain observable, and goal guards apply at preparation and dispatch.
 
+Plans persist a validated dependency graph. Preparation and dispatch require each
+predecessor's observed completion in the current world; receipts cannot satisfy
+dependencies. `Store.AdmitBuildingMethod` reserves a complete building method's
+costs and footprints with its goal link and plan in one transaction, using the
+same resource policy as Hands and authoritative competing reservations. Actions
+remain pending until fresh Hands admission. Completed geometry yields to fresh
+native placement observations rather than permanently claiming map coordinates.
+
 These components are gated prerequisites. They do not read the game, acquire
 authority or issue orders. Routine review orchestration, native fact projection,
 method selection and runtime composition remain in G01.05.

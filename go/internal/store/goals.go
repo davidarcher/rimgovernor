@@ -199,7 +199,7 @@ func (s *Store) ReviewGoal(ctx context.Context, id domain.GoalID, revision uint6
 // CommitGoalMethod stores the method and its shared plan atomically. Admission
 // and dispatch still belong to existing policy/Hands; this grants no authority.
 func (s *Store) CommitGoalMethod(ctx context.Context, id domain.GoalID, revision uint64, method domain.MethodID, plan domain.PlanSpec) (GoalState, error) {
-	if _, err := domain.NewPlan(plan.ID(), plan.Revision(), plan.Actions()); err != nil {
+	if err := plan.Validate(); err != nil {
 		return GoalState{}, err
 	}
 	if len(plan.Actions()) == 0 {
@@ -210,6 +210,17 @@ func (s *Store) CommitGoalMethod(ctx context.Context, id domain.GoalID, revision
 		return GoalState{}, err
 	}
 	defer tx.Rollback()
+	state, err := commitGoalMethod(ctx, tx, id, revision, method, plan)
+	if err != nil {
+		return GoalState{}, err
+	}
+	if err = tx.Commit(); err != nil {
+		return GoalState{}, err
+	}
+	return state, nil
+}
+
+func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revision uint64, method domain.MethodID, plan domain.PlanSpec) (GoalState, error) {
 	state, err := loadGoal(ctx, tx, id)
 	if err != nil {
 		return GoalState{}, err
@@ -247,9 +258,6 @@ func (s *Store) CommitGoalMethod(ctx context.Context, id domain.GoalID, revision
 	}
 	state, err = loadGoal(ctx, tx, id)
 	if err != nil {
-		return GoalState{}, err
-	}
-	if err = tx.Commit(); err != nil {
 		return GoalState{}, err
 	}
 	return state, nil

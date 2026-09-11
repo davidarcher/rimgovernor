@@ -77,8 +77,8 @@ type StockObservation struct {
 }
 
 // Reservation retains the original complete costs even when fresh completion
-// evidence releases its budget. Its footprint remains protected until no effect
-// is confirmed after cancellation.
+// evidence releases its budget. Cancelled uncertain effects keep their footprint;
+// completed work yields geometry to fresh native placement observations.
 type Reservation struct {
 	Action    domain.Action
 	Progress  domain.Progress
@@ -355,13 +355,13 @@ func Admit(input Input) Decision {
 			heldInvalid = true
 			continue
 		}
-		for _, c := range h.Footprint {
-			occupied[c]++
-		}
 		v := h.Progress.View()
 		completionStockFresh := v.Stage == domain.Completed && !v.Unresolved && stockFresh && r.Stock.Tick >= v.Tick && sameWorld(v.Snapshot, r.Current)
 		if completionStockFresh {
 			continue
+		}
+		for _, c := range h.Footprint {
+			occupied[c]++
 		}
 		for _, cost := range h.Costs {
 			sum, ok := add(used[cost.Resource], cost.Count)

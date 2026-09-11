@@ -109,6 +109,9 @@ func (s *Store) PrepareMelee(ctx context.Context, plan domain.PlanID, action dom
 	if err != nil {
 		return domain.Progress{}, err
 	}
+	if err = state.Spec.CheckDependencies(action, state.Progress, v.Snapshot, v.Tick); err != nil {
+		return domain.Progress{}, err
+	}
 	var a domain.Action
 	var p domain.Progress
 	found := false
