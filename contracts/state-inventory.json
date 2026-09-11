@@ -489,7 +489,7 @@
       "source": {
         "path": "controller/rimgovernor/bridge_runtime.py",
         "symbol": "persist",
-        "line": 108
+        "line": 107
       },
       "go_package": "go/internal/store",
       "owner_chunk": "G01.04b",
@@ -509,7 +509,7 @@
       "source": {
         "path": "controller/rimgovernor/bridge_runtime.py",
         "symbol": "sync_identity",
-        "line": 127
+        "line": 126
       },
       "go_package": "go/internal/runtime",
       "owner_chunk": "G01.06",
@@ -529,7 +529,7 @@
       "source": {
         "path": "controller/rimgovernor/bridge_runtime.py",
         "symbol": "steer",
-        "line": 632
+        "line": 631
       },
       "go_package": "go/internal/store",
       "owner_chunk": "G01.04b",
@@ -549,7 +549,7 @@
       "source": {
         "path": "controller/rimgovernor/bridge_runtime.py",
         "symbol": "receive_clock_events",
-        "line": 855
+        "line": 854
       },
       "go_package": "go/internal/runtime",
       "owner_chunk": "G01.06",

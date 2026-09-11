@@ -17,11 +17,7 @@ does not compile/install native DLLs or run model/gameplay tests. For a focused 
 check use `.venv\Scripts\python.exe -m pytest -q controller_tests/test_NAME.py`.
 Generated dashboard assets, local databases and logs remain outside commits.
 
-With RimWorld closed, build/install native changes using:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\build_native_mod.ps1 -Install
-```
+Build the unified package with the explicit paths in [Windows setup](../../players/setup.md).
 
 Never replace installed DLLs while any RimWorld instance is running. Native build
 success is not gameplay acceptance.

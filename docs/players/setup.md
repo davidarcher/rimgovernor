@@ -19,15 +19,17 @@ With RimWorld closed, run from the repository root:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
-powershell -ExecutionPolicy Bypass -File scripts\build_native_mod.ps1 -Install
+powershell -ExecutionPolicy Bypass -File scripts\build_native_mod.ps1 -RimWorldManagedDir "C:/path/to/RimWorld/RimWorldWin64_Data/Managed" -HarmonyAssembly "C:/path/to/0Harmony.dll" -RimBridgeSdkDir "C:/path/to/RimWorld/Mods/RimBridgeServer/1.6/Assemblies" -OutputRoot ".rimgovernor/native-build"
+Copy-Item -LiteralPath ".rimgovernor/native-build/RimGovernor" -Destination "C:/path/to/RimWorld/Mods" -Recurse
 .venv\Scripts\python.exe scripts/prepare_bridge_trial.py --source-profile "C:/path/to/RimWorld-profile" --rimworld "C:/path/to/RimWorld" --observations
 ```
 
-Replace the two example paths with your profile and game installation. Preparation
-checks the required save's hash and creates a private profile, bridge configuration
-and fixture manifest under `.rimgovernor/bridge`. It preserves the source profile.
-Use `--root` for a different output location. A different save cannot substitute for
-the required fixture.
+Replace the example paths with your profile, game and dependency locations. Use a
+fresh build output directory. Install only while all RimWorld instances are closed;
+remove the old RimGovernorObservations/Headless packages from your disposable setup.
+Preparation copies the supplied baseline save unchanged into a private profile under
+`.rimgovernor/bridge`. Create that save with the unified package enabled; old saves
+are not migration inputs. Use `--root` for another output location.
 
 Continue with [launch](launch.md). Developers can use [Docker checks](../developers/testing/docker-checks.md)
 without game files, or [Linux input preparation](../developers/testing/docker-inputs.md)

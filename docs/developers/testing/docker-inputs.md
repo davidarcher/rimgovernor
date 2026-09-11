@@ -54,8 +54,8 @@ the unified package against the Linux references, then copy the staged RimGovern
 package into the private Mods directory. For example (use an available .NET SDK):
 
 ```powershell
-dotnet build integrations/rimgovernor-native/src/Bridge/RimGovernor.Bridge.csproj -c Release "-p:RimWorldManagedDir=<linux-game>/RimWorldLinux_Data/Managed" "-p:RimBridgeSdkDir=<private-mods>/RimBridgeServer/1.6/Assemblies" "-p:HarmonyAssembly=<private-mods>/Harmony/Current/Assemblies/0Harmony.dll"
-dotnet build integrations/rimgovernor-native/src/Runtime/RimGovernor.Runtime.csproj -c Release "-p:RimWorldManagedDir=<linux-game>/RimWorldLinux_Data/Managed" "-p:HarmonyAssembly=<private-mods>/Harmony/Current/Assemblies/0Harmony.dll"
+powershell -ExecutionPolicy Bypass -File scripts/build_native_mod.ps1 -DotNet <dotnet> -RimWorldManagedDir <linux-game>/RimWorldLinux_Data/Managed -RimBridgeSdkDir <private-mods>/RimBridgeServer/1.6/Assemblies -HarmonyAssembly <private-mods>/Harmony/Current/Assemblies/0Harmony.dll -OutputRoot .rimgovernor/native-build-01
+Copy-Item -LiteralPath .rimgovernor/native-build-01/RimGovernor -Destination <private-mods> -Recurse
 ```
 
 Use a Linux GABS release matching the tested bridge version, verify the upstream release

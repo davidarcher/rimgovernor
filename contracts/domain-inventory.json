@@ -2538,7 +2538,7 @@
       "category": "native-tool",
       "source": {
         "path": "controller/rimgovernor/bridge_runtime.py",
-        "line": 251
+        "line": 250
       },
       "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
@@ -2557,7 +2557,7 @@
       "category": "native-tool",
       "source": {
         "path": "controller/rimgovernor/bridge_runtime.py",
-        "line": 257
+        "line": 256
       },
       "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",
@@ -2576,7 +2576,7 @@
       "category": "native-tool",
       "source": {
         "path": "controller/rimgovernor/bridge_runtime.py",
-        "line": 253
+        "line": 252
       },
       "go_package": "go/internal/bridge",
       "owner_chunk": "G01.03",

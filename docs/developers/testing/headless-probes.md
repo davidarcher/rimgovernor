@@ -7,14 +7,14 @@ disposable game.
 
 [Native test prerequisites](README.md#native-test-prerequisites).
 
-Close controller/game before installing and launching the isolated headless profile:
+Build/install the unified package using [Windows setup](../../players/setup.md),
+then launch the isolated headless profile:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\build_native_mod.ps1 -Install
 powershell -ExecutionPolicy Bypass -File launch.ps1 -Headless -NoBrowser
 ```
 
-This derives `.rimgovernor/bridge/headless-profile`, enables HeadlessRimPatch and uses
+This derives `.rimgovernor/bridge/headless-profile`, keeps the unified runtime enabled and uses
 `-batchmode -nographics`. Native fade readiness still matters. The dashboard stays
 available without images; restart without `-Headless` for interactive rendering.
 
