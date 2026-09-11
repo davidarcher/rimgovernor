@@ -55,7 +55,7 @@ func clockOriginal(request *k.OwnedRequest, pre *a.WritePrecondition, original *
 	if err := errors.Join(clockOwned(request), clockEpoch(original)); err != nil {
 		return err
 	}
-	if !sameIdentity(request.Identity, pre.Identity) || !sameIdentity(original.Origin.Identity, request.Identity) || !proto.Equal(original.Owner, request.Owner) || request.Owner.GetControllerSessionId() != pre.Attempt.GetControllerSessionId() {
+	if pre.GetExpectedGeneration() != original.Origin.GetNativeGeneration() || !sameIdentity(request.Identity, pre.Identity) || !sameIdentity(original.Origin.Identity, request.Identity) || !proto.Equal(original.Owner, request.Owner) || request.Owner.GetControllerSessionId() != pre.Attempt.GetControllerSessionId() {
 		return contract("clock original epoch mismatch")
 	}
 	return nil
@@ -414,7 +414,12 @@ func clockReceipt(r *k.ControlReceipt, identity *c.Identity, attempt *c.AttemptK
 			return contract("missing uncertain clock")
 		}
 		if v.Uncertain.LastObserved != nil {
-			return clockStatus(v.Uncertain.LastObserved, identity)
+			if err := clockStatus(v.Uncertain.LastObserved, identity); err != nil {
+				return err
+			}
+			if v.Uncertain.LastObserved.Context.GetTick() < r.AdmittedContext.GetTick() {
+				return contract("clock uncertain status before admission")
+			}
 		}
 	default:
 		return contract("clock receipt outcome missing")

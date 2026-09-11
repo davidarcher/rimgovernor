@@ -172,3 +172,39 @@ func TestClockControlReplyEvidence(t *testing.T) {
 		t.Fatal("unknown pending fields")
 	}
 }
+
+func TestClockOriginalGrantGenerationCannotBeReplaced(t *testing.T) {
+	for _, speed := range []bool{false, true} {
+		e := clockExpectationFixture()
+		original := clockTestEpoch()
+		if speed {
+			e.Command = ClockCommand{Speed: &ClockSpeed{Original: original, Speed: k.Speed_SPEED_NORMAL}}
+		} else {
+			e.Command = ClockCommand{Renew: &ClockRenew{Original: original, LeaseMS: 1000}}
+		}
+		e.NativeGeneration++
+		if ValidateClockExpectation(e) == nil {
+			t.Fatal("replacement grant accepted")
+		}
+		pre := clockTestPre()
+		pre.ExpectedGeneration = proto.Uint64(e.NativeGeneration)
+		if clockOriginal(clockTestOwned(), pre, original) == nil {
+			t.Fatal("direct call allowed replacement grant")
+		}
+	}
+}
+func TestClockUncertainObservationAdmissionFloor(t *testing.T) {
+	for _, tick := range []int64{11, 12, 13} {
+		r := clockTestReceipt()
+		status := clockTestStatus()
+		status.Context.Tick = proto.Int64(tick)
+		r.Outcome = &k.ControlReceipt_Uncertain{Uncertain: &k.UncertainControl{LastObserved: status}}
+		err := ValidateClockReceipt(r, clockExpectationFixture())
+		if (err == nil) != (tick >= 12) {
+			t.Fatal(tick, err)
+		}
+		if r.GetUncertain() == nil {
+			t.Fatal("uncertain evidence changed")
+		}
+	}
+}

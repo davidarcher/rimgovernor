@@ -50,7 +50,7 @@ func ValidateClockExpectation(e ClockExpectation) error {
 	if err := clockEpoch(original); err != nil {
 		return err
 	}
-	if !sameIdentity(original.Origin.Identity, e.Identity) || original.Owner.GetControllerSessionId() != e.Owner.GetControllerSessionId() {
+	if original.Origin.GetNativeGeneration() != e.NativeGeneration || !sameIdentity(original.Origin.Identity, e.Identity) || original.Owner.GetControllerSessionId() != e.Owner.GetControllerSessionId() {
 		return contract("clock original epoch mismatch")
 	}
 	return nil
