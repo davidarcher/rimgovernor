@@ -76,13 +76,8 @@ func (control *ClockControl) Start(ctx context.Context, request *k.StartRequest,
 		return nil, Result{}, err
 	}
 	expectedOwner = proto.Clone(expectedOwner).(*a.Owner)
-	return control.clockCall(ctx, "rimgovernor/clock_start", request, request.Authority, expectedOwner, func(r *k.ControlReceipt) error {
-		e := clockStatusEpoch(r.GetApplied().GetStatus())
-		if e == nil || e.Owner.GetControllerSessionId() != expectedOwner.GetControllerSessionId() || !proto.Equal(e.Origin, r.AdmittedContext) || e.GetTickDeadline()-e.GetStartTick() != int64(request.GetMaxTicks()) || e.GetRequestedSpeed() != request.GetSpeed() || !proto.Equal(e.Policy, request.Policy) || e.GetLeaseRemainingMs() > request.GetLeaseMs() {
-			return contract("clock start epoch mismatch")
-		}
-		return nil
-	})
+	expectation := ClockExpectation{request.Authority.Identity, request.Authority.Attempt, expectedOwner, request.Authority.GetExpectedGeneration(), ClockCommand{Start: &ClockStart{Speed: request.GetSpeed(), Policy: request.Policy, LeaseMS: request.GetLeaseMs(), MaxTicks: request.GetMaxTicks()}}}
+	return control.clockCall(ctx, "rimgovernor/clock_start", request, request.Authority, expectedOwner, func(r *k.ControlReceipt) error { return ValidateClockReceipt(r, expectation) })
 }
 func (control *ClockControl) Renew(ctx context.Context, request *k.RenewRequest, originalEpoch *k.Epoch, expectedOwner *a.Owner) (*k.ControlReply, Result, error) {
 	if request == nil {
@@ -97,16 +92,8 @@ func (control *ClockControl) Renew(ctx context.Context, request *k.RenewRequest,
 	}
 	originalEpoch = proto.Clone(originalEpoch).(*k.Epoch)
 	expectedOwner = proto.Clone(expectedOwner).(*a.Owner)
-	return control.clockCall(ctx, "rimgovernor/clock_renew", request, request.Authority, expectedOwner, func(r *k.ControlReceipt) error {
-		e := clockStatusEpoch(r.GetApplied().GetStatus())
-		if err := clockSameEpoch(e, originalEpoch, originalEpoch.GetRequestedSpeed()); err != nil {
-			return err
-		}
-		if e.GetLeaseRemainingMs() > request.GetLeaseMs() {
-			return contract("clock renewal lease exceeds request")
-		}
-		return nil
-	})
+	expectation := ClockExpectation{request.Authority.Identity, request.Authority.Attempt, expectedOwner, request.Authority.GetExpectedGeneration(), ClockCommand{Renew: &ClockRenew{Original: originalEpoch, LeaseMS: request.GetLeaseMs()}}}
+	return control.clockCall(ctx, "rimgovernor/clock_renew", request, request.Authority, expectedOwner, func(r *k.ControlReceipt) error { return ValidateClockReceipt(r, expectation) })
 }
 func (control *ClockControl) ChangeSpeed(ctx context.Context, request *k.SpeedRequest, originalEpoch *k.Epoch, expectedOwner *a.Owner) (*k.ControlReply, Result, error) {
 	if request == nil {
@@ -124,9 +111,8 @@ func (control *ClockControl) ChangeSpeed(ctx context.Context, request *k.SpeedRe
 	}
 	originalEpoch = proto.Clone(originalEpoch).(*k.Epoch)
 	expectedOwner = proto.Clone(expectedOwner).(*a.Owner)
-	return control.clockCall(ctx, "rimgovernor/clock_change_speed", request, request.Authority, expectedOwner, func(r *k.ControlReceipt) error {
-		return clockSameEpoch(clockStatusEpoch(r.GetApplied().GetStatus()), originalEpoch, request.GetSpeed())
-	})
+	expectation := ClockExpectation{request.Authority.Identity, request.Authority.Attempt, expectedOwner, request.Authority.GetExpectedGeneration(), ClockCommand{Speed: &ClockSpeed{Original: originalEpoch, Speed: request.GetSpeed()}}}
+	return control.clockCall(ctx, "rimgovernor/clock_change_speed", request, request.Authority, expectedOwner, func(r *k.ControlReceipt) error { return ValidateClockReceipt(r, expectation) })
 }
 func clockSameEpoch(actual, original *k.Epoch, speed k.Speed) error {
 	if actual == nil || !proto.Equal(actual.Owner, original.Owner) || !proto.Equal(actual.Origin, original.Origin) || !proto.Equal(actual.Policy, original.Policy) || actual.GetStartTick() != original.GetStartTick() || actual.GetTickDeadline() != original.GetTickDeadline() || actual.GetRequestedSpeed() != speed || actual.GetLastTick() < original.GetLastTick() {
@@ -346,19 +332,19 @@ func clockStatus(s *k.Status, identity *c.Identity) error {
 	}
 	switch v := s.State.(type) {
 	case *k.Status_Running:
-		if v.Running == nil {
+		if v == nil || v.Running == nil {
 			return contract("missing running clock")
 		}
 	case *k.Status_Stopping:
-		if v.Stopping == nil || v.Stopping.PendingReason == nil || !diagnostic(v.Stopping.Detail) || v.Stopping.ActualPaused == nil {
+		if v == nil || v.Stopping == nil || v.Stopping.PendingReason == nil || !diagnostic(v.Stopping.Detail) || v.Stopping.ActualPaused == nil {
 			return contract("missing stopping facts")
 		}
 	case *k.Status_Stopped:
-		if v.Stopped == nil || v.Stopped.Reason == nil || !diagnostic(v.Stopped.Detail) || v.Stopped.ActualPaused == nil || v.Stopped.PauseVerified == nil || v.Stopped.PauseRequested == nil || v.Stopped.StoppedAtUnixMs == nil || v.Stopped.GetStoppedAtUnixMs() < 0 {
+		if v == nil || v.Stopped == nil || v.Stopped.Reason == nil || !diagnostic(v.Stopped.Detail) || v.Stopped.ActualPaused == nil || v.Stopped.PauseVerified == nil || v.Stopped.PauseRequested == nil || v.Stopped.StoppedAtUnixMs == nil || v.Stopped.GetStoppedAtUnixMs() < 0 {
 			return contract("missing stopped facts")
 		}
 	case *k.Status_NeverStarted:
-		if v.NeverStarted == nil {
+		if v == nil || v.NeverStarted == nil {
 			return contract("missing never-started state")
 		}
 	default:
@@ -410,7 +396,7 @@ func clockReceipt(r *k.ControlReceipt, identity *c.Identity, attempt *c.AttemptK
 	}
 	switch v := r.Outcome.(type) {
 	case *k.ControlReceipt_Applied:
-		if v.Applied == nil {
+		if v == nil || v.Applied == nil {
 			return contract("missing applied clock")
 		}
 		if err := clockStatus(v.Applied.Status, identity); err != nil {
@@ -424,7 +410,7 @@ func clockReceipt(r *k.ControlReceipt, identity *c.Identity, attempt *c.AttemptK
 			return contract("clock applied epoch admission mismatch")
 		}
 	case *k.ControlReceipt_Uncertain:
-		if v.Uncertain == nil || !diagnostic(v.Uncertain.Detail) {
+		if v == nil || v.Uncertain == nil || !diagnostic(v.Uncertain.Detail) {
 			return contract("missing uncertain clock")
 		}
 		if v.Uncertain.LastObserved != nil {
