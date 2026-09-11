@@ -14,7 +14,7 @@ import (
 type RoutineSource interface {
 	ColonySource
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
-	ReadCombatPawns(context.Context, *c.Identity, []string) (*o.ListPawnsReply, bridge.Result, error)
+	ReadRoutinePawns(context.Context, *c.Identity, []string) (*o.ListPawnsReply, bridge.Result, error)
 }
 
 type RoutineReading struct {
@@ -31,6 +31,7 @@ type routineBracket struct {
 	receipt     bridge.Result
 	pawnReceipt bridge.Result
 	armed       domain.Fact[int64]
+	work        domain.Fact[[]policy.WorkPawn]
 }
 
 // Read the emergency census inside ObserveColony's identity brackets.
@@ -57,7 +58,7 @@ func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, pl
 			ids = append(ids, string(pawn.ID))
 		}
 		if len(ids) > 0 {
-			pawns, pawnReceipt, err := s.ReadCombatPawns(ctx, id, ids)
+			pawns, pawnReceipt, err := s.ReadRoutinePawns(ctx, id, ids)
 			s.pawnReceipt = pawnReceipt
 			if err != nil {
 				return nil, receipt, err
@@ -65,7 +66,7 @@ func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, pl
 			if pawns == nil || pawns.GetObserved() == nil {
 				return nil, receipt, ErrContract
 			}
-			if err = bridge.ValidateCombatPawnSnapshot(pawns.GetObserved(), id, ids); err != nil {
+			if err = bridge.ValidateRoutinePawnSnapshot(pawns.GetObserved(), id, ids); err != nil {
 				return nil, receipt, err
 			}
 			observed, err := contextIdentity(pawns.GetObserved().Context)
@@ -77,6 +78,7 @@ func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, pl
 				return nil, receipt, ErrChanged
 			}
 			s.armed = routineArmed(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
+			s.work = routineWork(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
 		}
 	}
 	return colony, receipt, nil
@@ -92,5 +94,6 @@ func ObserveRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		return RoutineReading{}, err
 	}
 	reading.Projection.Facts.Armed = bracket.armed
+	reading.Projection.WorkPawns = bracket.work
 	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, EmergencyReceipt: bracket.receipt, PawnReceipt: bracket.pawnReceipt}, nil
 }

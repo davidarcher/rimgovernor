@@ -8397,7 +8397,7 @@
         },
         {
           "path": "contracts/generated/protobuf/csharp/Observations.cs",
-          "source_sha256": "8004d43047a59eb08402362ca68f396a5879b1e73a110977090617a605f8c729"
+          "source_sha256": "2f4ed7862823c08dbed72d45ed17e2e9b7c347feded535932578963c82946584"
         },
         {
           "path": "contracts/generated/protobuf/csharp/Operations.cs",

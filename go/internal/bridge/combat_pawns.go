@@ -15,6 +15,9 @@ func (client *Client) ReadCombatPawns(ctx context.Context, identity *c.Identity,
 
 // ValidateCombatPawnSnapshot shares exact-ID validation with ReadCombatPawns.
 func ValidateCombatPawnSnapshot(snapshot *o.PawnSnapshot, identity *c.Identity, ids []string) error {
+	return validateDetailedPawnSnapshot(snapshot, identity, ids, false)
+}
+func validateDetailedPawnSnapshot(snapshot *o.PawnSnapshot, identity *c.Identity, ids []string, work bool) error {
 	if err := ValidateIdentity(identity); err != nil {
 		return err
 	}
@@ -31,7 +34,7 @@ func ValidateCombatPawnSnapshot(snapshot *o.PawnSnapshot, identity *c.Identity, 
 	if err := buildingUnknown(snapshot); err != nil {
 		return err
 	}
-	return pawnsSnapshotDetails(snapshot, identity, requested, true)
+	return pawnsSnapshotSelected(snapshot, identity, requested, true, work)
 }
 func combatNumber(v *float64, nonnegative bool) bool {
 	return v == nil || !math.IsNaN(*v) && !math.IsInf(*v, 0) && (!nonnegative || *v >= 0)

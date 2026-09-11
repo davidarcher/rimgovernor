@@ -26,7 +26,7 @@ type routineNative struct {
 	pawnReply *o.ListPawnsReply
 }
 
-func (n *routineNative) ReadCombatPawns(ctx context.Context, _ *c.Identity, _ []string) (*o.ListPawnsReply, bridge.Result, error) {
+func (n *routineNative) ReadRoutinePawns(ctx context.Context, _ *c.Identity, _ []string) (*o.ListPawnsReply, bridge.Result, error) {
 	if n.pawnReply != nil {
 		return n.pawnReply, bridge.Result{}, ctx.Err()
 	}

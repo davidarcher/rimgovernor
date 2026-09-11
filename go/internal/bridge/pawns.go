@@ -16,6 +16,9 @@ func (client *Client) ReadPawns(ctx context.Context, identity *c.Identity, ids [
 	return client.readPawns(ctx, identity, ids, false)
 }
 func (client *Client) readPawns(ctx context.Context, identity *c.Identity, ids []string, combat bool) (*o.ListPawnsReply, Result, error) {
+	return client.readPawnDetails(ctx, identity, ids, combat, false)
+}
+func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity, ids []string, combat, work bool) (*o.ListPawnsReply, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, Result{}, err
 	}
@@ -34,6 +37,9 @@ func (client *Client) readPawns(ctx context.Context, identity *c.Identity, ids [
 		requested[id] = true
 	}
 	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.PawnFilter{Ids: copied, IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(combat), Equipment: proto.Bool(combat), Biography: proto.Bool(combat), Settings: proto.Bool(false), Social: proto.Bool(false), Animals: proto.Bool(false)}, Page: &c.PageRequest{Limit: proto.Uint32(uint32(len(copied)))}}
+	if work {
+		request.Details.Work = proto.Bool(true)
+	}
 	reply := &o.ListPawnsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_pawns", request, reply)
 	if err != nil {
@@ -48,7 +54,7 @@ func (client *Client) readPawns(ctx context.Context, identity *c.Identity, ids [
 	case *o.ListPawnsReply_Unavailable:
 		err = unavailable(v.Unavailable, raw)
 	case *o.ListPawnsReply_Observed:
-		err = pawnsSnapshotDetails(v.Observed, request.Scope.ExpectedIdentity, requested, combat)
+		err = pawnsSnapshotSelected(v.Observed, request.Scope.ExpectedIdentity, requested, combat, work)
 	default:
 		err = contract("pawn read outcome missing")
 	}
@@ -58,6 +64,9 @@ func pawnsSnapshot(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool)
 	return pawnsSnapshotDetails(v, id, requested, false)
 }
 func pawnsSnapshotDetails(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool, combat bool) error {
+	return pawnsSnapshotSelected(v, id, requested, combat, false)
+}
+func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool, combat, work bool) error {
 	if v == nil {
 		return contract("pawn snapshot missing")
 	}
@@ -87,11 +96,16 @@ func pawnsSnapshotDetails(v *o.PawnSnapshot, id *c.Identity, requested map[strin
 		if err := pawnsEntity(row.Pawn, v.Context); err != nil {
 			return err
 		}
-		if row.Needs != nil || !combat && (row.Health != nil || row.Equipment != nil || row.Biography != nil) || row.Settings != nil || row.Social != nil || row.AnimalState != nil {
+		if row.Needs != nil || !combat && (row.Health != nil || row.Equipment != nil || row.Biography != nil) || !work && row.Settings != nil || row.Social != nil || row.AnimalState != nil {
 			return contract("unrequested pawn detail")
 		}
 		if combat {
 			if err := combatDetails(row, v.Context); err != nil {
+				return err
+			}
+		}
+		if work && row.Settings != nil {
+			if err := validateWorkSettings(row.Settings); err != nil {
 				return err
 			}
 		}

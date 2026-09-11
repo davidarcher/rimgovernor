@@ -108,6 +108,7 @@ message PawnSettings {
   optional string allowed_area_id = 5; optional string master_id = 6; optional bool follow_drafted = 7; optional bool follow_fieldwork = 8;
   repeated WorkSetting work = 9; repeated TimetableSlot schedule = 10; repeated DefinitionRef allowed_areas = 11;
   repeated string medical_care_options = 12; repeated string hostility_response_options = 13; repeated ReadIssue issues = 14;
+  optional bool work_applies = 15; optional bool manual_work_priorities = 16;
 }
 message TrainingEntry { optional string def_name = 1; optional bool learned = 2; optional bool wanted = 3; optional bool available = 4; optional string reason = 5; }
 message AnimalState {
@@ -151,7 +152,7 @@ message PawnFilter {
   optional bool wild = 9; optional bool hostile = 10; optional bool downed = 11; optional bool drafted = 12;
   optional bool include_dead = 13; optional double within_colonist_distance = 14;
 }
-message PawnDetails { optional bool needs = 1; optional bool health = 2; optional bool equipment = 3; optional bool biography = 4; optional bool settings = 5; optional bool social = 6; optional bool animals = 7; optional bool visible_hediffs_only = 8; }
+message PawnDetails { optional bool needs = 1; optional bool health = 2; optional bool equipment = 3; optional bool biography = 4; optional bool settings = 5; optional bool social = 6; optional bool animals = 7; optional bool visible_hediffs_only = 8; optional bool work = 9; }
 message PawnSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PawnState pawns = 2; Completeness completeness = 3; }
 message ListPawnsRequest { ReadScope scope = 1; PawnFilter filter = 2; PawnDetails details = 3; rimgovernor.common.v1.PageRequest page = 4; }
 message ListPawnsReply { oneof outcome { PawnSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }

@@ -5,6 +5,13 @@ This package defines the Go/native boundary with Protocol Buffers. Official
 schema compiler. Game definitions remain open native identifiers, not generated
 enums of the current installed content.
 
+`PawnDetails.work` requests only the work portion of `PawnSettings`, independently
+of full settings. `work_applies` distinguishes inapplicable pawns from unreadable
+work tables; `manual_work_priorities` distinguishes numbered and checkbox mode.
+`WorkSetting.priority` is native effective priority: 0–4 in numbered mode and
+0 or 3 in checkbox mode. Missing values remain unknown. Reads never initialize a
+work tracker or grant permission to change settings.
+
 - [Boundary inventory](coverage.md): all97 current boundary rows and55 native exports.
 - [Fixed MCP tools](mcp-tools.md):78 descriptor methods, exact wrappers and capabilities.
 - [Validation](validation.md): shared presence, bounds and outcome requirements.

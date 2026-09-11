@@ -2439,6 +2439,8 @@ type PawnSettings struct {
 	MedicalCareOptions       []string               `protobuf:"bytes,12,rep,name=medical_care_options,json=medicalCareOptions,proto3" json:"medical_care_options,omitempty"`
 	HostilityResponseOptions []string               `protobuf:"bytes,13,rep,name=hostility_response_options,json=hostilityResponseOptions,proto3" json:"hostility_response_options,omitempty"`
 	Issues                   []*ReadIssue           `protobuf:"bytes,14,rep,name=issues,proto3" json:"issues,omitempty"`
+	WorkApplies              *bool                  `protobuf:"varint,15,opt,name=work_applies,json=workApplies,proto3,oneof" json:"work_applies,omitempty"`
+	ManualWorkPriorities     *bool                  `protobuf:"varint,16,opt,name=manual_work_priorities,json=manualWorkPriorities,proto3,oneof" json:"manual_work_priorities,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -2569,6 +2571,20 @@ func (x *PawnSettings) GetIssues() []*ReadIssue {
 		return x.Issues
 	}
 	return nil
+}
+
+func (x *PawnSettings) GetWorkApplies() bool {
+	if x != nil && x.WorkApplies != nil {
+		return *x.WorkApplies
+	}
+	return false
+}
+
+func (x *PawnSettings) GetManualWorkPriorities() bool {
+	if x != nil && x.ManualWorkPriorities != nil {
+		return *x.ManualWorkPriorities
+	}
+	return false
 }
 
 type TrainingEntry struct {
@@ -3480,6 +3496,7 @@ type PawnDetails struct {
 	Social             *bool                  `protobuf:"varint,6,opt,name=social,proto3,oneof" json:"social,omitempty"`
 	Animals            *bool                  `protobuf:"varint,7,opt,name=animals,proto3,oneof" json:"animals,omitempty"`
 	VisibleHediffsOnly *bool                  `protobuf:"varint,8,opt,name=visible_hediffs_only,json=visibleHediffsOnly,proto3,oneof" json:"visible_hediffs_only,omitempty"`
+	Work               *bool                  `protobuf:"varint,9,opt,name=work,proto3,oneof" json:"work,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -3566,6 +3583,13 @@ func (x *PawnDetails) GetAnimals() bool {
 func (x *PawnDetails) GetVisibleHediffsOnly() bool {
 	if x != nil && x.VisibleHediffsOnly != nil {
 		return *x.VisibleHediffsOnly
+	}
+	return false
+}
+
+func (x *PawnDetails) GetWork() bool {
+	if x != nil && x.Work != nil {
+		return *x.Work
 	}
 	return false
 }
@@ -24837,7 +24861,7 @@ const file_observations_proto_rawDesc = "" +
 	"\trelations\x18\x03 \x03(\v2%.rimgovernor.observations.v1.RelationR\trelations\x12;\n" +
 	"\x17situational_cache_stale\x18\x04 \x01(\bH\x00R\x15situationalCacheStale\x88\x01\x01\x12>\n" +
 	"\x06issues\x18\x05 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\x1a\n" +
-	"\x18_situational_cache_stale\"\x84\a\n" +
+	"\x18_situational_cache_stale\"\x93\b\n" +
 	"\fPawnSettings\x12D\n" +
 	"\bsnapshot\x18\x01 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12&\n" +
 	"\fmedical_care\x18\x02 \x01(\tH\x00R\vmedicalCare\x88\x01\x01\x12 \n" +
@@ -24853,7 +24877,9 @@ const file_observations_proto_rawDesc = "" +
 	"\rallowed_areas\x18\v \x03(\v2*.rimgovernor.observations.v1.DefinitionRefR\fallowedAreas\x120\n" +
 	"\x14medical_care_options\x18\f \x03(\tR\x12medicalCareOptions\x12<\n" +
 	"\x1ahostility_response_options\x18\r \x03(\tR\x18hostilityResponseOptions\x12>\n" +
-	"\x06issues\x18\x0e \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\x0f\n" +
+	"\x06issues\x18\x0e \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12&\n" +
+	"\fwork_applies\x18\x0f \x01(\bH\aR\vworkApplies\x88\x01\x01\x129\n" +
+	"\x16manual_work_priorities\x18\x10 \x01(\bH\bR\x14manualWorkPriorities\x88\x01\x01B\x0f\n" +
 	"\r_medical_careB\f\n" +
 	"\n" +
 	"_self_tendB\x15\n" +
@@ -24862,7 +24888,9 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_master_idB\x11\n" +
 	"\x0f_follow_draftedB\x13\n" +
-	"\x11_follow_fieldwork\"\xe8\x01\n" +
+	"\x11_follow_fieldworkB\x0f\n" +
+	"\r_work_appliesB\x19\n" +
+	"\x17_manual_work_priorities\"\xe8\x01\n" +
 	"\rTrainingEntry\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x1d\n" +
 	"\alearned\x18\x02 \x01(\bH\x01R\alearned\x88\x01\x01\x12\x1b\n" +
@@ -25028,7 +25056,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_draftedB\x0f\n" +
 	"\r_include_deadB\x1b\n" +
-	"\x19_within_colonist_distance\"\x8d\x03\n" +
+	"\x19_within_colonist_distance\"\xaf\x03\n" +
 	"\vPawnDetails\x12\x19\n" +
 	"\x05needs\x18\x01 \x01(\bH\x00R\x05needs\x88\x01\x01\x12\x1b\n" +
 	"\x06health\x18\x02 \x01(\bH\x01R\x06health\x88\x01\x01\x12!\n" +
@@ -25037,7 +25065,8 @@ const file_observations_proto_rawDesc = "" +
 	"\bsettings\x18\x05 \x01(\bH\x04R\bsettings\x88\x01\x01\x12\x1b\n" +
 	"\x06social\x18\x06 \x01(\bH\x05R\x06social\x88\x01\x01\x12\x1d\n" +
 	"\aanimals\x18\a \x01(\bH\x06R\aanimals\x88\x01\x01\x125\n" +
-	"\x14visible_hediffs_only\x18\b \x01(\bH\aR\x12visibleHediffsOnly\x88\x01\x01B\b\n" +
+	"\x14visible_hediffs_only\x18\b \x01(\bH\aR\x12visibleHediffsOnly\x88\x01\x01\x12\x17\n" +
+	"\x04work\x18\t \x01(\bH\bR\x04work\x88\x01\x01B\b\n" +
 	"\x06_needsB\t\n" +
 	"\a_healthB\f\n" +
 	"\n" +
@@ -25048,7 +25077,8 @@ const file_observations_proto_rawDesc = "" +
 	"\a_socialB\n" +
 	"\n" +
 	"\b_animalsB\x17\n" +
-	"\x15_visible_hediffs_only\"\xe0\x01\n" +
+	"\x15_visible_hediffs_onlyB\a\n" +
+	"\x05_work\"\xe0\x01\n" +
 	"\fPawnSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12<\n" +
 	"\x05pawns\x18\x02 \x03(\v2&.rimgovernor.observations.v1.PawnStateR\x05pawns\x12M\n" +

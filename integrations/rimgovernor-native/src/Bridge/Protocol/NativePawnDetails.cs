@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
             Settings=source==null || !source.HasSettings || source.Settings,
             Social=source==null || !source.HasSocial || source.Social,
             Animals=source==null || !source.HasAnimals || source.Animals,
-            VisibleHediffsOnly=source?.VisibleHediffsOnly==true };
+            VisibleHediffsOnly=source?.VisibleHediffsOnly==true, Work=source?.Work==true };
 
         internal static void Apply(Pawn pawn,Obs.PawnState row,Obs.PawnDetails? requested)
         {
@@ -39,7 +39,9 @@ namespace HomeBridge.BridgeTools
             }
             if(d.Equipment) row.Equipment=Equipment(pawn); else row.Issues.Add(Skipped("equipment"));
             if(d.Biography) row.Biography=Biography(pawn); else row.Issues.Add(Skipped("biography"));
-            if(d.Settings) row.Settings=Settings(pawn); else row.Issues.Add(Skipped("settings"));
+            if(d.Settings) row.Settings=Settings(pawn);
+            else if(d.Work) { row.Settings=new Obs.PawnSettings(); Work(pawn,row.Settings); }
+            else row.Issues.Add(Skipped("settings"));
             if(d.Social) row.Issues.Add(Unsupported("social","Safe complete thought and relation projection is not implemented; native refresh APIs can mutate memories."));
             else row.Issues.Add(Skipped("social"));
             if(!d.Animals) row.Issues.Add(Skipped("animal_state"));
@@ -205,12 +207,7 @@ namespace HomeBridge.BridgeTools
                 var area=settings.AreaRestrictionInPawnCurrentMap;
                 if(area!=null) row.AllowedAreaId=Id(area.GetUniqueLoadID()); else row.Issues.Add(Issue("allowed_area_id",Common.UnavailableReason.NotApplicable,"No area restriction."));
             }
-            // GetPriority initializes and logs for an uninitialized tracker. Never call it in that state.
-            if(pawn.workSettings?.Initialized!=true) row.Issues.Add(Missing("work"));
-            else {
-                var defs=DefDatabase<WorkTypeDef>.AllDefsListForReading;Require(defs.Count);
-                foreach(var def in defs) row.Work.Add(new Obs.WorkSetting {DefName=Id(def.defName),Priority=pawn.workSettings.GetPriority(def),Disabled=pawn.WorkTypeIsDisabled(def)});
-            }
+            Work(pawn,row);
             if(pawn.timetable==null) row.Issues.Add(Missing("schedule"));
             else for(var hour=0;hour<24;hour++) row.Schedule.Add(new Obs.TimetableSlot {Hour=(uint)hour,AssignmentDefName=Id(pawn.timetable.GetAssignment(hour).defName)});
             row.Issues.Add(Unsupported("snapshot","This read does not issue settings CAS tokens."));
@@ -218,6 +215,18 @@ namespace HomeBridge.BridgeTools
             row.Issues.Add(Unsupported("medical_care_options","Selectable medical care catalog is not projected."));
             row.Issues.Add(Unsupported("hostility_response_options","Selectable hostility response catalog is not projected."));
             return row;
+        }
+
+        private static void Work(Pawn pawn,Obs.PawnSettings row)
+        {
+            row.WorkApplies=pawn.workSettings?.EverWork==true;
+            var manual=PawnSettingsRead.ManualPriorities();
+            if(manual.HasValue) row.ManualWorkPriorities=manual.Value;
+            else row.Issues.Add(Missing("manual_work_priorities"));
+            // GetPriority can initialize an unreadable tracker; never read it then.
+            if(pawn.workSettings?.Initialized!=true || !row.WorkApplies) { row.Issues.Add(Missing("work"));return; }
+            var defs=DefDatabase<WorkTypeDef>.AllDefsListForReading;Require(defs.Count);
+            foreach(var def in defs) row.Work.Add(new Obs.WorkSetting {DefName=Id(def.defName),Priority=pawn.workSettings.GetPriority(def),Disabled=pawn.WorkTypeIsDisabled(def)});
         }
 
         private static Obs.AnimalState Animal(Pawn pawn)

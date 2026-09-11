@@ -172,12 +172,20 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             detailed = outcome(await wire(bridge, "initial-equipment", "observations_list_pawns", {
                 "scope": {"expectedIdentity": identity}, "filter": {"ids": pawn_ids, "includeDead": True},
                 "details": {"needs": False, "health": True, "equipment": True, "biography": True,
-                            "settings": False, "social": False, "animals": False}, "page": {"limit": len(pawn_ids)}}), "observed")
+                            "settings": False, "social": False, "animals": False, "work": True}, "page": {"limit": len(pawn_ids)}}), "observed")
             assert detailed["context"] == outcome(report["initial_colony"], "observed")["context"]
             assert {p["pawn"]["id"] for p in detailed["pawns"]} == set(pawn_ids)
             assert all(type(p.get("dead")) is bool and type(p.get("downed")) is bool
                        and type(p.get("equipment", {}).get("armed")) is bool for p in detailed["pawns"])
             report["initial_armed"] = sum(not p["dead"] and not p["downed"] and p["equipment"]["armed"] for p in detailed["pawns"])
+            from native_work_readback import work_reference
+            legacy_work = payload(await evidence.call(bridge, "initial-work", "home/list_pawns", {"colonistsOnly": True, "work": True, "bio": True, "equipment": True}))
+            assert legacy_work['success'] and {p['thingId'] for p in legacy_work['pawns']} == set(pawn_ids)
+            report['initial_work'] = work_reference(legacy_work['pawns'])
+            work_colony = await wire(bridge, "work-colony", "observations_read_colony_facts", {"scope": {"expectedIdentity": identity}, "planning": True})
+            for name, value in {'work-pawns': {'observed': detailed}, 'work-colony': work_colony,
+                                'work-status': report['initial_colony'], 'work-reference': report['initial_work']}.items():
+                (output / (name + '.json')).write_text(json.dumps(value), encoding='utf8')
             facts = payload(await evidence.call(bridge, "initial-food", "home/colony_facts", {"planning": False}))
             food = food_forecast(facts['nativeForecastInputs']['combinedFoodSupply'], consumer_ids=[r['id'] for r in facts['foodSupply']['consumers']])
             report['initial_food_forecast'] = food
@@ -199,6 +207,8 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             if report["initial_armed"] < min(2, len(pawn_ids)):
                 assert active["goals"]["EnsureBasicDefense"]["Need"] == "deficit", "Native equipment shortage did not reach routine defense need"
             report["defense_need"] = active["goals"]["EnsureBasicDefense"]["Need"]
+            report['work_need'] = active['goals']['EnsureWorkAssignments']['Need']
+            assert report['work_need'] == ('recovered' if report['initial_work']['matches'] else 'deficit'), 'Native work readback did not reach routine need'
             report["active_routine"] = active
             if sleeping_methods:
                 report["sleeping_plan"] = await wait_building_method(http, database, "SleepingSpot", report["sleeping_setup"]["colonists"])

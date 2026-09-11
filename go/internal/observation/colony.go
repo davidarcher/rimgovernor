@@ -19,6 +19,7 @@ type PlanningDefinition struct {
 	GrowDays, FertilityMin, FertilitySensitivity, HarvestNutrition, NutritionDemandPerDay domain.Fact[float64]
 }
 type ColonyProjection struct {
+	WorkPawns          domain.Fact[[]policy.WorkPawn]
 	FieldCrops         domain.Fact[[]policy.FieldCrop]
 	CookingBenches     domain.Fact[[]CookingBench]
 	Identity           Identity

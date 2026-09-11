@@ -151,6 +151,15 @@ colonists count. Missing gear or inconsistent colony/pawn censuses leave readine
 unknown; tick or generation changes reject the review. This supplies the maintained
 defense need without issuing equipment or combat orders.
 
+`ReadRoutinePawns` adds the work-only detail selection to the same exact-ID read.
+It preserves native work applicability and numbered/checkbox mode. `AssignWork`
+selects specialists with stable ties, construction skill precedence and shared labor,
+and compares proposed priorities with native readback in the correct mode. Routine
+reviews use that comparison for work coverage; the proposal does not write settings.
+The policy accepts additional work requirements, minimum skills and explicit player
+overrides; their project/session wiring remains in G01.05. Native work captures and
+the Python reference replay with `RIMGOVERNOR_NATIVE_WORK_CAPTURE=<capture directory>`.
+
 `NewRoutineSleepingPlanner` configures the shared `RoutineBuildingPlanner` to compile an active reviewed shelter deficit into
 one complete method of ordinary indoor sleeping spots. It requires a known native
 definition with no construction-skill prerequisite, roofed indoor cells, disjoint
