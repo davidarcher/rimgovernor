@@ -237,8 +237,73 @@ internal static class Program
         }
     }
 
+    private static Dictionary<string, string[]> ReadManifest(string directory, string filename)
+    {
+        var lines = File.ReadAllLines(Path.Combine(directory, filename));
+        Require(lines.Length > 1 && lines[0] == "id\tmessage\tjson\tbinary", filename + " header and nonempty fixtures");
+        var records = new Dictionary<string, string[]>(StringComparer.Ordinal);
+        foreach (var line in lines.Skip(1))
+        {
+            var fields = line.Split('\t');
+            Require(fields.Length == 4 && !string.IsNullOrWhiteSpace(fields[0]), filename + " four columns and ID");
+            Require(!records.ContainsKey(fields[0]), filename + " duplicate ID: " + fields[0]);
+            records.Add(fields[0], fields);
+        }
+        return records;
+    }
+
+    private static IMessage ReadFixture(Dictionary<string, MessageDescriptor> descriptors, string directory, string[] record)
+    {
+        if (!descriptors.TryGetValue(record[1], out var descriptor))
+            throw new InvalidOperationException("Unknown canonical fixture message: " + record[1]);
+        var json = descriptor.Parser.ParseJson(File.ReadAllText(FixturePath(directory, record[2])));
+        var binary = descriptor.Parser.ParseFrom(File.ReadAllBytes(FixturePath(directory, record[3])));
+        Require(json.Equals(binary), "Manifest JSON/binary agreement: " + record[0]);
+        return json;
+    }
+
+    private static void VerifyReturn(string originDirectory, string returnDirectory)
+    {
+        const string prefix = "csharp-echo-";
+        var descriptors = CanonicalMessages();
+        var original = ReadManifest(originDirectory, "manifest.tsv");
+        var returned = ReadManifest(returnDirectory, "csharp-echo-manifest.tsv");
+        Require(original.Count == returned.Count, "Return manifest must cover the exact complete original set");
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var record in returned.Values)
+        {
+            Require(record[0].StartsWith(prefix, StringComparison.Ordinal), "Return fixture requires exactly one csharp-echo prefix");
+            var originId = record[0].Substring(prefix.Length);
+            if (!original.TryGetValue(originId, out var source))
+                throw new InvalidOperationException("Unexpected returned fixture: " + record[0]);
+            Require(seen.Add(originId), "Returned original ID is unique");
+            Require(source[1] == record[1], "Returned fully qualified message type matches: " + originId);
+            var expected = ReadFixture(descriptors, originDirectory, source);
+            var actual = ReadFixture(descriptors, returnDirectory, record);
+            Require(expected.Equals(actual), "Returned value matches original including optional presence: " + originId);
+        }
+        Require(seen.SetEquals(original.Keys), "No original fixture omitted from reciprocal return");
+        Console.WriteLine("Verified reciprocal return against " + original.Count + " original manifest fixtures: " + checks + " checks.");
+    }
+
     public static void Main(string[] args)
     {
+        try { Run(args); }
+        catch (Exception error)
+        {
+            // A failed proof must exit promptly rather than invoke Windows crash reporting.
+            Console.Error.WriteLine(error.ToString());
+            Environment.ExitCode = 1;
+        }
+    }
+
+    private static void Run(string[] args)
+    {
+        if (args.Length == 3 && args[0] == "--verify-return")
+        {
+            VerifyReturn(args[1], args[2]);
+            return;
+        }
         if (args.Length < 1 || args.Length > 2) throw new ArgumentException("Supply a fresh proof artifact directory");
         var output = args[0];
         if (Directory.Exists(output)) throw new ArgumentException("Proof artifact directory must be fresh");
