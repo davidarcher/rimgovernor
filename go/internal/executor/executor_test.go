@@ -140,6 +140,25 @@ func (f *fixture) progress(t *testing.T) domain.ProgressView {
 	return state.Progress[0].View()
 }
 
+func TestPartialInspectionCannotReleaseConstructionAccounting(t *testing.T) {
+	f := newFixture(t)
+	if _, err := f.run(); err != nil {
+		t.Fatal(err)
+	}
+	f.env.onObserve = func(p Placement, g domain.GenerationSnapshot, _ int) Evidence {
+		evidence := f.env.evidence(p, g, domain.EffectPending, false)
+		evidence.Observation.Causality = domain.AfterDispatch
+		evidence.Observation.ConstructionObserved = true
+		return evidence
+	}
+	if _, err := f.run(); !errors.Is(err, ErrEvidence) {
+		t.Fatal(err)
+	}
+	if _, known := f.progress(t).ConstructionObserved.Value(); known {
+		t.Fatal("partial proof was journaled")
+	}
+}
+
 func TestDurableDispatchThenObservedConstruction(t *testing.T) {
 	f := newFixture(t)
 	f.env.onPlace = func(_ context.Context, p Placement) (Receipt, error) {

@@ -34,7 +34,7 @@ func candidate(t *testing.T, id domain.ActionID, x int32, count int64) Candidate
 	return Candidate{Action: a, Progress: p, Purpose: Routine, Preview: Preview{Action: a, Snapshot: current(), Tick: 20, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(true), Footprint: domain.Known([]domain.Cell{b.Cell()}), Costs: domain.Known([]Amount{{"Steel", count}})}}
 }
 func request(c ...Candidate) Request {
-	return Request{Current: current(), CurrentTick: 20, Bounds: domain.Known(Bounds{100, 100}), Candidates: c, Stock: StockObservation{current(), 20, []Stock{{"Steel", domain.Known(int64(100))}}}}
+	return Request{Current: current(), CurrentTick: 20, Bounds: domain.Known(Bounds{100, 100}), Candidates: c, Stock: StockObservation{Snapshot: current(), Tick: 20, Values: []Stock{{"Steel", domain.Known(int64(100))}}}}
 }
 func decide(t *testing.T, r Request) Decision {
 	t.Helper()

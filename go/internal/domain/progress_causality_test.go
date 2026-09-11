@@ -2,6 +2,26 @@ package domain
 
 import "testing"
 
+func TestConstructionProofRequiresPendingAttemptCausality(t *testing.T) {
+	p, scope := dispatched(t)
+	for _, effect := range []Effect{EffectPending, EffectUnknown, EffectCompleted} {
+		for _, causality := range []ObservationCausality{"", AfterDispatch} {
+			o := Observation{Action: p.View().Action, Attempt: p.View().Attempt, Snapshot: scope, Tick: 11, Effect: effect, Causality: causality, ConstructionObserved: true}
+			got, err := p.Observe(o, scope)
+			if effect == EffectPending && causality == AfterDispatch {
+				if err != nil {
+					t.Fatal(err)
+				}
+				if tick, k := got.View().ConstructionObserved.Value(); !k || tick != 11 {
+					t.Fatal(got.View())
+				}
+			} else if err == nil || got != p {
+				t.Fatal("invalid proof changed progress", got, err)
+			}
+		}
+	}
+}
+
 func TestEqualTickRequiresExplicitAttemptCausality(t *testing.T) {
 	p, scope := dispatched(t)
 	observation := Observation{Action: p.View().Action, Attempt: p.View().Attempt, Snapshot: scope, Tick: p.View().Tick, Effect: EffectCompleted}

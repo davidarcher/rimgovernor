@@ -238,6 +238,11 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 			continue
 		}
 		selected = append(selected, choice)
+		if len(selected) == 1 {
+			stock.NativeConstruction = preview.Stock.NativeConstruction
+		} else {
+			stock.NativeConstruction = stock.NativeConstruction && preview.Stock.NativeConstruction
+		}
 		for _, c := range footprint {
 			usedCells[c] = true
 		}

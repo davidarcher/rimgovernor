@@ -67,6 +67,9 @@ func TestBuildingPreviewProjection(t *testing.T) {
 				t.Fatalf("preview: %v", err)
 			}
 			safe, known := result.Preview.SafeToPlace.Value()
+			if result.Stock.NativeConstruction != (reply.GetBatch().Results[0].GetEvaluated().Materials.GetKnown() != nil) {
+				t.Fatal("lost native construction accounting basis")
+			}
 			if safe != test.safe || known != test.knownSafe {
 				t.Fatalf("safe=%v known=%v", safe, known)
 			}

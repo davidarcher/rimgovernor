@@ -466,6 +466,9 @@ func (e *Executor) reconcile(ctx context.Context, action domain.Action, progress
 		return result, ErrHeld
 	}
 	observed := evidence.Observation
+	if observed.ConstructionObserved && !evidence.Complete {
+		return result, ErrEvidence
+	}
 	if observed.Action != action.ID() || observed.Attempt != view.Attempt || !observed.Snapshot.Matches(current) {
 		return result, ErrEvidence
 	}

@@ -289,10 +289,12 @@ func TestBoundaryRestartReadsWithoutLeaseAndChecksCompletion(t *testing.T) {
 func TestRepeatedPendingAndRestartKeepImmutableAdmissionTick(t *testing.T) {
 	b, f := newBoundaryFixture(t)
 	completed := proto.Clone(f.progress).(*r.Progress)
-	f.progress.Effect = &r.Progress_Pending{Pending: &r.PendingEffect{Evidence: completed.GetCompleted().Evidence}}
+	pending := proto.Clone(completed.GetCompleted().Evidence).(*r.EffectEvidence)
+	pending.GetConstruction().Stage = r.ConstructionStage_CONSTRUCTION_STAGE_FRAME.Enum()
+	f.progress.Effect = &r.Progress_Pending{Pending: &r.PendingEffect{Evidence: pending}}
 	f.progress.Context.Tick = proto.Int64(11)
 	first, err := b.Observe(context.Background(), f.placement, f.placement.Snapshot)
-	if err != nil || first.Observation.Effect != domain.EffectPending {
+	if err != nil || first.Observation.Effect != domain.EffectPending || !first.Observation.ConstructionObserved {
 		t.Fatal(err)
 	}
 	f.placement.Tick = first.Observation.Tick

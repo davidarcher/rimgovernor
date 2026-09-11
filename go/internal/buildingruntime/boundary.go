@@ -211,6 +211,22 @@ func (b *Boundary) Observe(ctx context.Context, placement executor.Placement, cu
 		out.Observation.Effect = domain.EffectUnknown
 	case *r.Progress_Pending:
 		out.Observation.Effect = domain.EffectPending
+		if out.Complete {
+			effect := v.Pending.GetEvidence().GetConstruction()
+			if effect == nil || effect.Stage == nil || (effect.GetStage() != r.ConstructionStage_CONSTRUCTION_STAGE_BLUEPRINT && effect.GetStage() != r.ConstructionStage_CONSTRUCTION_STAGE_FRAME) || effect.Present == nil || !effect.GetPresent() || effect.Failed == nil || effect.GetFailed() || effect.Cell == nil || effect.DefName == nil || effect.Stuff == nil || effect.Rotation == nil || !boundaryID(effect.GetOriginThingId()) || !boundaryID(effect.GetCurrentThingId()) {
+				return out, executor.ErrEvidence
+			}
+			origin := boundaryOrigin(admitted)
+			if origin != "" && effect.GetOriginThingId() != origin {
+				return out, executor.ErrEvidence
+			}
+			building, err := domain.NewBuilding(effect.GetDefName(), domain.Cell{X: effect.Cell.GetX(), Z: effect.Cell.GetZ()}, boundaryRotation(effect.GetRotation()), effect.GetStuff())
+			wanted, _ := placement.Action.Building()
+			if err != nil || building != wanted {
+				return out, executor.ErrEvidence
+			}
+			out.Observation.ConstructionObserved = true
+		}
 	case *r.Progress_Absent:
 		if !out.Complete || v.Absent == nil || !boundaryID(v.Absent.GetInspectionToken()) {
 			return out, executor.ErrEvidence

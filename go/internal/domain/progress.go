@@ -61,13 +61,14 @@ func (r UnsuccessfulReason) valid() bool {
 }
 
 type Observation struct {
-	Action             ActionID
-	Attempt            AttemptID
-	Snapshot           GenerationSnapshot
-	Tick               Tick
-	Effect             Effect
-	Causality          ObservationCausality `json:",omitempty"`
-	UnsuccessfulReason UnsuccessfulReason   `json:",omitempty"`
+	Action               ActionID
+	Attempt              AttemptID
+	Snapshot             GenerationSnapshot
+	Tick                 Tick
+	Effect               Effect
+	Causality            ObservationCausality `json:",omitempty"`
+	UnsuccessfulReason   UnsuccessfulReason   `json:",omitempty"`
+	ConstructionObserved bool                 `json:",omitempty"`
 }
 type ProgressView struct {
 	Action             ActionID
@@ -82,6 +83,9 @@ type ProgressView struct {
 	Effect             Fact[Effect]
 	UnsuccessfulReason Fact[UnsuccessfulReason]
 	DraftCleanup       Fact[DraftCleanup]
+	// Earliest complete correlated inspection in the current run of known pending
+	// evidence. A later game tick can safely replace historic cost with net stock.
+	ConstructionObserved Fact[Tick]
 }
 
 // Progress transitions return a new value; failed transitions preserve the original.
@@ -132,6 +136,7 @@ func (p Progress) MarkDispatched(current GenerationSnapshot, tick Tick) (Progres
 	p.view.Stage, p.view.Unresolved, p.view.Tick = Dispatched, true, tick
 	p.view.Receipt, p.view.Effect = Unknown[Receipt](), Unknown[Effect]()
 	p.view.UnsuccessfulReason = Unknown[UnsuccessfulReason]()
+	p.view.ConstructionObserved = Unknown[Tick]()
 	if p.action.kind == OwnedDraftAction {
 		p.view.DraftCleanup = Known(DraftCleanup{Stage: DraftAwaitingClaim})
 	}
@@ -214,6 +219,16 @@ func (p Progress) observe(observation Observation, current GenerationSnapshot) (
 		}
 	} else if observation.UnsuccessfulReason != "" {
 		return p, errors.New("unsuccessful reason requires unsuccessful effect")
+	}
+	if observation.ConstructionObserved && (p.action.Kind() != BuildingAction || observation.Effect != EffectPending || observation.Causality != AfterDispatch) {
+		return p, errors.New("construction accounting requires correlated pending building evidence")
+	}
+	if observation.ConstructionObserved {
+		if _, known := p.view.ConstructionObserved.Value(); !known {
+			p.view.ConstructionObserved = Known(observation.Tick)
+		}
+	} else {
+		p.view.ConstructionObserved = Unknown[Tick]()
 	}
 	p.view.Tick, p.view.Effect = observation.Tick, Known(observation.Effect)
 	if observation.Effect == EffectUnsuccessful {

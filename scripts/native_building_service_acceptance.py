@@ -8,6 +8,7 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+import sqlite3
 from urllib.parse import urlsplit
 
 import httpx
@@ -214,7 +215,18 @@ async def poll(http, path, predicate, timeout=45):
             await asyncio.sleep(.25)
 
 
-async def run(root: Path, output: Path, binary: Path, *, go_source: str, go_sha256: str, headless=True) -> bool:
+async def wait_construction_proof(database, action_id):
+    async with asyncio.timeout(30):
+        while True:
+            with sqlite3.connect(database.as_uri() + '?mode=ro', uri=True) as db:
+                rows = db.execute('SELECT payload FROM transitions WHERE action_id=? ORDER BY sequence', (action_id,)).fetchall()
+            observations = [json.loads(row[0]).get('Observation', {}) for row in rows]
+            if any(row.get('ConstructionObserved') is True for row in observations):
+                return observations
+            await asyncio.sleep(.25)
+
+
+async def run(root: Path, output: Path, binary: Path, *, go_source: str, go_sha256: str, headless=True, construction_accounting=False) -> bool:
     validate_go_handoff(go_source, go_sha256)
     assert Path("/.dockerenv").is_file(), "Run network/game processes only in container_scenario.py Docker worker"
     output.mkdir(parents=True, exist_ok=False)
@@ -239,8 +251,9 @@ async def run(root: Path, output: Path, binary: Path, *, go_source: str, go_sha2
         async def identity_read(bridge, label):
             return outcome(await wire(bridge, label, "lifecycle_read_identity", {}), "loaded")
 
-        async def buildings(bridge, label):
-            anchor = {"x": site["x"], "z": site["z"]}
+        async def buildings(bridge, label, target=None):
+            target = target or site
+            anchor = {"x": target["x"], "z": target["z"]}
             value = outcome(await wire(bridge, label, "observations_list_buildings", {"scope": {"expectedIdentity": identity},
                 "defNames": [site["defName"]], "category": "all", "region": {"minimum": anchor, "maximum": anchor}, "page": {"limit": 16}}), "observed")
             assert value["context"]["identity"] == identity and value["completeness"]["page"]["complete"] is True
@@ -248,7 +261,7 @@ async def run(root: Path, output: Path, binary: Path, *, go_source: str, go_sha2
             rows = value.get("buildings", [])
             assert len(rows) == int(value["completeness"]["matched"]) == int(value["completeness"]["returned"])
             for row in rows:
-                assert row["building"]["position"] == anchor and row["stuff"] == site["stuff"]
+                assert row["building"]["position"] == anchor and row["stuff"] == target["stuff"]
             return rows
 
         async def capture(bridge, label, baseline=None, phase=None):
@@ -284,11 +297,21 @@ async def run(root: Path, output: Path, binary: Path, *, go_source: str, go_sha2
             loaded = await identity_read(bridge, "before")
             identity, tick = loaded["context"]["identity"], int(loaded["context"]["tick"])
             assert loaded["paused"] is True
-            prepared = payload(await evidence.call(bridge, "prepare", "test/guarded_construction_prepare", {"siteCount": 1}))
-            assert prepared["success"] is True and len(prepared["sites"]) == 1
+            prepared = payload(await evidence.call(bridge, "prepare", "test/guarded_construction_prepare", {"siteCount": 2 if construction_accounting else 1}))
+            assert prepared["success"] is True and len(prepared["sites"]) == (2 if construction_accounting else 1)
             assert all(prepared[key] == identity[key] for key in identity)
             site = prepared["sites"][0]; report["prepared"] = prepared
             assert not await buildings(bridge, "initial-empty")
+            rules = []
+            if construction_accounting:
+                preview = outcome(await wire(bridge, 'accounting-stock', 'placement_preview', {'identity': identity, 'placements': [site]}), 'batch')['results'][0]['evaluated']
+                costs = preview['costList']
+                assert len(costs) == 1 and costs[0]['defName'] == 'WoodLog'
+                available = next(int(r['available']) for r in preview['materials']['known']['rows'] if r['defName'] == 'WoodLog')
+                reserve = available - 2 * int(costs[0]['count'])
+                assert reserve >= 0
+                rules = [f'WoodLog:allow:{reserve}']
+                report['accounting_budget'] = {'available': available, 'wall_cost': costs[0]['count'], 'reserve': reserve}
             baseline = await capture(bridge, "setup")
 
         async def ready(http, expected_tick):
@@ -296,7 +319,7 @@ async def run(root: Path, output: Path, binary: Path, *, go_source: str, go_sha2
             assert value["identity"] == identity and value["game"]["paused"] is True and value["game"]["tick"] == expected_tick
             return value
 
-        async with service(private, gabs, configuration, profile, database, output / "submit", report) as http:
+        async with service(private, gabs, configuration, profile, database, output / "submit", report, resource_rules=rules) as http:
             await ready(http, tick)
             building = http_building(site)
             body = {"requestId": "fixture-submit-1", "expected": identity, "building": building}
@@ -316,7 +339,7 @@ async def run(root: Path, output: Path, binary: Path, *, go_source: str, go_sha2
             assert loaded["context"]["identity"] == identity and int(loaded["context"]["tick"]) == tick and loaded["paused"] is True
             baseline = await capture(bridge, "submit-orchestrator", baseline, "orchestrator")
 
-        async with service(private, gabs, configuration, profile, database, output / "execute", report) as http:
+        async with service(private, gabs, configuration, profile, database, output / "execute", report, resource_rules=rules) as http:
             await ready(http, tick)
             assert (await http("GET", "/api/player/control"))["state"]["enabled"] is False
             granted = await http("POST", "/api/player/control/acquire", body={"requestId": "fixture-acquire-1", "expected": identity,
@@ -326,6 +349,8 @@ async def run(root: Path, output: Path, binary: Path, *, go_source: str, go_sha2
             assert granted["state"]["generation"]["native"] == granted["record"]["nativeGeneration"]
             plan = await poll(http, "/api/plan?id=" + submission["planId"], lambda value: action(value, submission)["stage"] == "awaiting_observation")
             verify_progress(plan, submission, False); report["admitted_plan"] = plan
+            if construction_accounting:
+                report['construction_proof'] = await wait_construction_proof(database, submission['actionId'])
             await ready(http, tick)
             manual = await http("POST", "/api/player/control/manual", body={"requestId": "fixture-manual-1", "expected": identity})
             assert manual["record"]["phase"] == "disabled" and manual["record"]["nativeGeneration"] == "0" and manual["state"]["enabled"] is False
@@ -339,20 +364,48 @@ async def run(root: Path, output: Path, binary: Path, *, go_source: str, go_sha2
             report["blueprint_id"] = rows[0]["building"]["id"]
             loaded = await identity_read(bridge, "execution-paused")
             assert loaded["context"]["identity"] == identity and int(loaded["context"]["tick"]) == tick and loaded["paused"] is True
+            if construction_accounting:
+                await advance_game(ScenarioClock(bridge, report), 1, report, timeout=180)
+                later = await identity_read(bridge, 'accounting-later-tick')
+                tick = int(later['context']['tick'])
+                assert (await buildings(bridge, 'accounting-unfinished'))[0]['status'] in {'blueprint', 'frame'}
+                baseline = await capture(bridge, 'accounting-orchestrator', baseline, 'orchestrator')
+        if construction_accounting:
+            async with service(private, gabs, configuration, profile, database, output / 'execute-second', report, resource_rules=rules) as http:
+                await ready(http, tick)
+                second = await http('POST', '/api/buildings/plans', body={'requestId': 'fixture-submit-2', 'expected': identity, 'building': http_building(prepared['sites'][1])}, expected=201)
+                direction = (await http('GET', '/api/player/control'))['record']['direction']
+                await http('POST', '/api/player/control/acquire', body={'requestId': 'fixture-acquire-2', 'expected': identity, 'planId': second['planId'], 'revision': second['revision'], 'expectedDirection': direction})
+                plan = await poll(http, '/api/plan?id=' + second['planId'], lambda value: action(value, second)['stage'] == 'awaiting_observation')
+                verify_progress(plan, second, False)
+                report['second_admitted_plan'] = plan
+                report['second_construction_proof'] = await wait_construction_proof(database, second['actionId'])
+                await http('POST', '/api/player/control/manual', body={'requestId': 'fixture-manual-2', 'expected': identity})
+            async with bridge_session(gabs, configuration) as bridge:
+                await bridge.connect()
+                baseline = await capture(bridge, 'second-service', baseline, 'execute')
+                assert (await buildings(bridge, 'second-blueprint', prepared['sites'][1]))[0]['status'] == 'blueprint'
+        async with bridge_session(gabs, configuration) as bridge:
+            await bridge.connect()
             runtime = ScenarioClock(bridge, report)
             for window in range(13):
                 rows = await buildings(bridge, f"pawn-work-{window}")
                 assert len(rows) == 1 and rows[0]["status"] in {"blueprint", "frame", "built"}
                 if rows[0]["status"] == "built":
                     report["completed_building"] = rows[0]
-                    break
+                    if not construction_accounting:
+                        break
+                    other = await buildings(bridge, f'second-pawn-work-{window}', prepared['sites'][1])
+                    if len(other) == 1 and other[0]['status'] == 'built':
+                        report['second_completed_building'] = other[0]
+                        break
                 assert window < 12, "Ordinary pawn work did not complete within7200ticks"
                 await advance_game(runtime, 600, report, timeout=180)
             final = await identity_read(bridge, "completed-paused")
             assert final["context"]["identity"] == identity and final["paused"] is True and int(final["context"]["tick"]) > tick
             final_tick = int(final["context"]["tick"])
             baseline = await capture(bridge, "pawn-orchestrator", baseline, "orchestrator")
-        async with service(private, gabs, configuration, profile, database, output / "restart", report) as http:
+        async with service(private, gabs, configuration, profile, database, output / "restart", report, resource_rules=rules) as http:
             await ready(http, final_tick)
             assert (await http("GET", "/api/player/control"))["state"]["enabled"] is False
             plan = await poll(http, "/api/plan?id=" + submission["planId"], lambda value: action(value, submission)["stage"] == "completed")
@@ -389,5 +442,6 @@ if __name__ == "__main__":
     parser.add_argument("--go-binary", type=Path, required=True)
     add_handoff_arguments(parser)
     parser.add_argument("--rendered", action="store_true")
+    parser.add_argument('--construction-accounting', action='store_true')
     args = parser.parse_args()
-    raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-building-service-acceptance", args.go_binary, go_source=args.go_source, go_sha256=args.go_sha256, headless=not args.rendered)) else 1)
+    raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-building-service-acceptance", args.go_binary, go_source=args.go_source, go_sha256=args.go_sha256, headless=not args.rendered, construction_accounting=args.construction_accounting)) else 1)

@@ -62,6 +62,7 @@ func (caller *Client) PreviewBuilding(ctx context.Context, action domain.Action,
 	// Even a zero-cost evaluation cannot turn an unreadable material scan into
 	// authorization. The next complete preview can release this unknown hold.
 	if evaluation.Materials.GetKnown() != nil {
+		out.Stock.NativeConstruction = true
 		out.Preview.SafeToPlace = domain.Known(safe)
 		for _, material := range evaluation.Materials.GetKnown().Rows {
 			stock := policy.Stock{Resource: policy.Resource(material.GetDefName())}

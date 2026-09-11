@@ -212,6 +212,16 @@ session rules; current building methods have routine purpose. Rules apply to new
 admission and dispatch, without undoing issued native work. These process settings
 are not saved in SQLite: supply them again on restart.
 
+Native preview stock already subtracts every blueprint/frame's remaining material
+deficit. After a complete attempt-correlated observation of a pending construction,
+Go retains its footprint but lets net stock from a later game tick replace its
+original cost reservation. Repeated pending reads retain the first proof tick;
+unknown evidence clears it. Same-tick stock, unobserved writes and gross stock keep
+the original cost hold. The proof replays from the fresh Go journal; it does not
+certify pawn completion. `native_building_service_acceptance.py
+--construction-accounting` exercises two shared player projects under a reserve
+that permits exactly two walls, including unfinished work and restart.
+
 Add `--routine-reviews` to `serve --player-control --clock-control` to attach the
 reviewer to the service clock worker. It uses the default routine thresholds and
 requires typed colony observations. Startup remains disabled. This option journals

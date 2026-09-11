@@ -687,8 +687,12 @@ expand these into another nested task tree; remove a row when its outcome is met
   repeatable service flags configure reserves and spending restrictions. Fast tests
   cover blocked and unaffordable cooking methods. Native acceptance verifies a wood
   stop rule leaves player work pending, admits no routine campfire and issues no
-  construction orders, with Manual invalidation and disabled restart. Further need inputs,
-  remaining construction costs, method selection and execution composition for
+  construction orders, with Manual invalidation and disabled restart. Pending
+  construction now records complete attempt-correlated inspection proof; later-tick
+  native net stock can replace its original cost hold while geometry remains pinned.
+  Unknown effects restore the conservative hold. Fast checks cover replay, causality
+  and competing budgets; targeted two-project native acceptance remains pending.
+  Further need inputs, method selection and execution composition for
   additional routine methods remain open.
 
 - [ ] **G01.07a — Finish defense and essential medical care.** Connect movement

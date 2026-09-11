@@ -74,6 +74,9 @@ type StockObservation struct {
 	Snapshot domain.GenerationSnapshot
 	Tick     domain.Tick
 	Values   []Stock
+	// NativeConstruction means Available already subtracts the complete native
+	// census of remaining blueprint/frame costs, including other controllers.
+	NativeConstruction bool
 }
 
 // Reservation retains the original complete costs even when fresh completion
@@ -375,6 +378,13 @@ func Admit(input Input) Decision {
 		}
 		for _, c := range h.Footprint {
 			occupied[c]++
+		}
+		// A complete correlated inspection proves the placement write settled.
+		// Fresh net stock now owns its remaining cost; keep geometry and uncertain
+		// completion pinned without subtracting the original cost a second time.
+		constructionTick, constructionKnown := v.ConstructionObserved.Value()
+		if r.Stock.NativeConstruction && stockFresh && constructionKnown && observed && effect == domain.EffectPending && constructionTick < r.Stock.Tick && v.Tick <= r.Stock.Tick && sameWorld(v.Snapshot, r.Current) {
+			continue
 		}
 		for _, cost := range h.Costs {
 			sum, ok := add(used[cost.Resource], cost.Count)
