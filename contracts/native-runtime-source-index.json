@@ -1,6 +1,6 @@
 {
   "inventory_version": 1,
-  "source_revision": "ffd869086660751d7ad5ecae79ace74a6b2572a8",
+  "source_revision": "3158573e6fdfc4e05b0de9a8830b42045f704da5",
   "scope": "Tracked C# sources in unified native Runtime/Bridge and scripts/fixtures; lexical reference index, not an AST or proof of behavioral coverage.",
   "source_line_policy": "One-based source anchors at source_revision; static matches include methods and constructors, reflection matches include helper use and interop. Read the full source declaration before changing ownership.",
   "rows": [
@@ -2024,6 +2024,36 @@
       "patch_registration_lines": []
     },
     {
+      "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeSuppliesObservationTools.cs",
+      "compilation": "production-bridge",
+      "source_sha256": "83983e4f590e3c366690771619da33901dd604303270bda26ae9538f01513343",
+      "owner": "N01.03 native observation owner",
+      "migration_status": "implemented-native-acceptance-pending",
+      "uncovered_acceptance": "Dedicated corpse/trader, nested-owner, modded-definition and overflow fixtures; frozen paging and CAS remain unsupported. Fresh native carried/container/fogged stock cross-check acceptance exists for the bounded scope.",
+      "static_token_lines": [
+        53,
+        174,
+        178,
+        183,
+        186,
+        236,
+        239,
+        240,
+        241,
+        242,
+        243,
+        244,
+        245,
+        246,
+        247,
+        248,
+        249,
+        254
+      ],
+      "reflection_boundary_lines": [],
+      "patch_registration_lines": []
+    },
+    {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/PlacementProtocol.cs",
       "compilation": "production-bridge",
       "owner": "N01.02 native Protobuf/operation owner",
@@ -2072,7 +2102,7 @@
       "owner": "N01.02 native identity capability owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
-      "source_sha256": "508f488f5c696777f7baf92bac9a25027aeaeb1bf50224e0b9eeb687c98c57f1",
+      "source_sha256": "b9925d677b87821ce28a78dbe9de96516ae53cb8169ada4bcfafc390442f58f9",
       "static_token_lines": [],
       "reflection_boundary_lines": [],
       "patch_registration_lines": []

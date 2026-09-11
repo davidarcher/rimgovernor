@@ -13,6 +13,7 @@ one `payload` ProtoJSON string plus host operation metadata.
 | rimgovernor/observations_read_status | rimgovernor.observations.v1.Observations/ReadStatus | Protocol/NativeObservationTools.cs |
 | rimgovernor/observations_get_cells | rimgovernor.observations.v1.Observations/GetCells | Protocol/NativeObservationTools.cs |
 | rimgovernor/observations_list_buildings | rimgovernor.observations.v1.Observations/ListBuildings | Protocol/NativeBuildingObservationTools.cs |
+| rimgovernor/observations_list_supplies | rimgovernor.observations.v1.Observations/ListSupplies | Protocol/NativeSuppliesObservationTools.cs |
 | rimgovernor/operations_preview | rimgovernor.operations.v1.Operations/Preview | Protocol/NativeOperationTools.cs |
 | rimgovernor/operations_execute | rimgovernor.operations.v1.Operations/Execute | Protocol/NativeOperationTools.cs |
 | rimgovernor/receipts_lookup | rimgovernor.receipts.v1.Attempts/Lookup | Protocol/NativeOperationTools.cs |
@@ -65,6 +66,16 @@ rows, including individual walls and construction work/resources. Entity CAS,
 settings, bills, inspect detail and network/service/thermal facts remain explicitly
 unsupported or incomplete. Collection and geometry limits refuse incomplete facts.
 
+`Observations/ListSupplies` defaults to haulable stock, definitions with usable
+colony units, and held stock included. Every returned definition retains its full
+filtered units and ownership buckets, including fogged and other-faction stock.
+Exact definition/region filters and complete bounded item, holder and corpse lists
+replace samples. Worn gear, orbital stock and delivered construction materials are
+excluded. Disabling held stock leaves held counters unknown with explicit issues.
+No CAS snapshots or frozen pages are issued; oversized or unreadable traversals
+return unavailable. Use `native_supplies_acceptance.py` through the standard
+container scenario launcher for native quantity, completeness and paused-read checks.
+
 Typed clock controls use the shared per-load attempt ledger and capture the original
 authority grant, epoch owner and observation context before the initial safety probe.
 Leases use monotonic time. Exact-owner pause remains available for cleanup after
@@ -72,7 +83,7 @@ revocation. Event reads expose immutable observed context and explicit history g
 missing evidence never becomes an empty successful observation. Existing untyped
 epochs and journal rows cannot supply canonical ownership evidence.
 
-Current source inventory: 72 production exports, 55 fixture exports, 135 handwritten
+Current source inventory: 73 production exports, 55 fixture exports, 136 handwritten
 C# source files and nine generated Protobuf compile inputs. Source declarations do
 not establish gameplay acceptance. Actual installed discovery must match the private
 build and prove fixture exclusion; pending native acceptance remains explicit in

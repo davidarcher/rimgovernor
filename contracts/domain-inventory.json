@@ -6694,7 +6694,7 @@
   ],
   "native_surface": {
     "version": 1,
-    "source_revision": "ffd869086660751d7ad5ecae79ace74a6b2572a8",
+    "source_revision": "3158573e6fdfc4e05b0de9a8830b42045f704da5",
     "scope": "Current repository-owned native Runtime/Bridge exports, generated Protobuf compile inputs and conditional fixtures. Historical Python consumer inventory remains at its independent source_revision. Installed SDK/GABS exports require actual discovery.",
     "evidence_links": "domain_item_id reuses existing G01 owner, fixtures and native_scenarios without copying Python call-site lists. Empty local evidence lists preserve uncovered acceptance. schema_owner_chunk assigns the cross-language schema owner; native_owner_chunk owns typed conversion or fixture isolation.",
     "variant_contract": "source_baseline.exports[].declaration retains the complete exported signature, Tool/ToolParameter/ToolResponse attributes, documented string variants, optional selectors and defaults. Source fingerprints detect implementation changes. Runtime branches, aliases and payload keys still require behavioral schema and discovery acceptance.",
@@ -6996,6 +6996,10 @@
             },
             {
               "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
+              "condition": ""
+            },
+            {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeSuppliesObservationTools.cs",
               "condition": ""
             },
             {
@@ -7774,7 +7778,7 @@
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/ProtoIdentityTools.cs",
           "line": 12,
           "declaration": "[Tool(\"rimgovernor/lifecycle_read_identity\", Title = \"Read native identity\",\n            Description = \"Read the current colony, load, map and native contract capabilities.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON rimgovernor.lifecycle.v1.IdentityReply.\", Always = true)]\n        public async Task<object> ReadIdentity(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official lifecycle IdentityRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "508f488f5c696777f7baf92bac9a25027aeaeb1bf50224e0b9eeb687c98c57f1"
+          "source_sha256": "b9925d677b87821ce28a78dbe9de96516ae53cb8169ada4bcfafc390442f58f9"
         },
         {
           "name": "rimgovernor/observations_get_cells",
@@ -7789,6 +7793,13 @@
           "line": 21,
           "declaration": "[Tool(ToolName, Title = \"Read typed buildings\", Description = \"Read complete bounded building, blueprint and frame facts including walls. Exact IDs/definitions, inclusive anchor region; defaults artificial/player-only. No CAS snapshots, detailed settings, bills, inspect text or power-network enumeration yet.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON ListBuildingsReply. Unavailable replaces oversized collections; unsupported facts are explicit.\", Always = true)]\n        public async Task<object> ListBuildings(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official ProtoJSON ListBuildingsRequest string in raw transport value.\")] object request = null!)",
           "source_sha256": "64ae37dad2be2a4bed94cd2d2da068e97a789d69c527b3cff2f240d72ac1c4c7"
+        },
+        {
+          "name": "rimgovernor/observations_list_supplies",
+          "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeSuppliesObservationTools.cs",
+          "line": 20,
+          "declaration": "[Tool(ToolName, Title = \"Read typed supply census\", Description = \"Complete bounded stock by exact native definition. Defaults haulable/ours/includeHeld. Units retain all ownership buckets; ours selects definitions with usable units. Excludes worn gear, orbital stock and delivered construction resources.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON ListSuppliesReply. No sampled item/holder/corpse collections or invented CAS snapshots.\", Always = true)]\n        public async Task<object> ListSupplies(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official ProtoJSON ListSuppliesRequest string in raw transport value.\")] object request = null!)",
+          "source_sha256": "83983e4f590e3c366690771619da33901dd604303270bda26ae9538f01513343"
         },
         {
           "name": "rimgovernor/observations_read_status",
@@ -9304,6 +9315,27 @@
           "Verify installation blueprint observation avoids native error/pause; detailed settings/services/bills/networks, frozen paging and CAS snapshots remain unsupported."
         ],
         "protocol_method": "rimgovernor.observations.v1.Observations/ListBuildings",
+        "protocol_schema": "contracts/proto/observations.proto"
+      },
+      {
+        "name": "rimgovernor/observations_list_supplies",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.03",
+        "native_owner_chunk": "N01.03",
+        "build_role": "production",
+        "fixtures": [
+          "contracts/tests/native-proto-supplies/Program.cs",
+          "controller_tests/test_native_supplies_acceptance.py"
+        ],
+        "native_scenarios": [
+          "scripts/native_supplies_acceptance.py"
+        ],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Dedicated corpse/trader, nested-owner, modded-definition and overflow fixtures remain open.",
+          "Frozen paging and entity CAS are unsupported; ordinary stock reads do not prove trade or production availability."
+        ],
+        "protocol_method": "rimgovernor.observations.v1.Observations/ListSupplies",
         "protocol_schema": "contracts/proto/observations.proto"
       },
       {

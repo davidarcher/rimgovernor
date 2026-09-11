@@ -69,6 +69,12 @@ namespace HomeBridge.BridgeTools
                         Support = Lifecycle.CapabilitySupport.Supported,
                         Detail = "Canonical owned epochs, monotonic leases and immutable observed events. Missing historical evidence is explicit."
                     });
+                loaded.Capabilities.Add(new Lifecycle.Capability
+                {
+                    FullMethodName = "rimgovernor.observations.v1.Observations/ListSupplies",
+                    Support = Lifecycle.CapabilitySupport.Supported,
+                    Detail = "Complete bounded stock/ownership quantities, spawned-root inventories and containers. Exact filters; no frozen paging or CAS snapshots. Worn gear, orbital stock and delivered construction resources are excluded."
+                });
                 return new Lifecycle.IdentityReply { Loaded = loaded };
             }, cancellationToken).ConfigureAwait(false);
             return ProtoBoundary.Encode(reply);

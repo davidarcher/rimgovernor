@@ -1159,6 +1159,16 @@ main. Native package and Go production cutover remain independent.
   bills, inspect detail, service/thermal facts and power-network enumeration remain
   explicit unsupported/incomplete scopes rather than fabricated defaults.
 
+  Bounded supplies reads cover exact native definitions, full ownership quantities,
+  spawned stock and spawned-root inventories/containers with complete item lists.
+  Headless and rendered acceptance verifies WoodLog/Steel plus populated carried,
+  container and fogged stock against native census totals, unchanged paused context,
+  and explicit unknown held counters when excluded. Dedicated corpse/trader and
+  nested-owner fixtures, traversal/collection overflow, modded definition fixtures,
+  frozen paging and entity CAS remain open. These reads exclude worn gear, orbital
+  trader stock and delivered construction materials; they do not prove trading or
+  production availability beyond the stated census scope.
+
 - [ ] **N01.04 — Typed guarded operations.** Native operations owner with G01 Hands.
   Start with ordinary construction through admission, dry-run, receipt and observed
   pawn completion. Follow with settings/bills/zones, resources/upkeep, medical,
