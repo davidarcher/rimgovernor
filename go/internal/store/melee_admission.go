@@ -88,7 +88,7 @@ func loadMeleeAdmission(ctx context.Context, tx *sql.Tx, a domain.Action, p doma
 	if (progress.Stage == domain.Prepared || progress.Attempt > 0) && progress.Snapshot != v.Snapshot {
 		return v, false, errors.New("melee admission authority mismatch")
 	}
-	if progress.Unresolved && v.Tick > progress.Tick {
+	if (progress.Unresolved || progress.Stage == domain.Completed || progress.Stage == domain.Unsuccessful) && v.Tick > progress.Tick {
 		return v, false, errors.New("melee admission is newer than dispatch")
 	}
 	return v, true, nil
