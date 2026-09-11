@@ -6979,6 +6979,10 @@
               "condition": ""
             },
             {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeColonyObservationTools.cs",
+              "condition": ""
+            },
+            {
               "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeCombatCausality.cs",
               "condition": ""
             },
@@ -7876,6 +7880,13 @@
           "source_sha256": "83983e4f590e3c366690771619da33901dd604303270bda26ae9538f01513343"
         },
         {
+          "name": "rimgovernor/observations_read_colony_facts",
+          "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeColonyObservationTools.cs",
+          "line": 28,
+          "declaration": "[Tool(ToolName, Title = \"Read typed routine colony facts\", Description = \"Native colony, accessible stock, sleeping capacity, temperature and storage facts. Optional bounded starter geometry/definitions. Raw food runway is not a diet/rot forecast. Unported sections are explicitly unavailable. Read-only; no authority or orders.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ColonyFactsReply ProtoJSON, bounded to1MiB.\", Always = true)]\n        public async Task<object> ReadColonyFacts(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Raw ColonyFactsRequest ProtoJSON string.\")] object? request = null)",
+          "source_sha256": "b4bfd2ee377c1e3fbf54154c659ba45d738bd01a6a6acc17bffb47d71d9307f5"
+        },
+        {
           "name": "rimgovernor/observations_read_research",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeResearchObservationTools.cs",
           "line": 21,
@@ -8364,7 +8375,7 @@
         },
         {
           "path": "contracts/generated/protobuf/csharp/Observations.cs",
-          "source_sha256": "005b3042f08c49a56871e534459e04867c8eea661a3878a6f276a3d629e6bf10"
+          "source_sha256": "8004d43047a59eb08402362ca68f396a5879b1e73a110977090617a605f8c729"
         },
         {
           "path": "contracts/generated/protobuf/csharp/Operations.cs",
@@ -9492,6 +9503,27 @@
           "Frozen paging and entity CAS are unsupported; ordinary stock reads do not prove trade or production availability."
         ],
         "protocol_method": "rimgovernor.observations.v1.Observations/ListSupplies",
+        "protocol_schema": "contracts/proto/observations.proto"
+      },
+      {
+        "name": "rimgovernor/observations_read_colony_facts",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.05",
+        "native_owner_chunk": "N01.03",
+        "build_role": "production",
+        "fixtures": [
+          "go/internal/bridge/colony_test.go",
+          "go/internal/observation/colony_test.go"
+        ],
+        "native_scenarios": [
+          "scripts/native_protobuf_acceptance.py"
+        ],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Diet/rot forecasts, upkeep/development, naming and further routine fact sections remain unported.",
+          "Bounded core/planning reads do not prove routine execution or pawn-work completion."
+        ],
+        "protocol_method": "rimgovernor.observations.v1.Observations/ReadColonyFacts",
         "protocol_schema": "contracts/proto/observations.proto"
       },
       {

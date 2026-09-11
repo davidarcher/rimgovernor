@@ -157,6 +157,8 @@ async def run(root: Path, output: Path, *, headless: bool, timeout_seconds: int,
                     authority_status = object_value(authority.get("status"), "authority status")
                     assert ("unavailable" in authority_status) != ("inactive" in authority_status)
                     assert "active" not in authority_status
+                    from native_colony_facts_checks import verify_colony_facts
+                    report['colony_facts'] = await verify_colony_facts(wire, call, identity, context)
                     if go_preview_smoke is not None:
                         chosen = candidates[0] if results[0].get("evaluated", {}).get("canPlace") is True else None
                         if chosen is None:

@@ -1,0 +1,29 @@
+{
+  "observed": {
+    "context": {"identity": {"colonyId": "colony", "mapId": 0, "loadToken": "load"}, "tick": "7", "nativeGeneration": "1"},
+    "colonistCount": 3, "workerCount": 2,
+    "center": {"x": 0, "z": 0}, "mapSize": {"width": 100, "height": 100},
+    "resources": [{"defName": "WoodLog", "units": "40"}],
+    "foodRunwayDays": 100,
+    "bedCapacity": 2, "indoorSleepingCapacity": 1,
+    "sleepingTemperatureMinC": 10, "sleepingTemperatureMaxC": 15,
+    "outdoorTemperatureC": -10, "foodStorage": false,
+    "foodSupply": {"unavailable": {"reason": "UNAVAILABLE_REASON_UNSUPPORTED"}},
+    "forecast": {"unavailable": {"reason": "UNAVAILABLE_REASON_UNSUPPORTED"}},
+    "upkeep": {"unavailable": {"reason": "UNAVAILABLE_REASON_UNSUPPORTED"}},
+    "development": {"unavailable": {"reason": "UNAVAILABLE_REASON_UNSUPPORTED"}},
+    "completeness": {"page": {"complete": true}, "matched": "1", "returned": "1", "filtered": "0", "unreadable": "0"},
+    "planning": {"observed": {
+      "definitions": [{"definition": {"defName": "Wall"}, "stuff": "WoodLog", "available": true, "constructionSkill": 0, "size": {"width": 1, "height": 1}, "costs": [{"defName": "WoodLog", "units": "5"}]}],
+      "completeness": {"page": {"complete": true}, "matched": "1", "returned": "1", "filtered": "0", "unreadable": "0"},
+      "cells": {
+        "context": {"identity": {"colonyId": "colony", "mapId": 0, "loadToken": "load"}, "tick": "7", "nativeGeneration": "1"},
+        "mapSize": {"width": 100, "height": 100},
+        "region": {"minimum": {"x": 0, "z": 0}, "maximum": {"x": 0, "z": 0}},
+        "completeness": {"page": {"complete": true}, "matched": "1", "returned": "1", "filtered": "0", "unreadable": "0"},
+        "cells": [{"cell": {"x": 0, "z": 0}, "fogged": false, "walkable": true, "occupied": false, "supportsLight": true, "fertility": 1,
+          "issues": [{"field": "roof", "unavailable": {"reason": "UNAVAILABLE_REASON_NOT_APPLICABLE"}}, {"field": "zone_id", "unavailable": {"reason": "UNAVAILABLE_REASON_NOT_APPLICABLE"}}]}]
+      }
+    }}
+  }
+}

@@ -66,9 +66,17 @@ Manual and direction changes retain recovery targets; world replacement and tick
 rewinds reset latches. Goal and plan catalogs remain bounded; history retirement
 is still required before sustained routine operation.
 
-These components are gated prerequisites. They do not read the game, acquire
-authority or issue orders. Routine review orchestration, native fact projection,
-method selection and runtime composition remain in G01.05.
+`bridge.ReadColonyFacts` and `observation.DecodeColony` consume the typed native
+core and planning geometry. Missing optional fields remain unknown, and a changed
+tick/world is refused. Raw food runway never becomes policy `FoodDays`. Native
+acceptance compares the core and every selected cell against existing native
+reads. To replay a retained official payload through Go and durable review, set
+`RIMGOVERNOR_NATIVE_COLONY_CAPTURE` and run
+`go test ./internal/observation -run TestColonyNativeCapture -v`.
+
+These components remain gated prerequisites. The typed read observes the game;
+routine scheduling, remaining fact projection, method selection and runtime
+composition remain in G01.05. Routine reviews do not acquire authority or issue orders.
 
 ## Local interpretation
 

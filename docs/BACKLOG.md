@@ -599,8 +599,11 @@ expand these into another nested task tree; remove a row when its outcome is met
   gate Hands on observed completion; building-method admission atomically reserves
   whole-project costs and footprints against competing shared plans. Routine reviews
   now persist explicit need assessments and latch history atomically with goal
-  updates, including Manual/context invalidation and cancellation preservation. Native fact
-  projection (including remaining construction costs), goal/reservation-history retirement,
+  updates, including Manual/context invalidation and cancellation preservation. Typed
+  native core/planning reads now feed Go projections; paused native parity covers
+  counts, stock, sleeping/temperature/storage, definitions and selected cells.
+  Remaining fact projection (diet/rot forecasts, further need inputs and construction
+  costs), goal/reservation-history retirement,
   routine review orchestration, method selection and runtime composition remain
   open; these components do not enable orders.
 

@@ -77,6 +77,13 @@ frames, including walls, occupied cells, material, hit points and construction
 work/resources. Detailed settings, bills, CAS snapshots and network enumeration
 remain explicitly unavailable. Reads never aggregate away individual walls.
 
+Colony-facts reads provide native counts, accessible stock, sleeping capacity,
+temperature and storage. Optional planning returns a visible 45-by-45 region
+around the colony anchor and requested native definitions/costs. Occupancy is an
+explicit native edifice/blueprint/frame fact. Raw food runway is separate from
+diet/rot forecasts; food forecast, upkeep, development and other unported sections
+remain explicitly unavailable. Oversized collections/replies return unavailable.
+
 Run `scripts/native_protobuf_acceptance.py` through
 `scripts/container_scenario.py` against a private production package. Its root is
 `/worker/run`; add `--rendered` for Xvfb and optionally `--go-preview-smoke` with

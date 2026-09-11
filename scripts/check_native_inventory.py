@@ -20,6 +20,7 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 PROTOBUF_EXPORTS = {
+    "rimgovernor/observations_read_colony_facts": ("rimgovernor.observations.v1.Observations/ReadColonyFacts", "observations.proto"),
     "rimgovernor/observations_list_rooms": ("rimgovernor.observations.v1.Observations/ListRooms", "observations.proto"),
     "rimgovernor/observations_read_research": ("rimgovernor.observations.v1.Observations/ReadResearch", "observations.proto"),
     "rimgovernor/observations_list_pawns": ("rimgovernor.observations.v1.Observations/ListPawns", "observations.proto"),

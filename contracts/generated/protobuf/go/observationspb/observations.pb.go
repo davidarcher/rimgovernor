@@ -7823,6 +7823,7 @@ type CellState struct {
 	StorageEmpty  *bool                  `protobuf:"varint,15,opt,name=storage_empty,json=storageEmpty,proto3,oneof" json:"storage_empty,omitempty"`
 	SupportsLight *bool                  `protobuf:"varint,16,opt,name=supports_light,json=supportsLight,proto3,oneof" json:"supports_light,omitempty"`
 	Issues        []*ReadIssue           `protobuf:"bytes,17,rep,name=issues,proto3" json:"issues,omitempty"`
+	Occupied      *bool                  `protobuf:"varint,18,opt,name=occupied,proto3,oneof" json:"occupied,omitempty"` // Native edifice, blueprint or frame occupies this cell.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -7974,6 +7975,13 @@ func (x *CellState) GetIssues() []*ReadIssue {
 		return x.Issues
 	}
 	return nil
+}
+
+func (x *CellState) GetOccupied() bool {
+	if x != nil && x.Occupied != nil {
+		return *x.Occupied
+	}
+	return false
 }
 
 type CellFields struct {
@@ -25709,7 +25717,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0f_build_def_nameB\f\n" +
 	"\n" +
 	"_blueprintB\b\n" +
-	"\x06_frame\"\xe2\x06\n" +
+	"\x06_frame\"\x90\a\n" +
 	"\tCellState\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1d\n" +
 	"\aterrain\x18\x02 \x01(\tH\x00R\aterrain\x88\x01\x01\x12\x17\n" +
@@ -25729,7 +25737,8 @@ const file_observations_proto_rawDesc = "" +
 	"\rstorage_empty\x18\x0f \x01(\bH\n" +
 	"R\fstorageEmpty\x88\x01\x01\x12*\n" +
 	"\x0esupports_light\x18\x10 \x01(\bH\vR\rsupportsLight\x88\x01\x01\x12>\n" +
-	"\x06issues\x18\x11 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\n" +
+	"\x06issues\x18\x11 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12\x1f\n" +
+	"\boccupied\x18\x12 \x01(\bH\fR\boccupied\x88\x01\x01B\n" +
 	"\n" +
 	"\b_terrainB\a\n" +
 	"\x05_roofB\t\n" +
@@ -25746,7 +25755,8 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_indoorsB\x10\n" +
 	"\x0e_storage_emptyB\x11\n" +
-	"\x0f_supports_light\"\xb1\x03\n" +
+	"\x0f_supports_lightB\v\n" +
+	"\t_occupied\"\xb1\x03\n" +
 	"\n" +
 	"CellFields\x12\x1d\n" +
 	"\aterrain\x18\x01 \x01(\bH\x00R\aterrain\x88\x01\x01\x12\x17\n" +

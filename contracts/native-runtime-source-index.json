@@ -1922,6 +1922,30 @@
       "patch_registration_lines": []
     },
     {
+      "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeColonyObservationTools.cs",
+      "source_sha256": "b4bfd2ee377c1e3fbf54154c659ba45d738bd01a6a6acc17bffb47d71d9307f5",
+      "compilation": "production-bridge",
+      "owner": "N01.03 native observation owner",
+      "migration_status": "typed-core-planning",
+      "static_token_lines": [
+        21,
+        49,
+        61,
+        125,
+        184,
+        185,
+        186,
+        187,
+        188,
+        189,
+        190,
+        191
+      ],
+      "reflection_boundary_lines": [],
+      "patch_registration_lines": [],
+      "uncovered_acceptance": "Diet/rot forecasts and remaining colony observation sections remain unported."
+    },
+    {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeCombatCausality.cs",
       "compilation": "production-bridge",
       "source_sha256": "74cf17b23fcbe50cff7d90442db181c3de8a9256e230838d5a40db3847bc77ba",
