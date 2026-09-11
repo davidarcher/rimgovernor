@@ -1,0 +1,177 @@
+#nullable enable
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Google.Protobuf;
+using RimBridgeServer.Sdk;
+using RimWorld;
+using Verse;
+using Common = RimGovernor.Protocol.Common;
+using Obs = RimGovernor.Protocol.Observations;
+
+namespace HomeBridge.BridgeTools
+{
+    public sealed class NativeRoomObservationTools
+    {
+        private const string ToolName = "rimgovernor/observations_list_rooms";
+        [Tool(ToolName, Title = "Read typed rooms", Description = "Complete bounded room census and exact footprint intersection filters. Defaults exclude psychologically outdoor rooms and doorways. Contents count buildings, optionally including boundary buildings. IDs are ephemeral within the current room graph; no CAS or frozen cursor.")]
+        [ToolResponse("payload", "string", "Official ProtoJSON ListRoomsReply with explicit unknown stats and unrequested cells.", Always = true)]
+        public async Task<object> ListRooms(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Official ProtoJSON ListRoomsRequest string.")] object request = null!)
+        {
+            if (!ProtoBoundary.TryParse(ctx, ToolName, request, Obs.ListRoomsRequest.Parser, out var parsed, out var failure)
+                || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ListRoomsReply { Failure = failure });
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, map, out var context, out var error))
+                    return ProtoBoundary.Encode(new Obs.ListRoomsReply { Failure = error });
+                try
+                {
+                    if (parsed.Region != null && (!NativeCell(parsed.Region.Minimum).InBounds(map) || !NativeCell(parsed.Region.Maximum).InBounds(map)))
+                        return ProtoBoundary.Encode(new Obs.ListRoomsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Room filter rectangle must be within the current map.") });
+                    if (map.regionGrid?.AllRooms == null || map.zoneManager == null || map.mapPawns == null)
+                        return ProtoBoundary.Encode(new Obs.ListRoomsReply { Unavailable = Missing(Common.UnavailableReason.NativeComponentMissing, "Room, zone or pawn census is unavailable.") });
+                    var source = map.regionGrid.AllRooms.ToList(); Require(source.Count <= 65536, "Room census exceeds 65536 entries.");
+                    if (source.Any(r => r == null || r.Dereferenced || r.Map != map) || source.Select(r => r.ID).Distinct().Count() != source.Count)
+                        throw new InvalidOperationException("Invalid native room census.");
+                    var pawns = map.mapPawns.AllPawnsSpawned.ToList(); Require(pawns.Count <= 65536, "Pawn census exceeds 65536 entries.");
+                    var pawnRooms = new Dictionary<Room, List<Pawn>>();
+                    foreach (var pawn in pawns)
+                    {
+                        if (pawn == null || !pawn.Spawned || pawn.Map != map) throw new InvalidOperationException();
+                        var room = pawn.Position.GetRoom(map);
+                        if (room == null) continue; // Impassable/unregioned cells have no room.
+                        if (!pawnRooms.TryGetValue(room, out var list)) pawnRooms.Add(room, list = new List<Pawn>());
+                        list.Add(pawn);
+                    }
+                    var snapshot = new Obs.RoomsSnapshot { Context = context };
+                    var filtered = 0; var walked = 0;
+                    foreach (var room in source.OrderBy(r => r.ID))
+                    {
+                        if (!Selected(parsed, Id(room.ID), room.PsychologicallyOutdoors, room.IsDoorway)) { filtered++; continue; }
+                        var cells = new List<IntVec3>();
+                        foreach (var cell in room.Cells)
+                        {
+                            Require(++walked <= 262144 && cells.Count < 65536, "Room cell traversal exceeds its work bound.");
+                            if (!cell.InBounds(map)) throw new InvalidOperationException();
+                            cells.Add(cell);
+                        }
+                        if (cells.Count == 0 || cells.Count != room.CellCount || cells.Distinct().Count() != cells.Count) throw new InvalidOperationException("Incomplete room footprint.");
+                        if (parsed.Region != null && !cells.Any(c => Inside(parsed.Region, c))) { filtered++; continue; }
+                        Require(snapshot.Rooms.Count < (parsed.Page?.HasLimit == true ? parsed.Page.Limit : 256), "Matched rooms exceed page limit; narrow the query.");
+                        snapshot.Rooms.Add(Project(room, map, cells, pawnRooms.TryGetValue(room, out var members) ? members : new List<Pawn>(), parsed));
+                    }
+                    snapshot.Completeness = Complete(snapshot.Rooms.Count, filtered);
+                    return Encode(new Obs.ListRoomsReply { Observed = snapshot });
+                }
+                catch (ReadLimit e) { return ProtoBoundary.Encode(new Obs.ListRoomsReply { Unavailable = Missing(Common.UnavailableReason.LimitExceeded, e.Message) }); }
+                catch (Exception) { return ProtoBoundary.Encode(new Obs.ListRoomsReply { Unavailable = Missing(Common.UnavailableReason.ReadFailed, "Room census, geometry or contents could not be read completely.") }); }
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        internal static bool Validate(Obs.ListRoomsRequest request, out Common.Failure failure)
+        {
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Expected identity, unique room IDs, valid rectangle and page limit1..256 required; frozen cursors unsupported.");
+            return request?.Scope?.ExpectedIdentity != null && request.RoomIds.Count <= 256
+                && request.RoomIds.All(ProtoBoundary.IsIdentifier) && request.RoomIds.Distinct(StringComparer.Ordinal).Count() == request.RoomIds.Count
+                && (request.Page == null || (!request.Page.HasLimit || request.Page.Limit >= 1 && request.Page.Limit <= 256)
+                    && (!request.Page.HasCursor || request.Page.Cursor.Length == 0))
+                && (request.Region == null || CellPresent(request.Region.Minimum) && CellPresent(request.Region.Maximum)
+                    && request.Region.Minimum.X <= request.Region.Maximum.X && request.Region.Minimum.Z <= request.Region.Maximum.Z);
+        }
+        internal static bool Selected(Obs.ListRoomsRequest request, string id, bool psychologicallyOutdoors, bool doorway)
+            => (request.IncludeOutdoors || !psychologicallyOutdoors && !doorway) && (request.RoomIds.Count == 0 || request.RoomIds.Contains(id));
+        internal static bool Inside(Obs.Rectangle rectangle, IntVec3 cell) => cell.x >= rectangle.Minimum.X && cell.x <= rectangle.Maximum.X && cell.z >= rectangle.Minimum.Z && cell.z <= rectangle.Maximum.Z;
+
+        private static Obs.RoomState Project(Room room, Map map, List<IntVec3> cells, List<Pawn> pawns, Obs.ListRoomsRequest request)
+        {
+            // Room owns reusable region/thing buffers. Copy before any stat, label or
+            // bed projection can read those getters again. Never enumerate Zone.Cells.
+            var things = room.ContainedAndAdjacentThings.ToList(); Require(things.Count <= 65536, "Room thing census exceeds65536.");
+            if (things.Any(t => t == null || !t.Spawned || t.Map != map) || things.Distinct().Count() != things.Count) throw new InvalidOperationException();
+            var row = new Obs.RoomState { Id = Id(room.ID), ProperRoom = room.ProperRoom, Doorway = room.IsDoorway,
+                Outdoors = room.UsesOutdoorTemperature, PsychologicallyOutdoors = room.PsychologicallyOutdoors,
+                TouchesMapEdge = room.TouchesMapEdge, Fogged = room.Fogged, CellCount = (uint)cells.Count };
+            var roof = room.OpenRoofCount;
+            if (roof < 0 || roof > cells.Count) throw new InvalidOperationException();
+            row.OpenRoofCount = (uint)roof;
+            try { row.TemperatureC = Finite(room.Temperature); }
+            catch (Exception) { row.Issues.Add(Issue("temperature_c", Common.UnavailableReason.ReadFailed, "Native room temperature unavailable.")); }
+            try
+            {
+                var role = room.Role;
+                if (role == null) throw new InvalidOperationException();
+                row.Role = Name(role.defName);
+                var label = room.GetRoomRoleLabel();
+                if (label != null) row.Label = PlacementPreviewOperation.Diagnostic(label);
+            }
+            catch (Exception) { row.Issues.Add(Issue("role/label", Common.UnavailableReason.ReadFailed, "Native room role or label unavailable.")); }
+            row.Extents = new Obs.Rectangle { Minimum = Cell(new IntVec3(cells.Min(c => c.x), 0, cells.Min(c => c.z))), Maximum = Cell(new IntVec3(cells.Max(c => c.x), 0, cells.Max(c => c.z))) };
+            row.Center = Cell(Center(cells));
+            if (request.IncludeCells)
+            {
+                Require(cells.Count <= 4096, "Requested room footprint exceeds4096 cells.");
+                row.Cells.Add(cells.OrderBy(c => c.z).ThenBy(c => c.x).Select(Cell)); row.CellsCompleteness = Complete(cells.Count, 0);
+            }
+            else
+            {
+                row.CellsCompleteness = new Obs.Completeness { Page = new Common.PageInfo { Complete = false }, Matched = (ulong)cells.Count, Returned = 0, Unreadable = 0 };
+                row.Issues.Add(Issue("cells", Common.UnavailableReason.NotRequested, "Exact cell list not requested; geometry/count are complete."));
+            }
+            var zones = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var cell in cells) if (map.zoneManager.ZoneAt(cell) is Zone_Stockpile stockpile) zones.Add(Name(stockpile.GetUniqueLoadID()));
+            Require(zones.Count <= 256 && pawns.Count <= 256, "Room pawn/zone collection exceeds256.");
+            row.StockpileZoneIds.Add(zones.OrderBy(v => v, StringComparer.Ordinal));
+            foreach (var pawn in pawns.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) row.Pawns.Add(Entity(pawn));
+            var buildings = things.OfType<Building>().Where(t => request.IncludeBoundary || room.ContainsCell(t.Position)).ToList();
+            var beds = buildings.OfType<Building_Bed>().ToList(); Require(beds.Count <= 256, "Room bed collection exceeds256.");
+            foreach (var bed in beds) row.Beds.Add(NativeBuildingObservationTools.Project(bed));
+            var contents = buildings.GroupBy(t => Name(t.def.defName)).OrderBy(g => g.Key, StringComparer.Ordinal).ToList();
+            Require(contents.Count <= 256, "Room content definitions exceed256.");
+            foreach (var group in contents) row.Contents.Add(new Obs.Quantity { DefName = group.Key, Units = group.LongCount() });
+            row.ContentsCompleteness = Complete(contents.Count, 0);
+            foreach (var definition in new[] { RoomStatDefOf.Cleanliness, RoomStatDefOf.Wealth, RoomStatDefOf.Space, RoomStatDefOf.Beauty, RoomStatDefOf.Impressiveness })
+            {
+                if (definition == null) { row.Issues.Add(Issue("stats", Common.UnavailableReason.NativeComponentMissing, "A standard native room stat definition is unavailable.")); continue; }
+                var stat = new Obs.RoomStat { DefName = Name(definition.defName) };
+                try
+                {
+                    var value = room.GetStat(definition); stat.Value = Finite(value);
+                    var display = definition.ScoreToString(value);
+                    if (display != null) stat.Display = PlacementPreviewOperation.Diagnostic(display);
+                }
+                catch (Exception) { stat.ClearValue(); stat.ClearDisplay(); stat.Unavailable = Missing(Common.UnavailableReason.ReadFailed, "Native room stat unavailable."); }
+                row.Stats.Add(stat);
+            }
+            return row;
+        }
+        internal static IntVec3 Center(IReadOnlyList<IntVec3> cells)
+        {
+            if (cells.Count == 0) throw new InvalidOperationException();
+            var x = (long)Math.Round(cells.Average(c => (double)c.x), MidpointRounding.AwayFromZero);
+            var z = (long)Math.Round(cells.Average(c => (double)c.z), MidpointRounding.AwayFromZero);
+            return cells.OrderBy(c => ((long)c.x - x) * ((long)c.x - x) + ((long)c.z - z) * ((long)c.z - z)).ThenBy(c => c.z).ThenBy(c => c.x).First();
+        }
+        internal static double Finite(double value) => double.IsNaN(value) || double.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native room fact.") : value;
+        internal static object Encode(Obs.ListRoomsReply reply)
+        {
+            if (Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply)) > 1024 * 1024)
+                return ProtoBoundary.Encode(new Obs.ListRoomsReply { Unavailable = Missing(Common.UnavailableReason.LimitExceeded, "Room reply exceeds1MiB.") });
+            return ProtoBoundary.Encode(reply);
+        }
+        private static bool CellPresent(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ && cell.X >= 0 && cell.Z >= 0;
+        private static IntVec3 NativeCell(Common.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
+        private static Common.Cell Cell(IntVec3 cell) => new Common.Cell { X = cell.x, Z = cell.z };
+        private static Obs.EntityRef Entity(Thing thing) => new Obs.EntityRef { Id = Name(thing.GetUniqueLoadID()), DefName = Name(thing.def.defName), MapId = thing.Map.uniqueID, Position = Cell(thing.Position) };
+        private static string Id(int id) => id >= 0 ? id.ToString(CultureInfo.InvariantCulture) : throw new InvalidOperationException("Invalid room ID.");
+        private static string Name(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid native room identifier.");
+        private static void Require(bool valid, string detail) { if (!valid) throw new ReadLimit(detail); }
+        private static Common.Unavailable Missing(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
+        private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Missing(reason, detail) };
+        private static Obs.Completeness Complete(int count, int filtered) => new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = (ulong)count, Returned = (ulong)count, Filtered = (ulong)filtered, Unreadable = 0 };
+        private sealed class ReadLimit : Exception { internal ReadLimit(string detail) : base(detail) { } }
+    }
+}
