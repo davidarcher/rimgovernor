@@ -237,7 +237,7 @@ async def run(root: Path, output: Path, binary: Path, *, go_source: str, go_sha2
     evidence = Evidence(output); launched = False
     try:
         configuration = prepare(root) if headless else prepare_rendered(root)
-        game = json.loads((configuration / "config.json").read_text())["games"]["rimgovernor-trial"]
+        game = json.loads((configuration / "config.json").read_text(encoding="utf8"))["games"]["rimgovernor-trial"]
         report["package_files"] = package_files(Path(game["workingDir"]))
         gabs = Path(gabs_executable(root, configuration)); profile = root / ("headless-profile" if headless else "profile")
         private = output / "rimgovernor-go"; shutil.copyfile(binary, private); private.chmod(0o700)
@@ -263,7 +263,7 @@ async def run(root: Path, output: Path, binary: Path, *, go_source: str, go_sha2
         async with bridge_session(gabs, configuration) as bridge:
             await bridge.core("games_start", gameId=bridge.game_id); launched = True; await bridge.connect()
             names = await discovery(bridge, evidence)
-            inventory = json.loads((Path(__file__).resolve().parents[1] / "contracts/domain-inventory.json").read_text())["native_surface"]["tools"]
+            inventory = json.loads((Path(__file__).resolve().parents[1] / "contracts/domain-inventory.json").read_text(encoding="utf8"))["native_surface"]["tools"]
             validate_discovery(names, {row["name"] for row in inventory if row["build_role"] == "production"},
                 {row["name"] for row in inventory if row["build_role"] == "fixture"}, {"test/guarded_construction_prepare", FIXTURE})
             report["discovery"] = names
@@ -356,7 +356,7 @@ if __name__ == "__main__":
         parser = argparse.ArgumentParser(); parser.add_argument("--proxy-real", type=Path); parser.add_argument("--proxy-log", type=Path)
         parser.add_argument("--proxy-mode", choices=(*MODES, "restart")); parser.add_argument("--proxy-fixture", type=Path)
         args, tail = parser.parse_known_args(); tail = tail[1:] if tail[:1] == ["--"] else tail
-        raise SystemExit(asyncio.run(proxy(args.proxy_real, args.proxy_log, args.proxy_mode, json.loads(args.proxy_fixture.read_text()), tail)))
+        raise SystemExit(asyncio.run(proxy(args.proxy_real, args.proxy_log, args.proxy_mode, json.loads(args.proxy_fixture.read_text(encoding="utf8")), tail)))
     parser = argparse.ArgumentParser(description=__doc__); parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--output", type=Path); parser.add_argument("--go-binary", type=Path, required=True)
     add_handoff_arguments(parser); parser.add_argument("--rendered", action="store_true"); args = parser.parse_args()

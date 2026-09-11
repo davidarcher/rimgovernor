@@ -131,4 +131,4 @@ def test_proxy_launcher_has_only_narrow_mode_and_exact_fixture(tmp_path):
     wrapper = probe.proxy_executable(tmp_path / "proxy", Path("/inputs/gabs/gabs"), "override", {"pawnId": "pawn"})
     text = wrapper.read_text(encoding="utf8")
     assert "--proxy-real" in text and "--proxy-mode override" in text and '"$@"' in text
-    assert json.loads((wrapper.parent / "fixture.json").read_text()) == {"pawnId": "pawn"}
+    assert json.loads((wrapper.parent / "fixture.json").read_text(encoding="utf8")) == {"pawnId": "pawn"}
