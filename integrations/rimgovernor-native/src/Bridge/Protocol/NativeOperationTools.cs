@@ -87,6 +87,8 @@ namespace HomeBridge.BridgeTools
             if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
             var owner = new Authority.Owner { ControllerSessionId = guard.Snapshot.Lease.ControllerSessionId,
                 PlayerDirection = guard.Snapshot.Lease.PlayerDirection };
+            if (!NativeConstructionTracking.Ready)
+                return Refuse(Common.FailureCode.Unavailable, "Construction transition tracking is unavailable.");
             var admission = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context, owner);
             if (admission.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admission.Reply;
             var observed = plan.Proposed();
@@ -99,8 +101,8 @@ namespace HomeBridge.BridgeTools
                     var record = NativeConstructionTracking.Register(plan, placed, observed);
                     state.Construction.Add(precondition.Attempt.Clone(), record);
                     if (!record.Matches(placed)) throw new InvalidOperationException("Placed object did not match admitted construction.");
-                    return new Operations.ExecuteReply { Receipt = state.Ledger.FinishApplied(admission.Handle,
-                        new Receipts.EffectEvidence { Construction = record.Effect }) };
+                    return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, admission.Handle,
+                        precondition.Attempt, context, owner, new Receipts.EffectEvidence { Construction = record.Effect }) };
                 }
             }
             catch (Exception error)
@@ -110,8 +112,8 @@ namespace HomeBridge.BridgeTools
                     ? new Receipts.EffectEvidence { Construction = record.Effect.Clone() }
                     : observed.CancelledFrameIds.Count > 0 || observed.WipedThingIds.Count > 0
                         ? new Receipts.EffectEvidence { Construction = observed } : null;
-                return new Operations.ExecuteReply { Receipt = state.Ledger.FinishUncertain(admission.Handle,
-                    lastObserved, "Admitted construction requires observation: " + error.GetType().Name) };
+                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, admission.Handle,
+                    precondition.Attempt, context, owner, lastObserved, "Admitted construction requires observation: " + error.GetType().Name) };
             }
         }
 
@@ -133,10 +135,10 @@ namespace HomeBridge.BridgeTools
                 NativeConstructionPlan plan; RimGovernor.Protocol.Placement.PlacementEvaluated preview;
                 var accepted = NativeConstructionPlan.Prepare(Find.CurrentMap, parsed.Operation.PlaceBuilding.Placement, context, out plan, out preview, out invalid);
                 if (preview == null) return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = invalid });
-                return ProtoBoundary.Encode(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation
+                return ProtoBoundary.Encode(NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation
                 {
                     Context = context, Accepted = accepted, Reason = accepted ? "" : invalid.Detail, Placement = preview
-                } });
+                } }));
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -185,7 +187,7 @@ namespace HomeBridge.BridgeTools
                     ? record.Observe(parsed.Attempt, context)
                     : new Receipts.Progress { Attempt = parsed.Attempt.Clone(), Context = context, CompleteInspection = false,
                         Unknown = new Receipts.UnknownEffect { Reason = "No tracked construction effect is available for this attempt." } };
-                return ProtoBoundary.Encode(new Receipts.ProgressReply { Progress = progress });
+                return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = progress }));
             }, cancellationToken).ConfigureAwait(false);
         }
 

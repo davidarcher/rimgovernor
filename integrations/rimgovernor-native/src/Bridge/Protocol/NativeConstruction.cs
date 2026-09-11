@@ -179,7 +179,9 @@ namespace HomeBridge.BridgeTools
         private static readonly ConditionalWeakTable<Thing, NativeConstructionRecord> Tracked = new ConditionalWeakTable<Thing, NativeConstructionRecord>();
         private static readonly List<Completion> Completions = new List<Completion>();
         private static bool installed;
-        internal static bool Ready { get; private set; }
+        private static readonly NativeConstructionHookSet Hooks = new NativeConstructionHookSet(PatchOwner);
+        private static bool installationComplete;
+        internal static bool Ready => installationComplete && Hooks.Ready(9);
         internal static void Install()
         {
             if (installed) return;
@@ -205,9 +207,17 @@ namespace HomeBridge.BridgeTools
                 patcher.Patch(spawn, postfix: new HarmonyMethod(typeof(NativeConstructionTracking), nameof(Spawned)));
                 foreach (var method in destroy) patcher.Patch(method,
                     finalizer: new HarmonyMethod(typeof(NativeConstructionTracking), nameof(Cancelled)));
-                Ready = new[] { blueprint, finish, fail, spawn, make }.Concat(destroy).All(method => Harmony.GetPatchInfo(method)?.Owners.Contains(PatchOwner) == true);
+                Hooks.Add(blueprint, finalizer: AccessTools.Method(typeof(NativeConstructionTracking), nameof(Transition)));
+                foreach (var method in new[] { finish, fail }) Hooks.Add(method,
+                    prefix: AccessTools.Method(typeof(NativeConstructionTracking), nameof(Begin)),
+                    finalizer: AccessTools.Method(typeof(NativeConstructionTracking), nameof(End)));
+                Hooks.Add(make, postfix: AccessTools.Method(typeof(NativeConstructionTracking), nameof(Created)));
+                Hooks.Add(spawn, postfix: AccessTools.Method(typeof(NativeConstructionTracking), nameof(Spawned)));
+                foreach (var method in destroy) Hooks.Add(method,
+                    finalizer: AccessTools.Method(typeof(NativeConstructionTracking), nameof(Cancelled)));
+                installationComplete = true;
             }
-            catch { Ready = false; }
+            catch { installationComplete = false; }
         }
         internal static NativeConstructionRecord Register(NativeConstructionPlan plan, Thing thing, Receipts.ConstructionEffect effect)
         {

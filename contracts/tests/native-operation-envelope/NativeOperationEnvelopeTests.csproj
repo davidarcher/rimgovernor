@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework><OutputType>Exe</OutputType>
+    <LangVersion>latest</LangVersion><Nullable>disable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors><RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.31.1" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="0Harmony"><HintPath>$(HarmonyAssembly)</HintPath></Reference>
+    <Compile Include="../../../integrations/rimgovernor-native/src/Bridge/Protocol/NativeAttemptLedger.cs" Link="NativeAttemptLedger.cs" />
+    <Compile Include="../../../integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationEnvelope.cs" Link="NativeOperationEnvelope.cs" />
+    <Compile Include="../../../integrations/rimgovernor-native/src/Bridge/Protocol/NativeConstructionHookSet.cs" Link="NativeConstructionHookSet.cs" />
+    <Compile Include="../../generated/protobuf/csharp/*.cs" />
+  </ItemGroup>
+</Project>
