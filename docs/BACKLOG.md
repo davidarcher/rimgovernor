@@ -875,6 +875,24 @@ only intentional small, sanitized regression fixtures belong in source control.
   - [ ] **07a:** emergency combat, draft ownership, critical medical triage and
     treatment/recovery. Accept player draft preservation, interrupted care and
     unsafe threat holds; do not claim unresolved active-combat care is solved.
+    - [ ] **07a.1:** complete typed threat and pawn-health reads with deterministic
+      emergency holds. Depends on 06; incomplete or unknown facts hold routine
+      work. Accept an unsafe-threat case with no routine writes.
+    - [ ] **07a.2:** owned draft action and exact-claim release in the shared
+      plan, store and Hands system. Depends on 07a.1 and native draft claims.
+      Accept player draft preservation, lost replies and restart cleanup.
+    - [ ] **07a.3:** bounded defense with exact pawn/target observations and
+      correlated job outcomes. Depends on 07a.2. Begin with one supported
+      opponent; verify incapacitation, injury interruption and owned cleanup.
+    - [ ] **07a.4:** critical tending with fresh doctor/patient/work facts,
+      native preview and observed living patient no longer needing tending.
+      Depends on 07a.1–2. Respect care, self-tend and player overrides.
+    - [ ] **07a.5:** bounded recovery after confirmed treatment interruption.
+      Depends on 07a.4. Preserve immutable attempts and unknown outcomes;
+      accept ordinary interrupted and repeated treatment across restart.
+    - [ ] **07a.6:** patient rest settings and medical monitoring. Depends on
+      07a.4–5. Native rules choose beds; missing observations stay unknown.
+      Resolve exact condition identity before longitudinal instance tracking.
   - [ ] **07b:** food acquisition/production, crops, cooking and work assignments;
     follows 07a for emergency preemption. Accept stock changes, ordinary pawn work,
     renewed deficits, unsafe routes and interrupted production.
