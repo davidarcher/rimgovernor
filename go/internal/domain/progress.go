@@ -18,8 +18,9 @@ type Receipt string
 
 const (
 	ReceiptAccepted Receipt = "accepted"
-	ReceiptRefused  Receipt = "refused"
-	ReceiptUnknown  Receipt = "unknown"
+	// ReceiptRefused is trusted pre-admission no-effect proof, never a transport refusal.
+	ReceiptRefused Receipt = "refused"
+	ReceiptUnknown Receipt = "unknown"
 )
 
 type Effect string
@@ -138,6 +139,14 @@ func (p Progress) RecordReceipt(attempt AttemptID, receipt Receipt) (Progress, e
 		return p, errors.New("receipt already recorded")
 	}
 	p.view.Receipt = Known(receipt)
+	if receipt == ReceiptRefused {
+		p.view.Unresolved = false
+		p.view.Effect = Known(EffectAbsent)
+		if p.view.Stage != Cancelled {
+			p.view.Stage = Pending
+		}
+		return p, nil
+	}
 	if p.view.Stage != Cancelled {
 		p.view.Stage = AwaitingObservation
 	}

@@ -158,7 +158,7 @@ func TestBuildingAndPlanValidation(t *testing.T) {
 	}
 }
 func TestReceiptNeverCompletesOrUnlocksRetry(t *testing.T) {
-	for _, receipt := range []Receipt{ReceiptAccepted, ReceiptRefused, ReceiptUnknown} {
+	for _, receipt := range []Receipt{ReceiptAccepted, ReceiptUnknown} {
 		t.Run(string(receipt), func(t *testing.T) {
 			p, s := dispatched(t)
 			p, err := p.RecordReceipt(p.View().Attempt, receipt)
@@ -398,5 +398,43 @@ func TestAttemptIdentityOverflowPreservesPreparedProgress(t *testing.T) {
 	got, err := p.MarkDispatched(s, 10)
 	if err == nil || !reflect.DeepEqual(got, p) {
 		t.Fatal("attempt counter wrapped or mutated progress")
+	}
+}
+
+func TestTrustedRefusalClearsOnlyAdmissionUncertainty(t *testing.T) {
+	for _, cancelled := range []bool{false, true} {
+		p, s := dispatched(t)
+		var err error
+		if cancelled {
+			p, err = p.Cancel()
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		p, err = p.RecordReceipt(1, ReceiptRefused)
+		if err != nil {
+			t.Fatal(err)
+		}
+		effect, known := p.View().Effect.Value()
+		if p.View().Unresolved || !known || effect != EffectAbsent || p.View().Stage == Completed {
+			t.Fatal(p.View())
+		}
+		if cancelled {
+			if p.View().Stage != Cancelled {
+				t.Fatal("refusal undid cancellation")
+			}
+			continue
+		}
+		if p.View().Stage != Pending {
+			t.Fatal(p.View())
+		}
+		p, err = p.Prepare(s, 11)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err = p.MarkDispatched(s, 11)
+		if err != nil || p.View().Attempt != 2 {
+			t.Fatal("retry did not advance attempt", err)
+		}
 	}
 }

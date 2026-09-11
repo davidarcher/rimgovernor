@@ -205,3 +205,12 @@ func TestRepeatedPendingAndRestartKeepImmutableAdmissionTick(t *testing.T) {
 		t.Fatal("old admission accepted for initial placement")
 	}
 }
+
+func TestAttemptConflictDoesNotProveNoEffect(t *testing.T) {
+	b, f := newBoundaryFixture(t)
+	f.placeErr = &bridge.NativeFailure{Value: &c.Failure{Code: c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT.Enum()}}
+	out, err := b.Place(context.Background(), f.placement)
+	if err == nil || out.Kind != domain.ReceiptUnknown {
+		t.Fatal("existing attempt conflict released uncertainty", err)
+	}
+}

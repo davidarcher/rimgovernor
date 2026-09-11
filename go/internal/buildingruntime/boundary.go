@@ -118,6 +118,9 @@ func (b *Boundary) Place(ctx context.Context, placement executor.Placement) (exe
 	reply, _, err := b.writer.PlaceBuilding(ctx, pre, candidate)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) {
+		if refused.Value.GetCode() == c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
+			return out, err
+		}
 		out.Kind = domain.ReceiptRefused
 		return out, nil
 	}
