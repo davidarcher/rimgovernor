@@ -104,8 +104,9 @@ pawn construction. Unsuccessful outcomes remain distinct from unknown effects.
 
 `Executor.Stop` cancels work and joins native dispatch plus receipt persistence.
 A failed drain requires retaining the process lock, bridge and database until a
-later successful drain. Native HTTP/runtime acceptance remains tracked separately
-under G01.06; compilation does not establish completed pawn work.
+later successful drain. [Native service acceptance](../docs/developers/testing/construction-recovery.md#go-http-building-service)
+verifies ordinary pawn completion and disabled same-database restart through the
+HTTP service. Supervised Go clock control remains a separate G01.10 integration.
 
 ## Isolated building acceptance
 

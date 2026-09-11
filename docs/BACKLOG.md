@@ -878,7 +878,7 @@ only intentional small, sanitized regression fixtures belong in source control.
           - [x] **06b.3b.5e:** native HTTP submission, Manual and restart acceptance.
             Owner: integrator with N01; depends on 5d and 06c.2. Verify ordinary
             pawn completion; no automatic clock control in this slice.
-            Headless native acceptance verifies submit-only zero writes, one
+            Headless and graphical native acceptance verify submit-only zero writes, one
             admitted placement, joined Manual shutdown and ordinary completion
             reconciled after restart without acquisition or replacement.
         - [x] **06b.3b.6:** typed owned clock capability and epoch/attempt reads.
