@@ -855,6 +855,12 @@ only intentional small, sanitized regression fixtures belong in source control.
           - [ ] **06b.3b.5c:** typed player submission, Acquire and Manual HTTP
             endpoints with current-world checks and local player authentication.
             Owner: HTTP agent; depends on 5b. Read-only mode retains no writer.
+            - [ ] **06b.3b.5c.1:** bounded strict decoding into typed submission
+              and control requests. Owner: HTTP agent; depends on 5a. Reject
+              duplicate/unknown fields and preserve required numeric presence.
+            - [ ] **06b.3b.5c.2:** authenticated routes backed by the explicit
+              coordinator. Owner: HTTP agent; depends on 5c.1 and 5b.2. Add reads
+              for historical request results separately from current permission.
           - [ ] **06b.3b.5d:** opt-in building service composition and minimal player
             controls. Owner: integrator; depends on 5b–c. Join all workers before
             releasing native, profile and database ownership.
@@ -877,7 +883,7 @@ only intentional small, sanitized regression fixtures belong in source control.
       - [x] **06c.2a:** Go placement followed by ordinary pawn completion and
         fresh-process SQLite reconciliation, without reacquisition or replacement.
         Graphical and headless native runs passed.
-      - [ ] **06c.2b:** extend the isolated Go observation command to assert an
+      - [x] **06c.2b:** extend the isolated Go observation command to assert an
         exact cancelled or interrupted native outcome. Owner: bridge agent;
         depends on 06c.1. This does not prove the actual interruption by itself.
       - [ ] **06c.2c:** run actual Go interruption and reconciliation acceptance.
