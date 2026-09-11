@@ -31,6 +31,13 @@ Module dependencies and checksums are pinned in `go.mod`/`go.sum`; see the
 exercised with real SDK sessions and temporary databases as their slices land.
 Media dependencies are selected with their actual presentation consumers.
 
+## Local interpretation
+
+`interpreter.NewLocal` checks the configured LM Studio instance before each
+interpretation and uses the smaller of its loaded context window and the configured
+budget. Missing or ambiguous instances fail explicitly. It does not load or switch
+models. Proposals remain unsubmitted until a player runtime admits them.
+
 ## Read-only service
 
 Build the executable above, then use `rimgovernor serve --read-only` with absolute

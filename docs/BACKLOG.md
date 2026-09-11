@@ -821,6 +821,10 @@ only intentional small, sanitized regression fixtures belong in source control.
         - [x] **06b.3b.4:** trusted explicit acquisition, renewal, invalidation and
           joined shutdown under one process lock. Owner: runtime agent; depends
           on 06b.2 and the existing runtime ownership primitive.
+          - [ ] **06b.3b.4a:** clear a previously published observation target when
+            native authority refresh fails, cancelling stale reconciliation while
+            retaining the private cleanup target. Owner: runtime agent; depends
+            on 06b.3b.4. Test failure after successful disabled target selection.
         - [ ] **06b.3b.5:** wire an explicit player-only entry point and runtime
           worker; keep model proposals separate from authority acquisition.
           Owner: integrator; depends on 06b.3b.3–4 and native guarded adapters.
@@ -887,9 +891,10 @@ only intentional small, sanitized regression fixtures belong in source control.
   - [x] **08a.3:** one bounded real configured local-model interpretation with
     observed catalog/material/anchor facts. Owner: model agent; depends on 08a.2.
     No native orders or plan submission; retain exact model and typed result evidence.
-  - [ ] **08a.4:** read the configured LM Studio model's actual loaded context
+  - [x] **08a.4:** read the configured LM Studio model's actual loaded context
     capacity and cap prompt budgeting to it. Owner: model agent; depends on 08a.2–3.
-    Missing or ambiguous loaded instances remain unavailable; never load a model,
+    Refresh capacity before each interpretation. Missing or ambiguous loaded
+    instances remain unavailable; never load a model,
     select another model or infer loaded capacity from a theoretical maximum.
 
 - [ ] **G01.09 — Dashboard API and presentation.** Owner: server agent.
@@ -951,8 +956,8 @@ dependencies. Integrate 10–13 serially. Independent acceptance workers may run
 with isolated inputs/resources; do not replace installed DLLs while any game runs.
 
 Every handoff includes: base and result commits, changed contracts, commands and
-exit codes, skips, fixture/native/model scope, artifact paths, migration/rollback
-impact and remaining manifest rows. Native waits use
+exit codes, skips, fixture/native/model scope, artifact paths and remaining
+manifest rows. Native waits use
 `rimgovernor.native_scenario.advance_game` while Python tooling remains; any Go-native
 replacement must first match its interruption and tick-budget acceptance. New
 Python script-based Docker runs use `scripts/container_scenario.py` and its dashboard
