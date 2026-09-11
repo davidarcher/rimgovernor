@@ -237,3 +237,18 @@ func TestClockCoordinatorRejectsChangedDirectionForOwnedEpoch(t *testing.T) {
 		t.Fatal(err, f.writes)
 	}
 }
+
+func TestClockCoordinatorRejectsChangedPlanForOwnedEpoch(t *testing.T) {
+	q, db, f, intent := clockCoreFixture(t)
+	_ = q.UpdateAuthority(executor.Authority{Snapshot: intent.Snapshot, Enabled: true})
+	if _, err := q.Command(context.Background(), intent); err != nil {
+		t.Fatal(err)
+	}
+	epochs, _ := db.LoadClockEpochs(context.Background(), 4096)
+	intent.Snapshot.Plan = "replacement-plan"
+	_ = q.UpdateAuthority(executor.Authority{Snapshot: intent.Snapshot, Enabled: true})
+	renew := store.ClockIntent{RequestID: "new-plan", Snapshot: intent.Snapshot, Command: bridge.ClockCommand{Renew: &bridge.ClockRenew{Original: epochs[0].Epoch, LeaseMS: 1000}}}
+	if _, err := q.Command(context.Background(), renew); !errors.Is(err, executor.ErrHeld) || f.writes != 1 {
+		t.Fatal(err, f.writes)
+	}
+}

@@ -175,7 +175,7 @@ func (q *ClockCoordinator) inspect(ctx context.Context, v store.ClockAttempt) er
 				if err != nil {
 					return err
 				}
-				if admitted.Intent.Snapshot.Direction != v.Intent.Snapshot.Direction {
+				if admitted.Intent.Snapshot != v.Intent.Snapshot {
 					return executor.ErrHeld
 				}
 				found = true
