@@ -951,6 +951,33 @@ only intentional small, sanitized regression fixtures belong in source control.
         contract. Include dead pawns for cleanup inspection; preserve optional
         CAS tokens and owned/unowned/unavailable claim evidence. Missing rows or
         unsupported tokens never establish death, ownership or release. No writes.
+      - [ ] **07a.2b:** closed owned-draft action and cleanup transitions. Owner:
+        domain agent; depends on 07a.1 and native claim acceptance. Keep intent
+        comparable and limited to exact pawn identity. Dispatch creates potential
+        cleanup responsibility; receipt/lookup binds the immutable original claim.
+        Completion and cancellation retain that responsibility. Distinguish a
+        proven claim never acquired from a claim released or positively superseded.
+      - [ ] **07a.2c:** fresh typed storage and player submission. Owner: state
+        agent; depends on 2b. Generalize submitted-plan headers and closed payloads;
+        no Python import or schema migration. Journal claim evidence atomically
+        with progress. Persist each exact cleanup request, pawn CAS and journal-
+        assigned local sequence before release; cleanup has no native attempt key.
+      - [ ] **07a.2d:** typed draft execution, lookup and exact release adapters.
+        Owner: bridge agent; depends on 2a–b and native claim acceptance. Separate
+        temporary draft capability from read-only clients; never adopt a player
+        draft or use general undraft as cleanup. Preserve uncertain outcomes.
+      - [ ] **07a.2e:** draft handler in the shared Hands executor. Owner:
+        executor agent; depends on 2b–d. Use typed pawn admission without invented
+        building costs; serialize dispatch and cleanup through the same writer.
+        Inspect fresh pawn CAS before journaling the exact release request.
+        Late results cannot replace a newer local cleanup sequence.
+      - [ ] **07a.2f:** runtime admission, invalidation and restart cleanup. Owner:
+        integrator; depends on 2e. Include outstanding cleanup after ordinary action
+        completion. Manual disables writes before cleanup; Close joins writers and
+        retains profile, database and transport while cleanup remains unresolved.
+        Reconcile unknown acquisition before release; never act on a replacement
+        world or claim. Accept player preservation, lost replies and restart in
+        isolated native games before enabling this family in the service.
     - [ ] **07a.3:** bounded defense with exact pawn/target observations and
       correlated job outcomes. Depends on 07a.2. Begin with one supported
       opponent; verify incapacitation, injury interruption and owned cleanup.
