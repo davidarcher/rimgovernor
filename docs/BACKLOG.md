@@ -828,6 +828,24 @@ only intentional small, sanitized regression fixtures belong in source control.
         - [ ] **06b.3b.5:** wire an explicit player-only entry point and runtime
           worker; keep model proposals separate from authority acquisition.
           Owner: integrator; depends on 06b.3b.3–4 and native guarded adapters.
+          - [ ] **06b.3b.5a.1:** atomically persist one-building player submissions
+            with exact request replay/conflict detection and bounded catalog
+            capacity. Owner: state agent; depends on 04b. No native admission.
+          - [ ] **06b.3b.5a.2:** persist monotonic player direction and control
+            request outcomes. Owner: integrator; depends on 5a.1. Restart never
+            restores a live lease or repeats an uncertain acquisition.
+          - [ ] **06b.3b.5b:** joined building worker and explicit control coordinator.
+            Owner: runtime agent; depends on 5a and 06b.3b.4a. Reconcile unknown
+            attempts before dispatch; renew only an existing live acquisition.
+          - [ ] **06b.3b.5c:** typed player submission, Acquire and Manual HTTP
+            endpoints with current-world checks and local player authentication.
+            Owner: HTTP agent; depends on 5b. Read-only mode retains no writer.
+          - [ ] **06b.3b.5d:** opt-in building service composition and minimal player
+            controls. Owner: integrator; depends on 5b–c. Join all workers before
+            releasing native, profile and database ownership.
+          - [ ] **06b.3b.5e:** native HTTP submission, Manual and restart acceptance.
+            Owner: integrator with N01; depends on 5d and 06c.2. Verify ordinary
+            pawn completion; no automatic clock control in this slice.
         - [x] **06b.3b.6:** typed owned clock capability and epoch/attempt reads.
           Owner: bridge agent; depends on 02b and 06b.2. Keep speed/window control
           separate from building dispatch and preserve exact owned pause after
