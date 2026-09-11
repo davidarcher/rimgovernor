@@ -982,6 +982,20 @@ only intentional small, sanitized regression fixtures belong in source control.
         Reconcile unknown acquisition before release; never act on a replacement
         world or claim. Accept player preservation, lost replies and restart in
         isolated native games before enabling this family in the service.
+        - [ ] **2f.1:** session capabilities and worker cleanup eligibility. Owner:
+          runtime agent; depends on 2e. A finished standalone draft plan releases
+          its claim; later defense plans may retain it only while still active.
+          Use the existing writer for disabled and shutdown cleanup.
+        - [ ] **2f.2:** explicit player draft submission and local API projection.
+          Owner: HTTP agent; depends on 2c and 2f.1. Accept pawn intent only, resolve
+          native CAS in the handler, and expose progress and cleanup independently.
+          Keep shared direction CAS, replay and Manual cancellation semantics.
+        - [ ] **2f.3:** dashboard temporary-draft intent and cleanup status. Owner:
+          UI agent; depends on the fixed 2f.2 interface. Preserve drafts, exact
+          request IDs and uncertain outcomes; no general undraft or ownership adoption.
+        - [ ] **2f.4:** isolated Go service draft acceptance. Owner: integrator with
+          N01; depends on 2f.1–3. Verify ordinary claim creation and release, player
+          overrides, lost replies and same-database restart without reacquisition.
     - [ ] **07a.3:** bounded defense with exact pawn/target observations and
       correlated job outcomes. Depends on 07a.2. Begin with one supported
       opponent; verify incapacitation, injury interruption and owned cleanup.
