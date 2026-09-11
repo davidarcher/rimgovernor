@@ -1332,14 +1332,14 @@ broaden checks only when the changed behavior or a failure justifies it.
           loops. Owner: integrator; depends on 3d.1–2. Configure renewal below the
           lease budget and back off unchanged paused ticks. Lifecycle acceptance
           and disabled restart remain 3e.
-      - [ ] **10a.3e:** joined lifecycle composition and disabled restart. Owner:
+      - [x] **10a.3e:** joined lifecycle composition and disabled restart. Owner:
         integrator; depends on 3d. Test dispatch interruption, gaps, paused-tick
         backoff, renewal starvation and retryable shutdown before service wiring.
         - [x] **10a.3e.1:** composed worker/session interruption and joined close.
           Owner: integrator. Use synchronized native fixtures to verify start,
           durable event interruption outside the Player gate, owned pause and
           profile release only after worker cleanup joins.
-        - [ ] **10a.3e.2:** composed disabled restart and blocked native transport.
+        - [x] **10a.3e.2:** composed disabled restart and blocked native transport.
           Owner: integrator; depends on 3e.1. Verify no restart acquisition/start,
           exact uncertain recovery, renewal starvation and retryable close while
           a dispatched native call remains blocked.
@@ -1349,6 +1349,23 @@ broaden checks only when the changed behavior or a failure justifies it.
         capacity refusal remains a hold and cannot silently discard evidence.
         Preserve the renewal sequence watermark before retiring renewal records;
         retained-history counts currently supply their next request identity.
+        - [ ] **10a.3f.1:** namespace-bound monotonic clock request identity. Owner:
+          state agent and integrator; freeze interfaces first. Allocate with the
+          intent transaction, distinguish retired requests from missing live rows,
+          and replace renewal IDs derived from retained-row counts. Preserve exact
+          retained replay and prevent retired requests from dispatching again.
+        - [ ] **10a.3f.2:** transactional attempt/epoch retirement. Owner: state
+          agent; depends on 3f.1. Keep unresolved attempts, nonterminal epochs,
+          required Start provenance and the current scheduling anchor. Preserve
+          bounded metadata that detects missing retained records.
+        - [ ] **10a.3f.3:** event/review prefix checkpoint. Owner: integrator.
+          Compact only validated reviewed evidence with no unacknowledged hold;
+          retain unreviewed pages, unacknowledged interruptions and gaps. Preserve
+          absolute cursors, loss totals and revision-scoped acknowledgement replay.
+        - [ ] **10a.3f.4:** bounded runtime maintenance. Owner: runtime agent;
+          depends on 3f.2–3. Retire safely before capacity exhaustion and verify
+          sustained windows across checkpoint/reopen cycles. Genuine pinned
+          evidence exhaustion remains an explicit hold.
     - [ ] **10a.4:** service/UI composition and actual Go clock acceptance.
       Owner: integrator with N01; depends on 10a.3 and 09. Verify ordinary work,
       real interruption, Manual pause, shutdown and disabled restart. Reuse the

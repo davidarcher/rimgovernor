@@ -215,3 +215,9 @@ the journal or profile owner. Concurrent Stop calls serialize, successful cleanu
 is cached, and failed cleanup remains retryable. Worker intervals and call budgets
 are bounded below the native lease duration; unchanged scheduling decisions back
 off. Service wiring and actual Go native acceptance remain separate gates.
+
+A fresh worker over reopened state remains disabled while recovering original
+attempts and pausing retained ownership; it does not acquire authority or issue a
+new Start or Renew. A native reply that ignores cancellation keeps shutdown
+retryable and the profile locked until the call returns, its receipt is persisted
+and owned cleanup joins. Renewal does not wait for ordinary player work.
