@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
+	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -157,7 +158,7 @@ func (caller *Client) PlacementPreviews(ctx context.Context, request *p.Placemen
 }
 func (caller *Client) protoRead(ctx context.Context, name string, request, reply proto.Message) (Result, error) {
 	switch name {
-	case "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress":
+	case "rimgovernor/clock_read_status", "rimgovernor/clock_read_attempt", "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress":
 	default:
 		return Result{}, contract("unreviewed native read")
 	}
@@ -168,7 +169,7 @@ func (caller *Client) protoRead(ctx context.Context, name string, request, reply
 // validate request semantics and apply their own read or explicit write capability.
 func (caller *Client) protoCall(ctx context.Context, name string, request, reply proto.Message) (Result, error) {
 	switch name {
-	case "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress", "rimgovernor/authority_control", "rimgovernor/operations_execute":
+	case "rimgovernor/clock_read_status", "rimgovernor/clock_read_attempt", "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress", "rimgovernor/authority_control", "rimgovernor/operations_execute", "rimgovernor/clock_start", "rimgovernor/clock_renew", "rimgovernor/clock_change_speed", "rimgovernor/clock_pause":
 	default:
 		return Result{}, contract("unreviewed native method")
 	}
@@ -214,6 +215,12 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	if callErr != nil {
 		typedFailure := false
 		switch r := reply.(type) {
+		case *k.StatusReply:
+			typedFailure = r.GetFailure() != nil
+		case *k.ControlReply:
+			typedFailure = r.GetFailure() != nil
+		case *k.AttemptReply:
+			typedFailure = r.GetFailure() != nil
 		case *l.IdentityReply:
 			typedFailure = r.GetFailure() != nil
 		case *o.GetCellsReply:
