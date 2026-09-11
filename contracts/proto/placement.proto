@@ -1,0 +1,94 @@
+syntax = "proto3";
+package rimgovernor.placement.v1;
+option csharp_namespace = "RimGovernor.Protocol.Placement";
+option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb;placementpb";
+
+// Presence and domain limits are checked by ordinary boundary validators.
+// ProtoJSON parsing/formatting is provided by the official Protobuf runtimes.
+enum Rotation {
+  ROTATION_UNSPECIFIED = 0;
+  ROTATION_NORTH = 1;
+  ROTATION_EAST = 2;
+  ROTATION_SOUTH = 3;
+  ROTATION_WEST = 4;
+  ROTATION_ALL = 5;
+}
+enum Passability {
+  PASSABILITY_UNSPECIFIED = 0;
+  PASSABILITY_STANDABLE = 1;
+  PASSABILITY_PASS_THROUGH_ONLY = 2;
+  PASSABILITY_IMPASSABLE = 3;
+}
+message PlacementRequest {
+  repeated PlacementCandidate placements = 1;
+}
+message PlacementCandidate {
+  optional string def_name = 1;
+  optional int32 x = 2;
+  optional int32 z = 3;
+  optional Rotation rotation = 4;
+  // Absent or empty requests the game's default material.
+  optional string stuff = 5;
+}
+message PlacementReply {
+  oneof outcome {
+    PlacementBatch batch = 1;
+    PlacementFailure failure = 2;
+  }
+}
+message PlacementBatch {
+  optional int32 tick = 1;
+  optional int32 map_id = 2;
+  repeated CandidateReply results = 3;
+}
+message CandidateReply {
+  oneof outcome {
+    PlacementEvaluated evaluated = 1;
+    PlacementFailure failure = 2;
+  }
+}
+message PlacementFailure {
+  optional string error = 1;
+}
+message PlacementEvaluated {
+  optional bool can_place = 1;
+  optional bool made_from_stuff = 2;
+  optional Passability passability = 3;
+  optional bool is_door = 4;
+  optional bool research_finished = 5;
+  optional bool buildable_by_player = 6;
+  repeated PlacementCost cost_list = 7;
+  PlacementMaterials materials = 8;
+  repeated PlacementRotation rotations = 9;
+}
+message PlacementCost {
+  optional string def_name = 1;
+  optional int32 count = 2;
+}
+message PlacementMaterials {
+  optional bool unreadable = 1;
+  repeated PlacementMaterialStock rows = 2;
+}
+message PlacementMaterialStock {
+  optional string def_name = 1;
+  // Absent means unknown; a present zero is known empty stock.
+  optional int32 available = 2;
+}
+message PlacementRotation {
+  optional Rotation rotation = 1;
+  optional bool accepted = 2;
+  optional string reason = 3;
+  repeated PlacementCell occupied_cells = 4;
+  repeated PlacementBlocker blocking_things = 5;
+}
+message PlacementCell {
+  optional int32 x = 1;
+  optional int32 z = 2;
+}
+message PlacementBlocker {
+  optional string category = 1;
+  optional bool is_blueprint = 2;
+  optional bool is_frame = 3;
+  optional bool would_be_wiped = 4;
+  optional bool frame_would_be_cancelled = 5;
+}
