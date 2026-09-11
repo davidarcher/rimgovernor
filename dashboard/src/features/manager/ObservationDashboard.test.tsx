@@ -8,7 +8,7 @@ const state={sessionId:'load-a',connected:true,mode:'manual',status:{label:'Colo
 const plan={id:'plan-a',revision:'9007199254740993',actions:[{id:'action-a',kind:'building',building:{defName:'Wall',x:2,z:3,rotation:'north',stuff:'Granite'},progress:{stage:'awaiting_observation',attempt:'1',tick:40,unresolved:true,receipt:'accepted',effect:null,unsuccessfulReason:null}}]};
 const reply=(value:unknown)=>({ok:true,json:async()=>value});
 function stubObservationFetch(handler: (url: string, options: {signal: AbortSignal}) => Promise<unknown>) {
- vi.stubGlobal('fetch', (url: string, options: {signal: AbortSignal}) => url === '/api/buildings/session' ? Promise.resolve({ok:false,status:404,json:async()=>({code:'not_found',detail:'Not found'})}) : handler(url,options));
+ vi.stubGlobal('fetch', (url: string, options: {signal: AbortSignal}) => url === '/api/buildings/session' || url.startsWith('/api/presentation/') ? Promise.resolve({ok:false,status:404,json:async()=>({code:'not_found',detail:'Not found'})}) : handler(url,options));
 }
 afterEach(()=>{cleanup();vi.useRealTimers();vi.unstubAllGlobals();});
 it('renders observed native facts and typed plan with no mutation controls',async()=>{

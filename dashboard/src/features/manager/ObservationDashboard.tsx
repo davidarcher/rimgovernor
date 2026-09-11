@@ -2,6 +2,7 @@ import {useEffect, useState} from 'react';
 import {readObservation, readPlan, type BuildingAction, type BuildingPlan, type ObservationState, type UnsuccessfulReason} from './observationData';
 import './ObservationDashboard.css';
 import BuildingControls from './BuildingControls';
+import PresentationPanel from './PresentationPanel';
 
 const stageLabels: Record<BuildingAction['progress']['stage'], string> = {pending: 'Pending', prepared: 'Prepared', dispatched: 'Order sent', awaiting_observation: 'Awaiting observation', completed: 'Completed', cancelled: 'Cancelled', unsuccessful: 'Unsuccessful'};
 const reasonLabels: Record<UnsuccessfulReason, string> = {native_failure: 'Native operation failed', cancelled: 'Operation cancelled', interrupted: 'Operation interrupted', expired: 'Operation expired', target_dead: 'Target died', outcome_not_achieved: 'Expected outcome not achieved'};
@@ -60,6 +61,7 @@ export default function ObservationDashboard() {
       <div><dt>Load</dt><dd>{state?.identity?.loadToken ?? 'Unknown'}</dd></div>
     </dl></section>
     <BuildingControls observation={state} observationFresh={!error && state !== null}/>
+    <PresentationPanel observation={state} observationFresh={!error && state !== null}/>
     <section className="observation-panel"><h2>Building plan</h2>
       {!state ? <p>Waiting for plan status.</p> : state.activePlanId === null ? <p>No active plan reported.</p> : !plan ? <p>Waiting for the active plan.</p> : <>
         <p className="observation-plan-id">{plan.id} · Revision {plan.revision}</p>
