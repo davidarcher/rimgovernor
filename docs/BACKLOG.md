@@ -844,7 +844,7 @@ only intentional small, sanitized regression fixtures belong in source control.
             - [x] **06b.3b.5b.1:** expose current control state and synchronous local
               disable for the player coordinator. Owner: runtime agent; depends
               only on 06b.3b.4a. Never expose lease secrets or issue native calls.
-            - [ ] **06b.3b.5b.2:** serialize explicit player submission, acquisition
+            - [x] **06b.3b.5b.2:** serialize explicit player submission, acquisition
               and Manual through durable control requests. Owner: runtime agent;
               depends on 5a and 5b.1. Replays do not acquire; late results cannot
               enable a superseded direction. No background dispatch yet.
@@ -855,7 +855,7 @@ only intentional small, sanitized regression fixtures belong in source control.
           - [ ] **06b.3b.5c:** typed player submission, Acquire and Manual HTTP
             endpoints with current-world checks and local player authentication.
             Owner: HTTP agent; depends on 5b. Read-only mode retains no writer.
-            - [ ] **06b.3b.5c.1:** bounded strict decoding into typed submission
+            - [x] **06b.3b.5c.1:** bounded strict decoding into typed submission
               and control requests. Owner: HTTP agent; depends on 5a. Reject
               duplicate/unknown fields and preserve required numeric presence.
             - [ ] **06b.3b.5c.2:** authenticated routes backed by the explicit
