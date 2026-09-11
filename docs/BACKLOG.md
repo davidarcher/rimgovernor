@@ -1149,6 +1149,13 @@ only intentional small, sanitized regression fixtures belong in source control.
       validation, joined shutdown and retained last-good observations. Owner:
       service agent; depends on 09a and 09b.1. Keep observation APIs stable across
       03b.1; real native service acceptance follows that adapter cutover.
+    - [ ] **09b.3:** current action hold feedback. Owner: runtime/API and UI agents;
+      depends on 09a and the shared player control API. Preserve typed admission
+      refusal and failed-observation reasons from worker results, scoped to the
+      action, world and direction. Show why a pending action has not dispatched;
+      stale feedback cannot imply current permission or change durable progress.
+      Cover a healthy-looking pawn that still needs tending, unknown native facts,
+      cleared holds and world changes. Fix the runtime/API contract before UI work.
   - [ ] **09c:** player ownership/camera, portraits/follow/video and native rendered
     acceptance. Read endpoints depend on 03/04; mutations require 06 and their
     supported 07/08 action families.
