@@ -42,9 +42,15 @@ Unavailable methods can yield their slot within the same review. `StarterLayouts
 proposes bounded shelter and disjoint crop patches while respecting observed
 geometry and player exclusions; proposals still require native preflight.
 
-These pure components are gated prerequisites. They do not read the game, persist
-goals, acquire authority or issue orders. The remaining review, method and runtime
-composition work is tracked in G01.05.
+Fresh SQLite state stores maintained goals and method links to the same executable
+plans. Reviews use a revision CAS; renewed deficits get a new method epoch after
+observed recovery, preserving older plans and receipts. Cancellation and context
+invalidation journal linked action cancellations atomically. Uncertain effects
+remain observable, and goal guards apply at preparation and dispatch.
+
+These components are gated prerequisites. They do not read the game, acquire
+authority or issue orders. Routine review orchestration, native fact projection,
+method selection and runtime composition remain in G01.05.
 
 ## Local interpretation
 

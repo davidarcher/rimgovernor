@@ -238,7 +238,7 @@ and owned cleanup joins. Renewal does not wait for ordinary player work.
 Clock request IDs bind the journal namespace and a positive monotonic sequence.
 The scheduler stores its logical decision key separately and reuses retained exact
 intents. Retirement never resets allocation: removed requests return ErrRetired,
-and a missing retained row is corruption. Fresh schema 13 requires disposable state.
+and a missing retained row is corruption. The current Go schema requires disposable state.
 
 RetireClockHistory atomically removes eligible attempts and terminal epochs while
 preserving unresolved writes, nonterminal ownership, retained commands' Start

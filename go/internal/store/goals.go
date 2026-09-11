@@ -1,0 +1,330 @@
+package store
+
+import (
+	"bytes"
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"strconv"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
+
+// GoalState links methods to the existing plan catalog. Revision is a local CAS
+// token, not a native generation or permission to run a method.
+type GoalState struct {
+	Goal     domain.Goal
+	Revision uint64
+	Methods  []domain.GoalMethod
+}
+
+func initializeGoals(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `CREATE TABLE goals(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL) STRICT;
+CREATE TABLE goal_methods(goal_id TEXT NOT NULL REFERENCES goals(id), epoch TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), PRIMARY KEY(goal_id,epoch,method_id)) STRICT;`)
+	return err
+}
+
+func (s *Store) CreateGoal(ctx context.Context, g domain.Goal) error {
+	if err := g.Validate(); err != nil {
+		return err
+	}
+	if g.Status != domain.GoalActive || g.Epoch != 0 || g.Need != domain.NeedUnknown || g.RecoveryObserved {
+		return errors.New("new goal must start without completion evidence")
+	}
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var count int
+	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM goals").Scan(&count); err != nil {
+		return err
+	}
+	if count >= 256 {
+		return ErrCapacity
+	}
+	data, err := json.Marshal(g)
+	if err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, "INSERT INTO goals(id,revision,payload) VALUES(?,?,?)", g.ID, "0", data); err != nil {
+		return conflict(err)
+	}
+	return tx.Commit()
+}
+
+func loadGoal(ctx context.Context, tx *sql.Tx, id domain.GoalID) (GoalState, error) {
+	var out GoalState
+	var data []byte
+	var revision string
+	if err := tx.QueryRowContext(ctx, "SELECT revision,payload FROM goals WHERE id=?", id).Scan(&revision, &data); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			err = ErrNotFound
+		}
+		return out, err
+	}
+	n, err := strconv.ParseUint(revision, 10, 64)
+	if err != nil || strconv.FormatUint(n, 10) != revision {
+		return out, errors.New("invalid goal revision")
+	}
+	if len(data) > 8192 {
+		return out, errors.New("goal payload exceeds bound")
+	}
+	if err = json.Unmarshal(data, &out.Goal); err != nil {
+		return GoalState{}, err
+	}
+	canonical, err := json.Marshal(out.Goal)
+	if err != nil || !bytes.Equal(data, canonical) {
+		return GoalState{}, errors.New("noncanonical goal state")
+	}
+	if err = out.Goal.Validate(); err != nil {
+		return GoalState{}, err
+	}
+	if out.Goal.ID != id {
+		return GoalState{}, errors.New("goal identity mismatch")
+	}
+	out.Revision = n
+	rows, err := tx.QueryContext(ctx, "SELECT epoch,method_id,plan_id FROM goal_methods WHERE goal_id=? ORDER BY length(epoch),epoch,method_id", id)
+	if err != nil {
+		return GoalState{}, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var m domain.GoalMethod
+		var epoch string
+		m.Goal = id
+		if err = rows.Scan(&epoch, &m.Method, &m.Plan); err != nil {
+			return GoalState{}, err
+		}
+		m.Epoch, err = strconv.ParseUint(epoch, 10, 64)
+		if err != nil || strconv.FormatUint(m.Epoch, 10) != epoch || m.Epoch > out.Goal.Epoch || m.Validate() != nil {
+			return GoalState{}, errors.New("invalid goal method record")
+		}
+		out.Methods = append(out.Methods, m)
+		if len(out.Methods) > 256 {
+			return GoalState{}, ErrCapacity
+		}
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) LoadGoal(ctx context.Context, id domain.GoalID) (GoalState, error) {
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return GoalState{}, err
+	}
+	defer tx.Rollback()
+	out, err := loadGoal(ctx, tx, id)
+	if err != nil {
+		return GoalState{}, err
+	}
+	if err = tx.Commit(); err != nil {
+		return GoalState{}, err
+	}
+	return out, nil
+}
+
+func saveGoal(ctx context.Context, tx *sql.Tx, previous GoalState, g domain.Goal) (GoalState, error) {
+	if g == previous.Goal {
+		return previous, nil
+	}
+	if previous.Revision == ^uint64(0) {
+		return GoalState{}, ErrCapacity
+	}
+	if err := g.Validate(); err != nil {
+		return GoalState{}, err
+	}
+	data, err := json.Marshal(g)
+	if err != nil {
+		return GoalState{}, err
+	}
+	next := previous.Revision + 1
+	if _, err = tx.ExecContext(ctx, "UPDATE goals SET revision=?,payload=? WHERE id=?", strconv.FormatUint(next, 10), data, g.ID); err != nil {
+		return GoalState{}, err
+	}
+	previous.Goal = g
+	previous.Revision = next
+	return previous, nil
+}
+
+func goalOpenWork(ctx context.Context, tx *sql.Tx, state GoalState) (bool, error) {
+	open := false
+	for _, m := range state.Methods {
+		p, err := load(ctx, tx, m.Plan)
+		if err != nil {
+			return false, err
+		}
+		open = open || domain.GoalWorkOpen(p.Progress)
+	}
+	return open, nil
+}
+
+func (s *Store) ReviewGoal(ctx context.Context, id domain.GoalID, revision uint64, current domain.GenerationSnapshot, tick domain.Tick, need domain.NeedState, emergency bool) (GoalState, error) {
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return GoalState{}, err
+	}
+	defer tx.Rollback()
+	state, err := loadGoal(ctx, tx, id)
+	if err != nil {
+		return GoalState{}, err
+	}
+	if state.Revision != revision {
+		return GoalState{}, ErrConflict
+	}
+	open, err := goalOpenWork(ctx, tx, state)
+	if err != nil {
+		return GoalState{}, err
+	}
+	g, err := domain.ReviewGoal(state.Goal, current, tick, need, emergency, open)
+	if err != nil {
+		return GoalState{}, err
+	}
+	if g.Status == domain.GoalInvalidated {
+		if err = cancelGoalMethods(ctx, tx, state); err != nil {
+			return GoalState{}, err
+		}
+	}
+	out, err := saveGoal(ctx, tx, state, g)
+	if err != nil {
+		return GoalState{}, err
+	}
+	if err = tx.Commit(); err != nil {
+		return GoalState{}, err
+	}
+	return out, nil
+}
+
+// CommitGoalMethod stores the method and its shared plan atomically. Admission
+// and dispatch still belong to existing policy/Hands; this grants no authority.
+func (s *Store) CommitGoalMethod(ctx context.Context, id domain.GoalID, revision uint64, method domain.MethodID, plan domain.PlanSpec) (GoalState, error) {
+	if _, err := domain.NewPlan(plan.ID(), plan.Revision(), plan.Actions()); err != nil {
+		return GoalState{}, err
+	}
+	if len(plan.Actions()) == 0 {
+		return GoalState{}, errors.New("empty goal method")
+	}
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return GoalState{}, err
+	}
+	defer tx.Rollback()
+	state, err := loadGoal(ctx, tx, id)
+	if err != nil {
+		return GoalState{}, err
+	}
+	if state.Revision != revision {
+		return GoalState{}, ErrConflict
+	}
+	g := state.Goal
+	if g.Status != domain.GoalActive || g.Need != domain.NeedDeficit || g.Source == domain.AdviserGoal {
+		return GoalState{}, errors.New("goal does not admit a method")
+	}
+	open, err := goalOpenWork(ctx, tx, state)
+	if err != nil {
+		return GoalState{}, err
+	}
+	if open {
+		return GoalState{}, errors.New("existing method requires observation")
+	}
+	m := domain.GoalMethod{Goal: id, Epoch: g.Epoch, Method: method, Plan: plan.ID()}
+	if err = m.Validate(); err != nil {
+		return GoalState{}, err
+	}
+	if len(state.Methods) >= 256 || state.Revision == ^uint64(0) {
+		return GoalState{}, ErrCapacity
+	}
+	if err = createPlan(ctx, tx, plan); err != nil {
+		return GoalState{}, err
+	}
+	if _, err = tx.ExecContext(ctx, "INSERT INTO goal_methods(goal_id,epoch,method_id,plan_id) VALUES(?,?,?,?)", id, strconv.FormatUint(m.Epoch, 10), method, plan.ID()); err != nil {
+		return GoalState{}, conflict(err)
+	}
+	state.Revision++
+	if _, err = tx.ExecContext(ctx, "UPDATE goals SET revision=? WHERE id=?", strconv.FormatUint(state.Revision, 10), id); err != nil {
+		return GoalState{}, err
+	}
+	state, err = loadGoal(ctx, tx, id)
+	if err != nil {
+		return GoalState{}, err
+	}
+	if err = tx.Commit(); err != nil {
+		return GoalState{}, err
+	}
+	return state, nil
+}
+
+// CancelGoal invalidates unissued work and marks issued work cancelled through
+// the normal progress journal, atomically with the goal. Effects still reconcile.
+func (s *Store) CancelGoal(ctx context.Context, id domain.GoalID, revision uint64) (GoalState, error) {
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return GoalState{}, err
+	}
+	defer tx.Rollback()
+	state, err := loadGoal(ctx, tx, id)
+	if err != nil {
+		return GoalState{}, err
+	}
+	if state.Revision != revision {
+		return GoalState{}, ErrConflict
+	}
+	g, err := domain.CancelGoal(state.Goal)
+	if err != nil {
+		return GoalState{}, err
+	}
+	if err = cancelGoalMethods(ctx, tx, state); err != nil {
+		return GoalState{}, err
+	}
+	out, err := saveGoal(ctx, tx, state, g)
+	if err != nil {
+		return GoalState{}, err
+	}
+	if err = tx.Commit(); err != nil {
+		return GoalState{}, err
+	}
+	return out, nil
+}
+
+func cancelGoalMethods(ctx context.Context, tx *sql.Tx, state GoalState) error {
+	for _, m := range state.Methods {
+		p, err := load(ctx, tx, m.Plan)
+		if err != nil {
+			return err
+		}
+		for _, progress := range p.Progress {
+			v := progress.View()
+			if v.Stage == domain.Completed || v.Stage == domain.Unsuccessful || v.Stage == domain.Cancelled {
+				continue
+			}
+			if _, err = advanceInTransaction(ctx, tx, m.Plan, v.Action, transition{Kind: "cancel"}); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func guardGoalWork(ctx context.Context, tx *sql.Tx, plan domain.PlanID, current domain.GenerationSnapshot, tick domain.Tick) error {
+	var id domain.GoalID
+	var epoch string
+	err := tx.QueryRowContext(ctx, "SELECT goal_id,epoch FROM goal_methods WHERE plan_id=?", plan).Scan(&id, &epoch)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	state, err := loadGoal(ctx, tx, id)
+	if err != nil {
+		return err
+	}
+	g := state.Goal
+	s := g.Snapshot
+	if g.Status != domain.GoalActive || g.Need == domain.NeedUnknown || g.Source == domain.AdviserGoal || epoch != strconv.FormatUint(g.Epoch, 10) ||
+		s.Colony != current.Colony || s.Map != current.Map || s.Load != current.Load || s.Direction != current.Direction || tick < g.Tick {
+		return errors.New("maintained goal does not admit current work")
+	}
+	return nil
+}

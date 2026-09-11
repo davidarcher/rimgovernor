@@ -21,7 +21,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 13
+const schemaVersion = 14
 const applicationID = 0x52474f31
 
 var ErrConflict = errors.New("plan or action identity already exists")
@@ -130,6 +130,9 @@ CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY REFERENCES submiss
 			return err
 		}
 		if err = initializeClockReview(ctx, tx); err != nil {
+			return err
+		}
+		if err = initializeGoals(ctx, tx); err != nil {
 			return err
 		}
 		if err = initializeClockInbox(ctx, tx); err != nil {
@@ -492,6 +495,22 @@ func (s *Store) advance(ctx context.Context, plan domain.PlanID, action domain.A
 		return domain.Progress{}, err
 	}
 	defer tx.Rollback()
+	next, err := advanceInTransaction(ctx, tx, plan, action, event)
+	if err != nil {
+		return domain.Progress{}, err
+	}
+	if err = tx.Commit(); err != nil {
+		return domain.Progress{}, err
+	}
+	return next, nil
+}
+
+func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, action domain.ActionID, event transition) (domain.Progress, error) {
+	if event.Kind == "prepare" || event.Kind == "dispatch" {
+		if err := guardGoalWork(ctx, tx, plan, event.Snapshot, event.Tick); err != nil {
+			return domain.Progress{}, err
+		}
+	}
 	state, err := load(ctx, tx, plan)
 	if err != nil {
 		return domain.Progress{}, err
@@ -542,9 +561,6 @@ func (s *Store) advance(ctx context.Context, plan domain.PlanID, action domain.A
 		return domain.Progress{}, err
 	}
 	if _, err = tx.ExecContext(ctx, "INSERT INTO transitions(action_id,payload) VALUES(?,?)", action, data); err != nil {
-		return domain.Progress{}, err
-	}
-	if err = tx.Commit(); err != nil {
 		return domain.Progress{}, err
 	}
 	return next, nil

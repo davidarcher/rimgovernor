@@ -593,8 +593,11 @@ expand these into another nested task tree; remove a row when its outcome is met
   Go pure policy now covers common foothold gates, food/temperature/wood latches,
   development ranking and bounded starter-site/fragmented-field proposals. Shared
   action progress retains committed capacity through uncertain cancellation.
-  Native fact projection, maintained-goal persistence/review, method selection and
-  runtime composition remain open; these policy components do not enable orders.
+  Maintained goal/method records now link to shared plans in fresh Go SQLite state.
+  Reviews retain unknown effects, reopen recovered deficits and atomically cancel
+  linked actions on cancellation or context invalidation. Native fact projection,
+  routine review orchestration, method selection and runtime composition remain
+  open; these components do not enable orders.
 
 - [ ] **G01.07a — Finish defense and essential medical care.** Connect movement
   and melee to complete defense plans using the existing owned-draft lifecycle;

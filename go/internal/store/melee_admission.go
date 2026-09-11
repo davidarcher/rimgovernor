@@ -102,6 +102,9 @@ func (s *Store) PrepareMelee(ctx context.Context, plan domain.PlanID, action dom
 		return domain.Progress{}, err
 	}
 	defer tx.Rollback()
+	if err = guardGoalWork(ctx, tx, plan, v.Snapshot, v.Tick); err != nil {
+		return domain.Progress{}, err
+	}
 	state, err := load(ctx, tx, plan)
 	if err != nil {
 		return domain.Progress{}, err

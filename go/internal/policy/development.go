@@ -9,13 +9,13 @@ import (
 )
 
 // GoalID identifies a maintained need, independently of any one executable plan.
-type GoalID string
-type GoalSource string
+type GoalID = domain.GoalID
+type GoalSource = domain.GoalSource
 
 const (
-	AutopilotGoal GoalSource = "autopilot"
-	PlayerGoal    GoalSource = "player"
-	AdviserGoal   GoalSource = "adviser"
+	AutopilotGoal = domain.AutopilotGoal
+	PlayerGoal    = domain.PlayerGoal
+	AdviserGoal   = domain.AdviserGoal
 )
 
 type DevelopmentGoal struct {

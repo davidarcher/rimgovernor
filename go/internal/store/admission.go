@@ -84,6 +84,9 @@ func (s *Store) ReserveAndPrepare(ctx context.Context, plan domain.PlanID, actio
 		return domain.Progress{}, err
 	}
 	defer tx.Rollback()
+	if err = guardGoalWork(ctx, tx, plan, admission.Snapshot, admission.Tick); err != nil {
+		return domain.Progress{}, err
+	}
 	state, err := load(ctx, tx, plan)
 	if err != nil {
 		return domain.Progress{}, err
