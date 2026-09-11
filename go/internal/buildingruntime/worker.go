@@ -145,15 +145,24 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	defer done()
 	world, err := w.player.worlds.ReadWorld(call)
 	if err != nil {
-		return err
+		return errors.Join(err, w.session.Disable())
 	}
 	if err = world.Validate(); err != nil {
-		return err
+		return errors.Join(err, w.session.Disable())
 	}
 	if err = w.player.current(call, epoch); err != nil {
 		return err
 	}
 	scope := w.session.State()
+	// Identity is a prerequisite for retaining permission, not just dispatch.
+	// Keep the private cleanup scope, but stop renewal of an unavailable or
+	// different world before considering any read-only reconciliation target.
+	if scope.ObservationKnown && playerWorld(scope.Snapshot) != world || scope.Enabled && !scope.ObservationKnown {
+		if err = w.session.Disable(); err != nil {
+			return err
+		}
+		scope = w.session.State()
+	}
 	plans, err := w.player.journal.LoadPlans(call, 256)
 	if err != nil {
 		return err

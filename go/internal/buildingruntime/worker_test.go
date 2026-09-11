@@ -464,3 +464,45 @@ func TestWorkerLifetimeCancellationStopsPlayer(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestWorkerIdentityLossImmediatelyDisablesDispatchAndRenewal(t *testing.T) {
+	cases := []struct {
+		name  string
+		world store.World
+		err   error
+	}{
+		{name: "colony", world: store.World{Colony: "other", Load: "load", Map: 0}},
+		{name: "load", world: store.World{Colony: "colony", Load: "other", Map: 0}},
+		{name: "map", world: store.World{Colony: "colony", Load: "load", Map: 1}},
+		{name: "unavailable", err: errors.New("identity unavailable")},
+		{name: "invalid", world: store.World{Colony: "", Load: "load", Map: 0}},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			w, f, _ := workerFixture(t)
+			v := workerPending(t, w, "pending", false)
+			f.mu.Lock()
+			f.state = ControlState{Snapshot: v.Snapshot, ObservationKnown: true, Enabled: true}
+			f.mu.Unlock()
+			w.player.worlds = &playerWorldSource{world: test.world, err: test.err}
+			err := w.step(context.Background(), time.Now())
+			if (test.err != nil || test.world.Validate() != nil) != (err != nil) {
+				t.Fatal(err)
+			}
+			state := w.player.State()
+			if state.Enabled || !state.ObservationKnown || state.Snapshot != v.Snapshot {
+				t.Fatal("permission retained or cleanup scope erased", state)
+			}
+			if f.runs.Load() != 0 || f.acquires.Load() != 0 || f.manuals.Load() != 0 {
+				t.Fatal("identity loss caused native work")
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 3*w.config.RenewInterval)
+			defer cancel()
+			w.ctx = ctx
+			w.renewals()
+			if f.renews.Load() != 0 {
+				t.Fatal("renewal continued after identity loss")
+			}
+		})
+	}
+}
