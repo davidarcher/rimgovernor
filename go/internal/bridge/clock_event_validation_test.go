@@ -154,3 +154,20 @@ func TestValidateClockEventsScannedLoss(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestValidateClockEventsEmptyNativeRange(t *testing.T) {
+	page := clockEventPage(0)
+	page.OldestCursor = proto.Int64(0)
+	if err := ValidateClockEventsPage(page, clockEventsRequest()); err != nil {
+		t.Fatal(err)
+	}
+	page.OldestCursor = proto.Int64(1)
+	if err := ValidateClockEventsPage(page, clockEventsRequest()); !errors.Is(err, ErrContract) {
+		t.Fatal(err)
+	}
+	page = clockEventPage(1)
+	page.OldestCursor = proto.Int64(0)
+	if err := ValidateClockEventsPage(page, clockEventsRequest()); !errors.Is(err, ErrContract) {
+		t.Fatal(err)
+	}
+}

@@ -49,10 +49,10 @@ func clockEventsPage(page *k.EventsPage, request *k.EventsRequest) error {
 	if !sameIdentity(page.Context.Identity, request.Identity) {
 		return contract("clock events page identity mismatch")
 	}
-	if page.NewestCursor == nil || page.NextCursor == nil || page.Gap == nil || page.LostCount == nil || (page.OldestCursor != nil && page.GetOldestCursor() < 1) || page.GetNewestCursor() < 0 || page.GetNextCursor() < request.GetAfterCursor() || page.GetNextCursor() > page.GetNewestCursor() || page.GetNewestCursor() < request.GetAfterCursor() || len(page.Events) > int(request.GetLimit()) {
+	if page.NewestCursor == nil || page.NextCursor == nil || page.Gap == nil || page.LostCount == nil || (page.OldestCursor != nil && page.GetOldestCursor() < 0) || page.GetNewestCursor() < 0 || page.GetNextCursor() < request.GetAfterCursor() || page.GetNextCursor() > page.GetNewestCursor() || page.GetNewestCursor() < request.GetAfterCursor() || len(page.Events) > int(request.GetLimit()) {
 		return contract("clock events cursor presence or bounds")
 	}
-	if page.OldestCursor != nil && page.GetOldestCursor() > page.GetNewestCursor() && !(page.GetOldestCursor() == 1 && page.GetNewestCursor() == 0) {
+	if page.OldestCursor != nil && (page.GetOldestCursor() > page.GetNewestCursor() || (page.GetOldestCursor() == 0 && page.GetNewestCursor() != 0)) {
 		return contract("clock journal retained range")
 	}
 	// Native scans cursor positions, including missing event files. Subtract

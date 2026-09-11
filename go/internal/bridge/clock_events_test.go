@@ -23,6 +23,9 @@ func clockEventRow(cursor int64) *k.Event {
 }
 func clockEventPage(count int) *k.EventsPage {
 	p := &k.EventsPage{Context: authorityTestContext(7), OldestCursor: proto.Int64(1), NewestCursor: proto.Int64(int64(count)), NextCursor: proto.Int64(int64(count)), Gap: proto.Bool(false), LostCount: proto.Uint64(0)}
+	if count == 0 {
+		p.OldestCursor = nil
+	}
 	for i := 1; i <= count; i++ {
 		p.Events = append(p.Events, clockEventRow(int64(i)))
 	}
