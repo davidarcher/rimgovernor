@@ -160,11 +160,27 @@ Open selected player buildings and admitted shared projects supply the maximum
 native construction-skill requirement. Missing project definitions are read inside
 the same paused bracket without replacing default crop inputs. Unknown skills
 preserve unknown coverage; unresolved cancelled orders retain their requirements
-until native observation settles them. Persisted player work overrides and other
-action families' requirements remain in G01.05. Native work captures and
+until native observation settles them. Other action families' requirements remain
+in G01.05. Player work preferences persist with the explicit player plan and feed
+every review. Updates atomically invalidate the previous review and linked methods;
+the next review records the preference revision and rejects stale inputs. Missing
+native work types or capabilities preserve unknown work coverage. Native work captures and
 the Python reference replay with `RIMGOVERNOR_NATIVE_WORK_CAPTURE=<capture directory>`.
 The native routine scenario's `--work-project` option checks a HospitalBed project
 outside the default definition census; it verifies work review, not construction.
+
+With player control enabled, `GET /api/player/work-preferences?planId=<id>` returns
+the plan's preference revision and overrides. Authenticated
+`POST /api/player/work-preferences/replace` accepts `requestId`, `planId`, `expected`
+world identity, canonical string `expectedRevision`, and an `overrides` array of
+`{ "pawn": "Thing_Human1", "work": "Construction", "priority": 0 }` entries.
+Priorities are 0–4; zero explicitly disables that work in proposals. The complete
+array replaces prior preferences; an empty array clears them. The existing 8 KiB
+player request limit applies. Reusing an exact request returns its historical
+result without restoring old preferences; changed reuse or a stale revision returns
+409. Preferences neither enable control nor change native work settings. The native
+routine scenario's `--work-overrides` option verifies updates, clear/replay, durable
+work review and disabled restart against a private colony.
 
 `NewRoutineSleepingPlanner` configures the shared `RoutineBuildingPlanner` to compile an active reviewed shelter deficit into
 one complete method of ordinary indoor sleeping spots. It requires a known native

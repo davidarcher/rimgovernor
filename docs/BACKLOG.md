@@ -647,9 +647,12 @@ expand these into another nested task tree; remove a row when its outcome is met
   definitions stay inside the paused bracket; unknown requirements stay unknown,
   and unresolved cancellation retains requirements until native effects settle.
   Native HospitalBed acceptance and Go/Python replay verify a skill-eight project
-  deficit, Manual invalidation and disabled restart. Requirements for other action
-  families and persisted player work overrides remain open; settings execution belongs
-  to its action family.
+  deficit, Manual invalidation and disabled restart. Plan-scoped player work
+  preferences now persist with revision checks and authenticated replace/read APIs.
+  Updates invalidate old reviews and methods atomically; new reviews consume the
+  saved revision, reject stale inputs and preserve unknown native capabilities.
+  Native preference update/restart acceptance remains pending. Requirements for
+  other action families remain open; settings execution belongs to its action family.
   Superseded invalidated autopilot goals now retire from active capacity while
   retaining immutable history; uncertain effects and cleanup prevent retirement.
   Completion observed after cancellation now yields historic cost/geometry holds
