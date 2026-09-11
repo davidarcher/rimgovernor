@@ -515,18 +515,26 @@ plans, deterministic policy and Hands, recovery, SQLite persistence, model chat,
 HTTP/events, video orchestration and diagnostics. Python may remain for development
 and native scenario tooling. A production Python sidecar is not a completed rewrite.
 
+Development state is disposable. Start the Go runtime with a fresh database and
+fresh game state; old saves, Python database imports, reverse compatibility,
+rollback rehearsals and exact historical wire/signature parity are not acceptance
+gates. Keep existing evidence as optional reference. Prioritize working vertical
+slices and current behavioral tests; do not add compatibility capture campaigns.
+Current-session durability, cancellation, one-writer ownership and ordinary native
+outcomes remain required.
+
 ### Contracts and package boundaries
 
 Proposed paths become real only when their owning chunk lands:
 
 | Path | Ownership and restrictions |
 | --- | --- |
-| `contracts/` | Canonical versioned wire schemas, compatibility fixtures and generation manifest; no game assemblies. |
+| `contracts/` | Canonical versioned wire schemas, boundary tests and generation manifest; no game assemblies. |
 | `go/` | One Go module with pinned toolchain/dependencies and `cmd/rimgovernor`; avoid a module per subsystem. |
 | `go/internal/wire/` | Generated wire types and explicit boundary decoding/validation; generated files carry provenance. |
 | `go/internal/domain/` | Owned IDs, observations, action variants, plan specification/progress, receipts and failures; no transport or database dependencies. |
 | `go/internal/bridge/` | MCP discovery, capability/version negotiation, bounded reads, native call receipts and transport diagnostics. |
-| `go/internal/store/` | SQLite transactions, archives, inbox/outbox durability and checkpoint compatibility. |
+| `go/internal/store/` | Fresh Go SQLite state, transactions, inbox/outbox durability and restart recovery. |
 | `go/internal/policy/` | Deterministic priorities, domain methods, resource admission and geometry; separate files/packages by capability. |
 | `go/internal/hands/` | The sole automated native mutation path, guarded execution and reconciliation. |
 | `go/internal/runtime/` | Session lifecycle, state ownership, scheduling, interruption and supervision. |
@@ -548,13 +556,11 @@ facts separately from known zero/false, distinguish missing and null where the w
 does, and use integer game ticks and distinct colony/map/load/action/direction IDs.
 Keep native definition names discoverable strings rather than hardcoded game enums.
 
-Schemas must specify required fields, bounds, discriminators, enum encoding,
-unknown-field policy and compatibility versions. Generated structs alone do not
-enforce these rules. Preserve exact persisted signatures and action identities:
-default omission, property ordering, Unicode, numeric encoding and null behavior
-need cross-language fixtures wherever they affect hashes. Do not rehash old actions
-as new work. C# DTOs must build against the mod's `net472` target without introducing
-modern runtime dependencies into RimWorld. Serializer settings must be explicit.
+Schemas specify required fields, bounds, variants and unknown-field handling.
+Generated structs need boundary validation. Use stable action identities within
+the new Go store and refuse stale or unsupported work. C# DTOs must build against
+the native `net472` target; serializer settings are explicit. Existing Python
+serialization formats do not constrain the new disposable state format.
 
 The existing `bridge_observation.schema.json` describes a Python projection, not
 the entire native wire surface. Inventory actual tool schemas and native replies
@@ -562,7 +568,7 @@ before generalizing it. Repository-owned native contracts can be generated;
 third-party/modded tools still require runtime discovery, capability checks and
 validation. Unknown mutation semantics must remain unavailable to automation.
 
-### Safety and compatibility gates
+### Runtime correctness gates
 
 Every chunk preserves these contracts:
 
@@ -579,9 +585,9 @@ Every chunk preserves these contracts:
    of player interruption indefinitely. Returned asynchronous results are applied
    only if their captured generations remain valid. Shutdown disarms supervision,
    drains/closes resources and does not start new work.
-5. Preserve transaction boundaries, archives, request deduplication, event inbox
-   cursors, paired saves and native journal identity. Unknown/missing recovery
-   evidence fails closed. Never let Python and Go open the same live writable store.
+5. Preserve transaction boundaries, request deduplication and event cursors in
+   new Go sessions. Unknown recovery evidence fails closed. Use a fresh Go store;
+   never let Python and Go open the same live writable database.
 6. Preserve native discovery, normal pawn work, fresh placement/resource checks,
    bounded execution windows, durable recording and UI drafts/last-good data.
 
@@ -656,14 +662,11 @@ only intentional small, sanitized regression fixtures belong in source control.
     - [x] **00d.3:** retain exact Python serialization/signature comparison cases
       and uncertain issued-action evidence (state agent; independent of 00d.1–2).
     - [x] **00d.4:** integrator final coverage review and baseline availability
-      record; depends on 00d.1–3. Matched uncontended outcome timings remain required
-      for 12; the representative Python sample retains partial-construction holds
+      record; depends on 00d.1–3. The representative Python sample retains partial-construction holds
       and a warning pause. Do not stop another task's native scenario.
 
-  Extend the initial synthetic fixtures to native captures, complete paired
-  checkpoints, nonzero archive epochs and the boundary/overflow decoding matrix
-  with the corresponding Go consumer chunks. Inventory checks establish source
-  coverage, not Go or native behavioral parity.
+  Existing fixtures are optional behavior references. Add current boundary and
+  outcome tests with their Go consumer chunks; no legacy-state capture is required.
 
 - [x] **G01.01 — Go build and replay foundation.** Owner: integration agent.
   Add the module, minimal non-writing command, injected clocks/IDs and offline
@@ -689,62 +692,49 @@ only intentional small, sanitized regression fixtures belong in source control.
     tests and Windows/Linux build CI; clean platform validation and evidence.
     Owner: integrator. Depends on 01b.
 
-- [ ] **G01.02 — Schema generation and first native contract.** Owner: contracts
-  agent; shared-file changes coordinated by integrator. Land generation tooling
-  first, then migrate one bounded request/response such as placement previews.
-  Generate C# and Go models plus applicable dashboard types. Retain the existing
-  Python consumer through compatible JSON; generate Python models during transition
-  where this avoids a second schema source. Add drift checks to CI. Verify required,
-  null, unknown, overflow, enum and invalid-variant handling, plus native refusal
-  replies. Accept round trips across C#/Go/Python and an isolated native invocation
-  showing unchanged effects and errors. Expand contracts incrementally with their
-  consumer chunks rather than generating the entire API speculatively. Depends on 01.
+- [ ] **G01.02 — Schema generation and first native contract.** Owner: integrator
+  and native N01.02 implementer. Land the generator, then a bounded typed current
+  request/reply and real native invocation. Expand schemas with actual consumers.
+  Existing Python models are optional test helpers, not a compatibility obligation.
+  Depends on 01; 03/04 and model transport can proceed after 02a.
   - [ ] **02a:** pinned repository-owned Go generator and a documented, closed
     schema subset; required/null/unknown and integer-token/UTF-16 validation,
     deterministic output manifest and drift checks. Owner: integrator with generator
     agents. Exercise the placement request as the first concrete input; native
     consumer changes and complete reply decoding remain gated by 02b–d.
-    - [ ] **02a.1:** canonical request schema, generator input/validation model and
+    - [x] **02a.1:** canonical request schema, generator input/validation model and
       Go output with positive/negative generation checks. Owner: generator agent;
       integrator owns canonical schema, manifest and CI integration.
-    - [ ] **02a.2:** C# and transitional Python outputs from the same schema/model,
+    - [x] **02a.2:** C# and transitional Python outputs from the same schema/model,
       with cross-language boundary fixtures. Owners: C# and Python generator agents;
       depends on the 02a.1 generator API. Unsupported schema features fail explicitly.
     - [ ] **02a.3:** generation drift CI, reproducibility and full affected checks.
       Owner: integrator; depends on 02a.1–2.
-  - [ ] **02b:** batch/refusal and complete candidate/nested preview reply schemas,
-    generated models and retained SDK fixture decoding. Owner: contracts agent;
-    depends on 02a. Preserve unknown versus null, ordinary placement refusals,
-    material unreadability and optional cooler/vent facts; no partial reply DTO
-    substitutes for complete boundary acceptance.
-  - [ ] **02c:** generated native request validation and typed preview construction,
-    real SDK serialization and Python/Go consumer decoding. Owner: native N01.02
-    implementer coordinated with G01; depends on 02b and shared native prerequisites.
-    Probe legacy parser/binder behavior before deliberate grammar corrections.
-  - [ ] **02d:** isolated valid/refused/invalid SDK calls, paused identity/tick and
-    building invariance, cross-language parity and refreshed inventory evidence.
-    Owner: acceptance agent; depends on 02c. No effects or pawn-work claims from
-    serialization alone; 03/04 remain gated until all of 02 passes.
+  - [ ] **02b:** define the complete typed reply needed by the first migrated
+    preview operation, including success/refusal and unknown facts. Owner: contracts
+    integrator with native implementer; depends on 02a. Do not replicate every
+    historical optional field when the current consumer does not need it.
+  - [ ] **02c:** wire generated native request validation and typed preview reply
+    through the real SDK to Go. Owner: native N01.02 implementer; depends on 02b.
+    Coordinate with the unified native package paths. Native rules remain unchanged.
+  - [ ] **02d:** one fresh isolated valid/refused/invalid invocation with no preview
+    effects. Owner: native implementer; depends on 02c. This runs alongside 03/04;
+    those chunks depend on the generation foundation, not historical parity.
 
 - [ ] **G01.03 — Read-only transport and observation.** Owner: bridge agent.
-  Port `bridge.py`, `bridge_game.py`, `bridge_observation.py` and relevant native
-  contract/recording adapters. Preserve MCP process ownership, discovery, capability
-  gating, batched and legacy reads, observation freshness, identity checks and
-  separate queue/session/native timings. Define explicit read versus mutation APIs;
-  read-only mode must reject write-capable tools even if requested by name. Accept
-  fake-server failures/reconnects and native typed-fact parity for batched/legacy
-  observations, with zero writes and no game-clock changes. Depends on 02.
+  Port MCP process ownership, discovery, typed current observations, freshness,
+  identity checks and bounded/cancellable calls. Define read versus mutation APIs;
+  read-only mode rejects write-capable tools even when requested by name. Test
+  transport failures/reconnects and one native read with no writes or clock changes.
+  Add generated observation families as their Go consumers need them. Depends on 02a.
 
-- [ ] **G01.04 — Typed plan and durable store.** Owner: state agent. Split into
-  04a plan/action/progress types, then 04b SQLite and recovery compatibility. Port
-  `colony_plan.py`, `store.py`, relevant `session_checkpoint.py` and archive contracts.
-  Preserve transaction/savepoint semantics, after-commit compaction, exact signatures,
-  inbox/outbox, chat request deduplication, method epochs and archive lookups. Read
-  copied existing databases without touching originals. Establish explicit storage
-  format/version checks and test whether Python can read Go-written state; do not
-  assume reverse compatibility. Accept crash/fault injection before and after each
-  transaction/dispatch boundary, retained unknown writes and paired restart without
-  duplicate work. Verify Windows connection closure and SQLite integrity. Depends on 02.
+- [ ] **G01.04 — Typed plan and fresh Go store.** Owner: state agent. Split into
+  04a plan/action/progress types and 04b SQLite persistence/restart. Use a new Go
+  schema with explicit version checks; do not import Python databases or preserve
+  old serialization signatures. Keep transactions, durable intent, deduplication,
+  unknown-write reconciliation and action identities correct within new sessions.
+  Test rollback, reopen/restart and connection closure with real temporary SQLite.
+  Depends on 02a; extend variants with their actual handlers.
 
 - [ ] **G01.05 — Deterministic planning kernel.** Owner: policy agent.
   Port plan readiness/dependencies, resource accounting, priority admission,
@@ -752,7 +742,7 @@ only intentional small, sanitized regression fixtures belong in source control.
   `resource_accounting.py`, `spatial.py`, `room_geometry.py` and related modules.
   Build explicit typed inputs instead of passing the runtime object. Inject stable
   clocks/IDs; sort map-derived decisions and use deterministic tie breaking. Accept
-  replay parity for deficits, unknown facts, competing projects, player priorities,
+  behavioral cases for deficits, unknown facts, competing projects, player priorities,
   cancellation and starvation/hysteresis cases. Property/fuzz tests cover reservation
   conservation, duplicate IDs and invalid geometry. No native writes. Depends on 04a.
 
@@ -806,8 +796,9 @@ only intentional small, sanitized regression fixtures belong in source control.
   All semantic commands enter the same plan/executor. Unknown commands fail
   explicitly; advisers have no mutation interface. Accept scripted invalid replies,
   deduplicated chat submissions, cancelled streams and a real configured-model
-  benchmark against the same semantic cases. Assert zero inference for routine
-  events. Core depends on 04 and 06; each command family waits for its 07 handler.
+  check of explicit player requests. Assert zero inference for routine events.
+  Transport/budget work depends on 02a; plan submission depends on 04/06, and each
+  command family waits for its 07 handler.
 
 - [ ] **G01.09 — Dashboard API and presentation parity.** Owner: server agent.
   Split 09a cached HTTP/events and command endpoints, 09b player ownership/camera,
@@ -822,57 +813,33 @@ only intentional small, sanitized regression fixtures belong in source control.
   camera/video acceptance. No production Python media service remains. 09a read
   endpoints depend on 03/04; mutations and media require 06 and relevant 07/08 work.
 
-- [ ] **G01.10 — Whole-runtime integration and passive comparison.** Owner:
-  integration agent. Account for every manifest row and compare complete controller
-  decisions, holds, receipts and persistence against fixed recordings. Passive Go
-  comparison consumes recorded/copied observations only; it cannot acquire native
-  control, pause/advance time or write the Python database. Separately run Go as
-  the only controller in disposable scenarios. Exercise all supported command and
-  completion families, pending-action restarts, lost acknowledgments, shutdown,
-  viewer interruption and multiple maps. Accept no unexplained semantic diffs;
-  intentional bug fixes need their own contract-based tests and review. Depends
-  on all 07 families, 08 and 09.
+- [ ] **G01.10 — Whole-runtime integration.** Owner: integrator. Run Go as the
+  sole controller in fresh disposable scenarios. Connect supported domain handlers,
+  model chat, dashboard, interruption and restart; account for implementation gaps
+  in the inventory. Test current behavior, not exact Python decision recordings.
+  Depends on 07, 08 and 09.
 
-- [ ] **G01.11 — Packaging, checkpoint transfer and rollback rehearsal.** Owner:
-  integration agent, with bridge/store owners. Update Windows launch/setup/build,
-  Docker images/workers, scenario adapters and observation discovery to explicitly
-  select Python or Go, with Python still default. Preserve private profiles,
-  automatic loopback dashboard ports, licensed-input isolation, storage durability
-  and evidence export. Some scenario scripts instantiate Python runtime classes;
-  port those assertions or add a documented test adapter that drives the Go
-  process, not a hidden Python controller. Rehearse stop/pause, lease release,
-  database/native-save backup, offline migration, Go startup in Manual and fresh
-  identity verification before automation. Refuse simultaneous controller startup.
-  If reverse storage compatibility is not proven, rollback restores the paired
-  pre-cutover database AND native save; never combine an old DB with newer game
-  progress. Explain that this rollback loses post-cutover progress. Accept clean
-  install, restart, migration failure and rollback on Windows and Linux. Depends on 10.
+- [ ] **G01.11 — Go packaging and launch.** Owner: integrator. Update Windows and
+  Docker launch/build paths and scenario adapters to run the Go process. Keep private
+  profiles, loopback dashboard ports and one-writer ownership. Start with fresh state;
+  no save/database migration or rollback rehearsal is required. Python may remain
+  for test tooling but cannot be a production controller sidecar. Depends on 10.
 
-- [ ] **G01.12 — Acceptance and default switch.** Owner: integration agent.
-  Run full Go tests/vet/race checks where supported, contract generation checks,
-  the full affected Python compatibility suite and dashboard checks on the final
-  integrated revision. Run isolated native startup, interruption/recovery,
-  paired-save, player controls and all covered domain scenarios, plus the existing
-  bounded sustained-colony matrix. Record source/image/input hashes and retain
-  failures; existing B-series gaps stay explicit. Compare uncontended, unprofiled
-  Python/Go runs with identical game/model/storage/render settings, measuring first
-  supervised tick, completed pawn work/scenario wall time, bridge calls, CPU/RSS,
-  recording cost and interruption latency. Agree numeric regression thresholds
-  from the 00 baseline before examining Go results; do not substitute microbenchmarks
-  or weaken durability to pass. Switch Go to default only when parity, rollback and
-  operability gates pass and performance regressions meet the recorded budget.
-  Faster gameplay is not required if the maintainability case holds, but any
-  regression must be explicit and accepted. Depends on 11.
+- [ ] **G01.12 — Acceptance and default switch.** Owner: integrator. Run Go checks,
+  generation drift and affected dashboard checks. Verify fresh native startup,
+  ordinary pawn work, explicit player control, interruption and Go-session restart.
+  Keep known gameplay gaps explicit. Switch to Go when the integrated controller is
+  functional and operable; historical parity and performance comparison campaigns
+  are not gates. Do not claim unmeasured performance improvements. Depends on 11.
 
 - [ ] **G01.13 — Retire production Python.** Owner: integration agent.
-  After default-switch acceptance and the documented rollback support window,
+  After default-switch acceptance,
   remove Python production entry points, runtime-only dependencies and duplicate
   implementations. Preserve accepted fixtures, attribution and explicitly retained
   Python scenario/development tools. Update setup, architecture, source map,
   troubleshooting and CI to describe Go as the actual runtime. Accept a production
   image/install with no Python interpreter required, all manifest rows resolved,
-  and no launcher or dashboard route silently using Python. Keep only the migration
-  support needed by the stated checkpoint compatibility policy. Depends on 12.
+  and no launcher or dashboard route silently using Python. Depends on 12.
 
 ### Dispatch waves and evidence checklist
 

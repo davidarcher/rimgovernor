@@ -76,6 +76,7 @@ func prepare(root, manifestName string) ([]output, error) {
 	outputs := make([]output, 0, len(manifest.Contracts))
 	packages := map[string]string{}
 	symbols := map[string]map[string]bool{}
+	csharpSymbols := map[string]map[string]bool{}
 	for _, entry := range manifest.Contracts {
 		path, err := containedPath(root, entry.GoOutput)
 		if err != nil {
@@ -124,6 +125,61 @@ func prepare(root, manifestName string) ([]output, error) {
 			return nil, err
 		}
 		outputs = append(outputs, output{path: path, data: generated})
+		if entry.CSharpOutput != "" {
+			csharpPath, err := containedPath(root, entry.CSharpOutput)
+			if err != nil {
+				return nil, err
+			}
+			if strings.EqualFold(csharpPath, manifestPath) {
+				return nil, fmt.Errorf("output would overwrite manifest")
+			}
+			if info, err := os.Stat(csharpPath); err == nil && !info.Mode().IsRegular() {
+				return nil, fmt.Errorf("output is not a regular file: %s", csharpPath)
+			}
+			namespace := entry.CSharpNamespace
+			if csharpSymbols[namespace] == nil {
+				csharpSymbols[namespace] = map[string]bool{}
+			}
+			declared := []string{schema.Title + "JsonBoundary"}
+			named := map[string]*contractgen.Schema{schema.Title: schema}
+			for name, definition := range schema.Definitions {
+				named[name] = definition
+			}
+			for name, definition := range named {
+				declared = append(declared, name)
+				if definition.Type != "object" && definition.Type != "array" {
+					declared = append(declared, name+"WireConverter")
+				}
+			}
+			for _, name := range declared {
+				if csharpSymbols[namespace][name] {
+					return nil, fmt.Errorf("duplicate generated C# symbol: %s.%s", namespace, name)
+				}
+				csharpSymbols[namespace][name] = true
+			}
+			csharp, err := contractgen.GenerateCSharp(schema, contractgen.CSharpOptions{Namespace: namespace, SchemaPath: entry.Schema})
+			if err != nil {
+				return nil, err
+			}
+			outputs = append(outputs, output{path: csharpPath, data: csharp})
+		}
+		if entry.PythonOutput != "" {
+			pythonPath, err := containedPath(root, entry.PythonOutput)
+			if err != nil {
+				return nil, err
+			}
+			if strings.EqualFold(pythonPath, manifestPath) {
+				return nil, fmt.Errorf("output would overwrite manifest")
+			}
+			if info, err := os.Stat(pythonPath); err == nil && !info.Mode().IsRegular() {
+				return nil, fmt.Errorf("output is not a regular file: %s", pythonPath)
+			}
+			python, err := contractgen.GeneratePython(schema, contractgen.PythonOptions{SchemaPath: entry.Schema})
+			if err != nil {
+				return nil, err
+			}
+			outputs = append(outputs, output{path: pythonPath, data: python})
+		}
 	}
 	return outputs, nil
 }

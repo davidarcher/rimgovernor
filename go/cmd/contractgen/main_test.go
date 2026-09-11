@@ -88,3 +88,36 @@ func TestOutputSymbolCollisionRefusedBeforeWriting(t *testing.T) {
 		t.Fatal("collision caused partial write")
 	}
 }
+
+func TestEveryLanguageOutputParticipatesInDriftCheck(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "schema.json", testSchema)
+	write(t, root, "manifest.json", `{"version":1,"contracts":[{"schema":"schema.json","go_package":"wire","go_output":"new/request.go","python_output":"new/request.py","csharp_output":"new/Request.cs","csharp_namespace":"Example"}]}`)
+	var out, errors bytes.Buffer
+	for _, name := range []string{"new/request.go", "new/request.py", "new/Request.cs"} {
+		if run([]string{"-root", root, "manifest.json"}, &out, &errors) != 0 {
+			t.Fatal(errors.String())
+		}
+		write(t, root, name, "altered")
+		if run([]string{"-root", root, "-check", "manifest.json"}, &out, &errors) != 1 {
+			t.Fatalf("unchecked output %s", name)
+		}
+		actual, err := os.ReadFile(filepath.Join(root, name))
+		if err != nil || string(actual) != "altered" {
+			t.Fatalf("check changed %s", name)
+		}
+	}
+}
+
+func TestLanguageFailurePreventsAllPublication(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "schema.json", `{"title":"Decode","type":"boolean"}`)
+	write(t, root, "manifest.json", `{"version":1,"contracts":[{"schema":"schema.json","go_package":"wire","go_output":"new/request.go","csharp_output":"new/Request.cs","csharp_namespace":"Example"}]}`)
+	var out, errors bytes.Buffer
+	if run([]string{"-root", root, "manifest.json"}, &out, &errors) != 1 {
+		t.Fatal("invalid C# name accepted")
+	}
+	if _, err := os.Stat(filepath.Join(root, "new")); !os.IsNotExist(err) {
+		t.Fatal("backend failure partially published outputs")
+	}
+}

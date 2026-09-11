@@ -31,9 +31,8 @@ and unpaired surrogate escapes are refused. This avoids replacement-character
 collisions between serializers. No trimming, number coercion, case folding or
 identifier normalization occurs at this boundary.
 
-These canonical rules do not claim identical acceptance of Newtonsoft's permissive
-parser or its SDK argument binder. Retained parser probes and native acceptance
-must identify deliberate grammar corrections before changing the native adapter.
+These rules intentionally tighten Newtonsoft's permissive parser and SDK binder.
+Existing parser observations are reference material, not compatibility gates.
 The placement `rotation` remains a string: supported names and ordinary placement
 refusals belong to native semantic validation.
 
@@ -44,8 +43,24 @@ invalid schemas and output collisions before publishing files. Check mode compar
 all declared outputs against deterministic regeneration without modifying them.
 Generated models are boundary values, not validated evidence of pawn work.
 
-G01.02a adds Go, C# and transitional Python generation and cross-language request
-checks in sequenced increments. G01.02b–d supply complete replies, real consumer
-wiring and isolated SDK acceptance. Production remains on the compatible Python
-and native paths until those gates pass. TypeScript generation is added when an
+G01.02a supplies Go, C# and Python generation with shared boundary cases.
+G01.02b–d add current replies and native consumer wiring. New Go sessions start
+with fresh state; no legacy-state or historical-wire parity gate applies. TypeScript generation is added when an
 actual dashboard consumer needs a migrated surface.
+
+Run from `go/`:
+
+```powershell
+go run ./cmd/contractgen -root .. contracts/generation.json
+go run ./cmd/contractgen -root .. -check contracts/generation.json
+```
+
+Review schema and generated diffs together. Check mode must fail on an altered,
+missing or stale declared output. Keep compiler/build products outside generated
+source directories, under ignored task-specific `.rimgovernor/` paths.
+
+Run `python scripts/check_placement_requests.py --check` to validate the generated
+Python boundary. Go tests run the same request cases. The standalone C# project
+`contracts/tests/csharp/PlacementRequests.csproj` requires .NET SDK 8.0.424 and
+locked NuGet dependencies; CI compiles net472/net8 and executes the shared cases.
+These checks establish typed request validation, not native preview effects.

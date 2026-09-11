@@ -1734,6 +1734,60 @@
         "status": "pending-probe",
         "note": "Native source suggests the same structural result; SDK/parser observation remains pending."
       }
+    },
+    {
+      "id": "iso-date-defName",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"2026-09-10T12:34:56Z\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "JSON string remains a string; no implicit date conversion. Definition/rotation/material resolution remains a native semantic refusal."
+      },
+      "legacyObserved": {
+        "status": "observed-parser",
+        "accepted": false,
+        "evidence": "contracts/fixtures/placement-parser-date-baseline.json#iso-date-defName",
+        "note": "Legacy default date parsing converts this string to a date token and the native structural check refuses it. Canonical DateParseHandling.None is an explicit correction."
+      }
+    },
+    {
+      "id": "iso-date-rotation",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"2026-09-10T12:34:56Z\",\"stuff\":\"\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "JSON string remains a string; no implicit date conversion. Definition/rotation/material resolution remains a native semantic refusal."
+      },
+      "legacyObserved": {
+        "status": "observed-parser",
+        "accepted": false,
+        "evidence": "contracts/fixtures/placement-parser-date-baseline.json#iso-date-rotation",
+        "note": "Legacy default date parsing converts this string to a date token and the native structural check refuses it. Canonical DateParseHandling.None is an explicit correction."
+      }
+    },
+    {
+      "id": "iso-date-stuff",
+      "target": "placements",
+      "input": {
+        "kind": "raw",
+        "json": "[{\"defName\":\"Wall\",\"x\":1,\"z\":2,\"rotation\":\"north\",\"stuff\":\"2026-09-10T12:34:56Z\"}]"
+      },
+      "canonical": {
+        "accepted": true,
+        "reason": "JSON string remains a string; no implicit date conversion. Definition/rotation/material resolution remains a native semantic refusal."
+      },
+      "legacyObserved": {
+        "status": "observed-parser",
+        "accepted": false,
+        "evidence": "contracts/fixtures/placement-parser-date-baseline.json#iso-date-stuff",
+        "note": "Legacy default date parsing converts this string to a date token and the native structural check refuses it. Canonical DateParseHandling.None is an explicit correction."
+      }
     }
   ]
 }

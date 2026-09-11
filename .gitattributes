@@ -4,3 +4,5 @@ go/go.sum text eol=lf
 go/.go-version text eol=lf
 contracts/schemas/*.json text eol=lf
 contracts/generation.json text eol=lf
+contracts/generated/** text eol=lf
+contracts/fixtures/placement-request-cases.json text eol=lf

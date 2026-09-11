@@ -1,6 +1,6 @@
 # Placement preview request contract
 
-This is the proposed canonical request boundary for `home/placement_previews`,
+This is the canonical request boundary for `home/placement_previews`,
 owned by G01.02. The [schema](schemas/placement-previews-request.v1.schema.json)
 and [boundary cases](fixtures/placement-request-cases.json) define generated
 validation. Existing Python and native consumers have not yet migrated to it.
@@ -77,17 +77,23 @@ already observed legacy parser behavior. Newtonsoft defaults can accept input
 spellings beyond strict JSON or replace invalid Unicode. The independent
 `placement-parser-baseline.json` probe records actual behavior separately;
 `legacyObserved.status:"pending-probe"` in the canonical cases is explicitly
-not an observation. Any differences require native adapter agreement and
-cross-language acceptance before the generated consumer lands.
+not an observation. These intentional corrections are tested at the current native adapter;
+legacy acceptance is not a release gate.
 
 The native early malformed-request return contains `success:false` and `error`
 without unknown-argument decoration. Main-thread replies pass through
 `BridgeCommon.WithUnknownArguments`, which reports unknown outer arguments and
-may attach an inspection-unavailable warning. The proposed closed outer schema
+may attach an inspection-unavailable warning. The closed outer schema
 rejects unknown arguments instead of relying on that native diagnostic. This is
 an explicit adapter-boundary correction, not unchanged direct-native behavior.
 Existing Python schema validation already rejects unknown arguments where its
 gameplay gateway has discovered the tool schema.
+
+The [date-string probe](fixtures/placement-parser-date-baseline.json) also shows
+that legacy automatic date parsing rejects ISO timestamp strings in definition,
+rotation or material fields. Generated decoders preserve these as strings using
+`DateParseHandling.None`; ordinary native semantic lookup can subsequently refuse
+them. This is a deliberate token-handling correction.
 
 ## Reproducible fixture inputs
 

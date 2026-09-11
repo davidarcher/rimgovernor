@@ -4,7 +4,10 @@
     {
       "schema": "contracts/schemas/placement-previews-request.v1.schema.json",
       "go_package": "placementpreview",
-      "go_output": "go/internal/wire/placementpreview/request.gen.go"
+      "go_output": "go/internal/wire/placementpreview/request.gen.go",
+      "python_output": "contracts/generated/python/placement_preview_requests.py",
+      "csharp_namespace": "RimGovernor.Contracts.PlacementPreview",
+      "csharp_output": "contracts/generated/csharp/PlacementPreviewRequests.g.cs"
     }
   ]
 }

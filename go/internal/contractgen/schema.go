@@ -47,9 +47,12 @@ type Manifest struct {
 }
 
 type Contract struct {
-	Schema    string `json:"schema"`
-	GoPackage string `json:"go_package"`
-	GoOutput  string `json:"go_output"`
+	Schema          string `json:"schema"`
+	GoPackage       string `json:"go_package"`
+	GoOutput        string `json:"go_output"`
+	PythonOutput    string `json:"python_output,omitempty"`
+	CSharpNamespace string `json:"csharp_namespace,omitempty"`
+	CSharpOutput    string `json:"csharp_output,omitempty"`
 }
 
 func exactObject(data []byte, allowed ...string) error {
@@ -86,7 +89,7 @@ func (manifest *Manifest) UnmarshalJSON(data []byte) error {
 }
 
 func (contract *Contract) UnmarshalJSON(data []byte) error {
-	if err := exactObject(data, "schema", "go_package", "go_output"); err != nil {
+	if err := exactObject(data, "schema", "go_package", "go_output", "python_output", "csharp_namespace", "csharp_output"); err != nil {
 		return err
 	}
 	type plain Contract
@@ -110,6 +113,25 @@ func ParseManifest(data []byte) (*Manifest, error) {
 			return nil, fmt.Errorf("duplicate or invalid output: %q", entry.GoOutput)
 		}
 		outputs[strings.ToLower(entry.GoOutput)] = true
+		if entry.PythonOutput != "" {
+			name := entry.PythonOutput
+			if !relativePath(name) || !strings.HasSuffix(name, ".py") || outputs[strings.ToLower(name)] {
+				return nil, fmt.Errorf("duplicate or invalid Python output: %q", name)
+			}
+			outputs[strings.ToLower(name)] = true
+		}
+	}
+	for _, entry := range manifest.Contracts {
+		if (entry.CSharpOutput == "") != (entry.CSharpNamespace == "") {
+			return nil, fmt.Errorf("C# output and namespace must be supplied together")
+		}
+		if entry.CSharpOutput != "" {
+			name := entry.CSharpOutput
+			if !relativePath(name) || !strings.HasSuffix(name, ".cs") || outputs[strings.ToLower(name)] {
+				return nil, fmt.Errorf("duplicate or invalid C# output: %q", name)
+			}
+			outputs[strings.ToLower(name)] = true
+		}
 	}
 	for _, entry := range manifest.Contracts {
 		if outputs[strings.ToLower(entry.Schema)] {

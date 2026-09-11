@@ -87,6 +87,13 @@ for invalid in ['{"flag":1}', '{"flag":null}', '{"flag":true,"note":null}', '{"f
     else:
         raise AssertionError('accepted invalid input: '+invalid[:80])
 assert g.decode_numbers('[1,2]') == [1,2]
+assert isinstance(g._document('['*64+']'*64), list)
+try:
+    g._document('['*65+']'*65)
+except ValueError:
+    pass
+else:
+    raise AssertionError('empty 65th container accepted')
 `
 	command := exec.Command(contractPython(t), "-c", code)
 	command.Dir = directory

@@ -41,10 +41,22 @@ func validJSONText(data []byte) error {
 		return fmt.Errorf("invalid UTF-8")
 	}
 	inString := false
+	depth := 0
 	for i := 0; i < len(data); i++ {
 		if data[i] == '"' {
 			inString = !inString
 			continue
+		}
+		if !inString {
+			switch data[i] {
+			case '{', '[':
+				depth++
+				if depth > 64 {
+					return fmt.Errorf("JSON exceeds 64 containers")
+				}
+			case '}', ']':
+				depth--
+			}
 		}
 		if !inString || data[i] != '\\' {
 			continue
