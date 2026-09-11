@@ -1,0 +1,118 @@
+package buildingruntime
+
+import (
+	"context"
+	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
+	"google.golang.org/protobuf/proto"
+)
+
+// PollEvents never waits for the player gate. Interruption invalidation precedes
+// persistence and owned cleanup, which may need to join an active command.
+func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative, limit uint32) (out ClockPollResult, err error) {
+	fail := func(cause error) (ClockPollResult, error) {
+		out.Interrupted = true
+		disabled := s.session.Disable()
+		cleanup, cancel := context.WithTimeout(context.Background(), s.session.control.config.CallTimeout)
+		defer cancel()
+		return out, errors.Join(cause, disabled, s.session.CleanupClock(cleanup))
+	}
+	if native == nil || limit < 1 || limit > 128 {
+		return fail(ErrControl)
+	}
+	select {
+	case s.pollGate <- struct{}{}:
+	case <-ctx.Done():
+		return fail(ctx.Err())
+	}
+	defer func() { <-s.pollGate }()
+	call, cancel := context.WithTimeout(ctx, s.session.control.config.CallTimeout)
+	defer cancel()
+	invalidate := func() error { out.Interrupted = true; return s.session.Disable() }
+	review, err := s.player.journal.ReadClockReview(call, s.config.Profile)
+	if err != nil {
+		return fail(err)
+	}
+	if len(review.Holds) > 0 {
+		if err = invalidate(); err != nil {
+			return fail(err)
+		}
+	}
+	identity, _, err := s.native.Identity(call)
+	if err != nil {
+		return fail(err)
+	}
+	current := identity.GetLoaded().GetContext()
+	if err = bridge.ValidateContext(current); err != nil {
+		return fail(err)
+	}
+	state := s.session.State()
+	if !state.ObservationKnown || !proto.Equal(current.Identity, controlIdentity(state.Snapshot)) || current.NativeGeneration == nil || current.GetNativeGeneration() != uint64(state.Snapshot.Native) {
+		if err = invalidate(); err != nil {
+			return fail(err)
+		}
+	}
+	request := &k.EventsRequest{Identity: current.Identity, AfterCursor: proto.Int64(review.InboxCursor), Limit: proto.Uint32(limit)}
+	reply, _, err := native.ReadClockEvents(call, request)
+	if err != nil {
+		return fail(err)
+	}
+	page := reply.GetPage()
+	if err = bridge.ValidateClockEventsPage(page, request); err != nil {
+		return fail(err)
+	}
+	if page.Context.GetTick() < current.GetTick() || current.NativeGeneration != nil && (page.Context.NativeGeneration == nil || page.Context.GetNativeGeneration() < current.GetNativeGeneration()) {
+		return fail(executor.ErrEvidence)
+	}
+	if page.Context.NativeGeneration == nil || page.Context.GetNativeGeneration() != uint64(state.Snapshot.Native) {
+		if err = invalidate(); err != nil {
+			return fail(err)
+		}
+	}
+	if page.GetGap() || clockPollInterrupts(page) {
+		if err = invalidate(); err != nil {
+			return fail(err)
+		}
+	}
+	if err = call.Err(); err != nil {
+		return fail(err)
+	}
+	_, out.Captured, err = s.player.journal.AppendClockEvents(call, s.config.Profile, request, page)
+	if err != nil {
+		return fail(err)
+	}
+	review, err = s.player.journal.ReadClockReview(call, s.config.Profile)
+	if err != nil {
+		return fail(err)
+	}
+	out.Review, err = s.player.journal.ReviewClockEvents(call, s.config.Profile, review.Revision)
+	if err != nil {
+		return fail(err)
+	}
+	if len(out.Review.Holds) > 0 || out.Review.ReviewedCursor != out.Review.InboxCursor || out.Review.ReviewedCursor != page.GetNewestCursor() {
+		return fail(executor.ErrHeld)
+	}
+	if err = call.Err(); err != nil {
+		return fail(err)
+	}
+	if out.Interrupted {
+		return fail(nil)
+	}
+	return out, nil
+}
+func clockPollInterrupts(page *k.EventsPage) bool {
+	for _, event := range page.Events {
+		switch v := event.Event.(type) {
+		case *k.Event_Started, *k.Event_SpeedChanged, *k.Event_HostilesCleared, *k.Event_ForcePauseCleared:
+		case *k.Event_Stopped:
+			if v.Stopped.GetReason() != k.StopReason_STOP_REASON_TICK_BUDGET && v.Stopped.GetReason() != k.StopReason_STOP_REASON_REQUESTED_PAUSE {
+				return true
+			}
+		default:
+			return true
+		}
+	}
+	return false
+}
