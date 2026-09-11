@@ -56,6 +56,16 @@ internal static class Program
         var targetA=job.GetType().GetField("targetA")!.GetValue(job)!;
         Check(ReferenceEquals(targetA.GetType().GetProperty("Thing")!.GetValue(targetA),target),"Ranged forced job keeps exact pawn target reference");
         Check(!(bool)job.GetType().GetField("endIfCantShootTargetFromCurPos")!.GetValue(job)!,"Forced job does not invent unrelated expiry flags");
+        var grenadeVerb=System.Runtime.Serialization.FormatterServices.GetUninitializedObject(game.GetType("Verse.Verb_LaunchProjectile",true)!);
+        var grenadeProps=Activator.CreateInstance(game.GetType("Verse.VerbProperties",true)!)!;
+        grenadeProps.GetType().GetField("forcedMissRadius",Flags)!.SetValue(grenadeProps,1.9f);
+        grenadeProps.GetType().GetField("forcedMissEvenDispersal")!.SetValue(grenadeProps,true);
+        grenadeVerb.GetType().GetField("verbProps")!.SetValue(grenadeVerb,grenadeProps);
+        Call("NativeCombatOperations","ConfigureRangedJob",job,grenadeVerb,target);
+        targetA=job.GetType().GetField("targetA")!.GetValue(job)!;
+        Check(ReferenceEquals(targetA.GetType().GetProperty("Thing")!.GetValue(targetA),target),"Forced-miss weapon retains exact intended pawn target rather than choosing a blast cell");
+        Check(ReferenceEquals(job.GetType().GetField("verbToUse")!.GetValue(job),grenadeVerb),"Forced-miss weapon retains exact native launch verb");
+        Check((float)grenadeProps.GetType().GetProperty("ForcedMissRadius")!.GetValue(grenadeProps)! == 1.9f && (bool)grenadeProps.GetType().GetField("forcedMissEvenDispersal")!.GetValue(grenadeProps)!,"Caller preserves native miss radius and dispersal instead of controlling collateral");
         Check((bool)Call("NativeCombatRecord","CausalOrderAllows",4UL,5UL,false),"Flight impact permits exactly admitted order after natural job completion");
         Check(!(bool)Call("NativeCombatRecord","CausalOrderAllows",4UL,6UL,false),"Later order invalidates projectile attribution");
         Check(!(bool)Call("NativeCombatRecord","CausalOrderAllows",4UL,4UL,false),"Unissued pre-order state cannot authorize a later impact");

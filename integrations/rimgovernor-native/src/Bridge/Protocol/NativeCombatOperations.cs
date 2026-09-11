@@ -102,7 +102,7 @@ namespace HomeBridge.BridgeTools
                 bool trackingLoss=ranged && NativeRangedCausality.HasTrackingLoss(damage);
                 phase=WithTrackingLoss(phase,trackingLoss);
                 if(phase==NativeCombatPhase.Unknown){result.Unknown=new Receipts.UnknownEffect {Reason=trackingLoss
-                    ?"Native direct-bullet lineage is incomplete; no combat outcome can be certified."
+                    ?"Native projectile lineage is incomplete; no combat outcome can be certified."
                     :"No causally attributed combat outcome or exact live attack job is available."};return result;}
                 var evidence=Evidence(snapshot,false,phase==NativeCombatPhase.Pending || phase==NativeCombatPhase.Completed);
                 result.CompleteInspection=true;
@@ -176,7 +176,7 @@ namespace HomeBridge.BridgeTools
             bool ranged=Ranged(command,pawn);
             if(!(ranged?NativeRangedCausality.IsReady:NativeCombatCausality.IsReady))return false;
             if(ranged && (pawn.equipment?.PrimaryEq?.PrimaryVerb==null || !NativeRangedCausality.Supports(pawn.equipment.PrimaryEq.PrimaryVerb,pawn,target)))
-            {failure=ProtoBoundary.Fail(Common.FailureCode.Unsupported,"Ranged attribution supports only verified ordinary pawn weapon direct bullets; this verb/projectile path is unsupported.");return false;}
+            {failure=ProtoBoundary.Fail(Common.FailureCode.Unsupported,"Ranged attribution requires a verified ordinary pawn weapon bullet or injury-only explosive path with live lineage hooks; this verb/projectile path is unsupported.");return false;}
             var check=NativePawnControlState.Check(identity,pawn,command.Pawn.ExpectedSnapshotToken,out snapshot);
             if(check!=NativePawnControlResult.Ready){failure=NativeDraftProtocol.Failure(check,context);return false;}
             check=NativePawnControlState.Check(identity,target,command.Target.ExpectedSnapshotToken,out _);
