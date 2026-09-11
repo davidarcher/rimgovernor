@@ -730,7 +730,7 @@ only intentional small, sanitized regression fixtures belong in source control.
       after 02e.1 and 03b.1; preserve independently consumed Python projections.
       Owner: integrator.
 
-- [ ] **G01.03 — Read-only transport and observation.** Owner: bridge agent.
+- [x] **G01.03 — Read-only transport and observation.** Owner: bridge agent.
   Port MCP process ownership, discovery, typed current observations, freshness,
   identity checks and bounded/cancellable calls. Define read versus mutation APIs;
   read-only mode rejects write-capable tools even when requested by name. Test
@@ -739,16 +739,17 @@ only intentional small, sanitized regression fixtures belong in source control.
   - [x] **03a:** owned MCP subprocess/session, discovery and bounded read-only
     calls with cancellation/cleanup; test a real in-process SDK server and failed
     connections. Owner: bridge agent. No mutation API or runtime scheduler yet.
-  - [ ] **03b:** typed current identity/status and observation facts, explicit
+  - [x] **03b:** typed current identity/status and observation facts, explicit
     unavailable values and freshness. Owner: bridge agent; depends on 03a and the
     domain fact types. Add families with policy consumers and one native read smoke.
     - [x] **03b.1:** fixed Protobuf identity/status/placement read adapters and
       truthful typed observation projection. Owner: bridge agent; depends on 02b.
       Keep owned SDK lifecycle and reject legacy aliases or arbitrary invocation.
-    - [ ] **03b.2:** native read/preview acceptance against N01's corresponding
+    - [x] **03b.2:** native read/preview acceptance against N01's corresponding
       adapters. Owner: integrator; depends on 03b.1 and native 02c.
-      Identity/placement passed the paused graphical native smoke; full status
-      acceptance remains pending its native observation adapter.
+      Identity/placement passed graphical and headless native smoke. The actual
+      read-only Go service passed fresh status refresh, unchanged paused world,
+      read-only call tracing and clean ownership handoff.
 
 - [x] **G01.04 — Typed plan and fresh Go store.** Owner: state agent. Split into
   04a plan/action/progress types and 04b SQLite persistence/restart. Use a new Go
