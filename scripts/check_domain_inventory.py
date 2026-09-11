@@ -33,8 +33,13 @@ def literal_fields(path, field):
 
 def inventory_sources(root=ROOT):
     result = {}
+    # Generated boundaries are owned by their schema/manifest, not Python ports.
+    generation = json.loads((root / 'contracts/generation.json').read_text(encoding='utf-8'))
+    generated = {entry['python_output'] for entry in generation['contracts'] if entry.get('python_output')}
     tracked = subprocess.run(['git', 'ls-files', '-z', '--', 'controller'], cwd=root, check=True, capture_output=True, text=True).stdout
     for relative in sorted(name for name in tracked.split('\0') if name.endswith('.py')):
+        if relative in generated:
+            continue
         path = root / relative
         relative = path.relative_to(root).as_posix()
         result['module:' + relative] = {'path': relative}
