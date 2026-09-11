@@ -9,6 +9,7 @@ using Common = RimGovernor.Protocol.Common;
 using Authority = RimGovernor.Protocol.Authority;
 using Operations = RimGovernor.Protocol.Operations;
 using Receipts = RimGovernor.Protocol.Receipts;
+using Clock = RimGovernor.Protocol.Clock;
 
 namespace HomeBridge.BridgeTools
 {
@@ -40,16 +41,39 @@ namespace HomeBridge.BridgeTools
 
         internal sealed class Admission { internal Admission() { } }
 
+        internal sealed class ClockDecision
+        {
+            internal DecisionKind Kind { get; }
+            internal Admission? Handle { get; }
+            private readonly Clock.ControlReply? reply;
+            internal Clock.ControlReply? Reply => reply?.Clone();
+            internal ClockDecision(DecisionKind kind, Admission? handle = null, Clock.ControlReply? reply = null)
+            { Kind = kind; Handle = handle; this.reply = reply; }
+        }
+
         private sealed class Entry
         {
             internal readonly string Method;
-            internal readonly Operations.ExecuteRequest Request;
+            internal readonly IMessage Request;
+            internal readonly Authority.WritePrecondition Precondition;
             internal readonly Common.ObservationContext Context;
             internal readonly Authority.Owner Owner;
             internal Receipts.Receipt? Receipt;
-            internal Entry(string method, Operations.ExecuteRequest request,
+            internal Clock.ControlReceipt? ClockReceipt;
+            internal Entry(string method, IMessage request, Authority.WritePrecondition precondition,
                 Common.ObservationContext context, Authority.Owner owner)
-            { Method = method; Request = request.Clone(); Context = context.Clone(); Owner = owner.Clone(); }
+            {
+                Method = method; Precondition = precondition.Clone(); Context = context.Clone(); Owner = owner.Clone();
+                // The accepted union is deliberately closed to official request types.
+                switch (request)
+                {
+                    case Operations.ExecuteRequest operation: Request = operation.Clone(); break;
+                    case Clock.StartRequest start: Request = start.Clone(); break;
+                    case Clock.RenewRequest renew: Request = renew.Clone(); break;
+                    case Clock.SpeedRequest speed: Request = speed.Clone(); break;
+                    default: throw new ArgumentException("Unsupported admitted request type.", nameof(request));
+                }
+            }
         }
 
         internal NativeAttemptLedger(Common.Identity identity)
@@ -100,9 +124,9 @@ namespace HomeBridge.BridgeTools
                 || owner.ControllerSessionId != request.Precondition.Attempt.ControllerSessionId
                 || !owner.HasPlayerDirection || owner.PlayerDirection == 0)
                 return Refused(Common.FailureCode.InvalidRequest, "Admission context and owner must match the validated request.");
-            var entry = new Entry(method, request, context, owner);
+            var entry = new Entry(method, request, request.Precondition, context, owner);
             var handle = new Admission();
-            entries.Add(entry.Request.Precondition.Attempt.Clone(), entry);
+            entries.Add(entry.Precondition.Attempt.Clone(), entry);
             handles.Add(handle, entry);
             return new Decision(DecisionKind.Admitted, handle);
         }
@@ -129,8 +153,9 @@ namespace HomeBridge.BridgeTools
             RequireThread();
             if (handle == null || !handles.TryGetValue(handle, out var entry))
                 throw new ArgumentException("Admission does not belong to this ledger.", nameof(handle));
+            if (!(entry.Request is Operations.ExecuteRequest)) throw new ArgumentException("Admission belongs to clock control.", nameof(handle));
             if (entry.Receipt != null) throw new InvalidOperationException("An admitted receipt is immutable once recorded.");
-            receipt.Attempt = entry.Request.Precondition.Attempt.Clone();
+            receipt.Attempt = entry.Precondition.Attempt.Clone();
             receipt.AdmittedContext = entry.Context.Clone();
             receipt.AuthorizingOwner = entry.Owner.Clone();
             entry.Receipt = receipt;
@@ -148,10 +173,132 @@ namespace HomeBridge.BridgeTools
                 return new Receipts.LookupReply { Unknown = new Receipts.UnknownAttempt { Context = current.Clone() } };
             if (!current.Identity.Equals(entry.Context.Identity))
                 return new Receipts.LookupReply { Failure = Failure(Common.FailureCode.StaleIdentity, "Attempt belongs to another map.") };
+            if (!(entry.Request is Operations.ExecuteRequest))
+                return new Receipts.LookupReply { Failure = Failure(Common.FailureCode.AttemptConflict, "Attempt belongs to clock control.") };
             return entry.Receipt != null
                 ? new Receipts.LookupReply { Receipt = entry.Receipt.Clone() }
                 : new Receipts.LookupReply { InFlight = new Receipts.InFlight
                     { Attempt = attempt.Clone(), AdmittedContext = entry.Context.Clone() } };
+        }
+
+        internal ClockDecision InspectClock(string method, IMessage request)
+        {
+            RequireThread();
+            var pre = ClockPrecondition(method, request);
+            var invalid = ValidateClockRequest(request, pre);
+            if (invalid != null) return ClockRefused(invalid.Value, "Invalid or stale clock attempt envelope.");
+            if (entries.TryGetValue(pre!.Attempt, out var entry))
+            {
+                if (!string.Equals(method, entry.Method, StringComparison.Ordinal) || !SameMessage(request, entry.Request))
+                    return ClockRefused(Common.FailureCode.AttemptConflict, "Attempt key already identifies a different request or original precondition.");
+                return entry.ClockReceipt != null
+                    ? new ClockDecision(DecisionKind.Replay, reply: new Clock.ControlReply { Receipt = entry.ClockReceipt.Clone() })
+                    : new ClockDecision(DecisionKind.InFlight, reply: new Clock.ControlReply { Receipt = ClockInFlight(entry) });
+            }
+            return entries.Count == Capacity
+                ? ClockRefused(Common.FailureCode.CapacityExhausted, "The native attempt ledger is full; no attempt was admitted.")
+                : new ClockDecision(DecisionKind.New);
+        }
+
+        internal ClockDecision AdmitClock(string method, IMessage request, Common.ObservationContext context, Authority.Owner owner)
+        {
+            var prior = InspectClock(method, request);
+            if (prior.Kind != DecisionKind.New) return prior;
+            var pre = ClockPrecondition(method, request)!;
+            if (!ValidContext(context) || !context.Identity.Equals(pre.Identity)
+                || !context.HasNativeGeneration || context.NativeGeneration != pre.ExpectedGeneration
+                || owner == null || !owner.HasControllerSessionId || !Identifier(owner.ControllerSessionId)
+                || owner.ControllerSessionId != pre.Attempt.ControllerSessionId
+                || !owner.HasPlayerDirection || owner.PlayerDirection == 0)
+                return ClockRefused(Common.FailureCode.InvalidRequest, "Admission context and owner must match the validated request.");
+            var entry = new Entry(method, request, pre, context, owner);
+            var handle = new Admission();
+            entries.Add(entry.Precondition.Attempt.Clone(), entry);
+            handles.Add(handle, entry);
+            return new ClockDecision(DecisionKind.Admitted, handle);
+        }
+
+        internal Clock.ControlReceipt FinishClockApplied(Admission handle, Clock.Status observed)
+        {
+            var entry = ClockEntry(handle);
+            RequireClockEvidence(observed, entry);
+            return FinishClock(entry, new Clock.ControlReceipt { Applied = new Clock.AppliedControl { Status = observed.Clone() } });
+        }
+
+        internal Clock.ControlReceipt FinishClockUncertain(Admission handle, Clock.Status? lastObserved, string detail)
+        {
+            var entry = ClockEntry(handle);
+            if (lastObserved != null) RequireClockEvidence(lastObserved, entry);
+            return FinishClock(entry, new Clock.ControlReceipt { Uncertain = new Clock.UncertainControl
+                { LastObserved = lastObserved?.Clone(), Detail = Diagnostic(detail) } });
+        }
+
+        private Entry ClockEntry(Admission handle)
+        {
+            RequireThread();
+            if (handle == null || !handles.TryGetValue(handle, out var entry))
+                throw new ArgumentException("Admission does not belong to this ledger.", nameof(handle));
+            if (entry.Request is Operations.ExecuteRequest) throw new ArgumentException("Admission belongs to operations.", nameof(handle));
+            if (entry.ClockReceipt != null) throw new InvalidOperationException("An admitted receipt is immutable once recorded.");
+            return entry;
+        }
+
+        private static Clock.ControlReceipt FinishClock(Entry entry, Clock.ControlReceipt receipt)
+        {
+            receipt.Attempt = entry.Precondition.Attempt.Clone();
+            receipt.AdmittedContext = entry.Context.Clone();
+            receipt.AuthorizingOwner = entry.Owner.Clone();
+            entry.ClockReceipt = receipt;
+            return receipt.Clone();
+        }
+
+        private static void RequireClockEvidence(Clock.Status status, Entry entry)
+        {
+            if (status == null || status.StateCase == Clock.Status.StateOneofCase.None || !ValidContext(status.Context)
+                || !status.Context.Identity.Equals(entry.Context.Identity) || status.Context.Tick < entry.Context.Tick)
+                throw new ArgumentException("Clock evidence requires an explicit state and fresh admission-scoped context.", nameof(status));
+        }
+
+        internal Clock.AttemptReply LookupClock(Common.AttemptKey attempt, Common.ObservationContext current)
+        {
+            RequireThread();
+            if (!ValidAttempt(attempt) || !ValidContext(current))
+                return new Clock.AttemptReply { Failure = Failure(Common.FailureCode.InvalidRequest, "A valid attempt and current context are required.") };
+            if (!SameLoad(current.Identity))
+                return new Clock.AttemptReply { Failure = Failure(Common.FailureCode.StaleIdentity, "Ledger belongs to another colony or load.") };
+            if (!entries.TryGetValue(attempt, out var entry)) return new Clock.AttemptReply { Unknown = new Clock.AttemptUnknown() };
+            if (!current.Identity.Equals(entry.Context.Identity))
+                return new Clock.AttemptReply { Failure = Failure(Common.FailureCode.StaleIdentity, "Attempt belongs to another map.") };
+            if (entry.Request is Operations.ExecuteRequest)
+                return new Clock.AttemptReply { Failure = Failure(Common.FailureCode.AttemptConflict, "Attempt belongs to operations.") };
+            return new Clock.AttemptReply { Receipt = entry.ClockReceipt?.Clone() ?? ClockInFlight(entry) };
+        }
+
+        private static Clock.ControlReceipt ClockInFlight(Entry entry) => new Clock.ControlReceipt
+        {
+            Attempt = entry.Precondition.Attempt.Clone(), AdmittedContext = entry.Context.Clone(), AuthorizingOwner = entry.Owner.Clone(),
+            Uncertain = new Clock.UncertainControl { Detail = "Attempt is admitted and still in flight; no new effect was dispatched." }
+        };
+
+        private static Authority.WritePrecondition? ClockPrecondition(string method, IMessage request)
+        {
+            switch (request)
+            {
+                case Clock.StartRequest start when method == "rimgovernor.clock.v1.Clock/Start": return start.Authority;
+                case Clock.RenewRequest renew when method == "rimgovernor.clock.v1.Clock/Renew": return renew.Authority;
+                case Clock.SpeedRequest speed when method == "rimgovernor.clock.v1.Clock/ChangeSpeed": return speed.Authority;
+                default: return null;
+            }
+        }
+
+        private Common.FailureCode? ValidateClockRequest(IMessage request, Authority.WritePrecondition? pre)
+        {
+            if (pre == null || !ValidIdentity(pre.Identity) || !ValidAttempt(pre.Attempt)
+                || !pre.HasExpectedGeneration || pre.ExpectedGeneration == 0 || !pre.HasLeaseId || !Identifier(pre.LeaseId))
+                return Common.FailureCode.InvalidRequest;
+            if (!request.Equals(request.Descriptor.Parser.WithDiscardUnknownFields(true).ParseFrom(request.ToByteArray())))
+                return Common.FailureCode.InvalidRequest;
+            return SameLoad(pre.Identity) ? (Common.FailureCode?)null : Common.FailureCode.StaleIdentity;
         }
 
         private Common.FailureCode? ValidateRequest(string method, Operations.ExecuteRequest request)
@@ -230,6 +377,8 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure Failure(Common.FailureCode code, string detail) => new Common.Failure { Code = code, Detail = detail };
         private static Decision Refused(Common.FailureCode code, string detail) => new Decision(DecisionKind.Refused,
             reply: new Operations.ExecuteReply { Failure = Failure(code, detail) });
+        private static ClockDecision ClockRefused(Common.FailureCode code, string detail) => new ClockDecision(DecisionKind.Refused,
+            reply: new Clock.ControlReply { Failure = Failure(code, detail) });
         private void RequireThread()
         {
             if (Thread.CurrentThread.ManagedThreadId != thread) throw new InvalidOperationException("Attempt ledger requires its owning game thread.");

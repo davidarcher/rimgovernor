@@ -114,6 +114,7 @@ internal static class Program
         otherThread.Start(); otherThread.Join(); Check(threadFailure is InvalidOperationException,"cross-thread use refused");
         EqualityCheck();
         CapacityCheck();
+        checks += ClockLedgerChecks.Run();
         Console.WriteLine("Native attempt ledger passed "+checks+" checks; pure production source, no native dispatch.");
     }
     private static void EqualityCheck()

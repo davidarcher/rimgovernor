@@ -32,6 +32,13 @@ are refused using the official discard-unknown parser; strict ProtoJSON already
 refuses unknown field names at the external boundary. Per-operation enum/value
 legality and observation completeness remain the adapter's responsibility.
 
-Clock admissions must join this same per-load capacity/attempt namespace when
-implemented. This initial API accepts typed operations requests only; it does not
-create a second clock ledger or enable clock execution.
+Clock `InspectClock`/`AdmitClock` accept only official StartRequest, RenewRequest
+and SpeedRequest messages with their exact RPC names. These share the same 4096
+entries with operations; cross-family key reuse conflicts, and wrong-family
+lookups report AttemptConflict. `FinishClockApplied` requires explicit observed
+status; `FinishClockUncertain` permits missing evidence. Status evidence must
+carry the same identity and a tick at or after admission. Clock ReadAttempt has
+no in-flight branch, so `LookupClock` returns transient correlated uncertainty
+until finalization. Tests cover both families filling one ledger, immutable clock
+replay after generation changes, exact epoch/policy equality and method/type
+mismatches. This ledger does not itself enable clock execution.
