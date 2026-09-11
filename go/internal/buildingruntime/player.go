@@ -37,6 +37,7 @@ type Player struct {
 	cancelEpoch     context.CancelFunc
 	stopLifetime    func() bool
 	closing, closed bool
+	workerAttached  bool
 }
 
 func NewPlayer(ctx context.Context, config PlayerConfig, journal *store.Store, session *Session, worlds WorldSource) (*Player, error) {
