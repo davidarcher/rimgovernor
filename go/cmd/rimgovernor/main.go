@@ -2,21 +2,31 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/davidarcher/RimGovernor/go/internal/testkit"
 )
 
 func run(args []string, out, errors io.Writer) int {
+	return runContext(context.Background(), args, out, errors)
+}
+
+func runContext(ctx context.Context, args []string, out, errors io.Writer) int {
 	if len(args) == 0 || (len(args) == 1 && (args[0] == "help" || args[0] == "--help")) {
-		fmt.Fprintln(out, "RimGovernor Go migration tools\nUsage: rimgovernor version\n       rimgovernor replay <expected.json> <actual.json>\nNative runtime is unavailable in this build.")
+		fmt.Fprintln(out, "RimGovernor Go controller\nUsage: rimgovernor version\n       rimgovernor replay <expected.json> <actual.json>\n       rimgovernor serve --read-only --gabs PATH --config PATH --game ID --state PATH\nNative writes are unavailable in this build.")
 		return 0
 	}
 	if len(args) == 1 && args[0] == "version" {
-		fmt.Fprintln(out, "RimGovernor Go foundation (G01; native runtime unavailable)")
+		fmt.Fprintln(out, "RimGovernor Go controller (read-only; native writes unavailable)")
 		return 0
+	}
+	if args[0] == "serve" {
+		return serve(ctx, args[1:], out, errors)
 	}
 	if args[0] == "replay" {
 		if len(args) != 3 {
@@ -56,5 +66,8 @@ func replayFiles(expectedPath, actualPath string, out, errors io.Writer) int {
 }
 
 func main() {
-	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	code := runContext(ctx, os.Args[1:], os.Stdout, os.Stderr)
+	stop()
+	os.Exit(code)
 }

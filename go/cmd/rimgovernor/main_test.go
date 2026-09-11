@@ -22,7 +22,7 @@ func TestHelpPreservesNativeGateAndListsReplay(t *testing.T) {
 		var out, errors bytes.Buffer
 		if got := run(args, &out, &errors); got != 0 || errors.Len() != 0 ||
 			!strings.Contains(out.String(), "replay <expected.json> <actual.json>") ||
-			!strings.Contains(out.String(), "Native runtime is unavailable") {
+			!strings.Contains(out.String(), "Native writes are unavailable") {
 			t.Fatalf("%q: exit=%d stdout=%q stderr=%q", args, got, &out, &errors)
 		}
 	}
@@ -110,7 +110,7 @@ func TestReplayUsage(t *testing.T) {
 
 func TestVersionReportsMigrationGate(t *testing.T) {
 	var out, errors bytes.Buffer
-	if run([]string{"version"}, &out, &errors) != 0 || !strings.Contains(out.String(), "native runtime unavailable") {
+	if run([]string{"version"}, &out, &errors) != 0 || !strings.Contains(out.String(), "native writes unavailable") {
 		t.Fatalf("stdout=%q stderr=%q", &out, &errors)
 	}
 }
