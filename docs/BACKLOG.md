@@ -865,6 +865,12 @@ only intentional small, sanitized regression fixtures belong in source control.
           - [ ] **06b.3b.5d:** opt-in building service composition and minimal player
             controls. Owner: integrator; depends on 5b–c. Join all workers before
             releasing native, profile and database ownership.
+            - [ ] **06b.3b.5d.1:** explicitly selected building-control service mode
+              with one profile owner and joined lifecycle. Owner: integrator;
+              depends on 5b.3 and 5c.2. Startup never acquires authority.
+            - [ ] **06b.3b.5d.2:** typed dashboard submission, Acquire and Manual
+              controls. Owner: UI agent; depends on 5c.2 and 09b.1. Preserve drafts
+              and request IDs across uncertain replies and background refreshes.
           - [ ] **06b.3b.5e:** native HTTP submission, Manual and restart acceptance.
             Owner: integrator with N01; depends on 5d and 06c.2. Verify ordinary
             pawn completion; no automatic clock control in this slice.
