@@ -91,6 +91,12 @@ reviewer to the service clock worker. It uses the default routine thresholds and
 requires typed colony observations. Startup remains disabled. This option journals
 needs; it does not select methods or issue routine orders. Live service acceptance,
 remaining fact projection, method selection and execution composition remain in G01.05.
+For native review acceptance, pass `--routine-reviews` to
+`scripts/native_go_clock_acceptance.py` through the documented container scenario
+launcher with the private construction/interruption fixtures and verified Go binary.
+It checks the SDK read trace, all fourteen durable goals, unknown food forecast,
+Manual invalidation and absence of routine methods. Evidence-validator unit tests
+do not substitute for that game run.
 
 ## Local interpretation
 

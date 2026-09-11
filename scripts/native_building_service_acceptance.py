@@ -138,11 +138,14 @@ async def joined_shutdown(process, record, timeout=30):
 
 
 @asynccontextmanager
-async def service(binary, gabs, configuration, profile, state, directory, report, *, clock_control=False):
+async def service(binary, gabs, configuration, profile, state, directory, report, *, clock_control=False, routine_reviews=False):
     directory.mkdir()
     record = {"phase": directory.name, "argv": service_argv(binary, gabs, configuration, profile, state), "joined": False}
     if clock_control:
         record["argv"].append("--clock-control")
+    if routine_reviews:
+        assert clock_control, "Routine review acceptance requires clock control"
+        record["argv"].append("--routine-reviews")
     report.setdefault("service_phases", []).append(record)
     with (directory / "stderr.txt").open("wb") as stderr, (directory / "stdout.txt").open("wb") as stdout:
         process = await asyncio.create_subprocess_exec(*record["argv"], stdout=asyncio.subprocess.PIPE, stderr=stderr)

@@ -7,6 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+import sqlite3
 import traceback
 
 from native_building_service_acceptance import (
@@ -16,12 +17,14 @@ from native_building_service_acceptance import (
 )
 
 
-def audit(events, baseline, capabilities, *, restart):
+def audit(events, baseline, capabilities, *, restart, routine_reviews=False):
     ordered = sorted(events, key=lambda row: row["Sequence"])
     sequences = [row["Sequence"] for row in ordered]
     assert sequences and sequences == list(range(baseline + 1, sequences[-1] + 1)), "Incomplete SDK operation history"
     clocks = {"rimgovernor/clock_" + name for name in ("read_status", "read_events", "read_attempt", "pause")}
     allowed = READS | DIAGNOSTICS | clocks | {"rimgovernor/observations_list_pawns"}
+    if routine_reviews and not restart:
+        allowed |= {"rimgovernor/observations_read_colony_facts"}
     if not restart:
         allowed |= {CONTROL, EXECUTE, "rimgovernor/operations_preview", "rimgovernor/placement_preview",
                     "rimgovernor/clock_start", "rimgovernor/clock_renew"}
@@ -40,6 +43,8 @@ def audit(events, baseline, capabilities, *, restart):
     if not restart:
         assert "rimgovernor/clock_start" in names and "rimgovernor/clock_pause" in names
         assert names.count(EXECUTE) >= 1
+        if routine_reviews:
+            assert "rimgovernor/observations_read_colony_facts" in names
     return names
 
 
@@ -54,7 +59,36 @@ def interrupted_by_letter(events, letter_id):
     return matching[0]
 
 
-async def run(root, output, binary, *, go_source, go_sha256):
+def routine_evidence(database, identity, *, enabled):
+    with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
+        db.execute("BEGIN")
+        row = db.execute("SELECT payload FROM routine_review WHERE singleton=1").fetchone()
+        assert row is not None, "No durable routine review"
+        review = json.loads(row[0])
+        assert review["Revision"] > 0 and review["Enabled"] is enabled
+        scope = review["Snapshot"]
+        assert scope["Colony"] == identity["colonyId"] and scope["Load"] == identity["loadToken"] and scope["Map"] == identity["mapId"]
+        bindings = review["Goals"]
+        expected = {"ConfirmColonyNames", "ActiveCombat", "CriticalMedical", "RestoreWorkers", "AllowStartingSupplies",
+                    "EnsureWorkAssignments", "EnsureFoodSupply", "EnsureInitialShelter", "EnsureTemperatureSafety",
+                    "EnsureCooking", "EnsureBasicPower", "EnsureFoodStorage", "EnsureBasicDefense", "MaintainWood"}
+        assert len(bindings) == 14 and {v["Need"] for v in bindings} == expected
+        goals = {}
+        for binding in bindings:
+            row = db.execute("SELECT payload FROM goals WHERE id=?", (binding["Goal"],)).fetchone()
+            assert row is not None, "Missing bound goal"
+            goal = json.loads(row[0])
+            assert goal["Source"] == "autopilot" and goal["Snapshot"] == scope
+            assert goal["Tick"] <= review["Tick"]
+            if not enabled:
+                assert goal["Status"] in {"invalidated", "cancelled"}
+            goals[binding["Need"]] = goal
+        assert goals["EnsureFoodSupply"]["Need"] == "unknown", "Raw food runway became policy forecast"
+        assert db.execute("SELECT count(*) FROM goal_methods").fetchone()[0] == 0, "Review unexpectedly created methods"
+        return {"review": review, "goals": goals}
+
+
+async def run(root, output, binary, *, go_source, go_sha256, routine_reviews=False):
     assert Path("/.dockerenv").is_file(), "Use the isolated scenario launcher"
     output.mkdir(parents=True, exist_ok=False)
     report = {"passed": False, "source": go_source,
@@ -88,7 +122,7 @@ async def run(root, output, binary, *, go_source, go_sha256):
             rows = payload(await evidence.call(bridge, label + "-events", "rimbridge/list_operation_events", request))["events"]
             assert rows and len(rows) < 5000
             if baseline is not None:
-                report.setdefault("traces", {})[label] = audit(rows, baseline, caps, restart=restart)
+                report.setdefault("traces", {})[label] = audit(rows, baseline, caps, restart=restart, routine_reviews=routine_reviews)
             return max(row["Sequence"] for row in rows)
 
         async with bridge_session(gabs, configuration) as bridge:
@@ -127,7 +161,7 @@ async def run(root, output, binary, *, go_source, go_sha256):
             assert result["record"]["phase"] == "granted" and result["state"]["enabled"]
             return result
 
-        async with service(private, gabs, configuration, profile, database, output / "operate", report, clock_control=True) as http:
+        async with service(private, gabs, configuration, profile, database, output / "operate", report, clock_control=True, routine_reviews=routine_reviews) as http:
             initial = await state(http, paused=True)
             assert initial["game"]["tick"] == tick
             assert not (await http("GET", "/api/player/control"))["state"]["enabled"]
@@ -140,6 +174,8 @@ async def run(root, output, binary, *, go_source, go_sha256):
             stopped = await state(http, paused=True)
             assert stopped["game"]["tick"] == letter["scheduledTick"]
             report["interrupted_state"] = stopped
+            if routine_reviews:
+                report["routine_after_interruption"] = routine_evidence(database, identity, enabled=True)
             # Let the poller catch the stopped event as well as its notification.
             await asyncio.sleep(2)
             review = await http("GET", "/api/player/clock")
@@ -161,6 +197,8 @@ async def run(root, output, binary, *, go_source, go_sha256):
             await asyncio.sleep(2)
             assert (await state(http, paused=True))["game"]["tick"] == paused["game"]["tick"]
             report["manual_state"] = paused
+            if routine_reviews:
+                report["routine_after_manual"] = routine_evidence(database, identity, enabled=False)
             manual_review = await poll(http, "/api/player/clock", lambda v: bool(v["holds"]) and v["reviewedCursor"] == v["inboxCursor"])
             report["manual_review"] = manual_review
             manual_ack = await http("POST", "/api/player/clock/acknowledge", body={"requestId": "inspect-manual",
@@ -203,7 +241,7 @@ async def run(root, output, binary, *, go_source, go_sha256):
             report["completed_building"] = rows[0]
             baseline = await capture(bridge, "restart-baseline")
 
-        async with service(private, gabs, configuration, profile, database, output / "restart", report, clock_control=True) as http:
+        async with service(private, gabs, configuration, profile, database, output / "restart", report, clock_control=True, routine_reviews=routine_reviews) as http:
             assert (await state(http, paused=True))["game"]["tick"] == final_tick
             assert not (await http("GET", "/api/player/control"))["state"]["enabled"]
             assert await http("POST", "/api/player/clock/acknowledge", body=ack) == acknowledged
@@ -246,7 +284,8 @@ if __name__ == "__main__":
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--go-binary", type=Path, required=True)
+    parser.add_argument("--routine-reviews", action="store_true")
     add_handoff_arguments(parser)
     args = parser.parse_args()
     raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-go-clock-acceptance", args.go_binary,
-        go_source=args.go_source, go_sha256=args.go_sha256)) else 1)
+        go_source=args.go_source, go_sha256=args.go_sha256, routine_reviews=args.routine_reviews)) else 1)

@@ -609,6 +609,8 @@ expand these into another nested task tree; remove a row when its outcome is met
   The clock scheduler can attach that reviewer at its paused pre-window boundary,
   after cleanup obligations drain. `serve --routine-reviews` wires this path under
   explicit player/clock control; live service acceptance remains outstanding.
+  The clock acceptance probe's `--routine-reviews` mode checks native read attribution,
+  persisted needs and Manual invalidation; this mode still needs its live run.
   Remaining fact projection (diet/rot forecasts, further need inputs and construction
   costs), goal/reservation-history retirement,
   live review acceptance, method selection and execution composition remain

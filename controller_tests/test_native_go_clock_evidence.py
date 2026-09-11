@@ -1,5 +1,7 @@
 """Acceptance evidence must distinguish Go orchestration from protocol receipts."""
 import copy
+import json
+import sqlite3
 from pathlib import Path
 import sys
 
@@ -46,3 +48,42 @@ def test_interruption_requires_exact_native_letter_stop():
             probe.interrupted_by_letter(values, "Letter_1")
     with pytest.raises(AssertionError):
         probe.interrupted_by_letter([event], "Letter_2")
+
+
+def test_routine_trace_requires_read_and_rejects_it_on_disabled_restart():
+    rows, caps = trace("clock_read_events", "clock_start", "operations_execute", "clock_pause")
+    with pytest.raises(AssertionError):
+        probe.audit(rows, 0, caps, restart=False, routine_reviews=True)
+    rows, caps = trace("clock_read_events", "clock_start", "operations_execute", "clock_pause", "observations_read_colony_facts")
+    assert len(probe.audit(rows, 0, caps, restart=False, routine_reviews=True)) == 5
+    rows, caps = trace("clock_read_events", "observations_read_colony_facts")
+    with pytest.raises(AssertionError):
+        probe.audit(rows, 0, caps, restart=True, routine_reviews=True)
+
+
+@pytest.mark.parametrize("fault", [None, "food", "world", "missing", "active", "method"])
+def test_routine_evidence_requires_native_scope_unknown_forecast_and_manual_retirement(tmp_path, fault):
+    path = tmp_path / "review.sqlite"
+    needs = ["ConfirmColonyNames", "ActiveCombat", "CriticalMedical", "RestoreWorkers", "AllowStartingSupplies",
+             "EnsureWorkAssignments", "EnsureFoodSupply", "EnsureInitialShelter", "EnsureTemperatureSafety",
+             "EnsureCooking", "EnsureBasicPower", "EnsureFoodStorage", "EnsureBasicDefense", "MaintainWood"]
+    scope = {"Colony": "colony", "Load": "load", "Map": 0}
+    review = {"Revision": 2, "Enabled": False, "Snapshot": scope, "Tick": 7,
+              "Goals": [{"Need": name, "Goal": name} for name in needs]}
+    with sqlite3.connect(path) as db:
+        db.executescript("CREATE TABLE routine_review(singleton,payload); CREATE TABLE goals(id,payload); CREATE TABLE goal_methods(id);")
+        db.execute("INSERT INTO routine_review VALUES(1,?)", (json.dumps(review),))
+        for name in needs:
+            goal = {"Source": "autopilot", "Snapshot": dict(scope), "Tick": 7, "Status": "invalidated", "Need": "unknown"}
+            if name == "EnsureFoodSupply":
+                if fault == "food": goal["Need"] = "recovered"
+                if fault == "world": goal["Snapshot"]["Load"] = "other"
+                if fault == "active": goal["Status"] = "active"
+                if fault == "missing": continue
+            db.execute("INSERT INTO goals VALUES(?,?)", (name, json.dumps(goal)))
+        if fault == "method": db.execute("INSERT INTO goal_methods VALUES(1)")
+    identity = {"colonyId": "colony", "loadToken": "load", "mapId": 0}
+    if fault:
+        with pytest.raises(AssertionError): probe.routine_evidence(path, identity, enabled=False)
+    else:
+        assert len(probe.routine_evidence(path, identity, enabled=False)["goals"]) == 14
