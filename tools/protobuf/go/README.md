@@ -78,3 +78,11 @@ packages must be imported into this proof; add new package imports when the shar
 package grows. Missing/unregistered messages fail instead of being discarded.
 The fixed handcrafted fixtures continue to exercise meaningful presence and
 correlation values separately from descriptor coverage.
+
+`--check-go-echo` also compares every `go-echo-go-shape-*` row in the incoming
+manifest with its freshly emitted `go-shape-*` original, including the exact
+message type and typed value. Empty, missing, duplicate, extra and changed sets
+fail. C# origin rows are counted separately from Go echoes and must cover every
+registered canonical message type. Echo filenames and IDs both receive the
+`csharp-echo-` prefix; this exact prefix is removed by the reciprocal comparison.
+The output main manifest includes both original Go rows and C# echo rows.

@@ -114,6 +114,11 @@ func run(output, cross string, checkEcho bool) error {
 		if err := verifyShapeManifest(cross, output); err != nil {
 			return err
 		}
+		if checkEcho {
+			if err := verifyGoShapeEcho(cross, output); err != nil {
+				return err
+			}
+		}
 	}
 	fmt.Println("Official generated Go Protobuf proof passed;", output)
 	return nil
