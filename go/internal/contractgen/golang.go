@@ -47,7 +47,20 @@ func GenerateGo(schema *Schema, options GoOptions) ([]byte, error) {
 	for _, node := range named {
 		name := g.names[node]
 		fmt.Fprintf(&g.out, "type %s ", name)
-		if node.Type == "object" {
+		if node.OneOf != nil {
+			g.out.WriteString("struct {\n")
+			for _, branch := range node.OneOf {
+				name := g.goType(branch)
+				fmt.Fprintf(&g.out, "%s *%s `json:\"-\"`\n", name, name)
+			}
+			g.out.WriteString("}\n\n")
+			fmt.Fprintf(&g.out, "func (v %s) MarshalJSON()([]byte,error){ var data []byte; var err error; count:=0;", name)
+			for _, branch := range node.OneOf {
+				branchName := g.goType(branch)
+				fmt.Fprintf(&g.out, "if v.%s!=nil {count++;data,err=json.Marshal(v.%s);if err!=nil{return nil,err};if _,err=Decode%s(data);err!=nil{return nil,err}};", branchName, branchName, branchName)
+			}
+			g.out.WriteString("if count!=1{return nil,fmt.Errorf(\"exactly one variant branch required\")};return data,nil}\n")
+		} else if node.Type == "object" {
 			g.out.WriteString("struct {\n")
 			for _, key := range sortedKeys(node.Properties) {
 				typ, tag := g.goType(node.Properties[key]), key
@@ -132,6 +145,9 @@ func (g *goGenerator) register(node *Schema) {
 	if node.Items != nil {
 		g.register(node.Items)
 	}
+	for _, branch := range node.OneOf {
+		g.register(branch)
+	}
 }
 
 func (g *goGenerator) goType(node *Schema) string {
@@ -149,6 +165,9 @@ func (g *goGenerator) underlyingType(node *Schema) string {
 	case "array":
 		return "[]" + g.goType(node.Items)
 	case "integer":
+		if node.Nullable {
+			return "*int32"
+		}
 		return "int32"
 	case "boolean":
 		return "bool"
@@ -165,6 +184,19 @@ func (g *goGenerator) decoder(node *Schema) {
 	if node.Ref != "" {
 		target := g.schema.Definitions[strings.TrimPrefix(node.Ref, "#/$defs/")]
 		fmt.Fprintf(&g.out, "v,err:=%s(d); return %s(v),err\n}\n", g.functions[target], typ)
+		return
+	}
+	if node.OneOf != nil {
+		fmt.Fprintf(&g.out, "var zero %s;var raw json.RawMessage;if err:=d.Decode(&raw);err!=nil{return zero,err};", typ)
+		for _, branch := range node.OneOf {
+			name := g.goType(branch)
+			fmt.Fprintf(&g.out, "if v,err:=Decode%s(raw);err==nil{return %s{%s:&v},nil};", name, typ, name)
+		}
+		g.out.WriteString("return zero,fmt.Errorf(\"no matching success variant\")}\n")
+		return
+	}
+	if node.Nullable {
+		fmt.Fprintf(&g.out, "var raw json.RawMessage;if err:=d.Decode(&raw);err!=nil{return nil,err};if bytes.Equal(bytes.TrimSpace(raw),[]byte(\"null\")){return nil,nil};nested,err:=newContractDecoder(raw);if err!=nil{return nil,err};v,err:=readInteger(nested,%d,%d);if err!=nil{return nil,err};return %s(&v),nil}\n", *node.Minimum, *node.Maximum, typ)
 		return
 	}
 	switch node.Type {
@@ -188,11 +220,26 @@ func (g *goGenerator) decoder(node *Schema) {
 		fmt.Fprintf(&g.out, "result:=make(%s,0); if err:=expectDelimiter(d,'[');err!=nil{return nil,err}; for d.More(){ if len(result)>=%d{return nil,fmt.Errorf(\"too many array items\")}; value,err:=%s(d);if err!=nil{return nil,err};result=append(result,value) }; if err:=expectDelimiter(d,']');err!=nil{return nil,err}; if len(result)<%d{return nil,fmt.Errorf(\"too few array items\")}; return result,nil\n", typ, *node.MaxItems, g.functions[node.Items], *node.MinItems)
 	case "string":
 		nonblank := node.NonBlankDotNet != nil && *node.NonBlankDotNet
-		fmt.Fprintf(&g.out, "value,err:=readString(d,%d,%t);return %s(value),err\n", *node.MaxUTF16Length, nonblank, typ)
+		fmt.Fprintf(&g.out, "value,err:=readString(d,%d,%t);", *node.MaxUTF16Length, nonblank)
+		if node.Enum != nil {
+			g.out.WriteString("if err==nil {switch value {case ")
+			for i, v := range node.Enum {
+				if i > 0 {
+					g.out.WriteString(",")
+				}
+				fmt.Fprintf(&g.out, "%q", v)
+			}
+			g.out.WriteString(": default:err=fmt.Errorf(\"invalid enum value\")}};")
+		}
+		fmt.Fprintf(&g.out, "return %s(value),err\n", typ)
 	case "integer":
 		fmt.Fprintf(&g.out, "value,err:=readInteger(d,%d,%d);return %s(value),err\n", *node.Minimum, *node.Maximum, typ)
 	case "boolean":
-		fmt.Fprintf(&g.out, "value,err:=readBoolean(d);return %s(value),err\n", typ)
+		g.out.WriteString("value,err:=readBoolean(d);")
+		if node.Const != nil {
+			fmt.Fprintf(&g.out, "if err==nil && value!=%t {err=fmt.Errorf(\"invalid boolean constant\")};", *node.Const)
+		}
+		fmt.Fprintf(&g.out, "return %s(value),err\n", typ)
 	}
 	g.out.WriteString("}\n\n")
 }

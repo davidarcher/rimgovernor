@@ -17,7 +17,7 @@ import (
 
 const FormatVersion = 1
 
-// Schema is the supported JSON Schema subset. Nullable unions are not supported.
+// Schema is the supported JSON Schema subset.
 type Schema struct {
 	Dialect              string             `json:"$schema,omitempty"`
 	ID                   string             `json:"$id,omitempty"`
@@ -26,6 +26,10 @@ type Schema struct {
 	Ref                  string             `json:"$ref,omitempty"`
 	Definitions          map[string]*Schema `json:"$defs,omitempty"`
 	Type                 string             `json:"type,omitempty"`
+	Nullable             bool               `json:"-"`
+	OneOf                []*Schema          `json:"oneOf,omitempty"`
+	Const                *bool              `json:"const,omitempty"`
+	Enum                 []string           `json:"enum,omitempty"`
 	Properties           map[string]*Schema `json:"properties,omitempty"`
 	Required             []string           `json:"required,omitempty"`
 	AdditionalProperties *bool              `json:"additionalProperties,omitempty"`
@@ -73,11 +77,46 @@ func exactObject(data []byte, allowed ...string) error {
 }
 
 func (schema *Schema) UnmarshalJSON(data []byte) error {
-	if err := exactObject(data, "$schema", "$id", "title", "description", "$ref", "$defs", "type", "properties", "required", "additionalProperties", "items", "minItems", "maxItems", "minimum", "maximum", "x-integerToken", "x-maxUTF16Length", "x-nonBlankDotNet"); err != nil {
+	if err := exactObject(data, "$schema", "$id", "title", "description", "$ref", "$defs", "type", "properties", "required", "additionalProperties", "items", "minItems", "maxItems", "minimum", "maximum", "x-integerToken", "x-maxUTF16Length", "x-nonBlankDotNet", "oneOf", "const", "enum"); err != nil {
 		return err
 	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	nullable := false
+	if value := fields["type"]; len(value) > 0 && value[0] == '[' {
+		var types []string
+		if err := json.Unmarshal(value, &types); err != nil {
+			return err
+		}
+		if len(types) != 2 || !((types[0] == "integer" && types[1] == "null") || (types[1] == "integer" && types[0] == "null")) {
+			return fmt.Errorf("only nullable integer type unions are supported")
+		}
+		fields["type"] = json.RawMessage(`"integer"`)
+		data, _ = json.Marshal(fields)
+		nullable = true
+	}
 	type plain Schema
-	return json.Unmarshal(data, (*plain)(schema))
+	if err := json.Unmarshal(data, (*plain)(schema)); err != nil {
+		return err
+	}
+	schema.Nullable = nullable
+	return nil
+}
+
+func (schema Schema) MarshalJSON() ([]byte, error) {
+	type plain Schema
+	data, err := json.Marshal(plain(schema))
+	if err != nil || !schema.Nullable {
+		return data, err
+	}
+	var fields map[string]json.RawMessage
+	if err = json.Unmarshal(data, &fields); err != nil {
+		return nil, err
+	}
+	fields["type"] = json.RawMessage(`["integer","null"]`)
+	return json.Marshal(fields)
 }
 
 func (manifest *Manifest) UnmarshalJSON(data []byte) error {
@@ -296,6 +335,43 @@ func ValidateSchema(root *Schema) error {
 			completed[node] = true
 			return nil
 		}
+		if node.OneOf != nil {
+			if !named || len(node.OneOf) != 2 {
+				return fmt.Errorf("variants require two named success branches")
+			}
+			copy := *node
+			copy.OneOf, copy.Dialect, copy.ID, copy.Title, copy.Description, copy.Definitions, copy.SourceSHA256 = nil, "", "", "", "", nil, ""
+			encoded, _ := json.Marshal(copy)
+			if string(encoded) != "{}" {
+				return fmt.Errorf("oneOf validation siblings are unsupported")
+			}
+			seen := map[bool]bool{}
+			for _, branch := range node.OneOf {
+				if branch == nil || branch.Ref == "" {
+					return fmt.Errorf("variant branches require local references")
+				}
+				if err := visit(branch, false); err != nil {
+					return err
+				}
+				target := root.Definitions[strings.TrimPrefix(branch.Ref, "#/$defs/")]
+				flag := target.Properties["success"]
+				if target.Type != "object" || !required(target, "success") || flag == nil || flag.Type != "boolean" || flag.Const == nil || seen[*flag.Const] {
+					return fmt.Errorf("variant branches require distinct required boolean success constants")
+				}
+				seen[*flag.Const] = true
+			}
+			completed[node] = true
+			return nil
+		}
+		if node.Nullable && node.Type != "integer" {
+			return fmt.Errorf("only integers may be nullable")
+		}
+		if node.Const != nil && node.Type != "boolean" {
+			return fmt.Errorf("const requires boolean")
+		}
+		if node.Enum != nil && node.Type != "string" {
+			return fmt.Errorf("enum requires string")
+		}
 		if node.Type != "object" && (node.Properties != nil || node.Required != nil || node.AdditionalProperties != nil) {
 			return fmt.Errorf("object keywords on %s", node.Type)
 		}
@@ -346,9 +422,28 @@ func ValidateSchema(root *Schema) error {
 			if node.MaxUTF16Length == nil || *node.MaxUTF16Length < 0 || *node.MaxUTF16Length > 1<<20 || node.NonBlankDotNet != nil && !*node.NonBlankDotNet {
 				return fmt.Errorf("strings require bounded x-maxUTF16Length; x-nonBlankDotNet may only be true")
 			}
+			if node.Enum != nil {
+				if len(node.Enum) == 0 {
+					return fmt.Errorf("empty enum")
+				}
+				seen := map[string]bool{}
+				for _, value := range node.Enum {
+					length := 0
+					for _, r := range value {
+						length++
+						if r > 0xffff {
+							length++
+						}
+					}
+					if seen[value] || length > *node.MaxUTF16Length || node.NonBlankDotNet != nil && strings.TrimSpace(value) == "" {
+						return fmt.Errorf("invalid enum value")
+					}
+					seen[value] = true
+				}
+			}
 		case "boolean":
 		default:
-			return fmt.Errorf("unsupported type %q (nullable schemas are deferred)", node.Type)
+			return fmt.Errorf("unsupported type %q", node.Type)
 		}
 		completed[node] = true
 		return nil
