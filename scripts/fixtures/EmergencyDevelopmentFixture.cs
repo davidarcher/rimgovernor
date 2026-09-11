@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
         private static readonly List<Pawn> SpawnedOpponents = new List<Pawn>();
         [Tool("test/b04f_setup", Description = "Disposable B04f initial conditions: stocks, two manhunters, wound, mental state or native player-order equivalent. No completed-work injection.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "stocks, combat-equipment, ranged-equipment, development-settings (Peaceful), opponents, ranged-opponents, clear-opponents, wound, low-health, resting-patient, resting-injury, unavailable-doctor, external-order, external-draft")] string op,
+            [ToolParameter(Description = "stocks, combat-equipment, ranged-equipment, explosive-equipment, development-settings (Peaceful), opponents, ranged-opponents, explosive-opponents, clear-opponents, wound, low-health, resting-patient, resting-injury, unavailable-doctor, external-order, external-draft")] string op,
             [ToolParameter(Description = "Exact colonist identity for pawn cases.", DefaultValue = "")] string pawn = "",
             [ToolParameter(Description = "Desired external-draft value.", DefaultValue = false)] bool drafted = false)
         {
@@ -52,14 +52,14 @@ namespace HomeBridge.BridgeTools
                         if (!GenPlace.TryPlaceThing(weapon,center,map,ThingPlaceMode.Near)) throw new InvalidOperationException("Weapon setup refused");
                         weapons.Add(weapon.GetUniqueLoadID());
                     }
-                } else if (op == "ranged-equipment") {
+                } else if (op == "ranged-equipment" || op == "explosive-equipment") {
                     if (actor == null || actor.equipment == null || actor.Downed || actor.InMentalState
                         || actor.WorkTagIsDisabled(WorkTags.Violent) || actor.WorkTagIsDisabled(WorkTags.Shooting))
                         throw new InvalidOperationException("Exact capable ranged fixture pawn required");
                     var prior = actor.equipment.Primary;
                     if (prior != null && !actor.equipment.TryDropEquipment(prior, out _, actor.Position, false))
                         throw new InvalidOperationException("Existing equipment could not be preserved on the ground");
-                    var weapon = (ThingWithComps)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("Gun_AssaultRifle"));
+                    var weapon = (ThingWithComps)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed(op == "explosive-equipment" ? "Weapon_GrenadeFrag" : "Gun_AssaultRifle"));
                     actor.equipment.AddEquipment(weapon);
                     if (actor.equipment.Primary != weapon) throw new InvalidOperationException("Initial ranged equipment was not assigned");
                     weapons.Add(weapon.GetUniqueLoadID());
@@ -73,16 +73,17 @@ namespace HomeBridge.BridgeTools
                             if (!GenPlace.TryPlaceThing(thing,center,map,ThingPlaceMode.Near)) throw new InvalidOperationException("Fixture stock placement failed");
                         }
                     }
-                } else if (op == "opponents" || op == "ranged-opponents") {
+                } else if (op == "opponents" || op == "ranged-opponents" || op == "explosive-opponents") {
                     if (opponentGame == Current.Game && SpawnedOpponents.Any(p => !p.Destroyed))
                         throw new InvalidOperationException("Fixture opponents already exist; observe them before another setup.");
                     opponentGame = Current.Game; opponentMap = map; SpawnedOpponents.Clear();
                     if (actor != null) center = actor.Position;
                     for (var i=0;i<2;i++) {
-                        var ranged = op == "ranged-opponents";
+                        var explosive = op == "explosive-opponents";
+                        var ranged = op == "ranged-opponents" || explosive;
                         var animal = PawnGenerator.GeneratePawn(DefDatabase<PawnKindDef>.GetNamed(ranged ? "Tortoise" : "Hare"));
-                        var cell = GenRadial.RadialCellsAround(center,ranged ? 28 : 12,true).First(c => c.InBounds(map)
-                            && c.Walkable(map) && c.DistanceTo(center)>(ranged ? 24 : 8) && !c.Fogged(map)
+                        var cell = GenRadial.RadialCellsAround(center,explosive ? 12 : ranged ? 28 : 12,true).First(c => c.InBounds(map)
+                            && c.Walkable(map) && c.DistanceTo(center)>(explosive ? 10 : ranged ? 24 : 8) && !c.Fogged(map)
                             && (!ranged || GenSight.LineOfSight(center,c,map)));
                         GenSpawn.Spawn(animal,cell,map);
                         SpawnedOpponents.Add(animal);
@@ -141,7 +142,7 @@ namespace HomeBridge.BridgeTools
                         }
                     } else throw new ArgumentException("Unknown fixture operation");
                 }
-                return new { success=true, op, pawn, weapons, opponents=(op == "opponents" || op == "ranged-opponents") ? SpawnedOpponents.Select(p => p.GetUniqueLoadID()).ToArray() : new string[0], tick=Find.TickManager.TicksGame,
+                return new { success=true, op, pawn, weapons, opponents=(op == "opponents" || op == "ranged-opponents" || op == "explosive-opponents") ? SpawnedOpponents.Select(p => p.GetUniqueLoadID()).ToArray() : new string[0], tick=Find.TickManager.TicksGame,
                     orderGeneration=actor==null?(long?)null:OrderedWorkHistory.Read(actor),
                     setupOnly=true, completedWorkInjected=false };
             }, cancellationToken).ConfigureAwait(false);

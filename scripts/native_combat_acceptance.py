@@ -82,12 +82,13 @@ def overridden_attack(progress, before, after, external):
     actual_order(external, after)
 
 
-async def run(root: Path, output: Path, *, headless=True, ranged=False):
+async def run(root: Path, output: Path, *, headless=True, ranged=False, explosive=False):
+    ranged = ranged or explosive
     output.mkdir(parents=True, exist_ok=False)
     evidence = Evidence(output)
     mode = "ATTACK_MODE_RANGED" if ranged else "ATTACK_MODE_MELEE"
     job_def = "AttackStatic" if ranged else "AttackMelee"
-    report = {"passed": False, "headless": headless, "ranged": ranged, "combat_tick_budget": COMBAT_WINDOWS*TICKS_PER_WINDOW,
+    report = {"passed": False, "headless": headless, "ranged": ranged, "explosive": explosive, "combat_tick_budget": COMBAT_WINDOWS*TICKS_PER_WINDOW,
         "scope": "Actual attributed combat terminal outcome, player override and fresh claim, replay, completed-before-Manual retention; bounded shared clock waits. No damage or completion injection."}
     try:
         configuration = prepare(root) if headless else prepare_rendered(root)
@@ -111,13 +112,14 @@ async def run(root: Path, output: Path, *, headless=True, ranged=False):
                     assert people, "No healthy observed violence-capable colonist"
                     actor_id = people[0]["pawn"]["id"]
                     if ranged:
-                        gear = await call("ranged-equipment", "test/b04f_setup", {"op": "ranged-equipment", "pawn": actor_id})
+                        gear_op = "explosive-equipment" if explosive else "ranged-equipment"
+                        gear = await call(gear_op, "test/b04f_setup", {"op": gear_op, "pawn": actor_id})
                         assert gear["success"] is True and gear["completedWorkInjected"] is False and len(gear["weapons"]) == 1
                         equipped = await read("equipped-attacker", actor_id)
                         assert equipped["equipment"]["primaryId"] == gear["weapons"][0]
-                        assert any(item["thing"]["id"] == gear["weapons"][0] and item["thing"]["defName"] == "Gun_AssaultRifle"
+                        assert any(item["thing"]["id"] == gear["weapons"][0] and item["thing"]["defName"] == ("Weapon_GrenadeFrag" if explosive else "Gun_AssaultRifle")
                             for item in equipped["equipment"]["equipped"])
-                    setup = await call("opponents", "test/b04f_setup", {"op": "ranged-opponents" if ranged else "opponents", "pawn": actor_id})
+                    setup = await call("opponents", "test/b04f_setup", {"op": "explosive-opponents" if explosive else "ranged-opponents" if ranged else "opponents", "pawn": actor_id})
                     assert setup["success"] is True and setup["completedWorkInjected"] is False
                     targets = setup["opponents"]
                     assert len(targets) == len(set(targets)) == 2
@@ -226,5 +228,5 @@ async def run(root: Path, output: Path, *, headless=True, ranged=False):
 
 if __name__ == "__main__":
     parser=argparse.ArgumentParser(description=__doc__); parser.add_argument("--root",type=Path,required=True)
-    parser.add_argument("--output",type=Path); parser.add_argument("--rendered",action="store_true"); parser.add_argument("--ranged",action="store_true"); args=parser.parse_args()
-    raise SystemExit(0 if asyncio.run(run(args.root,args.output or args.root/"native-combat-acceptance",headless=not args.rendered,ranged=args.ranged)) else 1)
+    parser.add_argument("--output",type=Path); parser.add_argument("--rendered",action="store_true"); parser.add_argument("--ranged",action="store_true"); parser.add_argument("--explosive",action="store_true"); args=parser.parse_args()
+    raise SystemExit(0 if asyncio.run(run(args.root,args.output or args.root/"native-combat-acceptance",headless=not args.rendered,ranged=args.ranged,explosive=args.explosive)) else 1)
