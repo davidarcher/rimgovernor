@@ -18,11 +18,11 @@ func run(args []string, out, errors io.Writer) int {
 
 func runContext(ctx context.Context, args []string, out, errors io.Writer) int {
 	if len(args) == 0 || (len(args) == 1 && (args[0] == "help" || args[0] == "--help")) {
-		fmt.Fprintln(out, "RimGovernor Go controller\nUsage: rimgovernor version\n       rimgovernor replay <expected.json> <actual.json>\n       rimgovernor serve --read-only --gabs PATH --config PATH --game ID --state PATH [--assets DIST] [--listen IP:PORT]\nNative writes are unavailable in this build.")
+		fmt.Fprintln(out, "RimGovernor Go controller\nUsage: rimgovernor version\n       rimgovernor replay <expected.json> <actual.json>\n       rimgovernor serve --read-only --gabs PATH --config PATH --game ID --state PATH [--assets DIST] [--listen IP:PORT]\n       rimgovernor serve --building-control --profile PATH --gabs PATH --config PATH --game ID --state PATH [--assets DIST] [--listen IP:PORT]\nNative writes require explicit building-control mode and player acquisition.")
 		return 0
 	}
 	if len(args) == 1 && args[0] == "version" {
-		fmt.Fprintln(out, "RimGovernor Go controller (read-only; native writes unavailable)")
+		fmt.Fprintln(out, "RimGovernor Go controller (development; explicit building controls)")
 		return 0
 	}
 	if args[0] == "serve" {

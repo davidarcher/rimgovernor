@@ -17,12 +17,13 @@ func TestUnavailableRuntimeCannotBeStarted(t *testing.T) {
 	}
 }
 
-func TestHelpPreservesNativeGateAndListsReplay(t *testing.T) {
+func TestHelpListsExplicitModesAndReplay(t *testing.T) {
 	for _, args := range [][]string{nil, {"help"}, {"--help"}} {
 		var out, errors bytes.Buffer
 		if got := run(args, &out, &errors); got != 0 || errors.Len() != 0 ||
 			!strings.Contains(out.String(), "replay <expected.json> <actual.json>") ||
-			!strings.Contains(out.String(), "Native writes are unavailable") {
+			!strings.Contains(out.String(), "--building-control --profile PATH") ||
+			!strings.Contains(out.String(), "Native writes require explicit building-control mode and player acquisition") {
 			t.Fatalf("%q: exit=%d stdout=%q stderr=%q", args, got, &out, &errors)
 		}
 	}

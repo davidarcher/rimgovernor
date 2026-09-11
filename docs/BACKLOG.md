@@ -839,7 +839,7 @@ only intentional small, sanitized regression fixtures belong in source control.
           - [x] **06b.3b.5a.2:** persist monotonic player direction and control
             request outcomes. Owner: integrator; depends on 5a.1. Restart never
             restores a live lease or repeats an uncertain acquisition.
-          - [ ] **06b.3b.5b:** joined building worker and explicit control coordinator.
+          - [x] **06b.3b.5b:** joined building worker and explicit control coordinator.
             Owner: runtime agent; depends on 5a and 06b.3b.4a. Reconcile unknown
             attempts before dispatch; renew only an existing live acquisition.
             - [x] **06b.3b.5b.1:** expose current control state and synchronous local
@@ -849,11 +849,11 @@ only intentional small, sanitized regression fixtures belong in source control.
               and Manual through durable control requests. Owner: runtime agent;
               depends on 5a and 5b.1. Replays do not acquire; late results cannot
               enable a superseded direction. No background dispatch yet.
-            - [ ] **06b.3b.5b.3:** join bounded dispatch, reconciliation and lease
+            - [x] **06b.3b.5b.3:** join bounded dispatch, reconciliation and lease
               renewal workers around the player coordinator. Owner: runtime
               agent; depends on 5b.2. Restart observes without acquiring, and
               shutdown retains all handles until work drains.
-          - [ ] **06b.3b.5c:** typed player submission, Acquire and Manual HTTP
+          - [x] **06b.3b.5c:** typed player submission, Acquire and Manual HTTP
             endpoints with current-world checks and local player authentication.
             Owner: HTTP agent; depends on 5b. Read-only mode retains no writer.
             - [x] **06b.3b.5c.1:** bounded strict decoding into typed submission
@@ -865,7 +865,7 @@ only intentional small, sanitized regression fixtures belong in source control.
           - [ ] **06b.3b.5d:** opt-in building service composition and minimal player
             controls. Owner: integrator; depends on 5b–c. Join all workers before
             releasing native, profile and database ownership.
-            - [ ] **06b.3b.5d.1:** explicitly selected building-control service mode
+            - [x] **06b.3b.5d.1:** explicitly selected building-control service mode
               with one profile owner and joined lifecycle. Owner: integrator;
               depends on 5b.3 and 5c.2. Startup never acquires authority.
             - [ ] **06b.3b.5d.2:** typed dashboard submission, Acquire and Manual
@@ -881,11 +881,11 @@ only intentional small, sanitized regression fixtures belong in source control.
           - [x] **06b.3b.6a:** typed bounded clock event reads with cursor-gap
             evidence. Owner: bridge agent; depends on 06b.3b.6. Events report
             interruptions without granting resume or write authority.
-  - [ ] **06c:** isolated ordinary pawn construction and interruption acceptance.
+  - [x] **06c:** isolated ordinary pawn construction and interruption acceptance.
     - [x] **06c.1:** explicit Go fixture placement and read-only restart observation
       command. Owner: bridge agent; depends on 06b.3b.3–4. The native scenario
       owns startup, observed placement selection, tick advancement and cleanup.
-    - [ ] **06c.2:** ordinary pawn completion and interruption acceptance against
+    - [x] **06c.2:** ordinary pawn completion and interruption acceptance against
       native guarded adapters. Owner: integrator with N01; depends on 06c.1.
       - [x] **06c.2a:** Go placement followed by ordinary pawn completion and
         fresh-process SQLite reconciliation, without reacquisition or replacement.
@@ -893,9 +893,11 @@ only intentional small, sanitized regression fixtures belong in source control.
       - [x] **06c.2b:** extend the isolated Go observation command to assert an
         exact cancelled or interrupted native outcome. Owner: bridge agent;
         depends on 06c.1. This does not prove the actual interruption by itself.
-      - [ ] **06c.2c:** run actual Go interruption and reconciliation acceptance.
+      - [x] **06c.2c:** run actual Go interruption and reconciliation acceptance.
         Owner: integrator with N01; depends on 06c.2b. Preserve uncertain outcomes
         and verify no replacement order or reacquisition during observation.
+        Actual cancelled blueprint recovery passed with zero tick advancement.
+        Live service Manual and clock interruption remain separate runtime gates.
 
 - [ ] **G01.07 — Routine capabilities in bounded families.** Owners: domain agents.
   Each subchunk includes policy/method compilation, typed native arguments, Hands

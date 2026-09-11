@@ -1,6 +1,7 @@
 # Go controller development
 
-The module provides a read-only local service, version/help and offline replay.
+The module provides local observation and explicit building services, version/help
+and offline replay.
 Production launchers still use Python while the controller adapters
 are implemented. Go will start with fresh state; importing Python databases and
 matching historical save formats are not rewrite gates.
@@ -55,6 +56,30 @@ this command does not switch the production launcher from Python.
 
 ## Guarded building components
 
+`rimgovernor serve --building-control --profile <absolute-game-profile>` selects
+the building service. Supply the same `--gabs`, `--config`, `--game`, `--state`,
+`--listen` and optional `--assets` arguments as the observation service. The profile
+must be the shared game profile, so another controller cannot acquire its process
+lock. The service starts in Manual; it never restores a live lease from SQLite.
+
+Submit a single building through `POST /api/buildings/plans`, then explicitly
+acquire that plan through `POST /api/buildings/control/acquire`. Manual uses
+`POST /api/buildings/control/manual` and stops local work before waiting for native
+cleanup. These routes require JSON and the process token returned by
+`GET /api/buildings/session` in the `X-RimGovernor-Player` header. Tokens remain in
+memory. Requests bind exact colony/load/map identity and stable request IDs;
+acquisition also checks the current direction.
+
+An uncertain HTTP reply is resolved by reading its request ID through
+`GET /api/buildings/submission?requestId=...` or
+`GET /api/buildings/control?requestId=...`. Historical results are separate from
+current permission. Repeating a control request never acquires another lease.
+
+The worker observes unresolved attempts after restart, renews only an existing
+lease, and does not start the game clock. Actual pawn work requires the player or
+the supervised native scenario to advance time. Shutdown retains the native
+connection, database and profile owner until all work has joined.
+
 The internal building runtime combines exact native preview/map facts, complete
 SQLite reservation recovery and one-attempt execution. Authority and building
 writes use separately held typed capabilities; the read-only service has neither.
@@ -64,8 +89,8 @@ pawn construction. Unsuccessful outcomes remain distinct from unknown effects.
 
 `Executor.Stop` cancels work and joins native dispatch plus receipt persistence.
 A failed drain requires retaining the process lock, bridge and database until a
-later successful drain. Native write acceptance and the explicit player runtime
-entry point remain tracked under G01.06.
+later successful drain. Native HTTP/runtime acceptance remains tracked separately
+under G01.06; compilation does not establish completed pawn work.
 
 ## Isolated building acceptance
 
@@ -80,7 +105,9 @@ lease; acceptance of a receipt does not establish completed construction.
 The scenario advances ordinary pawn work, then runs `--mode observe` with the same
 state/profile/game paths and a new output directory, omitting `--execute` and
 `--request`. This reopens the Go journal and observes the exact attempt without
-acquiring a write lease. It succeeds only on correlated completed construction.
+acquiring a write lease. It normally requires correlated completed construction.
+Use `--expected-outcome cancelled` or `interrupted` to require that exact observed
+terminal outcome instead; unknown or pending evidence never passes.
 `--force-takeover` is for an explicitly coordinated GABS fixture handoff. Both
 modes retain raw call evidence and a report; neither starts a game or advances ticks.
 
