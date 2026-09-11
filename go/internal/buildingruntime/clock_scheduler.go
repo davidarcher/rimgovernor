@@ -31,12 +31,14 @@ type ClockSchedulerConfig struct {
 	Start   bridge.ClockStart
 	MaxAge  time.Duration
 	// Routine is reviewed only after owned clock obligations have drained.
-	Routine *RoutineReviewer
+	Routine  *RoutineReviewer
+	Sleeping *RoutineSleepingPlanner
 }
 type ClockSchedulerResult struct {
 	Attempt                      *store.ClockAttempt
 	Decision                     policy.ClockWindowDecision
 	Routine                      *store.RoutineReviewResult
+	Sleeping                     *SleepingMethodResult
 	Running, Reconciled, Cleaned bool
 }
 type ClockScheduler struct {
@@ -56,6 +58,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Routine != nil && config.Routine.player != player {
+		return nil, ErrControl
+	}
+	if config.Sleeping != nil && (config.Routine == nil || config.Sleeping.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	config.Start.Policy = proto.Clone(config.Start.Policy).(*k.WatchPolicy)
@@ -203,6 +208,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return out, reviewErr
 		}
 		out.Routine = &review
+	}
+	if s.config.Sleeping != nil {
+		method, methodErr := s.config.Sleeping.step(call, epoch)
+		if methodErr != nil {
+			return out, methodErr
+		}
+		out.Sleeping = &method
 	}
 	emergency, _, err := s.native.ReadEmergency(call, loaded.Context.Identity)
 	if err != nil {

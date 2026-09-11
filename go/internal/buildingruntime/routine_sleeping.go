@@ -59,6 +59,12 @@ func (r *RoutineSleepingPlanner) Step(ctx context.Context) (SleepingMethodResult
 		return SleepingMethodResult{}, err
 	}
 	defer done()
+	return r.step(call, epoch)
+}
+
+// step is also used by the scheduler already holding the same player gate.
+func (r *RoutineSleepingPlanner) step(call, epoch context.Context) (SleepingMethodResult, error) {
+	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
 		return SleepingMethodResult{Reason: SleepingDisabled}, nil

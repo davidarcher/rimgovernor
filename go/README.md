@@ -131,13 +131,16 @@ definition with no construction-skill prerequisite, roofed indoor cells, disjoin
 safe native previews and shared resource admission. Existing admitted footprints
 remain protected. Method identity survives retries; observed recovery opens a new
 epoch. Every preview stays under the player gate, and Manual cancels compilation.
-The compiler stores pending actions only. Service attachment, method execution and
+The compiler stores pending actions only. Method execution and
 native indoor-sleeping acceptance remain open.
 
 Add `--routine-reviews` to `serve --player-control --clock-control` to attach the
 reviewer to the service clock worker. It uses the default routine thresholds and
 requires typed colony observations. Startup remains disabled. This option journals
-needs; it does not select methods or issue routine orders. Remaining fact projection,
+needs. Add `--routine-sleeping-plans` to compile eligible shelter deficits into pending
+methods at that same paused boundary. It requires routine reviews and uses the same
+player gate; a failed preview prevents a new clock window. Startup remains disabled
+and this option does not execute methods. Remaining fact projection,
 method selection and execution composition remain in G01.05.
 `scripts/native_go_routine_acceptance.py`, run through the documented container
 scenario launcher with the private construction fixture and verified Go binary,

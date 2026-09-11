@@ -25,7 +25,8 @@ func (n *sleepingNative) PreviewBuilding(ctx context.Context, a domain.Action, s
 	n.previews++
 	b, _ := a.Building()
 	anchor := b.Cell()
-	v := bridge.BuildingPreview{Preview: policy.Preview{Action: a, Snapshot: s, Tick: 7, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), Costs: domain.Known([]policy.Amount{}), Footprint: domain.Known([]domain.Cell{anchor, {X: anchor.X, Z: anchor.Z + 1}})}, Stock: policy.StockObservation{Snapshot: s, Tick: 7}}
+	tick := domain.Tick(n.reply.GetObserved().Context.GetTick())
+	v := bridge.BuildingPreview{Preview: policy.Preview{Action: a, Snapshot: s, Tick: tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), Costs: domain.Known([]policy.Amount{}), Footprint: domain.Known([]domain.Cell{anchor, {X: anchor.X, Z: anchor.Z + 1}})}, Stock: policy.StockObservation{Snapshot: s, Tick: tick}}
 	if n.onPreview != nil {
 		n.onPreview(ctx, &v)
 	}

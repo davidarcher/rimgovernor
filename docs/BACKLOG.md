@@ -633,7 +633,9 @@ expand these into another nested task tree; remove a row when its outcome is met
   A player-gated indoor-sleeping compiler now turns reviewed shelter deficits into
   complete pending shared methods using native definition/room/placement facts,
   protected admissions and stable epoch identities. Cleanup needs now derive from
-  the shared owned-draft journal. Compiler service attachment, execution and native
+  the shared owned-draft journal. Opt-in `--routine-sleeping-plans` attaches compilation
+  to the paused service review boundary; startup stays disabled and preview failures
+  block new clock windows. Method execution and native
   indoor-sleeping acceptance remain open.
   Remaining fact projection (further need inputs and construction
   costs), unsuccessful-plan resource release,
