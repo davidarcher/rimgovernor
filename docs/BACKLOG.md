@@ -1042,6 +1042,10 @@ only intentional small, sanitized regression fixtures belong in source control.
       depends on 09c.2 and 09c.3. Fixed current-world GET returns canonical
       ProtoJSON sections with unavailable/partial evidence; no acknowledgement,
       dismissal or resume capability. Use the existing attached client.
+    - [ ] **09c.6:** dashboard letter/message/alert observations. Owner: UI agent;
+      depends on 09c.2 and 09c.4, with the fixed 09c.5 HTTP contract. Preserve
+      section availability, partial lists and last-good current-world data.
+      Display observations only; no acknowledgement or action controls.
   - [ ] **09d:** trusted host lifecycle admission for save/load. Owner: integrator;
     depends on 06 and supported owned-resource cleanup. Bind the actual attached
     instance and current player direction, join writers, complete draft/input

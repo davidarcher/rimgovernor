@@ -62,6 +62,12 @@ optional presence and decimal strings for 64-bit integers. A service without the
 provider returns 404; unavailable or stale observations use the local API's
 sanitized error shape. These reads cannot select, move the camera or send input.
 
+`GET /api/presentation/notifications` uses the same read contract and includes
+letters, messages and alerts with fixed limits of 40, 12 and 40. Successful
+responses preserve the canonical `NotificationsReply` sections, including a
+section's explicit unavailable outcome. Viewing a notification does not
+acknowledge it, dismiss it or resume play.
+
 ## Guarded building components
 
 `rimgovernor serve --building-control --profile <absolute-game-profile>` selects
