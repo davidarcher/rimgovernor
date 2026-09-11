@@ -148,7 +148,10 @@ attacks require projectile lineage and remain Unsupported. A receipt certifies
 the issued job. Completion requires positive native damage from that exact melee
 attack to cause death, or downing when a standing target was required. Unrelated
 death is unsuccessful; a vanished job without causal evidence remains unknown.
-Compiled callback checks do not establish native gameplay acceptance.
+Fresh headless acceptance verifies actual melee death, player-order interruption,
+fresh owned recovery, immutable replay and completed-before-Manual retention.
+Compiled checks cover unrelated/nested damage refusal and repair of each required
+live hook; their callback states do not replace game acceptance of those cases.
 
 Current source inventory: 80 production exports, 56 fixture exports, 149 handwritten
 C# source files and nine generated Protobuf compile inputs. Source declarations do

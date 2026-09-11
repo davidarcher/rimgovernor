@@ -1396,10 +1396,15 @@ main. Native package and Go production cutover remain independent.
   interruption. Queued orders remain pending. Cleanup attribution survives an
   in-flight lease expiry without restoring write permission; fault-injected native
   expiry and uncertain-order recovery still require game acceptance.
-  Guarded melee `AttackTarget` and exact animal target snapshots are in integration.
-  Accept native attributed downing/death, immutable replay, player override and
-  unrelated damage refusal before landing. Ranged attacks still require projectile
-  launch lineage; complete that path with actual native hit and interruption evidence.
+  Guarded melee `AttackTarget` has native acceptance for exact animal target
+  snapshots, attributed target death, immutable replay, player-order interruption,
+  refused adoption of player drafts, fresh owned recovery and cleanup after Manual.
+  Completed-before-Manual evidence remains observable. Compiled checks cover
+  unrelated/nested damage refusal and exact live melee-hook repair. Extend game
+  acceptance to attributed downing, unrelated damage and uncertain dispatch.
+  Ranged attacks require retained projectile launch/impact lineage; ordinary bullet
+  impact notifications must not acquire direct-hit attribution. Explosions require
+  separate retained explosion lineage across simulation ticks.
   Native lost-reply fault injection,
   instant/replacement construction cases and remaining operation families are open.
 
