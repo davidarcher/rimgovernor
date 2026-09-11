@@ -75,7 +75,7 @@ func TestClockServiceDisabledStartupPollsAndJoins(t *testing.T) {
 	reads := &buildingReadFake{serviceFake: serviceFake{entered: make(chan struct{}, 2)}}
 	clock := &clockServiceFake{reads: reads, polled: make(chan struct{}, 1)}
 	caps := unusedBuildingCapabilities{}
-	config := serveConfig{playerControl: true, clockControl: true, routineReviews: true, routineSleepingPlans: true, routineCookingPlans: true, routineMethods: true, profile: dir, state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", refresh: time.Second, bridge: bridge.ProcessConfig{Timeout: time.Second}}
+	config := serveConfig{playerControl: true, clockControl: true, routineReviews: true, routineProjectLimit: 2, routineSleepingPlans: true, routineCookingPlans: true, routineMethods: true, profile: dir, state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", refresh: time.Second, bridge: bridge.ProcessConfig{Timeout: time.Second}}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	addresses := make(buildingAddressWriter, 1)

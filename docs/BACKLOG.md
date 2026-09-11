@@ -699,8 +699,10 @@ expand these into another nested task tree; remove a row when its outcome is met
   projects and unresolved optional methods consume capacity; method admission
   rechecks current commitments atomically. Manual clears selection, and changed
   direction/world or rewound ticks reset age. `--routine-project-limit` bounds new
-  optional projects. Fast checks cover restart, unknowns and late player admission;
-  native development-review acceptance remains pending.
+  optional projects. Native acceptance verifies observed worker capacity, the
+  accepted player's occupied slot, deficit ranking, Manual clearing and disabled
+  restart. Fast checks cover aging/restart, unknowns, cancelled uncertain projects,
+  corrupt history and player admission between review and method commit.
   Further need inputs, method selection and execution composition for
   additional routine methods remain open.
 
