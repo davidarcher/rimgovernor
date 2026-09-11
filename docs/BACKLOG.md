@@ -442,18 +442,6 @@ each bounded method.
   native lead/capture timing makes the selected action visible. Add manual-camera
   suppression and configurable/decoupled cinematic pacing before claiming a
   continuous high-speed director.
-- [x] **B15 · World progression.** Shared expedition and quest commands evaluate
-  participant eligibility, route/time risk, supplies, capacity, home staffing and
-  return storage against player policy, economic reserves and B22 care commitments.
-  Scoped native observations distinguish packing, departure, arrival, quest
-  acceptance, fulfillment, rewards and stored returns; uncertain writes are not
-  replayed. Native acceptance covers loaded round trips, settlement gifts and
-  goodwill, acquired quest goods and received rewards, failed/expired objectives,
-  short-supplied party recovery, competing cargo, emergency stops and multiple
-  active maps with stale-map refusal. Two days of prepared-colony survival and
-  cold-exposure readiness refusal are accepted; sustained seasonal survival and
-  autonomous foothold coverage remain in B04. See the
-  [world progression procedure](developers/testing/world-progression.md) for exact scenario scope.
 - [ ] **B30 · DLC gameplay systems.** Maintain an installed-content capability and
   acceptance matrix; B06b room coverage does not establish the associated gameplay.
   Discover native definitions and prerequisites, gate methods on actual colony need
@@ -490,928 +478,147 @@ each bounded method.
 
 ## G01 — Go controller rewrite
 
-This is the implementation plan and single work queue for replacing the Python
-production controller with Go. The steps below describe proposed behavior, not
-capabilities already available. Existing B-series gameplay gaps remain open;
-porting a feature does not establish its missing native acceptance.
+**Done means:** Go owns the production controller from startup through shutdown,
+all existing controller responsibilities have a working Go replacement, and the
+production install/image needs neither Python nor a Python sidecar. Delete the
+replaced Python runtime, its entry points and runtime-only dependencies. Python
+may remain only for explicitly identified development/scenario tools.
 
-### Decision and scope
+**Current starting point:** Go has transport, generated contracts, SQLite state,
+shared action execution, building and temporary-draft player controls, melee
+execution internals, local-model interpretation, dashboard observations and an
+opt-in supervised clock with interruption acknowledgement. It is still a partial
+controller; Python remains the production default. Reuse these implementations.
 
-Use Go for the external controller, retaining the React dashboard, native C#
-colony bridge, GABS/RimBridgeServer transport and configured local LM Studio.
-Own contracts in language-neutral schemas and generate Go structs, C# DTOs and
-TypeScript types where applicable. Shared language is not required for shared
-contracts; there is no established substantial cross-process logic reuse that
-requires a C# controller. Native game eligibility and simulation remain in C#.
+Work serially. Port existing behavior; do not combine this with new gameplay,
+planner redesign, UI redesign or generalized hardening. State is disposable:
+no old-save/database migration, compatibility layer or rollback rehearsal.
+Keep normal game rules, one writer, Manual cancellation, uncertain-write recovery
+and observed pawn outcomes. Follow [AGENTS.md](../AGENTS.md) and the
+[test selection guide](developers/testing/choose-tests.md). Land verified commits
+in main by fast-forward, without pushes; reuse checks when relevant code is unchanged.
 
-The objective is explicit types, smaller interfaces, predictable state ownership
-and maintainable execution. Improved CPU performance and packaging are potential
-benefits, not acceptance evidence. Measure complete native outcomes before claiming
-a speedup. Do not combine the rewrite with new gameplay policy, a transport
-replacement, UI redesign or a new planner architecture.
+### Remaining work
 
-The production Go process must eventually own lifecycle, observations, shared
-plans, deterministic policy and Hands, recovery, SQLite persistence, model chat,
-HTTP/events, video orchestration and diagnostics. Python may remain for development
-and native scenario tooling. A production Python sidecar is not a completed rewrite.
+The list is ordered for delivery: finish the current clock path, complete routine
+planning and action families, connect chat and player services, then switch and
+remove Python. Existing G01 IDs remain useful for inventory references. Do not
+expand these into another nested task tree; remove a row when its outcome is met.
 
-Development state is disposable. Start the Go runtime with a fresh database and
-fresh game state; old saves, Python database imports, reverse compatibility,
-rollback rehearsals and exact historical wire/signature parity are not acceptance
-gates. Keep existing evidence as optional reference. Prioritize working vertical
-slices and current behavioral tests; do not add compatibility capture campaigns.
-Current-session durability, cancellation, one-writer ownership and ordinary native
-outcomes remain required.
+- [ ] **G01.10a — Finish supervised clock operation.** Complete event/review
+  history maintenance so repeated windows do not eventually exhaust capacity;
+  wire the existing attempt/epoch retirement into runtime maintenance. Retain
+  unresolved writes, active ownership, unreviewed events and unacknowledged
+  interruptions/gaps; preserve cursors and acknowledgement replay. Use the actual
+  Go player service to verify ordinary pawn work, a real interruption, explicit
+  acknowledgement, Manual pause, joined shutdown and disabled restart. The
+  scheduler, workers, service option and review API/dashboard are already wired.
+  Reuse the native protocol gate; it does not prove Go orchestration.
 
-Execution is serial after the current clock-retirement slice; do not delegate more
-agents. Prioritize replacing existing Python responsibilities end to end. Preserve
-necessary current-session safety, but defer redesign and generalized hardening
-that do not block behavior replacement. Close existing deliverables rather than
-expanding nested task lists. Reuse passed checks for unchanged code.
+- [ ] **G01.05 — Complete routine planning.** Port deficit detection, method
+  selection, priorities, resource accounting, dependencies, hysteresis and spatial
+  planning from the current Python controller. Connect decisions to the existing
+  shared plans and Hands as their action families become available. Cover unknown
+  facts, competing projects, player priorities, renewed deficits and cancellation.
+  Routine events must make no model calls.
 
-### Contracts and package boundaries
+- [ ] **G01.07a — Finish defense and essential medical care.** Connect movement
+  and melee to complete defense plans using the existing owned-draft lifecycle;
+  verify target outcomes, injury interruption, player overrides and restart cleanup
+  through Go. Restrict supported ranged attacks explicitly to direct bullets
+  before enabling them; the native Ranged mode also permits explosives. Port
+  critical tending, interrupted/repeated treatment, patient rest settings and
+  medical monitoring with fresh doctor/patient facts and observed care outcomes.
+  Do not redo the accepted temporary-draft service implementation.
 
-Proposed paths become real only when their owning chunk lands:
+- [ ] **G01.07b — Port food and work allocation.** Food acquisition/production,
+  crops, cooking and work assignments must run through shared planning and Hands.
+  Preserve emergency preemption, route safety, recurring deficits and interrupted
+  production. Verify stock changes caused by ordinary pawn work.
 
-| Path | Ownership and restrictions |
-| --- | --- |
-| `contracts/` | Canonical versioned wire schemas, boundary tests and generation manifest; no game assemblies. |
-| `go/` | One Go module with pinned toolchain/dependencies and `cmd/rimgovernor`; avoid a module per subsystem. |
-| `go/internal/wire/` | Generated wire types and explicit boundary decoding/validation; generated files carry provenance. |
-| `go/internal/domain/` | Owned IDs, observations, action variants, plan specification/progress, receipts and failures; no transport or database dependencies. |
-| `go/internal/bridge/` | MCP discovery, capability/version negotiation, bounded reads, native call receipts and transport diagnostics. |
-| `go/internal/store/` | Fresh Go SQLite state, transactions, inbox/outbox durability and restart recovery. |
-| `go/internal/policy/` | Deterministic priorities, domain methods, resource admission and geometry; separate files/packages by capability. |
-| `go/internal/hands/` | The sole automated native mutation path, guarded execution and reconciliation. |
-| `go/internal/runtime/` | Session lifecycle, state ownership, scheduling, interruption and supervision. |
-| `go/internal/model/` | Local inference, semantic request validation, budgets and advisory evidence. |
-| `go/internal/server/` and `go/internal/presentation/` | Existing dashboard API/events, player controls, portraits, camera and video lifecycle. |
-| `go/internal/testkit/` | Fake transport, injected clocks/IDs, replay readers and reusable fault injection; no production fallback. |
+- [ ] **G01.07c — Port shelter and upkeep.** Complete shelter/adoption, room and
+  footprint planning, spatial reservations, storage/hauling, beds, Home coverage,
+  repairs, fire response and staged wall upgrades. Reuse building execution.
+  Preserve player exclusions, structural supports, quantity accounting and
+  recovery after layout changes. Follow food/startup priorities.
 
-Use small consumer-owned interfaces for native reads/writes, storage, clocks and
-model calls. Keep wire DTOs separate from internal state so transport evolution
-does not spread optional fields throughout policy. Domain actions must be explicit
-variants with validated constructors; state transitions must reject unsupported
-variants. Do not assume Go switches provide exhaustive variant checking: add
-coverage checks for action/handler registration.
+- [ ] **G01.07d — Port colony development.** Temperature, power, facilities,
+  equipment, research, mining/material extraction and resource development.
+  Preserve prerequisites and scarce-resource competition; verify actual outputs,
+  equipped items and completed research rather than command receipts.
 
-Do not replace Python dictionaries with `map[string]any`, reflection dispatch or
-unchecked string assertions in the core. Limit `json.RawMessage` and generic maps
-to transport extensions, raw evidence and diagnostic payloads. Represent unknown
-facts separately from known zero/false, distinguish missing and null where the wire
-does, and use integer game ticks and distinct colony/map/load/action/direction IDs.
-Keep native definition names discoverable strings rather than hardcoded game enums.
+- [ ] **G01.07e — Port remaining colony management.** Mood, extended medicine and
+  surgery, animals, waste, population and trade policy. Preserve existing player
+  policies, recurring needs and care commitments. Verify goods, health, custody
+  and containment outcomes. Use the food, medical and facility paths above.
 
-Schemas specify required fields, bounds, variants and unknown-field handling.
-Generated structs need boundary validation. Use stable action identities within
-the new Go store and refuse stale or unsupported work. C# DTOs must build against
-the native `net472` target; serializer settings are explicit. Existing Python
-serialization formats do not constrain the new disposable state format.
+- [ ] **G01.07f — Port world progression.** Caravans, quests and multiple active
+  maps: packing, departure, arrival, return/storage, rewards and failure recovery.
+  Preserve supply/home-staffing checks and stale-map rejection. Reuse existing
+  world-progression scenarios after the needed development/management paths work.
 
-The existing `bridge_observation.schema.json` describes a Python projection, not
-the entire native wire surface. Inventory actual tool schemas and native replies
-before generalizing it. Repository-owned native contracts can be generated;
-third-party/modded tools still require runtime discovery, capability checks and
-validation. Unknown mutation semantics must remain unavailable to automation.
+- [ ] **G01.08 — Connect local-model chat and player commands.** Use the existing
+  local transport, context budgeting and typed interpreter. Port the remaining
+  command families, consultation/scout/visual review and required knowledge,
+  memory and evidence retrieval; route accepted commands into the same plans and
+  Hands. Wire streaming, deduplication, cancellation and explicit unsupported-command
+  errors into the service. Use configured LM Studio models only. Verify scripted
+  invalid/cancelled replies and representative real-model player requests;
+  advisers have no native mutation capability.
 
-### Runtime correctness gates
+- [ ] **G01.09 — Finish player services and presentation.** Expose current action
+  hold/observation-failure reasons from the worker through the API and dashboard,
+  scoped to action/world/direction and cleared when stale. Finish player controls
+  for the ported command families, camera/input ownership, portraits, follow and
+  video orchestration without a Python media service. Complete trusted save/load
+  admission against the attached game: drain writers and owned resources, verify
+  pause, reject stale direction/foreign instances, then use the existing native
+  lifecycle boundary. Preserve drafts/last-good data and verify reconnects,
+  competing viewers and actual rendered/input outcomes. Existing read endpoints,
+  observation panels and building/draft/clock controls do not need reimplementation.
 
-Every chunk preserves these contracts:
+- [ ] **G01.10 — Run the complete controller in Go.** Compose routine policy,
+  all supported action families, chat, dashboard, clock, recording/diagnostics and
+  session recovery in one production process. Resolve remaining responsibility
+  gaps against the current Python source and the
+  [domain](../contracts/domain-inventory.json),
+  [interface](../contracts/interface-inventory.json) and
+  [state](../contracts/state-inventory.json) inventories. Inventories are a coverage
+  aid, not proof their old status labels are current. Verify fresh startup,
+  ordinary colony work, player interruption, world/load changes and restart with
+  Go owning the entire path. No per-operation Python fallback or dual writer.
 
-1. One durable goal/action system and one active native writer. Advisers cannot
-   issue orders; routine control performs zero model calls. Player controls use
-   their existing explicit ownership path and invalidate automated work.
-2. Persist intent before dispatch. A timeout/cancellation after dispatch means
-   uncertain outcome, not safe retry. Observe native effects before recovery;
-   receipts do not establish completed pawn work.
-3. Capture colony/map/load, direction, plan revision and relevant native generations;
-   recheck after awaits and before writes. Manual, load changes, rewinds and player
-   direction cancel pending authority. Cancelling a Go context cannot undo a game order.
-4. Serialize state commits and mutation admission. Slow I/O cannot block reception
-   of player interruption indefinitely. Returned asynchronous results are applied
-   only if their captured generations remain valid. Shutdown disarms supervision,
-   drains/closes resources and does not start new work.
-5. Preserve transaction boundaries, request deduplication and event cursors in
-   new Go sessions. Unknown recovery evidence fails closed. Use a fresh Go store;
-   never let Python and Go open the same live writable database.
-6. Preserve native discovery, normal pawn work, fresh placement/resource checks,
-   bounded execution windows, durable recording and UI drafts/last-good data.
+- [ ] **G01.11 — Package and launch Go everywhere.** Update Windows and Docker
+  build/install/launch paths, configuration and scenario adapters to run the Go
+  service with the dashboard and required media components. Keep loopback access,
+  private profiles and one-writer ownership. Produce a runnable install/image
+  without production Python; identify any Python tools retained for development.
 
-Use the existing [controller](developers/contracts/controller-contracts.md),
-[action](developers/contracts/action-contracts.md), [recovery](developers/contracts/recovery-contracts.md),
-[persistence](developers/contracts/persistence-contracts.md),
-[session](developers/contracts/session-contracts.md) and
-[interface](developers/contracts/interface-contracts.md) contracts as behavioral requirements.
-Document deliberate corrections separately; Python output is comparison evidence,
-not an oracle that overrides those requirements.
+- [ ] **G01.12 — Accept Go and make it the default.** After integration and
+  packaging, run applicable automated checks and targeted native acceptance for
+  fresh startup, ordinary pawn work, player/chat controls, interruption and
+  same-session persistence/restart. Reuse existing valid evidence. Switch all
+  production defaults and documented launch paths to Go once the controller is
+  functional and operable. Historical byte parity, performance campaigns and
+  unimplemented new B-series gameplay are not rewrite gates.
 
-### Team execution and landing protocol
+- [ ] **G01.13 — Delete the Python production controller.** Remove replaced code
+  under `controller/rimgovernor`, Python production entry points, duplicate runtime
+  implementations and runtime-only dependencies. Relocate any assets or utilities
+  still required by Go before removing their old directory. Preserve source/license
+  notices, useful fixtures and explicitly retained scenario/development tooling.
+  Update setup, architecture, source map, troubleshooting and CI. Verify the
+  production install starts and serves every supported path without a Python
+  interpreter, and no launcher, API, chat or media path silently invokes Python.
 
-Appoint one integration agent and at most three implementation agents per wave.
-Each uses a separate `codex/go-<chunk>` worktree based on the latest integrated
-dependency commit. Assign only dependency-ready work. The integrator owns shared
-schemas, public interfaces, module dependencies, build/CI, launchers and backlog
-status; workers propose shared changes before editing those files.
+### Scope and completion evidence
 
-Each assignment names a chunk/subchunk, base commit, allowed paths, source modules,
-contract pages, dependencies, deliverables, test commands and explicit exclusions.
-Before starting, inspect current main: ongoing B-series fixes may change the source
-behavior to port. Record the comparison revision and refresh relevant fixtures when
-those fixes land. Do not silently revert them during integration.
-
-Each row below is an independently reviewable landing unit. A row that exceeds
-one coherent change must be split into numbered subchunks before assignment, with
-their dependencies and coverage entered here. Do not submit an entire subsystem
-rewrite in one opaque commit. Keep main runnable with Python as the default until
-G01.12 passes. Incomplete Go paths are explicitly gated; no silent per-operation
-fallback to Python and no dual-writer mode.
-
-For each completed unit: run focused tests and contract neighbors, commit local
-changes, report exact evidence and remaining limits. The integrator rebases onto
-current main, resolves shared-file conflicts, reruns affected checks after material
-changes and performs `git merge --ff-only` from a clean, coordinated main checkout.
-If main advances or becomes dirty, stop that landing and coordinate; never reset
-or overwrite another worker's edits. No merge commits and no pushes unless asked.
-Update the relevant checkbox and evidence in the landing commit. Keep reports,
-databases, native recordings and temporary tooling under ignored `.rimgovernor/` paths;
-only intentional small, sanitized regression fixtures belong in source control.
-
-Reuse each worker's focused results. Run the full affected package suites once
-per integrated wave, with focused contract-neighbor checks; do not repeat unrelated
-suites. Reuse results after documentation-only changes and clean rebases with
-unchanged executable trees. A concrete review defect needs a focused regression;
-broaden checks only when the changed behavior or a failure justifies it.
-
-### Sequenced chunks
-
-- [x] **G01.00 — Inventory and comparison baseline.** Owner: integration agent.
-  Inventory every production Python module, HTTP/event surface, native tool used,
-  semantic command, completion kind, store table/migration, configuration option,
-  launcher and optional media feature. Create a machine-readable coverage manifest
-  under `contracts/` mapping each item to its Go owner, fixtures, native scenarios
-  and migration status; mark tooling-only/vendor code explicitly. Capture sanitized
-  representative observations, plans, receipts, failures, API responses and saved
-  states, with source revision and provenance. Use existing throughput tools to
-  establish uncontended Python timing where licensed inputs are available; otherwise
-  record that gate as pending. Accept when the manifest accounts for all runtime
-  entry points and each capability has a named test/acceptance owner. Do not infer
-  completeness from file counts. Dependencies: none.
-
-  Dependency-ready inventory subchunks (all compare against the current Python
-  revision; integrator combines them before accepting 00):
-  - [x] **00a:** production modules, semantic commands, completion kinds and
-    domain/native capability ownership; contracts/domain-inventory.json.
-  - [x] **00b:** HTTP/events, configuration, launchers and optional media surfaces;
-    contracts/interface-inventory.json.
-  - [x] **00c:** persistence/recovery surfaces and sanitized comparison fixtures;
-    contracts/state-inventory.json and contracts/fixtures/.
-  - [x] **00d:** integrator coverage validation, provenance and uncontended baseline
-    availability; depends on 00a–00c. Representative native timing is in contracts/python-baseline.json.
-    - [x] **00d.1:** reconcile production Docker helpers and canonical Go ownership;
-      inventory argument-dependent native read/write boundaries (domain agent).
-    - [x] **00d.2:** inventory platform discovery variables and tooling cache CLI
-      options with source checks (interface agent; independent of 00d.1).
-    - [x] **00d.3:** retain exact Python serialization/signature comparison cases
-      and uncertain issued-action evidence (state agent; independent of 00d.1–2).
-    - [x] **00d.4:** integrator final coverage review and baseline availability
-      record; depends on 00d.1–3. The representative Python sample retains partial-construction holds
-      and a warning pause. Do not stop another task's native scenario.
-
-  Existing fixtures are optional behavior references. Add current boundary and
-  outcome tests with their Go consumer chunks; no legacy-state capture is required.
-
-- [x] **G01.01 — Go build and replay foundation.** Owner: integration agent.
-  Add the module, minimal non-writing command, injected clocks/IDs and offline
-  replay runner. Pin a supported Go release, MCP SDK, SQLite driver and generators
-  after checking licenses, Windows/Linux support and dependency maintenance. Decide
-  CGO requirements explicitly; do not promise static binaries before media/SQLite
-  choices are tested. Add formatting, `go vet`, unit tests, supported race tests and
-  Windows/Linux builds to CI while retaining current checks. Establish fixture
-  normalization that ignores only documented nondeterministic fields, never IDs,
-  action order, generations or uncertainty. Accept reproducible clean builds and
-  a replay test that detects a deliberately altered action or receipt. Depends on 00.
-  - [x] **01a:** pinned module/dependencies, attribution and a non-writing CLI;
-    compile/test MCP and SQLite dependency support with explicit connection closure.
-    Owner: integrator. Depends on the 00 inventory/baseline gate.
-  - [x] **01b:** injected clocks/IDs and offline replay with documented normalization,
-    exact numeric/identity/order handling and deliberate action/receipt corruption
-    tests. Owner: replay agent. Depends on 01a.
-    - [x] **01b.1:** bounded raw-evidence JSON comparison and injected clock/ID
-      sources; no runtime adapters. Owner: replay agent.
-    - [x] **01b.2:** read-only file replay command, errors and file-based tests.
-      Owner: CLI agent; final validation depends on 01b.1.
-  - [x] **01c:** retained Python/dashboard checks plus Go formatting, vet, unit/race
-    tests and Windows/Linux build CI; clean platform validation and evidence.
-    Owner: integrator. Depends on 01b.
-
-- [x] **G01.02 — Shared Protobuf contracts before adapters.** Native N01 owns
-  the canonical native boundary package; the Go team supplies one consolidated
-  consumer inventory and reviews generated Go bindings. Complete all production
-  message families, semantic constraints and source/consumer coverage before either
-  team expands adapters. Use official protoc and language generators. Existing
-  saves and experimental wire formats have no compatibility obligation.
-  - [x] **02a:** pin official C#/Go toolchains, reproducible generation and drift
-    checks. Compile every schema and generated binding under net472 and Go.
-    - [x] **02a.1:** official Go plugin/runtime and generated output integration.
-    - [x] **02a.2:** official C# runtime and full binary/ProtoJSON exchange proofs,
-      preserving independent producer fixtures in both directions.
-    - [x] **02a.3:** CI generation checks and pinned toolchain provenance. Runtime
-      distribution notices follow the native package integration gate.
-  - [x] **02b:** cohesive identity, authority, clock/lifecycle, observations,
-    operations/receipts and explicit player presentation/input contracts. Include
-    consumed upstream SDK capabilities, unknown/empty facts, collection bounds,
-    concurrency preconditions, uncertain effects and observed outcome attribution.
-    Audit every current native boundary against a typed family or explicit
-    retirement; both teams review this package before adapter implementation.
-  - [x] **02c:** wire generated native request validation and typed preview reply
-    through the real SDK to Go. Owner: native N01.02 implementer; depends on 02b.
-    Coordinate with the unified native package paths. Native rules remain unchanged.
-  - [x] **02d:** one fresh isolated valid/refused/invalid invocation with no preview
-    effects. Owner: native implementer; depends on 02c. Subsequent adapter slices
-    consume the reviewed package independently and retain native outcome gates.
-  - [x] **02e:** remove the experimental custom wire generator, schema tree,
-    generated outputs and old drift checks as their current consumers cut over.
-    The interpreter and current native read consumers use their replacement decoders;
-    preserve SDK descriptor validation and independent Python observation
-    projection tooling where still consumed. This cleanup does not block other
-    adapters from consuming the reviewed Protobuf package.
-    - [x] **02e.1:** decouple model-command decoding from the experimental native
-      placement generator. Owner: model agent; depends on 02b. Keep typed,
-      catalog-grounded proposals and the current interpreter interface.
-    - [x] **02e.2:** retire unused generated outputs/compiler and their checks
-      after 02e.1 and 03b.1; preserve independently consumed Python projections.
-      Owner: integrator.
-
-- [x] **G01.03 — Read-only transport and observation.** Owner: bridge agent.
-  Port MCP process ownership, discovery, typed current observations, freshness,
-  identity checks and bounded/cancellable calls. Define read versus mutation APIs;
-  read-only mode rejects write-capable tools even when requested by name. Test
-  transport failures/reconnects and one native read with no writes or clock changes.
-  Consume the reviewed Protobuf observation families. Depends on 02a–b.
-  - [x] **03a:** owned MCP subprocess/session, discovery and bounded read-only
-    calls with cancellation/cleanup; test a real in-process SDK server and failed
-    connections. Owner: bridge agent. No mutation API or runtime scheduler yet.
-  - [x] **03b:** typed current identity/status and observation facts, explicit
-    unavailable values and freshness. Owner: bridge agent; depends on 03a and the
-    domain fact types. Add families with policy consumers and one native read smoke.
-    - [x] **03b.1:** fixed Protobuf identity/status/placement read adapters and
-      truthful typed observation projection. Owner: bridge agent; depends on 02b.
-      Keep owned SDK lifecycle and reject legacy aliases or arbitrary invocation.
-    - [x] **03b.2:** native read/preview acceptance against N01's corresponding
-      adapters. Owner: integrator; depends on 03b.1 and native 02c.
-      Identity/placement passed graphical and headless native smoke. The actual
-      read-only Go service passed fresh status refresh, unchanged paused world,
-      read-only call tracing and clean ownership handoff.
-
-- [x] **G01.04 — Typed plan and fresh Go store.** Owner: state agent. Split into
-  04a plan/action/progress types and 04b SQLite persistence/restart. Use a new Go
-  schema with explicit version checks; do not import Python databases or preserve
-  old serialization signatures. Keep transactions, durable intent, deduplication,
-  unknown-write reconciliation and action identities correct within new sessions.
-  Test rollback, reopen/restart and connection closure with real temporary SQLite.
-  Depends on 02a.1; extend variants with their actual handlers.
-  - [x] **04a:** distinct IDs/generations, plan/spec/progress and a bounded building
-    action variant with legal transitions. Owner: state agent; no legacy serializers.
-    Extend action families only alongside their Hands handlers.
-    - [x] **04a.1:** align opaque IDs and native definition/material bounds with
-      the shared UTF-8/no-NUL contract. Owner: integrator; depends on 02b.
-  - [x] **04b:** fresh versioned SQLite store, transactions/durable intent and
-    reopen/restart checks. Owner: state agent; depends on 04a.
-
-- [ ] **G01.05 — Deterministic planning kernel.** Owner: policy agent.
-  Port plan readiness/dependencies, resource accounting, priority admission,
-  hysteresis, geometry and method interfaces from `colony_policy.py`,
-  `resource_accounting.py`, `spatial.py`, `room_geometry.py` and related modules.
-  Build explicit typed inputs instead of passing the runtime object. Inject stable
-  clocks/IDs; sort map-derived decisions and use deterministic tie breaking. Accept
-  behavioral cases for deficits, unknown facts, competing projects, player priorities,
-  cancellation and starvation/hysteresis cases. Property/fuzz tests cover reservation
-  conservation, duplicate IDs and invalid geometry. No native writes. Depends on 04a.
-  - [x] **05a:** explicit building admission, known resource budgets, dependencies
-    and native footprint geometry. Owner: policy agent.
-  - [ ] **05b:** routine deficits, hysteresis and method selection; extend with
-    supported execution families after the first building vertical slice.
-
-- [x] **G01.06 — Guarded Hands and runtime vertical slice.** Owner: executor agent.
-  Split into 06a execution state machine, 06b lifecycle/supervision, and 06c native
-  construction acceptance. Port the relevant paths in `hands.py`, `bridge_runtime.py`,
-  construction grounding/preflight and projects. First support a bounded explicit
-  building action end to end: typed plan, durable intent, guarded preview/write,
-  receipt, later observed completion. Do not enable unsupported actions. Keep state
-  ownership explicit and use context cancellation plus generation validation.
-  Accept lost replies, cancellation before/after dispatch, stale plans, map/load
-  changes, partial placement, resource loss and restart, followed by actual pawn
-  construction in an isolated scenario. Benchmark scheduling without weakening
-  guards. Depends on 03, 04b and 05.
-  - [x] **06a:** single-writer execution and durable unknown-outcome reconciliation.
-    Owner: executor agent; test typed boundaries before enabling native mutations.
-    - [x] **06a.1:** measure guarded scheduling/admission and reconciliation with
-      in-memory native boundaries. Owner: executor agent; depends on 06a. Retain
-      benchmark environment and allocations; this does not measure native pawn
-      throughput or claim an improvement over Python.
-  - [x] **06b:** native atomic identity guards, attempt deduplication, runtime
-    ownership and typed placement adapter. Coordinate with N01.
-    - [x] **06b.1:** persist causally inspected equal-tick outcomes and typed known
-      unsuccessful outcomes. Owner: executor agent; depends on 02b and 06a. Preserve
-      exact attempt attribution and unknown-write reconciliation across restart.
-      - [x] **06b.1a:** expose unsuccessful stage/reason through Go HTTP and the
-        dashboard. Owner: UI agent; depends on 06b.1. Preserve closed enums, null
-        unknown facts and the existing read-only controls.
-    - [x] **06b.2:** fixed typed authority and building execution/progress adapters.
-      Owner: bridge agent; depends on 02b and 03b.1. Keep writes separate from
-      read-only clients; enable only the first building operation.
-    - [x] **06b.3:** runtime lease ownership, explicit player admission and guarded
-      building orchestration. Owner: integrator; depends on 06b.1–2 and 05.
-      - [x] **06b.3a:** project exact native building previews, complete costs and
-        material availability into policy facts. Owner: integrator; depends on
-        03b.1 and 05a. Destructive placements and unreadable materials stay held.
-      - [x] **06b.3b:** combine observed map bounds, cross-plan commitments, leases
-        and durable attempts in the runtime. Owner: integrator; depends on 06b.2
-        and 06b.3a; prove single ownership and invalidation before enabling writes.
-        - [x] **06b.3b.1:** exact-cell map bounds read using the existing typed
-          observation contract. Owner: bridge agent; depends on 03b.1.
-        - [x] **06b.3b.2:** complete durable cross-plan reservation recovery.
-          Owner: integrator; depends on 04b and 06a.
-          - [x] **06b.3b.2a:** exercise two real stored plans through Session and
-            restart, proving an uncertain first placement retains costs that hold
-            the second plan under the same native owner. Owner: runtime agent;
-            depends on 06b.3b.2 and Session assembly.
-        - [x] **06b.3b.3:** bind native preview, lease, receipt lookup and observed
-          progress to the executor boundary. Owner: bridge agent; depends on
-          06b.2, 06b.3a and 06b.3b.1–2.
-        - [x] **06b.3b.4:** trusted explicit acquisition, renewal, invalidation and
-          joined shutdown under one process lock. Owner: runtime agent; depends
-          on 06b.2 and the existing runtime ownership primitive.
-          - [x] **06b.3b.4a:** clear a previously published observation target when
-            native authority refresh fails, cancelling stale reconciliation while
-            retaining the private cleanup target. Owner: runtime agent; depends
-            on 06b.3b.4. Test failure after successful disabled target selection.
-        - [x] **06b.3b.5:** wire an explicit player-only entry point and runtime
-          worker; keep model proposals separate from authority acquisition.
-          Owner: integrator; depends on 06b.3b.3–4 and native guarded adapters.
-          - [x] **06b.3b.5a.1:** atomically persist one-building player submissions
-            with exact request replay/conflict detection and bounded catalog
-            capacity. Owner: state agent; depends on 04b. No native admission.
-          - [x] **06b.3b.5a.2:** persist monotonic player direction and control
-            request outcomes. Owner: integrator; depends on 5a.1. Restart never
-            restores a live lease or repeats an uncertain acquisition.
-          - [x] **06b.3b.5b:** joined building worker and explicit control coordinator.
-            Owner: runtime agent; depends on 5a and 06b.3b.4a. Reconcile unknown
-            attempts before dispatch; renew only an existing live acquisition.
-            - [x] **06b.3b.5b.1:** expose current control state and synchronous local
-              disable for the player coordinator. Owner: runtime agent; depends
-              only on 06b.3b.4a. Never expose lease secrets or issue native calls.
-            - [x] **06b.3b.5b.2:** serialize explicit player submission, acquisition
-              and Manual through durable control requests. Owner: runtime agent;
-              depends on 5a and 5b.1. Replays do not acquire; late results cannot
-              enable a superseded direction. No background dispatch yet.
-            - [x] **06b.3b.5b.3:** join bounded dispatch, reconciliation and lease
-              renewal workers around the player coordinator. Owner: runtime
-              agent; depends on 5b.2. Restart observes without acquiring, and
-              shutdown retains all handles until work drains.
-          - [x] **06b.3b.5c:** typed player submission, Acquire and Manual HTTP
-            endpoints with current-world checks and local player authentication.
-            Owner: HTTP agent; depends on 5b. Read-only mode retains no writer.
-            - [x] **06b.3b.5c.1:** bounded strict decoding into typed submission
-              and control requests. Owner: HTTP agent; depends on 5a. Reject
-              duplicate/unknown fields and preserve required numeric presence.
-            - [x] **06b.3b.5c.2:** authenticated routes backed by the explicit
-              coordinator. Owner: HTTP agent; depends on 5c.1 and 5b.2. Add reads
-              for historical request results separately from current permission.
-          - [x] **06b.3b.5d:** opt-in building service composition and minimal player
-            controls. Owner: integrator; depends on 5b–c. Join all workers before
-            releasing native, profile and database ownership.
-            - [x] **06b.3b.5d.1:** explicitly selected building-control service mode
-              with one profile owner and joined lifecycle. Owner: integrator;
-              depends on 5b.3 and 5c.2. Startup never acquires authority.
-            - [x] **06b.3b.5d.2:** typed dashboard submission, Acquire and Manual
-              controls. Owner: UI agent; depends on 5c.2 and 09b.1. Preserve drafts
-              and request IDs across uncertain replies and background refreshes.
-          - [x] **06b.3b.5e:** native HTTP submission, Manual and restart acceptance.
-            Owner: integrator with N01; depends on 5d and 06c.2. Verify ordinary
-            pawn completion; no automatic clock control in this slice.
-            Headless and graphical native acceptance verify submit-only zero writes, one
-            admitted placement, joined Manual shutdown and ordinary completion
-            reconciled after restart without acquisition or replacement.
-        - [x] **06b.3b.6:** typed owned clock capability and epoch/attempt reads.
-          Owner: bridge agent; depends on 02b and 06b.2. Keep speed/window control
-          separate from building dispatch and preserve exact owned pause after
-          revocation; runtime scheduling and native interruption acceptance follow.
-          - [x] **06b.3b.6a:** typed bounded clock event reads with cursor-gap
-            evidence. Owner: bridge agent; depends on 06b.3b.6. Events report
-            interruptions without granting resume or write authority.
-          Go clock scheduling and integrated interruption acceptance are tracked
-          in 10a; the explicit building vertical slice does not advance time.
-  - [x] **06c:** isolated ordinary pawn construction and interruption acceptance.
-    - [x] **06c.1:** explicit Go fixture placement and read-only restart observation
-      command. Owner: bridge agent; depends on 06b.3b.3–4. The native scenario
-      owns startup, observed placement selection, tick advancement and cleanup.
-    - [x] **06c.2:** ordinary pawn completion and interruption acceptance against
-      native guarded adapters. Owner: integrator with N01; depends on 06c.1.
-      - [x] **06c.2a:** Go placement followed by ordinary pawn completion and
-        fresh-process SQLite reconciliation, without reacquisition or replacement.
-        Graphical and headless native runs passed.
-      - [x] **06c.2b:** extend the isolated Go observation command to assert an
-        exact cancelled or interrupted native outcome. Owner: bridge agent;
-        depends on 06c.1. This does not prove the actual interruption by itself.
-      - [x] **06c.2c:** run actual Go interruption and reconciliation acceptance.
-        Owner: integrator with N01; depends on 06c.2b. Preserve uncertain outcomes
-        and verify no replacement order or reacquisition during observation.
-        Actual cancelled blueprint recovery passed with zero tick advancement.
-        Live service Manual and clock interruption remain separate runtime gates.
-
-- [ ] **G01.07 — Routine capabilities in bounded families.** Owners: domain agents.
-  Each subchunk includes policy/method compilation, typed native arguments, Hands
-  handler, postcondition reconciliation, restoration and native outcome acceptance.
-  Use `colony_controller.py`, `colony_skills.py` and the manifest's domain modules;
-  do not copy their large dispatch functions. Contracts/handler registration are
-  integrated serially, then independent family implementations may proceed in
-  parallel. Every supported action/completion kind must map to a tested handler.
-  Depends on 06; family dependencies below are minimum prerequisites.
-  - [ ] **07a:** emergency combat, draft ownership, critical medical triage and
-    treatment/recovery. Accept player draft preservation, interrupted care and
-    unsafe threat holds; do not claim unresolved active-combat care is solved.
-    - [x] **07a.1:** complete typed threat and pawn-health reads with deterministic
-      emergency holds. Depends on 06; incomplete or unknown facts hold routine
-      work. Accept an unsafe-threat case with no routine writes.
-      - [x] **07a.1a:** define immutable emergency facts and the pure hold decision.
-        Owner: integrator; depends on 06. Reuse canonical Status observations;
-        require complete pawn/threat collections and preserve unknown health.
-      - [x] **07a.1b:** project bounded native Status into emergency facts.
-        Owner: bridge agent; depends on 07a.1a. Validate actual world, native
-        generation, collection counts and presence; no new wire schema.
-      - [x] **07a.1c:** require fresh emergency clearance before preparation and
-        dispatch. Owner: executor agent; depends on 07a.1a–b. Held work retains
-        reservations and issued attempts remain observable. Test danger appearing
-        between inspections, stale health and restart, then accept native danger
-        with zero routine writes.
-        - [x] **07a.1c.1:** executor clearance gate and typed refusal reasons.
-          Owner: executor agent; depends on 07a.1a. Missing evidence holds; both
-          admission passes check it and reconciliation remains independent.
-        - [x] **07a.1c.2:** populate clearance from actual native observations in
-          the building boundary. Owner: integrator; depends on 07a.1b and c.1.
-          Validate world/native generation and monotonic read ticks, then bind
-          the captured controller direction/plan. No synthesized native facts.
-        - [x] **07a.1c.3:** isolated unsafe-threat native acceptance. Owner:
-          integrator with N01; depends on c.2. Verify zero routine writes with
-          observed danger and retain unknown-attempt reconciliation coverage.
-          Actual paused service held with two standing threats and admitted one
-          blueprint only after fixture clearance, joined restart and new explicit
-          Acquire. This gate establishes admission, not pawn-work completion.
-    - [ ] **07a.2:** owned draft action and exact-claim release in the shared
-      plan, store and Hands system. Execution depends on 07a.1 and native draft claims.
-      Accept player draft preservation, lost replies and restart cleanup.
-      - [x] **07a.2a:** bounded exact-ID pawn observation adapter. Owner: bridge
-        agent; read-only prerequisite depends on 03 and the shared observation
-        contract. Include dead pawns for cleanup inspection; preserve optional
-        CAS tokens and owned/unowned/unavailable claim evidence. Missing rows or
-        unsupported tokens never establish death, ownership or release. No writes.
-      - [x] **07a.2b:** closed owned-draft action and cleanup transitions. Owner:
-        domain agent; depends on 07a.1 and native claim acceptance. Keep intent
-        comparable and limited to exact pawn identity. Dispatch creates potential
-        cleanup responsibility; receipt/lookup binds the immutable original claim.
-        Completion and cancellation retain that responsibility. Distinguish a
-        proven claim never acquired from a claim released or positively superseded.
-      - [x] **07a.2c:** fresh typed storage and player submission. Owner: state
-        agent; depends on 2b. Generalize submitted-plan headers and closed payloads;
-        no Python import or schema migration. Journal claim evidence atomically
-        with progress. Persist each exact cleanup request, pawn CAS and journal-
-        assigned local sequence before release; cleanup has no native attempt key.
-      - [x] **07a.2d:** typed draft execution, lookup and exact release adapters.
-        Owner: bridge agent; depends on 2a, the canonical operation contracts and
-        native claim acceptance. Transport uses wire types independently of 2b. Separate
-        temporary draft capability from read-only clients; never adopt a player
-        draft or use general undraft as cleanup. Preserve uncertain outcomes.
-      - [x] **07a.2e:** draft handler in the shared Hands executor. Owner:
-        executor agent; depends on 2b–d. Use typed pawn admission without invented
-        building costs; serialize dispatch and cleanup through the same writer.
-        Inspect fresh pawn CAS before journaling the exact release request.
-        Late results cannot replace a newer local cleanup sequence.
-        - [x] **2e.1:** pure exact-pawn draft admission. Owner: policy agent;
-          depends on 2b and 07a.1. Require a healthy selected colonist, known
-          unowned undrafted state, no current forced or queued job, native
-          eligibility and fresh complete emergency facts. Known threats may admit
-          this emergency action; unknown facts never do. No write authority.
-        - [x] **2e.2:** shared executor dispatch, evidence and cleanup paths. Owner:
-          executor agent; depends on 2c–d and 2e.1. Preserve one writer and use
-          typed admissions and exact persisted cleanup requests.
-          - [x] **2e.2a:** fixed typed executor and native boundary interface. Owner:
-            integrator; depends on 2c–d, 2e.1 and 2f.1a. Separate live draft admission,
-            original-attempt observations and lease-free exact-claim cleanup.
-          - [x] **2e.2b:** shared writer implementation. Owner: executor agent;
-            depends on 2e.2a. Extend Run with the closed draft kind and expose
-            serialized cleanup after ordinary Stop. Persist uncertainty and
-            validate exact cleanup sequence before accepting late results.
-          - [x] **2e.2c:** native evidence boundary. Owner: runtime adapter agent;
-            depends on 2e.2a. Pair original attempt evidence with fresh full-owner
-            pawn observations. Cleanup reads cannot enter the control gate or
-            acquire a lease. No session or service enablement in this slice.
-      - [ ] **07a.2f:** runtime admission, invalidation and restart cleanup. Owner:
-        integrator; depends on 2e. Include outstanding cleanup after ordinary action
-        completion. Manual disables writes before cleanup; Close joins writers and
-        retains profile, database and transport while cleanup remains unresolved.
-        Reconcile unknown acquisition before release; never act on a replacement
-        world or claim. Accept player preservation, lost replies and restart in
-        isolated native games before enabling this family in the service.
-        - [x] **2f.1:** session capabilities and worker cleanup eligibility. Owner:
-          runtime agent; depends on 2e. A finished standalone draft plan releases
-          its claim; later defense plans may retain it only while still active.
-          Use the existing writer for disabled and shutdown cleanup.
-          - [x] **2f.1a:** atomic positive world-scope supersession. Owner: domain
-            and state agents; depends on 2b–c. A verified replacement world can
-            retire potential cleanup even when a lost reply left the claim unknown.
-            Preserve the unknown original effect; never invent release or absence.
-            Same-world missing ownership cannot use this transition.
-          - [x] **2f.1b:** compose session and worker cleanup. Owner: runtime agent;
-            depends on 2e.2 and 2f.1a. Keep one writer, finished-plan cleanup and
-            retryable joined shutdown under the existing profile owner.
-            - [x] **2f.1b.1:** retain profile ownership after uncertain shutdown
-              revoke. Owner: integrator; depends on existing 06 control lifecycle.
-              Failed native cleanup cannot become successful through a second
-              Close call without fresh evidence. Cover a held lock and retry.
-            - [x] **2f.1b.2:** compose draft session and worker cleanup. Owner:
-              runtime agent; depends on 2e.2, 2f.1a and 2f.1b.1. Accept positive
-              world replacement before retiring an obsolete revoke target;
-              unavailable identity retains ownership. Never revoke a replacement
-              world's authority. Cover Manual, fairness and joined retryable Close.
-              - [x] **2f.1b.2a:** fixed session capabilities and cleanup entrypoint.
-                Owner: integrator; depends on 2e.2. A complete optional draft
-                capability set selects the typed executor; expose lease-free
-                fresh world reads and serialized cleanup without enabling services.
-              - [x] **2f.1b.2b:** positive shutdown target retirement. Owner: control
-                agent; depends on 2a and 2f.1b.1. A fresh different world can retire
-                the old revoke target after writers drain; unknown identity holds.
-              - [x] **2f.1b.2c:** session composition and bounded cleanup sweep.
-                Owner: session agent; depends on 2a and 2e.2. Join the single writer,
-                preserve retryable ownership, and reconcile known or unknown claims
-                through Manual and Close. No player/API or launcher enablement.
-              - [x] **2f.1b.2d:** worker cleanup eligibility and fairness. Owner:
-                worker agent; depends on 2a and 2e.2. Schedule completed standalone
-                draft cleanup and invalidated claims independently of ordinary
-                unresolved actions. Accept combined session/control behavior after
-                2b–c; retain claims needed by an active multi-action plan.
-        - [x] **2f.2:** explicit player draft submission and local API projection.
-          Owner: HTTP agent; depends on 2c and 2f.1. Accept pawn intent only, resolve
-          native CAS through fresh runtime inspection, and expose progress and
-          cleanup independently.
-          Keep shared direction CAS, replay and Manual cancellation semantics.
-          - [x] **2f.2a:** fix shared player and draft HTTP contracts. Owner:
-            integrator; depends on 2f.1. Use `/api/player/session` and
-            `/api/player/control` with acquire/manual subroutes for common control.
-            Draft intent uses `/api/drafts/plans` and request lookup uses
-            `/api/drafts/submission`. Accept request ID, expected world and
-            `draft.pawnId`; keep native tokens and ownership out of player intent.
-            Use a closed building/draft plan projection with independent cleanup.
-            The [Go player API contract](developers/contracts/go-player-api.md)
-            fixes routes, payloads and shared dashboard coordination.
-          - [x] **2f.2b:** shared player draft submission. Owner: runtime agent;
-            depends on 2f.2a and the accepted draft store. Submit through the existing
-            Player gate, world validation and durable request namespace. Preserve cross-family request
-            conflicts, Manual cancellation and read-only result recovery.
-          - [x] **2f.2c:** draft HTTP handlers and plan projection. Owner: HTTP
-            agent; depends on 2f.2a. Implement bounded intent decoding, authenticated
-            submission and lookup, and typed draft progress/cleanup projection.
-            Integrate the actual Player after 2f.2b; reuse existing common control.
-          - [x] **2f.2d:** compose the player service. Owner: integrator; depends
-            on 2f.2b–c and 2f.3. Wire complete draft capabilities and use
-            `--player-control`; update dashboard routes and native harness launch
-            and token redaction together. Use fresh source/binary handoff for native
-            acceptance; no old route aliases or historical-state migration.
-        - [x] **2f.3:** dashboard temporary-draft intent and cleanup status. Owner:
-          UI agent; depends on the fixed 2f.2 interface. Preserve drafts, exact
-          request IDs and uncertain outcomes; no general undraft or ownership adoption.
-        - [x] **2f.4:** isolated Go service draft acceptance. Owner: integrator with
-          N01; depends on 2f.1–3. Verify ordinary claim creation and release, player
-          overrides, lost replies and same-database restart without reacquisition.
-          Native acceptance verifies exact claim/release evidence, player setter
-          override, HTTP response-body loss with lookup recovery, and a successful
-          native Execute reply replaced by an explicit transport error. Each case
-          survives a joined same-database disabled restart with no reacquisition or
-          Execute. These faults do not establish timeout or EOF recovery.
-    - [ ] **07a.3:** bounded defense with exact pawn/target observations and
-      correlated job outcomes. Depends on 07a.2. Begin with one supported
-      opponent; verify incapacitation, injury interruption and owned cleanup.
-      - [ ] **07a.3a:** exact combat bridge adapters. Owner: bridge agent;
-        depends on 07a.2 and accepted native contracts. Preserve original owner,
-        attempt, pawn and destination/target attribution without acquiring drafts.
-        - [x] **07a.3a.1:** ordinary movement preview, execute, lookup and progress.
-          Use the fixed MovementAttempt boundary and existing generated messages.
-        - [x] **07a.3a.2:** exact melee preview, execute, lookup and causal progress
-          using the fixed AttackAttempt boundary. Auto and Ranged stay rejected.
-        - [ ] **07a.3a.3:** typed direct-bullet native restriction and matching Go
-          adapter. Current Ranged also accepts explosives; keep it gated until
-          scope is explicit. Coordinate canonical contract changes with N01.
-      - [ ] **07a.3b:** deterministic single-opponent admission and shared move/
-        attack actions. Owner: domain/state agents; depends on 3a.1–2 for melee. Bind fresh
-        facts and the prerequisite draft claim; unknown or unsupported scope holds.
-        - [x] **07a.3b.1:** narrow typed combat pawn read with health and equipment
-          details from existing generated observations. Owner: bridge agent. Keep
-          the existing ordinary pawn read closed; unknown combat capability holds.
-        - [x] **07a.3b.2:** shared melee action, explicit same-pawn draft prerequisite
-          and durable exact admission. Owner: domain/state agents; freeze local
-          interfaces first. Prevent generic prepare and prerequisite bypass.
-          - [x] **07a.3b.2a:** closed melee action and same-pawn draft prerequisite
-            validation. Owner: domain agent; fixed constructor/accessor interface.
-          - [x] **07a.3b.2b:** canonical melee plan persistence and typed admission.
-            Owner: integrator; depends on 2a. Atomically validate the completed
-            prerequisite and exact retained claim before preparing or dispatching.
-        - [x] **07a.3b.3:** deterministic one-opponent melee admission. Owner: policy
-          agent; depends on 3b.1–2. Require complete fresh census, selected pawn
-          health and guarded native preview; preserve explicit hold reasons.
-      - [ ] **07a.3c:** Hands handlers and Session/Worker composition. Owner:
-        runtime agent; depends on 3b. Retain the draft through dependent actions,
-        invalidate queued work on interruption and use exact owned cleanup.
-        - [x] **07a.3c.1:** shared Hands melee handler with original-admission
-          reconciliation and two fresh policy inspections. Owner: executor agent;
-          depends on fixed 3b.3 interface and durable 3b.2 admission.
-        - [x] **07a.3c.2:** typed native melee boundary and complete optional Session
-          composition. Owner: integrator; depends on 3c.1 and 3b.3. Preserve the
-          shared writer, explicit prerequisite claim and joined cleanup.
-      - [ ] **07a.3d:** finite defense window and composed Go native acceptance.
-        Owner: integrator; depends on 3c and 10a.2. Verify causal incapacitation,
-        injury interruption, player override, uncertain restart and cleanup.
-    - [ ] **07a.4:** critical tending with fresh doctor/patient/work facts,
-      native preview and observed living patient no longer needing tending.
-      Depends on 07a.1–2. Respect care, self-tend and player overrides.
-    - [ ] **07a.5:** bounded recovery after confirmed treatment interruption.
-      Depends on 07a.4. Preserve immutable attempts and unknown outcomes;
-      accept ordinary interrupted and repeated treatment across restart.
-    - [ ] **07a.6:** patient rest settings and medical monitoring. Depends on
-      07a.4–5. Native rules choose beds; missing observations stay unknown.
-      Resolve exact condition identity before longitudinal instance tracking.
-  - [ ] **07b:** food acquisition/production, crops, cooking and work assignments;
-    follows 07a for emergency preemption. Accept stock changes, ordinary pawn work,
-    renewed deficits, unsafe routes and interrupted production.
-  - [ ] **07c:** shelter/adoption, spatial reservations, storage/hauling, beds,
-    Home coverage, repairs, fire and staged wall upgrades; follows 07b for startup
-    sequencing. Accept exact geometry, retained supports, player exclusions,
-    quantity/lineage accounting and changed-layout recovery.
-  - [ ] **07d:** temperature, power, facilities, equipment, research, material
-    extraction and resource development; follows 07c. Accept scarce-resource
-    competition, actual equipped/produced outputs and unavailable prerequisites.
-  - [ ] **07e:** mood, extended medicine/surgery, animals, waste, population and
-    policy trade; follows 07a and 07b, plus facility dependencies named in 00.
-    Accept recurring deficits, protected player policies, custody/admission and
-    observed goods/health/containment outcomes, not command acknowledgments.
-  - [ ] **07f:** caravans, quests and multi-map world progression; follows 07d
-    and 07e. Accept departure, arrival, return/storage, failure and stale-map
-    rejection under existing world-progression scenarios.
-
-- [ ] **G01.08 — Local model and player semantics.** Owner: model agent.
-  Split transport/budget/advice from command-family implementations. Port `model.py`,
-  `model_router.py`, `request_budget.py`, `planner.py`, `player_commands.py`,
-  consultation/scout/visual review and required knowledge/memory/evidence behavior.
-  Preserve configured local endpoints, streaming, cancellation, context limits,
-  structured-response validation, bounded repair and exact evidence retrieval.
-  All semantic commands enter the same plan/executor. Unknown commands fail
-  explicitly; advisers have no mutation interface. Accept scripted invalid replies,
-  deduplicated chat submissions, cancelled streams and a real configured-model
-  check of explicit player requests. Assert zero inference for routine events.
-  Transport/budget work depends on 02a.1; plan submission depends on 04/06, and each
-  command family waits for its 07 handler.
-  - [x] **08a.1:** local-only HTTP chat transport, bounded responses, streaming,
-    cancellation and explicit errors. Owner: integrator; depends on 02a.1. No
-    plan submission, provider fallback or routine-control inference.
-  - [x] **08a.2:** prompt/context budgets and structured semantic validation.
-    Owner: model agent; depends on 08a.1 and 04a for command types.
-  - [x] **08a.3:** one bounded real configured local-model interpretation with
-    observed catalog/material/anchor facts. Owner: model agent; depends on 08a.2.
-    No native orders or plan submission; retain exact model and typed result evidence.
-  - [x] **08a.4:** read the configured LM Studio model's actual loaded context
-    capacity and cap prompt budgeting to it. Owner: model agent; depends on 08a.2–3.
-    Refresh capacity before each interpretation. Missing or ambiguous loaded
-    instances remain unavailable; never load a model,
-    select another model or infer loaded capacity from a theoretical maximum.
-
-- [ ] **G01.09 — Dashboard API and presentation.** Owner: server agent.
-  Port current player controls and observation/media behavior to typed Go services.
-  Preserve drafts and last-good data, loopback access and player ownership. Keep
-  privileged editor actions outside model execution. Choose media dependencies
-  when their consumers land; no production Python media service remains. Validate
-  current dashboard behavior, reconnects, competing viewers, stale commands and
-  rendered native camera/video outcomes; historical API parity is not a gate.
-  - [x] **09a:** typed health/state/plan HTTP reads, explicit unknown facts and
-    cancellation. Runtime listener wiring follows with the Go service command.
-  - [ ] **09b:** dashboard observation view and current player command controls;
-    read-only view can land first, mutations require 06/08 authority integration.
-    - [x] **09b.1:** dashboard observation view and confined local static assets.
-      Owner: server agent; native rendering acceptance remains in 09c.
-    - [x] **09b.2:** explicit read-only Go service command, early listener/asset
-      validation, joined shutdown and retained last-good observations. Owner:
-      service agent; depends on 09a and 09b.1. Keep observation APIs stable across
-      03b.1; real native service acceptance follows that adapter cutover.
-    - [ ] **09b.3:** current action hold feedback. Owner: runtime/API and UI agents;
-      depends on 09a and the shared player control API. Preserve typed admission
-      refusal and failed-observation reasons from worker results, scoped to the
-      action, world and direction. Show why a pending action has not dispatched;
-      stale feedback cannot imply current permission or change durable progress.
-      Cover a healthy-looking pawn that still needs tending, unknown native facts,
-      cleared holds and world changes. Fix the runtime/API contract before UI work.
-  - [ ] **09c:** player ownership/camera, portraits/follow/video and native rendered
-    acceptance. Read endpoints depend on 03/04; mutations require 06 and their
-    supported 07/08 action families.
-    - [x] **09c.1:** typed camera, selection and colonist-roster reads. Owner:
-      bridge agent; depends on 03/04. Reuse fixed presentation RPCs, preserve
-      optional facts and bounded listing completeness. No capture or input
-      capability; transport tests do not establish rendered native acceptance.
-    - [x] **09c.2:** typed letter/message/alert reads. Owner: bridge agent; depends
-      on 03/04. Preserve requested, unavailable and complete sections separately;
-      validate bounded fixed notification replies. Reads cannot acknowledge,
-      dismiss, select or resume play. Native presentation acceptance follows.
-    - [x] **09c.3:** local HTTP camera/selection/current-map roster reads using
-      the attached service client. Owner: HTTP agent; depends on 09c.1. Bind each
-      request to a fresh known world and preserve official ProtoJSON presence.
-      Reuse local-origin and response bounds; retain no input capability.
-    - [x] **09c.4:** dashboard camera, selection and roster observations. Owner:
-      UI agent; depends on 09c.1 and 09b.1, with the fixed 09c.3 HTTP contract.
-      Preserve optional facts, last-good data and visible stale/world identity;
-      no camera/input mutations. Integrated native rendered acceptance follows.
-    - [x] **09c.5:** local HTTP notification observations. Owner: HTTP agent;
-      depends on 09c.2 and 09c.3. Fixed current-world GET returns canonical
-      ProtoJSON sections with unavailable/partial evidence; no acknowledgement,
-      dismissal or resume capability. Use the existing attached client.
-    - [x] **09c.6:** dashboard letter/message/alert observations. Owner: UI agent;
-      depends on 09c.2 and 09c.4, with the fixed 09c.5 HTTP contract. Preserve
-      section availability, partial lists and last-good current-world data.
-      Display observations only; no acknowledgement or action controls.
-  - [ ] **09d:** trusted host lifecycle admission for save/load. Owner: integrator;
-    depends on 06 and supported owned-resource cleanup. Bind the actual attached
-    instance and current player direction, join writers, complete draft/input
-    cleanup and verify native pause before typed lifecycle dispatch. Inactive
-    authority and request-supplied identity are insufficient. N01 owns typed SDK
-    save publication/results; do not create a second loader. Accept stale
-    direction, incomplete cleanup and foreign-instance refusal before enabling
-    the player endpoint.
-
-- [ ] **G01.10 — Whole-runtime integration.** Owner: integrator. Run Go as the
-  sole controller in fresh disposable scenarios. Connect supported domain handlers,
-  model chat, dashboard, interruption and restart; account for implementation gaps
-  in the inventory. Test current behavior, not exact Python decision recordings.
-  Depends on 07, 08 and 09.
-  - [ ] **10a:** owned supervised clock integration. Foundations may start after
-    06; full service acceptance depends on the supported 07/09 controls.
-    - [x] **10a.1:** durable clock attempts and event cursor/inbox. Owner: state
-      agent; depends on 06. Journal before writes, retain original epoch and
-      uncertain outcomes, and commit event evidence before cursor advancement.
-      Test pending restart, duplicate delivery, gaps and bounded capacity.
-      - [x] **10a.1a:** fixed local clock evidence validation. Owner: integrator
-        and bridge agents; depends on 06 and accepted canonical clock adapters.
-        Correlate recovered receipts with the full original command, owner and
-        generation. Reuse fixed generated messages and expose pure event/status
-        validation for journal replay. Persist no live lease token.
-      - [x] **10a.1b:** fresh clock-attempt journal. Owner: state agent; depends
-        on 10a.1a. Allocate native attempt identities disjoint from plan actions,
-        persist dispatch before calls, and retain immutable outcomes and original
-        epochs. Fresh schema only; no service or clock enablement.
-      - [x] **10a.1c:** profile-bound event inbox. Owner: state agent; depends on
-        10a.1a and the fixed 10a.1b schema boundary. Commit typed events, page/loss
-        evidence and next cursor atomically. World changes never reset this
-        profile-wide cursor; regressions, gaps and capacity failure hold progress.
-        Durable processing/acknowledgement belongs to 10a.2–3.
-    - [x] **10a.2:** owned epoch coordinator. Owner: runtime agent; depends on
-      10a.1. Bind explicit start/speed/pause to current authority; retain exact
-      epoch cleanup after revocation. Observe uncertain commands before retrying;
-      test Manual races, foreign epochs, expiry and joined shutdown.
-      - [x] **10a.2a:** typed command coordinator and owned-epoch obligations.
-        Owner: runtime/state agents; depends on 10a.1. Fix the local interface
-        before implementation. Share the existing Store and Control, journal
-        dispatch before calls and correlate recovered receipts. Retain exact
-        cleanup obligations; unknown start never adopts a merely same-session epoch.
-        - [x] **10a.2a.1:** atomic owned-epoch journal and pure cleanup evidence.
-          Owner: state/bridge agents; depends on 10a.1. Applied start receipts
-          create an exact obligation atomically. Fence pause completion by local
-          sequence; distinguish verified pause, inactive epoch and replacement.
-        - [x] **10a.2a.2:** explicit command and recovery coordinator. Owner:
-          runtime agent; depends on the fixed 2a.1 interface and 10a.1 journal.
-          Serialize commands, invalidate without waiting, persist before calls,
-          and recover exact attempts without retrying unknown starts.
-      - [x] **10a.2b:** lease-free owned pause and Manual invalidation. Owner:
-        runtime agent; depends on 10a.2a. Cancel new commands before joining them;
-        cleanup under the Control close gate cannot call back into Control.
-        Stopping or unknown pause retains ownership; replacement evidence cannot pause
-        a replacement epoch. Test failed pause, timeout and world replacement.
-        Add durable scope retirement for uncertain starts after positive world
-        replacement; preserve their outcome uncertainty without blocking a new world.
-        - [x] **10a.2b.1:** persist scope retirement for dispatched or uncertain
-          starts using positive replacement-world evidence. Owner: state agent.
-          Keep outcome uncertainty; reject late mutations after retirement.
-        - [x] **10a.2b.2:** serialized owned pause sweep. Owner: runtime agent;
-          depends on the fixed 2b.1 interface. Join invalidated commands, recover
-          exact receipts, then observe and fence each lease-free pause attempt.
-      - [x] **10a.2c:** disabled startup and joined Session composition. Owner:
-        integrator; depends on 10a.2b. Recover obligations without permission,
-        preserve constructor publication and retain profile/transport/store
-        handles until cleanup succeeds. Renewal/interruption loops remain 10a.3.
-    - [ ] **10a.3:** bounded windows and independent interruption/renewal workers.
-      Owner: runtime agent; depends on 10a.2 and 07a. Fresh policy review precedes
-      finite windows. Gaps, failed observation and external clock changes stop
-      writes; danger requires explicit acknowledgement. Restart cannot resume.
-      - [x] **10a.3a:** durable event review, gap holds and explicit acknowledgements.
-        Owner: state agent; depends on 10a.1–2. Freeze closed local types first.
-        Acknowledgement records inspection, never permission or safe current facts.
-      - [x] **10a.3b:** pure finite healthy-colony window review. Owner: policy
-        agent; depends on 07a.1 and fixed 3a interface. Unknown, stale, unsafe or
-        interrupted facts hold. Combat and medical suppression await 07a facts.
-      - [x] **10a.3c:** one bounded scheduling step. Owner: runtime agent; depends
-        on 3a–b. Bind stable durable request IDs, current authority and review
-        revision; resolve unknown starts only through exact attempt recovery.
-        - [x] **10a.3c.1:** durable window admission and dispatch binding. Owner:
-          state agent and integrator; freeze typed interfaces first. Persist the
-          exact window decision with its request, then atomically recheck review
-          revision, captured/reviewed cursors and holds at dispatch. Recheck
-          authority and observation freshness before the native call.
-        - [x] **10a.3c.2:** one scheduling step without loops. Owner: runtime agent;
-          depends on 3c.1. Gather fresh policy facts and complete obligations,
-          preserve stable request identity and recover uncertain starts exactly.
-          Disabled state cannot start; a running epoch is never replaced.
-      - [x] **10a.3d:** independent event polling and epoch renewal. Owner: runtime
-        agent; depends on 3c. Persist events before review, cancel on interruption,
-        and renew only the original running epoch without extending its tick budget.
-        - [x] **10a.3d.1:** one event polling/review step. Owner: runtime agent.
-          Persist before review; interruption, gaps and read/persistence failures
-          disable writes without waiting for the Player gate, then run owned
-          cleanup. Never acknowledge events automatically.
-        - [x] **10a.3d.2:** one original-epoch renewal step. Owner: runtime agent.
-          Require current enabled authority and exact retained running ownership;
-          keep the original deadline and reconcile uncertain renewals by attempt.
-        - [x] **10a.3d.3:** independent bounded polling, renewal and scheduling
-          loops. Owner: integrator; depends on 3d.1–2. Configure renewal below the
-          lease budget and back off unchanged paused ticks. Lifecycle acceptance
-          and disabled restart remain 3e.
-      - [x] **10a.3e:** joined lifecycle composition and disabled restart. Owner:
-        integrator; depends on 3d. Test dispatch interruption, gaps, paused-tick
-        backoff, renewal starvation and retryable shutdown before service wiring.
-        - [x] **10a.3e.1:** composed worker/session interruption and joined close.
-          Owner: integrator. Use synchronized native fixtures to verify start,
-          durable event interruption outside the Player gate, owned pause and
-          profile release only after worker cleanup joins.
-        - [x] **10a.3e.2:** composed disabled restart and blocked native transport.
-          Owner: integrator; depends on 3e.1. Verify no restart acquisition/start,
-          exact uncertain recovery, renewal starvation and retryable close while
-          a dispatched native call remains blocked.
-      - [ ] **10a.3f:** bounded evidence retirement for sustained operation. Owner:
-        integrator; depends on 3e. Namespace-bound request allocation and atomic
-        attempt/epoch retirement are implemented. Unresolved writes, active epochs,
-        required Start provenance and the current scheduling anchor remain pinned;
-        retired requests cannot dispatch again and missing retained rows fail closed.
-        Finish event/review prefix compaction and wire runtime maintenance before
-        closing this item. Preserve unreviewed pages, unacknowledged interruptions
-        and gaps, absolute cursors, loss totals and acknowledgement replay. Verify
-        sustained windows across checkpoint/reopen cycles; genuinely pinned
-        evidence exhaustion remains an explicit hold.
-    - [ ] **10a.4:** service/UI composition and actual Go clock acceptance.
-      Owner: integrator; depends on 10a.3 and 09. The player service can attach
-      clock workers with --clock-control; startup remains disabled. Player clock
-      review and authenticated acknowledgement are wired through the API/dashboard.
-      Finish native acceptance. Verify ordinary work,
-      real interruption, Manual pause, shutdown and disabled restart. Reuse the
-      native seven-method gate; test Go orchestration and native outcomes.
-
-- [ ] **G01.11 — Go packaging and launch.** Owner: integrator. Update Windows and
-  Docker launch/build paths and scenario adapters to run the Go process. Keep private
-  profiles, loopback dashboard ports and one-writer ownership. Start with fresh state;
-  no save/database migration or rollback rehearsal is required. Python may remain
-  for test tooling but cannot be a production controller sidecar. Depends on 10.
-
-- [ ] **G01.12 — Acceptance and default switch.** Owner: integrator. Run Go checks,
-  generation drift and affected dashboard checks. Verify fresh native startup,
-  ordinary pawn work, explicit player control, interruption and Go-session restart.
-  Keep known gameplay gaps explicit. Switch to Go when the integrated controller is
-  functional and operable; historical parity and performance comparison campaigns
-  are not gates. Do not claim unmeasured performance improvements. Depends on 11.
-
-- [ ] **G01.13 — Retire production Python.** Owner: integration agent.
-  After default-switch acceptance,
-  remove Python production entry points, runtime-only dependencies and duplicate
-  implementations. Preserve accepted fixtures, attribution and explicitly retained
-  Python scenario/development tools. Update setup, architecture, source map,
-  troubleshooting and CI to describe Go as the actual runtime. Accept a production
-  image/install with no Python interpreter required, all manifest rows resolved,
-  and no launcher or dashboard route silently using Python. Depends on 12.
-
-### Dispatch waves and evidence checklist
-
-Sequence the work by dependencies, not by assigning one agent the entire Python
-directory. First land 00–02 serially. Then 03 and 04 can run in parallel; 05 starts
-after 04a. Land the 06 vertical slice before broader mutations. After that, schedule
-07 families alongside 08 and 09 within the team limit, respecting each handler's
-dependencies. Integrate 10–13 serially. Independent acceptance workers may run only
-with isolated inputs/resources; do not replace installed DLLs while any game runs.
-
-Every handoff includes: base and result commits, changed contracts, commands and
-exit codes, skips, fixture/native/model scope, artifact paths and remaining
-manifest rows. Native waits use
-`rimgovernor.native_scenario.advance_game` while Python tooling remains; any Go-native
-replacement must first match its interruption and tick-budget acceptance. New
-Python script-based Docker runs use `scripts/container_scenario.py` and its dashboard
-helpers. Follow [test selection](developers/testing/choose-tests.md),
-[scenario launching](developers/testing/scenario-launcher.md) and
-[throughput measurement](developers/testing/measure-throughput.md).
-
-Do not mark a chunk complete because code compiles, a schema generates or a native
-receipt succeeds. Complete it only when its stated behavioral gate is met. If
-licensed inputs, installed models or platform coverage are unavailable, land only
-the independently accepted gated subchunk and keep the blocked acceptance open.
+Port existing implemented behavior. Unfinished B-series features remain their own
+backlog; they must not turn this rewrite into a new gameplay development campaign.
+For each delivered capability, keep checks and native/model scope in its commit
+and local artifacts, then remove its completed backlog entry. A schema, build or
+receipt alone does not establish working gameplay. Shared native implementation
+work remains in N01; change those boundaries only where a Go consumer needs it.
 
 ## N01 — Unified RimGovernor native mod
 
@@ -1451,7 +658,7 @@ import old records. Retain only native guards, cleanup obligations and bounded
 transition evidence needed for correct running jobs and disconnect behavior. A new
 load invalidates pending authority and requires fresh admission.
 
-Consume G01.02 schemas and generated DTOs rather than creating a second schema tree.
+Consume the existing canonical Protobuf schemas and generated DTOs; do not create a second schema tree.
 Use concrete request/result and operation types, explicit missing/null/error states,
 int32 bounds, distinct identities and validated variants. Keep JSON/reflection at
 named SDK boundaries; no anonymous public payloads, dynamic domain state or blanket
@@ -1465,46 +672,7 @@ context immediately before effects.
 Each slice is committed after relevant checks, then rebased and fast-forwarded into
 main. Native package and Go production cutover remain independent.
 
-- [x] **N01.00 — Working source inventory.** Export/build declarations, saved fields,
-  operation variants, static state and package consumers are inventoried under
-  `contracts/native-*` and the shared domain inventory. Existing legacy captures
-  remain available as diagnostic examples. Additional legacy save, standalone
-  fixture and exhaustive parity captures are out of scope.
-
-- [x] **N01.01 — One active native package.** Native source/build owners. Consolidate
-  sources into the target root and two loader-appropriate assemblies. Remove
-  excluded duplicate helpers, retain source notices, declare dependencies/load order
-  and provide one build/staging command with explicit compiler/game/SDK inputs and
-  production/fixture output identification. Accept fresh-game startup and production
-  discovery in batch and graphical modes, no fixture leakage or duplicate runtime
-  components, and batch-only presentation suppression. No old-save acceptance gate.
-  Companion redistribution permission remains a public release concern, not a gate
-  on local source consolidation. Production and fixture builds pass; the same
-  production artifact passes fresh Linux batch and graphical/Xvfb startup, all
-  55 native tools, fixture isolation, component census and preview invariance.
-
-- [x] **N01.02 — First strict native contract.** Native contract owner with G01.02.
-  - [x] Shared contract handoff: nine canonical Protobuf families, all97 boundary
-    inventory rows/55 native exports mapped,78 fixed MCP methods, official C#/Go
-    outputs and complete Windows/Linux serialization exchange. Both teams reviewed
-    contract joins and semantic constraints; adapters consume this package.
-  - [x] Official runtime packaging and first identity, authority-status and placement
-    adapters. Fresh Linux graphical and batch games pass SDK refusal controls,
-    ordinary placement previews and Go round trips with unchanged paused
-    identity/ticks, camera and nearby buildings. Authority reads do not initialize
-    state. Lifecycle hooks initialize inactive authority; acquisition requires the
-    trusted host control capability and verified native invalidation hooks.
-
-  Consume the reviewed [contract package](../contracts/proto/README.md) and fixed
-  method mapping independently in Go/native adapters. Keep game-rule and
-  application-limit validation explicit; no custom compiler or validation language.
-  Placement previews use generated DTOs, validated SDK boundaries and a typed
-  operation. Unknown outer arguments fail before binder loss; missing raw validation
-  fails closed. Boundary checks cover presence, overflow, malformed grammar,
-  variants and actual SDK binding. Breaking changes move current consumers together;
-  no historical byte-parity gate.
-
-- [ ] **N01.03 — Typed observations.** Native observations owner with G01.03. Migrate
+- [ ] **N01.03 — Typed observations.** Native observations owner with the Go observation adapters. Migrate
   colony status and batch envelope, then pawns/health, supplies/buildings,
   rooms/zones/cells and remaining facts in bounded slices. Preserve unavailable
   information, section freshness and modded definitions. Check actual SDK decoding,
@@ -1718,8 +886,8 @@ behavior with disposable new games; do not recreate dropped compatibility gates.
 
 - [ ] **DEV01 · Enforce the development standard incrementally.** Follow the
   [development process](developers/development-process.md). Audit existing enforcement
-  before adding checks. G01.01c owns Go formatting/vet/test/race/platform gates and
-  G01.02 owns schema drift; keep those tasks there. Add scoped strict Python checking
+  before adding checks. Reuse the existing Go formatting/vet/test/race/platform
+  and schema-drift checks. Add scoped strict Python checking
   for retained tooling and changed typed boundaries, explicit TypeScript escape
   checks and compatible C# boundary/null checks. Start with bounded clean surfaces;
   record excluded legacy paths and expand coverage without blanket suppressions.
