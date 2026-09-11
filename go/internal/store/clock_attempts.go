@@ -234,8 +234,9 @@ func (s *Store) RecordClockReply(ctx context.Context, id string, reply *k.Contro
 		if v.Phase != ClockDispatched && v.Phase != ClockUncertain {
 			return "", nil, ErrConflict
 		}
-		// Once admission is known, a later refusal cannot erase that fact.
-		if v.Reply.GetReceipt() != nil && reply.GetReceipt() == nil {
+		// Admission evidence and attempt conflicts require receipt recovery;
+		// a different later refusal cannot establish that nothing happened.
+		if v.Reply != nil && reply.GetReceipt() == nil && !proto.Equal(v.Reply, reply) {
 			return "", nil, ErrConflict
 		}
 		return clockReplyPhase(reply), reply, nil

@@ -306,3 +306,31 @@ func TestClockAttemptCapacityPreservesReplay(t *testing.T) {
 		t.Fatal(len(all), err)
 	}
 }
+
+func TestClockAttemptConflictRequiresReceiptResolution(t *testing.T) {
+	ctx := context.Background()
+	s, _ := fixture(t)
+	v, _, err := s.PrepareClock(ctx, clockIntent("conflict"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.DispatchClock(ctx, "conflict"); err != nil {
+		t.Fatal(err)
+	}
+	conflictReply := &k.ControlReply{Outcome: &k.ControlReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT.Enum()}}}
+	if _, err = s.RecordClockReply(ctx, "conflict", conflictReply); err != nil {
+		t.Fatal(err)
+	}
+	refusal := &k.ControlReply{Outcome: &k.ControlReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_AUTHORITY_REQUIRED.Enum()}}}
+	if _, err = s.RecordClockReply(ctx, "conflict", refusal); !errors.Is(err, ErrConflict) {
+		t.Fatal(err)
+	}
+	got, err := s.RecordClockReply(ctx, "conflict", conflictReply)
+	if err != nil || got.Phase != ClockUncertain || !proto.Equal(got.Reply, conflictReply) {
+		t.Fatal(got, err)
+	}
+	got, err = s.RecordClockReply(ctx, "conflict", clockApplied(v))
+	if err != nil || got.Phase != ClockApplied {
+		t.Fatal(got, err)
+	}
+}
