@@ -162,7 +162,7 @@ namespace HomeBridge.BridgeTools
             RequireCount(count,limit); threats.Completeness=Complete(count); result.Threats=threats; return result;
         }
 
-        private static Obs.PawnState PawnRow(Pawn pawn, bool detail)
+        internal static Obs.PawnState PawnRow(Pawn pawn, bool detail)
         {
             var row = new Obs.PawnState { Pawn=Entity(pawn), KindDefName=Identifier(pawn.kindDef?.defName), Dead=pawn.Dead, Downed=pawn.Downed,
                 Drafted=pawn.drafter?.Drafted == true, InBed=RestUtility.InBed(pawn), Colonist=pawn.IsColonist, FreeColonist=pawn.IsFreeColonist,
