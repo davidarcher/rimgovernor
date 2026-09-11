@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
 	"google.golang.org/protobuf/proto"
 	"testing"
@@ -30,5 +33,31 @@ func TestReplyChecksNativeOutcome(t *testing.T) {
 	reply.GetBatch().Context.Tick = proto.Int64(11)
 	if _, err := checkReply(reply, f, observation.Identity{Tick: 10}); err == nil {
 		t.Fatal("changed tick accepted")
+	}
+}
+
+type identityOnly struct {
+	calls  int
+	paused *bool
+	change bool
+}
+
+func (s *identityOnly) Identity(context.Context) (*l.IdentityReply, bridge.Result, error) {
+	s.calls++
+	tick := int64(10)
+	if s.change {
+		tick += int64(s.calls)
+	}
+	return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: &c.ObservationContext{Identity: &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}, Tick: &tick}, Paused: s.paused}}}, bridge.Result{}, nil
+}
+func TestSampleRequiresOnlyPausedLifecycleIdentity(t *testing.T) {
+	s := &identityOnly{paused: proto.Bool(true)}
+	if _, err := takeSample(context.Background(), s); err != nil || s.calls != 2 {
+		t.Fatalf("calls=%d err=%v", s.calls, err)
+	}
+	for _, s := range []*identityOnly{{}, {paused: proto.Bool(false)}, {paused: proto.Bool(true), change: true}} {
+		if _, err := takeSample(context.Background(), s); err == nil {
+			t.Fatal("unknown, unpaused, or changing identity accepted")
+		}
 	}
 }

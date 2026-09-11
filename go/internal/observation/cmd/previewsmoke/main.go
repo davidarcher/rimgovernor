@@ -19,6 +19,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	common "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	wire "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -29,14 +30,10 @@ type fixture struct {
 	placements []*wire.PlacementCandidate
 	expected   []string
 }
-type clock struct{}
-
-func (clock) Now() time.Time { return time.Now() }
-
 type sample struct {
 	Before, After       observation.Identity
 	Paused, PausedKnown bool
-	Receipts            [3]bridge.Result
+	Receipts            [2]bridge.Result
 }
 type report struct {
 	Passed     bool          `json:"passed"`
@@ -202,19 +199,43 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fmt.Fprintln(stdout, "typed read-only native preview smoke passed")
 	return 0
 }
-func takeSample(ctx context.Context, client *bridge.Client) (sample, error) {
-	reading, err := observation.Observe(ctx, client, clock{})
-	snapshot := reading.Snapshot
-	paused, known := snapshot.Status.Paused.Value()
-	result := sample{snapshot.Before, snapshot.After, paused, known, reading.Receipts}
+
+// takeSample uses only lifecycle identity; status observations have a separate
+// acceptance path and are not a prerequisite for native placement inspection.
+type identitySource interface {
+	Identity(context.Context) (*l.IdentityReply, bridge.Result, error)
+}
+
+func takeSample(ctx context.Context, client identitySource) (sample, error) {
+	var result sample
+	started := time.Now()
+	first, raw, err := client.Identity(ctx)
+	result.Receipts[0] = raw
 	if err != nil {
 		return result, err
 	}
-	if !known || !paused || !snapshot.SameTick() {
-		return result, errors.New("fixture is not paused at an unchanged tick")
+	result.Before, err = observation.DecodeIdentity(first)
+	if err != nil {
+		return result, err
 	}
-
-	return result, snapshot.CheckFresh(time.Now(), 30*time.Second, snapshot.After)
+	last, raw, err := client.Identity(ctx)
+	result.Receipts[1] = raw
+	if err != nil {
+		return result, err
+	}
+	result.After, err = observation.DecodeIdentity(last)
+	if err != nil {
+		return result, err
+	}
+	result.Paused, result.PausedKnown = result.After.Paused.Value()
+	firstPaused, firstKnown := result.Before.Paused.Value()
+	if !firstKnown || !firstPaused || !result.PausedKnown || !result.Paused || !result.Before.SameContext(result.After) || result.Before.Tick != result.After.Tick {
+		return result, errors.New("fixture is not paused at an unchanged identity and tick")
+	}
+	if time.Since(started) > 30*time.Second {
+		return result, errors.New("identity sample expired")
+	}
+	return result, nil
 }
 func observe(ctx context.Context, config bridge.ProcessConfig, requests fixture, result *report) (err error) {
 	client, err := bridge.Open(ctx, config)
