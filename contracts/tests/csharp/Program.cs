@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using RimGovernor.Contracts.PlacementPreview;
 
 internal static class Program
@@ -17,7 +18,7 @@ internal static class Program
 
     private static int Main(string[] args)
     {
-        if (args.Length != 1) throw new ArgumentException("Pass placement-request-cases.json");
+        if (args.Length < 1 || args.Length > 2) throw new ArgumentException("Pass placement-request-cases.json and optional placement-response-cases.json");
         var fixture = JsonConvert.DeserializeObject<RequestFixture>(
             File.ReadAllText(args[0], new UTF8Encoding(false, true)), Settings)
             ?? throw new FormatException("Missing fixture");
@@ -55,7 +56,45 @@ internal static class Program
         catch (FormatException) { depthRejected = true; }
         if (!depthRejected) throw new InvalidOperationException("Empty 65th container accepted");
         Console.WriteLine("C# request contract: " + fixture.Cases.Count + " shared cases and accepted-value serializer round trips passed.");
+        if (args.Length == 2) CheckResponses(args[1]);
         return 0;
+    }
+
+    private static void CheckResponses(string path)
+    {
+        var fixture = JsonConvert.DeserializeObject<ResponseFixture>(File.ReadAllText(path, new UTF8Encoding(false, true)), Settings)
+            ?? throw new FormatException("Missing response fixture");
+        if (fixture.Version != 1 || fixture.Cases.Count == 0) throw new FormatException("Invalid response fixture version/count");
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var item in fixture.Cases)
+        {
+            if (item.ID.Length == 0 || !ids.Add(item.ID)) throw new FormatException("Duplicate/empty response case ID");
+            PreviewReply? reply = null;
+            try { reply = PreviewReply.Decode(item.JSON); }
+            catch (FormatException) { }
+            if ((reply != null) != item.Accepted) throw new InvalidOperationException(item.ID + ": response accepted=" + (reply != null));
+            if (reply == null) continue;
+            string serialized = JsonConvert.SerializeObject(reply, Settings);
+            var wire = JObject.Parse(serialized);
+            if (wire["Success"] != null || wire["Failure"] != null || wire["Value"] != null || wire["WireValue"] != null)
+                throw new InvalidOperationException(item.ID + ": serialized union wrapper");
+            if (!JToken.DeepEquals(JToken.Parse(item.JSON), wire)) throw new InvalidOperationException(item.ID + ": reply serialization changed wire values");
+            string repeated = JsonConvert.SerializeObject(PreviewReply.Decode(serialized), Settings);
+            if (!JToken.DeepEquals(wire, JToken.Parse(repeated))) throw new InvalidOperationException(item.ID + ": reply round trip changed values");
+        }
+        Console.WriteLine("C# response contract: " + fixture.Cases.Count + " shared cases and accepted-value serializer round trips passed.");
+    }
+
+    private sealed class ResponseFixture
+    {
+        [JsonProperty("version", Required = Required.Always)] public int Version { get; set; }
+        [JsonProperty("cases", Required = Required.Always)] public List<ResponseCase> Cases { get; set; } = new List<ResponseCase>();
+    }
+    private sealed class ResponseCase
+    {
+        [JsonProperty("id", Required = Required.Always)] public string ID { get; set; } = "";
+        [JsonProperty("json", Required = Required.Always)] public string JSON { get; set; } = "";
+        [JsonProperty("accepted", Required = Required.Always)] public bool Accepted { get; set; }
     }
 
     private static void RoundTrip(string target, string raw)
