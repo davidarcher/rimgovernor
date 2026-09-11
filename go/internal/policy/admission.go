@@ -228,17 +228,27 @@ func NewInput(r Request) (Input, error) {
 		}
 	}
 	r.Rules = append([]ResourceRule(nil), r.Rules...)
-	resources = map[Resource]bool{}
-	for _, rule := range r.Rules {
+	if err := ValidateResourceRules(r.Rules); err != nil {
+		return Input{}, err
+	}
+	return Input{r}, nil
+}
+
+func ValidateResourceRules(rules []ResourceRule) error {
+	if len(rules) > 256 {
+		return errors.New("resource policy exceeds 256 rules")
+	}
+	resources := map[Resource]bool{}
+	for _, rule := range rules {
 		if !validResource(rule.Resource) || resources[rule.Resource] || rule.Reserve < 0 {
-			return Input{}, errors.New("invalid or duplicate resource rule")
+			return errors.New("invalid or duplicate resource rule")
 		}
 		resources[rule.Resource] = true
 		if rule.Spending != Allow && rule.Spending != Stop && rule.Spending != DefenseOnly {
-			return Input{}, errors.New("invalid spending mode")
+			return errors.New("invalid spending mode")
 		}
 	}
-	return Input{r}, nil
+	return nil
 }
 func validAction(a domain.Action, p domain.Progress) error {
 	b, ok := a.Building()

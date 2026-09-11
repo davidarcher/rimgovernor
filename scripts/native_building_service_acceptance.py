@@ -138,9 +138,11 @@ async def joined_shutdown(process, record, timeout=30):
 
 
 @asynccontextmanager
-async def service(binary, gabs, configuration, profile, state, directory, report, *, clock_control=False, routine_reviews=False, routine_methods=False, routine_cooking=False):
+async def service(binary, gabs, configuration, profile, state, directory, report, *, clock_control=False, routine_reviews=False, routine_methods=False, routine_cooking=False, resource_rules=()):
     directory.mkdir()
     record = {"phase": directory.name, "argv": service_argv(binary, gabs, configuration, profile, state), "joined": False}
+    for rule in resource_rules:
+        record['argv'].extend(['--resource-rule', rule])
     if clock_control:
         record["argv"].append("--clock-control")
     if routine_reviews:
@@ -150,7 +152,7 @@ async def service(binary, gabs, configuration, profile, state, directory, report
         assert routine_reviews
         record["argv"].extend(["--routine-sleeping-plans", "--routine-methods"])
     if routine_cooking:
-        assert routine_methods
+        assert routine_reviews
         record["argv"].append("--routine-cooking-plans")
     report.setdefault("service_phases", []).append(record)
     with (directory / "stderr.txt").open("wb") as stderr, (directory / "stdout.txt").open("wb") as stdout:

@@ -12,6 +12,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	"google.golang.org/protobuf/proto"
@@ -38,6 +39,7 @@ func (w *playerWorldSource) ReadWorld(ctx context.Context) (store.World, error) 
 }
 
 type playerFakeSession struct {
+	rules                               []policy.ResourceRule
 	mu                                  sync.Mutex
 	state                               ControlState
 	acquires, manuals, disables, closes atomic.Int32

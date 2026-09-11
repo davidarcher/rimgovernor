@@ -49,6 +49,9 @@ type Boundary struct {
 var _ executor.Boundary = (*Boundary)(nil)
 
 func NewBoundary(native Native, writer BuildingWriter, leases LeaseSource, holds HoldsSource, clock executor.Clock, controllerSessionID string, rules []policy.ResourceRule) (*Boundary, error) {
+	if err := policy.ValidateResourceRules(rules); err != nil {
+		return nil, err
+	}
 	if native == nil || writer == nil || leases == nil || holds == nil || clock == nil || !boundaryID(controllerSessionID) {
 		return nil, errors.New("invalid building boundary dependencies")
 	}

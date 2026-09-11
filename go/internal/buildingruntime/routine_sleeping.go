@@ -27,7 +27,7 @@ const (
 	BuildingMethodExistingWork RoutineBuildingReason = "existing_work"
 	BuildingMethodUnknown      RoutineBuildingReason = "unknown_prerequisite"
 	BuildingMethodNoSpace      RoutineBuildingReason = "insufficient_verified_space"
-	BuildingMethodUsed   RoutineBuildingReason = "method_already_used"
+	BuildingMethodUsed         RoutineBuildingReason = "method_already_used"
 	BuildingMethodRefused      RoutineBuildingReason = "shared_admission_refused"
 	BuildingMethodAdmitted     RoutineBuildingReason = "admitted"
 )
@@ -298,7 +298,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: facts.Identity.Tick, Bounds: domain.Known(facts.Bounds), Stock: stock, Previews: selected, Purpose: policy.Routine})
+	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: facts.Identity.Tick, Bounds: domain.Known(facts.Bounds), Stock: stock, Rules: r.reviewer.rules, Previews: selected, Purpose: policy.Routine})
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}

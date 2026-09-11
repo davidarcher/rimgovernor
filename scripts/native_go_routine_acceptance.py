@@ -113,7 +113,7 @@ def audit_sleeping(report, database):
     return {"completed_spots": len(plan["actions"]), "completed_cooking_buildings": len(report.get("cooking_plan", {}).get("actions", [])), "single_attempts": True, "indoor_footprints": True, "shared_player_authority": True}
 
 
-async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False, work_project=False, work_overrides=False, power_fixture=False):
+async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False, work_project=False, work_overrides=False, power_fixture=False, resource_rules=()):
     assert Path("/.dockerenv").is_file(), "Use the isolated scenario launcher"
     output.mkdir(parents=True, exist_ok=False)
     report = {"passed": False, "source": go_source,
@@ -165,7 +165,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             if power_fixture:
                 report['power_setup'] = payload(await evidence.call(bridge, 'power-setup', 'test/routine_power_setup', {}))
                 assert report['power_setup']['success']
-            if sleeping_methods:
+            if sleeping_methods or resource_rules:
                 report["sleeping_setup"] = payload(await evidence.call(bridge, "sleeping-setup", "test/routine_sleeping_prepare", {}))
                 assert report["sleeping_setup"]["success"] and report["sleeping_setup"]["sleepingSpotsCreated"] == 0
             report["initial_colony"] = await wire(bridge, "initial-colony", "observations_read_status", {
@@ -224,7 +224,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             expected_food = 'deficit' if food['readable'] and food['runwayDays'] is not None and food['runwayDays'] < 3 else 'unknown'
             baseline = await capture(bridge, "setup")
 
-        async with service(private, gabs, configuration, profile, database, output / "operate", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods, routine_cooking=cooking_methods) as http:
+        async with service(private, gabs, configuration, profile, database, output / "operate", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods, routine_cooking=cooking_methods or bool(resource_rules), resource_rules=resource_rules) as http:
             await poll(http, "/api/state", lambda v: v.get("connected") and not v.get("game", {}).get("stale", True))
             assert not (await http("GET", "/api/player/control"))["state"]["enabled"]
             building = http_building(prepared['sites'][0])
@@ -253,6 +253,14 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             report['work_need'] = active['goals']['EnsureWorkAssignments']['Need']
             assert report['work_need'] == ('recovered' if report['initial_work']['matches'] else 'deficit'), 'Native work readback did not reach routine need'
             report["active_routine"] = active
+            if resource_rules:
+                await wait_review(database, active['review']['Revision'])
+                active = routine_evidence(database, identity, enabled=True, expected_food_need=expected_food)
+                assert active['goals']['EnsureCooking']['Need'] == 'deficit'
+                plan = await http('GET', '/api/plan?id=' + submission['planId'])
+                assert all(a['progress']['stage'] == 'pending' and a['progress']['attempt'] == '0' for a in plan['actions'])
+                report['resource_rules'] = list(resource_rules)
+                report['resource_policy_pending_plan'] = plan
             if power_fixture:
                 report['power_need'] = active['goals']['EnsureBasicPower']['Need']
                 assert report['power_need'] == ('deficit' if headroom < 0 or disabled else 'recovered')
@@ -284,10 +292,14 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
         async with bridge_session(gabs, configuration) as bridge:
             await bridge.connect()
             await capture(bridge, "operate", baseline)
+            if resource_rules:
+                assert EXECUTE not in report['traces']['operate'] and 'rimgovernor/clock_start' not in report['traces']['operate']
+                assert report['traces']['operate'].count('rimgovernor/placement_preview') >= 2
+                report['resource_policy_no_orders'] = True
             final = outcome(await wire(bridge, "after-manual", "lifecycle_read_identity", {}), "loaded")
             assert final["paused"] and final["context"]["identity"] == identity
             baseline = await capture(bridge, "restart-baseline")
-        async with service(private, gabs, configuration, profile, database, output / "restart", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods, routine_cooking=cooking_methods) as http:
+        async with service(private, gabs, configuration, profile, database, output / "restart", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods, routine_cooking=cooking_methods or bool(resource_rules), resource_rules=resource_rules) as http:
             await poll(http, "/api/state", lambda v: v.get("connected") and not v.get("game", {}).get("stale", True))
             await asyncio.sleep(2)
             assert not (await http("GET", "/api/player/control"))["state"]["enabled"]
@@ -332,6 +344,7 @@ if __name__ == "__main__":
     parser.add_argument("--work-project", action="store_true")
     parser.add_argument("--work-overrides", action="store_true")
     parser.add_argument("--power-fixture", action="store_true")
+    parser.add_argument("--resource-rule", action="append", default=[])
     args = parser.parse_args()
     raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-go-routine-acceptance", args.go_binary,
-        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods, cooking_methods=args.cooking_methods, work_project=args.work_project, work_overrides=args.work_overrides, power_fixture=args.power_fixture)) else 1)
+        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods, cooking_methods=args.cooking_methods, work_project=args.work_project, work_overrides=args.work_overrides, power_fixture=args.power_fixture, resource_rules=args.resource_rule)) else 1)

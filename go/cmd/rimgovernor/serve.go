@@ -36,6 +36,7 @@ type serveConfig struct {
 	routineSleepingPlans  bool
 	routineCookingPlans   bool
 	routineMethods        bool
+	resourceRules         resourceRuleFlags
 	refresh               time.Duration
 }
 
@@ -50,6 +51,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.routineSleepingPlans, "routine-sleeping-plans", false, "compile reviewed indoor sleeping needs into pending shared plans")
 	flags.BoolVar(&c.routineCookingPlans, "routine-cooking-plans", false, "compile reviewed cooking deficits into pending campfire plans")
 	flags.BoolVar(&c.routineMethods, "routine-methods", false, "execute reviewed routine building methods under the current player direction")
+	flags.Var(&c.resourceRules, "resource-rule", "repeatable RESOURCE:allow|stop|defense_only:RESERVE for building admission and dispatch")
 	flags.StringVar(&c.profile, "profile", "", "absolute shared game profile directory for player control")
 	flags.StringVar(&c.bridge.Executable, "gabs", "", "absolute GABS executable")
 	flags.StringVar(&c.bridge.ConfigDir, "config", "", "absolute GABS configuration directory")
@@ -64,6 +66,9 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if flags.NArg() != 0 || *readOnly == c.playerControl {
 		return c, errors.New("serve requires exactly one of --read-only or --player-control")
+	}
+	if len(c.resourceRules) > 0 && !c.playerControl {
+		return c, errors.New("--resource-rule requires --player-control")
 	}
 	if c.clockControl && !c.playerControl {
 		return c, errors.New("--clock-control requires --player-control")

@@ -176,6 +176,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		callTimeout = min(callTimeout, 5*time.Second)
 	}
 	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{RoutineMethods: config.routineMethods,
+		Rules:    config.resourceRules,
 		Control:  buildingruntime.ControlConfig{ProfileDirectory: config.profile, LeaseDuration: 30 * time.Second, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
 		Executor: executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
 		Draft:    client.draft,

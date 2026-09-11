@@ -19,13 +19,18 @@ type RoutineReviewer struct {
 	clock  observation.Clock
 	policy policy.RoutinePolicy
 	maxAge time.Duration
+	rules  []policy.ResourceRule
 }
 
 func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock observation.Clock, thresholds policy.RoutinePolicy, maxAge time.Duration) (*RoutineReviewer, error) {
 	if player == nil || native == nil || clock == nil || thresholds.Validate() != nil || maxAge <= 0 || maxAge > time.Minute {
 		return nil, ErrControl
 	}
-	return &RoutineReviewer{player: player, native: native, clock: clock, policy: thresholds, maxAge: maxAge}, nil
+	rules := player.session.ResourceRules()
+	if err := policy.ValidateResourceRules(rules); err != nil {
+		return nil, err
+	}
+	return &RoutineReviewer{player: player, native: native, clock: clock, policy: thresholds, maxAge: maxAge, rules: append([]policy.ResourceRule(nil), rules...)}, nil
 }
 
 func (r *RoutineReviewer) Step(ctx context.Context) (store.RoutineReviewResult, error) {

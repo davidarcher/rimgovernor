@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -16,6 +17,7 @@ type WorldSource interface {
 type PlayerConfig struct{ CallTimeout, JournalTimeout time.Duration }
 
 type playerSession interface {
+	ResourceRules() []policy.ResourceRule
 	Acquire(context.Context, domain.GenerationSnapshot) (domain.GenerationSnapshot, error)
 	Manual(context.Context) error
 	Disable() error

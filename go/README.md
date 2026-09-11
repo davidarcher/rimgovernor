@@ -203,6 +203,15 @@ or already committed campfire work. Native previews and shared reservations deci
 geometry and cost. Building the campfire does not certify a food bill or cooked
 food; bill/upkeep methods remain separate action-family work.
 
+Configure shared spending rules with repeatable `serve --player-control`
+options such as `--resource-rule WoodLog:allow:50` or
+`--resource-rule Steel:defense_only:100`. Each rule names a native resource,
+`allow`, `stop` or `defense_only`, and a nonnegative reserve. Duplicate resources
+and invalid rules fail startup. Routine method admission and Hands use the same
+session rules; current building methods have routine purpose. Rules apply to new
+admission and dispatch, without undoing issued native work. These process settings
+are not saved in SQLite: supply them again on restart.
+
 Add `--routine-reviews` to `serve --player-control --clock-control` to attach the
 reviewer to the service clock worker. It uses the default routine thresholds and
 requires typed colony observations. Startup remains disabled. This option journals
