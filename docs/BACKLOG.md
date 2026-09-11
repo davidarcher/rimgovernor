@@ -780,7 +780,7 @@ only intentional small, sanitized regression fixtures belong in source control.
   - [ ] **05b:** routine deficits, hysteresis and method selection; extend with
     supported execution families after the first building vertical slice.
 
-- [ ] **G01.06 — Guarded Hands and runtime vertical slice.** Owner: executor agent.
+- [x] **G01.06 — Guarded Hands and runtime vertical slice.** Owner: executor agent.
   Split into 06a execution state machine, 06b lifecycle/supervision, and 06c native
   construction acceptance. Port the relevant paths in `hands.py`, `bridge_runtime.py`,
   construction grounding/preflight and projects. First support a bounded explicit
@@ -793,11 +793,11 @@ only intentional small, sanitized regression fixtures belong in source control.
   guards. Depends on 03, 04b and 05.
   - [x] **06a:** single-writer execution and durable unknown-outcome reconciliation.
     Owner: executor agent; test typed boundaries before enabling native mutations.
-    - [ ] **06a.1:** measure guarded scheduling/admission and reconciliation with
+    - [x] **06a.1:** measure guarded scheduling/admission and reconciliation with
       in-memory native boundaries. Owner: executor agent; depends on 06a. Retain
       benchmark environment and allocations; this does not measure native pawn
       throughput or claim an improvement over Python.
-  - [ ] **06b:** native atomic identity guards, attempt deduplication, runtime
+  - [x] **06b:** native atomic identity guards, attempt deduplication, runtime
     ownership and typed placement adapter. Coordinate with N01.
     - [x] **06b.1:** persist causally inspected equal-tick outcomes and typed known
       unsuccessful outcomes. Owner: executor agent; depends on 02b and 06a. Preserve
@@ -808,12 +808,12 @@ only intentional small, sanitized regression fixtures belong in source control.
     - [x] **06b.2:** fixed typed authority and building execution/progress adapters.
       Owner: bridge agent; depends on 02b and 03b.1. Keep writes separate from
       read-only clients; enable only the first building operation.
-    - [ ] **06b.3:** runtime lease ownership, explicit player admission and guarded
+    - [x] **06b.3:** runtime lease ownership, explicit player admission and guarded
       building orchestration. Owner: integrator; depends on 06b.1–2 and 05.
       - [x] **06b.3a:** project exact native building previews, complete costs and
         material availability into policy facts. Owner: integrator; depends on
         03b.1 and 05a. Destructive placements and unreadable materials stay held.
-      - [ ] **06b.3b:** combine observed map bounds, cross-plan commitments, leases
+      - [x] **06b.3b:** combine observed map bounds, cross-plan commitments, leases
         and durable attempts in the runtime. Owner: integrator; depends on 06b.2
         and 06b.3a; prove single ownership and invalidation before enabling writes.
         - [x] **06b.3b.1:** exact-cell map bounds read using the existing typed
@@ -834,7 +834,7 @@ only intentional small, sanitized regression fixtures belong in source control.
             native authority refresh fails, cancelling stale reconciliation while
             retaining the private cleanup target. Owner: runtime agent; depends
             on 06b.3b.4. Test failure after successful disabled target selection.
-        - [ ] **06b.3b.5:** wire an explicit player-only entry point and runtime
+        - [x] **06b.3b.5:** wire an explicit player-only entry point and runtime
           worker; keep model proposals separate from authority acquisition.
           Owner: integrator; depends on 06b.3b.3–4 and native guarded adapters.
           - [x] **06b.3b.5a.1:** atomically persist one-building player submissions
@@ -875,9 +875,12 @@ only intentional small, sanitized regression fixtures belong in source control.
             - [x] **06b.3b.5d.2:** typed dashboard submission, Acquire and Manual
               controls. Owner: UI agent; depends on 5c.2 and 09b.1. Preserve drafts
               and request IDs across uncertain replies and background refreshes.
-          - [ ] **06b.3b.5e:** native HTTP submission, Manual and restart acceptance.
+          - [x] **06b.3b.5e:** native HTTP submission, Manual and restart acceptance.
             Owner: integrator with N01; depends on 5d and 06c.2. Verify ordinary
             pawn completion; no automatic clock control in this slice.
+            Headless native acceptance verifies submit-only zero writes, one
+            admitted placement, joined Manual shutdown and ordinary completion
+            reconciled after restart without acquisition or replacement.
         - [x] **06b.3b.6:** typed owned clock capability and epoch/attempt reads.
           Owner: bridge agent; depends on 02b and 06b.2. Keep speed/window control
           separate from building dispatch and preserve exact owned pause after
@@ -1013,7 +1016,7 @@ only intentional small, sanitized regression fixtures belong in source control.
       bridge agent; depends on 03/04. Reuse fixed presentation RPCs, preserve
       optional facts and bounded listing completeness. No capture or input
       capability; transport tests do not establish rendered native acceptance.
-    - [ ] **09c.2:** typed letter/message/alert reads. Owner: bridge agent; depends
+    - [x] **09c.2:** typed letter/message/alert reads. Owner: bridge agent; depends
       on 03/04. Preserve requested, unavailable and complete sections separately;
       validate bounded fixed notification replies. Reads cannot acknowledge,
       dismiss, select or resume play. Native presentation acceptance follows.
