@@ -21,6 +21,7 @@ import (
 )
 
 type Native interface {
+	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 	PreviewBuilding(context.Context, domain.Action, domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error)
 	ReadMapBounds(context.Context, *c.Identity, domain.Cell) (bridge.MapBounds, bridge.Result, error)
 	LookupBuildingAttempt(context.Context, *c.Identity, *c.AttemptKey, uint64, *p.PlacementCandidate) (*r.LookupReply, bridge.Result, error)
@@ -76,6 +77,23 @@ func (b *Boundary) Inspect(ctx context.Context, target executor.Target) (executo
 	}
 	if !preview.Preview.Snapshot.Matches(current) || !preview.Stock.Snapshot.Matches(current) || preview.Preview.Action != target.Action || preview.Preview.Tick < domain.Tick(bounds.Context.GetTick()) || preview.Stock.Tick != preview.Preview.Tick {
 		return out, executor.ErrEvidence
+	}
+	emergency, _, err := b.native.ReadEmergency(ctx, boundaryIdentity(current))
+	if err != nil {
+		return out, err
+	}
+	emergencyCurrent, err := boundaryContext(emergency.Context, current)
+	if err != nil {
+		return out, err
+	}
+	if emergency.Context.GetTick() < int64(preview.Preview.Tick) {
+		return out, executor.ErrEvidence
+	}
+	// Independent live reads may advance ticks. Bind native facts to captured
+	// controller authority only after validating their actual world/generation.
+	out.Emergency, err = policy.NewEmergencySnapshot(emergencyCurrent, domain.Tick(emergency.Context.GetTick()), emergency.Facts)
+	if err != nil {
+		return out, err
 	}
 	held, err := b.holds.Holds(ctx, current)
 	if err != nil {

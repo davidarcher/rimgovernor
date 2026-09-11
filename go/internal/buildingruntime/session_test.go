@@ -83,6 +83,7 @@ func TestSessionOwnsDispatchAndManualReconciliation(t *testing.T) {
 			fixture.preview.Preview.Footprint = domain.Known([]domain.Cell{building.Cell()})
 			fixture.preview.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(5))}}
 			fixture.bounds.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
+			fixture.emergency.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
 			fixture.receipt.AdmittedContext.NativeGeneration = proto.Uint64(uint64(current.Native))
 			fixture.receipt.AdmittedContext.Tick = proto.Int64(11)
 			fixture.receipt.Attempt.ControllerSessionId = proto.String(string(namespace))
@@ -120,7 +121,13 @@ func TestSessionOwnsDispatchAndManualReconciliation(t *testing.T) {
 			}
 			fixture.progress.Context.NativeGeneration = proto.Uint64(uint64(current.Native) + 1)
 			fixture.progress.Context.Tick = proto.Int64(12)
+			fixture.emergencyErr = errors.New("emergency facts unavailable during reconciliation")
+			fixture.emergency.Facts.Threats = []policy.EmergencyThreat{{ID: "raider", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}
+			emergencyCalls := fixture.emergencies
 			result, err = session.Run(ctx, "plan", "action")
+			if fixture.emergencies != emergencyCalls {
+				t.Fatal("issued attempt reconciliation read emergency facts")
+			}
 			if err != nil || result.NativeCalled || result.Progress.View().Stage != domain.Completed || fixture.places != 1 {
 				t.Fatalf("manual reconciliation %v %v", result, err)
 			}

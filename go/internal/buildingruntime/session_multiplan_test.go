@@ -79,6 +79,7 @@ func TestSessionOtherStoredPlanHoldSurvivesManualAndRestart(t *testing.T) {
 		fixture.preview.Preview.Footprint = domain.Known([]domain.Cell{building.Cell()})
 		fixture.preview.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(5))}}
 		fixture.bounds.Context.NativeGeneration = proto.Uint64(uint64(snapshot.Native))
+		fixture.emergency.Context.NativeGeneration = proto.Uint64(uint64(snapshot.Native))
 	}
 	setPreview(fixture.placement.Action, currentA, 4)
 	fixture.receipt.AdmittedContext.NativeGeneration = proto.Uint64(uint64(currentA.Native))

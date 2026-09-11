@@ -296,6 +296,7 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 	fixture.preview.Preview.Footprint = domain.Known([]domain.Cell{building.Cell()})
 	fixture.preview.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(5))}}
 	fixture.bounds.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
+	fixture.emergency.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
 	fixture.receipt.AdmittedContext.NativeGeneration = proto.Uint64(uint64(current.Native))
 	fixture.receipt.AdmittedContext.Tick = proto.Int64(11)
 	fixture.receipt.Attempt.ControllerSessionId = proto.String(string(namespace))
@@ -322,6 +323,7 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 	fixture.preview.Preview.Snapshot = current
 	fixture.preview.Stock.Snapshot = current
 	fixture.bounds.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
+	fixture.emergency.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
 	fixture.receipt.AdmittedContext.NativeGeneration = proto.Uint64(uint64(current.Native))
 	fixture.receipt.Attempt.AttemptId = proto.Uint64(2)
 	fixture.receipt.AuthorizingOwner.PlayerDirection = proto.Uint64(uint64(current.Direction))
