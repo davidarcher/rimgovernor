@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"net"
@@ -15,6 +14,10 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	commonpb "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	lifecyclepb "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
+	observationspb "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestServeRequiresExplicitReadOnlyLocalConfiguration(t *testing.T) {
@@ -71,7 +74,7 @@ type serviceFake struct {
 func (f *serviceFake) ConnectGame(context.Context) (bridge.Result, error) {
 	return bridge.Result{}, f.connectErr
 }
-func (f *serviceFake) Identity(ctx context.Context) (bridge.Result, error) {
+func (f *serviceFake) Identity(ctx context.Context) (*lifecyclepb.IdentityReply, bridge.Result, error) {
 	f.active.Add(1)
 	defer f.active.Add(-1)
 	if f.reads.Add(1) > 2 {
@@ -80,12 +83,18 @@ func (f *serviceFake) Identity(ctx context.Context) (bridge.Result, error) {
 		default:
 		}
 		<-ctx.Done()
-		return bridge.Result{}, ctx.Err()
+		return nil, bridge.Result{}, ctx.Err()
 	}
-	return bridge.Result{Structured: json.RawMessage(`{"success":true,"colonyId":"colony","loadToken":"load","mapId":0,"tick":123,"observationBatchVersion":1,"placementPreviewBatchVersion":2}`)}, nil
+	return &lifecyclepb.IdentityReply{Outcome: &lifecyclepb.IdentityReply_Loaded{Loaded: &lifecyclepb.LoadedIdentity{Context: serviceContext(), Paused: proto.Bool(false)}}}, bridge.Result{}, nil
 }
-func (f *serviceFake) Status(context.Context) (bridge.Result, error) {
-	return bridge.Result{Structured: json.RawMessage(`{"success":true,"status":"game_loaded","time":{"paused":true,"forcePaused":false,"timeSpeed":"Paused"},"skipped":[]}`)}, nil
+func serviceContext() *commonpb.ObservationContext {
+	return &commonpb.ObservationContext{Identity: &commonpb.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}, Tick: proto.Int64(123)}
+}
+func (f *serviceFake) Status(_ context.Context, identity *commonpb.Identity) (*observationspb.StatusReply, bridge.Result, error) {
+	if !proto.Equal(identity, serviceContext().Identity) {
+		return nil, bridge.Result{}, errors.New("status scope mismatch")
+	}
+	return &observationspb.StatusReply{Outcome: &observationspb.StatusReply_Observed{Observed: &observationspb.StatusSnapshot{Context: serviceContext()}}}, bridge.Result{}, nil
 }
 func (f *serviceFake) Close() error {
 	f.closeWhileReading.Store(f.active.Load() != 0)
