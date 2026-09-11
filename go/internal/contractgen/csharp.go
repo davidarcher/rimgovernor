@@ -2,6 +2,7 @@ package contractgen
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -39,7 +40,8 @@ func GenerateCSharp(schema *Schema, options CSharpOptions) ([]byte, error) {
 	occupied := map[string]bool{g.boundary: true}
 	for _, node := range named {
 		name := g.names[node]
-		if occupied[name] || csharpReservedType(name) || name == "Decode" ||
+		if occupied[name] || csharpReservedType(name) || name == "Decode" || name == "From" ||
+			(len(node.OneOf) > 0 && (name == "Success" || name == "Failure" || name == "WireValue")) ||
 			(node.Type != "object" && node.Type != "array" && name == "Value") ||
 			(node.Type == "array" && (name == "Values" || name == "Count" || name == "GetEnumerator" || name == "Item")) {
 			return nil, fmt.Errorf("C# generated type collision: %s", name)
@@ -56,8 +58,11 @@ func GenerateCSharp(schema *Schema, options CSharpOptions) ([]byte, error) {
 			occupied[converter] = true
 		}
 		for key := range node.Properties {
+			if node.Properties[key].Nullable && !required(node, key) {
+				return nil, fmt.Errorf("C# optional nullable fields require an explicit presence model")
+			}
 			property := fieldName(key)
-			if property == name || property == "Decode" || property == "GetType" || property == "GetHashCode" || property == "ToString" || property == "Equals" || property == "ReferenceEquals" || property == "MemberwiseClone" || property == "Finalize" {
+			if property == name || property == "From" || property == "Decode" || property == "GetType" || property == "GetHashCode" || property == "ToString" || property == "Equals" || property == "ReferenceEquals" || property == "MemberwiseClone" || property == "Finalize" {
 				return nil, fmt.Errorf("C# property collision: %s", property)
 			}
 		}
@@ -94,6 +99,9 @@ func csharpKeyword(name string) bool {
 }
 
 func csharpReservedType(name string) bool {
+	if name == "JsonConvert" || name == "ArgumentNullException" {
+		return true
+	}
 	for _, word := range strings.Fields("System Type List DateParseHandling FloatParseHandling DuplicatePropertyNameHandling LineInfoHandling NullValueHandling MemberSerialization JsonSerializationException NotSupportedException JToken JObject JArray JTokenType JsonConverter JsonReader JsonWriter JsonSerializer JsonTextReader JsonLoadSettings JsonException JsonObject JsonArray JsonProperty JsonIgnore JsonConverterAttribute FormatException StringComparison Array IReadOnlyList IEnumerator IEnumerable") {
 		if word == name {
 			return true
@@ -118,6 +126,9 @@ func (g *csharpGenerator) register(node *Schema) {
 	if node.Items != nil {
 		g.register(node.Items)
 	}
+	for _, branch := range node.OneOf {
+		g.register(branch)
+	}
 }
 func (g *csharpGenerator) typ(node *Schema) string {
 	if name, exists := g.names[node]; exists {
@@ -133,6 +144,9 @@ func (g *csharpGenerator) underlying(node *Schema) string {
 	case "string":
 		return "string"
 	case "integer":
+		if node.Nullable {
+			return "int?"
+		}
 		return "int"
 	case "boolean":
 		return "bool"
@@ -144,18 +158,26 @@ func (g *csharpGenerator) underlying(node *Schema) string {
 }
 func (g *csharpGenerator) propertyType(node *Schema, key string) string {
 	typ := g.typ(node.Properties[key])
-	if !required(node, key) {
+	if !required(node, key) && !strings.HasSuffix(typ, "?") {
 		typ += "?"
 	}
 	return typ
 }
 func (g *csharpGenerator) model(node *Schema) {
 	name := g.names[node]
+	if len(node.OneOf) > 0 {
+		g.unionModel(node)
+		return
+	}
 	switch node.Type {
 	case "object":
 		fmt.Fprintf(&g.out, "    [JsonObject(MemberSerialization.OptIn)]\n    public sealed class %s\n    {\n", name)
 		for _, key := range sortedKeys(node.Properties) {
-			fmt.Fprintf(&g.out, "        [JsonProperty(%q, NullValueHandling = NullValueHandling.Ignore)]\n        public %s %s { get; }\n", key, g.propertyType(node, key), fieldName(key))
+			nullMode := "Ignore"
+			if node.Properties[key].Nullable {
+				nullMode = "Include"
+			}
+			fmt.Fprintf(&g.out, "        [JsonProperty(%q, NullValueHandling = NullValueHandling.%s)]\n        public %s %s { get; }\n", key, nullMode, g.propertyType(node, key), fieldName(key))
 		}
 		fmt.Fprintf(&g.out, "        internal %s(", name)
 		for i, key := range sortedKeys(node.Properties) {
@@ -175,14 +197,74 @@ func (g *csharpGenerator) model(node *Schema) {
 	default:
 		fmt.Fprintf(&g.out, "    [JsonConverter(typeof(%sWireConverter))]\n    public sealed class %s\n    {\n        public %s Value { get; }\n        internal %s(%s value) { Value = value; }\n", name, name, g.underlying(node), name, g.underlying(node))
 	}
+	g.factory(node)
 	fmt.Fprintf(&g.out, "        public static %s Decode(string json) { return %s.%s(%s.Parse(json)); }\n    }\n\n", name, g.boundary, g.functions[node], g.boundary)
 	if node.Type != "object" && node.Type != "array" {
 		fmt.Fprintf(&g.out, "    internal sealed class %sWireConverter : JsonConverter\n    {\n        public override bool CanRead { get { return false; } }\n        public override bool CanConvert(Type type) { return type == typeof(%s); }\n        public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)\n        {\n            if (!(value is %s typed)) throw new JsonSerializationException(\"Unexpected wire value\");\n            serializer.Serialize(writer, typed.Value);\n        }\n        public override object ReadJson(JsonReader reader, Type type, object? existingValue, JsonSerializer serializer)\n        { throw new NotSupportedException(\"Use the strict Decode method\"); }\n    }\n\n", name, name, name)
 	}
 }
+func (g *csharpGenerator) factory(node *Schema) {
+	name := g.names[node]
+	fmt.Fprintf(&g.out, "        public static %s From(", name)
+	if node.Type == "object" {
+		for i, key := range sortedKeys(node.Properties) {
+			if i > 0 {
+				g.out.WriteString(", ")
+			}
+			fmt.Fprintf(&g.out, "%s value%d", g.propertyType(node, key), i)
+		}
+	} else if node.Type == "array" {
+		fmt.Fprintf(&g.out, "IReadOnlyList<%s> values", g.typ(node.Items))
+	} else {
+		fmt.Fprintf(&g.out, "%s value", g.underlying(node))
+	}
+	fmt.Fprintf(&g.out, ") { return Decode(JsonConvert.SerializeObject(new %s(", name)
+	if node.Type == "object" {
+		for i := range sortedKeys(node.Properties) {
+			if i > 0 {
+				g.out.WriteString(", ")
+			}
+			fmt.Fprintf(&g.out, "value%d", i)
+		}
+	} else if node.Type == "array" {
+		g.out.WriteString("values")
+	} else {
+		g.out.WriteString("value")
+	}
+	g.out.WriteString("))); }\n")
+}
+
+func (g *csharpGenerator) unionBranches(node *Schema) (*Schema, *Schema) {
+	first := g.schema.Definitions[strings.TrimPrefix(node.OneOf[0].Ref, "#/$defs/")]
+	second := g.schema.Definitions[strings.TrimPrefix(node.OneOf[1].Ref, "#/$defs/")]
+	if *first.Properties["success"].Const {
+		return first, second
+	}
+	return second, first
+}
+
+func (g *csharpGenerator) unionModel(node *Schema) {
+	name := g.names[node]
+	success, failure := g.unionBranches(node)
+	fmt.Fprintf(&g.out, "    [JsonConverter(typeof(%sWireConverter))]\n    public sealed class %s\n    {\n        public %s? Success { get; }\n        public %s? Failure { get; }\n        internal object WireValue { get { return (object?)Success ?? Failure!; } }\n", name, name, g.typ(success), g.typ(failure))
+	for _, branch := range []*Schema{success, failure} {
+		property := "Failure"
+		if branch == success {
+			property = "Success"
+		}
+		fmt.Fprintf(&g.out, "        internal %s(%s value) { %s = value ?? throw new ArgumentNullException(nameof(value)); }\n        public static %s From(%s value) { return Decode(JsonConvert.SerializeObject(value)); }\n", name, g.typ(branch), property, name, g.typ(branch))
+	}
+	fmt.Fprintf(&g.out, "        public static %s Decode(string json) { return %s.%s(%s.Parse(json)); }\n    }\n    internal sealed class %sWireConverter : JsonConverter\n    {\n        public override bool CanRead { get { return false; } }\n        public override bool CanConvert(Type type) { return type == typeof(%s); }\n        public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer) { if (!(value is %s typed)) throw new JsonSerializationException(\"Unexpected wire value\"); serializer.Serialize(writer, typed.WireValue); }\n        public override object ReadJson(JsonReader reader, Type type, object? existingValue, JsonSerializer serializer) { throw new NotSupportedException(\"Use the strict Decode method\"); }\n    }\n", name, g.boundary, g.functions[node], g.boundary, name, name, name)
+}
+
 func (g *csharpGenerator) decoder(node *Schema) {
 	typ := g.typ(node)
 	fmt.Fprintf(&g.out, "        internal static %s %s(JToken token)\n        {\n", typ, g.functions[node])
+	if len(node.OneOf) > 0 {
+		success, failure := g.unionBranches(node)
+		fmt.Fprintf(&g.out, "            if (!(token is JObject value) || !value.TryGetValue(\"success\", StringComparison.Ordinal, out var flag)) throw new FormatException(\"Missing success discriminator\");\n            if (ReadBoolean(flag)) return new %s(%s(token));\n            return new %s(%s(token));\n        }\n", typ, g.functions[success], typ, g.functions[failure])
+		return
+	}
 	if node.Ref != "" {
 		target := g.schema.Definitions[strings.TrimPrefix(node.Ref, "#/$defs/")]
 		expression := g.functions[target] + "(token)"
@@ -227,10 +309,28 @@ func (g *csharpGenerator) decoder(node *Schema) {
 		switch node.Type {
 		case "string":
 			expression = fmt.Sprintf("ReadString(token, %d, %t)", *node.MaxUTF16Length, node.NonBlankDotNet != nil && *node.NonBlankDotNet)
+			if len(node.Enum) > 0 {
+				fmt.Fprintf(&g.out, "            var text = %s;\n            if (!(", expression)
+				for i, value := range node.Enum {
+					if i > 0 {
+						g.out.WriteString(" || ")
+					}
+					literal, _ := json.Marshal(value)
+					fmt.Fprintf(&g.out, "text == %s", literal)
+				}
+				g.out.WriteString(")) throw new FormatException(\"Unknown string enum value\");\n")
+				expression = "text"
+			}
 		case "integer":
 			expression = fmt.Sprintf("ReadInteger(token, %d, %d)", *node.Minimum, *node.Maximum)
+			if node.Nullable {
+				expression = "token.Type == JTokenType.Null ? (int?)null : " + expression
+			}
 		case "boolean":
 			expression = "ReadBoolean(token)"
+			if node.Const != nil {
+				fmt.Fprintf(&g.out, "            if (ReadBoolean(token) != %t) throw new FormatException(\"Incorrect boolean constant\");\n", *node.Const)
+			}
 		}
 		if _, named := g.names[node]; named {
 			expression = "new " + typ + "(" + expression + ")"
