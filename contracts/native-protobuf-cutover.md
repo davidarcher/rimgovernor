@@ -165,6 +165,8 @@ acceptance verifies an ordinary assault rifle's attributed target death, player
 override, fresh owned recovery and completed-before-Manual cleanup. Native shield,
 callback side-damage, tracking-capacity and late-flight interruption scenarios
 remain separate acceptance work; compiled tests cover their attribution guards.
+The same package also passes native melee death and ownership recovery. Interrupted
+notification/health trials remain failure evidence alongside the successful runs.
 
 Current source inventory: 80 production exports, 56 fixture exports, 150 handwritten
 C# source files and nine generated Protobuf compile inputs. Source declarations do
