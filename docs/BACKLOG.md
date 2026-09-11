@@ -966,7 +966,8 @@ only intentional small, sanitized regression fixtures belong in source control.
         with progress. Persist each exact cleanup request, pawn CAS and journal-
         assigned local sequence before release; cleanup has no native attempt key.
       - [ ] **07a.2d:** typed draft execution, lookup and exact release adapters.
-        Owner: bridge agent; depends on 2a–b and native claim acceptance. Separate
+        Owner: bridge agent; depends on 2a, the canonical operation contracts and
+        native claim acceptance. Transport uses wire types independently of 2b. Separate
         temporary draft capability from read-only clients; never adopt a player
         draft or use general undraft as cleanup. Preserve uncertain outcomes.
       - [ ] **07a.2e:** draft handler in the shared Hands executor. Owner:
