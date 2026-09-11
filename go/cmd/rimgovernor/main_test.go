@@ -109,9 +109,9 @@ func TestReplayUsage(t *testing.T) {
 	}
 }
 
-func TestVersionReportsMigrationGate(t *testing.T) {
+func TestVersionReportsExplicitBuildingControls(t *testing.T) {
 	var out, errors bytes.Buffer
-	if run([]string{"version"}, &out, &errors) != 0 || !strings.Contains(out.String(), "native writes unavailable") {
+	if run([]string{"version"}, &out, &errors) != 0 || !strings.Contains(out.String(), "explicit building controls") {
 		t.Fatalf("stdout=%q stderr=%q", &out, &errors)
 	}
 }
