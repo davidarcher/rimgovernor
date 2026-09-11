@@ -113,6 +113,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Receipts.ConstructionEffect Effect;
         internal Thing Current;
         internal string Uncertain;
+        internal bool Cancelled;
         internal NativeConstructionRecord(Game game, NativeConstructionPlan plan, Thing thing, Receipts.ConstructionEffect effect)
         {
             Game = game; Map = plan.Map; Plan = plan; Current = thing; Effect = effect.Clone();
@@ -121,7 +122,7 @@ namespace HomeBridge.BridgeTools
         }
         internal bool Matches(Thing thing) => thing != null && thing.Spawned && ReferenceEquals(thing.Map, Map)
             && thing.Position == Plan.Cell && thing.Rotation == Plan.Rotation && thing.Faction == Plan.Player
-            && (thing is Building ? thing.def : thing.def.entityDefToBuild) == Plan.Definition
+            && (thing is Blueprint || thing is Frame ? thing.def.entityDefToBuild : thing.def) == Plan.Definition
             && (thing is Blueprint_Build blueprint ? blueprint.EntityToBuildStuff() : thing.Stuff) == Plan.Stuff;
         internal void Update(Thing thing)
         {
@@ -139,6 +140,20 @@ namespace HomeBridge.BridgeTools
                 progress.Unknown = new Receipts.UnknownEffect { Reason = Uncertain ?? "Construction context changed." };
                 return progress;
             }
+            if (Cancelled && Current.Destroyed)
+            {
+                var cancelled = Effect.Clone();
+                cancelled.Stage = Receipts.ConstructionStage.Cancelled;
+                cancelled.Present = false; cancelled.Failed = true;
+                progress.CompleteInspection = true;
+                progress.Unsuccessful = new Receipts.UnsuccessfulEffect
+                {
+                    Reason = Receipts.UnsuccessfulReason.Cancelled,
+                    Evidence = new Receipts.EffectEvidence { Construction = cancelled },
+                    Detail = "The exact tracked construction was cancelled by native Destroy(Cancel)."
+                };
+                return progress;
+            }
             if (Matches(Current))
             {
                 Effect.Present = true;
@@ -150,8 +165,8 @@ namespace HomeBridge.BridgeTools
             }
             else if (Current.Destroyed)
             {
-                progress.CompleteInspection = true;
-                progress.Absent = new Receipts.AbsentEffect { InspectionToken = Guid.NewGuid().ToString("N") };
+                progress.Unknown = new Receipts.UnknownEffect
+                    { Reason = "Tracked object was destroyed; absence of all successor orders is not established." };
             }
             else progress.Unknown = new Receipts.UnknownEffect { Reason = "Tracked construction no longer matches its admitted native identity." };
             return progress;
@@ -172,18 +187,25 @@ namespace HomeBridge.BridgeTools
             try
             {
                 var patcher = new Harmony(PatchOwner);
-                var blueprint = AccessTools.Method(typeof(Blueprint_Build), "MakeSolidThing");
+                var blueprint = AccessTools.Method(typeof(Blueprint), nameof(Blueprint.TryReplaceWithSolidThing));
+                var make = AccessTools.Method(typeof(ThingMaker), nameof(ThingMaker.MakeThing), new[] { typeof(ThingDef), typeof(ThingDef) });
                 var finish = AccessTools.Method(typeof(Frame), nameof(Frame.CompleteConstruction));
                 var fail = AccessTools.Method(typeof(Frame), nameof(Frame.FailConstruction));
                 var spawn = AccessTools.Method(typeof(GenSpawn), nameof(GenSpawn.Spawn), new[] {
                     typeof(Thing), typeof(IntVec3), typeof(Map), typeof(Rot4), typeof(WipeMode), typeof(bool), typeof(bool) });
-                if (blueprint == null || finish == null || fail == null || spawn == null) return;
+                var destroy = new[] { typeof(Thing), typeof(ThingWithComps), typeof(Building), typeof(Frame) }
+                    .Select(type => AccessTools.DeclaredMethod(type, nameof(Thing.Destroy), new[] { typeof(DestroyMode) })).ToArray();
+                if (destroy.Any(method => method == null)) return;
+                if (blueprint == null || finish == null || fail == null || spawn == null || make == null) return;
                 patcher.Patch(blueprint, finalizer: new HarmonyMethod(typeof(NativeConstructionTracking), nameof(Transition)));
                 foreach (var method in new[] { finish, fail }) patcher.Patch(method,
                     prefix: new HarmonyMethod(typeof(NativeConstructionTracking), nameof(Begin)),
                     finalizer: new HarmonyMethod(typeof(NativeConstructionTracking), nameof(End)));
+                patcher.Patch(make, postfix: new HarmonyMethod(typeof(NativeConstructionTracking), nameof(Created)));
                 patcher.Patch(spawn, postfix: new HarmonyMethod(typeof(NativeConstructionTracking), nameof(Spawned)));
-                Ready = new[] { blueprint, finish, fail, spawn }.All(method => Harmony.GetPatchInfo(method)?.Owners.Contains(PatchOwner) == true);
+                foreach (var method in destroy) patcher.Patch(method,
+                    finalizer: new HarmonyMethod(typeof(NativeConstructionTracking), nameof(Cancelled)));
+                Ready = new[] { blueprint, finish, fail, spawn, make }.Concat(destroy).All(method => Harmony.GetPatchInfo(method)?.Owners.Contains(PatchOwner) == true);
             }
             catch { Ready = false; }
         }
@@ -193,42 +215,70 @@ namespace HomeBridge.BridgeTools
             Tracked.Add(thing, record);
             return record;
         }
-        private static void Transition(Blueprint_Build __instance, Thing __result, Exception __exception)
+        // MakeSolidThing returns an unspawned, unfactioned frame. Its enclosing
+        // method supplies placement/faction and exposes the exact created object.
+        private static void Transition(Blueprint __instance, bool __result, Thing createdThing, Exception __exception)
         {
             NativeConstructionRecord record;
             if (!Tracked.TryGetValue(__instance, out record)) return;
-            if (__exception != null || !record.Matches(__result) || !(__result is Frame || __result is Building))
+            if (__exception == null && !__result && createdThing == null && record.Matches(__instance)) return;
+            if (__exception != null || !__result || !__instance.Destroyed || !record.Matches(createdThing)
+                || !(createdThing is Frame))
             { record.Uncertain = "Blueprint transition did not produce one matching native object."; return; }
-            Tracked.Remove(__instance); Tracked.Add(__result, record); record.Update(__result);
+            Tracked.Remove(__instance); Tracked.Add(createdThing, record); record.Update(createdThing);
+        }
+        private static void Cancelled(Thing __instance, DestroyMode mode,
+            System.Reflection.MethodBase __originalMethod, Exception __exception)
+        {
+            if (mode != DestroyMode.Cancel || __exception != null || !__instance.Destroyed) return;
+            // Base Destroy may succeed before a derived override or component
+            // throws. Only the outermost concrete virtual implementation confirms.
+            if (AccessTools.Method(__instance.GetType(), nameof(Thing.Destroy), new[] { typeof(DestroyMode) }) != __originalMethod) return;
+            NativeConstructionRecord record;
+            if (Tracked.TryGetValue(__instance, out record) && ReferenceEquals(record.Current, __instance))
+                record.Cancelled = true;
         }
         private sealed class Completion
         {
             internal NativeConstructionRecord Record;
             internal Frame Frame;
-            internal readonly List<Thing> Spawned = new List<Thing>();
+            internal ThingDef ExpectedDefinition;
+            internal readonly NativeConstructionCausality Causality = new NativeConstructionCausality();
         }
-        private static void Begin(Frame __instance, out Completion __state)
+        private static void Begin(Frame __instance, System.Reflection.MethodBase __originalMethod, out Completion __state)
         {
-            __state = null;
             NativeConstructionRecord record;
-            if (!Tracked.TryGetValue(__instance, out record)) return;
-            __state = new Completion { Record = record, Frame = __instance };
+            Tracked.TryGetValue(__instance, out record);
+            // Even an untracked nested frame call hides its effects from a parent.
+            __state = new Completion { Record = record, Frame = __instance,
+                ExpectedDefinition = __originalMethod.Name == nameof(Frame.FailConstruction)
+                    ? __instance.def.entityDefToBuild.blueprintDef : __instance.def.entityDefToBuild as ThingDef };
             Completions.Add(__state);
         }
-        private static void Spawned(Thing __result)
+        private static void Created(Thing __result)
         {
-            foreach (var completion in Completions)
-                if (completion.Record.Matches(__result)) completion.Spawned.Add(__result);
+            if (Completions.Count == 0 || __result == null) return;
+            var completion = Completions[Completions.Count - 1];
+            if (completion.Record != null && __result.def == completion.ExpectedDefinition)
+                completion.Causality.Created(__result);
+        }
+        private static void Spawned(Thing __0, Thing __result)
+        {
+            if (Completions.Count == 0) return;
+            var completion = Completions[Completions.Count - 1];
+            if (completion.Record != null) completion.Causality.Spawned(__0, __result);
         }
         private static void End(Completion __state, Exception __exception)
         {
             if (__state == null) return;
             Completions.Remove(__state);
-            var matches = __state.Spawned.Distinct().ToArray();
-            if (__exception != null || !__state.Frame.Destroyed || matches.Length != 1
-                || !(matches[0] is Building || matches[0] is Blueprint_Build))
+            if (__state.Record == null) return;
+            object successor;
+            if (!__state.Causality.TryComplete(__state.Frame.Destroyed, __exception, out successor)
+                || !(successor is Thing thing) || !__state.Record.Matches(thing)
+                || !(thing is Building || thing is Blueprint_Build))
             { __state.Record.Uncertain = "Construction transition identity could not be established."; return; }
-            Tracked.Remove(__state.Frame); Tracked.Add(matches[0], __state.Record); __state.Record.Update(matches[0]);
+            Tracked.Remove(__state.Frame); Tracked.Add(thing, __state.Record); __state.Record.Update(thing);
         }
     }
 }
