@@ -46,6 +46,20 @@ orders. Interrupting the process cancels and joins polling before closing its SD
 database and asset handles. Native read acceptance is tracked separately in G01.03;
 this command does not switch the production launcher from Python.
 
+## Guarded building components
+
+The internal building runtime combines exact native preview/map facts, complete
+SQLite reservation recovery and one-attempt execution. Authority and building
+writes use separately held typed capabilities; the read-only service has neither.
+The executor records dispatch before effects and resolves lost replies through
+attempt lookup and correlated observations. Receipts never establish completed
+pawn construction. Unsuccessful outcomes remain distinct from unknown effects.
+
+`Executor.Stop` cancels work and joins native dispatch plus receipt persistence.
+A failed drain requires retaining the process lock, bridge and database until a
+later successful drain. Native write acceptance and the explicit player runtime
+entry point remain tracked under G01.06.
+
 ## Optional evidence replay
 
 ```powershell

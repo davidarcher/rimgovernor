@@ -692,7 +692,7 @@ only intentional small, sanitized regression fixtures belong in source control.
     tests and Windows/Linux build CI; clean platform validation and evidence.
     Owner: integrator. Depends on 01b.
 
-- [ ] **G01.02 — Shared Protobuf contracts before adapters.** Native N01 owns
+- [x] **G01.02 — Shared Protobuf contracts before adapters.** Native N01 owns
   the canonical native boundary package; the Go team supplies one consolidated
   consumer inventory and reviews generated Go bindings. Complete all production
   message families, semantic constraints and source/consumer coverage before either
@@ -711,10 +711,10 @@ only intentional small, sanitized regression fixtures belong in source control.
     concurrency preconditions, uncertain effects and observed outcome attribution.
     Audit every current native boundary against a typed family or explicit
     retirement; both teams review this package before adapter implementation.
-  - [ ] **02c:** wire generated native request validation and typed preview reply
+  - [x] **02c:** wire generated native request validation and typed preview reply
     through the real SDK to Go. Owner: native N01.02 implementer; depends on 02b.
     Coordinate with the unified native package paths. Native rules remain unchanged.
-  - [ ] **02d:** one fresh isolated valid/refused/invalid invocation with no preview
+  - [x] **02d:** one fresh isolated valid/refused/invalid invocation with no preview
     effects. Owner: native implementer; depends on 02c. Subsequent adapter slices
     consume the reviewed package independently and retain native outcome gates.
   - [x] **02e:** remove the experimental custom wire generator, schema tree,
@@ -815,10 +815,10 @@ only intentional small, sanitized regression fixtures belong in source control.
           observation contract. Owner: bridge agent; depends on 03b.1.
         - [x] **06b.3b.2:** complete durable cross-plan reservation recovery.
           Owner: integrator; depends on 04b and 06a.
-        - [ ] **06b.3b.3:** bind native preview, lease, receipt lookup and observed
+        - [x] **06b.3b.3:** bind native preview, lease, receipt lookup and observed
           progress to the executor boundary. Owner: bridge agent; depends on
           06b.2, 06b.3a and 06b.3b.1–2.
-        - [ ] **06b.3b.4:** trusted explicit acquisition, renewal, invalidation and
+        - [x] **06b.3b.4:** trusted explicit acquisition, renewal, invalidation and
           joined shutdown under one process lock. Owner: runtime agent; depends
           on 06b.2 and the existing runtime ownership primitive.
         - [ ] **06b.3b.5:** wire an explicit player-only entry point and runtime
