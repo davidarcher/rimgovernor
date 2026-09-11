@@ -586,7 +586,7 @@ expand these into another nested task tree; remove a row when its outcome is met
 
 - [ ] **G01.10a — Finish supervised clock operation.** Complete event/review
   history maintenance so repeated windows do not eventually exhaust capacity;
-  wire the existing attempt/epoch retirement into runtime maintenance. Retain
+  attempt/epoch retirement now runs during event polling. Retain
   unresolved writes, active ownership, unreviewed events and unacknowledged
   interruptions/gaps; preserve cursors and acknowledgement replay. Use the actual
   Go player service to verify ordinary pawn work, a real interruption, explicit

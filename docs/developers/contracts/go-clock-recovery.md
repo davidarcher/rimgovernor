@@ -234,8 +234,12 @@ preserving unresolved writes, nonterminal ownership, retained commands' Start
 provenance, the latest scheduling window and a bounded recent tail. Its expected
 state checks namespace and allocation/retirement watermarks; the transaction
 recomputes eligibility from current rows. A bounded retained index detects missing
-pinned records without tombstones. Event/review compaction and automatic runtime
-maintenance remain required before sustained operation is enabled.
+pinned records without tombstones. Event polling invokes retirement after each
+128 newly allocated requests, retaining the latest 128 attempts in addition to
+pinned evidence. A concurrent allocation defers retirement until the next poll;
+other maintenance failures disable control and invoke owned cleanup. Maintenance
+does not take the player gate, acknowledge events or restore authority.
+Event/review compaction remains required for sustained operation.
 
 With clock supervision enabled, GET /api/player/clock exposes durable review
 revision, cursors and interruption/gap holds. POST /api/player/clock/acknowledge
