@@ -260,14 +260,26 @@ func TestServeLoopbackAndGracefulShutdown(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("shutdown hung")
 	}
-	remote, err := net.Listen("tcp", "0.0.0.0:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer remote.Close()
+	remote := &rejectedListener{address: &net.TCPAddr{IP: net.IPv4zero, Port: 12345}}
 	if err := api.Serve(context.Background(), remote); err == nil {
 		t.Fatal("nonloopback listener accepted")
 	}
+	if remote.accepted {
+		t.Fatal("nonloopback listener reached Accept")
+	}
+}
+
+// The rejection path needs an address, not a public socket or firewall permission.
+type rejectedListener struct {
+	address  net.Addr
+	accepted bool
+}
+
+func (l *rejectedListener) Addr() net.Addr { return l.address }
+func (l *rejectedListener) Close() error   { return nil }
+func (l *rejectedListener) Accept() (net.Conn, error) {
+	l.accepted = true
+	return nil, errors.New("rejected listener must not accept")
 }
 
 func TestServeShutdownCancelsActiveProvider(t *testing.T) {
