@@ -992,26 +992,28 @@ main. Native package and Go production cutover remain independent.
   production artifact passes fresh Linux batch and graphical/Xvfb startup, all
   55 native tools, fixture isolation, component census and preview invariance.
 
-- [ ] **N01.02 — First strict native contract.** Native contract owner with G01.02.
+- [x] **N01.02 — First strict native contract.** Native contract owner with G01.02.
   - [x] Shared contract handoff: nine canonical Protobuf families, all97 boundary
     inventory rows/55 native exports mapped,78 fixed MCP methods, official C#/Go
     outputs and complete Windows/Linux serialization exchange. Both teams reviewed
     contract joins and semantic constraints; adapters consume this package.
-  - [ ] First native adapter and fresh-game acceptance below.
+  - [x] Official runtime packaging and first identity, authority-status and placement
+    adapters. Fresh Linux graphical and batch games pass SDK refusal controls,
+    ordinary placement previews and Go round trips with unchanged paused
+    identity/ticks, camera and nearby buildings. Authority reads do not initialize
+    state; authority acquisition remains gated on N01.05 hooks and trusted admission.
 
   Consume the reviewed [contract package](../contracts/proto/README.md) and fixed
   method mapping independently in Go/native adapters. Keep game-rule and
   application-limit validation explicit; no custom compiler or validation language.
-  Migrate placement previews through generated DTOs, validated SDK
-  boundary and typed operation. Reject unknown outer arguments before binder loss;
-  fail closed when required raw validation is unavailable. Test missing/null,
-  overflow, malformed grammar, variants and SDK failures using shared generated
-  cases and fresh native invocation. Verify ordinary placement rules and no preview
-  side effects. Breaking contract changes are allowed when current consumers move
-  together; no historical byte-parity gate.
+  Placement previews use generated DTOs, validated SDK boundaries and a typed
+  operation. Unknown outer arguments fail before binder loss; missing raw validation
+  fails closed. Boundary checks cover presence, overflow, malformed grammar,
+  variants and actual SDK binding. Breaking changes move current consumers together;
+  no historical byte-parity gate.
 
 - [ ] **N01.03 — Typed observations.** Native observations owner with G01.03. Migrate
-  identity/status and batch envelope, then pawns/health, supplies/buildings,
+  colony status and batch envelope, then pawns/health, supplies/buildings,
   rooms/zones/cells and remaining facts in bounded slices. Preserve unavailable
   information, section freshness and modded definitions. Check actual SDK decoding,
   invalid identities and read-only native behavior. Produce exact scoped snapshot
@@ -1037,15 +1039,17 @@ main. Native package and Go production cutover remain independent.
   Consolidate startup/patch health, supervisor/journal ownership, render leases,
   camera/input cleanup and platform adapters. Make initialization/shutdown bounded
   and idempotent. Required guard failure disables affected automation. Address the
-  source-audited early missing-journal cache, delayed Watch/Trade cleanup, pending
+  delayed Watch/Trade cleanup, pending
   pawn images on destruction, render restoration after player edits and combat
   arms lacking game identity. Verify disconnect/lease expiry, load/map changes,
   repeated initialization, patch failure, batch pawn work and graphical rendering.
   Replace UTC-based lease expiry with monotonic duration checks while journal
   diagnostics retain Unix timestamps. Implement typed clock/lifecycle attempt
   lookups, superseded loads, verified pause states and correlated uncertain UI
-  results. Stage the pinned Protobuf runtime closure and required notices; Mono
-  compilation proofs do not replace actual Unity/game loading acceptance.
+  results. The early missing-journal cache now retries after delayed SDK loading;
+  its isolated regression passes. The pinned Protobuf runtime closure and notices
+  load in fresh graphical and batch games. Unsaved monotonic authority state is
+  tested, but verified native hooks and trusted player-direction admission remain.
   Depends on relevant typed status/clock contracts; fix independently reproducible
   defects as bounded prerequisites.
 

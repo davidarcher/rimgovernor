@@ -10,6 +10,10 @@ The SDK-facing request declares one argument, `request`, whose value is a string
 
 The response contains a `payload` string holding official ProtoJSON for the exact reply type, alongside ordinary SDK metadata. SDK envelopes, text summaries and discovery descriptors are not domain effects or receipt evidence. Consumers parse `payload` with the registered generated reply parser and retain its typed outcome/identity/correlation. No `Struct`, `Any`, raw argument bag, arbitrary method/tool selector or string-based native dispatch is permitted inside a request.
 
+Control request/reply size limits count the UTF-8 bytes of the ProtoJSON document
+inside `request` or `payload`. SDK metadata and the enclosing transport's JSON
+string escaping are outside that count; transport framing has its own limits.
+
 The installed SDK's string binder can throw before the adapter inspects malformed
 outer values. Native adapters therefore receive `request` as CLR `object`, inspect
 the original outer arguments, require its actual value to be a string, and then

@@ -62,6 +62,16 @@ invalidate authority. An ordinary pause, letter or logging pause is not Manual.
 Acquisition and renewal require a duration between 1000 and 30000 milliseconds;
 expiry uses monotonic real time rather than game ticks.
 
+External `Control.Revoke` requests permit only `MANUAL`, `PLAYER_DIRECTION`,
+`DISCONNECT`, and `SHUTDOWN`; other revocation reasons originate in native events.
+A successful acquire or explicit revoke increments the expected generation by
+exactly one, including revoking an already inactive authority. Renewal preserves
+the generation, lease ID, session and original player direction. Overflow fails
+closed. A granted reply has positive remaining lease time no greater than the
+requested duration. Native refresh applies expiry/context changes before the CAS
+check; a mismatched generation fails rather than returning a grant at another
+generation.
+
 New commands validate identity, generation, lease and ownership atomically on the
 game thread. The attempt key is `(controller_session_id, action_id, attempt_id)`;
 the controller namespace survives controller process restarts. Record an attempt

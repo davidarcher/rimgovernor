@@ -39,6 +39,23 @@ script and your installed game/SDK/Harmony dependencies. Native restore is locke
 A standalone Mono proof needs the standard netstandard framework facade; installed
 game loading and round trips require the fresh native acceptance run.
 
+The first implemented [fixed Protobuf methods](../../contracts/proto/mcp-tools.md)
+are `rimgovernor/lifecycle_read_identity`, `rimgovernor/authority_read_status`,
+and `rimgovernor/placement_preview`. Each accepts one `request` ProtoJSON string
+and returns one `payload` ProtoJSON string inside the SDK envelope. Identity and
+status reads do not initialize game components or authority. Authority reports
+unavailable until native hooks and trusted admission initialize it. Placement
+uses exact native definitions and ordinary rules; it never places anything.
+
+Run `scripts/native_protobuf_acceptance.py` through
+`scripts/container_scenario.py` against a private production package. Its root is
+`/worker/run`; add `--rendered` for Xvfb and optionally `--go-preview-smoke` with
+the official-wire Linux Go smoke executable. The smoke explicitly transfers its
+own scenario's GABS connection and returns it for final native read checks.
+The focused C# projects under `contracts/tests/native-proto-*` and
+`contracts/tests/native-authority*` test parsing, SDK binding and authority
+semantics separately from this game run.
+
 The headless GPL-3.0 notice and both upstream provenance records remain in Notices.
 Companion provenance records the absence of an upstream redistribution license;
 this local development package does not grant redistribution rights.

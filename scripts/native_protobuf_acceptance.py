@@ -51,6 +51,7 @@ async def run_go_preview(binary: Path, root: Path, output: Path, configuration: 
         process = await asyncio.create_subprocess_exec(str(executable.resolve()),
             "-gabs", str(Path(gabs_executable(root, configuration)).resolve()),
             "-config", str(configuration.resolve()), "-game", "rimgovernor-trial",
+            "-force-takeover",
             "-requests", str(requests.resolve()), "-output", str((output / "go-preview-results").resolve()),
             stdout=stdout, stderr=stderr)
         try:
@@ -183,7 +184,7 @@ async def run(root: Path, output: Path, *, headless: bool, timeout_seconds: int,
                             await run_go_preview(go_preview_smoke, root, output, configuration, fixture, report)
                         finally:
                             async with asyncio.timeout(30):
-                                await bridge.connect()
+                                await bridge.core("games_connect", gameId=bridge.game_id, forceTakeover=True)
                     unchanged(identity_before, await wire("identity-after", "lifecycle_read_identity", {}), "identity/tick/generation")
                     unchanged(camera, await call("camera-after", "rimworld/get_camera_state"), "camera")
                     unchanged(buildings, await call("buildings-after", "home/list_buildings", building_args), "buildings/blueprints/frames")

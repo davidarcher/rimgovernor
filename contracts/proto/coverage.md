@@ -1,8 +1,8 @@
 # Shared native contract coverage
 
-All 97 native-tool inventory rows: 54 owned home calls, 33 upstream SDK calls, eight GABS boundaries and two dispatch/discovery mechanisms. The separate 55-export production census additionally contains home/play_until_event, mapped below. Family coverage does not prove adapter behavior or field completeness.
+All 97 porting-baseline native-tool inventory rows: 54 owned home calls, 33 upstream SDK calls, eight GABS boundaries and two dispatch/discovery mechanisms. The baseline 55-export production census additionally contains home/play_until_event, mapped below. See [current native capabilities](../native-protobuf-cutover.md) for implemented exports. Family coverage does not prove adapter behavior or field completeness.
 
-| Current boundary | Canonical destination | Disposition | Inventory source |
+| Baseline boundary | Canonical destination | Disposition | Inventory source |
 |---|---|---|---|
 | `games_start` | Existing exact-owned GABS process adapter | External host | `controller/rimgovernor/bridge.py:106` |
 | `games_connect` | Existing exact-owned GABS process adapter | External host | `controller/rimgovernor/bridge.py:147` |
