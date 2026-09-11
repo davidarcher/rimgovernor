@@ -1098,6 +1098,11 @@ only intentional small, sanitized regression fixtures belong in source control.
         - [ ] **07a.3b.2:** shared melee action, explicit same-pawn draft prerequisite
           and durable exact admission. Owner: domain/state agents; freeze local
           interfaces first. Prevent generic prepare and prerequisite bypass.
+          - [ ] **07a.3b.2a:** closed melee action and same-pawn draft prerequisite
+            validation. Owner: domain agent; fixed constructor/accessor interface.
+          - [ ] **07a.3b.2b:** canonical melee plan persistence and typed admission.
+            Owner: integrator; depends on 2a. Atomically validate the completed
+            prerequisite and exact retained claim before preparing or dispatching.
         - [ ] **07a.3b.3:** deterministic one-opponent melee admission. Owner: policy
           agent; depends on 3b.1–2. Require complete fresh census, selected pawn
           health and guarded native preview; preserve explicit hold reasons.
