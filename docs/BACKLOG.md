@@ -591,7 +591,10 @@ expand these into another nested task tree; remove a row when its outcome is met
   facts, competing projects, player priorities, renewed deficits and cancellation.
   Routine events must make no model calls.
   Go pure policy now covers common foothold gates, food/temperature/wood latches,
-  development ranking and bounded starter-site/fragmented-field proposals. Shared
+  development ranking and bounded starter-site/fragmented-field proposals. General
+  placement search now ports the Python candidate order and checks whole
+  native footprints against indoor constraints and protected cells; selected actions
+  use the existing method admission contract. Shared
   action progress retains committed capacity through uncertain cancellation.
   Maintained goal/method records now link to shared plans in fresh Go SQLite state.
   Reviews retain unknown effects, reopen recovered deficits and atomically cancel

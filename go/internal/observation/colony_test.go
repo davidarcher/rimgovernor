@@ -41,6 +41,17 @@ func TestColonyProjectionKeepsRawFoodAndUnknownGeometryOutOfPolicy(t *testing.T)
 	if occupied, known := p.Cells[0].Occupied.Value(); !known || occupied {
 		t.Fatal("known free cell lost")
 	}
+	for _, inside := range []*bool{proto.Bool(true), proto.Bool(false), nil} {
+		r.GetObserved().Planning.GetObserved().Cells.Cells[0].Indoors = inside
+		projected, err := DecodeColony(r, expected)
+		if err != nil {
+			t.Fatal(err)
+		}
+		value, known := projected.Cells[0].Indoors.Value()
+		if known != (inside != nil) || inside != nil && value != *inside {
+			t.Fatal("indoor fact inferred from roof", value, known)
+		}
+	}
 	r.GetObserved().Planning.GetObserved().Cells.Cells[0].Occupied = nil
 	p, err = DecodeColony(r, expected)
 	if err != nil {

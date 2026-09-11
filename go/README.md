@@ -42,6 +42,13 @@ Unavailable methods can yield their slot within the same review. `StarterLayouts
 proposes bounded shelter and disjoint crop patches while respecting observed
 geometry and player exclusions; proposals still require native preflight.
 
+`NewPlacementSearch` ports general development placement: up to 64 nearby observed
+anchors, ordered by distance and coordinates, with explicit indoor/outdoor facts
+and protected geometry. `Select` accepts an exact definition/stuff preview only
+when its entire safe footprint fits the observed free cells. Native indoor facts
+remain separate from roofing. Method compilation owns definition/builder prerequisites;
+the selected action still requires shared method admission and Hands execution.
+
 Fresh SQLite state stores maintained goals and method links to the same executable
 plans. Reviews use a revision CAS; renewed deficits get a new method epoch after
 observed recovery, preserving older plans and receipts. Cancellation and context

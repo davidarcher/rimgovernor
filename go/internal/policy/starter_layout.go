@@ -10,9 +10,9 @@ import (
 
 type Rectangle struct{ X, Z, Width, Height int32 }
 type SiteCell struct {
-	Cell                                            domain.Cell
-	Walkable, Occupied, Zone, Roofed, SupportsLight domain.Fact[bool]
-	Fertility                                       domain.Fact[float64]
+	Cell                                                     domain.Cell
+	Walkable, Occupied, Zone, Roofed, Indoors, SupportsLight domain.Fact[bool]
+	Fertility                                                domain.Fact[float64]
 }
 type StarterRequest struct {
 	Bounds Bounds
