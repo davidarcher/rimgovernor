@@ -143,3 +143,21 @@ pages, 4,096 events and 16 MiB of encoded requests/pages. Duplicate event copies
 are checked against their pages. Capacity failure leaves the entire append
 uncommitted. Processing, acknowledgement and retirement of history remain separate
 runtime work; ingestion alone never clears a gap or an interruption.
+
+## Review and acknowledgement
+
+Captured and reviewed cursors are distinct. Review consumes only committed pages
+and derives interruption and gap holds from that evidence. Ordinary epoch starts,
+speed changes, requested pauses and tick-budget stops do not create interruption
+holds; notification, injury, failure and other stop events remain conservative holds.
+Cleared conditions cannot erase an earlier unacknowledged event.
+
+Acknowledgements require an exact review revision and reviewed cursor. An exact
+request replay returns its historical result and never acknowledges later data.
+Consumers must read current review state before making a new policy decision and
+require the reviewed cursor to match the current captured cursor. Acknowledgement
+records inspection only; current unsafe facts and missing native events still hold.
+
+The bounded review log validates its canonical head against complete operation and
+inbox provenance on every load. Capacity refusal leaves state unchanged. Event
+polling, current-state policy and retention are separate runtime gates.

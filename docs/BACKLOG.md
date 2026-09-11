@@ -1092,15 +1092,15 @@ only intentional small, sanitized regression fixtures belong in source control.
       - [ ] **07a.3b:** deterministic single-opponent admission and shared move/
         attack actions. Owner: domain/state agents; depends on 3a.1–2 for melee. Bind fresh
         facts and the prerequisite draft claim; unknown or unsupported scope holds.
-        - [ ] **07a.3b.1:** narrow typed combat pawn read with health and equipment
+        - [x] **07a.3b.1:** narrow typed combat pawn read with health and equipment
           details from existing generated observations. Owner: bridge agent. Keep
           the existing ordinary pawn read closed; unknown combat capability holds.
-        - [ ] **07a.3b.2:** shared melee action, explicit same-pawn draft prerequisite
+        - [x] **07a.3b.2:** shared melee action, explicit same-pawn draft prerequisite
           and durable exact admission. Owner: domain/state agents; freeze local
           interfaces first. Prevent generic prepare and prerequisite bypass.
-          - [ ] **07a.3b.2a:** closed melee action and same-pawn draft prerequisite
+          - [x] **07a.3b.2a:** closed melee action and same-pawn draft prerequisite
             validation. Owner: domain agent; fixed constructor/accessor interface.
-          - [ ] **07a.3b.2b:** canonical melee plan persistence and typed admission.
+          - [x] **07a.3b.2b:** canonical melee plan persistence and typed admission.
             Owner: integrator; depends on 2a. Atomically validate the completed
             prerequisite and exact retained claim before preparing or dispatching.
         - [ ] **07a.3b.3:** deterministic one-opponent melee admission. Owner: policy
@@ -1288,7 +1288,7 @@ only intentional small, sanitized regression fixtures belong in source control.
       Owner: runtime agent; depends on 10a.2 and 07a. Fresh policy review precedes
       finite windows. Gaps, failed observation and external clock changes stop
       writes; danger requires explicit acknowledgement. Restart cannot resume.
-      - [ ] **10a.3a:** durable event review, gap holds and explicit acknowledgements.
+      - [x] **10a.3a:** durable event review, gap holds and explicit acknowledgements.
         Owner: state agent; depends on 10a.1–2. Freeze closed local types first.
         Acknowledgement records inspection, never permission or safe current facts.
       - [ ] **10a.3b:** pure finite healthy-colony window review. Owner: policy
@@ -1303,6 +1303,10 @@ only intentional small, sanitized regression fixtures belong in source control.
       - [ ] **10a.3e:** joined lifecycle composition and disabled restart. Owner:
         integrator; depends on 3d. Test dispatch interruption, gaps, paused-tick
         backoff, renewal starvation and retryable shutdown before service wiring.
+      - [ ] **10a.3f:** bounded evidence retirement for sustained operation. Owner:
+        state/runtime agents; depends on 3e. Preserve unresolved attempts, owned
+        epochs, unacknowledged events and gaps while retiring completed history;
+        capacity refusal remains a hold and cannot silently discard evidence.
     - [ ] **10a.4:** service/UI composition and actual Go clock acceptance.
       Owner: integrator with N01; depends on 10a.3 and 09. Verify ordinary work,
       real interruption, Manual pause, shutdown and disabled restart. Reuse the

@@ -132,6 +132,15 @@ Positive colony, load or map replacement can supersede an outstanding cleanup
 obligation without claiming the original draft was acquired or released. Same-world
 missing ownership cannot establish this transition.
 
+The gated melee plan variant names an explicit preceding draft action for the
+same pawn. Its typed admission records both pawn snapshot tokens and the exact
+retained claim. Preparation and dispatch atomically require a completed, currently
+owned prerequisite; generic preparation cannot bypass it. Historical admission
+survives cleanup for receipt reconciliation. The melee bridge validates causal
+completion separately from accepted jobs, and combat pawn reads preserve unknown
+health and equipment facts. Policy, executor and player-service composition remain
+separate backlog gates.
+
 Pure draft admission requires a healthy selected colonist, known unowned and
 undrafted state, no forced or queued job, native eligibility and fresh complete
 emergency observations. Known threats can admit this emergency action; unknown
