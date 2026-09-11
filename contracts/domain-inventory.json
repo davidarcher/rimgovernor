@@ -6694,7 +6694,7 @@
   ],
   "native_surface": {
     "version": 1,
-    "source_revision": "9430b5f11543c2a6c73df0493ef94a284e122945",
+    "source_revision": "e724f8f6249ba1eb4c252378949faabfdaaf71e7",
     "scope": "Current repository-owned native Runtime/Bridge exports, generated Protobuf compile inputs and conditional fixtures. Historical Python consumer inventory remains at its independent source_revision. Installed SDK/GABS exports require actual discovery.",
     "evidence_links": "domain_item_id reuses existing G01 owner, fixtures and native_scenarios without copying Python call-site lists. Empty local evidence lists preserve uncovered acceptance. schema_owner_chunk assigns the cross-language schema owner; native_owner_chunk owns typed conversion or fixture isolation.",
     "variant_contract": "source_baseline.exports[].declaration retains the complete exported signature, Tool/ToolParameter/ToolResponse attributes, documented string variants, optional selectors and defaults. Source fingerprints detect implementation changes. Runtime branches, aliases and payload keys still require behavioral schema and discovery acceptance.",
@@ -7957,7 +7957,7 @@
           "path": "scripts/fixtures/EmergencyDevelopmentFixture.cs",
           "line": 19,
           "declaration": "[Tool(\"test/b04f_setup\", Description = \"Disposable B04f initial conditions: stocks, two manhunters, wound, mental state or native player-order equivalent. No completed-work injection.\")]\n        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"stocks, combat-equipment, ranged-equipment, explosive-equipment, development-settings (Peaceful), opponents, ranged-opponents, explosive-opponents, clear-opponents, wound, low-health, resting-patient, resting-injury, unavailable-doctor, external-order, external-draft\")] string op,\n            [ToolParameter(Description = \"Exact colonist identity for pawn cases.\", DefaultValue = \"\")] string pawn = \"\",\n            [ToolParameter(Description = \"Desired external-draft value.\", DefaultValue = false)] bool drafted = false)",
-          "source_sha256": "65dc54ded525edd889b79f4965d934235d746990f57c4983de2b33c1df66eb2e"
+          "source_sha256": "eb64ee02df843894c2c1ce1438a8650717c6d19f89eecb7dfb06169eef5f4d09"
         },
         {
           "name": "test/campaign_metrics_fixture",
@@ -9546,7 +9546,8 @@
           "contracts/tests/native-movement-operations/Program.cs",
           "contracts/tests/native-combat-operations/Program.cs",
           "contracts/tests/native-combat-causality/Program.cs",
-          "contracts/tests/native-ranged-causality/Program.cs"
+          "contracts/tests/native-ranged-causality/Program.cs",
+          "contracts/tests/native-explosive-causality/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_guarded_construction_acceptance.py",
@@ -9573,7 +9574,8 @@
           "contracts/tests/native-movement-operations/Program.cs",
           "contracts/tests/native-combat-operations/Program.cs",
           "contracts/tests/native-combat-causality/Program.cs",
-          "contracts/tests/native-ranged-causality/Program.cs"
+          "contracts/tests/native-ranged-causality/Program.cs",
+          "contracts/tests/native-explosive-causality/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_guarded_construction_acceptance.py",
@@ -9716,7 +9718,8 @@
           "contracts/tests/native-movement-operations/Program.cs",
           "contracts/tests/native-combat-operations/Program.cs",
           "contracts/tests/native-combat-causality/Program.cs",
-          "contracts/tests/native-ranged-causality/Program.cs"
+          "contracts/tests/native-ranged-causality/Program.cs",
+          "contracts/tests/native-explosive-causality/Program.cs"
         ],
         "native_scenarios": [
           "scripts/native_guarded_construction_acceptance.py",

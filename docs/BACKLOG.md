@@ -1456,8 +1456,16 @@ main. Native package and Go production cutover remain independent.
   actual-Harmony checks cover notification side damage, shields, misses, nested
   damage, tracking loss, job pooling and individual melee/ranged hook repair.
   Extend native acceptance to those refusal cases and projectiles already in
-  flight at interruption. Explosive, overhead, beam and custom projectile paths
-  remain unsupported; explosions need separate retained object lineage across ticks.
+  flight at interruption.
+  Ordinary injury-only explosive projectiles retain exact projectile-to-explosion
+  lineage across ticks. Native frag-grenade acceptance verifies attributed target
+  downing across ordinary deep water, player override, fresh ownership, replay and
+  completed-before-Manual cleanup. Compiled checks cover delayed damage, nested
+  factories, notification damage, shield detonation, lost tracking and hook repair.
+  Ambiguous factory prefixes and damage prefixes that can replace identity-bearing
+  arguments disable supported attribution. Extend native acceptance to in-flight
+  interruption and those refusal cases. Overhead, beam, fire/gas/spawn payloads and
+  custom projectile/damage-worker paths remain unsupported.
   Native lost-reply fault injection,
   instant/replacement construction cases and remaining operation families are open.
 
