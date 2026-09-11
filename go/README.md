@@ -81,7 +81,10 @@ reads. To replay a retained official payload through Go and durable review, set
 through the existing player gate, rechecks authority after the read, and retains
 unknown needs. Manual and fresh acquisition invalidate previous routine reviews
 without a native read. A disabled reviewer retires existing work without acquiring
-authority. The reviewer has no independent background loop.
+authority. The reviewer has no independent background loop. A clock scheduler can
+attach the same player's reviewer through `ClockSchedulerConfig.Routine`; it runs
+after clock obligations drain and before a new window decision. Running epochs and
+cleanup take precedence, and a failed review prevents a new window.
 
 These components remain gated prerequisites. The typed read observes the game;
 routine scheduling, remaining fact projection, method selection and runtime

@@ -606,6 +606,8 @@ expand these into another nested task tree; remove a row when its outcome is met
   and rejects expired/cancelled reads before publishing facts.
   The player-gated reviewer now commits native needs with authority rechecks;
   Manual and fresh acquisition invalidate routine work without native reads.
+  The clock scheduler can attach that reviewer at its paused pre-window boundary,
+  after cleanup obligations drain; service composition remains outstanding.
   Remaining fact projection (diet/rot forecasts, further need inputs and construction
   costs), goal/reservation-history retirement,
   automatic review scheduling, method selection and runtime composition remain
