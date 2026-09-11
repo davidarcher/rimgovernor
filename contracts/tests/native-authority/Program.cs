@@ -1,0 +1,173 @@
+using System;
+using System.Threading;
+using HomeBridge.BridgeTools;
+using Verse;
+
+internal static class Program
+{
+    private static int assertions;
+    private static void Assert(bool condition, string message)
+    { assertions++; if (!condition) throw new Exception(message); }
+    private static void Error(NativeControlResult result, NativeControlError error)
+    { Assert(!result.Success && result.Error == error, "Expected " + error + ", got " + result.Error); }
+
+    private sealed class Harness
+    {
+        internal readonly Game Game = new Game();
+        internal Map Map = new Map { uniqueID = 1 };
+        internal long Time;
+        internal NativeControlIdentity? Context;
+        internal readonly NativeControlAuthority State;
+        internal Harness(ulong generation = 1)
+        {
+            Context = new NativeControlIdentity(Game, Map, "colony", "load");
+            State = new NativeControlAuthority(Game, () => Context, () => Time, generation);
+        }
+        internal NativeControlSnapshot Acquire()
+        {
+            State.SetHookHealth(true);
+            var result = State.Acquire(State.Status().Generation, "persistent-controller/α", 12, 1000);
+            Assert(result.Success, "Explicit acquire failed");
+            return result.Snapshot;
+        }
+    }
+
+    private static void LeaseAndCas()
+    {
+        var h = new Harness();
+        var initial = h.State.Status();
+        Assert(initial.Generation == 1 && !initial.Available && !initial.Active, "Authority must start unavailable");
+        Error(h.State.Acquire(1, "owner", 1, 1000), NativeControlError.Unavailable);
+        Assert(!h.State.SetHookHealth(true).Active, "Hook health cannot grant authority");
+        Error(h.State.Acquire(0, "owner", 1, 1000), NativeControlError.StaleGeneration);
+        Error(h.State.Acquire(1, "owner", 0, 1000), NativeControlError.InvalidDirection);
+        Error(h.State.Acquire(1, "owner", 1, 999), NativeControlError.InvalidLeaseDuration);
+        Error(h.State.Acquire(1, "owner", 1, 30001), NativeControlError.InvalidLeaseDuration);
+        Error(h.State.Acquire(1, " ", 1, 1000), NativeControlError.InvalidOwner);
+        var acquired = h.Acquire();
+        var lease = acquired.Lease!;
+        Assert(acquired.Generation == 2 && acquired.RemainingLeaseMs == 1000, "Acquire must advance generation");
+        Assert(lease.PlayerDirection == 12 && lease.ControllerSessionId == "persistent-controller/α", "Owner/direction lost");
+        Error(h.State.Acquire(2, "other", 20, 1000), NativeControlError.OwnerConflict);
+        Error(h.State.Check(1, lease.LeaseId, lease.ControllerSessionId), NativeControlError.StaleGeneration);
+        Error(h.State.Check(2, lease.LeaseId, "other"), NativeControlError.OwnerConflict);
+        Error(h.State.Check(2, "different", lease.ControllerSessionId), NativeControlError.LeaseMismatch);
+        h.Time = 999;
+        Assert(h.State.Status().RemainingLeaseMs == 1, "Lease expired early");
+        var renewed = h.State.Renew(2, lease.LeaseId, lease.ControllerSessionId, 30000);
+        Assert(renewed.Success && renewed.Snapshot.Generation == 2 && renewed.Snapshot.RemainingLeaseMs == 30000,
+            "Renew changed generation or deadline incorrectly");
+        Assert(renewed.Snapshot.Lease!.PlayerDirection == 12, "Renew changed player authority");
+        h.Time = 30999;
+        var expired = h.State.Status();
+        Assert(!expired.Active && expired.Generation == 3 && expired.Reason == NativeControlRevocationReason.LeaseExpired, "Exact deadline must revoke");
+        Assert(h.State.Status().Generation == 3, "Repeated status must not repeatedly revoke");
+        Error(h.State.Renew(2, lease.LeaseId, lease.ControllerSessionId, 1000), NativeControlError.StaleGeneration);
+        Error(h.State.Check(3, lease.LeaseId, lease.ControllerSessionId), NativeControlError.AuthorityRequired);
+        Error(h.State.Acquire(2, lease.ControllerSessionId, 13, 1000), NativeControlError.StaleGeneration);
+        Assert(!h.State.Status().Active, "Expired authority resurrected");
+        Assert(h.State.Acquire(3, lease.ControllerSessionId, 13, 1000).Success, "New explicit direction could not acquire");
+        var manual = h.State.Revoke(4, NativeControlRevocationReason.Manual);
+        Assert(manual.Success && !manual.Snapshot.Active && manual.Snapshot.Generation == 5, "Manual did not revoke atomically");
+        Error(h.State.Acquire(4, lease.ControllerSessionId, 14, 1000), NativeControlError.StaleGeneration);
+    }
+
+    private static void IdentityAndHealth()
+    {
+        var h = new Harness();
+        var acquired = h.Acquire();
+        h.Map = new Map { uniqueID = 1 };
+        h.Context = new NativeControlIdentity(h.Game, h.Map, "colony", "load");
+        Error(h.State.Check(acquired.Generation, acquired.Lease!.LeaseId, acquired.Lease.ControllerSessionId), NativeControlError.StaleGeneration);
+        Assert(!h.State.Status().Active, "Same-ID replacement map retained authority");
+        acquired = h.Acquire();
+        h.Context = new NativeControlIdentity(h.Game, h.Map, "colony", "reloaded");
+        Assert(!h.State.Status().Active && h.State.Status().Reason == NativeControlRevocationReason.IdentityChanged, "Load token did not revoke");
+        acquired = h.Acquire();
+        h.Context = null;
+        Assert(h.State.Status().Identity == null && !h.State.Status().Available, "Missing context leaked old identity");
+        var generation = h.State.Status().Generation;
+        Assert(h.State.Status().Generation == generation, "Missing context incremented indefinitely");
+        h.Context = new NativeControlIdentity(new Game(), h.Map, "colony", "reloaded");
+        Error(h.State.Acquire(generation, "owner", 1, 1000), NativeControlError.StaleIdentity);
+        h.Context = new NativeControlIdentity(h.Game, h.Map, "colony", "reloaded");
+        Assert(!h.State.Status().Active, "Returning to prior game resumed authority");
+        acquired = h.Acquire();
+        var unhealthy = h.State.SetHookHealth(false);
+        Assert(!unhealthy.Available && !unhealthy.Active && unhealthy.Generation > acquired.Generation, "Hook failure retained authority");
+        Assert(!h.State.SetHookHealth(true).Active, "Restored hooks automatically resumed authority");
+    }
+
+    private static void OwnedScopes()
+    {
+        var h = new Harness();
+        var acquired = h.Acquire();
+        try
+        {
+            using (h.State.Owned())
+            {
+                Assert(h.State.IsOwned, "Owned scope missing");
+                using (h.State.Owned())
+                    Assert(h.State.RevokeExternal(NativeControlRevocationReason.ExternalOrder).Active, "Owned hook self-revoked");
+                Assert(h.State.IsOwned, "Nested disposal removed outer scope");
+                bool otherOwned = true, rejected = false;
+                var worker = new Thread(() => {
+                    otherOwned = h.State.IsOwned;
+                    try { h.State.Status(); } catch (InvalidOperationException) { rejected = true; }
+                });
+                worker.Start(); worker.Join();
+                Assert(!otherOwned && rejected, "Owned state leaked across threads");
+                throw new ApplicationException();
+            }
+        }
+        catch (ApplicationException) { }
+        Assert(!h.State.IsOwned, "Exception leaked owned scope");
+        var revoked = h.State.RevokeExternal(NativeControlRevocationReason.ExternalOrder);
+        Assert(!revoked.Active && revoked.Generation > acquired.Generation, "External order did not revoke");
+        h.Acquire();
+        using (h.State.Owned())
+        {
+            h.Context = new NativeControlIdentity(h.Game, new Map { uniqueID = 1 }, "colony", "load");
+            h.State.Status();
+            Assert(!h.State.IsOwned, "Old map scope suppressed new map hooks");
+        }
+    }
+
+    private static void ExhaustionAndClock()
+    {
+        var h = new Harness(ulong.MaxValue - 1);
+        var acquired = h.Acquire();
+        Assert(acquired.Generation == ulong.MaxValue, "Generation lost uint64 range");
+        var revoked = h.State.Revoke(acquired.Generation, NativeControlRevocationReason.Manual);
+        Assert(!revoked.Snapshot.Active && !revoked.Snapshot.Available && revoked.Snapshot.Generation == ulong.MaxValue,
+            "Exhausted generation wrapped or stayed available");
+        Error(h.State.Acquire(ulong.MaxValue, "owner", 1, 1000), NativeControlError.GenerationExhausted);
+        h = new Harness(); h.Time = 100; h.Acquire(); h.Time = 99;
+        Assert(!h.State.Status().Available && !h.State.Status().Active, "Backward monotonic clock retained authority");
+        h.Time = 101;
+        Assert(!h.State.Status().Available, "Broken clock silently recovered authority");
+        h = new Harness(); acquired = h.Acquire(); h.Time = 1000;
+        Error(h.State.Check(acquired.Generation, acquired.Lease!.LeaseId, acquired.Lease.ControllerSessionId), NativeControlError.StaleGeneration);
+        Assert(!h.State.Status().Active, "Delayed write check failed to expire its lease");
+    }
+
+    private static void RegistryIsolation()
+    {
+        var first = new Game(); var second = new Game();
+        Current.Game = first; Find.CurrentMap = new Map { uniqueID = 1 };
+        var state = NativeControlAuthority.ForGame(first);
+        Assert(ReferenceEquals(state, NativeControlAuthority.ForGame(first)), "Registry produced two owners for a Game");
+        state.SetHookHealth(true);
+        Assert(state.Acquire(1, "database-controller", 1, 1000).Success, "Native capture did not acquire");
+        Current.Game = second;
+        Assert(!state.Status().Available && !state.Status().Active, "Old Game state remained usable");
+        var other = NativeControlAuthority.ForGame(second);
+        Assert(!other.Status().Available && !other.Status().Active && other.Status().Generation == 1, "New Game inherited authority or hook health");
+    }
+
+    private static void Main()
+    {
+        LeaseAndCas(); IdentityAndHealth(); OwnedScopes(); ExhaustionAndClock(); RegistryIsolation();
+        Console.WriteLine("Native authority state passed " + assertions + " assertions (production source, injected clock/context).");
+    }
+}
