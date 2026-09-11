@@ -1009,7 +1009,7 @@ only intentional small, sanitized regression fixtures belong in source control.
   - [ ] **09c:** player ownership/camera, portraits/follow/video and native rendered
     acceptance. Read endpoints depend on 03/04; mutations require 06 and their
     supported 07/08 action families.
-    - [ ] **09c.1:** typed camera, selection and colonist-roster reads. Owner:
+    - [x] **09c.1:** typed camera, selection and colonist-roster reads. Owner:
       bridge agent; depends on 03/04. Reuse fixed presentation RPCs, preserve
       optional facts and bounded listing completeness. No capture or input
       capability; transport tests do not establish rendered native acceptance.
