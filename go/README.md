@@ -103,14 +103,16 @@ while held; the controller does not release their reservations or invent a retry
 `bridge.Client.ReadPawns` reads 1–256 exact pawn IDs, including dead pawns, with
 optional detail families disabled. It preserves native snapshot and draft-claim
 availability. Missing pawns or unsupported claims cannot establish ownership or
-release. Draft execution and durable cleanup remain gated by G01.07a.2.
+release. Draft session and service enablement remain gated by G01.07a.2.
 
 The owned-draft domain retains cleanup responsibility independently of ordinary
 action completion. Native adapters provide temporary drafting, attempt reads and
 exact-claim release as separate capabilities. Attempt reads carry original owner
-and generation evidence without retaining a lease. Runtime integration must pair
-progress with fresh full-owner pawn observations before binding or completing a
-claim; a cleanup call uses the exact journaled pawn token and original claim.
+and generation evidence without retaining a lease. Completion requires original
+attempt attribution and fresh matching full-owner pawn observations. A verified
+original receipt can also bind a historical claim after positive player ownership
+replacement; cleanup then supersedes the old claim without changing player state.
+A cleanup call uses the exact journaled pawn token and original claim.
 
 The fresh Go schema stores building and owned-draft submissions under shared
 request headers with separate typed payloads. Draft admission records the exact
@@ -125,7 +127,11 @@ missing ownership cannot establish this transition.
 Pure draft admission requires a healthy selected colonist, known unowned and
 undrafted state, no forced or queued job, native eligibility and fresh complete
 emergency observations. Known threats can admit this emergency action; unknown
-facts hold it. The executor and service draft paths remain gated by G01.07a.2.
+facts hold it. `executor.NewWithDraft` prepares from fresh observations twice
+before journaling dispatch. Drafting and cleanup share the building writer;
+`CleanupDraft` remains available after ordinary `Stop`. Each call consumes one
+fresh decision, preserving uncertainty and the exact persisted cleanup sequence.
+Session, worker and player API integration remain gated by G01.07a.2.
 
 An uncertain HTTP reply is resolved by reading its request ID through
 `GET /api/buildings/submission?requestId=...` or
@@ -135,7 +141,9 @@ current permission. Repeating a control request never acquires another lease.
 The worker observes unresolved attempts after restart, renews only an existing
 lease, and does not start the game clock. Actual pawn work requires the player or
 the supervised native scenario to advance time. Shutdown retains the native
-connection, database and profile owner until all work has joined.
+connection, database and profile owner until all work has joined and native
+authority cleanup is confirmed. A failed revoke remains retryable; a lost reply
+is resolved by fresh observation before releasing the profile lock.
 
 The internal building runtime combines exact native preview/map facts, complete
 SQLite reservation recovery and one-attempt execution. Authority and building

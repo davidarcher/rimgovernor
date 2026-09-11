@@ -970,7 +970,7 @@ only intentional small, sanitized regression fixtures belong in source control.
         native claim acceptance. Transport uses wire types independently of 2b. Separate
         temporary draft capability from read-only clients; never adopt a player
         draft or use general undraft as cleanup. Preserve uncertain outcomes.
-      - [ ] **07a.2e:** draft handler in the shared Hands executor. Owner:
+      - [x] **07a.2e:** draft handler in the shared Hands executor. Owner:
         executor agent; depends on 2b–d. Use typed pawn admission without invented
         building costs; serialize dispatch and cleanup through the same writer.
         Inspect fresh pawn CAS before journaling the exact release request.
@@ -980,17 +980,17 @@ only intentional small, sanitized regression fixtures belong in source control.
           unowned undrafted state, no current forced or queued job, native
           eligibility and fresh complete emergency facts. Known threats may admit
           this emergency action; unknown facts never do. No write authority.
-        - [ ] **2e.2:** shared executor dispatch, evidence and cleanup paths. Owner:
+        - [x] **2e.2:** shared executor dispatch, evidence and cleanup paths. Owner:
           executor agent; depends on 2c–d and 2e.1. Preserve one writer and use
           typed admissions and exact persisted cleanup requests.
           - [x] **2e.2a:** fixed typed executor and native boundary interface. Owner:
             integrator; depends on 2c–d, 2e.1 and 2f.1a. Separate live draft admission,
             original-attempt observations and lease-free exact-claim cleanup.
-          - [ ] **2e.2b:** shared writer implementation. Owner: executor agent;
+          - [x] **2e.2b:** shared writer implementation. Owner: executor agent;
             depends on 2e.2a. Extend Run with the closed draft kind and expose
             serialized cleanup after ordinary Stop. Persist uncertainty and
             validate exact cleanup sequence before accepting late results.
-          - [ ] **2e.2c:** native evidence boundary. Owner: runtime adapter agent;
+          - [x] **2e.2c:** native evidence boundary. Owner: runtime adapter agent;
             depends on 2e.2a. Pair original attempt evidence with fresh full-owner
             pawn observations. Cleanup reads cannot enter the control gate or
             acquire a lease. No session or service enablement in this slice.
