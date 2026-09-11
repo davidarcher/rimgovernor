@@ -26,6 +26,7 @@ PROTOBUF_EXPORTS = {
     "rimgovernor/authority_control": ("rimgovernor.authority.v1.Authority/Control", "authority.proto"),
     "rimgovernor/observations_read_status": ("rimgovernor.observations.v1.Observations/ReadStatus", "observations.proto"),
     "rimgovernor/observations_get_cells": ("rimgovernor.observations.v1.Observations/GetCells", "observations.proto"),
+    "rimgovernor/observations_list_buildings": ("rimgovernor.observations.v1.Observations/ListBuildings", "observations.proto"),
     "rimgovernor/operations_preview": ("rimgovernor.operations.v1.Operations/Preview", "operations.proto"),
     "rimgovernor/operations_execute": ("rimgovernor.operations.v1.Operations/Execute", "operations.proto"),
     "rimgovernor/receipts_lookup": ("rimgovernor.receipts.v1.Attempts/Lookup", "receipts.proto"),

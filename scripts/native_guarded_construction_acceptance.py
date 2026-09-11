@@ -38,7 +38,7 @@ class ScenarioClock:
 
 
 async def go_phase(binary: Path, root: Path, output: Path, configuration: Path,
-                   profile: Path, mode: str, request: Path, report: dict) -> dict:
+                   profile: Path, mode: str, request: Path, report: dict, expected_outcome="completed") -> dict:
     destination = output / ("go-" + mode)
     record = {"mode": mode, "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest()}
     report.setdefault("go", []).append(record)
@@ -48,6 +48,8 @@ async def go_phase(binary: Path, root: Path, output: Path, configuration: Path,
         "-game", "rimgovernor-trial", "-force-takeover"]
     if mode == "place":
         command += ["-execute", "-request", str(request.resolve())]
+    else:
+        command += ["-expected-outcome", expected_outcome]
     with (output / ("go-" + mode + "-stdout.txt")).open("wb") as stdout, \
          (output / ("go-" + mode + "-stderr.txt")).open("wb") as stderr:
         process = await asyncio.create_subprocess_exec(*command, stdout=stdout, stderr=stderr)
@@ -64,16 +66,19 @@ async def go_phase(binary: Path, root: Path, output: Path, configuration: Path,
     assert result.get("passed") is True
     assert result.get("nativeCalled") is (mode == "place")
     if mode == "observe":
+        assert result.get("expectedOutcome") == expected_outcome
         assert result["progress"]["Unresolved"] is False
         assert not any(row["Name"] == "operations_execute" for row in result["calls"])
     record["report"] = result
     return result
 
 
-async def run(root: Path, output: Path, binary: Path, *, headless=True, timeout_seconds=2400) -> bool:
+async def run(root: Path, output: Path, binary: Path, *, headless=True, timeout_seconds=2400, expected_outcome="completed") -> bool:
+    assert expected_outcome in ("completed", "cancelled")
     output.mkdir(parents=True, exist_ok=False)
     evidence = Evidence(output)
     report = {"passed": False, "scope": "Disposable ordinary WoodLog Wall construction, guarded authority and attempt semantics, Go durable restart reconciliation."}
+    report["expected_outcome"] = expected_outcome
     try:
         configuration = prepare(root) if headless else prepare_rendered(root)
         game = json.loads((configuration / "config.json").read_text())["games"]["rimgovernor-trial"]
@@ -111,11 +116,48 @@ async def run(root: Path, output: Path, binary: Path, *, headless=True, timeout_
                     await call("pause", "rimworld/set_time_speed", {"speed": "Paused", "ultraSpeedBoost": False})
                     loaded = outcome(await wire("identity", "lifecycle_read_identity", {}), "loaded")
                     identity, tick = loaded["context"]["identity"], loaded["context"]["tick"]
+                    advertised = [c for c in loaded["capabilities"] if c.get("fullMethodName") == "rimgovernor.observations.v1.Observations/ListBuildings"]
+                    assert len(advertised) == 1 and advertised[0]["support"] == "CAPABILITY_SUPPORT_SUPPORTED"
                     prepared = await call("prepare", "test/guarded_construction_prepare", {"siteCount": 3})
                     assert prepared.get("success") is True and len(prepared["sites"]) == 3
                     assert all(prepared[k] == identity[k] for k in ("colonyId", "loadToken", "mapId"))
                     sites = prepared["sites"]
                     report["prepared"] = prepared
+                    async def typed_building(label, site, expected_status, expected_id=None):
+                        anchor = {"x": site["x"], "z": site["z"]}
+                        observed = outcome(await wire(label, "observations_list_buildings", {
+                            "scope": {"expectedIdentity": identity}, "defNames": ["Wall"], "category": "all",
+                            "region": {"minimum": anchor, "maximum": anchor}, "page": {"limit": 16}}), "observed")
+                        assert observed["context"]["identity"] == identity
+                        completeness = observed["completeness"]
+                        assert completeness["page"]["complete"] is True and int(completeness["unreadable"]) == 0
+                        rows = observed.get("buildings", [])
+                        assert len(rows) == int(completeness["matched"]) == int(completeness["returned"]) == (0 if expected_status is None else 1)
+                        assert observed["networksCompleteness"]["page"]["complete"] is False
+                        if not rows:
+                            return
+                        row = rows[0]
+                        assert row["status"] == expected_status and row["stuff"] == "WoodLog" and row["rotation"] == "North"
+                        assert row["building"]["position"] == anchor and row["building"]["mapId"] == identity["mapId"]
+                        assert row["building"]["id"] and row["occupiedCells"] == [anchor]
+                        if expected_id is not None:
+                            assert row["building"]["id"] == expected_id
+                        assert "snapshot" not in row["building"]
+                        assert any(i["field"] == "building.snapshot" for i in row["issues"])
+                        assert row["burning"] is False
+                        if expected_status == "built":
+                            assert row["building"]["defName"] == "Wall" and "construction" not in row
+                            assert row["usesHitPoints"] is True and row["hitPoints"] > 0
+                        else:
+                            assert row["buildDefName"] == "Wall"
+                            construction = row["construction"]
+                            assert 0 <= construction["workLeft"] <= construction["totalWork"]
+                            assert 0 <= construction["percentComplete"] <= 1
+                            costs = construction["resources"]
+                            assert costs and all(c["defName"] == "WoodLog" for c in costs)
+                            assert all(int(c["need"]) > 0 and int(c["have"]) >= 0 and int(c["stillNeeded"]) >= 0 for c in costs)
+                            assert construction["resourcesComplete"] is all(int(c["stillNeeded"]) == 0 for c in costs)
+                        report.setdefault("typed_building_stages", []).append(expected_status)
                     session = "python-guarded-acceptance"
                     observed = outcome(await wire("typed-status", "observations_read_status",
                         {"scope": {"expectedIdentity": identity}, "colonists": False, "threats": False}), "observed")
@@ -168,6 +210,7 @@ async def run(root: Path, output: Path, binary: Path, *, headless=True, timeout_
                     receipt = outcome(await wire("place-cancel-site", "operations_execute", request), "receipt")
                     construction = receipt["applied"]["observed"]["construction"]
                     assert construction["stage"] == "CONSTRUCTION_STAGE_BLUEPRINT"
+                    await typed_building("typed-python-blueprint", sites[1], "blueprint", construction["currentThingId"])
                     attempt = {"identity": identity, "attempt": request["precondition"]["attempt"]}
                     pending = outcome(await wire("initial-progress", "receipts_observe_progress", attempt), "progress")
                     assert "pending" in pending and pending["completeInspection"] is True
@@ -188,6 +231,7 @@ async def run(root: Path, output: Path, binary: Path, *, headless=True, timeout_
                     progress = outcome(await wire("cancel-progress", "receipts_observe_progress",
                         {"identity": identity, "attempt": request["precondition"]["attempt"]}), "progress")
                     assert progress.get("completeInspection") is True and "unsuccessful" in progress
+                    await typed_building("typed-python-cancelled-empty", sites[1], None)
                     grant = await acquire("draft-authority")
                     control = dict(identity, operation="draft", pawnId=prepared["pawnId"])
                     assert (await call("external-draft", "test/guarded_construction_control", control))["drafted"] is True
@@ -214,9 +258,19 @@ async def run(root: Path, output: Path, binary: Path, *, headless=True, timeout_
                     assert len(calls) == 1
                     go_receipt = outcome(proto(object_value(calls[0]["Receipt"]["Structured"], "Go structured reply")), "receipt")
                     lookup = {"identity": identity, "attempt": go_receipt["attempt"]}
+                    go_effect = go_receipt["applied"]["observed"]["construction"]
+                    await typed_building("typed-go-blueprint", sites[0], "blueprint", go_effect["currentThingId"])
+                    if expected_outcome == "cancelled":
+                        cancelled = await call("cancel-go-blueprint", "test/guarded_construction_control",
+                            dict(identity, operation="cancel", blueprintId=go_effect["currentThingId"]))
+                        assert cancelled["success"] is True
+                        progress = outcome(await wire("go-cancelled-progress", "receipts_observe_progress", lookup), "progress")
+                        assert progress["completeInspection"] is True
+                        assert progress["unsuccessful"]["reason"] == "UNSUCCESSFUL_REASON_CANCELLED"
+                        await typed_building("typed-go-cancelled-empty", sites[0], None)
                     runtime = ScenarioClock(bridge, report)
-                    complete = False
-                    for window in range(13):
+                    complete = expected_outcome == "cancelled"
+                    for window in range(13 if expected_outcome == "completed" else 0):
                         progress = outcome(await wire(f"construction-progress-{window}", "receipts_observe_progress", lookup), "progress")
                         if "completed" in progress:
                             assert progress.get("completeInspection") is True
@@ -224,13 +278,17 @@ async def run(root: Path, output: Path, binary: Path, *, headless=True, timeout_
                             assert effect["stage"] == "CONSTRUCTION_STAGE_BUILDING" and effect["present"] is True
                             assert effect["defName"] == "Wall" and effect["stuff"] == "WoodLog"
                             assert effect["cell"] == {"x": sites[0]["x"], "z": sites[0]["z"]}
+                            await typed_building(f"typed-go-built-{window}", sites[0], "built", effect["currentThingId"])
                             complete = True
                             break
                         assert "pending" in progress, f"Construction did not remain pending: {progress}"
+                        pending_effect = progress["pending"]["evidence"]["construction"]
+                        state = {"CONSTRUCTION_STAGE_BLUEPRINT": "blueprint", "CONSTRUCTION_STAGE_FRAME": "frame"}[pending_effect["stage"]]
+                        await typed_building(f"typed-go-pending-{window}", sites[0], state, pending_effect["currentThingId"])
                         if window < 12:
                             await advance_game(runtime, 600, report, timeout=180)
                     assert complete, "Construction not completed within 7200 simulation ticks"
-                    await go_phase(private, root, output, configuration, profile, "observe", fixture, report)
+                    await go_phase(private, root, output, configuration, profile, "observe", fixture, report, expected_outcome)
                     await reconnect("python-after-go-observe")
                     final = outcome(await wire("final-identity", "lifecycle_read_identity", {}), "loaded")
                     assert final["context"]["identity"] == identity and final["paused"] is True
@@ -255,7 +313,9 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path)
     parser.add_argument("--go-building-smoke", type=Path, required=True)
     parser.add_argument("--rendered", action="store_true")
+    parser.add_argument("--go-expected-outcome", choices=("completed", "cancelled"), default="completed")
     parser.add_argument("--timeout-seconds", type=int, default=2400)
     args = parser.parse_args()
     raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-guarded-construction-acceptance",
-        args.go_building_smoke, headless=not args.rendered, timeout_seconds=args.timeout_seconds)) else 1)
+        args.go_building_smoke, headless=not args.rendered, timeout_seconds=args.timeout_seconds,
+        expected_outcome=args.go_expected_outcome)) else 1)

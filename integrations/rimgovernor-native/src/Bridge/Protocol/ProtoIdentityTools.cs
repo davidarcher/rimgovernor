@@ -56,6 +56,12 @@ namespace HomeBridge.BridgeTools
                         FullMethodName = "rimgovernor.operations.v1.Operations/" + method,
                         Support = Lifecycle.CapabilitySupport.Supported, Detail = "PlaceBuilding is implemented; other commands return unsupported."
                     });
+                loaded.Capabilities.Add(new Lifecycle.Capability
+                {
+                    FullMethodName = "rimgovernor.observations.v1.Observations/ListBuildings",
+                    Support = Lifecycle.CapabilitySupport.Supported,
+                    Detail = "Complete bounded core building/blueprint/frame facts and construction resources. Exact filters; no frozen paging, CAS snapshots, settings, services, bills, inspect text or power networks."
+                });
                 return new Lifecycle.IdentityReply { Loaded = loaded };
             }, cancellationToken).ConfigureAwait(false);
             return ProtoBoundary.Encode(reply);

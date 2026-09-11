@@ -1,6 +1,6 @@
 {
   "inventory_version": 1,
-  "source_revision": "2d0a7b85bda5f0797a773b436decc1c0ea51dbd8",
+  "source_revision": "e3b72d0d6b146062e4504870c6dffda91abb6343",
   "scope": "Tracked C# sources in unified native Runtime/Bridge and scripts/fixtures; lexical reference index, not an AST or proof of behavioral coverage.",
   "source_line_policy": "One-based source anchors at source_revision; static matches include methods and constructors, reflection matches include helper use and interop. Read the full source declaration before changing ownership.",
   "rows": [
@@ -1730,6 +1730,40 @@
       "patch_registration_lines": []
     },
     {
+      "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeBuildingObservationTools.cs",
+      "compilation": "production-bridge",
+      "source_sha256": "64ae37dad2be2a4bed94cd2d2da068e97a789d69c527b3cff2f240d72ac1c4c7",
+      "owner": "N01.03 native observation owner",
+      "migration_status": "implemented-native-acceptance-pending",
+      "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
+      "static_token_lines": [
+        59,
+        82,
+        94,
+        111,
+        152,
+        195,
+        197,
+        198,
+        199,
+        200,
+        201,
+        202,
+        207,
+        209,
+        210,
+        211,
+        212,
+        213,
+        214,
+        215,
+        216,
+        221
+      ],
+      "reflection_boundary_lines": [],
+      "patch_registration_lines": []
+    },
+    {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeConstruction.cs",
       "compilation": "production-bridge",
       "source_sha256": "d774dfcafcdf9f55ce992d54f00b6a33cfcaf5b092002797e6211f9eb935b366",
@@ -1930,7 +1964,7 @@
       "owner": "N01.02 native identity capability owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
-      "source_sha256": "a707d63fe6a1d40f69b971652427e07608a0b3a21f678882673cbf2393f17c0f",
+      "source_sha256": "dbaadb02bcca970dd3c7a1e50a5ba505f06b2728ce74055f4cf44470e1f420b5",
       "static_token_lines": [],
       "reflection_boundary_lines": [],
       "patch_registration_lines": []
