@@ -1258,6 +1258,12 @@ only intentional small, sanitized regression fixtures belong in source control.
         a replacement epoch. Test failed pause, timeout and world replacement.
         Add durable scope retirement for uncertain starts after positive world
         replacement; preserve their outcome uncertainty without blocking a new world.
+        - [ ] **10a.2b.1:** persist scope retirement for dispatched or uncertain
+          starts using positive replacement-world evidence. Owner: state agent.
+          Keep outcome uncertainty; reject late mutations after retirement.
+        - [ ] **10a.2b.2:** serialized owned pause sweep. Owner: runtime agent;
+          depends on the fixed 2b.1 interface. Join invalidated commands, recover
+          exact receipts, then observe and fence each lease-free pause attempt.
       - [ ] **10a.2c:** disabled startup and joined Session composition. Owner:
         integrator; depends on 10a.2b. Recover obligations without permission,
         preserve constructor publication and retain profile/transport/store

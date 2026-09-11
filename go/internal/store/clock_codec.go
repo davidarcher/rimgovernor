@@ -32,6 +32,8 @@ type ClockAttempt struct {
 	NativeAttempt *c.AttemptKey
 	Phase         ClockPhase
 	Reply         *k.ControlReply
+	// SupersededAt retires only the original world scope; Phase retains uncertainty.
+	SupersededAt *c.ObservationContext
 }
 
 const clockRecordLimit = 1 << 20
