@@ -35,6 +35,10 @@ func TestDraftHTTPSubmissionReplayAndProjection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	cross := playerCall(s, "POST", "/api/buildings/plans", strings.Replace(submissionJSON, `"requestId":"`+q.RequestID+`"`, `"requestId":"draft-request"`, 1), s.playerToken)
+	if cross.Code != 409 {
+		t.Fatal(cross.Code, cross.Body.String())
+	}
 	q.RequestID = "draft-request"
 	if _, _, err = f.journal.SubmitBuilding(context.Background(), q); err == nil {
 		t.Fatal("cross-family request reused")
