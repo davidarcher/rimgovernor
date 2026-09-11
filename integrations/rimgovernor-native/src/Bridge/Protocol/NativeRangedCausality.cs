@@ -15,7 +15,7 @@ namespace HomeBridge.BridgeTools
 {
     // Only the audited native direct bullet call sites create lineage. Notifications,
     // explosions and other projectile implementations do not inherit this evidence.
-    internal static class NativeRangedCausality
+    internal static partial class NativeRangedCausality
     {
         private const string Owner="rimgovernor.ranged-causality";
         private const int RecordLimit=4096, FlightLimit=16384;
@@ -37,6 +37,7 @@ namespace HomeBridge.BridgeTools
         {
             internal readonly List<Tracked> Records=new List<Tracked>();
             internal readonly Dictionary<Projectile,Flight> Flights=new Dictionary<Projectile,Flight>();
+            internal readonly Dictionary<Explosion,Blast> Explosions=new Dictionary<Explosion,Blast>();
         }
         private sealed class DamageFrame { internal int PreviousDepth; }
         private sealed class PendingImpact
@@ -81,6 +82,7 @@ namespace HomeBridge.BridgeTools
                 var finalizer=Count(damage?.Finalizers,DamageFinalizer)==0?new HarmonyMethod(DamageFinalizer):null;
                 if (prefix!=null || finalizer!=null) harmony.Patch(DamageTarget,prefix,finalizer:finalizer);
             } catch { /* Admission remains unavailable without every verified hook. */ }
+            InitializeExplosives();
         }
         private static IEnumerable<CodeInstruction> RewriteLaunch(IEnumerable<CodeInstruction> instructions)
         { return Rewrite(instructions,NativeLaunch,LaunchWrapper,5,out launchShape); }
@@ -113,8 +115,8 @@ namespace HomeBridge.BridgeTools
                     || (verb.GetType()!=typeof(Verb_Shoot) && verb.GetType()!=typeof(Verb_LaunchProjectile))
                     || !verb.verbProps.ai_IsWeapon || verb.verbProps.IsMeleeAttack || verb.EquipmentSource==null) return false;
                 var projectile=((Verb_LaunchProjectile)verb).Projectile;
-                return projectile!=null && projectile.thingClass==typeof(Bullet) && projectile.projectile!=null
-                    && !projectile.projectile.flyOverhead && projectile.projectile.explosionRadius==0;
+                return projectile!=null && projectile.projectile!=null && !projectile.projectile.flyOverhead
+                    && ((projectile.thingClass==typeof(Bullet) && projectile.projectile.explosionRadius==0) || SupportedExplosive(projectile));
             } catch { return false; }
         }
         internal static NativeCombatDamageRecord Track(Game game,Pawn attacker,Pawn target,Job job,Func<bool> launchGuard,Func<bool> impactGuard)
@@ -123,11 +125,11 @@ namespace HomeBridge.BridgeTools
                 || attacker.Map!=target.Map || target.Map!=Find.CurrentMap || job==null || job.def!=JobDefOf.AttackStatic
                 || job.targetA.Thing!=target || !Supports(job.verbToUse,attacker,target) || launchGuard==null || impactGuard==null
                 || !NativeControlAuthority.TryGetForGame(game,out var authority) || authority==null || authority.Status().Identity==null)
-                throw new InvalidOperationException("Exact native direct-bullet tracking prerequisites are unavailable.");
+                throw new InvalidOperationException("Exact native projectile tracking prerequisites are unavailable.");
             var identity=authority.Status().Identity!;
             var state=Games.GetOrCreateValue(game);
             if (state.Records.Count>=RecordLimit || state.Flights.Count>=FlightLimit || state.Records.Any(r=>ReferenceEquals(r.Evidence.Job,job) && r.Evidence.JobId==job.loadID))
-                throw new InvalidOperationException("Direct-bullet tracking capacity or unique job identity is unavailable.");
+                throw new InvalidOperationException("Projectile tracking capacity or unique job identity is unavailable.");
             var evidence=new NativeCombatDamageRecord(game,attacker,target,job,impactGuard);
             state.Records.Add(new Tracked {Evidence=evidence,Identity=identity,LaunchGuard=launchGuard,ImpactGuard=impactGuard});
             return evidence;
@@ -156,7 +158,7 @@ namespace HomeBridge.BridgeTools
                 record=state.Records.FirstOrDefault(r=>r.Evidence.Attacker==attacker && r.Evidence.Job==attacker.CurJob && r.Evidence.JobId==r.Evidence.Job.loadID);
                 if (record==null) return null;
                 var e=record.Evidence;
-                if (!IsReady || exhausted || damageDepth!=0 || projectile.GetType()!=typeof(Bullet)
+                if (!IsReady || exhausted || damageDepth!=0 || (projectile.GetType()!=typeof(Bullet) && projectile.GetType()!=typeof(Projectile_Explosive))
                     || launcher!=attacker || intendedTarget.Thing!=e.Target || !Supports(verb,attacker,e.Target)
                     || equipment!=verb.EquipmentSource || projectile.def!=verb.Projectile || projectile.Map!=Find.CurrentMap
                     || state.Flights.Count>=FlightLimit || state.Flights.ContainsKey(projectile)
