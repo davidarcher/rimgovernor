@@ -23,6 +23,13 @@ PROTOBUF_EXPORTS = {
     "rimgovernor/lifecycle_read_identity": ("rimgovernor.lifecycle.v1.Lifecycle/ReadIdentity", "lifecycle.proto"),
     "rimgovernor/authority_read_status": ("rimgovernor.authority.v1.Authority/ReadStatus", "authority.proto"),
     "rimgovernor/placement_preview": ("rimgovernor.placement.v1.Placement/Preview", "placement.proto"),
+    "rimgovernor/authority_control": ("rimgovernor.authority.v1.Authority/Control", "authority.proto"),
+    "rimgovernor/observations_read_status": ("rimgovernor.observations.v1.Observations/ReadStatus", "observations.proto"),
+    "rimgovernor/observations_get_cells": ("rimgovernor.observations.v1.Observations/GetCells", "observations.proto"),
+    "rimgovernor/operations_preview": ("rimgovernor.operations.v1.Operations/Preview", "operations.proto"),
+    "rimgovernor/operations_execute": ("rimgovernor.operations.v1.Operations/Execute", "operations.proto"),
+    "rimgovernor/receipts_lookup": ("rimgovernor.receipts.v1.Attempts/Lookup", "receipts.proto"),
+    "rimgovernor/receipts_observe_progress": ("rimgovernor.receipts.v1.Attempts/ObserveProgress", "receipts.proto"),
 }
 # Strings are single tokens so brackets and comments inside descriptions cannot
 # terminate an attribute or parameter. Comments never contribute declarations.
@@ -154,6 +161,20 @@ def baseline_errors(saved: dict[str, Any], current: dict[str, Any]) -> list[str]
     return [] if saved == current else ["Native source/compile baseline drift; inspect changes before refreshing"]
 
 
+def protocol_mapping_errors(rows: list[dict[str, Any]], expected: set[str]) -> list[str]:
+    errors = []
+    for name in sorted(expected - PROTOBUF_EXPORTS.keys()):
+        if name.startswith("rimgovernor/"):
+            errors.append(f"{name}: native Protobuf export has no reviewed canonical mapping")
+    for name, (method, schema) in PROTOBUF_EXPORTS.items():
+        row = next((entry for entry in rows if entry["name"] == name), {})
+        if row.get("protocol_method") != method or row.get("protocol_schema") != "contracts/proto/" + schema:
+            errors.append(f"{name}: missing canonical Protobuf source mapping")
+        if name not in expected:
+            errors.append(f"{name}: declared Protobuf capability has no native export")
+    return errors
+
+
 def runtime_index_errors(index: dict[str, Any], root: Path = ROOT) -> list[str]:
     """Keep the lexical navigation index attached to current, compiled sources."""
     errors: list[str] = []
@@ -198,12 +219,7 @@ def check(root: Path = ROOT) -> list[str]:
         errors.append("Native ownership rows must cover each exported tool exactly once")
     if "home/placement_previews" in expected:
         errors.append("Retired placement preview export must not remain as an alias")
-    for name, (method, schema) in PROTOBUF_EXPORTS.items():
-        row = next((entry for entry in rows if entry["name"] == name), {})
-        if row.get("protocol_method") != method or row.get("protocol_schema") != "contracts/proto/" + schema:
-            errors.append(f"{name}: missing canonical Protobuf source mapping")
-        if name not in expected:
-            errors.append(f"{name}: declared Protobuf capability has no native export")
+    errors.extend(protocol_mapping_errors(rows, expected))
     declarations = {row["name"]: row for row in native["source_baseline"]["exports"]}
     compiled_paths = {source["path"] for project in native["source_baseline"]["projects"]
                       for source in project["compiled_sources"]}
@@ -265,6 +281,15 @@ public Task<object> Run([ToolParameter(Description = "a, b (c)")] string op = "a
     else:
         raise AssertionError("Unresolved discovery name accepted")
     baseline = source_baseline()
+    mappings = [{"name": name, "protocol_method": method, "protocol_schema": "contracts/proto/" + schema}
+                for name, (method, schema) in PROTOBUF_EXPORTS.items()]
+    assert not protocol_mapping_errors(mappings, set(PROTOBUF_EXPORTS))
+    for name in PROTOBUF_EXPORTS:
+        assert protocol_mapping_errors(mappings, set(PROTOBUF_EXPORTS) - {name}), "Missing Protobuf export accepted"
+        wrong_mapping = copy.deepcopy(mappings)
+        next(row for row in wrong_mapping if row["name"] == name)["protocol_method"] += "Wrong"
+        assert protocol_mapping_errors(wrong_mapping, set(PROTOBUF_EXPORTS)), "Wrong canonical method accepted"
+    assert protocol_mapping_errors(mappings, set(PROTOBUF_EXPORTS) | {"rimgovernor/unmapped"}), "Unmapped Protobuf export accepted"
     missing_export = copy.deepcopy(baseline)
     missing_export["exports"].pop()
     assert baseline_errors(missing_export, baseline), "Missing export accepted"
