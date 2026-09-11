@@ -126,3 +126,17 @@ def test_status_missing_requested_threats_is_not_evidence():
     rows = events("identity", "control", "status", "status", "control")
     rows[2]["Metadata"]["arguments"]["request"] = '{"colonists":true,"threats":false}'
     with pytest.raises(AssertionError): probe.audit(rows, 10, CAPS, "unsafe")
+
+
+def test_full_emergency_reads_and_minimal_background_status_coexist():
+    rows = events("identity", "control", "status", "status", "status", "control")
+    rows[3]["Metadata"]["arguments"]["request"] = '{"colonists":false,"threats":false,"colonistDetail":false}'
+    assert probe.audit(rows, 10, CAPS, "unsafe").count(probe.STATUS) == 3
+
+
+@pytest.mark.parametrize("full_reads", [0, 1])
+def test_background_status_cannot_satisfy_repeated_emergency_gate(full_reads):
+    rows = events("identity", "control", "status", "status", "status", "control")
+    for row in rows[2 + full_reads:5]:
+        row["Metadata"]["arguments"]["request"] = '{"colonists":false,"threats":false}'
+    with pytest.raises(AssertionError): probe.audit(rows, 10, CAPS, "unsafe")

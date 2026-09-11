@@ -94,11 +94,15 @@ def audit(events: list[dict], baseline: int, capabilities: dict[str, set[str]], 
         assert verbs.count("acquire") == verbs.count("revoke") == 1 and verbs[0] == "acquire" and verbs[-1] == "revoke"
         statuses = [completed[key] for key, name in operations.items() if name == STATUS and key in completed]
         statuses = [row for row in statuses if controls[0]["Sequence"] < row["Sequence"] < controls[-1]["Sequence"]]
-        assert len(statuses) >= (2 if phase == "unsafe" else 1), "Emergency reads did not repeat during enabled admission"
         assert all(row["Success"] is True and row["HasResult"] is True for row in statuses)
+        emergency_reads = []
         for row in statuses:
             request = json.loads(row["Metadata"]["arguments"]["request"])
-            assert request["colonists"] is True and request["threats"] is True, "Emergency read omitted required facts"
+            # The service also polls minimal status for its dashboard. Those calls
+            # remain audited, but do not establish emergency inspection evidence.
+            if request.get("colonists") is True and request.get("threats") is True:
+                emergency_reads.append(row)
+        assert len(emergency_reads) >= (2 if phase == "unsafe" else 1), "Full emergency reads did not repeat during enabled admission"
         assert names.count(EXECUTE) == (0 if phase == "unsafe" else 1)
         if phase == "safe": assert names.index(CONTROL) < names.index(EXECUTE) < len(names)-1-names[::-1].index(CONTROL)
     return names
