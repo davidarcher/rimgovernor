@@ -994,6 +994,14 @@ only intentional small, sanitized regression fixtures belong in source control.
           runtime agent; depends on 2e. A finished standalone draft plan releases
           its claim; later defense plans may retain it only while still active.
           Use the existing writer for disabled and shutdown cleanup.
+          - [ ] **2f.1a:** atomic positive world-scope supersession. Owner: domain
+            and state agents; depends on 2b–c. A verified replacement world can
+            retire potential cleanup even when a lost reply left the claim unknown.
+            Preserve the unknown original effect; never invent release or absence.
+            Same-world missing ownership cannot use this transition.
+          - [ ] **2f.1b:** compose session and worker cleanup. Owner: runtime agent;
+            depends on 2e.2 and 2f.1a. Keep one writer, finished-plan cleanup and
+            retryable joined shutdown under the existing profile owner.
         - [ ] **2f.2:** explicit player draft submission and local API projection.
           Owner: HTTP agent; depends on 2c and 2f.1. Accept pawn intent only, resolve
           native CAS in the handler, and expose progress and cleanup independently.
