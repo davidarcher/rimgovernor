@@ -75,6 +75,9 @@ func validateClockEpochRecord(v ClockEpochObligation) error {
 		return err
 	}
 	if v.Context != nil {
+		if err := clockGenerationFloor(v.Epoch.Origin, v.Context); err != nil {
+			return err
+		}
 		state, err := bridge.AssessClockEpoch(v.Epoch, v.Context, v.Status)
 		if err != nil {
 			return err
@@ -271,8 +274,13 @@ func (s *Store) ObserveClockEpoch(ctx context.Context, id string, sequence uint6
 			}
 			return ClockEpochObligation{}, ErrConflict
 		}
-		if v.Context != nil && proto.Equal(v.Context.Identity, current.Identity) && current.GetTick() < v.Context.GetTick() {
-			return ClockEpochObligation{}, ErrConflict
+		if err := clockGenerationFloor(v.Epoch.Origin, current); err != nil {
+			return ClockEpochObligation{}, err
+		}
+		if v.Context != nil && proto.Equal(v.Context.Identity, current.Identity) {
+			if current.GetTick() < v.Context.GetTick() || (v.Context.NativeGeneration != nil && (current.NativeGeneration == nil || current.GetNativeGeneration() < v.Context.GetNativeGeneration())) {
+				return ClockEpochObligation{}, ErrConflict
+			}
 		}
 		state, err := bridge.AssessClockEpoch(v.Epoch, current, status)
 		if err != nil {
@@ -281,4 +289,11 @@ func (s *Store) ObserveClockEpoch(ctx context.Context, id string, sequence uint6
 		v.Stage, v.Context, v.Status = ClockEpochStage(state), current, status
 		return v, nil
 	})
+}
+
+func clockGenerationFloor(prior, current *c.ObservationContext) error {
+	if prior != nil && current != nil && proto.Equal(prior.Identity, current.Identity) && prior.NativeGeneration != nil && (current.NativeGeneration == nil || current.GetNativeGeneration() < prior.GetNativeGeneration()) {
+		return ErrConflict
+	}
+	return nil
 }

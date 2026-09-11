@@ -268,3 +268,82 @@ func TestClockEpochPauseRetainsObservationWatermarkAcrossRestart(t *testing.T) {
 		t.Fatal(second, err)
 	}
 }
+
+func TestClockEpochRetainsGenerationWatermarkAcrossPauseAndRestart(t *testing.T) {
+	ctx := context.Background()
+	s, path, status := epochStoreFixture(t)
+	for _, generation := range []*uint64{nil, proto.Uint64(6)} {
+		stale := epochStopped(proto.Clone(status).(*k.Status), true)
+		stale.Context.NativeGeneration = generation
+		if _, err := s.ObserveClockEpoch(ctx, "start", 0, stale.Context, stale); !errors.Is(err, ErrConflict) {
+			t.Fatal("initial original generation floor lost", err)
+		}
+		contextBytes, err := clockBinary(stale.Context)
+		if err != nil {
+			t.Fatal(err)
+		}
+		statusBytes, err := clockBinary(stale)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = s.db.Exec("UPDATE clock_epochs SET stage='paused',context=?,status=?", contextBytes, statusBytes); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = s.LookupClockEpoch(ctx, "start"); err == nil {
+			t.Fatal("persisted original generation regression accepted")
+		}
+		if _, err = s.db.Exec("UPDATE clock_epochs SET stage='required',context=NULL,status=NULL"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	status.Context.NativeGeneration = proto.Uint64(10)
+	if _, err := s.ObserveClockEpoch(ctx, "start", 0, status.Context, status); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.BeginClockPause(ctx, "start", 0); err != nil {
+		t.Fatal(err)
+	}
+	check := func() {
+		t.Helper()
+		for _, generation := range []*uint64{nil, proto.Uint64(9)} {
+			for _, stopped := range []bool{false, true} {
+				proof := proto.Clone(status).(*k.Status)
+				if stopped {
+					proof = epochStopped(proof, true)
+				}
+				proof.Context.NativeGeneration = generation
+				if _, err := s.ObserveClockEpoch(ctx, "start", 1, proof.Context, proof); !errors.Is(err, ErrConflict) {
+					t.Fatal("same-tick missing/regressed generation accepted", stopped, generation, err)
+				}
+			}
+		}
+	}
+	check()
+	if _, err := s.MarkClockPauseUncertain(ctx, "start", 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s = open(t, path)
+	check()
+	retained, err := s.LookupClockEpoch(ctx, "start")
+	if err != nil || retained.Stage != ClockEpochUncertain || retained.Sequence != 1 || retained.Context.GetNativeGeneration() != 10 {
+		t.Fatal(retained, err)
+	}
+	status.Context.NativeGeneration = proto.Uint64(11)
+	if _, err = s.ObserveClockEpoch(ctx, "start", 1, status.Context, status); err != nil {
+		t.Fatal(err)
+	}
+	if next, err := s.BeginClockPause(ctx, "start", 1); err != nil || next.Sequence != 2 || next.Context.GetNativeGeneration() != 11 {
+		t.Fatal(next, err)
+	}
+	// A positively replaced world has its own generation and tick history.
+	replacement := proto.Clone(status.Context).(*c.ObservationContext)
+	replacement.Identity.LoadToken = proto.String("replacement")
+	replacement.NativeGeneration = nil
+	replacement.Tick = proto.Int64(0)
+	if next, err := s.ObserveClockEpoch(ctx, "start", 2, replacement, nil); err != nil || next.Stage != ClockEpochSuperseded {
+		t.Fatal(next, err)
+	}
+}
