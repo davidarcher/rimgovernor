@@ -131,7 +131,13 @@ facts hold it. `executor.NewWithDraft` prepares from fresh observations twice
 before journaling dispatch. Drafting and cleanup share the building writer;
 `CleanupDraft` remains available after ordinary `Stop`. Each call consumes one
 fresh decision, preserving uncertainty and the exact persisted cleanup sequence.
-Session, worker and player API integration remain gated by G01.07a.2.
+An optional complete `SessionConfig.Draft` capability set composes draft execution
+and cleanup into the existing session. The worker releases completed standalone
+drafts and invalidated claims independently of ordinary action progress. An active
+multi-action plan can retain a completed draft while its other work remains valid.
+Manual and shutdown run a bounded cleanup sweep through the same writer; unknown
+acquisition is observed before release, and an uncertain release remains retryable.
+Draft player API and service enablement remain gated by G01.07a.2.
 
 An uncertain HTTP reply is resolved by reading its request ID through
 `GET /api/buildings/submission?requestId=...` or
@@ -143,7 +149,10 @@ lease, and does not start the game clock. Actual pawn work requires the player o
 the supervised native scenario to advance time. Shutdown retains the native
 connection, database and profile owner until all work has joined and native
 authority cleanup is confirmed. A failed revoke remains retryable; a lost reply
-is resolved by fresh observation before releasing the profile lock.
+is resolved by fresh observation before releasing the profile lock. After writers
+drain, a fresh positive colony, load or map replacement can retire the old shutdown
+target without revoking authority in the replacement world. Unavailable identity
+retains ownership for another Close attempt.
 
 The internal building runtime combines exact native preview/map facts, complete
 SQLite reservation recovery and one-attempt execution. Authority and building
