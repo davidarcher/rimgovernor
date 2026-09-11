@@ -10,7 +10,7 @@ disposable game.
 Close controller/game before installing and launching the isolated headless profile:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\build_headless.ps1 -Install
+powershell -ExecutionPolicy Bypass -File scripts\build_native_mod.ps1 -Install
 powershell -ExecutionPolicy Bypass -File launch.ps1 -Headless -NoBrowser
 ```
 

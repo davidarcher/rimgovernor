@@ -8,40 +8,20 @@ jointly own the proposed migrations below. The backlog remains the work queue.
 
 ## Coverage and interpretation
 
-All C# sources in `integrations/colony-bridge` and `integrations/headless-rim` were
-searched for `Scribe_`, `ExposeData`, `IExposable`, `GameComponent`, `MapComponent`,
-`WorldComponent` and `ModSettings`. The saved surface comprises nine component
-types and seven nested record types (88 Scribe field/key pairs), all in namespace `HomeBridge.BridgeTools` in
-the early-loaded `RimGovernor.ColonyIdentity` assembly. The nine source links below
-contain every discovered Scribe call. No headless-owned saved fields were found.
+The source audit found nine component types and seven nested record types
+(88 Scribe field/key pairs). Current sources live under
+`integrations/rimgovernor-native/src/Runtime/Persistence`, compiled into the
+early-loaded `RimGovernor.Runtime` assembly; headless code adds no saved fields.
 
-[ColonyObservations.csproj](../integrations/colony-bridge/src/ColonyObservations.csproj)
-excludes `identity/**/*.cs` because its referenced
-[ColonyIdentity.csproj](../integrations/colony-bridge/src/identity/ColonyIdentity.csproj)
-compiles them separately. It also excludes `PawnSettingsRead.cs` and
-`StockpileFilter.cs`; both were searched and neither serializes fields. The root
-`src/ColonyIdentity.cs` exports `ColonyIdentityTools`, not another saved
-component. Preserve assembly/type names and keys through N01.01. Do not delete
-apparent duplicates based on the observation assembly's exclusion list.
-
-In the field tables, `Field/key` gives the exact C# field and Scribe key; grouped
-fields have identical ownership and reconstruction decisions. Collection rows
-include their element/key meaning. **SQL** means the controller's SQLite store is
-the sole proposed authority for that metadata. **Native** means a narrowly scoped
-proposed native exception, not approval of the current entire component. Actual
-game objects/settings always remain RimWorld-owned. **Fresh** means current values
-can be observed but their historical association cannot be inferred. **No** means
-ordinary current game state cannot reconstruct the field's historical meaning.
-Each row inherits its family's disconnect, migration/removal and acceptance rule.
-
-Native exception proposals below still need G01 agreement and isolated acceptance.
-Existing saves must keep their current behavior until that gate passes. No copied
-save, DLL discovery, native load or disconnected gameplay was executed for this
-documentation slice; current-behavior statements are source findings.
+The field tables retain the audit's proposed ownership and runtime-safety reasoning.
+Old-save migration, retained CLR/assembly identities and compatibility tests are
+out of scope under the active-development plan. New state may start clean. Native
+writers remain until current consumers and live-job guards are replaced, rather
+than until historical saves can be imported.
 
 ## Colony and timeline identity
 
-Source: [identity/ColonyIdentity.cs](../integrations/colony-bridge/src/identity/ColonyIdentity.cs).
+Source: [identity/ColonyIdentity.cs](../integrations/rimgovernor-native/src/Runtime/Persistence/ColonyIdentity.cs).
 
 | Field/key | Sole target owner | Reconstructible? |
 | --- | --- | --- |
@@ -61,8 +41,8 @@ ambiguous association must hold and preserve newer history separately.
 
 ## Construction lineage
 
-Sources: [saved types](../integrations/colony-bridge/src/identity/ConstructionLineageState.cs),
-[transition hooks](../integrations/colony-bridge/src/ConstructionLineage.cs).
+Sources: [saved types](../integrations/rimgovernor-native/src/Runtime/Persistence/ConstructionLineageState.cs),
+[transition hooks](../integrations/rimgovernor-native/src/Bridge/ConstructionLineage.cs).
 
 | Field/key | Sole target owner | Reconstructible? |
 | --- | --- | --- |
@@ -93,8 +73,8 @@ and no duplicated construction. Existing entry points include
 
 ## Hauling and quantity identity
 
-Sources: [saved types](../integrations/colony-bridge/src/identity/HaulTrackingState.cs),
-[quantity hooks](../integrations/colony-bridge/src/HaulTracking.cs).
+Sources: [saved types](../integrations/rimgovernor-native/src/Runtime/Persistence/HaulTrackingState.cs),
+[quantity hooks](../integrations/rimgovernor-native/src/Bridge/HaulTracking.cs).
 
 | Field/key | Sole target owner | Reconstructible? |
 | --- | --- | --- |
@@ -124,8 +104,8 @@ Existing entry points: `scripts/resumed_haul_acceptance.py` and
 
 ## Mining and drilling
 
-Sources: [saved types/rebind](../integrations/colony-bridge/src/identity/MiningState.cs),
-[mining guard](../integrations/colony-bridge/src/MiningGuard.cs),
+Sources: [saved types/rebind](../integrations/rimgovernor-native/src/Runtime/Persistence/MiningState.cs),
+[mining guard](../integrations/rimgovernor-native/src/Bridge/MiningGuard.cs),
 [current contract](../docs/developers/contracts/mining-contracts.md).
 
 | Field/key | Sole target owner | Reconstructible? |
@@ -162,8 +142,8 @@ drill frame completion, depletion and player drill replacement. Existing entry p
 
 ## Wall replacement
 
-Sources: [saved types](../integrations/colony-bridge/src/identity/WallRemovalState.cs),
-[guard and release](../integrations/colony-bridge/src/WallUpgradeTool.cs).
+Sources: [saved types](../integrations/rimgovernor-native/src/Runtime/Persistence/WallRemovalState.cs),
+[guard and release](../integrations/rimgovernor-native/src/Bridge/WallUpgradeTool.cs).
 
 | Field/key | Sole target owner | Reconstructible? |
 | --- | --- | --- |
@@ -193,8 +173,8 @@ and no duplicate demolition. Entry points: `scripts/wall_upgrade_acceptance.py` 
 
 ## Production limits
 
-Sources: [saved fields](../integrations/colony-bridge/src/identity/ProductionPolicyState.cs),
-[selection/consumption guards](../integrations/colony-bridge/src/ProductionPolicyTool.cs).
+Sources: [saved fields](../integrations/rimgovernor-native/src/Runtime/Persistence/ProductionPolicyState.cs),
+[selection/consumption guards](../integrations/rimgovernor-native/src/Bridge/ProductionPolicyTool.cs).
 
 | Field/key | Sole target owner | Reconstructible? |
 | --- | --- | --- |
@@ -218,8 +198,8 @@ stock limits and player bill filters survive. Existing fixture neighbor:
 
 ## Equipment ownership
 
-Sources: [saved map](../integrations/colony-bridge/src/identity/GearOwnership.cs),
-[equipment operations](../integrations/colony-bridge/src/GearUpkeepTool.cs).
+Sources: [saved map](../integrations/rimgovernor-native/src/Runtime/Persistence/GearOwnership.cs),
+[equipment operations](../integrations/rimgovernor-native/src/Bridge/GearUpkeepTool.cs).
 
 | Field/key | Sole target owner | Reconstructible? |
 | --- | --- | --- |
@@ -237,8 +217,8 @@ never claim a weapon solely because it matches an old ID. Existing entry point:
 
 ## Recovery areas
 
-Sources: [saved claims and cleanup](../integrations/colony-bridge/src/identity/RecoveryAreas.cs),
-[setter ownership invalidation](../integrations/colony-bridge/src/RecoveryAreaOwnership.cs).
+Sources: [saved claims and cleanup](../integrations/rimgovernor-native/src/Runtime/Persistence/RecoveryAreas.cs),
+[setter ownership invalidation](../integrations/rimgovernor-native/src/Bridge/RecoveryAreaOwnership.cs).
 
 | Field/key | Sole target owner | Reconstructible? |
 | --- | --- | --- |
@@ -265,8 +245,8 @@ bridge tool discovery. Existing entry point: `scripts/disaster_recovery_acceptan
 
 ## Home exclusions
 
-Sources: [saved map state](../integrations/colony-bridge/src/identity/HomeCoverageState.cs),
-[mutation observations](../integrations/colony-bridge/src/HomeCoverageTool.cs).
+Sources: [saved map state](../integrations/rimgovernor-native/src/Runtime/Persistence/HomeCoverageState.cs),
+[mutation observations](../integrations/rimgovernor-native/src/Bridge/HomeCoverageTool.cs).
 
 | Field/key | Sole target owner | Reconstructible? |
 | --- | --- | --- |

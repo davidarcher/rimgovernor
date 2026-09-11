@@ -6,7 +6,7 @@ This reference describes process, binary and display isolation. For commands, us
 [native Docker acceptance](../testing/docker-native.md).
 
 The dashboard polls compact state and keeps drafts/last good data through refreshes.
-The game view uses frame-bound WebSocket video and periodic snapshots as fallback; viewer leases drive native render demand. `integrations/headless-rim` removes presentation paths in isolated test
+The game view uses frame-bound WebSocket video and periodic snapshots as fallback; viewer leases drive native render demand. `integrations/rimgovernor-native/src/Runtime/Headless` removes presentation paths in isolated test
 profiles. Each campaign worker owns a separate controller, SQLite database, game
 profile, GABS runtime and logs. Windows workers share installed game/mod files
 read-only. `container_worker.py` copies licensed Linux game/mod inputs into a fresh

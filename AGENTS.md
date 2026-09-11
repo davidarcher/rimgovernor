@@ -20,7 +20,7 @@
   [backlog](docs/BACKLOG.md) and [test selection](docs/developers/testing/choose-tests.md).
   Read the component guide and contracts for the subsystem being changed;
   use its testing page for commands. Runtime: Python, React,
-  GABS/RimBridgeServer and `integrations/colony-bridge`.
+  GABS/RimBridgeServer and `integrations/rimgovernor-native`.
 - Keep one shared goal/action system and deterministic Hands. Routine control is
   deterministic; player chat interprets explicit semantic requests. Advisers cannot
   write game orders or own colony invariants.

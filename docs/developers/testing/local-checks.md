@@ -20,7 +20,7 @@ Generated dashboard assets, local databases and logs remain outside commits.
 With RimWorld closed, build/install native changes using:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\build_observation_bridge.ps1 -Install
+powershell -ExecutionPolicy Bypass -File scripts\build_native_mod.ps1 -Install
 ```
 
 Never replace installed DLLs while any RimWorld instance is running. Native build

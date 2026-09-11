@@ -95,7 +95,7 @@ repair; sampled throughput cannot establish precise GC pause behavior.
 `warning-recovery`, `warning-pause`, `warning-modal`, `warning-raid` and `warning-load`
 exercise shared-wait recovery and refusal through native callbacks. They require the
 separate `scripts/fixtures/InterruptionFixtures.csproj` assembly under the private
-mod snapshot's `RimGovernorObservations/BridgeTools/InterruptionFixtures/` directory.
+mod snapshot's `RimGovernor/BridgeTools/InterruptionFixtures/` directory.
 Build with the Linux `RimWorldManagedDir` and `RimBridgeSdkDir` overrides. The fixture
 delivers native letters, opens a real modal and executes an ordinary raid incident;
 the pause case uses a native player-equivalent call, not physical keyboard input.

@@ -884,7 +884,7 @@ the independently accepted gated subchunk and keep the blocked acceptance open.
 
 ## N01 — Unified RimGovernor native mod
 
-Combine `integrations/headless-rim` and `integrations/colony-bridge` into one
+Consolidate the native runtime and tool integrations into one
 installable native mod, with typed contracts and clear runtime ownership. G01 owns
 canonical schema generation and the controller rewrite; N01 owns C# implementation,
 packaging and native acceptance.

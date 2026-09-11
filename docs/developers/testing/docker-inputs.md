@@ -25,8 +25,7 @@ complete `Mods` directory, and a prepared profile containing `Config/Prefs.xml`,
 unchanged.
 
 The mod directory must contain Core/DLC content where required by the game, Harmony,
-RimBridgeServer, RimGovernorObservations (including its identity assembly and BridgeTools)
-and RimGovernorHeadless. Resolve workshop links into this snapshot and match the active
+RimBridgeServer and RimGovernor (including its Runtime assembly and BridgeTools). Resolve workshop links into this snapshot and match the active
 package IDs in ModsConfig.xml. Build task DLLs into a private staging directory using
 the native projects' path properties; do not use `-Install` on a shared running Windows
 installation. Finish staging all inputs before launch. Images contain
@@ -51,13 +50,12 @@ that directory's `Data`. Retain depot/manifest IDs and `Version.txt` beside the 
 evidence. Never put licensed inputs in Git or images.
 
 Copy Harmony and the complete RimBridgeServer mod into the private mod directory. Build
-task-local companion binaries against the Linux references, then copy their
-About/Assemblies/BridgeTools folders into private RimGovernorObservations and RimGovernorHeadless
-directories. For example (use an available .NET SDK):
+the unified package against the Linux references, then copy the staged RimGovernor
+package into the private Mods directory. For example (use an available .NET SDK):
 
 ```powershell
-dotnet build integrations/colony-bridge/src/ColonyObservations.csproj -c Release "-p:RimWorldManagedDir=<linux-game>/RimWorldLinux_Data/Managed" "-p:RimBridgeSdkDir=<private-mods>/RimBridgeServer/1.6/Assemblies" "-p:HarmonyAssembly=<private-mods>/Harmony/Current/Assemblies/0Harmony.dll"
-dotnet build integrations/headless-rim/src/HeadlessRim.csproj -c Release "-p:RimWorldManagedDir=<linux-game>/RimWorldLinux_Data/Managed" "-p:HarmonyAssembly=<private-mods>/Harmony/Current/Assemblies/0Harmony.dll"
+dotnet build integrations/rimgovernor-native/src/Bridge/RimGovernor.Bridge.csproj -c Release "-p:RimWorldManagedDir=<linux-game>/RimWorldLinux_Data/Managed" "-p:RimBridgeSdkDir=<private-mods>/RimBridgeServer/1.6/Assemblies" "-p:HarmonyAssembly=<private-mods>/Harmony/Current/Assemblies/0Harmony.dll"
+dotnet build integrations/rimgovernor-native/src/Runtime/RimGovernor.Runtime.csproj -c Release "-p:RimWorldManagedDir=<linux-game>/RimWorldLinux_Data/Managed" "-p:HarmonyAssembly=<private-mods>/Harmony/Current/Assemblies/0Harmony.dll"
 ```
 
 Use a Linux GABS release matching the tested bridge version, verify the upstream release

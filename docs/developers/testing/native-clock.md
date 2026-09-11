@@ -71,7 +71,7 @@ keyboard input, autosaves or every danger race. Keep all failed reports.
 `scripts/native_autosave_acceptance.py --source-root <prepared-root> --output
 <fresh-directory>` tests an ordinary one-day autosave during a 61,000-tick Superfast
 window. Install both the current observation bridge and headless build with every game
-stopped; `build_headless.ps1` accepts an optional `-DotNet` path. The isolated profile
+stopped; `build_native_mod.ps1` accepts an optional `-DotNet` path. The isolated profile
 enables the ordinary pause-on-load preference. The test requires long-event/clear
 events, an unchanged exact tick deadline, a newly written native save whose saved tick
 matches the event, and a paused reload with the same colony and a new load token. It

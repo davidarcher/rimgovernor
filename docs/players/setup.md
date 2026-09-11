@@ -19,7 +19,7 @@ With RimWorld closed, run from the repository root:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
-powershell -ExecutionPolicy Bypass -File scripts\build_observation_bridge.ps1 -Install
+powershell -ExecutionPolicy Bypass -File scripts\build_native_mod.ps1 -Install
 .venv\Scripts\python.exe scripts/prepare_bridge_trial.py --source-profile "C:/path/to/RimWorld-profile" --rimworld "C:/path/to/RimWorld" --observations
 ```
 

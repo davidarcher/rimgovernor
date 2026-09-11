@@ -13,9 +13,9 @@ RimGovernor uses the following names across its deployment boundary.
 | Environment variable prefix | `RIMGOVERNOR_` |
 | Mutating HTTP request header | `X-RimGovernor: 1` |
 | Container label prefix | `io.rimgovernor.` |
-| Colony companion package | `davidarcher.rimgovernor.observations` |
-| Companion assemblies | `RimGovernor.ColonyIdentity.dll`, `RimGovernor.Observations.BridgeTools.dll` |
-| Private native mod directories | `RimGovernorObservations`, `RimGovernorHeadless` |
+| Colony companion package | `davidarcher.rimgovernor.native` |
+| Companion assemblies | `RimGovernor.Runtime.dll`, `RimGovernor.Bridge.dll` |
+| Private native mod directories | `RimGovernor` |
 | Prepared baseline save | `RimGovernor-tribal8-baseline.rws` |
 
 Deployment names are an exact contract, with no alternate product-name aliases.

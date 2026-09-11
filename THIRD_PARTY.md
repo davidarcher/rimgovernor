@@ -15,9 +15,9 @@ The dashboard includes source derived from IlyaChichkov/rimapi-dashboard at
 
 ## Native integration and formatters
 
-- [Colony bridge source notice](integrations/colony-bridge/PROVENANCE.md)
+- [Colony bridge source notice](integrations/rimgovernor-native/Notices/companion/PROVENANCE.md)
 - [UI formatter source notice](controller/rimgovernor/vendor/PROVENANCE.md)
-- [Headless adapter source notice](integrations/headless-rim/PROVENANCE.md) and GPL-3.0 license
+- [Headless adapter source notice](integrations/rimgovernor-native/Notices/headless/PROVENANCE.md) and GPL-3.0 license
 
 Game files, artwork, GABS and installed SDK assemblies are supplied separately.
 
