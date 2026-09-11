@@ -55,7 +55,7 @@ namespace HomeBridge.BridgeTools
             catch { /* Missing events fail the independent sequence audit. */ }
         }
 
-        [Tool("test/routine_sleeping_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: clear an outdoor starter site or create an empty roofed room near existing colonists; remove starting injuries. Outdoor mode creates no buildings or roofs. Never creates sleeping spots or edits controller results.")]
+        [Tool("test/routine_sleeping_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: clear an outdoor starter site or create an empty roofed room near existing colonists; remove starting injuries and tendable conditions. Outdoor mode creates no buildings or roofs. Never creates sleeping spots or edits controller results.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool outdoorSite = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -83,7 +83,7 @@ namespace HomeBridge.BridgeTools
                     if (!outdoorSite) map.roofGrid.SetRoof(cell, RoofDefOf.RoofConstructed);
                 }
                 foreach (var pawn in people)
-                    foreach (var injury in pawn.health.hediffSet.hediffs.OfType<Hediff_Injury>().ToList()) pawn.health.RemoveHediff(injury);
+                    foreach (var condition in pawn.health.hediffSet.hediffs.Where(h => h is Hediff_Injury || h.TendableNow(false)).ToList()) pawn.health.RemoveHediff(condition);
                 map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
                 return new { success = true, tick = Find.TickManager.TicksGame, colonists = people.Count,
                     center = new { x = room.CenterCell.x, z = room.CenterCell.z },

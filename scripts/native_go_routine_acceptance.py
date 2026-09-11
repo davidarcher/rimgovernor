@@ -254,6 +254,8 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 assert report["sleeping_setup"]["success"] and report["sleeping_setup"]["sleepingSpotsCreated"] == 0
             report["initial_colony"] = await wire(bridge, "initial-colony", "observations_read_status", {
                 "scope": {"expectedIdentity": identity}, "colonists": True, "threats": True, "colonistDetail": False, "page": {"limit": 256}})
+            if sleeping_methods or resource_rules:
+                assert medical_need(report['initial_colony']) == 'recovered', 'Construction fixture requires healthy starting colonists'
             colonists = outcome(report["initial_colony"], "observed")["colonists"]["pawns"]
             pawn_ids = [p["pawn"]["id"] for p in colonists]
             detailed = outcome(await wire(bridge, "initial-equipment", "observations_list_pawns", {

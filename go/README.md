@@ -265,7 +265,11 @@ unknown food forecast, Manual invalidation, joined shutdown and disabled restart
 Its `--sleeping-methods` variant also uses `RoutineSleepingFixture` to provide an
 empty roofed room and healthy starting colonists. It verifies one complete sleeping
 method, native observed completion, single attempts, indoor footprints and unchanged
-player authority through the shared worker. `--cooking-methods` adds campfire
+player authority through the shared worker. `--shelter-methods` instead starts with
+an outdoor site and requires a complete wall-and-door shell, normal roofing,
+indoor sleeping capacity and a satisfied shelter goal. Its retained native event
+history covers the whole construction run, including Manual and disabled restart.
+`--cooking-methods` adds campfire
 construction and verifies that cooking still needs a bill after the building
 completes. Its `--resource-rule WoodLog:stop:0` variant uses the same room fixture
 and compile-only cooking to verify pending player work, no routine admissions or
