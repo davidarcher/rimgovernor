@@ -215,7 +215,7 @@ func (p Progress) RecordDraftCleanup(release DraftRelease, outcome DraftCleanupO
 func (p Progress) ObserveDraftCleanup(observation DraftCleanupObservation) (Progress, error) {
 	cleanup, ok := p.view.DraftCleanup.Value()
 	claim, known := cleanup.Claim.Value()
-	if !ok || !known || !p.draftCleanupOutstanding() || claim != observation.Claim || observation.Outcome != DraftReleaseSuperseded || observation.Observed.Validate() != nil || observation.Observed.Native == 0 || observation.Tick < 0 {
+	if !ok || !known || !p.draftCleanupOutstanding() || claim != observation.Claim || observation.Outcome != DraftReleaseSuperseded || observation.Observed.Validate() != nil || observation.Tick < 0 {
 		return p, errors.New("invalid draft supersession evidence")
 	}
 	if observation.Observed.sameWorld(claim.Origin) {
@@ -226,6 +226,27 @@ func (p Progress) ObserveDraftCleanup(observation DraftCleanupObservation) (Prog
 			return p, errors.New("supersession predates cleanup")
 		}
 	}
+	cleanup.Stage = DraftSuperseded
+	p.view.DraftCleanup = Known(cleanup)
+	return p, nil
+}
+
+type DraftScopeSupersession struct {
+	Action   ActionID
+	Attempt  AttemptID
+	Origin   GenerationSnapshot
+	Observed GenerationSnapshot
+	Tick     Tick
+}
+
+// ObserveDraftScopeSupersession retires cleanup only after positive observation
+// of a replacement world. It says nothing about whether the original draft was
+// acquired or released, and cannot authorize a call against the replacement.
+func (p Progress) ObserveDraftScopeSupersession(observation DraftScopeSupersession) (Progress, error) {
+	if p.action.kind != OwnedDraftAction || !p.draftCleanupOutstanding() || observation.Action != p.view.Action || observation.Attempt == 0 || observation.Attempt != p.view.Attempt || observation.Origin != p.view.Snapshot || observation.Observed.Validate() != nil || observation.Tick < 0 || observation.Observed.sameWorld(observation.Origin) {
+		return p, errors.New("invalid draft scope supersession evidence")
+	}
+	cleanup, _ := p.view.DraftCleanup.Value()
 	cleanup.Stage = DraftSuperseded
 	p.view.DraftCleanup = Known(cleanup)
 	return p, nil
