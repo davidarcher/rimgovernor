@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,9 +13,12 @@ namespace HomeBridge.BridgeTools
     // Explicit disposable-fixture setup. Never compiled into production builds.
     public sealed class EmergencyDevelopmentFixture
     {
+        private static Game opponentGame;
+        private static Map opponentMap;
+        private static readonly List<Pawn> SpawnedOpponents = new List<Pawn>();
         [Tool("test/b04f_setup", Description = "Disposable B04f initial conditions: stocks, two manhunters, wound, mental state or native player-order equivalent. No completed-work injection.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "stocks, combat-equipment, development-settings (Peaceful), opponents, wound, low-health, resting-patient, resting-injury, unavailable-doctor, external-order")] string op,
+            [ToolParameter(Description = "stocks, combat-equipment, development-settings (Peaceful), opponents, clear-opponents, wound, low-health, resting-patient, resting-injury, unavailable-doctor, external-order")] string op,
             [ToolParameter(Description = "Exact colonist identity for pawn cases.", DefaultValue = "")] string pawn = "")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -58,13 +62,26 @@ namespace HomeBridge.BridgeTools
                         }
                     }
                 } else if (op == "opponents") {
+                    if (opponentGame == Current.Game && SpawnedOpponents.Any(p => !p.Destroyed))
+                        throw new InvalidOperationException("Fixture opponents already exist; observe them before another setup.");
+                    opponentGame = Current.Game; opponentMap = map; SpawnedOpponents.Clear();
                     if (actor != null) center = actor.Position;
                     for (var i=0;i<2;i++) {
                         var animal = PawnGenerator.GeneratePawn(DefDatabase<PawnKindDef>.GetNamed("Hare"));
                         var cell = GenRadial.RadialCellsAround(center,12,true).First(c => c.InBounds(map) && c.Walkable(map) && c.DistanceTo(center)>8 && !c.Fogged(map));
                         GenSpawn.Spawn(animal,cell,map);
+                        SpawnedOpponents.Add(animal);
                         if (!animal.mindState.mentalStateHandler.TryStartMentalState(MentalStateDefOf.ManhunterPermanent)) throw new InvalidOperationException("Manhunter fixture refused");
                     }
+                } else if (op == "clear-opponents") {
+                    if (opponentGame != Current.Game || opponentMap != map || SpawnedOpponents.Count != 2
+                        || SpawnedOpponents.Any(p => p.Destroyed || !p.Spawned || p.Map != map))
+                        throw new InvalidOperationException("Exact fixture-owned opponents are unavailable in this game/map.");
+                    var cleared = SpawnedOpponents.Select(p => p.GetUniqueLoadID()).ToArray();
+                    foreach (var opponent in SpawnedOpponents) opponent.Destroy(DestroyMode.Vanish);
+                    if (SpawnedOpponents.Any(p => !p.Destroyed)) throw new InvalidOperationException("Fixture opponent removal did not complete.");
+                    SpawnedOpponents.Clear();
+                    return new { success=true, op, cleared, tick=Find.TickManager.TicksGame, setupOnly=true, completedWorkInjected=false };
                 } else {
                     if (actor == null) throw new ArgumentException("Exact observed colonist required");
                     OrderedWorkHistory.Read(actor);
@@ -94,7 +111,7 @@ namespace HomeBridge.BridgeTools
                         }
                     } else throw new ArgumentException("Unknown fixture operation");
                 }
-                return new { success=true, op, pawn, weapons, tick=Find.TickManager.TicksGame,
+                return new { success=true, op, pawn, weapons, opponents=op == "opponents" ? SpawnedOpponents.Select(p => p.GetUniqueLoadID()).ToArray() : new string[0], tick=Find.TickManager.TicksGame,
                     orderGeneration=actor==null?(long?)null:OrderedWorkHistory.Read(actor),
                     setupOnly=true, completedWorkInjected=false };
             }, cancellationToken).ConfigureAwait(false);
