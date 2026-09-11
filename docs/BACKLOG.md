@@ -757,7 +757,7 @@ only intentional small, sanitized regression fixtures belong in source control.
   behavioral cases for deficits, unknown facts, competing projects, player priorities,
   cancellation and starvation/hysteresis cases. Property/fuzz tests cover reservation
   conservation, duplicate IDs and invalid geometry. No native writes. Depends on 04a.
-  - [ ] **05a:** explicit building admission, known resource budgets, dependencies
+  - [x] **05a:** explicit building admission, known resource budgets, dependencies
     and native footprint geometry. Owner: policy agent.
   - [ ] **05b:** routine deficits, hysteresis and method selection; extend with
     supported execution families after the first building vertical slice.
