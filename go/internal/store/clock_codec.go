@@ -47,6 +47,7 @@ type clockIntentRecord struct {
 	Speed             int32
 	LeaseMS, MaxTicks uint32
 	Policy, Original  []byte
+	Window            *ClockWindowAdmission
 }
 
 func clockExpectation(v ClockAttempt) bridge.ClockExpectation {
@@ -63,6 +64,9 @@ func validateClockIntent(v ClockAttempt) error {
 	}
 	if v.NativeAttempt == nil || v.NativeAttempt.GetAttemptId() != 1 {
 		return errors.New("clock command requires its own first attempt")
+	}
+	if err := validateClockWindow(v.Intent); err != nil {
+		return err
 	}
 	return bridge.ValidateClockExpectation(clockExpectation(v))
 }
@@ -96,7 +100,7 @@ func encodeClockIntent(v ClockAttempt) ([]byte, error) {
 	if err := validateClockIntent(v); err != nil {
 		return nil, err
 	}
-	record := clockIntentRecord{Snapshot: v.Intent.Snapshot}
+	record := clockIntentRecord{Snapshot: v.Intent.Snapshot, Window: v.Intent.Window}
 	var err error
 	switch command := v.Intent.Command; {
 	case command.Start != nil:
@@ -137,7 +141,7 @@ func decodeClockIntent(id string, attempt *c.AttemptKey, b []byte) (ClockIntent,
 	if err != nil || !bytes.Equal(b, canonical) {
 		return ClockIntent{}, errors.New("noncanonical clock intent")
 	}
-	intent := ClockIntent{RequestID: id, Snapshot: record.Snapshot}
+	intent := ClockIntent{RequestID: id, Snapshot: record.Snapshot, Window: record.Window}
 	switch record.Kind {
 	case "start":
 		policy := &k.WatchPolicy{}

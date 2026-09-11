@@ -79,6 +79,9 @@ func loadClock(ctx context.Context, tx *sql.Tx, id string) (ClockAttempt, error)
 	if err = clockActionAvailable(ctx, tx, value.NativeAttempt.GetActionId()); err != nil {
 		return ClockAttempt{}, err
 	}
+	if err = checkClockWindowProfile(ctx, tx, value.Intent.Window); err != nil {
+		return ClockAttempt{}, err
+	}
 	if _, err = checkClockEpoch(ctx, tx, value); err != nil {
 		return ClockAttempt{}, err
 	}
@@ -114,6 +117,9 @@ func (s *Store) PrepareClock(ctx context.Context, intent ClockIntent) (ClockAtte
 	candidate := ClockAttempt{Intent: intent, NativeAttempt: &c.AttemptKey{ControllerSessionId: proto.String(string(session)), ActionId: proto.String("clock-" + hex.EncodeToString(entropy[:])), AttemptId: proto.Uint64(1)}, Phase: ClockPrepared}
 	payload, err := encodeClockIntent(candidate)
 	if err != nil {
+		return ClockAttempt{}, false, err
+	}
+	if err = checkClockWindowProfile(ctx, tx, intent.Window); err != nil {
 		return ClockAttempt{}, false, err
 	}
 	old, err := loadClock(ctx, tx, intent.RequestID)
@@ -273,6 +279,11 @@ func (s *Store) updateClock(ctx context.Context, id string, change func(ClockAtt
 	phase, reply, err := change(old)
 	if err != nil {
 		return ClockAttempt{}, err
+	}
+	if phase == ClockDispatched {
+		if err = checkClockWindowDispatch(ctx, tx, old.Intent.Window); err != nil {
+			return ClockAttempt{}, err
+		}
 	}
 	if phase == old.Phase && proto.Equal(reply, old.Reply) {
 		return old, tx.Commit()
