@@ -117,12 +117,22 @@ through the existing player gate, rechecks authority after the read, and retains
 unknown needs. `observation.ObserveRoutine` includes the typed emergency census
 inside the same paused brackets. Medical/combat need counts use the shared emergency
 rules, deduplicate patients/threats, and remain unknown on incomplete or conflicting
-evidence. Manual and fresh acquisition invalidate previous routine reviews
+evidence. Owned-draft cleanup needs use the complete shared journal and the same
+cleanup predicate as the release sweep. Manual and fresh acquisition invalidate previous routine reviews
 without a native read. A disabled reviewer retires existing work without acquiring
 authority. The reviewer has no independent background loop. A clock scheduler can
 attach the same player's reviewer through `ClockSchedulerConfig.Routine`; it runs
 after clock obligations drain and before a new window decision. Running epochs and
 cleanup take precedence, and a failed review prevents a new window.
+
+`RoutineSleepingPlanner.Step` compiles an active reviewed shelter deficit into
+one complete method of ordinary indoor sleeping spots. It requires a known native
+definition with no construction-skill prerequisite, roofed indoor cells, disjoint
+safe native previews and shared resource admission. Existing admitted footprints
+remain protected. Method identity survives retries; observed recovery opens a new
+epoch. Every preview stays under the player gate, and Manual cancels compilation.
+The compiler stores pending actions only. Service attachment, method execution and
+native indoor-sleeping acceptance remain open.
 
 Add `--routine-reviews` to `serve --player-control --clock-control` to attach the
 reviewer to the service clock worker. It uses the default routine thresholds and

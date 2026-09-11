@@ -128,6 +128,26 @@ func (s *Store) AdmitBuildingMethod(ctx context.Context, r BuildingMethodRequest
 
 // Read authoritative reservations under the admission transaction. Never accept
 // a caller's potentially stale inventory of competing projects.
+func (s *Store) BuildingReservations(ctx context.Context, current domain.GenerationSnapshot) ([]policy.Reservation, error) {
+	if err := current.Validate(); err != nil {
+		return nil, err
+	}
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	held, err := buildingMethodHolds(ctx, tx, current)
+	if err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return held, nil
+}
+
+// The admission transaction repeats this read after spatial proposal generation.
 func buildingMethodHolds(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot) ([]policy.Reservation, error) {
 	plans, err := loadPlans(ctx, tx, 256)
 	if err != nil {

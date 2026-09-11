@@ -630,6 +630,11 @@ expand these into another nested task tree; remove a row when its outcome is met
   exact history and per-world observation floors; stale admission/dispatch stays
   blocked after restart. Current plans, unfinished dependencies, uncertain effects,
   cleanup and unsuccessful outcomes remain pinned.
+  A player-gated indoor-sleeping compiler now turns reviewed shelter deficits into
+  complete pending shared methods using native definition/room/placement facts,
+  protected admissions and stable epoch identities. Cleanup needs now derive from
+  the shared owned-draft journal. Compiler service attachment, execution and native
+  indoor-sleeping acceptance remain open.
   Remaining fact projection (further need inputs and construction
   costs), unsuccessful-plan resource release,
   method selection and execution composition remain
@@ -732,6 +737,11 @@ For each delivered capability, keep checks and native/model scope in its commit
 and local artifacts, then remove its completed backlog entry. A schema, build or
 receipt alone does not establish working gameplay. Shared native implementation
 work remains in N01; change those boundaries only where a Go consumer needs it.
+
+- [ ] **Clock-worker stop test synchronization.** Make
+  `TestClockWorkerTransportBlockedWriteRetainsOwner` distinguish transport deadline
+  cancellation from completed local stop invalidation before asserting authority
+  state. Preserve the blocked-write ownership and joined-shutdown assertions.
 
 ## N01 — Unified RimGovernor native mod
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -70,6 +71,19 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context) (store.RoutineReviewR
 		return store.RoutineReviewResult{}, err
 	}
 	reading.Projection.Facts.Hostiles, reading.Projection.Facts.CriticalPatients = policy.EmergencyNeeds(emergency, state.Snapshot, expected.Tick)
+	// Owned drafts belong to this persistent controller's shared journal.
+	// Use the same complete catalog and cleanup predicate as the release sweep.
+	plans, err := p.journal.LoadPlans(ctx, 256)
+	if err != nil {
+		return store.RoutineReviewResult{}, err
+	}
+	cleanup := false
+	for _, plan := range plans {
+		for _, progress := range plan.Progress {
+			cleanup = cleanup || draftOutstanding(progress)
+		}
+	}
+	reading.Projection.Facts.CleanupPawns = domain.Known(cleanup)
 	if err = p.current(ctx, epoch); err != nil {
 		return store.RoutineReviewResult{}, err
 	}
