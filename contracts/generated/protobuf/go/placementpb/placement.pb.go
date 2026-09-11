@@ -7,6 +7,7 @@
 package placementpb
 
 import (
+	commonpb "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -136,6 +137,7 @@ func (Passability) EnumDescriptor() ([]byte, []int) {
 type PlacementRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Placements    []*PlacementCandidate  `protobuf:"bytes,1,rep,name=placements,proto3" json:"placements,omitempty"`
+	Identity      *commonpb.Identity     `protobuf:"bytes,2,opt,name=identity,proto3" json:"identity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -173,6 +175,13 @@ func (*PlacementRequest) Descriptor() ([]byte, []int) {
 func (x *PlacementRequest) GetPlacements() []*PlacementCandidate {
 	if x != nil {
 		return x.Placements
+	}
+	return nil
+}
+
+func (x *PlacementRequest) GetIdentity() *commonpb.Identity {
+	if x != nil {
+		return x.Identity
 	}
 	return nil
 }
@@ -311,7 +320,7 @@ func (x *PlacementReply) GetBatch() *PlacementBatch {
 	return nil
 }
 
-func (x *PlacementReply) GetFailure() *PlacementFailure {
+func (x *PlacementReply) GetFailure() *commonpb.Failure {
 	if x != nil {
 		if x, ok := x.Outcome.(*PlacementReply_Failure); ok {
 			return x.Failure
@@ -329,7 +338,7 @@ type PlacementReply_Batch struct {
 }
 
 type PlacementReply_Failure struct {
-	Failure *PlacementFailure `protobuf:"bytes,2,opt,name=failure,proto3,oneof"`
+	Failure *commonpb.Failure `protobuf:"bytes,2,opt,name=failure,proto3,oneof"`
 }
 
 func (*PlacementReply_Batch) isPlacementReply_Outcome() {}
@@ -337,10 +346,9 @@ func (*PlacementReply_Batch) isPlacementReply_Outcome() {}
 func (*PlacementReply_Failure) isPlacementReply_Outcome() {}
 
 type PlacementBatch struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Tick          *int32                 `protobuf:"varint,1,opt,name=tick,proto3,oneof" json:"tick,omitempty"`
-	MapId         *int32                 `protobuf:"varint,2,opt,name=map_id,json=mapId,proto3,oneof" json:"map_id,omitempty"`
-	Results       []*CandidateReply      `protobuf:"bytes,3,rep,name=results,proto3" json:"results,omitempty"`
+	state         protoimpl.MessageState       `protogen:"open.v1"`
+	Context       *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Results       []*CandidateReply            `protobuf:"bytes,2,rep,name=results,proto3" json:"results,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -375,18 +383,11 @@ func (*PlacementBatch) Descriptor() ([]byte, []int) {
 	return file_placement_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *PlacementBatch) GetTick() int32 {
-	if x != nil && x.Tick != nil {
-		return *x.Tick
+func (x *PlacementBatch) GetContext() *commonpb.ObservationContext {
+	if x != nil {
+		return x.Context
 	}
-	return 0
-}
-
-func (x *PlacementBatch) GetMapId() int32 {
-	if x != nil && x.MapId != nil {
-		return *x.MapId
-	}
-	return 0
+	return nil
 }
 
 func (x *PlacementBatch) GetResults() []*CandidateReply {
@@ -453,7 +454,7 @@ func (x *CandidateReply) GetEvaluated() *PlacementEvaluated {
 	return nil
 }
 
-func (x *CandidateReply) GetFailure() *PlacementFailure {
+func (x *CandidateReply) GetFailure() *commonpb.Failure {
 	if x != nil {
 		if x, ok := x.Outcome.(*CandidateReply_Failure); ok {
 			return x.Failure
@@ -471,56 +472,12 @@ type CandidateReply_Evaluated struct {
 }
 
 type CandidateReply_Failure struct {
-	Failure *PlacementFailure `protobuf:"bytes,2,opt,name=failure,proto3,oneof"`
+	Failure *commonpb.Failure `protobuf:"bytes,2,opt,name=failure,proto3,oneof"`
 }
 
 func (*CandidateReply_Evaluated) isCandidateReply_Outcome() {}
 
 func (*CandidateReply_Failure) isCandidateReply_Outcome() {}
-
-type PlacementFailure struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Error         *string                `protobuf:"bytes,1,opt,name=error,proto3,oneof" json:"error,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PlacementFailure) Reset() {
-	*x = PlacementFailure{}
-	mi := &file_placement_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PlacementFailure) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PlacementFailure) ProtoMessage() {}
-
-func (x *PlacementFailure) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PlacementFailure.ProtoReflect.Descriptor instead.
-func (*PlacementFailure) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *PlacementFailure) GetError() string {
-	if x != nil && x.Error != nil {
-		return *x.Error
-	}
-	return ""
-}
 
 type PlacementEvaluated struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
@@ -530,16 +487,17 @@ type PlacementEvaluated struct {
 	IsDoor            *bool                  `protobuf:"varint,4,opt,name=is_door,json=isDoor,proto3,oneof" json:"is_door,omitempty"`
 	ResearchFinished  *bool                  `protobuf:"varint,5,opt,name=research_finished,json=researchFinished,proto3,oneof" json:"research_finished,omitempty"`
 	BuildableByPlayer *bool                  `protobuf:"varint,6,opt,name=buildable_by_player,json=buildableByPlayer,proto3,oneof" json:"buildable_by_player,omitempty"`
-	CostList          []*PlacementCost       `protobuf:"bytes,7,rep,name=cost_list,json=costList,proto3" json:"cost_list,omitempty"`
-	Materials         *PlacementMaterials    `protobuf:"bytes,8,opt,name=materials,proto3" json:"materials,omitempty"`
-	Rotations         []*PlacementRotation   `protobuf:"bytes,9,rep,name=rotations,proto3" json:"rotations,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Evaluated guarantees a complete cost scan; unreadable/oversized scans fail the candidate.
+	CostList      []*PlacementCost     `protobuf:"bytes,7,rep,name=cost_list,json=costList,proto3" json:"cost_list,omitempty"`
+	Materials     *PlacementMaterials  `protobuf:"bytes,8,opt,name=materials,proto3" json:"materials,omitempty"`
+	Rotations     []*PlacementRotation `protobuf:"bytes,9,rep,name=rotations,proto3" json:"rotations,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PlacementEvaluated) Reset() {
 	*x = PlacementEvaluated{}
-	mi := &file_placement_proto_msgTypes[6]
+	mi := &file_placement_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -551,7 +509,7 @@ func (x *PlacementEvaluated) String() string {
 func (*PlacementEvaluated) ProtoMessage() {}
 
 func (x *PlacementEvaluated) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[6]
+	mi := &file_placement_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -564,7 +522,7 @@ func (x *PlacementEvaluated) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlacementEvaluated.ProtoReflect.Descriptor instead.
 func (*PlacementEvaluated) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{6}
+	return file_placement_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *PlacementEvaluated) GetCanPlace() bool {
@@ -640,7 +598,7 @@ type PlacementCost struct {
 
 func (x *PlacementCost) Reset() {
 	*x = PlacementCost{}
-	mi := &file_placement_proto_msgTypes[7]
+	mi := &file_placement_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -652,7 +610,7 @@ func (x *PlacementCost) String() string {
 func (*PlacementCost) ProtoMessage() {}
 
 func (x *PlacementCost) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[7]
+	mi := &file_placement_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -665,7 +623,7 @@ func (x *PlacementCost) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlacementCost.ProtoReflect.Descriptor instead.
 func (*PlacementCost) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{7}
+	return file_placement_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *PlacementCost) GetDefName() string {
@@ -683,16 +641,19 @@ func (x *PlacementCost) GetCount() int32 {
 }
 
 type PlacementMaterials struct {
-	state         protoimpl.MessageState    `protogen:"open.v1"`
-	Unreadable    *bool                     `protobuf:"varint,1,opt,name=unreadable,proto3,oneof" json:"unreadable,omitempty"`
-	Rows          []*PlacementMaterialStock `protobuf:"bytes,2,rep,name=rows,proto3" json:"rows,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Availability:
+	//
+	//	*PlacementMaterials_Known
+	//	*PlacementMaterials_Unavailable
+	Availability  isPlacementMaterials_Availability `protobuf_oneof:"availability"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PlacementMaterials) Reset() {
 	*x = PlacementMaterials{}
-	mi := &file_placement_proto_msgTypes[8]
+	mi := &file_placement_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -704,7 +665,7 @@ func (x *PlacementMaterials) String() string {
 func (*PlacementMaterials) ProtoMessage() {}
 
 func (x *PlacementMaterials) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[8]
+	mi := &file_placement_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -717,17 +678,89 @@ func (x *PlacementMaterials) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlacementMaterials.ProtoReflect.Descriptor instead.
 func (*PlacementMaterials) Descriptor() ([]byte, []int) {
+	return file_placement_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *PlacementMaterials) GetAvailability() isPlacementMaterials_Availability {
+	if x != nil {
+		return x.Availability
+	}
+	return nil
+}
+
+func (x *PlacementMaterials) GetKnown() *MaterialRows {
+	if x != nil {
+		if x, ok := x.Availability.(*PlacementMaterials_Known); ok {
+			return x.Known
+		}
+	}
+	return nil
+}
+
+func (x *PlacementMaterials) GetUnavailable() *commonpb.Unavailable {
+	if x != nil {
+		if x, ok := x.Availability.(*PlacementMaterials_Unavailable); ok {
+			return x.Unavailable
+		}
+	}
+	return nil
+}
+
+type isPlacementMaterials_Availability interface {
+	isPlacementMaterials_Availability()
+}
+
+type PlacementMaterials_Known struct {
+	Known *MaterialRows `protobuf:"bytes,1,opt,name=known,proto3,oneof"`
+}
+
+type PlacementMaterials_Unavailable struct {
+	Unavailable *commonpb.Unavailable `protobuf:"bytes,2,opt,name=unavailable,proto3,oneof"`
+}
+
+func (*PlacementMaterials_Known) isPlacementMaterials_Availability() {}
+
+func (*PlacementMaterials_Unavailable) isPlacementMaterials_Availability() {}
+
+type MaterialRows struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Complete rows for all material definitions relevant to the evaluated candidate.
+	Rows          []*PlacementMaterialStock `protobuf:"bytes,1,rep,name=rows,proto3" json:"rows,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MaterialRows) Reset() {
+	*x = MaterialRows{}
+	mi := &file_placement_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MaterialRows) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MaterialRows) ProtoMessage() {}
+
+func (x *MaterialRows) ProtoReflect() protoreflect.Message {
+	mi := &file_placement_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MaterialRows.ProtoReflect.Descriptor instead.
+func (*MaterialRows) Descriptor() ([]byte, []int) {
 	return file_placement_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *PlacementMaterials) GetUnreadable() bool {
-	if x != nil && x.Unreadable != nil {
-		return *x.Unreadable
-	}
-	return false
-}
-
-func (x *PlacementMaterials) GetRows() []*PlacementMaterialStock {
+func (x *MaterialRows) GetRows() []*PlacementMaterialStock {
 	if x != nil {
 		return x.Rows
 	}
@@ -788,12 +821,13 @@ func (x *PlacementMaterialStock) GetAvailable() int32 {
 }
 
 type PlacementRotation struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Rotation       *Rotation              `protobuf:"varint,1,opt,name=rotation,proto3,enum=rimgovernor.placement.v1.Rotation,oneof" json:"rotation,omitempty"`
-	Accepted       *bool                  `protobuf:"varint,2,opt,name=accepted,proto3,oneof" json:"accepted,omitempty"`
-	Reason         *string                `protobuf:"bytes,3,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
-	OccupiedCells  []*PlacementCell       `protobuf:"bytes,4,rep,name=occupied_cells,json=occupiedCells,proto3" json:"occupied_cells,omitempty"`
-	BlockingThings []*PlacementBlocker    `protobuf:"bytes,5,rep,name=blocking_things,json=blockingThings,proto3" json:"blocking_things,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Rotation *Rotation              `protobuf:"varint,1,opt,name=rotation,proto3,enum=rimgovernor.placement.v1.Rotation,oneof" json:"rotation,omitempty"`
+	Accepted *bool                  `protobuf:"varint,2,opt,name=accepted,proto3,oneof" json:"accepted,omitempty"`
+	Reason   *string                `protobuf:"bytes,3,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	// Evaluated rotation guarantees complete footprint and blocker scans.
+	OccupiedCells  []*commonpb.Cell    `protobuf:"bytes,4,rep,name=occupied_cells,json=occupiedCells,proto3" json:"occupied_cells,omitempty"`
+	BlockingThings []*PlacementBlocker `protobuf:"bytes,5,rep,name=blocking_things,json=blockingThings,proto3" json:"blocking_things,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -849,7 +883,7 @@ func (x *PlacementRotation) GetReason() string {
 	return ""
 }
 
-func (x *PlacementRotation) GetOccupiedCells() []*PlacementCell {
+func (x *PlacementRotation) GetOccupiedCells() []*commonpb.Cell {
 	if x != nil {
 		return x.OccupiedCells
 	}
@@ -861,58 +895,6 @@ func (x *PlacementRotation) GetBlockingThings() []*PlacementBlocker {
 		return x.BlockingThings
 	}
 	return nil
-}
-
-type PlacementCell struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	X             *int32                 `protobuf:"varint,1,opt,name=x,proto3,oneof" json:"x,omitempty"`
-	Z             *int32                 `protobuf:"varint,2,opt,name=z,proto3,oneof" json:"z,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PlacementCell) Reset() {
-	*x = PlacementCell{}
-	mi := &file_placement_proto_msgTypes[11]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PlacementCell) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PlacementCell) ProtoMessage() {}
-
-func (x *PlacementCell) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[11]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PlacementCell.ProtoReflect.Descriptor instead.
-func (*PlacementCell) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *PlacementCell) GetX() int32 {
-	if x != nil && x.X != nil {
-		return *x.X
-	}
-	return 0
-}
-
-func (x *PlacementCell) GetZ() int32 {
-	if x != nil && x.Z != nil {
-		return *x.Z
-	}
-	return 0
 }
 
 type PlacementBlocker struct {
@@ -928,7 +910,7 @@ type PlacementBlocker struct {
 
 func (x *PlacementBlocker) Reset() {
 	*x = PlacementBlocker{}
-	mi := &file_placement_proto_msgTypes[12]
+	mi := &file_placement_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -940,7 +922,7 @@ func (x *PlacementBlocker) String() string {
 func (*PlacementBlocker) ProtoMessage() {}
 
 func (x *PlacementBlocker) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[12]
+	mi := &file_placement_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -953,7 +935,7 @@ func (x *PlacementBlocker) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlacementBlocker.ProtoReflect.Descriptor instead.
 func (*PlacementBlocker) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{12}
+	return file_placement_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *PlacementBlocker) GetCategory() string {
@@ -995,11 +977,12 @@ var File_placement_proto protoreflect.FileDescriptor
 
 const file_placement_proto_rawDesc = "" +
 	"\n" +
-	"\x0fplacement.proto\x12\x18rimgovernor.placement.v1\"`\n" +
+	"\x0fplacement.proto\x12\x18rimgovernor.placement.v1\x1a\fcommon.proto\"\x9d\x01\n" +
 	"\x10PlacementRequest\x12L\n" +
 	"\n" +
 	"placements\x18\x01 \x03(\v2,.rimgovernor.placement.v1.PlacementCandidateR\n" +
-	"placements\"\xea\x01\n" +
+	"placements\x12;\n" +
+	"\bidentity\x18\x02 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\"\xea\x01\n" +
 	"\x12PlacementCandidate\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x11\n" +
 	"\x01x\x18\x02 \x01(\x05H\x01R\x01x\x88\x01\x01\x12\x11\n" +
@@ -1010,24 +993,18 @@ const file_placement_proto_rawDesc = "" +
 	"\x02_xB\x04\n" +
 	"\x02_zB\v\n" +
 	"\t_rotationB\b\n" +
-	"\x06_stuff\"\xa5\x01\n" +
+	"\x06_stuff\"\x99\x01\n" +
 	"\x0ePlacementReply\x12@\n" +
-	"\x05batch\x18\x01 \x01(\v2(.rimgovernor.placement.v1.PlacementBatchH\x00R\x05batch\x12F\n" +
-	"\afailure\x18\x02 \x01(\v2*.rimgovernor.placement.v1.PlacementFailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\x9d\x01\n" +
-	"\x0ePlacementBatch\x12\x17\n" +
-	"\x04tick\x18\x01 \x01(\x05H\x00R\x04tick\x88\x01\x01\x12\x1a\n" +
-	"\x06map_id\x18\x02 \x01(\x05H\x01R\x05mapId\x88\x01\x01\x12B\n" +
-	"\aresults\x18\x03 \x03(\v2(.rimgovernor.placement.v1.CandidateReplyR\aresultsB\a\n" +
-	"\x05_tickB\t\n" +
-	"\a_map_id\"\xb1\x01\n" +
+	"\x05batch\x18\x01 \x01(\v2(.rimgovernor.placement.v1.PlacementBatchH\x00R\x05batch\x12:\n" +
+	"\afailure\x18\x02 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
+	"\aoutcome\"\x99\x01\n" +
+	"\x0ePlacementBatch\x12C\n" +
+	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12B\n" +
+	"\aresults\x18\x02 \x03(\v2(.rimgovernor.placement.v1.CandidateReplyR\aresults\"\xa5\x01\n" +
 	"\x0eCandidateReply\x12L\n" +
-	"\tevaluated\x18\x01 \x01(\v2,.rimgovernor.placement.v1.PlacementEvaluatedH\x00R\tevaluated\x12F\n" +
-	"\afailure\x18\x02 \x01(\v2*.rimgovernor.placement.v1.PlacementFailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"7\n" +
-	"\x10PlacementFailure\x12\x19\n" +
-	"\x05error\x18\x01 \x01(\tH\x00R\x05error\x88\x01\x01B\b\n" +
-	"\x06_error\"\xff\x04\n" +
+	"\tevaluated\x18\x01 \x01(\v2,.rimgovernor.placement.v1.PlacementEvaluatedH\x00R\tevaluated\x12:\n" +
+	"\afailure\x18\x02 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
+	"\aoutcome\"\xff\x04\n" +
 	"\x12PlacementEvaluated\x12 \n" +
 	"\tcan_place\x18\x01 \x01(\bH\x00R\bcanPlace\x88\x01\x01\x12+\n" +
 	"\x0fmade_from_stuff\x18\x02 \x01(\bH\x01R\rmadeFromStuff\x88\x01\x01\x12L\n" +
@@ -1050,33 +1027,28 @@ const file_placement_proto_rawDesc = "" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05count\x18\x02 \x01(\x05H\x01R\x05count\x88\x01\x01B\v\n" +
 	"\t_def_nameB\b\n" +
-	"\x06_count\"\x8e\x01\n" +
-	"\x12PlacementMaterials\x12#\n" +
-	"\n" +
-	"unreadable\x18\x01 \x01(\bH\x00R\n" +
-	"unreadable\x88\x01\x01\x12D\n" +
-	"\x04rows\x18\x02 \x03(\v20.rimgovernor.placement.v1.PlacementMaterialStockR\x04rowsB\r\n" +
-	"\v_unreadable\"v\n" +
+	"\x06_count\"\xac\x01\n" +
+	"\x12PlacementMaterials\x12>\n" +
+	"\x05known\x18\x01 \x01(\v2&.rimgovernor.placement.v1.MaterialRowsH\x00R\x05known\x12F\n" +
+	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\x0e\n" +
+	"\favailability\"T\n" +
+	"\fMaterialRows\x12D\n" +
+	"\x04rows\x18\x01 \x03(\v20.rimgovernor.placement.v1.PlacementMaterialStockR\x04rows\"v\n" +
 	"\x16PlacementMaterialStock\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12!\n" +
 	"\tavailable\x18\x02 \x01(\x05H\x01R\tavailable\x88\x01\x01B\v\n" +
 	"\t_def_nameB\f\n" +
 	"\n" +
-	"_available\"\xe0\x02\n" +
+	"_available\"\xd4\x02\n" +
 	"\x11PlacementRotation\x12C\n" +
 	"\brotation\x18\x01 \x01(\x0e2\".rimgovernor.placement.v1.RotationH\x00R\brotation\x88\x01\x01\x12\x1f\n" +
 	"\baccepted\x18\x02 \x01(\bH\x01R\baccepted\x88\x01\x01\x12\x1b\n" +
-	"\x06reason\x18\x03 \x01(\tH\x02R\x06reason\x88\x01\x01\x12N\n" +
-	"\x0eoccupied_cells\x18\x04 \x03(\v2'.rimgovernor.placement.v1.PlacementCellR\roccupiedCells\x12S\n" +
+	"\x06reason\x18\x03 \x01(\tH\x02R\x06reason\x88\x01\x01\x12B\n" +
+	"\x0eoccupied_cells\x18\x04 \x03(\v2\x1b.rimgovernor.common.v1.CellR\roccupiedCells\x12S\n" +
 	"\x0fblocking_things\x18\x05 \x03(\v2*.rimgovernor.placement.v1.PlacementBlockerR\x0eblockingThingsB\v\n" +
 	"\t_rotationB\v\n" +
 	"\t_acceptedB\t\n" +
-	"\a_reason\"A\n" +
-	"\rPlacementCell\x12\x11\n" +
-	"\x01x\x18\x01 \x01(\x05H\x00R\x01x\x88\x01\x01\x12\x11\n" +
-	"\x01z\x18\x02 \x01(\x05H\x01R\x01z\x88\x01\x01B\x04\n" +
-	"\x02_xB\x04\n" +
-	"\x02_z\"\xbf\x02\n" +
+	"\a_reason\"\xbf\x02\n" +
 	"\x10PlacementBlocker\x12\x1f\n" +
 	"\bcategory\x18\x01 \x01(\tH\x00R\bcategory\x88\x01\x01\x12&\n" +
 	"\fis_blueprint\x18\x02 \x01(\bH\x01R\visBlueprint\x88\x01\x01\x12\x1e\n" +
@@ -1099,7 +1071,9 @@ const file_placement_proto_rawDesc = "" +
 	"\x17PASSABILITY_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15PASSABILITY_STANDABLE\x10\x01\x12!\n" +
 	"\x1dPASSABILITY_PASS_THROUGH_ONLY\x10\x02\x12\x1a\n" +
-	"\x16PASSABILITY_IMPASSABLE\x10\x03BnZKgithub.com/davidarcher/RimGovernor/go/internal/wire/placementpb;placementpb\xaa\x02\x1eRimGovernor.Protocol.Placementb\x06proto3"
+	"\x16PASSABILITY_IMPASSABLE\x10\x032l\n" +
+	"\tPlacement\x12_\n" +
+	"\aPreview\x12*.rimgovernor.placement.v1.PlacementRequest\x1a(.rimgovernor.placement.v1.PlacementReplyBnZKgithub.com/davidarcher/RimGovernor/go/internal/wire/placementpb;placementpb\xaa\x02\x1eRimGovernor.Protocol.Placementb\x06proto3"
 
 var (
 	file_placement_proto_rawDescOnce sync.Once
@@ -1114,45 +1088,55 @@ func file_placement_proto_rawDescGZIP() []byte {
 }
 
 var file_placement_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_placement_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_placement_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_placement_proto_goTypes = []any{
-	(Rotation)(0),                  // 0: rimgovernor.placement.v1.Rotation
-	(Passability)(0),               // 1: rimgovernor.placement.v1.Passability
-	(*PlacementRequest)(nil),       // 2: rimgovernor.placement.v1.PlacementRequest
-	(*PlacementCandidate)(nil),     // 3: rimgovernor.placement.v1.PlacementCandidate
-	(*PlacementReply)(nil),         // 4: rimgovernor.placement.v1.PlacementReply
-	(*PlacementBatch)(nil),         // 5: rimgovernor.placement.v1.PlacementBatch
-	(*CandidateReply)(nil),         // 6: rimgovernor.placement.v1.CandidateReply
-	(*PlacementFailure)(nil),       // 7: rimgovernor.placement.v1.PlacementFailure
-	(*PlacementEvaluated)(nil),     // 8: rimgovernor.placement.v1.PlacementEvaluated
-	(*PlacementCost)(nil),          // 9: rimgovernor.placement.v1.PlacementCost
-	(*PlacementMaterials)(nil),     // 10: rimgovernor.placement.v1.PlacementMaterials
-	(*PlacementMaterialStock)(nil), // 11: rimgovernor.placement.v1.PlacementMaterialStock
-	(*PlacementRotation)(nil),      // 12: rimgovernor.placement.v1.PlacementRotation
-	(*PlacementCell)(nil),          // 13: rimgovernor.placement.v1.PlacementCell
-	(*PlacementBlocker)(nil),       // 14: rimgovernor.placement.v1.PlacementBlocker
+	(Rotation)(0),                       // 0: rimgovernor.placement.v1.Rotation
+	(Passability)(0),                    // 1: rimgovernor.placement.v1.Passability
+	(*PlacementRequest)(nil),            // 2: rimgovernor.placement.v1.PlacementRequest
+	(*PlacementCandidate)(nil),          // 3: rimgovernor.placement.v1.PlacementCandidate
+	(*PlacementReply)(nil),              // 4: rimgovernor.placement.v1.PlacementReply
+	(*PlacementBatch)(nil),              // 5: rimgovernor.placement.v1.PlacementBatch
+	(*CandidateReply)(nil),              // 6: rimgovernor.placement.v1.CandidateReply
+	(*PlacementEvaluated)(nil),          // 7: rimgovernor.placement.v1.PlacementEvaluated
+	(*PlacementCost)(nil),               // 8: rimgovernor.placement.v1.PlacementCost
+	(*PlacementMaterials)(nil),          // 9: rimgovernor.placement.v1.PlacementMaterials
+	(*MaterialRows)(nil),                // 10: rimgovernor.placement.v1.MaterialRows
+	(*PlacementMaterialStock)(nil),      // 11: rimgovernor.placement.v1.PlacementMaterialStock
+	(*PlacementRotation)(nil),           // 12: rimgovernor.placement.v1.PlacementRotation
+	(*PlacementBlocker)(nil),            // 13: rimgovernor.placement.v1.PlacementBlocker
+	(*commonpb.Identity)(nil),           // 14: rimgovernor.common.v1.Identity
+	(*commonpb.Failure)(nil),            // 15: rimgovernor.common.v1.Failure
+	(*commonpb.ObservationContext)(nil), // 16: rimgovernor.common.v1.ObservationContext
+	(*commonpb.Unavailable)(nil),        // 17: rimgovernor.common.v1.Unavailable
+	(*commonpb.Cell)(nil),               // 18: rimgovernor.common.v1.Cell
 }
 var file_placement_proto_depIdxs = []int32{
 	3,  // 0: rimgovernor.placement.v1.PlacementRequest.placements:type_name -> rimgovernor.placement.v1.PlacementCandidate
-	0,  // 1: rimgovernor.placement.v1.PlacementCandidate.rotation:type_name -> rimgovernor.placement.v1.Rotation
-	5,  // 2: rimgovernor.placement.v1.PlacementReply.batch:type_name -> rimgovernor.placement.v1.PlacementBatch
-	7,  // 3: rimgovernor.placement.v1.PlacementReply.failure:type_name -> rimgovernor.placement.v1.PlacementFailure
-	6,  // 4: rimgovernor.placement.v1.PlacementBatch.results:type_name -> rimgovernor.placement.v1.CandidateReply
-	8,  // 5: rimgovernor.placement.v1.CandidateReply.evaluated:type_name -> rimgovernor.placement.v1.PlacementEvaluated
-	7,  // 6: rimgovernor.placement.v1.CandidateReply.failure:type_name -> rimgovernor.placement.v1.PlacementFailure
-	1,  // 7: rimgovernor.placement.v1.PlacementEvaluated.passability:type_name -> rimgovernor.placement.v1.Passability
-	9,  // 8: rimgovernor.placement.v1.PlacementEvaluated.cost_list:type_name -> rimgovernor.placement.v1.PlacementCost
-	10, // 9: rimgovernor.placement.v1.PlacementEvaluated.materials:type_name -> rimgovernor.placement.v1.PlacementMaterials
-	12, // 10: rimgovernor.placement.v1.PlacementEvaluated.rotations:type_name -> rimgovernor.placement.v1.PlacementRotation
-	11, // 11: rimgovernor.placement.v1.PlacementMaterials.rows:type_name -> rimgovernor.placement.v1.PlacementMaterialStock
-	0,  // 12: rimgovernor.placement.v1.PlacementRotation.rotation:type_name -> rimgovernor.placement.v1.Rotation
-	13, // 13: rimgovernor.placement.v1.PlacementRotation.occupied_cells:type_name -> rimgovernor.placement.v1.PlacementCell
-	14, // 14: rimgovernor.placement.v1.PlacementRotation.blocking_things:type_name -> rimgovernor.placement.v1.PlacementBlocker
-	15, // [15:15] is the sub-list for method output_type
-	15, // [15:15] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	14, // 1: rimgovernor.placement.v1.PlacementRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	0,  // 2: rimgovernor.placement.v1.PlacementCandidate.rotation:type_name -> rimgovernor.placement.v1.Rotation
+	5,  // 3: rimgovernor.placement.v1.PlacementReply.batch:type_name -> rimgovernor.placement.v1.PlacementBatch
+	15, // 4: rimgovernor.placement.v1.PlacementReply.failure:type_name -> rimgovernor.common.v1.Failure
+	16, // 5: rimgovernor.placement.v1.PlacementBatch.context:type_name -> rimgovernor.common.v1.ObservationContext
+	6,  // 6: rimgovernor.placement.v1.PlacementBatch.results:type_name -> rimgovernor.placement.v1.CandidateReply
+	7,  // 7: rimgovernor.placement.v1.CandidateReply.evaluated:type_name -> rimgovernor.placement.v1.PlacementEvaluated
+	15, // 8: rimgovernor.placement.v1.CandidateReply.failure:type_name -> rimgovernor.common.v1.Failure
+	1,  // 9: rimgovernor.placement.v1.PlacementEvaluated.passability:type_name -> rimgovernor.placement.v1.Passability
+	8,  // 10: rimgovernor.placement.v1.PlacementEvaluated.cost_list:type_name -> rimgovernor.placement.v1.PlacementCost
+	9,  // 11: rimgovernor.placement.v1.PlacementEvaluated.materials:type_name -> rimgovernor.placement.v1.PlacementMaterials
+	12, // 12: rimgovernor.placement.v1.PlacementEvaluated.rotations:type_name -> rimgovernor.placement.v1.PlacementRotation
+	10, // 13: rimgovernor.placement.v1.PlacementMaterials.known:type_name -> rimgovernor.placement.v1.MaterialRows
+	17, // 14: rimgovernor.placement.v1.PlacementMaterials.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	11, // 15: rimgovernor.placement.v1.MaterialRows.rows:type_name -> rimgovernor.placement.v1.PlacementMaterialStock
+	0,  // 16: rimgovernor.placement.v1.PlacementRotation.rotation:type_name -> rimgovernor.placement.v1.Rotation
+	18, // 17: rimgovernor.placement.v1.PlacementRotation.occupied_cells:type_name -> rimgovernor.common.v1.Cell
+	13, // 18: rimgovernor.placement.v1.PlacementRotation.blocking_things:type_name -> rimgovernor.placement.v1.PlacementBlocker
+	2,  // 19: rimgovernor.placement.v1.Placement.Preview:input_type -> rimgovernor.placement.v1.PlacementRequest
+	4,  // 20: rimgovernor.placement.v1.Placement.Preview:output_type -> rimgovernor.placement.v1.PlacementReply
+	20, // [20:21] is the sub-list for method output_type
+	19, // [19:20] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_placement_proto_init() }
@@ -1165,28 +1149,28 @@ func file_placement_proto_init() {
 		(*PlacementReply_Batch)(nil),
 		(*PlacementReply_Failure)(nil),
 	}
-	file_placement_proto_msgTypes[3].OneofWrappers = []any{}
 	file_placement_proto_msgTypes[4].OneofWrappers = []any{
 		(*CandidateReply_Evaluated)(nil),
 		(*CandidateReply_Failure)(nil),
 	}
 	file_placement_proto_msgTypes[5].OneofWrappers = []any{}
 	file_placement_proto_msgTypes[6].OneofWrappers = []any{}
-	file_placement_proto_msgTypes[7].OneofWrappers = []any{}
-	file_placement_proto_msgTypes[8].OneofWrappers = []any{}
+	file_placement_proto_msgTypes[7].OneofWrappers = []any{
+		(*PlacementMaterials_Known)(nil),
+		(*PlacementMaterials_Unavailable)(nil),
+	}
 	file_placement_proto_msgTypes[9].OneofWrappers = []any{}
 	file_placement_proto_msgTypes[10].OneofWrappers = []any{}
 	file_placement_proto_msgTypes[11].OneofWrappers = []any{}
-	file_placement_proto_msgTypes[12].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_placement_proto_rawDesc), len(file_placement_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   13,
+			NumMessages:   12,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_placement_proto_goTypes,
 		DependencyIndexes: file_placement_proto_depIdxs,

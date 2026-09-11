@@ -16,10 +16,12 @@ import (
 )
 
 func fixtures() map[string]proto.Message {
-	request := &p.PlacementRequest{Placements: []*p.PlacementCandidate{{DefName: proto.String("Wall"), X: proto.Int32(0), Z: proto.Int32(4), Rotation: p.Rotation_ROTATION_NORTH.Enum(), Stuff: proto.String("WoodLog")}}}
-	evaluated := &p.PlacementEvaluated{CanPlace: proto.Bool(false), MadeFromStuff: proto.Bool(true), Materials: &p.PlacementMaterials{Unreadable: proto.Bool(false), Rows: []*p.PlacementMaterialStock{{DefName: proto.String("WoodLog"), Available: proto.Int32(0)}, {DefName: proto.String("Steel")}}}}
-	reply := &p.PlacementReply{Outcome: &p.PlacementReply_Batch{Batch: &p.PlacementBatch{Tick: proto.Int32(900), MapId: proto.Int32(0), Results: []*p.CandidateReply{{Outcome: &p.CandidateReply_Evaluated{Evaluated: evaluated}}}}}}
-	context := &c.ObservationContext{Identity: &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}, Tick: proto.Int64(9223372036854775807), NativeGeneration: proto.Uint64(18446744073709551615)}
+	identity := &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}
+	context := &c.ObservationContext{Identity: identity, Tick: proto.Int64(9223372036854775807), NativeGeneration: proto.Uint64(18446744073709551615)}
+	request := &p.PlacementRequest{Identity: identity, Placements: []*p.PlacementCandidate{{DefName: proto.String("Wall"), X: proto.Int32(0), Z: proto.Int32(4), Rotation: p.Rotation_ROTATION_NORTH.Enum(), Stuff: proto.String("WoodLog")}}}
+	materials := &p.PlacementMaterials{Availability: &p.PlacementMaterials_Known{Known: &p.MaterialRows{Rows: []*p.PlacementMaterialStock{{DefName: proto.String("WoodLog"), Available: proto.Int32(0)}, {DefName: proto.String("Steel")}}}}}
+	evaluated := &p.PlacementEvaluated{CanPlace: proto.Bool(false), MadeFromStuff: proto.Bool(true), Materials: materials}
+	reply := &p.PlacementReply{Outcome: &p.PlacementReply_Batch{Batch: &p.PlacementBatch{Context: context, Results: []*p.CandidateReply{{Outcome: &p.CandidateReply_Evaluated{Evaluated: evaluated}}}}}}
 	return map[string]proto.Message{"request": request, "reply": reply, "u64": wrapperspb.UInt64(^uint64(0)), "context": context}
 }
 func decodePair(directory, name string, model proto.Message) (proto.Message, error) {

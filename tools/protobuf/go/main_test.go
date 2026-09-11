@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/encoding/protowire"
@@ -54,5 +55,33 @@ func TestBinaryUnknownFieldsRetained(t *testing.T) {
 func TestFoundationRoundtrips(t *testing.T) {
 	if err := run(t.TempDir()+"/fresh", "", false); err != nil {
 		t.Fatal(err)
+	}
+}
+func TestPlacementAvailabilityAndContext(t *testing.T) {
+	for _, message := range []proto.Message{
+		&p.PlacementMaterials{Availability: &p.PlacementMaterials_Known{Known: &p.MaterialRows{}}},
+		&p.PlacementMaterials{Availability: &p.PlacementMaterials_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum(), Detail: proto.String("unreadable")}}},
+		&p.PlacementReply{Outcome: &p.PlacementReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_INVALID_REQUEST.Enum(), Detail: proto.String("refused before admission")}}},
+	} {
+		raw, err := protojson.Marshal(message)
+		if err != nil {
+			t.Fatal(err)
+		}
+		decoded := message.ProtoReflect().Type().New().Interface()
+		if err = protojson.Unmarshal(raw, decoded); err != nil || !proto.Equal(message, decoded) {
+			t.Fatalf("variant lost: %s %v", raw, err)
+		}
+	}
+	request := fixtures()["request"].(*p.PlacementRequest)
+	reply := fixtures()["reply"].(*p.PlacementReply)
+	if request.Identity == nil || request.Identity.MapId == nil || reply.GetBatch().Context.Identity.MapId == nil {
+		t.Fatal("required zero identity fixture missing")
+	}
+	var invalid p.PlacementMaterials
+	if err := protojson.Unmarshal([]byte(`{"known":{},"unavailable":{}}`), &invalid); err == nil {
+		t.Fatal("multiple availability variants accepted")
+	}
+	if err := protojson.Unmarshal([]byte(`{"tick":0,"mapId":0}`), &p.PlacementBatch{}); err == nil {
+		t.Fatal("old experimental batch shape accepted")
 	}
 }
