@@ -144,6 +144,24 @@ internal static class Program
             Check(Call(record,"PrepareRelease",inputs).ToString()=="Ready","expired-order claim remains exactly releasable");
             Check(!(bool)causalMethod.Invoke(null,new[]{nativeGame,Owner("other")})!,"foreign request strings cannot adopt causal scope");
         }
+        record=New("NativePawnControlRecord");var animal=Facts();Set(animal,"Drafter",null!);Set(animal,"PlayerControlled",false);
+        var animalSnapshot=Observe(record,animal);
+        Check(Get(animalSnapshot,"Token")!=null && Get(animalSnapshot,"Claim")==null,"no-drafter target gets same opaque unowned snapshot");
+        Check(!(bool)Get(animalSnapshot,"Eligible")!,"no-drafter animal never eligible to draft");
+        Check(Get(Observe(record,Copy(animal)),"Token")!.Equals(Get(animalSnapshot,"Token")),"unchanged no-drafter target token stable");
+        var controlledWithoutDrafter=Copy(animal);Set(controlledWithoutDrafter,"PlayerControlled",true);
+        Check(!(bool)Get(Observe(record,controlledWithoutDrafter),"Eligible")!,"player-controlled flag cannot synthesize a draft controller");
+        inputs=new object?[]{animalSnapshot,Get(animalSnapshot,"Token"),Owner(),null};
+        Check(Call(record,"PrepareClaim",inputs).ToString()=="Ineligible","no synthetic animal draft claim");
+        animalSnapshot=Observe(record,animal);
+        var replaced=Copy(animal);Set(replaced,"Drafter",drafter);
+        Check(!Get(Observe(record,replaced),"Token")!.Equals(Get(animalSnapshot,"Token")),"actual drafter presence changes target token");
+        animalSnapshot=Observe(record,animal);
+        var downed=Copy(animal);Set(downed,"Downed",true);
+        Check(!Get(Observe(record,downed),"Token")!.Equals(Get(animalSnapshot,"Token")),"target downed change invalidates CAS");
+        animalSnapshot=Observe(record,animal);
+        var changedOrder=Copy(animal);Set(changedOrder,"OrderRevision",1UL);
+        Check(!Get(Observe(record,changedOrder),"Token")!.Equals(Get(animalSnapshot,"Token")),"target native order epoch invalidates CAS");
         Console.WriteLine(count+" compiled pawn state assertions passed; no game or hook installation performed.");return 0;
     }
 }

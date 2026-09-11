@@ -11,10 +11,10 @@ namespace HomeBridge.BridgeTools
         {
             var reason = Common.UnavailableReason.NativeComponentMissing;
             var detail = "Native pawn control snapshot is unavailable.";
-            if (!pawn.Spawned || pawn.Map != Find.CurrentMap || pawn.drafter == null)
+            if (!pawn.Spawned || pawn.Map != Find.CurrentMap)
             {
                 reason = Common.UnavailableReason.NotApplicable;
-                detail = "Pawn has no spawned current-map draft controller.";
+                detail = "Pawn is not spawned on the current map.";
             }
             else
             {

@@ -80,7 +80,7 @@ namespace HomeBridge.BridgeTools
         internal NativeControlIdentity Identity = null!;
         internal Pawn Pawn = null!;
         internal string PawnId = "";
-        internal Pawn_DraftController Drafter = null!;
+        internal Pawn_DraftController? Drafter;
         internal Faction? Faction;
         internal IntVec3 Position;
         internal bool Drafted, Dead, Downed, Spawned, PlayerControlled, Mental;
@@ -88,7 +88,7 @@ namespace HomeBridge.BridgeTools
         internal ulong DraftRevision, OrderRevision, ContextRevision;
         internal NativePawnJobFacts Job = null!;
         internal NativePawnJobFacts[] Queue = Array.Empty<NativePawnJobFacts>();
-        internal bool Eligible => Spawned && !Dead && !Downed && !Mental && PlayerControlled;
+        internal bool Eligible => Drafter != null && Spawned && !Dead && !Downed && !Mental && PlayerControlled;
         internal bool SameIdentity(NativePawnFacts other) => ReferenceEquals(Pawn, other.Pawn) && PawnId == other.PawnId
             && SameIdentity(Identity, other.Identity) && ContextRevision == other.ContextRevision;
         internal static bool SameIdentity(NativeControlIdentity a, NativeControlIdentity b) => ReferenceEquals(a.Game, b.Game)
@@ -112,7 +112,7 @@ namespace HomeBridge.BridgeTools
         internal ulong OrderRevision;
         internal NativePawnSnapshot Observe(NativePawnFacts facts)
         {
-            if (Claim != null && (Snapshot == null || !facts.SameIdentity(Snapshot.Facts) || facts.DraftRevision != ClaimRevision || !facts.Drafted)) Claim = null;
+            if (Claim != null && (Snapshot == null || !facts.SameIdentity(Snapshot.Facts) || facts.Drafter == null || !ReferenceEquals(facts.Drafter, Snapshot.Facts.Drafter) || facts.DraftRevision != ClaimRevision || !facts.Drafted)) Claim = null;
             if (Snapshot == null || !facts.Same(Snapshot.Facts) || Snapshot.Claim?.ClaimId != Claim?.ClaimId)
                 Snapshot = new NativePawnSnapshot(Guid.NewGuid().ToString("N"), facts, Claim);
             return Snapshot;
@@ -270,10 +270,10 @@ namespace HomeBridge.BridgeTools
                     if (game.Pawns.Count >= 4096) return NativePawnControlResult.CapacityExhausted;
                     record = new NativePawnControlRecord(); game.Pawns.Add(pawn,record);
                 }
-                var revision = DraftOwnership.Revision(pawn);
-                if (!revision.HasValue || pawn.jobs == null || pawn.jobs.jobQueue.Count > 256) return NativePawnControlResult.Unavailable;
+                var revision = pawn.drafter == null ? (ulong?)0 : DraftOwnership.Revision(pawn);
+                if (!revision.HasValue || pawn.jobs == null || pawn.jobs.jobQueue == null || pawn.jobs.jobQueue.Count > 256) return NativePawnControlResult.Unavailable;
                 var facts = new NativePawnFacts { Identity = identity, Pawn = pawn, PawnId = pawn.GetUniqueLoadID(), Drafter = pawn.drafter,
-                    Faction = pawn.Faction, Position = pawn.Position, Drafted = pawn.Drafted, Dead = pawn.Dead, Downed = pawn.Downed,
+                    Faction = pawn.Faction, Position = pawn.Position, Drafted = pawn.drafter?.Drafted == true, Dead = pawn.Dead, Downed = pawn.Downed,
                     Spawned = pawn.Spawned, PlayerControlled = pawn.IsColonistPlayerControlled, Mental = pawn.InMentalState, MentalState = pawn.MentalState,
                     DraftRevision = revision.Value, OrderRevision = record.OrderRevision, ContextRevision = checked((ulong)Volatile.Read(ref game.ContextRevision)),
                     Job = new NativePawnJobFacts(pawn.CurJob), Queue = pawn.jobs.jobQueue.Select(q => new NativePawnJobFacts(q.job)).ToArray() };

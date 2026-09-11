@@ -96,22 +96,41 @@ def test_owned_claim_requires_exact_native_binding_and_original_owner(fault):
 def animal_snapshot():
     value = controlled_snapshot(); row = value["pawns"][0]
     del row["pawn"]["snapshot"]
-    row.update(colonist=False, animal=True)
+    row.update(colonist=False, animal=True, dead=True)
     unavailable = {"reason": "UNAVAILABLE_REASON_NOT_APPLICABLE", "detail": "No native draft controller"}
     row["draftClaim"] = {"unavailable": unavailable}
     row["issues"] = [{"field": "pawn.snapshot", "unavailable": deepcopy(unavailable)}]
     return value
 
 
-def test_animal_without_drafter_has_explicit_unavailability_and_no_snapshot():
+def test_dead_unspawned_animal_has_explicit_unavailability_and_no_snapshot():
     assert rows(animal_snapshot())
 
 
 @pytest.mark.parametrize("fault", ["colonist", "snapshot-present", "legacy-unsupported", "missing-issue"])
 def test_unavailability_cannot_mask_integrated_live_colonist_or_invent_cas(fault):
     value = animal_snapshot(); row = value["pawns"][0]
-    if fault == "colonist": row.update(colonist=True, animal=False)
+    if fault == "colonist": row.update(colonist=True, animal=False, dead=False)
     elif fault == "snapshot-present": row["pawn"]["snapshot"] = {}
     elif fault == "legacy-unsupported": row["draftClaim"]["unavailable"]["reason"] = "UNAVAILABLE_REASON_UNSUPPORTED"
     else: row["issues"] = []
+    with pytest.raises(AssertionError): rows(value)
+
+
+def test_readable_live_animal_target_has_same_exact_snapshot_and_unowned_claim():
+    value = controlled_snapshot(); row = value["pawns"][0]
+    row.update(colonist=False, animal=True)
+    assert rows(value) == [row]
+
+
+def test_alive_animal_missing_tracker_is_explicitly_unavailable():
+    value = animal_snapshot(); row = value["pawns"][0]; row["dead"] = False
+    unavailable = {"reason": "UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING", "detail": "Native job tracker missing"}
+    row["draftClaim"] = {"unavailable": unavailable}
+    row["issues"] = [{"field": "pawn.snapshot", "unavailable": deepcopy(unavailable)}]
+    assert rows(value) == [row]
+
+
+def test_live_current_map_animal_is_not_blanket_not_applicable():
+    value = animal_snapshot(); value["pawns"][0]["dead"] = False
     with pytest.raises(AssertionError): rows(value)

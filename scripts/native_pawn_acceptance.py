@@ -43,8 +43,8 @@ def draft_control(row, context):
         assert "snapshot" not in pawn and not live_colonist, row
         unavailable = claim["unavailable"]
         assert unavailable["reason"] in {"UNAVAILABLE_REASON_NOT_APPLICABLE", "UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING"}, row
-        if row["animal"] is True:
-            assert unavailable["reason"] == "UNAVAILABLE_REASON_NOT_APPLICABLE", row
+        if row["animal"] is True and row["dead"] is False and pawn["mapId"] == context["identity"]["mapId"]:
+            assert unavailable["reason"] == "UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING", row
         assert any(issue["field"] == "pawn.snapshot" and issue["unavailable"] == unavailable for issue in row["issues"]), row
     else:
         assert isinstance(reference, dict) and set(reference) == {"context", "entityId", "token"}, row
@@ -167,6 +167,7 @@ async def run(root: Path, output: Path, *, headless=True):
                     assert await read("unknown-id", filter={"ids": ["missing-pawn-id"]}) == []
                     animals = await read("animals", filter={"colonist": False, "animal": True})
                     assert animals and all(row["animalState"]["gender"] and row["animal"] is True for row in animals)
+                    assert all("snapshot" in row["pawn"] and row["draftClaim"] == {"unowned": {}} for row in animals), "Fresh readable animals require exact unowned target snapshots"
                     assert {row["pawn"]["id"] for row in animals} == {row["pawn"]["id"] for row in baseline if row["animal"] and not row["colonist"]}
                     disabled = await read("details-disabled", filter={"ids": [target]}, details={key: False for key in DETAILS})
                     assert len(disabled) == 1
