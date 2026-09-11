@@ -33,6 +33,7 @@ receipts establish accepted orders; pawn outcomes need scenario assertions.
 - [Run and diagnose named native scenarios](native-scenarios.md)
 - [Prepare native Docker inputs](docker-inputs.md)
 - [Run native Docker acceptance](docker-native.md)
+- [Capture native compatibility](native-compatibility.md)
 - [Run a manual Docker worker](docker-worker.md)
 - [Run focused headless probes](headless-probes.md)
 - [Verify native clocks and interruptions](native-clock.md)

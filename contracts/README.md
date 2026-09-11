@@ -54,7 +54,13 @@ The refusal illustrates why transport success is not native operation success.
 
 These are historical comparison fixtures, not fresh discovery, save/reload
 acceptance or completed pawn work. The recorded source revision and artifact root
-identify the original run; current-source and unified-package parity remain open.
+identify the original run. Unified-package parity remains open.
+
+The [executable legacy baseline](native-compatibility-baseline.json) indexes fresh
+production batch and graphical startup, plus aggregate fixture discovery. It
+retains artifact hashes for actual SDK replies and copied-save reloads; see the
+[capture procedure](../docs/developers/testing/native-compatibility.md). Component
+presence and identity continuity do not establish populated field recovery.
 
 The domain inventory's `native_surface` extension records exported declarations,
 project membership, normalized source fingerprints, compilation exclusions and
@@ -63,6 +69,10 @@ existing G01 rows. `check_go_coverage.py` runs its drift checker and negative
 self-tests; source extraction does not establish installed SDK availability or
 exhaustive implemented argument variants.
 
+- [Implemented operation variants](native-operation-variants.md) records selectors,
+  defaults, aliases and dry-run behavior for all 55 production exports.
+- [Mutable static state](native-static-state.md) records lifecycle ownership and
+  source-identified invalidation hazards.
 - [Saved-state ownership](native-state-ownership.md) records exact persisted keys,
   proposed owners and reconstruction/disconnect constraints.
 - [Runtime and packaging](native-runtime-packaging.md) records patch/loader/build

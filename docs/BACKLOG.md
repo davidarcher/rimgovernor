@@ -1054,15 +1054,31 @@ Commit accepted increments without enabling incomplete behavior by default.
     Linux baseline with line/file and input hashes. Exact text/structured payload
     parity was checked; this is historical evidence, not fresh discovery.
   - [ ] **N01.00e — Compatibility baseline closeout.** Native integrator with
-    G01.02/04/08: capture fresh complete production/fixture SDK discovery, including
-    external RimBridgeServer exports, duplicate registration and binder behavior;
-    enumerate implemented variants beyond advertised signatures and audit mutable
-    static fields beyond lexical anchors. Retain copied saves populated with each
-    native state family and normal/batch fresh-reload evidence. Agree field-level
-    exceptions, timeline and delivery contracts with G01 owners; resolve companion
-    source/distribution permission and verify headless corresponding-source/notices
-    packaging. Refresh source inventories for intervening native changes. Close
-    N01.00 only when these gaps have concrete evidence and per-entry ownership;
+    G01.02/04/08. Completed bounded evidence:
+    - [x] [Implemented variants](../contracts/native-operation-variants.md) for all
+      55 production exports and [static lifecycle ownership](../contracts/native-static-state.md)
+      for 131 default static field declarations, including mutable readonly containers.
+    - [x] [Fresh legacy baseline](../contracts/native-compatibility-baseline.json):
+      production batch and graphical startup each discover 180 unique exports
+      (55 owned, 125 external), with complete detail replies and no fixtures.
+      Aggregate fixture build discovers the expected additional 47 exports.
+      Copied saves retain eight GameComponent owners and one HomeCoverageState per
+      map across in-process and fresh-process reload, with stable colony identity,
+      rotated load tokens and at most one reload boundary tick.
+    - [x] Capture actual preview and malformed request replies. Unknown outer keys
+      are reported but accepted; strict boundary validation remains N01.02 work.
+    - [ ] Capture six standalone combat/interruption fixture exports. Retain saves
+      populated with each native state family and exercise field-level recovery.
+      Agree exceptions, timeline and delivery contracts with G01 owners, including
+      branched saves, disconnect and journal recovery.
+    - [ ] Reproduce and resolve static lifetime hazards under the owning migration
+      slice: early missing-journal caching; delayed Watch cleanup across game/map/UI
+      changes; Trade cleanup after gate release; pending pawn image completion on
+      destruction; render setting restoration after player changes; combat arms
+      lacking game identity. The source audit does not claim reproduced failures.
+    - [ ] Resolve companion source/distribution permission and verify headless
+      corresponding-source/notices packaging. Refresh inventories after native edits.
+    Close N01.00 only when these gaps have evidence and per-entry ownership;
     N01.01 package migration remains gated by this closeout.
 
 - [ ] **N01.01 — Unified package without behavioral refactoring.** Owner: native

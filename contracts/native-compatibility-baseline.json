@@ -1,0 +1,381 @@
+{
+  "version": 1,
+  "scope": "Legacy package baseline: installed discovery, read-only placement replies, component census and copied-save identity reload. Does not accept unified packaging, populated state recovery or pawn work.",
+  "artifact_root": "C:\\Users\\darch\\code\\davidarcher\\RimBot\\.worktrees\\n01-native-capture\\.rimgovernor",
+  "production_build": {
+    "version": 1,
+    "source_revision": "4d8edbc361e99ef77b08d4d9f68dc6cf75b55d79",
+    "sdk_version": "8.0.424",
+    "target_framework": "net472",
+    "configuration": "Release",
+    "fixture_properties": {},
+    "source_policy": "Fresh worktree, all optional fixture properties unset; installed DLLs untouched.",
+    "artifacts": {
+      "integrations/colony-bridge/Assemblies/RimGovernor.ColonyIdentity.dll": "67cd41e3d04418818ff39d776502bf06b14ee7182e8676e771db4a0d9f77fa60",
+      "integrations/colony-bridge/BridgeTools/Observations/RimGovernor.Observations.BridgeTools.dll": "901670dd5b8b7701d1685cf9295fe05b2cca1af1fef23d327bb52b3a26967375",
+      "integrations/headless-rim/Assemblies/HeadlessRimPatch.dll": "978c0c73a0909dd58f592ba72e773b10b5e14b07dc36ff32f3dfa8bb17b73dfa"
+    },
+    "logs": [
+      "production-bridge.txt",
+      "production-headless.txt"
+    ]
+  },
+  "build_manifest_sha256": "f250f5c9d92f76db05b8aef29c339470e1061017f98bbcf7b03b069423ae9c3f",
+  "fixture_build": {
+    "properties": {
+      "CampaignMetricsFixture": "true",
+      "ConstructionLedgerFixture": "true",
+      "DisasterFixture": "true",
+      "EmergencyDevelopmentFixture": "true",
+      "FoodObservationFixture": "true",
+      "ForecastFixture": "true",
+      "GearFixture": "true",
+      "HusbandryFixture": "true",
+      "InspectorFixture": "true",
+      "InstallFixture": "true",
+      "MedicalManagementFixture": "true",
+      "MiningFixture": "true",
+      "ModalFixture": "true",
+      "MoodFixture": "true",
+      "PopulationFixture": "true",
+      "ScenarioStartFixture": "true",
+      "ThroughputFixture": "true",
+      "TradeFixture": "true",
+      "UpkeepFixture": "true",
+      "WasteFixture": "true"
+    },
+    "expected_fixture_names": [
+      "test/b04f_setup",
+      "test/campaign_metrics_fixture",
+      "test/comfort_inputs",
+      "test/configure_start",
+      "test/construction_ledger",
+      "test/containment_setup",
+      "test/deep_mining_fixture",
+      "test/disaster_compound",
+      "test/disaster_setup",
+      "test/disaster_supplies",
+      "test/feed_setup",
+      "test/finish_saved_quantity",
+      "test/food_observe",
+      "test/forecast_refuel",
+      "test/forecast_setup",
+      "test/forecast_state",
+      "test/gear_fixture",
+      "test/haul_quantity_contract",
+      "test/home_bulk_edits",
+      "test/home_coverage_read",
+      "test/home_coverage_setup",
+      "test/home_player_remove",
+      "test/husbandry_setup",
+      "test/inspector_fixture",
+      "test/isolated_roof_holder",
+      "test/list_start_scenarios",
+      "test/medical_management_change",
+      "test/medical_management_setup",
+      "test/medicine_setup",
+      "test/mining_fixture",
+      "test/modal_fixture",
+      "test/mood_setup",
+      "test/packed_furniture",
+      "test/population_setup",
+      "test/render_suspend",
+      "test/replace_lineage_wall",
+      "test/sleeping_need",
+      "test/sleeping_setup",
+      "test/stone_upgrade_setup",
+      "test/stonecutting_prerequisite",
+      "test/storeroom_setup",
+      "test/throughput_event",
+      "test/trade_fixture",
+      "test/upkeep_setup",
+      "test/wall_enclosure",
+      "test/wall_material_loss",
+      "test/waste_fixture"
+    ],
+    "excluded_standalone_fixture_names": [
+      "test/combat_incident",
+      "test/interruption_letter",
+      "test/join_incident",
+      "test/settle_caravan",
+      "test/trade_quest_offer",
+      "test/world_incident"
+    ],
+    "artifacts": {
+      "RimGovernorHeadless\\Assemblies\\HeadlessRimPatch.dll": "978c0c73a0909dd58f592ba72e773b10b5e14b07dc36ff32f3dfa8bb17b73dfa",
+      "RimGovernorObservations\\Assemblies\\RimGovernor.ColonyIdentity.dll": "b6b44428dc05afd65aa77d054c0b7b8d2b4b103df6d25eb42579d5eedaa1f7f1",
+      "RimGovernorObservations\\BridgeTools\\Observations\\RimGovernor.Observations.BridgeTools.dll": "6c56551aba939b7a8300e45f10e41003e31700a4d1f9ba412782edfe5b6992a2"
+    }
+  },
+  "runs": [
+    {
+      "directory": "live-headless-01",
+      "report": "run/native-compatibility/compatibility-result.json",
+      "report_sha256": "8d9a4125a9b8b4e65441c87cc0622d5d6214352c0ef29fa5f6c7afb5449cc00e",
+      "runner_report_sha256": "083f1ce10de7da35ef4b62910d73d51c9666a02c1f36b6cf4940d7b55791fb1f",
+      "image": "sha256:cdc09f33518bb2050562c11729521cd618f4fdfa527ba420d35589d3549b7bae",
+      "input_cache_key": "d279b5148d50fce78fa219ab7c07c5193c78307b0641a1b0d0099f5077cb2965",
+      "source_content_sha256": "17266cc3118242b464c9c9224b804cb332a8d87281d436077f33d668f998717a",
+      "input_fingerprint": "60de1053c15885f51d4479feb286dc4ae02ebf4d1545df9d2dec06b76b82bdb2",
+      "headless": true,
+      "passed": true,
+      "discovery": {
+        "total": 180,
+        "production": 55,
+        "external": 125,
+        "fixtures": 0,
+        "detail_failures": []
+      },
+      "binder": {
+        "outcome": "unknown-key-reported",
+        "strict_unknown_key_validation_proven": false,
+        "scope": "Observed reply only; an empty list or success does not prove unknown-key rejection."
+      },
+      "malformed_placement_requests": {
+        "missing": {
+          "isError": false,
+          "success": false,
+          "scope": "Observed legacy response; coercion/rejection policy is not inferred from a receipt."
+        },
+        "null": {
+          "isError": false,
+          "success": false,
+          "scope": "Observed legacy response; coercion/rejection policy is not inferred from a receipt."
+        },
+        "wrong-type": {
+          "isError": false,
+          "success": false,
+          "scope": "Observed legacy response; coercion/rejection policy is not inferred from a receipt."
+        }
+      },
+      "components": {
+        "game": {
+          "HomeBridge.BridgeTools.ColonyIdentity": 1,
+          "HomeBridge.BridgeTools.ConstructionLineageState": 1,
+          "HomeBridge.BridgeTools.GearOwnership": 1,
+          "HomeBridge.BridgeTools.HaulTrackingState": 1,
+          "HomeBridge.BridgeTools.MiningState": 1,
+          "HomeBridge.BridgeTools.ProductionPolicyState": 1,
+          "HomeBridge.BridgeTools.RecoveryAreas": 1,
+          "HomeBridge.BridgeTools.WallRemovalState": 1
+        },
+        "map-0": {
+          "HomeBridge.BridgeTools.HomeCoverageState": 1
+        }
+      },
+      "reload_ticks": {
+        "in_process_reload": {
+          "before": 9,
+          "after": 9
+        },
+        "fresh_process_reload": {
+          "before": 9,
+          "after": 10
+        }
+      },
+      "reload_tick_allowance": 1,
+      "owned_stop": {
+        "stopped": true,
+        "game_stopped": true
+      },
+      "cleanup_ok": true,
+      "database_integrity": "ok",
+      "artifacts_verified": 201,
+      "comparison_artifacts": {
+        "0188-placement-preview.json": "18e45d96f1e6b8646e6ce14ba56150d0d6b3c5aa12de4c8b25c4f085903909b7",
+        "0189-placement-unknown-key.json": "3c48028e9ac89e7d6d19fd92012ae1ea10eeb96113cdcd687056ab4a5f8f1a6c",
+        "0190-placement-missing.json": "77d7c12789812001cdaefc3eb811584e89a697ea05742c482dfbab7a1d40a296",
+        "0191-placement-null.json": "003acebae6d92981d178bdad5f9397cc0d73d10312ff80d1138935e4df06c67f",
+        "0192-placement-wrong-type.json": "e6e131ff5816c6c1c6155cf15ad6b3e02cf93ad5db0db04dcd9424c027939958",
+        "initial-save.rws": "da1bf5dfffd827f8a4e77f57e1f7731b68e2d9bc33b0a417df16a57739ee9b23",
+        "reloaded-save.rws": "046345a1aff2d19a5c6443ad825fc63cb886c50dd1fb205943c3eb037c0784a3",
+        "restarted-save.rws": "762b0b6c4eb9b458595fde5c68d08ebd946f2a2447952c1aaa8d6f2fc1b118d9"
+      }
+    },
+    {
+      "directory": "live-rendered-01",
+      "report": "run/native-compatibility/compatibility-result.json",
+      "report_sha256": "f384e576528d9eaae8526486c24077db8d15f84dbd404713c8b386a25dd6304f",
+      "runner_report_sha256": "069a5d83713268576beb1d785131cde192e4077337891e998a28e0828453d170",
+      "image": "sha256:cdc09f33518bb2050562c11729521cd618f4fdfa527ba420d35589d3549b7bae",
+      "input_cache_key": "d279b5148d50fce78fa219ab7c07c5193c78307b0641a1b0d0099f5077cb2965",
+      "source_content_sha256": "17266cc3118242b464c9c9224b804cb332a8d87281d436077f33d668f998717a",
+      "input_fingerprint": "633108f04fe57791f37ee0dac2443348b55e1b61621116799d23b0def8e56f88",
+      "headless": false,
+      "passed": true,
+      "discovery": {
+        "total": 180,
+        "production": 55,
+        "external": 125,
+        "fixtures": 0,
+        "detail_failures": []
+      },
+      "binder": {
+        "outcome": "unknown-key-reported",
+        "strict_unknown_key_validation_proven": false,
+        "scope": "Observed reply only; an empty list or success does not prove unknown-key rejection."
+      },
+      "malformed_placement_requests": {
+        "missing": {
+          "isError": false,
+          "success": false,
+          "scope": "Observed legacy response; coercion/rejection policy is not inferred from a receipt."
+        },
+        "null": {
+          "isError": false,
+          "success": false,
+          "scope": "Observed legacy response; coercion/rejection policy is not inferred from a receipt."
+        },
+        "wrong-type": {
+          "isError": false,
+          "success": false,
+          "scope": "Observed legacy response; coercion/rejection policy is not inferred from a receipt."
+        }
+      },
+      "components": {
+        "game": {
+          "HomeBridge.BridgeTools.ColonyIdentity": 1,
+          "HomeBridge.BridgeTools.ConstructionLineageState": 1,
+          "HomeBridge.BridgeTools.GearOwnership": 1,
+          "HomeBridge.BridgeTools.HaulTrackingState": 1,
+          "HomeBridge.BridgeTools.MiningState": 1,
+          "HomeBridge.BridgeTools.ProductionPolicyState": 1,
+          "HomeBridge.BridgeTools.RecoveryAreas": 1,
+          "HomeBridge.BridgeTools.WallRemovalState": 1
+        },
+        "map-0": {
+          "HomeBridge.BridgeTools.HomeCoverageState": 1
+        }
+      },
+      "reload_ticks": {
+        "in_process_reload": {
+          "before": 9,
+          "after": 9
+        },
+        "fresh_process_reload": {
+          "before": 9,
+          "after": 10
+        }
+      },
+      "reload_tick_allowance": 1,
+      "owned_stop": {
+        "stopped": true,
+        "game_stopped": true
+      },
+      "cleanup_ok": true,
+      "database_integrity": "ok",
+      "artifacts_verified": 201,
+      "comparison_artifacts": {
+        "0188-placement-preview.json": "b61fde818cabab9cb5aac3d26fa6503257db8d75f7049b26598e29ba40b37ced",
+        "0189-placement-unknown-key.json": "d51876fbbd9c28dbab6d2c2224ef2dc684a2c4c17f87391f023cf037f1bac7d5",
+        "0190-placement-missing.json": "a3ce0c90de41087d2054efddbc8a9128c28fe7a8bd1fe829c020f11f427534ec",
+        "0191-placement-null.json": "1e7d55a6970cb3d033de0df759e2f99dd5ddc1bf32515d550f1c788894d8efcc",
+        "0192-placement-wrong-type.json": "567d25fbfb58ea845cba1e89f061717f0d390ab13a99ff84815d172791d6e72c",
+        "initial-save.rws": "715f94295be25e817e01450bf34286045dd560ade3c80f9f905ee689d0a049c2",
+        "reloaded-save.rws": "2f6ea6be94a43937783547216af74d01efa7c542fd74d199d6f1559c2a6edbe5",
+        "restarted-save.rws": "ea196f6c426cd24ed651bc9cad825d66846cbbc2f228159a2591d0c19dca09f3"
+      }
+    },
+    {
+      "directory": "live-fixture-01",
+      "report": "run/native-compatibility/compatibility-result.json",
+      "report_sha256": "252bf1ec00c4cfc5ab4b088fcd2c3c27d00df6cbe470bfc976077b49a19aa2ab",
+      "runner_report_sha256": "6117d1292bfff85ac096418068f61849bf7035b41479f26394e700f68b4ecb9b",
+      "image": "sha256:cdc09f33518bb2050562c11729521cd618f4fdfa527ba420d35589d3549b7bae",
+      "input_cache_key": "b10b9f3608cb671d1a748a4e1cbf35855c6979b8136bf941184fcdfcbb83abec",
+      "source_content_sha256": "17266cc3118242b464c9c9224b804cb332a8d87281d436077f33d668f998717a",
+      "input_fingerprint": "63fcdd127a64a139f17e7331704c34717c1645a98c1cc12a86d75bb9b7f3fcf1",
+      "headless": true,
+      "passed": true,
+      "discovery": {
+        "total": 227,
+        "production": 55,
+        "external": 125,
+        "fixtures": 47,
+        "detail_failures": []
+      },
+      "binder": {
+        "outcome": "unknown-key-reported",
+        "strict_unknown_key_validation_proven": false,
+        "scope": "Observed reply only; an empty list or success does not prove unknown-key rejection."
+      },
+      "malformed_placement_requests": {
+        "missing": {
+          "isError": false,
+          "success": false,
+          "scope": "Observed legacy response; coercion/rejection policy is not inferred from a receipt."
+        },
+        "null": {
+          "isError": false,
+          "success": false,
+          "scope": "Observed legacy response; coercion/rejection policy is not inferred from a receipt."
+        },
+        "wrong-type": {
+          "isError": false,
+          "success": false,
+          "scope": "Observed legacy response; coercion/rejection policy is not inferred from a receipt."
+        }
+      },
+      "components": {
+        "game": {
+          "HomeBridge.BridgeTools.ColonyIdentity": 1,
+          "HomeBridge.BridgeTools.ConstructionLineageState": 1,
+          "HomeBridge.BridgeTools.GearOwnership": 1,
+          "HomeBridge.BridgeTools.HaulTrackingState": 1,
+          "HomeBridge.BridgeTools.MiningState": 1,
+          "HomeBridge.BridgeTools.ProductionPolicyState": 1,
+          "HomeBridge.BridgeTools.RecoveryAreas": 1,
+          "HomeBridge.BridgeTools.WallRemovalState": 1
+        },
+        "map-0": {
+          "HomeBridge.BridgeTools.HomeCoverageState": 1
+        }
+      },
+      "reload_ticks": {
+        "in_process_reload": {
+          "before": 9,
+          "after": 9
+        },
+        "fresh_process_reload": {
+          "before": 9,
+          "after": 10
+        }
+      },
+      "reload_tick_allowance": 1,
+      "owned_stop": {
+        "stopped": true,
+        "game_stopped": true
+      },
+      "cleanup_ok": true,
+      "database_integrity": "ok",
+      "artifacts_verified": 249,
+      "comparison_artifacts": {
+        "0236-placement-preview.json": "eb32da7790bdea811dbbe7130873bf9bf87ff58286bb6dead3c59233cb3e6efa",
+        "0237-placement-unknown-key.json": "00e69e775cc067e03f47b875c0a4f69ce4eebf66831dcecfacd808bc07d9135f",
+        "0238-placement-missing.json": "7a2722dc8042fd8f63ff21f779665eb9732c2dfb16857482b01776257e7e8d8b",
+        "0239-placement-null.json": "d0ca1254ce4381118c73cca70c0da7e41e5a59f7fee21631c701ca4133b78f78",
+        "0240-placement-wrong-type.json": "497db5b35641255025bc3f74a94ac5bb0d4eb9f971842f6eca1dca5fa5e3717b",
+        "initial-save.rws": "d886cba38a5c87eedb2839d88d3f951e0880af351f7bf8facf0d8bf7a4aa64a2",
+        "reloaded-save.rws": "d2e37aa465b722cfe500918deaca33ff3b38d84439515543bb60353092ea89f7",
+        "restarted-save.rws": "6da01a560278b999d0174eec90bec5ea4eefd12358ff221646f782cb2ecb1a55"
+      }
+    }
+  ],
+  "validation": {
+    "controller_suite": {
+      "directory": "controller-checks-01",
+      "passed": 1865,
+      "skipped": 5
+    },
+    "dashboard": "Existing unchanged dashboard stage reused its passing 40 tests, typecheck and build; controller runner did not rerun dashboard checks.",
+    "native_build": "Production and aggregate fixture Release builds completed with zero warnings/errors using private Linux game/SDK references."
+  },
+  "remaining": [
+    "Six standalone combat/interruption fixture exports need installed discovery acceptance.",
+    "Populate and exercise each of the 88 persisted field/key pairs across nine native component owners.",
+    "Agree field exceptions, branched timeline and delivery/journal recovery contracts with G01 owners.",
+    "Reproduce and resolve static lifetime hazards before migrating their owners.",
+    "Resolve companion distribution permission and verify corresponding-source/notices packaging.",
+    "Unified package migration and ordinary pawn outcomes remain separate acceptance gates."
+  ]
+}
