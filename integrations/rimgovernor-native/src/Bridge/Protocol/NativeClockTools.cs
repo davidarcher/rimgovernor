@@ -117,6 +117,7 @@ namespace HomeBridge.BridgeTools
                 if (owned == null || owned.Identity == null || !owned.Identity.Equals(pre.Identity) || owned.Owner == null
                     || owned.Owner.ControllerSessionId != pre.Attempt.ControllerSessionId) return Refused(Invalid("Epoch and authority must share exact identity and controller."));
                 failure = Supervisor.ValidateTypedOwner(owned, true); if (failure != null) return Refused(failure);
+                failure = Supervisor.ValidateTypedGrant(pre); if (failure != null) return Refused(failure);
             }
             NativeControlAuthority authority;
             if (!NativeControlAuthority.TryGetForGame(Current.Game, out authority) || authority == null)

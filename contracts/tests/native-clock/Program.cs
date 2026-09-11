@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Google.Protobuf;
 using HomeBridge.BridgeTools;
 using Verse;
@@ -162,9 +163,70 @@ internal static class Program
         Start(Request()); Find.TickManager.Forced = true; authority.Revoke(authority.Status().Generation, NativeControlRevocationReason.Manual); Supervisor.OnUpdate();
         Check(Status().Status.Stopped.Reason == Clock.StopReason.ExternalPause && Find.TickManager.CurTimeSpeed == TimeSpeed.Paused, "revocation during force pause retained automatic play");
     }
+    private static void ReplacementGrantCannotAdoptEpoch()
+    {
+        Reset();
+        var epoch = Start(Request()).Receipt.Applied.Status.Running.Epoch;
+        var owned = new Clock.OwnedRequest { Identity = Identity, Owner = epoch.Owner.Clone() };
+        var renewedAuthority = authority.Renew(lease.Generation, lease.Lease.LeaseId, "controller", 30000);
+        Check(renewedAuthority.Success, "ordinary authority renewal failed");
+        Check(Renew(new Clock.RenewRequest { Epoch = owned, Authority = Pre(), LeaseMs = 1000 }).Receipt != null,
+            "same-grant authority renewal blocked clock renewal");
+        var admitted = NativeOperationState.ForAdmission(Identity).Ledger.Count;
+        authority.Revoke(authority.Status().Generation, NativeControlRevocationReason.Manual);
+        lease = authority.Acquire(authority.Status().Generation, "controller", 43, 30000).Snapshot;
+        Check(lease.Active && lease.Generation != epoch.Origin.NativeGeneration, "replacement grant setup failed");
+        // No watcher update runs between revocation, reacquisition and these requests.
+        var renewal = Renew(new Clock.RenewRequest { Epoch = owned, Authority = Pre(), LeaseMs = 30000 });
+        Check(renewal.Failure?.Code == Common.FailureCode.StaleGeneration, "new grant renewed invalidated epoch before watcher update");
+        var speed = Speed(new Clock.SpeedRequest { Epoch = owned, Authority = Pre(), Speed = Clock.Speed.Superfast });
+        Check(speed.Failure?.Code == Common.FailureCode.StaleGeneration, "new grant changed invalidated epoch speed before watcher update");
+        Check(NativeOperationState.ForAdmission(Identity).Ledger.Count == admitted, "replacement-grant refusal admitted an attempt");
+        var retained = Status().Status.Running.Epoch;
+        Check(retained.Origin.NativeGeneration == epoch.Origin.NativeGeneration && retained.RequestedSpeed == Clock.Speed.Normal
+            && retained.LeaseRemainingMs <= 1000, "replacement request changed epoch grant, speed or deadline");
+        Supervisor.OnUpdate();
+        Check(Status().Status.Stopped != null && Find.TickManager.CurTimeSpeed == TimeSpeed.Paused,
+            "replacement grant masked original-grant invalidation from watcher");
+        Check(Pause(owned).Status.Stopped != null, "safe exact cleanup rejected after grant replacement");
+    }
+    private static void LostHooksCannotExtendEpoch()
+    {
+        Reset(); var epoch = Start(Request()).Receipt.Applied.Status.Running.Epoch;
+        var owned = new Clock.OwnedRequest { Identity = Identity, Owner = epoch.Owner.Clone() };
+        var count = NativeOperationState.ForAdmission(Identity).Ledger.Count;
+        HarmonyLib.Harmony.Healthy = false;
+        Check(Renew(new Clock.RenewRequest { Epoch = owned, Authority = Pre(), LeaseMs = 30000 }).Failure?.Code == Common.FailureCode.Unavailable,
+            "clock renewal ignored removed enforcement hooks");
+        Check(Speed(new Clock.SpeedRequest { Epoch = owned, Authority = Pre(), Speed = Clock.Speed.Superfast }).Failure?.Code == Common.FailureCode.Unavailable,
+            "clock speed ignored removed enforcement hooks");
+        Check(NativeOperationState.ForAdmission(Identity).Ledger.Count == count && Find.TickManager.CurTimeSpeed == TimeSpeed.Normal,
+            "missing-hook refusal admitted or changed native speed");
+        Check(Pause(owned).Status.Stopped?.PauseVerified == true, "lost hooks blocked safe exact pause cleanup");
+        HarmonyLib.Harmony.Healthy = true;
+    }
+    private static void CorruptStoredEvents()
+    {
+        foreach (Action<Clock.Event> corrupt in new Action<Clock.Event>[] {
+            e => e.Context = new Common.ObservationContext(), e => e.Owner = new Clock.EpochOwner(), e => e.ClearEvent(),
+            e => e.Context.Identity.ClearLoadToken(), e => e.Context.Identity.MapId = -1, e => e.Context.ClearTick(), e => e.Context.Tick = -1,
+            e => e.Context.NativeGeneration = 0, e => e.Owner.ControllerSessionId = " ", e => e.Owner.Epoch = 0,
+            e => e.ClearObservedAtUnixMs(), e => e.ObservedAtUnixMs = -1 })
+        {
+            Reset(); Start(Request());
+            Supervisor.FixtureEvent("alert_new", new() { ["alertKey"] = "food", ["label"] = "Low food", ["priority"] = "High" });
+            var path = Path.Combine(GenFilePaths.SaveDataFolderPath, "RimGovernorClockEvents", "00000000000000000002.xml");
+            var file = XElement.Load(path);
+            var encoded = file.Elements("item").Single(item => (string)item.Attribute("key") == "canonicalClockEvent").Elements().Single();
+            var value = Clock.Event.Parser.ParseJson(encoded.Value); corrupt(value); encoded.Value = JsonFormatter.Default.Format(value); file.Save(path);
+            var reply = Events();
+            Check(reply.Failure?.Code == Common.FailureCode.Unavailable && reply.Page == null,
+                "semantic-invalid stored event published a partial or fabricated page");
+        }
+    }
     public static void Main()
     {
-        Boundaries(); OwnedLifecycle(); StopsAndContext(); EventProjection();
+        Boundaries(); OwnedLifecycle(); StopsAndContext(); EventProjection(); ReplacementGrantCannotAdoptEpoch(); LostHooksCannotExtendEpoch(); CorruptStoredEvents();
         Console.WriteLine($"Native clock: {checks} checks; production typed runtime/adapter/ledger/journal, controlled native watcher and SDK seams.");
     }
 }

@@ -130,9 +130,9 @@ namespace HomeBridge.BridgeTools
         {
             lock (Gate)
             {
+                if (ValidateTypedGrant(request.Authority) != null) throw new InvalidOperationException("Clock epoch authority grant changed");
                 var s = _state;
                 s.LeaseExpiresMs = checked(LeaseNow(s) + request.LeaseMs);
-                s.Typed.Authority = request.Authority.Clone();
                 return TypedStatus(context);
             }
         }
@@ -140,6 +140,7 @@ namespace HomeBridge.BridgeTools
         {
             lock (Gate)
             {
+                if (ValidateTypedGrant(request.Authority) != null) throw new InvalidOperationException("Clock epoch authority grant changed");
                 try
                 {
                     typedSpeedCall = true;
@@ -148,8 +149,32 @@ namespace HomeBridge.BridgeTools
                 finally { typedSpeedCall = false; }
                 if (_state.RequestedSpeed != NativeSpeed(request.Speed) || Find.TickManager.CurTimeSpeed != NativeSpeed(request.Speed))
                     throw new InvalidOperationException("Native speed did not match admitted change");
-                _state.Typed.Authority = request.Authority.Clone();
                 return TypedStatus(context);
+            }
+        }
+        // An epoch belongs to the grant which started it. Reacquisition, even by
+        // the same controller before the next watcher tick, cannot adopt old work.
+        internal static Common.Failure ValidateTypedGrant(Authority.WritePrecondition requested)
+        {
+            lock (Gate)
+            {
+                var original = _state?.Typed?.Authority;
+                if (original == null || requested == null)
+                    return ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "The epoch has no matching authorizing grant.");
+                if (!_state.Active || _state.PendingKind != null || LeaseNow(_state) >= _state.LeaseExpiresMs)
+                    return ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "The original epoch is stopped, stopping or expired.");
+                try
+                {
+                    if (!TypedHooksReady()) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Required native clock enforcement hooks are unavailable.");
+                }
+                catch (Exception) { return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native clock enforcement hooks could not be verified."); }
+                if (requested.ExpectedGeneration != original.ExpectedGeneration)
+                    return ProtoBoundary.Fail(Common.FailureCode.StaleGeneration, "A replacement authority generation cannot adopt an existing epoch.");
+                if (requested.LeaseId != original.LeaseId || requested.Attempt == null
+                    || requested.Attempt.ControllerSessionId != original.Attempt.ControllerSessionId
+                    || !original.Identity.Equals(requested.Identity))
+                    return ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Clock control must retain the epoch's original authority grant.");
+                return null;
             }
         }
         internal static Clock.Status TypedPause(Common.ObservationContext context)
@@ -220,7 +245,7 @@ namespace HomeBridge.BridgeTools
                         if (!row.TryGetValue("canonicalClockEvent", out encoded) || !(encoded is string))
                             return new Clock.EventsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Retained legacy event lacks canonical ownership and original observation context.") };
                         var observed = Clock.Event.Parser.ParseJson((string)encoded);
-                        if (!observed.HasCursor || observed.Cursor <= previous || observed.Context == null || observed.Owner == null
+                        if (!ValidStoredEvent(observed) || observed.Cursor <= previous
                             || observed.Cursor != Convert.ToInt64(row["cursor"])) throw new InvalidOperationException("Event identity mismatch");
                         page.Events.Add(observed); previous = observed.Cursor;
                     }
@@ -277,6 +302,27 @@ namespace HomeBridge.BridgeTools
                 throw new InvalidOperationException("Canonical clock event exceeds the bounded envelope");
             row["canonicalClockEvent"] = encoded;
         }
+        private static bool ValidStoredEvent(Clock.Event value)
+        {
+            var identity = value.Context?.Identity;
+            if (!value.HasCursor || value.Cursor <= 0 || value.Context == null || identity == null
+                || !identity.HasColonyId || !ProtoBoundary.IsIdentifier(identity.ColonyId)
+                || !identity.HasLoadToken || !ProtoBoundary.IsIdentifier(identity.LoadToken)
+                || !identity.HasMapId || identity.MapId < 0 || !value.Context.HasTick || value.Context.Tick < 0
+                || !value.Context.HasNativeGeneration || value.Context.NativeGeneration == 0
+                || value.Owner == null || !value.Owner.HasControllerSessionId || !ProtoBoundary.IsIdentifier(value.Owner.ControllerSessionId)
+                || !value.Owner.HasEpoch || value.Owner.Epoch <= 0 || !value.HasObservedAtUnixMs || value.ObservedAtUnixMs < 0
+                || value.EventCase == Clock.Event.EventOneofCase.None) return false;
+            if (value.Stopped != null) return ValidStoredStop(value.Stopped);
+            if (value.PauseFailed != null) return value.PauseFailed.Pending != null && ValidStoredStop(value.PauseFailed.Pending);
+            if (value.Started != null) return value.Started.Epoch != null && value.Started.Epoch.Owner != null
+                && value.Started.Epoch.Owner.Equals(value.Owner) && value.Started.Epoch.Origin != null;
+            if (value.SpeedChanged != null) return value.SpeedChanged.HasSpeed && OrdinarySpeed(value.SpeedChanged.Speed);
+            if (value.Notification != null) return value.Notification.SourceCase != Clock.Notification.SourceOneofCase.None;
+            return true;
+        }
+        private static bool ValidStoredStop(Clock.StopEvent value) => value.HasReason && value.Reason != Clock.StopReason.Unspecified
+            && Enum.IsDefined(typeof(Clock.StopReason), value.Reason) && value.EvidenceCase != Clock.StopEvent.EvidenceOneofCase.None;
         internal static bool OrdinarySpeed(Clock.Speed speed) => speed == Clock.Speed.Normal || speed == Clock.Speed.Fast || speed == Clock.Speed.Superfast;
         private static TimeSpeed NativeSpeed(Clock.Speed speed) => speed == Clock.Speed.Normal ? TimeSpeed.Normal : speed == Clock.Speed.Fast ? TimeSpeed.Fast : speed == Clock.Speed.Superfast ? TimeSpeed.Superfast : throw new ArgumentOutOfRangeException(nameof(speed));
         private static Clock.Speed WireSpeed(TimeSpeed speed) => speed == TimeSpeed.Normal ? Clock.Speed.Normal : speed == TimeSpeed.Fast ? Clock.Speed.Fast : speed == TimeSpeed.Superfast ? Clock.Speed.Superfast : throw new InvalidOperationException("Nonordinary owned epoch");
