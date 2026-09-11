@@ -711,7 +711,7 @@ only intentional small, sanitized regression fixtures belong in source control.
       depends on the 02a.1 generator API. Unsupported schema features fail explicitly.
     - [x] **02a.3:** generation drift CI, reproducibility and full affected checks.
       Owner: integrator; depends on 02a.1–2.
-  - [ ] **02b:** define the complete typed reply needed by the first migrated
+  - [x] **02b:** define the complete typed reply needed by the first migrated
     preview operation, including success/refusal and unknown facts. Owner: contracts
     integrator with native implementer; depends on 02a. Do not replicate every
     historical optional field when the current consumer does not need it.
@@ -757,6 +757,10 @@ only intentional small, sanitized regression fixtures belong in source control.
   behavioral cases for deficits, unknown facts, competing projects, player priorities,
   cancellation and starvation/hysteresis cases. Property/fuzz tests cover reservation
   conservation, duplicate IDs and invalid geometry. No native writes. Depends on 04a.
+  - [ ] **05a:** explicit building admission, known resource budgets, dependencies
+    and native footprint geometry. Owner: policy agent.
+  - [ ] **05b:** routine deficits, hysteresis and method selection; extend with
+    supported execution families after the first building vertical slice.
 
 - [ ] **G01.06 — Guarded Hands and runtime vertical slice.** Owner: executor agent.
   Split into 06a execution state machine, 06b lifecycle/supervision, and 06c native
@@ -769,6 +773,11 @@ only intentional small, sanitized regression fixtures belong in source control.
   changes, partial placement, resource loss and restart, followed by actual pawn
   construction in an isolated scenario. Benchmark scheduling without weakening
   guards. Depends on 03, 04b and 05.
+  - [ ] **06a:** single-writer execution and durable unknown-outcome reconciliation.
+    Owner: executor agent; test typed boundaries before enabling native mutations.
+  - [ ] **06b:** native atomic identity guards, attempt deduplication, runtime
+    ownership and typed placement adapter. Coordinate with N01.
+  - [ ] **06c:** isolated ordinary pawn construction and interruption acceptance.
 
 - [ ] **G01.07 — Routine capabilities in bounded families.** Owners: domain agents.
   Each subchunk includes policy/method compilation, typed native arguments, Hands

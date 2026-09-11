@@ -1,10 +1,10 @@
-# Placement preview request contract
+# Placement preview contract
 
 This is the canonical request boundary for `home/placement_previews`,
 owned by G01.02. The [schema](schemas/placement-previews-request.v1.schema.json)
 and [boundary cases](fixtures/placement-request-cases.json) define generated
 validation. Existing Python and native consumers have not yet migrated to it.
-Reply DTOs, native integration and game-level acceptance remain separate G01.02
+Native integration and game-level acceptance remain separate G01.02
 steps in the [backlog](../docs/BACKLOG.md#g01--go-controller-rewrite).
 
 The existing implementation is
@@ -116,3 +116,20 @@ Python/Go/C# consumers and native parity must run them before integration is
 accepted. The retained native successful ButcherSpot reply is separate evidence
 in [native-replies-baseline.json](fixtures/native-replies-baseline.json), not
 coverage for these invalid-request cases.
+
+## Current reply contract
+
+The [version 2 reply schema](schemas/placement-previews-response.v2.schema.json)
+defines a batch or request failure. Each candidate is either a complete evaluated
+preview or a failure. An evaluated `canPlace:false` remains an ordinary native
+refusal; it is not a malformed reply. No preview establishes completed pawn work.
+
+Evaluated results expose native legality, material requirements, passability,
+footprints, blocker effects, costs and material stock. Null stock is unknown, never
+zero. Required facts may not be omitted or replaced with inferred values.
+
+Response bounds are explicit work limits: 1–16 candidates, 1–4 rotations, up to
+4096 footprint cells or blockers, and up to 256 cost/material rows. Native code
+fails a candidate on overflow instead of truncating semantic facts. Only diagnostic
+reason/error text may be shortened to 4096 UTF-16 units. SDK receipt metadata is
+kept outside the generated native payload.

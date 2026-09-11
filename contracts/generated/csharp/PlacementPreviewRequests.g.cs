@@ -20,6 +20,7 @@ namespace RimGovernor.Contracts.PlacementPreview
         {
             Placements = value0;
         }
+        public static PlacementPreviewArguments From(string value0) { return Decode(JsonConvert.SerializeObject(new PlacementPreviewArguments(value0))); }
         public static PlacementPreviewArguments Decode(string json) { return PlacementPreviewArgumentsJsonBoundary.ReadValue0(PlacementPreviewArgumentsJsonBoundary.Parse(json)); }
     }
 
@@ -32,6 +33,7 @@ namespace RimGovernor.Contracts.PlacementPreview
         public PlacementCandidate this[int index] { get { return Values[index]; } }
         public IEnumerator<PlacementCandidate> GetEnumerator() { return Values.GetEnumerator(); }
         IEnumerator IEnumerable.GetEnumerator() { return GetEnumerator(); }
+        public static PlacementBatch From(IReadOnlyList<PlacementCandidate> values) { return Decode(JsonConvert.SerializeObject(new PlacementBatch(values))); }
         public static PlacementBatch Decode(string json) { return PlacementPreviewArgumentsJsonBoundary.ReadValue2(PlacementPreviewArgumentsJsonBoundary.Parse(json)); }
     }
 
@@ -56,6 +58,7 @@ namespace RimGovernor.Contracts.PlacementPreview
             X = value3;
             Z = value4;
         }
+        public static PlacementCandidate From(string value0, string value1, string value2, int value3, int value4) { return Decode(JsonConvert.SerializeObject(new PlacementCandidate(value0, value1, value2, value3, value4))); }
         public static PlacementCandidate Decode(string json) { return PlacementPreviewArgumentsJsonBoundary.ReadValue4(PlacementPreviewArgumentsJsonBoundary.Parse(json)); }
     }
 

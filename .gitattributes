@@ -6,3 +6,5 @@ contracts/schemas/*.json text eol=lf
 contracts/generation.json text eol=lf
 contracts/generated/** text eol=lf
 contracts/fixtures/placement-request-cases.json text eol=lf
+
+controller/rimgovernor/generated/*.py text eol=lf

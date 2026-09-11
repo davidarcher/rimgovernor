@@ -13,7 +13,9 @@
       "schema": "contracts/schemas/placement-previews-response.v2.schema.json",
       "go_package": "placementpreview",
       "go_output": "go/internal/wire/placementpreview/response.gen.go",
-      "python_output": "controller/rimgovernor/generated/placement_preview_responses.py"
+      "python_output": "controller/rimgovernor/generated/placement_preview_responses.py",
+      "csharp_namespace": "RimGovernor.Contracts.PlacementPreview",
+      "csharp_output": "contracts/generated/csharp/PlacementPreviewResponses.g.cs"
     }
   ]
 }

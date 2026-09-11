@@ -6,15 +6,17 @@ Its source is versioned with the repository; generated headers identify the sche
 SHA-256 and generator format version. Schema files use LF so hashes agree across
 Windows and Linux. Native and controller consumers share this source of truth.
 
-## Supported request subset
+## Supported subset
 
-The first increment covers placement request objects and arrays. It accepts schema
+The generator covers placement requests and current preview replies. It accepts schema
 metadata (`$schema`, `$id`, `title`, `description`), local `$defs`/`$ref`, named
 objects with explicit `required` and `additionalProperties: false`, bounded arrays,
 strings, booleans and bounded integers. Definition names supply generated type
 names. References are local and acyclic. Unsupported keywords and inconsistent
-constraints are generation errors, including nullable and response variants until
-the corresponding generator increment adds tested support.
+constraints are generation errors. String enums, boolean constants and nullable
+int32 values are supported. Closed `oneOf` variants reference two named objects
+with distinct required boolean `success` constants. C# optional nullable fields
+remain unsupported; required nullable fields distinguish missing data from null.
 
 Three explicit extensions preserve native request constraints:
 
@@ -63,4 +65,6 @@ Run `python scripts/check_placement_requests.py --check` to validate the generat
 Python boundary. Go tests run the same request cases. The standalone C# project
 `contracts/tests/csharp/PlacementRequests.csproj` requires .NET SDK 8.0.424 and
 locked NuGet dependencies; CI compiles net472/net8 and executes the shared cases.
-These checks establish typed request validation, not native preview effects.
+Run `python scripts/check_placement_responses.py` for current reply cases.
+The C# harness accepts the reply fixture as its second argument. These checks
+establish typed boundaries; native preview effects require separate game acceptance.

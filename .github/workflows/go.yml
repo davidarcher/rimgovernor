@@ -51,10 +51,10 @@ jobs:
           $output = [IO.Path]::GetFullPath('../.rimgovernor/contract-checks')
           dotnet build ../contracts/tests/csharp/PlacementRequests.csproj -c Release -p:RestoreLockedMode=true "-p:BaseOutputPath=$output/bin/" "-p:BaseIntermediateOutputPath=$output/obj/"
           if ($LASTEXITCODE -ne 0) { throw 'C# contract build failed' }
-          dotnet "$output/bin/Release/net8.0/PlacementRequests.dll" ../contracts/fixtures/placement-request-cases.json
+          dotnet "$output/bin/Release/net8.0/PlacementRequests.dll" ../contracts/fixtures/placement-request-cases.json ../contracts/fixtures/placement-response-cases.json
           if ($LASTEXITCODE -ne 0) { throw '.NET 8 contract checks failed' }
           if ($IsWindows) {
-            & "$output/bin/Release/net472/PlacementRequests.exe" ../contracts/fixtures/placement-request-cases.json
+            & "$output/bin/Release/net472/PlacementRequests.exe" ../contracts/fixtures/placement-request-cases.json ../contracts/fixtures/placement-response-cases.json
             if ($LASTEXITCODE -ne 0) { throw '.NET Framework contract checks failed' }
           }
       - run: go vet ./...
