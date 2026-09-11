@@ -222,8 +222,8 @@ func (control *Control) Manual(ctx context.Context) error {
 	return errors.Join(err, control.revoke(call, a.RevocationReason_REVOCATION_REASON_MANUAL))
 }
 
-// Close is retryable when StopWrites fails: local authority stays disabled and
-// the profile lock remains held. The caller retains bridge/store ownership until
+// Close is retryable when writer drain or native revoke fails. Authority stays
+// disabled and the profile lock remains held. The caller retains bridge/store ownership until
 // Close succeeds. No uncertain native response is translated into a retry grant.
 func (control *Control) Close(ctx context.Context) error {
 	control.mu.Lock()
@@ -257,7 +257,7 @@ func (control *Control) Close(ctx context.Context) error {
 	revokeErr := control.revoke(call, a.RevocationReason_REVOCATION_REASON_SHUTDOWN)
 	control.mu.Lock()
 	defer control.mu.Unlock()
-	if err != nil {
+	if err != nil || revokeErr != nil {
 		return errors.Join(err, revokeErr)
 	}
 	closeErr := control.owner.Close()
@@ -265,7 +265,7 @@ func (control *Control) Close(ctx context.Context) error {
 		control.closed = true
 		control.stopLifetime()
 	}
-	return errors.Join(revokeErr, closeErr)
+	return closeErr
 }
 
 func (control *Control) invalidateLocked() error {
