@@ -21,11 +21,13 @@ import (
 )
 
 type buildingServiceBridge struct {
-	reads     serviceBridge
-	native    buildingruntime.Native
-	authority buildingruntime.NativeAuthority
-	writes    buildingruntime.BuildingWriter
-	draft     *buildingruntime.DraftCapabilities
+	reads      serviceBridge
+	native     buildingruntime.Native
+	authority  buildingruntime.NativeAuthority
+	writes     buildingruntime.BuildingWriter
+	draft      *buildingruntime.DraftCapabilities
+	clock      *buildingruntime.ClockCapabilities
+	clockReads serviceClockReads
 }
 type buildingServiceOpener func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error)
 type ownedAuthority struct {
@@ -54,7 +56,12 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	clock, err := bridge.NewClockControl(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: writes,
+		clock: &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
 		draft: &buildingruntime.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup}}, nil
 }
 
@@ -160,10 +167,19 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	defer func() { result = errors.Join(result, database.Close()) }()
 	callTimeout := min(config.bridge.Timeout, 10*time.Second)
+	var clockCapabilities *buildingruntime.ClockCapabilities
+	if config.clockControl {
+		if client.clock == nil || client.clock.Native == nil || client.clock.Writer == nil || client.clockReads == nil {
+			return errors.New("clock service requires complete clock capabilities")
+		}
+		clockCapabilities = client.clock
+		callTimeout = min(callTimeout, 5*time.Second)
+	}
 	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{
 		Control:  buildingruntime.ControlConfig{ProfileDirectory: config.profile, LeaseDuration: 30 * time.Second, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
 		Executor: executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
 		Draft:    client.draft,
+		Clock:    clockCapabilities,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {
 		return err
@@ -182,6 +198,11 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		return err
 	}
 	owner = player
+	if config.clockControl {
+		if err = startServiceClock(lifetime, player, session, client.clockReads, config.profile, callTimeout); err != nil {
+			return err
+		}
+	}
 	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{
 		StepInterval: time.Second, MaxBackoff: 10 * time.Second, StepTimeout: min(config.bridge.Timeout, 8*time.Second),
 		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second,

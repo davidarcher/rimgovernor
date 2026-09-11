@@ -31,6 +31,7 @@ type serveConfig struct {
 	state, listen, assets string
 	profile               string
 	playerControl         bool
+	clockControl          bool
 	refresh               time.Duration
 }
 
@@ -40,6 +41,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.SetOutput(diagnostics)
 	readOnly := flags.Bool("read-only", false, "observe an already running game; game writes are unavailable")
 	flags.BoolVar(&c.playerControl, "player-control", false, "enable explicit player building and draft controls; never acquire on startup")
+	flags.BoolVar(&c.clockControl, "clock-control", false, "supervise finite game-clock windows for enabled player work")
 	flags.StringVar(&c.profile, "profile", "", "absolute shared game profile directory for player control")
 	flags.StringVar(&c.bridge.Executable, "gabs", "", "absolute GABS executable")
 	flags.StringVar(&c.bridge.ConfigDir, "config", "", "absolute GABS configuration directory")
@@ -54,6 +56,9 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if flags.NArg() != 0 || *readOnly == c.playerControl {
 		return c, errors.New("serve requires exactly one of --read-only or --player-control")
+	}
+	if c.clockControl && !c.playerControl {
+		return c, errors.New("--clock-control requires --player-control")
 	}
 	if c.playerControl && !filepath.IsAbs(c.profile) || !c.playerControl && c.profile != "" {
 		return c, errors.New("--player-control requires an absolute --profile; read-only mode takes no profile")
