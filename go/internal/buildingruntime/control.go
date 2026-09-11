@@ -392,6 +392,50 @@ func (control *Control) publishDisabled(ctx context.Context, expected domain.Gen
 	return control.sink.UpdateAuthority(executor.Authority{Snapshot: control.snapshot})
 }
 
+// ObserveTarget seeds a read-only restart target after the caller validates the
+// durable plan/revision. It cannot replace a live lease or adopt a native owner.
+func (control *Control) ObserveTarget(ctx context.Context, requested domain.GenerationSnapshot) error {
+	if err := requested.Validate(); err != nil {
+		return err
+	}
+	if requested.Revision == 0 {
+		return ErrControl
+	}
+	control.mu.Lock()
+	if control.closing || control.liveLocked(time.Now()) {
+		control.mu.Unlock()
+		return ErrControl
+	}
+	epoch := control.epoch
+	control.mu.Unlock()
+	call, done, err := control.enter(ctx, epoch)
+	if err != nil {
+		return err
+	}
+	defer done()
+	control.mu.Lock()
+	if control.closing || epoch.Err() != nil || control.epoch != epoch || control.liveLocked(time.Now()) {
+		control.mu.Unlock()
+		return ErrControl
+	}
+	control.mu.Unlock()
+	reply, _, err := control.native.ReadAuthority(call, controlIdentity(requested))
+	if err == nil {
+		err = controlStatus(reply, requested)
+	}
+	control.mu.Lock()
+	defer control.mu.Unlock()
+	if call.Err() != nil || epoch.Err() != nil || control.epoch != epoch || control.closing {
+		return errors.Join(ErrControl, call.Err())
+	}
+	if err != nil {
+		return errors.Join(err, control.invalidateLocked())
+	}
+	requested.Native = domain.NativeGeneration(reply.GetStatus().Context.GetNativeGeneration())
+	control.snapshot, control.haveTarget = requested, true
+	return control.sink.UpdateAuthority(executor.Authority{Snapshot: control.snapshot})
+}
+
 // Refresh observes the stored target without acquiring or extending authority.
 // Known revocation/generation changes remain available for read reconciliation.
 func (control *Control) Refresh(ctx context.Context) error {

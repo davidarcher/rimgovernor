@@ -44,12 +44,18 @@ type controlNative struct {
 	acquires, renews, revokes atomic.Int32
 	onGrant                   func(context.Context, string, *a.ControlReply) error
 	onRevoke                  func()
+	onRead                    func(context.Context) error
 }
 
 func controlScope() domain.GenerationSnapshot {
 	return domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "plan", Revision: 1, Direction: 3}
 }
-func (n *controlNative) ReadAuthority(_ context.Context, id *c.Identity) (*a.StatusReply, bridge.Result, error) {
+func (n *controlNative) ReadAuthority(ctx context.Context, id *c.Identity) (*a.StatusReply, bridge.Result, error) {
+	if n.onRead != nil {
+		if err := n.onRead(ctx); err != nil {
+			return nil, bridge.Result{}, err
+		}
+	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	status := &a.Status{Context: &c.ObservationContext{Identity: proto.Clone(id).(*c.Identity), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(n.generation)}}
@@ -377,5 +383,93 @@ func TestControlRefreshRetainsDisabledCurrentGeneration(t *testing.T) {
 	sink.mu.Unlock()
 	if value.Enabled || value.Snapshot.Native != 4 || value.Snapshot.Direction != 3 || n.acquires.Load() != 1 {
 		t.Fatal("read refresh adopted authority", value)
+	}
+}
+
+func TestControlObserveTargetRestartsWithoutAcquiringOrAdopting(t *testing.T) {
+	control, n, sink, _ := controlFixture(t, nil)
+	n.mu.Lock()
+	n.generation = 7
+	n.owner = &a.Owner{ControllerSessionId: proto.String("previous-controller"), PlayerDirection: proto.Uint64(2)}
+	n.mu.Unlock()
+	requested := controlScope()
+	requested.Native = 2
+	if err := control.ObserveTarget(context.Background(), requested); err != nil {
+		t.Fatal(err)
+	}
+	sink.mu.Lock()
+	value := sink.value
+	sink.mu.Unlock()
+	if value.Enabled || value.Snapshot.Native != 7 || value.Snapshot.Plan != requested.Plan || value.Snapshot.Revision != requested.Revision {
+		t.Fatal("restart read invented authority", value)
+	}
+	if _, err := control.Lease(value.Snapshot); err == nil {
+		t.Fatal("restart adopted native lease")
+	}
+	if n.acquires.Load() != 0 || n.renews.Load() != 0 || n.revokes.Load() != 0 {
+		t.Fatal("restart observation mutated authority")
+	}
+	n.mu.Lock()
+	n.owner = nil
+	n.mu.Unlock()
+	if err := control.ObserveTarget(context.Background(), requested); err != nil {
+		t.Fatal("inactive observation", err)
+	}
+	if n.acquires.Load() != 0 || n.revokes.Load() != 0 {
+		t.Fatal("inactive observation wrote")
+	}
+	if _, err := control.Acquire(context.Background(), requested); err != nil {
+		t.Fatal(err)
+	}
+	if err := control.ObserveTarget(context.Background(), requested); err == nil {
+		t.Fatal("observation replaced live lease")
+	}
+}
+
+func TestControlObserveTargetFailureDoesNotPublishRequestedGeneration(t *testing.T) {
+	control, n, sink, _ := controlFixture(t, nil)
+	n.onRead = func(context.Context) error { return errors.New("unavailable") }
+	requested := controlScope()
+	requested.Native = 999
+	if err := control.ObserveTarget(context.Background(), requested); err == nil {
+		t.Fatal("missing read failure")
+	}
+	sink.mu.Lock()
+	value := sink.value
+	sink.mu.Unlock()
+	if value.Enabled || value.Snapshot.Native != 0 || control.haveTarget {
+		t.Fatal("failed read fabricated target", value)
+	}
+}
+
+func TestControlAcquireSupersedesBlockedObserveTarget(t *testing.T) {
+	control, n, sink, _ := controlFixture(t, nil)
+	entered := make(chan struct{})
+	var reads atomic.Int32
+	n.onRead = func(ctx context.Context) error {
+		if reads.Add(1) == 1 {
+			close(entered)
+			<-ctx.Done()
+			return ctx.Err()
+		}
+		return nil
+	}
+	done := make(chan error, 1)
+	go func() { done <- control.ObserveTarget(context.Background(), controlScope()) }()
+	<-entered
+	snapshot, err := control.Acquire(context.Background(), controlScope())
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("superseded read succeeded")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("superseded read did not stop")
+	}
+	if lease, err := control.Lease(snapshot); err != nil || lease == "" || !sink.enabled() {
+		t.Fatal("old read disabled new acquisition", err)
 	}
 }
