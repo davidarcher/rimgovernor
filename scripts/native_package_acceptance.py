@@ -69,6 +69,8 @@ async def run(root: Path, output: Path, *, headless: bool, timeout_seconds: int)
                     identity = payload(await evidence.call(bridge, "identity", "home/colony_identity"))
                     assert identity.get("colonyId") and identity.get("loadToken")
                     camera_before = payload(await evidence.call(bridge, "camera-before", "rimworld/get_camera_state"))
+                    building_args = {"x": 0, "z": 0, "radius": 1, "category": "all", "aggregate": False}
+                    buildings_before = payload(await evidence.call(bridge, "buildings-before", "home/list_buildings", building_args))
                     # Native semantic lookup handles this ordinary definition and
                     # edge cell. Refusal is valid; preview must not place anything.
                     candidate = {"defName": "Wall", "x": 0, "z": 0, "rotation": "north", "stuff": ""}
@@ -82,6 +84,10 @@ async def run(root: Path, output: Path, *, headless: bool, timeout_seconds: int)
                     # camera fields only, retaining both raw envelopes for diagnosis.
                     camera_keys = set(camera_before) - {"operation"}
                     assert {k: camera_before[k] for k in camera_keys} == {k: camera_after.get(k) for k in camera_keys}, "Read-only preview moved the camera"
+                    buildings_after = payload(await evidence.call(bridge, "buildings-after", "home/list_buildings", building_args))
+                    assert {k: v for k, v in buildings_before.items() if k != "operation"} == {
+                        k: v for k, v in buildings_after.items() if k != "operation"
+                    }, "Preview changed buildings, blueprints or frames near the candidate"
                     saved = payload(await evidence.call(bridge, "save", "rimworld/save_game", {"saveName": "RimGovernor-package-acceptance"}))
                     save = Path(str(saved["path"])).resolve()
                     assert saved.get("exists") is True and save.is_relative_to(root.resolve())
@@ -91,13 +97,22 @@ async def run(root: Path, output: Path, *, headless: bool, timeout_seconds: int)
                     check_startup_log(log.read_text(encoding="utf8", errors="replace"), headless=headless)
                     report["paused_tick"] = after_clock["ticksGame"]
                     report["passed"] = True
+            except BaseException as error:
+                report["error"] = repr(error)
+                raise
             finally:
-                async with asyncio.timeout(60):
-                    stopped = await bridge.core("games_stop", gameId=bridge.game_id)
-                    report["stop"] = stopped.model_dump(mode="json")
+                try:
+                    async with asyncio.timeout(60):
+                        stopped = await bridge.core("games_stop", gameId=bridge.game_id)
+                        report["stop"] = stopped.model_dump(mode="json")
+                except BaseException as cleanup_error:
+                    report["cleanup_error"] = repr(cleanup_error)
+                    report["passed"] = False
+                    if "error" not in report:
+                        raise
     except BaseException as error:
         report["passed"] = False
-        report["error"] = repr(error)
+        report.setdefault("error", repr(error))
         raise
     finally:
         (output / "result.json").write_text(json.dumps(report, indent=2), encoding="utf8")
