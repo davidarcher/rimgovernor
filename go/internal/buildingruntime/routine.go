@@ -13,13 +13,13 @@ import (
 // It neither acquires authority nor creates methods or game orders.
 type RoutineReviewer struct {
 	player *Player
-	native observation.ColonySource
+	native observation.RoutineSource
 	clock  observation.Clock
 	policy policy.RoutinePolicy
 	maxAge time.Duration
 }
 
-func NewRoutineReviewer(player *Player, native observation.ColonySource, clock observation.Clock, thresholds policy.RoutinePolicy, maxAge time.Duration) (*RoutineReviewer, error) {
+func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock observation.Clock, thresholds policy.RoutinePolicy, maxAge time.Duration) (*RoutineReviewer, error) {
 	if player == nil || native == nil || clock == nil || thresholds.Validate() != nil || maxAge <= 0 || maxAge > time.Minute {
 		return nil, ErrControl
 	}
@@ -61,10 +61,15 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context) (store.RoutineReviewR
 	if expected.Colony != state.Snapshot.Colony || expected.Load != state.Snapshot.Load || expected.Map != state.Snapshot.Map || !known || native != state.Snapshot.Native {
 		return store.RoutineReviewResult{}, ErrControl
 	}
-	reading, err := observation.ObserveColony(ctx, r.native, r.clock, expected, r.maxAge, false, nil)
+	reading, err := observation.ObserveRoutine(ctx, r.native, r.clock, expected, r.maxAge)
 	if err != nil {
 		return store.RoutineReviewResult{}, err
 	}
+	emergency, err := policy.NewEmergencySnapshot(state.Snapshot, expected.Tick, reading.Emergency)
+	if err != nil {
+		return store.RoutineReviewResult{}, err
+	}
+	reading.Projection.Facts.Hostiles, reading.Projection.Facts.CriticalPatients = policy.EmergencyNeeds(emergency, state.Snapshot, expected.Tick)
 	if err = p.current(ctx, epoch); err != nil {
 		return store.RoutineReviewResult{}, err
 	}

@@ -605,6 +605,8 @@ expand these into another nested task tree; remove a row when its outcome is met
   A paused Go read bracket requires matching ticks and known native generations
   and rejects expired/cancelled reads before publishing facts.
   The player-gated reviewer now commits native needs with authority rechecks;
+  its same-tick emergency census supplies medical/combat needs through shared
+  emergency rules, retaining unknowns for incomplete or conflicting evidence.
   Manual and fresh acquisition invalidate routine work without native reads.
   The clock scheduler can attach that reviewer at its paused pre-window boundary,
   after cleanup obligations drain. `serve --routine-reviews` wires this path under

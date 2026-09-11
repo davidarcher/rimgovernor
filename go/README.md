@@ -79,7 +79,10 @@ reads. To replay a retained official payload through Go and durable review, set
 
 `buildingruntime.RoutineReviewer.Step` serializes observation and durable review
 through the existing player gate, rechecks authority after the read, and retains
-unknown needs. Manual and fresh acquisition invalidate previous routine reviews
+unknown needs. `observation.ObserveRoutine` includes the typed emergency census
+inside the same paused brackets. Medical/combat need counts use the shared emergency
+rules, deduplicate patients/threats, and remain unknown on incomplete or conflicting
+evidence. Manual and fresh acquisition invalidate previous routine reviews
 without a native read. A disabled reviewer retires existing work without acquiring
 authority. The reviewer has no independent background loop. A clock scheduler can
 attach the same player's reviewer through `ClockSchedulerConfig.Routine`; it runs

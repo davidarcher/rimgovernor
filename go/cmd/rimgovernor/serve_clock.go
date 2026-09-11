@@ -46,9 +46,9 @@ func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration, routine bool) error {
 	config := serviceClockConfig(profile)
 	if routine {
-		native, ok := reads.(observation.ColonySource)
+		native, ok := reads.(observation.RoutineSource)
 		if !ok {
-			return errors.New("routine reviews require typed colony observations")
+			return errors.New("routine reviews require typed colony and emergency observations")
 		}
 		reviewer, err := buildingruntime.NewRoutineReviewer(player, native, wallClock{}, policy.DefaultRoutinePolicy(), config.MaxAge)
 		if err != nil {

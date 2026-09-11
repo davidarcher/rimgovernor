@@ -24,6 +24,10 @@ type routineNative struct {
 	reads  int
 }
 
+func (n *routineNative) ReadEmergency(ctx context.Context, _ *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
+	return bridge.EmergencyObservation{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}}, bridge.Result{}, ctx.Err()
+}
+
 func (n *routineNative) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {
 	return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Paused: proto.Bool(true)}}}, bridge.Result{}, ctx.Err()
 }
@@ -165,5 +169,61 @@ func TestRoutineReviewerDisabledStepRetiresReviewWithoutReacquiring(t *testing.T
 	stored, err := db.LoadRoutineReview(context.Background())
 	if err != nil || stored.Enabled {
 		t.Fatal(stored, err)
+	}
+}
+
+type routineMedicalNative struct {
+	*routineNative
+	stale   bool
+	unknown bool
+}
+
+func (n *routineMedicalNative) ReadEmergency(ctx context.Context, id *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
+	v, receipt, err := n.routineNative.ReadEmergency(ctx, id)
+	if n.stale {
+		v.Context.Tick = proto.Int64(v.Context.GetTick() + 1)
+	}
+	pawn := policy.EmergencyPawn{ID: "patient", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(true)}
+	if n.unknown {
+		pawn.NeedsTend = domain.Unknown[bool]()
+	}
+	v.Facts.Colonists = []policy.EmergencyPawn{pawn}
+	return v, receipt, err
+}
+func TestRoutineReviewerUsesSameTickMedicalCensus(t *testing.T) {
+	for _, kind := range []string{"needs_tend", "unknown", "stale"} {
+		t.Run(kind, func(t *testing.T) {
+			r, db, _, _, n := routineFixture(t)
+			r.native = &routineMedicalNative{routineNative: n, stale: kind == "stale", unknown: kind == "unknown"}
+			got, err := r.Step(context.Background())
+			if kind == "stale" {
+				if err == nil {
+					t.Fatal("mixed ticks committed")
+				}
+				stored, e := db.LoadRoutineReview(context.Background())
+				if e != nil || stored.Revision != 0 {
+					t.Fatal(stored, e)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, binding := range got.Review.Goals {
+				if binding.Need != domain.GoalID(policy.CriticalMedicine) {
+					continue
+				}
+				g, e := db.LoadGoal(context.Background(), binding.Goal)
+				want := domain.NeedDeficit
+				if kind == "unknown" {
+					want = domain.NeedUnknown
+				}
+				if e != nil || g.Goal.Need != want {
+					t.Fatal(g, e)
+				}
+				return
+			}
+			t.Fatal("medical goal missing")
+		})
 	}
 }
