@@ -182,3 +182,49 @@ func TestClockEventsValidationAndTypedRefusal(t *testing.T) {
 		t.Fatal(r, err)
 	}
 }
+
+func TestClockEventsOptionalOldestCursor(t *testing.T) {
+	for _, count := range []int{0, 2} {
+		page := clockEventPage(count)
+		page.OldestCursor = nil
+		client := testClient(t, &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			return pbResult(&k.EventsReply{Outcome: &k.EventsReply_Page{Page: page}}), nil
+		}}, time.Second)
+		reply, _, err := client.ReadClockEvents(context.Background(), clockEventsRequest())
+		if err != nil || reply.GetPage().OldestCursor != nil || len(reply.GetPage().Events) != count {
+			t.Fatal(reply, err)
+		}
+	}
+	// An omitted retention boundary neither proves continuity nor replaces loss
+	// evidence. Ordered event gaps remain legal and their reported loss is kept.
+	page := clockEventPage(2)
+	page.OldestCursor = nil
+	page.Events[1].Cursor = proto.Int64(5)
+	page.NewestCursor = proto.Int64(5)
+	page.NextCursor = proto.Int64(5)
+	page.Gap = proto.Bool(true)
+	page.LostCount = proto.Uint64(3)
+	if err := clockEventsPage(page, clockEventsRequest()); err != nil {
+		t.Fatal(err)
+	}
+	for name, edit := range map[string]func(*k.EventsPage){
+		"missing newest":      func(p *k.EventsPage) { p.NewestCursor = nil },
+		"missing next":        func(p *k.EventsPage) { p.NextCursor = nil },
+		"missing gap":         func(p *k.EventsPage) { p.Gap = nil },
+		"missing loss":        func(p *k.EventsPage) { p.LostCount = nil },
+		"inconsistent loss":   func(p *k.EventsPage) { p.LostCount = proto.Uint64(0) },
+		"unordered":           func(p *k.EventsPage) { p.Events[1].Cursor = proto.Int64(1) },
+		"zero oldest":         func(p *k.EventsPage) { p.OldestCursor = proto.Int64(0) },
+		"negative oldest":     func(p *k.EventsPage) { p.OldestCursor = proto.Int64(-1) },
+		"beyond newest":       func(p *k.EventsPage) { p.OldestCursor = proto.Int64(6) },
+		"event before oldest": func(p *k.EventsPage) { p.OldestCursor = proto.Int64(2) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			changed := proto.Clone(page).(*k.EventsPage)
+			edit(changed)
+			if !errors.Is(clockEventsPage(changed, clockEventsRequest()), ErrContract) {
+				t.Fatal("invalid page accepted")
+			}
+		})
+	}
+}
