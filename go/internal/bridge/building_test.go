@@ -137,7 +137,7 @@ func TestBuildingReadMethodsAndUncertainty(t *testing.T) {
 		}
 	}}
 	client := testClient(t, s, time.Second)
-	lookup, _, err := client.LookupBuildingAttempt(context.Background(), buildingPre(), pbRequest().Placements[0])
+	lookup, _, err := client.LookupBuildingAttempt(context.Background(), buildingPre().Identity, buildingPre().Attempt, 1, pbRequest().Placements[0])
 	if err != nil || lookup.GetUnknown() == nil {
 		t.Fatal(err)
 	}

@@ -54,11 +54,21 @@ func (b *BuildingControl) PlaceBuilding(ctx context.Context, pre *a.WritePrecond
 
 // LookupBuildingAttempt never retries placement. Unknown means the ledger has
 // no answer, not that the admitted operation had no effect.
-func (client *Client) LookupBuildingAttempt(ctx context.Context, pre *a.WritePrecondition, candidate *p.PlacementCandidate) (*r.LookupReply, Result, error) {
-	if err := buildingInputs(pre, candidate); err != nil {
+func (client *Client) LookupBuildingAttempt(ctx context.Context, identity *c.Identity, attempt *c.AttemptKey, expectedGeneration uint64, candidate *p.PlacementCandidate) (*r.LookupReply, Result, error) {
+	if expectedGeneration == 0 {
+		return nil, Result{}, contract("lookup admission generation missing")
+	}
+	if err := ValidateIdentity(identity); err != nil {
 		return nil, Result{}, err
 	}
-	pre = proto.Clone(pre).(*a.WritePrecondition)
+	if err := buildingAttempt(attempt); err != nil {
+		return nil, Result{}, err
+	}
+	if err := buildingCandidate(identity, candidate); err != nil {
+		return nil, Result{}, err
+	}
+	// This correlation value is not a write authorization and carries no lease.
+	pre := &a.WritePrecondition{Identity: proto.Clone(identity).(*c.Identity), Attempt: proto.Clone(attempt).(*c.AttemptKey), ExpectedGeneration: proto.Uint64(expectedGeneration)}
 	candidate = proto.Clone(candidate).(*p.PlacementCandidate)
 	reply := &r.LookupReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/receipts_lookup", &r.LookupRequest{Identity: pre.Identity, Attempt: pre.Attempt}, reply)
