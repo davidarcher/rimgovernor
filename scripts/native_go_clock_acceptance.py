@@ -158,6 +158,12 @@ async def run(root, output, binary, *, go_source, go_sha256):
             await asyncio.sleep(2)
             assert (await state(http, paused=True))["game"]["tick"] == paused["game"]["tick"]
             report["manual_state"] = paused
+            manual_review = await poll(http, "/api/player/clock", lambda v: bool(v["holds"]) and v["reviewedCursor"] == v["inboxCursor"])
+            report["manual_review"] = manual_review
+            manual_ack = await http("POST", "/api/player/clock/acknowledge", body={"requestId": "inspect-manual",
+                "expectedRevision": manual_review["revision"], "throughCursor": manual_review["reviewedCursor"]})
+            assert not manual_ack["holds"]
+            assert not (await http("GET", "/api/player/control"))["state"]["enabled"]
             await acquire(http, submission, "clock-acquire-3")
             plan = await poll(http, "/api/plan?id=" + submission["planId"], lambda v: action(v, submission)["stage"] == "completed", timeout=180)
             verify_progress(plan, submission, True)
