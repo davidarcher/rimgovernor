@@ -635,7 +635,8 @@ expand these into another nested task tree; remove a row when its outcome is met
   Routine reviews now bracket exact-ID equipment reads with the native colony and
   emergency census to derive available armed capacity. Missing pawn rows, equipment
   or conflicting counts/states remain unknown; stale ticks/generations reject the
-  review. Targeted native service acceptance of this defense input remains open.
+  review. Targeted native service acceptance verifies an observed equipment shortage
+  reaching the durable defense deficit, Manual invalidation and disabled restart.
   Superseded invalidated autopilot goals now retire from active capacity while
   retaining immutable history; uncertain effects and cleanup prevent retirement.
   Completion observed after cancellation now yields historic cost/geometry holds
