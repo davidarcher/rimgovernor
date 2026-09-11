@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"errors"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -113,7 +114,18 @@ func (b *DraftBoundary) ObserveDraft(ctx context.Context, p executor.Placement, 
 	if job != nil && job.DraftClaimId != nil {
 		out.Claim, err = b.claim(p, job, row, observed)
 		if err != nil {
-			return out, err
+			if !errors.Is(err, executor.ErrHeld) {
+				return out, err
+			}
+			out.Claim, err = b.historicalClaim(p, receipt, row, observed)
+			if err != nil {
+				return out, err
+			}
+			// The original receipt proves past acquisition. New ownership evidence
+			// contradicts completion as our currently owned draft.
+			if out.Observation.Effect != domain.EffectUnsuccessful {
+				out.Observation.Effect = domain.EffectUnknown
+			}
 		}
 	}
 	if out.Observation.Effect == domain.EffectCompleted {

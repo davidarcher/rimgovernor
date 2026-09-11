@@ -45,7 +45,7 @@ func draftBoundaryFixture(t *testing.T) (*DraftBoundary, *draftFixtureNative) {
 	job := &r.JobEffect{PawnId: proto.String("pawn"), Drafted: proto.Bool(true), Verified: proto.Bool(true), Issued: proto.Bool(true), DraftOwner: proto.String("session"), DraftClaimId: proto.String("claim"), ResultingSnapshotToken: proto.String("cas")}
 	effect := &r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: job}}
 	key := &c.AttemptKey{ControllerSessionId: proto.String("session"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}
-	f := &draftFixtureNative{p: p, context: ctx, row: row, receipt: &r.Receipt{Attempt: key, AdmittedContext: proto.Clone(ctx).(*c.ObservationContext), AuthorizingOwner: owner, Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: effect}}}, progress: &r.Progress{Attempt: proto.Clone(key).(*c.AttemptKey), Context: proto.Clone(ctx).(*c.ObservationContext), CompleteInspection: proto.Bool(true), Effect: &r.Progress_Completed{Completed: &r.CompletedEffect{Evidence: proto.Clone(effect).(*r.EffectEvidence)}}}}
+	f := &draftFixtureNative{p: p, context: ctx, row: row, receipt: &r.Receipt{Attempt: key, AdmittedContext: proto.Clone(ctx).(*c.ObservationContext), AuthorizingOwner: proto.Clone(owner).(*a.Owner), Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: effect}}}, progress: &r.Progress{Attempt: proto.Clone(key).(*c.AttemptKey), Context: proto.Clone(ctx).(*c.ObservationContext), CompleteInspection: proto.Bool(true), Effect: &r.Progress_Completed{Completed: &r.CompletedEffect{Evidence: proto.Clone(effect).(*r.EffectEvidence)}}}}
 	b, err := NewDraftBoundary(f, f, f, f, boundaryClock{}, "session")
 	if err != nil {
 		t.Fatal(err)
@@ -150,6 +150,10 @@ func TestDraftBoundaryOriginalAttemptAndFreshOwnerRequired(t *testing.T) {
 			_, known := out.Claim.Value()
 			if kind == "valid" || kind == "lost-receipt" {
 				if err != nil || !known || out.Observation.Effect != domain.EffectCompleted {
+					t.Fatal(out, err)
+				}
+			} else if kind == "foreign-direction" || kind == "different-claim" {
+				if err != nil || !known || out.Observation.Effect != domain.EffectUnknown {
 					t.Fatal(out, err)
 				}
 			} else if kind == "unknown-progress" {
