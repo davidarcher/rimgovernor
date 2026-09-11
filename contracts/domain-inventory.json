@@ -6694,7 +6694,7 @@
   ],
   "native_surface": {
     "version": 1,
-    "source_revision": "c8d0f3f6e61f7b12e27312db0027060024bb3775",
+    "source_revision": "36105329b98b6a2934c984193ad08a5cbc078272",
     "scope": "Current repository-owned native Runtime/Bridge exports, generated Protobuf compile inputs and conditional fixtures. Historical Python consumer inventory remains at its independent source_revision. Installed SDK/GABS exports require actual discovery.",
     "evidence_links": "domain_item_id reuses existing G01 owner, fixtures and native_scenarios without copying Python call-site lists. Empty local evidence lists preserve uncovered acceptance. schema_owner_chunk assigns the cross-language schema owner; native_owner_chunk owns typed conversion or fixture isolation.",
     "variant_contract": "source_baseline.exports[].declaration retains the complete exported signature, Tool/ToolParameter/ToolResponse attributes, documented string variants, optional selectors and defaults. Source fingerprints detect implementation changes. Runtime branches, aliases and payload keys still require behavioral schema and discovery acceptance.",
@@ -6996,6 +6996,10 @@
             },
             {
               "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeDraftProtocol.cs",
+              "condition": ""
+            },
+            {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeMovementOperations.cs",
               "condition": ""
             },
             {
@@ -7814,7 +7818,7 @@
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/ProtoIdentityTools.cs",
           "line": 12,
           "declaration": "[Tool(\"rimgovernor/lifecycle_read_identity\", Title = \"Read native identity\",\n            Description = \"Read the current colony, load, map and native contract capabilities.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON rimgovernor.lifecycle.v1.IdentityReply.\", Always = true)]\n        public async Task<object> ReadIdentity(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official lifecycle IdentityRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "61c1510180386306a153f00569f75688c85421eaf1e028f154952774a3bd801c"
+          "source_sha256": "05551c3ec73578021aba2e3e4194528b86ebbdb1df96bbde5f15a72730765129"
         },
         {
           "name": "rimgovernor/observations_get_cells",
@@ -7861,23 +7865,23 @@
         {
           "name": "rimgovernor/operations_execute",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
-          "line": 44,
-          "declaration": "[Tool(\"rimgovernor/operations_execute\", Title = \"Execute guarded native operation\", Description = \"Admit typed PlaceBuilding or temporary owned SetDrafted under current native authority. Exact retries return their original receipt.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON ExecuteReply.\", Always = true)]\n        public async Task<object> Execute(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official operations ExecuteRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "56075b7a7c34254a8e309469e5ca465d03d479bcaf2e03e8f343e613599234f0"
+          "line": 45,
+          "declaration": "[Tool(\"rimgovernor/operations_execute\", Title = \"Execute guarded native operation\", Description = \"Admit typed PlaceBuilding, temporary owned SetDrafted or exact MovePawn under current native authority. Movement requires an existing owned draft. Exact retries return their original receipt.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON ExecuteReply.\", Always = true)]\n        public async Task<object> Execute(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official operations ExecuteRequest ProtoJSON string.\")] object request = null)",
+          "source_sha256": "8313e0f4d34ede2416ff361d38b79291d05c90bfc8ff937719314c4f6f74c4d6"
         },
         {
           "name": "rimgovernor/operations_preview",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
-          "line": 123,
+          "line": 126,
           "declaration": "[Tool(\"rimgovernor/operations_preview\", Title = \"Preview typed operation\", Description = \"Read ordinary construction or pawn draft eligibility without acquiring authority or applying effects.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON PreviewReply.\", Always = true)]\n        public async Task<object> Preview(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official operations PreviewRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "56075b7a7c34254a8e309469e5ca465d03d479bcaf2e03e8f343e613599234f0"
+          "source_sha256": "8313e0f4d34ede2416ff361d38b79291d05c90bfc8ff937719314c4f6f74c4d6"
         },
         {
           "name": "rimgovernor/operations_release_owned_draft",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
-          "line": 202,
+          "line": 210,
           "declaration": "[Tool(\"rimgovernor/operations_release_owned_draft\", Title = \"Release exact owned draft\", Description = \"Release an unchanged native draft claim under its original owner/direction, including after Manual or lease expiry. Independent of ordinary attempt capacity; never adopts or clears replacement player orders.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON ReleaseOwnedDraftReply.\", Always = true)]\n        public async Task<object> ReleaseOwnedDraft(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official operations ReleaseOwnedDraftRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "56075b7a7c34254a8e309469e5ca465d03d479bcaf2e03e8f343e613599234f0"
+          "source_sha256": "8313e0f4d34ede2416ff361d38b79291d05c90bfc8ff937719314c4f6f74c4d6"
         },
         {
           "name": "rimgovernor/placement_preview",
@@ -7910,16 +7914,16 @@
         {
           "name": "rimgovernor/receipts_lookup",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
-          "line": 150,
+          "line": 155,
           "declaration": "[Tool(\"rimgovernor/receipts_lookup\", Title = \"Look up admitted attempt\", Description = \"Read original admitted receipt without requiring current authority.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON LookupReply.\", Always = true)]\n        public async Task<object> Lookup(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official receipts LookupRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "56075b7a7c34254a8e309469e5ca465d03d479bcaf2e03e8f343e613599234f0"
+          "source_sha256": "8313e0f4d34ede2416ff361d38b79291d05c90bfc8ff937719314c4f6f74c4d6"
         },
         {
           "name": "rimgovernor/receipts_observe_progress",
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
-          "line": 171,
+          "line": 176,
           "declaration": "[Tool(\"rimgovernor/receipts_observe_progress\", Title = \"Observe admitted operation\", Description = \"Read causally tracked construction or draft state; absence of an attempt never proves completion.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON ProgressReply.\", Always = true)]\n        public async Task<object> ObserveProgress(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official receipts ProgressRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "56075b7a7c34254a8e309469e5ca465d03d479bcaf2e03e8f343e613599234f0"
+          "source_sha256": "8313e0f4d34ede2416ff361d38b79291d05c90bfc8ff937719314c4f6f74c4d6"
         },
         {
           "name": "test/b04f_setup",
@@ -9491,10 +9495,12 @@
         "build_role": "production",
         "fixtures": [
           "contracts/tests/native-attempt-ledger/Program.cs",
-          "contracts/tests/native-construction-causality/Program.cs"
+          "contracts/tests/native-construction-causality/Program.cs",
+          "contracts/tests/native-movement-operations/Program.cs"
         ],
         "native_scenarios": [
-          "scripts/native_guarded_construction_acceptance.py"
+          "scripts/native_guarded_construction_acceptance.py",
+          "scripts/native_movement_acceptance.py"
         ],
         "status": "pending",
         "uncovered_acceptance": [
@@ -9512,10 +9518,12 @@
         "build_role": "production",
         "fixtures": [
           "contracts/tests/native-attempt-ledger/Program.cs",
-          "contracts/tests/native-construction-causality/Program.cs"
+          "contracts/tests/native-construction-causality/Program.cs",
+          "contracts/tests/native-movement-operations/Program.cs"
         ],
         "native_scenarios": [
-          "scripts/native_guarded_construction_acceptance.py"
+          "scripts/native_guarded_construction_acceptance.py",
+          "scripts/native_movement_acceptance.py"
         ],
         "status": "pending",
         "uncovered_acceptance": [
@@ -9649,10 +9657,12 @@
         "build_role": "production",
         "fixtures": [
           "contracts/tests/native-attempt-ledger/Program.cs",
-          "contracts/tests/native-construction-causality/Program.cs"
+          "contracts/tests/native-construction-causality/Program.cs",
+          "contracts/tests/native-movement-operations/Program.cs"
         ],
         "native_scenarios": [
-          "scripts/native_guarded_construction_acceptance.py"
+          "scripts/native_guarded_construction_acceptance.py",
+          "scripts/native_movement_acceptance.py"
         ],
         "status": "pending",
         "uncovered_acceptance": [

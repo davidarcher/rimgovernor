@@ -1363,9 +1363,14 @@ main. Native package and Go production cutover remain independent.
   for causal claims, immutable replay, already-owned NoChange, stale CAS refusal,
   cleanup after Manual and confirmed lease expiry, and exact cleanup replay.
   Successful player orders invalidate claims; refused cleanup preserves the observed
-  player job. Unowned player drafts cannot be adopted. General pawn orders,
+  player job. Unowned player drafts cannot be adopted. Other pawn orders,
   persistent draft policy, fault-injected uncertain setters, context replacement
   and actual-game cleanup with an exhausted ordinary ledger remain open.
+  Exact owned `MovePawn` has native acceptance for real arrival, correlated
+  job/target progress, immutable replay, same-position NoChange and player-order
+  interruption. Queued orders remain pending. Cleanup attribution survives an
+  in-flight lease expiry without restoring write permission; fault-injected native
+  expiry and uncertain-order recovery still require game acceptance.
   Native lost-reply fault injection,
   instant/replacement construction cases and remaining operation families are open.
 

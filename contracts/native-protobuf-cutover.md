@@ -39,7 +39,8 @@ Protobuf parsing/formatting. Generated compile inputs come from
 are included in `domain-inventory.json.native_surface.source_baseline`.
 
 `Operations/Preview` and `Operations/Execute` implement ordinary `PlaceBuilding`
-and temporary `SetDrafted`; other command variants return unsupported. Their presence does not advertise
+and temporary `SetDrafted` plus exact `MovePawn` under an existing owned draft;
+other command variants return unsupported. Their presence does not advertise
 the entire operations schema as implemented. `Protocol/NativeConstruction.cs`
 owns native placement and tracked construction transitions;
 `Protocol/NativeConstructionCausality.cs` checks exact factory/spawn attribution.
@@ -122,7 +123,14 @@ readback. Already-owned drafting preserves its claim without another setter.
 revocation and keeps its latest cleanup replay outside the ordinary attempt ledger.
 Persistent drafting remains unsupported.
 
-Current source inventory: 79 production exports, 56 fixture exports, 145 handwritten
+`MovePawn` requires an exact reachable destination, current pawn snapshot and
+matching live owner/claim. Its receipt identifies the actual issued job; queued
+work remains pending until the pawn starts that job and reaches the destination.
+Player orders, changed claims and authority generations interrupt attribution.
+Causal synchronous scope tracking preserves cleanup ownership if an admitted order
+outlives its lease; it never grants another write or revives the expired lease.
+
+Current source inventory: 79 production exports, 56 fixture exports, 146 handwritten
 C# source files and nine generated Protobuf compile inputs. Source declarations do
 not establish gameplay acceptance. Actual installed discovery must match the private
 build and prove fixture exclusion; pending native acceptance remains explicit in

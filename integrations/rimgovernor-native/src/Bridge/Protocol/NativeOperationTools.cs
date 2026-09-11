@@ -42,7 +42,7 @@ namespace HomeBridge.BridgeTools
     {
         public NativeOperationTools() { NativeConstructionTracking.Install(); NativePawnControlState.Initialize(); }
 
-        [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "Admit typed PlaceBuilding or temporary owned SetDrafted under current native authority. Exact retries return their original receipt.")]
+        [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "Admit typed PlaceBuilding, temporary owned SetDrafted or exact MovePawn under current native authority. Movement requires an existing owned draft. Exact retries return their original receipt.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ExecuteReply.", Always = true)]
         public async Task<object> Execute(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official operations ExecuteRequest ProtoJSON string.")] object request = null)
@@ -72,7 +72,7 @@ namespace HomeBridge.BridgeTools
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.MovePawn)
                 return NativeMovementOperations.Execute(state, request, context);
             if (request.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
-                return Refuse(Common.FailureCode.Unsupported, "This native adapter implements PlaceBuilding and temporary owned SetDrafted.");
+                return Refuse(Common.FailureCode.Unsupported, "This native adapter implements PlaceBuilding, temporary owned SetDrafted and exact owned MovePawn.");
             if (!NativeConstructionTracking.Ready)
                 return Refuse(Common.FailureCode.Unavailable, "Construction transition tracking is unavailable.");
             NativeControlAuthority authority;
@@ -141,7 +141,7 @@ namespace HomeBridge.BridgeTools
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.MovePawn)
                     return ProtoBoundary.Encode(NativeMovementOperations.Preview(parsed.Operation.MovePawn, context));
                 if (parsed.Operation == null || parsed.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
-                    return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements PlaceBuilding.") });
+                    return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements PlaceBuilding, temporary SetDrafted and exact owned MovePawn.") });
                 NativeConstructionPlan plan; RimGovernor.Protocol.Placement.PlacementEvaluated preview;
                 var accepted = NativeConstructionPlan.Prepare(Find.CurrentMap, parsed.Operation.PlaceBuilding.Placement, context, out plan, out preview, out invalid);
                 if (preview == null) return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = invalid });

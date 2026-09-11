@@ -54,7 +54,7 @@ namespace HomeBridge.BridgeTools
                     loaded.Capabilities.Add(new Lifecycle.Capability
                     {
                         FullMethodName = "rimgovernor.operations.v1.Operations/" + method,
-                        Support = Lifecycle.CapabilitySupport.Supported, Detail = "PlaceBuilding and temporary SetDrafted are implemented; persistent drafting and other commands return unsupported."
+                        Support = Lifecycle.CapabilitySupport.Supported, Detail = "PlaceBuilding, temporary SetDrafted and exact MovePawn under an existing owned draft are implemented; persistent drafting and other commands return unsupported."
                     });
                 loaded.Capabilities.Add(new Lifecycle.Capability
                 {

@@ -1,6 +1,6 @@
 {
   "inventory_version": 1,
-  "source_revision": "c8d0f3f6e61f7b12e27312db0027060024bb3775",
+  "source_revision": "36105329b98b6a2934c984193ad08a5cbc078272",
   "scope": "Tracked C# sources in unified native Runtime/Bridge and scripts/fixtures; lexical reference index, not an AST or proof of behavioral coverage.",
   "source_line_policy": "One-based source anchors at source_revision; static matches include methods and constructors, reflection matches include helper use and interop. Read the full source declaration before changing ownership.",
   "rows": [
@@ -1114,7 +1114,7 @@
     {
       "source": "integrations/rimgovernor-native/src/Bridge/NativePawnControlState.cs",
       "compilation": "production-bridge",
-      "source_sha256": "657f25a2756188687d10dc3ac055c91b3223122ca3813d80c1d55eb482575137",
+      "source_sha256": "3d772c868be99a2fd98eddf97cc120621d22ef2360256f0949a83519a65b3c69",
       "owner": "N01.04 native guarded construction and reconciliation owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
@@ -1134,14 +1134,15 @@
         237,
         238,
         243,
-        249,
-        251,
-        281,
-        282,
-        284,
-        292,
-        299,
-        307
+        248,
+        254,
+        256,
+        286,
+        287,
+        289,
+        297,
+        304,
+        312
       ],
       "reflection_boundary_lines": [
         201,
@@ -2054,6 +2055,32 @@
       "patch_registration_lines": []
     },
     {
+      "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeMovementOperations.cs",
+      "compilation": "production-bridge",
+      "source_sha256": "cf35314fab838566216e6c7e3032b83d078dfc54648a0b8aefd7d5234619fb99",
+      "owner": "N01.04 native guarded movement owner",
+      "migration_status": "implemented-native-acceptance-pending",
+      "uncovered_acceptance": "Verify exact issued job attribution, real pawn arrival, queued and uncertain work, player override and context changes.",
+      "static_token_lines": [
+        30,
+        90,
+        92,
+        94,
+        96,
+        110,
+        112,
+        166,
+        178
+      ],
+      "reflection_boundary_lines": [
+        85,
+        162,
+        163,
+        176
+      ],
+      "patch_registration_lines": []
+    },
+    {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeObservationTools.cs",
       "compilation": "production-bridge",
       "source_sha256": "92c852b6f49b3a32520d5562200f216e61f0465dbb68c66da18d95f667a7eea5",
@@ -2108,21 +2135,21 @@
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
       "compilation": "production-bridge",
-      "source_sha256": "56075b7a7c34254a8e309469e5ca465d03d479bcaf2e03e8f343e613599234f0",
+      "source_sha256": "8313e0f4d34ede2416ff361d38b79291d05c90bfc8ff937719314c4f6f74c4d6",
       "owner": "N01.04 native guarded construction and reconciliation owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
       "static_token_lines": [
         17,
-        25,
-        31,
-        55,
-        213,
-        216
+        26,
+        32,
+        56,
+        221,
+        224
       ],
       "reflection_boundary_lines": [
-        87,
-        119
+        90,
+        122
       ],
       "patch_registration_lines": []
     },
@@ -2334,7 +2361,7 @@
       "owner": "N01.02 native identity capability owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
-      "source_sha256": "61c1510180386306a153f00569f75688c85421eaf1e028f154952774a3bd801c",
+      "source_sha256": "05551c3ec73578021aba2e3e4194528b86ebbdb1df96bbde5f15a72730765129",
       "static_token_lines": [],
       "reflection_boundary_lines": [],
       "patch_registration_lines": []
@@ -3366,14 +3393,14 @@
       "owner": "N01.05 native authority runtime owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
-      "source_sha256": "d63e2a540550681d0ff5b62256340d6123eb8fa7ed67494737b5b0a8b0b4cf21",
+      "source_sha256": "ceaf59e964863005c16300d7d97425939f9518fe50b5ee99256c41a18f0ed425",
       "static_token_lines": [
         74,
-        96,
-        103,
-        119,
-        125,
-        322
+        97,
+        104,
+        120,
+        126,
+        346
       ],
       "reflection_boundary_lines": [],
       "patch_registration_lines": []
