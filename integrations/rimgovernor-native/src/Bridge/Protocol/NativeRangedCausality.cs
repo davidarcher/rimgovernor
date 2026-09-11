@@ -188,8 +188,14 @@ namespace HomeBridge.BridgeTools
         private static void BeforeAnyDamage(out DamageFrame? __state)
         {
             __state=null;
-            try { __state=new DamageFrame {PreviousDepth=damageDepth};damageDepth=checked(damageDepth+1);damageSequence=checked(damageSequence+1); }
-            catch { exhausted=true; }
+            try {
+                // Even unhealthy calls invalidate enclosing damage evidence. Enter
+                // nesting only when this invocation has exactly one cleanup hook.
+                damageSequence=checked(damageSequence+1);
+                if (Count(Harmony.GetPatchInfo(DamageTarget)?.Finalizers,DamageFinalizer)!=1) return;
+                __state=new DamageFrame {PreviousDepth=damageDepth};
+                damageDepth=checked(damageDepth+1);
+            } catch { exhausted=true; }
         }
         private static Exception? EndAnyDamage(Exception? __exception,DamageFrame? __state)
         {

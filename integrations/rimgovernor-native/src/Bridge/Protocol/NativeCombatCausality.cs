@@ -133,6 +133,12 @@ namespace HomeBridge.BridgeTools
         {
             __state=null;
             try {
+                if (Harmony.GetPatchInfo(MeleeTarget)?.Finalizers.Count(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,MeleeFinalizer))!=1) {
+                    // Do not leave an unpaired scope behind, or let an enclosing
+                    // scope adopt an unverified nested invocation after repair.
+                    if (meleeScope!=null) meleeScope.Caster=null;
+                    return;
+                }
                 __state=new MeleeScope {Previous=meleeScope};
                 meleeScope=__state;
                 if (!UnityData.IsInMainThread || !IsReady || damageDepth!=0) return;
@@ -158,14 +164,16 @@ namespace HomeBridge.BridgeTools
         {
             __state=null;
             try {
-                __state=new DamageFrame {PreviousDepth=damageDepth};
-                damageDepth=checked(damageDepth+1);
+                if (Harmony.GetPatchInfo(Target)?.Finalizers.Count(p=>p.owner==Owner && NativeConstructionHookSet.SameMethod(p.PatchMethod,DamageFinalizer))==1) {
+                    __state=new DamageFrame {PreviousDepth=damageDepth};
+                    damageDepth=checked(damageDepth+1);
+                }
                 if (!UnityData.IsInMainThread || Current.Game==null || !(__instance is Pawn victim)
                     || !Games.TryGetValue(Current.Game,out var game) || !game.Targets.TryGetValue(victim,out var target)) return;
                 if (target.Exhausted || target.Sequence==long.MaxValue) { target.Exhausted=true; return; }
                 var sequence=++target.Sequence;
                 var scope=meleeScope;
-                if (__state.PreviousDepth!=0 || scope==null || scope.Caster==null || scope.Victim!=victim || !IsReady || victim.Dead) return;
+                if (__state==null || __state.PreviousDepth!=0 || scope==null || scope.Caster==null || scope.Victim!=victim || !IsReady || victim.Dead) return;
                 foreach (var record in target.Records) {
                     if (scope.Caster!=record.Attacker || scope.Job!=record.Job || scope.JobId!=record.JobId || record.CausedDeath || record.Game!=Current.Game || record.Map!=Find.CurrentMap
                         || record.Map!=victim.Map || dinfo.Instigator!=record.Attacker || record.Attacker.CurJob!=record.Job
