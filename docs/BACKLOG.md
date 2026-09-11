@@ -832,6 +832,11 @@ only intentional small, sanitized regression fixtures belong in source control.
             evidence. Owner: bridge agent; depends on 06b.3b.6. Events report
             interruptions without granting resume or write authority.
   - [ ] **06c:** isolated ordinary pawn construction and interruption acceptance.
+    - [x] **06c.1:** explicit Go fixture placement and read-only restart observation
+      command. Owner: bridge agent; depends on 06b.3b.3–4. The native scenario
+      owns startup, observed placement selection, tick advancement and cleanup.
+    - [ ] **06c.2:** ordinary pawn completion and interruption acceptance against
+      native guarded adapters. Owner: integrator with N01; depends on 06c.1.
 
 - [ ] **G01.07 — Routine capabilities in bounded families.** Owners: domain agents.
   Each subchunk includes policy/method compilation, typed native arguments, Hands
