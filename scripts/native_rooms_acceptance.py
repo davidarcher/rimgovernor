@@ -80,6 +80,8 @@ async def run(root, output, *, headless=True):
                     await call("pause", "rimworld/set_time_speed", {"speed": "Paused", "ultraSpeedBoost": False})
                     before = (await wire("identity-before", "lifecycle_read_identity", {}))["loaded"]
                     assert before["paused"] is True
+                    advertised = [row for row in before["capabilities"] if row.get("fullMethodName") == "rimgovernor.observations.v1.Observations/ListRooms"]
+                    assert len(advertised) == 1 and advertised[0]["support"] == "CAPABILITY_SUPPORT_SUPPORTED"
                     scope = {"scope": {"expectedIdentity": before["context"]["identity"]}}
                     legacy = await call("native-default", "home/list_rooms", {"cells": True})
                     assert legacy["success"] is True

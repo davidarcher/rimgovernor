@@ -81,6 +81,12 @@ namespace HomeBridge.BridgeTools
                     Support = Lifecycle.CapabilitySupport.Supported,
                     Detail = "Complete bounded project and prerequisite facts with optional unlocks and map-local benches/researchers. Existing saved progress and slots are read without initialization. No frozen paging or CAS snapshot."
                 });
+                loaded.Capabilities.Add(new Lifecycle.Capability
+                {
+                    FullMethodName = "rimgovernor.observations.v1.Observations/ListRooms",
+                    Support = Lifecycle.CapabilitySupport.Supported,
+                    Detail = "Complete bounded native room geometry, statistics and memberships with exact filters and optional cells/boundary contents. Optional unreadable facts carry issues; no frozen paging or CAS snapshots."
+                });
                 foreach (var method in new[] { "Camera", "Selection", "Colonists" })
                     loaded.Capabilities.Add(new Lifecycle.Capability
                     {

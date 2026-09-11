@@ -15,6 +15,7 @@ one `payload` ProtoJSON string plus host operation metadata.
 | rimgovernor/observations_list_buildings | rimgovernor.observations.v1.Observations/ListBuildings | Protocol/NativeBuildingObservationTools.cs |
 | rimgovernor/observations_list_pawns | rimgovernor.observations.v1.Observations/ListPawns | Protocol/NativePawnObservationTools.cs |
 | rimgovernor/observations_list_supplies | rimgovernor.observations.v1.Observations/ListSupplies | Protocol/NativeSuppliesObservationTools.cs |
+| rimgovernor/observations_list_rooms | rimgovernor.observations.v1.Observations/ListRooms | Protocol/NativeRoomObservationTools.cs |
 | rimgovernor/observations_read_research | rimgovernor.observations.v1.Observations/ReadResearch | Protocol/NativeResearchObservationTools.cs |
 | rimgovernor/operations_preview | rimgovernor.operations.v1.Operations/Preview | Protocol/NativeOperationTools.cs |
 | rimgovernor/operations_execute | rimgovernor.operations.v1.Operations/Execute | Protocol/NativeOperationTools.cs |
@@ -113,6 +114,14 @@ Oversized collections refuse rather than truncate; no frozen paging or CAS token
 is issued. `native_research_acceptance.py` uses a private read-only fingerprint
 fixture to verify saved-state invariance before a separate native getter audit.
 
+`Observations/ListRooms` returns complete bounded native room geometry, statistics
+and memberships. Exact room/region filters and optional cells/boundary contents
+preserve unknown optional facts through issues; oversized results refuse without
+truncation. Room IDs identify the current graph, with no frozen pages or CAS.
+Headless and rendered acceptance cross-check populated indoor structures against
+native reads and preserve paused context. Populated bed, pawn and stockpile
+memberships remain acceptance gaps.
+
 Live current-map draft controllers expose opaque draft-control snapshots and
 canonical owned/unowned draft claims. Tokens cover identity, draft and successful
 ordered-job revisions, position, eligibility and current/queued job facts; they
@@ -130,7 +139,7 @@ Player orders, changed claims and authority generations interrupt attribution.
 Causal synchronous scope tracking preserves cleanup ownership if an admitted order
 outlives its lease; it never grants another write or revives the expired lease.
 
-Current source inventory: 79 production exports, 56 fixture exports, 146 handwritten
+Current source inventory: 80 production exports, 56 fixture exports, 147 handwritten
 C# source files and nine generated Protobuf compile inputs. Source declarations do
 not establish gameplay acceptance. Actual installed discovery must match the private
 build and prove fixture exclusion; pending native acceptance remains explicit in

@@ -1327,6 +1327,12 @@ main. Native package and Go production cutover remain independent.
   Anomaly slots, frozen paging and research CAS remain open. Global unlock expansion
   may exceed the child bound; narrow project queries return complete collections.
 
+  Bounded room reads cover exact geometry, native statistics and optional cells,
+  boundary contents and memberships. Headless and rendered acceptance verifies
+  populated indoor structures and exact filters/refusals against native reads,
+  preserving paused identity/ticks. Populated bed, pawn and stockpile memberships,
+  frozen paging and room CAS remain open.
+
 - [ ] **N01.04 — Typed guarded operations.** Native operations owner with G01 Hands.
   Start with ordinary construction through admission, dry-run, receipt and observed
   pawn completion. Follow with settings/bills/zones, resources/upkeep, medical,

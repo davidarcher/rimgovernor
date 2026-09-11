@@ -1,6 +1,6 @@
 {
   "inventory_version": 1,
-  "source_revision": "36105329b98b6a2934c984193ad08a5cbc078272",
+  "source_revision": "48ff6e22c2a6c873cbcf00ba473ad83afe5f7263",
   "scope": "Tracked C# sources in unified native Runtime/Bridge and scripts/fixtures; lexical reference index, not an AST or proof of behavioral coverage.",
   "source_line_policy": "One-based source anchors at source_revision; static matches include methods and constructors, reflection matches include helper use and interop. Read the full source declaration before changing ownership.",
   "rows": [
@@ -2283,6 +2283,35 @@
       "patch_registration_lines": []
     },
     {
+      "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeRoomObservationTools.cs",
+      "compilation": "production-bridge",
+      "owner": "N01.03 native room observations owner",
+      "migration_status": "implemented-native-acceptance-pending",
+      "uncovered_acceptance": "Verify populated bed, pawn and stockpile memberships in native rooms.",
+      "source_sha256": "ff4d2ced22cdde5df797a12e7c30c88c742bcf46de4e959585bed611537bd9e2",
+      "static_token_lines": [
+        75,
+        85,
+        87,
+        89,
+        151,
+        158,
+        159,
+        165,
+        166,
+        167,
+        168,
+        169,
+        170,
+        171,
+        172,
+        173,
+        174
+      ],
+      "reflection_boundary_lines": [],
+      "patch_registration_lines": []
+    },
+    {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeSuppliesObservationTools.cs",
       "compilation": "production-bridge",
       "source_sha256": "83983e4f590e3c366690771619da33901dd604303270bda26ae9538f01513343",
@@ -2361,7 +2390,7 @@
       "owner": "N01.02 native identity capability owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
-      "source_sha256": "05551c3ec73578021aba2e3e4194528b86ebbdb1df96bbde5f15a72730765129",
+      "source_sha256": "3b510d047bf3a9c123972918d99a7629e223c18ce7090abc03ef9c3d9848b8f5",
       "static_token_lines": [],
       "reflection_boundary_lines": [],
       "patch_registration_lines": []

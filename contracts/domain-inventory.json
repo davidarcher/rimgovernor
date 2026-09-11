@@ -6694,7 +6694,7 @@
   ],
   "native_surface": {
     "version": 1,
-    "source_revision": "36105329b98b6a2934c984193ad08a5cbc078272",
+    "source_revision": "48ff6e22c2a6c873cbcf00ba473ad83afe5f7263",
     "scope": "Current repository-owned native Runtime/Bridge exports, generated Protobuf compile inputs and conditional fixtures. Historical Python consumer inventory remains at its independent source_revision. Installed SDK/GABS exports require actual discovery.",
     "evidence_links": "domain_item_id reuses existing G01 owner, fixtures and native_scenarios without copying Python call-site lists. Empty local evidence lists preserve uncovered acceptance. schema_owner_chunk assigns the cross-language schema owner; native_owner_chunk owns typed conversion or fixture isolation.",
     "variant_contract": "source_baseline.exports[].declaration retains the complete exported signature, Tool/ToolParameter/ToolResponse attributes, documented string variants, optional selectors and defaults. Source fingerprints detect implementation changes. Runtime branches, aliases and payload keys still require behavioral schema and discovery acceptance.",
@@ -7032,6 +7032,10 @@
             },
             {
               "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeResearchObservationTools.cs",
+              "condition": ""
+            },
+            {
+              "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeRoomObservationTools.cs",
               "condition": ""
             },
             {
@@ -7818,7 +7822,7 @@
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/ProtoIdentityTools.cs",
           "line": 12,
           "declaration": "[Tool(\"rimgovernor/lifecycle_read_identity\", Title = \"Read native identity\",\n            Description = \"Read the current colony, load, map and native contract capabilities.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON rimgovernor.lifecycle.v1.IdentityReply.\", Always = true)]\n        public async Task<object> ReadIdentity(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official lifecycle IdentityRequest ProtoJSON string.\")] object request = null)",
-          "source_sha256": "05551c3ec73578021aba2e3e4194528b86ebbdb1df96bbde5f15a72730765129"
+          "source_sha256": "3b510d047bf3a9c123972918d99a7629e223c18ce7090abc03ef9c3d9848b8f5"
         },
         {
           "name": "rimgovernor/observations_get_cells",
@@ -7840,6 +7844,13 @@
           "line": 19,
           "declaration": "[Tool(\"rimgovernor/observations_list_pawns\", Title = \"Read map pawns\",\n            Description = \"Official ListPawnsRequest ProtoJSON. Current map spawned pawns; includeDead also includes inner pawns of spawned corpses. Filters intersect, exact IDs, case-insensitive label substring, Chebyshev distance to another live colonist. All detail families default requested; unsupported fields carry issues. Page limit1..256 is a whole-query bound, no cursors or truncation.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official observations ListPawnsReply ProtoJSON.\", Always = true)]\n        public async Task<object> ListPawns(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Raw value must be a ListPawnsRequest ProtoJSON string.\")] object? request = null)",
           "source_sha256": "1a8fc75ae54b15fd3390f46369213a3e2d22ade81bd6334b4011c0f1191576dd"
+        },
+        {
+          "name": "rimgovernor/observations_list_rooms",
+          "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeRoomObservationTools.cs",
+          "line": 21,
+          "declaration": "[Tool(ToolName, Title = \"Read typed rooms\", Description = \"Complete bounded room census and exact footprint intersection filters. Defaults exclude psychologically outdoor rooms and doorways. Contents count buildings, optionally including boundary buildings. IDs are ephemeral within the current room graph; no CAS or frozen cursor.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON ListRoomsReply with explicit unknown stats and unrequested cells.\", Always = true)]\n        public async Task<object> ListRooms(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official ProtoJSON ListRoomsRequest string.\")] object request = null!)",
+          "source_sha256": "ff4d2ced22cdde5df797a12e7c30c88c742bcf46de4e959585bed611537bd9e2"
         },
         {
           "name": "rimgovernor/observations_list_supplies",
@@ -9424,6 +9435,26 @@
           "Verify actual complete scoped pawn observations and exact filters, preserving unknown facts and paused identity."
         ],
         "protocol_method": "rimgovernor.observations.v1.Observations/ListPawns",
+        "protocol_schema": "contracts/proto/observations.proto"
+      },
+      {
+        "name": "rimgovernor/observations_list_rooms",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.03",
+        "native_owner_chunk": "N01.03",
+        "build_role": "production",
+        "fixtures": [
+          "contracts/tests/native-proto-rooms/Program.cs"
+        ],
+        "native_scenarios": [
+          "scripts/native_rooms_acceptance.py"
+        ],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Verify populated bed, pawn and stockpile memberships in native rooms.",
+          "Room CAS snapshots and frozen continuation pages are not implemented."
+        ],
+        "protocol_method": "rimgovernor.observations.v1.Observations/ListRooms",
         "protocol_schema": "contracts/proto/observations.proto"
       },
       {
