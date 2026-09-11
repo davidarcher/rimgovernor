@@ -1,0 +1,118 @@
+syntax = "proto3";
+package rimgovernor.lifecycle.v1;
+option csharp_namespace = "RimGovernor.Protocol.Lifecycle";
+option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb;lifecyclepb";
+import "common.proto";
+
+message IdentityRequest {}
+enum CapabilitySupport {
+  CAPABILITY_SUPPORT_UNSPECIFIED = 0;
+  CAPABILITY_SUPPORT_SUPPORTED = 1;
+  CAPABILITY_SUPPORT_UNAVAILABLE = 2;
+  CAPABILITY_SUPPORT_UNSUPPORTED = 3;
+}
+// Descriptor names identify a fixed generated method; they are never dispatch arguments.
+message Capability {
+  optional string full_method_name = 1;
+  optional CapabilitySupport support = 2;
+  optional string detail = 3;
+}
+message LoadedIdentity {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  repeated Capability capabilities = 2;
+  optional bool paused = 3;
+}
+message IdentityReply {
+  oneof outcome {
+    LoadedIdentity loaded = 1;
+    rimgovernor.common.v1.Unavailable unavailable = 2;
+    rimgovernor.common.v1.Failure failure = 3;
+  }
+}
+
+// These requests belong to explicit session lifecycle, outside gameplay/model dispatch.
+message PlayerLifecycleContext {
+  rimgovernor.common.v1.Identity identity = 1;
+  optional uint64 player_direction = 2;
+  optional string request_id = 3;
+}
+message SaveRequest {
+  PlayerLifecycleContext player = 1;
+  optional string save_name = 2;
+  optional int64 expected_tick = 3;
+}
+message SaveCompleted {
+  optional string request_id = 1;
+  optional string save_name = 2;
+  rimgovernor.common.v1.ObservationContext context = 3;
+  optional bool paused = 4;
+  optional uint64 player_direction = 5;
+  optional uint64 byte_length = 6;
+}
+message SaveUncertain {
+  optional string request_id = 1;
+  optional string save_name = 2;
+  rimgovernor.common.v1.ObservationContext observed_context = 3;
+  optional string detail = 4;
+}
+message SaveReply {
+  oneof outcome {
+    SaveCompleted completed = 1;
+    SaveUncertain uncertain = 2;
+    rimgovernor.common.v1.Failure failure = 3;
+  }
+}
+enum Readiness {
+  READINESS_UNSPECIFIED = 0;
+  READINESS_MAP = 1;
+  READINESS_VISUAL = 2;
+}
+message LoadRequest {
+  // Before a map exists, instance ownership is validated by the GABS adapter.
+  optional string request_id = 1;
+  optional string save_name = 2;
+  optional Readiness readiness = 3;
+  optional uint32 timeout_ms = 4;
+  // Required when replacing a live map. Before-map admission uses owned instance+direction.
+  PlayerLifecycleContext expected_player = 5;
+  optional string expected_instance_id = 6;
+  optional uint64 player_direction = 7;
+}
+message LoadCompleted {
+  optional string request_id = 1;
+  optional string save_name = 2;
+  LoadedIdentity loaded = 3;
+  optional Readiness readiness = 4;
+}
+message LoadPending {
+  optional string request_id = 1;
+  optional string save_name = 2;
+  optional bool process_connected = 3;
+  optional bool map_ready = 4;
+  optional bool visual_ready = 5;
+  optional string detail = 6;
+}
+message LoadSuperseded {
+  optional string request_id = 1;
+  rimgovernor.common.v1.ObservationContext observed_context = 2;
+  optional string detail = 3;
+}
+message LoadReply {
+  oneof outcome {
+    LoadCompleted completed = 1;
+    LoadPending pending = 2;
+    rimgovernor.common.v1.Failure failure = 3;
+    LoadSuperseded superseded = 4;
+  }
+}
+message RequestStatus {
+  optional string request_id = 1;
+  optional string expected_instance_id = 2;
+}
+service Lifecycle {
+  rpc ReadIdentity(IdentityRequest) returns (IdentityReply);
+  rpc Save(SaveRequest) returns (SaveReply);
+  rpc Load(LoadRequest) returns (LoadReply);
+  rpc ReadLoad(RequestStatus) returns (LoadReply);
+  rpc ReadSave(RequestStatus) returns (SaveReply);
+}

@@ -24,81 +24,83 @@ namespace RimGovernor.Protocol.Placement {
     static PlacementReflection() {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
-            "Cg9wbGFjZW1lbnQucHJvdG8SGHJpbWdvdmVybm9yLnBsYWNlbWVudC52MSJU",
-            "ChBQbGFjZW1lbnRSZXF1ZXN0EkAKCnBsYWNlbWVudHMYASADKAsyLC5yaW1n",
-            "b3Zlcm5vci5wbGFjZW1lbnQudjEuUGxhY2VtZW50Q2FuZGlkYXRlIsoBChJQ",
-            "bGFjZW1lbnRDYW5kaWRhdGUSFQoIZGVmX25hbWUYASABKAlIAIgBARIOCgF4",
-            "GAIgASgFSAGIAQESDgoBehgDIAEoBUgCiAEBEjkKCHJvdGF0aW9uGAQgASgO",
-            "MiIucmltZ292ZXJub3IucGxhY2VtZW50LnYxLlJvdGF0aW9uSAOIAQESEgoF",
-            "c3R1ZmYYBSABKAlIBIgBAUILCglfZGVmX25hbWVCBAoCX3hCBAoCX3pCCwoJ",
-            "X3JvdGF0aW9uQggKBl9zdHVmZiKVAQoOUGxhY2VtZW50UmVwbHkSOQoFYmF0",
-            "Y2gYASABKAsyKC5yaW1nb3Zlcm5vci5wbGFjZW1lbnQudjEuUGxhY2VtZW50",
-            "QmF0Y2hIABI9CgdmYWlsdXJlGAIgASgLMioucmltZ292ZXJub3IucGxhY2Vt",
-            "ZW50LnYxLlBsYWNlbWVudEZhaWx1cmVIAEIJCgdvdXRjb21lIocBCg5QbGFj",
-            "ZW1lbnRCYXRjaBIRCgR0aWNrGAEgASgFSACIAQESEwoGbWFwX2lkGAIgASgF",
-            "SAGIAQESOQoHcmVzdWx0cxgDIAMoCzIoLnJpbWdvdmVybm9yLnBsYWNlbWVu",
-            "dC52MS5DYW5kaWRhdGVSZXBseUIHCgVfdGlja0IJCgdfbWFwX2lkIp0BCg5D",
-            "YW5kaWRhdGVSZXBseRJBCglldmFsdWF0ZWQYASABKAsyLC5yaW1nb3Zlcm5v",
-            "ci5wbGFjZW1lbnQudjEuUGxhY2VtZW50RXZhbHVhdGVkSAASPQoHZmFpbHVy",
-            "ZRgCIAEoCzIqLnJpbWdvdmVybm9yLnBsYWNlbWVudC52MS5QbGFjZW1lbnRG",
-            "YWlsdXJlSABCCQoHb3V0Y29tZSIwChBQbGFjZW1lbnRGYWlsdXJlEhIKBWVy",
-            "cm9yGAEgASgJSACIAQFCCAoGX2Vycm9yIowEChJQbGFjZW1lbnRFdmFsdWF0",
-            "ZWQSFgoJY2FuX3BsYWNlGAEgASgISACIAQESHAoPbWFkZV9mcm9tX3N0dWZm",
-            "GAIgASgISAGIAQESPwoLcGFzc2FiaWxpdHkYAyABKA4yJS5yaW1nb3Zlcm5v",
-            "ci5wbGFjZW1lbnQudjEuUGFzc2FiaWxpdHlIAogBARIUCgdpc19kb29yGAQg",
-            "ASgISAOIAQESHgoRcmVzZWFyY2hfZmluaXNoZWQYBSABKAhIBIgBARIgChNi",
-            "dWlsZGFibGVfYnlfcGxheWVyGAYgASgISAWIAQESOgoJY29zdF9saXN0GAcg",
-            "AygLMicucmltZ292ZXJub3IucGxhY2VtZW50LnYxLlBsYWNlbWVudENvc3QS",
-            "PwoJbWF0ZXJpYWxzGAggASgLMiwucmltZ292ZXJub3IucGxhY2VtZW50LnYx",
-            "LlBsYWNlbWVudE1hdGVyaWFscxI+Cglyb3RhdGlvbnMYCSADKAsyKy5yaW1n",
-            "b3Zlcm5vci5wbGFjZW1lbnQudjEuUGxhY2VtZW50Um90YXRpb25CDAoKX2Nh",
-            "bl9wbGFjZUISChBfbWFkZV9mcm9tX3N0dWZmQg4KDF9wYXNzYWJpbGl0eUIK",
-            "CghfaXNfZG9vckIUChJfcmVzZWFyY2hfZmluaXNoZWRCFgoUX2J1aWxkYWJs",
-            "ZV9ieV9wbGF5ZXIiUQoNUGxhY2VtZW50Q29zdBIVCghkZWZfbmFtZRgBIAEo",
-            "CUgAiAEBEhIKBWNvdW50GAIgASgFSAGIAQFCCwoJX2RlZl9uYW1lQggKBl9j",
-            "b3VudCJ8ChJQbGFjZW1lbnRNYXRlcmlhbHMSFwoKdW5yZWFkYWJsZRgBIAEo",
-            "CEgAiAEBEj4KBHJvd3MYAiADKAsyMC5yaW1nb3Zlcm5vci5wbGFjZW1lbnQu",
-            "djEuUGxhY2VtZW50TWF0ZXJpYWxTdG9ja0INCgtfdW5yZWFkYWJsZSJiChZQ",
-            "bGFjZW1lbnRNYXRlcmlhbFN0b2NrEhUKCGRlZl9uYW1lGAEgASgJSACIAQES",
-            "FgoJYXZhaWxhYmxlGAIgASgFSAGIAQFCCwoJX2RlZl9uYW1lQgwKCl9hdmFp",
-            "bGFibGUipQIKEVBsYWNlbWVudFJvdGF0aW9uEjkKCHJvdGF0aW9uGAEgASgO",
-            "MiIucmltZ292ZXJub3IucGxhY2VtZW50LnYxLlJvdGF0aW9uSACIAQESFQoI",
-            "YWNjZXB0ZWQYAiABKAhIAYgBARITCgZyZWFzb24YAyABKAlIAogBARI/Cg5v",
-            "Y2N1cGllZF9jZWxscxgEIAMoCzInLnJpbWdvdmVybm9yLnBsYWNlbWVudC52",
-            "MS5QbGFjZW1lbnRDZWxsEkMKD2Jsb2NraW5nX3RoaW5ncxgFIAMoCzIqLnJp",
-            "bWdvdmVybm9yLnBsYWNlbWVudC52MS5QbGFjZW1lbnRCbG9ja2VyQgsKCV9y",
-            "b3RhdGlvbkILCglfYWNjZXB0ZWRCCQoHX3JlYXNvbiI7Cg1QbGFjZW1lbnRD",
-            "ZWxsEg4KAXgYASABKAVIAIgBARIOCgF6GAIgASgFSAGIAQFCBAoCX3hCBAoC",
-            "X3oi+gEKEFBsYWNlbWVudEJsb2NrZXISFQoIY2F0ZWdvcnkYASABKAlIAIgB",
-            "ARIZCgxpc19ibHVlcHJpbnQYAiABKAhIAYgBARIVCghpc19mcmFtZRgDIAEo",
-            "CEgCiAEBEhsKDndvdWxkX2JlX3dpcGVkGAQgASgISAOIAQESJQoYZnJhbWVf",
-            "d291bGRfYmVfY2FuY2VsbGVkGAUgASgISASIAQFCCwoJX2NhdGVnb3J5Qg8K",
-            "DV9pc19ibHVlcHJpbnRCCwoJX2lzX2ZyYW1lQhEKD193b3VsZF9iZV93aXBl",
-            "ZEIbChlfZnJhbWVfd291bGRfYmVfY2FuY2VsbGVkKoQBCghSb3RhdGlvbhIY",
-            "ChRST1RBVElPTl9VTlNQRUNJRklFRBAAEhIKDlJPVEFUSU9OX05PUlRIEAES",
-            "EQoNUk9UQVRJT05fRUFTVBACEhIKDlJPVEFUSU9OX1NPVVRIEAMSEQoNUk9U",
-            "QVRJT05fV0VTVBAEEhAKDFJPVEFUSU9OX0FMTBAFKoQBCgtQYXNzYWJpbGl0",
-            "eRIbChdQQVNTQUJJTElUWV9VTlNQRUNJRklFRBAAEhkKFVBBU1NBQklMSVRZ",
-            "X1NUQU5EQUJMRRABEiEKHVBBU1NBQklMSVRZX1BBU1NfVEhST1VHSF9PTkxZ",
-            "EAISGgoWUEFTU0FCSUxJVFlfSU1QQVNTQUJMRRADQm5aS2dpdGh1Yi5jb20v",
-            "ZGF2aWRhcmNoZXIvUmltR292ZXJub3IvZ28vaW50ZXJuYWwvd2lyZS9wbGFj",
-            "ZW1lbnRwYjtwbGFjZW1lbnRwYqoCHlJpbUdvdmVybm9yLlByb3RvY29sLlBs",
-            "YWNlbWVudGIGcHJvdG8z"));
+            "Cg9wbGFjZW1lbnQucHJvdG8SGHJpbWdvdmVybm9yLnBsYWNlbWVudC52MRoM",
+            "Y29tbW9uLnByb3RvIocBChBQbGFjZW1lbnRSZXF1ZXN0EkAKCnBsYWNlbWVu",
+            "dHMYASADKAsyLC5yaW1nb3Zlcm5vci5wbGFjZW1lbnQudjEuUGxhY2VtZW50",
+            "Q2FuZGlkYXRlEjEKCGlkZW50aXR5GAIgASgLMh8ucmltZ292ZXJub3IuY29t",
+            "bW9uLnYxLklkZW50aXR5IsoBChJQbGFjZW1lbnRDYW5kaWRhdGUSFQoIZGVm",
+            "X25hbWUYASABKAlIAIgBARIOCgF4GAIgASgFSAGIAQESDgoBehgDIAEoBUgC",
+            "iAEBEjkKCHJvdGF0aW9uGAQgASgOMiIucmltZ292ZXJub3IucGxhY2VtZW50",
+            "LnYxLlJvdGF0aW9uSAOIAQESEgoFc3R1ZmYYBSABKAlIBIgBAUILCglfZGVm",
+            "X25hbWVCBAoCX3hCBAoCX3pCCwoJX3JvdGF0aW9uQggKBl9zdHVmZiKJAQoO",
+            "UGxhY2VtZW50UmVwbHkSOQoFYmF0Y2gYASABKAsyKC5yaW1nb3Zlcm5vci5w",
+            "bGFjZW1lbnQudjEuUGxhY2VtZW50QmF0Y2hIABIxCgdmYWlsdXJlGAIgASgL",
+            "Mh4ucmltZ292ZXJub3IuY29tbW9uLnYxLkZhaWx1cmVIAEIJCgdvdXRjb21l",
+            "IocBCg5QbGFjZW1lbnRCYXRjaBI6Cgdjb250ZXh0GAEgASgLMikucmltZ292",
+            "ZXJub3IuY29tbW9uLnYxLk9ic2VydmF0aW9uQ29udGV4dBI5CgdyZXN1bHRz",
+            "GAIgAygLMigucmltZ292ZXJub3IucGxhY2VtZW50LnYxLkNhbmRpZGF0ZVJl",
+            "cGx5IpEBCg5DYW5kaWRhdGVSZXBseRJBCglldmFsdWF0ZWQYASABKAsyLC5y",
+            "aW1nb3Zlcm5vci5wbGFjZW1lbnQudjEuUGxhY2VtZW50RXZhbHVhdGVkSAAS",
+            "MQoHZmFpbHVyZRgCIAEoCzIeLnJpbWdvdmVybm9yLmNvbW1vbi52MS5GYWls",
+            "dXJlSABCCQoHb3V0Y29tZSKMBAoSUGxhY2VtZW50RXZhbHVhdGVkEhYKCWNh",
+            "bl9wbGFjZRgBIAEoCEgAiAEBEhwKD21hZGVfZnJvbV9zdHVmZhgCIAEoCEgB",
+            "iAEBEj8KC3Bhc3NhYmlsaXR5GAMgASgOMiUucmltZ292ZXJub3IucGxhY2Vt",
+            "ZW50LnYxLlBhc3NhYmlsaXR5SAKIAQESFAoHaXNfZG9vchgEIAEoCEgDiAEB",
+            "Eh4KEXJlc2VhcmNoX2ZpbmlzaGVkGAUgASgISASIAQESIAoTYnVpbGRhYmxl",
+            "X2J5X3BsYXllchgGIAEoCEgFiAEBEjoKCWNvc3RfbGlzdBgHIAMoCzInLnJp",
+            "bWdvdmVybm9yLnBsYWNlbWVudC52MS5QbGFjZW1lbnRDb3N0Ej8KCW1hdGVy",
+            "aWFscxgIIAEoCzIsLnJpbWdvdmVybm9yLnBsYWNlbWVudC52MS5QbGFjZW1l",
+            "bnRNYXRlcmlhbHMSPgoJcm90YXRpb25zGAkgAygLMisucmltZ292ZXJub3Iu",
+            "cGxhY2VtZW50LnYxLlBsYWNlbWVudFJvdGF0aW9uQgwKCl9jYW5fcGxhY2VC",
+            "EgoQX21hZGVfZnJvbV9zdHVmZkIOCgxfcGFzc2FiaWxpdHlCCgoIX2lzX2Rv",
+            "b3JCFAoSX3Jlc2VhcmNoX2ZpbmlzaGVkQhYKFF9idWlsZGFibGVfYnlfcGxh",
+            "eWVyIlEKDVBsYWNlbWVudENvc3QSFQoIZGVmX25hbWUYASABKAlIAIgBARIS",
+            "CgVjb3VudBgCIAEoBUgBiAEBQgsKCV9kZWZfbmFtZUIICgZfY291bnQimAEK",
+            "ElBsYWNlbWVudE1hdGVyaWFscxI3CgVrbm93bhgBIAEoCzImLnJpbWdvdmVy",
+            "bm9yLnBsYWNlbWVudC52MS5NYXRlcmlhbFJvd3NIABI5Cgt1bmF2YWlsYWJs",
+            "ZRgCIAEoCzIiLnJpbWdvdmVybm9yLmNvbW1vbi52MS5VbmF2YWlsYWJsZUgA",
+            "Qg4KDGF2YWlsYWJpbGl0eSJOCgxNYXRlcmlhbFJvd3MSPgoEcm93cxgBIAMo",
+            "CzIwLnJpbWdvdmVybm9yLnBsYWNlbWVudC52MS5QbGFjZW1lbnRNYXRlcmlh",
+            "bFN0b2NrImIKFlBsYWNlbWVudE1hdGVyaWFsU3RvY2sSFQoIZGVmX25hbWUY",
+            "ASABKAlIAIgBARIWCglhdmFpbGFibGUYAiABKAVIAYgBAUILCglfZGVmX25h",
+            "bWVCDAoKX2F2YWlsYWJsZSKZAgoRUGxhY2VtZW50Um90YXRpb24SOQoIcm90",
+            "YXRpb24YASABKA4yIi5yaW1nb3Zlcm5vci5wbGFjZW1lbnQudjEuUm90YXRp",
+            "b25IAIgBARIVCghhY2NlcHRlZBgCIAEoCEgBiAEBEhMKBnJlYXNvbhgDIAEo",
+            "CUgCiAEBEjMKDm9jY3VwaWVkX2NlbGxzGAQgAygLMhsucmltZ292ZXJub3Iu",
+            "Y29tbW9uLnYxLkNlbGwSQwoPYmxvY2tpbmdfdGhpbmdzGAUgAygLMioucmlt",
+            "Z292ZXJub3IucGxhY2VtZW50LnYxLlBsYWNlbWVudEJsb2NrZXJCCwoJX3Jv",
+            "dGF0aW9uQgsKCV9hY2NlcHRlZEIJCgdfcmVhc29uIvoBChBQbGFjZW1lbnRC",
+            "bG9ja2VyEhUKCGNhdGVnb3J5GAEgASgJSACIAQESGQoMaXNfYmx1ZXByaW50",
+            "GAIgASgISAGIAQESFQoIaXNfZnJhbWUYAyABKAhIAogBARIbCg53b3VsZF9i",
+            "ZV93aXBlZBgEIAEoCEgDiAEBEiUKGGZyYW1lX3dvdWxkX2JlX2NhbmNlbGxl",
+            "ZBgFIAEoCEgEiAEBQgsKCV9jYXRlZ29yeUIPCg1faXNfYmx1ZXByaW50QgsK",
+            "CV9pc19mcmFtZUIRCg9fd291bGRfYmVfd2lwZWRCGwoZX2ZyYW1lX3dvdWxk",
+            "X2JlX2NhbmNlbGxlZCqEAQoIUm90YXRpb24SGAoUUk9UQVRJT05fVU5TUEVD",
+            "SUZJRUQQABISCg5ST1RBVElPTl9OT1JUSBABEhEKDVJPVEFUSU9OX0VBU1QQ",
+            "AhISCg5ST1RBVElPTl9TT1VUSBADEhEKDVJPVEFUSU9OX1dFU1QQBBIQCgxS",
+            "T1RBVElPTl9BTEwQBSqEAQoLUGFzc2FiaWxpdHkSGwoXUEFTU0FCSUxJVFlf",
+            "VU5TUEVDSUZJRUQQABIZChVQQVNTQUJJTElUWV9TVEFOREFCTEUQARIhCh1Q",
+            "QVNTQUJJTElUWV9QQVNTX1RIUk9VR0hfT05MWRACEhoKFlBBU1NBQklMSVRZ",
+            "X0lNUEFTU0FCTEUQAzJsCglQbGFjZW1lbnQSXwoHUHJldmlldxIqLnJpbWdv",
+            "dmVybm9yLnBsYWNlbWVudC52MS5QbGFjZW1lbnRSZXF1ZXN0GigucmltZ292",
+            "ZXJub3IucGxhY2VtZW50LnYxLlBsYWNlbWVudFJlcGx5Qm5aS2dpdGh1Yi5j",
+            "b20vZGF2aWRhcmNoZXIvUmltR292ZXJub3IvZ28vaW50ZXJuYWwvd2lyZS9w",
+            "bGFjZW1lbnRwYjtwbGFjZW1lbnRwYqoCHlJpbUdvdmVybm9yLlByb3RvY29s",
+            "LlBsYWNlbWVudGIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
-          new pbr::FileDescriptor[] { },
+          new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Placement.Rotation), typeof(global::RimGovernor.Protocol.Placement.Passability), }, null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementRequest), global::RimGovernor.Protocol.Placement.PlacementRequest.Parser, new[]{ "Placements" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementRequest), global::RimGovernor.Protocol.Placement.PlacementRequest.Parser, new[]{ "Placements", "Identity" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementCandidate), global::RimGovernor.Protocol.Placement.PlacementCandidate.Parser, new[]{ "DefName", "X", "Z", "Rotation", "Stuff" }, new[]{ "DefName", "X", "Z", "Rotation", "Stuff" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementReply), global::RimGovernor.Protocol.Placement.PlacementReply.Parser, new[]{ "Batch", "Failure" }, new[]{ "Outcome" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementBatch), global::RimGovernor.Protocol.Placement.PlacementBatch.Parser, new[]{ "Tick", "MapId", "Results" }, new[]{ "Tick", "MapId" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementBatch), global::RimGovernor.Protocol.Placement.PlacementBatch.Parser, new[]{ "Context", "Results" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.CandidateReply), global::RimGovernor.Protocol.Placement.CandidateReply.Parser, new[]{ "Evaluated", "Failure" }, new[]{ "Outcome" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementFailure), global::RimGovernor.Protocol.Placement.PlacementFailure.Parser, new[]{ "Error" }, new[]{ "Error" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementEvaluated), global::RimGovernor.Protocol.Placement.PlacementEvaluated.Parser, new[]{ "CanPlace", "MadeFromStuff", "Passability", "IsDoor", "ResearchFinished", "BuildableByPlayer", "CostList", "Materials", "Rotations" }, new[]{ "CanPlace", "MadeFromStuff", "Passability", "IsDoor", "ResearchFinished", "BuildableByPlayer" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementCost), global::RimGovernor.Protocol.Placement.PlacementCost.Parser, new[]{ "DefName", "Count" }, new[]{ "DefName", "Count" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementMaterials), global::RimGovernor.Protocol.Placement.PlacementMaterials.Parser, new[]{ "Unreadable", "Rows" }, new[]{ "Unreadable" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementMaterials), global::RimGovernor.Protocol.Placement.PlacementMaterials.Parser, new[]{ "Known", "Unavailable" }, new[]{ "Availability" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.MaterialRows), global::RimGovernor.Protocol.Placement.MaterialRows.Parser, new[]{ "Rows" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementMaterialStock), global::RimGovernor.Protocol.Placement.PlacementMaterialStock.Parser, new[]{ "DefName", "Available" }, new[]{ "DefName", "Available" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementRotation), global::RimGovernor.Protocol.Placement.PlacementRotation.Parser, new[]{ "Rotation", "Accepted", "Reason", "OccupiedCells", "BlockingThings" }, new[]{ "Rotation", "Accepted", "Reason" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementCell), global::RimGovernor.Protocol.Placement.PlacementCell.Parser, new[]{ "X", "Z" }, new[]{ "X", "Z" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementBlocker), global::RimGovernor.Protocol.Placement.PlacementBlocker.Parser, new[]{ "Category", "IsBlueprint", "IsFrame", "WouldBeWiped", "FrameWouldBeCancelled" }, new[]{ "Category", "IsBlueprint", "IsFrame", "WouldBeWiped", "FrameWouldBeCancelled" }, null, null, null)
           }));
     }
@@ -165,6 +167,7 @@ namespace RimGovernor.Protocol.Placement {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public PlacementRequest(PlacementRequest other) : this() {
       placements_ = other.placements_.Clone();
+      identity_ = other.identity_ != null ? other.identity_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -185,6 +188,18 @@ namespace RimGovernor.Protocol.Placement {
       get { return placements_; }
     }
 
+    /// <summary>Field number for the "identity" field.</summary>
+    public const int IdentityFieldNumber = 2;
+    private global::RimGovernor.Protocol.Common.Identity identity_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::RimGovernor.Protocol.Common.Identity Identity {
+      get { return identity_; }
+      set {
+        identity_ = value;
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -201,6 +216,7 @@ namespace RimGovernor.Protocol.Placement {
         return true;
       }
       if(!placements_.Equals(other.placements_)) return false;
+      if (!object.Equals(Identity, other.Identity)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -209,6 +225,7 @@ namespace RimGovernor.Protocol.Placement {
     public override int GetHashCode() {
       int hash = 1;
       hash ^= placements_.GetHashCode();
+      if (identity_ != null) hash ^= Identity.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -228,6 +245,10 @@ namespace RimGovernor.Protocol.Placement {
       output.WriteRawMessage(this);
     #else
       placements_.WriteTo(output, _repeated_placements_codec);
+      if (identity_ != null) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Identity);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -239,6 +260,10 @@ namespace RimGovernor.Protocol.Placement {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
       placements_.WriteTo(ref output, _repeated_placements_codec);
+      if (identity_ != null) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Identity);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -250,6 +275,9 @@ namespace RimGovernor.Protocol.Placement {
     public int CalculateSize() {
       int size = 0;
       size += placements_.CalculateSize(_repeated_placements_codec);
+      if (identity_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Identity);
+      }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -263,6 +291,12 @@ namespace RimGovernor.Protocol.Placement {
         return;
       }
       placements_.Add(other.placements_);
+      if (other.identity_ != null) {
+        if (identity_ == null) {
+          Identity = new global::RimGovernor.Protocol.Common.Identity();
+        }
+        Identity.MergeFrom(other.Identity);
+      }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -286,6 +320,13 @@ namespace RimGovernor.Protocol.Placement {
             placements_.AddEntriesFrom(input, _repeated_placements_codec);
             break;
           }
+          case 18: {
+            if (identity_ == null) {
+              Identity = new global::RimGovernor.Protocol.Common.Identity();
+            }
+            input.ReadMessage(Identity);
+            break;
+          }
         }
       }
     #endif
@@ -307,6 +348,13 @@ namespace RimGovernor.Protocol.Placement {
             break;
           case 10: {
             placements_.AddEntriesFrom(ref input, _repeated_placements_codec);
+            break;
+          }
+          case 18: {
+            if (identity_ == null) {
+              Identity = new global::RimGovernor.Protocol.Common.Identity();
+            }
+            input.ReadMessage(Identity);
             break;
           }
         }
@@ -809,8 +857,8 @@ namespace RimGovernor.Protocol.Placement {
     public const int FailureFieldNumber = 2;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::RimGovernor.Protocol.Placement.PlacementFailure Failure {
-      get { return outcomeCase_ == OutcomeOneofCase.Failure ? (global::RimGovernor.Protocol.Placement.PlacementFailure) outcome_ : null; }
+    public global::RimGovernor.Protocol.Common.Failure Failure {
+      get { return outcomeCase_ == OutcomeOneofCase.Failure ? (global::RimGovernor.Protocol.Common.Failure) outcome_ : null; }
       set {
         outcome_ = value;
         outcomeCase_ = value == null ? OutcomeOneofCase.None : OutcomeOneofCase.Failure;
@@ -947,7 +995,7 @@ namespace RimGovernor.Protocol.Placement {
           break;
         case OutcomeOneofCase.Failure:
           if (Failure == null) {
-            Failure = new global::RimGovernor.Protocol.Placement.PlacementFailure();
+            Failure = new global::RimGovernor.Protocol.Common.Failure();
           }
           Failure.MergeFrom(other.Failure);
           break;
@@ -982,7 +1030,7 @@ namespace RimGovernor.Protocol.Placement {
             break;
           }
           case 18: {
-            global::RimGovernor.Protocol.Placement.PlacementFailure subBuilder = new global::RimGovernor.Protocol.Placement.PlacementFailure();
+            global::RimGovernor.Protocol.Common.Failure subBuilder = new global::RimGovernor.Protocol.Common.Failure();
             if (outcomeCase_ == OutcomeOneofCase.Failure) {
               subBuilder.MergeFrom(Failure);
             }
@@ -1019,7 +1067,7 @@ namespace RimGovernor.Protocol.Placement {
             break;
           }
           case 18: {
-            global::RimGovernor.Protocol.Placement.PlacementFailure subBuilder = new global::RimGovernor.Protocol.Placement.PlacementFailure();
+            global::RimGovernor.Protocol.Common.Failure subBuilder = new global::RimGovernor.Protocol.Common.Failure();
             if (outcomeCase_ == OutcomeOneofCase.Failure) {
               subBuilder.MergeFrom(Failure);
             }
@@ -1042,7 +1090,6 @@ namespace RimGovernor.Protocol.Placement {
   {
     private static readonly pb::MessageParser<PlacementBatch> _parser = new pb::MessageParser<PlacementBatch>(() => new PlacementBatch());
     private pb::UnknownFieldSet _unknownFields;
-    private int _hasBits0;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pb::MessageParser<PlacementBatch> Parser { get { return _parser; } }
@@ -1070,9 +1117,7 @@ namespace RimGovernor.Protocol.Placement {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public PlacementBatch(PlacementBatch other) : this() {
-      _hasBits0 = other._hasBits0;
-      tick_ = other.tick_;
-      mapId_ = other.mapId_;
+      context_ = other.context_ != null ? other.context_.Clone() : null;
       results_ = other.results_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
@@ -1083,64 +1128,22 @@ namespace RimGovernor.Protocol.Placement {
       return new PlacementBatch(this);
     }
 
-    /// <summary>Field number for the "tick" field.</summary>
-    public const int TickFieldNumber = 1;
-    private readonly static int TickDefaultValue = 0;
-
-    private int tick_;
+    /// <summary>Field number for the "context" field.</summary>
+    public const int ContextFieldNumber = 1;
+    private global::RimGovernor.Protocol.Common.ObservationContext context_;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public int Tick {
-      get { if ((_hasBits0 & 1) != 0) { return tick_; } else { return TickDefaultValue; } }
+    public global::RimGovernor.Protocol.Common.ObservationContext Context {
+      get { return context_; }
       set {
-        _hasBits0 |= 1;
-        tick_ = value;
+        context_ = value;
       }
-    }
-    /// <summary>Gets whether the "tick" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasTick {
-      get { return (_hasBits0 & 1) != 0; }
-    }
-    /// <summary>Clears the value of the "tick" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearTick() {
-      _hasBits0 &= ~1;
-    }
-
-    /// <summary>Field number for the "map_id" field.</summary>
-    public const int MapIdFieldNumber = 2;
-    private readonly static int MapIdDefaultValue = 0;
-
-    private int mapId_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public int MapId {
-      get { if ((_hasBits0 & 2) != 0) { return mapId_; } else { return MapIdDefaultValue; } }
-      set {
-        _hasBits0 |= 2;
-        mapId_ = value;
-      }
-    }
-    /// <summary>Gets whether the "map_id" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasMapId {
-      get { return (_hasBits0 & 2) != 0; }
-    }
-    /// <summary>Clears the value of the "map_id" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearMapId() {
-      _hasBits0 &= ~2;
     }
 
     /// <summary>Field number for the "results" field.</summary>
-    public const int ResultsFieldNumber = 3;
+    public const int ResultsFieldNumber = 2;
     private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Placement.CandidateReply> _repeated_results_codec
-        = pb::FieldCodec.ForMessage(26, global::RimGovernor.Protocol.Placement.CandidateReply.Parser);
+        = pb::FieldCodec.ForMessage(18, global::RimGovernor.Protocol.Placement.CandidateReply.Parser);
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Placement.CandidateReply> results_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Placement.CandidateReply>();
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -1163,8 +1166,7 @@ namespace RimGovernor.Protocol.Placement {
       if (ReferenceEquals(other, this)) {
         return true;
       }
-      if (Tick != other.Tick) return false;
-      if (MapId != other.MapId) return false;
+      if (!object.Equals(Context, other.Context)) return false;
       if(!results_.Equals(other.results_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
@@ -1173,8 +1175,7 @@ namespace RimGovernor.Protocol.Placement {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override int GetHashCode() {
       int hash = 1;
-      if (HasTick) hash ^= Tick.GetHashCode();
-      if (HasMapId) hash ^= MapId.GetHashCode();
+      if (context_ != null) hash ^= Context.GetHashCode();
       hash ^= results_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
@@ -1194,13 +1195,9 @@ namespace RimGovernor.Protocol.Placement {
     #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       output.WriteRawMessage(this);
     #else
-      if (HasTick) {
-        output.WriteRawTag(8);
-        output.WriteInt32(Tick);
-      }
-      if (HasMapId) {
-        output.WriteRawTag(16);
-        output.WriteInt32(MapId);
+      if (context_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Context);
       }
       results_.WriteTo(output, _repeated_results_codec);
       if (_unknownFields != null) {
@@ -1213,13 +1210,9 @@ namespace RimGovernor.Protocol.Placement {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (HasTick) {
-        output.WriteRawTag(8);
-        output.WriteInt32(Tick);
-      }
-      if (HasMapId) {
-        output.WriteRawTag(16);
-        output.WriteInt32(MapId);
+      if (context_ != null) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Context);
       }
       results_.WriteTo(ref output, _repeated_results_codec);
       if (_unknownFields != null) {
@@ -1232,11 +1225,8 @@ namespace RimGovernor.Protocol.Placement {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public int CalculateSize() {
       int size = 0;
-      if (HasTick) {
-        size += 1 + pb::CodedOutputStream.ComputeInt32Size(Tick);
-      }
-      if (HasMapId) {
-        size += 1 + pb::CodedOutputStream.ComputeInt32Size(MapId);
+      if (context_ != null) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Context);
       }
       size += results_.CalculateSize(_repeated_results_codec);
       if (_unknownFields != null) {
@@ -1251,11 +1241,11 @@ namespace RimGovernor.Protocol.Placement {
       if (other == null) {
         return;
       }
-      if (other.HasTick) {
-        Tick = other.Tick;
-      }
-      if (other.HasMapId) {
-        MapId = other.MapId;
+      if (other.context_ != null) {
+        if (context_ == null) {
+          Context = new global::RimGovernor.Protocol.Common.ObservationContext();
+        }
+        Context.MergeFrom(other.Context);
       }
       results_.Add(other.results_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
@@ -1277,15 +1267,14 @@ namespace RimGovernor.Protocol.Placement {
           default:
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
             break;
-          case 8: {
-            Tick = input.ReadInt32();
+          case 10: {
+            if (context_ == null) {
+              Context = new global::RimGovernor.Protocol.Common.ObservationContext();
+            }
+            input.ReadMessage(Context);
             break;
           }
-          case 16: {
-            MapId = input.ReadInt32();
-            break;
-          }
-          case 26: {
+          case 18: {
             results_.AddEntriesFrom(input, _repeated_results_codec);
             break;
           }
@@ -1308,15 +1297,14 @@ namespace RimGovernor.Protocol.Placement {
           default:
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
             break;
-          case 8: {
-            Tick = input.ReadInt32();
+          case 10: {
+            if (context_ == null) {
+              Context = new global::RimGovernor.Protocol.Common.ObservationContext();
+            }
+            input.ReadMessage(Context);
             break;
           }
-          case 16: {
-            MapId = input.ReadInt32();
-            break;
-          }
-          case 26: {
+          case 18: {
             results_.AddEntriesFrom(ref input, _repeated_results_codec);
             break;
           }
@@ -1396,8 +1384,8 @@ namespace RimGovernor.Protocol.Placement {
     public const int FailureFieldNumber = 2;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::RimGovernor.Protocol.Placement.PlacementFailure Failure {
-      get { return outcomeCase_ == OutcomeOneofCase.Failure ? (global::RimGovernor.Protocol.Placement.PlacementFailure) outcome_ : null; }
+    public global::RimGovernor.Protocol.Common.Failure Failure {
+      get { return outcomeCase_ == OutcomeOneofCase.Failure ? (global::RimGovernor.Protocol.Common.Failure) outcome_ : null; }
       set {
         outcome_ = value;
         outcomeCase_ = value == null ? OutcomeOneofCase.None : OutcomeOneofCase.Failure;
@@ -1534,7 +1522,7 @@ namespace RimGovernor.Protocol.Placement {
           break;
         case OutcomeOneofCase.Failure:
           if (Failure == null) {
-            Failure = new global::RimGovernor.Protocol.Placement.PlacementFailure();
+            Failure = new global::RimGovernor.Protocol.Common.Failure();
           }
           Failure.MergeFrom(other.Failure);
           break;
@@ -1569,7 +1557,7 @@ namespace RimGovernor.Protocol.Placement {
             break;
           }
           case 18: {
-            global::RimGovernor.Protocol.Placement.PlacementFailure subBuilder = new global::RimGovernor.Protocol.Placement.PlacementFailure();
+            global::RimGovernor.Protocol.Common.Failure subBuilder = new global::RimGovernor.Protocol.Common.Failure();
             if (outcomeCase_ == OutcomeOneofCase.Failure) {
               subBuilder.MergeFrom(Failure);
             }
@@ -1606,224 +1594,12 @@ namespace RimGovernor.Protocol.Placement {
             break;
           }
           case 18: {
-            global::RimGovernor.Protocol.Placement.PlacementFailure subBuilder = new global::RimGovernor.Protocol.Placement.PlacementFailure();
+            global::RimGovernor.Protocol.Common.Failure subBuilder = new global::RimGovernor.Protocol.Common.Failure();
             if (outcomeCase_ == OutcomeOneofCase.Failure) {
               subBuilder.MergeFrom(Failure);
             }
             input.ReadMessage(subBuilder);
             Failure = subBuilder;
-            break;
-          }
-        }
-      }
-    }
-    #endif
-
-  }
-
-  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class PlacementFailure : pb::IMessage<PlacementFailure>
-  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      , pb::IBufferMessage
-  #endif
-  {
-    private static readonly pb::MessageParser<PlacementFailure> _parser = new pb::MessageParser<PlacementFailure>(() => new PlacementFailure());
-    private pb::UnknownFieldSet _unknownFields;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<PlacementFailure> Parser { get { return _parser; } }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Placement.PlacementReflection.Descriptor.MessageTypes[5]; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    pbr::MessageDescriptor pb::IMessage.Descriptor {
-      get { return Descriptor; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public PlacementFailure() {
-      OnConstruction();
-    }
-
-    partial void OnConstruction();
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public PlacementFailure(PlacementFailure other) : this() {
-      error_ = other.error_;
-      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public PlacementFailure Clone() {
-      return new PlacementFailure(this);
-    }
-
-    /// <summary>Field number for the "error" field.</summary>
-    public const int ErrorFieldNumber = 1;
-    private readonly static string ErrorDefaultValue = "";
-
-    private string error_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public string Error {
-      get { return error_ ?? ErrorDefaultValue; }
-      set {
-        error_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
-      }
-    }
-    /// <summary>Gets whether the "error" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasError {
-      get { return error_ != null; }
-    }
-    /// <summary>Clears the value of the "error" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearError() {
-      error_ = null;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override bool Equals(object other) {
-      return Equals(other as PlacementFailure);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(PlacementFailure other) {
-      if (ReferenceEquals(other, null)) {
-        return false;
-      }
-      if (ReferenceEquals(other, this)) {
-        return true;
-      }
-      if (Error != other.Error) return false;
-      return Equals(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override int GetHashCode() {
-      int hash = 1;
-      if (HasError) hash ^= Error.GetHashCode();
-      if (_unknownFields != null) {
-        hash ^= _unknownFields.GetHashCode();
-      }
-      return hash;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override string ToString() {
-      return pb::JsonFormatter.ToDiagnosticString(this);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void WriteTo(pb::CodedOutputStream output) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      output.WriteRawMessage(this);
-    #else
-      if (HasError) {
-        output.WriteRawTag(10);
-        output.WriteString(Error);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(output);
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (HasError) {
-        output.WriteRawTag(10);
-        output.WriteString(Error);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(ref output);
-      }
-    }
-    #endif
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public int CalculateSize() {
-      int size = 0;
-      if (HasError) {
-        size += 1 + pb::CodedOutputStream.ComputeStringSize(Error);
-      }
-      if (_unknownFields != null) {
-        size += _unknownFields.CalculateSize();
-      }
-      return size;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(PlacementFailure other) {
-      if (other == null) {
-        return;
-      }
-      if (other.HasError) {
-        Error = other.Error;
-      }
-      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(pb::CodedInputStream input) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      input.ReadRawMessage(this);
-    #else
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
-            break;
-          case 10: {
-            Error = input.ReadString();
-            break;
-          }
-        }
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
-            break;
-          case 10: {
-            Error = input.ReadString();
             break;
           }
         }
@@ -1849,7 +1625,7 @@ namespace RimGovernor.Protocol.Placement {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Placement.PlacementReflection.Descriptor.MessageTypes[6]; }
+      get { return global::RimGovernor.Protocol.Placement.PlacementReflection.Descriptor.MessageTypes[5]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2055,6 +1831,9 @@ namespace RimGovernor.Protocol.Placement {
     private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Placement.PlacementCost> _repeated_costList_codec
         = pb::FieldCodec.ForMessage(58, global::RimGovernor.Protocol.Placement.PlacementCost.Parser);
     private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Placement.PlacementCost> costList_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Placement.PlacementCost>();
+    /// <summary>
+    /// Evaluated guarantees a complete cost scan; unreadable/oversized scans fail the candidate.
+    /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public pbc::RepeatedField<global::RimGovernor.Protocol.Placement.PlacementCost> CostList {
@@ -2422,7 +2201,7 @@ namespace RimGovernor.Protocol.Placement {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Placement.PlacementReflection.Descriptor.MessageTypes[7]; }
+      get { return global::RimGovernor.Protocol.Placement.PlacementReflection.Descriptor.MessageTypes[6]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2680,7 +2459,6 @@ namespace RimGovernor.Protocol.Placement {
   {
     private static readonly pb::MessageParser<PlacementMaterials> _parser = new pb::MessageParser<PlacementMaterials>(() => new PlacementMaterials());
     private pb::UnknownFieldSet _unknownFields;
-    private int _hasBits0;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pb::MessageParser<PlacementMaterials> Parser { get { return _parser; } }
@@ -2688,7 +2466,7 @@ namespace RimGovernor.Protocol.Placement {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Placement.PlacementReflection.Descriptor.MessageTypes[8]; }
+      get { return global::RimGovernor.Protocol.Placement.PlacementReflection.Descriptor.MessageTypes[7]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2708,9 +2486,15 @@ namespace RimGovernor.Protocol.Placement {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public PlacementMaterials(PlacementMaterials other) : this() {
-      _hasBits0 = other._hasBits0;
-      unreadable_ = other.unreadable_;
-      rows_ = other.rows_.Clone();
+      switch (other.AvailabilityCase) {
+        case AvailabilityOneofCase.Known:
+          Known = other.Known.Clone();
+          break;
+        case AvailabilityOneofCase.Unavailable:
+          Unavailable = other.Unavailable.Clone();
+          break;
+      }
+
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -2720,42 +2504,49 @@ namespace RimGovernor.Protocol.Placement {
       return new PlacementMaterials(this);
     }
 
-    /// <summary>Field number for the "unreadable" field.</summary>
-    public const int UnreadableFieldNumber = 1;
-    private readonly static bool UnreadableDefaultValue = false;
-
-    private bool unreadable_;
+    /// <summary>Field number for the "known" field.</summary>
+    public const int KnownFieldNumber = 1;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Unreadable {
-      get { if ((_hasBits0 & 1) != 0) { return unreadable_; } else { return UnreadableDefaultValue; } }
+    public global::RimGovernor.Protocol.Placement.MaterialRows Known {
+      get { return availabilityCase_ == AvailabilityOneofCase.Known ? (global::RimGovernor.Protocol.Placement.MaterialRows) availability_ : null; }
       set {
-        _hasBits0 |= 1;
-        unreadable_ = value;
+        availability_ = value;
+        availabilityCase_ = value == null ? AvailabilityOneofCase.None : AvailabilityOneofCase.Known;
       }
     }
-    /// <summary>Gets whether the "unreadable" field is set</summary>
+
+    /// <summary>Field number for the "unavailable" field.</summary>
+    public const int UnavailableFieldNumber = 2;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasUnreadable {
-      get { return (_hasBits0 & 1) != 0; }
-    }
-    /// <summary>Clears the value of the "unreadable" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearUnreadable() {
-      _hasBits0 &= ~1;
+    public global::RimGovernor.Protocol.Common.Unavailable Unavailable {
+      get { return availabilityCase_ == AvailabilityOneofCase.Unavailable ? (global::RimGovernor.Protocol.Common.Unavailable) availability_ : null; }
+      set {
+        availability_ = value;
+        availabilityCase_ = value == null ? AvailabilityOneofCase.None : AvailabilityOneofCase.Unavailable;
+      }
     }
 
-    /// <summary>Field number for the "rows" field.</summary>
-    public const int RowsFieldNumber = 2;
-    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Placement.PlacementMaterialStock> _repeated_rows_codec
-        = pb::FieldCodec.ForMessage(18, global::RimGovernor.Protocol.Placement.PlacementMaterialStock.Parser);
-    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Placement.PlacementMaterialStock> rows_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Placement.PlacementMaterialStock>();
+    private object availability_;
+    /// <summary>Enum of possible cases for the "availability" oneof.</summary>
+    public enum AvailabilityOneofCase {
+      None = 0,
+      Known = 1,
+      Unavailable = 2,
+    }
+    private AvailabilityOneofCase availabilityCase_ = AvailabilityOneofCase.None;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<global::RimGovernor.Protocol.Placement.PlacementMaterialStock> Rows {
-      get { return rows_; }
+    public AvailabilityOneofCase AvailabilityCase {
+      get { return availabilityCase_; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearAvailability() {
+      availabilityCase_ = AvailabilityOneofCase.None;
+      availability_ = null;
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -2773,7 +2564,261 @@ namespace RimGovernor.Protocol.Placement {
       if (ReferenceEquals(other, this)) {
         return true;
       }
-      if (Unreadable != other.Unreadable) return false;
+      if (!object.Equals(Known, other.Known)) return false;
+      if (!object.Equals(Unavailable, other.Unavailable)) return false;
+      if (AvailabilityCase != other.AvailabilityCase) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (availabilityCase_ == AvailabilityOneofCase.Known) hash ^= Known.GetHashCode();
+      if (availabilityCase_ == AvailabilityOneofCase.Unavailable) hash ^= Unavailable.GetHashCode();
+      hash ^= (int) availabilityCase_;
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (availabilityCase_ == AvailabilityOneofCase.Known) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Known);
+      }
+      if (availabilityCase_ == AvailabilityOneofCase.Unavailable) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Unavailable);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (availabilityCase_ == AvailabilityOneofCase.Known) {
+        output.WriteRawTag(10);
+        output.WriteMessage(Known);
+      }
+      if (availabilityCase_ == AvailabilityOneofCase.Unavailable) {
+        output.WriteRawTag(18);
+        output.WriteMessage(Unavailable);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (availabilityCase_ == AvailabilityOneofCase.Known) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Known);
+      }
+      if (availabilityCase_ == AvailabilityOneofCase.Unavailable) {
+        size += 1 + pb::CodedOutputStream.ComputeMessageSize(Unavailable);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(PlacementMaterials other) {
+      if (other == null) {
+        return;
+      }
+      switch (other.AvailabilityCase) {
+        case AvailabilityOneofCase.Known:
+          if (Known == null) {
+            Known = new global::RimGovernor.Protocol.Placement.MaterialRows();
+          }
+          Known.MergeFrom(other.Known);
+          break;
+        case AvailabilityOneofCase.Unavailable:
+          if (Unavailable == null) {
+            Unavailable = new global::RimGovernor.Protocol.Common.Unavailable();
+          }
+          Unavailable.MergeFrom(other.Unavailable);
+          break;
+      }
+
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            global::RimGovernor.Protocol.Placement.MaterialRows subBuilder = new global::RimGovernor.Protocol.Placement.MaterialRows();
+            if (availabilityCase_ == AvailabilityOneofCase.Known) {
+              subBuilder.MergeFrom(Known);
+            }
+            input.ReadMessage(subBuilder);
+            Known = subBuilder;
+            break;
+          }
+          case 18: {
+            global::RimGovernor.Protocol.Common.Unavailable subBuilder = new global::RimGovernor.Protocol.Common.Unavailable();
+            if (availabilityCase_ == AvailabilityOneofCase.Unavailable) {
+              subBuilder.MergeFrom(Unavailable);
+            }
+            input.ReadMessage(subBuilder);
+            Unavailable = subBuilder;
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            global::RimGovernor.Protocol.Placement.MaterialRows subBuilder = new global::RimGovernor.Protocol.Placement.MaterialRows();
+            if (availabilityCase_ == AvailabilityOneofCase.Known) {
+              subBuilder.MergeFrom(Known);
+            }
+            input.ReadMessage(subBuilder);
+            Known = subBuilder;
+            break;
+          }
+          case 18: {
+            global::RimGovernor.Protocol.Common.Unavailable subBuilder = new global::RimGovernor.Protocol.Common.Unavailable();
+            if (availabilityCase_ == AvailabilityOneofCase.Unavailable) {
+              subBuilder.MergeFrom(Unavailable);
+            }
+            input.ReadMessage(subBuilder);
+            Unavailable = subBuilder;
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class MaterialRows : pb::IMessage<MaterialRows>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<MaterialRows> _parser = new pb::MessageParser<MaterialRows>(() => new MaterialRows());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<MaterialRows> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::RimGovernor.Protocol.Placement.PlacementReflection.Descriptor.MessageTypes[8]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public MaterialRows() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public MaterialRows(MaterialRows other) : this() {
+      rows_ = other.rows_.Clone();
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public MaterialRows Clone() {
+      return new MaterialRows(this);
+    }
+
+    /// <summary>Field number for the "rows" field.</summary>
+    public const int RowsFieldNumber = 1;
+    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Placement.PlacementMaterialStock> _repeated_rows_codec
+        = pb::FieldCodec.ForMessage(10, global::RimGovernor.Protocol.Placement.PlacementMaterialStock.Parser);
+    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Placement.PlacementMaterialStock> rows_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Placement.PlacementMaterialStock>();
+    /// <summary>
+    /// Complete rows for all material definitions relevant to the evaluated candidate.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::RimGovernor.Protocol.Placement.PlacementMaterialStock> Rows {
+      get { return rows_; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as MaterialRows);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(MaterialRows other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
       if(!rows_.Equals(other.rows_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
@@ -2782,7 +2827,6 @@ namespace RimGovernor.Protocol.Placement {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override int GetHashCode() {
       int hash = 1;
-      if (HasUnreadable) hash ^= Unreadable.GetHashCode();
       hash ^= rows_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
@@ -2802,10 +2846,6 @@ namespace RimGovernor.Protocol.Placement {
     #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       output.WriteRawMessage(this);
     #else
-      if (HasUnreadable) {
-        output.WriteRawTag(8);
-        output.WriteBool(Unreadable);
-      }
       rows_.WriteTo(output, _repeated_rows_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
@@ -2817,10 +2857,6 @@ namespace RimGovernor.Protocol.Placement {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (HasUnreadable) {
-        output.WriteRawTag(8);
-        output.WriteBool(Unreadable);
-      }
       rows_.WriteTo(ref output, _repeated_rows_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
@@ -2832,9 +2868,6 @@ namespace RimGovernor.Protocol.Placement {
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public int CalculateSize() {
       int size = 0;
-      if (HasUnreadable) {
-        size += 1 + 1;
-      }
       size += rows_.CalculateSize(_repeated_rows_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -2844,12 +2877,9 @@ namespace RimGovernor.Protocol.Placement {
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(PlacementMaterials other) {
+    public void MergeFrom(MaterialRows other) {
       if (other == null) {
         return;
-      }
-      if (other.HasUnreadable) {
-        Unreadable = other.Unreadable;
       }
       rows_.Add(other.rows_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
@@ -2871,11 +2901,7 @@ namespace RimGovernor.Protocol.Placement {
           default:
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
             break;
-          case 8: {
-            Unreadable = input.ReadBool();
-            break;
-          }
-          case 18: {
+          case 10: {
             rows_.AddEntriesFrom(input, _repeated_rows_codec);
             break;
           }
@@ -2898,11 +2924,7 @@ namespace RimGovernor.Protocol.Placement {
           default:
             _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
             break;
-          case 8: {
-            Unreadable = input.ReadBool();
-            break;
-          }
-          case 18: {
+          case 10: {
             rows_.AddEntriesFrom(ref input, _repeated_rows_codec);
             break;
           }
@@ -3315,12 +3337,15 @@ namespace RimGovernor.Protocol.Placement {
 
     /// <summary>Field number for the "occupied_cells" field.</summary>
     public const int OccupiedCellsFieldNumber = 4;
-    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Placement.PlacementCell> _repeated_occupiedCells_codec
-        = pb::FieldCodec.ForMessage(34, global::RimGovernor.Protocol.Placement.PlacementCell.Parser);
-    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Placement.PlacementCell> occupiedCells_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Placement.PlacementCell>();
+    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Common.Cell> _repeated_occupiedCells_codec
+        = pb::FieldCodec.ForMessage(34, global::RimGovernor.Protocol.Common.Cell.Parser);
+    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Common.Cell> occupiedCells_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Common.Cell>();
+    /// <summary>
+    /// Evaluated rotation guarantees complete footprint and blocker scans.
+    /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<global::RimGovernor.Protocol.Placement.PlacementCell> OccupiedCells {
+    public pbc::RepeatedField<global::RimGovernor.Protocol.Common.Cell> OccupiedCells {
       get { return occupiedCells_; }
     }
 
@@ -3553,273 +3578,6 @@ namespace RimGovernor.Protocol.Placement {
   }
 
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
-  public sealed partial class PlacementCell : pb::IMessage<PlacementCell>
-  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      , pb::IBufferMessage
-  #endif
-  {
-    private static readonly pb::MessageParser<PlacementCell> _parser = new pb::MessageParser<PlacementCell>(() => new PlacementCell());
-    private pb::UnknownFieldSet _unknownFields;
-    private int _hasBits0;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pb::MessageParser<PlacementCell> Parser { get { return _parser; } }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Placement.PlacementReflection.Descriptor.MessageTypes[11]; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    pbr::MessageDescriptor pb::IMessage.Descriptor {
-      get { return Descriptor; }
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public PlacementCell() {
-      OnConstruction();
-    }
-
-    partial void OnConstruction();
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public PlacementCell(PlacementCell other) : this() {
-      _hasBits0 = other._hasBits0;
-      x_ = other.x_;
-      z_ = other.z_;
-      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public PlacementCell Clone() {
-      return new PlacementCell(this);
-    }
-
-    /// <summary>Field number for the "x" field.</summary>
-    public const int XFieldNumber = 1;
-    private readonly static int XDefaultValue = 0;
-
-    private int x_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public int X {
-      get { if ((_hasBits0 & 1) != 0) { return x_; } else { return XDefaultValue; } }
-      set {
-        _hasBits0 |= 1;
-        x_ = value;
-      }
-    }
-    /// <summary>Gets whether the "x" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasX {
-      get { return (_hasBits0 & 1) != 0; }
-    }
-    /// <summary>Clears the value of the "x" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearX() {
-      _hasBits0 &= ~1;
-    }
-
-    /// <summary>Field number for the "z" field.</summary>
-    public const int ZFieldNumber = 2;
-    private readonly static int ZDefaultValue = 0;
-
-    private int z_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public int Z {
-      get { if ((_hasBits0 & 2) != 0) { return z_; } else { return ZDefaultValue; } }
-      set {
-        _hasBits0 |= 2;
-        z_ = value;
-      }
-    }
-    /// <summary>Gets whether the "z" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasZ {
-      get { return (_hasBits0 & 2) != 0; }
-    }
-    /// <summary>Clears the value of the "z" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearZ() {
-      _hasBits0 &= ~2;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override bool Equals(object other) {
-      return Equals(other as PlacementCell);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool Equals(PlacementCell other) {
-      if (ReferenceEquals(other, null)) {
-        return false;
-      }
-      if (ReferenceEquals(other, this)) {
-        return true;
-      }
-      if (X != other.X) return false;
-      if (Z != other.Z) return false;
-      return Equals(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override int GetHashCode() {
-      int hash = 1;
-      if (HasX) hash ^= X.GetHashCode();
-      if (HasZ) hash ^= Z.GetHashCode();
-      if (_unknownFields != null) {
-        hash ^= _unknownFields.GetHashCode();
-      }
-      return hash;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public override string ToString() {
-      return pb::JsonFormatter.ToDiagnosticString(this);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void WriteTo(pb::CodedOutputStream output) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      output.WriteRawMessage(this);
-    #else
-      if (HasX) {
-        output.WriteRawTag(8);
-        output.WriteInt32(X);
-      }
-      if (HasZ) {
-        output.WriteRawTag(16);
-        output.WriteInt32(Z);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(output);
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
-      if (HasX) {
-        output.WriteRawTag(8);
-        output.WriteInt32(X);
-      }
-      if (HasZ) {
-        output.WriteRawTag(16);
-        output.WriteInt32(Z);
-      }
-      if (_unknownFields != null) {
-        _unknownFields.WriteTo(ref output);
-      }
-    }
-    #endif
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public int CalculateSize() {
-      int size = 0;
-      if (HasX) {
-        size += 1 + pb::CodedOutputStream.ComputeInt32Size(X);
-      }
-      if (HasZ) {
-        size += 1 + pb::CodedOutputStream.ComputeInt32Size(Z);
-      }
-      if (_unknownFields != null) {
-        size += _unknownFields.CalculateSize();
-      }
-      return size;
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(PlacementCell other) {
-      if (other == null) {
-        return;
-      }
-      if (other.HasX) {
-        X = other.X;
-      }
-      if (other.HasZ) {
-        Z = other.Z;
-      }
-      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
-    }
-
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void MergeFrom(pb::CodedInputStream input) {
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-      input.ReadRawMessage(this);
-    #else
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
-            break;
-          case 8: {
-            X = input.ReadInt32();
-            break;
-          }
-          case 16: {
-            Z = input.ReadInt32();
-            break;
-          }
-        }
-      }
-    #endif
-    }
-
-    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
-      uint tag;
-      while ((tag = input.ReadTag()) != 0) {
-      if ((tag & 7) == 4) {
-        // Abort on any end group tag.
-        return;
-      }
-      switch(tag) {
-          default:
-            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
-            break;
-          case 8: {
-            X = input.ReadInt32();
-            break;
-          }
-          case 16: {
-            Z = input.ReadInt32();
-            break;
-          }
-        }
-      }
-    }
-    #endif
-
-  }
-
-  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class PlacementBlocker : pb::IMessage<PlacementBlocker>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       , pb::IBufferMessage
@@ -3835,7 +3593,7 @@ namespace RimGovernor.Protocol.Placement {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::RimGovernor.Protocol.Placement.PlacementReflection.Descriptor.MessageTypes[12]; }
+      get { return global::RimGovernor.Protocol.Placement.PlacementReflection.Descriptor.MessageTypes[11]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]

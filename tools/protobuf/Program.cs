@@ -40,7 +40,7 @@ internal static class Program
         Directory.CreateDirectory(output);
         var candidate = new PlacementCandidate { DefName = "Wall", X = 0, Z = int.MaxValue,
             Rotation = Rotation.North, Stuff = "" };
-        var request = new PlacementRequest();
+        var request = new PlacementRequest { Identity = new Shared.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 } };
         request.Placements.Add(candidate);
         RoundTrip(request, PlacementRequest.Parser, "csharp-request", output);
         Require(candidate.HasX && candidate.HasStuff, "Explicit zero and empty string retain presence");
@@ -52,18 +52,18 @@ internal static class Program
         Require(!missing.HasAvailable && empty.HasAvailable, "Unknown and known-empty stock differ");
         var evaluated = new PlacementEvaluated { CanPlace = false, MadeFromStuff = true,
             Passability = Passability.Impassable, IsDoor = false, ResearchFinished = true,
-            BuildableByPlayer = true, Materials = new PlacementMaterials { Unreadable = true } };
-        evaluated.Materials.Rows.Add(missing);
-        evaluated.Materials.Rows.Add(empty);
+            BuildableByPlayer = true, Materials = new PlacementMaterials { Known = new MaterialRows() } };
+        evaluated.Materials.Known.Rows.Add(missing);
+        evaluated.Materials.Known.Rows.Add(empty);
         evaluated.CostList.Add(new PlacementCost { DefName = "WoodLog", Count = 5 });
         var rotation = new PlacementRotation { Rotation = Rotation.North, Accepted = false, Reason = "Blocked" };
-        rotation.OccupiedCells.Add(new PlacementCell { X = int.MinValue, Z = 0 });
+        rotation.OccupiedCells.Add(new Shared.Cell { X = int.MinValue, Z = 0 });
         rotation.BlockingThings.Add(new PlacementBlocker { Category = "Building", IsBlueprint = false,
             IsFrame = false, WouldBeWiped = false, FrameWouldBeCancelled = false });
         evaluated.Rotations.Add(rotation);
-        var batch = new PlacementBatch { Tick = 0, MapId = 0 };
+        var batch = new PlacementBatch { Context = new Shared.ObservationContext { Identity = request.Identity, Tick = 0, NativeGeneration = 1 } };
         batch.Results.Add(new CandidateReply { Evaluated = evaluated });
-        batch.Results.Add(new CandidateReply { Failure = new PlacementFailure { Error = "Unknown definition" } });
+        batch.Results.Add(new CandidateReply { Failure = new Shared.Failure { Code = Shared.FailureCode.NotFound, Detail = "Unknown definition" } });
         var reply = new PlacementReply { Batch = batch };
         RoundTrip(reply, PlacementReply.Parser, "csharp-reply", output);
         var decoded = PlacementReply.Parser.ParseJson(JsonFormatter.Default.Format(reply));
@@ -72,11 +72,11 @@ internal static class Program
             "Evaluated candidate retained");
         Require(decoded.Batch.Results[0].Evaluated.HasCanPlace && !decoded.Batch.Results[0].Evaluated.CanPlace,
             "Present false is a known refusal");
-        Require(!decoded.Batch.Results[0].Evaluated.Materials.Rows[0].HasAvailable
-            && decoded.Batch.Results[0].Evaluated.Materials.Rows[1].HasAvailable, "Stock presence round trip");
+        Require(!decoded.Batch.Results[0].Evaluated.Materials.Known.Rows[0].HasAvailable
+            && decoded.Batch.Results[0].Evaluated.Materials.Known.Rows[1].HasAvailable, "Stock presence round trip");
         Require(decoded.Batch.Results[1].OutcomeCase == CandidateReply.OutcomeOneofCase.Failure,
             "Candidate semantic failure remains separate from batch failure");
-        var failure = new PlacementReply { Failure = new PlacementFailure { Error = "Invalid request" } };
+        var failure = new PlacementReply { Failure = new Shared.Failure { Code = Shared.FailureCode.InvalidRequest, Detail = "Invalid request" } };
         RoundTrip(failure, PlacementReply.Parser, "failure", output);
         reply.Failure = failure.Failure;
         Require(reply.Batch == null && reply.OutcomeCase == PlacementReply.OutcomeOneofCase.Failure,

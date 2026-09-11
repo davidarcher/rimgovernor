@@ -1,0 +1,342 @@
+syntax = "proto3";
+package rimgovernor.clock.v1;
+option csharp_namespace = "RimGovernor.Protocol.Clock";
+option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb;clockpb";
+import "common.proto";
+import "authority.proto";
+
+// Ordinary production speeds. Fixture acceleration is outside this capability.
+enum Speed {
+  SPEED_UNSPECIFIED = 0;
+  SPEED_NORMAL = 1;
+  SPEED_FAST = 2;
+  SPEED_SUPERFAST = 3;
+}
+enum ObservedSpeed {
+  OBSERVED_SPEED_UNSPECIFIED = 0;
+  OBSERVED_SPEED_PAUSED = 1;
+  OBSERVED_SPEED_NORMAL = 2;
+  OBSERVED_SPEED_FAST = 3;
+  OBSERVED_SPEED_SUPERFAST = 4;
+  OBSERVED_SPEED_ULTRAFAST = 5;
+}
+enum WatchMode {
+  WATCH_MODE_UNSPECIFIED = 0;
+  WATCH_MODE_COLONY = 1;
+  WATCH_MODE_COMBAT = 2;
+}
+enum StopReason {
+  STOP_REASON_UNSPECIFIED = 0;
+  STOP_REASON_REQUESTED_PAUSE = 1;
+  STOP_REASON_TICK_BUDGET = 2;
+  STOP_REASON_SESSION_CHANGED = 3;
+  STOP_REASON_UNAVAILABLE = 4;
+  STOP_REASON_EXTERNAL_PAUSE = 5;
+  STOP_REASON_LETTER_PAUSE = 6;
+  STOP_REASON_EXTERNAL_SPEED_CHANGED = 7;
+  STOP_REASON_LEASE_EXPIRED = 8;
+  STOP_REASON_WATCHER_ERROR = 9;
+  STOP_REASON_EVENT_JOURNAL_ERROR = 10;
+  STOP_REASON_FORCE_PAUSED = 11;
+  STOP_REASON_COLONY_NAMING = 12;
+  STOP_REASON_START_REFUSED = 13;
+  STOP_REASON_NOTIFICATION_BATCH = 14;
+  STOP_REASON_MEDICAL_REST_CHANGED = 15;
+  STOP_REASON_HOSTILE = 16;
+  STOP_REASON_COLONIST_DOWNED = 17;
+  STOP_REASON_PREDATOR_HUNT = 18;
+  STOP_REASON_HUNTING_ROUTE_UNSAFE = 19;
+  STOP_REASON_COLONIST_HEALTH = 20;
+  STOP_REASON_COLONIST_INJURY = 21;
+}
+
+message WatchPolicy {
+  optional WatchMode mode = 1;
+  optional float health_drop_fraction = 2;
+  optional float min_health_fraction = 3;
+  optional float hostile_within = 4;
+  repeated string acknowledged_hostile_ids = 5;
+  repeated string acknowledged_downed_colonist_ids = 6;
+  repeated string acknowledged_injured_colonist_ids = 7;
+  optional uint32 injury_stop_cooldown_ms = 8;
+  repeated string surgical_recovery_ids = 9;
+  repeated string medical_rest_ids = 10;
+}
+
+// Epoch ownership is distinct from automation authority and viewer/input leases.
+message EpochOwner {
+  optional string controller_session_id = 1;
+  optional int64 epoch = 2;
+}
+message StartRequest {
+  rimgovernor.authority.v1.WritePrecondition authority = 1;
+  optional Speed speed = 2;
+  WatchPolicy policy = 3;
+  optional uint32 lease_ms = 4;
+  optional uint32 max_ticks = 5;
+}
+message OwnedRequest {
+  rimgovernor.common.v1.Identity identity = 1;
+  EpochOwner owner = 2;
+}
+message RenewRequest {
+  OwnedRequest epoch = 1;
+  rimgovernor.authority.v1.WritePrecondition authority = 2;
+  optional uint32 lease_ms = 3;
+}
+message SpeedRequest {
+  OwnedRequest epoch = 1;
+  rimgovernor.authority.v1.WritePrecondition authority = 2;
+  optional Speed speed = 3;
+}
+message StatusRequest { rimgovernor.common.v1.Identity identity = 1; }
+
+message Epoch {
+  EpochOwner owner = 1;
+  rimgovernor.common.v1.ObservationContext origin = 2;
+  optional Speed requested_speed = 3;
+  WatchPolicy policy = 4;
+  optional int64 start_tick = 5;
+  optional int64 tick_deadline = 6;
+  optional uint32 lease_remaining_ms = 7;
+  optional int64 last_tick = 8;
+}
+message Running { Epoch epoch = 1; }
+message Stopping {
+  Epoch epoch = 1;
+  optional StopReason pending_reason = 2;
+  optional string detail = 3;
+  // Failed pause stays armed. This state never grants permission to resume.
+  optional bool actual_paused = 4;
+}
+message Stopped {
+  Epoch epoch = 1;
+  optional StopReason reason = 2;
+  optional string detail = 3;
+  optional bool actual_paused = 4;
+  optional bool pause_verified = 5;
+  optional bool pause_requested = 6;
+  optional int64 stopped_at_unix_ms = 7;
+}
+message NeverStarted {}
+message Status {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  oneof state {
+    Running running = 2;
+    Stopping stopping = 3;
+    Stopped stopped = 4;
+    NeverStarted never_started = 5;
+    rimgovernor.common.v1.Unavailable unavailable = 6;
+  }
+  optional bool native_tick_boundary = 7;
+  optional bool durable_events = 8;
+  optional int64 newest_cursor = 9;
+  optional string watcher_error = 10;
+  optional uint64 force_pause_waiting_ms = 11;
+  optional string force_pause_kind = 12;
+  optional int64 max_probe_tick_gap = 13;
+  optional uint64 probe_count = 14;
+  repeated Alert baseline_alerts = 15;
+  repeated Injury suppressed_injuries = 16;
+  rimgovernor.common.v1.PageInfo evidence_completeness = 17;
+  optional ObservedSpeed observed_speed = 18;
+  optional bool actual_paused = 19;
+}
+message StatusReply {
+  oneof outcome {
+    Status status = 1;
+    rimgovernor.common.v1.Failure failure = 2;
+  }
+}
+message LongEventPending { optional string detail = 1; }
+message AppliedControl { Status status = 1; }
+message UncertainControl { Status last_observed = 1; optional string detail = 2; }
+message ControlReceipt {
+  rimgovernor.common.v1.AttemptKey attempt = 1;
+  rimgovernor.common.v1.ObservationContext admitted_context = 2;
+  rimgovernor.authority.v1.Owner authorizing_owner = 3;
+  oneof outcome {
+    AppliedControl applied = 4;
+    UncertainControl uncertain = 5;
+  }
+}
+// Admission failure has no clock effect. A changed or uncertain clock returns status.
+message ControlReply {
+  oneof outcome {
+    ControlReceipt receipt = 1;
+    rimgovernor.common.v1.Failure failure = 2;
+    LongEventPending long_event_pending = 3;
+  }
+}
+message AttemptRequest {
+  rimgovernor.common.v1.Identity identity = 1;
+  rimgovernor.common.v1.AttemptKey attempt = 2;
+}
+// Missing records never prove that a lost request had no effect.
+message AttemptUnknown {}
+message AttemptReply {
+  oneof outcome {
+    ControlReceipt receipt = 1;
+    AttemptUnknown unknown = 2;
+    rimgovernor.common.v1.Failure failure = 3;
+  }
+}
+
+message Letter {
+  optional string id = 1;
+  optional string label = 2;
+  optional string def_name = 3;
+  optional bool negative = 4;
+}
+message TransientMessage {
+  optional string id = 1;
+  optional string type_def = 2;
+  optional string text = 3;
+  optional int64 starting_tick = 4;
+  optional bool negative = 5;
+}
+message Notification {
+  oneof source {
+    Letter letter = 1;
+    TransientMessage message = 2;
+  }
+}
+message NotificationBatch {
+  repeated Letter letters = 1;
+  repeated TransientMessage messages = 2;
+  rimgovernor.common.v1.PageInfo completeness = 3;
+}
+message Alert {
+  optional string key = 1;
+  optional string label = 2;
+  optional string priority = 3;
+}
+message PawnEvent {
+  optional string pawn_id = 1;
+  optional string name = 2;
+  rimgovernor.common.v1.Cell position = 3;
+  optional string reason = 4;
+}
+message Health {
+  optional int32 injury_count = 1;
+  optional float severity = 2;
+  optional float bleed_rate = 3;
+  optional float blood_loss = 4;
+  optional float summary_health = 5;
+}
+enum InjurySuppression {
+  INJURY_SUPPRESSION_UNSPECIFIED = 0;
+  INJURY_SUPPRESSION_NONE = 1;
+  INJURY_SUPPRESSION_ACKNOWLEDGED = 2;
+  INJURY_SUPPRESSION_COOLDOWN = 3;
+}
+message Injury {
+  PawnEvent pawn = 1;
+  Health before = 2;
+  Health after = 3;
+  optional InjurySuppression suppression = 4;
+  optional uint32 cooldown_remaining_ms = 5;
+  optional bool new_wound = 6;
+}
+message HealthThreshold {
+  PawnEvent pawn = 1;
+  optional float health_at_start = 2;
+  optional float health_now = 3;
+  optional float min_health_fraction = 4;
+  optional float health_drop_fraction = 5;
+}
+message HostilesCleared {
+  repeated PawnEvent downed_hostiles = 1;
+  repeated PawnEvent drafted_colonists = 2;
+  optional int32 conscious_hostiles_before = 3;
+  optional bool across_epoch_restart = 4;
+  rimgovernor.common.v1.PageInfo completeness = 5;
+}
+message BudgetReached {
+  optional int64 start_tick = 1;
+  optional int64 tick_deadline = 2;
+  optional int64 actual_tick = 3;
+}
+message PauseEvidence {
+  optional bool actual_paused = 1;
+  optional bool pause_requested = 2;
+  optional bool pause_verified = 3;
+  repeated string force_pausing_window_ids = 4;
+  optional bool long_event_pending = 5;
+  Letter letter = 6;
+  optional Speed requested_speed = 7;
+  optional ObservedSpeed actual_speed = 8;
+}
+message StopEvent {
+  optional StopReason reason = 1;
+  oneof evidence {
+    NotificationBatch notifications = 2;
+    PawnEvent pawn = 3;
+    Injury injury = 4;
+    HealthThreshold health = 5;
+    BudgetReached budget = 6;
+    PauseEvidence pause = 7;
+    rimgovernor.common.v1.Unavailable unavailable = 8;
+  }
+}
+message EpochStarted { Epoch epoch = 1; }
+message SpeedChanged { optional Speed speed = 1; }
+message PauseFailed { StopEvent pending = 1; }
+message ForcePauseWaiting {
+  PauseEvidence pause = 1;
+  optional uint64 waited_ms = 2;
+  optional uint32 grace_ms = 3;
+}
+message ForcePauseCleared {
+  optional uint64 waited_ms = 1;
+  optional string force_pause_kind = 2;
+  optional bool speed_restored = 3;
+}
+message Event {
+  optional int64 cursor = 1;
+  EpochOwner owner = 2;
+  rimgovernor.common.v1.ObservationContext context = 3;
+  optional int64 observed_at_unix_ms = 4;
+  optional string detail = 5;
+  oneof event {
+    EpochStarted started = 6;
+    SpeedChanged speed_changed = 7;
+    StopEvent stopped = 8;
+    Notification notification = 9;
+    Alert alert = 10;
+    Injury injury_observed = 11;
+    HostilesCleared hostiles_cleared = 12;
+    PauseFailed pause_failed = 13;
+    ForcePauseWaiting force_pause_waiting = 14;
+    ForcePauseCleared force_pause_cleared = 15;
+  }
+}
+message EventsRequest {
+  rimgovernor.common.v1.Identity identity = 1;
+  optional int64 after_cursor = 2;
+  optional uint32 limit = 3;
+}
+message EventsPage {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  repeated Event events = 2;
+  optional int64 oldest_cursor = 3;
+  optional int64 newest_cursor = 4;
+  optional int64 next_cursor = 5;
+  optional bool gap = 6;
+  optional uint64 lost_count = 7;
+}
+message EventsReply {
+  oneof outcome {
+    EventsPage page = 1;
+    rimgovernor.common.v1.Failure failure = 2;
+  }
+}
+service Clock {
+  rpc ReadStatus(StatusRequest) returns (StatusReply);
+  rpc ReadEvents(EventsRequest) returns (EventsReply);
+  rpc ReadAttempt(AttemptRequest) returns (AttemptReply);
+  rpc Start(StartRequest) returns (ControlReply);
+  rpc Pause(OwnedRequest) returns (StatusReply);
+  rpc Renew(RenewRequest) returns (ControlReply);
+  rpc ChangeSpeed(SpeedRequest) returns (ControlReply);
+}

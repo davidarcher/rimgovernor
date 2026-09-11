@@ -2,6 +2,7 @@ syntax = "proto3";
 package rimgovernor.placement.v1;
 option csharp_namespace = "RimGovernor.Protocol.Placement";
 option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb;placementpb";
+import "common.proto";
 
 // Presence and domain limits are checked by ordinary boundary validators.
 // ProtoJSON parsing/formatting is provided by the official Protobuf runtimes.
@@ -21,6 +22,7 @@ enum Passability {
 }
 message PlacementRequest {
   repeated PlacementCandidate placements = 1;
+  rimgovernor.common.v1.Identity identity = 2;
 }
 message PlacementCandidate {
   optional string def_name = 1;
@@ -33,22 +35,18 @@ message PlacementCandidate {
 message PlacementReply {
   oneof outcome {
     PlacementBatch batch = 1;
-    PlacementFailure failure = 2;
+    rimgovernor.common.v1.Failure failure = 2;
   }
 }
 message PlacementBatch {
-  optional int32 tick = 1;
-  optional int32 map_id = 2;
-  repeated CandidateReply results = 3;
+  rimgovernor.common.v1.ObservationContext context = 1;
+  repeated CandidateReply results = 2;
 }
 message CandidateReply {
   oneof outcome {
     PlacementEvaluated evaluated = 1;
-    PlacementFailure failure = 2;
+    rimgovernor.common.v1.Failure failure = 2;
   }
-}
-message PlacementFailure {
-  optional string error = 1;
 }
 message PlacementEvaluated {
   optional bool can_place = 1;
@@ -57,6 +55,7 @@ message PlacementEvaluated {
   optional bool is_door = 4;
   optional bool research_finished = 5;
   optional bool buildable_by_player = 6;
+  // Evaluated guarantees a complete cost scan; unreadable/oversized scans fail the candidate.
   repeated PlacementCost cost_list = 7;
   PlacementMaterials materials = 8;
   repeated PlacementRotation rotations = 9;
@@ -66,8 +65,14 @@ message PlacementCost {
   optional int32 count = 2;
 }
 message PlacementMaterials {
-  optional bool unreadable = 1;
-  repeated PlacementMaterialStock rows = 2;
+  oneof availability {
+    MaterialRows known = 1;
+    rimgovernor.common.v1.Unavailable unavailable = 2;
+  }
+}
+message MaterialRows {
+  // Complete rows for all material definitions relevant to the evaluated candidate.
+  repeated PlacementMaterialStock rows = 1;
 }
 message PlacementMaterialStock {
   optional string def_name = 1;
@@ -78,12 +83,9 @@ message PlacementRotation {
   optional Rotation rotation = 1;
   optional bool accepted = 2;
   optional string reason = 3;
-  repeated PlacementCell occupied_cells = 4;
+  // Evaluated rotation guarantees complete footprint and blocker scans.
+  repeated rimgovernor.common.v1.Cell occupied_cells = 4;
   repeated PlacementBlocker blocking_things = 5;
-}
-message PlacementCell {
-  optional int32 x = 1;
-  optional int32 z = 2;
 }
 message PlacementBlocker {
   optional string category = 1;
@@ -91,4 +93,7 @@ message PlacementBlocker {
   optional bool is_frame = 3;
   optional bool would_be_wiped = 4;
   optional bool frame_would_be_cancelled = 5;
+}
+service Placement {
+  rpc Preview(PlacementRequest) returns (PlacementReply);
 }
