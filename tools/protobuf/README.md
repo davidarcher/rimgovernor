@@ -64,3 +64,19 @@ See the official [C# generated-code guide](https://protobuf.dev/reference/csharp
 for generated presence and oneof APIs. Generated C# files are committed under
 `contracts/generated/protobuf/csharp`; edit the `.proto` inputs and rerun the
 compiler instead of editing generated code.
+
+## Complete package proof
+
+The proof discovers every compiled canonical message and emits serialization
+shapes covering presence, enums and oneof variants. `manifest.tsv` lists fixture
+ID, fully qualified message, JSON filename and binary filename. These shapes test
+the official runtimes; they are not all valid native requests.
+
+Run the Go proof to create independent origins, pass that output through
+`--cross-language-inputs`, then run Go again with the resulting C# directory and
+`--check-go-echo`. Finally invoke the generated `ProtobufProof.exe` with
+`--verify-return <csharp-origin-directory> <go-return-directory>`. This verifies
+the complete original set, message types and values including field presence,
+not only agreement between each returned JSON/binary pair. Linux uses Mono with
+the .NET Framework/netstandard facades (Debian `mono-devel`). The dedicated
+Protobuf workflow runs both platforms and preserves exchange artifacts.

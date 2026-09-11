@@ -32,7 +32,7 @@ jobs:
         run: |
           sudo apt-get update
           if ($LASTEXITCODE -ne 0) { throw 'Package index failed' }
-          sudo apt-get install -y mono-runtime
+          sudo apt-get install -y mono-devel
           if ($LASTEXITCODE -ne 0) { throw 'Mono runtime install failed' }
       - name: Check official generated C#
         run: |
@@ -57,6 +57,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'C# official runtime exchange failed' }
           go -C tools/protobuf/go run -mod=readonly . --output ../../../.rimgovernor/protobuf-go-return --cross-language-inputs ../../../.rimgovernor/protobuf-exchange/roundtrip --check-go-echo
           if ($LASTEXITCODE -ne 0) { throw 'Go official runtime exchange failed' }
+          $proofExe = '.rimgovernor/protobuf-exchange/source/tools/protobuf/bin/Release/net472/ProtobufProof.exe'
+          if ($IsWindows) {
+            & $proofExe --verify-return .rimgovernor/protobuf-exchange/roundtrip .rimgovernor/protobuf-go-return
+          } else {
+            mono $proofExe --verify-return .rimgovernor/protobuf-exchange/roundtrip .rimgovernor/protobuf-go-return
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'C# original/Go/C# full-set equality failed' }
       - uses: actions/upload-artifact@v4
         if: always()
         with:

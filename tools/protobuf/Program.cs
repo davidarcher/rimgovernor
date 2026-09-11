@@ -228,6 +228,9 @@ internal static class Program
         {
             var parts = line.Split('\t');
             Require(parts.Length == 4 && ids.Add(parts[0]), "Unique manifest fixture ID and four columns");
+            // A Go exchange directory also retains echoes of C# origins. Those
+            // are verified by VerifyReturn, not turned into second-generation echoes.
+            if (parts[0].StartsWith("csharp-echo-", StringComparison.Ordinal)) continue;
             if (!descriptors.TryGetValue(parts[1], out var descriptor))
                 throw new InvalidOperationException("Incoming unrecognized canonical message: " + parts[1]);
             var json = descriptor.Parser.ParseJson(File.ReadAllText(FixturePath(incoming, parts[2])));
@@ -267,6 +270,8 @@ internal static class Program
         const string prefix = "csharp-echo-";
         var descriptors = CanonicalMessages();
         var original = ReadManifest(originDirectory, "manifest.tsv");
+        foreach (var id in original.Keys.Where(id => id.StartsWith("go-echo-", StringComparison.Ordinal)).ToArray())
+            original.Remove(id);
         var returned = ReadManifest(returnDirectory, "csharp-echo-manifest.tsv");
         Require(original.Count == returned.Count, "Return manifest must cover the exact complete original set");
         var seen = new HashSet<string>(StringComparer.Ordinal);

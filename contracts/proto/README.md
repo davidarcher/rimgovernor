@@ -5,6 +5,13 @@ This package defines the Go/native boundary with Protocol Buffers. Official
 schema compiler. Game definitions remain open native identifiers, not generated
 enums of the current installed content.
 
+- [Boundary inventory](coverage.md): all97 current boundary rows and55 native exports.
+- [Fixed MCP tools](mcp-tools.md):78 descriptor methods, exact wrappers and capabilities.
+- [Validation](validation.md): shared presence, bounds and outcome requirements.
+- [Observations](observation-coverage.md), [operations/receipts](operation-coverage.md),
+  [clock/lifecycle](clock-lifecycle-coverage.md), [placement](placement-coverage.md)
+  and [presentation](presentation-coverage.md): source facts and owning contracts.
+
 Complete the message families and source/consumer coverage before implementing
 the Go and native adapters. A compiled schema is not evidence of native behavior.
 The unfinished contract inventory and implementation gates remain in
