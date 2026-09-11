@@ -182,7 +182,11 @@ message DeleteBill { BillPrecondition bill = 1; }
 message MoveBill { BillPrecondition bill = 1; optional int32 destination_index = 2; }
 message SelectResearch { optional string project_def = 1; optional string expected_snapshot_token = 2; }
 message DrillPolicy { optional string building_def = 1; rimgovernor.common.v1.Cell cell = 2; optional string resource_def = 3; optional int32 stock_target = 4; }
-message SetProductionPolicy { optional string expected_snapshot_token = 1; repeated DefCount floors = 2; repeated DefCount commitments = 3; repeated string stopped_defs = 4; repeated DrillPolicy drills = 5; }
+message DefCounts { repeated DefCount rows = 1; }
+message DefinitionList { repeated string defs = 1; }
+message DrillPolicies { repeated DrillPolicy rows = 1; }
+// All four replacement messages are required. Present-empty explicitly clears.
+message SetProductionPolicy { optional string expected_snapshot_token = 1; DefCounts floors = 2; DefCounts commitments = 3; DefinitionList stopped_defs = 4; DrillPolicies drills = 5; }
 enum ZoneType { ZONE_TYPE_UNSPECIFIED = 0; ZONE_TYPE_STOCKPILE = 1; ZONE_TYPE_DUMPING = 2; ZONE_TYPE_GROWING = 3; }
 enum StoragePriority { STORAGE_PRIORITY_UNSPECIFIED = 0; STORAGE_PRIORITY_LOW = 1; STORAGE_PRIORITY_NORMAL = 2; STORAGE_PRIORITY_PREFERRED = 3; STORAGE_PRIORITY_IMPORTANT = 4; STORAGE_PRIORITY_CRITICAL = 5; }
 enum FilterPreset { FILTER_PRESET_UNSPECIFIED = 0; FILTER_PRESET_EVERYTHING = 1; FILTER_PRESET_NOTHING = 2; FILTER_PRESET_FOOD = 3; FILTER_PRESET_PERISHABLES = 4; FILTER_PRESET_NONPERISHABLES = 5; FILTER_PRESET_OUTDOOR_SAFE = 6; }
@@ -232,7 +236,34 @@ message GiftCaravanSilver { EntityPrecondition caravan = 1; EntityPrecondition f
 message AcceptQuest { EntityPrecondition quest = 1; optional string accepter_pawn_id = 2; optional int32 reward_choice = 3; }
 message FulfillQuest { EntityPrecondition quest = 1; EntityPrecondition caravan = 2; repeated string expected_pawn_ids = 3; }
 
+// Safe cleanup may run after authority revocation, only for an unchanged native claim.
+message ReleaseOwnedDraftRequest {
+  rimgovernor.common.v1.Identity identity = 1;
+  EntityPrecondition pawn = 2;
+  optional string expected_claim_id = 3;
+  rimgovernor.authority.v1.Owner original_owner = 4;
+}
+message DraftRelease {
+  ReleaseOwnedDraftRequest request = 1;
+  rimgovernor.common.v1.ObservationContext context = 2;
+  rimgovernor.receipts.v1.JobEffect observed = 3;
+}
+message DraftReleaseUncertain {
+  ReleaseOwnedDraftRequest request = 1;
+  rimgovernor.common.v1.ObservationContext context = 2;
+  optional string detail = 3;
+}
+message ReleaseOwnedDraftReply {
+  oneof outcome {
+    DraftRelease released = 1;
+    DraftRelease already_released = 2;
+    DraftReleaseUncertain uncertain = 3;
+    rimgovernor.common.v1.Failure failure = 4;
+  }
+}
+
 service Operations {
   rpc Preview(PreviewRequest) returns (PreviewReply);
   rpc Execute(ExecuteRequest) returns (ExecuteReply);
+  rpc ReleaseOwnedDraft(ReleaseOwnedDraftRequest) returns (ReleaseOwnedDraftReply);
 }

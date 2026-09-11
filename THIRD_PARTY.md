@@ -15,6 +15,16 @@ The dashboard includes source derived from IlyaChichkov/rimapi-dashboard at
 
 ## Native integration and formatters
 
+The official Protobuf toolchain uses Google.Protobuf3.31.1 and Grpc.Tools2.72.0
+(protoc30.0), with the runtime closure pinned in
+`tools/protobuf/packages.lock.json`. The generated Go wire module pins
+google.golang.org/protobuf1.36.11 in its own go.mod/go.sum. Protobuf runtimes use
+BSD-3-Clause; the Grpc.Tools build package declares Apache-2.0. Runtime distribution must include their upstream notices
+and notices for the .NET runtime dependencies; compiler/reference packages are
+build inputs. See [toolchain provenance](tools/protobuf/README.md) and
+[Go generator provenance](tools/protobuf/go/README.md). Native runtime staging
+and distribution notice checks remain in N01 adapter/package acceptance.
+
 - [Colony bridge source notice](integrations/rimgovernor-native/Notices/companion/PROVENANCE.md)
 - [UI formatter source notice](controller/rimgovernor/vendor/PROVENANCE.md)
 - [Headless adapter source notice](integrations/rimgovernor-native/Notices/headless/PROVENANCE.md) and GPL-3.0 license

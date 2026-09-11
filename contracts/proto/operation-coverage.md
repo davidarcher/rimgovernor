@@ -14,6 +14,36 @@ Progress observation is a separate read with complete AttemptKey and current con
 
 ## Bounds and presence
 
+`ReleaseOwnedDraft` is a narrow cleanup capability valid after Manual or lease
+expiry. It checks exact identity, original controller/direction, native draft
+claim and unchanged pawn snapshot on the game thread. It can only release that
+claim, never acquire draft, replace a job or clear a player's changed draft. It
+uses a separate correlated release result and typed job evidence including claim
+ID. A full ordinary attempt ledger cannot prevent cleanup. Released, same-claim
+already-released and uncertain are distinct; unknown or changed ownership refuses
+without effects. Native per-pawn claim state retains its latest release identity
+until replaced, so a retry never targets a new claim. Cleanup results retain the
+original owner and actual observed generation without reviving the old lease.
+
+Trade `executed` records native TryExecute success and `actually_traded` its
+separate out-result. Transfer acceptance requires both explicitly true; staged
+line counts or a closed dialog do not prove transferred assets. Native exceptions
+after possible transfer are uncertain even if the existing SDK reports false.
+Progress has an explicit unsuccessful outcome for fully inspected failure,
+cancellation/interruption, expired quest, dead target or unmet postcondition.
+Missing surgery bills alone establish neither completion nor failure; inspect
+the exact patient/recipe/body-part outcome. Completed, absent and unsuccessful
+outcomes require causally fresh complete inspection; a current Go consumer's
+strictly-later-tick rule must adapt to same-tick synchronous verified readbacks.
+
+Production policy requires all four replacement wrappers (floors, commitments,
+stopped definitions, drills); present-empty explicitly clears the respective
+policy. An omitted wrapper refuses rather than clearing unreadable state. Settings
+results for WORK/TRAINING/SCHEDULE identify the exact work definition, trainable
+definition or hour (0–23). Multiple entry outcomes must not collapse into an
+ambiguous field-category result. Cascaded native changes appear in the complete
+readback snapshot; unreadable entry outcomes remain UNKNOWN.
+
 - One operation per attempt. Cell selections and per-cell output: at most4096 expanded unique cells, including rectangle area; overflow refused before work. Repeated non-cell mutation rows at most256 each, with combined filter selectors at most256. Schedule exactly24 assignment definitions. Duplicates refused where they would make a target/definition ambiguous. No silent truncation of requested effects.
 - Definition names remain open valid identifiers, subject to the shared limit of 256 UTF-8 bytes and no NUL. Diagnostic prose is at most4096 Unicode scalar values, shortened only at scalar boundaries. Opaque IDs/tokens are at most256 UTF-8 bytes. Native int32 counts nonnegative except signed trade transfer amounts; cargo quantities positive. All floating values finite; native policy ranges still apply. Skill0..20, work priority0..4, rotation uses the shared placement.Rotation enum in requests and evidence, requiring a single cardinal value for writes and observed effects (neither ALL nor UNSPECIFIED). Whole-body surgery has absent part_index, never an invented negative body-part identity.
 - Every required message, enum, optional scalar and oneof must be present and valid at admission. Unspecified/unknown enum values and unknown message fields are refused recursively. Presence of false/zero is meaningful. Assignment.clear differs from absent patch. Bill filter replacement present-empty denies all; replacement cannot be combined with allow/disallow. Special-filter selectors are zone-only; bills accept definition/category selectors supported by fixed ingredient rules.

@@ -81,7 +81,16 @@ enum SettingsField {
   SETTINGS_FIELD_MASTER = 15; SETTINGS_FIELD_TRAINING = 16; SETTINGS_FIELD_SLAUGHTER = 17; SETTINGS_FIELD_RELEASE = 18;
 }
 enum FieldOutcome { FIELD_OUTCOME_UNSPECIFIED = 0; FIELD_OUTCOME_UNCHANGED = 1; FIELD_OUTCOME_APPLIED = 2; FIELD_OUTCOME_REFUSED = 3; FIELD_OUTCOME_UNKNOWN = 4; }
-message FieldResult { optional SettingsField field = 1; optional FieldOutcome outcome = 2; optional string reason = 3; }
+message FieldResult {
+  optional SettingsField field = 1;
+  optional FieldOutcome outcome = 2;
+  optional string reason = 3;
+  oneof entry {
+    string work_type_def = 4;
+    string trainable_def = 5;
+    int32 schedule_hour = 6;
+  }
+}
 message SettingsEffect { SnapshotEvidence snapshot = 1; repeated FieldResult fields = 2; }
 message BillEffect { SnapshotEvidence stack = 1; optional string bill_id = 2; optional string recipe_def = 3; optional bool present = 4; optional int32 index = 5; repeated string ordered_bill_ids = 6; }
 message ResearchEffect { optional string previous_project_def = 1; optional string current_project_def = 2; SnapshotEvidence snapshot = 3; }
@@ -115,6 +124,7 @@ message JobEffect {
   optional float need_before = 19;
   optional bool can_try = 20;
   optional string resulting_snapshot_token = 21;
+  optional string draft_claim_id = 22;
 }
 message SurgeryEffect { optional string patient_id = 1; optional string recipe_def = 2; optional int32 part_index = 3; optional string bill_id = 4; optional bool queued = 5; optional string health_token = 6; SnapshotEvidence bill_stack = 7; }
 message AnimalEffect { SnapshotEvidence animal = 1; optional string census_token = 2; optional string trainable_def = 3; optional bool wanted = 4; optional bool slaughter_designated = 5; }
@@ -133,6 +143,7 @@ message TradeEffect {
   optional string faction_id = 10;
   repeated string received_quest_ids = 11;
   SnapshotEvidence snapshot = 12;
+  optional bool actually_traded = 13;
 }
 message CaravanEffect { optional string caravan_id = 1; optional bool assembly_started = 2; optional bool path_started = 3; optional bool stopped = 4; optional int32 destination_tile = 5; repeated string pawn_ids = 6; SnapshotEvidence snapshot = 7; }
 message QuestEffect { optional string quest_id = 1; optional bool accepted = 2; optional bool request_active = 3; optional string state = 4; optional int64 acceptance_tick = 5; SnapshotEvidence snapshot = 6; }
@@ -153,6 +164,20 @@ message PendingEffect { EffectEvidence evidence = 1; }
 message CompletedEffect { EffectEvidence evidence = 1; }
 message AbsentEffect { optional string inspection_token = 1; }
 message UnknownEffect { optional string reason = 1; }
+enum UnsuccessfulReason {
+  UNSUCCESSFUL_REASON_UNSPECIFIED = 0;
+  UNSUCCESSFUL_REASON_NATIVE_FAILURE = 1;
+  UNSUCCESSFUL_REASON_CANCELLED = 2;
+  UNSUCCESSFUL_REASON_INTERRUPTED = 3;
+  UNSUCCESSFUL_REASON_EXPIRED = 4;
+  UNSUCCESSFUL_REASON_TARGET_DEAD = 5;
+  UNSUCCESSFUL_REASON_OUTCOME_NOT_ACHIEVED = 6;
+}
+message UnsuccessfulEffect {
+  optional UnsuccessfulReason reason = 1;
+  EffectEvidence evidence = 2;
+  optional string detail = 3;
+}
 message Progress {
   rimgovernor.common.v1.AttemptKey attempt = 1;
   rimgovernor.common.v1.ObservationContext context = 2;
@@ -163,6 +188,7 @@ message Progress {
     PendingEffect pending = 5;
     CompletedEffect completed = 6;
     AbsentEffect absent = 7;
+    UnsuccessfulEffect unsuccessful = 8;
   }
 }
 message ProgressReply { oneof outcome { Progress progress = 1; rimgovernor.common.v1.Failure failure = 2; } }

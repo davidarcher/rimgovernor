@@ -57,15 +57,19 @@ namespace RimGovernor.Protocol.Common {
             "X0NPREVfTk9UX0ZPVU5EEAoSHAoYRkFJTFVSRV9DT0RFX1VOU1VQUE9SVEVE",
             "EAsSHwobRkFJTFVSRV9DT0RFX05BVElWRV9GQUlMVVJFEAwSGgoWRkFJTFVS",
             "RV9DT0RFX0NBTkNFTExFRBANEiIKHkZBSUxVUkVfQ09ERV9ERUFETElORV9F",
-            "WENFRURFRBAOKowCChFVbmF2YWlsYWJsZVJlYXNvbhIiCh5VTkFWQUlMQUJM",
+            "WENFRURFRBAOKqkDChFVbmF2YWlsYWJsZVJlYXNvbhIiCh5VTkFWQUlMQUJM",
             "RV9SRUFTT05fVU5TUEVDSUZJRUQQABIhCh1VTkFWQUlMQUJMRV9SRUFTT05f",
             "Tk9UX0xPQURFRBABEiMKH1VOQVZBSUxBQkxFX1JFQVNPTl9OT1RfT0JTRVJW",
             "RUQQAhIiCh5VTkFWQUlMQUJMRV9SRUFTT05fVU5TVVBQT1JURUQQAxIiCh5V",
             "TkFWQUlMQUJMRV9SRUFTT05fUkVBRF9GQUlMRUQQBBIcChhVTkFWQUlMQUJM",
             "RV9SRUFTT05fU1RBTEUQBRIlCiFVTkFWQUlMQUJMRV9SRUFTT05fTElNSVRf",
-            "RVhDRUVERUQQBkJlWkVnaXRodWIuY29tL2RhdmlkYXJjaGVyL1JpbUdvdmVy",
-            "bm9yL2dvL2ludGVybmFsL3dpcmUvY29tbW9ucGI7Y29tbW9ucGKqAhtSaW1H",
-            "b3Zlcm5vci5Qcm90b2NvbC5Db21tb25iBnByb3RvMw=="));
+            "RVhDRUVERUQQBhIkCiBVTkFWQUlMQUJMRV9SRUFTT05fTk9UX1JFUVVFU1RF",
+            "RBAHEiUKIVVOQVZBSUxBQkxFX1JFQVNPTl9OT1RfQVBQTElDQUJMRRAIEh0K",
+            "GVVOQVZBSUxBQkxFX1JFQVNPTl9ISURERU4QCRIvCitVTkFWQUlMQUJMRV9S",
+            "RUFTT05fTkFUSVZFX0NPTVBPTkVOVF9NSVNTSU5HEApCZVpFZ2l0aHViLmNv",
+            "bS9kYXZpZGFyY2hlci9SaW1Hb3Zlcm5vci9nby9pbnRlcm5hbC93aXJlL2Nv",
+            "bW1vbnBiO2NvbW1vbnBiqgIbUmltR292ZXJub3IuUHJvdG9jb2wuQ29tbW9u",
+            "YgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Common.FailureCode), typeof(global::RimGovernor.Protocol.Common.UnavailableReason), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -109,6 +113,10 @@ namespace RimGovernor.Protocol.Common {
     [pbr::OriginalName("UNAVAILABLE_REASON_READ_FAILED")] ReadFailed = 4,
     [pbr::OriginalName("UNAVAILABLE_REASON_STALE")] Stale = 5,
     [pbr::OriginalName("UNAVAILABLE_REASON_LIMIT_EXCEEDED")] LimitExceeded = 6,
+    [pbr::OriginalName("UNAVAILABLE_REASON_NOT_REQUESTED")] NotRequested = 7,
+    [pbr::OriginalName("UNAVAILABLE_REASON_NOT_APPLICABLE")] NotApplicable = 8,
+    [pbr::OriginalName("UNAVAILABLE_REASON_HIDDEN")] Hidden = 9,
+    [pbr::OriginalName("UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING")] NativeComponentMissing = 10,
   }
 
   #endregion

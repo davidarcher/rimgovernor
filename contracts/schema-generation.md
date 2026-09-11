@@ -1,70 +1,45 @@
 # Generated wire contracts
 
-G01 owns the canonical [schemas](schemas/) and [output manifest](generation.json).
-The repository-owned Go generator uses the pinned toolchain in `go/.go-version`.
-Its source is versioned with the repository; generated headers identify the schema
-SHA-256 and generator format version. Schema files use LF so hashes agree across
-Windows and Linux. Native and controller consumers share this source of truth.
+The shared native boundary is defined in [Protocol Buffers](proto/README.md).
+N01 owns the canonical package; Go reviews its consumer coverage. Complete the
+shared package before expanding native or Go adapters. Source/consumer coverage
+and semantic constraints live beside the `.proto` files.
 
-## Supported subset
+Use official generators and runtimes:
 
-The generator covers placement requests and current preview replies. It accepts schema
-metadata (`$schema`, `$id`, `title`, `description`), local `$defs`/`$ref`, named
-objects with explicit `required` and `additionalProperties: false`, bounded arrays,
-strings, booleans and bounded integers. Definition names supply generated type
-names. References are local and acyclic. Unsupported keywords and inconsistent
-constraints are generation errors. String enums, boolean constants and nullable
-int32 values are supported. Closed `oneOf` variants reference two named objects
-with distinct required boolean `success` constants. C# optional nullable fields
-remain unsupported; required nullable fields distinguish missing data from null.
+| Language | Compiler/plugin | Runtime | Generated source |
+| --- | --- | --- | --- |
+| C# net472 | protoc30.0 from Grpc.Tools2.72.0 | Google.Protobuf3.31.1 | `generated/protobuf/csharp` |
+| Go | protoc30.0 and protoc-gen-go1.36.11 | google.golang.org/protobuf1.36.11 | `generated/protobuf/go` |
 
-Three explicit extensions preserve native request constraints:
+The repository scripts invoke official tools, restore pinned packages, compare
+generated output and run proofs. They do not interpret schema syntax or emit
+language source. See [C# commands](../tools/protobuf/README.md) and
+[Go commands](../tools/protobuf/go/README.md). Keep private build outputs in fresh
+ignored `.rimgovernor/` directories; commit official generated bindings with their
+schemas. Review generation drift for the complete file set.
 
-| Keyword | Contract |
-| --- | --- |
-| `x-maxUTF16Length` | Maximum decoded string length in UTF-16 code units; supplementary characters count twice. |
-| `x-nonBlankDotNet: true` | Reject empty strings and strings containing only the native .NET whitespace characters. |
-| `x-integerToken: true` | Require an integer JSON token spelling; `1.0` and `1e0` are refused even when mathematically integral. Bounds remain explicit. |
+Use official ProtoJSON for the MCP payload string. Each advertised method has a
+fixed generated request/reply type; SDK reflection must not serialize generated
+CLR properties. No generic tool-name/argument bag enters the authoritative
+protocol. Service descriptors describe the method boundary without requiring a
+new gRPC server.
 
-Generated decoders reject duplicate decoded property names, missing required
-fields, null where unsupported, unknown fields, overflow and malformed JSON before
-returning typed values. Strings must contain Unicode scalar values: invalid UTF-8
-and unpaired surrogate escapes are refused. This avoids replacement-character
-collisions between serializers. No trimming, number coercion, case folding or
-identifier normalization occurs at this boundary.
+Protobuf enforces field types and exclusive oneof representation. Ordinary
+boundary validators additionally require field presence, supported enum cases,
+valid IDs, collection bounds and native invariants. Optional scalars distinguish
+unknown from zero/false. Complete empty collections differ from unavailable or
+partial scans. Receipt admission and later observed pawn outcomes are separate.
+Do not reproduce historical numeric spelling, UTF-16 parser limits or old-save
+wire behavior; current game state is disposable.
 
-These rules intentionally tighten Newtonsoft's permissive parser and SDK binder.
-Existing parser observations are reference material, not compatibility gates.
-The placement `rotation` remains a string: supported names and ordinary placement
-refusals belong to native semantic validation.
+Cross-language proofs retain independent C# and Go origins, parse both binary and
+ProtoJSON with official runtimes, and re-emit separate echoes. Their scope is
+serialization, generated compilation and platform runtime support. Fresh game
+acceptance remains necessary when adapters are integrated.
 
-## Generation and acceptance
-
-The manifest lists every schema and output explicitly. Generation must reject
-invalid schemas and output collisions before publishing files. Check mode compares
-all declared outputs against deterministic regeneration without modifying them.
-Generated models are boundary values, not validated evidence of pawn work.
-
-G01.02a supplies Go, C# and Python generation with shared boundary cases.
-G01.02b–d add current replies and native consumer wiring. New Go sessions start
-with fresh state; no legacy-state or historical-wire parity gate applies. TypeScript generation is added when an
-actual dashboard consumer needs a migrated surface.
-
-Run from `go/`:
-
-```powershell
-go run ./cmd/contractgen -root .. contracts/generation.json
-go run ./cmd/contractgen -root .. -check contracts/generation.json
-```
-
-Review schema and generated diffs together. Check mode must fail on an altered,
-missing or stale declared output. Keep compiler/build products outside generated
-source directories, under ignored task-specific `.rimgovernor/` paths.
-
-Run `python scripts/check_placement_requests.py --check` to validate the generated
-Python boundary. Go tests run the same request cases. The standalone C# project
-`contracts/tests/csharp/PlacementRequests.csproj` requires .NET SDK 8.0.424 and
-locked NuGet dependencies; CI compiles net472/net8 and executes the shared cases.
-Run `python scripts/check_placement_responses.py` for current reply cases.
-The C# harness accepts the reply fixture as its second argument. These checks
-establish typed boundaries; native preview effects require separate game acceptance.
+The existing `schemas/`, `generation.json`, `go/cmd/contractgen` and generated
+placement consumers remain only until their coordinated adapter cutover. Add no
+new wire families to that generator. Its removal and current consumer replacement
+are tracked in [G01.02/N01.02](../docs/BACKLOG.md). The independent Python
+observation projection generator has a separate consumer scope.

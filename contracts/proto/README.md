@@ -76,3 +76,9 @@ Exercise zero versus missing, oneof variants, integer extremes, invalid inputs,
 known-empty versus unavailable observations and application-limit refusals.
 After the contract handoff, native adapters still require fresh-game acceptance,
 player-override and uncertain-write checks, and observed outcomes for each family.
+
+Shared [boundary validation](validation.md) and each family coverage document
+define required presence and semantic constraints beyond official parsing.
+Control/observation replies are bounded to1MiB. Dedicated media replies permit
+up to32MiB of image bytes within a48MiB ProtoJSON envelope, as specified by the
+presentation contract; this exception never applies to arbitrary data payloads.
