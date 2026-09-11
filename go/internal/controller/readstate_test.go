@@ -101,3 +101,29 @@ func TestQueuedRefreshCancellationDoesNotWaitForNativeRead(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestInitialUnavailableReadHasNoInventedFacts(t *testing.T) {
+	state, err := NewReadState("session", &fakeSource{err: errors.New("unavailable")}, &fakeClock{time.Now()}, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := state.Refresh(context.Background()); err == nil {
+		t.Fatal("missing read error")
+	}
+	got, err := state.Snapshot(context.Background())
+	if err != nil || got.Mode != "manual" || got.Connected || !got.Stale {
+		t.Fatal(got, err)
+	}
+	if _, known := got.Identity.Value(); known {
+		t.Fatal("invented identity")
+	}
+	if _, known := got.Tick.Value(); known {
+		t.Fatal("invented tick")
+	}
+	if _, known := got.Paused.Value(); known {
+		t.Fatal("invented pause")
+	}
+	if _, known := got.Generation.Value(); known {
+		t.Fatal("invented authority")
+	}
+}
