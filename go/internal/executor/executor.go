@@ -77,7 +77,8 @@ type Receipt struct {
 // Evidence is an observation for a specific dispatched attempt. Complete means
 // the entire target/effect scope was inspected. Built describes the completed
 // native building; a blueprint/frame or uncorrelated matching object cannot prove
-// completion. The adapter must establish native attempt attribution.
+// completion. The adapter must establish native attempt attribution regardless
+// of tick; equal ticks additionally require Observation.Causality=AfterDispatch.
 type Evidence struct {
 	Observation           domain.Observation
 	StartedAt, ObservedAt time.Time
@@ -215,7 +216,7 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 		return e.reconcile(ctx, action, progress, generation)
 	}
 	switch progress.View().Stage {
-	case domain.Completed, domain.Cancelled:
+	case domain.Completed, domain.Cancelled, domain.Unsuccessful:
 		return result, nil
 	case domain.Pending, domain.Prepared:
 	default:
@@ -377,7 +378,7 @@ func (e *Executor) reconcile(ctx context.Context, action domain.Action, progress
 		return result, ErrEvidence
 	}
 	switch observed.Effect {
-	case domain.EffectAbsent:
+	case domain.EffectAbsent, domain.EffectUnsuccessful:
 		if !evidence.Complete {
 			return result, ErrEvidence
 		}

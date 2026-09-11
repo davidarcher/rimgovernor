@@ -171,21 +171,21 @@ func TestReceiptNeverCompletesOrUnlocksRetry(t *testing.T) {
 			if _, err = p.Prepare(s, 11); err == nil {
 				t.Fatal("receipt unlocked retry")
 			}
-			p, err = p.Observe(Observation{"a1", 1, s, 11, EffectUnknown}, s)
+			p, err = p.Observe(Observation{Action: "a1", Attempt: 1, Snapshot: s, Tick: 11, Effect: EffectUnknown}, s)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if !p.View().Unresolved {
 				t.Fatal("unknown cleared dispatch")
 			}
-			p, err = p.Observe(Observation{"a1", 1, s, 12, EffectPending}, s)
+			p, err = p.Observe(Observation{Action: "a1", Attempt: 1, Snapshot: s, Tick: 12, Effect: EffectPending}, s)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if !p.View().Unresolved {
 				t.Fatal("pending cleared dispatch")
 			}
-			p, err = p.Observe(Observation{"a1", 1, s, 13, EffectCompleted}, s)
+			p, err = p.Observe(Observation{Action: "a1", Attempt: 1, Snapshot: s, Tick: 13, Effect: EffectCompleted}, s)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -200,7 +200,7 @@ func TestReceiptNeverCompletesOrUnlocksRetry(t *testing.T) {
 }
 func TestCompleteAbsenceAllowsSameActionRetry(t *testing.T) {
 	p, s := dispatched(t)
-	p, err := p.Observe(Observation{"a1", 1, s, 11, EffectAbsent}, s)
+	p, err := p.Observe(Observation{Action: "a1", Attempt: 1, Snapshot: s, Tick: 11, Effect: EffectAbsent}, s)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +235,7 @@ func TestCancellationRetainsUncertaintyAndNeverReactivates(t *testing.T) {
 				t.Fatal(err)
 			}
 			s.Direction++
-			p, err = p.Observe(Observation{"a1", 1, s, 11, effect}, s)
+			p, err = p.Observe(Observation{Action: "a1", Attempt: 1, Snapshot: s, Tick: 11, Effect: effect}, s)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -269,7 +269,7 @@ func TestStaleEvidenceAndAuthorityPreserveProgress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, o := range []Observation{{"a1", 1, s, 10, EffectAbsent}, {"other", 1, s, 11, EffectAbsent}, {"a1", 1, s, 11, "invalid"}} {
+	for _, o := range []Observation{{Action: "a1", Attempt: 1, Snapshot: s, Tick: 10, Effect: EffectAbsent}, {Action: "other", Attempt: 1, Snapshot: s, Tick: 11, Effect: EffectAbsent}, {Action: "a1", Attempt: 1, Snapshot: s, Tick: 11, Effect: "invalid"}} {
 		got, err := p.Observe(o, s)
 		if err == nil || !reflect.DeepEqual(got, p) {
 			t.Fatal("bad observation changed progress")
@@ -278,14 +278,14 @@ func TestStaleEvidenceAndAuthorityPreserveProgress(t *testing.T) {
 	for _, change := range []func(*GenerationSnapshot){func(s *GenerationSnapshot) { s.Colony = "other" }, func(s *GenerationSnapshot) { s.Map++ }, func(s *GenerationSnapshot) { s.Load = "other" }} {
 		other := s
 		change(&other)
-		got, err := p.Observe(Observation{"a1", 1, other, 11, EffectCompleted}, other)
+		got, err := p.Observe(Observation{Action: "a1", Attempt: 1, Snapshot: other, Tick: 11, Effect: EffectCompleted}, other)
 		if err == nil || !reflect.DeepEqual(got, p) {
 			t.Fatal("cross-world attribution accepted")
 		}
 	}
 	changed := s
 	changed.Direction++
-	p, err = p.Observe(Observation{"a1", 1, changed, 11, EffectAbsent}, changed)
+	p, err = p.Observe(Observation{Action: "a1", Attempt: 1, Snapshot: changed, Tick: 11, Effect: EffectAbsent}, changed)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -301,7 +301,7 @@ func TestIllegalTransitions(t *testing.T) {
 	if _, err := p.RecordReceipt(p.View().Attempt, ReceiptAccepted); err == nil {
 		t.Fatal("unissued receipt")
 	}
-	if _, err := p.Observe(Observation{"a1", 1, s, 1, EffectCompleted}, s); err == nil {
+	if _, err := p.Observe(Observation{Action: "a1", Attempt: 1, Snapshot: s, Tick: 1, Effect: EffectCompleted}, s); err == nil {
 		t.Fatal("unissued observation")
 	}
 	if _, err := p.Prepare(s, -1); err == nil {
@@ -337,14 +337,14 @@ func TestRetryRejectsLateEvidenceFromPreviousAttempt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err = p.Observe(Observation{"a1", first, s, 11, EffectUnknown}, s)
+	p, err = p.Observe(Observation{Action: "a1", Attempt: first, Snapshot: s, Tick: 11, Effect: EffectUnknown}, s)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err = p.Prepare(s, 12); err == nil {
 		t.Fatal("partial observation unlocked retry")
 	}
-	p, err = p.Observe(Observation{"a1", first, s, 12, EffectAbsent}, s)
+	p, err = p.Observe(Observation{Action: "a1", Attempt: first, Snapshot: s, Tick: 12, Effect: EffectAbsent}, s)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -366,7 +366,7 @@ func TestRetryRejectsLateEvidenceFromPreviousAttempt(t *testing.T) {
 			t.Fatal("late receipt changed current dispatch")
 		}
 		for _, effect := range []Effect{EffectAbsent, EffectCompleted, EffectUnknown} {
-			got, err = p.Observe(Observation{"a1", attempt, s, 13, effect}, s)
+			got, err = p.Observe(Observation{Action: "a1", Attempt: attempt, Snapshot: s, Tick: 13, Effect: effect}, s)
 			if err == nil || !reflect.DeepEqual(got, p) {
 				t.Fatal("late observation changed current dispatch")
 			}
@@ -382,7 +382,7 @@ func TestRetryRejectsLateEvidenceFromPreviousAttempt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err = p.Observe(Observation{"a1", second, s, 13, EffectCompleted}, s)
+	p, err = p.Observe(Observation{Action: "a1", Attempt: second, Snapshot: s, Tick: 13, Effect: EffectCompleted}, s)
 	if err != nil || p.View().Stage != Completed {
 		t.Fatal("current attempt cannot complete", err)
 	}
