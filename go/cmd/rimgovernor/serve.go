@@ -30,7 +30,7 @@ type serveConfig struct {
 	bridge                bridge.ProcessConfig
 	state, listen, assets string
 	profile               string
-	buildingControl       bool
+	playerControl         bool
 	refresh               time.Duration
 }
 
@@ -39,8 +39,8 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags := flag.NewFlagSet("serve", flag.ContinueOnError)
 	flags.SetOutput(diagnostics)
 	readOnly := flags.Bool("read-only", false, "observe an already running game; game writes are unavailable")
-	flags.BoolVar(&c.buildingControl, "building-control", false, "enable explicit player building controls; never acquire on startup")
-	flags.StringVar(&c.profile, "profile", "", "absolute shared game profile directory for building control")
+	flags.BoolVar(&c.playerControl, "player-control", false, "enable explicit player building and draft controls; never acquire on startup")
+	flags.StringVar(&c.profile, "profile", "", "absolute shared game profile directory for player control")
 	flags.StringVar(&c.bridge.Executable, "gabs", "", "absolute GABS executable")
 	flags.StringVar(&c.bridge.ConfigDir, "config", "", "absolute GABS configuration directory")
 	flags.StringVar(&c.bridge.GameID, "game", "", "configured game ID")
@@ -52,11 +52,11 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if err := flags.Parse(args); err != nil {
 		return c, err
 	}
-	if flags.NArg() != 0 || *readOnly == c.buildingControl {
-		return c, errors.New("serve requires exactly one of --read-only or --building-control")
+	if flags.NArg() != 0 || *readOnly == c.playerControl {
+		return c, errors.New("serve requires exactly one of --read-only or --player-control")
 	}
-	if c.buildingControl && !filepath.IsAbs(c.profile) || !c.buildingControl && c.profile != "" {
-		return c, errors.New("--building-control requires an absolute --profile; read-only mode takes no profile")
+	if c.playerControl && !filepath.IsAbs(c.profile) || !c.playerControl && c.profile != "" {
+		return c, errors.New("--player-control requires an absolute --profile; read-only mode takes no profile")
 	}
 	if !filepath.IsAbs(c.state) || !filepath.IsAbs(c.bridge.Executable) || !filepath.IsAbs(c.bridge.ConfigDir) || c.bridge.GameID == "" {
 		return c, errors.New("absolute --state, --gabs, --config and a --game ID are required")
@@ -111,7 +111,7 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 		fmt.Fprintln(diagnostics, err)
 		return 2
 	}
-	if config.buildingControl {
+	if config.playerControl {
 		err = serveBuildingControl(ctx, config, out)
 	} else {
 		err = serveReadOnly(ctx, config, out)

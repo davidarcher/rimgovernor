@@ -261,7 +261,7 @@ func TestServePresentationUsesOptionalAttachedClient(t *testing.T) {
 				if available {
 					reads = fake
 				}
-				config := serveConfig{buildingControl: building, profile: dir, state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", refresh: time.Second, bridge: bridge.ProcessConfig{Timeout: time.Second}}
+				config := serveConfig{playerControl: building, profile: dir, state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", refresh: time.Second, bridge: bridge.ProcessConfig{Timeout: time.Second}}
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
 				address := make(presentationAddressWriter, 1)
@@ -270,7 +270,7 @@ func TestServePresentationUsesOptionalAttachedClient(t *testing.T) {
 					if building {
 						caps := unusedBuildingCapabilities{}
 						done <- serveBuildingWithBridge(ctx, config, address, func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error) {
-							return buildingServiceBridge{reads, caps, caps, caps}, nil
+							return buildingServiceBridge{reads, caps, caps, caps, unusedDrafts()}, nil
 						})
 					} else {
 						done <- serveWithBridge(ctx, config, address, func(context.Context, bridge.ProcessConfig) (serviceBridge, error) { return reads, nil })

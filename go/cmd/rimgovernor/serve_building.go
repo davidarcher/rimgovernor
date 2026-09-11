@@ -25,6 +25,7 @@ type buildingServiceBridge struct {
 	native    buildingruntime.Native
 	authority buildingruntime.NativeAuthority
 	writes    buildingruntime.BuildingWriter
+	draft     *buildingruntime.DraftCapabilities
 }
 type buildingServiceOpener func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error)
 type ownedAuthority struct {
@@ -45,7 +46,16 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
-	return buildingServiceBridge{client, client, ownedAuthority{client, authority}, writes}, nil
+	drafts, err := bridge.NewDraftControl(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
+	cleanup, err := bridge.NewDraftCleanup(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
+	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: writes,
+		draft: &buildingruntime.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup}}, nil
 }
 
 type buildingWorldSource struct{ reads observation.Source }
@@ -82,11 +92,11 @@ func (s buildingSnapshots) Snapshot(ctx context.Context) (httpapi.Snapshot, erro
 	matching := control.ObservationKnown && known && identity.Colony == control.Snapshot.Colony && identity.Load == control.Snapshot.Load && identity.Map == control.Snapshot.Map
 	if control.Enabled && matching && value.Connected && !value.Stale {
 		value.Mode = "automate"
-		value.Status = "Building execution enabled"
+		value.Status = "Player execution enabled"
 	} else if control.Enabled {
-		value.Status = "Building control is waiting for current observations"
+		value.Status = "Player control is waiting for current observations"
 	} else if value.Connected && !value.Stale {
-		value.Status = "Manual; explicit building controls available"
+		value.Status = "Manual; explicit player controls available"
 	}
 	if matching {
 		value.Generation = domain.Known(control.Snapshot)
@@ -138,8 +148,8 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		return errors.New("building service requires a read client")
 	}
 	defer func() { result = errors.Join(result, client.reads.Close()) }()
-	if client.native == nil || client.authority == nil || client.writes == nil {
-		return errors.New("building service requires separate read and control capabilities")
+	if client.native == nil || client.authority == nil || client.writes == nil || client.draft == nil || client.draft.Native == nil || client.draft.Writer == nil || client.draft.Cleanup == nil {
+		return errors.New("player service requires complete building and draft capabilities")
 	}
 	if _, err = client.reads.ConnectGame(lifetime); err != nil {
 		return err
@@ -153,6 +163,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{
 		Control:  buildingruntime.ControlConfig{ProfileDirectory: config.profile, LeaseDuration: 30 * time.Second, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
 		Executor: executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
+		Draft:    client.draft,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {
 		return err
@@ -197,7 +208,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	defer func() { result = errors.Join(result, server.Close()) }()
 	pollDone = make(chan struct{})
 	go func() { defer close(pollDone); reads.Poll(lifetime, config.refresh) }()
-	if _, err = fmt.Fprintf(out, "RimGovernor Go building service: http://%s\n", listener.Addr()); err != nil {
+	if _, err = fmt.Fprintf(out, "RimGovernor Go player service: http://%s\n", listener.Addr()); err != nil {
 		return err
 	}
 	return server.Serve(lifetime, listener)

@@ -54,7 +54,7 @@ no effect; clients recover by reading the same request ID without automatic POST
 
 ## Plan projection
 
-`GET /api/plans/{id}` returns the existing plan envelope. Each action is one of:
+`GET /api/plan?id=…` returns the existing plan envelope. Each action is one of:
 
 - `kind: "building"` with `building` and no `draft` payload.
 - `kind: "owned_draft"` with `draft: {"pawnId": "…"}` and no `building` payload.

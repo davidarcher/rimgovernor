@@ -24,12 +24,12 @@ import (
 
 func TestBuildingServeRequiresExclusiveExplicitModeAndProfile(t *testing.T) {
 	dir := t.TempDir()
-	base := []string{"--building-control", "--profile", dir, "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "game", "--state", filepath.Join(dir, "state.db")}
+	base := []string{"--player-control", "--profile", dir, "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "game", "--state", filepath.Join(dir, "state.db")}
 	config, err := parseServe(base, io.Discard)
-	if err != nil || !config.buildingControl || config.profile != dir {
+	if err != nil || !config.playerControl || config.profile != dir {
 		t.Fatalf("config: %+v %v", config, err)
 	}
-	for _, args := range [][]string{append(append([]string{}, base...), "--read-only"), append(append([]string{}, base...), "--profile", "relative"), append([]string{"--building-control"}, base[3:]...), append([]string{"--read-only"}, base[1:]...)} {
+	for _, args := range [][]string{append(append([]string{}, base...), "--read-only"), append(append([]string{}, base...), "--profile", "relative"), append([]string{"--player-control"}, base[3:]...), append([]string{"--read-only"}, base[1:]...)} {
 		if _, err := parseServe(args, io.Discard); err == nil {
 			t.Fatalf("accepted %v", args)
 		}
@@ -39,7 +39,7 @@ func TestBuildingServeRequiresExclusiveExplicitModeAndProfile(t *testing.T) {
 type buildingAddressWriter chan string
 
 func (w buildingAddressWriter) Write(data []byte) (int, error) {
-	w <- strings.TrimSpace(strings.TrimPrefix(string(data), "RimGovernor Go building service: "))
+	w <- strings.TrimSpace(strings.TrimPrefix(string(data), "RimGovernor Go player service: "))
 	return len(data), nil
 }
 
@@ -69,18 +69,29 @@ type unusedBuildingCapabilities struct {
 	buildingruntime.BuildingWriter
 }
 
+type unusedDraftCapabilities struct {
+	buildingruntime.DraftNative
+	buildingruntime.DraftWriter
+	buildingruntime.DraftCleanupWriter
+}
+
+func unusedDrafts() *buildingruntime.DraftCapabilities {
+	caps := unusedDraftCapabilities{}
+	return &buildingruntime.DraftCapabilities{Native: caps, Writer: caps, Cleanup: caps}
+}
+
 func TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins(t *testing.T) {
 	dir := t.TempDir()
 	fake := &buildingReadFake{serviceFake: serviceFake{entered: make(chan struct{}, 2)}}
 	caps := unusedBuildingCapabilities{}
-	config := serveConfig{buildingControl: true, profile: dir, state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", refresh: 20 * time.Millisecond, bridge: bridge.ProcessConfig{Timeout: time.Second}}
+	config := serveConfig{playerControl: true, profile: dir, state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", refresh: 20 * time.Millisecond, bridge: bridge.ProcessConfig{Timeout: time.Second}}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	addresses := make(buildingAddressWriter, 1)
 	done := make(chan error, 1)
 	go func() {
 		done <- serveBuildingWithBridge(ctx, config, addresses, func(context.Context, bridge.ProcessConfig) (buildingServiceBridge, error) {
-			return buildingServiceBridge{fake, caps, caps, caps}, nil
+			return buildingServiceBridge{fake, caps, caps, caps, unusedDrafts()}, nil
 		})
 	}()
 	var address string
@@ -112,7 +123,7 @@ func TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins(t *testing.T) {
 	var bootstrap struct {
 		Token string `json:"token"`
 	}
-	if err := json.Unmarshal(read("/api/buildings/session"), &bootstrap); err != nil || len(bootstrap.Token) != 64 {
+	if err := json.Unmarshal(read("/api/player/session"), &bootstrap); err != nil || len(bootstrap.Token) != 64 {
 		t.Fatal("bootstrap", err)
 	}
 	payload := `{"requestId":"submit-one","expected":{"colonyId":"colony","loadToken":"load","mapId":0},"building":{"defName":"Wall","stuff":"WoodLog","x":0,"z":0,"rotation":"north"}}`
@@ -131,7 +142,33 @@ func TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins(t *testing.T) {
 	if !strings.Contains(string(read("/api/buildings/submission?requestId=submit-one")), `"requestId":"submit-one"`) {
 		t.Fatal("submission not durable")
 	}
-	if !strings.Contains(string(read("/api/buildings/control")), `"enabled":false`) {
+	draftPayload := `{"requestId":"submit-draft","expected":{"colonyId":"colony","loadToken":"load","mapId":0},"draft":{"pawnId":"pawn-one"}}`
+	request, _ = http.NewRequest(http.MethodPost, address+"/api/drafts/plans", strings.NewReader(draftPayload))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-RimGovernor-Player", bootstrap.Token)
+	response, err = client.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err = io.ReadAll(response.Body)
+	response.Body.Close()
+	if err != nil || response.StatusCode != 201 {
+		t.Fatalf("draft submission %d %s %v", response.StatusCode, data, err)
+	}
+	var draft struct {
+		PlanID string `json:"planId"`
+	}
+	if err = json.Unmarshal(data, &draft); err != nil || draft.PlanID == "" {
+		t.Fatal("draft plan", err)
+	}
+	if !strings.Contains(string(read("/api/drafts/submission?requestId=submit-draft")), `"pawnId":"pawn-one"`) {
+		t.Fatal("draft submission not durable")
+	}
+	plan := string(read("/api/plan?id=" + draft.PlanID))
+	if !strings.Contains(plan, `"kind":"owned_draft"`) || !strings.Contains(plan, `"stage":"pending"`) || strings.Contains(plan, `"building":`) {
+		t.Fatal("draft projection", plan)
+	}
+	if !strings.Contains(string(read("/api/player/control")), `"enabled":false`) {
 		t.Fatal("submission enabled authority")
 	}
 	var state httpapi.State
@@ -192,7 +229,7 @@ func TestBuildingSnapshotUsesCurrentPermissionAndMatchingWorld(t *testing.T) {
 	if _, known := state.Generation.Value(); known {
 		t.Fatal("mixed world generation")
 	}
-	if state.Mode != "manual" || state.Status == "Building execution enabled" {
+	if state.Mode != "manual" || state.Status == "Player execution enabled" {
 		t.Fatal("enabled status attributed to another world")
 	}
 	control.value.Snapshot.Load = "load"
