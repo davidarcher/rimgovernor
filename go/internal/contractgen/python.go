@@ -21,7 +21,7 @@ func GeneratePython(schema *Schema, options PythonOptions) ([]byte, error) {
 	for name, node := range schema.Definitions {
 		nodes[name] = node
 	}
-	reserved := " False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield match case dataclass fields is_dataclass json cast object str int bool list bytes set ValueError Missing MISSING "
+	reserved := " False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield match case dataclass fields is_dataclass json cast Literal object str int bool list bytes set ValueError Missing MISSING "
 	functions := map[string]bool{}
 	for name, node := range nodes {
 		decoder := pythonSnake(name)
@@ -58,6 +58,9 @@ func GeneratePython(schema *Schema, options PythonOptions) ([]byte, error) {
 			if child.Items != nil {
 				dependencies(child.Items)
 			}
+			for _, branch := range child.OneOf {
+				dependencies(branch)
+			}
 		}
 		dependencies(node)
 		if node.Type == "object" {
@@ -82,7 +85,18 @@ func GeneratePython(schema *Schema, options PythonOptions) ([]byte, error) {
 	for _, name := range sortedKeys(nodes) {
 		node := nodes[name]
 		fmt.Fprintf(&output, "\n\ndef _parse_%s(value: object, path: str) -> %s:\n", name, name)
-		if node.Type == "object" {
+		if len(node.OneOf) > 0 {
+			var success, failure string
+			for _, branch := range node.OneOf {
+				branchName := strings.TrimPrefix(branch.Ref, "#/$defs/")
+				if *nodes[branchName].Properties["success"].Const {
+					success = branchName
+				} else {
+					failure = branchName
+				}
+			}
+			fmt.Fprintf(&output, "    if _discriminator(value, path):\n        return _parse_%s(value, path)\n    return _parse_%s(value, path)\n", success, failure)
+		} else if node.Type == "object" {
 			fmt.Fprintf(&output, "    row = _object(value, path, %s, %s)\n    return %s(\n", pythonNames(sortedKeys(node.Properties)), pythonNames(node.Required), name)
 			for _, field := range sortedKeys(node.Properties) {
 				expression := pythonExpression(node.Properties[field], "row["+strconv.Quote(field)+"]", "path + "+strconv.Quote("."+field))
@@ -132,6 +146,22 @@ func pythonSnake(name string) string {
 }
 
 func pythonType(node *Schema) string {
+	if len(node.OneOf) > 0 {
+		parts := make([]string, len(node.OneOf))
+		for i, branch := range node.OneOf {
+			parts[i] = pythonType(branch)
+		}
+		return strings.Join(parts, " | ")
+	}
+	if node.Nullable {
+		return "int | None"
+	}
+	if node.Const != nil {
+		return "Literal[" + pythonBool(*node.Const) + "]"
+	}
+	if node.Enum != nil {
+		return "Literal" + pythonNames(node.Enum)
+	}
 	if node.Ref != "" {
 		return strings.TrimPrefix(node.Ref, "#/$defs/")
 	}
@@ -148,6 +178,19 @@ func pythonType(node *Schema) string {
 }
 
 func pythonExpression(node *Schema, value, path string) string {
+	if node.Nullable {
+		copy := *node
+		copy.Nullable = false
+		return "(None if " + value + " is None else " + pythonExpression(&copy, value, path) + ")"
+	}
+	if node.Enum != nil {
+		copy := *node
+		copy.Enum = nil
+		return fmt.Sprintf("cast(%s, _enum(%s, %s, %s))", pythonType(node), pythonExpression(&copy, value, path), path, pythonNames(node.Enum))
+	}
+	if node.Const != nil {
+		return fmt.Sprintf("cast(%s, _boolean_const(%s, %s, %s))", pythonType(node), value, path, pythonBool(*node.Const))
+	}
 	if node.Ref != "" {
 		return "_parse_" + strings.TrimPrefix(node.Ref, "#/$defs/") + "(" + value + ", " + path + ")"
 	}
@@ -169,15 +212,22 @@ func pythonExpression(node *Schema, value, path string) string {
 	}
 }
 
+func pythonBool(value bool) string {
+	if value {
+		return "True"
+	}
+	return "False"
+}
+
 const pythonRuntime = `from __future__ import annotations
 
 from dataclasses import dataclass, fields, is_dataclass
 import json
-from typing import cast
+from typing import cast, Literal
 
 
 class Missing:
-    """Absent optional field; JSON null is not supported by this schema subset."""
+    """Absent optional field, distinct from an explicitly nullable JSON field."""
 
 
 MISSING = Missing()
@@ -274,6 +324,25 @@ def _boolean(value: object, path: str) -> bool:
     return value
 
 
+def _boolean_const(value: object, path: str, expected: bool) -> bool:
+    result = _boolean(value, path)
+    if result is not expected:
+        raise ValueError(path + ': incorrect boolean constant')
+    return result
+
+
+def _enum(value: str, path: str, choices: list[str]) -> str:
+    if value not in choices:
+        raise ValueError(path + ': unknown string enum value')
+    return value
+
+
+def _discriminator(value: object, path: str) -> bool:
+    if not isinstance(value, dict) or 'success' not in value:
+        raise ValueError(path + ': missing success discriminator')
+    return _boolean(value['success'], path + '.success')
+
+
 def to_wire(value: object) -> object:
     """Convert generated values to JSON-compatible values, omitting absent fields.
 
@@ -285,7 +354,7 @@ def to_wire(value: object) -> object:
                 if not isinstance(getattr(value, field.name), Missing)}
     if isinstance(value, list):
         return [to_wire(item) for item in value]
-    if type(value) in (str, int, bool):
+    if value is None or type(value) in (str, int, bool):
         return value
     raise ValueError('unsupported generated wire value')
 `
