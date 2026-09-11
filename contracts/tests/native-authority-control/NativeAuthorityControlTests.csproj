@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NativeSourceRoot Condition="'$(NativeSourceRoot)' == ''">$(MSBuildThisFileDirectory)../../../integrations/rimgovernor-native/src</NativeSourceRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.31.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <Compile Include="$(NativeSourceRoot)/Runtime/Persistence/NativeControlAuthority.cs" Link="NativeControlAuthority.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAuthorityTools.cs" Link="NativeAuthorityTools.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAuthorityControlTools.cs" Link="NativeAuthorityControlTools.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/ProtoBoundary.cs" Link="ProtoBoundary.cs" />
+    <Compile Include="../../generated/protobuf/csharp/Common.cs" Link="Common.cs" />
+    <Compile Include="../../generated/protobuf/csharp/Authority.cs" Link="Authority.cs" />
+    <Compile Include="../native-authority/NativeContextStub.cs" Link="NativeContextStub.cs" />
+    <Compile Include="../native-authority-status/BoundaryStub.cs" Link="BoundaryStub.cs" />
+  </ItemGroup>
+</Project>
