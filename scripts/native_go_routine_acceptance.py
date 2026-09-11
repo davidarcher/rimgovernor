@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from contextlib import asynccontextmanager
 import hashlib
 import json
 import math
@@ -69,41 +68,13 @@ def append_operation_history(history, batch, baseline):
     history.extend(batch)
 
 
-@asynccontextmanager
-async def retain_operation_history(gabs, configuration, evidence, baseline, *, enabled):
+def read_operation_history(path, baseline):
+    assert path.stat().st_size <= 64 * 1024 * 1024, 'Native operation history exceeds bound'
+    rows = [json.loads(line) for line in path.read_text(encoding='utf8').splitlines()]
+    rows = sorted((r for r in rows if r['Sequence'] > baseline), key=lambda r: r['Sequence'])
     history = []
-    if not enabled:
-        yield history
-        return
-    async with bridge_session(gabs, configuration) as bridge:
-        await bridge.connect()
-        stop = asyncio.Event()
-
-        async def drain():
-            for _ in range(20):
-                cursor = history[-1]['Sequence'] if history else baseline
-                batch = payload(await evidence.call(bridge, f'live-events-{cursor}', 'rimbridge/list_operation_events', {
-                    'afterSequence': cursor, 'limit': 5000, 'includeDiagnostics': True}))['events']
-                append_operation_history(history, batch, baseline)
-                if len(batch) < 5000:
-                    return
-            raise AssertionError('Operation history drain exceeds bounded pagination')
-
-        async def collect():
-            while not stop.is_set():
-                await drain()
-                try:
-                    await asyncio.wait_for(stop.wait(), 10)
-                except TimeoutError:
-                    pass
-
-        task = asyncio.create_task(collect())
-        try:
-            yield history
-        finally:
-            stop.set()
-            await task
-            await drain()
+    append_operation_history(history, rows, baseline)
+    return history
 
 
 def audit_resource_rules(plan, names):
@@ -337,7 +308,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             expected_food = 'deficit' if food['readable'] and food['runwayDays'] is not None and food['runwayDays'] < 3 else 'unknown'
             baseline = await capture(bridge, "setup")
 
-        async with retain_operation_history(gabs, configuration, evidence, baseline, enabled=shelter_methods) as retained, service(private, gabs, configuration, profile, database, output / "operate", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods, routine_cooking=cooking_methods or bool(resource_rules), routine_shelter=shelter_methods, resource_rules=resource_rules) as http:
+        async with service(private, gabs, configuration, profile, database, output / "operate", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods, routine_cooking=cooking_methods or bool(resource_rules), routine_shelter=shelter_methods, resource_rules=resource_rules) as http:
             await poll(http, "/api/state", lambda v: v.get("connected") and not v.get("game", {}).get("stale", True))
             assert not (await http("GET", "/api/player/control"))["state"]["enabled"]
             building = http_building(prepared['sites'][0])
@@ -399,6 +370,15 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 report["shelter_plan"] = await wait_building_method(http, database, "Wall", 32, shell=True)
             if sleeping_methods:
                 report["sleeping_plan"] = await wait_building_method(http, database, "SleepingSpot", report["sleeping_setup"]["colonists"])
+            if shelter_methods:
+                async with asyncio.timeout(60):
+                    while True:
+                        recovered = routine_evidence(database, identity, enabled=True, expected_food_need=expected_food, allow_methods=True)
+                        if recovered['goals']['EnsureInitialShelter']['Need'] == 'recovered':
+                            assert recovered['goals']['EnsureInitialShelter']['Status'] == 'satisfied'
+                            report['shelter_recovered'] = recovered['goals']['EnsureInitialShelter']
+                            break
+                        await asyncio.sleep(.2)
             if cooking_methods:
                 report["cooking_plan"] = await wait_building_method(http, database, "Campfire", 1)
             manual = await http("POST", "/api/player/control/manual", body={"requestId": "routine-manual", "expected": identity})
@@ -409,6 +389,12 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
 
         async with bridge_session(gabs, configuration) as bridge:
             await bridge.connect()
+            retained = []
+            if shelter_methods:
+                history_path = Path(report['sleeping_setup']['operationHistoryPath'])
+                assert history_path.is_relative_to(profile)
+                retained = read_operation_history(history_path, baseline)
+                shutil.copyfile(history_path, output / 'native-operation-history.jsonl')
             await capture(bridge, "operate", baseline, retained=retained)
             if resource_rules:
                 audit_resource_rules(report['resource_policy_pending_plan'], report['traces']['operate'])

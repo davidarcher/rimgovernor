@@ -37,6 +37,14 @@ def test_operation_retention_rejects_history_loss_and_duplicate_pages():
         assert [r['Sequence'] for r in history] == [24, 25, 26]
 
 
+def test_native_operation_file_orders_events_and_preserves_gap_check(tmp_path):
+    path = tmp_path / 'events.jsonl'
+    path.write_text('{"Sequence":25}\n{"Sequence":23}\n{"Sequence":24}\n')
+    assert [r['Sequence'] for r in probe.read_operation_history(path, 23)] == [24, 25]
+    path.write_text('{"Sequence":25}\n')
+    with pytest.raises(AssertionError): probe.read_operation_history(path, 23)
+
+
 def test_routine_medical_evidence_preserves_care_and_unknowns():
     pawn = {"dead": False, "downed": False, "health": {"bleeding": False, "needsTend": True}}
     reply = {"observed": {"colonists": {"pawns": [pawn], "completeness": {

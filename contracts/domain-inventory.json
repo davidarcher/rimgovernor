@@ -8282,9 +8282,9 @@
         {
           "name": "test/routine_sleeping_prepare",
           "path": "scripts/fixtures/RoutineSleepingFixture.cs",
-          "line": 14,
+          "line": 58,
           "declaration": "[Tool(\"test/routine_sleeping_prepare\", Description = \"UNSAFE FOR MODEL EXECUTION. Disposable test setup: clear an outdoor starter site or create an empty roofed room near existing colonists; remove starting injuries. Outdoor mode creates no buildings or roofs. Never creates sleeping spots or edits controller results.\")]\n        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool outdoorSite = false)",
-          "source_sha256": "54dc7837d6b40ea1805dfbff4eda84a6636ab93f93a37634567d66b791e9fb71"
+          "source_sha256": "8d054d8aef6b031cb661748dd09785c0ec4361c21c0d6d5772015a287448cf23"
         },
         {
           "name": "test/settle_caravan",

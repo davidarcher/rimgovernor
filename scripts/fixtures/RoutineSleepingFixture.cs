@@ -1,8 +1,13 @@
+#nullable enable
 using System;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using RimBridgeServer.Sdk;
+using HarmonyLib;
+using Newtonsoft.Json;
 using RimWorld;
 using Verse;
 
@@ -11,6 +16,45 @@ namespace HomeBridge.BridgeTools
     // Private setup only: the controller must place and observe all sleeping spots.
     public sealed class RoutineSleepingFixture
     {
+        private static readonly object HistoryGate = new object();
+        private static string? historyPath;
+        private static int historyCount;
+        private static long historyBytes;
+
+        // Passive private-fixture capture avoids a second GABS connection and
+        // preserves SDK events beyond its bounded diagnostic query window.
+        private static void StartHistory()
+        {
+            if (historyPath != null) throw new InvalidOperationException("History capture already started.");
+            var path = Path.Combine(GenFilePaths.ConfigFolderPath, "routine-shelter-operations.jsonl");
+            if (File.Exists(path)) throw new InvalidOperationException("Fresh diagnostic output required.");
+            var journal = AccessTools.TypeByName("RimBridgeServer.Core.OperationJournal");
+            var record = AccessTools.TypeByName("RimBridgeServer.Core.OperationEventRecord");
+            var publish = journal == null || record == null ? null : AccessTools.Method(journal, "Publish", new[] { record });
+            if (publish == null || publish.ReturnType != typeof(void)) throw new InvalidOperationException("SDK event publication contract unavailable.");
+            File.WriteAllText(path, "");
+            historyPath = path;
+            new Harmony("rimgovernor.fixture.shelter-history").Patch(publish,
+                postfix: new HarmonyMethod(typeof(RoutineSleepingFixture), nameof(RecordHistory)));
+        }
+
+        private static void RecordHistory(object __0)
+        {
+            try {
+                lock (HistoryGate) {
+                    if (historyPath == null || historyCount >= 100000) return;
+                    var line = JsonConvert.SerializeObject(__0);
+                    if (line.Length > 65536) return;
+                    var bytes = Encoding.UTF8.GetByteCount(line) + 1;
+                    if (historyBytes + bytes > 64 * 1024 * 1024) return;
+                    File.AppendAllText(historyPath, line + "\n");
+                    historyBytes += bytes;
+                    historyCount++;
+                }
+            }
+            catch { /* Missing events fail the independent sequence audit. */ }
+        }
+
         [Tool("test/routine_sleeping_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: clear an outdoor starter site or create an empty roofed room near existing colonists; remove starting injuries. Outdoor mode creates no buildings or roofs. Never creates sleeping spots or edits controller results.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool outdoorSite = false)
         {
@@ -27,6 +71,7 @@ namespace HomeBridge.BridgeTools
                     (!outdoorSite || c.GetRoof(map) == null && c.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Light)) &&
                     c.GetThingList(map).All(t => t is Plant)));
                 if (room.Width != size) throw new InvalidOperationException("No clear bounded room site.");
+                if (outdoorSite) StartHistory();
                 foreach (var cell in room.Cells) {
                     foreach (var plant in cell.GetThingList(map).OfType<Plant>().ToList()) plant.Destroy(DestroyMode.Vanish);
                     if (!outdoorSite && (cell.x == room.minX || cell.x == room.maxX || cell.z == room.minZ || cell.z == room.maxZ)) {
@@ -43,7 +88,8 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, tick = Find.TickManager.TicksGame, colonists = people.Count,
                     center = new { x = room.CenterCell.x, z = room.CenterCell.z },
                     interior = room.ContractedBy(1).Cells.Select(c => new { x = c.x, z = c.z }).ToArray(),
-                    sleepingSpotsCreated = 0, outdoorSite, shellPiecesCreated = outdoorSite ? 0 : 24, roofCellsCreated = outdoorSite ? 0 : 49 };
+                    sleepingSpotsCreated = 0, outdoorSite, shellPiecesCreated = outdoorSite ? 0 : 24, roofCellsCreated = outdoorSite ? 0 : 49,
+                    operationHistoryPath = historyPath };
             }, cancellationToken).ConfigureAwait(false);
         }
     }
