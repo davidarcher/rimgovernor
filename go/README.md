@@ -235,7 +235,10 @@ empty roofed room and healthy starting colonists. It verifies one complete sleep
 method, native observed completion, single attempts, indoor footprints and unchanged
 player authority through the shared worker. `--cooking-methods` adds campfire
 construction and verifies that cooking still needs a bill after the building
-completes. The separate
+completes. Its `--resource-rule WoodLog:stop:0` variant uses the same room fixture
+and compile-only cooking to verify pending player work, no routine admissions or
+construction orders, Manual and disabled restart. Normal authorized clock windows
+remain available under spending restrictions. The separate
 `scripts/native_go_clock_acceptance.py --routine-reviews` scenario additionally
 requires a healthy colony and verifies clock advancement and construction.
 

@@ -685,8 +685,9 @@ expand these into another nested task tree; remove a row when its outcome is met
   Go/Python replay verify a durable deficit, Manual invalidation and disabled restart.
   Shared session resource rules now reach routine method admission and Hands;
   repeatable service flags configure reserves and spending restrictions. Fast tests
-  cover blocked and unaffordable cooking methods. Native rule-enforcement acceptance
-  remains pending. Further need inputs,
+  cover blocked and unaffordable cooking methods. Native acceptance verifies a wood
+  stop rule leaves player work pending, admits no routine campfire and issues no
+  construction orders, with Manual invalidation and disabled restart. Further need inputs,
   remaining construction costs, method selection and execution composition for
   additional routine methods remain open.
 
