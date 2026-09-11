@@ -24,19 +24,21 @@ type SessionConfig struct {
 // owns bridge/database handles and may close them only after Close succeeds.
 // Only an explicit trusted player path may call Acquire or create submitted plans.
 type Session struct {
-	control  *Control
-	executor *executor.Executor
-	journal  *store.Store
-	drafts   *draftSweep
-	clock    *ClockCoordinator
+	control      *Control
+	executor     *executor.Executor
+	journal      *store.Store
+	drafts       *draftSweep
+	clock        *ClockCoordinator
+	clockWorkers *clockWorkerSlot
 }
 
 type sessionSink struct {
-	mu       sync.Mutex
-	executor *executor.Executor
-	control  *Control
-	drafts   *draftSweep
-	clock    *ClockCoordinator
+	mu           sync.Mutex
+	executor     *executor.Executor
+	control      *Control
+	drafts       *draftSweep
+	clock        *ClockCoordinator
+	clockWorkers *clockWorkerSlot
 }
 
 func (s *sessionSink) UpdateAuthority(value executor.Authority) error {
@@ -55,6 +57,10 @@ func (s *sessionSink) UpdateAuthority(value executor.Authority) error {
 	return err
 }
 func (s *sessionSink) stop(ctx context.Context) error {
+	workerStopped, err := s.clockWorkers.stop(ctx)
+	if err != nil {
+		return err
+	}
 	s.mu.Lock()
 	e := s.executor
 	drafts := s.drafts
@@ -63,14 +69,14 @@ func (s *sessionSink) stop(ctx context.Context) error {
 	if e == nil {
 		return nil
 	}
-	err := e.Stop(ctx)
+	err = e.Stop(ctx)
 	if clock != nil {
 		err = errors.Join(err, clock.Stop(ctx))
 	}
 	if err != nil {
 		return err
 	}
-	if clock != nil {
+	if clock != nil && !workerStopped {
 		err = clock.Cleanup(ctx)
 	}
 	if drafts != nil {
@@ -103,7 +109,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return nil, err
 		}
 	}
-	sink := &sessionSink{}
+	sink := &sessionSink{clockWorkers: &clockWorkerSlot{}}
 	namespace, err := journal.Identity(ctx)
 	if err != nil {
 		return nil, err
@@ -174,7 +180,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 		return cleanup(err)
 	}
-	return &Session{control: control, executor: worker, journal: journal, drafts: drafts, clock: coordinator}, nil
+	return &Session{control: control, executor: worker, journal: journal, drafts: drafts, clock: coordinator, clockWorkers: sink.clockWorkers}, nil
 }
 
 // Publish only after the final fallible construction check. Until publication,
