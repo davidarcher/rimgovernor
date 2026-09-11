@@ -138,8 +138,13 @@ retained claim. Preparation and dispatch atomically require a completed, current
 owned prerequisite; generic preparation cannot bypass it. Historical admission
 survives cleanup for receipt reconciliation. The melee bridge validates causal
 completion separately from accepted jobs, and combat pawn reads preserve unknown
-health and equipment facts. Policy, executor and player-service composition remain
-separate backlog gates.
+health and equipment facts. Deterministic admission requires a fresh complete
+single-opponent census, healthy capable colonist, current ownership and guarded
+native preview. `executor.NewWithMelee` uses two fresh inspections and the shared
+writer. Reconciliation retains the original admission after Manual or cleanup;
+accepted jobs never establish combat completion. Optional `SessionConfig.Melee`
+requires complete draft capabilities and shares their joined cleanup. Player-service
+submission and actual Go native defense acceptance remain separate gates.
 
 Pure draft admission requires a healthy selected colonist, known unowned and
 undrafted state, no forced or queued job, native eligibility and fresh complete

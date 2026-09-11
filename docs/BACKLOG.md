@@ -630,6 +630,12 @@ Update the relevant checkbox and evidence in the landing commit. Keep reports,
 databases, native recordings and temporary tooling under ignored `.rimgovernor/` paths;
 only intentional small, sanitized regression fixtures belong in source control.
 
+Reuse each worker's focused results. Run the full affected package suites once
+per integrated wave, with focused contract-neighbor checks; do not repeat unrelated
+suites. Reuse results after documentation-only changes and clean rebases with
+unchanged executable trees. A concrete review defect needs a focused regression;
+broaden checks only when the changed behavior or a failure justifies it.
+
 ### Sequenced chunks
 
 - [x] **G01.00 — Inventory and comparison baseline.** Owner: integration agent.
@@ -1103,16 +1109,16 @@ only intentional small, sanitized regression fixtures belong in source control.
           - [x] **07a.3b.2b:** canonical melee plan persistence and typed admission.
             Owner: integrator; depends on 2a. Atomically validate the completed
             prerequisite and exact retained claim before preparing or dispatching.
-        - [ ] **07a.3b.3:** deterministic one-opponent melee admission. Owner: policy
+        - [x] **07a.3b.3:** deterministic one-opponent melee admission. Owner: policy
           agent; depends on 3b.1–2. Require complete fresh census, selected pawn
           health and guarded native preview; preserve explicit hold reasons.
       - [ ] **07a.3c:** Hands handlers and Session/Worker composition. Owner:
         runtime agent; depends on 3b. Retain the draft through dependent actions,
         invalidate queued work on interruption and use exact owned cleanup.
-        - [ ] **07a.3c.1:** shared Hands melee handler with original-admission
+        - [x] **07a.3c.1:** shared Hands melee handler with original-admission
           reconciliation and two fresh policy inspections. Owner: executor agent;
           depends on fixed 3b.3 interface and durable 3b.2 admission.
-        - [ ] **07a.3c.2:** typed native melee boundary and complete optional Session
+        - [x] **07a.3c.2:** typed native melee boundary and complete optional Session
           composition. Owner: integrator; depends on 3c.1 and 3b.3. Preserve the
           shared writer, explicit prerequisite claim and joined cleanup.
       - [ ] **07a.3d:** finite defense window and composed Go native acceptance.
@@ -1297,12 +1303,21 @@ only intentional small, sanitized regression fixtures belong in source control.
       - [x] **10a.3a:** durable event review, gap holds and explicit acknowledgements.
         Owner: state agent; depends on 10a.1–2. Freeze closed local types first.
         Acknowledgement records inspection, never permission or safe current facts.
-      - [ ] **10a.3b:** pure finite healthy-colony window review. Owner: policy
+      - [x] **10a.3b:** pure finite healthy-colony window review. Owner: policy
         agent; depends on 07a.1 and fixed 3a interface. Unknown, stale, unsafe or
         interrupted facts hold. Combat and medical suppression await 07a facts.
       - [ ] **10a.3c:** one bounded scheduling step. Owner: runtime agent; depends
         on 3a–b. Bind stable durable request IDs, current authority and review
         revision; resolve unknown starts only through exact attempt recovery.
+        - [ ] **10a.3c.1:** durable window admission and dispatch binding. Owner:
+          state agent and integrator; freeze typed interfaces first. Persist the
+          exact window decision with its request, then atomically recheck review
+          revision, captured/reviewed cursors and holds at dispatch. Recheck
+          authority and observation freshness before the native call.
+        - [ ] **10a.3c.2:** one scheduling step without loops. Owner: runtime agent;
+          depends on 3c.1. Gather fresh policy facts and complete obligations,
+          preserve stable request identity and recover uncertain starts exactly.
+          Disabled state cannot start; a running epoch is never replaced.
       - [ ] **10a.3d:** independent event polling and epoch renewal. Owner: runtime
         agent; depends on 3c. Persist events before review, cancel on interruption,
         and renew only the original running epoch without extending its tick budget.

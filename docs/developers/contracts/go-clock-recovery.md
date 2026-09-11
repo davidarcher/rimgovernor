@@ -160,4 +160,15 @@ records inspection only; current unsafe facts and missing native events still ho
 
 The bounded review log validates its canonical head against complete operation and
 inbox provenance on every load. Capacity refusal leaves state unchanged. Event
-polling, current-state policy and retention are separate runtime gates.
+polling and retention are separate runtime gates.
+
+## Finite window admission
+
+`policy.EvaluateClockWindow` requires fresh same-authority status and emergency
+facts, a paused inactive clock, known remaining work and a complete catalog with
+no outstanding owned epoch or unknown start. Reviewed and captured cursors must
+match the native newest cursor, with no interruption or gap holds. Native tick
+boundaries and durable events must be known; a never-started clock may report
+durability as false. The admitted budget is finite and cannot overflow its tick
+deadline. Admission carries its snapshot and review revision for dispatch binding;
+the scheduling step and independent interruption/renewal workers remain gated.
