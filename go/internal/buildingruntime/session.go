@@ -107,6 +107,8 @@ func (s *Session) Acquire(ctx context.Context, requested domain.GenerationSnapsh
 	return s.control.Acquire(ctx, requested)
 }
 func (s *Session) Renew(ctx context.Context) error { return s.control.Renew(ctx) }
+func (s *Session) State() ControlState             { return s.control.State() }
+func (s *Session) Disable() error                  { return s.control.Disable() }
 
 // ObserveTarget attaches only read reconciliation to a durable plan. It cannot
 // obtain a lease, even if native status reports an active owner for this namespace.
