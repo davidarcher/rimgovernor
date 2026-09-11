@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rimgovernor.local/contracts/placement-previews-response.v2",
+  "title": "PreviewReply",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/PreviewBatch"
+    },
+    {
+      "$ref": "#/$defs/PreviewFailure"
+    }
+  ],
+  "$defs": {
+    "PreviewFailure": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "const": false
+        },
+        "error": {
+          "type": "string",
+          "x-maxUTF16Length": 4096
+        }
+      },
+      "required": [
+        "success",
+        "error"
+      ],
+      "additionalProperties": false
+    },
+    "PreviewCell": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647,
+          "x-integerToken": true
+        },
+        "z": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647,
+          "x-integerToken": true
+        }
+      },
+      "required": [
+        "x",
+        "z"
+      ],
+      "additionalProperties": false
+    },
+    "PreviewCost": {
+      "type": "object",
+      "properties": {
+        "defName": {
+          "type": "string",
+          "x-maxUTF16Length": 200
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647,
+          "x-integerToken": true
+        }
+      },
+      "required": [
+        "defName",
+        "count"
+      ],
+      "additionalProperties": false
+    },
+    "PreviewMaterialStock": {
+      "type": "object",
+      "properties": {
+        "defName": {
+          "type": "string",
+          "x-maxUTF16Length": 200
+        },
+        "available": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 2147483647,
+          "x-integerToken": true
+        }
+      },
+      "required": [
+        "defName",
+        "available"
+      ],
+      "additionalProperties": false
+    },
+    "PreviewMaterials": {
+      "type": "object",
+      "properties": {
+        "unreadable": {
+          "type": "boolean"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PreviewMaterialStock"
+          },
+          "minItems": 0,
+          "maxItems": 256
+        }
+      },
+      "required": [
+        "unreadable",
+        "rows"
+      ],
+      "additionalProperties": false
+    },
+    "PreviewBlocker": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "string",
+          "x-maxUTF16Length": 200
+        },
+        "isBlueprint": {
+          "type": "boolean"
+        },
+        "isFrame": {
+          "type": "boolean"
+        },
+        "frameWouldBeCancelled": {
+          "type": "boolean"
+        },
+        "wouldBeWiped": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "category",
+        "isBlueprint",
+        "isFrame",
+        "frameWouldBeCancelled",
+        "wouldBeWiped"
+      ],
+      "additionalProperties": false
+    },
+    "PreviewRotation": {
+      "type": "object",
+      "properties": {
+        "rotation": {
+          "type": "string",
+          "x-maxUTF16Length": 200,
+          "enum": [
+            "north",
+            "east",
+            "south",
+            "west"
+          ]
+        },
+        "accepted": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string",
+          "x-maxUTF16Length": 4096
+        },
+        "occupiedCells": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PreviewCell"
+          },
+          "minItems": 1,
+          "maxItems": 4096
+        },
+        "blockingThings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PreviewBlocker"
+          },
+          "minItems": 0,
+          "maxItems": 4096
+        }
+      },
+      "required": [
+        "rotation",
+        "accepted",
+        "reason",
+        "occupiedCells",
+        "blockingThings"
+      ],
+      "additionalProperties": false
+    },
+    "PreviewEvaluated": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "const": true
+        },
+        "canPlace": {
+          "type": "boolean"
+        },
+        "madeFromStuff": {
+          "type": "boolean"
+        },
+        "passability": {
+          "type": "string",
+          "x-maxUTF16Length": 200,
+          "enum": [
+            "Standable",
+            "PassThroughOnly",
+            "Impassable"
+          ]
+        },
+        "isDoor": {
+          "type": "boolean"
+        },
+        "researchFinished": {
+          "type": "boolean"
+        },
+        "buildableByPlayer": {
+          "type": "boolean"
+        },
+        "costList": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PreviewCost"
+          },
+          "minItems": 0,
+          "maxItems": 256
+        },
+        "materials": {
+          "$ref": "#/$defs/PreviewMaterials"
+        },
+        "rotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PreviewRotation"
+          },
+          "minItems": 1,
+          "maxItems": 4
+        }
+      },
+      "required": [
+        "success",
+        "canPlace",
+        "madeFromStuff",
+        "passability",
+        "isDoor",
+        "researchFinished",
+        "buildableByPlayer",
+        "costList",
+        "materials",
+        "rotations"
+      ],
+      "additionalProperties": false
+    },
+    "PreviewCandidate": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/PreviewEvaluated"
+        },
+        {
+          "$ref": "#/$defs/PreviewFailure"
+        }
+      ]
+    },
+    "PreviewBatch": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "const": true
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 2,
+          "x-integerToken": true
+        },
+        "tick": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647,
+          "x-integerToken": true
+        },
+        "mapId": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647,
+          "x-integerToken": true
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PreviewCandidate"
+          },
+          "minItems": 1,
+          "maxItems": 16
+        }
+      },
+      "required": [
+        "success",
+        "version",
+        "tick",
+        "mapId",
+        "results"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
