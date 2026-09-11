@@ -2,6 +2,15 @@
 
 [Documentation](../../README.md) · [Native Docker inputs](docker-inputs.md)
 
+For typed camera, selection and colonist roster reads, run
+`scripts/native_presentation_acceptance.py --root /worker/run --rendered` through
+`scripts/container_scenario.py --display xvfb` with a fresh private production
+package. No model or fixture assembly is required. The scenario selects an observed
+pawn as explicit setup, then verifies read invariance and exact SDK/native facts.
+Run without `--rendered` under headless display to verify explicit graphical
+unavailability and readable colonist facts. Raw exchanges and package hashes remain
+under `native-presentation-acceptance/`; inspect its result and launcher cleanup.
+
 Use the normal staged Linux game/mod/profile/GABS inputs with a fresh output:
 
 ```powershell

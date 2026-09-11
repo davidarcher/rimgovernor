@@ -1,6 +1,6 @@
 {
   "inventory_version": 1,
-  "source_revision": "6518dfb415503c68f63f97771571c9c2b42f2c60",
+  "source_revision": "ee52e9487f7806de1e94a0c18d296ca287813007",
   "scope": "Tracked C# sources in unified native Runtime/Bridge and scripts/fixtures; lexical reference index, not an AST or proof of behavioral coverage.",
   "source_line_policy": "One-based source anchors at source_revision; static matches include methods and constructors, reflection matches include helper use and interop. Read the full source declaration before changing ownership.",
   "rows": [
@@ -2026,7 +2026,7 @@
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativePresentationReadTools.cs",
       "compilation": "production-bridge",
-      "source_sha256": "c46fcca80778a9552b93e01e45928dc28f0b5237146fdd6aedd2e598f4eda1b1",
+      "source_sha256": "97dc4f3a9f1aa24f4a4deeeab3f87ea9af28b276a9074add5d9a03a283fa3660",
       "owner": "N01.05 native presentation reads owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify graphical camera/selection and loaded-map colonist facts, explicit headless unavailability and read invariance.",

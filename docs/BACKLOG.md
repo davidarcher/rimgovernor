@@ -1286,6 +1286,12 @@ main. Native package and Go production cutover remain independent.
   and corrupt journal rows. Native acceptance covers bounded ticks, owned controls,
   replay, cross-family conflicts and Manual revocation. Additional native load/map
   replacement, hook/journal fault injection and injury/presentation cases remain open.
+  Typed camera, selection and loaded-map colonist roster reads are implemented.
+  Native graphical acceptance verifies camera facts, an explicitly selected pawn,
+  exact roster and unchanged paused context; headless camera/selection are explicitly
+  unavailable while roster facts remain readable. Selection does not enumerate
+  gizmos/inspect tabs or grant captured input authority. Multi-map rosters, Zone/Plan
+  selection, native overflow cases and remaining presentation methods remain open.
   Lifecycle Save/Load admission belongs to the Go/GABS session owner: current
   instance/direction, Manual, joined writers, draft/input cleanup and verified pause.
   Native authority inactivity does not establish that admission. Reuse SDK save/load
