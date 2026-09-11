@@ -1038,7 +1038,7 @@ only intentional small, sanitized regression fixtures belong in source control.
                 draft cleanup and invalidated claims independently of ordinary
                 unresolved actions. Accept combined session/control behavior after
                 2b–c; retain claims needed by an active multi-action plan.
-        - [ ] **2f.2:** explicit player draft submission and local API projection.
+        - [x] **2f.2:** explicit player draft submission and local API projection.
           Owner: HTTP agent; depends on 2c and 2f.1. Accept pawn intent only, resolve
           native CAS through fresh runtime inspection, and expose progress and
           cleanup independently.
@@ -1052,20 +1052,20 @@ only intentional small, sanitized regression fixtures belong in source control.
             Use a closed building/draft plan projection with independent cleanup.
             The [Go player API contract](developers/contracts/go-player-api.md)
             fixes routes, payloads and shared dashboard coordination.
-          - [ ] **2f.2b:** shared player draft submission. Owner: runtime agent;
+          - [x] **2f.2b:** shared player draft submission. Owner: runtime agent;
             depends on 2f.2a and the accepted draft store. Submit through the existing
             Player gate, world validation and durable request namespace. Preserve cross-family request
             conflicts, Manual cancellation and read-only result recovery.
-          - [ ] **2f.2c:** draft HTTP handlers and plan projection. Owner: HTTP
+          - [x] **2f.2c:** draft HTTP handlers and plan projection. Owner: HTTP
             agent; depends on 2f.2a. Implement bounded intent decoding, authenticated
             submission and lookup, and typed draft progress/cleanup projection.
             Integrate the actual Player after 2f.2b; reuse existing common control.
-          - [ ] **2f.2d:** compose the player service. Owner: integrator; depends
+          - [x] **2f.2d:** compose the player service. Owner: integrator; depends
             on 2f.2b–c and 2f.3. Wire complete draft capabilities and use
             `--player-control`; update dashboard routes and native harness launch
             and token redaction together. Use fresh source/binary handoff for native
             acceptance; no old route aliases or historical-state migration.
-        - [ ] **2f.3:** dashboard temporary-draft intent and cleanup status. Owner:
+        - [x] **2f.3:** dashboard temporary-draft intent and cleanup status. Owner:
           UI agent; depends on the fixed 2f.2 interface. Preserve drafts, exact
           request IDs and uncertain outcomes; no general undraft or ownership adoption.
         - [ ] **2f.4:** isolated Go service draft acceptance. Owner: integrator with
