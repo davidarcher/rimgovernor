@@ -10,10 +10,13 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
+	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -154,9 +157,20 @@ func (caller *Client) PlacementPreviews(ctx context.Context, request *p.Placemen
 }
 func (caller *Client) protoRead(ctx context.Context, name string, request, reply proto.Message) (Result, error) {
 	switch name {
-	case "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview":
+	case "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress":
 	default:
 		return Result{}, contract("unreviewed native read")
+	}
+	return caller.protoCall(ctx, name, request, reply)
+}
+
+// protoCall is the closed transport seam for reviewed typed adapters. Adapters
+// validate request semantics and apply their own read or explicit write capability.
+func (caller *Client) protoCall(ctx context.Context, name string, request, reply proto.Message) (Result, error) {
+	switch name {
+	case "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress", "rimgovernor/authority_control", "rimgovernor/operations_execute":
+	default:
+		return Result{}, contract("unreviewed native method")
 	}
 	inner, err := protojson.Marshal(request)
 	if err != nil {
@@ -205,6 +219,16 @@ func (caller *Client) protoRead(ctx context.Context, name string, request, reply
 		case *o.StatusReply:
 			typedFailure = r.GetFailure() != nil
 		case *p.PlacementReply:
+			typedFailure = r.GetFailure() != nil
+		case *a.StatusReply:
+			typedFailure = r.GetFailure() != nil
+		case *a.ControlReply:
+			typedFailure = r.GetFailure() != nil
+		case *op.ExecuteReply:
+			typedFailure = r.GetFailure() != nil
+		case *r.LookupReply:
+			typedFailure = r.GetFailure() != nil
+		case *r.ProgressReply:
 			typedFailure = r.GetFailure() != nil
 		}
 		if !typedFailure {

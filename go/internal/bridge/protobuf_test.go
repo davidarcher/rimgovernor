@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
+	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -233,5 +236,53 @@ func TestConnectRefusesForeignOwnerAndExplicitTakeover(t *testing.T) {
 	}
 	if !strings.Contains(string(s.connectArgs), `"forceTakeover":true`) {
 		t.Fatalf("explicit takeover missing: %s", s.connectArgs)
+	}
+}
+
+func TestTypedAdapterTransportRemainsClosed(t *testing.T) {
+	s := &testServer{schema: protoSchema}
+	client := testClient(t, s, time.Second)
+	for _, name := range []string{"rimgovernor/authority_control", "rimgovernor/operations_execute", "rimgovernor/clock_control"} {
+		if _, err := client.protoRead(context.Background(), name, &l.IdentityRequest{}, &l.IdentityReply{}); !errors.Is(err, ErrContract) {
+			t.Fatalf("mutation admitted through read: %s", name)
+		}
+	}
+	if _, err := client.protoCall(context.Background(), "rimgovernor/clock_control", &l.IdentityRequest{}, &l.IdentityReply{}); !errors.Is(err, ErrContract) {
+		t.Fatal("unreviewed method admitted")
+	}
+	if len(s.calls) != 0 {
+		t.Fatal("unreviewed call reached SDK")
+	}
+}
+func TestAdditionalTypedSDKFailures(t *testing.T) {
+	f := &c.Failure{Code: c.FailureCode_FAILURE_CODE_UNAVAILABLE.Enum()}
+	cases := []struct {
+		name                     string
+		request, reply, received proto.Message
+		read                     bool
+	}{
+		{"rimgovernor/authority_read_status", &a.StatusRequest{}, &a.StatusReply{Outcome: &a.StatusReply_Failure{Failure: f}}, &a.StatusReply{}, true},
+		{"rimgovernor/authority_control", &a.ControlRequest{}, &a.ControlReply{Outcome: &a.ControlReply_Failure{Failure: f}}, &a.ControlReply{}, false},
+		{"rimgovernor/operations_execute", &op.ExecuteRequest{}, &op.ExecuteReply{Outcome: &op.ExecuteReply_Failure{Failure: f}}, &op.ExecuteReply{}, false},
+		{"rimgovernor/receipts_lookup", &r.LookupRequest{}, &r.LookupReply{Outcome: &r.LookupReply_Failure{Failure: f}}, &r.LookupReply{}, true},
+		{"rimgovernor/receipts_observe_progress", &r.ProgressRequest{}, &r.ProgressReply{Outcome: &r.ProgressReply_Failure{Failure: f}}, &r.ProgressReply{}, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+				result := pbResult(tc.reply)
+				result.IsError = true
+				return result, nil
+			}}
+			client := testClient(t, s, time.Second)
+			call := client.protoCall
+			if tc.read {
+				call = client.protoRead
+			}
+			raw, err := call(context.Background(), tc.name, tc.request, tc.received)
+			if err != nil || !proto.Equal(tc.reply, tc.received) || len(raw.Envelope) == 0 {
+				t.Fatalf("typed failure not delivered to semantic adapter: %v", err)
+			}
+		})
 	}
 }
