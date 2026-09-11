@@ -31,8 +31,9 @@ type ClockSchedulerConfig struct {
 	Start   bridge.ClockStart
 	MaxAge  time.Duration
 	// Routine is reviewed only after owned clock obligations have drained.
-	Routine  *RoutineReviewer
-	Sleeping *RoutineSleepingPlanner
+	Routine        *RoutineReviewer
+	Sleeping       *RoutineSleepingPlanner
+	RoutineMethods bool
 }
 type ClockSchedulerResult struct {
 	Attempt                      *store.ClockAttempt
@@ -61,6 +62,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Sleeping != nil && (config.Routine == nil || config.Sleeping.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.RoutineMethods && (config.Routine == nil || !session.routineMethods) {
 		return nil, ErrControl
 	}
 	config.Start.Policy = proto.Clone(config.Start.Policy).(*k.WatchPolicy)
@@ -238,6 +242,28 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	work, fingerprint, err := clockSchedulerWork(plan, state.Snapshot)
 	if err != nil {
 		return out, err
+	}
+	if s.config.RoutineMethods {
+		plans, err := s.player.journal.LoadPlans(call, 256)
+		if err != nil {
+			return out, err
+		}
+		for _, method := range plans {
+			if method.Spec.ID() == state.Snapshot.Plan {
+				continue
+			}
+			target := state.Snapshot
+			target.Plan, target.Revision = method.Spec.ID(), method.Spec.Revision()
+			if err := s.player.journal.AuthorizeRoutinePlan(call, state.Snapshot, target); err != nil {
+				continue
+			}
+			remaining, items, err := clockSchedulerWork(method, target)
+			if err != nil {
+				return out, err
+			}
+			work = work || remaining
+			fingerprint = append(fingerprint, items...)
+		}
 	}
 	clockState := policy.ClockWindowState("")
 	if status.GetNeverStarted() != nil {

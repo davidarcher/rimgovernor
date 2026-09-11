@@ -45,6 +45,7 @@ func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 // Starting these loops does not enable Player or acquire native authority.
 func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration, routine, sleeping bool) error {
 	config := serviceClockConfig(profile)
+	config.RoutineMethods = session.RoutineMethodsEnabled()
 	if sleeping && !routine {
 		return errors.New("sleeping plans require routine reviews")
 	}

@@ -81,12 +81,12 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 			w := progress.View()
 			effect, known := w.Effect.Value()
 			absent := w.Stage == domain.Cancelled && (w.Attempt == 0 || known && effect == domain.EffectAbsent)
-			completed := known && effect == domain.EffectCompleted && (w.Stage == domain.Completed || w.Stage == domain.Cancelled)
-			if !absent && !completed {
+			settledOutcome := known && ((effect == domain.EffectCompleted && (w.Stage == domain.Completed || w.Stage == domain.Cancelled)) || (progress.Action().Kind() == domain.BuildingAction && effect == domain.EffectUnsuccessful && (w.Stage == domain.Unsuccessful || w.Stage == domain.Cancelled)))
+			if !absent && !settledOutcome {
 				settled = false
 				break
 			}
-			if completed && w.Snapshot.Colony == current.Colony && w.Snapshot.Load == current.Load && w.Snapshot.Map == current.Map && tick < w.Tick {
+			if settledOutcome && w.Snapshot.Colony == current.Colony && w.Snapshot.Load == current.Load && w.Snapshot.Map == current.Map && tick < w.Tick {
 				settled = false
 				break
 			}
@@ -99,7 +99,7 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 		}
 		for _, progress := range p.Progress {
 			w := progress.View()
-			if effect, known := w.Effect.Value(); known && effect == domain.EffectCompleted {
+			if effect, known := w.Effect.Value(); known && (effect == domain.EffectCompleted || effect == domain.EffectUnsuccessful) {
 				s := w.Snapshot
 				if _, err = tx.ExecContext(ctx, "INSERT INTO retirement_floors(colony,load_token,map_id,tick) VALUES(?,?,?,?) ON CONFLICT(colony,load_token,map_id) DO UPDATE SET tick=max(tick,excluded.tick)", s.Colony, s.Load, s.Map, w.Tick); err != nil {
 					return err

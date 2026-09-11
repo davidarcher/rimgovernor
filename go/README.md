@@ -131,8 +131,8 @@ definition with no construction-skill prerequisite, roofed indoor cells, disjoin
 safe native previews and shared resource admission. Existing admitted footprints
 remain protected. Method identity survives retries; observed recovery opens a new
 epoch. Every preview stays under the player gate, and Manual cancels compilation.
-The compiler stores pending actions only. Method execution and
-native indoor-sleeping acceptance remain open.
+The compiler stores pending actions only. Targeted
+native indoor-sleeping acceptance remains open.
 
 Add `--routine-reviews` to `serve --player-control --clock-control` to attach the
 reviewer to the service clock worker. It uses the default routine thresholds and
@@ -140,7 +140,12 @@ requires typed colony observations. Startup remains disabled. This option journa
 needs. Add `--routine-sleeping-plans` to compile eligible shelter deficits into pending
 methods at that same paused boundary. It requires routine reviews and uses the same
 player gate; a failed preview prevents a new clock window. Startup remains disabled
-and this option does not execute methods. Remaining fact projection,
+and this option does not execute methods. Add `--routine-methods` to let the shared
+Hands worker execute reviewed building methods under the existing player direction.
+Each dispatch rechecks the journal binding, active known deficit, epoch, world and
+native generation. Pending player work takes priority; Manual stops routine writes
+without changing the selected player plan or acquiring another lease. Clock windows
+include eligible routine work after the player plan settles. Remaining fact projection,
 method selection and execution composition remain in G01.05.
 `scripts/native_go_routine_acceptance.py`, run through the documented container
 scenario launcher with the private construction fixture and verified Go binary,

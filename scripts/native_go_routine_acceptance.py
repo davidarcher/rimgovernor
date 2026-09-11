@@ -70,7 +70,23 @@ async def wait_review(database):
             await asyncio.sleep(.05)
 
 
-async def run(root, output, binary, *, go_source, go_sha256):
+async def wait_sleeping(http, database, count):
+    async with asyncio.timeout(180):
+        while True:
+            with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
+                rows = db.execute("SELECT DISTINCT m.plan_id FROM goal_methods m JOIN actions a ON a.plan_id=m.plan_id WHERE a.definition='SleepingSpot'").fetchall()
+            assert len(rows) <= 1, "Duplicate sleeping methods"
+            if rows:
+                plan = await http("GET", "/api/plan?id=" + rows[0][0])
+                assert len(plan["actions"]) == count
+                assert all(a["building"]["defName"] == "SleepingSpot" for a in plan["actions"])
+                if all(a["progress"]["stage"] == "completed" for a in plan["actions"]):
+                    assert all(a["progress"]["effect"] == "completed" and not a["progress"]["unresolved"] and a["progress"]["attempt"] == "1" for a in plan["actions"])
+                    return plan
+            await asyncio.sleep(.2)
+
+
+async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False):
     assert Path("/.dockerenv").is_file(), "Use the isolated scenario launcher"
     output.mkdir(parents=True, exist_ok=False)
     report = {"passed": False, "source": go_source,
@@ -115,6 +131,9 @@ async def run(root, output, binary, *, go_source, go_sha256):
             prepared = payload(await evidence.call(bridge, "prepare", "test/guarded_construction_prepare", {"siteCount": 1}))
             assert prepared["success"] and all(prepared[k] == identity[k] for k in identity)
             report["prepared"] = prepared
+            if sleeping_methods:
+                report["sleeping_setup"] = payload(await evidence.call(bridge, "sleeping-setup", "test/routine_sleeping_prepare", {}))
+                assert report["sleeping_setup"]["success"] and report["sleeping_setup"]["sleepingSpotsCreated"] == 0
             report["initial_colony"] = await wire(bridge, "initial-colony", "observations_read_status", {
                 "scope": {"expectedIdentity": identity}, "colonists": True, "threats": True, "colonistDetail": False, "page": {"limit": 256}})
             facts = payload(await evidence.call(bridge, "initial-food", "home/colony_facts", {"planning": False}))
@@ -123,7 +142,7 @@ async def run(root, output, binary, *, go_source, go_sha256):
             expected_food = 'deficit' if food['readable'] and food['runwayDays'] is not None and food['runwayDays'] < 3 else 'unknown'
             baseline = await capture(bridge, "setup")
 
-        async with service(private, gabs, configuration, profile, database, output / "operate", report, clock_control=True, routine_reviews=True) as http:
+        async with service(private, gabs, configuration, profile, database, output / "operate", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods) as http:
             await poll(http, "/api/state", lambda v: v.get("connected") and not v.get("game", {}).get("stale", True))
             assert not (await http("GET", "/api/player/control"))["state"]["enabled"]
             submission = await http("POST", "/api/buildings/plans", body={"requestId": "routine-context", "expected": identity,
@@ -132,13 +151,15 @@ async def run(root, output, binary, *, go_source, go_sha256):
                 "planId": submission["planId"], "revision": submission["revision"], "expectedDirection": "0"})
             assert granted["record"]["phase"] == "granted"
             await wait_review(database)
-            active = routine_evidence(database, identity, enabled=True, expected_food_need=expected_food)
+            active = routine_evidence(database, identity, enabled=True, expected_food_need=expected_food, allow_methods=sleeping_methods)
             assert active["review"]["Tick"] == tick, "Review did not use the initial paused boundary"
             assert active["goals"]["CriticalMedical"]["Need"] == medical_need(report["initial_colony"])
             report["active_routine"] = active
+            if sleeping_methods:
+                report["sleeping_plan"] = await wait_sleeping(http, database, report["sleeping_setup"]["colonists"])
             manual = await http("POST", "/api/player/control/manual", body={"requestId": "routine-manual", "expected": identity})
             assert manual["record"]["phase"] == "disabled" and not manual["state"]["enabled"]
-            report["manual_routine"] = routine_evidence(database, identity, enabled=False, expected_food_need=expected_food)
+            report["manual_routine"] = routine_evidence(database, identity, enabled=False, expected_food_need=expected_food, allow_methods=sleeping_methods)
 
         async with bridge_session(gabs, configuration) as bridge:
             await bridge.connect()
@@ -146,11 +167,11 @@ async def run(root, output, binary, *, go_source, go_sha256):
             final = outcome(await wire(bridge, "after-manual", "lifecycle_read_identity", {}), "loaded")
             assert final["paused"] and final["context"]["identity"] == identity
             baseline = await capture(bridge, "restart-baseline")
-        async with service(private, gabs, configuration, profile, database, output / "restart", report, clock_control=True, routine_reviews=True) as http:
+        async with service(private, gabs, configuration, profile, database, output / "restart", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods) as http:
             await poll(http, "/api/state", lambda v: v.get("connected") and not v.get("game", {}).get("stale", True))
             await asyncio.sleep(2)
             assert not (await http("GET", "/api/player/control"))["state"]["enabled"]
-            assert routine_evidence(database, identity, enabled=False, expected_food_need=expected_food) == report["manual_routine"]
+            assert routine_evidence(database, identity, enabled=False, expected_food_need=expected_food, allow_methods=sleeping_methods) == report["manual_routine"]
         async with bridge_session(gabs, configuration) as bridge:
             await bridge.connect()
             await capture(bridge, "restart", baseline, restart=True)
@@ -178,6 +199,7 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path)
     parser.add_argument("--go-binary", type=Path, required=True)
     add_handoff_arguments(parser)
+    parser.add_argument("--sleeping-methods", action="store_true")
     args = parser.parse_args()
     raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-go-routine-acceptance", args.go_binary,
-        go_source=args.go_source, go_sha256=args.go_sha256)) else 1)
+        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods)) else 1)

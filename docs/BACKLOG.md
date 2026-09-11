@@ -629,16 +629,20 @@ expand these into another nested task tree; remove a row when its outcome is met
   Settled autopilot method plans now retire from active capacity with retained
   exact history and per-world observation floors; stale admission/dispatch stays
   blocked after restart. Current plans, unfinished dependencies, uncertain effects,
-  cleanup and unsuccessful outcomes remain pinned.
+  and cleanup remain pinned. Observed unsuccessful building methods now yield their
+  reservations to fresh native stock/placement and retire with the same durable
+  observation floors; unknown outcomes remain held.
   A player-gated indoor-sleeping compiler now turns reviewed shelter deficits into
   complete pending shared methods using native definition/room/placement facts,
   protected admissions and stable epoch identities. Cleanup needs now derive from
   the shared owned-draft journal. Opt-in `--routine-sleeping-plans` attaches compilation
   to the paused service review boundary; startup stays disabled and preview failures
-  block new clock windows. Method execution and native
+  block new clock windows. `--routine-methods` connects eligible building methods to
+  shared Hands under the existing player direction, with journal rechecks and pending
+  player work taking priority. Targeted native
   indoor-sleeping acceptance remain open.
   Remaining fact projection (further need inputs and construction
-  costs), unsuccessful-plan resource release,
+  costs),
   method selection and execution composition remain
   open; these components do not enable orders.
 

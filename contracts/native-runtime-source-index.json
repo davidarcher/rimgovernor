@@ -4116,6 +4116,17 @@
       "patch_registration_lines": []
     },
     {
+      "source": "scripts/fixtures/RoutineSleepingFixture.cs",
+      "compilation": "fixture-only",
+      "source_sha256": "b004927ea3bff307a4b09da5be290faea1a5486b18574a042eb1b9b3e78291ef",
+      "owner": "N01.01 native fixture isolation owner",
+      "migration_status": "implemented-native-acceptance-pending",
+      "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
+      "static_token_lines": [],
+      "reflection_boundary_lines": [],
+      "patch_registration_lines": []
+    },
+    {
       "source": "scripts/fixtures/ScenarioStartFixture.cs",
       "source_sha256": "d99a8030827807cfb648b90f381118520f4e550feac5c1f1e2f999b8151a0d55",
       "compilation": "fixture-only",

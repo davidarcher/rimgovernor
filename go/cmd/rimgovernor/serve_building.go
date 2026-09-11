@@ -175,7 +175,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		clockCapabilities = client.clock
 		callTimeout = min(callTimeout, 5*time.Second)
 	}
-	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{
+	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{RoutineMethods: config.routineMethods,
 		Control:  buildingruntime.ControlConfig{ProfileDirectory: config.profile, LeaseDuration: 30 * time.Second, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
 		Executor: executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
 		Draft:    client.draft,
@@ -203,7 +203,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 			return err
 		}
 	}
-	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{
+	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{RoutineMethods: config.routineMethods,
 		StepInterval: time.Second, MaxBackoff: 10 * time.Second, StepTimeout: min(config.bridge.Timeout, 8*time.Second),
 		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second,
 	}, player, session)

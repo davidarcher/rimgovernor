@@ -12,6 +12,7 @@ import (
 )
 
 type WorkerConfig struct {
+	RoutineMethods                        bool
 	StepInterval, MaxBackoff, StepTimeout time.Duration
 	RenewInterval, RenewTimeout           time.Duration
 }
@@ -55,6 +56,9 @@ type workerWait struct {
 
 func NewWorker(ctx context.Context, config WorkerConfig, player *Player, session *Session) (*Worker, error) {
 	if session == nil || player == nil || player.session != session || player.journal != session.journal {
+		return nil, ErrControl
+	}
+	if config.RoutineMethods && !session.routineMethods {
 		return nil, ErrControl
 	}
 	return newWorker(ctx, config, player, session, session.control.config.LeaseDuration)
@@ -178,11 +182,35 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	}
 	live := make(map[domain.ActionID]bool)
 	var candidates []workerCandidate
+	playerPending := false
 	for _, plan := range plans {
+		if plan.Spec.ID() != scope.Snapshot.Plan {
+			continue
+		}
 		for _, progress := range plan.Progress {
 			v := progress.View()
+			if !v.Unresolved && workerEligible(plan, v, scope, world) {
+				playerPending = true
+			}
+		}
+	}
+	for _, plan := range plans {
+		planScope := scope
+		if w.config.RoutineMethods && scope.Enabled && scope.ObservationKnown && plan.Spec.ID() != scope.Snapshot.Plan {
+			target := scope.Snapshot
+			target.Plan, target.Revision = plan.Spec.ID(), plan.Spec.Revision()
+			if err := w.player.journal.AuthorizeRoutinePlan(call, scope.Snapshot, target); err == nil {
+				planScope.Snapshot = target
+			}
+		}
+		for _, progress := range plan.Progress {
+			v := progress.View()
+			if playerPending && planScope.Snapshot != scope.Snapshot && progress.Action().Kind() == domain.BuildingAction && !v.Unresolved {
+				continue
+			}
 			cleanup := workerCleanupEligible(plan, v, scope, world)
-			if cleanup || worldErr == nil && workerEligible(plan, v, scope, world) {
+			routineObservation := w.config.RoutineMethods && v.Unresolved && progress.Action().Kind() == domain.BuildingAction && playerWorld(v.Snapshot) == world
+			if cleanup || worldErr == nil && (routineObservation || workerEligible(plan, v, planScope, world)) {
 				live[v.Action] = true
 				candidates = append(candidates, workerCandidate{view: v, cleanup: cleanup})
 			}

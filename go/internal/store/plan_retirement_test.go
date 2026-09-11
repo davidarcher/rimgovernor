@@ -68,107 +68,113 @@ func TestRoutinePlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
 	}
 }
 
-func TestRoutinePlanRetirementCompletionFloorAndRestart(t *testing.T) {
-	for _, cancelled := range []bool{false, true} {
-		t.Run(fmt.Sprint(cancelled), func(t *testing.T) {
-			ctx := context.Background()
-			path := filepath.Join(t.TempDir(), "history.db")
-			s := open(t, path)
-			r := routineRequest()
-			g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainWood)
-			q := methodRequest(t, g, "old", 100)
-			d, err := s.AdmitBuildingMethod(ctx, q)
-			if err != nil || !d.Admitted {
-				t.Fatal(d, err)
-			}
-			p, err := s.LoadPlan(ctx, q.Plan.ID())
-			if err != nil {
-				t.Fatal(err)
-			}
-			action := q.Plan.Actions()[0].ID()
-			if _, err = s.ReserveAndPrepare(ctx, q.Plan.ID(), action, p.Admissions[0].Admission); err != nil {
-				t.Fatal(err)
-			}
-			if _, err = s.Dispatch(ctx, q.Plan.ID(), action, q.Current, q.Tick); err != nil {
-				t.Fatal(err)
-			}
-			if cancelled {
-				if _, err = s.CancelGoal(ctx, g.Goal.ID, d.Goal.Revision); err != nil {
+func TestRoutinePlanRetirementTerminalFloorAndRestart(t *testing.T) {
+	for _, effect := range []domain.Effect{domain.EffectCompleted, domain.EffectUnsuccessful} {
+		for _, cancelled := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/%v", effect, cancelled), func(t *testing.T) {
+				ctx := context.Background()
+				path := filepath.Join(t.TempDir(), "history.db")
+				s := open(t, path)
+				r := routineRequest()
+				g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainWood)
+				q := methodRequest(t, g, "old", 100)
+				d, err := s.AdmitBuildingMethod(ctx, q)
+				if err != nil || !d.Admitted {
+					t.Fatal(d, err)
+				}
+				p, err := s.LoadPlan(ctx, q.Plan.ID())
+				if err != nil {
 					t.Fatal(err)
 				}
-			}
-			if _, err = s.Observe(ctx, q.Plan.ID(), domain.Observation{Action: action, Attempt: 1, Snapshot: q.Current, Tick: 15, Effect: domain.EffectCompleted}, q.Current); err != nil {
-				t.Fatal(err)
-			}
-			prepared := plan(t, "prepared", "prepared-a")
-			if err = s.CreatePlan(ctx, prepared); err != nil {
-				t.Fatal(err)
-			}
-			preparedScope := scope()
-			preparedScope.Plan = prepared.ID()
-			if _, err = s.Prepare(ctx, prepared.ID(), "prepared-a", preparedScope, 14); err != nil {
-				t.Fatal(err)
-			}
-			r.Tick = 14
-			reviewRoutine(t, s, &r)
-			p, err = s.LoadPlan(ctx, q.Plan.ID())
-			if err != nil || p.Retired {
-				t.Fatal("future evidence retired", p, err)
-			}
-			r.Tick = 20
-			if _, err = s.db.ExecContext(ctx, `CREATE TRIGGER fail_retirement BEFORE UPDATE ON routine_review BEGIN SELECT RAISE(ABORT,'review failure'); END`); err != nil {
-				t.Fatal(err)
-			}
-			if _, err = s.ReviewRoutine(ctx, r); err == nil {
-				t.Fatal("injected retirement failure ignored")
-			}
-			var floors int
-			if err = s.db.QueryRowContext(ctx, "SELECT count(*) FROM retirement_floors").Scan(&floors); err != nil || floors != 0 {
-				t.Fatal("floor escaped rollback", floors, err)
-			}
-			if _, err = s.db.ExecContext(ctx, "DROP TRIGGER fail_retirement"); err != nil {
-				t.Fatal(err)
-			}
-			reviewRoutine(t, s, &r)
-			s.Close()
-			s = open(t, path)
-			p, err = s.LoadPlan(ctx, q.Plan.ID())
-			if err != nil || !p.Retired || len(p.Admissions) != 1 {
-				t.Fatal(p, err)
-			}
-			if _, err = s.Dispatch(ctx, prepared.ID(), "prepared-a", preparedScope, 14); err == nil {
-				t.Fatal("prepared dispatch bypassed retirement floor")
-			}
-			if _, err = s.Cancel(ctx, prepared.ID(), "prepared-a"); err != nil {
-				t.Fatal(err)
-			}
-			other := anotherGoal(t, s, "replacement")
-			next := methodRequest(t, other, "new", 100)
-			next.Tick, next.Stock.Tick, next.Previews[0].Tick = 14, 14, 14
-			if _, err = s.AdmitBuildingMethod(ctx, next); err == nil {
-				t.Fatal("retirement made old stock spendable")
-			}
-			standalone := plan(t, "standalone", "standalone-a")
-			if err = s.CreatePlan(ctx, standalone); err != nil {
-				t.Fatal(err)
-			}
-			current := scope()
-			current.Plan = standalone.ID()
-			if _, err = s.Prepare(ctx, standalone.ID(), "standalone-a", current, 14); err == nil {
-				t.Fatal("standalone preparation bypassed floor")
-			}
-			current.Load = "replacement-load"
-			if _, err = s.Prepare(ctx, standalone.ID(), "standalone-a", current, 14); err != nil {
-				t.Fatal("floor crossed world identity", err)
-			}
-			if _, err = s.Cancel(ctx, standalone.ID(), "standalone-a"); err != nil {
-				t.Fatal(err)
-			}
-			next.Tick, next.Stock.Tick, next.Previews[0].Tick = 20, 20, 20
-			if d, err = s.AdmitBuildingMethod(ctx, next); err != nil || !d.Admitted {
-				t.Fatal("fresh stock blocked", d, err)
-			}
-		})
+				action := q.Plan.Actions()[0].ID()
+				if _, err = s.ReserveAndPrepare(ctx, q.Plan.ID(), action, p.Admissions[0].Admission); err != nil {
+					t.Fatal(err)
+				}
+				if _, err = s.Dispatch(ctx, q.Plan.ID(), action, q.Current, q.Tick); err != nil {
+					t.Fatal(err)
+				}
+				if cancelled {
+					if _, err = s.CancelGoal(ctx, g.Goal.ID, d.Goal.Revision); err != nil {
+						t.Fatal(err)
+					}
+				}
+				observation := domain.Observation{Action: action, Attempt: 1, Snapshot: q.Current, Tick: 15, Effect: effect}
+				if effect == domain.EffectUnsuccessful {
+					observation.UnsuccessfulReason = domain.NativeFailure
+				}
+				if _, err = s.Observe(ctx, q.Plan.ID(), observation, q.Current); err != nil {
+					t.Fatal(err)
+				}
+				prepared := plan(t, "prepared", "prepared-a")
+				if err = s.CreatePlan(ctx, prepared); err != nil {
+					t.Fatal(err)
+				}
+				preparedScope := scope()
+				preparedScope.Plan = prepared.ID()
+				if _, err = s.Prepare(ctx, prepared.ID(), "prepared-a", preparedScope, 14); err != nil {
+					t.Fatal(err)
+				}
+				r.Tick = 14
+				reviewRoutine(t, s, &r)
+				p, err = s.LoadPlan(ctx, q.Plan.ID())
+				if err != nil || p.Retired {
+					t.Fatal("future evidence retired", p, err)
+				}
+				r.Tick = 20
+				if _, err = s.db.ExecContext(ctx, `CREATE TRIGGER fail_retirement BEFORE UPDATE ON routine_review BEGIN SELECT RAISE(ABORT,'review failure'); END`); err != nil {
+					t.Fatal(err)
+				}
+				if _, err = s.ReviewRoutine(ctx, r); err == nil {
+					t.Fatal("injected retirement failure ignored")
+				}
+				var floors int
+				if err = s.db.QueryRowContext(ctx, "SELECT count(*) FROM retirement_floors").Scan(&floors); err != nil || floors != 0 {
+					t.Fatal("floor escaped rollback", floors, err)
+				}
+				if _, err = s.db.ExecContext(ctx, "DROP TRIGGER fail_retirement"); err != nil {
+					t.Fatal(err)
+				}
+				reviewRoutine(t, s, &r)
+				s.Close()
+				s = open(t, path)
+				p, err = s.LoadPlan(ctx, q.Plan.ID())
+				if err != nil || !p.Retired || len(p.Admissions) != 1 {
+					t.Fatal(p, err)
+				}
+				if _, err = s.Dispatch(ctx, prepared.ID(), "prepared-a", preparedScope, 14); err == nil {
+					t.Fatal("prepared dispatch bypassed retirement floor")
+				}
+				if _, err = s.Cancel(ctx, prepared.ID(), "prepared-a"); err != nil {
+					t.Fatal(err)
+				}
+				other := anotherGoal(t, s, "replacement")
+				next := methodRequest(t, other, "new", 100)
+				next.Tick, next.Stock.Tick, next.Previews[0].Tick = 14, 14, 14
+				if _, err = s.AdmitBuildingMethod(ctx, next); err == nil {
+					t.Fatal("retirement made old stock spendable")
+				}
+				standalone := plan(t, "standalone", "standalone-a")
+				if err = s.CreatePlan(ctx, standalone); err != nil {
+					t.Fatal(err)
+				}
+				current := scope()
+				current.Plan = standalone.ID()
+				if _, err = s.Prepare(ctx, standalone.ID(), "standalone-a", current, 14); err == nil {
+					t.Fatal("standalone preparation bypassed floor")
+				}
+				current.Load = "replacement-load"
+				if _, err = s.Prepare(ctx, standalone.ID(), "standalone-a", current, 14); err != nil {
+					t.Fatal("floor crossed world identity", err)
+				}
+				if _, err = s.Cancel(ctx, standalone.ID(), "standalone-a"); err != nil {
+					t.Fatal(err)
+				}
+				next.Tick, next.Stock.Tick, next.Previews[0].Tick = 20, 20, 20
+				if d, err = s.AdmitBuildingMethod(ctx, next); err != nil || !d.Admitted {
+					t.Fatal("fresh stock blocked", d, err)
+				}
+			})
+		}
 	}
 }
 
@@ -201,8 +207,8 @@ func TestRoutinePlanRetirementPinsCurrentAndRollsBack(t *testing.T) {
 	}
 }
 
-func TestRoutinePlanRetirementPinsUnfinishedUnsuccessfulAndPlayerMethods(t *testing.T) {
-	for _, kind := range []string{"dependency", "unknown", "unsuccessful", "player"} {
+func TestRoutinePlanRetirementPinsUnfinishedAndPlayerMethods(t *testing.T) {
+	for _, kind := range []string{"dependency", "unknown", "player"} {
 		t.Run(kind, func(t *testing.T) {
 			ctx := context.Background()
 			s := open(t, filepath.Join(t.TempDir(), "history.db"))

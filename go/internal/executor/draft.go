@@ -8,11 +8,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-func NewWithDraft(journal DraftJournal, building Boundary, draft DraftBoundary, clock Clock, limits Limits) (*Executor, error) {
+func NewWithDraft(journal DraftJournal, building Boundary, draft DraftBoundary, clock Clock, limits Limits, routine ...RoutineScope) (*Executor, error) {
 	if draft == nil {
 		return nil, errors.New("draft boundary required")
 	}
-	e, err := New(journal, building, clock, limits)
+	e, err := New(journal, building, clock, limits, routine...)
 	if err != nil {
 		return nil, err
 	}

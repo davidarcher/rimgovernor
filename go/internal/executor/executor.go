@@ -30,6 +30,9 @@ type Journal interface {
 	Cancel(context.Context, domain.PlanID, domain.ActionID) (domain.Progress, error)
 }
 type Clock interface{ Now() time.Time }
+type RoutineScope interface {
+	AuthorizeRoutinePlan(context.Context, domain.GenerationSnapshot, domain.GenerationSnapshot) error
+}
 type Limits struct{ MaxAge, RunTimeout, JournalTimeout time.Duration }
 type Authority struct {
 	Snapshot domain.GenerationSnapshot
@@ -99,6 +102,7 @@ type Result struct {
 }
 
 type Executor struct {
+	routineScope RoutineScope
 	journal      Journal
 	draftJournal DraftJournal
 	draft        DraftBoundary
@@ -117,12 +121,20 @@ type Executor struct {
 	stopped      bool
 }
 
-func New(journal Journal, boundary Boundary, clock Clock, limits Limits) (*Executor, error) {
+func New(journal Journal, boundary Boundary, clock Clock, limits Limits, routine ...RoutineScope) (*Executor, error) {
 	if journal == nil || boundary == nil || clock == nil || limits.MaxAge < 0 || limits.RunTimeout <= 0 || limits.JournalTimeout <= 0 {
 		return nil, errors.New("invalid executor dependencies or limits")
 	}
 	generation, cancel := context.WithCancel(context.Background())
-	return &Executor{journal: journal, boundary: boundary, clock: clock, limits: limits, writer: make(chan struct{}, 1), generation: generation, invalidate: cancel}, nil
+	if len(routine) > 1 {
+		cancel()
+		return nil, errors.New("one routine scope owner required")
+	}
+	e := &Executor{journal: journal, boundary: boundary, clock: clock, limits: limits, writer: make(chan struct{}, 1), generation: generation, invalidate: cancel}
+	if len(routine) == 1 {
+		e.routineScope = routine[0]
+	}
+	return e, nil
 }
 
 // UpdateAuthority invalidates queued and active work. Disabled authority permits
@@ -180,8 +192,19 @@ func (e *Executor) guard(ctx context.Context, expected domain.GenerationSnapshot
 		return ErrAuthority
 	}
 	current := e.current()
-	if !current.Enabled || !current.Snapshot.Matches(expected) {
+	if !current.Enabled {
 		return ErrAuthority
+	}
+	if !current.Snapshot.Matches(expected) {
+		if e.routineScope == nil {
+			return ErrAuthority
+		}
+		if err := e.routineScope.AuthorizeRoutinePlan(ctx, current.Snapshot, expected); err != nil {
+			return errors.Join(ErrAuthority, err)
+		}
+		if generation.Err() != nil || e.current() != current {
+			return ErrAuthority
+		}
 	}
 	return nil
 }
@@ -268,7 +291,10 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	expected := authority.Snapshot
 	if expected.Plan != state.Spec.ID() || expected.Revision != state.Spec.Revision() {
-		return result, ErrAuthority
+		if e.routineScope == nil {
+			return result, ErrAuthority
+		}
+		expected.Plan, expected.Revision = state.Spec.ID(), state.Spec.Revision()
 	}
 	if err = e.guard(ctx, expected, generation); err != nil {
 		return result, err

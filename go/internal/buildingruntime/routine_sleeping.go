@@ -163,7 +163,7 @@ func (r *RoutineSleepingPlanner) step(call, epoch context.Context) (SleepingMeth
 	for _, h := range held {
 		v := h.Progress.View()
 		effect, known := v.Effect.Value()
-		if !v.Unresolved && known && effect == domain.EffectCompleted && v.Tick <= facts.Identity.Tick {
+		if !v.Unresolved && known && (effect == domain.EffectCompleted || effect == domain.EffectUnsuccessful) && v.Tick <= facts.Identity.Tick {
 			continue
 		}
 		protected = append(protected, h.Footprint...)

@@ -16,6 +16,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../../../scripts/fixtures/ResearchObservationFixture.cs" Condition="'$(ResearchObservationFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/RoutineSleepingFixture.cs" Condition="'$(RoutineSleepingFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/GuardedConstructionFixture.cs" Condition="'$(GuardedConstructionFixture)' == 'true'" />
     <Compile Include="../../../../contracts/generated/protobuf/csharp/*.cs" />
     <PackageReference Include="Google.Protobuf" Version="3.31.1" />

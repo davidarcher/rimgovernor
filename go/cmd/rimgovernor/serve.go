@@ -34,6 +34,7 @@ type serveConfig struct {
 	clockControl          bool
 	routineReviews        bool
 	routineSleepingPlans  bool
+	routineMethods        bool
 	refresh               time.Duration
 }
 
@@ -46,6 +47,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.clockControl, "clock-control", false, "supervise finite game-clock windows for enabled player work")
 	flags.BoolVar(&c.routineReviews, "routine-reviews", false, "review routine needs at paused clock boundaries; method execution remains unavailable")
 	flags.BoolVar(&c.routineSleepingPlans, "routine-sleeping-plans", false, "compile reviewed indoor sleeping needs into pending shared plans; execution remains unavailable")
+	flags.BoolVar(&c.routineMethods, "routine-methods", false, "execute reviewed routine building methods under the current player direction")
 	flags.StringVar(&c.profile, "profile", "", "absolute shared game profile directory for player control")
 	flags.StringVar(&c.bridge.Executable, "gabs", "", "absolute GABS executable")
 	flags.StringVar(&c.bridge.ConfigDir, "config", "", "absolute GABS configuration directory")
@@ -69,6 +71,9 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if c.routineSleepingPlans && !c.routineReviews {
 		return c, errors.New("--routine-sleeping-plans requires --routine-reviews")
+	}
+	if c.routineMethods && !c.routineSleepingPlans {
+		return c, errors.New("--routine-methods requires --routine-sleeping-plans")
 	}
 	if c.playerControl && !filepath.IsAbs(c.profile) || !c.playerControl && c.profile != "" {
 		return c, errors.New("--player-control requires an absolute --profile; read-only mode takes no profile")

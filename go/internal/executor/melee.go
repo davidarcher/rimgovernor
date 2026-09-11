@@ -9,11 +9,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-func NewWithMelee(journal MeleeJournal, building Boundary, draft DraftBoundary, melee MeleeBoundary, clock Clock, limits Limits) (*Executor, error) {
+func NewWithMelee(journal MeleeJournal, building Boundary, draft DraftBoundary, melee MeleeBoundary, clock Clock, limits Limits, routine ...RoutineScope) (*Executor, error) {
 	if melee == nil {
 		return nil, errors.New("melee boundary required")
 	}
-	e, err := NewWithDraft(journal, building, draft, clock, limits)
+	e, err := NewWithDraft(journal, building, draft, clock, limits, routine...)
 	if err != nil {
 		return nil, err
 	}

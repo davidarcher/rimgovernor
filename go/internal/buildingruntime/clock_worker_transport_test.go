@@ -115,13 +115,14 @@ func TestClockWorkerTransportBlockedWriteRetainsOwner(t *testing.T) {
 					}()
 				}
 				clockTransportWait(t, native.cancelled, "local invalidation reaches blocked write")
-				if s.session.State().Enabled {
-					t.Fatal("authority remained enabled")
-				}
 				if stop != "interruption" {
 					if err := <-stopped; err == nil {
 						t.Fatal("blocked write unexpectedly joined")
 					}
+				}
+				// A transport deadline may cancel before local Stop has returned.
+				if s.session.State().Enabled {
+					t.Fatal("authority remained enabled")
 				}
 				closeCtx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
 				err = s.session.Close(closeCtx)

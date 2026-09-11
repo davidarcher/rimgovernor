@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
@@ -12,24 +13,26 @@ import (
 )
 
 type SessionConfig struct {
-	Control  ControlConfig
-	Executor executor.Limits
-	Rules    []policy.ResourceRule
-	Draft    *DraftCapabilities
-	Clock    *ClockCapabilities
-	Melee    *MeleeCapabilities
+	RoutineMethods bool
+	Control        ControlConfig
+	Executor       executor.Limits
+	Rules          []policy.ResourceRule
+	Draft          *DraftCapabilities
+	Clock          *ClockCapabilities
+	Melee          *MeleeCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
 // owns bridge/database handles and may close them only after Close succeeds.
 // Only an explicit trusted player path may call Acquire or create submitted plans.
 type Session struct {
-	control      *Control
-	executor     *executor.Executor
-	journal      *store.Store
-	drafts       *draftSweep
-	clock        *ClockCoordinator
-	clockWorkers *clockWorkerSlot
+	routineMethods bool
+	control        *Control
+	executor       *executor.Executor
+	journal        *store.Store
+	drafts         *draftSweep
+	clock          *ClockCoordinator
+	clockWorkers   *clockWorkerSlot
 }
 
 type sessionSink struct {
@@ -87,6 +90,29 @@ func (s *sessionSink) stop(ctx context.Context) error {
 
 type sessionHolds struct{ journal *store.Store }
 
+type sessionBuildingLeases struct {
+	control *Control
+	journal *store.Store
+	routine bool
+	timeout time.Duration
+}
+
+func (s sessionBuildingLeases) Lease(target domain.GenerationSnapshot) (string, error) {
+	root := s.control.State()
+	if root.Snapshot == target {
+		return s.control.Lease(target)
+	}
+	if !s.routine || !root.Enabled || !root.ObservationKnown {
+		return "", ErrControl
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
+	defer cancel()
+	if err := s.journal.AuthorizeRoutinePlan(ctx, root.Snapshot, target); err != nil {
+		return "", err
+	}
+	return s.control.Lease(root.Snapshot)
+}
+
 func (s sessionHolds) Holds(ctx context.Context, current domain.GenerationSnapshot) ([]policy.Reservation, error) {
 	return executor.ExternalHolds(ctx, s.journal, current)
 }
@@ -141,7 +167,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	sink.mu.Lock()
 	sink.control = control
 	sink.mu.Unlock()
-	boundary, err := NewBoundary(native, writer, control, sessionHolds{journal}, clock, string(namespace), config.Rules)
+	boundary, err := NewBoundary(native, writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, sessionHolds{journal}, clock, string(namespace), config.Rules)
 	if err != nil {
 		return cleanup(err)
 	}
@@ -153,12 +179,16 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 	}
 	var worker *executor.Executor
+	var routine []executor.RoutineScope
+	if config.RoutineMethods {
+		routine = append(routine, journal)
+	}
 	if melee != nil {
-		worker, err = executor.NewWithMelee(journal, boundary, draft, melee, clock, config.Executor)
+		worker, err = executor.NewWithMelee(journal, boundary, draft, melee, clock, config.Executor, routine...)
 	} else if draft != nil {
-		worker, err = executor.NewWithDraft(journal, boundary, draft, clock, config.Executor)
+		worker, err = executor.NewWithDraft(journal, boundary, draft, clock, config.Executor, routine...)
 	} else {
-		worker, err = executor.New(journal, boundary, clock, config.Executor)
+		worker, err = executor.New(journal, boundary, clock, config.Executor, routine...)
 	}
 	if err != nil {
 		return cleanup(err)
@@ -180,7 +210,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 		return cleanup(err)
 	}
-	return &Session{control: control, executor: worker, journal: journal, drafts: drafts, clock: coordinator, clockWorkers: sink.clockWorkers}, nil
+	return &Session{routineMethods: config.RoutineMethods, control: control, executor: worker, journal: journal, drafts: drafts, clock: coordinator, clockWorkers: sink.clockWorkers}, nil
 }
 
 // Publish only after the final fallible construction check. Until publication,
@@ -233,3 +263,5 @@ func (s *Session) Run(ctx context.Context, plan domain.PlanID, action domain.Act
 	return s.executor.Run(ctx, plan, action)
 }
 func (s *Session) Close(ctx context.Context) error { return s.control.Close(ctx) }
+
+func (s *Session) RoutineMethodsEnabled() bool { return s.routineMethods }
