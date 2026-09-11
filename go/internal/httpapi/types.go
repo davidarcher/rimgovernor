@@ -78,8 +78,15 @@ type Plan struct {
 type Action struct {
 	ID       domain.ActionID   `json:"id"`
 	Kind     domain.ActionKind `json:"kind"`
-	Building Building          `json:"building"`
+	Building *Building         `json:"building,omitempty"`
+	Draft    *Draft            `json:"draft,omitempty"`
 	Progress Progress          `json:"progress"`
+}
+type Draft struct {
+	PawnID domain.PawnID `json:"pawnId"`
+}
+type DraftCleanup struct {
+	Stage domain.DraftCleanupStage `json:"stage"`
 }
 type Building struct {
 	DefName  string          `json:"defName"`
@@ -89,6 +96,7 @@ type Building struct {
 	Stuff    string          `json:"stuff"`
 }
 type Progress struct {
+	DraftCleanup       *DraftCleanup              `json:"draftCleanup,omitempty"`
 	Stage              domain.Stage               `json:"stage"`
 	Attempt            domain.AttemptID           `json:"attempt,string"`
 	Tick               domain.Tick                `json:"tick"`

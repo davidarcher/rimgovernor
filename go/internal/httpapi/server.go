@@ -297,15 +297,33 @@ func plan(stored store.PlanState) (Plan, error) {
 	}
 	result := Plan{ID: stored.Spec.ID(), Revision: stored.Spec.Revision(), Actions: make([]Action, 0, len(actions))}
 	for n, action := range actions {
-		building, ok := action.Building()
-		if !ok {
-			return Plan{}, errors.New("unsupported action")
-		}
 		view := stored.Progress[n].View()
 		if view.Action != action.ID() || view.Plan != stored.Spec.ID() || view.Revision != stored.Spec.Revision() || view.Stage == "" {
 			return Plan{}, errors.New("mismatched plan progress")
 		}
-		result.Actions = append(result.Actions, Action{ID: action.ID(), Kind: action.Kind(), Building: Building{building.Definition(), building.Cell().X, building.Cell().Z, building.Rotation(), building.Stuff()}, Progress: Progress{Stage: view.Stage, Attempt: view.Attempt, Tick: view.Tick, Unresolved: view.Unresolved, Receipt: value(view.Receipt), Effect: value(view.Effect), UnsuccessfulReason: value(view.UnsuccessfulReason)}})
+		projected := Action{ID: action.ID(), Kind: action.Kind(), Progress: Progress{Stage: view.Stage, Attempt: view.Attempt, Tick: view.Tick, Unresolved: view.Unresolved, Receipt: value(view.Receipt), Effect: value(view.Effect), UnsuccessfulReason: value(view.UnsuccessfulReason)}}
+		if stored.Progress[n].Action() != action {
+			return Plan{}, errors.New("mismatched action progress")
+		}
+		if building, ok := action.Building(); ok {
+			projected.Building = &Building{building.Definition(), building.Cell().X, building.Cell().Z, building.Rotation(), building.Stuff()}
+		} else if draft, ok := action.OwnedDraft(); ok {
+			projected.Draft = &Draft{draft.Pawn()}
+		} else {
+			return Plan{}, errors.New("unsupported action")
+		}
+		if cleanup, known := view.DraftCleanup.Value(); known {
+			if projected.Draft == nil {
+				return Plan{}, errors.New("building has draft cleanup")
+			}
+			switch cleanup.Stage {
+			case domain.DraftAwaitingClaim, domain.DraftNotAcquired, domain.DraftCleanupRequired, domain.DraftCleanupDispatched, domain.DraftCleanupUncertain, domain.DraftReleased, domain.DraftSuperseded:
+			default:
+				return Plan{}, errors.New("invalid draft cleanup")
+			}
+			projected.Progress.DraftCleanup = &DraftCleanup{cleanup.Stage}
+		}
+		result.Actions = append(result.Actions, projected)
 	}
 	return result, nil
 }

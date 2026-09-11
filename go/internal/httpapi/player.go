@@ -17,12 +17,14 @@ import (
 )
 
 type PlayerBuildings interface {
+	SubmitDraft(context.Context, store.DraftSubmissionRequest) (store.DraftSubmission, bool, error)
 	Submit(context.Context, store.SubmissionRequest) (store.Submission, bool, error)
 	Acquire(context.Context, store.ControlRequest) (store.ControlRecord, error)
 	Manual(context.Context, store.ControlRequest) (store.ControlRecord, error)
 	State() buildingruntime.ControlState
 }
 type ControlReader interface {
+	LookupDraftSubmission(context.Context, string) (store.DraftSubmission, error)
 	CurrentControl(context.Context) (store.ControlRecord, error)
 	LookupControl(context.Context, string) (store.ControlRecord, error)
 	LookupSubmission(context.Context, string) (store.Submission, error)
@@ -188,8 +190,8 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	path := r.URL.Path
-	read := path == "/api/buildings/session" || path == "/api/buildings/control" || path == "/api/buildings/submission"
-	write := path == "/api/buildings/plans" || path == "/api/buildings/control/acquire" || path == "/api/buildings/control/manual"
+	read := path == "/api/player/session" || path == "/api/player/control" || (path == "/api/buildings/submission" || path == "/api/drafts/submission")
+	write := path == "/api/drafts/plans" || path == "/api/buildings/plans" || path == "/api/player/control/acquire" || path == "/api/player/control/manual"
 	if !read && !write {
 		return false
 	}
@@ -237,6 +239,10 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	if write {
+		if path == "/api/drafts/plans" {
+			s.submitDraft(w, r, ctx)
+			return true
+		}
 		if path == "/api/buildings/plans" {
 			q, err := decodeBuildingSubmission(r.Body)
 			if err != nil {
@@ -292,7 +298,7 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		s.writeControl(w, r, record, err)
 		return true
 	}
-	if path == "/api/buildings/session" {
+	if path == "/api/player/session" {
 		if len(query) != 0 || r.URL.ForceQuery {
 			s.failure(w, r, 400, "invalid_query", "Session accepts no query")
 			return true
@@ -304,8 +310,12 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	ids := query["requestId"]
-	if (len(query) != 0 && (len(query) != 1 || len(ids) != 1 || buildingRequestID(ids[0]) != nil)) || (path == "/api/buildings/submission" && len(ids) != 1) {
+	if (len(query) != 0 && (len(query) != 1 || len(ids) != 1 || buildingRequestID(ids[0]) != nil)) || ((path == "/api/buildings/submission" || path == "/api/drafts/submission") && len(ids) != 1) {
 		s.failure(w, r, 400, "invalid_query", "One requestId is required")
+		return true
+	}
+	if path == "/api/drafts/submission" {
+		s.lookupDraft(w, r, ctx, ids[0])
 		return true
 	}
 	if path == "/api/buildings/submission" {
