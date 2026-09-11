@@ -35,6 +35,7 @@ type Config struct {
 	ReadTimeout, ShutdownTimeout time.Duration
 	MaxResponseBytes             int
 	Presentation                 PresentationReader
+	Notifications                NotificationReader
 }
 type State struct {
 	SessionID    string         `json:"sessionId"`

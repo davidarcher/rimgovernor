@@ -14,3 +14,8 @@ type PresentationReader interface {
 	ReadSelection(context.Context, *p.ReadRequest) (*p.SelectionReply, bridge.Result, error)
 	ReadColonistRoster(context.Context, *p.ColonistRosterRequest) (*p.ColonistRosterReply, bridge.Result, error)
 }
+
+// NotificationReader preserves unavailable sections without granting acknowledgement.
+type NotificationReader interface {
+	ReadNotifications(context.Context, *p.NotificationsRequest) (*p.NotificationsReply, bridge.Result, error)
+}
