@@ -1,6 +1,6 @@
 {
   "inventory_version": 1,
-  "source_revision": "cf3dcfdb3a2d6a21eb14432ebe3e3797f62f857a",
+  "source_revision": "a00e18d907317ae411b50e14e0cd8eeee535f7f5",
   "scope": "Tracked C# sources in unified native Runtime/Bridge and scripts/fixtures; lexical reference index, not an AST or proof of behavioral coverage.",
   "source_line_policy": "One-based source anchors at source_revision; static matches include methods and constructors, reflection matches include helper use and interop. Read the full source declaration before changing ownership.",
   "rows": [
@@ -533,26 +533,29 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/DraftOwnership.cs",
-      "source_sha256": "88322156a019c11c8a9f1479e78ee2b85ec27cc9b7ac3eb2c8eec5a368338a2e",
+      "source_sha256": "ffcef38d56cf8eaddd0327404c3ee7643f946986ef0a73b250dfb70e202af624",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
       "migration_status": "inventoried-unmigrated",
       "static_token_lines": [
-        11,
-        14,
-        16,
+        12,
+        15,
+        17,
         18,
-        28,
-        33,
-        41
+        26,
+        36,
+        42,
+        47,
+        52
       ],
       "reflection_boundary_lines": [
-        21
+        21,
+        31,
+        33
       ],
       "patch_registration_lines": [
-        3,
         23,
-        24
+        32
       ],
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
     },
@@ -1107,6 +1110,52 @@
         28
       ],
       "uncovered_acceptance": "Typed boundary and actual SDK behavior; relevant native refusal, player override and completed-outcome acceptance remain unmigrated."
+    },
+    {
+      "source": "integrations/rimgovernor-native/src/Bridge/NativePawnControlState.cs",
+      "compilation": "production-bridge",
+      "source_sha256": "657f25a2756188687d10dc3ac055c91b3223122ca3813d80c1d55eb482575137",
+      "owner": "N01.04 native guarded construction and reconciliation owner",
+      "migration_status": "implemented-native-acceptance-pending",
+      "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
+      "static_token_lines": [
+        94,
+        181,
+        190,
+        191,
+        192,
+        193,
+        208,
+        216,
+        228,
+        234,
+        235,
+        236,
+        237,
+        238,
+        243,
+        249,
+        251,
+        281,
+        282,
+        284,
+        292,
+        299,
+        307
+      ],
+      "reflection_boundary_lines": [
+        201,
+        202,
+        203,
+        211,
+        212
+      ],
+      "patch_registration_lines": [
+        200,
+        208,
+        213,
+        222
+      ]
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/NeedReliefTool.cs",
@@ -1952,9 +2001,62 @@
       ]
     },
     {
+      "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeDraftOperations.cs",
+      "compilation": "production-bridge",
+      "source_sha256": "b499713d581cf75ef888297c7383694f80e8fe6f4f510baa6dfa2d2bcfa34605",
+      "owner": "N01.04 native guarded construction and reconciliation owner",
+      "migration_status": "implemented-native-acceptance-pending",
+      "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
+      "static_token_lines": [
+        48,
+        50,
+        83,
+        137,
+        151,
+        189,
+        197,
+        200,
+        213,
+        219,
+        228,
+        229
+      ],
+      "reflection_boundary_lines": [
+        78,
+        79,
+        128,
+        133,
+        148,
+        180,
+        184,
+        185
+      ],
+      "patch_registration_lines": []
+    },
+    {
+      "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeDraftProtocol.cs",
+      "compilation": "production-bridge",
+      "source_sha256": "90e3e3eb001f23c1f70fc385acd7367d5b51710ffbe01de5866d6bc383b2f1a9",
+      "owner": "N01.04 native guarded construction and reconciliation owner",
+      "migration_status": "implemented-native-acceptance-pending",
+      "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
+      "static_token_lines": [
+        9,
+        11,
+        15,
+        19,
+        33,
+        41,
+        43,
+        55
+      ],
+      "reflection_boundary_lines": [],
+      "patch_registration_lines": []
+    },
+    {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeObservationTools.cs",
       "compilation": "production-bridge",
-      "source_sha256": "4ebf06efe93703599cd9792ecae39eb2f1243f81b840c5a3208411b8f0286c30",
+      "source_sha256": "4fa19bccffa7c0a2c2ebac10f177463d7a70cca1b23429d5e4c286326bd5a452",
       "owner": "N01.03 native observation owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
@@ -1968,7 +2070,8 @@
         116,
         121,
         165,
-        206,
+        205,
+        211,
         212,
         213,
         214,
@@ -1976,8 +2079,7 @@
         216,
         217,
         218,
-        219,
-        220
+        219
       ],
       "reflection_boundary_lines": [],
       "patch_registration_lines": []
@@ -2005,22 +2107,36 @@
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeOperationTools.cs",
       "compilation": "production-bridge",
-      "source_sha256": "755ec14646c2c557a8dd691fa1fea9d1d87bd920f2d01882ebe4918f4e6a1bf4",
+      "source_sha256": "56075b7a7c34254a8e309469e5ca465d03d479bcaf2e03e8f343e613599234f0",
       "owner": "N01.04 native guarded construction and reconciliation owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
       "static_token_lines": [
         17,
-        24,
-        30,
-        54,
-        194,
-        197
+        25,
+        31,
+        55,
+        213,
+        216
       ],
       "reflection_boundary_lines": [
-        84,
-        116
+        87,
+        119
       ],
+      "patch_registration_lines": []
+    },
+    {
+      "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativePawnControlObservation.cs",
+      "compilation": "production-bridge",
+      "source_sha256": "cfae8cb3d5e246c73d56a5665dedd2ac970f33165fc404f5930b4232268e5352",
+      "owner": "N01.03 native pawn control observation owner",
+      "migration_status": "implemented-native-acceptance-pending",
+      "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
+      "static_token_lines": [
+        8,
+        10
+      ],
+      "reflection_boundary_lines": [],
       "patch_registration_lines": []
     },
     {
@@ -2053,7 +2169,7 @@
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativePawnObservationTools.cs",
       "compilation": "production-bridge",
-      "source_sha256": "65013c9c7b7d7d35d2b5850eeefdf46223247de13f824ea1e9997b6ecc572a52",
+      "source_sha256": "caa1b1fde8fdd99d237b11e66160cc171d58e2bcc953b440829722794cef4a8a",
       "owner": "N01.03 native pawn observations owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify complete scoped pawn facts, exact intersecting filters, explicit unavailable details and read invariance in fresh native games.",
@@ -2061,18 +2177,18 @@
         57,
         71,
         85,
-        122,
-        123,
+        120,
+        121,
+        125,
+        126,
         127,
-        128,
-        129,
+        131,
+        132,
         133,
         134,
         135,
         136,
-        137,
-        138,
-        139
+        137
       ],
       "reflection_boundary_lines": [],
       "patch_registration_lines": []
@@ -2217,7 +2333,7 @@
       "owner": "N01.02 native identity capability owner",
       "migration_status": "implemented-native-acceptance-pending",
       "uncovered_acceptance": "Verify private package discovery, fixture isolation and actual native ordinary-rule outcomes, invalidation and correlated progress for this source revision.",
-      "source_sha256": "58e0a1337b7ccdeed1c30da8d36e478466ea6ac776055a2f6e5f40824ea6c68f",
+      "source_sha256": "61c1510180386306a153f00569f75688c85421eaf1e028f154952774a3bd801c",
       "static_token_lines": [],
       "reflection_boundary_lines": [],
       "patch_registration_lines": []
@@ -3415,7 +3531,7 @@
     },
     {
       "source": "scripts/fixtures/EmergencyDevelopmentFixture.cs",
-      "source_sha256": "9ffed7ff73ee8c4d9d05e2f3e0ec5f49cc443aed7ebc18f792ed881bc58f85b9",
+      "source_sha256": "4c73b9aefd07b9156b162a08d69ae13223e3c9cb647d3a9a3bec5def16307489",
       "compilation": "fixture-only",
       "owner": "N01.01 native packaging owner",
       "migration_status": "inventoried-unmigrated",

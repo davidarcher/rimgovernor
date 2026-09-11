@@ -1264,7 +1264,8 @@ main. Native package and Go production cutover remain independent.
   Basic typed status and bounded cell reads are implemented. Explicit all-false
   cell fields support map-bound discovery; terrain, roof, visibility and traversal
   are available, while other requested fields report Unsupported. Status does not
-  issue entity CAS snapshots. Go read-only service polling is accepted against
+  issue general entity CAS snapshots. Available pawn draft controllers expose
+  narrowly scoped draft-control tokens and canonical ownership claims. Go read-only service polling is accepted against
   the actual native status adapter: two fresh HTTP observations, unchanged paused
   identity/tick/generation, exclusive GABS handoff and joined shutdown. Complete
   operation-event coverage verifies identity/status calls only. Remaining families
@@ -1290,8 +1291,10 @@ main. Native package and Go production cutover remain independent.
   explicit detail availability for health, needs, gear, biography, work, schedules
   and animal training/production. Headless and rendered acceptance compares complete
   colonist/animal censuses and native details, verifies refusal bounds, and preserves
-  paused identity/ticks. Social detail, entity CAS and draft ownership remain
-  unsupported; corpse and additional populated detail fixtures remain open.
+  paused identity/ticks. Social detail and general entity CAS remain unsupported;
+  corpse and additional populated detail fixtures remain open. Draft-control CAS
+  and exact owned/unowned claims are available when verified native hooks and a
+  current-map draft controller are present.
 
   Bounded research reads cover project progress, prerequisites and ordinary native
   eligibility, optional unlocks and map-local bench/researcher facts. Headless and
@@ -1319,7 +1322,7 @@ main. Native package and Go production cutover remain independent.
   acceptance proves normal pawn-built walls and Go SQLite restart observation
   without redispatch, plus Manual, cancellation, draft/order invalidation, expiry,
   conflict and replay. Required live transition patches are verified before
-  admission; oversized evidence retains encodable uncertainty. Other commands
+  admission; oversized evidence retains encodable uncertainty. Other construction commands
   remain Unsupported. Fresh Go restart also observes exact player cancellation
   as terminal unsuccessful/cancelled without redispatch or simulation advancement.
   Actual Go HTTP service acceptance covers submit/replay without native writes,
@@ -1333,6 +1336,13 @@ main. Native package and Go production cutover remain independent.
   database restarts disabled; a new explicit Acquire admits exactly one blueprint.
   Full event traces distinguish emergency reads from background polls and prove
   zero unsafe writes. This gate establishes admission, not completed pawn work.
+  Temporary `SetDrafted` and exact `ReleaseOwnedDraft` have paused native acceptance
+  for causal claims, immutable replay, already-owned NoChange, stale CAS refusal,
+  cleanup after Manual and confirmed lease expiry, and exact cleanup replay.
+  Successful player orders invalidate claims; refused cleanup preserves the observed
+  player job. Unowned player drafts cannot be adopted. General pawn orders,
+  persistent draft policy, fault-injected uncertain setters, context replacement
+  and actual-game cleanup with an exhausted ordinary ledger remain open.
   Native lost-reply fault injection,
   instant/replacement construction cases and remaining operation families are open.
 
