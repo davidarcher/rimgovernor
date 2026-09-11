@@ -1079,6 +1079,22 @@ only intentional small, sanitized regression fixtures belong in source control.
     - [ ] **07a.3:** bounded defense with exact pawn/target observations and
       correlated job outcomes. Depends on 07a.2. Begin with one supported
       opponent; verify incapacitation, injury interruption and owned cleanup.
+      - [ ] **07a.3a:** exact combat bridge adapters. Owner: bridge agent;
+        depends on 07a.2 and accepted native contracts. Preserve original owner,
+        attempt, pawn and destination/target attribution without acquiring drafts.
+        - [ ] **07a.3a.1:** ordinary movement preview, execute, lookup and progress.
+          Use the fixed MovementAttempt boundary and existing generated messages.
+        - [ ] **07a.3a.2:** exact melee and ordinary direct-bullet attack adapters;
+          depends on the fixed local attack boundary. Explosive support stays gated.
+      - [ ] **07a.3b:** deterministic single-opponent admission and shared move/
+        attack actions. Owner: domain/state agents; depends on 3a. Bind fresh
+        facts and the prerequisite draft claim; unknown or unsupported scope holds.
+      - [ ] **07a.3c:** Hands handlers and Session/Worker composition. Owner:
+        runtime agent; depends on 3b. Retain the draft through dependent actions,
+        invalidate queued work on interruption and use exact owned cleanup.
+      - [ ] **07a.3d:** finite defense window and composed Go native acceptance.
+        Owner: integrator; depends on 3c and 10a.2. Verify causal incapacitation,
+        injury interruption, player override, uncertain restart and cleanup.
     - [ ] **07a.4:** critical tending with fresh doctor/patient/work facts,
       native preview and observed living patient no longer needing tending.
       Depends on 07a.1–2. Respect care, self-tend and player overrides.
