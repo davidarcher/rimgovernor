@@ -20,6 +20,7 @@ namespace HomeBridge.BridgeTools
         internal readonly NativeAttemptLedger Ledger;
         internal readonly Dictionary<Common.AttemptKey, NativeConstructionRecord> Construction = new Dictionary<Common.AttemptKey, NativeConstructionRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeDraftRecord> Drafts = new Dictionary<Common.AttemptKey, NativeDraftRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeMovementRecord> Movements = new Dictionary<Common.AttemptKey, NativeMovementRecord>();
         private NativeOperationState(Common.Identity identity)
         { colony = identity.ColonyId; load = identity.LoadToken; Ledger = new NativeAttemptLedger(identity); }
         internal static bool TryGet(Common.Identity identity, out NativeOperationState state)
@@ -68,6 +69,8 @@ namespace HomeBridge.BridgeTools
             if (prior.Kind != NativeAttemptLedger.DecisionKind.New) return prior.Reply;
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SetDrafted)
                 return NativeDraftOperations.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.MovePawn)
+                return NativeMovementOperations.Execute(state, request, context);
             if (request.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
                 return Refuse(Common.FailureCode.Unsupported, "This native adapter implements PlaceBuilding and temporary owned SetDrafted.");
             if (!NativeConstructionTracking.Ready)
@@ -135,6 +138,8 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = invalid });
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SetDrafted)
                     return ProtoBoundary.Encode(NativeDraftOperations.Preview(parsed.Operation.SetDrafted, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.MovePawn)
+                    return ProtoBoundary.Encode(NativeMovementOperations.Preview(parsed.Operation.MovePawn, context));
                 if (parsed.Operation == null || parsed.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements PlaceBuilding.") });
                 NativeConstructionPlan plan; RimGovernor.Protocol.Placement.PlacementEvaluated preview;
@@ -187,6 +192,9 @@ namespace HomeBridge.BridgeTools
                 {
                     var lookup = state.Ledger.Lookup(parsed.Attempt, context);
                     if (lookup.Failure != null) return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = lookup.Failure });
+                    NativeMovementRecord movement;
+                    if (state.Movements.TryGetValue(parsed.Attempt, out movement))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = movement.Observe(parsed.Attempt, context) }));
                     NativeDraftRecord draft;
                     if (state.Drafts.TryGetValue(parsed.Attempt, out draft))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = draft.Observe(parsed.Attempt, context) }));
