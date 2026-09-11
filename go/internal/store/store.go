@@ -21,7 +21,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 4
+const schemaVersion = 5
 const applicationID = 0x52474f31
 
 var ErrConflict = errors.New("plan or action identity already exists")
@@ -122,6 +122,9 @@ CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT N
 			return err
 		}
 		var entropy [32]byte
+		if _, err = tx.ExecContext(ctx, `CREATE TABLE control_intents(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, plan_id TEXT NOT NULL, revision TEXT NOT NULL, expected_direction TEXT NOT NULL, direction TEXT NOT NULL UNIQUE, phase TEXT NOT NULL, native_generation TEXT NOT NULL) STRICT`); err != nil {
+			return err
+		}
 		if _, err = rand.Read(entropy[:]); err != nil {
 			return err
 		}
@@ -148,6 +151,12 @@ CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY, colony TEXT NOT N
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, "SELECT request_id,colony,load_token,map_id,definition,x,z,rotation,stuff,plan_id,action_id FROM building_submissions LIMIT 0"); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, "SELECT "+controlColumns+" FROM control_intents LIMIT 0"); err != nil {
+		return err
+	}
+	if _, err = currentControl(ctx, tx); err != nil && !errors.Is(err, ErrNotFound) {
 		return err
 	}
 	return tx.Commit()
