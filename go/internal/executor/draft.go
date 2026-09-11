@@ -157,6 +157,11 @@ func (e *Executor) observeDraft(ctx context.Context, result Result, evidence Dra
 	default:
 		return result, ErrEvidence
 	}
+	// A terminal action can still owe cleanup for an initially unknown claim.
+	// Keep its ordinary outcome while binding fully validated later acquisition.
+	if cleanup, known := v.DraftCleanup.Value(); !v.Unresolved && known && cleanup.Stage == domain.DraftAwaitingClaim && o.Effect == domain.EffectCompleted {
+		o.Effect = domain.EffectUnknown
+	}
 	next, err := e.draftJournal.ObserveDraft(ctx, v.Plan, o, o.Snapshot, evidence.Claim)
 	if err == nil {
 		result.Progress = next

@@ -273,3 +273,57 @@ func TestDraftUnknownReceiptReopensAndBindsClaimWhileDisabled(t *testing.T) {
 		t.Fatal(result, err)
 	}
 }
+
+func TestDraftTerminalLateAcquisitionBindsCleanupWithoutChangingOutcome(t *testing.T) {
+	f, d := newDraftFixture(t)
+	d.call = func(context.Context, DraftDispatch) (DraftReceipt, error) {
+		return DraftReceipt{}, context.DeadlineExceeded
+	}
+	if _, err := f.run(); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatal(err)
+	}
+	v := f.progress(t)
+	p, err := f.store.ObserveDraft(context.Background(), f.plan.ID(), domain.Observation{Action: v.Action, Attempt: v.Attempt, Snapshot: v.Snapshot, Tick: 101, Causality: domain.AfterDispatch, Effect: domain.EffectUnsuccessful, UnsuccessfulReason: domain.NativeFailure}, v.Snapshot, domain.Unknown[domain.DraftClaim]())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.View().Stage != domain.Unsuccessful || p.View().Unresolved {
+		t.Fatal(p.View())
+	}
+	complete := false
+	d.cleanup = func(attempt Placement, _ domain.DraftCleanup) (DraftCleanupInspection, error) {
+		evidence, err := d.ObserveDraft(context.Background(), attempt, attempt.Snapshot)
+		evidence.Complete = complete
+		return DraftCleanupInspection{StartedAt: evidence.StartedAt, ObservedAt: evidence.ObservedAt, Reconcile: &evidence}, err
+	}
+	if _, err := f.executor.CleanupDraft(context.Background(), f.plan.ID(), f.action.ID()); !errors.Is(err, ErrEvidence) {
+		t.Fatal(err)
+	}
+	complete = true
+	r, err := f.executor.CleanupDraft(context.Background(), f.plan.ID(), f.action.ID())
+	c, _ := r.Progress.View().DraftCleanup.Value()
+	if err != nil || c.Stage != domain.DraftCleanupRequired || r.Progress.View().Stage != domain.Unsuccessful || r.Progress.View().Unresolved || d.releases != 0 {
+		t.Fatal(r, err)
+	}
+	d.cleanup = nil
+	r, err = f.executor.CleanupDraft(context.Background(), f.plan.ID(), f.action.ID())
+	c, _ = r.Progress.View().DraftCleanup.Value()
+	if err != nil || c.Stage != domain.DraftReleased || r.Progress.View().Stage != domain.Unsuccessful || r.Progress.View().Unresolved {
+		t.Fatal(r, err)
+	}
+}
+
+func TestDraftCancelledUnresolvedCompletionPreservesCancellation(t *testing.T) {
+	f, _ := newDraftFixture(t)
+	if _, err := f.run(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.executor.Cancel(context.Background(), f.plan.ID(), f.action.ID()); err != nil {
+		t.Fatal(err)
+	}
+	r, err := f.run()
+	effect, known := r.Progress.View().Effect.Value()
+	if err != nil || r.Progress.View().Stage != domain.Cancelled || r.Progress.View().Unresolved || !known || effect != domain.EffectCompleted {
+		t.Fatal(r, err)
+	}
+}
