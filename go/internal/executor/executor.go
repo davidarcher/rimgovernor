@@ -18,6 +18,7 @@ var (
 	ErrAuthority = errors.New("building authority changed or disabled")
 	ErrHeld      = errors.New("building execution held")
 	ErrEvidence  = errors.New("invalid building evidence")
+	ErrStopped   = errors.New("building executor stopped")
 )
 
 type Journal interface {
@@ -108,6 +109,7 @@ type Executor struct {
 	invalidate   context.CancelFunc
 	activeAction domain.ActionID
 	activeCancel context.CancelFunc
+	stopped      bool
 }
 
 func New(journal Journal, boundary Boundary, clock Clock, limits Limits) (*Executor, error) {
@@ -129,6 +131,12 @@ func (e *Executor) UpdateAuthority(authority Authority) error {
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	if e.stopped {
+		if authority.Enabled {
+			return ErrStopped
+		}
+		return nil
+	}
 	if authority == e.authority {
 		return nil
 	}
@@ -138,6 +146,27 @@ func (e *Executor) UpdateAuthority(authority Authority) error {
 	return nil
 }
 func (e *Executor) current() Authority { e.mu.Lock(); defer e.mu.Unlock(); return e.authority }
+
+// Stop permanently rejects new work and joins the current dispatch, including
+// its bounded receipt journal write. A timeout means the owner must retain its
+// process lock and retry Stop before closing the journal or transport.
+func (e *Executor) Stop(ctx context.Context) error {
+	e.mu.Lock()
+	e.stopped = true
+	e.authority.Enabled = false
+	e.invalidate()
+	if e.activeCancel != nil {
+		e.activeCancel()
+	}
+	e.mu.Unlock()
+	select {
+	case e.writer <- struct{}{}:
+		<-e.writer
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
 func (e *Executor) guard(ctx context.Context, expected domain.GenerationSnapshot, generation context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -168,6 +197,10 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	ctx, cancel := context.WithTimeout(ctx, e.limits.RunTimeout)
 	defer cancel()
 	e.mu.Lock()
+	if e.stopped {
+		e.mu.Unlock()
+		return Result{}, ErrStopped
+	}
 	generation := e.generation
 	authority := e.authority
 	e.mu.Unlock()
