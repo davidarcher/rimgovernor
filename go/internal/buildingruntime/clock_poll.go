@@ -5,7 +5,9 @@ import (
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -46,6 +48,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	if _, err = s.player.journal.CompactClockHistory(call, s.config.Profile); err != nil {
 		return fail(err)
 	}
+	before := s.session.State()
 	identity, _, err := s.native.Identity(call)
 	if err != nil {
 		return fail(err)
@@ -55,10 +58,19 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		return fail(err)
 	}
 	state := s.session.State()
-	if !state.ObservationKnown || !proto.Equal(current.Identity, controlIdentity(state.Snapshot)) || current.NativeGeneration == nil || current.GetNativeGeneration() != uint64(state.Snapshot.Native) {
-		if err = invalidate(); err != nil {
+	if !clockPollMatchesAuthority(current, state) {
+		if state != before && !out.Interrupted {
+			return out, executor.ErrAuthority
+		}
+		if err = s.session.control.disableObserved(state); errors.Is(err, store.ErrConflict) {
+			if out.Interrupted {
+				return fail(executor.ErrAuthority)
+			}
+			return out, executor.ErrAuthority
+		} else if err != nil {
 			return fail(err)
 		}
+		out.Interrupted = true
 	}
 	request := &k.EventsRequest{Identity: current.Identity, AfterCursor: proto.Int64(review.InboxCursor), Limit: proto.Uint32(limit)}
 	reply, _, err := native.ReadClockEvents(call, request)
@@ -72,9 +84,21 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	if page.Context.GetTick() < current.GetTick() || current.NativeGeneration != nil && (page.Context.NativeGeneration == nil || page.Context.GetNativeGeneration() < current.GetNativeGeneration()) {
 		return fail(executor.ErrEvidence)
 	}
-	if page.Context.NativeGeneration == nil || page.Context.GetNativeGeneration() != uint64(state.Snapshot.Native) {
-		if err = invalidate(); err != nil {
+	latest := s.session.State()
+	if !clockPollMatchesAuthority(page.Context, latest) {
+		if latest != state && !out.Interrupted && !page.GetGap() && !clockPollInterrupts(page) {
+			return out, executor.ErrAuthority
+		}
+		if err = s.session.control.disableObserved(latest); errors.Is(err, store.ErrConflict) {
+			// Interruption evidence must still be captured even if authority changed.
+			if !page.GetGap() && !clockPollInterrupts(page) {
+				return out, executor.ErrAuthority
+			}
+		} else if err != nil {
 			return fail(err)
+		}
+		if err == nil {
+			out.Interrupted = true
 		}
 	}
 	if page.GetGap() || clockPollInterrupts(page) {
@@ -107,6 +131,14 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		return fail(nil)
 	}
 	return out, nil
+}
+
+// Event ingestion is profile-wide and does not require a live lease. Compare
+// fresh evidence with current enabled authority, not a snapshot from before an
+// overlapping acquire. A stale poll retries; real interruption evidence still
+// disables writes before persistence, including an acquisition in progress.
+func clockPollMatchesAuthority(observed *c.ObservationContext, state ControlState) bool {
+	return !state.Enabled || state.ObservationKnown && proto.Equal(observed.Identity, controlIdentity(state.Snapshot)) && observed.NativeGeneration != nil && observed.GetNativeGeneration() == uint64(state.Snapshot.Native)
 }
 func clockPollInterrupts(page *k.EventsPage) bool {
 	for _, event := range page.Events {

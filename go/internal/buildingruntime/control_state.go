@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 // ControlState exposes current scope and local permission, never lease secrets.
@@ -21,6 +22,10 @@ func (control *Control) State() ControlState {
 	}
 	control.mu.Lock()
 	defer control.mu.Unlock()
+	return control.stateLocked()
+}
+
+func (control *Control) stateLocked() ControlState {
 	if control.closing || control.closed {
 		return ControlState{}
 	}
@@ -29,6 +34,19 @@ func (control *Control) State() ControlState {
 		state.Snapshot = control.snapshot
 	}
 	return state
+}
+
+// A read from before acquisition cannot revoke the replacement permission.
+func (control *Control) disableObserved(expected ControlState) error {
+	control.mu.Lock()
+	defer control.mu.Unlock()
+	if control.stateLocked() != expected {
+		return store.ErrConflict
+	}
+	if control.closing || control.closed {
+		return ErrControl
+	}
+	return control.invalidateLocked()
 }
 
 // Disable synchronously invalidates local writes before the player coordinator

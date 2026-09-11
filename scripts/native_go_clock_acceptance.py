@@ -7,6 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+import traceback
 
 from native_building_service_acceptance import (
     Evidence, bridge_session, gabs_executable, payload, prepare, package_files,
@@ -64,6 +65,8 @@ async def run(root, output, binary, *, go_source, go_sha256):
         configuration = prepare(root)
         game = json.loads((configuration / "config.json").read_text())["games"]["rimgovernor-trial"]
         report["package_files"] = package_files(Path(game["workingDir"]))
+        fixture = Path(game["workingDir"]) / "Mods/RimGovernor/BridgeTools/InterruptionFixtures/RimGovernor.InterruptionFixtures.BridgeTools.dll"
+        report["interruption_fixture_sha256"] = hashlib.sha256(fixture.read_bytes()).hexdigest()
         gabs = Path(gabs_executable(root, configuration))
         profile = root / "headless-profile"
         private = output / "rimgovernor-go"
@@ -205,11 +208,15 @@ async def run(root, output, binary, *, go_source, go_sha256):
         report["passed"] = True
     except BaseException as error:
         report["error"] = repr(error)
+        report["traceback"] = traceback.format_exc()
     finally:
         incomplete = any(not phase.get("joined") for phase in report.get("service_phases", []))
         if launched and not incomplete:
             try:
                 async with bridge_session(gabs, configuration) as bridge:
+                    if not report["passed"]:
+                        await bridge.connect()
+                        await evidence.call(bridge, "failure-operations", "rimbridge/list_operation_events", {"limit": 5000, "includeDiagnostics": True})
                     report["stop"] = (await bridge.core("games_stop", gameId=bridge.game_id)).model_dump(mode="json")
             except BaseException as error:
                 report.update(passed=False, cleanup_error=repr(error))

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -96,6 +97,39 @@ func TestClockPollPersistsAndReviewsWithoutPlayerGate(t *testing.T) {
 	}
 	if native.request.GetAfterCursor() != 0 || native.request.GetLimit() != 128 {
 		t.Fatal(native.request)
+	}
+}
+
+func TestClockPollDoesNotInvalidateAcquireDuringEventRead(t *testing.T) {
+	for _, freshPage := range []bool{false, true} {
+		t.Run(fmt.Sprint(freshPage), func(t *testing.T) {
+			s, f, _ := clockPollFixture(t)
+			ctx := context.Background()
+			if err := s.session.Manual(ctx); err != nil {
+				t.Fatal(err)
+			}
+			f.status.Context.NativeGeneration = proto.Uint64(uint64(s.session.State().Snapshot.Native))
+			native := &clockPollNative{page: clockPollPage(f, 0, "empty")}
+			native.before = func() {
+				previous := s.session.State()
+				next := previous.Snapshot
+				next.Direction++
+				granted, err := s.session.Acquire(ctx, next)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err = s.session.control.disableObserved(previous); !errors.Is(err, store.ErrConflict) {
+					t.Fatal("stale conditional invalidation accepted", err)
+				}
+				if freshPage {
+					native.page.Context.NativeGeneration = proto.Uint64(uint64(granted.Native))
+				}
+			}
+			result, err := s.PollEvents(ctx, native, 128)
+			if result.Interrupted || !s.session.State().Enabled || (freshPage && err != nil) {
+				t.Fatal("poll disabled a newer acquisition", result, err, s.session.State())
+			}
+		})
 	}
 }
 func TestClockPollPersistenceFailuresAndReviewOrder(t *testing.T) {
