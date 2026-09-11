@@ -815,6 +815,10 @@ only intentional small, sanitized regression fixtures belong in source control.
           observation contract. Owner: bridge agent; depends on 03b.1.
         - [x] **06b.3b.2:** complete durable cross-plan reservation recovery.
           Owner: integrator; depends on 04b and 06a.
+          - [ ] **06b.3b.2a:** exercise two real stored plans through Session and
+            restart, proving an uncertain first placement retains costs that hold
+            the second plan under the same native owner. Owner: runtime agent;
+            depends on 06b.3b.2 and Session assembly.
         - [x] **06b.3b.3:** bind native preview, lease, receipt lookup and observed
           progress to the executor boundary. Owner: bridge agent; depends on
           06b.2, 06b.3a and 06b.3b.1–2.
