@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
             Animals=source==null || !source.HasAnimals || source.Animals,
             VisibleHediffsOnly=source?.VisibleHediffsOnly==true, Work=source?.Work==true };
 
-        internal static void Apply(Pawn pawn,Obs.PawnState row,Obs.PawnDetails? requested)
+        internal static void Apply(Pawn pawn,System.Collections.Generic.List<Pawn> colonists,Obs.PawnState row,Obs.PawnDetails? requested)
         {
             var d=Defaults(requested);
             if(d.Needs) {
@@ -42,7 +42,7 @@ namespace HomeBridge.BridgeTools
             if(d.Settings) row.Settings=Settings(pawn);
             else if(d.Work) { row.Settings=new Obs.PawnSettings(); Work(pawn,row.Settings); }
             else row.Issues.Add(Skipped("settings"));
-            if(d.Social) row.Issues.Add(Unsupported("social","Safe complete thought and relation projection is not implemented; native refresh APIs can mutate memories."));
+            if(d.Social) row.Social=Social(pawn,colonists);
             else row.Issues.Add(Skipped("social"));
             if(!d.Animals) row.Issues.Add(Skipped("animal_state"));
             else if(!pawn.RaceProps.Animal) row.Issues.Add(Issue("animal_state",Common.UnavailableReason.NotApplicable,"Pawn is not an animal."));
@@ -253,6 +253,36 @@ namespace HomeBridge.BridgeTools
             foreach(var field in new[]{"fertile_adult","pregnant","gestation","pen_id","contained","parent_ids","safe_to_slaughter","minimum_handling_skill"}) row.Issues.Add(Unsupported(field,"Animal reproduction, pen and handling detail is not projected."));
             return row;
         }
+        // Non-mutating: never calls Pawn_RelationsTracker.OpinionOf or anything that
+        // recalculates situational social thoughts -- see PawnConfigTool's class
+        // remarks for why (Thought_Situational.Notify_BecameActive deletes memories
+        // of the def it produces). Ported from PawnSettingsRead.RelationsBlock/OpinionRow.
+        private static Obs.PawnSocial Social(Pawn pawn,System.Collections.Generic.List<Pawn> colonists)
+        {
+            var row=new Obs.PawnSocial();
+            var memories=PawnSettingsRead.LiveMemories(pawn);
+            if(memories==null) row.Issues.Add(Missing("memories"));
+            else foreach(var t in PawnSettingsRead.GroupThoughtRows(memories))
+                row.Memories.Add(new Obs.Thought {DefName=t.DefName??"",Label=t.Label??"",Count=(uint)t.Count,MoodOffsetEach=Number(t.Each),MoodOffsetTotal=Number(t.Total)});
+
+            var (situational,stale)=PawnSettingsRead.LiveSituational(pawn);
+            if(situational==null) row.Issues.Add(Missing("situational"));
+            else foreach(var t in PawnSettingsRead.GroupThoughtRows(situational))
+                row.Situational.Add(new Obs.Thought {DefName=t.DefName??"",Label=t.Label??"",Count=(uint)t.Count,MoodOffsetEach=Number(t.Each),MoodOffsetTotal=Number(t.Total)});
+            if(stale.HasValue) row.SituationalCacheStale=stale.Value;
+            else row.Issues.Add(Missing("situational_cache_stale"));
+
+            var direct=PawnSettingsRead.DirectRelationTargets(pawn);
+            foreach(var other in colonists) {
+                if(other==pawn) continue;
+                var opinion=PawnSettingsRead.ReconstructedOpinion(pawn,other,out _);
+                var relation=new Obs.Relation {Other=Entity(other),Opinion=opinion,OpinionReconstructed=true};
+                if(direct.TryGetValue(other,out var defName)) relation.RelationDefName=defName;
+                row.Relations.Add(relation);
+            }
+            return row;
+        }
+
         private static Obs.DefinitionRef Definition(Def def)=>DefinitionLabel(def.defName,def.LabelCap);
         internal static Obs.DefinitionRef DefinitionLabel(string defName,string? label) {
             var result=new Obs.DefinitionRef {DefName=Id(defName)};

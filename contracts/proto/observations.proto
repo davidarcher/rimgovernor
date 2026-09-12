@@ -131,6 +131,7 @@ message PawnState {
   optional double nearest_colonist_distance = 32; repeated ReadIssue issues = 33;
   DraftClaimObservation draft_claim = 34;
   optional string owned_bed_id = 35;
+  SnapshotRef snapshot = 36;
 }
 message NoOwnedDraftClaim {}
 message OwnedDraftClaim {
@@ -167,6 +168,7 @@ message ResourceStock {
   optional int64 in_stockpile = 15; optional int64 in_home_area = 16; repeated EntityRef items = 17;
   repeated HeldStock holders = 18; repeated CorpseState corpses = 19; Completeness items_completeness = 20;
   Completeness holders_completeness = 21; Completeness corpses_completeness = 22; repeated ReadIssue issues = 23;
+  SnapshotRef snapshot = 24;
 }
 message StockFilter { repeated string def_names = 1; optional string category = 2; optional string ownership = 3; optional bool include_held = 4; optional bool forbidden_only = 5; optional bool exclude_chunks = 6; optional bool corpses = 7; Rectangle region = 8; }
 message SuppliesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated ResourceStock stocks = 2; Completeness completeness = 3; }
@@ -216,6 +218,7 @@ message BuildingState {
   ConstructionState construction = 11; BuildingServiceState service = 12; BuildingSettings settings = 13;
   repeated ThermalSide thermal_sides = 14; BillStack bills = 15; optional string inspect_text = 16;
   optional bool burning = 17; optional bool uses_hit_points = 18; repeated ReadIssue issues = 19;
+  SnapshotRef snapshot = 20;
 }
 message PowerNetwork {
   optional string id = 1; optional uint32 producers = 2; optional uint32 consumers = 3; optional uint32 batteries = 4;
@@ -228,6 +231,8 @@ message BuildingsSnapshot { rimgovernor.common.v1.ObservationContext context = 1
 message ListBuildingsRequest { ReadScope scope = 1; repeated string ids = 2; repeated string def_names = 3; repeated string statuses = 4; optional string category = 5; optional bool player_only = 6; optional double damaged_below_fraction = 7; Rectangle region = 8; optional bool inspect = 9; optional bool bill_ingredients = 10; rimgovernor.common.v1.PageRequest page = 11; }
 message ListBuildingsReply { oneof outcome { BuildingsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message RoomStat { optional string def_name = 1; optional double value = 2; optional string display = 3; optional string unit = 4; optional string cost = 5; rimgovernor.common.v1.Unavailable unavailable = 6; }
+message RoomBedMembership { BuildingState building = 1; repeated EntityRef owners = 2; repeated EntityRef users = 3; repeated EntityRef accessible_to = 4; }
+message StockpileMembership { optional string zone_id = 1; repeated ResourceStock contents = 2; Completeness contents_completeness = 3; }
 message RoomState {
   optional string id = 1; optional string role = 2; optional string label = 3; optional bool proper_room = 4; optional bool doorway = 5;
   optional bool outdoors = 6; optional bool psychologically_outdoors = 7; optional bool touches_map_edge = 8; optional bool fogged = 9;
@@ -236,6 +241,7 @@ message RoomState {
   Completeness cells_completeness = 16; repeated RoomStat stats = 17; repeated EntityRef pawns = 18;
   repeated BuildingState beds = 19; repeated string stockpile_zone_ids = 20; repeated Quantity contents = 21;
   Completeness contents_completeness = 22; repeated ReadIssue issues = 23;
+  SnapshotRef snapshot = 24; repeated RoomBedMembership bed_memberships = 25; repeated StockpileMembership stockpile_memberships = 26;
 }
 message RoomsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated RoomState rooms = 2; Completeness completeness = 3; }
 message ListRoomsRequest { ReadScope scope = 1; Rectangle region = 2; optional bool include_outdoors = 3; optional bool include_boundary = 4; optional bool include_cells = 5; repeated string room_ids = 6; rimgovernor.common.v1.PageRequest page = 7; }

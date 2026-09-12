@@ -40,15 +40,29 @@ namespace HomeBridge.BridgeTools
                         var row = Core(pawn, colonists, context);
                         if (Matches(row, parsed.Filter)) selected.Add(new KeyValuePair<Pawn, Obs.PawnState>(pawn, row));
                     }
-                    Require(selected.Count, parsed.Page?.HasLimit == true ? (int)parsed.Page.Limit : 256);
-                    var result = new Obs.PawnSnapshot { Context = context, Completeness = Complete(selected.Count, source.Count-selected.Count) };
-                    foreach (var item in selected.OrderBy(p => p.Value.Pawn.Id, StringComparer.Ordinal)) {
-                        NativePawnDetails.Apply(item.Key, item.Value, parsed.Details);
+                    var ordered = selected.OrderBy(p => p.Value.Pawn.Id, StringComparer.Ordinal).ToList();
+                    var seed = QuerySeed(parsed.Filter);
+                    var afterCursor = ordered;
+                    if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0) {
+                        if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, parsed.Page.Cursor, out var after))
+                            return ProtoBoundary.Encode(new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Pawn cursor is stale or does not match this query.") });
+                        afterCursor = ordered.Where(p => string.CompareOrdinal(p.Value.Pawn.Id, after) > 0).ToList();
+                    }
+                    var limit = parsed.Page?.HasLimit == true ? (int)parsed.Page.Limit : 256;
+                    var page = afterCursor.Take(limit).ToList();
+                    Require(page.Count, 256);
+                    var truncated = afterCursor.Count > page.Count;
+                    var result = new Obs.PawnSnapshot { Context = context, Completeness = Complete(page.Count, source.Count-selected.Count) };
+                    result.Completeness.Page.Complete = !truncated;
+                    if (truncated) result.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, page[page.Count-1].Value.Pawn.Id);
+                    foreach (var item in page) {
+                        NativePawnDetails.Apply(item.Key, colonists, item.Value, parsed.Details);
                         if (item.Value.Settings != null) {
                             item.Value.Settings.Snapshot = NativeWorkSettings.Snapshot(item.Key, context);
                             if (item.Value.Settings.Snapshot != null)
                                 foreach (var issue in item.Value.Settings.Issues.Where(i => i.Field == "snapshot").ToArray()) item.Value.Settings.Issues.Remove(issue);
                         }
+                        item.Value.Snapshot = PawnSnapshotToken(item.Key, item.Value, context);
                         result.Pawns.Add(item.Value);
                     }
                     return Encode(new Obs.ListPawnsReply { Observed = result });
@@ -64,7 +78,7 @@ namespace HomeBridge.BridgeTools
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity scope, unique exact IDs, finite nonnegative distance and page limit1..256 without cursor are required.");
             if (request?.Scope?.ExpectedIdentity == null) return false;
             var page=request.Page; var filter=request.Filter;
-            if (page != null && (page.HasLimit && (page.Limit<1 || page.Limit>256) || page.HasCursor && page.Cursor.Length!=0)) return false;
+            if (page != null && (page.HasLimit && (page.Limit<1 || page.Limit>256) || page.HasCursor && page.Cursor.Length>4096)) return false;
             if (filter == null) return true;
             return filter.Ids.Count<=256 && filter.Ids.All(ProtoBoundary.IsIdentifier)
                 && filter.Ids.Distinct(StringComparer.Ordinal).Count()==filter.Ids.Count
@@ -121,6 +135,15 @@ namespace HomeBridge.BridgeTools
             }
             return row;
         }
+        private static string QuerySeed(Obs.PawnFilter? f) => f==null ? "" : string.Join("",
+            f.IncludeDead, f.Colonist, f.Prisoner, f.Animal, f.Humanlike, f.Mechanoid, f.Tame, f.Wild, f.Hostile, f.Downed, f.Drafted,
+            f.NameContains??"", f.WithinColonistDistance,
+            string.Join(",", f.Ids.OrderBy(i=>i,StringComparer.Ordinal)));
+        private static Obs.SnapshotRef PawnSnapshotToken(Pawn pawn,Obs.PawnState row,Common.ObservationContext context)
+            => NativeObservationSnapshot.Snapshot("pawn-state", context, row.Pawn.Id, w => {
+                w.Write(row.Dead); w.Write(row.Downed); w.Write(row.Drafted); w.Write(row.InBed); w.Write(row.Hostile);
+                w.Write(row.MentalState??""); w.Write(row.HostileReason??""); w.Write(row.FactionId??"");
+            });
         private static long Distance(IntVec3 a,IntVec3 b)=>Math.Max(Math.Abs((long)a.x-b.x),Math.Abs((long)a.z-b.z));
         internal static Obs.EntityRef Entity(Thing thing) {
             var row=new Obs.EntityRef { Id=Id(thing.GetUniqueLoadID()),DefName=Id(thing.def.defName),Label=Text(thing.LabelCap) };
