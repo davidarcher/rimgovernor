@@ -1,0 +1,78 @@
+using System;
+using System.Linq;
+using RimWorld;
+using Verse;
+using Common = RimGovernor.Protocol.Common;
+using Obs = RimGovernor.Protocol.Observations;
+using static HomeBridge.BridgeTools.NativePawnObservationTools;
+
+namespace HomeBridge.BridgeTools
+{
+    // Complete independent censuses: a failed section contributes an issue and
+    // no rows. The enclosing colony boundary still enforces its one-MiB limit.
+    internal static class NativeUpkeepFacts
+    {
+        internal static void Populate(Map map, Obs.UpkeepFacts result)
+        {
+            var things = map.listerThings.AllThings;
+            Read("items", result, () => {
+                var rows = things.Where(t => t.def.category == ThingCategory.Item
+                    && (t.Faction == null || t.Faction == Faction.OfPlayerSilentFail)).OrderBy(t => t.thingIDNumber).ToList();
+                Require(rows.Count, 256);
+                var values = rows.Select(t => {
+                    var rot = t.TryGetComp<CompRottable>();
+                    var value = new Obs.UpkeepItem {
+                        Item = Ref(t), Count = t.stackCount, Roofed = t.Position.Roofed(map), InStorage = t.IsInValidStorage(),
+                        DeteriorationRate = Number(t.GetStatValue(StatDefOf.DeteriorationRate)),
+                        BaseDeteriorationRate = Number(t.def.GetStatValueAbstract(StatDefOf.DeteriorationRate, t.Stuff)),
+                        Forbidden = t.IsForbidden(Faction.OfPlayerSilentFail), Medicine = t.def.IsMedicine,
+                        Perishable = rot != null && rot.Active
+                    };
+                    if (rot != null && rot.Active) value.RotTicks = Math.Max(0, rot.TicksUntilRotAtCurrentTemp);
+                    return value;
+                }).ToList();
+                result.Items.AddRange(values);
+            });
+            Read("structures", result, () => {
+                var rows = things.OfType<Building>().Where(b => b.Faction == Faction.OfPlayerSilentFail).OrderBy(b => b.thingIDNumber).ToList();
+                Require(rows.Count, 256);
+                var values = rows.Select(b => new Obs.UpkeepStructure {
+                    Building = new Obs.BuildingState { Building = Ref(b), HitPoints = b.HitPoints, MaxHitPoints = b.MaxHitPoints },
+                    Home = b.OccupiedRect().All(c => map.areaManager.Home[c]),
+                    RepairPriority = b.TryGetComp<CompTempControl>() != null || b.TryGetComp<CompPowerPlant>() != null
+                        || b is Building_Bed bed && bed.Medical ? 0
+                        : b.def.holdsRoof || b is Building_WorkTable || b is Building_Bed ? 1 : 2
+                }).ToList();
+                result.Structures.AddRange(values);
+            });
+            Read("fires", result, () => {
+                var rows = things.OfType<Fire>().OrderBy(f => f.thingIDNumber).ToList();
+                Require(rows.Count, 256);
+                var values = rows.Select(f => new Obs.FireState { Fire = Ref(f), Home = map.areaManager.Home[f.Position], Size = Number(f.fireSize) }).ToList();
+                result.Fires.AddRange(values);
+            });
+            Read("filth", result, () => {
+                var rows = things.OfType<Filth>().OrderBy(f => f.thingIDNumber).ToList();
+                Require(rows.Count, 256);
+                var values = rows.Select(f => {
+                    var value = new Obs.FilthState { Filth = Ref(f), Home = map.areaManager.Home[f.Position], Thickness = checked((uint)f.thickness) };
+                    var room = f.GetRoom()?.Role?.defName;
+                    if (room != null) value.RoomRole = Id(room);
+                    return value;
+                }).ToList();
+                result.Filth.AddRange(values);
+            });
+        }
+
+        private static Obs.EntityRef Ref(Thing thing) => new Obs.EntityRef {
+            Id = Id(thing.GetUniqueLoadID()), DefName = Id(thing.def.defName), MapId = thing.Map.uniqueID, Position = Cell(thing.Position)
+        };
+
+        private static void Read(string field, Obs.UpkeepFacts result, Action read)
+        {
+            try { read(); }
+            catch (ReadLimit) { result.Issues.Add(Issue(field, Common.UnavailableReason.LimitExceeded, "Complete upkeep census exceeds 256 rows.")); }
+            catch (Exception) { result.Issues.Add(Issue(field, Common.UnavailableReason.ReadFailed, "Complete native upkeep section is unavailable.")); }
+        }
+    }
+}

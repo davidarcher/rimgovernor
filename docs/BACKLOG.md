@@ -731,9 +731,10 @@ expand these into another nested task tree; remove a row when its outcome is met
   recreation facilities, retains observed use across Manual/restart, and selects
   table, adjacent chair and recreation construction through shared building plans.
   Ordinary use waits are bounded by observed construction in the current direction;
-  construction receipts do not certify comfort recovery. Targeted native acceptance
-  of the complete construction/use sequence and remaining compiler integration
-  checks are still in progress; comfort is not yet accepted as complete.
+  construction receipts do not certify comfort recovery. Native acceptance verifies
+  construction and dining use, but recreation placement still needs native playing
+  clearance checks: reaching a horseshoes pin does not establish a playable site.
+  The complete construction/use sequence remains unaccepted.
   Equipment policy now has typed census review, stable replacement selection and
   bounded production proposals with material preservation, shared budget inputs
   and existing-bill protection. Native gear projections feed the complete routine
@@ -743,6 +744,11 @@ expand these into another nested task tree; remove a row when its outcome is met
   Native workshop/work requirement projections and acceptance remain open; proposals are not
   connected to execution yet. Equipment remains visible as `method_unavailable`
   without occupying a development slot until its execution family is available.
+  Four direct upkeep contracts now project complete native item, structure, fire
+  and filth sections into durable needs. Missing sections preserve established risk;
+  an unknown first observation does not invent an emergency. Target ordering and
+  progress metrics match the Python contracts. Native parity acceptance and bounded
+  method composition remain open, alongside the other six upkeep contracts.
   Further need inputs, method selection and execution composition for
   additional routine methods remain open: equipment, comfort/expansion, the ten
   `colony_upkeep.CONTRACTS` needs, player resource targets, and policy-generated

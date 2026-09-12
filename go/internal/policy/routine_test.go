@@ -13,6 +13,7 @@ func stableRoutine() RoutineFacts {
 		gear.Pawns = append(gear.Pawns, GearPawn{Pawn: id, Loadout: "loadout", Deficit: domain.Known(false), Candidates: domain.Known([]GearCandidate{})})
 	}
 	return RoutineFacts{
+		Upkeep:               emptyUpkeep(),
 		Gear:                 domain.Known(gear),
 		MedicalCareRecovered: domain.Known(true), ComfortRecovered: domain.Known(true),
 		Colonists: domain.Known(int64(3)), HousingTarget: domain.Known(int64(0)), BedCapacity: domain.Known(int64(3)), IndoorCapacity: domain.Known(int64(3)), GrowingCells: domain.Known(int64(30)), Armed: domain.Known(int64(2)),

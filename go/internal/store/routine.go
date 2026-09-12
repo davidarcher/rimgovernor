@@ -200,6 +200,10 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	needs := policy.RoutineNeeds{}
 	// Stopping routine work must not depend on a successful native observation.
 	if request.Enabled {
+		request.Facts.UpkeepIssued, err = routineUpkeepIssued(ctx, tx, request.Current)
+		if err != nil {
+			return RoutineReviewResult{}, err
+		}
 		comfortReview, comfortErr := policy.ReviewComfort(request.Facts.Comfort, comfort, request.Tick)
 		if comfortErr != nil {
 			return RoutineReviewResult{}, comfortErr

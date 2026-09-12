@@ -60,6 +60,8 @@ func (p RoutinePolicy) Validate() error {
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the
 // separate native crop-capacity forecast; it never increases FoodDays.
 type RoutineFacts struct {
+	Upkeep                                                                     UpkeepObservation
+	UpkeepIssued                                                               map[GoalID]bool
 	Gear                                                                       domain.Fact[GearObservation]
 	Comfort                                                                    domain.Fact[ComfortObservation]
 	ComfortRecovered                                                           domain.Fact[bool]
@@ -90,7 +92,10 @@ func (g FootholdGates) Stable() bool {
 	return true
 }
 
-type RoutineLatches struct{ Food, Cold, Hot, Wood bool }
+type RoutineLatches struct {
+	Food, Cold, Hot, Wood bool
+	Upkeep                UpkeepHistory
+}
 type RoutineNeeds struct {
 	Gates       FootholdGates
 	Latches     RoutineLatches
@@ -162,6 +167,10 @@ func countCapacity(capacity, count domain.Fact[int64], multiplier int64) domain.
 // DetectRoutine ports colony_policy.criteria/priority_nodes for the common
 // survival goals. Family-specific needs join these same goals during review.
 func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (RoutineNeeds, error) {
+	upkeep, err := ReviewUpkeep(f.Upkeep, previous.Upkeep, f.UpkeepIssued)
+	if err != nil {
+		return RoutineNeeds{}, err
+	}
 	gear, err := ReviewGear(f.Gear)
 	if err != nil {
 		return RoutineNeeds{}, err
@@ -218,10 +227,11 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		wood = domain.Known(float64(n))
 	}
 	l := RoutineLatches{
-		Food: latchValue(previous.Food, f.FoodDays, p.FoodMinDays, p.FoodTargetDays, false),
-		Cold: latchValue(previous.Cold, fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),
-		Hot:  latchValue(previous.Hot, fallback(f.SleepingMax, f.OutdoorTemperature), p.HotEnter, p.HotExit, true),
-		Wood: latchValue(previous.Wood, wood, float64(p.WoodMin), float64(p.WoodTarget), false),
+		Upkeep: upkeep.History,
+		Food:   latchValue(previous.Food, f.FoodDays, p.FoodMinDays, p.FoodTargetDays, false),
+		Cold:   latchValue(previous.Cold, fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),
+		Hot:    latchValue(previous.Hot, fallback(f.SleepingMax, f.OutdoorTemperature), p.HotEnter, p.HotExit, true),
+		Wood:   latchValue(previous.Wood, wood, float64(p.WoodMin), float64(p.WoodTarget), false),
 	}
 	r := RoutineNeeds{Gates: g, Latches: l}
 	addGoal := func(id GoalID, priority int) {
@@ -336,5 +346,18 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainMedicalCare, 2, f.MedicalCareRecovered)
 	addAssessment(EnsureComfort, 4, f.ComfortRecovered)
 	addAssessment(MaintainEquipment, 3, gear.Recovered)
+	for _, n := range upkeep.Needs {
+		recovered := domain.Unknown[bool]()
+		if _, known := n.Targets.Value(); known {
+			recovered = domain.Known(!n.Active)
+		}
+		addAssessment(n.Goal, n.Priority, recovered)
+		if !positive(recovered) {
+			addGoal(n.Goal, n.Priority)
+			// Direct upkeep orders join the shared execution family in G01.07c.
+			// Keep observed risk visible without taking an optional project slot.
+			r.Goals[len(r.Goals)-1].MethodUnavailable = true
+		}
+	}
 	return r, nil
 }

@@ -174,6 +174,9 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 		return err
 	}
 	if upkeep := v.GetUpkeep().GetObserved(); upkeep != nil {
+		if err := validateDirectUpkeep(upkeep, v.MapSize, v.Context.Identity.GetMapId()); err != nil {
+			return err
+		}
 		if err := validateColonyUpkeep(upkeep, v.MapSize); err != nil {
 			return err
 		}

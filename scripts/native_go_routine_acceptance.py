@@ -173,7 +173,8 @@ def audit_development(review, workers):
     rows = development['Rows'] or []
     assert len({r['Goal'] for r in rows}) == len(rows)
     for row in rows:
-        assert row['Goal'] in {'MaintainWood', 'EnsureBasicDefense', 'EnsureComfort', 'MaintainEquipment'}
+        assert row['Goal'] in {'MaintainWood', 'EnsureBasicDefense', 'EnsureComfort', 'MaintainEquipment',
+                              'MaintainFireSafety', 'SecureSupplies', 'MaintainEssentialRepairs', 'MaintainCleanFacilities'}
         assert row['Deficit'] is None or 0 <= row['Deficit'] <= 1
         assert math.isfinite(row['Score']) and 0 <= row['WaitingSince'] <= review['Tick']
         if row['Selected']:

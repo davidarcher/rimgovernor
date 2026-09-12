@@ -48,7 +48,7 @@ Startup supply reviews retain the first known native forbidden-supply census.
 Fresh reads can shrink that cohort, but later player forbids cannot expand or
 revive it. Unknown reads preserve pending cells without proving recovery; Manual
 and direction changes preserve the cohort. World replacement and tick rewind
-initialize a new cohort. The current journal requires fresh schema-24 state.
+initialize a new cohort. The current journal requires fresh schema-26 state.
 These cells describe the startup need, not ownership or permission to issue an
 Allow order. That action family remains in G01.07b.
 
@@ -286,7 +286,7 @@ include eligible routine work after the player plan settles. Remaining fact proj
 method selection and execution composition remain in G01.05.
 `scripts/native_go_routine_acceptance.py`, run through the documented container
 scenario launcher with the private construction fixture and verified Go binary,
-covers the live SDK read trace, seventeen durable goals, urgent and ongoing medical needs,
+covers the live SDK read trace, durable goals, urgent and ongoing medical needs,
 unknown food forecast, Manual invalidation, joined shutdown and disabled restart.
 The paused gear read is compared against native upkeep for the exact pawn/loadout
 census, deficit flags, eligible candidate identities and gains, and replacement

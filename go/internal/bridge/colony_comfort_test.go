@@ -24,7 +24,6 @@ func TestColonyComfortStrictCensusAndAdjacency(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, mutate := range []func(*o.UpkeepFacts){
-		func(v *o.UpkeepFacts) { v.Items = []*o.UpkeepItem{{}} },
 		func(v *o.UpkeepFacts) { v.Comfort.GetObserved().Completeness.Page.Complete = proto.Bool(false) },
 		func(v *o.UpkeepFacts) { v.Comfort.GetObserved().People = []string{"p", "p"} },
 		func(v *o.UpkeepFacts) { v.Comfort.GetObserved().Dining[0].Users = []string{"outsider"} },
