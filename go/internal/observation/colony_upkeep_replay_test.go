@@ -81,7 +81,7 @@ func TestNativeUpkeepReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(active.Goals) != 21 {
+	if len(active.Goals) != 22 {
 		t.Fatal("incomplete maintained goals")
 	}
 	for i, binding := range active.Review.Goals {

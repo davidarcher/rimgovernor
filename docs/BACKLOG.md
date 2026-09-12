@@ -732,9 +732,14 @@ expand these into another nested task tree; remove a row when its outcome is met
   table, adjacent chair and recreation construction through shared building plans.
   Ordinary use waits are bounded by observed construction in the current direction;
   construction receipts do not certify comfort recovery. Native acceptance verifies
-  construction and dining use. Recreation previews and observed capacity now
-  require native playing-cell clearance and safe access; acceptance of the complete
-  construction/use sequence remains open.
+  all three buildings, dining and recreation use, and Manual history retention.
+  Recreation previews and observed capacity require native playing-cell clearance
+  and safe access. Disabled restart of this completed native sequence remains open.
+  Expansion maintains one spare indoor sleeping place beyond observed population,
+  using the shared indoor furnishing and whole-shell compiler. Existing housing
+  deficits block optional expansion; shared project capacity, reservations and
+  Manual invalidation still apply. Native expansion construction acceptance remains
+  open, along with broader room-development methods.
   Equipment policy now has typed census review, stable replacement selection and
   bounded production proposals with material preservation, shared budget inputs
   and existing-bill protection. Native gear projections feed the complete routine
@@ -745,10 +750,13 @@ expand these into another nested task tree; remove a row when its outcome is met
   connected to execution yet. Equipment remains visible as `method_unavailable`
   without occupying a development slot until its execution family is available.
   Four direct upkeep contracts now project complete native item, structure, fire
-  and filth sections into durable needs. Missing sections preserve established risk;
+  and filth sections into durable needs. Repair censuses exclude native definitions
+  that do not use hit points. Missing sections preserve established risk;
   an unknown first observation does not invent an emergency. Target ordering and
-  progress metrics match the Python contracts. Native parity acceptance and bounded
-  method composition remain open, alongside the other six upkeep contracts.
+  progress metrics match the Python contracts. Native parity covers repaired
+  structure eligibility, fire targets and bounded-read unknowns. Complete populated
+  item/filth parity still needs a bounded disposable fixture; method composition
+  remains open, alongside the other six upkeep contracts.
   Further need inputs, method selection and execution composition for
   additional routine methods remain open: equipment, comfort/expansion, the ten
   `colony_upkeep.CONTRACTS` needs, player resource targets, and policy-generated

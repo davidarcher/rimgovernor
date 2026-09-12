@@ -34,12 +34,17 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 	switch r.goal {
 	case policy.EnsureComfort:
 		return 1, domain.MethodID("comfort-" + r.definition), ""
-	case policy.EnsureInitialShelter:
+	case policy.EnsureInitialShelter, policy.EnsureExpansion:
 		capacity, known := facts.Facts.IndoorCapacity.Value()
 		if !known {
 			return 0, "", BuildingMethodUnknown
 		}
-		if target, known := facts.Facts.HousingTarget.Value(); known {
+		if r.goal == policy.EnsureExpansion {
+			if count >= 1<<63-1 {
+				return 0, "", BuildingMethodUnknown
+			}
+			count++
+		} else if target, known := facts.Facts.HousingTarget.Value(); known {
 			count = max(count, target)
 		}
 		missing := count - capacity

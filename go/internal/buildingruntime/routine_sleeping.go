@@ -111,7 +111,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineBuildingResult{Reason: BuildingMethodNoDeficit}, nil
 	}
-	if r.goal == policy.EnsureComfort {
+	if r.goal == policy.EnsureComfort || r.goal == policy.EnsureExpansion {
 		selected := false
 		for _, row := range review.Development.Rows {
 			selected = selected || row.Goal == r.goal && row.Selected
@@ -253,18 +253,24 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context) (RoutineBuild
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	if r.goal == policy.EnsureCooking || r.goal == policy.EnsureComfort {
+	if r.goal == policy.EnsureCooking || r.goal == policy.EnsureComfort || r.goal == policy.EnsureExpansion {
+		pending := func(progress domain.Progress) bool {
+			if r.goal == policy.EnsureExpansion {
+				return pendingFacility(progress, "SleepingSpot") || pendingFacility(progress, "Bed") || pendingFacility(progress, "DoubleBed") || pendingFacility(progress, "RoyalBed")
+			}
+			return pendingFacility(progress, r.definition)
+		}
 		playerPlan, err := p.journal.LoadPlan(call, state.Snapshot.Plan)
 		if err != nil {
 			return RoutineBuildingResult{}, err
 		}
 		for _, progress := range playerPlan.Progress {
-			if pendingFacility(progress, r.definition) {
+			if pending(progress) {
 				return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, nil
 			}
 		}
 		for _, reservation := range held {
-			if pendingFacility(reservation.Progress, r.definition) {
+			if pending(reservation.Progress) {
 				return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, nil
 			}
 		}

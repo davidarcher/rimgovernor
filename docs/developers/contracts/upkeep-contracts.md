@@ -6,6 +6,8 @@ Upkeep uses the existing ColonyPlan, resource admission and Hands executor.
 `home/colony_facts.upkeep` is versioned read-only native evidence. Each section is
 independently nullable with an error; an empty successful census differs from an
 unavailable read. The section tick must match the enclosing observation.
+The repair structure census includes only native definitions with `useHitPoints`.
+Non-damageable markers such as sleeping spots cannot become repair targets.
 
 ## Native capability audit
 

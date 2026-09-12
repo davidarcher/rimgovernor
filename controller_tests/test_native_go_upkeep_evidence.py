@@ -34,6 +34,17 @@ def test_upkeep_reference_preserves_native_counts_and_false_presence():
         audit_upkeep_review(active, result)
 
 
+def test_upkeep_reference_rejects_matching_native_sleeping_spot_sentinels():
+    typed, legacy = fixture()
+    legacy['upkeep']['structures'] = [dict(id='spot', defName='SleepingSpot', x=1, z=2,
+        hitPoints=-1, maxHitPoints=100, home=True, repairPriority=1)]
+    typed['upkeep']['observed']['structures'] = [{'building': {
+        'building': {'id': 'spot', 'defName': 'SleepingSpot', 'mapId': 0, 'position': {'x': 1, 'z': 2}},
+        'hitPoints': -1, 'maxHitPoints': 100}, 'home': True, 'repairPriority': 1}]
+    with pytest.raises(AssertionError, match='non-damageable'):
+        audit_upkeep(typed, legacy)
+
+
 @pytest.mark.parametrize('mutation', ['missing', 'false', 'count', 'id', 'duplicate', 'tick', 'position', 'unavailable'])
 def test_upkeep_reference_rejects_incomplete_or_changed_native_facts(mutation):
     typed, legacy = fixture()

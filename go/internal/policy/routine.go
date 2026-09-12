@@ -24,6 +24,7 @@ const (
 	MaintainWood            GoalID = "MaintainWood"
 	MaintainMedicalCare     GoalID = "MaintainMedicalCare"
 	EnsureComfort           GoalID = "EnsureComfort"
+	EnsureExpansion         GoalID = "EnsureExpansion"
 	MaintainEquipment       GoalID = "MaintainEquipment"
 )
 
@@ -301,6 +302,15 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		r.Goals[len(r.Goals)-1].Comfort = true
 		r.Goals[len(r.Goals)-1].Deficit = f.ComfortDeficit
 	}
+	expansion := domain.Unknown[bool]()
+	if n, known := f.Colonists.Value(); known && n > 0 {
+		expansion = measured(f.IndoorCapacity, func(capacity int64) bool { return capacity > n })
+	}
+	if !positive(expansion) {
+		addGoal(EnsureExpansion, 4)
+		r.Goals[len(r.Goals)-1].Deficit = RoutineDevelopmentDeficit(EnsureExpansion, f, p)
+		r.Goals[len(r.Goals)-1].Blocked = !positive(g.Shelter) || !positive(g.Sleeping)
+	}
 	if !positive(gear.Recovered) {
 		addGoal(MaintainEquipment, 3)
 		r.Goals[len(r.Goals)-1].Deficit = gear.Deficit
@@ -345,6 +355,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainWood, 3, latchRecovered(l.Wood, wood))
 	addAssessment(MaintainMedicalCare, 2, f.MedicalCareRecovered)
 	addAssessment(EnsureComfort, 4, f.ComfortRecovered)
+	addAssessment(EnsureExpansion, 4, expansion)
 	addAssessment(MaintainEquipment, 3, gear.Recovered)
 	for _, n := range upkeep.Needs {
 		recovered := domain.Unknown[bool]()

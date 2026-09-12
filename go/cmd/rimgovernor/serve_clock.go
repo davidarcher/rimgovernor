@@ -43,10 +43,10 @@ func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort bool, projectLimit int) error {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion bool, projectLimit int) error {
 	config := serviceClockConfig(profile)
 	config.RoutineMethods = session.RoutineMethodsEnabled()
-	if (sleeping || cooking || shelter || comfort) && !routine {
+	if (sleeping || cooking || shelter || comfort || expansion) && !routine {
 		return errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -61,7 +61,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			return err
 		}
 		config.Routine = reviewer
-		if sleeping || cooking || shelter || comfort {
+		if sleeping || cooking || shelter || comfort || expansion {
 			source, ok := reads.(buildingruntime.RoutineBuildingSource)
 			if !ok {
 				return errors.New("building plans require typed placement previews")
@@ -79,6 +79,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			}
 			if cooking {
 				config.Cooking, err = buildingruntime.NewRoutineCookingPlanner(reviewer, source)
+				if err != nil {
+					return err
+				}
+			}
+			if expansion {
+				config.Expansion, err = buildingruntime.NewRoutineExpansionPlanner(reviewer, source)
 				if err != nil {
 					return err
 				}

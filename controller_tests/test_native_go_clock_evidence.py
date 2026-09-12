@@ -81,7 +81,7 @@ def test_routine_evidence_requires_native_scope_unknown_forecast_and_manual_reti
     path = tmp_path / "review.sqlite"
     needs = ["ConfirmColonyNames", "ActiveCombat", "CriticalMedical", "RestoreWorkers", "AllowStartingSupplies",
              "EnsureWorkAssignments", "EnsureFoodSupply", "EnsureInitialShelter", "EnsureTemperatureSafety",
-             "EnsureCooking", "EnsureBasicPower", "EnsureFoodStorage", "EnsureBasicDefense", "MaintainWood", "MaintainMedicalCare", "EnsureComfort", "MaintainEquipment",
+             "EnsureCooking", "EnsureBasicPower", "EnsureFoodStorage", "EnsureBasicDefense", "MaintainWood", "MaintainMedicalCare", "EnsureComfort", "EnsureExpansion", "MaintainEquipment",
              "MaintainFireSafety", "SecureSupplies", "MaintainEssentialRepairs", "MaintainCleanFacilities"]
     scope = {"Colony": "colony", "Load": "load", "Map": 0}
     review = {"Revision": 2, "Enabled": False, "Snapshot": scope, "Tick": 7,

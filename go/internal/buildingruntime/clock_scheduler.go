@@ -35,6 +35,7 @@ type ClockSchedulerConfig struct {
 	Sleeping       *RoutineBuildingPlanner
 	Cooking        *RoutineBuildingPlanner
 	Comfort        *RoutineBuildingPlanner
+	Expansion      *RoutineBuildingPlanner
 	RoutineMethods bool
 }
 type ClockSchedulerResult struct {
@@ -44,6 +45,7 @@ type ClockSchedulerResult struct {
 	Sleeping                     *RoutineBuildingResult
 	Cooking                      *RoutineBuildingResult
 	Comfort                      *RoutineBuildingResult
+	Expansion                    *RoutineBuildingResult
 	Running, Reconciled, Cleaned bool
 }
 type ClockScheduler struct {
@@ -72,6 +74,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Comfort != nil && (config.Routine == nil || config.Comfort.reviewer != config.Routine || config.Comfort.goal != policy.EnsureComfort) {
+		return nil, ErrControl
+	}
+	if config.Expansion != nil && (config.Routine == nil || config.Expansion.reviewer != config.Routine || config.Expansion.goal != policy.EnsureExpansion) {
 		return nil, ErrControl
 	}
 	if config.RoutineMethods && (config.Routine == nil || !session.routineMethods) {
@@ -244,6 +249,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		}
 		out.Comfort = &method
 	}
+	if s.config.Expansion != nil {
+		method, err := s.config.Expansion.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.Expansion = &method
+	}
 	emergency, _, err := s.native.ReadEmergency(call, loaded.Context.Identity)
 	if err != nil {
 		return out, err
@@ -292,7 +304,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	clockState := policy.ClockWindowState("")
 	start := s.config.Start
 	var nativeWorkTicks uint32
-	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Comfort} {
+	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Comfort, out.Expansion} {
 		if result != nil {
 			nativeWorkTicks = max(nativeWorkTicks, result.NativeWorkTicks)
 		}

@@ -2637,7 +2637,7 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeUpkeepFacts.cs",
-      "source_sha256": "938b4ede43fa8187f170e8d5d54c0851b9958c005511d472a85f88a819258165",
+      "source_sha256": "1b9b1bb1e78dd5371e0306940fa5eec9a16b0c9057a73c635a61aaf4eaa0cbc8",
       "compilation": "production-bridge",
       "owner": "N01.03 native observation owner",
       "migration_status": "typed-upkeep-acceptance-pending",
@@ -2645,8 +2645,8 @@
         7,
         13,
         15,
-        67,
-        71
+        69,
+        73
       ],
       "reflection_boundary_lines": [],
       "patch_registration_lines": [],
@@ -3185,7 +3185,7 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/UpkeepFacts.cs",
-      "source_sha256": "21f22d635a0b59caac10a55d9d8561d8af40355b1f7c78ccdcc611aedd716b45",
+      "source_sha256": "3a60c2357c4eb06d6d88d58d3592b23edbc2f80491aa07232128895eb23c3b63",
       "compilation": "production-bridge",
       "owner": "N01.02-N01.04 native contract/operation owner",
       "migration_status": "inventoried-unmigrated",

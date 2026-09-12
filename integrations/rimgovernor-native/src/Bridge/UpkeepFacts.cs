@@ -72,7 +72,7 @@ namespace HomeBridge.BridgeTools
                     }
                     return new { item = t.GetUniqueLoadID(), unreservedCoveredCapacity = capacity, acceptingCells };
                 }).ToList()),
-                structures = read("structures", () => buildings.Select(b => new {
+                structures = read("structures", () => buildings.Where(b => b.def.useHitPoints).Select(b => new {
                     id = b.GetUniqueLoadID(), defName = b.def.defName, x = b.Position.x, z = b.Position.z,
                     hitPoints = b.HitPoints, maxHitPoints = b.MaxHitPoints, burning = b.IsBurning(),
                     home = b.OccupiedRect().All(c => map.areaManager.Home[c]),

@@ -47,6 +47,7 @@ def audit_upkeep(colony, legacy):
             elif section == 'structures':
                 assert entity['defName'] == old['defName']
                 assert row['building']['hitPoints'] == old['hitPoints'] and row['building']['maxHitPoints'] == old['maxHitPoints']
+                assert 0 <= old['hitPoints'] <= old['maxHitPoints'], 'Repair census contains a non-damageable marker or invalid hit points'
                 assert row['repairPriority'] == old['repairPriority']
             elif section == 'fires':
                 assert math.isclose(row['size'], old['size'], rel_tol=1e-6, abs_tol=1e-7)

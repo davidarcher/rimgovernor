@@ -23,6 +23,14 @@ func RoutineDevelopmentDeficit(id GoalID, f RoutineFacts, p RoutinePolicy) domai
 	var stock, target int64
 	var known bool
 	switch id {
+	case EnsureExpansion:
+		var countKnown bool
+		target, countKnown = f.Colonists.Value()
+		if !countKnown || target <= 0 || target >= 1<<63-1 {
+			return domain.Unknown[float64]()
+		}
+		target++
+		stock, known = f.IndoorCapacity.Value()
 	case MaintainWood:
 		stock, known = f.Wood.Value()
 		target = p.WoodTarget

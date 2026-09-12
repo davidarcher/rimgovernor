@@ -19,6 +19,15 @@ func NewRoutineShelterPlanner(reviewer *RoutineReviewer, native RoutineBuildingS
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureInitialShelter, definition: "Wall", shelter: true}, nil
 }
 
+// Expansion reuses the same furnishing and whole-shell admission path to keep
+// one spare indoor sleeping place beyond the observed population.
+func NewRoutineExpansionPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
+	if reviewer == nil || native == nil {
+		return nil, ErrControl
+	}
+	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureExpansion, definition: "Wall", shelter: true}, nil
+}
+
 // A completed starter shell may trigger RimWorld's normal automatic roofing.
 // Give that work at most four in-game hours from the durable completion tick.
 // Polling, restarting or cancelling cannot renew this budget.

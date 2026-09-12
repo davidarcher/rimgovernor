@@ -34,7 +34,9 @@ namespace HomeBridge.BridgeTools
                 result.Items.AddRange(values);
             });
             Read("structures", result, () => {
-                var rows = things.OfType<Building>().Where(b => b.Faction == Faction.OfPlayerSilentFail).OrderBy(b => b.thingIDNumber).ToList();
+                // Non-damageable markers (including sleeping spots) have a
+                // native -1 sentinel and cannot be repair targets.
+                var rows = things.OfType<Building>().Where(b => b.Faction == Faction.OfPlayerSilentFail && b.def.useHitPoints).OrderBy(b => b.thingIDNumber).ToList();
                 Require(rows.Count, 256);
                 var values = rows.Select(b => new Obs.UpkeepStructure {
                     Building = new Obs.BuildingState { Building = Ref(b), HitPoints = b.HitPoints, MaxHitPoints = b.MaxHitPoints },

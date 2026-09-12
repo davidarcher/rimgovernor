@@ -48,7 +48,7 @@ Startup supply reviews retain the first known native forbidden-supply census.
 Fresh reads can shrink that cohort, but later player forbids cannot expand or
 revive it. Unknown reads preserve pending cells without proving recovery; Manual
 and direction changes preserve the cohort. World replacement and tick rewind
-initialize a new cohort. The current journal requires fresh schema-26 state.
+initialize a new cohort. The current journal requires fresh schema-27 state.
 These cells describe the startup need, not ownership or permission to issue an
 Allow order. That action family remains in G01.07b.
 
@@ -529,3 +529,9 @@ to 8 MiB and 128 containers; malformed JSON, duplicates and invalid UTF-8 fail.
 Injected clocks and ID sequences in `internal/testkit` support deterministic
 behavior tests. Follow [G01](../docs/BACKLOG.md#g01--go-controller-rewrite) for
 active owners, dependencies and completion gates.
+
+`serve --routine-expansion-plans` maintains one spare indoor sleeping place beyond
+the observed population. It requires routine reviews and uses the shared furnishing
+and whole-shell planner, project limits, resource reservations and player authority.
+Expansion waits until existing housing meets current needs and until pending beds
+finish. Native construction acceptance for expansion remains in G01.05.

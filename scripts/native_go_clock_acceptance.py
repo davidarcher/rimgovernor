@@ -84,7 +84,7 @@ def routine_evidence(database, identity, *, enabled, expected_food_need=None, al
         bindings = review["Goals"]
         expected = {"ConfirmColonyNames", "ActiveCombat", "CriticalMedical", "RestoreWorkers", "AllowStartingSupplies",
                     "EnsureWorkAssignments", "EnsureFoodSupply", "EnsureInitialShelter", "EnsureTemperatureSafety",
-                    "EnsureCooking", "EnsureBasicPower", "EnsureFoodStorage", "EnsureBasicDefense", "MaintainWood", "MaintainMedicalCare", "EnsureComfort", "MaintainEquipment",
+                    "EnsureCooking", "EnsureBasicPower", "EnsureFoodStorage", "EnsureBasicDefense", "MaintainWood", "MaintainMedicalCare", "EnsureComfort", "EnsureExpansion", "MaintainEquipment",
                     "MaintainFireSafety", "SecureSupplies", "MaintainEssentialRepairs", "MaintainCleanFacilities"}
         assert len(bindings) == len(expected) and {v["Need"] for v in bindings} == expected
         goals = {}
