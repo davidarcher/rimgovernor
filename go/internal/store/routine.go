@@ -29,6 +29,7 @@ type RoutineReview struct {
 	Enabled                bool
 	Latches                policy.RoutineLatches
 	MedicalCare            policy.MedicalCareHistory
+	StartingSupplies       policy.StartingSupplies
 	Goals                  []RoutineGoal
 	Development            RoutineDevelopment
 }
@@ -69,6 +70,9 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		return RoutineReview{}, errors.New("invalid routine review history")
 	}
 	if err := r.MedicalCare.Validate(); err != nil {
+		return RoutineReview{}, err
+	}
+	if err := r.StartingSupplies.Validate(); err != nil {
 		return RoutineReview{}, err
 	}
 	if r.Enabled {
@@ -178,13 +182,19 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	reset := previous.Revision == 0 || a.Colony != b.Colony || a.Load != b.Load || a.Map != b.Map || request.Tick < previous.Tick
 	latches := previous.Latches
 	medical := previous.MedicalCare
+	supplies := previous.StartingSupplies
 	if reset {
 		latches = policy.RoutineLatches{}
 		medical = policy.MedicalCareHistory{}
+		supplies = policy.StartingSupplies{}
 	}
 	needs := policy.RoutineNeeds{}
 	// Stopping routine work must not depend on a successful native observation.
 	if request.Enabled {
+		supplies, request.Facts.ForbiddenSupplies, err = policy.ReviewStartingSupplies(request.Facts.StartingSupplyCells, supplies)
+		if err != nil {
+			return RoutineReviewResult{}, err
+		}
 		medical, err = policy.ReviewMedicalCare(request.Facts.MedicalPawns, medical)
 		if err != nil {
 			return RoutineReviewResult{}, err
@@ -234,6 +244,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	}
 	r := RoutineReview{Revision: previous.Revision + 1, WorkPreferenceRevision: request.WorkPreferenceRevision, Snapshot: b, Tick: request.Tick, Enabled: request.Enabled, Latches: needs.Latches}
 	r.MedicalCare = medical
+	r.StartingSupplies = supplies
 	result := RoutineReviewResult{Needs: needs}
 	if !request.Enabled {
 		r.WorkPreferenceRevision = previous.WorkPreferenceRevision

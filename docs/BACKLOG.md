@@ -720,11 +720,14 @@ expand these into another nested task tree; remove a row when its outcome is met
   missing parts who needs neither tending nor medical rest; the care deficit and
   patient evidence survive Manual and disabled restart. Fast checks cover missing
   health, disappearance, recovery/renewal, cancellation, restart and corrupt history.
+  Startup supplies now retain the first known native cohort across Manual,
+  direction changes and restart. Complete reads shrink it without adopting later
+  forbids or reviving released cells; unavailable reads preserve unresolved cells.
+  Native acceptance and final automated verification for this history remain open.
   Further need inputs, method selection and execution composition for
   additional routine methods remain open: equipment, comfort/expansion, the ten
   `colony_upkeep.CONTRACTS` needs, player resource targets, and policy-generated
-  population, husbandry, mood, waste and disaster-recovery needs. Startup supply
-  claims must also retain the original cohort rather than adopt later player forbids.
+  population, husbandry, mood, waste and disaster-recovery needs.
   Connect their planners to available action families; remaining action execution
   stays in G01.07a–f.
 

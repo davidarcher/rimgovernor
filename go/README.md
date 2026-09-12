@@ -41,8 +41,17 @@ reads keep bad conditions and medical rest visible as a priority-2 maintained
 need. A tracked patient who disappears, dies, or has incomplete health remains
 unresolved until fresh living health proves recovery. Patient identities persist
 through restart, Manual and direction changes; world replacement or a tick rewind
-resets them. This requires fresh schema-22 state. The care need does not issue
+resets them. The care need does not issue
 medical orders or authorize surgery; execution remains tracked in G01.07a.
+
+Startup supply reviews retain the first known native forbidden-supply census.
+Fresh reads can shrink that cohort, but later player forbids cannot expand or
+revive it. Unknown reads preserve pending cells without proving recovery; Manual
+and direction changes preserve the cohort. World replacement and tick rewind
+initialize a new cohort. The current journal requires fresh schema-23 state.
+These cells describe the startup need, not ownership or permission to issue an
+Allow order. That action family remains in G01.07b.
+
 `RankDevelopment` preserves accepted shared-action commitments while ranking new
 projects by deficit, player preference, native-tick age and selection hysteresis.
 Unavailable methods can yield their slot within the same review. `StarterLayouts`

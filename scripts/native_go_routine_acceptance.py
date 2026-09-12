@@ -38,6 +38,13 @@ def audit_medical_care(active, expected):
     assert goal['Need'] == expected['need'] and goal['Priority'] == 2
 
 
+def audit_starting_supplies(active, cells):
+    history = active['review']['StartingSupplies']
+    expected = sorted([{'X': c['x'], 'Z': c['z']} for c in cells], key=lambda c: (c['Z'], c['X']))
+    assert history['Initialized'] is True and (history['Pending'] or []) == expected
+    assert active['goals']['AllowStartingSupplies']['Need'] == ('deficit' if cells else 'recovered')
+
+
 def medical_need(reply):
     colony = outcome(reply, "observed")["colonists"]
     census = colony["completeness"]
@@ -212,7 +219,7 @@ def audit_sleeping(report, database):
     return {"completed_spots": len(plan["actions"]), "completed_shell_pieces": len(shell['actions']) if shell else 0, "completed_cooking_buildings": len(report.get("cooking_plan", {}).get("actions", [])), "single_attempts": True, "indoor_footprints": True, "shared_player_authority": True}
 
 
-async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False, work_project=False, work_overrides=False, power_fixture=False, resource_rules=(), shelter_methods=False, start_save=None):
+async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False, work_project=False, work_overrides=False, power_fixture=False, resource_rules=(), shelter_methods=False, start_save=None, supply_history=False):
     assert Path("/.dockerenv").is_file(), "Use the isolated scenario launcher"
     output.mkdir(parents=True, exist_ok=False)
     report = {"passed": False, "source": go_source,
@@ -223,6 +230,9 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
         report["scope"] = "From an empty outdoor site, shared Go Hands constructs a starter shell, normal pawn work roofs it, and the same maintained goal furnishes indoor sleeping capacity. Door completion gates walls; all native outcomes, Manual and disabled restart are verified."
     if cooking_methods:
         report["scope"] = "Reviewed sleeping and cooking deficits execute ordinary building methods through shared Hands; native completion, shared authority, Manual and disabled restart. Campfire construction does not certify cooking bills or food production."
+    if supply_history:
+        assert not (sleeping_methods or cooking_methods or work_project or work_overrides or power_fixture or resource_rules)
+        report['scope'] = 'Go retains the initial native startup-supply cohort across Manual and restart. Ordinary player Allow clears it; later Forbid on those cells does not reopen the need or cause a routine write.'
     evidence = Evidence(output)
     launched = False
     try:
@@ -319,6 +329,9 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 assert overrides
             report['initial_work'] = work_reference(legacy_work['pawns'], minimum_construction, overrides)
             work_colony = await wire(bridge, "work-colony", "observations_read_colony_facts", {"scope": {"expectedIdentity": identity}, "planning": True})
+            report['initial_supply_cells'] = outcome(work_colony, 'observed').get('forbiddenSupplies', [])
+            if supply_history:
+                assert report['initial_supply_cells'], 'Supply-history acceptance requires original forbidden stock'
             for name, value in {'work-pawns': {'observed': detailed}, 'work-colony': work_colony,
                                 'work-status': report['initial_colony'], 'work-reference': report['initial_work']}.items():
                 (output / (name + '.json')).write_text(json.dumps(value), encoding='utf8')
@@ -369,6 +382,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             assert active["review"]["Tick"] == tick, "Review did not use the initial paused boundary"
             assert active["goals"]["CriticalMedical"]["Need"] == medical_need(report["initial_colony"])
             audit_medical_care(active, report['medical_care_reference'])
+            audit_starting_supplies(active, report['initial_supply_cells'])
             if report["initial_armed"] < min(2, len(pawn_ids)):
                 assert active["goals"]["EnsureBasicDefense"]["Need"] == "deficit", "Native equipment shortage did not reach routine defense need"
             report["defense_need"] = active["goals"]["EnsureBasicDefense"]["Need"]
@@ -444,6 +458,51 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 assert int(native['indoorSleepingCapacity']) >= report['sleeping_setup']['colonists']
                 report['shelter_outcome'] = native
             baseline = await capture(bridge, "restart-baseline")
+        if supply_history:
+            for phase, class_name in [('supplies-cleared', 'RimWorld.Designator_Unforbid'), ('supplies-reforbidden', 'RimWorld.Designator_Forbid')]:
+                async with bridge_session(gabs, configuration) as bridge:
+                    await bridge.connect()
+                    catalog = payload(await evidence.call(bridge, phase + '-designators', 'rimworld/list_architect_designators', {'categoryId': 'Orders'}))
+                    choices = [r for r in catalog.get('designators', []) if r.get('className') == class_name]
+                    assert len(choices) == 1, 'Native supply designator unavailable'
+                    for index, cell in enumerate(report['initial_supply_cells']):
+                        await evidence.call(bridge, phase + '-player-' + str(index), 'rimworld/apply_architect_designator',
+                                            {'designatorId': choices[0]['id'], **cell, 'keepSelected': False})
+                    native = outcome(await wire(bridge, phase + '-native', 'observations_read_colony_facts', {'scope': {'expectedIdentity': identity}, 'planning': False}), 'observed')
+                    observed = {(c['x'], c['z']) for c in native.get('forbiddenSupplies', [])}
+                    original = {(c['x'], c['z']) for c in report['initial_supply_cells']}
+                    if phase == 'supplies-cleared':
+                        assert not (observed & original), 'Original supplies remain forbidden after player Allow'
+                    else:
+                        assert original <= observed, 'Player Forbid did not restore the observed forbidden stock'
+                    assert native['context']['tick'] == final['context']['tick'], 'Paused supply changes advanced simulation'
+                    report[phase + '-native'] = native
+                    baseline = await capture(bridge, phase + '-baseline')
+                # Food availability changes with Allow/Forbid. This phase tests
+                # startup ownership against the freshly read native supplies.
+                expected_food = None
+                async with service(private, gabs, configuration, profile, database, output / phase, report, clock_control=True, routine_reviews=True) as http:
+                    await poll(http, '/api/state', lambda v: v.get('connected') and not v.get('game', {}).get('stale', True))
+                    control = await http('GET', '/api/player/control')
+                    assert not control['state']['enabled']
+                    granted = await http('POST', '/api/player/control/acquire', body={
+                        'requestId': phase + '-acquire', 'expected': identity, 'planId': submission['planId'],
+                        'revision': submission['revision'], 'expectedDirection': control['record']['direction']})
+                    assert granted['record']['phase'] == 'granted'
+                    await wait_review(database, report['manual_routine']['review']['Revision'])
+                    active = routine_evidence(database, identity, enabled=True)
+                    audit_starting_supplies(active, [])
+                    assert active['goals']['AllowStartingSupplies']['Status'] == 'satisfied'
+                    report[phase] = active
+                    await http('POST', '/api/player/control/manual', body={'requestId': phase + '-manual', 'expected': identity})
+                    report['manual_routine'] = routine_evidence(database, identity, enabled=False)
+                async with bridge_session(gabs, configuration) as bridge:
+                    await bridge.connect()
+                    await capture(bridge, phase, baseline)
+                    assert EXECUTE not in report['traces'][phase], 'Supply review unexpectedly issued an operation'
+                    final = outcome(await wire(bridge, phase + '-identity', 'lifecycle_read_identity', {}), 'loaded')
+                    assert final['paused'] and final['context']['tick'] == native['context']['tick']
+                    baseline = await capture(bridge, phase + '-restart-baseline')
         async with service(private, gabs, configuration, profile, database, output / "restart", report, clock_control=True, routine_reviews=True, routine_methods=sleeping_methods, routine_cooking=cooking_methods or bool(resource_rules), routine_shelter=shelter_methods, resource_rules=resource_rules) as http:
             await poll(http, "/api/state", lambda v: v.get("connected") and not v.get("game", {}).get("stale", True))
             await asyncio.sleep(2)
@@ -502,6 +561,7 @@ if __name__ == "__main__":
     parser.add_argument("--work-overrides", action="store_true")
     parser.add_argument("--power-fixture", action="store_true")
     parser.add_argument("--resource-rule", action="append", default=[])
+    parser.add_argument('--supply-history', action='store_true')
     args = parser.parse_args()
     raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-go-routine-acceptance", args.go_binary,
-        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods or args.shelter_methods, shelter_methods=args.shelter_methods, start_save=args.start_save, cooking_methods=args.cooking_methods, work_project=args.work_project, work_overrides=args.work_overrides, power_fixture=args.power_fixture, resource_rules=args.resource_rule)) else 1)
+        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods or args.shelter_methods, shelter_methods=args.shelter_methods, start_save=args.start_save, cooking_methods=args.cooking_methods, work_project=args.work_project, work_overrides=args.work_overrides, power_fixture=args.power_fixture, resource_rules=args.resource_rule, supply_history=args.supply_history)) else 1)

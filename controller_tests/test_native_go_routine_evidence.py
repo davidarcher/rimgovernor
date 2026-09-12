@@ -28,6 +28,21 @@ def test_medical_care_native_evidence_uses_python_conditions_and_rejects_false_r
     with pytest.raises(AssertionError): probe.audit_medical_care(active, expected)
 
 
+def test_starting_supply_evidence_requires_exact_original_cells():
+    active = {'review': {'StartingSupplies': {'Initialized': True, 'Pending': [{'X': 2, 'Z': 1}, {'X': 1, 'Z': 2}]}},
+              'goals': {'AllowStartingSupplies': {'Need': 'deficit'}}}
+    cells = [{'x': 1, 'z': 2}, {'x': 2, 'z': 1}]
+    probe.audit_starting_supplies(active, cells)
+    for field, value in [('Initialized', False), ('Pending', []), ('Pending', [{'X': 99, 'Z': 99}])]:
+        changed = copy.deepcopy(active)
+        changed['review']['StartingSupplies'][field] = value
+        with pytest.raises(AssertionError): probe.audit_starting_supplies(changed, cells)
+    active['review']['StartingSupplies']['Pending'] = None
+    active['goals']['AllowStartingSupplies']['Need'] = 'recovered'
+    probe.audit_starting_supplies(active, [])
+    with pytest.raises(AssertionError): probe.audit_starting_supplies(active, cells)
+
+
 def test_shell_geometry_requires_complete_perimeter_and_south_door():
     plan = {'actions': [{'building': {'x': x, 'z': z, 'stuff': 'WoodLog',
                                       'defName': 'Door' if (x, z) == (14, 20) else 'Wall'}}

@@ -58,6 +58,7 @@ func (p RoutinePolicy) Validate() error {
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the
 // separate native crop-capacity forecast; it never increases FoodDays.
 type RoutineFacts struct {
+	StartingSupplyCells                                                        domain.Fact[[]domain.Cell]
 	MedicalPawns                                                               domain.Fact[[]CarePawn]
 	MedicalCareRecovered                                                       domain.Fact[bool]
 	Workers                                                                    domain.Fact[int]

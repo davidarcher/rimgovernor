@@ -165,6 +165,11 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	}
 	if !hasIssue(v.Issues, "forbidden_supplies") {
 		r.Facts.ForbiddenSupplies = domain.Known(len(v.ForbiddenSupplies) > 0)
+		cells := make([]domain.Cell, 0, len(v.ForbiddenSupplies))
+		for _, cell := range v.ForbiddenSupplies {
+			cells = append(cells, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
+		}
+		r.Facts.StartingSupplyCells = domain.Known(cells)
 	}
 	if planning := v.GetPlanning().GetObserved(); planning != nil {
 		for _, row := range planning.Definitions {
