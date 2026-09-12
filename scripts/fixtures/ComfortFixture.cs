@@ -75,7 +75,13 @@ namespace HomeBridge.BridgeTools
                     var plant = (Plant)ThingMaker.MakeThing(rice); GenSpawn.Spawn(plant, cell, map); plant.Growth = .5f;
                 }
                 map.regionAndRoomUpdater.RebuildAllRegionsAndRooms(); center.GetRoom(map).Temperature = 21f;
-                map.GetComponent<ComfortNeedsFixture>().Arm();
+                // The bridge assembly can load after RimWorld caches component types.
+                var fixture = map.GetComponent<ComfortNeedsFixture>();
+                if (fixture == null) {
+                    fixture = new ComfortNeedsFixture(map);
+                    map.components.Add(fixture);
+                }
+                fixture.Arm();
                 return new { success = true, tick = Find.TickManager.TicksGame, colonists = people.Count,
                     fieldCells = farmCells.Count, comfort = ComfortFacts.Read(map) };
             }, cancellationToken).ConfigureAwait(false);

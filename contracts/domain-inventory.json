@@ -8001,21 +8001,21 @@
           "path": "scripts/fixtures/ComfortFixture.cs",
           "line": 14,
           "declaration": "[Tool(\"test/comfort_foothold\", Description = \"UNSAFE FOR MODEL EXECUTION. Prepare a disposable existing roofed room, ordinary sleeping/cooking/storage, food, rice field and healthy workers so optional comfort can be tested after startup. Does not create tables, chairs, recreation furniture or their use.\")]\n        public async Task<object> Foothold(IRimBridgeContext ctx, CancellationToken cancellationToken, int x, int z)",
-          "source_sha256": "6c4b7b0c249387e50895dd7c123506264b88cf676dc13eb684bc5bd9d43cc04d"
+          "source_sha256": "30e74fc39a11ad801c887e40a5ca09a2406d9a41f03af0c69efb2bb57ba5dc71"
         },
         {
           "name": "test/comfort_inputs",
           "path": "scripts/fixtures/ComfortFixture.cs",
-          "line": 104,
+          "line": 110,
           "declaration": "[Tool(\"test/comfort_inputs\", Description = \"Supply disposable construction wood, or prepare hunger/recreation needs after furniture construction. Does not place furniture or order its use.\")]\n        public async Task<object> Inputs(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Prepare needs only after ordinary furniture construction.\", DefaultValue = false)] bool needs = false)",
-          "source_sha256": "6c4b7b0c249387e50895dd7c123506264b88cf676dc13eb684bc5bd9d43cc04d"
+          "source_sha256": "30e74fc39a11ad801c887e40a5ca09a2406d9a41f03af0c69efb2bb57ba5dc71"
         },
         {
           "name": "test/comfort_inspect",
           "path": "scripts/fixtures/ComfortFixture.cs",
-          "line": 84,
+          "line": 90,
           "declaration": "[Tool(\"test/comfort_inspect\", Description = \"Read disposable comfort fixture trigger and native recreation access without changing needs or jobs.\")]\n        public async Task<object> Inspect(IRimBridgeContext ctx, CancellationToken cancellationToken)",
-          "source_sha256": "6c4b7b0c249387e50895dd7c123506264b88cf676dc13eb684bc5bd9d43cc04d"
+          "source_sha256": "30e74fc39a11ad801c887e40a5ca09a2406d9a41f03af0c69efb2bb57ba5dc71"
         },
         {
           "name": "test/configure_start",
