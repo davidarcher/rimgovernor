@@ -7886,7 +7886,7 @@
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeRoomObservationTools.cs",
           "line": 21,
           "declaration": "[Tool(ToolName, Title = \"Read typed rooms\", Description = \"Complete bounded room census and exact footprint intersection filters. Defaults exclude psychologically outdoor rooms and doorways. Contents count buildings, optionally including boundary buildings. IDs are ephemeral within the current room graph; no CAS or frozen cursor.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ProtoJSON ListRoomsReply with explicit unknown stats and unrequested cells.\", Always = true)]\n        public async Task<object> ListRooms(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Official ProtoJSON ListRoomsRequest string.\")] object request = null!)",
-          "source_sha256": "ff4d2ced22cdde5df797a12e7c30c88c742bcf46de4e959585bed611537bd9e2"
+          "source_sha256": "fbf32de7db9a5e7acb31c7486902a230e747fbe8190fc6855d59ec83c65539df"
         },
         {
           "name": "rimgovernor/observations_list_supplies",

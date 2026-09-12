@@ -19,6 +19,11 @@ counts, room membership and contents failures refuse the census. Exact cell list
 are optional and limited to4096 cells per room. Room/pawn/thing scans are bounded,
 results and child collections to256, replies to1MiB. No frozen cursor is issued.
 
+The census refreshes native dirty regions first. Native room entries with no regions
+are filtered only when both their cell count and cell enumeration prove they are
+empty; inconsistent geometry remains unavailable. Compiled regression checks use
+native room/district objects to cover retained empty entries and conflicting counts.
+
 Native acceptance compares naturally generated indoor rooms with the native
 census, checks cells/contents/boundary/filters and unchanged paused context. It
 must not claim populated bed, pawn or stockpile membership if those are absent.

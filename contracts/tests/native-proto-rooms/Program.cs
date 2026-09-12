@@ -40,6 +40,20 @@ internal static class Program
         var exact = Wire("ListRoomsRequest", request("\"includeOutdoors\":true,\"roomIds\":[\"1\"]"));
         Check((bool)Call("Selected", exact, "1", true, true), "Explicit outdoors includes matching doorway");
         Check(!(bool)Call("Selected", exact, "2", false, false), "Filters intersect rather than union");
+        var game = Assembly.Load("Assembly-CSharp");
+        var roomType = game.GetType("Verse.Room", true)!;
+        var districtType = game.GetType("Verse.District", true)!;
+        var emptyRoom = System.Runtime.Serialization.FormatterServices.GetUninitializedObject(roomType);
+        roomType.GetField("districts", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(emptyRoom,
+            Activator.CreateInstance(typeof(List<>).MakeGenericType(districtType)));
+        Check(!(bool)Call("HasPhysicalRegions", emptyRoom), "Regionless empty room is not physical geometry");
+        var district = Activator.CreateInstance(districtType)!;
+        ((IList)roomType.GetField("districts", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(emptyRoom)!).Add(district);
+        Check(!(bool)Call("HasPhysicalRegions", emptyRoom), "Native retained empty district does not invalidate complete physical census");
+        roomType.GetField("cachedCellCount", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(emptyRoom, 1);
+        Refused(() => Call("HasPhysicalRegions", emptyRoom), "Regionless room with claimed physical cells remains unavailable");
+        ((IList)districtType.GetField("regions", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(district)!).Add(System.Runtime.Serialization.FormatterServices.GetUninitializedObject(game.GetType("Verse.Region", true)!));
+        Check((bool)Call("HasPhysicalRegions", emptyRoom), "Physical room proceeds to full geometry validation");
         var cellType = Assembly.Load("Assembly-CSharp").GetType("Verse.IntVec3", true)!;
         Func<int, int, object> cell = (x,z) => Activator.CreateInstance(cellType, x, 0, z)!;
         var points = Array.CreateInstance(cellType, 3); points.SetValue(cell(0,0),0); points.SetValue(cell(2,0),1); points.SetValue(cell(0,2),2);

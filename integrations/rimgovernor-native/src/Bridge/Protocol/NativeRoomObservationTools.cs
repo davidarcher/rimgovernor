@@ -33,11 +33,17 @@ namespace HomeBridge.BridgeTools
                 {
                     if (parsed.Region != null && (!NativeCell(parsed.Region.Minimum).InBounds(map) || !NativeCell(parsed.Region.Maximum).InBounds(map)))
                         return ProtoBoundary.Encode(new Obs.ListRoomsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Room filter rectangle must be within the current map.") });
-                    if (map.regionGrid?.AllRooms == null || map.zoneManager == null || map.mapPawns == null)
+                    if (map.regionGrid?.AllRooms == null || map.regionAndRoomUpdater == null || map.zoneManager == null || map.mapPawns == null)
                         return ProtoBoundary.Encode(new Obs.ListRoomsReply { Unavailable = Missing(Common.UnavailableReason.NativeComponentMissing, "Room, zone or pawn census is unavailable.") });
+                    // AllRooms is the raw cache; resolve pending region changes
+                    // before taking a complete physical-room census.
+                    map.regionAndRoomUpdater.TryRebuildDirtyRegionsAndRooms();
+                    if (map.regionAndRoomUpdater.AnythingToRebuild) throw new InvalidOperationException("Native room graph remains dirty.");
                     var source = map.regionGrid.AllRooms.ToList(); Require(source.Count <= 65536, "Room census exceeds 65536 entries.");
-                    if (source.Any(r => r == null || r.Dereferenced || r.Map != map) || source.Select(r => r.ID).Distinct().Count() != source.Count)
-                        throw new InvalidOperationException("Invalid native room census.");
+                    if (source.Any(r => r == null) || source.Select(r => r.ID).Distinct().Count() != source.Count)
+                        throw new InvalidOperationException("Null or duplicate native room census entry.");
+                    var physical = source.Where(HasPhysicalRegions).ToList();
+                    if (physical.Any(r => r.Map != map)) throw new InvalidOperationException("Foreign native room census entry.");
                     var pawns = map.mapPawns.AllPawnsSpawned.ToList(); Require(pawns.Count <= 65536, "Pawn census exceeds 65536 entries.");
                     var pawnRooms = new Dictionary<Room, List<Pawn>>();
                     foreach (var pawn in pawns)
@@ -49,8 +55,8 @@ namespace HomeBridge.BridgeTools
                         list.Add(pawn);
                     }
                     var snapshot = new Obs.RoomsSnapshot { Context = context };
-                    var filtered = 0; var walked = 0;
-                    foreach (var room in source.OrderBy(r => r.ID))
+                    var filtered = source.Count - physical.Count; var walked = 0;
+                    foreach (var room in physical.OrderBy(r => r.ID))
                     {
                         if (!Selected(parsed, Id(room.ID), room.PsychologicallyOutdoors, room.IsDoorway)) { filtered++; continue; }
                         var cells = new List<IntVec3>();
@@ -69,7 +75,8 @@ namespace HomeBridge.BridgeTools
                     return Encode(new Obs.ListRoomsReply { Observed = snapshot });
                 }
                 catch (ReadLimit e) { return ProtoBoundary.Encode(new Obs.ListRoomsReply { Unavailable = Missing(Common.UnavailableReason.LimitExceeded, e.Message) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.ListRoomsReply { Unavailable = Missing(Common.UnavailableReason.ReadFailed, "Room census, geometry or contents could not be read completely.") }); }
+                catch (Exception readError) { return ProtoBoundary.Encode(new Obs.ListRoomsReply { Unavailable = Missing(Common.UnavailableReason.ReadFailed,
+                    PlacementPreviewOperation.Diagnostic("Room census, geometry or contents could not be read completely: " + readError)) }); }
             }, cancellationToken).ConfigureAwait(false);
         }
         internal static bool Validate(Obs.ListRoomsRequest request, out Common.Failure failure)
@@ -84,6 +91,14 @@ namespace HomeBridge.BridgeTools
         }
         internal static bool Selected(Obs.ListRoomsRequest request, string id, bool psychologicallyOutdoors, bool doorway)
             => (request.IncludeOutdoors || !psychologicallyOutdoors && !doorway) && (request.RoomIds.Count == 0 || request.RoomIds.Contains(id));
+        internal static bool HasPhysicalRegions(Room room)
+        {
+            if (!room.Dereferenced) return true;
+            // Native AllRooms can retain an empty district with no regions.
+            // It contributes no physical room, but inconsistent geometry is unknown.
+            if (room.CellCount != 0 || room.Cells.Any()) throw new InvalidOperationException("Regionless room has physical cells.");
+            return false;
+        }
         internal static bool Inside(Obs.Rectangle rectangle, IntVec3 cell) => cell.x >= rectangle.Minimum.X && cell.x <= rectangle.Maximum.X && cell.z >= rectangle.Minimum.Z && cell.z <= rectangle.Maximum.Z;
 
         private static Obs.RoomState Project(Room room, Map map, List<IntVec3> cells, List<Pawn> pawns, Obs.ListRoomsRequest request)
@@ -91,12 +106,12 @@ namespace HomeBridge.BridgeTools
             // Room owns reusable region/thing buffers. Copy before any stat, label or
             // bed projection can read those getters again. Never enumerate Zone.Cells.
             var things = room.ContainedAndAdjacentThings.ToList(); Require(things.Count <= 65536, "Room thing census exceeds65536.");
-            if (things.Any(t => t == null || !t.Spawned || t.Map != map) || things.Distinct().Count() != things.Count) throw new InvalidOperationException();
+            if (things.Any(t => t == null || !t.Spawned || t.Map != map) || things.Distinct().Count() != things.Count) throw new InvalidOperationException("Invalid or duplicate room thing membership.");
             var row = new Obs.RoomState { Id = Id(room.ID), ProperRoom = room.ProperRoom, Doorway = room.IsDoorway,
                 Outdoors = room.UsesOutdoorTemperature, PsychologicallyOutdoors = room.PsychologicallyOutdoors,
                 TouchesMapEdge = room.TouchesMapEdge, Fogged = room.Fogged, CellCount = (uint)cells.Count };
             var roof = room.OpenRoofCount;
-            if (roof < 0 || roof > cells.Count) throw new InvalidOperationException();
+            if (roof < 0 || roof > cells.Count) throw new InvalidOperationException("Invalid room open roof count.");
             row.OpenRoofCount = (uint)roof;
             try { row.TemperatureC = Finite(room.Temperature); }
             catch (Exception) { row.Issues.Add(Issue("temperature_c", Common.UnavailableReason.ReadFailed, "Native room temperature unavailable.")); }
