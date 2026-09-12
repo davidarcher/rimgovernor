@@ -37,10 +37,14 @@ internal static class Program
         foreach (var fields in new[] { "", "\"playerOnly\":false,\"inspect\":false,\"billIngredients\":false",
             "\"category\":\"all\",\"statuses\":[\"pending\",\"built\"],\"defNames\":[\"Wall\"],\"ids\":[\"Wall17\"]",
             "\"damagedBelowFraction\":0", "\"damagedBelowFraction\":1", "\"page\":{\"limit\":256}",
-            "\"region\":{\"minimum\":{\"x\":0,\"z\":0},\"maximum\":{\"x\":0,\"z\":0}}" })
+            "\"region\":{\"minimum\":{\"x\":0,\"z\":0},\"maximum\":{\"x\":0,\"z\":0}}",
+            // N01.03: frozen paging is no longer refused outright -- a cursor within the
+            // byte bound is accepted (its actual freshness is checked at read time by the
+            // shared NativeObservationSnapshot.Cursor helper, not by Validate).
+            "\"page\":{\"cursor\":\"expired\"}" })
             Check(Valid(request(fields)), "Valid request preserves explicit values: " + fields);
         Check(!Valid("{}"), "Missing identity scope refused");
-        foreach (var fields in new[] { "\"page\":{\"limit\":0}", "\"page\":{\"limit\":257}", "\"page\":{\"cursor\":\"expired\"}",
+        foreach (var fields in new[] { "\"page\":{\"limit\":0}", "\"page\":{\"limit\":257}", "\"page\":{\"cursor\":\"" + new string('x', 4097) + "\"}",
             "\"inspect\":true", "\"billIngredients\":true", "\"category\":\"ALL\"", "\"statuses\":[\"unknown\"]",
             "\"statuses\":[\"built\",\"built\"]", "\"ids\":[\"same\",\"same\"]", "\"defNames\":[\"\"]",
             "\"ids\":[\"bad\\u0000id\"]", "\"damagedBelowFraction\":-0.1", "\"damagedBelowFraction\":1.1",

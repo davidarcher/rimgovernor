@@ -42,7 +42,11 @@ internal static class Program
         Check(Valid(request("")),"defaults accepted");
         Check(Valid(request("\"page\":{\"limit\":1},\"filter\":{\"withinColonistDistance\":0,\"colonist\":false}")),"explicit zero/false accepted");
         Check(Valid(request("\"page\":{\"limit\":256}")),"maximum bound accepted");
-        foreach(var invalid in new[]{"{}",request("\"page\":{\"limit\":0}"),request("\"page\":{\"limit\":257}"),request("\"page\":{\"cursor\":\"old\"}"),request("\"filter\":{\"ids\":[\"Pawn1\",\"Pawn1\"]}"),request("\"filter\":{\"ids\":[\"\"]}"),request("\"filter\":{\"withinColonistDistance\":-1}"),request("\"filter\":{\"withinColonistDistance\":\"NaN\"}"),request("\"filter\":{\"withinColonistDistance\":\"Infinity\"}"),request("\"filter\":{\"nameContains\":\""+new string('x',257)+"\"}")})
+        // N01.03: frozen paging is no longer refused outright -- a cursor within the
+        // byte bound is accepted (its actual freshness is checked at read time by the
+        // shared NativeObservationSnapshot.Cursor helper, not by Validate).
+        Check(Valid(request("\"page\":{\"cursor\":\"old\"}")),"a within-bound cursor is accepted");
+        foreach(var invalid in new[]{"{}",request("\"page\":{\"limit\":0}"),request("\"page\":{\"limit\":257}"),request("\"page\":{\"cursor\":\""+new string('x',4097)+"\"}"),request("\"filter\":{\"ids\":[\"Pawn1\",\"Pawn1\"]}"),request("\"filter\":{\"ids\":[\"\"]}"),request("\"filter\":{\"withinColonistDistance\":-1}"),request("\"filter\":{\"withinColonistDistance\":\"NaN\"}"),request("\"filter\":{\"withinColonistDistance\":\"Infinity\"}"),request("\"filter\":{\"nameContains\":\""+new string('x',257)+"\"}")})
             Check(!Valid(invalid),"invalid query refused: "+invalid);
         var ids=string.Join(",",Enumerable.Range(0,256).Select(i=>"\"Pawn"+i+"\""));
         Check(Valid(request("\"filter\":{\"ids\":["+ids+"]}")),"256 exact IDs accepted");
@@ -80,7 +84,8 @@ internal static class Program
         var title=definition.Invoke(null,new object?[]{"Backstory1","Nurse"})!;
         Check((bool)Get(title,"HasLabel")&&(string)Get(title,"Label")=="Nurse","actual backstory title is retained");
         var core=Wire("PawnState","{\"needs\":{\"mood\":0},\"health\":{\"summaryFraction\":1}}");
-        detailsType.GetMethod("Apply",Flags)!.Invoke(null,new object?[]{null,core,detail});
+        var emptyColonists=Activator.CreateInstance(typeof(List<>).MakeGenericType(Assembly.Load("Assembly-CSharp").GetType("Verse.Pawn",true)!))!;
+        detailsType.GetMethod("Apply",Flags)!.Invoke(null,new object?[]{null,emptyColonists,core,detail});
         Check(core.GetType().GetProperty("Needs")!.GetValue(core)==null&&core.GetType().GetProperty("Health")!.GetValue(core)==null,"explicit opt-out removes inherited status detail without native reads");
         var issues=((IEnumerable)Get(core,"Issues")).Cast<object>().ToArray();
         foreach(var field in new[]{"needs","health","equipment","biography","settings","social","animal_state"})

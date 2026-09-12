@@ -83,8 +83,12 @@ internal static class Program
         foreach (var category in new[] { "haulable", "food", "weapons", "all", "buildings" })
             Check(Valid(request("\"filter\":{\"category\":\"" + category + "\",\"ownership\":\"all\",\"includeHeld\":false}")), "Supported category/explicit false");
         Check(Valid(request("\"filter\":{\"defNames\":[\"Modded_Resourceα\"],\"corpses\":true,\"forbiddenOnly\":true,\"excludeChunks\":true}")), "Open native def identifiers and combined filters");
+        // N01.03: frozen paging is no longer refused outright -- a cursor within the
+        // byte bound is accepted (its actual freshness is checked at read time by the
+        // shared NativeObservationSnapshot.Cursor helper, not by Validate).
+        Check(Valid(request("\"page\":{\"cursor\":\"" + new string('a', 4096) + "\"}")), "A within-bound cursor is accepted by Validate");
         foreach (var invalid in new[] { "{}", request("\"page\":{\"limit\":0}"), request("\"page\":{\"limit\":257}"),
-            request("\"page\":{\"cursor\":\"stale\"}"), request("\"filter\":{\"category\":\"FOOD\"}"),
+            request("\"page\":{\"cursor\":\"" + new string('a', 4097) + "\"}"), request("\"filter\":{\"category\":\"FOOD\"}"),
             request("\"filter\":{\"ownership\":\"enemy\"}"), request("\"filter\":{\"defNames\":[\"a\",\"a\"]}"),
             request("\"filter\":{\"defNames\":[\"\"]}"), request("\"filter\":{\"defNames\":[\"bad\\u0000id\"]}"),
             request("\"filter\":{\"region\":{\"minimum\":{\"x\":1,\"z\":0},\"maximum\":{\"x\":0,\"z\":0}}}") })

@@ -41,10 +41,14 @@ internal static class Program
         const string scope = "\"scope\":{\"expectedIdentity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0}}";
         Func<string, string> request = fields => "{" + scope + (fields.Length == 0 ? "" : "," + fields) + "}";
         foreach (var good in new[] { "", "\"includeLocked\":true,\"includeFinished\":true,\"includeUnlocks\":true,\"includeCapability\":true",
-            "\"includeLocked\":false,\"nameContains\":\"\"", "\"page\":{\"limit\":256}", "\"nameContains\":\"Modded_α\"" })
+            "\"includeLocked\":false,\"nameContains\":\"\"", "\"page\":{\"limit\":256}", "\"nameContains\":\"Modded_α\"",
+            // N01.03: frozen paging is no longer refused outright -- a cursor within the
+            // byte bound is accepted (its actual freshness is checked at read time by the
+            // shared NativeObservationSnapshot.Cursor helper, not by Validate).
+            "\"page\":{\"cursor\":\"stale\"}" })
             Check(Valid(request(good)), "Supported research request");
         foreach (var bad in new[] { "{}", request("\"page\":{\"limit\":0}"), request("\"page\":{\"limit\":257}"),
-            request("\"page\":{\"cursor\":\"stale\"}"), request("\"nameContains\":\"bad\\u0000id\""), request("\"nameContains\":\"" + new string('α', 129) + "\"") })
+            request("\"page\":{\"cursor\":\"" + new string('x', 4097) + "\"}"), request("\"nameContains\":\"bad\\u0000id\""), request("\"nameContains\":\"" + new string('α', 129) + "\"") })
             Check(!Valid(bad), "Invalid bounded research request refused");
         Refused(() => Wire("ResearchRequest", "{\"set\":\"Electricity\"}"), "Unknown mutation argument rejected by official parser");
         Refused(() => Wire("ResearchRequest", "{\"includeLocked\":\"false\"}"), "Nonboolean flag rejected");

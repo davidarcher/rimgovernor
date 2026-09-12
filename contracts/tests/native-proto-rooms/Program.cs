@@ -31,8 +31,11 @@ internal static class Program
         tools = bridge.GetType("HomeBridge.BridgeTools.NativeRoomObservationTools", true)!;
         const string scope = "\"scope\":{\"expectedIdentity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0}}";
         Func<string, string> request = fields => "{" + scope + (fields.Length == 0 ? "" : "," + fields) + "}";
-        foreach (var fields in new[] { "", "\"includeOutdoors\":false,\"includeBoundary\":false,\"includeCells\":false", "\"roomIds\":[\"0\",\"roomα\"]", "\"page\":{\"limit\":256}", "\"region\":{\"minimum\":{\"x\":0,\"z\":0},\"maximum\":{\"x\":0,\"z\":0}}" }) Check(Valid(request(fields)), "Valid bounded request");
-        foreach (var bad in new[] { "{}", request("\"page\":{\"limit\":0}"), request("\"page\":{\"limit\":257}"), request("\"page\":{\"cursor\":\"stale\"}"), request("\"roomIds\":[\"x\",\"x\"]"), request("\"roomIds\":[\"\"]"), request("\"roomIds\":[\"bad\\u0000id\"]"), request("\"region\":{\"minimum\":{\"x\":1,\"z\":0},\"maximum\":{\"x\":0,\"z\":1}}"), request("\"region\":{\"minimum\":{\"x\":0},\"maximum\":{\"x\":0,\"z\":1}}") }) Check(!Valid(bad), "Malformed bounded request refused");
+        // N01.03: frozen paging is no longer refused outright -- a cursor within the
+        // byte bound is accepted (its actual freshness is checked at read time by the
+        // shared NativeObservationSnapshot.Cursor helper, not by Validate).
+        foreach (var fields in new[] { "", "\"includeOutdoors\":false,\"includeBoundary\":false,\"includeCells\":false", "\"roomIds\":[\"0\",\"roomα\"]", "\"page\":{\"limit\":256}", "\"region\":{\"minimum\":{\"x\":0,\"z\":0},\"maximum\":{\"x\":0,\"z\":0}}", "\"page\":{\"cursor\":\"stale\"}" }) Check(Valid(request(fields)), "Valid bounded request");
+        foreach (var bad in new[] { "{}", request("\"page\":{\"limit\":0}"), request("\"page\":{\"limit\":257}"), request("\"page\":{\"cursor\":\"" + new string('x', 4097) + "\"}"), request("\"roomIds\":[\"x\",\"x\"]"), request("\"roomIds\":[\"\"]"), request("\"roomIds\":[\"bad\\u0000id\"]"), request("\"region\":{\"minimum\":{\"x\":1,\"z\":0},\"maximum\":{\"x\":0,\"z\":1}}"), request("\"region\":{\"minimum\":{\"x\":0},\"maximum\":{\"x\":0,\"z\":1}}") }) Check(!Valid(bad), "Malformed bounded request refused");
         var defaultRequest = Wire("ListRoomsRequest", request(""));
         Check((bool)Call("Selected", defaultRequest, "0", false, false), "Ordinary room selected by default");
         Check(!(bool)Call("Selected", defaultRequest, "0", true, false), "Psychological outdoors excluded");
