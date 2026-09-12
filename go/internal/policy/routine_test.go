@@ -9,7 +9,8 @@ import (
 
 func stableRoutine() RoutineFacts {
 	return RoutineFacts{
-		Colonists: domain.Known(int64(3)), HousingTarget: domain.Known(int64(0)), BedCapacity: domain.Known(int64(3)), IndoorCapacity: domain.Known(int64(3)), GrowingCells: domain.Known(int64(30)), Armed: domain.Known(int64(2)),
+		MedicalCareRecovered: domain.Known(true),
+		Colonists:            domain.Known(int64(3)), HousingTarget: domain.Known(int64(0)), BedCapacity: domain.Known(int64(3)), IndoorCapacity: domain.Known(int64(3)), GrowingCells: domain.Known(int64(30)), Armed: domain.Known(int64(2)),
 		FoodDays: domain.Known(8.0), FieldCoverage: domain.Known(1.0), SleepingMin: domain.Known(20.0), SleepingMax: domain.Known(20.0), Wood: domain.Known(int64(400)),
 		Hostiles: domain.Known(int64(0)), CriticalPatients: domain.Known(int64(0)), ColonyNaming: domain.Known(false), CleanupPawns: domain.Known(false), ForbiddenSupplies: domain.Known(false),
 		FoodStorage: domain.Known(true), Cooking: domain.Known(true), WorkCoverage: domain.Known(true), PowerRequired: domain.Known(false), DisabledConsumers: domain.Known(false),

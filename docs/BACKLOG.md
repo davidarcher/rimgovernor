@@ -711,6 +711,12 @@ expand these into another nested task tree; remove a row when its outcome is met
   indoor capacity recovery, a satisfied shelter goal, the complete operation trace,
   Manual invalidation and disabled restart. A normal clock deadline reached during
   renewal preflight preserves authority only after fresh matching completion proof.
+  Ongoing medical care now has a separate maintained priority-2 need using the
+  same bracketed native pawn census. Complete bad-condition/rest facts distinguish
+  chronic care from urgent tending. Durable tracked patients cannot recover through
+  disappearance, death, missing health or restart; Manual preserves that evidence,
+  while world replacement and tick rewind reset it. Medical order execution remains
+  in G01.07a. Native parity and final verification for this care projection remain open.
   Further need inputs, method selection and execution composition for
   additional routine methods remain open.
 

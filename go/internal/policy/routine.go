@@ -22,6 +22,7 @@ const (
 	EnsureFoodStorage       GoalID = "EnsureFoodStorage"
 	EnsureBasicDefense      GoalID = "EnsureBasicDefense"
 	MaintainWood            GoalID = "MaintainWood"
+	MaintainMedicalCare     GoalID = "MaintainMedicalCare"
 )
 
 type RoutinePolicy struct {
@@ -57,6 +58,8 @@ func (p RoutinePolicy) Validate() error {
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the
 // separate native crop-capacity forecast; it never increases FoodDays.
 type RoutineFacts struct {
+	MedicalPawns                                                               domain.Fact[[]CarePawn]
+	MedicalCareRecovered                                                       domain.Fact[bool]
 	Workers                                                                    domain.Fact[int]
 	Colonists, HousingTarget, BedCapacity, IndoorCapacity, GrowingCells, Armed domain.Fact[int64]
 	FoodDays, PopulationFoodDays, FieldCoverage                                domain.Fact[float64]
@@ -266,6 +269,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			r.Goals[len(r.Goals)-1].Deficit = domain.Known(max(0, float64(p.WoodTarget-n)/float64(p.WoodTarget)))
 		}
 	}
+	if !positive(f.MedicalCareRecovered) {
+		addGoal(MaintainMedicalCare, 2)
+	}
 	addAssessment := func(id GoalID, priority int, recovered domain.Fact[bool]) {
 		need := domain.NeedUnknown
 		if value, known := recovered.Value(); known {
@@ -301,5 +307,6 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(EnsureFoodStorage, 2, g.Storage)
 	addAssessment(EnsureBasicDefense, 3, g.Defense)
 	addAssessment(MaintainWood, 3, latchRecovered(l.Wood, wood))
+	addAssessment(MaintainMedicalCare, 2, f.MedicalCareRecovered)
 	return r, nil
 }

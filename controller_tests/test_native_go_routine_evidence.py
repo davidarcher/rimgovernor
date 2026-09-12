@@ -11,6 +11,23 @@ finally:
     sys.path.pop(0)
 
 
+def test_medical_care_native_evidence_uses_python_conditions_and_rejects_false_recovery():
+    people = [{'thingId': 'patient', 'dead': False, 'health': {
+        'careObservationVersion': 1, 'shouldSeekMedicalRest': False, 'needsTend': False,
+        'hediffs': [{'isBad': True, 'defName': 'ChronicCondition'}]}}]
+    expected = probe.medical_care_reference(people)
+    assert expected == {'patients': ['patient'], 'unknown': [], 'need': 'deficit'}
+    active = {'review': {'MedicalCare': {'CensusKnown': True, 'Patients': ['patient'], 'Unknown': None}},
+              'goals': {'MaintainMedicalCare': {'Need': 'deficit', 'Priority': 2}}}
+    probe.audit_medical_care(active, expected)
+    for field, value in [('CensusKnown', False), ('Patients', []), ('Unknown', ['missing'])]:
+        changed = copy.deepcopy(active)
+        changed['review']['MedicalCare'][field] = value
+        with pytest.raises(AssertionError): probe.audit_medical_care(changed, expected)
+    active['goals']['MaintainMedicalCare']['Need'] = 'recovered'
+    with pytest.raises(AssertionError): probe.audit_medical_care(active, expected)
+
+
 def test_shell_geometry_requires_complete_perimeter_and_south_door():
     plan = {'actions': [{'building': {'x': x, 'z': z, 'stuff': 'WoodLog',
                                       'defName': 'Door' if (x, z) == (14, 20) else 'Wall'}}

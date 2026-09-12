@@ -28,6 +28,7 @@ type RoutineReview struct {
 	Tick                   domain.Tick
 	Enabled                bool
 	Latches                policy.RoutineLatches
+	MedicalCare            policy.MedicalCareHistory
 	Goals                  []RoutineGoal
 	Development            RoutineDevelopment
 }
@@ -66,6 +67,9 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	canonical, err := json.Marshal(r)
 	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 32 {
 		return RoutineReview{}, errors.New("invalid routine review history")
+	}
+	if err := r.MedicalCare.Validate(); err != nil {
+		return RoutineReview{}, err
 	}
 	if r.Enabled {
 		if r.Development.Snapshot != r.Snapshot || r.Development.Tick != r.Tick || policy.ValidateDevelopmentState(r.Development.state()) != nil {
@@ -173,12 +177,19 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	// target. Only world replacement or time rewind discards latch history.
 	reset := previous.Revision == 0 || a.Colony != b.Colony || a.Load != b.Load || a.Map != b.Map || request.Tick < previous.Tick
 	latches := previous.Latches
+	medical := previous.MedicalCare
 	if reset {
 		latches = policy.RoutineLatches{}
+		medical = policy.MedicalCareHistory{}
 	}
 	needs := policy.RoutineNeeds{}
 	// Stopping routine work must not depend on a successful native observation.
 	if request.Enabled {
+		medical, err = policy.ReviewMedicalCare(request.Facts.MedicalPawns, medical)
+		if err != nil {
+			return RoutineReviewResult{}, err
+		}
+		request.Facts.MedicalCareRecovered = medical.Recovered()
 		needs, err = policy.DetectRoutine(request.Facts, latches, request.Policy)
 		if err != nil {
 			return RoutineReviewResult{}, err
@@ -222,6 +233,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		return RoutineReviewResult{}, err
 	}
 	r := RoutineReview{Revision: previous.Revision + 1, WorkPreferenceRevision: request.WorkPreferenceRevision, Snapshot: b, Tick: request.Tick, Enabled: request.Enabled, Latches: needs.Latches}
+	r.MedicalCare = medical
 	result := RoutineReviewResult{Needs: needs}
 	if !request.Enabled {
 		r.WorkPreferenceRevision = previous.WorkPreferenceRevision

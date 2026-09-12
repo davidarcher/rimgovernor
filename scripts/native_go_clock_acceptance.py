@@ -84,8 +84,8 @@ def routine_evidence(database, identity, *, enabled, expected_food_need=None, al
         bindings = review["Goals"]
         expected = {"ConfirmColonyNames", "ActiveCombat", "CriticalMedical", "RestoreWorkers", "AllowStartingSupplies",
                     "EnsureWorkAssignments", "EnsureFoodSupply", "EnsureInitialShelter", "EnsureTemperatureSafety",
-                    "EnsureCooking", "EnsureBasicPower", "EnsureFoodStorage", "EnsureBasicDefense", "MaintainWood"}
-        assert len(bindings) == 14 and {v["Need"] for v in bindings} == expected
+                    "EnsureCooking", "EnsureBasicPower", "EnsureFoodStorage", "EnsureBasicDefense", "MaintainWood", "MaintainMedicalCare"}
+        assert len(bindings) == 15 and {v["Need"] for v in bindings} == expected
         goals = {}
         for binding in bindings:
             row = db.execute("SELECT payload FROM goals WHERE id=?", (binding["Goal"],)).fetchone()

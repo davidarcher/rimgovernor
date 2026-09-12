@@ -33,6 +33,7 @@ type routineBracket struct {
 	pawnReceipt       bridge.Result
 	armed             domain.Fact[int64]
 	work              domain.Fact[[]policy.WorkPawn]
+	medical           domain.Fact[[]policy.CarePawn]
 	definitions       []string
 	extraDefinitions  []PlanningDefinition
 	definitionReceipt bridge.Result
@@ -86,6 +87,7 @@ func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, pl
 			}
 			s.armed = routineArmed(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
 			s.work = routineWork(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
+			s.medical = routineMedical(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
 		}
 	}
 	return colony, receipt, nil
@@ -102,6 +104,7 @@ func ObserveRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	}
 	reading.Projection.Facts.Armed = bracket.armed
 	reading.Projection.WorkPawns = bracket.work
+	reading.Projection.Facts.MedicalPawns = bracket.medical
 	reading.Projection.Definitions = append(reading.Projection.Definitions, bracket.extraDefinitions...)
 	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, EmergencyReceipt: bracket.receipt, PawnReceipt: bracket.pawnReceipt, DefinitionReceipt: bracket.definitionReceipt}, nil
 }

@@ -36,6 +36,13 @@ Media dependencies are selected with their actual presentation consumers.
 
 `policy.DetectRoutine` evaluates typed survival facts and separate recovery
 thresholds. Missing facts cannot certify foothold stability or clear active risk.
+Ongoing medical care is distinct from urgent tending: complete native health
+reads keep bad conditions and medical rest visible as a priority-2 maintained
+need. A tracked patient who disappears, dies, or has incomplete health remains
+unresolved until fresh living health proves recovery. Patient identities persist
+through restart, Manual and direction changes; world replacement or a tick rewind
+resets them. This requires fresh schema-22 state. The care need does not issue
+medical orders or authorize surgery; execution remains tracked in G01.07a.
 `RankDevelopment` preserves accepted shared-action commitments while ranking new
 projects by deficit, player preference, native-tick age and selection hysteresis.
 Unavailable methods can yield their slot within the same review. `StarterLayouts`

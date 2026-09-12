@@ -18,6 +18,24 @@ from native_building_service_acceptance import (
 )
 from native_go_clock_acceptance import routine_evidence
 from rimgovernor.food_forecast import food_forecast
+from rimgovernor.medical_management import care_state
+
+
+def medical_care_reference(people):
+    care = care_state(people)
+    patients = sorted(p['patient'] for p in care['patients'])
+    unknown = care['unknown']
+    return {'patients': patients, 'unknown': unknown,
+            'need': 'deficit' if patients else 'unknown' if unknown else 'recovered'}
+
+
+def audit_medical_care(active, expected):
+    history = active['review']['MedicalCare']
+    assert history['CensusKnown'] is True
+    assert (history['Patients'] or []) == expected['patients']
+    assert (history['Unknown'] or []) == expected['unknown']
+    goal = active['goals']['MaintainMedicalCare']
+    assert goal['Need'] == expected['need'] and goal['Priority'] == 2
 
 
 def medical_need(reply):
@@ -198,7 +216,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
     assert Path("/.dockerenv").is_file(), "Use the isolated scenario launcher"
     output.mkdir(parents=True, exist_ok=False)
     report = {"passed": False, "source": go_source,
-              "scope": "Native core/emergency facts reach fourteen durable Go needs; Manual invalidates them; disabled restart neither acquires authority nor reads routine facts. No routine method execution claim."}
+              "scope": "Native core/emergency facts reach fifteen durable Go needs; Manual invalidates them; disabled restart neither acquires authority nor reads routine facts. No routine method execution claim."}
     if sleeping_methods:
         report["scope"] = "Reviewed indoor sleeping deficit compiles and executes through shared Hands, with native completion, Manual invalidation and disabled restart. Private fixture supplies only an empty room and healthy starting colonists."
     if shelter_methods:
@@ -279,8 +297,9 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                        and type(p.get("equipment", {}).get("armed")) is bool for p in detailed["pawns"])
             report["initial_armed"] = sum(not p["dead"] and not p["downed"] and p["equipment"]["armed"] for p in detailed["pawns"])
             from native_work_readback import work_reference
-            legacy_work = payload(await evidence.call(bridge, "initial-work", "home/list_pawns", {"colonistsOnly": True, "work": True, "bio": True, "equipment": True}))
+            legacy_work = payload(await evidence.call(bridge, "initial-work", "home/list_pawns", {"colonistsOnly": True, "work": True, "bio": True, "equipment": True, "health": True}))
             assert legacy_work['success'] and {p['thingId'] for p in legacy_work['pawns']} == set(pawn_ids)
+            report['medical_care_reference'] = medical_care_reference(legacy_work['pawns'])
             minimum_construction = 0
             if work_project:
                 project_facts = await wire(bridge, 'work-project-definition', 'observations_read_colony_facts', {
@@ -349,6 +368,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
             active = routine_evidence(database, identity, enabled=True, expected_food_need=expected_food, allow_methods=sleeping_methods)
             assert active["review"]["Tick"] == tick, "Review did not use the initial paused boundary"
             assert active["goals"]["CriticalMedical"]["Need"] == medical_need(report["initial_colony"])
+            audit_medical_care(active, report['medical_care_reference'])
             if report["initial_armed"] < min(2, len(pawn_ids)):
                 assert active["goals"]["EnsureBasicDefense"]["Need"] == "deficit", "Native equipment shortage did not reach routine defense need"
             report["defense_need"] = active["goals"]["EnsureBasicDefense"]["Need"]
