@@ -60,6 +60,58 @@ internal static class Program
             var bound=(object[])binder.Invoke(null,new object?[]{tools.GetMethod(methodName),new Dictionary<string,object?>{{"request",value}},null,CancellationToken.None})!;
             Check(ReferenceEquals(bound[2],value),"actual SDK raw value preserved: "+methodName);
         }
+        // ---- N01.03: shared stateless CAS/cursor helper (NativeObservationSnapshot).
+        var snapshotType=bridge.GetType("HomeBridge.BridgeTools.NativeObservationSnapshot",true)!;
+        var cursorType=snapshotType.GetNestedType("Cursor",Flags)!;
+        object ParseCommon(string type,string json) {
+            var parser=bridge.GetType("RimGovernor.Protocol.Common."+type,true)!.GetProperty("Parser")!.GetValue(null)!;
+            return parser.GetType().GetMethod("ParseJson")!.Invoke(parser,new object[]{json})!;
+        }
+        var identityA=ParseCommon("Identity","{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0}");
+        var identityB=ParseCommon("Identity","{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":1}");
+        var encode=cursorType.GetMethod("Encode",Flags)!;
+        var tryDecode=cursorType.GetMethod("TryDecode",Flags)!;
+        var cursor=(string)encode.Invoke(null,new object?[]{identityA,"seed-1","row-42"})!;
+        Check(!string.IsNullOrEmpty(cursor),"cursor encodes to a nonempty opaque token");
+        var decodeArgs=new object?[]{identityA,"seed-1",cursor,null};
+        var decoded=(bool)tryDecode.Invoke(null,decodeArgs)!;
+        Check(decoded && (string?)decodeArgs[3]=="row-42","cursor round-trips its last-row key under the same identity/seed");
+        var mismatchedSeed=new object?[]{identityA,"seed-2",cursor,null};
+        Check(!(bool)tryDecode.Invoke(null,mismatchedSeed)!,"cursor fails closed when the caller's filters changed");
+        var mismatchedIdentity=new object?[]{identityB,"seed-1",cursor,null};
+        Check(!(bool)tryDecode.Invoke(null,mismatchedIdentity)!,"cursor fails closed when identity (map) differs");
+        foreach(var garbage in new[]{"","not-base64!!","AAAA"})
+            Check(!(bool)tryDecode.Invoke(null,new object?[]{identityA,"seed-1",garbage,null})!,"malformed cursor is refused, not thrown: "+garbage);
+        var snapshotMethod=snapshotType.GetMethod("Snapshot",Flags)!;
+        var writerParam=snapshotMethod.GetParameters().Last().ParameterType;
+        var context=ParseCommon("ObservationContext","{\"identity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0},\"tick\":\"1\"}");
+        var noOp=Delegate.CreateDelegate(writerParam,typeof(Program).GetMethod(nameof(WriteNothing),Flags)!);
+        var tokenA=snapshotMethod.Invoke(null,new object?[]{"kind",context,"entity-1",noOp});
+        var tokenB=snapshotMethod.Invoke(null,new object?[]{"kind",context,"entity-1",noOp});
+        var tokenField=tokenA!.GetType().GetProperty("Token")!;
+        Check(Equals(tokenField.GetValue(tokenA),tokenField.GetValue(tokenB)),"stateless snapshot token is deterministic for identical inputs");
+        var tokenDifferentEntity=snapshotMethod.Invoke(null,new object?[]{"kind",context,"entity-2",noOp});
+        Check(!Equals(tokenField.GetValue(tokenA),tokenField.GetValue(tokenDifferentEntity)),"snapshot token differs by entity id");
+
+        // ---- N01.03: readers accept a cursor within the byte bound instead of refusing any nonempty cursor.
+        var boundedCursor=new string('A',64);
+        var oversizedCursor=new string('A',4097);
+        foreach(var (toolType,requestType) in new[]{
+            ("NativePawnObservationTools","ListPawnsRequest"),
+            ("NativeRoomObservationTools","ListRoomsRequest"),
+            ("NativeResearchObservationTools","ResearchRequest"),
+            ("NativeBuildingObservationTools","ListBuildingsRequest"),
+        }) {
+            var toolTypeRef=bridge.GetType("HomeBridge.BridgeTools."+toolType,true)!;
+            var requestTypeRef=bridge.GetType("RimGovernor.Protocol.Observations."+requestType,true)!;
+            var parser=requestTypeRef.GetProperty("Parser")!.GetValue(null)!;
+            object Parse(string cursorValue)=>parser.GetType().GetMethod("ParseJson")!.Invoke(parser,new object[]{"{"+scope+",\"page\":{\"cursor\":\""+cursorValue+"\"}}"})!;
+            bool Accepts(object request)=>(bool)toolTypeRef.GetMethod("Validate",Flags)!.Invoke(null,new object?[]{request,null})!;
+            Check(Accepts(Parse(boundedCursor)),"a within-bound nonempty cursor is now accepted by "+toolType);
+            Check(!Accepts(Parse(oversizedCursor)),"an oversized cursor is still refused by "+toolType);
+        }
+
         Console.WriteLine(checks+" compiled observation request/binder assertions passed; no gameplay assertions.");return 0;
     }
+    private static void WriteNothing(BinaryWriter writer) { }
 }
