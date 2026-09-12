@@ -734,6 +734,11 @@ expand these into another nested task tree; remove a row when its outcome is met
   construction receipts do not certify comfort recovery. Targeted native acceptance
   of the complete construction/use sequence and remaining compiler integration
   checks are still in progress; comfort is not yet accepted as complete.
+  Equipment policy now has typed census review, stable replacement selection and
+  bounded production proposals with material preservation, shared budget inputs
+  and existing-bill protection. Native gear/workshop projections, production work
+  requirements, durable routine integration and acceptance remain open; these
+  proposals are not connected to execution yet.
   Further need inputs, method selection and execution composition for
   additional routine methods remain open: equipment, comfort/expansion, the ten
   `colony_upkeep.CONTRACTS` needs, player resource targets, and policy-generated

@@ -192,9 +192,17 @@ async def wait_review(database, after_revision=0):
             await asyncio.sleep(.05)
 
 
+async def assert_routine_running(http):
+    state = await http("GET", "/api/state")
+    if state.get("mode") != "automate":
+        clock = await http("GET", "/api/player/clock")
+        raise AssertionError(f"Routine acceptance interrupted: state={state}, clock={clock}")
+
+
 async def wait_building_method(http, database, definition, count, *, shell=False, timeout=180):
     async with asyncio.timeout(600 if shell else timeout):
         while True:
+            await assert_routine_running(http)
             with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True) as db:
                 rows = db.execute("SELECT DISTINCT m.plan_id FROM goal_methods m JOIN actions a ON a.plan_id=m.plan_id WHERE a.definition=?", (definition,)).fetchall()
             assert len(rows) <= 1, "Duplicate building methods"
@@ -508,6 +516,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                     report['comfort_plans'][definition] = await wait_building_method(http, database, definition, 1, timeout=600)
                 async with asyncio.timeout(600):
                     while True:
+                        await assert_routine_running(http)
                         recovered = routine_evidence(database, identity, enabled=True, allow_methods=True)
                         if recovered['goals']['EnsureComfort']['Need'] == 'recovered':
                             assert recovered['goals']['EnsureComfort']['Status'] == 'satisfied'

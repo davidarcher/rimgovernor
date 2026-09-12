@@ -1,4 +1,5 @@
 import copy
+import asyncio
 from pathlib import Path
 import sys
 
@@ -9,6 +10,20 @@ try:
     import native_go_routine_acceptance as probe
 finally:
     sys.path.pop(0)
+
+
+def test_routine_wait_reports_interruption_without_acknowledging_or_reacquiring():
+    calls = []
+    async def http(method, path):
+        calls.append((method, path))
+        return {'mode': 'manual'} if path == '/api/state' else {'holds': [{'kind': 'interruption'}]}
+    with pytest.raises(AssertionError, match='interruption'):
+        asyncio.run(probe.assert_routine_running(http))
+    assert calls == [('GET', '/api/state'), ('GET', '/api/player/clock')]
+    async def running(method, path):
+        assert (method, path) == ('GET', '/api/state')
+        return {'mode': 'automate'}
+    asyncio.run(probe.assert_routine_running(running))
 
 
 def test_medical_care_native_evidence_uses_python_conditions_and_rejects_false_recovery():
