@@ -514,7 +514,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 for definition in ('Table1x2c', 'DiningChair', 'HorseshoesPin'):
                     # Native dining chairs require 8,000 work, unlike starter spots.
                     report['comfort_plans'][definition] = await wait_building_method(http, database, definition, 1, timeout=600)
-                async with asyncio.timeout(600):
+                async with asyncio.timeout(900):
                     while True:
                         await assert_routine_running(http)
                         recovered = routine_evidence(database, identity, enabled=True, allow_methods=True)
@@ -552,6 +552,8 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 assert int(native['indoorSleepingCapacity']) >= report['sleeping_setup']['colonists']
                 report['shelter_outcome'] = native
             if comfort_methods:
+                report['comfort_fixture'] = payload(await evidence.call(bridge, 'comfort-inspect', 'test/comfort_inspect', {}))
+                assert report['comfort_fixture']['TriggerCount'] == 1 and not report['comfort_fixture']['Armed']
                 native = outcome(await wire(bridge, 'comfort-outcome', 'observations_read_colony_facts', {'scope': {'expectedIdentity': identity}, 'planning': False}), 'observed')
                 report['comfort_outcome'] = native
                 audit_comfort_use(report['comfort_recovered'], outcome(outcome(native['upkeep'], 'observed')['comfort'], 'observed'))
@@ -631,6 +633,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                     if not report['passed'] and comfort_methods:
                         try:
                             await bridge.connect()
+                            report['failure_comfort_fixture'] = payload(await evidence.call(bridge, 'failure-comfort-inspect', 'test/comfort_inspect', {}))
                             report['failure_colony'] = await wire(bridge, 'failure-comfort-colony', 'observations_read_colony_facts', {'scope': {'expectedIdentity': identity}, 'planning': True})
                             report['failure_comfort_legacy'] = payload(await evidence.call(bridge, 'failure-comfort-legacy', 'home/colony_facts', {'planning': True}))
                             report['failure_comfort_pawns'] = payload(await evidence.call(bridge, 'failure-comfort-pawns', 'home/list_pawns', {'colonistsOnly': True, 'work': True, 'bio': True, 'health': True, 'equipment': True, 'needs': True}))

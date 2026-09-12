@@ -8001,14 +8001,21 @@
           "path": "scripts/fixtures/ComfortFixture.cs",
           "line": 14,
           "declaration": "[Tool(\"test/comfort_foothold\", Description = \"UNSAFE FOR MODEL EXECUTION. Prepare a disposable existing roofed room, ordinary sleeping/cooking/storage, food, rice field and healthy workers so optional comfort can be tested after startup. Does not create tables, chairs, recreation furniture or their use.\")]\n        public async Task<object> Foothold(IRimBridgeContext ctx, CancellationToken cancellationToken, int x, int z)",
-          "source_sha256": "56214f74f254163473ebd8f13011c01217ada1dafc0e8cb9598ed4af672b5659"
+          "source_sha256": "6c4b7b0c249387e50895dd7c123506264b88cf676dc13eb684bc5bd9d43cc04d"
         },
         {
           "name": "test/comfort_inputs",
           "path": "scripts/fixtures/ComfortFixture.cs",
-          "line": 83,
+          "line": 104,
           "declaration": "[Tool(\"test/comfort_inputs\", Description = \"Supply disposable construction wood, or prepare hunger/recreation needs after furniture construction. Does not place furniture or order its use.\")]\n        public async Task<object> Inputs(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Prepare needs only after ordinary furniture construction.\", DefaultValue = false)] bool needs = false)",
-          "source_sha256": "56214f74f254163473ebd8f13011c01217ada1dafc0e8cb9598ed4af672b5659"
+          "source_sha256": "6c4b7b0c249387e50895dd7c123506264b88cf676dc13eb684bc5bd9d43cc04d"
+        },
+        {
+          "name": "test/comfort_inspect",
+          "path": "scripts/fixtures/ComfortFixture.cs",
+          "line": 84,
+          "declaration": "[Tool(\"test/comfort_inspect\", Description = \"Read disposable comfort fixture trigger and native recreation access without changing needs or jobs.\")]\n        public async Task<object> Inspect(IRimBridgeContext ctx, CancellationToken cancellationToken)",
+          "source_sha256": "6c4b7b0c249387e50895dd7c123506264b88cf676dc13eb684bc5bd9d43cc04d"
         },
         {
           "name": "test/configure_start",
@@ -9874,6 +9881,21 @@
       },
       {
         "name": "test/comfort_inputs",
+        "domain_item_id": null,
+        "schema_owner_chunk": "G01.02",
+        "native_owner_chunk": "N01.07",
+        "build_role": "fixture",
+        "fixtures": [],
+        "native_scenarios": [],
+        "status": "pending",
+        "uncovered_acceptance": [
+          "Capture actual SDK discovery and representative replies for this build; declarations are source evidence only.",
+          "Audit every advertised/implemented argument variant, defaults, invalid values and refusal semantics; signatures retain advertised contracts but are not an exhaustive behavioral schema.",
+          "Verify isolated native outcomes and relevant interruption/load/player-override behavior; linked existing scenarios are candidates, not per-tool acceptance."
+        ]
+      },
+      {
+        "name": "test/comfort_inspect",
         "domain_item_id": null,
         "schema_owner_chunk": "G01.02",
         "native_owner_chunk": "N01.07",

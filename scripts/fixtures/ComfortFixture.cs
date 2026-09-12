@@ -75,8 +75,29 @@ namespace HomeBridge.BridgeTools
                     var plant = (Plant)ThingMaker.MakeThing(rice); GenSpawn.Spawn(plant, cell, map); plant.Growth = .5f;
                 }
                 map.regionAndRoomUpdater.RebuildAllRegionsAndRooms(); center.GetRoom(map).Temperature = 21f;
+                map.GetComponent<ComfortNeedsFixture>().Arm();
                 return new { success = true, tick = Find.TickManager.TicksGame, colonists = people.Count,
                     fieldCells = farmCells.Count, comfort = ComfortFacts.Read(map) };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/comfort_inspect", Description = "Read disposable comfort fixture trigger and native recreation access without changing needs or jobs.")]
+        public async Task<object> Inspect(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                var fixture = map.GetComponent<ComfortNeedsFixture>();
+                return new { success = true, tick = Find.TickManager.TicksGame, fixture.Armed, fixture.TriggerTick,
+                    fixture.TriggerCount, fixture.Facilities,
+                    recreation = map.listerBuildings.allBuildingsColonist.Where(b => b.def.building.joyKind != null)
+                        .Select(b => new { id = b.GetUniqueLoadID(),
+                            watchCells = WatchBuildingUtility.CalculateWatchCells(b.def, b.Position, b.Rotation, map)
+                                .Select(c => new { x = c.x, z = c.z }).ToList(),
+                            people = map.mapPawns.FreeColonistsSpawned.Select(p => new {
+                                id = p.GetUniqueLoadID(), joy = p.needs.joy.CurLevelPercentage,
+                                canWatch = WatchBuildingUtility.TryFindBestWatchCell(b, p, false, out _, out _),
+                                job = p.CurJob?.def.defName, target = p.CurJob?.targetA.Thing?.GetUniqueLoadID()
+                            }).ToList() }).ToList() };
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -104,6 +125,38 @@ namespace HomeBridge.BridgeTools
                 }
                 return new { success = true, needs, people = people.Select(p => p.GetUniqueLoadID()).ToList() };
             }, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    // Test-only need preparation fires once after ordinary construction, without
+    // a second bridge connection or ordering dining/recreation jobs.
+    public sealed class ComfortNeedsFixture : MapComponent
+    {
+        public bool Armed { get; private set; }
+        public int TriggerTick { get; private set; }
+        public int TriggerCount { get; private set; }
+        public string[] Facilities { get; private set; } = Array.Empty<string>();
+        public ComfortNeedsFixture(Map map) : base(map) { }
+        public void Arm()
+        {
+            if (Armed || TriggerCount != 0) throw new InvalidOperationException("Fresh comfort fixture required.");
+            Armed = true;
+        }
+        public override void MapComponentTick()
+        {
+            if (!Armed) return;
+            var definitions = new[] { "Table1x2c", "DiningChair", "HorseshoesPin" };
+            var buildings = definitions.Select(d => map.listerBuildings.allBuildingsColonist.FirstOrDefault(b => b.def.defName == d)).ToList();
+            if (buildings.Any(b => b == null)) return;
+            Armed = false;
+            TriggerTick = Find.TickManager.TicksGame;
+            TriggerCount++;
+            Facilities = buildings.Select(b => b.GetUniqueLoadID()).ToArray();
+            foreach (var pawn in map.mapPawns.FreeColonistsSpawned) {
+                pawn.needs.food.CurLevelPercentage = .1f;
+                pawn.needs.joy.CurLevelPercentage = .05f;
+                pawn.needs.rest.CurLevelPercentage = .95f;
+            }
         }
     }
 }
