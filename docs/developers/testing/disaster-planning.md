@@ -13,6 +13,10 @@ python scripts/native_go_routine_acceptance.py --root /worker/run --go-binary /i
 
 Keep one worker at two CPUs and 4 GB memory. The compound fixture seeds crop loss,
 damaged infrastructure, empty fuel, a roofed refuge, SolarFlare and ToxicFallout.
+The positive planning case uses a fixed Desert start and explicitly isolates
+non-player starting hostiles in the disposable fixture. This does not establish
+combat resolution; the Go emergency gate remains active and has separate
+preemption/clearance regression coverage.
 Require both worker and `run/native-go-routine-acceptance/result.json` to pass.
 The scenario compares typed recovery facts with the Python census and method
 reference, verifies durable damaged identities, priority promotion and bounded

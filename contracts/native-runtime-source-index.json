@@ -2549,7 +2549,7 @@
       "compilation": "production-bridge",
       "owner": "N01.03 native observation owner",
       "migration_status": "typed-recovery-planning-accepted",
-      "uncovered_acceptance": "Recovery job admission, safe-area method selection and actual service restoration through Go actions remain open.",
+      "uncovered_acceptance": "Native recovery job/area admission and actual service restoration through Go actions remain open.",
       "static_token_lines": [
         12,
         15,

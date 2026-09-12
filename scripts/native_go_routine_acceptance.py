@@ -317,6 +317,8 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
     if supply_history:
         assert not (sleeping_methods or cooking_methods or work_project or work_overrides or power_fixture or resource_rules)
         report['scope'] = 'Go retains the initial native startup-supply cohort across Manual and restart. Ordinary player Allow clears it; later Forbid on those cells does not reopen the need or cause a routine write.'
+    if disaster_review:
+        report['scope'] = 'Native compound-disaster facts feed durable Go needs and bounded recovery admission candidates. Fixture-only setup isolates starting hostiles. Verify exact damage, priority promotion, existing refuge identities, Manual, disabled restart and cleanup; no recovery job or area-lease execution claim.'
     evidence = Evidence(output)
     launched = False
     try:
