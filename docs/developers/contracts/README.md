@@ -22,6 +22,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Player action coverage](player-actions.md)
 - [Population commitments](population-contracts.md)
 - [Recovery and uncertain-write contracts](recovery-contracts.md)
+- [Disaster planning](disaster-planning.md)
 - [Research tied to colony needs](research.md)
 - [Session, checkpoint and clock contracts](session-contracts.md)
 - [Spatial contracts](spatial-contracts.md)

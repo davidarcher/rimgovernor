@@ -235,6 +235,16 @@ food|forced|mental` variants compare native inputs with Python and durable Go ne
 Replay with `RIMGOVERNOR_NATIVE_MOOD_CAPTURE=<capture-directory> go test
 ./internal/observation -run TestNativeRoutineMoodReplay`.
 
+Routine disaster history joins native environmental conditions and exact building
+service needs to the shared survival gates. It retains damaged identities, records
+ordered refuel/breakdown/repair needs and promotes affected service priorities.
+Unknown reads and expired conditions cannot certify recovery. Manual retains
+evidence; world replacement resets the episode. Native compound-disaster and
+captured replay acceptance cover planning, Manual and disabled restart; recovery
+action dispatch remains unavailable. See the
+[contract](../docs/developers/contracts/disaster-planning.md) and
+[acceptance commands](../docs/developers/testing/disaster-planning.md).
+
 `ReadRoutinePawns` adds the work-only detail selection to the same exact-ID read.
 It preserves native work applicability and numbered/checkbox mode. `AssignWork`
 selects specialists with stable ties, construction skill precedence and shared labor,

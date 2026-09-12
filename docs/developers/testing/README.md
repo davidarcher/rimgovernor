@@ -52,6 +52,7 @@ receipts establish accepted orders; pawn outcomes need scenario assertions.
 - [Verify equipment upkeep in Docker](equipment-upkeep.md)
 - [Verify medical care in Docker](medical-care-acceptance.md)
 - [Verify mood relief in Docker](mood-relief.md)
+- [Verify Go disaster planning](disaster-planning.md)
 - [Verify waste hauling and burial](waste-management.md)
 - [Verify native population outcomes](population-acceptance.md)
 - [Verify native trades](trade-acceptance.md)

@@ -821,7 +821,9 @@ expand these into another nested task tree; remove a row when its outcome is met
   deficits without replacing emergency, player or resource admission gates.
   Unknown reads, missing buildings and condition expiry cannot establish restored
   services. Manual retains evidence and invalidates work; world replacement resets
-  history. Native compound-disaster review/replay acceptance remains pending.
+  history. Native compound-disaster acceptance and captured Go replay verify
+  damaged wall/generator identities, ordinary repair/refuel needs, compound
+  conditions, priority promotion, Manual and disabled restart.
   Recovery job previews, safe-area method selection and action composition remain
   open alongside their action family.
 
