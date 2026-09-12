@@ -3204,8 +3204,8 @@ namespace RimGovernor.Protocol.Receipts {
   }
 
   /// <summary>
-  /// Output quantities come from ordinary native placement callbacks for this
-  /// admitted source. Expected standing yield never populates produced_units.
+  /// Output quantities come from ordinary native placement callbacks or exact
+  /// source-to-corpse identity. Expected yield never populates produced_units.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class AcquisitionOutput : pb::IMessage<AcquisitionOutput>

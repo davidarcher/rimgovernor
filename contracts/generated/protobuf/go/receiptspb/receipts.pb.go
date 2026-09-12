@@ -1053,8 +1053,8 @@ func (x *SnapshotEvidence) GetAfterToken() string {
 	return ""
 }
 
-// Output quantities come from ordinary native placement callbacks for this
-// admitted source. Expected standing yield never populates produced_units.
+// Output quantities come from ordinary native placement callbacks or exact
+// source-to-corpse identity. Expected yield never populates produced_units.
 type AcquisitionOutput struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ThingId       *string                `protobuf:"bytes,1,opt,name=thing_id,json=thingId,proto3,oneof" json:"thing_id,omitempty"`

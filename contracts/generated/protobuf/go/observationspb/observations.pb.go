@@ -20538,6 +20538,7 @@ type AcquisitionFacts struct {
 	Yield          *float64               `protobuf:"fixed64,5,opt,name=yield,proto3,oneof" json:"yield,omitempty"`
 	NutritionYield *float64               `protobuf:"fixed64,6,opt,name=nutrition_yield,json=nutritionYield,proto3,oneof" json:"nutrition_yield,omitempty"`
 	Designated     *bool                  `protobuf:"varint,7,opt,name=designated,proto3,oneof" json:"designated,omitempty"`
+	Hunt           *bool                  `protobuf:"varint,8,opt,name=hunt,proto3,oneof" json:"hunt,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -20617,6 +20618,13 @@ func (x *AcquisitionFacts) GetNutritionYield() float64 {
 func (x *AcquisitionFacts) GetDesignated() bool {
 	if x != nil && x.Designated != nil {
 		return *x.Designated
+	}
+	return false
+}
+
+func (x *AcquisitionFacts) GetHunt() bool {
+	if x != nil && x.Hunt != nil {
+		return *x.Hunt
 	}
 	return false
 }
@@ -22473,6 +22481,7 @@ type ColonyFactsSnapshot struct {
 	Completeness            *Completeness                `protobuf:"bytes,35,opt,name=completeness,proto3" json:"completeness,omitempty"`
 	Issues                  []*ReadIssue                 `protobuf:"bytes,36,rep,name=issues,proto3" json:"issues,omitempty"`
 	PendingWoodUnits        *float64                     `protobuf:"fixed64,37,opt,name=pending_wood_units,json=pendingWoodUnits,proto3,oneof" json:"pending_wood_units,omitempty"`
+	PendingHunts            *uint32                      `protobuf:"varint,38,opt,name=pending_hunts,json=pendingHunts,proto3,oneof" json:"pending_hunts,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -22762,6 +22771,13 @@ func (x *ColonyFactsSnapshot) GetIssues() []*ReadIssue {
 func (x *ColonyFactsSnapshot) GetPendingWoodUnits() float64 {
 	if x != nil && x.PendingWoodUnits != nil {
 		return *x.PendingWoodUnits
+	}
+	return 0
+}
+
+func (x *ColonyFactsSnapshot) GetPendingHunts() uint32 {
+	if x != nil && x.PendingHunts != nil {
+		return *x.PendingHunts
 	}
 	return 0
 }
@@ -27359,7 +27375,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"production\x18\x05 \x03(\v2+.rimgovernor.observations.v1.FoodProductionR\n" +
 	"productionB\t\n" +
-	"\a_usable\"\xdf\x02\n" +
+	"\a_usable\"\x81\x03\n" +
 	"\x10AcquisitionFacts\x12>\n" +
 	"\x06source\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x06source\x12\x1f\n" +
 	"\bresource\x18\x02 \x01(\tH\x00R\bresource\x88\x01\x01\x12\x17\n" +
@@ -27369,13 +27385,15 @@ const file_observations_proto_rawDesc = "" +
 	"\x0fnutrition_yield\x18\x06 \x01(\x01H\x04R\x0enutritionYield\x88\x01\x01\x12#\n" +
 	"\n" +
 	"designated\x18\a \x01(\bH\x05R\n" +
-	"designated\x88\x01\x01B\v\n" +
+	"designated\x88\x01\x01\x12\x17\n" +
+	"\x04hunt\x18\b \x01(\bH\x06R\x04hunt\x88\x01\x01B\v\n" +
 	"\t_resourceB\a\n" +
 	"\x05_treeB\a\n" +
 	"\x05_foodB\b\n" +
 	"\x06_yieldB\x12\n" +
 	"\x10_nutrition_yieldB\r\n" +
-	"\v_designated\"\x8d\x01\n" +
+	"\v_designatedB\a\n" +
+	"\x05_hunt\"\x8d\x01\n" +
 	"\x0fButcheringFacts\x12<\n" +
 	"\x05bench\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x05bench\x12<\n" +
 	"\x05bills\x18\x02 \x03(\v2&.rimgovernor.observations.v1.BillStateR\x05bills\"\x93\x02\n" +
@@ -27553,7 +27571,7 @@ const file_observations_proto_rawDesc = "" +
 	"\rUpkeepSection\x12F\n" +
 	"\bobserved\x18\x01 \x01(\v2(.rimgovernor.observations.v1.UpkeepFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
-	"\aoutcome\"\x87\x15\n" +
+	"\aoutcome\"\xc3\x15\n" +
 	"\x13ColonyFactsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12A\n" +
 	"\x06naming\x18\x02 \x01(\v2).rimgovernor.observations.v1.ColonyNamingR\x06naming\x12*\n" +
@@ -27596,7 +27614,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x05waste\x18\" \x01(\v2'.rimgovernor.observations.v1.WasteReplyR\x05waste\x12M\n" +
 	"\fcompleteness\x18# \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\x12>\n" +
 	"\x06issues\x18$ \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x121\n" +
-	"\x12pending_wood_units\x18% \x01(\x01H\rR\x10pendingWoodUnits\x88\x01\x01B\x11\n" +
+	"\x12pending_wood_units\x18% \x01(\x01H\rR\x10pendingWoodUnits\x88\x01\x01\x12(\n" +
+	"\rpending_hunts\x18& \x01(\rH\x0eR\fpendingHunts\x88\x01\x01B\x11\n" +
 	"\x0f_colonist_countB\x0f\n" +
 	"\r_worker_countB\b\n" +
 	"\x06_biomeB\x11\n" +
@@ -27610,7 +27629,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x1b_sleeping_temperature_max_cB\x18\n" +
 	"\x16_outdoor_temperature_cB\x0f\n" +
 	"\r_food_storageB\x15\n" +
-	"\x13_pending_wood_units\"\xf6\x01\n" +
+	"\x13_pending_wood_unitsB\x10\n" +
+	"\x0e_pending_hunts\"\xf6\x01\n" +
 	"\x12ColonyFactsRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12\x1f\n" +
 	"\bplanning\x18\x02 \x01(\bH\x00R\bplanning\x88\x01\x01\x12<\n" +

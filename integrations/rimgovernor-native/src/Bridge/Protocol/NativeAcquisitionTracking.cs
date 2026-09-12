@@ -12,7 +12,8 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    internal sealed class NativeAcquisitionRecord
+    internal interface INativeAcquisitionRecord { Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context); }
+    internal sealed class NativeAcquisitionRecord : INativeAcquisitionRecord
     {
         internal readonly Plant Source;
         internal readonly string SourceId, Resource;
@@ -39,7 +40,7 @@ namespace HomeBridge.BridgeTools
             }
             return result;
         }
-        internal Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context) => Progress(attempt, context, Evidence());
+        public Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context) => Progress(attempt, context, Evidence());
         internal static Receipts.Progress Progress(Common.AttemptKey attempt, Common.ObservationContext context, Receipts.AcquisitionEffect observed)
         {
             var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = true };

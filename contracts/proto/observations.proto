@@ -448,7 +448,7 @@ message PlanningFacts { repeated PlanningDefinition definitions = 1; CellsSnapsh
 message FoodProduct { optional string def_name = 1; optional int64 count = 2; optional bool edible = 3; optional double nutrition = 4; optional double nutrition_demand_per_day = 5; optional double rot_days = 6; }
 message FoodProduction { optional string recipe = 1; optional bool available = 2; repeated FoodProduct products = 3; }
 message CookingFacts { EntityRef bench = 1; optional bool usable = 2; repeated RecipeState recipes = 3; repeated BillState bills = 4; repeated FoodProduction production = 5; }
-message AcquisitionFacts { EntityRef source = 1; optional string resource = 2; optional bool tree = 3; optional bool food = 4; optional double yield = 5; optional double nutrition_yield = 6; optional bool designated = 7; }
+message AcquisitionFacts { EntityRef source = 1; optional string resource = 2; optional bool tree = 3; optional bool food = 4; optional double yield = 5; optional double nutrition_yield = 6; optional bool designated = 7; optional bool hunt = 8; }
 message ButcheringFacts { EntityRef bench = 1; repeated BillState bills = 2; }
 message FoodCorpse { CorpseState corpse = 1; optional bool fresh = 2; optional bool reachable = 3; optional string meat_def = 4; optional double nutrition_yield = 5; }
 message ColonyNaming { optional int32 window_id = 1; optional string faction_name = 2; optional string settlement_name = 3; repeated ReadIssue issues = 4; }
@@ -493,6 +493,7 @@ message ColonyFactsSnapshot {
   FoodSupplySection food_supply = 28; ForecastSection forecast = 29; UpkeepSection upkeep = 30; DevelopmentSection development = 31;
   PlanningSection planning = 32; RecoveryReply recovery = 33; WasteReply waste = 34; Completeness completeness = 35; repeated ReadIssue issues = 36;
   optional double pending_wood_units = 37;
+  optional uint32 pending_hunts = 38;
 }
 message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; repeated string requested_definition_names = 3; rimgovernor.common.v1.PageRequest page = 4; }
 message ColonyFactsReply { oneof outcome { ColonyFactsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }

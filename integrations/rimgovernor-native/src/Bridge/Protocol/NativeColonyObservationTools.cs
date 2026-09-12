@@ -133,8 +133,8 @@ namespace HomeBridge.BridgeTools
                 result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Section is not yet projected."));
             try { NativePlantAcquisition.Read(result, map, center, humanFood, limit); }
             catch (Exception) {
-                result.Acquisition.Clear(); result.ClearPendingFoodNutrition(); result.ClearPendingWoodUnits();
-                foreach (var field in new[] { "acquisition", "pending_food_nutrition", "pending_wood_units" })
+                result.Acquisition.Clear(); result.ClearPendingFoodNutrition(); result.ClearPendingWoodUnits(); result.ClearPendingHunts();
+                foreach (var field in new[] { "acquisition", "pending_food_nutrition", "pending_wood_units", "pending_hunts" })
                     result.Issues.Add(Issue(field, Common.UnavailableReason.ReadFailed, "Complete safe acquisition facts are unavailable."));
             }
             result.Planning = request.Planning ? new Obs.PlanningSection { Observed = Planning(map, center, request, context, limit) }

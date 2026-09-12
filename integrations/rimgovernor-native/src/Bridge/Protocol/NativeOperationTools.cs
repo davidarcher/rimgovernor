@@ -22,7 +22,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeDraftRecord> Drafts = new Dictionary<Common.AttemptKey, NativeDraftRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeMovementRecord> Movements = new Dictionary<Common.AttemptKey, NativeMovementRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCombatRecord> Combat = new Dictionary<Common.AttemptKey, NativeCombatRecord>();
-        internal readonly Dictionary<Common.AttemptKey, NativeAcquisitionRecord> Acquisition = new Dictionary<Common.AttemptKey, NativeAcquisitionRecord>();
+        internal readonly Dictionary<Common.AttemptKey, INativeAcquisitionRecord> Acquisition = new Dictionary<Common.AttemptKey, INativeAcquisitionRecord>();
         internal readonly Dictionary<Common.AttemptKey, Operations.PatchPawn> WorkSettings = new Dictionary<Common.AttemptKey, Operations.PatchPawn>();
         internal readonly Dictionary<Common.AttemptKey, Receipts.DesignationEffect> AllowedSupplies = new Dictionary<Common.AttemptKey, Receipts.DesignationEffect>();
         private NativeOperationState(Common.Identity identity)
@@ -213,7 +213,7 @@ namespace HomeBridge.BridgeTools
                     var lookup = state.Ledger.Lookup(parsed.Attempt, context);
                     if (lookup.Failure != null) return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = lookup.Failure });
                     Receipts.DesignationEffect allowed;
-                    NativeAcquisitionRecord acquisition;
+                    INativeAcquisitionRecord acquisition;
                     if (state.Acquisition.TryGetValue(parsed.Attempt, out acquisition))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = acquisition.Observe(parsed.Attempt, context) }));
                     Operations.PatchPawn work;

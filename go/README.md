@@ -72,7 +72,7 @@ pending methods; direct native work-tab edits revoke controller authority. Readb
 checks actual priorities as well as the correlated native outcome. Settings updates
 need no simulation ticks and do not certify that pawn production occurred.
 
-`--routine-acquisition-plans` compiles safe wild-plant food and wood acquisition
+`--routine-acquisition-plans` compiles safe wild-plant food, bounded hunting and wood acquisition
 in batches of at most eight sources. It requires routine reviews; execution uses
 `--routine-methods`. Native pending yield reduces new designations but never
 increases stock or food runway. Food selection uses the existing diet, rot and
@@ -83,6 +83,10 @@ write rechecks the exact source CAS; uncertain attempts only observe. Native
 harvest and placement callbacks account for actual produced stacks, including
 merges. Missing or consumed output remains unknown, and a completed designation
 alone is not production. Ordinary labor uses the shared healthy-colony clock.
+Hunting follows plant food, allows at most two outstanding designations, and
+requires a native safe hunter route, an ordinary non-explosive ranged weapon and
+a usable butchering bill. Exact fresh corpses complete material acquisition;
+expected meat, pending hunts and fresh carcasses never become edible stock.
 Gameplay acceptance of this path remains in G01.12.
 
 `RankDevelopment` preserves accepted shared-action commitments while ranking new

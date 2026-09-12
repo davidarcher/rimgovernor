@@ -139,7 +139,11 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context) (RoutineAc
 			}
 		}
 	}
-	selected, err := policy.SelectAcquisition(projection.Acquisition, deficit, pending, food, held)
+	slots := domain.Unknown[int]()
+	if n, known := projection.PendingHunts.Value(); known {
+		slots = domain.Known(max(0, 2-n))
+	}
+	selected, err := policy.SelectAcquisition(projection.Acquisition, deficit, pending, food, held, slots)
 	if err != nil {
 		return RoutineAcquisitionResult{Reason: BuildingMethodUnknown}, nil
 	}

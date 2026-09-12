@@ -10,7 +10,7 @@ import (
 
 func TestAcquisitionCensusBindsSourceSnapshotAndYield(t *testing.T) {
 	base := colonyFixture(t).GetObserved()
-	base.Acquisition = []*o.AcquisitionFacts{{Source: &o.EntityRef{Id: proto.String("plant"), DefName: proto.String("Oak"), MapId: base.Context.Identity.MapId, Position: proto.Clone(base.Center).(*c.Cell), Snapshot: &o.SnapshotRef{EntityId: proto.String("plant"), Token: proto.String("cas"), Context: proto.Clone(base.Context).(*c.ObservationContext)}}, Resource: proto.String("WoodLog"), Tree: proto.Bool(true), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(10), NutritionYield: proto.Float64(0)}}
+	base.Acquisition = []*o.AcquisitionFacts{{Source: &o.EntityRef{Id: proto.String("plant"), DefName: proto.String("Oak"), MapId: base.Context.Identity.MapId, Position: proto.Clone(base.Center).(*c.Cell), Snapshot: &o.SnapshotRef{EntityId: proto.String("plant"), Token: proto.String("cas"), Context: proto.Clone(base.Context).(*c.ObservationContext)}}, Resource: proto.String("WoodLog"), Hunt: proto.Bool(false), Tree: proto.Bool(true), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(10), NutritionYield: proto.Float64(0)}}
 	base.Issues = nil
 	if err := validateColonyAcquisition(base); err != nil {
 		t.Fatal(err)

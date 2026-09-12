@@ -44,7 +44,7 @@ namespace HomeBridge.BridgeTools
             var plants = map.listerThings.AllThings.OfType<Plant>().Where(p => p.def.plant.harvestedThingDef != null).ToArray();
             // The candidate pool is the nearest bounded set; pending yield below covers all designations.
             var selected = plants.Where(p => p.Position.DistanceTo(center) <= 35 && (p.def.plant.IsTree || humanFood(p.def.plant.harvestedThingDef)) && Eligible(p))
-                .OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber).Take(limit).ToArray();
+                .OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber).Take(Math.Max(0, limit - 2)).ToArray();
             foreach (var plant in selected)
             {
                 var resource = plant.def.plant.harvestedThingDef;
@@ -54,10 +54,11 @@ namespace HomeBridge.BridgeTools
                         Position = new Common.Cell { X = plant.Position.x, Z = plant.Position.z }, Snapshot = Snapshot(plant, result.Context) },
                     Resource = resource.defName, Tree = plant.def.plant.IsTree, Food = food, Yield = plant.YieldNow(),
                     NutritionYield = food ? plant.YieldNow() * resource.GetStatValueAbstract(StatDefOf.Nutrition) : 0,
-                    Designated = ResourceAcquisitionTools.Designated(plant) });
+                    Designated = ResourceAcquisitionTools.Designated(plant), Hunt = false });
             }
             var pending = plants.Where(ResourceAcquisitionTools.Designated).ToArray();
             result.PendingFoodNutrition = pending.Where(p => humanFood(p.def.plant.harvestedThingDef)).Sum(p => (double)p.YieldNow() * p.def.plant.harvestedThingDef.GetStatValueAbstract(StatDefOf.Nutrition));
+            NativeHuntAcquisition.Read(result, map, center, limit);
             result.PendingWoodUnits = pending.Where(p => p.def.plant.harvestedThingDef == ThingDefOf.WoodLog).Sum(p => (double)p.YieldNow());
         }
         private static bool Prepare(Operations.AcquireResource command, Common.ObservationContext context, out Plant? plant, out Common.Failure failure)
@@ -75,6 +76,7 @@ namespace HomeBridge.BridgeTools
         {
             try
             {
+                if (NativeHuntAcquisition.IsHunt(command)) return NativeHuntAcquisition.Preview(command, context);
                 if (!Prepare(command, context, out _, out var failure)) return new Operations.PreviewReply { Failure = failure };
                 return new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation { Context = context.Clone(), Accepted = true } };
             }
@@ -82,6 +84,7 @@ namespace HomeBridge.BridgeTools
         }
         internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
         {
+            if (NativeHuntAcquisition.IsHunt(request.Operation.AcquireResource)) return NativeHuntAcquisition.Execute(state, request, context);
             NativeAttemptLedger.Admission? handle = null; Authority.Owner? owner = null; Receipts.EffectEvidence? evidence = null;
             var pre = request.Precondition; var command = request.Operation.AcquireResource;
             try

@@ -54,8 +54,8 @@ message SnapshotEvidence {
   optional string before_token = 2;
   optional string after_token = 3;
 }
-// Output quantities come from ordinary native placement callbacks for this
-// admitted source. Expected standing yield never populates produced_units.
+// Output quantities come from ordinary native placement callbacks or exact
+// source-to-corpse identity. Expected yield never populates produced_units.
 message AcquisitionOutput { optional string thing_id = 1; optional int32 units = 2; }
 message AcquisitionEffect {
   optional string source_id = 1;
