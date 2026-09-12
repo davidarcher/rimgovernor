@@ -8,6 +8,9 @@ import (
 
 func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error {
 	counts := map[string]int{"items": len(v.Items), "structures": len(v.Structures), "fires": len(v.Fires), "filth": len(v.Filth), "animals": len(v.Animals), "people": len(v.People), "beds": len(v.Beds)}
+	if v.HomeCoverage != nil {
+		counts["home_coverage"] = 1
+	}
 	for _, n := range counts {
 		if n > 256 {
 			return contract("upkeep census exceeds bound")
@@ -40,7 +43,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 		}
 		b := row.Building
 		if !entity(b.Building, seen) || b.HitPoints != nil && b.GetHitPoints() < 0 || b.MaxHitPoints != nil && b.GetMaxHitPoints() < 0 || b.HitPoints != nil && b.MaxHitPoints != nil && b.GetHitPoints() > b.GetMaxHitPoints() || row.RepairPriority != nil && (row.GetRepairPriority() < 0 || row.GetRepairPriority() > 2) ||
-			!proto.Equal(b, &o.BuildingState{Building: b.Building, HitPoints: b.HitPoints, MaxHitPoints: b.MaxHitPoints}) || !proto.Equal(row, &o.UpkeepStructure{Building: b, Home: row.Home, RepairPriority: row.RepairPriority}) {
+			!proto.Equal(b, &o.BuildingState{Building: b.Building, HitPoints: b.HitPoints, MaxHitPoints: b.MaxHitPoints}) || !number(row.Flammability) || !proto.Equal(row, &o.UpkeepStructure{Building: b, Home: row.Home, RepairPriority: row.RepairPriority, Flammability: row.Flammability}) {
 			return contract("invalid upkeep structure")
 		}
 	}
@@ -96,6 +99,39 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 		for _, stock := range row.ReachableStoredFeed {
 			if stock == nil || !entity(stock.Item, stocks) || !number(stock.Nutrition) || stock.Count != nil && stock.GetCount() < 0 || stock.RotTicks != nil && stock.GetRotTicks() < 0 || stock.HolderId != nil && stock.GetHolderId() != "" || len(stock.EaterIds) != 1 || stock.EaterIds[0] != p.Pawn.GetId() || !proto.Equal(stock, &o.FoodStock{Item: stock.Item, Count: stock.Count, HolderId: stock.HolderId, Nutrition: stock.Nutrition, EaterIds: stock.EaterIds, Perishable: stock.Perishable, RotTicks: stock.RotTicks, Roofed: stock.Roofed}) {
 				return contract("invalid reachable animal feed")
+			}
+		}
+	}
+	if v.HomeCoverage != nil {
+		h := v.HomeCoverage.GetObserved()
+		if h == nil {
+			if err := validateUnavailable(v.HomeCoverage.GetUnavailable()); err != nil {
+				return err
+			}
+		} else {
+			if h.Revision == nil || h.GetRevision() < 0 || colonyCounts(h.Completeness, len(h.Targets), 256) != nil {
+				return contract("invalid Home coverage census")
+			}
+			seen := map[string]bool{}
+			for _, row := range h.Targets {
+				if row == nil || validID(row.GetId()) != nil || seen[row.GetId()] || row.Snapshot != nil || row.ShapeToken != nil && validID(row.GetShapeToken()) != nil || !diagnostic(row.Blocker) || row.MissingCells != nil && row.GetMissingCells() > 256 || row.ExcludedCells != nil && (row.GetExcludedCells() > 256 || row.MissingCells != nil && row.GetExcludedCells() > row.GetMissingCells()) || len(row.Cells) > 256 {
+					return contract("invalid Home coverage target")
+				}
+				seen[row.GetId()] = true
+				cells := map[[2]int32]bool{}
+				for _, cell := range row.Cells {
+					if !colonyCell(cell, size) {
+						return contract("invalid Home coverage cell")
+					}
+					key := [2]int32{cell.GetX(), cell.GetZ()}
+					if cells[key] {
+						return contract("duplicate Home cell")
+					}
+					cells[key] = true
+				}
+				if len(row.Cells) > 0 && row.MissingCells != nil && row.GetMissingCells() > uint32(len(row.Cells)) {
+					return contract("Home deficit exceeds footprint")
+				}
 			}
 		}
 	}

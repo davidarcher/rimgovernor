@@ -144,7 +144,7 @@ func TestNativeUpkeepReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(active.Goals) != 26 {
+	if len(active.Goals) != 28 {
 		t.Fatal("incomplete maintained goals")
 	}
 	medicalNeed := domain.NeedRecovered

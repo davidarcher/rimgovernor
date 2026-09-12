@@ -54,7 +54,7 @@ Startup supply reviews retain the first known native forbidden-supply census.
 Fresh reads can shrink that cohort, but later player forbids cannot expand or
 revive it. Unknown reads preserve pending cells without proving recovery; Manual
 and direction changes preserve the cohort. World replacement and tick rewind
-initialize a new cohort. The current journal requires fresh schema-30 state.
+initialize a new cohort. The current journal requires fresh schema-31 state.
 These cells describe the startup need, not ownership or permission to issue an
 Allow order. That action family remains in G01.07b.
 
@@ -322,6 +322,20 @@ users, access and comfort against native facts and retain exact pawn/bed use.
 A safe assignment still needs observed use; unsafe assignments remain deficits.
 Native floor-place replay establishes upgrade detection; actual real-bed use
 acceptance and sleeping assignment/building methods remain open.
+Completed autonomous building methods retain exact native origin/current IDs in
+the journal, including after retirement and Manual. Routine reviews query those
+current IDs inside the paused observation bracket and verify definition, position,
+rotation and material before deriving Home coverage or stone-shell needs. Player
+placements, explicit cancellation and replacement geometry confer no ownership.
+Unknown queries preserve established needs. Home exclusions remain explicit;
+Home/stone execution and stockpile ownership await their shared action families.
+The ownership census is bounded to 256 method records and 256 completed buildings;
+larger histories produce unknown ownership instead of silently truncating it.
+`native_go_routine_acceptance.py --shelter-methods --facility-upkeep` uses the
+existing `UpkeepFixture` to remove one Home cell after normal shell construction.
+Replay the captured native facts against its real journal backup with
+`RIMBOT_NATIVE_FACILITY_REPLAY=<absolute-output-directory>` and
+`go test ./internal/observation -run TestNativeFacilityUpkeepReplay -count=1`.
 Animal upkeep reviews retain containment risk and per-animal feed thresholds.
 Feed shares the observed diet/rot forecast with human consumers. Missing censuses
 remain unknown; a complete empty census clears animal needs. Release and slaughter

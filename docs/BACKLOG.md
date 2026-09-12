@@ -766,8 +766,14 @@ expand these into another nested task tree; remove a row when its outcome is met
   and durable needs. Sleeping upkeep now distinguishes upgrade, unsafe assignment
   and unobserved use, with exact pawn/bed use history across Manual/restart.
   Populated native floor-place parity and Go replay verify upgrade needs; real-bed
-  use acceptance and assignment/building method composition remain open. Home
-  coverage and stone shell needs remain open, along with animal method composition.
+  use acceptance and assignment/building method composition remain open, along with
+  animal method composition. Completed autonomous construction now retains native
+  identity across method retirement and Manual. Paused exact-ID queries verify
+  unchanged geometry before durable Home coverage and stone-shell detection;
+  caller claims, player placements and cancelled work cannot supply ownership.
+  Native Home exclusions and structure flammability have typed projections.
+  Combined native ownership/Home/stone acceptance remains pending. Stockpile
+  ownership and Home/stone method composition await their shared action families.
   Medical reserves now project observed medicine stacks and usable resources into
   a hysteretic maintained need. Captured native replay verifies stock caps and
   entry/recovery thresholds; durable tests cover unknowns, Manual, restart and

@@ -70,10 +70,15 @@ func (p RoutinePolicy) Validate() error {
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the
 // separate native crop-capacity forecast; it never increases FoodDays.
 type RoutineFacts struct {
-	Sleeping          domain.Fact[SleepingObservation]
-	SleepingRecovered domain.Fact[bool]
-	AnimalUpkeep      AnimalUpkeepObservation
-	MedicalReserve    MedicalReserveObservation
+	HomeCoverage        domain.Fact[HomeCoverageObservation]
+	StoneStructures     domain.Fact[[]StoneStructure]
+	OwnedStockpiles     domain.Fact[[]OwnedStockpile]
+	ConstructionClaims  domain.Fact[[]ConstructionClaim]
+	CurrentConstruction domain.Fact[CurrentConstruction]
+	Sleeping            domain.Fact[SleepingObservation]
+	SleepingRecovered   domain.Fact[bool]
+	AnimalUpkeep        AnimalUpkeepObservation
+	MedicalReserve      MedicalReserveObservation
 	// AvailableMethods is supplied by the configured runtime, never native facts.
 	AvailableMethods                                                           domain.Fact[[]GoalID]
 	Upkeep                                                                     UpkeepObservation
@@ -109,11 +114,12 @@ func (g FootholdGates) Stable() bool {
 }
 
 type RoutineLatches struct {
-	Sleeping              bool
-	Animals               AnimalUpkeepHistory
-	MedicalReserve        bool
-	Food, Cold, Hot, Wood bool
-	Upkeep                UpkeepHistory
+	HomeCoverage, StoneShell bool
+	Sleeping                 bool
+	Animals                  AnimalUpkeepHistory
+	MedicalReserve           bool
+	Food, Cold, Hot, Wood    bool
+	Upkeep                   UpkeepHistory
 }
 type RoutineNeeds struct {
 	Gates       FootholdGates
@@ -186,6 +192,18 @@ func countCapacity(capacity, count domain.Fact[int64], multiplier int64) domain.
 // DetectRoutine ports colony_policy.criteria/priority_nodes for the common
 // survival goals. Family-specific needs join these same goals during review.
 func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (RoutineNeeds, error) {
+	owned, err := OwnedConstructions(f.ConstructionClaims, f.CurrentConstruction)
+	if err != nil {
+		return RoutineNeeds{}, err
+	}
+	home, err := ReviewHomeCoverage(owned, f.OwnedStockpiles, f.HomeCoverage)
+	if err != nil {
+		return RoutineNeeds{}, err
+	}
+	stone, err := ReviewStoneShell(owned, f.StoneStructures)
+	if err != nil {
+		return RoutineNeeds{}, err
+	}
 	animals, err := ReviewAnimalUpkeep(f.AnimalUpkeep, previous.Animals, p.AnimalUpkeep)
 	if err != nil {
 		return RoutineNeeds{}, err
@@ -259,7 +277,15 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if recovered, known := f.SleepingRecovered.Value(); known {
 		sleepingActive = !recovered
 	}
+	homeActive, stoneActive := previous.HomeCoverage, previous.StoneShell
+	if rows, known := home.Value(); known {
+		homeActive = len(rows) > 0
+	}
+	if rows, known := stone.Value(); known {
+		stoneActive = len(rows) > 0
+	}
 	l := RoutineLatches{
+		HomeCoverage: homeActive, StoneShell: stoneActive,
 		Sleeping:       sleepingActive,
 		Animals:        animals.History,
 		MedicalReserve: medicine.Active,
@@ -402,6 +428,32 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			addGoal(n.Goal, n.Priority)
 			// Direct upkeep orders join the shared execution family in G01.07c.
 			// Keep observed risk visible without taking an optional project slot.
+			r.Goals[len(r.Goals)-1].MethodUnavailable = true
+		}
+	}
+	homeRecovered, stoneRecovered := domain.Unknown[bool](), domain.Unknown[bool]()
+	if rows, known := home.Value(); known {
+		homeRecovered = domain.Known(len(rows) == 0)
+	}
+	if rows, known := stone.Value(); known {
+		stoneRecovered = domain.Known(len(rows) == 0)
+	}
+	for _, facility := range []struct {
+		id        GoalID
+		recovered domain.Fact[bool]
+		active    bool
+		priority  int
+	}{{MaintainHomeCoverage, homeRecovered, homeActive, 3}, {MaintainStoneShell, stoneRecovered, stoneActive, 4}} {
+		recovered, priority := facility.recovered, facility.priority
+		if _, known := recovered.Value(); !known && !facility.active && !f.UpkeepIssued[facility.id] {
+			priority = 4
+		}
+		if f.UpkeepIssued[facility.id] {
+			recovered = domain.Known(false)
+		}
+		addAssessment(facility.id, priority, recovered)
+		if !positive(recovered) {
+			addGoal(facility.id, priority)
 			r.Goals[len(r.Goals)-1].MethodUnavailable = true
 		}
 	}

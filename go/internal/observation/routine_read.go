@@ -26,6 +26,8 @@ type RoutineReading struct {
 }
 
 type routineBracket struct {
+	claims       domain.Fact[[]policy.ConstructionClaim]
+	construction domain.Fact[policy.CurrentConstruction]
 	RoutineSource
 	expected          Identity
 	emergency         bridge.EmergencyObservation
@@ -44,6 +46,9 @@ func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, pl
 	colony, receipt, err := s.RoutineSource.ReadColonyFacts(ctx, id, planning, defs)
 	if err != nil {
 		return colony, receipt, err
+	}
+	if err := s.readConstruction(ctx, id); err != nil {
+		return nil, receipt, err
 	}
 	if err := s.readProjectDefinitions(ctx, id, colony); err != nil {
 		return nil, receipt, err
@@ -94,14 +99,18 @@ func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, pl
 }
 
 func ObserveRoutine(ctx context.Context, source RoutineSource, clock Clock, expected Identity, maxAge time.Duration, definitions ...string) (RoutineReading, error) {
+	return ObserveRoutineOwned(ctx, source, clock, expected, maxAge, domain.Unknown[[]policy.ConstructionClaim](), definitions...)
+}
+func ObserveRoutineOwned(ctx context.Context, source RoutineSource, clock Clock, expected Identity, maxAge time.Duration, claims domain.Fact[[]policy.ConstructionClaim], definitions ...string) (RoutineReading, error) {
 	if source == nil {
 		return RoutineReading{}, ErrContract
 	}
-	bracket := &routineBracket{RoutineSource: source, expected: expected, definitions: append([]string(nil), definitions...)}
+	bracket := &routineBracket{claims: claims, RoutineSource: source, expected: expected, definitions: append([]string(nil), definitions...)}
 	reading, err := ObserveColony(ctx, bracket, clock, expected, maxAge, true, nil)
 	if err != nil {
 		return RoutineReading{}, err
 	}
+	reading.Projection.Facts.CurrentConstruction = bracket.construction
 	reading.Projection.Facts.Armed = bracket.armed
 	reading.Projection.WorkPawns = bracket.work
 	reading.Projection.Facts.MedicalPawns = bracket.medical

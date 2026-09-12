@@ -60,7 +60,19 @@ func (r UnsuccessfulReason) valid() bool {
 	return false
 }
 
+// ConstructionIdentity comes from a complete attempt-correlated native
+// completion inspection. It proves identity, not authority for later upkeep.
+type ConstructionIdentity struct{ Origin, Current string }
+
+func (v ConstructionIdentity) Validate() error {
+	if !validID(v.Origin) || !validID(v.Current) {
+		return errors.New("invalid completed construction identity")
+	}
+	return nil
+}
+
 type Observation struct {
+	Construction         *ConstructionIdentity `json:",omitempty"`
 	Action               ActionID
 	Attempt              AttemptID
 	Snapshot             GenerationSnapshot
@@ -71,6 +83,7 @@ type Observation struct {
 	ConstructionObserved bool                 `json:",omitempty"`
 }
 type ProgressView struct {
+	Construction       Fact[ConstructionIdentity]
 	Action             ActionID
 	Attempt            AttemptID
 	Plan               PlanID
@@ -136,6 +149,7 @@ func (p Progress) MarkDispatched(current GenerationSnapshot, tick Tick) (Progres
 	p.view.Stage, p.view.Unresolved, p.view.Tick = Dispatched, true, tick
 	p.view.Receipt, p.view.Effect = Unknown[Receipt](), Unknown[Effect]()
 	p.view.UnsuccessfulReason = Unknown[UnsuccessfulReason]()
+	p.view.Construction = Unknown[ConstructionIdentity]()
 	p.view.ConstructionObserved = Unknown[Tick]()
 	if p.action.kind == OwnedDraftAction {
 		p.view.DraftCleanup = Known(DraftCleanup{Stage: DraftAwaitingClaim})
@@ -196,6 +210,9 @@ func (p Progress) Observe(observation Observation, current GenerationSnapshot) (
 	return p.observe(observation, current)
 }
 func (p Progress) observe(observation Observation, current GenerationSnapshot) (Progress, error) {
+	if observation.Construction != nil && (p.action.Kind() != BuildingAction || observation.Effect != EffectCompleted || observation.Causality != AfterDispatch || observation.Construction.Validate() != nil) {
+		return p, errors.New("construction identity requires correlated completed building evidence")
+	}
 	if !p.view.Unresolved {
 		return p, errors.New("no dispatched effect to observe")
 	}
@@ -229,6 +246,9 @@ func (p Progress) observe(observation Observation, current GenerationSnapshot) (
 		}
 	} else {
 		p.view.ConstructionObserved = Unknown[Tick]()
+	}
+	if observation.Construction != nil {
+		p.view.Construction = Known(*observation.Construction)
 	}
 	p.view.Tick, p.view.Effect = observation.Tick, Known(observation.Effect)
 	if observation.Effect == EffectUnsuccessful {

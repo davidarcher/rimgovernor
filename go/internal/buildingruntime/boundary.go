@@ -256,6 +256,7 @@ func (b *Boundary) Observe(ctx context.Context, placement executor.Placement, cu
 		if err != nil || building != wanted {
 			return out, executor.ErrEvidence
 		}
+		out.Observation.Construction = &domain.ConstructionIdentity{Origin: effect.GetOriginThingId(), Current: effect.GetCurrentThingId()}
 		out.Built = domain.Known(building)
 		out.Observation.Effect = domain.EffectCompleted
 	default:

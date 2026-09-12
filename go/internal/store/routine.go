@@ -214,6 +214,12 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	needs := policy.RoutineNeeds{}
 	// Stopping routine work must not depend on a successful native observation.
 	if request.Enabled {
+		// Stockpile ownership joins only when the shared zone action family exists.
+		request.Facts.OwnedStockpiles = domain.Known([]policy.OwnedStockpile{})
+		request.Facts.ConstructionClaims, err = constructionClaims(ctx, tx, request.Current, request.Tick)
+		if err != nil {
+			return RoutineReviewResult{}, err
+		}
 		request.Facts.UpkeepIssued, err = routineUpkeepIssued(ctx, tx, request.Current)
 		if err != nil {
 			return RoutineReviewResult{}, err

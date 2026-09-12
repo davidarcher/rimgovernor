@@ -41,7 +41,7 @@ namespace HomeBridge.BridgeTools
                 Require(rows.Count, 256);
                 var values = rows.Select(b => new Obs.UpkeepStructure {
                     Building = new Obs.BuildingState { Building = Ref(b), HitPoints = b.HitPoints, MaxHitPoints = b.MaxHitPoints },
-                    Home = b.OccupiedRect().All(c => map.areaManager.Home[c]),
+                    Home = b.OccupiedRect().All(c => map.areaManager.Home[c]), Flammability = Number(b.GetStatValue(StatDefOf.Flammability)),
                     RepairPriority = b.TryGetComp<CompTempControl>() != null || b.TryGetComp<CompPowerPlant>() != null
                         || b is Building_Bed bed && bed.Medical ? 0
                         : b.def.holdsRoof || b is Building_WorkTable || b is Building_Bed ? 1 : 2
@@ -64,6 +64,27 @@ namespace HomeBridge.BridgeTools
                     return value;
                 }).ToList();
                 result.Filth.AddRange(values);
+            });
+            Read("home_coverage", result, () => {
+                var state = HomeCoverage.State(map);
+                var targets = HomeCoverage.Targets(map).OrderBy(id => id, StringComparer.Ordinal).ToList();
+                Require(targets.Count, 256);
+                var facts = new Obs.HomeCoverageFacts { Revision = state.Revision };
+                foreach (var target in targets) {
+                    var cells = HomeCoverage.Scope(map, target);
+                    if (cells == null) {
+                        facts.Targets.Add(new Obs.HomeCoverageTarget { Id = Id(target), Blocker = "Bounded visible native facility geometry unavailable" });
+                        continue;
+                    }
+                    var missing = cells.Where(c => !map.areaManager.Home[c]).ToList();
+                    if (missing.Count == 0) continue;
+                    var row = new Obs.HomeCoverageTarget { Id = Id(target), ShapeToken = HomeCoverage.Shape(target, cells),
+                        MissingCells = checked((uint)missing.Count), ExcludedCells = checked((uint)missing.Count(c => state.Excluded[c])) };
+                    row.Cells.AddRange(cells.Select(Cell));
+                    facts.Targets.Add(row);
+                }
+                facts.Completeness = Complete(facts.Targets.Count);
+                result.HomeCoverage = new Obs.HomeCoverageSection { Observed = facts };
             });
             Read("people", result, () => {
                 var people = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();

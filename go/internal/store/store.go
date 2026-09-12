@@ -21,7 +21,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 30
+const schemaVersion = 31
 const applicationID = 0x52474f31
 
 var ErrConflict = errors.New("plan or action identity already exists")

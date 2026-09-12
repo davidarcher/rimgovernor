@@ -174,7 +174,7 @@ def audit_development(review, workers, project_limit=2):
     assert len({r['Goal'] for r in rows}) == len(rows)
     for row in rows:
         assert row['Goal'] in {'MaintainWood', 'EnsureBasicDefense', 'EnsureComfort', 'EnsureExpansion', 'MaintainEquipment',
-                              'MaintainFireSafety', 'SecureSupplies', 'MaintainEssentialRepairs', 'MaintainCleanFacilities', 'MaintainMedicalReserves', 'MaintainAnimalContainment', 'MaintainAnimalFeed', 'MaintainSleeping'}
+                              'MaintainFireSafety', 'SecureSupplies', 'MaintainEssentialRepairs', 'MaintainCleanFacilities', 'MaintainMedicalReserves', 'MaintainAnimalContainment', 'MaintainAnimalFeed', 'MaintainSleeping', 'MaintainHomeCoverage', 'MaintainStoneShell'}
         assert row['Deficit'] is None or 0 <= row['Deficit'] <= 1
         assert math.isfinite(row['Score']) and 0 <= row['WaitingSince'] <= review['Tick']
         if row['Selected']:
@@ -287,7 +287,9 @@ def audit_expansion(report, database):
         'sleeping_setup': report['sleeping_setup'] | {'colonists': 1}}, database)
 
 
-async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False, work_project=False, work_overrides=False, power_fixture=False, resource_rules=(), shelter_methods=False, start_save=None, supply_history=False, comfort_methods=False, expansion_methods=False):
+async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=False, cooking_methods=False, work_project=False, work_overrides=False, power_fixture=False, resource_rules=(), shelter_methods=False, start_save=None, supply_history=False, comfort_methods=False, expansion_methods=False, facility_upkeep=False):
+    if facility_upkeep:
+        assert shelter_methods, 'Facility upkeep requires actual autonomous shell completion'
     assert Path("/.dockerenv").is_file(), "Use the isolated scenario launcher"
     output.mkdir(parents=True, exist_ok=False)
     report = {"passed": False, "source": go_source,
@@ -589,6 +591,10 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 native = outcome(await wire(bridge, 'shelter-outcome', 'observations_read_colony_facts', {'scope': {'expectedIdentity': identity}, 'planning': True}), 'observed')
                 assert int(native['indoorSleepingCapacity']) >= report['sleeping_setup']['colonists']
                 report['shelter_outcome'] = native
+                if facility_upkeep:
+                    from native_go_facility_evidence import capture_facility_upkeep
+                    report['facility_upkeep'] = await capture_facility_upkeep(bridge, wire, evidence, database, output, identity, [report['shelter_plan'], report['sleeping_plan']])
+                    assert report['manual_routine']['review']['Latches']['StoneShell'], 'Completed native wooden shell did not establish upkeep history'
             if comfort_methods:
                 report['comfort_fixture'] = payload(await evidence.call(bridge, 'comfort-inspect', 'test/comfort_inspect', {}))
                 assert report['comfort_fixture']['TriggerCount'] == 1 and not report['comfort_fixture']['Armed']
@@ -724,6 +730,7 @@ if __name__ == "__main__":
     parser.add_argument("--sleeping-methods", action="store_true")
     parser.add_argument("--cooking-methods", action="store_true")
     parser.add_argument("--shelter-methods", action="store_true")
+    parser.add_argument("--facility-upkeep", action="store_true", help="After autonomous shelter completion, verify owned Home/stone evidence and player Home exclusions; requires UpkeepFixture")
     parser.add_argument('--start-save', help='Repeat shelter acceptance from a retained initial save staged in the private profile')
     parser.add_argument("--work-project", action="store_true")
     parser.add_argument("--work-overrides", action="store_true")
@@ -732,4 +739,4 @@ if __name__ == "__main__":
     parser.add_argument('--supply-history', action='store_true')
     args = parser.parse_args()
     raise SystemExit(0 if asyncio.run(run(args.root, args.output or args.root / "native-go-routine-acceptance", args.go_binary,
-        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods or args.shelter_methods, shelter_methods=args.shelter_methods, start_save=args.start_save, cooking_methods=args.cooking_methods, work_project=args.work_project, work_overrides=args.work_overrides, power_fixture=args.power_fixture, resource_rules=args.resource_rule, supply_history=args.supply_history, comfort_methods=args.comfort_methods, expansion_methods=args.expansion_methods)) else 1)
+        go_source=args.go_source, go_sha256=args.go_sha256, sleeping_methods=args.sleeping_methods or args.cooking_methods or args.shelter_methods, shelter_methods=args.shelter_methods, start_save=args.start_save, cooking_methods=args.cooking_methods, work_project=args.work_project, work_overrides=args.work_overrides, power_fixture=args.power_fixture, resource_rules=args.resource_rule, supply_history=args.supply_history, comfort_methods=args.comfort_methods, expansion_methods=args.expansion_methods, facility_upkeep=args.facility_upkeep)) else 1)

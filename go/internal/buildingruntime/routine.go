@@ -100,7 +100,11 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context) (store.RoutineReviewR
 	if preferences.World != (store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}) {
 		return store.RoutineReviewResult{}, ErrControl
 	}
-	reading, err := observation.ObserveRoutine(ctx, r.native, r.clock, expected, r.maxAge, definitions...)
+	claims, err := p.journal.ConstructionClaims(ctx, state.Snapshot, expected.Tick)
+	if err != nil {
+		return store.RoutineReviewResult{}, err
+	}
+	reading, err := observation.ObserveRoutineOwned(ctx, r.native, r.clock, expected, r.maxAge, claims, definitions...)
 	if err != nil {
 		return store.RoutineReviewResult{}, err
 	}

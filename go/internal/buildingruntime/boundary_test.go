@@ -269,6 +269,10 @@ func TestBoundaryRestartReadsWithoutLeaseAndChecksCompletion(t *testing.T) {
 	if err != nil || out.Observation.Effect != domain.EffectCompleted || !out.Complete || out.Observation.Causality != domain.AfterDispatch || f.leases != 0 || f.places != 0 || f.lookups != 1 || f.observes != 1 {
 		t.Fatal("restart reconciliation failed", err)
 	}
+	nativeIdentity := f.progress.GetCompleted().Evidence.GetConstruction()
+	if out.Observation.Construction == nil || out.Observation.Construction.Origin != nativeIdentity.GetOriginThingId() || out.Observation.Construction.Current != nativeIdentity.GetCurrentThingId() {
+		t.Fatal("native completion identities discarded", out.Observation)
+	}
 	b, f = newBoundaryFixture(t)
 	f.unknown = true
 	out, err = b.Observe(context.Background(), f.placement, f.placement.Snapshot)
