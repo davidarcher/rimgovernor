@@ -205,11 +205,11 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		}
 		for _, progress := range plan.Progress {
 			v := progress.View()
-			if playerPending && planScope.Snapshot != scope.Snapshot && progress.Action().Kind() == domain.BuildingAction && !v.Unresolved {
+			if playerPending && planScope.Snapshot != scope.Snapshot && (progress.Action().Kind() == domain.BuildingAction || progress.Action().Kind() == domain.SupplyAllowAction) && !v.Unresolved {
 				continue
 			}
 			cleanup := workerCleanupEligible(plan, v, scope, world)
-			routineObservation := w.config.RoutineMethods && v.Unresolved && progress.Action().Kind() == domain.BuildingAction && playerWorld(v.Snapshot) == world
+			routineObservation := w.config.RoutineMethods && v.Unresolved && (progress.Action().Kind() == domain.BuildingAction || progress.Action().Kind() == domain.SupplyAllowAction) && playerWorld(v.Snapshot) == world
 			if cleanup || worldErr == nil && (routineObservation || workerEligible(plan, v, planScope, world)) {
 				live[v.Action] = true
 				candidates = append(candidates, workerCandidate{view: v, cleanup: cleanup})
@@ -274,7 +274,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 func workerEligible(plan store.PlanState, v domain.ProgressView, scope ControlState, world store.World) bool {
 	supported := false
 	for _, action := range plan.Spec.Actions() {
-		if action.ID() == v.Action && (action.Kind() == domain.BuildingAction || action.Kind() == domain.OwnedDraftAction || action.Kind() == domain.MeleeAttackAction) {
+		if action.ID() == v.Action && (action.Kind() == domain.BuildingAction || action.Kind() == domain.OwnedDraftAction || action.Kind() == domain.MeleeAttackAction || action.Kind() == domain.SupplyAllowAction) {
 			supported = true
 			break
 		}

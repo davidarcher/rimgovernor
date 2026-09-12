@@ -32,6 +32,7 @@ type ClockSchedulerConfig struct {
 	MaxAge  time.Duration
 	// Routine is reviewed only after owned clock obligations have drained.
 	Routine        *RoutineReviewer
+	Supplies       *RoutineSupplyPlanner
 	Sleeping       *RoutineBuildingPlanner
 	Cooking        *RoutineBuildingPlanner
 	Comfort        *RoutineBuildingPlanner
@@ -44,6 +45,7 @@ type ClockSchedulerResult struct {
 	Attempt                      *store.ClockAttempt
 	Decision                     policy.ClockWindowDecision
 	Routine                      *store.RoutineReviewResult
+	Supplies                     *RoutineSupplyResult
 	Sleeping                     *RoutineBuildingResult
 	Cooking                      *RoutineBuildingResult
 	Comfort                      *RoutineBuildingResult
@@ -69,6 +71,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Routine != nil && config.Routine.player != player {
+		return nil, ErrControl
+	}
+	if config.Supplies != nil && (config.Routine == nil || config.Supplies.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.Sleeping != nil && (config.Routine == nil || config.Sleeping.reviewer != config.Routine || config.Sleeping.goal != policy.EnsureInitialShelter) {
@@ -245,6 +250,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			}
 		}
 	}
+	if s.config.Supplies != nil {
+		method, err := s.config.Supplies.step(call, epoch)
+		if err != nil {
+			return out, err
+		}
+		out.Supplies = &method
+	}
 	if s.config.Sleeping != nil {
 		method, methodErr := s.config.Sleeping.step(call, epoch)
 		if methodErr != nil {
@@ -420,6 +432,10 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 		v := p.View()
 		items = append(items, clockWorkItem{v.Action, p.Action().Kind(), v.Stage, v.Attempt, v.Unresolved})
 		if v.Stage == domain.Cancelled || v.Stage == domain.Unsuccessful || !v.Unresolved && v.Stage == domain.Completed {
+			continue
+		}
+		// Allow is an immediate designation and needs no simulation window.
+		if p.Action().Kind() == domain.SupplyAllowAction {
 			continue
 		}
 		// Only ordinary building work can justify this healthy-colony clock window.

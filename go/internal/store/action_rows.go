@@ -23,6 +23,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn) VALUES(?,?,?,'owned_draft',?)", a.ID(), plan, ordinal, d.Pawn())
 	} else if m, ok := a.MeleeAttack(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,draft_action) VALUES(?,?,?,'melee_attack',?,?,?)", a.ID(), plan, ordinal, m.Pawn(), m.Target(), m.DraftAction())
+	} else if supply, ok := a.SupplyAllow(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z) VALUES(?,?,?,'supply_allow',?,?,?,?)", a.ID(), plan, ordinal, supply.Thing(), supply.Definition(), supply.Cell().X, supply.Cell().Z)
 	} else {
 		return errors.New("unsupported persisted action")
 	}
@@ -44,6 +46,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		}
 		a, e := domain.NewOwnedDraftAction(id, d)
 		return a, ordinal, e
+	}
+	if kind == "supply_allow" && target.Valid && def.Valid && x.Valid && z.Valid && !pawn.Valid && !draftAction.Valid && !rotation.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
+		s, err := domain.NewSupplyAllow(target.String, def.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)})
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewSupplyAllowAction(id, s)
+		return a, ordinal, err
 	}
 	if kind == "melee_attack" && pawn.Valid && target.Valid && draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		m, err := domain.NewMeleeAttack(domain.PawnID(pawn.String), domain.PawnID(target.String), domain.ActionID(draftAction.String))

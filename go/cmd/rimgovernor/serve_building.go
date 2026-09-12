@@ -25,6 +25,7 @@ type buildingServiceBridge struct {
 	native     buildingruntime.Native
 	authority  buildingruntime.NativeAuthority
 	writes     buildingruntime.BuildingWriter
+	supplies   *buildingruntime.SupplyCapabilities
 	draft      *buildingruntime.DraftCapabilities
 	clock      *buildingruntime.ClockCapabilities
 	clockReads serviceClockReads
@@ -60,8 +61,13 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	supplies, err := bridge.NewSupplyControl(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	return buildingServiceBridge{reads: client, native: client, authority: ownedAuthority{client, authority}, writes: writes,
-		clock: &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
+		supplies: &buildingruntime.SupplyCapabilities{Native: client, Writer: supplies},
+		clock:    &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
 		draft: &buildingruntime.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup}}, nil
 }
 
@@ -175,10 +181,18 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		clockCapabilities = client.clock
 		callTimeout = min(callTimeout, 5*time.Second)
 	}
+	var supplyCapabilities *buildingruntime.SupplyCapabilities
+	if config.routineSupplyPlans {
+		if client.supplies == nil {
+			return errors.New("supply plans require typed supply capabilities")
+		}
+		supplyCapabilities = client.supplies
+	}
 	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{RoutineMethods: config.routineMethods,
 		Rules:    config.resourceRules,
 		Control:  buildingruntime.ControlConfig{ProfileDirectory: config.profile, LeaseDuration: 30 * time.Second, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
 		Executor: executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
+		Supplies: supplyCapabilities,
 		Draft:    client.draft,
 		Clock:    clockCapabilities,
 	}, database, client.native, client.authority, client.writes, wallClock{})
@@ -200,7 +214,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	owner = player
 	if config.clockControl {
-		if err = startServiceClock(lifetime, player, session, client.clockReads, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit); err != nil {
+		if err = startServiceClock(lifetime, player, session, client.clockReads, config.profile, callTimeout, config.routineReviews, config.routineSleepingPlans, config.routineCookingPlans, config.routineShelterPlans, config.routineComfortPlans, config.routineExpansionPlans, config.routinePowerPlans, config.routineTemperaturePlans, config.routineProjectLimit, config.routineSupplyPlans); err != nil {
 			return err
 		}
 	}

@@ -102,23 +102,25 @@ type Result struct {
 }
 
 type Executor struct {
-	routineScope RoutineScope
-	journal      Journal
-	draftJournal DraftJournal
-	draft        DraftBoundary
-	meleeJournal MeleeJournal
-	melee        MeleeBoundary
-	boundary     Boundary
-	clock        Clock
-	limits       Limits
-	writer       chan struct{}
-	mu           sync.Mutex
-	authority    Authority
-	generation   context.Context
-	invalidate   context.CancelFunc
-	activeAction domain.ActionID
-	activeCancel context.CancelFunc
-	stopped      bool
+	supply        SupplyBoundary
+	supplyJournal SupplyJournal
+	routineScope  RoutineScope
+	journal       Journal
+	draftJournal  DraftJournal
+	draft         DraftBoundary
+	meleeJournal  MeleeJournal
+	melee         MeleeBoundary
+	boundary      Boundary
+	clock         Clock
+	limits        Limits
+	writer        chan struct{}
+	mu            sync.Mutex
+	authority     Authority
+	generation    context.Context
+	invalidate    context.CancelFunc
+	activeAction  domain.ActionID
+	activeCancel  context.CancelFunc
+	stopped       bool
 }
 
 func New(journal Journal, boundary Boundary, clock Clock, limits Limits, routine ...RoutineScope) (*Executor, error) {
@@ -131,6 +133,14 @@ func New(journal Journal, boundary Boundary, clock Clock, limits Limits, routine
 		return nil, errors.New("one routine scope owner required")
 	}
 	e := &Executor{journal: journal, boundary: boundary, clock: clock, limits: limits, writer: make(chan struct{}, 1), generation: generation, invalidate: cancel}
+	if supply, ok := boundary.(SupplyBoundary); ok {
+		j, complete := journal.(SupplyJournal)
+		if !complete {
+			cancel()
+			return nil, errors.New("supply boundary requires typed journal")
+		}
+		e.supply, e.supplyJournal = supply, j
+	}
 	if len(routine) == 1 {
 		e.routineScope = routine[0]
 	}
@@ -271,6 +281,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.OwnedDraftAction && e.draft != nil {
 		return e.runDraft(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.SupplyAllowAction && e.supply != nil {
+		return e.runSupply(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.MeleeAttackAction && e.melee != nil {
 		return e.runMelee(ctx, action, progress, authority, generation)

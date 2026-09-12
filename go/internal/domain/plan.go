@@ -62,6 +62,7 @@ type Action struct {
 	building Building
 	draft    OwnedDraft
 	melee    MeleeAttack
+	supply   SupplyAllow
 }
 
 func NewBuildingAction(id ActionID, building Building) (Action, error) {
@@ -77,12 +78,12 @@ func (a Action) ID() ActionID               { return a.id }
 func (a Action) Kind() ActionKind           { return a.kind }
 func (a Action) Building() (Building, bool) { return a.building, a.kind == BuildingAction }
 func SupportedActionKinds() []ActionKind {
-	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction}
+	return []ActionKind{BuildingAction, OwnedDraftAction, MeleeAttackAction, SupplyAllowAction}
 }
 func ValidateHandlerCoverage(kinds []ActionKind) error {
 	seen := make(map[ActionKind]bool)
 	for _, kind := range kinds {
-		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction) || seen[kind] {
+		if (kind != BuildingAction && kind != OwnedDraftAction && kind != MeleeAttackAction && kind != SupplyAllowAction) || seen[kind] {
 			return fmt.Errorf("unknown or duplicate action handler %q", kind)
 		}
 		seen[kind] = true
@@ -122,6 +123,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewOwnedDraftAction(a.id, a.draft)
 		case MeleeAttackAction:
 			canonical, err = NewMeleeAttackAction(a.id, a.melee)
+		case SupplyAllowAction:
+			canonical, err = NewSupplyAllowAction(a.id, a.supply)
 		default:
 			return PlanSpec{}, errors.New("unsupported action variant")
 		}

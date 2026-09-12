@@ -13,6 +13,7 @@ import (
 )
 
 type SessionConfig struct {
+	Supplies       *SupplyCapabilities
 	RoutineMethods bool
 	Control        ControlConfig
 	Executor       executor.Limits
@@ -180,16 +181,23 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 	}
 	var worker *executor.Executor
+	var executionBoundary executor.Boundary = boundary
+	if config.Supplies != nil {
+		if config.Supplies.Native == nil || config.Supplies.Writer == nil {
+			return cleanup(ErrControl)
+		}
+		executionBoundary = &supplyBoundary{Boundary: boundary, supply: *config.Supplies}
+	}
 	var routine []executor.RoutineScope
 	if config.RoutineMethods {
 		routine = append(routine, journal)
 	}
 	if melee != nil {
-		worker, err = executor.NewWithMelee(journal, boundary, draft, melee, clock, config.Executor, routine...)
+		worker, err = executor.NewWithMelee(journal, executionBoundary, draft, melee, clock, config.Executor, routine...)
 	} else if draft != nil {
-		worker, err = executor.NewWithDraft(journal, boundary, draft, clock, config.Executor, routine...)
+		worker, err = executor.NewWithDraft(journal, executionBoundary, draft, clock, config.Executor, routine...)
 	} else {
-		worker, err = executor.New(journal, boundary, clock, config.Executor, routine...)
+		worker, err = executor.New(journal, executionBoundary, clock, config.Executor, routine...)
 	}
 	if err != nil {
 		return cleanup(err)

@@ -43,10 +43,10 @@ func serviceClockConfig(profile string) buildingruntime.ClockSchedulerConfig {
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int) error {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, profile string, timeout time.Duration, routine, sleeping, cooking, shelter, comfort, expansion, power, temperature bool, projectLimit int, supplies bool) error {
 	config := serviceClockConfig(profile)
 	config.RoutineMethods = session.RoutineMethodsEnabled()
-	if (sleeping || cooking || shelter || comfort || expansion || power || temperature) && !routine {
+	if (supplies || sleeping || cooking || shelter || comfort || expansion || power || temperature) && !routine {
 		return errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -74,6 +74,16 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			return err
 		}
 		config.Routine = reviewer
+		if supplies {
+			source, ok := reads.(buildingruntime.RoutineSupplySource)
+			if !ok {
+				return errors.New("supply plans require typed supply observations")
+			}
+			config.Supplies, err = buildingruntime.NewRoutineSupplyPlanner(reviewer, source)
+			if err != nil {
+				return err
+			}
+		}
 		if sleeping || cooking || shelter || comfort || expansion || power || temperature {
 			source, ok := reads.(buildingruntime.RoutineBuildingSource)
 			if !ok {

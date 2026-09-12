@@ -54,9 +54,15 @@ Startup supply reviews retain the first known native forbidden-supply census.
 Fresh reads can shrink that cohort, but later player forbids cannot expand or
 revive it. Unknown reads preserve pending cells without proving recovery; Manual
 and direction changes preserve the cohort. World replacement and tick rewind
-initialize a new cohort. The current journal requires fresh schema-31 state.
-These cells describe the startup need, not ownership or permission to issue an
-Allow order. That action family remains in G01.07b.
+initialize a new cohort. The current journal requires fresh schema-32 state.
+`--routine-supply-plans` compiles at most eight exact native item snapshots from
+retained cells into a shared Allow plan. `--routine-methods` enables its Hands
+handler under the existing player direction; both switches default off. Each
+write requires fresh CAS, preview, emergency and authority checks. Durable item
+claims prevent re-admission after cancellation or later player forbidding. Lost
+replies are observed without retry; receipts alone do not complete the action,
+and missing items remain unknown. Allow requires no game tick window. Native
+gameplay acceptance remains deferred to G01.12.
 
 `RankDevelopment` preserves accepted shared-action commitments while ranking new
 projects by deficit, player preference, native-tick age and selection hysteresis.
@@ -341,7 +347,7 @@ observation bracket, honoring saved player work preferences.
 Unknown access, existing inaccessible
 facilities and exhausted waits cannot certify recovery or create duplicate furniture.
 Add `--routine-methods` to let the shared
-Hands worker execute reviewed building methods under the existing player direction.
+Hands worker execute reviewed building and starting-supply methods under the existing player direction.
 Each dispatch rechecks the journal binding, active known deficit, epoch, world and
 native generation. Pending player work takes priority; Manual stops routine writes
 without changing the selected player plan or acquiring another lease. Clock windows
