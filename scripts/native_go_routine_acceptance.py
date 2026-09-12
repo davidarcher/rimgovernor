@@ -174,7 +174,7 @@ def audit_development(review, workers, project_limit=2):
     assert len({r['Goal'] for r in rows}) == len(rows)
     for row in rows:
         assert row['Goal'] in {'MaintainWood', 'EnsureBasicDefense', 'EnsureComfort', 'EnsureExpansion', 'MaintainEquipment',
-                              'MaintainFireSafety', 'SecureSupplies', 'MaintainEssentialRepairs', 'MaintainCleanFacilities', 'MaintainMedicalReserves'}
+                              'MaintainFireSafety', 'SecureSupplies', 'MaintainEssentialRepairs', 'MaintainCleanFacilities', 'MaintainMedicalReserves', 'MaintainAnimalContainment', 'MaintainAnimalFeed'}
         assert row['Deficit'] is None or 0 <= row['Deficit'] <= 1
         assert math.isfinite(row['Score']) and 0 <= row['WaitingSince'] <= review['Tick']
         if row['Selected']:
@@ -427,7 +427,7 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                                 'work-status': report['initial_colony'], 'work-reference': report['initial_work']}.items():
                 (output / (name + '.json')).write_text(json.dumps(value), encoding='utf8')
             facts = payload(await evidence.call(bridge, "initial-food", "home/colony_facts", {"planning": False}))
-            from native_go_upkeep_evidence import audit_upkeep, audit_upkeep_review, medical_reserve_reference
+            from native_go_upkeep_evidence import audit_upkeep, audit_upkeep_review, medical_reserve_reference, animal_upkeep_reference
             report['upkeep_reference'] = audit_upkeep(outcome(work_colony, 'observed'), facts)
             if power_fixture:
                 recovery = payload(await evidence.call(bridge, 'power-recovery', 'home/recovery_state', {}))
@@ -596,13 +596,13 @@ async def run(root, output, binary, *, go_source, go_sha256, sleeping_methods=Fa
                 report['comfort_outcome'] = native
                 audit_comfort_use(report['comfort_recovered'], outcome(outcome(native['upkeep'], 'observed')['comfort'], 'observed'))
             if comfort_methods or expansion_methods:
-                report['upkeep_fixture'] = payload(await evidence.call(bridge, 'upkeep-setup', 'test/upkeep_setup', {'fireSize': .5, 'repairCompetition': True, 'boundedCensus': True}))
+                report['upkeep_fixture'] = payload(await evidence.call(bridge, 'upkeep-setup', 'test/upkeep_setup', {'fireSize': .5, 'repairCompetition': True, 'boundedCensus': True, 'animals': True}))
                 assert report['upkeep_fixture']['success']
                 upkeep_colony = await wire(bridge, 'populated-upkeep', 'observations_read_colony_facts', {'scope': {'expectedIdentity': identity}, 'planning': False})
                 upkeep_legacy = payload(await evidence.call(bridge, 'populated-upkeep-reference', 'home/colony_facts', {'planning': False}))
                 report['populated_upkeep_reference'] = audit_upkeep(outcome(upkeep_colony, 'observed'), upkeep_legacy)
                 assert all(v['need'] == 'deficit' for v in report['populated_upkeep_reference'].values())
-                (output / 'upkeep-replay.json').write_text(json.dumps({'colony': upkeep_colony, 'expected': report['populated_upkeep_reference'], 'medical': medical_reserve_reference(outcome(upkeep_colony, 'observed'), upkeep_legacy)}), encoding='utf8')
+                (output / 'upkeep-replay.json').write_text(json.dumps({'colony': upkeep_colony, 'expected': report['populated_upkeep_reference'], 'medical': medical_reserve_reference(outcome(upkeep_colony, 'observed'), upkeep_legacy), 'animals': animal_upkeep_reference(outcome(upkeep_colony, 'observed'), upkeep_legacy)}), encoding='utf8')
             if expansion_methods:
                 native = outcome(await wire(bridge, 'expansion-outcome', 'observations_read_colony_facts', {'scope': {'expectedIdentity': identity}, 'planning': False}), 'observed')
                 assert native['indoorSleepingCapacity'] >= native['colonistCount'] + 1

@@ -114,6 +114,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	}
 	colonyProduction(v, &r.Facts)
 	r.Facts.Comfort = colonyComfort(v)
+	r.Facts.AnimalUpkeep.Animals = colonyAnimals(v)
 	r.Facts.Upkeep = colonyUpkeep(v)
 	r.Facts.MedicalReserve = colonyMedicalReserve(v)
 	if v.Naming != nil {
@@ -155,6 +156,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 			}
 		}
 	}
+	r.Facts.AnimalUpkeep.Food = r.CombinedFoodSupply
 	if v.WorkerCount != nil {
 		r.Workers = domain.Known(int(v.GetWorkerCount()))
 	}

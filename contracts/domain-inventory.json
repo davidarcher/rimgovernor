@@ -7900,7 +7900,7 @@
           "path": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeColonyObservationTools.cs",
           "line": 28,
           "declaration": "[Tool(ToolName, Title = \"Read typed routine colony facts\", Description = \"Native colony, accessible stock, sleeping capacity, temperature and storage facts. Optional bounded starter geometry/definitions. Raw food runway is not a diet/rot forecast. Unported sections are explicitly unavailable. Read-only; no authority or orders.\")]\n        [ToolResponse(\"payload\", \"string\", \"Official ColonyFactsReply ProtoJSON, bounded to1MiB.\", Always = true)]\n        public async Task<object> ReadColonyFacts(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Raw ColonyFactsRequest ProtoJSON string.\")] object? request = null)",
-          "source_sha256": "0d4911bed9048b0bffab5d0dacce0a2c75a06d972ac2c346a1e7acd7f4480b8f"
+          "source_sha256": "128e740a9a1f7fbabb79fd3326021a1be3fb4e9d127b644e8272af292c72b738"
         },
         {
           "name": "rimgovernor/observations_read_research",
@@ -8376,7 +8376,7 @@
           "path": "scripts/fixtures/UpkeepFixture.cs",
           "line": 14,
           "declaration": "[Tool(\"test/upkeep_setup\", Description = \"Prepare disposable hauling, repair and cleaning targets. Test builds only.\")]\n        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,\n            [ToolParameter(Description = \"Optional disposable fire size; zero omits fire.\", DefaultValue = 0f)] float fireSize = 0f,\n            [ToolParameter(Description = \"Include a pen animal, pet and stored feed.\", DefaultValue = false)] bool animals = false,\n            [ToolParameter(Description = \"Leave covered space unzoned for the storage method.\", DefaultValue = false)] bool storageMissing = false,\n            [ToolParameter(Description = \"Exclude fixture targets from workers' allowed area.\", DefaultValue = false)] bool restrictWorkers = false,\n            [ToolParameter(Description = \"Include a more damaged cosmetic repair target.\", DefaultValue = false)] bool repairCompetition = false,\n            [ToolParameter(Description = \"Clear disposable loose items and filth before preparing bounded read censuses. Use only after gameplay assertions.\", DefaultValue = false)] bool boundedCensus = false)",
-          "source_sha256": "6d56e287b91d2009a80308bc47897f9be70e09ce0a803214431c0569fd3c7034"
+          "source_sha256": "83a230657cc8eed91de71b311e2dc4afb7ac0f89b47d62de4d1360ac2d613353"
         },
         {
           "name": "test/wall_enclosure",

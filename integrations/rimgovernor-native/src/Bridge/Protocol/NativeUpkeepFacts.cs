@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using RimWorld;
 using Verse;
+using Verse.AI;
 using Common = RimGovernor.Protocol.Common;
 using Obs = RimGovernor.Protocol.Observations;
 using static HomeBridge.BridgeTools.NativePawnObservationTools;
@@ -63,6 +64,46 @@ namespace HomeBridge.BridgeTools
                     return value;
                 }).ToList();
                 result.Filth.AddRange(values);
+            });
+            Read("animals", result, () => {
+                var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
+                    && p.Faction == Faction.OfPlayerSilentFail).OrderBy(p => p.thingIDNumber).ToList();
+                Require(animals.Count, 256);
+                var food = things.Where(t => t.def.category == ThingCategory.Item
+                    && (t.Faction == null || t.Faction == Faction.OfPlayerSilentFail)
+                    && t.def.IsNutritionGivingIngestible && !t.def.IsDrug && t.IngestibleNow).ToList();
+                var values = animals.Select(p => {
+                    var requiresPen = AnimalPenUtility.NeedsToBeManagedByRope(p);
+                    var pen = requiresPen ? AnimalPenUtility.GetCurrentPenOf(p, false) : null;
+                    var suitable = requiresPen ? AnimalPenUtility.ClosestSuitablePen(p, false) : null;
+                    var state = new Obs.AnimalState {
+                        Release = map.designationManager.DesignationOn(p, DesignationDefOf.ReleaseAnimalToWild) != null,
+                        Slaughter = map.designationManager.DesignationOn(p, DesignationDefOf.Slaughter) != null
+                    };
+                    if (requiresPen) state.Contained = pen != null;
+                    if (pen != null) state.PenId = Id(pen.parent.GetUniqueLoadID());
+                    var value = new Obs.AnimalFeed {
+                        Pawn = new Obs.PawnState { Pawn = Ref(p), AnimalState = state },
+                        Diet = Id(p.RaceProps.foodType.ToString()), RequiresPen = requiresPen
+                    };
+                    if (suitable != null) value.SuitablePenId = Id(suitable.parent.GetUniqueLoadID());
+                    var reachable = food.Where(t => p.WillEat(t) && !t.IsForbidden(p)
+                        && p.CanReach(t, PathEndMode.Touch, Danger.None)
+                        && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null
+                            || p.playerSettings.AreaRestrictionInPawnCurrentMap[t.Position])).OrderBy(t => t.thingIDNumber).ToList();
+                    Require(reachable.Count, 256);
+                    foreach (var item in reachable) {
+                        var rot = item.TryGetComp<CompRottable>();
+                        var stock = new Obs.FoodStock { Item = Ref(item), Count = item.stackCount, HolderId = "",
+                            Nutrition = Number(FoodUtility.NutritionForEater(p, item) * item.stackCount),
+                            Perishable = rot != null && rot.Active, Roofed = item.Position.Roofed(map) };
+                        stock.EaterIds.Add(Id(p.GetUniqueLoadID()));
+                        if (rot != null && rot.Active) stock.RotTicks = Math.Max(0, rot.TicksUntilRotAtCurrentTemp);
+                        value.ReachableStoredFeed.Add(stock);
+                    }
+                    return value;
+                }).ToList();
+                result.Animals.AddRange(values);
             });
         }
 

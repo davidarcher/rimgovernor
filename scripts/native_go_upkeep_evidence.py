@@ -79,3 +79,56 @@ def medical_reserve_reference(colony, legacy):
             **control.get('medical_reserve', {}),
             'replenish': None if targets is None else targets[0]['count'] if targets else 0}
     return result
+
+
+def animal_upkeep_reference(colony, legacy):
+    from rimgovernor.animal_upkeep import containment_evidence
+    from rimgovernor.animal_feed import feed_evidence
+    assert int(colony['context']['tick']) == legacy['tick']
+    raw, typed = legacy['upkeep'], colony['upkeep']['observed']
+    assert raw['version'] == 1 and raw['tick'] == legacy['tick']
+    assert 'animals' not in raw.get('errors', {})
+    assert not any(r['field'] == 'animals' for r in typed.get('issues', []))
+    reference = {r['id']: r for r in raw['animals']}
+    projected = typed.get('animals', [])
+    assert len(projected) == len(reference) == len(raw['animals']) <= 256
+    seen = set()
+    for row in projected:
+        entity, state = row['pawn']['pawn'], row['pawn']['animalState']
+        identity = entity['id']
+        assert identity in reference and identity not in seen
+        seen.add(identity)
+        old = reference[identity]
+        assert entity['defName'] == old['defName']
+        assert entity['mapId'] == colony['context']['identity']['mapId']
+        assert entity['position'] == {'x': old['x'], 'z': old['z']}
+        assert type(row['requiresPen']) is bool and row['requiresPen'] == old['requiresPen']
+        assert row['diet'] == old['diet']
+        for field in ('release', 'slaughter'):
+            assert type(state[field]) is bool and state[field] == old[field]
+        assert state.get('contained') == old['contained']
+        if old['requiresPen']:
+            assert type(state['contained']) is bool
+        else:
+            assert 'contained' not in state
+        assert state.get('penId') == old['pen'] and row.get('suitablePenId') == old['suitablePen']
+        stocks = {r['id']: r for r in old['reachableStoredFeed']}
+        feed = row.get('reachableStoredFeed', [])
+        assert len(feed) == len(stocks) == len(old['reachableStoredFeed'])
+        stock_seen = set()
+        for stock in feed:
+            key = stock['item']['id']
+            assert key in stocks and key not in stock_seen
+            stock_seen.add(key)
+            assert int(stock['count']) == stocks[key]['count']
+            assert math.isclose(stock['nutrition'], stocks[key]['nutrition'], rel_tol=1e-6, abs_tol=1e-7)
+            assert stock['eaterIds'] == [identity] and stock['holderId'] == ''
+    containment = containment_evidence(legacy)
+    assert containment is not None
+    result = {'containment': [r['id'] for r in containment]}
+    for phase, active in [('initial', False), ('retained', True)]:
+        control = {'animal_feed_active': {identity: active for identity in reference}}
+        targets = feed_evidence(legacy, control)
+        assert targets is not None, 'Native animal feed forecast unavailable'
+        result[phase] = [{'id': r['id'], 'runwayDays': r['runwayDays'], 'nutrition': r['count'], 'targetDays': r['targetDays']} for r in targets]
+    return result

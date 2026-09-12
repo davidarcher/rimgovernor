@@ -6,7 +6,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 try:
-    from native_go_upkeep_evidence import audit_upkeep, audit_upkeep_review, medical_reserve_reference
+    from native_go_upkeep_evidence import audit_upkeep, audit_upkeep_review, medical_reserve_reference, animal_upkeep_reference
 finally:
     sys.path.pop(0)
 
@@ -72,3 +72,43 @@ def test_medical_reserve_reference_preserves_entry_and_recovery_targets():
     typed['resources'][0]['units'] = '6'
     with pytest.raises(AssertionError):
         medical_reserve_reference(typed, legacy)
+
+
+def animal_fixture():
+    typed, legacy = fixture()
+    animal = dict(id='animal', defName='Muffalo', x=3, z=4, requiresPen=True,
+        contained=False, release=False, slaughter=False, pen=None, suitablePen=None,
+        diet='VegetarianRoughAnimal', reachableStoredFeed=[dict(id='hay', count=6, nutrition=6)])
+    legacy['upkeep']['animals'] = [animal]
+    legacy['nativeForecastInputs'] = {'readable': True, 'tick': 7, 'animalIds': ['animal'],
+        'combinedFoodSupply': {'readable': True,
+            'consumers': [{'id': 'animal', 'nutritionPerDay': 1}, {'id': 'human', 'nutritionPerDay': 1}],
+            'stocks': [{'id': 'hay', 'holder': None, 'nutrition': 6, 'eaters': ['animal', 'human'], 'perishable': False}]}}
+    typed['upkeep']['observed']['animals'] = [{'pawn': {
+        'pawn': {'id': 'animal', 'defName': 'Muffalo', 'mapId': 0, 'position': {'x': 3, 'z': 4}},
+        'animalState': {'contained': False, 'release': False, 'slaughter': False}},
+        'requiresPen': True, 'diet': animal['diet'], 'reachableStoredFeed': [
+            {'item': {'id': 'hay'}, 'count': '6', 'nutrition': 6, 'holderId': '', 'eaterIds': ['animal']}]}]
+    return typed, legacy
+
+
+def test_animal_reference_preserves_competition_and_recovery_threshold():
+    typed, legacy = animal_fixture()
+    result = animal_upkeep_reference(typed, legacy)
+    assert result == {'containment': ['animal'], 'initial': [],
+        'retained': [{'id': 'animal', 'runwayDays': 3, 'nutrition': 1, 'targetDays': 4}]}
+
+
+@pytest.mark.parametrize('mutation', ['missing', 'pen', 'feed', 'duplicate', 'holder', 'eater', 'unknown'])
+def test_animal_reference_rejects_changed_native_observations(mutation):
+    typed, legacy = animal_fixture()
+    row = typed['upkeep']['observed']['animals'][0]
+    if mutation == 'missing': del row['pawn']['animalState']['contained']
+    if mutation == 'pen': row['pawn']['animalState']['penId'] = 'other'
+    if mutation == 'feed': row['reachableStoredFeed'][0]['nutrition'] = 7
+    if mutation == 'duplicate': typed['upkeep']['observed']['animals'].append(copy.deepcopy(row))
+    if mutation == 'holder': row['reachableStoredFeed'][0]['holderId'] = 'animal'
+    if mutation == 'eater': row['reachableStoredFeed'][0]['eaterIds'] = ['human']
+    if mutation == 'unknown': typed['upkeep']['observed']['issues'] = [{'field': 'animals'}]
+    with pytest.raises((AssertionError, KeyError)):
+        animal_upkeep_reference(typed, legacy)

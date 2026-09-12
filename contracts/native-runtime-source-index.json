@@ -1929,7 +1929,7 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeColonyObservationTools.cs",
-      "source_sha256": "0d4911bed9048b0bffab5d0dacce0a2c75a06d972ac2c346a1e7acd7f4480b8f",
+      "source_sha256": "128e740a9a1f7fbabb79fd3326021a1be3fb4e9d127b644e8272af292c72b738",
       "compilation": "production-bridge",
       "owner": "N01.03 native observation owner",
       "migration_status": "typed-core-planning",
@@ -2637,16 +2637,16 @@
     },
     {
       "source": "integrations/rimgovernor-native/src/Bridge/Protocol/NativeUpkeepFacts.cs",
-      "source_sha256": "1b9b1bb1e78dd5371e0306940fa5eec9a16b0c9057a73c635a61aaf4eaa0cbc8",
+      "source_sha256": "bc7d148e3658248f7c0ce14b0cdded49f1af1889dfd39500a768f2844d748b3d",
       "compilation": "production-bridge",
       "owner": "N01.03 native observation owner",
       "migration_status": "typed-upkeep-acceptance-pending",
       "static_token_lines": [
-        7,
-        13,
-        15,
-        69,
-        73
+        8,
+        14,
+        16,
+        110,
+        114
       ],
       "reflection_boundary_lines": [],
       "patch_registration_lines": [],
@@ -4291,7 +4291,7 @@
     },
     {
       "source": "scripts/fixtures/UpkeepFixture.cs",
-      "source_sha256": "6d56e287b91d2009a80308bc47897f9be70e09ce0a803214431c0569fd3c7034",
+      "source_sha256": "83a230657cc8eed91de71b311e2dc4afb7ac0f89b47d62de4d1360ac2d613353",
       "compilation": "fixture-only",
       "owner": "N01.01 native packaging owner",
       "migration_status": "inventoried-unmigrated",

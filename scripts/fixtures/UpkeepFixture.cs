@@ -106,6 +106,7 @@ namespace HomeBridge.BridgeTools
                     feed.stackCount = 20;
                     GenSpawn.Spawn(feed, origin + new IntVec3(6, 0, 5), map);
                     feed.SetForbidden(false, false);
+                    map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
                 }
                 if (restrictWorkers) {
                     Area_Allowed area;

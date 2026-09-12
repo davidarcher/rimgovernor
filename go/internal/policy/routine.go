@@ -30,6 +30,7 @@ const (
 )
 
 type RoutinePolicy struct {
+	AnimalUpkeep                                  AnimalUpkeepPolicy
 	MedicalReserve                                MedicalReservePolicy
 	MaxDevelopmentProjects                        int
 	FoodMinDays, FoodTargetDays, FootholdFoodDays float64
@@ -38,11 +39,14 @@ type RoutinePolicy struct {
 }
 
 func DefaultRoutinePolicy() RoutinePolicy {
-	return RoutinePolicy{MedicalReserve: DefaultMedicalReservePolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
+	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
 		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500}
 }
 
 func (p RoutinePolicy) Validate() error {
+	if !foodNumber(p.AnimalUpkeep.FeedMinimumDays) || !foodNumber(p.AnimalUpkeep.FeedTargetDays) || p.AnimalUpkeep.FeedTargetDays <= p.AnimalUpkeep.FeedMinimumDays {
+		return errors.New("invalid animal feed thresholds")
+	}
 	if p.MedicalReserve.MinimumPerColonist < 0 || p.MedicalReserve.TargetPerColonist <= p.MedicalReserve.MinimumPerColonist {
 		return errors.New("invalid medicine reserve thresholds")
 	}
@@ -66,6 +70,7 @@ func (p RoutinePolicy) Validate() error {
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the
 // separate native crop-capacity forecast; it never increases FoodDays.
 type RoutineFacts struct {
+	AnimalUpkeep   AnimalUpkeepObservation
 	MedicalReserve MedicalReserveObservation
 	// AvailableMethods is supplied by the configured runtime, never native facts.
 	AvailableMethods                                                           domain.Fact[[]GoalID]
@@ -102,6 +107,7 @@ func (g FootholdGates) Stable() bool {
 }
 
 type RoutineLatches struct {
+	Animals               AnimalUpkeepHistory
 	MedicalReserve        bool
 	Food, Cold, Hot, Wood bool
 	Upkeep                UpkeepHistory
@@ -177,6 +183,10 @@ func countCapacity(capacity, count domain.Fact[int64], multiplier int64) domain.
 // DetectRoutine ports colony_policy.criteria/priority_nodes for the common
 // survival goals. Family-specific needs join these same goals during review.
 func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (RoutineNeeds, error) {
+	animals, err := ReviewAnimalUpkeep(f.AnimalUpkeep, previous.Animals, p.AnimalUpkeep)
+	if err != nil {
+		return RoutineNeeds{}, err
+	}
 	medicineFacts := f.MedicalReserve
 	medicineFacts.Colonists = f.Colonists
 	medicine, err := ReviewMedicalReserve(medicineFacts, previous.MedicalReserve, p.MedicalReserve)
@@ -243,6 +253,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		wood = domain.Known(float64(n))
 	}
 	l := RoutineLatches{
+		Animals:        animals.History,
 		MedicalReserve: medicine.Active,
 		Upkeep:         upkeep.History,
 		Food:           latchValue(previous.Food, f.FoodDays, p.FoodMinDays, p.FoodTargetDays, false),
@@ -398,6 +409,36 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if !positive(medicalReserveRecovered) {
 		addGoal(MaintainMedicalReserves, medicalReservePriority)
 		r.Goals[len(r.Goals)-1].MethodUnavailable = true
+	}
+	animalContainment := domain.Unknown[bool]()
+	if targets, known := animals.Containment.Value(); known {
+		animalContainment = domain.Known(len(targets) == 0)
+	}
+	animalFeed := domain.Unknown[bool]()
+	if targets, known := animals.Feed.Value(); known {
+		animalFeed = domain.Known(len(targets) == 0)
+	}
+	for _, animalNeed := range []struct {
+		id        GoalID
+		recovered domain.Fact[bool]
+		active    bool
+	}{
+		{MaintainAnimalContainment, animalContainment, animals.History.Containment},
+		{MaintainAnimalFeed, animalFeed, len(animals.History.Feed) > 0},
+	} {
+		recovered := animalNeed.recovered
+		priority := 3
+		if _, known := recovered.Value(); !known && !animalNeed.active && !f.UpkeepIssued[animalNeed.id] {
+			priority = 4
+		}
+		if f.UpkeepIssued[animalNeed.id] {
+			recovered = domain.Known(false)
+		}
+		addAssessment(animalNeed.id, priority, recovered)
+		if !positive(recovered) {
+			addGoal(animalNeed.id, priority)
+			r.Goals[len(r.Goals)-1].MethodUnavailable = true
+		}
 	}
 	if methods, known := f.AvailableMethods.Value(); known {
 		available := map[GoalID]bool{}

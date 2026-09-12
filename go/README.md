@@ -54,7 +54,7 @@ Startup supply reviews retain the first known native forbidden-supply census.
 Fresh reads can shrink that cohort, but later player forbids cannot expand or
 revive it. Unknown reads preserve pending cells without proving recovery; Manual
 and direction changes preserve the cohort. World replacement and tick rewind
-initialize a new cohort. The current journal requires fresh schema-28 state.
+initialize a new cohort. The current journal requires fresh schema-29 state.
 These cells describe the startup need, not ownership or permission to issue an
 Allow order. That action family remains in G01.07b.
 
@@ -553,3 +553,9 @@ and whole-shell planner, project limits, resource reservations and player author
 Expansion waits until existing housing meets current needs and until pending beds
 finish. Targeted native acceptance covers the additional indoor place; whole-shell
 fallback also uses the separately accepted starter-shell construction path.
+
+Animal upkeep reviews retain containment risk and per-animal feed thresholds.
+Feed shares the observed diet/rot forecast with human consumers. Missing censuses
+remain unknown; a complete empty census clears animal needs. Release and slaughter
+directions suppress animal targets. The policy accepts player-directed herd
+exclusions; runtime herd-policy composition and animal execution remain pending.

@@ -3,6 +3,7 @@ package observation
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -27,6 +28,10 @@ func TestNativeUpkeepReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	var fixture struct {
+		Animals *struct {
+			Containment       []policy.PawnID
+			Initial, Retained []policy.AnimalFeedTarget
+		}
 		Medical map[string]struct {
 			Known, Active                     bool
 			Stock, Entry, Recovery, Replenish int64
@@ -70,6 +75,33 @@ func TestNativeUpkeepReplay(t *testing.T) {
 			}
 		}
 	}
+	if fixture.Animals != nil {
+		animals, known := projection.Facts.AnimalUpkeep.Animals.Value()
+		if !known || len(animals) < 3 {
+			t.Fatal("native animal fixture missing", animals)
+		}
+		previous := policy.AnimalUpkeepHistory{}
+		for _, a := range animals {
+			previous.Feed = append(previous.Feed, a.ID)
+		}
+		for _, phase := range []struct {
+			previous policy.AnimalUpkeepHistory
+			want     []policy.AnimalFeedTarget
+		}{{policy.AnimalUpkeepHistory{}, fixture.Animals.Initial}, {previous, fixture.Animals.Retained}} {
+			got, err := policy.ReviewAnimalUpkeep(projection.Facts.AnimalUpkeep, phase.previous, policy.DefaultAnimalUpkeepPolicy())
+			containment, ck := got.Containment.Value()
+			feed, fk := got.Feed.Value()
+			if err != nil || !ck || !fk || !reflect.DeepEqual(containment, fixture.Animals.Containment) || len(feed) != len(phase.want) {
+				t.Fatal(got, phase.want, err)
+			}
+			for i, row := range feed {
+				want := phase.want[i]
+				if row.ID != want.ID || math.Abs(row.RunwayDays-want.RunwayDays) > 1e-6 || math.Abs(row.Nutrition-want.Nutrition) > 1e-6 || row.TargetDays != want.TargetDays {
+					t.Fatal(row, want)
+				}
+			}
+		}
+	}
 	upkeep, err := policy.ReviewUpkeep(projection.Facts.Upkeep, policy.UpkeepHistory{}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -101,14 +133,28 @@ func TestNativeUpkeepReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(active.Goals) != 23 {
+	if len(active.Goals) != 25 {
 		t.Fatal("incomplete maintained goals")
 	}
 	medicalNeed := domain.NeedRecovered
 	if fixture.Medical != nil && fixture.Medical["initial"].Active {
 		medicalNeed = domain.NeedDeficit
 	}
+	animalNeeds := map[policy.GoalID]domain.NeedState{}
+	if fixture.Animals != nil {
+		animalNeeds[policy.MaintainAnimalContainment] = domain.NeedRecovered
+		animalNeeds[policy.MaintainAnimalFeed] = domain.NeedRecovered
+		if len(fixture.Animals.Containment) > 0 {
+			animalNeeds[policy.MaintainAnimalContainment] = domain.NeedDeficit
+		}
+		if len(fixture.Animals.Initial) > 0 {
+			animalNeeds[policy.MaintainAnimalFeed] = domain.NeedDeficit
+		}
+	}
 	for i, binding := range active.Review.Goals {
+		if want, ok := animalNeeds[binding.Need]; ok && active.Goals[i].Goal.Need != want {
+			t.Fatal(active.Goals[i], want)
+		}
 		if fixture.Medical != nil && binding.Need == policy.MaintainMedicalReserves {
 			g, err := db.LoadGoal(ctx, binding.Goal)
 			if err != nil || g.Goal.Need != medicalNeed {
@@ -140,6 +186,12 @@ func TestNativeUpkeepReplay(t *testing.T) {
 		t.Fatal(retained, err)
 	}
 	for _, binding := range retained.Goals {
+		if want, ok := animalNeeds[binding.Need]; ok {
+			g, err := db.LoadGoal(ctx, binding.Goal)
+			if err != nil || g.Goal.Need != want || g.Goal.Status != domain.GoalInvalidated {
+				t.Fatal(g, want, err)
+			}
+		}
 		if fixture.Medical != nil && binding.Need == policy.MaintainMedicalReserves {
 			g, err := db.LoadGoal(ctx, binding.Goal)
 			if err != nil || g.Goal.Need != medicalNeed {
