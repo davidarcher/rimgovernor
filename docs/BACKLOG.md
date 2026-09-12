@@ -706,8 +706,11 @@ expand these into another nested task tree; remove a row when its outcome is met
   The starter shelter compiler now prefers existing indoor space, then admits a
   whole native-grounded wood wall-and-door shell with observed door dependencies.
   A bounded post-construction clock allowance waits for normal roofing; furnishing
-  requires fresh roofed indoor facts. Fast validation and targeted native acceptance
-  of shell-to-sleeping composition are in progress.
+  requires fresh roofed indoor facts. Targeted native acceptance verifies all 32
+  shell pieces and three sleeping spots completed with single attempts, native
+  indoor capacity recovery, a satisfied shelter goal, the complete operation trace,
+  Manual invalidation and disabled restart. A normal clock deadline reached during
+  renewal preflight preserves authority only after fresh matching completion proof.
   Further need inputs, method selection and execution composition for
   additional routine methods remain open.
 
